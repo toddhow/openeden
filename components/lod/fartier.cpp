@@ -79,6 +79,7 @@ namespace Lod
                 // 61 tiles and 9.6 MiB (high tier). Every tier keeps that set whole. The budget governs only the tiles
                 // inside the live range: those past it are drawn whatever it says (second review).
                 settings.mTerrainBudgetBytes = 16 * mebibyte;
+                settings.mEvictFarClusters = true; // task 0060, decision of 2026-11-04
                 break;
             case FarTier::Low:
                 settings.mFarLevels = 4;
@@ -87,6 +88,7 @@ namespace Lod
                 settings.mFarTextureMaxSize = 128;
                 settings.mResidentBudgetBytes = 320 * mebibyte;
                 settings.mTerrainBudgetBytes = 24 * mebibyte;
+                settings.mEvictFarClusters = true;
                 break;
             case FarTier::Medium:
                 settings.mFarLevels = 5;

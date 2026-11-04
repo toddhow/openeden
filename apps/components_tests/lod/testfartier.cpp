@@ -107,6 +107,17 @@ namespace
         }
     }
 
+    // Task 0060, toddhow's decision of 2026-11-04 (option b): only the two weakest tiers evict far clusters.
+    TEST(LodFarTier, only_the_minimal_and_low_tiers_evict_far_clusters)
+    {
+        EXPECT_TRUE(farTierSettings(FarTier::Minimal).mEvictFarClusters);
+        EXPECT_TRUE(farTierSettings(FarTier::Low).mEvictFarClusters);
+        EXPECT_FALSE(farTierSettings(FarTier::Medium).mEvictFarClusters);
+        EXPECT_FALSE(farTierSettings(FarTier::High).mEvictFarClusters);
+        // The default of a settings object nobody filled in is the safe one: nothing is evicted.
+        EXPECT_FALSE(FarTierSettings{}.mEvictFarClusters);
+    }
+
     TEST(LodResolveFarLevels, zero_and_negative_mean_the_tier)
     {
         EXPECT_EQ(resolveFarLevels(0, 4), 4u);

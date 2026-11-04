@@ -125,6 +125,10 @@ namespace Lod
         std::uint32_t mBlocked = 0; // replaceable candidates the budget left out this call
         std::uint32_t mCooling = 0; // wanted items, not held or loading, that a cooldown held back this call
         bool mOverBudget = false;
+        // Of the committed bytes after the plan, those of items with no fallback (not replaceable), which the budget
+        // cannot touch: what an overrun is made of (task 0060, far cluster eviction). The remainder is what pressure
+        // could still free.
+        std::uint64_t mNoFallbackBytes = 0;
 
     private:
         friend void planResidency(std::span<const ResidencyItem>, const ResidencyParams&, ResidencyPlan&);
@@ -209,6 +213,66 @@ namespace Lod
     /// resized to the tile count and overwritten.
     void refinementReleases(std::span<const RefinementTile> tiles, std::vector<std::uint32_t>& missing,
         std::vector<std::uint64_t>& releases);
+
+    // ---- Far cluster eviction (task 0060, toddhow's decision of 2026-11-04, option b) -----------------------------
+    //
+    // In map view the clusters past the live paging range have no fallback, so the governing rule kept them whatever
+    // the budget said: a 24 MiB budget held about 150 MiB. On the minimal and low tiers (FarTierSettings::
+    // mEvictFarClusters) such a cluster counts as replaceable when the GROUND beneath it is drawn: evicting it then
+    // loses its objects only, never the land. The planner is not told anything new: the client sets the cluster's
+    // ResidencyItem::mReplaceable to (live objects draw it) || clusterGroundFallback(...), and passes the same flag to
+    // cancelEviction, so an eviction in progress is cancelled the moment the ground beneath is lost.
+
+    /// A drawn terrain tile's square, in world units (LodTerrain's built tiles).
+    struct GroundSquare
+    {
+        double mOriginX = 0;
+        double mOriginY = 0;
+        double mSide = 0;
+    };
+
+    /// The most cells along one side of a cluster square that groundDrawnOver examines (cluster levels 1 to 4 are 2, 4,
+    /// 8 and 16 cells; the bound keeps the work per call at most 1024 cell tests).
+    inline constexpr std::uint32_t maxGroundCellsPerSide = 32;
+
+    /// Frames the ground beneath a cluster must have been drawn, without a break, before the cluster counts as
+    /// evictable (about half a second at 60 frames a second). Losing it counts at once. A starting value: it keeps a
+    /// tile that is being replaced (coarse to fine, a coverage rebuild) from flickering the flag.
+    inline constexpr std::int32_t groundStableFrames = 30;
+
+    /// Is the ground of the square [originX, originX + side] x [originY, originY + side] drawn? Every cell of it
+    /// (`cellSize` world units on a side; the square is a whole number of cells, at most maxGroundCellsPerSide per
+    /// side) must be wholly within `range` of (x, y) on the ground plane (the live terrain draws it: Paging reaches
+    /// that far), or have its centre inside one of the `drawn` squares. A bad cell size, a square that is not a whole
+    /// number of cells or is too large, a range that is not positive and finite, or any cell not drawn, gives false.
+    /// No drawn squares and a square wholly out of range: false.
+    bool groundDrawnOver(double x, double y, double range, std::span<const GroundSquare> drawn, double originX,
+        double originY, double side, double cellSize) noexcept;
+
+    /// The count of consecutive frames the ground has been drawn: one more when it is (saturating), 0 when it is not.
+    std::int32_t stepGroundFrames(std::int32_t frames, bool groundDrawn) noexcept;
+
+    /// Is a cluster that the live objects do not draw nevertheless replaceable, because evicting it only loses its
+    /// objects? Yes when the tier evicts far clusters, the live objects exist (object paging on: with it off the
+    /// clusters are the only distant objects anywhere and none is evicted), the cluster's square is NOT wholly within
+    /// the paging range (what is inside it is the live objects' business, Lod::clusterReplaceable), and the ground
+    /// beneath has been drawn for groundStableFrames in a row.
+    bool clusterGroundFallback(
+        bool evictFar, bool liveObjectsPage, bool squareWhollyInRange, std::int32_t groundFrames) noexcept;
+
+    /// Frames a cluster that is not loaded waits for its ground before the planner treats it as an item with no
+    /// fallback (admitted whatever the budget says). A candidate whose ground is not (stably) drawn is DEFERRED, not
+    /// admitted: a load that the budget would have blocked a moment later is the churn the Sim tests found (a cluster
+    /// loaded in the 30 frames before its ground counted, or in the one frame the ground flickered, and evicted
+    /// again). After this many frames without ground (the sea, a tile that failed to build) it is admitted as an item
+    /// with no fallback, as before the rule. A starting value: about two seconds at 60 frames a second.
+    inline constexpr std::int32_t groundWaitFrames = 120;
+
+    /// Is a cluster that is not held or loading kept waiting (not wanted by the planner this frame) for its ground?
+    /// Yes when the rule applies to it (same conditions as clusterGroundFallback), its ground has not been drawn for
+    /// groundStableFrames in a row, and has been missing for fewer than groundWaitFrames in a row.
+    bool clusterWaitsForGround(bool evictFar, bool liveObjectsPage, bool squareWhollyInRange, std::int32_t groundFrames,
+        std::int32_t missingFrames) noexcept;
 }
 
 #endif

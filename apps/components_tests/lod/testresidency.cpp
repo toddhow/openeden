@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include <components/lod/residency.hpp>
@@ -1548,5 +1550,609 @@ namespace
         for (; frames < 200 && sim.mEntries[0].mPhase != ClientSim::Held; ++frames)
             sim.step(params, result);
         EXPECT_LE(frames, sim.mLoadFrames + 2);
+    }
+}
+
+// Task 0060, far cluster eviction (toddhow's decision of 2026-11-04, option b): the ground test, the fallback rule, the
+// planner's reporting and a Sim of the cluster client with the rule. The Sim here (FarSim) is its own copy of the
+// client's order, not a change to ClientSim, so that the earlier tests are untouched.
+namespace
+{
+    using namespace Lod;
+
+    constexpr std::uint64_t farMib = 1024ull * 1024;
+    constexpr double cell = 8192;
+
+    // ---- groundDrawnOver ------------------------------------------------------------------------------------------
+
+    TEST(LodGroundDrawn, a_cell_wholly_inside_the_paging_range_is_drawn_by_the_live_terrain)
+    {
+        // Camera at the origin, range 40000: the cell [0, 8192]^2 has its far corner 11585 away.
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, {}, 0, 0, cell, cell));
+    }
+
+    TEST(LodGroundDrawn, a_cell_past_the_range_with_no_drawn_tile_is_not_drawn)
+    {
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, {}, 80000, 0, cell, cell));
+    }
+
+    TEST(LodGroundDrawn, a_cell_past_the_range_inside_a_drawn_tile_is_drawn)
+    {
+        const GroundSquare tiles[] = { { 65536, -32768, 65536 } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, tiles, 81920, 0, cell, cell));
+    }
+
+    TEST(LodGroundDrawn, a_cluster_square_needs_every_cell_covered)
+    {
+        // A 2 x 2 cell cluster far away; three of its cells are covered by tiles, the fourth is not.
+        const double ox = 100000;
+        const double oy = 0;
+        const GroundSquare threeCells[] = { { ox, oy, cell }, { ox + cell, oy, cell }, { ox, oy + cell, cell } };
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, threeCells, ox, oy, 2 * cell, cell));
+        const GroundSquare fourCells[]
+            = { { ox, oy, cell }, { ox + cell, oy, cell }, { ox, oy + cell, cell }, { ox + cell, oy + cell, cell } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, fourCells, ox, oy, 2 * cell, cell));
+        // One tile as big as the cluster covers it, and so do tiles that merely overlap it from the sides.
+        const GroundSquare big[] = { { ox, oy, 2 * cell } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, big, ox, oy, 2 * cell, cell));
+        const GroundSquare wider[] = { { ox - cell, oy - cell, 4 * cell } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, wider, ox, oy, 2 * cell, cell));
+    }
+
+    TEST(LodGroundDrawn, cells_inside_the_range_and_cells_in_tiles_may_share_a_square)
+    {
+        // A 2 x 2 cell square with the camera at its south-west corner and a range of 12000: the south-west cell's far
+        // corner is 11585 away (the live terrain draws it), the others are farther.
+        const double range = 12000;
+        EXPECT_FALSE(groundDrawnOver(0, 0, range, {}, 0, 0, 2 * cell, cell));
+        const GroundSquare two[] = { { 0, cell, 2 * cell } }; // the north row only
+        EXPECT_FALSE(groundDrawnOver(0, 0, range, two, 0, 0, 2 * cell, cell)); // the south-east cell has no ground
+        const GroundSquare three[] = { { cell, 0, cell }, { 0, cell, 2 * cell } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, range, three, 0, 0, 2 * cell, cell));
+    }
+
+    TEST(LodGroundDrawn, a_cell_only_partly_inside_the_range_is_not_live_ground)
+    {
+        // The near corner is inside, the far corner is not: the live terrain does not draw all of it.
+        EXPECT_FALSE(groundDrawnOver(0, 0, 9000, {}, 0, 0, cell, cell));
+    }
+
+    TEST(LodGroundDrawn, bad_inputs_are_not_drawn)
+    {
+        const GroundSquare all[] = { { -1e9, -1e9, 2e9 } };
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, cell, 0)); // no cell size
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, cell, -cell));
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, cell, std::numeric_limits<double>::quiet_NaN()));
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, 0, cell)); // no side
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, 1.5 * cell, cell)); // not a whole number of cells
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, 0, 0, 33 * cell, cell)); // more than 32 cells a side
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, all, std::numeric_limits<double>::infinity(), 0, cell, cell));
+        EXPECT_FALSE(groundDrawnOver(0, 0, std::numeric_limits<double>::quiet_NaN(), {}, 0, 0, cell, cell));
+        EXPECT_FALSE(groundDrawnOver(0, 0, 0, {}, 0, 0, cell, cell)); // no range, no tile
+        // The largest square that is examined is still answered.
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, all, 0, 0, 32 * cell, cell));
+    }
+
+    TEST(LodGroundDrawn, a_tile_that_does_not_reach_the_cell_centre_does_not_count)
+    {
+        // The tile ends just before the cell's centre: the cell is not covered.
+        const GroundSquare tiles[] = { { 100000, 0, cell * 0.5 - 1 } };
+        EXPECT_FALSE(groundDrawnOver(0, 0, 40000, tiles, 100000, 0, cell, cell));
+        const GroundSquare enough[] = { { 100000, 0, cell * 0.5 + 1 } };
+        EXPECT_TRUE(groundDrawnOver(0, 0, 40000, enough, 100000, 0, cell, cell));
+    }
+
+    // ---- stepGroundFrames and clusterGroundFallback ---------------------------------------------------------------
+
+    TEST(LodGroundFrames, counts_up_while_drawn_and_drops_to_zero_at_once)
+    {
+        std::int32_t frames = 0;
+        for (int i = 1; i <= 5; ++i)
+            frames = stepGroundFrames(frames, true);
+        EXPECT_EQ(frames, 5);
+        frames = stepGroundFrames(frames, false);
+        EXPECT_EQ(frames, 0);
+        EXPECT_EQ(
+            stepGroundFrames(std::numeric_limits<std::int32_t>::max(), true), std::numeric_limits<std::int32_t>::max());
+    }
+
+    TEST(LodGroundFallback, needs_the_tier_the_live_objects_a_square_past_the_range_and_stable_ground)
+    {
+        const std::int32_t stable = groundStableFrames;
+        EXPECT_TRUE(clusterGroundFallback(true, true, false, stable));
+        EXPECT_FALSE(clusterGroundFallback(false, true, false, stable)); // the tier keeps every cluster
+        EXPECT_FALSE(clusterGroundFallback(true, false, false, stable)); // object paging off: nothing else is distant
+        EXPECT_FALSE(clusterGroundFallback(true, true, true, stable)); // wholly inside: the live objects' business
+        EXPECT_FALSE(clusterGroundFallback(true, true, false, stable - 1)); // the ground has not been drawn long enough
+        EXPECT_FALSE(clusterGroundFallback(true, true, false, 0));
+        EXPECT_TRUE(clusterGroundFallback(true, true, false, stable + 1000));
+    }
+
+    TEST(LodGroundWait, a_candidate_waits_for_its_ground_instead_of_being_admitted_as_an_item_with_no_fallback)
+    {
+        const std::int32_t stable = groundStableFrames;
+        const std::int32_t wait = groundWaitFrames;
+        // Applies: tier evicts, live objects exist, square past the range; ground not stable and missing for a while.
+        EXPECT_TRUE(clusterWaitsForGround(true, true, false, 0, 1));
+        EXPECT_TRUE(clusterWaitsForGround(true, true, false, 0, wait - 1));
+        EXPECT_TRUE(clusterWaitsForGround(true, true, false, stable - 1, 0)); // drawn, but not yet for long enough
+        // Waited long enough: admitted as an item with no fallback (the sea, a tile that failed to build).
+        EXPECT_FALSE(clusterWaitsForGround(true, true, false, 0, wait));
+        EXPECT_FALSE(clusterWaitsForGround(true, true, false, 0, wait + 1000));
+        // Stable ground: no waiting (it is replaceable).
+        EXPECT_FALSE(clusterWaitsForGround(true, true, false, stable, 0));
+        // The rule does not apply: nothing waits.
+        EXPECT_FALSE(clusterWaitsForGround(false, true, false, 0, 1));
+        EXPECT_FALSE(clusterWaitsForGround(true, false, false, 0, 1));
+        EXPECT_FALSE(clusterWaitsForGround(true, true, true, 0, 1));
+    }
+
+    TEST(LodGroundWait, the_wait_is_longer_than_the_stable_count)
+    {
+        EXPECT_GT(groundWaitFrames, groundStableFrames);
+    }
+
+    TEST(LodGroundFallback, the_stable_count_is_a_positive_number_of_frames)
+    {
+        EXPECT_GT(groundStableFrames, 0);
+    }
+
+    // ---- the planner's report -------------------------------------------------------------------------------------
+
+    ResidencyItem farHeld(std::uint64_t bytes, float priority, bool replaceable)
+    {
+        ResidencyItem item;
+        item.mBytes = bytes;
+        item.mPriority = priority;
+        item.mHeld = true;
+        item.mWanted = true;
+        item.mReplaceable = replaceable;
+        return item;
+    }
+
+    TEST(LodFarEviction, pressure_frees_the_farthest_replaceable_items_first_and_keeps_the_rest)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 20 * farMib;
+        std::vector<ResidencyItem> items;
+        for (int i = 0; i < 5; ++i)
+            items.push_back(farHeld(6 * farMib, 10000.f + 1000.f * static_cast<float>(i), true)); // 30 MiB, far
+        ResidencyPlan plan;
+        planResidency(items, params, plan);
+        // 30 MiB against a budget of 20: freeing down to 18 takes the two farthest (indices 4 and 3).
+        ASSERT_EQ(plan.mFree.size(), 2u);
+        EXPECT_EQ(plan.mFree[0], 4u);
+        EXPECT_EQ(plan.mFree[1], 3u);
+        EXPECT_FALSE(plan.mOverBudget);
+        EXPECT_EQ(plan.mHeldAfter, 18 * farMib);
+        EXPECT_EQ(plan.mNoFallbackBytes, 0u);
+    }
+
+    TEST(LodFarEviction, the_same_items_without_the_fallback_are_kept_and_the_overrun_is_reported)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 20 * farMib;
+        std::vector<ResidencyItem> items;
+        for (int i = 0; i < 5; ++i)
+            items.push_back(farHeld(6 * farMib, 10000.f + 1000.f * static_cast<float>(i), false));
+        ResidencyPlan plan;
+        planResidency(items, params, plan);
+        EXPECT_TRUE(plan.mFree.empty());
+        EXPECT_TRUE(plan.mOverBudget);
+        EXPECT_EQ(plan.mHeldAfter, 30 * farMib);
+        EXPECT_EQ(plan.mNoFallbackBytes, 30 * farMib);
+    }
+
+    TEST(LodFarEviction, a_pinned_and_a_near_no_fallback_item_stay_while_far_ones_go)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 20 * farMib;
+        ResidencyItem pinned = farHeld(6 * farMib, 90000.f, true);
+        pinned.mWanted = false;
+        pinned.mPinned = true; // a hand-over in progress: never freed
+        ResidencyItem noFallback = farHeld(6 * farMib, 100.f, false);
+        const std::vector<ResidencyItem> items
+            = { pinned, noFallback, farHeld(6 * farMib, 20000.f, true), farHeld(6 * farMib, 30000.f, true) };
+        ResidencyPlan plan;
+        planResidency(items, params, plan);
+        for (const std::uint32_t freed : plan.mFree)
+        {
+            EXPECT_NE(freed, 0u);
+            EXPECT_NE(freed, 1u);
+        }
+        EXPECT_FALSE(plan.mFree.empty());
+        EXPECT_EQ(plan.mNoFallbackBytes, 6 * farMib);
+    }
+
+    TEST(LodFarEviction, the_no_fallback_bytes_leave_out_leaving_items_and_count_loading_ones)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = 100 * farMib;
+        ResidencyItem leaving = farHeld(5 * farMib, 100.f, false);
+        leaving.mLeaving = true;
+        ResidencyItem loading;
+        loading.mBytes = 3 * farMib;
+        loading.mLoading = true;
+        loading.mWanted = true;
+        loading.mReplaceable = false;
+        const std::vector<ResidencyItem> items
+            = { farHeld(4 * farMib, 200.f, false), farHeld(3 * farMib, 300.f, true), leaving, loading };
+        ResidencyPlan plan;
+        planResidency(items, params, plan);
+        EXPECT_EQ(plan.mNoFallbackBytes, 7 * farMib); // 4 held + 3 loading; the leaving 5 are already counted as gone
+    }
+
+    // ---- the cluster client as a Sim, with the rule ---------------------------------------------------------------
+
+    // The cluster client's order (MWRender::LodClusters::update, with a budget), for entries that are squares 1000 wide
+    // on the x axis: cooldowns, the fallback (live objects, then the ground rule), a cancelled free, arrivals (one a
+    // frame), the plan, the hand-over. `mEvictFar` is the tier's flag; `mGround(frame, index)` says whether the ground
+    // beneath the entry is drawn this frame.
+    struct FarSim
+    {
+        enum Phase
+        {
+            Absent,
+            Loading,
+            Held,
+            Leaving,
+        };
+        struct Entry
+        {
+            std::uint64_t mTrueBytes = 6 * farMib;
+            std::uint64_t mEstimate = farMib; // the first estimate is low, as the client's
+            bool mKnown = false;
+            double mFarX = 0; // the square [mFarX - 1000, mFarX] x [0, 1000]
+            bool mLiveReplaceable = false;
+            std::int32_t mGroundFrames = 0;
+            std::int32_t mMissingFrames = 0;
+            bool mFallback = false;
+            Phase mPhase = Absent;
+            int mTimer = 0;
+            int mLiveWait = 0;
+            int mCooldown = 0;
+            bool mEvicted = false;
+            bool mLoadDone = false;
+            std::uint32_t mLoads = 0;
+            std::uint32_t mFrees = 0;
+            std::uint32_t mCancels = 0;
+        };
+        std::vector<Entry> mEntries;
+        std::vector<ResidencyItem> mItems;
+        bool mEvictFar = true;
+        double mEyeX = 0;
+        double mRange = 40000;
+        std::function<bool(int, std::size_t)> mGround = [](int, std::size_t) { return true; };
+        int mFrame = 0;
+        // Counted every frame:
+        std::uint32_t mFreedWithoutFallback = 0; // a free whose item had no fallback when the plan was made
+        std::uint32_t mHoles = 0; // an evicted item gone with no fallback behind it
+        std::uint64_t mWorstHeldBytes = 0; // the most true bytes held (not leaving) at the end of any frame
+        std::uint32_t mOverBudgetFrames = 0;
+        std::vector<std::vector<std::uint32_t>> mLoadLog; // per frame: the loads the plan started
+        std::vector<std::vector<std::uint32_t>> mFreeLog; // per frame: the frees the plan chose
+
+        void step(const ResidencyParams& params, ResidencyPlan& plan)
+        {
+            mItems.resize(mEntries.size());
+            for (std::size_t i = 0; i < mEntries.size(); ++i)
+            {
+                Entry& entry = mEntries[i];
+                if (entry.mCooldown > 0)
+                    --entry.mCooldown;
+                const double originX = entry.mFarX - 1000;
+                entry.mLiveReplaceable
+                    = clusterReplaceable(entry.mLiveReplaceable, true, mEyeX, 0, originX, 0, 1000, mRange);
+                const bool ground = mGround(mFrame, i);
+                entry.mGroundFrames = stepGroundFrames(entry.mGroundFrames, ground);
+                entry.mMissingFrames = stepGroundFrames(entry.mMissingFrames, !ground);
+                const bool wholly = squareWithinRange(mEyeX, 0, originX, 0, 1000, mRange);
+                entry.mFallback
+                    = entry.mLiveReplaceable || clusterGroundFallback(mEvictFar, true, wholly, entry.mGroundFrames);
+                if (cancelEviction(entry.mEvicted, entry.mPhase == Leaving, entry.mFallback))
+                {
+                    entry.mPhase = Held;
+                    entry.mEvicted = false;
+                    ++entry.mCancels;
+                }
+                if (entry.mPhase == Loading && --entry.mTimer <= 0)
+                    entry.mLoadDone = true;
+            }
+            for (Entry& entry : mEntries)
+            {
+                if (entry.mPhase != Loading || !entry.mLoadDone)
+                    continue;
+                entry.mLoadDone = false;
+                entry.mKnown = true;
+                entry.mPhase = entry.mEvicted ? Absent : Held;
+                break; // one build a frame
+            }
+            for (std::size_t i = 0; i < mEntries.size(); ++i)
+            {
+                const Entry& entry = mEntries[i];
+                ResidencyItem& item = mItems[i];
+                item = ResidencyItem{};
+                item.mHeld = entry.mPhase == Held || entry.mPhase == Leaving;
+                item.mLeaving = entry.mPhase == Leaving;
+                item.mLoading = entry.mPhase == Loading;
+                item.mWanted = !entry.mEvicted;
+                // A cluster that is not loaded waits for its ground (the client's rule).
+                if (entry.mPhase == Absent
+                    && clusterWaitsForGround(mEvictFar, true,
+                        squareWithinRange(mEyeX, 0, entry.mFarX - 1000, 0, 1000, mRange), entry.mGroundFrames,
+                        entry.mMissingFrames))
+                    item.mWanted = false;
+                item.mReplaceable = entry.mFallback;
+                item.mPriority = static_cast<float>(std::abs(entry.mFarX - 500 - mEyeX));
+                item.mCooldown = entry.mCooldown;
+                item.mBytes = item.mHeld || entry.mKnown ? entry.mTrueBytes : entry.mEstimate;
+            }
+            planResidency(mItems, params, plan);
+            mLoadLog.push_back(plan.mLoad);
+            mFreeLog.push_back(plan.mFree);
+            if (plan.mOverBudget)
+                ++mOverBudgetFrames;
+            for (const std::uint32_t index : plan.mFree)
+            {
+                Entry& entry = mEntries[index];
+                if (!entry.mFallback)
+                    ++mFreedWithoutFallback;
+                if (entry.mPhase != Held)
+                    continue;
+                entry.mPhase = Leaving;
+                // The live objects take the cells back only where they reach; beyond the range nothing waits.
+                entry.mLiveWait = entry.mLiveReplaceable ? 5 : 0;
+                entry.mTimer = 25;
+                entry.mEvicted = true;
+                ++entry.mFrees;
+            }
+            for (const std::uint32_t index : plan.mLoad)
+            {
+                mEntries[index].mPhase = Loading;
+                mEntries[index].mTimer = 3;
+                mEntries[index].mLoadDone = false;
+                ++mEntries[index].mLoads;
+            }
+            for (Entry& entry : mEntries)
+            {
+                if (entry.mPhase != Leaving)
+                    continue;
+                if (entry.mLiveWait > 0)
+                {
+                    if (entry.mLiveReplaceable)
+                        --entry.mLiveWait;
+                    continue;
+                }
+                if (--entry.mTimer <= 0)
+                {
+                    if (!entry.mFallback)
+                        ++mHoles; // gone with nothing behind it (cancelEviction should have kept it)
+                    entry.mPhase = Absent;
+                    entry.mEvicted = false;
+                    entry.mCooldown = 60;
+                }
+            }
+            std::uint64_t held = 0;
+            for (const Entry& entry : mEntries)
+                if (entry.mPhase == Held)
+                    held += entry.mTrueBytes;
+            mWorstHeldBytes = std::max(mWorstHeldBytes, held);
+            ++mFrame;
+        }
+
+        std::uint32_t totalLoads() const
+        {
+            std::uint32_t total = 0;
+            for (const Entry& entry : mEntries)
+                total += entry.mLoads;
+            return total;
+        }
+        std::size_t heldCount() const
+        {
+            std::size_t count = 0;
+            for (const Entry& entry : mEntries)
+                count += entry.mPhase == Held ? 1 : 0;
+            return count;
+        }
+    };
+
+    FarSim makeFarSim(std::size_t count, bool evictFar)
+    {
+        FarSim sim;
+        sim.mEvictFar = evictFar;
+        sim.mEntries.resize(count);
+        for (std::size_t i = 0; i < count; ++i)
+            sim.mEntries[i].mFarX = 45000 + 1000.0 * static_cast<double>(i); // all past the 40000 range at eye 0
+        return sim;
+    }
+
+    ResidencyParams farParams(std::uint64_t budget)
+    {
+        ResidencyParams params;
+        params.mBudgetBytes = budget;
+        params.mKeepFrames = 0;
+        params.mMaxLoadsInFlight = 2;
+        params.mMaxLoadsPerCall = 2;
+        params.mNearestFirst = true;
+        return params;
+    }
+
+    TEST(LodFarEvictionSim, a_still_camera_settles_within_the_budget_with_the_nearest_clusters_held)
+    {
+        FarSim sim = makeFarSim(40, true);
+        const ResidencyParams params = farParams(60 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 3000; ++frame)
+            sim.step(params, plan);
+        // The low first estimates overshoot by the loads in flight, not more.
+        EXPECT_LE(sim.mWorstHeldBytes, 60 * farMib + 12 * farMib);
+        // The last frames: nothing moves any more.
+        std::size_t actionsLate = 0;
+        for (std::size_t f = sim.mLoadLog.size() - 500; f < sim.mLoadLog.size(); ++f)
+            actionsLate += sim.mLoadLog[f].size() + sim.mFreeLog[f].size();
+        EXPECT_EQ(actionsLate, 0u);
+        EXPECT_LE(sim.heldCount() * 6 * farMib, 60 * farMib);
+        EXPECT_GE(sim.heldCount(), 8u); // not empty: the budget is used
+        // The ones held are the nearest.
+        for (std::size_t i = 0; i < sim.heldCount(); ++i)
+            EXPECT_EQ(sim.mEntries[i].mPhase, FarSim::Held) << "entry " << i;
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        EXPECT_EQ(sim.mHoles, 0u);
+    }
+
+    TEST(LodFarEvictionSim, the_tiers_that_do_not_evict_keep_every_cluster_and_report_the_overrun)
+    {
+        FarSim sim = makeFarSim(40, false);
+        const ResidencyParams params = farParams(60 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 3000; ++frame)
+            sim.step(params, plan);
+        EXPECT_EQ(sim.heldCount(), 40u);
+        EXPECT_EQ(sim.totalLoads(), 40u);
+        for (const FarSim::Entry& entry : sim.mEntries)
+            EXPECT_EQ(entry.mFrees, 0u);
+        EXPECT_TRUE(plan.mOverBudget);
+        EXPECT_EQ(plan.mNoFallbackBytes, 40 * 6 * farMib);
+    }
+
+    TEST(LodFarEvictionSim, a_climb_that_slides_the_window_loads_each_cluster_a_bounded_number_of_times)
+    {
+        FarSim sim = makeFarSim(40, true);
+        const ResidencyParams params = farParams(60 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 6000; ++frame)
+        {
+            sim.mEyeX = 10.0 * frame; // 60000 units in 6000 frames: entries come inside the live range one by one
+            sim.step(params, plan);
+        }
+        for (std::size_t i = 0; i < sim.mEntries.size(); ++i)
+            EXPECT_LE(sim.mEntries[i].mLoads, 3u) << "entry " << i;
+        // The window of about ten clusters slides over 40 entries: about one load per entry, not a cycle.
+        EXPECT_LE(sim.totalLoads(), 70u);
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        EXPECT_EQ(sim.mHoles, 0u);
+        EXPECT_LE(sim.mWorstHeldBytes, 60 * farMib + 12 * farMib);
+    }
+
+    TEST(LodFarEvictionSim, ground_that_flickers_every_other_frame_never_makes_a_cluster_evictable)
+    {
+        FarSim sim = makeFarSim(20, true);
+        sim.mGround = [](int frame, std::size_t) { return frame % 2 == 0; };
+        const ResidencyParams params = farParams(30 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 2000; ++frame)
+            sim.step(params, plan);
+        for (const FarSim::Entry& entry : sim.mEntries)
+        {
+            EXPECT_EQ(entry.mFrees, 0u);
+            EXPECT_EQ(entry.mCancels, 0u);
+            EXPECT_LE(entry.mLoads, 1u);
+        }
+    }
+
+    TEST(LodFarEvictionSim, ground_lost_for_a_frame_now_and_then_causes_no_evict_and_cancel_cycle)
+    {
+        FarSim sim = makeFarSim(20, true);
+        // Drawn for 100 frames, lost for one, again and again.
+        sim.mGround = [](int frame, std::size_t) { return frame % 101 != 100; };
+        const ResidencyParams params = farParams(30 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 6000; ++frame)
+            sim.step(params, plan);
+        for (const FarSim::Entry& entry : sim.mEntries)
+        {
+            // An eviction is cancelled at most once per loss, and an item is not freed again right after: bounded.
+            EXPECT_LE(entry.mLoads, 4u);
+            EXPECT_LE(entry.mFrees, 4u);
+        }
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        EXPECT_EQ(sim.mHoles, 0u);
+    }
+
+    TEST(LodFarEvictionSim, ground_lost_for_good_makes_the_cluster_a_no_fallback_item_that_is_loaded_and_kept)
+    {
+        FarSim sim = makeFarSim(2, true);
+        // Entry 1's ground is lost for good from frame 200 on; until then it is blocked by the budget.
+        sim.mGround = [](int frame, std::size_t index) { return index != 1 || frame < 200; };
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        const ResidencyParams params = farParams(7 * farMib); // room for one
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 199; ++frame)
+            sim.step(params, plan);
+        ASSERT_EQ(sim.mEntries[0].mPhase, FarSim::Held);
+        ASSERT_EQ(sim.mEntries[1].mPhase, FarSim::Absent); // blocked by the budget, its ground is drawn
+        for (int frame = 0; frame < 400; ++frame)
+            sim.step(params, plan);
+        // After waiting groundWaitFrames it is an item with no fallback: loaded whatever the budget says. The budget
+        // then costs the other one its place (entry 0 still has its ground, so it is the one evicted).
+        EXPECT_EQ(sim.mEntries[1].mPhase, FarSim::Held);
+        EXPECT_EQ(sim.mEntries[0].mPhase, FarSim::Absent);
+        EXPECT_EQ(sim.mEntries[0].mFrees, 1u);
+        EXPECT_EQ(sim.mHoles, 0u);
+        EXPECT_EQ(sim.mFreedWithoutFallback, 0u);
+        EXPECT_FALSE(plan.mOverBudget);
+        EXPECT_EQ(plan.mNoFallbackBytes, 6 * farMib); // entry 1 is the bytes the budget cannot touch
+    }
+
+    TEST(LodFarEvictionSim, ground_lost_during_the_hand_over_cancels_the_eviction)
+    {
+        FarSim sim = makeFarSim(2, true);
+        sim.mEntries[1].mFarX = 120000;
+        for (FarSim::Entry& entry : sim.mEntries)
+            entry.mEstimate = entry.mTrueBytes;
+        // Both have ground, room for one. Entry 0 is nearer at first; when the eye moves, entry 1 is much nearer and
+        // takes entry 0's room: entry 0 is freed. Its ground is lost while it fades out.
+        sim.mGround = [](int frame, std::size_t index) { return index != 0 || frame < 400; };
+        const ResidencyParams params = farParams(7 * farMib);
+        ResidencyPlan plan;
+        for (int frame = 0; frame < 300; ++frame)
+            sim.step(params, plan);
+        ASSERT_EQ(sim.mEntries[0].mPhase, FarSim::Held);
+        sim.mEyeX = 100000; // entry 1 is now the nearer (20500 against 55500 units)
+        int cancelled = 0;
+        for (int frame = 0; frame < 300; ++frame)
+        {
+            sim.step(params, plan);
+            if (sim.mEntries[0].mPhase == FarSim::Leaving && sim.mFrame < 400)
+            {
+                // Lose the ground of entry 0 while it is leaving.
+                sim.mFrame = 400;
+            }
+            cancelled = static_cast<int>(sim.mEntries[0].mCancels);
+        }
+        EXPECT_EQ(sim.mEntries[0].mFrees, 1u); // it was freed once ...
+        EXPECT_EQ(cancelled, 1); // ... and the free was cancelled when its ground went
+        EXPECT_EQ(sim.mHoles, 0u);
+        EXPECT_EQ(sim.mEntries[0].mPhase, FarSim::Held);
+        // It stays, whatever the budget says; the nearer cluster (which has its ground) is the one the budget blocks.
+        EXPECT_EQ(sim.mEntries[1].mPhase, FarSim::Absent);
+        EXPECT_FALSE(plan.mOverBudget);
+        EXPECT_EQ(plan.mNoFallbackBytes, 6 * farMib);
+    }
+
+    TEST(LodFarEvictionSim, two_runs_of_the_same_sequence_make_the_same_plans)
+    {
+        const auto run = [] {
+            FarSim sim = makeFarSim(40, true);
+            sim.mGround = [](int frame, std::size_t index) { return (frame / 37 + static_cast<int>(index)) % 11 != 0; };
+            const ResidencyParams params = farParams(60 * farMib);
+            ResidencyPlan plan;
+            for (int frame = 0; frame < 4000; ++frame)
+            {
+                sim.mEyeX = 12.0 * frame;
+                sim.step(params, plan);
+            }
+            return std::make_pair(sim.mLoadLog, sim.mFreeLog);
+        };
+        const auto a = run();
+        const auto b = run();
+        EXPECT_EQ(a.first, b.first);
+        EXPECT_EQ(a.second, b.second);
+        // And the run did something: not an empty comparison.
+        std::size_t actions = 0;
+        for (const auto& loads : a.first)
+            actions += loads.size();
+        EXPECT_GT(actions, 10u);
     }
 }

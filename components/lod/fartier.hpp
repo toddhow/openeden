@@ -43,6 +43,11 @@ namespace Lod
         // What the drawn terrain tiles may hold (task 0060; 0: no budget). `far memory budget = N` overrides both
         // budgets: the clusters get N MiB and the tiles a quarter of it, so the far field may hold 1.25 N MiB in all.
         std::uint64_t mTerrainBudgetBytes = 0;
+        // May the planner evict object clusters that lie past the live paging range, under the cluster budget, when the
+        // ground beneath them is drawn (task 0060, decision of toddhow 2026-11-04, option b)? Minimal and low tiers
+        // only: the far objects vanish and come back as the camera moves, in exchange for a bounded memory. Medium and
+        // high keep every cluster the selection wants (an overrun is reported, as before).
+        bool mEvictFarClusters = false;
     };
 
     /// Software devices and unknown or small machines get the smallest tier; the others by device memory and system

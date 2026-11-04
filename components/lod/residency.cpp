@@ -273,6 +273,17 @@ namespace Lod
         const Committed after = committedNow(items, plan.mGone);
         plan.mHeldAfter = after.net();
         plan.mOverBudget = budget > 0 && after.net() > budget;
+        // What an overrun is made of: the committed bytes of the items the budget cannot touch (no fallback).
+        plan.mNoFallbackBytes = 0;
+        for (std::size_t i = 0; i < items.size(); ++i)
+        {
+            if (!items[i].mReplaceable && isCommitted(items[i], plan.mGone[i]))
+            {
+                const bool loading = plan.mGone[i] == goneAdmitted || items[i].mLoading;
+                if (!loading || loadCounts(items[i]))
+                    plan.mNoFallbackBytes = addSaturating(plan.mNoFallbackBytes, items[i].mBytes);
+            }
+        }
     }
 
     bool squareWithinRange(double x, double y, double originX, double originY, double side, double range) noexcept
@@ -417,5 +428,68 @@ namespace Lod
         const std::uint32_t doublings = std::min(failures - 1, maxDoublings);
         const std::int64_t frames = static_cast<std::int64_t>(baseFrames) << doublings;
         return static_cast<std::int32_t>(std::min<std::int64_t>(frames, std::numeric_limits<std::int32_t>::max()));
+    }
+
+    bool groundDrawnOver(double x, double y, double range, std::span<const GroundSquare> drawn, double originX,
+        double originY, double side, double cellSize) noexcept
+    {
+        if (!(cellSize > 0) || !std::isfinite(cellSize) || !(side > 0) || !std::isfinite(side)
+            || !std::isfinite(originX) || !std::isfinite(originY))
+            return false;
+        const double cellCount = side / cellSize;
+        const double rounded = std::round(cellCount);
+        // A whole number of cells, at most maxGroundCellsPerSide a side (the work is at most 1024 cell tests).
+        constexpr double wholeTolerance = 1e-6;
+        if (!(rounded >= 1) || rounded > static_cast<double>(maxGroundCellsPerSide)
+            || std::abs(cellCount - rounded) > wholeTolerance)
+            return false;
+        const auto n = static_cast<std::uint32_t>(rounded);
+        for (std::uint32_t j = 0; j < n; ++j)
+        {
+            for (std::uint32_t i = 0; i < n; ++i)
+            {
+                const double cellX = originX + cellSize * static_cast<double>(i);
+                const double cellY = originY + cellSize * static_cast<double>(j);
+                // The live terrain draws a cell when all of it lies inside the paging range.
+                if (squareWithinRange(x, y, cellX, cellY, cellSize, range))
+                    continue;
+                // Else a drawn tile must hold the cell's centre.
+                const double centreX = cellX + 0.5 * cellSize;
+                const double centreY = cellY + 0.5 * cellSize;
+                bool covered = false;
+                for (const GroundSquare& tile : drawn)
+                {
+                    if (centreX >= tile.mOriginX && centreX < tile.mOriginX + tile.mSide && centreY >= tile.mOriginY
+                        && centreY < tile.mOriginY + tile.mSide)
+                    {
+                        covered = true;
+                        break;
+                    }
+                }
+                if (!covered)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    std::int32_t stepGroundFrames(std::int32_t frames, bool groundDrawn) noexcept
+    {
+        if (!groundDrawn)
+            return 0;
+        return frames < std::numeric_limits<std::int32_t>::max() ? frames + 1 : frames;
+    }
+
+    bool clusterGroundFallback(
+        bool evictFar, bool liveObjectsPage, bool squareWhollyInRange, std::int32_t groundFrames) noexcept
+    {
+        return evictFar && liveObjectsPage && !squareWhollyInRange && groundFrames >= groundStableFrames;
+    }
+
+    bool clusterWaitsForGround(bool evictFar, bool liveObjectsPage, bool squareWhollyInRange, std::int32_t groundFrames,
+        std::int32_t missingFrames) noexcept
+    {
+        return evictFar && liveObjectsPage && !squareWhollyInRange && groundFrames < groundStableFrames
+            && missingFrames < groundWaitFrames;
     }
 }
