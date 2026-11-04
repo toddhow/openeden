@@ -1,11 +1,11 @@
 -- Task 0069 stage e, second review (finding 1): the motion scene of tools/mergedbody_check (SCENE=motion). Run it
--- with "[Rendering]\nhdr = true\ngbuffer = true\ngbuffer debug view = velocity" and "[Video]\nframerate limit = 3" in
--- EXTRA_SETTINGS and OPENEDEN_FIXED_FRAME_TIME=0.0166667: each frame is then the G-buffer's screen motion (grey 0.5 is
--- none) of a sixtieth of a second, and a third of a second of real time apart, so each screenshot is written before
--- the next is asked for (screenshots asked for in frames close together all took the same file name). The player
--- puts on the full iron set with the arms down, raises the fists (hand-to-hand) and with the arms up takes everything
--- off. A merged draw that the set hid entirely had its skin left out, so its previous-frame matrices are of the
--- arms-down pose; it must restart without motion (Npc::applyMergedRegions, Anim::Skin::forgetPreviousMatrices), or
+-- with "[Rendering]\nhdr = true\ngbuffer = true\ngbuffer debug view = velocity" in EXTRA_SETTINGS and
+-- OPENEDEN_FIXED_FRAME_TIME=0.0166667: each frame is then the G-buffer's screen motion (grey 0.5 is none) of a
+-- sixtieth of a second. (A "[Video]\nframerate limit = 3" used to space the screenshots, which took one file name and
+-- later frames when asked for in frames close together; since 2026-11-04 each holds the frame it was asked for.) The
+-- player puts on the full iron set with the arms down, raises the fists (hand-to-hand) and with the arms up takes
+-- everything off. A merged draw that the set hid entirely had its skin left out, so its previous-frame matrices are of
+-- the arms-down pose; it must restart without motion (Npc::applyMergedRegions, Anim::Skin::forgetPreviousMatrices), or
 -- the first frame after the change shows the whole swing as motion. The camera holds still from the first frame on,
 -- so the world has no motion. Screenshots: one frame before the change, the change frame and the four after it
 -- ("MBSHOT motion <n> frame <f>"). The items come from mbequip_global.lua (no NPC row). The phases are counted in

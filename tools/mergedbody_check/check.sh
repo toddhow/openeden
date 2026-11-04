@@ -27,8 +27,8 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # SCENE=motion (stage e, second review) runs mod/scripts/mbmotion_player.lua: the player puts on the full iron set,
 # raises the fists and takes the set off, with screenshots of the frame before, the change frame and the four after
 # it; run it with OPENEDEN_FIXED_FRAME_TIME=0.0166667 and "[Rendering]\nhdr = true\ngbuffer = true\ngbuffer debug view
-# = velocity\n[Video]\nframerate limit = 3" in EXTRA_SETTINGS to see the motion output (screenshots asked for in
-# frames close together took the same file name; at 3 frames a second each is written before the next).
+# = velocity" in EXTRA_SETTINGS to see the motion output. (A "[Video]\nframerate limit = 3" used to space the
+# screenshots; since 2026-11-04 each one holds the frame it was asked for, with no limit: components/render/CLAUDE.md.)
 # OPENMW_EXE (default ./openmw.exe, run in <build dir>) starts another executable, for example a copy of the build.
 set -e
 BUILD=$1; BASE=$2; USERDATA=$3; WORK=$4; VARIANT=$5; CELL=${6:-Balmora}

@@ -315,9 +315,9 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   exit (40 bytes each), so its own list shows in the resident memory (5 to 11 MiB over the equipment scene's 200
   cycles, stock and merged alike): measure memory without it. `SCENE=motion` (second review) puts the full set on the
   player, raises the fists and takes the set off, with screenshots of the frame before, the change frame and the four
-  after; run it with `OPENEDEN_FIXED_FRAME_TIME=0.0166667`, and `[Video] framerate limit = 3` (screenshots asked for
-  in frames close together took the same file name), `hdr`, `gbuffer` and `gbuffer debug view = velocity` in
-  `EXTRA_SETTINGS`. `OPENMW_EXE` starts another executable from the build folder.
+  after; run it with `OPENEDEN_FIXED_FRAME_TIME=0.0166667`, `hdr`, `gbuffer` and `gbuffer debug view = velocity` in
+  `EXTRA_SETTINGS` (no `[Video] framerate limit` any more: since 2026-11-04 each screenshot holds the frame it was
+  asked for, `components/render/CLAUDE.md`). `OPENMW_EXE` starts another executable from the build folder.
 - **`OPENEDEN_PARTSLOTS_TRACE=1`** (second review, finding 2; read once) logs for every NPC a `PARTSLOTS <record id>
   <reference number> v<view>` line per part node attached (with its model) and detached (with whether a node was
   there), and the group and priority of all 27 slots after each `updateParts`. Compare two builds by actor, not by
