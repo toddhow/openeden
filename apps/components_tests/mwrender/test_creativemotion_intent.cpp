@@ -217,7 +217,9 @@ TEST(CreativeMotionIntentTest, AStanceChangeCountsForTheHoldTimeThenEnds)
     input.mStanceChanged = false;
     const int holdFrames = static_cast<int>(sStanceChangeHoldS / sFrame);
     for (int i = 0; i < holdFrames - 2; ++i)
+    {
         EXPECT_TRUE(tracker.update(input).mStanceChanging) << i;
+    }
     for (int i = 0; i < 4; ++i)
         tracker.update(input);
     EXPECT_FALSE(tracker.update(input).mStanceChanging);
