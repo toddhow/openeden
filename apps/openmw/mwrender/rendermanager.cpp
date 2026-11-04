@@ -2585,7 +2585,13 @@ namespace MWRender
                 // thumbnail that cannot be read is no thumbnail.
                 try
                 {
+                    const auto start = std::chrono::steady_clock::now();
                     data = (*result.copy)();
+                    Log(Debug::Verbose) << "Save thumbnail read in "
+                                        << std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(
+                                               std::chrono::steady_clock::now() - start)
+                                               .count()
+                                        << " ms";
                 }
                 catch (const vsg::Exception& e)
                 {
