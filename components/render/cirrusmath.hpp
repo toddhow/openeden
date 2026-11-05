@@ -198,6 +198,18 @@ namespace Render::Cirrus
         return std::clamp(low * CloudVolume::volumeShareTarget(isStorm, landFogDepth), 0.f, 1.f);
     }
 
+    // Some days have more cirrus than others: a factor from the game date, 0.4 (a faint day) to 1 (a full one), a hash
+    // of the day of the month and the month (a fixed seed, no clock and no generator: the same date gives the same
+    // answer in every session). It multiplies the weather's share, so fair weather is not always the same sky.
+    constexpr float dayFactorMin = 0.4f;
+    inline float dayFactor(int day, int month)
+    {
+        const std::uint32_t key = static_cast<std::uint32_t>(std::clamp(month, 0, 11) * 32 + std::clamp(day, 0, 31));
+        const std::uint32_t seed = CloudVolume::noiseSeed + 0x00C1AA06u;
+        const float unit = CloudVolume::hashToUnit(CloudVolume::hashUint(key + CloudVolume::hashUint(seed)));
+        return dayFactorMin + (1.f - dayFactorMin) * unit;
+    }
+
     // The share moves to its target over `shareSeconds`, without overshoot.
     inline float easedShare(float current, float target, float seconds)
     {

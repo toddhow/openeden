@@ -734,6 +734,36 @@ namespace
         EXPECT_EQ(static_cast<int>(Cirrus::DebugView::Pattern), 5);
     }
 
+    // Stage d: some days have more cirrus than others (a hash of the date).
+    TEST(RenderCirrusShare, TheDayFactorIsAFixedHashOfTheDateBetweenTheLimits)
+    {
+        std::set<float> seen;
+        float sum = 0.f;
+        int count = 0;
+        for (int month = 0; month < 12; ++month)
+        {
+            for (int day = 1; day <= 31; ++day)
+            {
+                const float factor = Cirrus::dayFactor(day, month);
+                EXPECT_GE(factor, Cirrus::dayFactorMin);
+                EXPECT_LE(factor, 1.f);
+                EXPECT_EQ(factor, Cirrus::dayFactor(day, month));
+                seen.insert(factor);
+                sum += factor;
+                ++count;
+            }
+        }
+        // Many different days, and the mean is the middle of the range (0.7) within sampling noise.
+        EXPECT_GT(seen.size(), 300u);
+        EXPECT_NEAR(sum / static_cast<float>(count), 0.7f, 0.03f);
+        // Pinned values (a change of the hash or its seed would change every player's skies).
+        EXPECT_NEAR(Cirrus::dayFactor(1, 0), 0.658158064f, 1e-6f);
+        EXPECT_NEAR(Cirrus::dayFactor(15, 6), 0.900482059f, 1e-6f);
+        // A date out of range does not break it.
+        EXPECT_GE(Cirrus::dayFactor(-5, -1), Cirrus::dayFactorMin);
+        EXPECT_LE(Cirrus::dayFactor(400, 99), 1.f);
+    }
+
     TEST(RenderCirrusDensity, StaysInRangeAndFinite)
     {
         const std::vector<vsg::vec2> points = spreadPoints(150);

@@ -728,8 +728,9 @@ namespace MWRender
                     if (const auto view = Render::Cirrus::parseDebugView(rendering.mCirrusDebug.get()))
                         settings.debugView = *view;
                     else
-                        Log(Debug::Warning) << "[Rendering] cirrus debug \"" << rendering.mCirrusDebug.get()
-                                            << "\" is not none, density, share, light or footprint; none is used";
+                        Log(Debug::Warning)
+                            << "[Rendering] cirrus debug \"" << rendering.mCirrusDebug.get()
+                            << "\" is not none, density, share, light, footprint or pattern; none is used";
                     mCirrus.setup(vsg::ref_ptr{ new Cirrus(*resourceSystem.builder, settings) }, mSwitch, false);
                     mCirrusOn = true;
                     mCirrusDebugOn = settings.debugView != Render::Cirrus::DebugView::None;
@@ -1158,7 +1159,8 @@ namespace MWRender
             ? current
             : Render::CloudVolume::coverageFromThickness(meanThickness(weather.mNextCloudTexture));
         const float lowCoverage = Render::CloudVolume::blendCoverage(current, next, mCloudBlendFactor);
-        mCirrusShareTarget = Render::Cirrus::shareTarget(lowCoverage, weather.mIsStorm, weather.mFogDepth);
+        mCirrusShareTarget = Render::Cirrus::shareTarget(lowCoverage, weather.mIsStorm, weather.mFogDepth)
+            * Render::Cirrus::dayFactor(mDay, mMonth);
         mSunElevation = weather.mSunElevation;
         mCirrusTint = weather.mCloudTint;
         if (std::abs(lowCoverage - mCirrusCoverageLogged) > 0.01f)
