@@ -71,6 +71,7 @@
 #include <components/render/sssmath.hpp>
 #include <components/render/tonemap.hpp>
 #include <components/render/velocity.hpp>
+#include <components/render/vrambudgetscript.hpp>
 #include <components/render/wetnessmath.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
@@ -1523,8 +1524,43 @@ namespace MWRender
             config.budget = VM::BudgetSetting{};
         }
 
+        // After a reduction VSG's memory pools keep the freed blocks; hand the empty ones back to the driver (main
+        // thread, from update(), a few seconds after the step, see Render::VideoMemory::PoolReleasePlanner).
+        config.releasePools = [this] {
+            VM::ReleaseResult result;
+            const auto begin = std::chrono::steady_clock::now();
+            const std::int64_t bytes = mEngine.releaseUnusedDeviceMemory();
+            result.milliseconds
+                = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
+            result.bytes = std::max<std::int64_t>(bytes, 0);
+            return result;
+        };
+
+        // Test aid: a scripted budget (OPENEDEN_VRAM_BUDGET_SCRIPT, see vrambudgetscript.hpp) stands in for the
+        // driver's, so a reduce-then-restore cycle can be shown on a card that has room.
+        std::vector<VM::BudgetStep> budgetScript;
+        if (const char* scriptText = std::getenv("OPENEDEN_VRAM_BUDGET_SCRIPT"))
+        {
+            budgetScript = VM::parseBudgetScript(scriptText);
+            if (budgetScript.empty())
+                Log(Debug::Warning) << "[VideoMemory] OPENEDEN_VRAM_BUDGET_SCRIPT is not valid and is ignored";
+        }
+        const auto scriptStart = std::chrono::steady_clock::now();
+
         mVramScaler = std::make_unique<VM::Scaler>(
-            std::move(config), std::move(adapters), [this] { return mEngine.deviceLocalMemorySample(); },
+            std::move(config), std::move(adapters),
+            [this, budgetScript, scriptStart] {
+                VM::Sample sample = mEngine.deviceLocalMemorySample();
+                if (!budgetScript.empty())
+                {
+                    const double seconds
+                        = std::chrono::duration<double>(std::chrono::steady_clock::now() - scriptStart).count();
+                    const std::int64_t mib = VM::budgetAt(budgetScript, seconds);
+                    if (mib > 0)
+                        sample.budgetBytes = mib << 20;
+                }
+                return sample;
+            },
             [](bool warning, const std::string& text) { Log(warning ? Debug::Warning : Debug::Info) << text; });
         if (!mVramScaler->active())
         {

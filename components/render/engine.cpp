@@ -476,6 +476,17 @@ namespace Render
         return sample;
     }
 
+    int64_t Engine::releaseUnusedDeviceMemory()
+    {
+        const vsg::ref_ptr<vsg::Device> device = getOrCreateDevice();
+        if (!device)
+            return -1;
+        auto pools = device->deviceMemoryBufferPools.ref_ptr();
+        if (!pools)
+            return -1;
+        return static_cast<int64_t>(pools->releaseUnusedPools());
+    }
+
     GpuTimer* Engine::enableGpuTiming()
     {
         if (mGpuTimingTried)

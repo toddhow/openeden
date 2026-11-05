@@ -159,6 +159,13 @@ namespace Render
         // from VK_EXT_memory_budget; both -1 when the device does not have the extension. Call on the main thread.
         VideoMemory::Sample deviceLocalMemorySample();
 
+        // Task 0080: hands the device-memory pool entries that hold nothing back to the driver
+        // (vsg::MemoryBufferPools::releaseUnusedPools, VSG 1.1.16: it takes the pools' mutex and frees only an entry
+        // whose reserved size is 0 and that nothing else references, so a block a live or still-queued image uses is
+        // never touched; compile threads reserving memory meanwhile wait on that mutex). Main thread, between frames
+        // (from RenderManager::update). Returns the bytes released, -1 when the device has no pools yet.
+        int64_t releaseUnusedDeviceMemory();
+
         // Task 0054 (S0): named numbers that loop() adds to the OPENEDEN_FRAME_STATS_FILE as columns. Whoever wants a
         // column registers it before loop() starts, and only when [Rendering] frame counters is on; with none
         // registered the file is exactly as before.

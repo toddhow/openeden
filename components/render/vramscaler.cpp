@@ -13,6 +13,7 @@ namespace Render::VideoMemory
 
     Scaler::Scaler(ScalerConfig config, std::vector<Adapter> adapters, std::function<Sample()> source, LogFn log)
         : mConfig(std::move(config))
+        , mPlanner(mConfig.releaseParams)
         , mAdapters(std::move(adapters))
         , mSource(std::move(source))
         , mLog(std::move(log))
@@ -80,6 +81,23 @@ namespace Render::VideoMemory
         }
         mLastSampleTime = mTime;
         mHaveSampleTime = true;
+
+        // A release asked for by an earlier reduction: before the sample, so the sample shows its effect.
+        mPlanner.setReduced(mController->reductions() > 0);
+        if (mConfig.releasePools && mPlanner.due(mTime))
+        {
+            const ReleaseResult released = mConfig.releasePools();
+            ++mPoolReleases;
+            mPoolBytesReleased += released.bytes;
+            mLongestReleaseMs = std::max(mLongestReleaseMs, released.milliseconds);
+            if (released.bytes > 0)
+            {
+                std::ostringstream out;
+                out << "VRAM scale-back: released " << static_cast<long long>(released.bytes / mebibyte)
+                    << " MiB of unused video memory pools (" << released.milliseconds << " ms)";
+                note(false, out.str());
+            }
+        }
 
         const Sample raw = mSource();
         Sample sample;
@@ -162,6 +180,9 @@ namespace Render::VideoMemory
             return;
         }
         mController->applied(action.system, action.kind);
+        // A reduction hands objects to the deletion queue; the pools can give their memory back once those are gone.
+        if (action.kind == Kind::Reduce && mConfig.releasePools)
+            mPlanner.reductionApplied(mTime);
         if (action.kind == Kind::Reduce)
         {
             ++mStepsDown;
@@ -184,6 +205,9 @@ namespace Render::VideoMemory
             << " active reductions:";
         for (const double seconds : mSecondsAtCount)
             out << " " << static_cast<long long>(seconds);
+        out << "; " << mPoolReleases << " pool releases returned "
+            << static_cast<long long>(mPoolBytesReleased / mebibyte) << " MiB (longest call " << mLongestReleaseMs
+            << " ms)";
         return out.str();
     }
 }

@@ -10,6 +10,7 @@
 #include "vramaccount.hpp"
 #include "vramcontroller.hpp"
 #include "vramorder.hpp"
+#include "vrampoolrelease.hpp"
 #include "vramsource.hpp"
 
 namespace Render::VideoMemory
@@ -36,6 +37,13 @@ namespace Render::VideoMemory
         std::function<std::int64_t(int level, bool down)> stepBytes;
     };
 
+    /// What one attempt to hand VSG's unused device-memory pools back to the driver achieved.
+    struct ReleaseResult
+    {
+        std::int64_t bytes = 0; // device memory returned
+        double milliseconds = 0.0; // how long the call took
+    };
+
     struct ScalerConfig
     {
         Params params;
@@ -50,6 +58,10 @@ namespace Render::VideoMemory
         bool useDriverUsage = true;
         double sampleInterval = 0.5;
         std::string order; // the `order` setting, a comma list of adapter names
+        /// Hands VSG's unused device-memory pools back to the driver (main thread only). Called a few times after
+        /// each reduction (PoolReleasePlanner), never otherwise. Empty: pools are never released.
+        std::function<ReleaseResult()> releasePools;
+        PoolReleaseParams releaseParams;
     };
 
     class Scaler
@@ -77,6 +89,7 @@ namespace Render::VideoMemory
         double pressure() const { return mController ? mController->pressure() : 0.0; }
 
         int stepsDown() const { return mStepsDown; }
+        int poolReleases() const { return mPoolReleases; }
         int stepsUp() const { return mStepsUp; }
 
         /// The summary for `[VideoMemory] report`: time at each reduction count, the steps, the highest pressure.
@@ -87,6 +100,7 @@ namespace Render::VideoMemory
         void note(bool warning, const std::string& text) const;
 
         ScalerConfig mConfig;
+        PoolReleasePlanner mPlanner;
         std::vector<Adapter> mAdapters; // all known
         std::vector<int> mAdapterOfSystem; // the controller's systems, in the user's order, as indices into mAdapters
         std::function<Sample()> mSource;
@@ -102,6 +116,9 @@ namespace Render::VideoMemory
         double mUsedMiB = -1.0;
         double mBudgetMiB = -1.0;
         double mAccountedMiB = -1.0;
+        int mPoolReleases = 0;
+        std::int64_t mPoolBytesReleased = 0;
+        double mLongestReleaseMs = 0.0;
         int mStepsDown = 0;
         int mStepsUp = 0;
         double mHighestPressure = 0.0;

@@ -184,6 +184,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowgpu.cpp
     render/testvram.cpp
     render/testvramscaler.cpp
+    render/testvrampoolrelease.cpp
     render/testpointshadowshader.cpp
     render/testpointshadowmemory.cpp
     render/testgbuffermath.cpp
