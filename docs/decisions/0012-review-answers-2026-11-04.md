@@ -39,7 +39,7 @@ none of it starts until he says so.
   exclude the model that carries the light from the light's own caster pass.
 - Map caching (render a light's map once, redraw only when a caster in range moves) is built later (the first light costs
   about 0.5 ms even in a still scene).
-- A warning when slots times resolution gets large (8 slots at 2048 texels is about 805 MiB).
+- A warning when slots times resolution gets large (8 slots at 2048 texels is about 768 MiB (805 million bytes; "805 MiB" was a unit slip, corrected from the 0077 follow-up)).
 
 ### Slang (0072)
 - The cold-cache stall: drop the start-up preload (+237 MiB on every run) and compile on a worker while the GLSL draws
