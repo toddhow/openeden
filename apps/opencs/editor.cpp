@@ -824,13 +824,13 @@ namespace
             // Module steps go on the document's module stack, not on the content stack (CSMDoc::UndoRouting): the
             // document must stay unmodified, and Edit > Undo acts on the module stack while it was touched last.
             QUndoStack& moduleStack = document->getUndoRouting().moduleStack();
-            auto editMenuAction = [](const QString& prefix) -> QAction* {
+            auto editMenuAction = [](const QString& itemPrefix) -> QAction* {
                 for (QWidget* top : QApplication::topLevelWidgets())
                     if (auto* window = qobject_cast<QMainWindow*>(top); window && window->menuBar())
                         for (QAction* menuAction : window->menuBar()->actions())
                             if (menuAction->menu() && menuAction->text().remove('&') == "Edit")
                                 for (QAction* inner : menuAction->menu()->actions())
-                                    if (inner->text().startsWith(prefix))
+                                    if (inner->text().startsWith(itemPrefix))
                                         return inner;
                 return nullptr;
             };
