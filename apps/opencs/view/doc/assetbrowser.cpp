@@ -208,6 +208,8 @@ CSVDoc::AssetBrowser::AssetBrowser(CSMDoc::Document& document, QWidget* parent)
         placeholder->setData(Kind_Placeholder, roleKind);
         group->appendRow(placeholder);
         mModel->appendRow(group);
+        // The list follows the workspace tab: one module's assets, or all of them (ModuleUi::setAssetOwnerFilter).
+        connect(modules, &CSVModule::ModuleUi::assetOwnerFilterChanged, this, [this, group] { markDirty(group); });
     }
 }
 
@@ -317,7 +319,8 @@ void CSVDoc::AssetBrowser::populate(QStandardItem* group)
         else if (source == Source_ModuleAssets)
         {
             if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
-                for (const std::filesystem::path& path : modules->findAssets(modules->assetRoots()))
+                for (const std::filesystem::path& path :
+                    modules->findAssets(modules->assetRoots(), modules->assetOwnerFilter()))
                 {
                     makeChild(QString::fromStdString(path.filename().string()), UniversalId::Type_None,
                         QString::fromStdString(path.string()));

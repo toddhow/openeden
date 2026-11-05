@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <filesystem>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
@@ -228,6 +229,56 @@ namespace CSMModule
                 && (best == nullptr || entry.mDesc.fileExtension.size() > best->mDesc.fileExtension.size()))
                 best = &entry;
         return best;
+    }
+
+    std::string ModuleRegistry::assetOwner(const std::filesystem::path& path) const
+    {
+        const AssetTypeEntry* type = findAssetType(path);
+        return type != nullptr ? type->mModule : std::string();
+    }
+
+    std::string ModuleRegistry::panelOwner(std::string_view panelId) const
+    {
+        const auto found = std::find_if(
+            mPanels.begin(), mPanels.end(), [&](const PanelEntry& entry) { return entry.mDesc.id == panelId; });
+        return found != mPanels.end() ? found->mModule : std::string();
+    }
+
+    bool ModuleRegistry::appliesTo(const std::string& registeredBy, const std::string& activeOwner)
+    {
+        return activeOwner.empty() || registeredBy == activeOwner;
+    }
+
+    std::vector<std::filesystem::path> ModuleRegistry::findAssets(
+        const std::vector<std::filesystem::path>& roots, const std::string& ownerFilter) const
+    {
+        std::vector<std::filesystem::path> found;
+        for (const std::filesystem::path& root : roots)
+        {
+            std::error_code error;
+            if (!std::filesystem::is_directory(root, error))
+                continue;
+            std::filesystem::recursive_directory_iterator it(
+                root, std::filesystem::directory_options::skip_permission_denied, error);
+            for (const std::filesystem::recursive_directory_iterator end; !error && it != end; it.increment(error))
+            {
+                if (!it->is_regular_file(error))
+                    continue;
+                const AssetTypeEntry* type = findAssetType(it->path());
+                if (type != nullptr && (ownerFilter.empty() || type->mModule == ownerFilter))
+                    found.push_back(it->path());
+            }
+        }
+        std::sort(found.begin(), found.end());
+        found.erase(std::unique(found.begin(), found.end()), found.end());
+        return found;
+    }
+
+    PropertySource* ModuleRegistry::panelSource(std::string_view panelId, const std::string& activeOwner)
+    {
+        if (!appliesTo(panelOwner(panelId), activeOwner))
+            return nullptr;
+        return panelSource(panelId);
     }
 
     bool ModuleRegistry::runCommand(std::string_view commandId)

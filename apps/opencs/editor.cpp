@@ -1057,6 +1057,17 @@ namespace
                 }
             Log(Debug::Info) << "UI check: body " << label << " panel shows " << findings << " finding rows and "
                              << regions << " region rows";
+            // Another module's panel must show nothing for a body document (per-module filtering), and the Asset
+            // Browser lists the chosen workspace's module only.
+            int foreignRows = 0;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* dock = top->findChild<QDockWidget*>("modulePanel_creativemotion.panel"))
+                    for (QWidget* field : dock->findChildren<QWidget*>())
+                        foreignRows += field->objectName().startsWith("property_") ? 1 : 0;
+            const CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+            Log(Debug::Info) << "UI check: body " << label << " creativemotion panel rows " << foreignRows
+                             << ", active owner '" << modules->activeOwner() << "', asset owner filter '"
+                             << modules->assetOwnerFilter() << "'";
         };
         auto capture = [=](const std::string& name) {
             // The panel dock shares its side with the inspector, which keeps its height: float one window's panel

@@ -83,12 +83,32 @@ namespace CSMModule
         /// The asset type with the longest file extension the path's file name ends with, or null.
         const AssetTypeEntry* findAssetType(const std::filesystem::path& path) const;
 
+        /// The module that registered the asset type that handles  path (see findAssetType), or empty if none does.
+        /// This is the owner of every document opened from that path.
+        std::string assetOwner(const std::filesystem::path& path) const;
+
+        /// The module that registered the panel, or empty.
+        std::string panelOwner(std::string_view panelId) const;
+
+        /// Whether something a module registered (a panel, a gizmo provider, a track provider) applies while a
+        /// document of  activeOwner is the active one: always when no document is open ( activeOwner empty), else
+        /// only when the same module registered it. A module's panel shows only that module's documents.
+        static bool appliesTo(const std::string& registeredBy, const std::string& activeOwner);
+
+        /// The files under  roots that a registered asset type handles, sorted by path, once each. With a non-empty
+        ///  ownerFilter only those whose type the module of that id registered.
+        std::vector<std::filesystem::path> findAssets(
+            const std::vector<std::filesystem::path>& roots, const std::string& ownerFilter = std::string()) const;
+
         /// Runs a command's handler if it exists and is enabled. \return false if unknown, disabled or it threw.
         bool runCommand(std::string_view commandId);
         /// Whether a command is enabled now (false for unknown, or if enabledWhen threw).
         bool isCommandEnabled(std::string_view commandId);
         /// The panel's current source, or null.
         openeden::editor::PropertySource* panelSource(std::string_view panelId);
+        /// The same, but null (and the panel's callback not called) while a document of another module than the
+        /// panel's is the active one ( activeOwner, see appliesTo).
+        openeden::editor::PropertySource* panelSource(std::string_view panelId, const std::string& activeOwner);
         std::vector<openeden::editor::Gizmo*> gizmosOf(std::string_view providerId);
         std::vector<openeden::editor::TimelineTrack*> tracksOf(std::string_view providerId);
         /// The section's source for an asset, or null.

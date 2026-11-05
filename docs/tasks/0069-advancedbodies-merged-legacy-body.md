@@ -1142,8 +1142,8 @@ blended triangle per triangle of the drawn mesh in its region's colour (`kFillAl
 depth tested), then the edges as before. `Bodies > Cycle Region Display` (`advancedbodies.cycleRegionDisplay`,
 Ctrl+Alt+R) steps through fill and edges, fill alone, edges alone (`regionDisplay`, `setRegionDisplay` in
 `documents.hpp`); not an undo step, never dirty. The default (both) is what the stage's gizmo tests pin for the edges, so
-they are unchanged, and the gizmo list is still the two gizmos. Tests (`advancedbodies/testabfill.cpp`, 6, written
-first; 4 red with the fill switched off, `I:/Projects/OpenEden-work/studio2/red2-tests.log`; the cycle-command test was
+they are unchanged, and the gizmo list is still the two gizmos. Tests (`advancedbodies/testabfill.cpp`, 7: six written
+first, 4 of them red with the fill switched off, `I:/Projects/OpenEden-work/studio2/red2-tests.log`; the cycle-command test was
 written with the command and not run red). Existing tests changed (awaiting toddhow's approval): `testabmodule.cpp`, the
 two `commands().size()` pins, 2 to 3 (the module registers the cycle command). Real editor,
 `tools/bodypanel_check/check.sh` passes (5 of 5 lines) and the Mesh view frames show the regions filled with their edges

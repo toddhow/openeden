@@ -96,6 +96,14 @@ if [ $rc = 0 ] && grep -q "UI check: body 0 opened the default merged cache: yes
 else
     fail "the default merged cache was not opened (exit code $rc, see $WORK/run-default.out and $LOG)"
 fi
+# Per-module filtering: while a body document is active, CreativeMotion's panel has no rows, the document's owner is the
+# body module, and the Asset Browser's owner filter is the chosen workspace's module.
+rows=$(grep -c "UI check: body [0-9b]* creativemotion panel rows 0, active owner 'advancedbodies_editor'" "$LOG" 2>/dev/null)
+if [ "${rows:-0}" -ge 1 ] && ! grep -q "creativemotion panel rows [1-9]" "$LOG"     && grep -q "asset owner filter 'advancedbodies_editor'" "$LOG"; then
+    pass "CreativeMotion's panel stays empty for a body document; the Asset Browser filter is the body module"
+else
+    fail "per-module filtering: $(grep 'creativemotion panel rows' "$LOG" | head -3)"
+fi
 snapshot > "$WORK/real-after.tsv"
 cmp -s "$WORK/real-before.tsv" "$WORK/real-after.tsv" && pass "the real user folder is unchanged: $REAL" \
     || fail "the real user folder changed: $(diff "$WORK/real-before.tsv" "$WORK/real-after.tsv" | head -5)"

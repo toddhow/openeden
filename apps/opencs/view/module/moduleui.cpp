@@ -355,6 +355,7 @@ namespace CSVModule
         mOpenError.clear();
         const auto* type = mRegistry.findAssetType(path);
         mActiveFormat = type != nullptr ? type->mDesc.formatId : std::string();
+        mActiveOwner = type != nullptr ? type->mModule : std::string();
         // Old steps stop touching the old asset before it is destroyed.
         mAssetToken.reset();
         mActive = std::move(document);
@@ -371,6 +372,7 @@ namespace CSVModule
         ++mGeneration;
         mActive.reset();
         mActiveFormat.clear();
+        mActiveOwner.clear();
         for (const QPointer<QUndoStack>& stack : mStacks)
             if (stack)
                 stack->clear();
@@ -382,23 +384,24 @@ namespace CSVModule
         mOwnStack.clear();
     }
 
-    std::vector<std::filesystem::path> ModuleUi::findAssets(const std::vector<std::filesystem::path>& roots) const
+    std::vector<std::filesystem::path> ModuleUi::findAssets(
+        const std::vector<std::filesystem::path>& roots, const std::string& ownerFilter) const
     {
-        std::vector<std::filesystem::path> found;
-        for (const std::filesystem::path& root : roots)
-        {
-            std::error_code error;
-            if (!std::filesystem::is_directory(root, error))
-                continue;
-            std::filesystem::recursive_directory_iterator it(
-                root, std::filesystem::directory_options::skip_permission_denied, error);
-            for (const std::filesystem::recursive_directory_iterator end; !error && it != end; it.increment(error))
-                if (it->is_regular_file(error) && mRegistry.findAssetType(it->path()) != nullptr)
-                    found.push_back(it->path());
-        }
-        std::sort(found.begin(), found.end());
-        found.erase(std::unique(found.begin(), found.end()), found.end());
-        return found;
+        return mRegistry.findAssets(roots, ownerFilter);
+    }
+
+    openeden::editor::PropertySource* ModuleUi::panelSource(std::string_view panelId)
+    {
+        // A module's panel shows only that module's documents (ModuleRegistry::appliesTo).
+        return mRegistry.panelSource(panelId, mActiveOwner);
+    }
+
+    void ModuleUi::setAssetOwnerFilter(std::string moduleId)
+    {
+        if (moduleId == mAssetOwnerFilter)
+            return;
+        mAssetOwnerFilter = std::move(moduleId);
+        emit assetOwnerFilterChanged();
     }
 
     std::vector<CSMPhysics::DebugLine> ModuleUi::overlayLines(const float origin[3]) const
@@ -413,8 +416,9 @@ namespace CSVModule
         if (mActive)
             gizmos = mActive->gizmos();
         for (const auto& provider : mRegistry.gizmoProviders())
-            for (Gizmo* gizmo : mRegistry.gizmosOf(provider.mDesc.id))
-                gizmos.push_back(gizmo);
+            if (CSMModule::ModuleRegistry::appliesTo(provider.mModule, mActiveOwner))
+                for (Gizmo* gizmo : mRegistry.gizmosOf(provider.mDesc.id))
+                    gizmos.push_back(gizmo);
         // A gizmo may appear twice (the sample's provider returns the active asset's own): draw each once.
         std::sort(gizmos.begin(), gizmos.end());
         gizmos.erase(std::unique(gizmos.begin(), gizmos.end()), gizmos.end());
@@ -444,8 +448,9 @@ namespace CSVModule
         if (mActive)
             tracks = mActive->tracks();
         for (const auto& provider : mRegistry.trackProviders())
-            for (TimelineTrack* track : mRegistry.tracksOf(provider.mDesc.id))
-                tracks.push_back(track);
+            if (CSMModule::ModuleRegistry::appliesTo(provider.mModule, mActiveOwner))
+                for (TimelineTrack* track : mRegistry.tracksOf(provider.mDesc.id))
+                    tracks.push_back(track);
         std::sort(tracks.begin(), tracks.end());
         tracks.erase(std::unique(tracks.begin(), tracks.end()), tracks.end());
         for (TimelineTrack* track : tracks)

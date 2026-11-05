@@ -75,6 +75,13 @@ namespace CSVModule
 
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
+        /// The module that owns the active asset (the one whose asset type opened it), or empty with none open. A
+        /// module's panels, gizmos and timeline tracks apply only while the owner is that module (or none is open).
+        const std::string& activeOwner() const { return mActiveOwner; }
+
+        /// A panel's property source, null while another module's document is the active one: CreativeMotion's panel
+        /// never shows a body package, and the body panel never shows a rig.
+        openeden::editor::PropertySource* panelSource(std::string_view panelId);
         const std::string& openError() const { return mOpenError; }
         /// Changes whenever the active asset is replaced or closed (an address may be reused, a generation is not).
         unsigned long generation() const { return mGeneration; }
@@ -88,8 +95,15 @@ namespace CSVModule
         void setAssetRoots(std::vector<std::filesystem::path> roots) { mAssetRoots = std::move(roots); }
         const std::vector<std::filesystem::path>& assetRoots() const { return mAssetRoots; }
 
-        /// Files under the roots that a registered asset type handles, sorted by path.
-        std::vector<std::filesystem::path> findAssets(const std::vector<std::filesystem::path>& roots) const;
+        /// Files under the roots that a registered asset type handles, sorted by path; with a non-empty  ownerFilter
+        /// only those the module of that id registered a type for.
+        std::vector<std::filesystem::path> findAssets(
+            const std::vector<std::filesystem::path>& roots, const std::string& ownerFilter = std::string()) const;
+
+        /// Which module's assets the Asset Browser lists: the module whose workspace tab is chosen, or empty (all
+        /// modules) on the built-in tab. Changing it emits assetOwnerFilterChanged().
+        const std::string& assetOwnerFilter() const { return mAssetOwnerFilter; }
+        void setAssetOwnerFilter(std::string moduleId);
 
         /// Every gizmo of the active asset and of the registered providers drawn into lines, in the world's unit
         /// (Morrowind units), moved by \a origin (the world position that module coordinates are relative to). This is
@@ -112,6 +126,8 @@ namespace CSVModule
         QWidget* makeScrollingForm(openeden::editor::PropertySource& source, QWidget* parent, int maxHeight);
 
     signals:
+        void assetOwnerFilterChanged();
+
         /// The active asset, or something in it, changed: panels, overlay and timeline redraw.
         void changed();
 
@@ -125,6 +141,8 @@ namespace CSVModule
         // commands point into that asset), see UndoCommand.
         std::shared_ptr<void> mAssetToken;
         std::string mActiveFormat;
+        std::string mActiveOwner;
+        std::string mAssetOwnerFilter;
         unsigned long mGeneration = 0;
         std::string mOpenError;
         std::vector<std::filesystem::path> mAssetRoots;

@@ -16,6 +16,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testheader_registrar.cpp
     model/module/testheader_types.cpp
     model/module/testmodulehost.cpp
+    model/module/testmoduleowner.cpp
     model/module/testmoduleregistry.cpp
     model/module/testoverlaytriangles.cpp
     model/module/testsamplemodule.cpp

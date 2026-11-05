@@ -244,7 +244,7 @@ namespace CSVDoc
         private:
             void rebuild()
             {
-                openeden::editor::PropertySource* source = mUi.registry().panelSource(mPanelId);
+                openeden::editor::PropertySource* source = mUi.panelSource(mPanelId);
                 // A new asset always gets a new form: its source may sit at the address of the destroyed asset's
                 // (task 0069 stage f), and the old form stops reading once its asset is replaced (PropertyForm).
                 if (source == mSource && (source != nullptr) == (mForm != nullptr) && mGeneration == mUi.generation())
@@ -286,10 +286,16 @@ void CSVDoc::StudioShell::addModuleUi()
             tabs->setTabData(index, QString::fromStdString(workspace.mDesc.id));
         }
         // Shows the panels of the chosen workspace; "World & Scene" (the built-in tab, no data) shows none.
-        connect(tabs, &QTabBar::currentChanged, this, [this, tabs](int index) {
+        connect(tabs, &QTabBar::currentChanged, this, [this, tabs, modules](int index) {
             const QString id = tabs->tabData(index).toString();
             for (const auto& [workspaceId, dock] : mModulePanels)
                 dock->setVisible(!id.isEmpty() && QString::fromStdString(workspaceId) == id);
+            // The Asset Browser lists the chosen workspace's module's assets only; the built-in tab lists them all.
+            std::string owner;
+            for (const auto& workspace : modules->registry().workspaces())
+                if (QString::fromStdString(workspace.mDesc.id) == id)
+                    owner = workspace.mModule;
+            modules->setAssetOwnerFilter(owner);
         });
     }
 

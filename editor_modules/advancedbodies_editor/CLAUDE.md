@@ -34,6 +34,7 @@ task's "Stage f, design" section.
   still hold. Caps `kMaxRegionLines` and `kMaxWeldPoints` keep it inside a view's overlay (32,768 lines). Studio draws
   the active asset's gizmos in the cell views and in a Mesh view opened with no model
   (`Extensions > Show Module Asset in Mesh Viewer`).
+- **Only this module's documents show in its panel** (task 0031, per-module filtering): Studio calls the panel's source only while a document of this module is active (or none), and CreativeMotion's panel does the same for its own, so each panel's callback may assume `activeAsset()` is its module's. The body module still checks `viewOf` (a cheap belt).
 - **Studio builds a form's rows once** (`PropertyForm::build`): every body of a merged cache has its own property
   source, kept for the document's life, so the panel builds a new form when the shown body changes (a new address).
   The inspector's summary is one fixed source whose values follow the shown body.
