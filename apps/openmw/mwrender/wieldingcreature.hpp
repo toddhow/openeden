@@ -31,6 +31,10 @@ namespace MWRender
     protected:
         // Protected for the tests (task 0074b): what an equipment change removes.
         void removeParts();
+        // Task 0074h: reads the ammunition model and adds it to the weapon part's placeholder (mAttachAmmo, which
+        // must be set). False, with nothing changed, when the model cannot be read (a std::exception, logged once per
+        // path), as addItemPart skips an item it cannot read.
+        bool attachAmmoModel(const std::string& model, const MWAnim::Context& mwctx);
         // The node work of addPart for one slot (Slot_CarriedRight or Slot_CarriedLeft), apart from the inventory so a
         // test reaches it (task 0074d, finding 4): `light` is the carried light's record, or null.
         void linkPart(int slot, vsg::ref_ptr<vsg::Node> node, const ESM::Light* light, const std::string& bonename,

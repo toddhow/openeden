@@ -259,6 +259,9 @@ namespace MWRender
         void addWeapon();
         void addCarriedLeft();
         void addAmmo();
+        // Task 0074h: reads the ammunition model and adds it to the weapon part's placeholder (mAttachAmmo, which must
+        // be set). False, with nothing changed, when the model cannot be read (a std::exception, logged once per path).
+        bool attachAmmoModel(const std::string& model);
 
         // Sheathing ([Game] weapon sheathing, shield sheathing; off by default). Needs bones a modded skeleton adds.
         void appendCustomBoneFiles(const std::string& model, std::vector<std::string>& files) const;
@@ -268,6 +271,18 @@ namespace MWRender
         void updateHolsteredWeapon();
         void updateHolsteredShield();
         void updateQuiver();
+        // Task 0074h: the per-part reads of the sheathing code. Each reads first and attaches only on success; a
+        // std::exception from a read is logged once per path (logPartReadError) and the part is left out, so a bad file
+        // no longer ends a mechanics-driven session. All main thread (the part update).
+        bool attachQuiverArrow(const std::string& model, const std::string& bone, std::optional<vsg::vec4> glowColor);
+        bool attachHolsteredWeapon(const std::string& mesh, const std::string& scabbard, bool hasScabbard,
+            const std::string& bone, bool visible, Anim::AutoPlay* clock, std::optional<vsg::vec4> glowColor,
+            vsg::Switch& weaponSwitch);
+        bool attachHolsteredShield(const std::string& mesh, const std::string& holstered, bool hasHolsteredModel,
+            const std::string& bone, std::optional<vsg::vec4> glowColor);
+        bool holsteredModelHasSheath(const std::string& holstered) const;
+        // The model as a normal read or readHolstered gives it; null when the read throws a std::exception.
+        vsg::ref_ptr<vsg::Node> readGuarded(const std::string& model, bool holstered) const;
         std::string getSheathedShieldMesh(const MWWorld::ConstPtr& shield) const;
         // Runs the node's auto-play controllers in `clock`, none without one (a holstered bow keeps still).
         std::vector<vsg::Node*> attachHolstered(vsg::ref_ptr<vsg::Node> node, MWAnim::PlaceholderResult& result,

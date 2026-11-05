@@ -1168,50 +1168,80 @@ namespace MWRender
         const bool canShowWeapon = weaponType->mWeaponClass != ESM::WeaponType::Thrown;
         Anim::AutoPlay* clock = weaponType->mWeaponClass != ESM::WeaponType::Ranged ? &mScabbardClock : nullptr;
         const std::string scabbard = sheathModel(mesh);
+        const bool hasScabbard = modelExists(scabbard);
+        // No scabbard: the weapon itself, which a thrown weapon does not show.
+        if (!hasScabbard && !canShowWeapon)
+            return;
         auto weaponSwitch = vsg::Switch::create();
         const bool visible = canShowWeapon && !isShown(Wield::Weapon);
-
-        if (!modelExists(scabbard))
-        {
-            // No scabbard: the weapon itself.
-            if (!canShowWeapon)
-                return;
-            auto node = mContext.readNode(mesh);
-            auto result = MWAnim::decorate(node, nullptr);
-            weaponSwitch->addChild(visible, node);
-            mScabbard = attachHolstered(weaponSwitch, result, bone, getGlowColor(*weapon), clock);
-        }
-        else
-        {
-            auto node = readHolstered(scabbard);
-            if (!node)
-                return;
-            auto result = MWAnim::decorate(node, nullptr);
-            if (vsg::Group* weaponNode = findGroup(*node, "Bip01 Weapon"))
-            {
-                // An empty weapon node places the common weapon mesh, so the _sh file need not hold it. Its contents
-                // go behind a switch, because the drawn weapon must not show in the scabbard too.
-                vsg::Group::Children contents;
-                contents.swap(weaponNode->children);
-                if (contents.empty())
-                {
-                    auto weaponMesh = mContext.readNode(mesh);
-                    MWAnim::decorate(weaponMesh, nullptr);
-                    contents.push_back(weaponMesh);
-                }
-                const auto glowColor = getGlowColor(*weapon);
-                for (auto& child : contents)
-                {
-                    if (glowColor)
-                        addEnv(child, glowColor, getTransparency(*this));
-                    weaponSwitch->addChild(visible, child);
-                }
-                weaponNode->addChild(weaponSwitch);
-            }
-            mScabbard = attachHolstered(node, result, bone, {}, clock);
-        }
+        if (!attachHolsteredWeapon(
+                mesh, scabbard, hasScabbard, bone, visible, clock, getGlowColor(*weapon), *weaponSwitch))
+            return;
         if (canShowWeapon)
             mHolsteredWeaponSwitch = weaponSwitch;
+    }
+
+    bool Npc::attachHolsteredWeapon(const std::string& mesh, const std::string& scabbard, bool hasScabbard,
+        const std::string& bone, bool visible, Anim::AutoPlay* clock, std::optional<vsg::vec4> glowColor,
+        vsg::Switch& weaponSwitch)
+    {
+        // Task 0074h: every read comes first and is guarded per part (insertBoundedPart's rule); a model that cannot
+        // be read leaves nothing attached (mScabbard stays empty, as removeHolstered left it) and the caller sets no
+        // switch.
+        if (!hasScabbard)
+        {
+            auto node = readGuarded(mesh, false);
+            if (!node)
+                return false;
+            auto result = MWAnim::decorate(node, nullptr);
+            weaponSwitch.addChild(visible, node);
+            mScabbard = attachHolstered(vsg::ref_ptr<vsg::Switch>(&weaponSwitch), result, bone, glowColor, clock);
+            return true;
+        }
+        auto node = readGuarded(scabbard, true);
+        if (!node)
+            return false;
+        auto result = MWAnim::decorate(node, nullptr);
+        if (vsg::Group* weaponNode = findGroup(*node, "Bip01 Weapon"))
+        {
+            // An empty weapon node places the common weapon mesh, so the _sh file need not hold it. Read it before
+            // the node is changed.
+            vsg::ref_ptr<vsg::Node> weaponMesh;
+            if (weaponNode->children.empty())
+            {
+                weaponMesh = readGuarded(mesh, false);
+                if (!weaponMesh)
+                    return false;
+                MWAnim::decorate(weaponMesh, nullptr);
+            }
+            // The contents go behind a switch, because the drawn weapon must not show in the scabbard too.
+            vsg::Group::Children contents;
+            contents.swap(weaponNode->children);
+            if (weaponMesh)
+                contents.push_back(weaponMesh);
+            for (auto& child : contents)
+            {
+                if (glowColor)
+                    addEnv(child, glowColor, getTransparency(*this));
+                weaponSwitch.addChild(visible, child);
+            }
+            weaponNode->addChild(vsg::ref_ptr<vsg::Switch>(&weaponSwitch));
+        }
+        mScabbard = attachHolstered(node, result, bone, {}, clock);
+        return true;
+    }
+
+    vsg::ref_ptr<vsg::Node> Npc::readGuarded(const std::string& model, bool holstered) const
+    {
+        try
+        {
+            return holstered ? readHolstered(model) : mContext.readNode(model);
+        }
+        catch (const std::exception& e)
+        {
+            logPartReadError("Error adding NPC holstered item '" + model + "': ", model, e);
+            return {};
+        }
     }
 
     void Npc::updateQuiver()
@@ -1261,12 +1291,29 @@ namespace MWRender
         const auto glowColor = getGlowColor(*ammo);
         for (int i = 0; i < ammoCount && i < static_cast<int>(slots.size()); ++i)
         {
-            auto node = mContext.readNode(model);
-            auto result = MWAnim::decorate(node, nullptr);
-            auto path = attachHolstered(node, result, slots[i], glowColor, nullptr);
-            if (!path.empty())
-                mQuiver.push_back(std::move(path));
+            // Task 0074h: every arrow is the same model, so one that cannot be read ends the quiver.
+            if (!attachQuiverArrow(model, slots[i], glowColor))
+                break;
         }
+    }
+
+    bool Npc::attachQuiverArrow(const std::string& model, const std::string& bone, std::optional<vsg::vec4> glowColor)
+    {
+        vsg::ref_ptr<vsg::Node> node;
+        try
+        {
+            node = mContext.readNode(model);
+        }
+        catch (const std::exception& e)
+        {
+            logPartReadError("Error adding NPC quiver arrow '" + model + "': ", model, e);
+            return false;
+        }
+        auto result = MWAnim::decorate(node, nullptr);
+        auto path = attachHolstered(node, result, bone, glowColor, nullptr);
+        if (!path.empty())
+            mQuiver.push_back(std::move(path));
+        return true;
     }
 
     std::string Npc::getSheathedShieldMesh(const MWWorld::ConstPtr& shield) const
@@ -1279,11 +1326,26 @@ namespace MWRender
         if (modelExists(holstered))
         {
             // Only searched, so the shared read will do.
-            auto node = mContext.readActor(holstered);
-            if (!node || !findGroup(*node, "Bip01 Sheath"))
+            if (!holsteredModelHasSheath(holstered))
                 return {};
         }
         return mesh;
+    }
+
+    bool Npc::holsteredModelHasSheath(const std::string& holstered) const
+    {
+        // Task 0074h: called from hasSheathedShield and canAnimateShield, which the mechanics reach, so a read that
+        // throws counts as "no sheath" (the shield is then not shown holstered) instead of ending the session.
+        try
+        {
+            auto node = mContext.readActor(holstered);
+            return node && findGroup(*node, "Bip01 Sheath");
+        }
+        catch (const std::exception& e)
+        {
+            logPartReadError("Error adding NPC holstered item '" + holstered + "': ", holstered, e);
+            return false;
+        }
     }
 
     bool Npc::hasSheathedShield() const
@@ -1343,23 +1405,32 @@ namespace MWRender
             return;
 
         const std::string holstered = sheathModel(mesh);
-        const auto glowColor = getGlowColor(*shield);
-        const bool hasHolsteredModel = modelExists(holstered);
-        auto node = hasHolsteredModel ? readHolstered(holstered) : mContext.readNode(mesh);
+        attachHolsteredShield(mesh, holstered, modelExists(holstered), bone, getGlowColor(*shield));
+    }
+
+    bool Npc::attachHolsteredShield(const std::string& mesh, const std::string& holstered, bool hasHolsteredModel,
+        const std::string& bone, std::optional<vsg::vec4> glowColor)
+    {
+        // Task 0074h: every read is guarded per part; a model that cannot be read leaves no shield, no switch and no
+        // path (updateHolsteredShield emptied them first).
+        auto node = readGuarded(hasHolsteredModel ? holstered : mesh, hasHolsteredModel);
         if (!node)
-            return;
+            return false;
         auto result = MWAnim::decorate(node, nullptr);
         // An empty sheath node places the common shield mesh, so the _sh file need not hold it.
         if (vsg::Group* sheath = hasHolsteredModel ? findGroup(*node, "Bip01 Sheath") : nullptr;
             sheath && sheath->children.empty())
         {
-            auto shieldMesh = mContext.readNode(mesh);
+            auto shieldMesh = readGuarded(mesh, false);
+            if (!shieldMesh)
+                return false;
             MWAnim::decorate(shieldMesh, nullptr);
             sheath->addChild(shieldMesh);
         }
         mHolsteredShieldSwitch = vsg::Switch::create();
         mHolsteredShieldSwitch->addChild(!isShown(Wield::CarriedLeft), node);
         mHolsteredShield = attachHolstered(mHolsteredShieldSwitch, result, bone, glowColor, &mHolsteredShieldClock);
+        return true;
     }
 
     void Npc::show(Wield w, bool visible)
@@ -1408,13 +1479,30 @@ namespace MWRender
         auto ammo = inv.getSlot(MWWorld::InventoryStore::Slot_Ammunition);
         if (ammo != inv.end())
         {
-            std::string model = std::string(ammo->getClass().getModel(*ammo));
-            auto node = mPartContext->readNode(model);
-            auto result = MWAnim::cloneIfRequired(node);
-            addSwitch(node, Wield::Ammo);
-            mAttachAmmo->subgraphRequiresLocalFrustum = true;
-            mAttachAmmo->addChild(node);
+            attachAmmoModel(std::string(ammo->getClass().getModel(*ammo)));
         }
+    }
+
+    bool Npc::attachAmmoModel(const std::string& model)
+    {
+        // Task 0074h: the read is guarded per part like insertBoundedPart's. Nothing has changed before it succeeds:
+        // mAttachAmmo (the weapon part's placeholder, valid while the weapon part is) keeps its children, so the arrow
+        // is simply missing and the update goes on.
+        vsg::ref_ptr<vsg::Node> node;
+        try
+        {
+            node = mPartContext->readNode(model);
+        }
+        catch (const std::exception& e)
+        {
+            logPartReadError("Error adding NPC ammunition '" + model + "': ", model, e);
+            return false;
+        }
+        auto result = MWAnim::cloneIfRequired(node);
+        addSwitch(node, Wield::Ammo);
+        mAttachAmmo->subgraphRequiresLocalFrustum = true;
+        mAttachAmmo->addChild(node);
+        return true;
     }
 
     void Npc::setFacialState(bool enable, bool talking, float loudness)

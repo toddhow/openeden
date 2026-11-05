@@ -196,14 +196,29 @@ namespace MWRender
         if (ammo != inv.end())
         {
             std::string model = std::string(ammo->getClass().getModel(*ammo));
-            auto node = mwctx.readNode(model);
-            auto result = MWAnim::cloneIfRequired(node);
-            addSwitch(node, Wield::Ammo);
-            mAttachAmmo->subgraphRequiresLocalFrustum = true;
-            mAttachAmmo->addChild(node);
-            mParts[static_cast<int>(Wield::Ammo)] = { mAttachAmmo, node };
+            attachAmmoModel(model, mwctx);
         }
         // updateQuiver();
+    }
+
+    bool WieldingCreature::attachAmmoModel(const std::string& model, const MWAnim::Context& mwctx)
+    {
+        vsg::ref_ptr<vsg::Node> node;
+        try
+        {
+            node = mwctx.readNode(model);
+        }
+        catch (const std::exception& e)
+        {
+            logPartReadError("Can not add creature ammunition '" + model + "': ", model, e);
+            return false;
+        }
+        auto result = MWAnim::cloneIfRequired(node);
+        addSwitch(node, Wield::Ammo);
+        mAttachAmmo->subgraphRequiresLocalFrustum = true;
+        mAttachAmmo->addChild(node);
+        mParts[static_cast<int>(Wield::Ammo)] = { mAttachAmmo, node };
+        return true;
     }
 
     void WieldingCreature::compileOrRemoveParts()
