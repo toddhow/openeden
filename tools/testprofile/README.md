@@ -11,7 +11,7 @@ new feature too.
 - `variants/*.cfg` hold settings that exclude each other or cost a lot, so they are separate: `msaa` (multisampling
   instead of TAA), `glsl` (the GLSL shaders instead of the Slang ones), `lowtier` (the weakest whole-map tier), `aces`
   (another tonemap curve), `pcss` (soft shadow edges), `lowmemory` (a simulated 4 GiB card for the texture downscaler),
-  `stats` (frame counters and the cell-load trace).
+  `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain).
 - `prepare.sh` makes a **profile folder** under `I:\Projects\OpenEden-work\testprofile\<name>` from a **copy** of your
   `openmw.cfg` and `settings.cfg`. Your real folder (`Documents\My Games\OpenMW`) is only read: nothing is written to
   it, and the profile has its own saves, screenshots, logs and baked data.
