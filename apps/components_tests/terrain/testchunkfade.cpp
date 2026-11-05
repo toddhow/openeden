@@ -257,8 +257,10 @@ TEST(TerrainChunkFade, no_cell_that_is_wanted_ever_loses_a_solid_cover_before_it
             for (int i = 0; i < 64; ++i)
             {
                 if (before[i] && cellWanted(wanted, i % 8, i / 8))
+                {
                     ASSERT_TRUE(after[i])
                         << "seed " << seed << " round " << round << " cell " << i << " after the change";
+                }
             }
             for (int s = 0; s < 6; ++s)
             {
@@ -268,7 +270,9 @@ TEST(TerrainChunkFade, no_cell_that_is_wanted_ever_loses_a_solid_cover_before_it
                 for (int i = 0; i < 64; ++i)
                 {
                     if (prev[i] && cellWanted(wanted, i % 8, i / 8))
+                    {
                         ASSERT_TRUE(now[i]) << "seed " << seed << " round " << round << " step " << s << " cell " << i;
+                    }
                 }
             }
         }
