@@ -119,7 +119,7 @@ during one fade (needs a per-frame counter), the ground walk, tiers low and medi
 (the uniform branch costs every terrain draw, the live terrain too). The residency planner counts a fading-out freed tile as leaving (not
 committed, never freed twice) and a tile that is merely replaced as pinned (held, counted); neither can stall a fade: the
 fade does not wait on the planner and the planner never frees a fading tile.
-**Stage e (2026-11-05).** Frames in `I:\Projects\OpenEden-work	ilefade\`: `sheet-j.png` (a teleport to 25,000 units with `terrain fade time = 6`
+**Stage e (2026-11-05).** Frames in `I:/Projects/OpenEden-work/tilefade/`: `sheet-j.png` (a teleport to 25,000 units with `terrain fade time = 6`
 so that the dither lasts long enough to see: new far tiles and clusters come in as a stipple that thins over the shots, no hole, no flash),
 `sheetA-on.png` (the 0.4 s descent, twelve shots around a level 2 to level 1 swap: no visible change), `sheet-dj.png` (amplified difference of
 the 0.4 s and the instant runs at the same camera: two specks). The swaps of a descent are subtle by design of the pixel error threshold, so
