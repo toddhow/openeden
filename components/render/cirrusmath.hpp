@@ -73,19 +73,45 @@ namespace Render::Cirrus
     constexpr float domeBelowHorizonRadians = 0.05235988f; // 3 degrees
     constexpr float pi = 3.14159265358979f;
 
-    // The shape of the fibre field (all chosen by eye; see the stage log of task 0079).
-    constexpr float warpAlongCells = 1.5f; // domain warp displacement along the wind, in cells
-    constexpr float warpAcrossCells = 0.75f; // and across it (in the stretched, narrow coordinate)
-    constexpr float streakAmount = 0.35f; // the share of the fall-streak modulation
-    constexpr float edgeAtZeroCoverage = 0.66f; // the noise level where density starts, at pattern coverage 0 ...
+    // The shape of the fibre field (all chosen by eye; see the stage logs of task 0079).
+    constexpr float warpAlongCells = 0.8f; // domain warp displacement along the wind, in cells
+    constexpr float warpAcrossCells = 0.09375f; // and across it, in cells (3/32)
+    constexpr float edgeAtZeroCoverage = 0.62f; // the noise level where density starts, at pattern coverage 0 ...
     constexpr float edgeCoverageSlope = 0.34f; // ... lowered by this much at coverage 1
-    constexpr float edgeSoftness = 0.35f; // and the width of the ramp up to full density
+    constexpr float edgeSoftnessTufts = 0.28f; // the width of the ramp up to full density: sharp for short tufts ...
+    constexpr float edgeSoftnessLong = 0.5f; // ... soft for the long fibres
     // The look of the fibres, by eye (frames of task 0079): the noise's cell is fibreLengthFactor times cellMeters
-    // along the wind (its period then holds noisePeriodCells / fibreLengthFactor cells, so the pattern still repeats
-    // after noisePeriodCells * cellMeters), and the across-wind coordinate is fibreWidthFactor times what fibreStretch
-    // gives, so the fibres are 4 km long and 500 m wide (a 2 km cell with a stretch of 6 gave short dashes).
+    // along the wind (its period then holds noisePeriodCells / fibreLengthFactor cells), so one lattice cell of the
+    // base octave is 4 km. The pattern repeats after noisePeriodCells * cellMeters along the wind.
     constexpr float fibreLengthFactor = 2.f;
     constexpr float fibreWidthFactor = 4.f / 3.f;
+
+    // The variety of the sky (2026-11-04: the first version was one kind of fibre, all alike, all along the wind, over
+    // the whole sky). Every large field below is in true metres of the layer, in units of one 4 km cell (cellMeters
+    // times fibreLengthFactor), and has the period of the drift's wrap divided by its scale, so the pattern still
+    // repeats after noisePeriodCells * cellMeters whatever the drift does.
+    //  - patch: where cloud is and where the sky is clear (two octaves, 16 and 8 km cells);
+    //  - type: long, wide streaks against short tufts and hooks (8 km cells);
+    //  - swirl: a slow displacement of the whole field (32 km cells, up to swirlCells), which turns the fibres to other
+    //    directions from place to place and bends them (wind shear);
+    //  - tail: a sawtooth along the fibres (head sharp, tail fading) whose phase moves with a noise;
+    //  - veil: a faint, broad sheet (cirrostratus) that is not made of fibres.
+    constexpr float patchScale = 0.375f, patchContrast = 2.f;
+    constexpr float typeScale = 0.5f, typeLow = 0.4f, typeHigh = 0.6f;
+    constexpr float swirlScale = 0.25f, swirlCells = 1.6f, swirlAcrossShare = 0.5f;
+    constexpr float gapEdgeAtZero = 0.52f, gapEdgeSlope = 0.34f, gapWidth = 0.22f;
+    constexpr float clumpThicken = 0.3f;
+    // Long fibres: lattice 8 km along, 1 km across (octaves double both); tufts: 2 km by 500 m.
+    constexpr float longAlong = 0.5f, longAcross = 4.f, tuftAlong = 2.f, tuftAcross = 8.f;
+    constexpr int tuftOctaves = 2;
+    // Tufts bend this much more than long fibres (the warp times 1 + gain * tuft share).
+    constexpr float hookWarpGain = 0.5f;
+    constexpr float tailScale = 0.5f, tailAcross = 2.f, tailPhase = 2.5f, tailStrength = 0.5f, tailHead = 0.1f;
+    constexpr float tailFloor = 0.85f; // how much of the fibre the tail loses at its end
+    constexpr float tailMeters = 4000.f; // the size at which the tail pattern is faded out by the pixel's footprint
+    constexpr float veilAmount = 0.12f, veilLow = 0.35f, veilHigh = 0.65f;
+    // Seeds, added to the layer's first seed.
+    constexpr std::uint32_t seedPatch = 300u, seedType = 310u, seedSwirl = 320u, seedTail = 340u, seedTuft = 10u;
 
     // --- Where the layer is -------------------------------------------------------------------------------------
 
@@ -254,18 +280,64 @@ namespace Render::Cirrus
         }
     }
 
-    // The noise level at which the cover starts, by pattern coverage; density rises from 0 there to 1 over
-    // edgeSoftness.
+    // The noise level at which the cover starts, by pattern coverage; density rises from 0 there over the ramp.
     inline float densityEdge(float coverage)
     {
         return edgeAtZeroCoverage - edgeCoverageSlope * std::clamp(coverage, 0.f, 1.f);
     }
 
-    // The fibre density in [0, 1] at a point of the wind frame (metres, the output of `windFrame`): the Perlin noise of
-    // `Render::CloudVolume::perlin` (the cloud noise, a 3D gradient noise) in octaves, a domain warp that shears the
-    // field, a slow fall-streak modulation and a threshold set by the pattern coverage. `morph` is the third noise
-    // coordinate (the evolution), `footprintMeters` the pixel's size on the layer, which fades each octave and the
-    // warp away when the pixel is bigger than they are (0: no fading). 0 for coverage 0.
+    namespace Detail
+    {
+        // A large field of the layer, in [0, 1]: Perlin noise with a lattice cell of cellLength / scale along and
+        // across (true metres, in units of cellLength), tiling after the drift's period; faded to its mean 0.5 when
+        // the pixel is bigger than the cell.
+        inline float field(float fx, float fy, float qm, float scale, std::uint32_t seed, float footprintMeters)
+        {
+            const float cellLength = cellMeters * fibreLengthFactor;
+            const int period = static_cast<int>(std::lround(static_cast<float>(noisePeriodCells) * 0.5f * scale));
+            const float weight = octaveWeight(footprintMeters, cellLength / scale);
+            if (!(weight > 0.f))
+            {
+                return 0.5f;
+            }
+            return lerp(0.5f, CloudVolume::perlin(fx * scale, fy * scale, qm * scale, period, seed), weight);
+        }
+
+        // `octaves` octaves of Perlin noise (each double the frequency, half the weight) with the lattice cell
+        // 1 / alongScale of a cell along the wind and 1 / acrossScale across it, in [0, 1]; a faded octave is
+        // replaced by the noise's mean.
+        inline float fibres(float ux, float uy, float qm, float alongScale, float acrossScale, int octaves,
+            std::uint32_t seed, float footprintMeters)
+        {
+            const float cellLength = cellMeters * fibreLengthFactor;
+            float sum = 0.f;
+            float total = 0.f;
+            float weight = 0.5f;
+            float scale = 1.f;
+            for (int i = 0; i < octaves; ++i)
+            {
+                const float wavelength = cellLength / (acrossScale * scale);
+                const int period
+                    = static_cast<int>(std::lround(static_cast<float>(noisePeriodCells) * 0.5f * alongScale * scale));
+                const float n = CloudVolume::perlin(ux * alongScale * scale, uy * acrossScale * scale, qm * scale,
+                    period, seed + static_cast<std::uint32_t>(i));
+                sum += weight * lerp(0.5f, n, octaveWeight(footprintMeters, wavelength));
+                total += weight;
+                weight *= 0.5f;
+                scale *= 2.f;
+            }
+            return total > 0.f ? sum / total : 0.5f;
+        }
+    }
+
+    // The fibre density in [0, 1] at a point of the wind frame (metres, the output of `windFrame`). The sky is patches
+    // of cloud with clear gaps between them (patch); in each place the cloud is long, wide streaks or short tufts
+    // (type), made of octaves of `Render::CloudVolume::perlin`; the whole field is slowly displaced (swirl, so the
+    // fibres turn and bend from place to place) and domain warped (hooks); the fibres have heads and fading tails, a
+    // faint broad veil lies over it all, and a threshold set by the pattern coverage cuts the shapes. `morph` is the
+    // third noise coordinate (the evolution), `footprintMeters` the pixel's size on the layer, which fades each octave
+    // and field away when the pixel is bigger than it is (0: no fading). 0 for coverage 0; never falls when the
+    // coverage grows.
     inline float density(const vsg::vec2& windFramePoint, float morph, int octaves, int warps, float coverage,
         float footprintMeters = 0.f)
     {
@@ -278,51 +350,76 @@ namespace Render::Cirrus
         const int warpCount = std::clamp(warps, 0, 2);
         const float footprintSize = Detail::finiteOr(footprintMeters, 0.f);
         const std::uint32_t seed = CloudVolume::noiseSeed + Detail::seedOffset;
-        const int period = static_cast<int>(static_cast<float>(noisePeriodCells) / fibreLengthFactor);
 
         const float cellLength = cellMeters * fibreLengthFactor;
-        float qx = Detail::finiteOr(windFramePoint.x, 0.f) / cellLength;
-        float qy = Detail::finiteOr(windFramePoint.y, 0.f) * fibreWidthFactor / cellLength;
-        const float qz = Detail::finiteOr(morph, 0.f);
+        // The wind frame has the across axis multiplied by fibreStretch; the fields are in true metres.
+        const float fx = Detail::finiteOr(windFramePoint.x, 0.f) / cellLength;
+        const float fy = Detail::finiteOr(windFramePoint.y, 0.f) / fibreStretch / cellLength;
+        const float qm = Detail::finiteOr(morph, 0.f);
 
-        // The warp: low frequency noise (half the base frequency) moves the lookup point, more across the wind, so the
-        // fibres bend and shear. Its wavelength across the wind is two cells over fibreStretch.
-        const float warpWeight = octaveWeight(footprintSize, 2.f * cellLength / (fibreStretch * fibreWidthFactor));
-        for (int w = 0; w < warpCount; ++w)
+        // Where the cloud is, of what kind, and how the field is displaced.
+        const float patchRaw = Detail::field(fx, fy, qm, patchScale, seed + seedPatch, footprintSize);
+        const float patchValue = std::clamp(0.5f + (patchRaw - 0.5f) * patchContrast, 0.f, 1.f);
+        const float typeNoise = Detail::field(fx, fy, qm, typeScale, seed + seedType, footprintSize);
+        const float longShare = CloudVolume::smoothstep(typeLow, typeHigh, typeNoise);
+        float ux
+            = fx + swirlCells * 2.f * (Detail::field(fx, fy, qm, swirlScale, seed + seedSwirl, footprintSize) - 0.5f);
+        // Across the fibres the displacement is smaller, and the type field (the next scale up) serves as its noise.
+        float uy = fy + swirlAcrossShare * swirlCells * 2.f * (typeNoise - 0.5f);
+
+        // The gaps: where the patch field is low the sky is clear. A pixel in a gap needs nothing of the fibres, so
+        // none of them is evaluated there (the same value, d times 0 is 0, for a lot less work).
+        const float gapEdge = gapEdgeAtZero - gapEdgeSlope * cover;
+        const float gate = CloudVolume::smoothstep(gapEdge, gapEdge + gapWidth, patchValue);
+        float d = 0.f;
+        if (gate > 0.f)
         {
-            const std::uint32_t warpSeed = seed + 100u + 2u * static_cast<std::uint32_t>(w);
-            const float n1 = CloudVolume::perlin(qx * 0.5f, qy * 0.5f, qz * 0.5f, period / 2, warpSeed);
-            const float n2 = CloudVolume::perlin(qx * 0.5f, qy * 0.5f, qz * 0.5f, period / 2, warpSeed + 1u);
-            qx += warpWeight * warpAlongCells * (n1 - 0.5f) * 2.f;
-            qy += warpWeight * warpAcrossCells * (n2 - 0.5f) * 2.f;
+            // The warp: low frequency noise (half the base frequency) moves the lookup point, more for tufts, so that
+            // the fibres bend and hook.
+            const float warpWeight = octaveWeight(footprintSize, 2.f * cellLength / (fibreStretch * fibreWidthFactor));
+            const float hook = 1.f + hookWarpGain * (1.f - longShare);
+            const int warpPeriod = noisePeriodCells / 4;
+            for (int w = 0; w < warpCount; ++w)
+            {
+                const std::uint32_t warpSeed = seed + 100u + 2u * static_cast<std::uint32_t>(w);
+                const float n1 = CloudVolume::perlin(ux * 0.5f, uy * 1.f, qm * 0.5f, warpPeriod, warpSeed);
+                const float n2 = CloudVolume::perlin(ux * 0.5f, uy * 1.f, qm * 0.5f, warpPeriod, warpSeed + 1u);
+                ux += warpWeight * warpAlongCells * hook * (n1 - 0.5f) * 2.f;
+                uy += warpWeight * warpAcrossCells * hook * (n2 - 0.5f) * 2.f;
+            }
+
+            // The fibres: long streaks and short tufts, mixed by the type. A part with no share is not evaluated.
+            const float valueLong = longShare > 0.f
+                ? Detail::fibres(ux, uy, qm, longAlong, longAcross, std::max(octaveCount - 1, 2), seed, footprintSize)
+                : 0.5f;
+            const float valueTuft = longShare < 1.f
+                ? Detail::fibres(ux, uy, qm, tuftAlong, tuftAcross, tuftOctaves, seed + seedTuft, footprintSize)
+                : 0.5f;
+            float value = Detail::lerp(valueTuft, valueLong, longShare);
+            // Clumps of the sky thicken the fibres.
+            value = std::clamp(value + clumpThicken * (patchValue - 0.5f), 0.f, 1.f);
+
+            const float edge = densityEdge(cover);
+            const float softness = Detail::lerp(edgeSoftnessTufts, edgeSoftnessLong, longShare);
+            d = CloudVolume::smoothstep(edge, edge + softness, value);
+
+            // Heads and tails: along the (displaced) fibre direction a sawtooth whose phase wanders with a noise, so
+            // the fibres start sharply and fade away. Faded out for pixels bigger than its tooth.
+            const float tailNoise = CloudVolume::perlin(ux * tailScale, uy * tailAcross, qm * tailScale,
+                static_cast<int>(std::lround(static_cast<float>(noisePeriodCells) * 0.5f * tailScale)),
+                seed + seedTail);
+            const float phase = ux * tailScale + tailPhase * 2.f * (tailNoise - 0.5f);
+            const float saw = phase - std::floor(phase);
+            const float tail = CloudVolume::smoothstep(0.f, tailHead, saw)
+                * (1.f - tailFloor * CloudVolume::smoothstep(tailHead, 1.f, saw));
+            const float tailAmount = tailStrength * (0.4f + 0.6f * longShare) * octaveWeight(footprintSize, tailMeters);
+            d *= Detail::lerp(1.f, tail, tailAmount);
+            d *= gate;
         }
 
-        // The base field: perlinFbm's octaves (each double the frequency, half the weight), a faded octave being
-        // replaced by the noise's mean 0.5.
-        float sum = 0.f;
-        float total = 0.f;
-        float weight = 0.5f;
-        float scale = 1.f;
-        int periodScale = 1;
-        for (int i = 0; i < octaveCount; ++i)
-        {
-            const float wavelength = cellLength / (fibreStretch * fibreWidthFactor * scale);
-            const float n = CloudVolume::perlin(
-                qx * scale, qy * scale, qz * scale, period * periodScale, seed + static_cast<std::uint32_t>(i));
-            sum += weight * Detail::lerp(0.5f, n, octaveWeight(footprintSize, wavelength));
-            total += weight;
-            weight *= 0.5f;
-            scale *= 2.f;
-            periodScale *= 2;
-        }
-        float value = total > 0.f ? sum / total : 0.5f;
-
-        // Fall streaks: a very slow modulation (a quarter of the base frequency) that makes some fibres stand out.
-        const float streak = CloudVolume::perlin(qx * 0.25f, qy * 0.25f, qz * 0.25f, period / 4, seed + 200u);
-        value = std::clamp(value + streakAmount * (streak - 0.5f), 0.f, 1.f);
-
-        const float edge = densityEdge(cover);
-        return CloudVolume::smoothstep(edge, edge + edgeSoftness, value);
+        // The veil: broad and faint, where the patch field is moderately high.
+        const float veil = veilAmount * CloudVolume::smoothstep(veilLow, veilHigh, patchRaw);
+        return std::clamp(d + veil * (1.f - d), 0.f, 1.f);
     }
 
     // --- Wind and time ------------------------------------------------------------------------------------------

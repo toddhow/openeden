@@ -711,8 +711,9 @@ namespace
             { vsg::vec2(31000.f, -700.f), 0.5f, 5, 2, 0.8f, 0.f },
             { vsg::vec2(-120000.f, 2500.f), 99.f, 4, 1, 0.7f, 0.f },
         };
-        const float expected[] = { 0.376851857f, 0.0442306362f, 0.00450098468f, 0.899660826f, 0.564532280f,
-            0.524527490f, 0.276510566f, 0.604974031f };
+        // Re-pinned on 2026-11-04 when the fibre field was redesigned for variety (patches, types, swirl, tails, veil).
+        const float expected[] = { 0.344365031f, 0.366307467f, 0.0178119168f, 0.617833555f, 0.408171654f, 0.0700234324f,
+            0.906726301f, 0.413809538f };
         std::size_t i = 0;
         for (const Sample& sample : samples)
         {
@@ -721,6 +722,153 @@ namespace
             EXPECT_NEAR(d, expected[i], 1e-5f) << i;
             ++i;
         }
+    }
+
+    // --- The variety of the sky (2026-11-04)
+    // --------------------------------------------------------------------------- The first frames showed one kind of
+    // fibre, all along the wind, over the whole sky. These tests pin that the field has patches and gaps, fibres that
+    // turn from place to place, and changes slowly with the evolution coordinate.
+
+    namespace
+    {
+        // The density at a point given in true metres east and north of the wind frame's origin.
+        float densityAt(float x, float yTrue, float morph = 0.f, float coverage = 0.55f)
+        {
+            return Cirrus::density(vsg::vec2(x, Cirrus::fibreStretch * yTrue), morph, 4, 1, coverage);
+        }
+
+        struct Block
+        {
+            double mean = 0.0;
+            double energy = 0.0; // the structure tensor's trace (how much structure there is)
+            double angle = 0.0; // the dominant gradient direction, in the frame's true metres, radians
+        };
+
+        // An 8 by 8 grid of blocks of `size` metres, each sampled 16 by 16 times.
+        std::vector<Block> blocks(float size, float morph = 0.f)
+        {
+            std::vector<Block> result;
+            for (int bx = 0; bx < 8; ++bx)
+            {
+                for (int by = 0; by < 8; ++by)
+                {
+                    Block block;
+                    double jxx = 0.0, jyy = 0.0, jxy = 0.0;
+                    for (int i = 0; i < 16; ++i)
+                    {
+                        for (int j = 0; j < 16; ++j)
+                        {
+                            const float x
+                                = static_cast<float>(bx) * size + (static_cast<float>(i) + 0.5f) * size / 16.f;
+                            const float y = static_cast<float>(by) * size + (static_cast<float>(j) + 0.5f) * size / 16.f
+                                - 4.f * size;
+                            const float h = 100.f;
+                            const double gx = (densityAt(x + h, y, morph) - densityAt(x - h, y, morph)) / (2.f * h);
+                            const double gy = (densityAt(x, y + h, morph) - densityAt(x, y - h, morph)) / (2.f * h);
+                            jxx += gx * gx;
+                            jyy += gy * gy;
+                            jxy += gx * gy;
+                            block.mean += static_cast<double>(densityAt(x, y, morph));
+                        }
+                    }
+                    block.mean /= 256.0;
+                    block.energy = jxx + jyy;
+                    block.angle = 0.5 * std::atan2(2.0 * jxy, jxx - jyy);
+                    result.push_back(block);
+                }
+            }
+            return result;
+        }
+    }
+
+    TEST(RenderCirrusVariety, TheSkyHasGapsAndClumps)
+    {
+        // 64 km square in 8 km blocks: some blocks are almost clear and many are clearly cloudy.
+        const std::vector<Block> all = blocks(8000.f);
+        int clear = 0;
+        int cloudy = 0;
+        double lowest = 1.0;
+        double highest = 0.0;
+        for (const Block& block : all)
+        {
+            clear += block.mean < 0.05 ? 1 : 0;
+            cloudy += block.mean > 0.12 ? 1 : 0;
+            lowest = std::min(lowest, block.mean);
+            highest = std::max(highest, block.mean);
+        }
+        EXPECT_GE(clear, 3);
+        EXPECT_GE(cloudy, 20);
+        EXPECT_GT(highest - lowest, 0.3);
+    }
+
+    TEST(RenderCirrusVariety, TheFibresTurnFromPlaceToPlace)
+    {
+        // The dominant direction of the structure in each block (doubled angles: a direction and its opposite are one
+        // fibre direction). R is the length of their mean: 1 for one direction everywhere, 0 for none.
+        double cx = 0.0;
+        double cy = 0.0;
+        int counted = 0;
+        double smallest = 10.0;
+        double largest = -10.0;
+        for (const Block& block : blocks(8000.f))
+        {
+            if (block.energy < 2e-9)
+            {
+                continue;
+            }
+            cx += std::cos(2.0 * block.angle);
+            cy += std::sin(2.0 * block.angle);
+            ++counted;
+            // The gradient across the fibres is near +-90 degrees: bring both into one range.
+            const double wrapped = block.angle < 0.0 ? block.angle + 3.14159265358979 : block.angle;
+            smallest = std::min(smallest, wrapped);
+            largest = std::max(largest, wrapped);
+        }
+        ASSERT_GE(counted, 40);
+        const double resultant = std::sqrt(cx * cx + cy * cy) / static_cast<double>(counted);
+        EXPECT_LT(resultant, 0.92); // 0.85 measured; the first version, with one wind direction, was above 0.99
+        // And the spread is real, not a few outliers: the blocks' directions cover more than 50 degrees.
+        EXPECT_GT(largest - smallest, 0.87);
+    }
+
+    TEST(RenderCirrusVariety, TheFieldEvolvesSlowlyWithTheMorphCoordinate)
+    {
+        // A small step of the evolution coordinate changes little (the clouds shift, they do not flicker); a large one
+        // gives another pattern.
+        double nearDiff = 0.0;
+        double farDiff = 0.0;
+        int n = 0;
+        for (int i = 0; i < 40; ++i)
+        {
+            for (int j = 0; j < 40; ++j)
+            {
+                const float x = 1500.f * static_cast<float>(i);
+                const float y = 1500.f * static_cast<float>(j) - 30000.f;
+                const float base = densityAt(x, y, 2.f);
+                nearDiff += std::fabs(densityAt(x, y, 2.01f) - base);
+                farDiff += std::fabs(densityAt(x, y, 6.f) - base);
+                ++n;
+            }
+        }
+        EXPECT_LT(nearDiff / n, 0.02);
+        EXPECT_GT(farDiff / n, 0.08);
+    }
+
+    TEST(RenderCirrusVariety, FibresDifferInSharpnessByPlace)
+    {
+        // Short tufts and long streaks: the energy of the structure differs by a factor of at least 10 from the
+        // dullest to the sharpest cloudy block.
+        double lowest = 1e9;
+        double highest = 0.0;
+        for (const Block& block : blocks(8000.f))
+        {
+            if (block.mean > 0.1)
+            {
+                lowest = std::min(lowest, block.energy);
+                highest = std::max(highest, block.energy);
+            }
+        }
+        EXPECT_GT(highest / lowest, 10.0);
     }
 
     // The pattern debug view (task 0079): the GPU's density on a fixed 40 km square agreed with the C++ at 91 of the 93
@@ -1253,6 +1401,19 @@ namespace
         EXPECT_FLOAT_EQ(shaderConstant(text, "kSunGain"), Cirrus::sunGain);
         EXPECT_FLOAT_EQ(shaderConstant(text, "kEarthRadiusMeters"), static_cast<float>(Cirrus::earthRadiusMeters));
         EXPECT_FLOAT_EQ(shaderConstant(text, "kBaseCoverage"), Cirrus::baseCoverage);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kPatchScale"), Cirrus::patchScale);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kPatchContrast"), Cirrus::patchContrast);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kTypeLow"), Cirrus::typeLow);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kSwirlScale"), Cirrus::swirlScale);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kSwirlCells"), Cirrus::swirlCells);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kGapEdgeAtZero"), Cirrus::gapEdgeAtZero);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kHookWarpGain"), Cirrus::hookWarpGain);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kTailStrength"), Cirrus::tailStrength);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kTailFloor"), Cirrus::tailFloor);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kVeilAmount"), Cirrus::veilAmount);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kLongAlong"), Cirrus::longAlong);
+        EXPECT_FLOAT_EQ(shaderConstant(text, "kTuftAcross"), Cirrus::tuftAcross);
+        EXPECT_EQ(shaderIntConstant(text, "kTuftOctaves"), Cirrus::tuftOctaves);
         EXPECT_EQ(shaderIntConstant(text, "kNoisePeriodCells"), Cirrus::noisePeriodCells);
         EXPECT_EQ(shaderIntConstant(text, "kDomeColumns"), Cirrus::domeColumns);
         EXPECT_EQ(shaderIntConstant(text, "kDomeRows"), Cirrus::domeRows);

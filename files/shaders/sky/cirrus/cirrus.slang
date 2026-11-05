@@ -35,14 +35,49 @@ static const float kHorizonFadeEndZ = 0.02;
 static const float kSunGain = 0.5;
 static const float kEarthRadiusMeters = 6371000.0;
 static const float kBaseCoverage = 0.55;
-static const float kFibreLengthFactor = 2.0;
-static const float kFibreWidthFactor = 1.3333334;
-static const float kWarpAlongCells = 1.5;
-static const float kWarpAcrossCells = 0.75;
-static const float kStreakAmount = 0.35;
-static const float kEdgeAtZeroCoverage = 0.66;
+// BEGIN FIELD CONSTANTS (generated from cirrusmath.hpp by cirrus/v2/gen_slang.py; change both together)
+static const float kWarpAlongCells = 0.8;
+static const float kWarpAcrossCells = 0.09375;
+static const float kEdgeAtZeroCoverage = 0.62;
 static const float kEdgeCoverageSlope = 0.34;
-static const float kEdgeSoftness = 0.35;
+static const float kEdgeSoftnessTufts = 0.28;
+static const float kEdgeSoftnessLong = 0.5;
+static const float kFibreLengthFactor = 2.0;
+static const float kPatchScale = 0.375;
+static const float kPatchContrast = 2.0;
+static const float kTypeScale = 0.5;
+static const float kTypeLow = 0.4;
+static const float kTypeHigh = 0.6;
+static const float kSwirlScale = 0.25;
+static const float kSwirlCells = 1.6;
+static const float kSwirlAcrossShare = 0.5;
+static const float kGapEdgeAtZero = 0.52;
+static const float kGapEdgeSlope = 0.34;
+static const float kGapWidth = 0.22;
+static const float kClumpThicken = 0.3;
+static const float kLongAlong = 0.5;
+static const float kLongAcross = 4.0;
+static const float kTuftAlong = 2.0;
+static const float kTuftAcross = 8.0;
+static const float kHookWarpGain = 0.5;
+static const float kTailScale = 0.5;
+static const float kTailAcross = 2.0;
+static const float kTailPhase = 2.5;
+static const float kTailStrength = 0.5;
+static const float kTailHead = 0.1;
+static const float kTailFloor = 0.85;
+static const float kTailMeters = 4000.0;
+static const float kVeilAmount = 0.12;
+static const float kVeilLow = 0.35;
+static const float kVeilHigh = 0.65;
+static const int kTuftOctaves = 2;
+static const uint kSeedPatch = 300u;
+static const uint kSeedType = 310u;
+static const uint kSeedSwirl = 320u;
+static const uint kSeedTail = 340u;
+static const uint kSeedTuft = 10u;
+static const float kFibreWidthFactor = 1.3333334;
+// END FIELD CONSTANTS
 static const float kDomeBelowHorizonRadians = 0.05235988;
 static const float kPi = 3.14159265358979;
 static const int kNoisePeriodCells = 128;
@@ -301,7 +336,43 @@ float horizonFade(float dirZ)
     return smoothStepEdges(kHorizonCutZ, kHorizonFadeEndZ, dirZ);
 }
 
-// density(): the fibre field in [0, 1] at a point of the wind frame (metres).
+// A large field of the layer (cirrusmath.hpp: Detail::field), in [0, 1].
+float field(float fx, float fy, float qm, float scale, uint seed, float footprintMeters)
+{
+    float cellLength = kCellMeters * kFibreLengthFactor;
+    int period = int(float(kNoisePeriodCells) * 0.5 * scale + 0.5);
+    float weight = octaveWeight(footprintMeters, cellLength / scale);
+    if (!(weight > 0.0))
+        return 0.5;
+    return lerp(0.5, perlin(float3(fx * scale, fy * scale, qm * scale), period, seed), weight);
+}
+
+// Detail::fibres: octaves of noise with the lattice cell 1 / alongScale along and 1 / acrossScale across.
+float fibres(float ux, float uy, float qm, float alongScale, float acrossScale, int octaves, uint seed, float footprintMeters)
+{
+    float cellLength = kCellMeters * kFibreLengthFactor;
+    float sum = 0.0;
+    float total = 0.0;
+    float weight = 0.5;
+    float scale = 1.0;
+    for (int i = 0; i < octaves; ++i)
+    {
+        float wavelength = cellLength / (acrossScale * scale);
+        int period = int(float(kNoisePeriodCells) * 0.5 * alongScale * scale + 0.5);
+        float octave = octaveWeight(footprintMeters, wavelength);
+        float n = 0.5;
+        // An octave the pixel is too big for is its mean: no need to evaluate it (the same value as the C++'s).
+        if (octave > 0.0)
+            n = lerp(0.5, perlin(float3(ux * alongScale * scale, uy * acrossScale * scale, qm * scale), period, seed + uint(i)), octave);
+        sum += weight * n;
+        total += weight;
+        weight *= 0.5;
+        scale *= 2.0;
+    }
+    return total > 0.0 ? sum / total : 0.5;
+}
+
+// density(): the fibre field in [0, 1] at a point of the wind frame (metres); see Render::Cirrus::density.
 float density(float2 windFramePoint, float morph, int octaves, int warps, float coverage, float footprintMeters)
 {
     if (!(coverage > 0.0))
@@ -310,49 +381,58 @@ float density(float2 windFramePoint, float morph, int octaves, int warps, float 
     int octaveCount = clamp(octaves, 1, 5);
     int warpCount = clamp(warps, 0, 2);
     uint seed = kNoiseSeed;
-    int period = int(float(kNoisePeriodCells) / kFibreLengthFactor);
 
     float cellLength = kCellMeters * kFibreLengthFactor;
-    float qx = windFramePoint.x / cellLength;
-    float qy = windFramePoint.y * kFibreWidthFactor / cellLength;
-    float qz = morph;
+    float fx = windFramePoint.x / cellLength;
+    float fy = windFramePoint.y / kFibreStretch / cellLength;
+    float qm = morph;
 
-    float warpWeight = octaveWeight(footprintMeters, 2.0 * cellLength / (kFibreStretch * kFibreWidthFactor));
-    for (int w = 0; w < warpCount && warpWeight > 0.0; ++w)
+    float patchRaw = field(fx, fy, qm, kPatchScale, seed + kSeedPatch, footprintMeters);
+    float patchValue = clamp(0.5 + (patchRaw - 0.5) * kPatchContrast, 0.0, 1.0);
+    float typeNoise = field(fx, fy, qm, kTypeScale, seed + kSeedType, footprintMeters);
+    float longShare = smoothStepEdges(kTypeLow, kTypeHigh, typeNoise);
+    float ux = fx + kSwirlCells * 2.0 * (field(fx, fy, qm, kSwirlScale, seed + kSeedSwirl, footprintMeters) - 0.5);
+    float uy = fy + kSwirlAcrossShare * kSwirlCells * 2.0 * (typeNoise - 0.5);
+
+    // A pixel in a gap needs nothing of the fibres (the C++ does the same: d times 0 is 0).
+    float gapEdge = kGapEdgeAtZero - kGapEdgeSlope * cover;
+    float gate = smoothStepEdges(gapEdge, gapEdge + kGapWidth, patchValue);
+    float d = 0.0;
+    if (gate > 0.0)
     {
-        uint warpSeed = seed + 100u + 2u * uint(w);
-        float n1 = perlin(float3(qx * 0.5, qy * 0.5, qz * 0.5), period / 2, warpSeed);
-        float n2 = perlin(float3(qx * 0.5, qy * 0.5, qz * 0.5), period / 2, warpSeed + 1u);
-        qx += warpWeight * kWarpAlongCells * (n1 - 0.5) * 2.0;
-        qy += warpWeight * kWarpAcrossCells * (n2 - 0.5) * 2.0;
+        float warpWeight = octaveWeight(footprintMeters, 2.0 * cellLength / (kFibreStretch * kFibreWidthFactor));
+        float hook = 1.0 + kHookWarpGain * (1.0 - longShare);
+        int warpPeriod = kNoisePeriodCells / 4;
+        for (int w = 0; w < warpCount && warpWeight > 0.0; ++w)
+        {
+            uint warpSeed = seed + 100u + 2u * uint(w);
+            float n1 = perlin(float3(ux * 0.5, uy * 1.0, qm * 0.5), warpPeriod, warpSeed);
+            float n2 = perlin(float3(ux * 0.5, uy * 1.0, qm * 0.5), warpPeriod, warpSeed + 1u);
+            ux += warpWeight * kWarpAlongCells * hook * (n1 - 0.5) * 2.0;
+            uy += warpWeight * kWarpAcrossCells * hook * (n2 - 0.5) * 2.0;
+        }
+
+        float valueLong = longShare > 0.0 ? fibres(ux, uy, qm, kLongAlong, kLongAcross, max(octaveCount - 1, 2), seed, footprintMeters) : 0.5;
+        float valueTuft = longShare < 1.0 ? fibres(ux, uy, qm, kTuftAlong, kTuftAcross, kTuftOctaves, seed + kSeedTuft, footprintMeters) : 0.5;
+        float value = lerp(valueTuft, valueLong, longShare);
+        value = clamp(value + kClumpThicken * (patchValue - 0.5), 0.0, 1.0);
+
+        float edge = kEdgeAtZeroCoverage - kEdgeCoverageSlope * cover;
+        float softness = lerp(kEdgeSoftnessTufts, kEdgeSoftnessLong, longShare);
+        d = smoothStepEdges(edge, edge + softness, value);
+
+        float tailNoise = perlin(float3(ux * kTailScale, uy * kTailAcross, qm * kTailScale),
+            int(float(kNoisePeriodCells) * 0.5 * kTailScale + 0.5), seed + kSeedTail);
+        float phase = ux * kTailScale + kTailPhase * 2.0 * (tailNoise - 0.5);
+        float saw = phase - floor(phase);
+        float tail = smoothStepEdges(0.0, kTailHead, saw) * (1.0 - kTailFloor * smoothStepEdges(kTailHead, 1.0, saw));
+        float tailAmount = kTailStrength * (0.4 + 0.6 * longShare) * octaveWeight(footprintMeters, kTailMeters);
+        d *= lerp(1.0, tail, tailAmount);
+        d *= gate;
     }
 
-    float sum = 0.0;
-    float total = 0.0;
-    float weight = 0.5;
-    float scale = 1.0;
-    int periodScale = 1;
-    for (int i = 0; i < octaveCount; ++i)
-    {
-        float wavelength = cellLength / (kFibreStretch * kFibreWidthFactor * scale);
-        float octave = octaveWeight(footprintMeters, wavelength);
-        float n = 0.5;
-        // An octave the pixel is too big for is its mean: no need to evaluate it (the same value as the C++'s).
-        if (octave > 0.0)
-            n = lerp(0.5, perlin(float3(qx * scale, qy * scale, qz * scale), period * periodScale, seed + uint(i)), octave);
-        sum += weight * n;
-        total += weight;
-        weight *= 0.5;
-        scale *= 2.0;
-        periodScale *= 2;
-    }
-    float value = total > 0.0 ? sum / total : 0.5;
-
-    float streak = perlin(float3(qx * 0.25, qy * 0.25, qz * 0.25), period / 4, seed + 200u);
-    value = saturate(value + kStreakAmount * (streak - 0.5));
-
-    float edge = kEdgeAtZeroCoverage - kEdgeCoverageSlope * cover;
-    return smoothStepEdges(edge, edge + kEdgeSoftness, value);
+    float veil = kVeilAmount * smoothStepEdges(kVeilLow, kVeilHigh, patchRaw);
+    return clamp(d + veil * (1.0 - d), 0.0, 1.0);
 }
 
 // lib/view/linear.slang: the linear HDR path's conversions (marked by scene.fogColor.w).
