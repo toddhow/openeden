@@ -28,7 +28,12 @@ static const int colorMode = 2;
 #include "lib/material/cover.slang"
 #endif
 #include "terrain/bindings.slang"
+#include "terrain/data.slang"
 #include "terrain/inout.slang"
+#include "lib/view/dither.slang"
+
+// Task 0087: the batch's uniform, as terrain.vert.slang declares it; the fragment stage reads only the fade.
+[[vk::binding(BATCH_DATA_BINDING, TEXTURE_SET)]] ConstantBuffer<Data> data;
 
 [[vk::binding(BLENDMAP_BINDING, TEXTURE_SET)]] Sampler2D blendMap;
 
@@ -397,6 +402,9 @@ FragmentOutput fragMain(FragmentInput input)
         || input.io.localTexCoord.y > 1 - b)
         outColor.xyz = float3(0, 0, 1);
 #endif
+    // Task 0087: the dither of the GLSL's last statement (see terrain/main.frag).
+    if (data.batch.fade < 1.0 && dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, data.batch.fade) == 0.0)
+        discard;
     output.color = outColor;
     return output;
 }

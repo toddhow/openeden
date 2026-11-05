@@ -109,6 +109,7 @@ file(GLOB UNITTEST_SRC_FILES
     terrain/testcoverage.cpp
     terrain/testlayermaps.cpp
     terrain/testlayerrmaos.cpp
+    terrain/testterrainfade.cpp
 
     vfs/testpathutil.cpp
     vfs/testvfscharacterisation.cpp

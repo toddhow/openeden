@@ -8,6 +8,11 @@ struct Batch
     float2 origin;
     /*int*/ float numVerts;
     float vertexScale;
+    // Task 0087: see data.glsl. The padding keeps the block at the GLSL's 32 bytes.
+    float fade;
+    float pad0;
+    float pad1;
+    float pad2;
 };
 
 struct Data

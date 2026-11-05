@@ -23,9 +23,16 @@ const int colorMode = 2;
 #include "lib/material/cover.glsl"
 #endif
 #include "bindings.glsl"
+#include "data.glsl"
 #include "terrain.settings"
+#include "lib/view/dither.glsl"
 
 layout(set=TEXTURE_SET, binding=BLENDMAP_BINDING) uniform sampler2D blendMap;
+
+// OpenEden (task 0087): the batch's uniform, as terrain/main.vert declares it; the fragment stage reads only the fade.
+layout(std140, set=TEXTURE_SET, binding=BATCH_DATA_BINDING) uniform Data {
+    Batch batch;
+};
 
 layout(set=TEXTURE_SET, binding=LAYER_BINDING) uniform sampler2DArray diffuseMap;
 
@@ -405,4 +412,9 @@ void main()
     if (frag_in.localTexCoord.x < b || frag_in.localTexCoord.y < b || frag_in.localTexCoord.x > 1-b ||  frag_in.localTexCoord.y > 1-b)
         outColor.xyz = vec3(0,0,1);
 #endif
+    // OpenEden (task 0087): a world LOD tile fading in or out drops pixels by the ordered dither of default/main.frag's
+    // LOD_FADE, here so that the colour, the G-buffer and the shadow cascades drop the same ones. Last, so that no
+    // derivative above (the layers, the parallax march) is taken in a quad with a dropped pixel. A fade of 1 drops none.
+    if (batch.fade < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, batch.fade) == 0.0)
+        discard;
 }

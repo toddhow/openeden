@@ -49,3 +49,35 @@ has no fade define. The log shows no event at the moment of a pop because tile s
 ## Out of scope
 The object clusters (already fade), the live terrain's own paging, the baked data and the pack layout (no change to
 version 1), new settings beyond one fade time (put it in the test profile if added).
+
+## Stage log
+Decisions of toddhow, 2026-11-05: dithered fades over 0.4 s for tiles as for the object clusters, a stipple is accepted
+(TAA blends it), the hand-over from a tile to the live terrain fades too, and NO geomorphing in this task (the silhouette
+change between levels is accepted; a later task if the fade does not hide the pops).
+
+**Stage b (2026-11-05, Windows).** The fade is one float, `fade`, in the batch uniform (binding 2 of the terrain's texture
+set, `files/shaders/terrain/data.glsl` and `.slang`, three padding floats keep the block at 32 bytes; `Terrain::makeBatchUniform`
+in `components/terrain/batchdata.hpp`), now visible to both stages (`Pipeline::terrain`'s layout). Both fragment stages
+(GLSL and the Slang twin) end with `if (batch.fade < 1.0 && dither8(...) == 0.0) discard;`, the ordered dither of
+`default/main.frag`'s `LOD_FADE`: last, so that no derivative taken above it (the layers, the parallax march) sits in a quad
+with a dropped pixel; neither stage returns early before it. The colour, the G-buffer outputs and the shadow cascades are
+written by the same invocation (the terrain has one pipeline for every view), so they drop the same pixels; the dither
+pattern uses `gl_FragCoord` of the view being drawn, so a cascade's stipple is its own, as for the object clusters.
+`Terrain::Builder::setDynamicBatchData(true)` (only the LOD tiles' builder) makes the uniform upload again when
+`Builder::setBatchFade` changes it; the live terrain keeps a static uniform of 1.
+**Deviation from the spec text:** the define set did NOT gain a member. A `LOD_FADE` define would double the reachable
+terrain sets (`PipelineTerrainDefines` pins their number, 26,040) and the 39 listed permutations; a runtime branch on a
+uniform the draw already binds needs neither, and the live terrain pays one uniform read and a branch that is never taken
+(fade 1). The cost is stage d's to measure. `SlangPermutations` passes for all listed sets with the new binding in the
+fragment stage (the twin declares what the GLSL declares).
+Tests (`apps/components_tests/terrain/testterrainfade.cpp`, 6): the first run, with the C++ half in and the shaders and
+the layout not, failed 3 (the shader text, the discard-last rule, the fragment visibility of binding 2) and passed the 3
+uniform tests; all 6 pass now.
+Frames: the scenario of `tools/tilefade_check/run.sh` (`still`: Balmora at +2000, +8000 and +25000 units, two shots each,
+`OPENEDEN_FIXED_FRAME_TIME`, `[WorldLod]` with map view and object clusters, the same baked packs) from the executable
+before (`taa2/exe-new`, built 05:29 from the code of this commit's parent for the terrain) and after. **Not byte
+identical, and neither are two runs of the executable before:** PSNR between two runs of the old executable 57.9, 62.4 and
+54.0 dB (poses 1 to 3), between the old and the new 56.5, 65.0 and 61.5 dB, the differences (a difference image, amplified
+40 times) confined to the same few spots (the far object clusters and water edges), not the ground. The stage a result of
+byte-identical frames (`bal_8000`) used another pose and did not repeat here. The Slang-on, rain and fade-active frames are
+in stages d and e.

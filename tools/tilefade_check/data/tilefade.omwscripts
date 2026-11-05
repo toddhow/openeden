@@ -1,0 +1,2 @@
+GLOBAL: scripts/tilefade_global.lua
+PLAYER: scripts/tilefade_player.lua

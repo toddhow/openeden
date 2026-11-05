@@ -39,8 +39,19 @@ namespace Terrain
         {
             vsg::StateCommands stateCommands;
             vsg::ref_ptr<vsg::vec2Array2D> heightRanges;
+            /// The batch's uniform (a vsg::Value of Pipeline::Data::Batch), for Builder::setBatchFade; task 0087.
+            vsg::ref_ptr<vsg::Data> batchUniform;
         };
         vsgUtil::Cache<Key, BatchData> dataCache;
+
+        /// Task 0087: makes the batches built from now on upload their uniform again when it changes, so that
+        /// setBatchFade works on them. Off by default (the live terrain never changes it). Call before the first batch.
+        void setDynamicBatchData(bool dynamic) { mDynamicBatchData = dynamic; }
+
+        /// Task 0087: sets the share of the dither the batch's draws keep (clamped to 0..1) and marks the uniform for
+        /// upload when it changed. False when the data has no uniform. Main thread; the batch must have been built
+        /// after setDynamicBatchData(true) for the change to reach the GPU.
+        static bool setBatchFade(const BatchData& data, float fade);
 
         BatchData create(const Key& key) const;
         BatchData getBatchData(const Bounds& bounds, uint8_t lod = 0) const;
@@ -80,6 +91,7 @@ namespace Terrain
         vsg::ref_ptr<vsg::Descriptor> mLayerDescriptor;
         // openeden-vsg: terrain normal and specular maps (task 0012, V4i); descriptors are null with the maps off.
         TerrainMapSettings mMapSettings;
+        bool mDynamicBatchData = false;
         vsg::ref_ptr<vsg::Descriptor> mNormalLayerDescriptor;
         vsg::ref_ptr<vsg::Descriptor> mLayerFlagsDescriptor;
         // Task 0044: the material map array (binding 8) and the per-layer scales (binding 9), with `pbr`.

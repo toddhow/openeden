@@ -1,5 +1,7 @@
 #include "builder.hpp"
 
+#include <algorithm>
+
 #include <iostream>
 #include <limits>
 #include <map>
@@ -22,17 +24,13 @@
 #include <components/vsgutil/name.hpp>
 #include <components/vsgutil/readimage.hpp>
 
+#include "batchdata.hpp"
 #include "heightarraystate.hpp"
 #include "indexbuffer.hpp"
 
 namespace Pipeline::Descriptors
 {
 #include <files/shaders/terrain/bindings.glsl>
-}
-namespace Pipeline::Data
-{
-    using vsg::vec2;
-#include <files/shaders/terrain/data.glsl>
 }
 namespace Terrain
 {
@@ -427,9 +425,12 @@ namespace Terrain
         auto colorDescriptor
             = vsg::DescriptorImage::create(mSamplerOptions, data.colors, Pipeline::Descriptors::COLORMAP_BINDING);
 
-        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(Pipeline::Data::Batch{ .origin = bounds.min,
-            .numVerts = static_cast<float>(mStorage->numVerts(bounds.size, lod)),
-            .vertexScale = mStorage->cellWorldSize * bounds.size });
+        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(makeBatchUniform(bounds.min,
+            static_cast<float>(mStorage->numVerts(bounds.size, lod)), mStorage->cellWorldSize * bounds.size));
+        // Task 0087: a world LOD tile changes its fade every frame it dithers, so its uniform is uploaded again when
+        // marked (the live terrain keeps the static copy).
+        if (mDynamicBatchData)
+            batchData->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
         auto batchDescriptor = vsg::DescriptorBuffer::create(batchData, Pipeline::Descriptors::BATCH_DATA_BINDING);
 
         vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, layerDescriptor, heightsDescriptor,
@@ -483,7 +484,21 @@ namespace Terrain
             }
         }
 
-        return { vsg::StateCommands{ mPipeline, bds }, ranges };
+        return { vsg::StateCommands{ mPipeline, bds }, ranges, batchData };
+    }
+
+    bool Builder::setBatchFade(const BatchData& data, float fade)
+    {
+        auto* uniform = data.batchUniform ? data.batchUniform->cast<vsg::Value<Pipeline::Data::Batch>>() : nullptr;
+        if (!uniform)
+            return false;
+        const float clamped = std::clamp(fade, 0.f, 1.f);
+        if (uniform->value().fade != clamped)
+        {
+            uniform->value().fade = clamped;
+            uniform->dirty();
+        }
+        return true;
     }
 
     Builder::Batch Builder::createBatch(const Bounds& bounds, uint8_t lod) const
