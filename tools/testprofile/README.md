@@ -209,3 +209,11 @@ in the list above in the same change. `coverage.sh` fails when a setting of `fil
 bake parameters are listed with a reason. It also fails on a profile line naming a setting that does not exist.
 `check.sh` runs it, tests `prepare.sh` against a made-up config, and with `--game <your config folder>` prepares the real
 profile and starts the game once outdoors and once indoors, off-screen, to read the log for refused settings.
+
+## The Landscape Remastered texture mod (a test aid)
+
+`texturemod.sh <profile folder> add|remove [--pbr] [--lava]` adds the mod's data folders (extracted to
+`I:/Projects/OpenEden-work/mods/landscape-remastered`: `00 core` land textures, `01 PBR` `_spec` maps, `02 glowing lava
+rocks` meshes) to a profile's `config/openmw.cfg`, after the last `data=` line so it wins. Run it after `prepare.sh`,
+which writes a new `openmw.cfg`. Its terrain textures are 2048 (diffuse) and 4096 (`_nh`), and its grass 8192; the texture
+mip swaps (task 0080) do not cover terrain layer arrays yet, so only the lava rocks' two 2048 textures can be swapped.
