@@ -78,7 +78,6 @@ namespace Resource
                 [](bool warning, const std::string& message) {
                     Log(warning ? Debug::Warning : Debug::Info) << message;
                 },
-                true, // preload: the library starts on a worker at once (review of stage h, finding 3)
                 // One record per run-time compile, to match a stutter to its cause: in the log (Info with the load
                 // trace on, else Verbose) and, with the load trace on, in load-trace.jsonl as "slang.compile".
                 [](const vsgUtil::SlangCompileEvent& event) {

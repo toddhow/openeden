@@ -61,7 +61,7 @@ namespace vsgUtil
     public:
         virtual ~SlangRuntimeCompiler() = default;
         /// Starts the compiler (loads the library and its global session) without compiling anything: false with the
-        /// reason in `error` when it cannot. Called by the start-up preload and by the first compile, under the
+        /// reason in `error` when it cannot. Called by the first compile, under the
         /// compile lock. The default has nothing to start.
         virtual bool prepare(std::string& error)
         {
@@ -176,15 +176,6 @@ namespace vsgUtil
         void setSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected);
         void addSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected);
 
-        /// Review of stage h (round 4), finding 3 (toddhow's decision on the cold-cache stall is open; this is the
-        /// interim choice): starts a worker thread, owned by this runtime and joined by its destructor, that starts the
-        /// compiler (loads the library and the global session), runs the self-tests and cleans the cache, so the first
-        /// compile does not pay for them. Everything is done under the compile lock; a compile that comes meanwhile
-        /// waits for it (and the wait is counted). Calling it twice does nothing.
-        void startPreload();
-        /// Waits until the preload (if one was started) has finished.
-        void waitForPreload() const;
-
         struct CleanResult
         {
             std::size_t mRemoved = 0;
@@ -223,8 +214,6 @@ namespace vsgUtil
             std::size_t mCompiledOnOther = 0;
             double mLongestWaitMilliseconds = 0; // on the compile lock
             bool mLongestWaitWasMain = false;
-            bool mPreloaded = false;
-            double mPreloadMilliseconds = 0; // library, global session, self-tests, cache cleaning
             std::size_t mRefusedSets = 0; // answered from a refused-set file
             std::size_t mHitsRejected = 0; // cache entries that failed mCheckHit
             std::size_t mCleaned = 0; // files deleted by cleanCache

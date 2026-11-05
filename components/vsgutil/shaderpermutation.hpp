@@ -133,13 +133,13 @@ namespace vsgUtil
     /// loads the library from `libraryDirectory`, a cache under `cacheDirectory` (empty: none), the build's
     /// permutations of post/omwfx.vert and of the object shader's largest listed fragment set as the self-tests, and
     /// `log` for its one-line messages. Needs `options` to have its search path (the shader folder) and preferSlang
-    /// set. With `preload` (the game; review round 4, finding 3) a worker thread starts the library and runs the
-    /// self-tests and the cache cleaning at once (SlangRuntime::startPreload); without it the first compile does.
+    /// set. Nothing is loaded here: the library starts at the first compile (there is no start-up preload since queue
+    /// item 3 of decision 0012: it cost +237 MiB on every run and did not cure the stall).
     /// `eventSink` (optional) gets one record per run-time compile (SlangRuntime::setEventSink).
     /// Nothing is made (and `options` is left alone) when the build has no permutations to test the library with.
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log, bool preload = false,
+        std::function<void(bool warning, const std::string&)> log,
         std::function<void(const SlangCompileEvent&)> eventSink = {});
 
     /// Review of stage h (round 4), finding 2: the cheap check a cache hit passes before it is used (the full check

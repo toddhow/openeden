@@ -117,7 +117,7 @@ namespace vsgUtil
         }
 
         // Names the calling thread for a debugger and for the process's thread list; best effort.
-        void nameCurrentThread(const char* name)
+        [[maybe_unused]] void nameCurrentThread(const char* name)
         {
 #ifdef _WIN32
             using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
@@ -568,11 +568,7 @@ namespace vsgUtil
         bool mSelfTestsDone = false;
         bool mPrepared = false;
 
-        std::mutex mPreloadMutex;
-        std::condition_variable mPreloadChanged;
-        std::thread mPreload;
-        bool mPreloadStarted = false;
-        bool mPreloadFinished = false;
+        bool mCacheCleaned = false; // cleanCache ran (after the first compile)
 
         void warn(const std::string& text)
         {
@@ -671,22 +667,18 @@ namespace vsgUtil
 
     SlangRuntime::~SlangRuntime()
     {
-        // The preload uses the state: it ends first.
-        if (mState->mPreload.joinable())
-            mState->mPreload.join();
         // One line at the end of a run that compiled or read anything: what the runtime did and what it cost.
         const Stats stats = mState->mStats;
-        if (stats.mCompiled + stats.mCacheHits + stats.mFailed + stats.mRefusedSets == 0 && !stats.mPreloaded)
+        if (stats.mCompiled + stats.mCacheHits + stats.mFailed + stats.mRefusedSets == 0)
             return;
         char text[512];
         std::snprintf(text, sizeof(text),
             "Slang run-time shaders: %zu compiled in %.0f ms (%zu on the main thread, %zu on other threads), %zu read "
             "from the cache in %.1f ms, %zu failed, %zu refused sets remembered; longest wait on the compile lock "
-            "%.0f ms (%s thread); start-up preload %.0f ms%s",
+            "%.0f ms (%s thread)",
             stats.mCompiled, stats.mCompileMilliseconds, stats.mCompiledOnMain, stats.mCompiledOnOther,
             stats.mCacheHits, stats.mCacheMilliseconds, stats.mFailed, stats.mRefusedSets,
-            stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other", stats.mPreloadMilliseconds,
-            stats.mPreloaded ? "" : " (none)");
+            stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other");
         try
         {
             if (mState->mLog)
@@ -725,58 +717,6 @@ namespace vsgUtil
         std::lock_guard lock(mState->mCompileMutex);
         mState->mSelfTests.emplace_back(std::move(request), std::move(expected));
         mState->mSelfTestsDone = false;
-    }
-
-    void SlangRuntime::startPreload()
-    {
-        State& state = *mState;
-        std::lock_guard lock(state.mPreloadMutex);
-        if (state.mPreloadStarted)
-            return;
-        state.mPreloadStarted = true;
-        state.mPreload = std::thread([this, &state] {
-            nameCurrentThread("slang-preload");
-            const auto start = Clock::now();
-            try
-            {
-                std::filesystem::path root;
-                {
-                    // Everything a first compile would pay for, here instead: the library, the global session and
-                    // the self-tests. A compile that comes meanwhile waits on this lock.
-                    std::lock_guard compileLock(state.mCompileMutex);
-                    state.startLocked();
-                    if (!state.mSelfTests.empty())
-                        root = state.mSelfTests.front().first.mShaderRoot;
-                }
-                if (!root.empty())
-                    cleanCache(root);
-            }
-            catch (const std::exception& e)
-            {
-                state.warn(std::string("The Slang start-up preload failed: ") + e.what());
-            }
-            catch (...)
-            {
-                state.warn("The Slang start-up preload failed");
-            }
-            {
-                std::lock_guard statsLock(state.mMutex);
-                state.mStats.mPreloaded = true;
-                state.mStats.mPreloadMilliseconds = millisecondsSince(start);
-            }
-            {
-                std::lock_guard finishedLock(state.mPreloadMutex);
-                state.mPreloadFinished = true;
-            }
-            state.mPreloadChanged.notify_all();
-        });
-    }
-
-    void SlangRuntime::waitForPreload() const
-    {
-        State& state = *mState;
-        std::unique_lock lock(state.mPreloadMutex);
-        state.mPreloadChanged.wait(lock, [&state] { return !state.mPreloadStarted || state.mPreloadFinished; });
     }
 
     bool SlangRuntime::disabled() const
@@ -1249,6 +1189,16 @@ namespace vsgUtil
             if (!cacheFile.empty() && !writeCache(cacheFile, key, words))
                 state.warn("The Slang shader cache cannot be written to " + cacheFile.parent_path().string());
             report(SlangEventKind::Compiled);
+            // The first compile of a run also cleans the cache folder (what the start-up preload did): entries of
+            // another compiler or other sources, stale temporary files, and the oldest above the size limit.
+            bool clean = false;
+            {
+                std::lock_guard lock(state.mMutex);
+                clean = !state.mCacheCleaned;
+                state.mCacheCleaned = true;
+            }
+            if (clean)
+                cleanCache(request.mShaderRoot);
             return words;
         }
         catch (const std::exception& e)

@@ -934,7 +934,12 @@ namespace
         auto runtime = f.runtime(current);
         runtime->obtain(f.mRequest, f.mCheck);
         const std::string currentName = SlangRuntime::fileNameOf(runtime->keyText(f.mRequest, f.mCheck));
-        ASSERT_EQ(entries().size(), 3u);
+        // The first compile of each runtime cleaned the cache (it replaced the start-up preload's cleaning): the one
+        // of the other compiler went with the second runtime's first compile, the one made before the edit with this
+        // runtime's.
+        EXPECT_EQ(runtime->stats().mCleaned, 1u);
+        EXPECT_EQ(beforeEditRuntime->stats().mCleaned, 1u);
+        ASSERT_EQ(entries(), (std::set<std::string>{ currentName }));
         // A temporary file a crash left, an hour old; a fresh one (another process may be writing it); an unrelated
         // file.
         f.write("cache/aaaa.spv.tmp1", "x");
@@ -943,11 +948,10 @@ namespace
         f.write("cache/bbbb.spv.tmp2", "x");
         f.write("cache/notes.txt", "mine");
         const auto result = runtime->cleanCache(f.mRoot / "shaders");
-        EXPECT_EQ(result.mRemoved, 3u)
-            << "the entry of the old compiler, the one before the edit and the old temp file";
+        EXPECT_EQ(result.mRemoved, 1u) << "the old temp file";
         EXPECT_EQ(entries(), (std::set<std::string>{ currentName, "bbbb.spv.tmp2", "notes.txt" }));
         EXPECT_GT(result.mBytesKept, 0u);
-        EXPECT_EQ(runtime->stats().mCleaned, 3u);
+        EXPECT_EQ(runtime->stats().mCleaned, 2u);
     }
 
     TEST(SlangCacheCleaning, removes_the_oldest_entries_above_the_size_cap)
@@ -1032,91 +1036,7 @@ namespace
         }
     }
 
-    TEST(SlangPreload, prepares_the_compiler_and_runs_the_self_tests_on_a_worker_thread)
-    {
-        Fixture f;
-        auto fake = std::make_unique<ScriptedCompiler>();
-        auto* compiler = fake.get();
-        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
-        runtime->setLog([&f](bool, const std::string& line) { f.write("log.txt", line); });
-        SlangRuntimeRequest test = f.mRequest;
-        test.mStageFile = "post/omwfx.vert";
-        runtime->setSelfTest(test, fakeWords(1));
-        runtime->startPreload();
-        runtime->startPreload(); // twice: nothing happens
-        runtime->waitForPreload();
-        EXPECT_EQ(compiler->mPrepares, 1);
-        EXPECT_NE(compiler->mPrepareThread, std::this_thread::get_id());
-        ASSERT_EQ(compiler->mCompileThreads.size(), 1u) << "the self-test";
-        EXPECT_EQ(compiler->mCompileThreads[0], compiler->mPrepareThread);
-        EXPECT_TRUE(runtime->stats().mPreloaded);
-        // The first compile finds everything done: it compiles its request and nothing else, on this thread.
-        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
-        EXPECT_EQ(compiler->mPrepares, 1);
-        EXPECT_EQ(compiler->mCompiles, 2);
-        EXPECT_EQ(compiler->mCompileThreads[1], std::this_thread::get_id());
-        EXPECT_FALSE(runtime->disabled());
-        const auto stats = runtime->stats();
-        EXPECT_EQ(stats.mCompiledOnMain, 1u);
-        EXPECT_EQ(stats.mCompiledOnOther, 0u);
-    }
-
-    TEST(SlangPreload, a_compile_that_comes_during_the_preload_waits_for_it_and_the_wait_is_counted)
-    {
-        Fixture f;
-        auto fake = std::make_unique<ScriptedCompiler>();
-        auto* compiler = fake.get();
-        std::promise<void> release;
-        std::promise<void> inside;
-        auto released = release.get_future().share();
-        compiler->mInPrepare = [&] {
-            inside.set_value();
-            released.wait();
-        };
-        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
-        runtime->startPreload();
-        inside.get_future().wait(); // the worker holds the compile lock
-        std::thread releaser([&] {
-            std::this_thread::sleep_for(std::chrono::milliseconds(120));
-            release.set_value();
-        });
-        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
-        releaser.join();
-        const auto stats = runtime->stats();
-        EXPECT_GE(stats.mLongestWaitMilliseconds, 80.0);
-        EXPECT_TRUE(stats.mLongestWaitWasMain);
-        EXPECT_EQ(compiler->mPrepares, 1) << "the first compile does not prepare again";
-    }
-
-    TEST(SlangPreload, a_cache_hit_does_not_wait_for_the_preload)
-    {
-        Fixture f;
-        {
-            FakeCompiler* compiler = nullptr;
-            f.runtime(compiler)->obtain(f.mRequest, f.mCheck);
-        }
-        auto fake = std::make_unique<ScriptedCompiler>();
-        auto* compiler = fake.get();
-        std::promise<void> release;
-        std::promise<void> inside;
-        auto released = release.get_future().share();
-        compiler->mInPrepare = [&] {
-            inside.set_value();
-            released.wait();
-        };
-        // The key must match the earlier run's: the same identity text as FakeCompiler's.
-        compiler->mIdentity = "fake-compiler-1";
-        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
-        runtime->startPreload();
-        inside.get_future().wait();
-        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1)) << "answered while the preload is still blocked";
-        EXPECT_EQ(compiler->mCompiles, 0);
-        EXPECT_EQ(runtime->stats().mCacheHits, 1u);
-        release.set_value();
-        runtime->waitForPreload();
-    }
-
-    TEST(SlangPreload, a_compiler_that_cannot_start_disables_the_runtime_and_says_so_once)
+    TEST(SlangFirstCompile, a_compiler_that_cannot_start_disables_the_runtime_and_says_so_once)
     {
         Fixture f;
         auto fake = std::make_unique<ScriptedCompiler>();
@@ -1130,10 +1050,9 @@ namespace
             if (warning)
                 warnings.push_back(line);
         });
-        runtime->startPreload();
-        runtime->waitForPreload();
-        EXPECT_TRUE(runtime->disabled());
+        EXPECT_FALSE(runtime->disabled()) << "nothing is started before the first compile";
         EXPECT_TRUE(runtime->obtain(f.mRequest, f.mCheck).empty());
+        EXPECT_TRUE(runtime->disabled());
         EXPECT_TRUE(runtime->obtain(f.mRequest, f.mCheck).empty());
         EXPECT_EQ(compiler->mCompiles, 0);
         EXPECT_EQ(compiler->mPrepares, 1);
@@ -1141,23 +1060,7 @@ namespace
         EXPECT_NE(warnings[0].find("cannot load the Slang library"), std::string::npos) << warnings[0];
     }
 
-    TEST(SlangPreload, the_destructor_waits_for_a_running_preload)
-    {
-        Fixture f;
-        auto finished = std::make_shared<std::atomic<bool>>(false);
-        {
-            auto fake = std::make_unique<ScriptedCompiler>();
-            fake->mInPrepare = [finished] {
-                std::this_thread::sleep_for(std::chrono::milliseconds(150));
-                finished->store(true);
-            };
-            auto runtime = SlangRuntime::create(std::move(fake), f.cache());
-            runtime->startPreload();
-        }
-        EXPECT_TRUE(finished->load());
-    }
-
-    TEST(SlangPreload, cleans_the_cache_folder_for_the_shader_root_of_the_self_test)
+    TEST(SlangFirstCompile, the_first_compile_cleans_the_cache_folder_of_the_requests_shader_root)
     {
         Fixture f;
         {
@@ -1169,14 +1072,13 @@ namespace
         ASSERT_EQ(f.cacheFiles(), 1u);
         auto fake = std::make_unique<ScriptedCompiler>();
         auto runtime = SlangRuntime::create(std::move(fake), f.cache());
-        runtime->setSelfTest(f.mRequest, fakeWords(1));
-        runtime->startPreload();
-        runtime->waitForPreload();
-        EXPECT_EQ(f.cacheFiles(), 0u) << "the entry of another compiler is gone";
+        EXPECT_EQ(f.cacheFiles(), 1u) << "nothing is cleaned before the first compile";
+        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
+        EXPECT_EQ(f.cacheFiles(), 1u) << "the entry of another compiler is gone, the new one is there";
         EXPECT_EQ(runtime->stats().mCleaned, 1u);
     }
 
-    TEST(SlangPreload, the_summary_says_where_the_time_went)
+    TEST(SlangFirstCompile, the_summary_says_where_the_time_went)
     {
         Fixture f;
         std::vector<std::string> lines;
@@ -1186,8 +1088,6 @@ namespace
                 if (!warning)
                     lines.push_back(line);
             });
-            runtime->startPreload();
-            runtime->waitForPreload();
             runtime->obtain(f.mRequest, f.mCheck);
             std::thread other([&] {
                 auto request = f.mRequest;
@@ -1204,7 +1104,7 @@ namespace
         EXPECT_NE(lines[0].find("1 on the main thread"), std::string::npos) << lines[0];
         EXPECT_NE(lines[0].find("1 on other threads"), std::string::npos) << lines[0];
         EXPECT_NE(lines[0].find("longest wait on the compile lock"), std::string::npos) << lines[0];
-        EXPECT_NE(lines[0].find("start-up preload"), std::string::npos) << lines[0];
+        EXPECT_EQ(lines[0].find("preload"), std::string::npos) << lines[0];
     }
 
 #if OPENEDEN_SLANG_ENABLED && defined(OPENEDEN_SLANG_LIBRARY_DIR) && defined(OPENEDEN_SLANG_RUNTIME_TESTS)
@@ -1552,19 +1452,17 @@ namespace
         std::vector<std::string> mWarnings;
         std::mutex mMutex;
 
-        explicit GameRuntime(const char* name, bool preload = false)
+        explicit GameRuntime(const char* name)
         {
             mCache = std::filesystem::temp_directory_path() / name;
             std::filesystem::remove_all(mCache);
-            vsgUtil::createSlangRuntime(
-                mOptions, OPENEDEN_SHADER_BUILD_DIR, OPENEDEN_SLANG_LIBRARY_DIR, mCache,
+            vsgUtil::createSlangRuntime(mOptions, OPENEDEN_SHADER_BUILD_DIR, OPENEDEN_SLANG_LIBRARY_DIR, mCache,
                 [this](bool warning, const std::string& line) {
                     if (!warning)
                         return;
                     std::lock_guard lock(mMutex);
                     mWarnings.push_back(line);
-                },
-                preload);
+                });
         }
         ~GameRuntime()
         {
@@ -1691,33 +1589,11 @@ namespace
         EXPECT_TRUE(game.mWarnings.empty()) << (game.mWarnings.empty() ? "" : game.mWarnings.front());
     }
 
-    TEST(SlangRuntimeLibrary, the_preload_starts_the_library_and_the_first_compile_is_only_a_compile)
+    TEST(SlangRuntimeLibrary, the_first_compile_pays_for_the_library_and_the_self_tests)
     {
-        GameRuntime game("openeden_slangruntime_preload", true);
-        ASSERT_NE(game.runtime(), nullptr);
-        game.runtime()->waitForPreload();
-        const auto afterPreload = game.runtime()->stats();
-        EXPECT_TRUE(afterPreload.mPreloaded);
-        EXPECT_GT(afterPreload.mPreloadMilliseconds, 0.0);
-        EXPECT_FALSE(game.runtime()->disabled()) << "both self-tests reproduced the build's bytes";
-        EXPECT_EQ(afterPreload.mCompiled, 0u) << "the self-tests are not counted as compiles";
-        auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
-        ASSERT_NE(glsl, nullptr);
-        const auto start = std::chrono::steady_clock::now();
-        const auto module
-            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
-        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-        ASSERT_NE(module, nullptr);
-        std::cout << "[ info ] first compile after the preload: " << ms << " ms, preload took "
-                  << afterPreload.mPreloadMilliseconds << " ms\n";
-        EXPECT_LT(game.runtime()->stats().mLongestWaitMilliseconds, 50.0);
-    }
-
-    TEST(SlangRuntimeLibrary, the_first_compile_without_the_preload_pays_for_the_library_and_the_self_tests)
-    {
-        // The other half of the measurement above (run each of the two in a process of its own, the library must not
-        // be loaded already): with no preload the first compile starts the library and runs both self-tests.
-        GameRuntime game("openeden_slangruntime_nopreload", false);
+        // The library must not be loaded already (run it in a process of its own): the first compile starts the
+        // library and runs both self-tests.
+        GameRuntime game("openeden_slangruntime_firstcompile");
         ASSERT_NE(game.runtime(), nullptr);
         auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
         ASSERT_NE(glsl, nullptr);
@@ -1726,8 +1602,7 @@ namespace
             = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_NE(module, nullptr);
-        EXPECT_FALSE(game.runtime()->stats().mPreloaded);
-        std::cout << "[ info ] first compile with no preload: " << ms << " ms\n";
+        std::cout << "[ info ] first compile: " << ms << " ms\n";
     }
 
     // The child process of the test below: a library folder without glslang, in a process that has never loaded it.
@@ -1754,7 +1629,7 @@ namespace
             EXPECT_NE(error.find("glslang"), std::string::npos) << error;
         }
         ASSERT_FALSE(glslangLoaded());
-        // (b) Without the preload checks (the old behaviour), the library compiles and the self-test is what stops it.
+        // (b) Without the loader's checks (the old behaviour), the library compiles and the self-test is what stops it.
         // The self-test is the object shader's largest listed fragment set, from the build.
         std::string line;
         auto runtime = SlangRuntime::create(

@@ -560,7 +560,7 @@ namespace vsgUtil
 
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log, bool preload,
+        std::function<void(bool warning, const std::string&)> log,
         std::function<void(const SlangCompileEvent&)> eventSink)
     {
         std::error_code absoluteError;
@@ -610,8 +610,6 @@ namespace vsgUtil
             }
         }
         options->setObject(slangRuntimeKey, runtime);
-        if (preload)
-            runtime->startPreload();
     }
 
     std::string checkSlangTwinStructure(const std::vector<uint32_t>& words)
