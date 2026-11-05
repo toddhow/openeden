@@ -107,3 +107,22 @@ drawn) also dithers in, over the sky; I kept that because it is what removes the
 instead (one line in `LodTerrain::build`). (2) Tile geometry and the live terrain beneath it can z-fight where they coincide
 during a fade (same colours, so not visible in the frames viewed). (3) The Linux gate, the Lua tests, `eden-studio` (it needs
 the new default in its `defaults.cfg`: rebuild it) and a play-through are not run.
+
+**Stage d (2026-11-05).** Scripted climbs (`tools/mapview_check/run_ascent.sh`, Balmora to 25,000 units and back, 150 s, one run each,
+a shared machine; `terrain fade time` 0 against 0.4; `[WorldLod] tier` minimal and high). Median frame / p99 / frames over 16.7 ms /
+resident / device memory: minimal 3.67 ms, 5.28 ms, 7, 1362 MiB, 393 MiB against 3.67, 5.26, 9, 1360, 393; high 3.76, 5.30, 11, 1505,
+425 against 3.71, 5.38, 18, 1504, 441. Mean scene draws (sampled every 30 frames) 34,824 against 34,827 (minimal) and 36,793 against
+36,416 (high), the largest sample 45,198 against 45,515 and 45,912 against 40,512: the sampling cannot see a fade of 0.4 s (24 frames), so no
+extra layer shows in the means. The 28 and 61 tile swaps are the same in both. The frames over 16.7 ms are loading frames of the first
+seconds (worst 0.66 to 1.08 s in all four runs, frame 178 to 369), within the spread of repeats. NOT measured: the extra draws and triangles
+during one fade (needs a per-frame counter), the ground walk, tiers low and medium, GPU time of the terrain pass with the `discard`
+(the uniform branch costs every terrain draw, the live terrain too). The residency planner counts a fading-out freed tile as leaving (not
+committed, never freed twice) and a tile that is merely replaced as pinned (held, counted); neither can stall a fade: the
+fade does not wait on the planner and the planner never frees a fading tile.
+**Stage e (2026-11-05).** Frames in `I:\Projects\OpenEden-work	ilefade\`: `sheet-j.png` (a teleport to 25,000 units with `terrain fade time = 6`
+so that the dither lasts long enough to see: new far tiles and clusters come in as a stipple that thins over the shots, no hole, no flash),
+`sheetA-on.png` (the 0.4 s descent, twelve shots around a level 2 to level 1 swap: no visible change), `sheet-dj.png` (amplified difference of
+the 0.4 s and the instant runs at the same camera: two specks). The swaps of a descent are subtle by design of the pixel error threshold, so
+a before/after sheet of an obvious pop was NOT obtained; the evidence is the long-fade stipple and the absence of holes. Not viewed:
+TAA on, `slang shaders` on, rain, night (the runs used the defaults of the test config: hdr, pbr, no taa). `tools/tilefade_check/run.sh`
+(`SCENARIO=still|flight`) is the rig; screenshots of consecutive frames need `[Video] framerate limit = 5` to 10, or the writer skips them.
