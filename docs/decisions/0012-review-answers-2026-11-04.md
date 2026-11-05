@@ -84,13 +84,11 @@ none of it starts until he says so.
 - Reading note 0036's table, flying the whole-island view, V2 verdicts, hands-on checks, the Audio2Face test and the legal
   question about generated curves.
 
-## To build (queued; nothing started; usage paused by toddhow)
-1. Defaults and tests: `taa clipping = minmax`, `ao temporal clamp` consistent, `taa history = 0.95`; transparents after
-   the TAA resolve.
-2. Point-light shadows: exclude the light's own model; the slots-times-resolution warning; later, map caching.
-3. Slang: worker compile with GLSL meanwhile, preload dropped, idle release of the compiler session; then stages i and j.
-4. The dynamic video-memory scale-back system (new spec, then build).
-5. Actors: the retry-log-once rule; per-part catches for the ammunition, holstered and quiver reads; removal of the 15
-   restating tests.
-6. Eden Studio: API 1.1, a module undo stack, per-module document filtering.
-7. Contact shadows (own task, later).
+## To build: status on 2026-11-05 (was queued; toddhow paused work on 2026-11-04 and resumed it)
+1. Defaults and tests (`taa clipping = minmax`, `ao temporal clamp`, `taa history = 0.95`): done (pushed). Transparents after the TAA resolve: done in `cb5056356d` (task 0075 stage log), rain and snow keep about 75 percent of their detail instead of 40; gate passed, push waits with the Eden Studio commits.
+2. Point-light shadows: the light's own model exclusion and the memory warning are done (pushed, task 0077). Map caching is still later.
+3. Slang: worker compile with GLSL meanwhile, preload dropped, idle release, compile logging: done (pushed, task 0072). Still open: stages i and j.
+4. The dynamic video-memory scale-back: stages a to c done (pushed, task 0080), plus the pool release; far objects and far terrain are the only adapters so far. The mip streaming spike (d0) says go for textures of 2048 and up only; building it waits for toddhow's go.
+5. Actors: log-once for part reads and per-part catches for ammunition, holstered items and the quiver: done (pushed). Two items stay open: the rebuild's own repeated error (an existing test pins the throw) and the 15 "restating" tests (only 2 restate the rule; both await toddhow's word).
+6. Eden Studio: API 1.1 (filled triangles, user-data query), the module undo stack and per-module document filtering: done and gated (`9cdf3032dc`), unpushed until toddhow approves the three changed tests.
+7. Contact shadows: still later.
