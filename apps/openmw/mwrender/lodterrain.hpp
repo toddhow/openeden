@@ -149,6 +149,11 @@ namespace MWRender
         /// worker is not done or when the pack is unusable (the live terrain then draws everything).
         const Terrain::Coverage* update(const Camera& camera);
 
+        /// Task 0080: the memory budget of the drawn tiles, changed while running (main thread, between updates); 0: no
+        /// budget.
+        void setResidentBudget(std::uint64_t bytes);
+        std::uint64_t residentBudget() const;
+
         /// The squares of the tiles that are drawn now, in world units, for the cluster client's ground test (task
         /// 0060, far cluster eviction: Lod::groundDrawnOver). Rebuilt together with the coverage; the version changes
         /// with it. Main thread.

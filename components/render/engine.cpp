@@ -446,6 +446,36 @@ namespace Render
         return static_cast<int64_t>(usage / (1024 * 1024));
     }
 
+    VideoMemory::Sample Engine::deviceLocalMemorySample()
+    {
+        auto physicalDevice = getOrCreatePhysicalDevice();
+        if (!physicalDevice || !physicalDevice->supportsDeviceExtension("VK_EXT_memory_budget"))
+            return {};
+        auto instance = physicalDevice->getInstance().ref_ptr();
+        PFN_vkGetPhysicalDeviceMemoryProperties2 getMemoryProperties2 = nullptr;
+        if (!instance || !instance->getProcAddr(getMemoryProperties2, "vkGetPhysicalDeviceMemoryProperties2")
+            || !getMemoryProperties2)
+            return {};
+        VkPhysicalDeviceMemoryBudgetPropertiesEXT budget{};
+        budget.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+        VkPhysicalDeviceMemoryProperties2 memory{};
+        memory.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+        memory.pNext = &budget;
+        getMemoryProperties2(*physicalDevice, &memory);
+        uint64_t heapBudget = 0;
+        uint64_t heapUsage = 0;
+        for (uint32_t i = 0; i < memory.memoryProperties.memoryHeapCount; ++i)
+            if (memory.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                heapBudget += budget.heapBudget[i];
+                heapUsage += budget.heapUsage[i];
+            }
+        VideoMemory::Sample sample;
+        sample.budgetBytes = static_cast<int64_t>(heapBudget);
+        sample.usageBytes = static_cast<int64_t>(heapUsage);
+        return sample;
+    }
+
     GpuTimer* Engine::enableGpuTiming()
     {
         if (mGpuTimingTried)

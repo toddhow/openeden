@@ -368,6 +368,16 @@ namespace MWRender
         return mState->mStats;
     }
 
+    void LodClusters::setResidentBudget(std::uint64_t bytes)
+    {
+        mState->mSetup.mResidentBudgetBytes = bytes;
+    }
+
+    std::uint64_t LodClusters::residentBudget() const
+    {
+        return mState->mSetup.mResidentBudgetBytes;
+    }
+
     namespace
     {
         // The cells of a cluster that are masked: inside the active grid, or listing a reference that was overridden.
@@ -876,6 +886,7 @@ namespace MWRender
                     updateBuilt(i);
             }
             state.mStats.mBlocked = 0;
+            state.mStats.mHeldBytes = 0;
             state.mStats.mCooling = cooling;
         }
         else
@@ -934,6 +945,7 @@ namespace MWRender
             params.mNearestFirst = true;
             Lod::planResidency(state.mItems, params, state.mPlan);
             state.mStats.mBlocked = state.mPlan.mBlocked;
+            state.mStats.mHeldBytes = state.mPlan.mHeldAfter;
             state.mStats.mCooling = state.mPlan.mCooling;
             state.mStats.mWaitingForGround = waitingForGround;
             state.mStats.mNoFallbackBytes = state.mPlan.mNoFallbackBytes;

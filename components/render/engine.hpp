@@ -11,6 +11,7 @@
 #include "devicereport.hpp"
 #include "framecapture.hpp"
 #include "framecounters.hpp"
+#include "vramsource.hpp"
 
 namespace vsg
 {
@@ -153,6 +154,10 @@ namespace Render
         // Task 0054 (S0): the device-local memory this process uses in MiB, from VK_EXT_memory_budget, or -1 when the
         // device does not have it.
         int64_t deviceLocalUsageMiB();
+
+        // Task 0080: the driver's budget and this process's usage in bytes, each summed over the device-local heaps
+        // from VK_EXT_memory_budget; both -1 when the device does not have the extension. Call on the main thread.
+        VideoMemory::Sample deviceLocalMemorySample();
 
         // Task 0054 (S0): named numbers that loop() adds to the OPENEDEN_FRAME_STATS_FILE as columns. Whoever wants a
         // column registers it before loop() starts, and only when [Rendering] frame counters is on; with none

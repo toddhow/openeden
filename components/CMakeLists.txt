@@ -82,6 +82,7 @@ add_component_dir (settings
     categories/sound
     categories/terrain
     categories/video
+    categories/videomemory
     categories/water
     categories/windows
     categories/worldlod
@@ -150,7 +151,7 @@ add_component_dir (pipeline
 add_component_dir (render
     engine download screenshot framecapture headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal materialoverrides probes probebake skyvisbake ambientocclusion
+    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal vramaccount vramsource vramcontroller vramorder vramscaler materialoverrides probes probebake skyvisbake ambientocclusion
     )
 # Renders pipelines.
 # Depends on pipeline, render.

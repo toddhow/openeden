@@ -383,6 +383,10 @@ namespace MWRender
             counters.add("scene triangles", [this] { return static_cast<double>(mCensusTriangles); });
         }
 
+        // OpenEden (task 0080): the video memory scale-back. Nothing is made, and no memory budget is read, unless on.
+        if (Settings::videoMemory().mEnabled)
+            setupVideoMemory();
+
         mRenderModes.resize(Render_Count);
         // As OpenMW's RenderingManager (task 0012).
         Nif::Reader::setLoadUnsupportedFiles(Settings::models().mLoadUnsupportedNifFiles);
@@ -1314,6 +1318,8 @@ namespace MWRender
 
     RenderManager::~RenderManager()
     {
+        if (mVramScaler && Settings::videoMemory().mReport)
+            Log(Debug::Info) << mVramScaler->reportText();
         if (mTextureDownscaleReport)
             Log(Debug::Info) << vsgUtil::TextureResize::describe(vsgUtil::TextureResize::report().snapshot());
         if (mCompileOp)
@@ -1392,6 +1398,148 @@ namespace MWRender
             setup.mCompile = mScene->context.compileContext;
             mLodClusters = std::make_unique<LodClusters>(std::move(setup));
             mLodClustersAttached = false;
+        }
+    }
+
+    // Task 0080 (stage c): the systems the scale-back can reduce at run time are the live budgets of the world LOD's
+    // far field. Each level halves the budget again (level 1 is half of the tier's, 2 a quarter, 3 an eighth). The
+    // others the spec lists (point light shadows, volumetrics, cloud quality, history features, texture detail) are
+    // made at start from settings and cannot be rebuilt at run time yet; they are not registered, so they are not in
+    // the order (the settings reader names them as unknown).
+    void RenderManager::setupVideoMemory()
+    {
+        namespace VM = Render::VideoMemory;
+        const auto& settings = Settings::videoMemory();
+        constexpr int farMaxLevel = 3;
+
+        // Per adapter: the level it is at, and what was held when each level was entered, so that a restore costs
+        // what the step down freed.
+        struct FarState
+        {
+            int level = 0;
+            std::uint64_t heldBeforeStep[farMaxLevel + 1] = {};
+        };
+        auto objectsState = std::make_shared<FarState>();
+        auto terrainState = std::make_shared<FarState>();
+
+        std::vector<VM::Adapter> adapters;
+        if (mFarTierActive)
+        {
+            VM::Adapter objects;
+            objects.name = "far objects";
+            objects.maxLevel = farMaxLevel;
+            objects.account = [this, objectsState](VM::Ledger& ledger) {
+                if (!mLodClusters)
+                {
+                    ledger.set("lod.clusters", 0);
+                    return;
+                }
+                // A rebuilt client starts at the tier's budget: put it back to this level.
+                const std::uint64_t wanted = farMemoryBudgetBytes() >> objectsState->level;
+                if (mLodClusters->residentBudget() != wanted)
+                    mLodClusters->setResidentBudget(wanted);
+                ledger.set("lod.clusters", static_cast<std::int64_t>(mLodClusters->stats().mHeldBytes));
+            };
+            objects.apply = [this, objectsState](int level) {
+                if (!mLodClusters)
+                    return false;
+                if (level > objectsState->level)
+                    objectsState->heldBeforeStep[level] = mLodClusters->stats().mHeldBytes;
+                objectsState->level = level;
+                mLodClusters->setResidentBudget(farMemoryBudgetBytes() >> level);
+                return true;
+            };
+            objects.stepBytes = [this, objectsState](int from, bool down) -> std::int64_t {
+                if (!mLodClusters)
+                    return 0;
+                const auto held = static_cast<std::int64_t>(mLodClusters->stats().mHeldBytes);
+                if (down)
+                    return std::max<std::int64_t>(
+                        0, held - static_cast<std::int64_t>(farMemoryBudgetBytes() >> (from + 1)));
+                return std::max<std::int64_t>(0, static_cast<std::int64_t>(objectsState->heldBeforeStep[from]) - held);
+            };
+            adapters.push_back(std::move(objects));
+
+            VM::Adapter terrain;
+            terrain.name = "far terrain";
+            terrain.maxLevel = farMaxLevel;
+            terrain.account = [this, terrainState](VM::Ledger& ledger) {
+                if (!mLodTerrain)
+                {
+                    ledger.set("lod.tiles", 0);
+                    return;
+                }
+                const std::uint64_t wanted = farTerrainBudgetBytes() >> terrainState->level;
+                if (mLodTerrain->residentBudget() != wanted)
+                    mLodTerrain->setResidentBudget(wanted);
+                ledger.set("lod.tiles", static_cast<std::int64_t>(mLodTerrain->stats().mHeldBytes));
+            };
+            terrain.apply = [this, terrainState](int level) {
+                if (!mLodTerrain)
+                    return false;
+                if (level > terrainState->level)
+                    terrainState->heldBeforeStep[level] = mLodTerrain->stats().mHeldBytes;
+                terrainState->level = level;
+                mLodTerrain->setResidentBudget(farTerrainBudgetBytes() >> level);
+                return true;
+            };
+            terrain.stepBytes = [this, terrainState](int from, bool down) -> std::int64_t {
+                if (!mLodTerrain)
+                    return 0;
+                const auto held = static_cast<std::int64_t>(mLodTerrain->stats().mHeldBytes);
+                if (down)
+                    return std::max<std::int64_t>(
+                        0, held - static_cast<std::int64_t>(farTerrainBudgetBytes() >> (from + 1)));
+                return std::max<std::int64_t>(0, static_cast<std::int64_t>(terrainState->heldBeforeStep[from]) - held);
+            };
+            adapters.push_back(std::move(terrain));
+        }
+        else
+            Log(Debug::Info) << "[VideoMemory] the far field is not active ([WorldLod] enabled, [Terrain] distant "
+                                "terrain and map view are needed), so far objects and far terrain are not available";
+
+        VM::ScalerConfig config;
+        config.params.highWater = settings.mHighWater;
+        config.params.lowWater = settings.mLowWater;
+        config.params.dwell = settings.mDwell;
+        config.params.restoreDwell = settings.mRestoreDwell;
+        const std::string restore = settings.mRestore.get();
+        config.params.automaticRestore = restore != "manual";
+        if (restore != "automatic" && restore != "manual")
+            Log(Debug::Warning) << "[VideoMemory] restore: unknown '" << restore << "', using automatic";
+        const std::string usageSource = settings.mUsageSource.get();
+        config.useDriverUsage = usageSource != "ledger";
+        if (usageSource != "driver" && usageSource != "ledger")
+            Log(Debug::Warning) << "[VideoMemory] usage source: unknown '" << usageSource << "', using driver";
+        config.sampleInterval = settings.mSampleInterval;
+        config.budgetFraction = settings.mBudgetFraction;
+        config.order = settings.mOrder.get();
+        config.fallbackBudgetBytes = static_cast<std::int64_t>(mEngine.deviceLocalMiB()) << 20;
+        const std::string budgetText = settings.mBudget.get();
+        config.budget = VM::parseBudget(budgetText);
+        if (!config.budget.valid)
+        {
+            Log(Debug::Warning) << "[VideoMemory] budget: unknown '" << budgetText << "', using auto";
+            config.budget = VM::BudgetSetting{};
+        }
+
+        mVramScaler = std::make_unique<VM::Scaler>(
+            std::move(config), std::move(adapters), [this] { return mEngine.deviceLocalMemorySample(); },
+            [](bool warning, const std::string& text) { Log(warning ? Debug::Warning : Debug::Info) << text; });
+        if (!mVramScaler->active())
+        {
+            mVramScaler.reset();
+            return;
+        }
+        Log(Debug::Info) << "[VideoMemory] scale-back is on, order: " << settings.mOrder.get();
+        if (Settings::rendering().mFrameCounters)
+        {
+            Render::FrameCounters& counters = mEngine.frameCounters();
+            counters.add("vram budget mib", [this] { return mVramScaler ? mVramScaler->budgetMiB() : -1.0; });
+            counters.add("vram used mib", [this] { return mVramScaler ? mVramScaler->usedMiB() : -1.0; });
+            counters.add("vram accounted mib", [this] { return mVramScaler ? mVramScaler->accountedMiB() : -1.0; });
+            counters.add(
+                "vram level", [this] { return mVramScaler ? static_cast<double>(mVramScaler->levelCount()) : 0.0; });
         }
     }
 
@@ -2880,6 +3028,8 @@ namespace MWRender
         else
             mSceneData->value().time += dt;
 
+        if (mVramScaler)
+            mVramScaler->tick(dt);
         mEffects->update(dt);
         mProjectiles->update(dt);
         static const std::string noEffect;

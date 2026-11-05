@@ -1014,6 +1014,16 @@ namespace MWRender
         return mState->mStats;
     }
 
+    void LodTerrain::setResidentBudget(std::uint64_t bytes)
+    {
+        mState->mSetup.mResidentBudgetBytes = bytes;
+    }
+
+    std::uint64_t LodTerrain::residentBudget() const
+    {
+        return mState->mSetup.mResidentBudgetBytes;
+    }
+
     const Terrain::Coverage* LodTerrain::update(const Camera& camera)
     {
         State& state = *mState;

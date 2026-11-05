@@ -106,6 +106,11 @@ namespace MWRender
         using CellPredicate = std::function<bool(const std::pair<int, int>&)>;
         void update(const Camera& camera, double seconds, const CellPredicate& liveReady);
 
+        /// Task 0080: the memory budget the planner works to, changed while running (main thread, between updates);
+        /// 0: no budget. The planner frees the farthest replaceable clusters at its next run when it is lowered.
+        void setResidentBudget(std::uint64_t bytes);
+        std::uint64_t residentBudget() const;
+
         /// The cells inside the active grid are masked (the live objects keep them).
         void setActiveGrid(const ActiveCellGrid& grid);
         /// A reference a script disabled, or the scene now draws moved or deleted: the cell it stands in (and the one
@@ -131,6 +136,8 @@ namespace MWRender
             std::size_t mTriangles = 0; // of the shown clusters, masks taken out
             std::size_t mLoads = 0; // tiles read and decoded so far
             std::size_t mBlocked = 0; // clusters left out because the memory budget was reached
+            std::uint64_t mHeldBytes
+                = 0; // what the built clusters hold after the planner's last run (0 without a budget)
             std::size_t mCooling = 0; // wanted clusters a cooldown held back this frame (third review, finding 1)
             // Far cluster eviction (task 0060): clusters freed while wanted that only the ground rule made replaceable,
             // in all so far; clusters held back this frame until their ground counts; built or wanted clusters past the

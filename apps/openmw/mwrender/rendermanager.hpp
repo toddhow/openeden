@@ -37,6 +37,7 @@
 #include <components/render/skyvisibility.hpp>
 #include <components/render/taa.hpp>
 #include <components/render/tonemap.hpp>
+#include <components/render/vramscaler.hpp>
 #include <components/settings/settings.hpp>
 
 namespace MWWorld
@@ -627,6 +628,9 @@ namespace MWRender
         // Task 0066 stage e: the hardware tier of the whole-map view (only with `map view` on; otherwise inactive and
         // every number below is the setting's own).
         bool mFarTierActive = false;
+        // Task 0080: the video memory scale-back. Null unless [VideoMemory] enabled (and a system that can be reduced).
+        std::unique_ptr<Render::VideoMemory::Scaler> mVramScaler;
+        void setupVideoMemory();
         Lod::FarTier mFarTierName = Lod::FarTier::High;
         Lod::FarTierSettings mFarTier;
         std::uint32_t mFarLevels = 0; // the highest tile and cluster level read and drawn; 0 means all

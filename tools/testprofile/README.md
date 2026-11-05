@@ -11,7 +11,7 @@ new feature too.
 - `variants/*.cfg` hold settings that exclude each other or cost a lot, so they are separate: `msaa` (multisampling
   instead of TAA), `glsl` (the GLSL shaders instead of the Slang ones), `lowtier` (the weakest whole-map tier), `aces`
   (another tonemap curve), `pcss` (soft shadow edges), `lowmemory` (a simulated 4 GiB card for the texture downscaler),
-  `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain).
+  `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain), `vramsmall` (a simulated 225 MiB card for the video memory scale-back, the low tier).
 - `prepare.sh` makes a **profile folder** under `I:\Projects\OpenEden-work\testprofile\<name>` from a **copy** of your
   `openmw.cfg` and `settings.cfg`. Your real folder (`Documents\My Games\OpenMW`) is only read: nothing is written to
   it, and the profile has its own saves, screenshots, logs and baked data.
@@ -165,6 +165,14 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   idle has a little breathing and sway). `cmStyle` names the style; `cmStyle cm_heavy_test` exaggerates it.
 - *Weapon and shield sheathing*: needs modded assets; with plain Morrowind nothing changes.
 - *Ragdoll* (0035): `cmRagdoll` on the target.
+
+## Video memory scale-back (task 0080)
+
+- `[VideoMemory] enabled` is on in the profile. With the driver's own budget a large card never reaches it. Add the
+  variant `vramsmall` and watch openmw.log for `VRAM scale-back: reduced far objects to step N (used X MiB of budget Y
+  MiB)`: the far field's live memory budgets are halved one step at a time, in the order of `order`, and the farthest
+  objects thin out (a frame viewed at 25,000 units up: sparser distant vegetation, no holes). Restoring needs the load
+  to fall well below the budget (see the task's stage log). `report = true` prints one summary line at exit.
 
 ## Known limits
 

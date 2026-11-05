@@ -24,6 +24,7 @@
 #include "categories/sound.hpp"
 #include "categories/terrain.hpp"
 #include "categories/video.hpp"
+#include "categories/videomemory.hpp"
 #include "categories/water.hpp"
 #include "categories/windows.hpp"
 #include "categories/worldlod.hpp"
@@ -43,6 +44,7 @@ namespace Settings
         CellsCategory mCells{ mIndex };
         TerrainCategory mTerrain{ mIndex };
         WorldLodCategory mWorldLod{ mIndex };
+        VideoMemoryCategory mVideoMemory{ mIndex };
         BodiesCategory mBodies{ mIndex };
         FogCategory mFog{ mIndex };
         MapCategory mMap{ mIndex };
@@ -114,6 +116,11 @@ namespace Settings
     inline WorldLodCategory& worldLod()
     {
         return values().mWorldLod;
+    }
+
+    inline VideoMemoryCategory& videoMemory()
+    {
+        return values().mVideoMemory;
     }
 
     inline BodiesCategory& bodies()
