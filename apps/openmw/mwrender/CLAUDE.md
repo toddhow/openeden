@@ -429,8 +429,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   no reader accepts, gets `Resource::Fallback`'s node instead). **A part's own read is caught, as OpenMW 0.51 does**
   (task 0074e, finding 7: `Npc::insertBoundedPart` logs "Error adding NPC part" and returns false, so `attachPart` makes
   no sound; `WieldingCreature::addItemPart` logs "Can not add creature part"): the slot stays taken and the body part
-  under it stays hidden, and the update completes. What still throws (the ammunition's, holstered items' and quiver's
-  reads, a value that is not a `std::exception`) reaches the caller, and who catches it differs: Lua's delayed action
+  under it stays hidden, and the update completes. What still throws (a rebuild's reads, a value that is not a `std::exception`) reaches the caller; the ammunition, holstered weapon and shield, sheath check and quiver reads are caught per part since task 0074h (`Npc::readGuarded` and the `attach*` seams; each unreadable path is logged once, `MWRender::ReadErrorLog`), and who catches it differs: Lua's delayed action
   logs it; mwscript logs it and puts the target in `mInactive` (its script is off for the session); the inventory,
   barter and container windows lose the rest of the frame's input (`Engine::frame`); a mechanics-driven change (torch
   auto-equip at dusk, AI combat's ActionEquip, spell effects, race changes, werewolf and vampire rebuilds) has no catch

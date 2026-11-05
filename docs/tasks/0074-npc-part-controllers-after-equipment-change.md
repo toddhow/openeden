@@ -727,3 +727,54 @@ not run.
   look for other stale pointers beyond the reading above, a build of the "before" tree with an address sanitizer.
 - **For toddhow:** nothing to decide beyond merging. Two small notes: `Player::mNeck` and `Player::assignBones` became
   protected (a test seam, like 0074f's); and `Player::setViewMode`'s own `assignBones()` is now redundant (kept).
+
+**2026-11-05, three approved items from decision 0012 (task 0074h)** (`a80c08f21a` item 1, `ad477406bb` item 2; item 3
+not done). Method: full loop except that the tests were written first by the implementing agent (no separate writer: a
+recorded deviation; no subagent could be started). Red run of the stub tree, `I:\Projects\OpenEden-work\actors2\red`:
+the new tests, 15 failed for the reason they name (every "first report is true, a repeat is false" case but `clear`, and
+every guard case where the read throws: ammunition for an NPC and a creature, quiver, holstered weapon (no scabbard,
+scabbard, weapon mesh), holstered shield (two), sheath check) and 9 passed (the guards where the read succeeds, and
+`clear`). The stub made `logPartReadError` rethrow, which is the old behaviour. `openmw-tests` 1058 of 1058 after.
+
+- **Item 1, log once.** `MWRender::ReadErrorLog` (`partreaderrorlog.*`): the VFS paths already reported, normalised
+  (`VFS::Path::normalizeFilenameInPlace`), a mutex, capped at 1024 (a full log counts a new path as reported).
+  `logPartReadError(prefix, model, e)` logs the existing text at Error the first time and one Verbose line ("Still unable
+  to read ...") afterwards. Callers: `Npc::insertBoundedPart` ("Error adding NPC part: "),
+  `WieldingCreature::addItemPart` ("Can not add creature part: ") and the new sites below. Threads: part updates run on
+  the main thread or on an update worker, hence the mutex. In game (`runs-before`, `runs-after`): the bad weapon logged
+  at 07.084 and again at 09.048 before; once, and a Verbose line, after.
+  **Not done: the rebuild's own reads** (`applyBasePlan`: skeleton, custom bones, animations). Their exception
+  propagates to the caller, who logs it (Lua, mwscript) or ends the session (mechanics), and existing tests pin that
+  (`testplancommit.cpp`, `update_parts_retries_a_rebuild_whose_read_threw_until_it_succeeds` expects the same throw twice
+  and tests may not be edited). Catching it there is a behaviour decision for toddhow, so a permanently bad rebuild file
+  still repeats its error on every equipment change.
+- **Item 2, per-part catches.** New seams, each reading first and attaching only on success: `Npc::attachAmmoModel`,
+  `attachQuiverArrow` (the loop stops at the first failure: every arrow is one model), `attachHolsteredWeapon` (which
+  also reads the common weapon mesh before it changes the scabbard node), `attachHolsteredShield`,
+  `holsteredModelHasSheath` (called by `hasSheathedShield` and `canAnimateShield`, which the mechanics reach: a throw
+  counts as "no sheath") and `WieldingCreature::attachAmmoModel`; `Npc::readGuarded` is the shared guarded read. On a
+  failure nothing is attached, `mAttachAmmo` keeps its children, and `mScabbard`, `mQuiver`, `mHolsteredShield` and the
+  switches stay as `removeHolstered` left them (empty). One behaviour difference: an unreadable holstered weapon or
+  shield used to throw out of the update; now the actor simply has none holstered.
+  In game (`I:\Projects\OpenEden-work\actors2`, `tool/check.sh`, `SCENE=clocks`, `[Game] weapon sheathing` and `shield
+  sheathing` on, an Eden Archive with three entries that fail their chunk check): `openmw-0074h-before.exe` (the tree of
+  `24179c1b1e`) logged `Error during AiSequence::execute: Failed to read '.../arrow.nif'` (a mechanics-driven path: the
+  dremora's own equip) and `Error in DelayedAction SetEquipmentAction: ... arrow.nif` (Lua's equip of the archer);
+  `openmw-0074h-after.exe` logs `Can not add creature ammunition 'oe_bad/arrow.nif'` once and the archer's arrows and
+  the second bad weapon as Verbose lines. Both runs exit 0 and finish the scene (frame `runs-after\stock\frames\
+  screenshot004.png` viewed: both NPCs dressed, the dremora with its bow). **Not shown in game:** the holstered weapon,
+  the holstered shield and the quiver (the old build's ammunition error came first, and the bad holstered weapon logged
+  no extra error in either build); they are covered by the unit tests only. One of two "after" runs crashed at start-up,
+  before the scene (`openmw-crash.dmp`, not read; the next run was clean): not investigated.
+- **Item 3, the 15 tests: none removed.** The file is `apps/components_tests/body/testmergedregions.cpp` (the task named
+  `apps/openmw_tests/mwrender/testmergedregions.cpp`, which does not exist). It holds 23 tests: 15 `MergedBodyRegions`
+  and 8 `MergedBodyRestart`. Only two compare with `referenceHidden`, the restated rule
+  (`every_state_of_one_slot_hides_as_the_stock_parts_do`, `random_combinations_of_all_slots_hide_as_the_stock_parts_do`);
+  the robe test, `nothing_worn_hides_nothing`, the out-of-array and the ascending-order tests pin `hiddenMergedSlots`
+  with hand-derived expectations, and the other eight `MergedBodyRegions` tests (`visibleIndexRanges`, the draws by
+  material and per submesh) and all eight `MergedBodyRestart` tests do not touch the rule at all. So there are not 15
+  tests that only restate the rule (the 15 of the stage e log is the count of `MergedBodyRegions` before the review added
+  the restart tests). Nothing was removed. If toddhow wants some gone: the two `referenceHidden` tests and the helper,
+  since `testpartslots.cpp` checks the rule against stock behaviour.
+- **Not verified:** the Linux gate (GCC `-Werror`), the Lua integration tests, a fresh reviewer, the holstered and quiver
+  paths in game. clang-format 14 was run on the changed files (two lines reformatted).
