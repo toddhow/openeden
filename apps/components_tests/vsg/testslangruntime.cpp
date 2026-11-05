@@ -21,6 +21,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+// clang-format off
+#include <psapi.h> // after windows.h
+// clang-format on
 #endif
 
 #include <algorithm>
@@ -668,6 +671,7 @@ namespace
     public:
         std::atomic<int> mCompiles{ 0 };
         std::atomic<int> mPrepares{ 0 };
+        std::atomic<int> mReleases{ 0 };
         std::string mIdentity = "scripted-compiler-1";
         std::vector<uint32_t> mOutput = fakeWords(1);
         std::string mError;
@@ -680,6 +684,7 @@ namespace
         std::thread::id mPrepareThread;
 
         std::string cacheIdentity() override { return mIdentity; }
+        void release() override { ++mReleases; }
         bool prepare(std::string& error) override
         {
             ++mPrepares;
@@ -1408,6 +1413,151 @@ namespace
         EXPECT_GE(events[0].mWaitMilliseconds, 0.0);
     }
 
+    // Queue item 3 of decision 0012, step 4: the compiler's session is given back after an idle time.
+    struct FakeClock
+    {
+        std::atomic<std::int64_t> mMilliseconds{ 1000 };
+        std::chrono::steady_clock::time_point now() const
+        {
+            return std::chrono::steady_clock::time_point(std::chrono::milliseconds(mMilliseconds.load()));
+        }
+        void advanceSeconds(int seconds) { mMilliseconds += seconds * 1000; }
+    };
+
+    TEST(SlangIdleRelease, the_default_is_sixty_seconds)
+    {
+        EXPECT_EQ(SlangRuntime::defaultIdleRelease, std::chrono::seconds(60));
+    }
+
+    TEST(SlangIdleRelease, the_session_is_given_back_after_the_idle_time_and_started_again_by_the_next_compile)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        FakeClock clock;
+        runtime->setClock([&clock] { return clock.now(); });
+        EXPECT_FALSE(runtime->releaseIfIdle()) << "nothing is started yet";
+        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
+        EXPECT_EQ(compiler->mPrepares, 1);
+        clock.advanceSeconds(59);
+        EXPECT_FALSE(runtime->releaseIfIdle());
+        EXPECT_EQ(compiler->mReleases, 0);
+        clock.advanceSeconds(2);
+        EXPECT_TRUE(runtime->releaseIfIdle());
+        EXPECT_EQ(compiler->mReleases, 1);
+        EXPECT_EQ(runtime->stats().mReleases, 1u);
+        EXPECT_FALSE(runtime->releaseIfIdle()) << "already given back";
+        EXPECT_EQ(compiler->mReleases, 1);
+        // The next compile starts it again, and does not repeat the self-tests.
+        auto other = f.mRequest;
+        other.mDefines.insert("NORMAL");
+        EXPECT_EQ(runtime->obtain(other, f.mCheck), fakeWords(1));
+        EXPECT_EQ(compiler->mPrepares, 2);
+        EXPECT_FALSE(runtime->disabled());
+    }
+
+    TEST(SlangIdleRelease, a_compile_restarts_the_idle_time)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        FakeClock clock;
+        runtime->setClock([&clock] { return clock.now(); });
+        runtime->obtain(f.mRequest, f.mCheck);
+        clock.advanceSeconds(50);
+        auto other = f.mRequest;
+        other.mDefines.insert("NORMAL");
+        runtime->obtain(other, f.mCheck);
+        clock.advanceSeconds(50);
+        EXPECT_FALSE(runtime->releaseIfIdle()) << "50 s since the last compile";
+        clock.advanceSeconds(11);
+        EXPECT_TRUE(runtime->releaseIfIdle());
+        EXPECT_EQ(compiler->mReleases, 1);
+    }
+
+    TEST(SlangIdleRelease, a_cache_hit_is_not_a_compile_and_does_not_start_the_compiler)
+    {
+        Fixture f;
+        {
+            FakeCompiler* first = nullptr;
+            f.runtime(first)->obtain(f.mRequest, f.mCheck);
+        }
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        compiler->mIdentity = "fake-compiler-1";
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        FakeClock clock;
+        runtime->setClock([&clock] { return clock.now(); });
+        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
+        clock.advanceSeconds(600);
+        EXPECT_FALSE(runtime->releaseIfIdle());
+        EXPECT_EQ(compiler->mPrepares, 0);
+        EXPECT_EQ(compiler->mReleases, 0);
+    }
+
+    TEST(SlangIdleRelease, nothing_is_given_back_while_a_compile_is_running)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        Gate gate;
+        std::atomic<bool> gated{ false };
+        compiler->mInCompile = [&](const SlangRuntimeRequest&) {
+            if (gated)
+                gate.enter();
+        };
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        FakeClock clock;
+        runtime->setClock([&clock] { return clock.now(); });
+        runtime->obtain(f.mRequest, f.mCheck); // started
+        gated = true;
+        auto other = f.mRequest;
+        other.mDefines.insert("NORMAL");
+        EXPECT_EQ(runtime->obtainOrQueue(other, f.mCheck).mState, SlangAvailability::Pending);
+        gate.waitInside();
+        clock.advanceSeconds(3600);
+        EXPECT_FALSE(runtime->releaseIfIdle()) << "the worker holds the compile lock";
+        EXPECT_EQ(compiler->mReleases, 0);
+        gate.open();
+        runtime->waitForIdle();
+    }
+
+    TEST(SlangIdleRelease, zero_means_never)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        FakeClock clock;
+        runtime->setClock([&clock] { return clock.now(); });
+        runtime->setIdleRelease(std::chrono::milliseconds(0));
+        runtime->obtain(f.mRequest, f.mCheck);
+        clock.advanceSeconds(100000);
+        EXPECT_FALSE(runtime->releaseIfIdle());
+        EXPECT_EQ(compiler->mReleases, 0);
+    }
+
+    TEST(SlangIdleRelease, the_worker_gives_the_session_back_by_itself_and_the_next_request_starts_it_again)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        runtime->setIdleRelease(std::chrono::milliseconds(60));
+        EXPECT_EQ(askUntilAnswered(*runtime, f.mRequest, f.mCheck).mState, SlangAvailability::Ready);
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (runtime->stats().mReleases == 0 && std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        EXPECT_EQ(runtime->stats().mReleases, 1u);
+        EXPECT_EQ(compiler->mReleases, 1);
+        auto other = f.mRequest;
+        other.mDefines.insert("NORMAL");
+        EXPECT_EQ(askUntilAnswered(*runtime, other, f.mCheck).mState, SlangAvailability::Ready);
+        EXPECT_EQ(compiler->mPrepares, 2);
+    }
+
 #if OPENEDEN_SLANG_ENABLED && defined(OPENEDEN_SLANG_LIBRARY_DIR) && defined(OPENEDEN_SLANG_RUNTIME_TESTS)
     std::vector<uint32_t> readWords(const std::filesystem::path& path)
     {
@@ -1952,6 +2102,59 @@ namespace
         EXPECT_FALSE(choice->pending);
         EXPECT_EQ(vsgUtil::slangTwinFor(*choice, 1u, game.mOptions, &pending), twin) << "kept by the choice now";
         EXPECT_FALSE(pending);
+    }
+
+    // Private bytes of this process in MiB (Windows only; 0 elsewhere): what releasing the session is measured by.
+    double privateMiB()
+    {
+#ifdef _WIN32
+        PROCESS_MEMORY_COUNTERS_EX counters = {};
+        counters.cb = sizeof(counters);
+        if (K32GetProcessMemoryInfo(
+                GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)))
+            return static_cast<double>(counters.PrivateUsage) / (1024.0 * 1024.0);
+#endif
+        return 0.0;
+    }
+
+    TEST(SlangRuntimeLibrary, the_idle_compiler_gives_its_memory_back_and_the_next_compile_works_again_and_again)
+    {
+        GameRuntime game("openeden_slangruntime_release");
+        ASSERT_NE(game.runtime(), nullptr);
+        game.runtime()->setIdleRelease(std::chrono::milliseconds(50));
+        const std::vector<std::set<std::string>> sets = { unlistedObjectFragment,
+            { "ALPHA_TO_COVERAGE", "DIFFUSE_MAP", "MATERIAL", "NORMAL", "TEXCOORD", "UVSETS_1" },
+            { "DIFFUSE_MAP", "LOD_FADE", "MATERIAL", "NORMAL", "TEXCOORD", "UVSETS_1" },
+            { "ADJUST_COVERAGE", "DIFFUSE_MAP", "MATERIAL", "NORMAL", "TEXCOORD", "UVSETS_1" } };
+        const double start = privateMiB();
+        double afterCompile = 0;
+        std::size_t releases = 0;
+        for (std::size_t i = 0; i < sets.size(); ++i)
+        {
+            SCOPED_TRACE(i);
+            auto glsl = glslFor("default/main.frag", sets[i]);
+            ASSERT_NE(glsl, nullptr);
+            const auto begin = std::chrono::steady_clock::now();
+            auto module = findWaiting("default/main.frag", sets[i], game.mOptions, &glsl->mStage);
+            const double ms
+                = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
+            ASSERT_NE(module, nullptr) << "compiles after " << releases << " releases";
+            if (i == 0)
+                afterCompile = privateMiB();
+            std::cout << "[ info ] compile " << i << " after " << releases << " releases took " << ms << " ms\n";
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+            while (game.runtime()->stats().mReleases == releases && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            ASSERT_EQ(game.runtime()->stats().mReleases, releases + 1);
+            ++releases;
+        }
+        const double released = privateMiB();
+        std::cout << "[ info ] private MiB: at the start " << start << ", after the first compile " << afterCompile
+                  << ", after the last release " << released << "\n";
+        EXPECT_FALSE(game.runtime()->disabled());
+        EXPECT_TRUE(game.mWarnings.empty()) << (game.mWarnings.empty() ? "" : game.mWarnings.front());
+        // The memory is printed, not asserted: in a run of the whole suite other tests move the process's private bytes
+        // by hundreds of MiB (alone: 294 MiB after the first compile, 32 MiB after the last release).
     }
 
     TEST(SlangRuntimeLibrary, the_first_request_returns_at_once_and_the_worker_pays_for_the_library)

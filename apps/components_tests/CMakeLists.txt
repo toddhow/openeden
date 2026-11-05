@@ -206,6 +206,8 @@ file(GLOB UNITTEST_SRC_FILES
     render/testwetnessmath.cpp
     render/testcloudmath.cpp
     render/testcloudvolumemath.cpp
+    render/testbluenoise.cpp
+    render/testcloudbicubic.cpp
     render/testcloudvolumegpu.cpp
     render/testcovermath.cpp
     render/testlightningmath.cpp

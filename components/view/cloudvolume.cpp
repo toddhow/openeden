@@ -17,6 +17,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/render/bluenoise.hpp>
 
 #include <components/pipeline/computebindings.hpp>
 #include <components/pipeline/layout.hpp>
@@ -30,6 +31,25 @@ namespace View
         constexpr VkFormat pictureFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
         // The compute set's bindings (files/shaders/comp/cloud/cloud.slang).
         constexpr std::uint32_t paramsBinding = 10;
+        constexpr std::uint32_t blueNoiseBinding = 12;
+
+        // The blue noise texture (components/render/bluenoise.hpp), made on the CPU from a fixed seed: 64 by 64 R8,
+        // read with a nearest sampler that repeats. The data is uploaded when the descriptor is compiled.
+        vsg::ref_ptr<vsg::DescriptorImage> createBlueNoiseDescriptor()
+        {
+            using namespace Render::BlueNoise;
+            const std::vector<std::uint8_t> texels = generate(textureSize, defaultSeed);
+            auto data
+                = vsg::ubyteArray2D::create(textureSize, textureSize, vsg::Data::Properties{ VK_FORMAT_R8_UNORM });
+            std::copy(texels.begin(), texels.end(), static_cast<std::uint8_t*>(data->dataPointer()));
+            data->properties.dataVariance = vsg::DataVariance::STATIC_DATA;
+            auto sampler = vsg::Sampler::create();
+            sampler->minFilter = sampler->magFilter = VK_FILTER_NEAREST;
+            sampler->mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            sampler->addressModeU = sampler->addressModeV = sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            return vsg::DescriptorImage::create(
+                sampler, data, blueNoiseBinding, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        }
 
         vsg::ref_ptr<vsg::Image> createImage(
             VkImageType type, VkFormat format, VkExtent3D extent, VkImageUsageFlags usage = 0)
@@ -157,6 +177,7 @@ namespace View
             { 9, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             { paramsBinding, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             { 11, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            { blueNoiseBinding, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
         vsg::DescriptorSetLayouts setLayouts = Pipeline::getCompatibleDescriptorSetLayouts();
         setLayouts.emplace_back(vsg::DescriptorSetLayout::create(vsg::DescriptorSetLayoutBindings()));
@@ -185,7 +206,7 @@ namespace View
                 sampledDescriptor(mHistoryImage, 8, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE),
                 storageDescriptor(mHistoryImage, 9),
                 vsg::DescriptorBuffer::create(mParams, paramsBinding, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER),
-                storageDescriptor(mShadowImage, 11) });
+                storageDescriptor(mShadowImage, 11), createBlueNoiseDescriptor() });
         auto bindComputeSet
             = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_COMPUTE, layout, Pipeline::COMPUTE_SET, computeSet);
 

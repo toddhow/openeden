@@ -73,6 +73,8 @@ struct CloudParams
 // The ground shadow map: shadowMapSize by shadowMapSize texels of transmittance (red), and two more texels in one column
 // to the right that hold the map's placement (lib/view/volumecloudshadow.glsl reads them).
 [[vk::binding(11, 3)]] [format("rgba32f")] RWTexture2D<float4> shadowStore;
+// The blue noise (components/render/bluenoise.hpp): 64 by 64, one byte a texel, repeating, read at the texel's centre.
+[[vk::binding(12, 3)]] Sampler2D blueTex;
 
 static const float pi = 3.14159265358979;
 
@@ -83,6 +85,9 @@ static const float detailTileMeters = 800.0;
 static const float detailFineTileMeters = 300.0;
 static const float detailFineWeight = 0.4;
 static const float detailContrast = 1.6;
+static const uint blueNoiseSize = 64;
+static const float goldenRatioFraction = 0.6180339887;
+static const uint blueNoiseFrameMask = 1023;
 static const float sunPhaseScale = 6.28318530718;
 static const uint shapeSize = 128;
 static const uint detailSize = 32;
@@ -317,11 +322,15 @@ float multiScatter(float opticalDepthToSun, float cosTheta, int octaves)
     return sum;
 }
 
-float interleavedGradientNoise(float2 p)
+// The shift of a ray's samples inside one step (bluenoise.hpp: ditherOffset): the blue noise texel of the march texel
+// plus the golden ratio sequence over the frames, so the history blend converges on an even spread.
+float ditherOffset(float2 pixel)
 {
-    float inner = 0.06711056 * p.x + 0.00583715 * p.y;
-    float outer = 52.9829189 * frac(inner);
-    return frac(outer);
+    float2 uv = (float2(uint2(pixel) & uint2(blueNoiseSize - 1, blueNoiseSize - 1)) + 0.5) / float(blueNoiseSize);
+    uint texel = uint(blueTex.SampleLevel(uv, 0.0).r * 255.0 + 0.5);
+    float shifted = (float(texel) + 0.5) / 256.0 + float(uint(cloud.debug.y) & blueNoiseFrameMask) * goldenRatioFraction;
+    float f = frac(shifted);
+    return f >= 1.0 ? 0.0 : f;
 }
 
 // How densityAt treats the detail noise: `detailBound` takes it as 0, which gives the most the density can be there (so a
@@ -395,7 +404,7 @@ float4 marchRay(float2 uv, float2 pixel)
     int steps = int(cloud.density.w);
     int lightSteps = int(cloud.march.x);
     float dt = (exitT - enter) / float(steps);
-    float offset = frac(interleavedGradientNoise(pixel) + cloud.march.y);
+    float offset = ditherOffset(pixel);
 
     float3 sunDir = normalize(mul(scene.invView, float4(scene.lightViewPos.xyz, 0.0)).xyz);
     float cosTheta = dot(dir, sunDir);
@@ -488,6 +497,15 @@ float4 loadMarch(int2 p)
     return marchStore[uint2(clamp(p, int2(0, 0), size - int2(1, 1)))];
 }
 
+// cloudvolumemath.hpp: catmullRomWeights. The weights of the taps at -1, 0, 1, 2 around the fraction t.
+float4 catmullRomWeights(float t)
+{
+    float x = clamp(t, 0.0, 1.0);
+    float x2 = x * x;
+    float x3 = x2 * x;
+    return float4(-0.5 * x3 + x2 - 0.5 * x, 1.5 * x3 - 2.5 * x2 + 1.0, -1.5 * x3 + 2.0 * x2 + 0.5 * x, 0.5 * x3 - 0.5 * x2);
+}
+
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void resolveMain(uint3 id : SV_DispatchThreadID)
@@ -503,26 +521,50 @@ void resolveMain(uint3 id : SV_DispatchThreadID)
     float2 q = uv * cloud.sizes.xy - jitter;
     int2 base = int2(floor(q));
     float2 f = q - float2(base);
-    float4 a = loadMarch(base);
-    float4 b = loadMarch(base + int2(1, 0));
-    float4 c = loadMarch(base + int2(0, 1));
-    float4 d = loadMarch(base + int2(1, 1));
-    float4 current = lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+    // The 4 by 4 taps round the point (tap [j][i] is the march texel base + (i - 1, j - 1)).
+    float4 taps[4][4];
+    for (int j = 0; j < 4; ++j)
+        for (int i = 0; i < 4; ++i)
+            taps[j][i] = loadMarch(base + int2(i - 1, j - 1));
+    // Bicubic (Catmull-Rom), kept between the four nearest taps so that the negative lobes cannot ring or go below 0
+    // (cloudvolumemath.hpp: clampToNearestTaps).
+    float4 wx = catmullRomWeights(f.x);
+    float4 wy = catmullRomWeights(f.y);
+    float4 cubic = float4(0.0, 0.0, 0.0, 0.0);
+    for (int j = 0; j < 4; ++j)
+    {
+        float4 row = taps[j][0] * wx.x + taps[j][1] * wx.y + taps[j][2] * wx.z + taps[j][3] * wx.w;
+        cubic += row * wy[j];
+    }
+    float4 nearest[4] = { taps[1][1], taps[1][2], taps[2][1], taps[2][2] };
+    float4 current = clamp(cubic, min(min(nearest[0], nearest[1]), min(nearest[2], nearest[3])),
+        max(max(nearest[0], nearest[1]), max(nearest[2], nearest[3])));
 
     float4 result = current;
     if (cloud.debug.x < 0.5)
     {
-        // The neighbourhood the history may take values from.
-        int2 centre = base + int2(f.x >= 0.5 ? 1 : 0, f.y >= 0.5 ? 1 : 0);
-        float4 lo = current;
-        float4 hi = current;
-        for (int y = -1; y <= 1; ++y)
-            for (int x = -1; x <= 1; ++x)
-            {
-                float4 n = loadMarch(centre + int2(x, y));
-                lo = min(lo, n);
-                hi = max(hi, n);
-            }
+        // The neighbourhood the history may take values from: the 3 by 3 texels round each of the four nearest
+        // texels (all inside the 4 by 4 taps), mixed by the fraction. A box taken round the single nearest texel would
+        // change in steps at the edge of every march texel, and show as a grid of squares in the cloud.
+        float4 corners[4];
+        float4 cornersHi[4];
+        for (int k = 0; k < 4; ++k)
+        {
+            int cx = k & 1;
+            int cy = k >> 1;
+            float4 mn = taps[cy + 1][cx + 1];
+            float4 mx = mn;
+            for (int y = 0; y < 3; ++y)
+                for (int x = 0; x < 3; ++x)
+                {
+                    mn = min(mn, taps[cy + y][cx + x]);
+                    mx = max(mx, taps[cy + y][cx + x]);
+                }
+            corners[k] = mn;
+            cornersHi[k] = mx;
+        }
+        float4 lo = min(current, lerp(lerp(corners[0], corners[1], f.x), lerp(corners[2], corners[3], f.x), f.y));
+        float4 hi = max(current, lerp(lerp(cornersHi[0], cornersHi[1], f.x), lerp(cornersHi[2], cornersHi[3], f.x), f.y));
         float weight = cloud.march.w;
         if (weight > 0.0)
         {

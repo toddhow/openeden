@@ -2,6 +2,7 @@
 // wind wrap, the dispatch helper, the image sizes, the debug view names and the twin of the constants and the block in
 // the Slang and GLSL shaders. Written from the header's contract. Pure CPU: no device, window or game data.
 
+#include <components/render/bluenoise.hpp>
 #include <components/render/cloudvolumegpu.hpp>
 #include <components/render/cloudvolumemath.hpp>
 
@@ -355,6 +356,9 @@ namespace
         expectSlangNumber(slang, "detailFineWeight", detailFineWeight);
         expectSlangNumber(slang, "detailContrast", detailContrast);
         expectSlangNumber(slang, "sunPhaseScale", sunPhaseScale);
+        expectSlangNumber(slang, "blueNoiseSize", Render::BlueNoise::textureSize);
+        expectSlangNumber(slang, "goldenRatioFraction", Render::BlueNoise::goldenRatioFraction);
+        expectSlangNumber(slang, "blueNoiseFrameMask", Render::BlueNoise::frameMask);
         expectSlangNumber(slang, "shapeSize", shapeSize);
         expectSlangNumber(slang, "detailSize", detailSize);
         expectSlangNumber(slang, "curlSize", curlSize);
@@ -424,7 +428,7 @@ namespace
         }
         const std::map<int, std::string> expected{ { 0, "shapeStore" }, { 1, "detailStore" }, { 2, "curlStore" },
             { 3, "shapeTex" }, { 4, "detailTex" }, { 5, "curlTex" }, { 6, "marchStore" }, { 7, "resolveStore" },
-            { 8, "historyTex" }, { 9, "historyStore" }, { 10, "cloud" }, { 11, "shadowStore" } };
+            { 8, "historyTex" }, { 9, "historyStore" }, { 10, "cloud" }, { 11, "shadowStore" }, { 12, "blueTex" } };
         EXPECT_EQ(found, expected);
     }
 

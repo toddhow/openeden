@@ -1,6 +1,7 @@
 #ifndef VSGUTIL_SLANGRUNTIME_H
 #define VSGUTIL_SLANGRUNTIME_H
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -68,6 +69,10 @@ namespace vsgUtil
             (void)error;
             return true;
         }
+        /// Gives back what start-up built that is not needed while nothing compiles (for the Slang library: the global
+        /// session, about 230 MiB; the library itself stays loaded). Called by the runtime after an idle time, under
+        /// the compile lock; the next prepare() or compile() must work again. The default has nothing to give back.
+        virtual void release() {}
         /// What identifies this compiler and its flags in a cache key, worked out without starting it (so a run with a
         /// warm cache never loads the library): for the dynamic compiler the size and time of its library files;
         /// empty when it cannot be used (the files are missing).
@@ -227,6 +232,24 @@ namespace vsgUtil
         /// The most requests the queue holds (the one the worker is compiling is not counted).
         static constexpr std::size_t maxQueuedCompiles = 256;
 
+        /// Queue item 3 of decision 0012, step 4: after this long with no compile the compiler's session is given
+        /// back (SlangRuntimeCompiler::release, about 230 MiB for the Slang library); the next compile starts it again
+        /// (a library that is already loaded: tens of milliseconds, not the first start's seconds). 60 seconds: a
+        /// play session compiles in bursts while new areas load, with minutes between them.
+        static constexpr std::chrono::milliseconds defaultIdleRelease{ 60000 };
+
+        /// Sets the idle time (zero: never release). The worker checks every quarter of it, at most every five
+        /// seconds and at least every 5 ms.
+        void setIdleRelease(std::chrono::milliseconds idle);
+
+        /// The clock the idle time is measured on (the steady clock by default); a test gives a fake one.
+        void setClock(std::function<std::chrono::steady_clock::time_point()> now);
+
+        /// Gives the compiler's session back if it is started, nothing is compiling and the last compile (or start)
+        /// was at least the idle time ago on the runtime's clock. True when it did. The worker calls it when it has
+        /// had nothing to do; callable by tests directly.
+        bool releaseIfIdle() const;
+
         /// Waits until the queue is empty and the worker is not compiling. For tests and measurements.
         void waitForIdle() const;
 
@@ -252,6 +275,7 @@ namespace vsgUtil
             std::size_t mQueued = 0; // requests put on the worker's queue
             std::size_t mQueueFull = 0; // requests answered Pending without a place in the queue
             std::size_t mDroppedAtExit = 0; // queued requests the destructor dropped
+            std::size_t mReleases = 0; // times the compiler's session was given back after an idle time
         };
         Stats stats() const;
 

@@ -222,6 +222,37 @@ namespace vsgUtil
                 return found >= requiredFiles ? text : std::string();
             }
 
+            void release() override
+            {
+#ifdef OPENEDEN_SLANG_RUNTIME
+                // Measured (Windows, queue item 3 of decision 0012): releasing the global session alone gives back none
+                // of the process's private bytes (the first release: 298.6 MiB before and after; a later one 65 MiB);
+                // the library's heap lives until the libraries are unloaded, and then the process is back at its size
+                // before the first start (298.7 to 11.8 MiB), and the next start works. So the libraries go too.
+                mGlobal = nullptr;
+#ifdef _WIN32
+                // Our own loads (slang.dll and the two companions, by full path) and the references Slang took later,
+                // by name (slang.dll loads slang-compiler.dll; the compiler loads glslang and the glsl module again):
+                // free each name until it is gone, at most a few times so that a reference we cannot free ends the
+                // loop.
+                for (const wchar_t* name :
+                    { L"slang.dll", L"slang-compiler.dll", L"slang-glslang.dll", L"slang-glsl-module.dll" })
+                {
+                    for (int references = 0; references < 8; ++references)
+                    {
+                        HMODULE loaded = GetModuleHandleW(name);
+                        if (loaded == nullptr || !FreeLibrary(loaded))
+                            break;
+                    }
+                }
+                mCreate = nullptr;
+                mTried = false;
+#endif
+                // Linux: only the session is released. dlclose of the same libraries was not tried there, and a
+                // reference Slang took itself would not be counted by us.
+#endif
+            }
+
             bool prepare(std::string& error) override
             {
 #ifdef OPENEDEN_SLANG_RUNTIME
@@ -317,12 +348,32 @@ namespace vsgUtil
             {
                 if (mGlobal)
                     return true;
-                if (mTried)
+                if (mCreate == nullptr)
                 {
+                    if (mTried)
+                    {
+                        error = mLoadError;
+                        return false;
+                    }
+                    mTried = true;
+                    if (!loadLibrary(error))
+                        return false;
+                }
+                SlangGlobalSessionDesc desc = {};
+                desc.enableGLSL = true; // "import glsl" in the twins
+                if (SLANG_FAILED(reinterpret_cast<CreateGlobalSession2>(mCreate)(&desc, mGlobal.writeRef()))
+                    || !mGlobal)
+                {
+                    mLoadError = "the Slang library did not create a session";
                     error = mLoadError;
                     return false;
                 }
-                mTried = true;
+                return true;
+            }
+
+            // Loads the library and its two companions, once; keeps the session factory in mCreate.
+            bool loadLibrary(std::string& error)
+            {
                 const std::filesystem::path path = libraryFile();
 #ifdef _WIN32
                 HMODULE library = LoadLibraryExW(path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -373,14 +424,7 @@ namespace vsgUtil
                     error = mLoadError;
                     return false;
                 }
-                SlangGlobalSessionDesc desc = {};
-                desc.enableGLSL = true; // "import glsl" in the twins
-                if (SLANG_FAILED(reinterpret_cast<CreateGlobalSession2>(symbol)(&desc, mGlobal.writeRef())) || !mGlobal)
-                {
-                    mLoadError = "the Slang library did not create a session";
-                    error = mLoadError;
-                    return false;
-                }
+                mCreate = symbol;
                 return true;
             }
 
@@ -478,6 +522,7 @@ namespace vsgUtil
             }
 
             Slang::ComPtr<slang::IGlobalSession> mGlobal;
+            void* mCreate = nullptr; // slang_createGlobalSession2, once the library is loaded
             bool mTried = false;
             std::string mLoadError;
 #endif
@@ -572,6 +617,13 @@ namespace vsgUtil
 
         bool mCacheCleaned = false; // cleanCache ran (after the first compile)
 
+        // Idle release (step 4). The clock and the time of the last compile or start are guarded by mCompileMutex
+        // (the clock itself is set before the worker exists).
+        std::function<Clock::time_point()> mNow = [] { return Clock::now(); };
+        Clock::time_point mLastActivity{};
+        std::atomic<std::int64_t> mIdleMilliseconds{ SlangRuntime::defaultIdleRelease.count() };
+        std::atomic<bool> mStartedHint{ false }; // the compiler is started (read by the worker without the lock)
+
         std::map<std::string, std::vector<uint32_t>> mDone; // worker results when there is no cache folder (mMutex)
 
         // The worker (queue item 3 of decision 0012, step 3). Its jobs own copies of what they need.
@@ -660,7 +712,9 @@ namespace vsgUtil
                     return false;
                 }
                 mPrepared = true;
+                mStartedHint = true;
             }
+            mLastActivity = mNow();
             if (!mSelfTestsDone)
             {
                 mSelfTestsDone = true;
@@ -716,11 +770,12 @@ namespace vsgUtil
         std::snprintf(text, sizeof(text),
             "Slang run-time shaders: %zu compiled in %.0f ms (%zu on the main thread, %zu on other threads), %zu read "
             "from the cache in %.1f ms, %zu failed, %zu refused sets remembered; longest wait on the compile lock "
-            "%.0f ms (%s thread); %zu queued for the worker, %zu found the queue full, %zu dropped at exit",
+            "%.0f ms (%s thread); %zu queued for the worker, %zu found the queue full, %zu dropped at exit, "
+            "%zu releases of the idle compiler",
             stats.mCompiled, stats.mCompileMilliseconds, stats.mCompiledOnMain, stats.mCompiledOnOther,
             stats.mCacheHits, stats.mCacheMilliseconds, stats.mFailed, stats.mRefusedSets,
             stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other", stats.mQueued,
-            stats.mQueueFull, stats.mDroppedAtExit);
+            stats.mQueueFull, stats.mDroppedAtExit, stats.mReleases);
         try
         {
             if (mState->mLog)
@@ -743,6 +798,46 @@ namespace vsgUtil
     {
         std::lock_guard lock(mState->mMutex);
         mState->mEventSink = std::move(sink);
+    }
+
+    void SlangRuntime::setIdleRelease(std::chrono::milliseconds idle)
+    {
+        mState->mIdleMilliseconds = idle.count();
+        mState->mQueueChanged.notify_all();
+    }
+
+    void SlangRuntime::setClock(std::function<std::chrono::steady_clock::time_point()> now)
+    {
+        std::lock_guard lock(mState->mCompileMutex);
+        mState->mNow = std::move(now);
+    }
+
+    bool SlangRuntime::releaseIfIdle() const
+    {
+        State& state = *mState;
+        const std::int64_t idle = state.mIdleMilliseconds.load();
+        if (idle <= 0)
+            return false;
+        // A compile in progress holds the lock: then nothing is idle.
+        std::unique_lock lock(state.mCompileMutex, std::try_to_lock);
+        if (!lock.owns_lock() || !state.mPrepared)
+            return false;
+        if (state.mNow() - state.mLastActivity < std::chrono::milliseconds(idle))
+            return false;
+        try
+        {
+            state.mCompiler->release();
+        }
+        catch (...)
+        {
+        }
+        state.mPrepared = false;
+        state.mStartedHint = false;
+        {
+            std::lock_guard statsLock(state.mMutex);
+            ++state.mStats.mReleases;
+        }
+        return true;
     }
 
     void SlangRuntime::setSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected)
@@ -831,7 +926,25 @@ namespace vsgUtil
             State::Job job;
             {
                 std::unique_lock lock(state.mQueueMutex);
-                state.mQueueChanged.wait(lock, [&state] { return state.mStop || !state.mQueue.empty(); });
+                const auto ready = [&state] { return state.mStop || !state.mQueue.empty(); };
+                while (!ready())
+                {
+                    const std::int64_t idle = state.mIdleMilliseconds.load();
+                    if (idle > 0 && state.mStartedHint.load())
+                    {
+                        // Started and idle: look again after a quarter of the idle time, and give the session back
+                        // when nothing has been compiled for all of it.
+                        const auto interval = std::clamp<std::int64_t>(idle / 4, 5, 5000);
+                        if (!state.mQueueChanged.wait_for(lock, std::chrono::milliseconds(interval), ready))
+                        {
+                            lock.unlock();
+                            releaseIfIdle();
+                            lock.lock();
+                        }
+                    }
+                    else
+                        state.mQueueChanged.wait(lock);
+                }
                 if (state.mStop)
                     return;
                 job = std::move(state.mQueue.front());
@@ -1352,6 +1465,7 @@ namespace vsgUtil
             const auto start = Clock::now();
             std::string error;
             std::vector<uint32_t> words = state.mCompiler->compile(request, error);
+            state.mLastActivity = state.mNow();
             if (words.empty())
                 return fail(error.empty() ? "no code" : error, false);
             if (words[0] != 0x07230203u)
