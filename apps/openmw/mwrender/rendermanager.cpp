@@ -1407,6 +1407,7 @@ namespace MWRender
             setup.mSampler = mResourceSystem->builder->createSampler();
             setup.mMapSettings = *mTerrainMapsForLod;
             setup.mVfs = mResourceSystem->getVFS();
+            setup.mFadeSeconds = Settings::worldLod().mTerrainFadeTime;
             mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
         }
         // Task 0059: baked object clusters (DRAFT layout), only when asked for. Nothing below runs with the setting
@@ -2297,7 +2298,7 @@ namespace MWRender
         mWaterRipples->removeCell(store);
     }
 
-    void RenderManager::updateTerrain(const vsg::dvec3& pos)
+    void RenderManager::updateTerrain(const vsg::dvec3& pos, float dt)
     {
         const Terrain::Coverage* coverage = nullptr;
         if (mLodTerrain)
@@ -2315,6 +2316,7 @@ namespace MWRender
             camera.mViewportHeight = mAppliedExtent.height;
             camera.mViewDistance = mTileRange;
             camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
+            camera.mDeltaSeconds = dt; // task 0087: the tile fade; 0 for the cell grid change between frames
             coverage = mLodTerrain->update(camera);
         }
         const bool coverageChanged = coverage != nullptr && coverage->version != mLastCoverageVersion;
@@ -2987,7 +2989,7 @@ namespace MWRender
             mPostProcess->updateImages();
 
         if (mRenderModes[Render_Terrain])
-            updateTerrain(mViewMatrix->eye);
+            updateTerrain(mViewMatrix->eye, dt);
     }
 
     void RenderManager::setupScreenshotInterface()

@@ -378,7 +378,7 @@ namespace MWRender
         void updateProjectionMatrix();
         void setupScreenshotInterface();
         void setFirstPersonMode(bool enabled);
-        void updateTerrain(const vsg::dvec3& pos);
+        void updateTerrain(const vsg::dvec3& pos, float dt = 0.f);
 
         struct Mode
         {

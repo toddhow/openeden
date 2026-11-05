@@ -81,3 +81,29 @@ identical, and neither are two runs of the executable before:** PSNR between two
 40 times) confined to the same few spots (the far object clusters and water edges), not the ground. The stage a result of
 byte-identical frames (`bal_8000`) used another pose and did not repeat here. The Slang-on, rain and fade-active frames are
 in stages d and e.
+
+**Stage c (2026-11-05, Windows).** `Lod::stepTerrainFades` (`components/lod/terrainfade.*`, pure) reuses `Lod::stepTileFade` per tile
+and adds the hand-over rules: a tile that appears dithers in over what drew its square and counts as covering (the live
+terrain leaves its square out) only once solid; a replaced tile (finer or coarser) stays solid until the replacement is solid and is
+then dropped in one frame (`Remove`); a tile given to the live terrain (`RefinedGate::ToLive`) dithers out over it, from the first
+frame, no longer covering; a fade turns around from its current value; a tile the selection keeps refining without
+finer tiles solid yet (`Stay`, a failed child included) stays at full for good. `MWRender::LodTerrain` runs it (`stepFades`) instead of the
+removal loop when `[WorldLod] terrain fade time` (new, default 0.4, in the test profile; 0 or less runs the old code untouched) is above 0;
+`refinedTileMayGo` and the coverage count only tiles drawn in full. A tile the residency planner frees is marked leaving
+(`ResidencyItem::mLeaving`: its bytes are held but counted as gone, so it causes no more pressure and is never freed twice) and
+dithers out over the live terrain before its draw goes. The tile's fade reaches the shader through `Builder::setBatchFade`.
+Tests (`apps/components_tests/lod/testterrainfade.cpp`, 17 unit and 5 simulated sequences over a root and four children: 300
+random seeds with and without live terrain, reversal at every frame of a swap, a child that never builds, determinism): run red
+first against a stub that does nothing (12 of the 22 failed; the others pass trivially); green with the code; a mutation
+(a covered tile removed without the ancestor being solid) fails 3 of them (the hole check among them). `components-tests` 6300
+and `openmw-tests` 1058 pass. The invariant tested: outside the live terrain's range, a cell that a solid tile covered is
+never left uncovered.
+In game (`tools/tilefade_check`, a quiet window, fixed frame time): the run with `terrain fade time = 6` and a teleport to 25000 shows the new far tiles and
+clusters as a fine stipple that thins over the following shots (`sheet-j.png`), then solid; with 0.4 and 0 the descent from 25000 to 17000
+swaps one level 2 tile for its children, and the frame difference between the two settings at the same camera position is two
+specks (the swap is subtle at that distance by design of the pixel error threshold; no frame shows a hole or a flash).
+**Decision for toddhow / known limits:** (1) a tile that is new with nothing beneath it (past the live range, no neighbour
+drawn) also dithers in, over the sky; I kept that because it is what removes the pop-in at the horizon, but it can start solid
+instead (one line in `LodTerrain::build`). (2) Tile geometry and the live terrain beneath it can z-fight where they coincide
+during a fade (same colours, so not visible in the frames viewed). (3) The Linux gate, the Lua tests, `eden-studio` (it needs
+the new default in its `defaults.cfg`: rebuild it) and a play-through are not run.

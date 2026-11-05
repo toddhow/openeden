@@ -18,6 +18,8 @@ namespace Settings
         SettingValue<bool> mEnabled{ mIndex, "WorldLod", "enabled" };
         SettingValue<float> mTerrainTileThreshold{ mIndex, "WorldLod", "terrain tile threshold",
             makeMaxStrictSanitizerFloat(0) };
+        // Task 0087: seconds a terrain tile takes to dither in or out; 0 is the instant swap of before.
+        SettingValue<float> mTerrainFadeTime{ mIndex, "WorldLod", "terrain fade time", makeMaxSanitizerFloat(0) };
         // Task 0059: baked object clusters (DRAFT layout), off by default; they need `enabled` too.
         SettingValue<bool> mObjectClusters{ mIndex, "WorldLod", "object clusters" };
         SettingValue<float> mObjectClusterThreshold{ mIndex, "WorldLod", "object cluster threshold",

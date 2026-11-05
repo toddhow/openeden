@@ -116,6 +116,9 @@ namespace MWRender
             /// How far the live terrain pages (the live view distance): a tile wholly inside it can give its square
             /// back to the live terrain, one reaching past it cannot (task 0060).
             double mPagingRange = 7168;
+            /// Seconds since the last call (the frame time), for the fade of tiles that change (task 0087). A call with
+            /// 0 (a cell grid change between frames) lets the fades stand.
+            float mDeltaSeconds = 0;
         };
 
         struct Setup
@@ -138,6 +141,9 @@ namespace MWRender
             vsg::ref_ptr<vsg::Sampler> mSampler;
             Terrain::TerrainMapSettings mMapSettings;
             const VFS::Manager* mVfs = nullptr;
+            /// Task 0087: seconds a tile takes to dither in or out when it appears, is replaced or is handed to the
+            /// live terrain (`[WorldLod] terrain fade time`); 0 or less: the old instant swap, no fade code runs.
+            float mFadeSeconds = 0;
         };
         explicit LodTerrain(Setup setup);
         ~LodTerrain();
@@ -167,6 +173,7 @@ namespace MWRender
             bool mUsable = false;
             std::size_t mTiles = 0; // in the pack
             std::size_t mDrawn = 0; // chosen and ready: in the coverage
+            std::size_t mFading = 0; // drawn and dithering in or out (task 0087), not in the coverage
             std::size_t mLive = 0; // visible, live terrain
             std::size_t mSkipped = 0; // outside the view
             std::size_t mBlocked = 0; // wanted tiles the memory budget did not admit this frame

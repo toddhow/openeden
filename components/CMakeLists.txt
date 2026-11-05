@@ -107,7 +107,7 @@ add_component_dir (bgsm
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
 # DRAFT layouts, kept behind this one folder. Depends on edenarchive.
 add_component_dir (lod
-    loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake objectcluster clusterbuild nifflatten clusterpack clusterfade tileswap clusterplan viewlimits fartier residency
+    loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake objectcluster clusterbuild nifflatten clusterpack clusterfade terrainfade tileswap clusterplan viewlimits fartier residency
     )
 
 # Skinned body part NIF reading and the seam measurements of the merged legacy body (task 0069, stage a). Depends on nif.

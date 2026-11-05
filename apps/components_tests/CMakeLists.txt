@@ -246,6 +246,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testclusterreview.cpp
     lod/testclusterfade.cpp
     lod/testtileswap.cpp
+    lod/testterrainfade.cpp
     lod/testclusterplan.cpp
     lod/testclusterfoliage.cpp
     lod/testnifflatten.cpp

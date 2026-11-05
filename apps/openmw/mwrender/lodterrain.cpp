@@ -16,6 +16,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/lod/residency.hpp>
+#include <components/lod/terrainfade.hpp>
 #include <components/lod/texturedecode.hpp>
 #include <components/lod/tilepack.hpp>
 #include <components/lod/tileswap.hpp>
@@ -665,6 +666,8 @@ namespace MWRender
             mBuilder = std::make_unique<Terrain::Builder>(
                 mSetup.mImageOptions, mSetup.mShaderOptions, mSetup.mSampler, mSetup.mMapSettings);
             mBuilder->setStorage(mStorage.get());
+            // Task 0087: a tile's fade is its batch uniform, uploaded again whenever it changes.
+            mBuilder->setDynamicBatchData(fading());
 
             const std::size_t count = mLoaded.mTiles.size();
             std::vector<Lod::TileId> ids;
@@ -685,6 +688,10 @@ namespace MWRender
             mFlags.assign(count, 0);
             mLods.assign(count, 0);
             mFailed.assign(count, false);
+            mFadeStates.assign(count, Lod::TerrainFadeState{});
+            mFadeInputs.assign(count, Lod::TerrainFadeInput{});
+            mFadeEvents.assign(count, Lod::TerrainFadeEvent::None);
+            mFreed.assign(count, 0);
             mCooldown.assign(count, 0);
             mDrawBytes.assign(count, 0);
             mHasPicture.assign(count, false);
@@ -740,11 +747,15 @@ namespace MWRender
             const auto lod = static_cast<std::uint8_t>(mLods[index]);
             Terrain::Builder::Batch batch = mBuilder->createBatch(bounds, lod);
             batch.leafGroup->addChild(mBuilder->createDraw(batch, bounds, lod, 0));
+            // Task 0087: a new tile starts invisible and dithers in (cached batch data may last have held 1).
+            if (fading())
+                Terrain::Builder::setBatchFade(batch.data, 0.f);
             vsg::ref_ptr<vsgUtil::CompileOp> compile{ new vsgUtil::CompileOp(batch.root, mSetup.mCompile) };
             if (!compile->compile())
                 return false;
             mRoot->addChild(batch.root);
             mNodes[index] = batch.root;
+            mFadeStates[index] = Lod::TerrainFadeState{};
             // What this draw holds, for the planner; the level's mean becomes the estimate of tiles not built yet.
             const std::uint64_t bytes = batchResidentBytes(batch.data, mHasPicture[index]);
             mDrawBytes[index] = bytes;
@@ -804,6 +815,8 @@ namespace MWRender
             vsg::ref_ptr<vsg::Node> node = std::move(mNodes[index]);
             mNodes[index] = {};
             mBatches[index] = {};
+            mFadeStates[index] = Lod::TerrainFadeState{};
+            mFreed[index] = false;
             auto& children = mRoot->children;
             children.erase(std::remove(children.begin(), children.end(), node), children.end());
             mSetup.mCompile->detach(node);
@@ -813,6 +826,16 @@ namespace MWRender
             // the cache (second review, finding 8).
             if (mSetup.mResidentBudgetBytes > 0)
                 mPruneFrames = pruneFramesAfterRemove;
+        }
+
+        // Task 0087: tiles dither when the fade time is above 0; otherwise nothing of the fade code runs.
+        bool fading() const { return mSetup.mFadeSeconds > 0.f; }
+
+        // Is the tile drawn in full: has a draw and, with the fade, has finished fading in (a tile still fading in is
+        // drawn over what it replaces, which must stay until it is solid)?
+        bool drawnInFull(std::size_t index) const
+        {
+            return mNodes[index] != nullptr && (!fading() || Lod::terrainTileIsSolid(mFadeStates[index]));
         }
 
         // Is the tile that covers this one drawn (so that this one may go without a hole)?
@@ -857,9 +880,9 @@ namespace MWRender
             {
                 Lod::RefinedChild kind = Lod::RefinedChild::Drawn;
                 if (mStates[child].mChoice == Lod::TileChoice::Tile)
-                    kind = Lod::classifyRefinedChild(mNodes[child] != nullptr, liveDrawsSquare(child, camera),
-                        mFailed[child], mStates[child].mVisible);
-                else if (!mNodes[child])
+                    kind = Lod::classifyRefinedChild(
+                        drawnInFull(child), liveDrawsSquare(child, camera), mFailed[child], mStates[child].mVisible);
+                else if (!drawnInFull(child))
                 {
                     bool childStays = false;
                     if (!refinedTileMayGo(child, camera, childStays, depth + 1))
@@ -872,12 +895,83 @@ namespace MWRender
             return Lod::refinedParentMayGo(std::span<const Lod::RefinedChild>(children.data(), count));
         }
 
+        // Task 0087: one frame of the fade machine (Lod::stepTerrainFades) in place of the removal loop of update().
+        // A tile that appears dithers in over what drew its square, a replaced tile stays solid until what replaces it
+        // is solid and then goes, a tile given to the live terrain dithers out over it. Returns whether a draw was
+        // dropped or a tile started or stopped covering its square (the caller rebuilds the coverage).
+        bool stepFades(const Camera& camera, bool keepRefinedTiles)
+        {
+            const std::size_t count = mNodes.size();
+            for (std::size_t i = 0; i < count; ++i)
+            {
+                Lod::TerrainFadeInput& input = mFadeInputs[i];
+                input.mBuilt = mNodes[i] != nullptr;
+                input.mChoice = mStates[i].mChoice;
+                input.mParent = mParents[i];
+                if (mFreed[i])
+                {
+                    // Freed by the residency planner: the live terrain draws its square (only a replaceable tile is
+                    // freed), so the tile dithers out over it whatever the selection says.
+                    input.mChoice = Lod::TileChoice::Live;
+                    input.mGate = Lod::RefinedGate::ToLive;
+                    continue;
+                }
+                // Without map view a refined tile goes at once, as before; with it the tile waits for what replaces it.
+                input.mGate = Lod::RefinedGate::ToLive;
+                if (input.mBuilt && input.mChoice == Lod::TileChoice::Live && keepRefinedTiles
+                    && !liveDrawsSquare(i, camera))
+                {
+                    bool staysForGood = false;
+                    input.mGate = refinedTileMayGo(i, camera, staysForGood) ? Lod::RefinedGate::Covered
+                                                                            : Lod::RefinedGate::Stay;
+                }
+            }
+            mCoversBefore.resize(count);
+            for (std::size_t i = 0; i < count; ++i)
+                mCoversBefore[i] = coversSquare(i);
+            Lod::stepTerrainFades(mFadeStates, mFadeInputs, mFadeEvents, mDeltaSeconds, mSetup.mFadeSeconds);
+            bool changed = false;
+            for (std::size_t i = 0; i < count; ++i)
+            {
+                switch (mFadeEvents[i])
+                {
+                    case Lod::TerrainFadeEvent::StartedLeaving:
+                        logSwap(i, removalKind(i));
+                        break;
+                    case Lod::TerrainFadeEvent::Remove:
+                        logSwap(i, removalKind(i));
+                        remove(i);
+                        changed = true;
+                        break;
+                    case Lod::TerrainFadeEvent::Finished:
+                        remove(i);
+                        changed = true;
+                        break;
+                    case Lod::TerrainFadeEvent::None:
+                        break;
+                }
+                if (coversSquare(i) != static_cast<bool>(mCoversBefore[i]))
+                    changed = true;
+                if (mNodes[i])
+                    Terrain::Builder::setBatchFade(mBatches[i].data, mFadeStates[i].mFade.mFade);
+            }
+            return changed;
+        }
+
+        // Does the live terrain leave out this tile's square? Without the fade: whenever the tile is drawn. With it:
+        // only while the tile is drawn in full (a tile dithering in or out has the live terrain, or the tile it
+        // replaces, drawing beneath it).
+        bool coversSquare(std::size_t index) const
+        {
+            return mNodes[index] != nullptr && (!fading() || mFadeStates[index].mCovers);
+        }
+
         void rebuildCoverage()
         {
             mCoverage.squares.clear();
             for (std::size_t i = 0; i < mNodes.size(); ++i)
             {
-                if (!mNodes[i])
+                if (!coversSquare(i))
                     continue;
                 Terrain::CoveredSquare square;
                 square.bounds = boundsOf(i);
@@ -889,7 +983,7 @@ namespace MWRender
             mGround.clear();
             for (std::size_t i = 0; i < mNodes.size(); ++i)
             {
-                if (!mNodes[i])
+                if (!coversSquare(i))
                     continue;
                 const Lod::TileBounds& bounds = mStates[i].mBounds;
                 mGround.push_back({ bounds.mOriginX, bounds.mOriginY, bounds.mSide });
@@ -957,6 +1051,16 @@ namespace MWRender
         std::vector<std::uint32_t> mFlags;
         std::vector<std::uint32_t> mLods;
         std::vector<bool> mFailed;
+        // Task 0087: per tile, the fade machine's state, this frame's input and event (parallel to mNodes; used only
+        // with a fade time above 0).
+        std::vector<Lod::TerrainFadeState> mFadeStates;
+        std::vector<Lod::TerrainFadeInput> mFadeInputs;
+        std::vector<Lod::TerrainFadeEvent> mFadeEvents;
+        // Task 0087: the residency planner freed this tile while it was wanted; it dithers out over the live terrain
+        // (the planner counts it as leaving: its bytes are already gone from the committed total) and then goes.
+        std::vector<char> mFreed;
+        std::vector<char> mCoversBefore; // per frame: whether each tile covered its square before the step
+        float mDeltaSeconds = 0; // the frame time of this update() call
         // The residency planner (task 0060): its input and output are reused every frame.
         std::uint64_t mFrame = 0; // calls of update() with tiles in use, for the swap log lines (task 0087)
         std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
@@ -1102,6 +1206,13 @@ namespace MWRender
             // tile only, never one past the live range (third review, finding 1).
             item.mWanted = chosen && (held || tile.mVisible);
             item.mPinned = held && !item.mWanted;
+            // A freed tile still dithering out (task 0087): its bytes are held but already counted as gone.
+            item.mLeaving = held && state.mFreed[i] != 0;
+            if (item.mLeaving)
+            {
+                item.mWanted = false;
+                item.mPinned = false;
+            }
             item.mCooldown = state.mCooldown[i];
             item.mBytes = held ? state.mDrawBytes[i] : state.estimateBytes(i);
             item.mReleasesBytes = budget > 0 ? state.mReleases[i] : 0;
@@ -1149,6 +1260,12 @@ namespace MWRender
             // Freed while still chosen: the live terrain draws its square, and it is not drawn again for a while.
             state.mCooldown[index] = 2 * evictedFrames;
             state.logSwap(index, Lod::TileSwapKind::Removed);
+            if (state.fading())
+            {
+                // Task 0087: it dithers out over the live terrain (the next step starts it) and goes when finished.
+                state.mFreed[index] = 1;
+                continue;
+            }
             state.remove(index);
             changed = true;
         }
@@ -1166,19 +1283,29 @@ namespace MWRender
         // ancestor was built this frame goes in the same frame (no frame draws a parent over its children). A tile
         // refined to finer ones (Live) goes at once, as before, unless the tiles reach past the live range (map view):
         // then it goes once refinedTileMayGo says so (second review finding 1, third review findings 2 and 4).
-        for (std::size_t i = 0; i < tileCount; ++i)
+        // With a fade time (task 0087) the fade machine decides instead, and a tile that goes dithers out.
+        if (state.fading())
         {
-            if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
-                continue;
-            if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
-                continue;
-            bool staysForGood = false;
-            if (keepRefinedTiles && state.mStates[i].mChoice == Lod::TileChoice::Live
-                && !state.refinedTileMayGo(i, camera, staysForGood))
-                continue;
-            state.logSwap(i, state.removalKind(i));
-            state.remove(i);
-            changed = true;
+            state.mDeltaSeconds = camera.mDeltaSeconds;
+            if (state.stepFades(camera, keepRefinedTiles))
+                changed = true;
+        }
+        else
+        {
+            for (std::size_t i = 0; i < tileCount; ++i)
+            {
+                if (!state.mNodes[i] || state.mStates[i].mChoice == Lod::TileChoice::Tile)
+                    continue;
+                if (state.mStates[i].mChoice == Lod::TileChoice::Covered && !state.ancestorDrawn(i))
+                    continue;
+                bool staysForGood = false;
+                if (keepRefinedTiles && state.mStates[i].mChoice == Lod::TileChoice::Live
+                    && !state.refinedTileMayGo(i, camera, staysForGood))
+                    continue;
+                state.logSwap(i, state.removalKind(i));
+                state.remove(i);
+                changed = true;
+            }
         }
         if (state.mPruneFrames > 0)
         {
@@ -1199,6 +1326,12 @@ namespace MWRender
         }
 
         state.mStats.mDrawn = state.mCoverage.squares.size();
+        {
+            std::size_t held = 0;
+            for (std::size_t i = 0; i < tileCount; ++i)
+                held += state.mNodes[i] != nullptr ? 1 : 0;
+            state.mStats.mFading = held - std::min(held, state.mStats.mDrawn);
+        }
         state.mStats.mLive = result.mLive;
         state.mStats.mSkipped = result.mSkipped;
         if (changed)

@@ -149,6 +149,10 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   to the horizon with a blue haze, no draw edge. Wrong: holes in the land, a pop when you rise, or clusters that
   stay when you land. `view distance = auto` takes the reach of the loaded land. `variants/lowtier.cfg` shows the weakest
   tier.
+- *Terrain tile fade* (0087): fly (`tcl`, `tgm`) up and down over Balmora, or along the ground toward Vivec: far tiles
+  dither in and out over 0.4 s (a fine stipple, softened by `taa`) instead of popping, with no hole in the land. Set
+  `[WorldLod] terrain fade time = 0` for the old instant swap to compare. Wrong: a flash, a hole, or a tile that stays
+  half faded.
 - *Incremental cell build* (0060): walk (or `tcl` and fly low) across a cell border; objects appear over a few frames
   instead of one long frame. Wrong: objects that never appear.
 - *Merged body* (0069): NPCs and the player have the same body as before, built as one mesh. Wrong: gaps or cracks at
