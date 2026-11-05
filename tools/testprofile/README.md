@@ -131,8 +131,11 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   by the scene and torches. *Lightning* (0040): `ChangeWeather ... 5`; a cold flash, and the shadows tilt for a moment.
 - *Snow and ash cover* (0039): `ChangeWeather "Isinfier Plains Region" 8` (snow) or an ash storm: upward-facing surfaces
   gather white or dark grey over twenty game minutes; walls stay clear.
-- *Slang shaders* (0072): the look should match `variants/glsl.cfg`. A difference between the two is a bug. The first
-  compile on a cold cache stalls the game for a few seconds.
+- *Slang shaders* (0072): the look should match `variants/glsl.cfg`. A difference between the two is a bug. On a cold
+  cache a shader variant the build did not list is compiled on a worker thread while the GLSL draws it (no stall);
+  objects loaded in that second or two keep the GLSL until they are loaded again, and so does the terrain until the next
+  start. A stall longer than a frame on loading is a bug: find its `Slang shader compiled` line in `openmw.log`
+  (`[Cells] load trace = true`).
 
 **Shadows**
 - *Sun shadows* (0052): objects, terrain, actors and the player cast shadows outdoors. Wrong: a crash when you switch
@@ -166,10 +169,12 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 ## Known limits
 
 - **TAA makes rain streaks fainter**, and fast-moving things may leave a faint trail. `variants/msaa.cfg` swaps it out.
-- **The first Slang compile stalls the game for a few seconds** on a cold shader cache (`user\openeden\shadercache`, one per
-  profile). A stall over 5 s is taken for a freeze: a quiet game ends with a `openmw-freeze.dmp` and exit code 0xDEAD, a visible
-  one shows the Fatal Error box. If a fresh profile does that in its first minutes, start it again; `prepare.sh` retries a
-  bake once for this reason. The cache stays, so the second start is quick.
+- **A cold shader cache no longer stalls the game** (`user\openeden\shadercache`, one per profile): a Slang variant the
+  build did not list is compiled on a worker thread (80 to 110 ms each, 400 to 430 ms for the first, which loads the library)
+  while the GLSL draws, so for the first minutes some objects, and the terrain until the next start, are drawn by the GLSL
+  (the look differs only by rounding). The cache stays, so the second start reads everything at once. After a minute with
+  nothing to compile the compiler gives back its about 265 MiB. With `[Cells] load trace = true` every compile is a
+  line in `openmw.log` and a `slang.compile` record in `load-trace.jsonl`.
 - **`map view` costs memory:** about +100 MiB resident with terrain tiles alone and +200 to +450 MiB with object clusters
   (the tier decides; `variants/lowtier.cfg` and `far memory budget` limit it).
 - **Volumetric fog and volumetric clouds are the heaviest GPU effects**; with everything on, expect a much lower frame

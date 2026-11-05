@@ -232,10 +232,11 @@ namespace vsgUtil
         /// The most requests the queue holds (the one the worker is compiling is not counted).
         static constexpr std::size_t maxQueuedCompiles = 256;
 
-        /// Queue item 3 of decision 0012, step 4: after this long with no compile the compiler's session is given
-        /// back (SlangRuntimeCompiler::release, about 230 MiB for the Slang library); the next compile starts it again
-        /// (a library that is already loaded: tens of milliseconds, not the first start's seconds). 60 seconds: a
-        /// play session compiles in bursts while new areas load, with minutes between them.
+        /// Queue item 3 of decision 0012, step 4: after this long with no compile the compiler is given back
+        /// (SlangRuntimeCompiler::release; for the Slang library on Windows its session and the libraries themselves:
+        /// about 265 MiB of private bytes); the next compile starts it again (about 270 ms for a set against 430 ms
+        /// for the first start of a run, measured). 60 seconds: a play session compiles in bursts while new areas
+        /// load, with minutes between them.
         static constexpr std::chrono::milliseconds defaultIdleRelease{ 60000 };
 
         /// Sets the idle time (zero: never release). The worker checks every quarter of it, at most every five
