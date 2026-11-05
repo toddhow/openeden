@@ -44,6 +44,11 @@ namespace advancedbodies_editor
     /// weld groups.
     inline constexpr std::size_t kMaxRegionLines = 28000;
     inline constexpr std::size_t kMaxWeldPoints = 1000;
+    /// The filled regions (Editor Module API 1.1): at most this many triangles of the drawn mesh are filled (a stock
+    /// body has about 3,000; Studio's own cap is 60,000, CSMModule::kMaxOverlayTriangles), and their alpha. Under the
+    /// edges' full alpha, so the surface behind a region shows through and the edges stay readable.
+    inline constexpr std::size_t kMaxFillTriangles = 40000;
+    inline constexpr float kFillAlpha = 0.35f;
 
     /// The stage a report reader's caps (its real size is about 1.4 MB for 20 bodies).
     inline constexpr std::uintmax_t kMaxAnalysisBytes = std::uintmax_t{ 64 } << 20;

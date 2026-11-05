@@ -17,7 +17,12 @@ namespace openeden::editor
 {
     /// The API's own version (plan section 4.4), separate from the engine SDK's. A module built for {M, m} loads when
     /// openeden::sdk::isCompatible({M, m}, kApiVersion). Minor versions only add.
-    inline constexpr openeden::sdk::Version kApiVersion{ 1, 0 };
+    ///
+    /// 1.1 (task 0031 follow-up, toddhow 2026-11-04) adds filled overlay triangles (OverlaySink::triangle). It is a
+    /// new virtual function at the END of its interface with a do-nothing default, so a 1.0 module still loads on a
+    /// 1.1 host. A module built with these headers declares 1.1, so a 1.0 host refuses it (its tables have no such
+    /// function).
+    inline constexpr openeden::sdk::Version kApiVersion{ 1, 1 };
 
     /// Meters, Z up (CreativeMotion's convention). Studio converts to the world's unit at its overlay boundary.
     struct Vec3
@@ -88,6 +93,13 @@ namespace openeden::editor
         virtual std::unique_ptr<Command> makeSetCommand(std::string_view id, const PropertyValue& value) = 0;
     };
 
+    /// How a filled overlay shape meets the scene's depth (API 1.1).
+    enum class OverlayDepth
+    {
+        Tested, ///< Hidden where the scene is in front of it.
+        AlwaysOnTop ///< Drawn over everything.
+    };
+
     /// Overlay data submitted each time it is drawn; Studio draws it (plan section 3.5).
     class OverlaySink
     {
@@ -96,6 +108,14 @@ namespace openeden::editor
         virtual void line(const Vec3& a, const Vec3& b, const Colour& colour) = 0;
         virtual void point(const Vec3& p, const Colour& colour, float sizePixels) = 0;
         virtual void label(const Vec3& p, std::string_view text, const Colour& colour) = 0;
+        /// API 1.1. One filled triangle of one colour; alpha below 1 is blended. Both sides are drawn. Studio refuses a
+        /// triangle with a coordinate or colour that is not finite, and drops the triangles past a cap per drawing (see
+        /// CSMModule::OverlayBuffer), so a module need not check its data twice. A host older than 1.1 never calls
+        /// this and never loads a module that does. Added at the end of the interface; the default draws nothing.
+        virtual void triangle(
+            const Vec3& /*a*/, const Vec3& /*b*/, const Vec3& /*c*/, const Colour& /*colour*/, OverlayDepth /*depth*/)
+        {
+        }
     };
 
     struct GizmoHandle

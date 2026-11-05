@@ -225,6 +225,8 @@ namespace advancedbodies_editor
             }
 
             const BodyView& view() const { return *mView; }
+            RegionDisplay display() const { return mDisplay; }
+            void setDisplay(RegionDisplay display) { mDisplay = display; }
             bool selectBody(std::size_t index) { return mView->select(index); }
             PropertySource& summary() { return mSummary; }
 
@@ -235,6 +237,7 @@ namespace advancedbodies_editor
             SummaryProperties mSummary;
             RegionsGizmo mRegions;
             WeldsGizmo mWelds;
+            RegionDisplay mDisplay = RegionDisplay::FillAndEdges;
         };
 
         BodyProperties::BodyProperties(const BodyView& view, std::size_t index)
@@ -415,7 +418,38 @@ namespace advancedbodies_editor
 
         void RegionsGizmo::draw(OverlaySink& sink) const
         {
-            for (const OverlayLine& line : mDocument.view().current().mRegionLines)
+            const BodyData& data = mDocument.view().current();
+            const RegionDisplay display = mDocument.display();
+            if (display != RegionDisplay::Edges && data.mMesh)
+            {
+                // Editor Module API 1.1: each triangle of the drawn mesh filled with its region's colour, see through.
+                const DrawnMesh& mesh = *data.mMesh;
+                const std::size_t count = std::min(mesh.mTriangles.size() / 3, kMaxFillTriangles);
+                for (std::size_t t = 0; t < count; ++t)
+                {
+                    const std::array<double, 3>* corners[3] = { nullptr, nullptr, nullptr };
+                    for (std::size_t c = 0; c < 3; ++c)
+                    {
+                        const std::uint32_t index = mesh.mTriangles[3 * t + c];
+                        corners[c] = index < mesh.mPositions.size() ? &mesh.mPositions[index] : nullptr;
+                    }
+                    if (corners[0] == nullptr || corners[1] == nullptr || corners[2] == nullptr)
+                    {
+                        continue;
+                    }
+                    const int region = t < mesh.mTriangleRegion.size() ? mesh.mTriangleRegion[t] : -1;
+                    Colour colour = region >= 0 ? regionColour(static_cast<std::size_t>(region)) : kUnassignedColour;
+                    colour.a = kFillAlpha;
+                    sink.triangle(Vec3{ (*corners[0])[0], (*corners[0])[1], (*corners[0])[2] },
+                        Vec3{ (*corners[1])[0], (*corners[1])[1], (*corners[1])[2] },
+                        Vec3{ (*corners[2])[0], (*corners[2])[1], (*corners[2])[2] }, colour, OverlayDepth::Tested);
+                }
+            }
+            if (display == RegionDisplay::Fill)
+            {
+                return;
+            }
+            for (const OverlayLine& line : data.mRegionLines)
             {
                 sink.line(Vec3{ line.mFrom[0], line.mFrom[1], line.mFrom[2] },
                     Vec3{ line.mTo[0], line.mTo[1], line.mTo[2] }, line.mColour);
@@ -452,6 +486,23 @@ namespace advancedbodies_editor
     {
         auto* body = dynamic_cast<BodyDocument*>(&document);
         return body != nullptr ? &body->summary() : nullptr;
+    }
+
+    RegionDisplay regionDisplay(const AssetDocument& document)
+    {
+        const auto* body = dynamic_cast<const BodyDocument*>(&document);
+        return body != nullptr ? body->display() : RegionDisplay::FillAndEdges;
+    }
+
+    bool setRegionDisplay(AssetDocument& document, RegionDisplay display)
+    {
+        auto* body = dynamic_cast<BodyDocument*>(&document);
+        if (body == nullptr)
+        {
+            return false;
+        }
+        body->setDisplay(display);
+        return true;
     }
 
     bool selectBody(AssetDocument& document, std::size_t index)

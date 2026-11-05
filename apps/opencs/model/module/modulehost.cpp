@@ -82,6 +82,11 @@ namespace CSMModule
             }
     }
 
+    void ModuleHost::setProvidedApiVersion(openeden::sdk::Version version)
+    {
+        mProvidedApi = version;
+    }
+
     std::vector<ModuleInfo> ModuleHost::modules() const
     {
         return mInfos;
@@ -183,10 +188,10 @@ namespace CSMModule
             Log(Debug::Error) << "Editor module '" << id << "' ignored: a module with this id was loaded already";
             return;
         }
-        if (!openeden::sdk::isCompatible(descriptor.apiVersion, kApiVersion))
+        if (!openeden::sdk::isCompatible(descriptor.apiVersion, mProvidedApi))
         {
             fail("it was built for editor API " + versionText(descriptor.apiVersion) + ", this Eden Studio provides "
-                + versionText(kApiVersion));
+                + versionText(mProvidedApi));
             return;
         }
         if (descriptor.id == nullptr || id != descriptor.id)

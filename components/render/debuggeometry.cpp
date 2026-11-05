@@ -19,10 +19,11 @@ namespace Render
     }
 
     DebugGeometry::DebugGeometry(const Pipeline::Builder& builder, vsg::ref_ptr<vsgUtil::CompileContext> compile,
-        std::size_t lineVertexCapacity, std::size_t triangleVertexCapacity)
+        std::size_t lineVertexCapacity, std::size_t triangleVertexCapacity, bool depthTest)
         : mBuilder(builder)
         , mCompile(std::move(compile))
         , mRoot(vsg::Group::create())
+        , mDepthTest(depthTest)
     {
         mLines.mCapacity = lineVertexCapacity;
         mTriangles.mCapacity = triangleVertexCapacity;
@@ -48,6 +49,7 @@ namespace Render
         options.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         options.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         options.depthWrite = false;
+        options.depthTest = mDepthTest;
         // Drawn slightly in front of the surfaces they outline, as the OSG build did with a polygon offset.
         options.depthBias = true;
 

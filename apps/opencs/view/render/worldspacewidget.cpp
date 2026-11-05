@@ -550,7 +550,7 @@ void CSVRender::WorldspaceWidget::updateModuleOverlay()
         mOverlayOrigin[1] = static_cast<float>(centre.y);
         mOverlayOrigin[2] = static_cast<float>(centre.z);
     }
-    mModuleOverlay->show(modules->overlayLines(mOverlayOrigin));
+    mModuleOverlay->show(modules->overlay(mOverlayOrigin));
 }
 
 void CSVRender::WorldspaceWidget::runRequest(const std::string& profile)

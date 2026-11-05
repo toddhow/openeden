@@ -36,6 +36,22 @@ namespace advancedbodies_editor
     /// The view behind a document this module made; null for any other document (another module's).
     const BodyView* viewOf(const openeden::editor::AssetDocument& document);
 
+    /// What the regions gizmo draws (Editor Module API 1.1 gave it filled triangles). The default shows both: the fill
+    /// first, then the edges over it.
+    enum class RegionDisplay
+    {
+        FillAndEdges,
+        Fill,
+        Edges
+    };
+
+    /// What a document this module made shows; FillAndEdges for another module's document.
+    RegionDisplay regionDisplay(const openeden::editor::AssetDocument& document);
+
+    /// Chooses what the regions gizmo draws. False, and nothing changes, for another module's document. Never an undo
+    /// step and never dirty: what is viewed is not an edit.
+    bool setRegionDisplay(openeden::editor::AssetDocument& document, RegionDisplay display);
+
     /// The fixed short summary an inspector section shows (the same object for the document's life). Null for a
     /// document this module did not make.
     openeden::editor::PropertySource* summaryOf(openeden::editor::AssetDocument& document);

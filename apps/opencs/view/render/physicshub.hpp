@@ -11,6 +11,7 @@
 #include <vsg/core/ref_ptr.h>
 #include <vsg/nodes/Node.h>
 
+#include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 #include <apps/opencs/model/physics/studioworld.hpp>
 
@@ -114,12 +115,29 @@ namespace CSVRender
         /// Replaces what is drawn. An empty list switches the geometry off.
         void show(const std::vector<CSMPhysics::DebugLine>& lines);
 
+        /// Replaces what is drawn with the modules' overlay (Editor Module API 1.1): the lines, and the filled
+        /// triangles under them. Nothing at all switches everything off. The triangle geometry is made the first time
+        /// a triangle comes, so a view that only ever shows lines never pays for it.
+        void show(const CSMModule::OverlayData& overlay);
+
     private:
+        /// One set of filled triangles (depth tested or always on top) and its node under contentRoot.
+        struct Fill
+        {
+            std::unique_ptr<Render::DebugGeometry> mGeometry;
+            vsg::ref_ptr<vsg::Node> mRoot;
+        };
+
+        void showFill(Fill& fill, bool alwaysOnTop, const std::vector<const CSMModule::OverlayTriangle*>& triangles);
+        void removeFromContent(const vsg::ref_ptr<vsg::Node>& root);
+
         SceneHost& mHost;
         std::weak_ptr<void> mHostAlive;
         bool mRegistered;
         std::unique_ptr<Render::DebugGeometry> mGeometry;
         vsg::ref_ptr<vsg::Node> mRoot; ///< The geometry's node in the overlay bin: what hangs under contentRoot.
+        Fill mFill; ///< Depth tested triangles; before mRoot under contentRoot, so that the lines draw over them.
+        Fill mFillOnTop; ///< Triangles drawn over everything.
     };
 }
 

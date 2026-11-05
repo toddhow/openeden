@@ -79,6 +79,34 @@ namespace advancedbodies_editor
                     registrar.registerCommand(command);
                 }
 
+                // What the regions gizmo draws: the fill and the edges, the fill alone, or the edges alone (Editor
+                // Module API 1.1 gave it filled triangles). Not an undo step either.
+                CommandDesc cycle;
+                cycle.id = "advancedbodies.cycleRegionDisplay";
+                cycle.label = "Cycle Region Display";
+                cycle.menuPath = "Bodies/Cycle Region Display";
+                cycle.defaultShortcut = "Ctrl+Alt+R";
+                cycle.handler = [](EditorContext& context) {
+                    AssetDocument* active = context.activeAsset();
+                    if (active == nullptr || viewOf(*active) == nullptr)
+                    {
+                        return;
+                    }
+                    const RegionDisplay next = regionDisplay(*active) == RegionDisplay::FillAndEdges
+                        ? RegionDisplay::Fill
+                        : (regionDisplay(*active) == RegionDisplay::Fill ? RegionDisplay::Edges
+                                                                         : RegionDisplay::FillAndEdges);
+                    if (setRegionDisplay(*active, next))
+                    {
+                        context.requestRedraw();
+                    }
+                };
+                cycle.enabledWhen = [this] {
+                    AssetDocument* active = mContext != nullptr ? mContext->activeAsset() : nullptr;
+                    return active != nullptr && viewOf(*active) != nullptr;
+                };
+                registrar.registerCommand(cycle);
+
                 const struct
                 {
                     const char* mFormat;

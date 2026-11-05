@@ -82,8 +82,9 @@ namespace CSVRender
             return;
         // Module coordinates are metres relative to the origin given here: the view's own origin.
         const float origin[3] = { 0.f, 0.f, 0.f };
-        const std::vector<CSMPhysics::DebugLine> lines = modules->overlayLines(origin);
-        mModuleOverlay->show(lines);
+        const CSMModule::OverlayData overlay = modules->overlay(origin);
+        const std::vector<CSMPhysics::DebugLine>& lines = overlay.mLines;
+        mModuleOverlay->show(overlay);
         mModuleLines = lines.size();
         mModuleBounds = CSMMesh::Aabb();
         for (const CSMPhysics::DebugLine& line : lines)
@@ -91,8 +92,11 @@ namespace CSVRender
             CSMMesh::expand(mModuleBounds, { line.mFrom[0], line.mFrom[1], line.mFrom[2] });
             CSMMesh::expand(mModuleBounds, { line.mTo[0], line.mTo[1], line.mTo[2] });
         }
+        for (const CSMModule::OverlayTriangle& triangle : overlay.mTriangles)
+            for (const float(&vertex)[3] : triangle.mVertices)
+                CSMMesh::expand(mModuleBounds, { vertex[0], vertex[1], vertex[2] });
         // A new asset is framed once; an edit of the same asset keeps the camera.
-        if (mModuleGeneration != modules->generation() && !lines.empty())
+        if (mModuleGeneration != modules->generation() && (!lines.empty() || !overlay.mTriangles.empty()))
         {
             mModuleGeneration = modules->generation();
             frameObject();

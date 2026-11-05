@@ -24,9 +24,12 @@ task's "Stage f, design" section.
   package's own `bodymesh` payloads (the tool has none and warns BODY-MESH-001 instead). A merged entry is validated as
   the package `mergedEntryPackage` derives from what the cache knows; it has no skeleton binding, so BODY-BIND-001 and
   BODY-BIND-014 are always listed (the panel says they are expected).
-- **Drawing:** only `bodymesh` payloads, bind pose, never skinned: the API has lines, points and labels only, so the
-  regions are each distinct edge in its region's colour (palette in `bodyview.cpp`, the design's), weld groups one
-  point each. Caps `kMaxRegionLines` and `kMaxWeldPoints` keep it inside a view's overlay (32,768 lines). Studio draws
+- **Drawing:** only `bodymesh` payloads, bind pose, never skinned. The regions are filled (API 1.1: one blended
+  triangle per triangle of the drawn mesh in its region's colour, alpha `kFillAlpha`, at most `kMaxFillTriangles`, depth
+  tested) and outlined (each distinct edge in the region's colour; palette in `bodyview.cpp`, the design's); weld groups
+  are one point each. `Bodies > Cycle Region Display` (Ctrl+Alt+R) steps between fill and edges, fill alone and edges
+  alone (`setRegionDisplay`; not an undo step, never dirty); the default shows both, the existing tests' edge lists
+  still hold. Caps `kMaxRegionLines` and `kMaxWeldPoints` keep it inside a view's overlay (32,768 lines). Studio draws
   the active asset's gizmos in the cell views and in a Mesh view opened with no model
   (`Extensions > Show Module Asset in Mesh Viewer`).
 - **Studio builds a form's rows once** (`PropertyForm::build`): every body of a merged cache has its own property

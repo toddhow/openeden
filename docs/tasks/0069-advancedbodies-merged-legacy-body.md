@@ -1134,3 +1134,19 @@ profile? (5) The stage a numbers come from `<user data>/analysis/bodies.json` be
 them to the bake: should the bake record the report's digest, or the panel say "from a report of <date>"? (6) Eden
 Studio does not honour `OPENEDEN_QUIET_WINDOW`; each check run showed its windows for about a minute (without focus):
 make the editor honour it, or accept it for editor checks?
+
+### Stage f follow-up, 2026-11-05: the regions filled (Editor Module API 1.1; toddhow's approval of 2026-11-04)
+
+Open question 1 of stage f (filled triangles) is answered by task 0031's API 1.1. `RegionsGizmo::draw` now draws one
+blended triangle per triangle of the drawn mesh in its region's colour (`kFillAlpha` 0.35, `kMaxFillTriangles` 40,000,
+depth tested), then the edges as before. `Bodies > Cycle Region Display` (`advancedbodies.cycleRegionDisplay`,
+Ctrl+Alt+R) steps through fill and edges, fill alone, edges alone (`regionDisplay`, `setRegionDisplay` in
+`documents.hpp`); not an undo step, never dirty. The default (both) is what the stage's gizmo tests pin for the edges, so
+they are unchanged, and the gizmo list is still the two gizmos. Tests (`advancedbodies/testabfill.cpp`, 6, written
+first; 4 red with the fill switched off, `I:/Projects/OpenEden-work/studio2/red2-tests.log`; the cycle-command test was
+written with the command and not run red). Existing tests changed (awaiting toddhow's approval): `testabmodule.cpp`, the
+two `commands().size()` pins, 2 to 3 (the module registers the cycle command). Real editor,
+`tools/bodypanel_check/check.sh` passes (5 of 5 lines) and the Mesh view frames show the regions filled with their edges
+over them: `I:/Projects/OpenEden-work/studio2/bp1/frames/shot_0_mesh.png` (before, edges only:
+`I:/Projects/OpenEden-work/0069f/bodypanel2/frames/shot_0_mesh.png`). Not looked at: the fill alone, the edges alone
+(unit-tested), an always-on-top triangle (no module uses it yet; the second geometry is untested in a frame).

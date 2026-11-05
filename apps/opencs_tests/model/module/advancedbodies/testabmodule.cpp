@@ -837,7 +837,7 @@ namespace ABTest
             EXPECT_TRUE(mRegistry.trackProviders().empty());
 
             // The two commands that choose the shown body (the amendment of 2026-11-04).
-            ASSERT_EQ(mRegistry.commands().size(), 2u);
+            ASSERT_EQ(mRegistry.commands().size(), 3u);
             const auto findCommand = [this](const std::string& id) -> const edit::CommandDesc* {
                 for (const auto& command : mRegistry.commands())
                 {
@@ -1196,7 +1196,7 @@ namespace ABTest
             EXPECT_EQ(mRegistry.workspaces().size(), 1u);
             EXPECT_EQ(mRegistry.panels().size(), 1u);
             EXPECT_TRUE(mRegistry.gizmoProviders().empty());
-            EXPECT_EQ(mRegistry.commands().size(), 2u);
+            EXPECT_EQ(mRegistry.commands().size(), 3u);
             EXPECT_EQ(mRegistry.assetTypes().size(), 3u);
             EXPECT_EQ(mRegistry.sections().size(), 3u);
             EXPECT_NE(mRegistry.findAssetType(mDir / "body.json"), nullptr);

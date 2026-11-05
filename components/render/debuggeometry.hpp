@@ -43,8 +43,10 @@ namespace Render
     {
     public:
         /// Capacities are in vertices (two per line, three per triangle); each vertex takes 28 bytes while enabled.
+        /// \param depthTest false draws over everything (Eden Studio's "always on top" overlay shapes); the game's
+        /// geometry always tests.
         DebugGeometry(const Pipeline::Builder& builder, vsg::ref_ptr<vsgUtil::CompileContext> compile,
-            std::size_t lineVertexCapacity, std::size_t triangleVertexCapacity);
+            std::size_t lineVertexCapacity, std::size_t triangleVertexCapacity, bool depthTest = true);
         ~DebugGeometry() override;
 
         vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
@@ -80,6 +82,7 @@ namespace Render
         Batch mTriangles;
         std::mutex mMutex;
         bool mEnabled = false;
+        bool mDepthTest = true;
     };
 }
 

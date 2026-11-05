@@ -32,60 +32,10 @@ namespace CSVModule
     {
         // QUndoCommand ids of module commands start here, so that they never merge with the editor's own.
         constexpr int cMergeIdBase = 0x4D4F4400;
-        // How far a point's cross reaches each way, in meters (a point has no size in the world).
-        constexpr double cPointCrossHalfLengthM = 0.05;
         // A double spin box needs finite limits.
         constexpr double cSpinLimit = 1.0e9;
         constexpr int cSpinDecimals = 4;
         constexpr double cDefaultSpinStep = 0.1;
-
-        /// Draws an overlay into lines, converting meters to the world's unit (the one boundary, see overlayLines).
-        class LineSink final : public OverlaySink
-        {
-        public:
-            LineSink(std::vector<CSMPhysics::DebugLine>& lines, const float origin[3])
-                : mLines(lines)
-                , mOrigin{ origin[0], origin[1], origin[2] }
-            {
-            }
-
-            void line(const Vec3& a, const Vec3& b, const Colour& c) override
-            {
-                CSMPhysics::DebugLine line;
-                convert(a, line.mFrom);
-                convert(b, line.mTo);
-                line.mColour[0] = c.r;
-                line.mColour[1] = c.g;
-                line.mColour[2] = c.b;
-                line.mColour[3] = c.a;
-                mLines.push_back(line);
-            }
-
-            void point(const Vec3& p, const Colour& c, float) override
-            {
-                const double r = cPointCrossHalfLengthM;
-                line({ p.x - r, p.y, p.z }, { p.x + r, p.y, p.z }, c);
-                line({ p.x, p.y - r, p.z }, { p.x, p.y + r, p.z }, c);
-                line({ p.x, p.y, p.z - r }, { p.x, p.y, p.z + r }, c);
-            }
-
-            void label(const Vec3&, std::string_view, const Colour&) override
-            {
-                // The debug geometry has no text (task 0031: labels are not drawn yet).
-            }
-
-        private:
-            void convert(const Vec3& meters, float out[3]) const
-            {
-                constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
-                out[0] = static_cast<float>(meters.x * units + mOrigin[0]);
-                out[1] = static_cast<float>(meters.y * units + mOrigin[1]);
-                out[2] = static_cast<float>(meters.z * units + mOrigin[2]);
-            }
-
-            std::vector<CSMPhysics::DebugLine>& mLines;
-            double mOrigin[3];
-        };
 
         /// The form of one PropertySource. Rebuilt when asked; refreshed from get() when the data changed.
         class PropertyForm final : public QWidget
@@ -434,8 +384,12 @@ namespace CSVModule
 
     std::vector<CSMPhysics::DebugLine> ModuleUi::overlayLines(const float origin[3]) const
     {
-        std::vector<CSMPhysics::DebugLine> lines;
-        LineSink sink(lines, origin);
+        return overlay(origin).mLines;
+    }
+
+    CSMModule::OverlayData ModuleUi::overlay(const float origin[3]) const
+    {
+        CSMModule::OverlayBuffer sink(origin, CSMPhysics::StudioWorld::sUnitsPerMeter);
         std::vector<Gizmo*> gizmos;
         if (mActive)
             gizmos = mActive->gizmos();
@@ -456,7 +410,12 @@ namespace CSVModule
                 Log(Debug::Error) << "A gizmo failed to draw: " << e.what();
             }
         }
-        return lines;
+        CSMModule::OverlayData data = sink.take();
+        if (data.mRefused > 0 || data.mDropped > 0)
+            Log(Debug::Warning) << "An editor module's overlay: " << data.mRefused
+                                << " primitives refused (not finite, or out of reach), " << data.mDropped
+                                << " dropped (over the caps)";
+        return data;
     }
 
     std::vector<std::pair<std::string, TimelineKey>> ModuleUi::timelineKeys() const

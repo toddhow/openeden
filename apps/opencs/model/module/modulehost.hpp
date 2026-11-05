@@ -87,6 +87,11 @@ namespace CSMModule
         void loadStatic(
             std::string id, const openeden::editor::EditorModuleDescriptor& descriptor, ModuleSource::Origin origin);
 
+        /// The Editor Module API version this host says it provides (default: the headers' kApiVersion). A module that
+        /// wants a newer minor, or another major, is refused with a message naming both versions. Only tests lower it,
+        /// to show how an older Eden Studio treats a newer module. Call before load().
+        void setProvidedApiVersion(openeden::sdk::Version version);
+
         std::vector<ModuleInfo> modules() const;
 
         /// Safe to repeat. The destructor calls it.
@@ -102,6 +107,7 @@ namespace CSMModule
 
         ModuleRegistry& mRegistry;
         openeden::editor::EditorContext& mContext;
+        openeden::sdk::Version mProvidedApi = openeden::editor::kApiVersion;
         std::vector<ModuleInfo> mInfos;
         std::vector<std::unique_ptr<Loaded>> mLoaded;
     };

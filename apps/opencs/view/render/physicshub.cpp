@@ -21,6 +21,8 @@ namespace CSVRender
         // Render::DebugGeometry's capacity, in vertices (two per line). A ball draws a few thousand lines; lines past
         // this are dropped, and the renderer says so once.
         constexpr std::size_t cLineVertexCapacity = 65536;
+        // The module overlay's filled triangles (API 1.1): three vertices each, as many as the overlay may hold.
+        constexpr std::size_t cFillVertexCapacity = 3 * CSMModule::kMaxOverlayTriangles;
         // The test fixture of PhysicsHub::dropTestBall, in meters.
         constexpr float cSlabHalfSize = 20.0f;
         constexpr float cSlabHalfThickness = 0.5f;
@@ -166,17 +168,23 @@ namespace CSVRender
             hub->add(*this);
     }
 
+    void PhysicsDebugView::removeFromContent(const vsg::ref_ptr<vsg::Node>& root)
+    {
+        if (!root || mHostAlive.expired())
+            return;
+        auto& children = mHost.contentRoot().children;
+        children.erase(std::remove_if(children.begin(), children.end(),
+                           [&root](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == root.get(); }),
+            children.end());
+    }
+
     PhysicsDebugView::~PhysicsDebugView()
     {
         if (PhysicsHub* hub = PhysicsHub::get(); hub != nullptr && mRegistered)
             hub->remove(*this);
-        if (!mHostAlive.expired())
-        {
-            auto& children = mHost.contentRoot().children;
-            children.erase(std::remove_if(children.begin(), children.end(),
-                               [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mRoot.get(); }),
-                children.end());
-        }
+        removeFromContent(mRoot);
+        removeFromContent(mFill.mRoot);
+        removeFromContent(mFillOnTop.mRoot);
     }
 
     void PhysicsDebugView::show(const std::vector<CSMPhysics::DebugLine>& lines)
@@ -199,6 +207,52 @@ namespace CSVRender
                 vsg::vec3(line.mTo[0], line.mTo[1], line.mTo[2]),
                 vsg::vec4(line.mColour[0], line.mColour[1], line.mColour[2], line.mColour[3]));
         mGeometry->end();
+        mHost.requestRedraw();
+    }
+
+    void PhysicsDebugView::showFill(
+        Fill& fill, bool alwaysOnTop, const std::vector<const CSMModule::OverlayTriangle*>& triangles)
+    {
+        if (triangles.empty())
+        {
+            if (fill.mGeometry && fill.mGeometry->isEnabled())
+                fill.mGeometry->setEnabled(false);
+            return;
+        }
+        if (!fill.mGeometry)
+        {
+            fill.mGeometry = std::make_unique<Render::DebugGeometry>(
+                *mHost.resources().builder, mHost.compileContext(), 0, cFillVertexCapacity, !alwaysOnTop);
+            fill.mRoot = vsgUtil::createBinSetter(SceneHost::sBinOverlay, fill.mGeometry->node());
+            // Before the lines' node, so that the edges draw over the fill (the overlay bin does not sort).
+            auto& children = mHost.contentRoot().children;
+            const auto lines = std::find_if(children.begin(), children.end(),
+                [this](const vsg::ref_ptr<vsg::Node>& child) { return child.get() == mRoot.get(); });
+            children.insert(lines, fill.mRoot);
+        }
+        fill.mGeometry->setEnabled(true);
+        fill.mGeometry->begin();
+        for (const CSMModule::OverlayTriangle* triangle : triangles)
+            fill.mGeometry->addTriangle(
+                vsg::vec3(triangle->mVertices[0][0], triangle->mVertices[0][1], triangle->mVertices[0][2]),
+                vsg::vec3(triangle->mVertices[1][0], triangle->mVertices[1][1], triangle->mVertices[1][2]),
+                vsg::vec3(triangle->mVertices[2][0], triangle->mVertices[2][1], triangle->mVertices[2][2]),
+                vsg::vec4(triangle->mColour[0], triangle->mColour[1], triangle->mColour[2], triangle->mColour[3]));
+        fill.mGeometry->end();
+    }
+
+    void PhysicsDebugView::show(const CSMModule::OverlayData& overlay)
+    {
+        if (mHostAlive.expired())
+            return;
+        std::vector<const CSMModule::OverlayTriangle*> tested;
+        std::vector<const CSMModule::OverlayTriangle*> onTop;
+        tested.reserve(overlay.mTriangles.size());
+        for (const CSMModule::OverlayTriangle& triangle : overlay.mTriangles)
+            (triangle.mAlwaysOnTop ? onTop : tested).push_back(&triangle);
+        showFill(mFill, false, tested);
+        showFill(mFillOnTop, true, onTop);
+        show(overlay.mLines);
         mHost.requestRedraw();
     }
 }

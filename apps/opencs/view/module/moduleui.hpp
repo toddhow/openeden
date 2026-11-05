@@ -15,6 +15,7 @@
 #include <openeden/editor_module/registrar.hpp>
 #include <openeden/editor_module/types.hpp>
 
+#include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 
 class QWidget;
@@ -84,6 +85,10 @@ namespace CSVModule
         /// (Morrowind units), moved by \a origin (the world position that module coordinates are relative to). This is
         /// the one place where the modules' meters become world units.
         std::vector<CSMPhysics::DebugLine> overlayLines(const float origin[3]) const;
+
+        /// The same drawing with its filled triangles (Editor Module API 1.1) and the counts of what Studio refused or
+        /// dropped (CSMModule::OverlayBuffer). overlayLines() is this one's lines.
+        CSMModule::OverlayData overlay(const float origin[3]) const;
 
         /// The keys of every track of the active asset and of the registered providers: (track title, key).
         std::vector<std::pair<std::string, openeden::editor::TimelineKey>> timelineKeys() const;
