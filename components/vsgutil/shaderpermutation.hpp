@@ -115,9 +115,17 @@ namespace vsgUtil
     /// else holds a module it goes, with the Vulkan objects its compile made, and a later call reads its file again.
     ///
     /// Task 0072, stage h: when the options carry a SlangRuntime (slangRuntimeKey) and `glsl` is given, a set the
-    /// manifest does not list is compiled at run time (or read from the on-disk cache), after its interface was
+    /// manifest does not list is read from the on-disk cache, or compiled at run time, after its interface was
     /// checked against the GLSL stage `glsl` describes; any failure gives null, with one log line, and the GLSL is
     /// used. Without `glsl` there is no check, so no run-time compile.
+    ///
+    /// Queue item 3 of decision 0012: a set that is neither prebuilt nor in the cache is NOT compiled on the calling
+    /// thread. The call returns null at once with `*pending` set (when `pending` is given), the set is queued for the
+    /// runtime's worker thread, and the caller draws the GLSL for now; a later call, after the worker wrote the cache,
+    /// returns the module (SlangRuntime::obtainOrQueue). A pending set is not remembered as failed. A failed or
+    /// refused one is, for the session. Nothing already built is swapped: a pipeline made while its set was pending
+    /// keeps its GLSL stages (Pipeline::Graphics does not keep such a pipeline in its cache, so the next object that
+    /// needs it builds it again).
     struct SlangGlslStage
     {
         /// The GLSL source of the stage with its includes inserted (what the game compiles).
@@ -127,7 +135,7 @@ namespace vsgUtil
         const std::set<std::string>* mRequested = nullptr;
     };
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
-        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl = nullptr);
+        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl = nullptr, bool* pending = nullptr);
 
     /// Task 0072, stage h: makes the SlangRuntime of `options` (slangRuntimeKey) with the dynamic compiler that
     /// loads the library from `libraryDirectory`, a cache under `cacheDirectory` (empty: none), the build's
@@ -188,7 +196,7 @@ namespace vsgUtil
     /// Never the single "<path>.spv" file of task 0023, which was built for one define set only (task 0072, stage b).
     vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
         std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options,
-        std::optional<uint32_t> numUvSets = std::nullopt);
+        std::optional<uint32_t> numUvSets = std::nullopt, bool* pending = nullptr);
 
     /// Task 0072, stage f: VSG compiles a graphics pipeline's stages together whenever one of them is GLSL source
     /// (vsg::GraphicsPipeline::compile hands every stage to ShaderCompiler::compile), and glslang cannot link a stage
@@ -214,8 +222,10 @@ namespace vsgUtil
         /// True when `defines` declares the texture coordinate arrays and the family's manifest counts them: each
         /// pipeline then adds its count (slangTwinFor).
         bool byPipeline = false;
-        /// Without byPipeline: the twin built for `defines`, or null.
+        /// Without byPipeline: the twin built for `defines`, or null. Guarded by a mutex inside slangTwinFor.
         vsg::ref_ptr<vsg::ShaderModule> twin;
+        /// Without byPipeline: the twin was still being compiled when the choice was made; slangTwinFor asks again.
+        bool pending = false;
         /// The compile settings of the GLSL module (its hints: the requested names), kept for glslDefinesOf once a
         /// twin has replaced the module.
         vsg::ref_ptr<vsg::ShaderCompileSettings> glslHints;
@@ -238,8 +248,8 @@ namespace vsgUtil
     /// The twin a pipeline with `numUvSets` texture coordinate sets draws the stage of `choice` with: without
     /// byPipeline `choice.twin`, else the permutation built for `choice.defines` plus uvSetsDefine(numUvSets), or null.
     /// The same module slangTwin(path, requested, source, true, options, ...) gives, without parsing the source again.
-    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(
-        const SlangStageChoice& choice, uint32_t numUvSets, const vsg::ref_ptr<const vsg::Options>& options);
+    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(const SlangStageChoice& choice, uint32_t numUvSets,
+        const vsg::ref_ptr<const vsg::Options>& options, bool* pending = nullptr);
 
     /// The requested defines the GLSL of `stage` is compiled with: its module's compile settings when the module has
     /// them, else those its SlangStageChoice kept (a twin has replaced the GLSL module); null when neither.

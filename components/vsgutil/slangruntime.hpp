@@ -152,6 +152,20 @@ namespace vsgUtil
     /// thread, waited <ms> ms, at <begin>..<end> us". Pure.
     std::string formatSlangCompileEvent(const SlangCompileEvent& event);
 
+    /// What obtainOrQueue found out about a request.
+    enum class SlangAvailability
+    {
+        Ready, // the words are in SlangObtained::mWords (from the cache, or an earlier compile of the worker)
+        Pending, // not yet: queued for the worker (or the queue was full); ask again later
+        Unavailable, // failed, refused by a check, disabled, or cannot be compiled: use the GLSL for the session
+    };
+
+    struct SlangObtained
+    {
+        std::vector<uint32_t> mWords;
+        SlangAvailability mState = SlangAvailability::Unavailable;
+    };
+
     class SlangRuntime : public vsg::Inherit<vsg::Object, SlangRuntime>
     {
     public:
@@ -198,6 +212,24 @@ namespace vsgUtil
         /// fails or `check` refuses the result (logged once per stage file and set). Never throws.
         std::vector<uint32_t> obtain(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const;
 
+        /// Queue item 3 of decision 0012, step 3: compile on a worker. Like obtain(), but never compiles on the
+        /// calling thread. A request whose cache entry exists is Ready at once (a cache read is fast, and stays
+        /// synchronous); a failed, refused or disabled one is Unavailable at once; any other is put on the queue of
+        /// the runtime's one worker thread and answered Pending, and asking again after the worker finished (it
+        /// writes the cache, and keeps the words itself when there is no cache folder) gives Ready. The queue is first
+        /// in, first out, holds each request (by cache key) once, and holds at most maxQueuedCompiles: a request
+        /// that finds it full is answered Pending and not remembered, so asking again queues it when there is room.
+        /// The worker starts at the first queued request, and before its first job starts the compiler and runs the
+        /// self-tests. `check` is copied into the job and runs on the worker: its functions must own everything they
+        /// use (they outlive the call) and must not hold the options that hold this runtime.
+        SlangObtained obtainOrQueue(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const;
+
+        /// The most requests the queue holds (the one the worker is compiling is not counted).
+        static constexpr std::size_t maxQueuedCompiles = 256;
+
+        /// Waits until the queue is empty and the worker is not compiling. For tests and measurements.
+        void waitForIdle() const;
+
         /// True after a failed self-test or a compiler that cannot start: obtain() then returns nothing at once.
         bool disabled() const;
 
@@ -217,6 +249,9 @@ namespace vsgUtil
             std::size_t mRefusedSets = 0; // answered from a refused-set file
             std::size_t mHitsRejected = 0; // cache entries that failed mCheckHit
             std::size_t mCleaned = 0; // files deleted by cleanCache
+            std::size_t mQueued = 0; // requests put on the worker's queue
+            std::size_t mQueueFull = 0; // requests answered Pending without a place in the queue
+            std::size_t mDroppedAtExit = 0; // queued requests the destructor dropped
         };
         Stats stats() const;
 
@@ -227,6 +262,17 @@ namespace vsgUtil
     private:
         struct State;
         std::unique_ptr<State> mState;
+
+        enum class Step
+        {
+            Words, // the words are returned
+            NeedsCompile, // not in the cache; a compile would be needed
+            Nothing, // failed, refused or disabled
+        };
+        std::vector<uint32_t> obtainStep(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check,
+            bool mayCompile, Step& step, std::string& key, const std::int64_t* requestedMicroseconds,
+            bool keepWords) const;
+        void workerMain(State& state) const;
     };
 }
 

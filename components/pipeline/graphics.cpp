@@ -336,6 +336,7 @@ namespace Pipeline
         vsg::ShaderStages shaders
             = { vsg::ShaderStage::create(*vertexStage), vsg::ShaderStage::create(*fragmentStage) };
 
+        bool slangPending = false;
         auto numUvSets = key.numUvSets;
         vsg::ShaderStage::SpecializationConstants specConstants = { { 0, vsg::intValue::create(numUvSets) } };
 
@@ -353,6 +354,7 @@ namespace Pipeline
             std::vector<vsg::ref_ptr<vsg::ShaderModule>> twins(shaders.size());
             std::vector<std::set<std::string>> traced(shaders.size());
             bool glslPipeline = true;
+            bool anyPending = false;
             for (size_t i = 0; i < shaders.size(); ++i)
             {
                 auto& shader = shaders[i];
@@ -388,7 +390,11 @@ namespace Pipeline
                         traced[i] = std::move(*counted);
                 }
                 if (mPreferSlang && choice != nullptr)
-                    twins[i] = vsgUtil::slangTwinFor(*choice, numUvSets, mShaderOptions);
+                {
+                    bool pending = false;
+                    twins[i] = vsgUtil::slangTwinFor(*choice, numUvSets, mShaderOptions, &pending);
+                    anyPending = anyPending || pending;
+                }
             }
             const bool anyTwin = std::any_of(twins.begin(), twins.end(), [](const auto& twin) { return bool(twin); });
             const bool slang = mPreferSlang && anyTwin && vsgUtil::takeSlangTwinsTogether(shaders, twins);
@@ -397,6 +403,10 @@ namespace Pipeline
                                     << " texture coordinate sets";
             if (trace && glslPipeline && shaders.size() == 2)
                 vsgUtil::recordPipelineUse(shaderPath, traced[0], traced[1], slang);
+            // A Slang version of one of the stages is being compiled on the worker (queue item 3 of decision 0012):
+            // this pipeline draws with the GLSL, and is not kept in the cache (getOrCreate), so the next object that
+            // needs it builds it again and takes the twin once it is ready.
+            slangPending = anyPending;
         }
 
         auto vertexSpecConstants = specConstants;
@@ -541,6 +551,10 @@ namespace Pipeline
             vsg::InputAssemblyState::create(key.primitiveTopology), rasterState, colorBlendState,
             vsg::MultisampleState::create(), depthStencilState };
 
-        return vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(mLayout, shaders, pipelineStates));
+        auto pipeline
+            = vsg::BindGraphicsPipeline::create(vsg::GraphicsPipeline::create(mLayout, shaders, pipelineStates));
+        if (slangPending)
+            pipeline->setValue(slangPendingKey, true);
+        return pipeline;
     }
 }

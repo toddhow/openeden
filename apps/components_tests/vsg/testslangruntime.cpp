@@ -673,6 +673,7 @@ namespace
         std::string mError;
         bool mPrepareOk = true;
         std::function<void()> mInPrepare;
+        std::function<void(const SlangRuntimeRequest&)> mInCompile;
         std::mutex mMutex;
         std::vector<std::thread::id> mCompileThreads;
         std::vector<std::string> mCompiledStages;
@@ -697,6 +698,8 @@ namespace
                 mCompileThreads.push_back(std::this_thread::get_id());
                 mCompiledStages.push_back(request.mStageFile);
             }
+            if (mInCompile)
+                mInCompile(request);
             error = mError;
             return mOutput;
         }
@@ -1107,6 +1110,304 @@ namespace
         EXPECT_EQ(lines[0].find("preload"), std::string::npos) << lines[0];
     }
 
+    // Queue item 3 of decision 0012, step 3: compile on a worker, draw the GLSL meanwhile.
+    using vsgUtil::SlangAvailability;
+
+    // A compile that stops inside the compiler until the test lets it go, so that what the caller sees while a compile
+    // is running can be checked.
+    struct Gate
+    {
+        std::promise<void> mInside;
+        std::promise<void> mRelease;
+        std::shared_future<void> mReleased = mRelease.get_future().share();
+        std::once_flag mOnce;
+        void enter()
+        {
+            std::call_once(mOnce, [this] { mInside.set_value(); });
+            mReleased.wait();
+        }
+        void waitInside() { mInside.get_future().wait(); }
+        void open() { mRelease.set_value(); }
+    };
+
+    SlangRuntimeRequest requestFor(const Fixture& f, const std::string& stage)
+    {
+        auto request = f.mRequest;
+        request.mStageFile = stage;
+        return request;
+    }
+
+    // Asks until the answer is no longer Pending (the worker is quick: the fake compiler returns at once).
+    vsgUtil::SlangObtained askUntilAnswered(
+        SlangRuntime& runtime, const SlangRuntimeRequest& request, const SlangRuntimeCheck& check)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+        vsgUtil::SlangObtained answer = runtime.obtainOrQueue(request, check);
+        while (answer.mState == SlangAvailability::Pending && std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            answer = runtime.obtainOrQueue(request, check);
+        }
+        return answer;
+    }
+
+    TEST(SlangQueue, an_unknown_request_is_pending_at_once_and_ready_after_the_worker_compiled_it)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        Gate gate;
+        compiler->mInCompile = [&gate](const SlangRuntimeRequest&) { gate.enter(); };
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        const auto first = runtime->obtainOrQueue(f.mRequest, f.mCheck);
+        EXPECT_EQ(first.mState, SlangAvailability::Pending);
+        EXPECT_TRUE(first.mWords.empty());
+        gate.waitInside(); // the compile is running on the worker and the caller is already back
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        gate.open();
+        runtime->waitForIdle();
+        const auto second = runtime->obtainOrQueue(f.mRequest, f.mCheck);
+        EXPECT_EQ(second.mState, SlangAvailability::Ready);
+        EXPECT_EQ(second.mWords, fakeWords(1));
+        EXPECT_EQ(compiler->mCompiles, 1);
+        ASSERT_EQ(compiler->mCompileThreads.size(), 1u);
+        EXPECT_NE(compiler->mCompileThreads[0], std::this_thread::get_id()) << "never on the asking thread";
+        EXPECT_EQ(f.cacheFiles(), 1u) << "the worker wrote the cache";
+        const auto stats = runtime->stats();
+        EXPECT_EQ(stats.mCompiledOnMain, 0u);
+        EXPECT_EQ(stats.mCompiledOnOther, 1u);
+        EXPECT_EQ(stats.mQueued, 1u);
+    }
+
+    TEST(SlangQueue, a_cache_hit_stays_synchronous_and_starts_no_worker)
+    {
+        Fixture f;
+        {
+            FakeCompiler* compiler = nullptr;
+            f.runtime(compiler)->obtain(f.mRequest, f.mCheck);
+        }
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        compiler->mIdentity = "fake-compiler-1";
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        const auto answer = runtime->obtainOrQueue(f.mRequest, f.mCheck);
+        EXPECT_EQ(answer.mState, SlangAvailability::Ready);
+        EXPECT_EQ(answer.mWords, fakeWords(1));
+        EXPECT_EQ(compiler->mCompiles, 0);
+        EXPECT_EQ(compiler->mPrepares, 0) << "the library is not loaded for a cache hit";
+        EXPECT_EQ(runtime->stats().mQueued, 0u);
+        EXPECT_EQ(runtime->stats().mCacheHits, 1u);
+    }
+
+    TEST(SlangQueue, requests_are_compiled_in_the_order_they_were_made)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        Gate gate;
+        compiler->mInCompile = [&gate](const SlangRuntimeRequest& request) {
+            if (request.mStageFile == "s/first")
+                gate.enter();
+        };
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        const std::vector<std::string> order = { "s/first", "s/b", "s/c", "s/d", "s/e" };
+        runtime->obtainOrQueue(requestFor(f, order[0]), f.mCheck);
+        gate.waitInside();
+        for (std::size_t i = 1; i < order.size(); ++i)
+            EXPECT_EQ(runtime->obtainOrQueue(requestFor(f, order[i]), f.mCheck).mState, SlangAvailability::Pending);
+        gate.open();
+        runtime->waitForIdle();
+        EXPECT_EQ(compiler->mCompiledStages, order);
+    }
+
+    TEST(SlangQueue, the_same_request_is_queued_once)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        Gate gate;
+        compiler->mInCompile = [&gate](const SlangRuntimeRequest&) { gate.enter(); };
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        for (int i = 0; i < 5; ++i)
+            EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        gate.waitInside();
+        for (int i = 0; i < 5; ++i)
+            EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        gate.open();
+        runtime->waitForIdle();
+        EXPECT_EQ(compiler->mCompiles, 1);
+        EXPECT_EQ(runtime->stats().mQueued, 1u);
+    }
+
+    TEST(SlangQueue, the_queue_is_bounded_and_a_request_that_found_it_full_is_not_forgotten)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        Gate gate;
+        compiler->mInCompile = [&gate](const SlangRuntimeRequest& request) {
+            if (request.mStageFile == "s/0")
+                gate.enter();
+        };
+        auto runtime = SlangRuntime::create(std::move(fake), std::filesystem::path());
+        runtime->obtainOrQueue(requestFor(f, "s/0"), f.mCheck);
+        gate.waitInside(); // the first is in flight: the queue is empty
+        const std::size_t room = SlangRuntime::maxQueuedCompiles;
+        const std::size_t extra = 7;
+        for (std::size_t i = 1; i <= room + extra; ++i)
+            EXPECT_EQ(runtime->obtainOrQueue(requestFor(f, "s/" + std::to_string(i)), f.mCheck).mState,
+                SlangAvailability::Pending);
+        EXPECT_EQ(runtime->stats().mQueued, 1u + room);
+        EXPECT_EQ(runtime->stats().mQueueFull, extra);
+        gate.open();
+        runtime->waitForIdle();
+        EXPECT_EQ(compiler->mCompiles, static_cast<int>(1 + room)) << "the rejected ones were not compiled";
+        // Not failures: asked again with room, the last one is queued and compiled.
+        const std::string last = "s/" + std::to_string(room + extra);
+        EXPECT_EQ(runtime->obtainOrQueue(requestFor(f, last), f.mCheck).mState, SlangAvailability::Pending);
+        runtime->waitForIdle();
+        EXPECT_EQ(compiler->mCompiles, static_cast<int>(2 + room));
+        EXPECT_EQ(runtime->obtainOrQueue(requestFor(f, last), f.mCheck).mState, SlangAvailability::Ready)
+            << "with no cache folder the worker keeps the words";
+    }
+
+    TEST(SlangQueue, the_destructor_drops_the_queue_and_waits_only_for_the_compile_in_flight)
+    {
+        Fixture f;
+        auto compiled = std::make_shared<std::atomic<int>>(0);
+        std::chrono::steady_clock::time_point gone;
+        const auto start = std::chrono::steady_clock::now();
+        std::thread releaser;
+        {
+            auto fake = std::make_unique<ScriptedCompiler>();
+            auto gate = std::make_shared<Gate>();
+            fake->mInCompile = [gate, compiled](const SlangRuntimeRequest&) {
+                ++*compiled;
+                gate->enter();
+            };
+            auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+            for (int i = 0; i < 6; ++i)
+                runtime->obtainOrQueue(requestFor(f, "s/" + std::to_string(i)), f.mCheck);
+            gate->waitInside();
+            releaser = std::thread([gate] {
+                std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                gate->open();
+            });
+            // The runtime goes here with five requests still queued.
+        }
+        gone = std::chrono::steady_clock::now();
+        releaser.join();
+        EXPECT_EQ(compiled->load(), 1) << "only the compile in flight finished; the queue was dropped";
+        const double milliseconds = std::chrono::duration<double, std::milli>(gone - start).count();
+        EXPECT_LT(milliseconds, 3000.0);
+    }
+
+    TEST(SlangQueue, a_failed_compile_is_remembered_and_never_tried_again)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        compiler->mOutput.clear();
+        compiler->mError = "syntax error";
+        std::mutex mutex;
+        std::vector<std::string> warnings;
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        runtime->setLog([&](bool warning, const std::string& line) {
+            std::lock_guard lock(mutex);
+            if (warning)
+                warnings.push_back(line);
+        });
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        runtime->waitForIdle();
+        for (int i = 0; i < 3; ++i)
+            EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Unavailable);
+        EXPECT_EQ(compiler->mCompiles, 1);
+        EXPECT_EQ(runtime->stats().mFailed, 1u);
+        ASSERT_EQ(warnings.size(), 1u);
+        EXPECT_NE(warnings[0].find("syntax error"), std::string::npos) << warnings[0];
+        EXPECT_FALSE(runtime->disabled()) << "one set failing does not stop the others";
+    }
+
+    TEST(SlangQueue, a_result_the_check_refuses_is_unavailable_and_not_cached)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        SlangRuntimeCheck check;
+        check.mKey = "glsl";
+        check.mCheck = [](const std::vector<uint32_t>&) { return std::string("declares what the GLSL does not"); };
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        EXPECT_EQ(askUntilAnswered(*runtime, f.mRequest, check).mState, SlangAvailability::Unavailable);
+        EXPECT_EQ(askUntilAnswered(*runtime, f.mRequest, check).mState, SlangAvailability::Unavailable);
+        EXPECT_EQ(compiler->mCompiles, 1);
+        EXPECT_EQ(f.cacheFiles(), 0u);
+    }
+
+    TEST(SlangQueue, a_compiler_that_cannot_start_disables_the_runtime_on_the_worker)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        compiler->mPrepareOk = false;
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        runtime->waitForIdle();
+        EXPECT_TRUE(runtime->disabled());
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Unavailable);
+        EXPECT_EQ(compiler->mPrepares, 1);
+        EXPECT_NE(compiler->mPrepareThread, std::this_thread::get_id());
+    }
+
+    TEST(SlangQueue, the_self_tests_run_on_the_worker_before_the_first_job)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto* compiler = fake.get();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        auto test = requestFor(f, "post/omwfx.vert");
+        runtime->setSelfTest(test, fakeWords(1));
+        EXPECT_EQ(askUntilAnswered(*runtime, f.mRequest, f.mCheck).mState, SlangAvailability::Ready);
+        EXPECT_EQ(compiler->mCompiledStages, (std::vector<std::string>{ "post/omwfx.vert", "default/main.frag" }));
+        for (const auto& thread : compiler->mCompileThreads)
+            EXPECT_NE(thread, std::this_thread::get_id());
+        EXPECT_EQ(compiler->mPrepares, 1);
+    }
+
+    TEST(SlangQueue, a_failing_self_test_disables_the_runtime_and_the_queued_requests_are_unavailable)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        runtime->setSelfTest(requestFor(f, "post/omwfx.vert"), fakeWords(99));
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Pending);
+        EXPECT_EQ(runtime->obtainOrQueue(requestFor(f, "s/two"), f.mCheck).mState, SlangAvailability::Pending);
+        runtime->waitForIdle();
+        EXPECT_TRUE(runtime->disabled());
+        EXPECT_EQ(runtime->obtainOrQueue(f.mRequest, f.mCheck).mState, SlangAvailability::Unavailable);
+        EXPECT_EQ(f.cacheFiles(), 0u);
+    }
+
+    TEST(SlangQueue, compile_events_from_the_worker_say_so_and_carry_the_queue_latency)
+    {
+        Fixture f;
+        auto fake = std::make_unique<ScriptedCompiler>();
+        auto runtime = SlangRuntime::create(std::move(fake), f.cache());
+        std::mutex mutex;
+        std::vector<vsgUtil::SlangCompileEvent> events;
+        runtime->setEventSink([&](const vsgUtil::SlangCompileEvent& event) {
+            std::lock_guard lock(mutex);
+            events.push_back(event);
+        });
+        EXPECT_EQ(askUntilAnswered(*runtime, f.mRequest, f.mCheck).mState, SlangAvailability::Ready);
+        runtime->waitForIdle();
+        std::lock_guard lock(mutex);
+        ASSERT_EQ(events.size(), 1u);
+        EXPECT_EQ(events[0].mKind, vsgUtil::SlangEventKind::Compiled);
+        EXPECT_EQ(events[0].mThread, vsgUtil::SlangThreadKind::Worker);
+        EXPECT_GT(events[0].mSinceRequestMilliseconds, 0.0);
+        EXPECT_GE(events[0].mWaitMilliseconds, 0.0);
+    }
+
 #if OPENEDEN_SLANG_ENABLED && defined(OPENEDEN_SLANG_LIBRARY_DIR) && defined(OPENEDEN_SLANG_RUNTIME_TESTS)
     std::vector<uint32_t> readWords(const std::filesystem::path& path)
     {
@@ -1445,6 +1746,25 @@ namespace
     const std::set<std::string> refusedObjectVertex = { "GBUFFER_MOTION", "NORMAL", "TEXCOORD", "UVSETS_1", "VERTEX" };
     const std::set<std::string> unlistedObjectVertex = { "BILLBOARD", "NORMAL", "TEXCOORD", "UVSETS_1", "VERTEX" };
 
+    // Asks the way a pipeline does and keeps asking while the answer is "pending" (queue item 3 of decision 0012: an
+    // unlisted set is compiled on the worker, the first answer is null). `sawPending` says whether it was ever pending.
+    vsg::ref_ptr<vsg::ShaderModule> findWaiting(const std::string& stage, const std::set<std::string>& names,
+        const vsg::ref_ptr<const vsg::Options>& options, const vsgUtil::SlangGlslStage* glsl,
+        bool* sawPending = nullptr)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+        for (;;)
+        {
+            bool pending = false;
+            auto module = vsgUtil::findSlangPermutation(stage, names, options, glsl, &pending);
+            if (module || !pending || std::chrono::steady_clock::now() > deadline)
+                return module;
+            if (sawPending != nullptr)
+                *sawPending = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+
     struct GameRuntime
     {
         vsg::ref_ptr<vsg::Options> mOptions = gameOptions();
@@ -1496,11 +1816,19 @@ namespace
         ASSERT_NE(glsl, nullptr);
         // Review round 4, finding 12: asked once with no GLSL to check against (a trace), the set stays eligible.
         EXPECT_EQ(vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions), nullptr);
-        auto module
-            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+        bool pending = false;
+        {
+            // The first answer is "pending" at once; the compile is on the worker.
+            auto first = vsgUtil::findSlangPermutation(
+                "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending);
+            EXPECT_EQ(first, nullptr);
+            EXPECT_TRUE(pending);
+        }
+        auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
         ASSERT_NE(module, nullptr);
         EXPECT_FALSE(module->code.empty());
         EXPECT_EQ(game.runtime()->stats().mCompiled, 1u);
+        EXPECT_EQ(game.runtime()->stats().mCompiledOnMain, 0u) << "compiled on the worker";
         EXPECT_TRUE(game.mWarnings.empty()) << game.mWarnings.front();
         // The same module while something holds it.
         EXPECT_EQ(
@@ -1514,7 +1842,8 @@ namespace
         ASSERT_NE(again, nullptr);
         EXPECT_EQ(again->code, words);
         EXPECT_EQ(game.runtime()->stats().mCompiled, 1u);
-        EXPECT_EQ(game.runtime()->stats().mCacheHits, 1u);
+        EXPECT_EQ(game.runtime()->stats().mCacheHits, 2u)
+            << "one when the pipeline asked again after the worker finished, one for the re-read";
     }
 
     TEST(SlangRuntimeLibrary, a_refused_set_falls_back_to_the_glsl_for_both_stages_and_is_not_asked_again)
@@ -1525,10 +1854,9 @@ namespace
         auto fragmentGlsl = glslFor("default/main.frag", unlistedObjectFragment);
         ASSERT_NE(vertexGlsl, nullptr);
         ASSERT_NE(fragmentGlsl, nullptr);
-        const auto vertex = vsgUtil::findSlangPermutation(
-            "default/main.vert", refusedObjectVertex, game.mOptions, &vertexGlsl->mStage);
-        const auto fragment = vsgUtil::findSlangPermutation(
-            "default/main.frag", unlistedObjectFragment, game.mOptions, &fragmentGlsl->mStage);
+        const auto vertex = findWaiting("default/main.vert", refusedObjectVertex, game.mOptions, &vertexGlsl->mStage);
+        const auto fragment
+            = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &fragmentGlsl->mStage);
         EXPECT_EQ(vertex, nullptr) << "GBUFFER_MOTION without SKIN is refused";
         ASSERT_NE(fragment, nullptr);
         ASSERT_EQ(game.mWarnings.size(), 1u);
@@ -1580,7 +1908,7 @@ namespace
             ASSERT_FALSE(vsgUtil::selectPermutation(manifests(stage), names)) << "listed now: not an unlisted set";
             auto glsl = glslFor(stage, names);
             ASSERT_NE(glsl, nullptr);
-            const auto module = vsgUtil::findSlangPermutation(stage, names, game.mOptions, &glsl->mStage);
+            const auto module = findWaiting(stage, names, game.mOptions, &glsl->mStage);
             if (module)
                 ++compiled;
         }
@@ -1589,7 +1917,44 @@ namespace
         EXPECT_TRUE(game.mWarnings.empty()) << (game.mWarnings.empty() ? "" : game.mWarnings.front());
     }
 
-    TEST(SlangRuntimeLibrary, the_first_compile_pays_for_the_library_and_the_self_tests)
+    TEST(SlangRuntimeLibrary, a_stage_choice_made_while_its_twin_was_pending_asks_again_and_pipelines_can_tell)
+    {
+        // A set without texture coordinate arrays: the choice of the stage holds its twin (not counted by pipeline).
+        GameRuntime game("openeden_slangruntime_choice");
+        ASSERT_NE(game.runtime(), nullptr);
+        const std::set<std::string> names = { "BILLBOARD", "NORMAL", "VERTEX" };
+        const auto manifest = vsgUtil::parsePermutationManifest(
+            readText(std::filesystem::path(OPENEDEN_SHADER_BUILD_DIR) / "default" / "main.vert.permutations"));
+        ASSERT_FALSE(vsgUtil::selectPermutation(manifest, names)) << "the test's set is listed now";
+        auto glsl = glslFor("default/main.vert", names);
+        ASSERT_NE(glsl, nullptr);
+        auto stage = vsg::ShaderStage::create(VK_SHADER_STAGE_VERTEX_BIT, "main", glsl->mSource);
+        stage->module->hints = vsg::ShaderCompileSettings::create();
+        stage->module->hints->defines = glsl->mRequested;
+        const auto choice = vsgUtil::attachSlangStageChoice(*stage, "default/main.vert", game.mOptions);
+        ASSERT_NE(choice, nullptr);
+        ASSERT_FALSE(choice->byPipeline);
+        EXPECT_EQ(choice->twin, nullptr);
+        EXPECT_TRUE(choice->pending) << "queued for the worker when the choice was made";
+        bool pending = false;
+        vsg::ref_ptr<vsg::ShaderModule> twin;
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+        while (!twin && std::chrono::steady_clock::now() < deadline)
+        {
+            twin = vsgUtil::slangTwinFor(*choice, 1u, game.mOptions, &pending);
+            if (!twin)
+            {
+                EXPECT_TRUE(pending);
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        }
+        ASSERT_NE(twin, nullptr);
+        EXPECT_FALSE(choice->pending);
+        EXPECT_EQ(vsgUtil::slangTwinFor(*choice, 1u, game.mOptions, &pending), twin) << "kept by the choice now";
+        EXPECT_FALSE(pending);
+    }
+
+    TEST(SlangRuntimeLibrary, the_first_request_returns_at_once_and_the_worker_pays_for_the_library)
     {
         // The library must not be loaded already (run it in a process of its own): the first compile starts the
         // library and runs both self-tests.
@@ -1598,11 +1963,19 @@ namespace
         auto glsl = glslFor("default/main.frag", unlistedObjectFragment);
         ASSERT_NE(glsl, nullptr);
         const auto start = std::chrono::steady_clock::now();
-        const auto module
-            = vsgUtil::findSlangPermutation("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
+        bool pending = false;
+        EXPECT_EQ(vsgUtil::findSlangPermutation(
+                      "default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage, &pending),
+            nullptr);
+        const double askMs
+            = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        EXPECT_TRUE(pending);
+        EXPECT_LT(askMs, 100.0) << "the asking thread does not wait for the library or the compile";
+        const auto module = findWaiting("default/main.frag", unlistedObjectFragment, game.mOptions, &glsl->mStage);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_NE(module, nullptr);
-        std::cout << "[ info ] first compile: " << ms << " ms\n";
+        std::cout << "[ info ] first request returned after " << askMs << " ms; the Slang version was ready after "
+                  << ms << " ms\n";
     }
 
     // The child process of the test below: a library folder without glslang, in a process that has never loaded it.

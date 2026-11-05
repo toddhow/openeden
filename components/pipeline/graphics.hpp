@@ -89,9 +89,22 @@ namespace Pipeline
         vsg::ref_ptr<vsg::ShaderStage> create(const VertexStageOptions& key) const;
         vsg::ref_ptr<vsg::ShaderStage> create(const FragmentStageOptions& key) const;
         vsg::ref_ptr<vsg::ShaderStage> createShaderStage(const ShaderOptions& key, const std::string& suffix) const;
+        /// The name of the bool value create() sets on a pipeline that draws with GLSL only because the Slang version
+        /// of one of its stages was still being compiled (vsgUtil::findSlangPermutation, `pending`).
+        static constexpr const char* slangPendingKey = "openeden.slangPending";
+
         inline vsg::ref_ptr<vsg::BindGraphicsPipeline> getOrCreate(const Options& key) const
         {
-            return mPipelineCache.getOrCreate(key, *this);
+            auto pipeline = mPipelineCache.getOrCreate(key, *this);
+            bool pending = false;
+            if (pipeline && pipeline->getValue(slangPendingKey, pending) && pending)
+            {
+                // Not kept: objects already built keep this pipeline (nothing is swapped), the next object that
+                // needs the same key builds it again, and gets the Slang twin once the worker has finished.
+                mPipelineCache.removeObjects(
+                    [&pipeline](const vsg::ref_ptr<vsg::BindGraphicsPipeline>& cached) { return cached == pipeline; });
+            }
+            return pipeline;
         }
     };
 }

@@ -1,10 +1,12 @@
 #include "slangruntime.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
 #include <cstring>
+#include <deque>
 #include <exception>
 #include <fstream>
 #include <iterator>
@@ -117,7 +119,7 @@ namespace vsgUtil
         }
 
         // Names the calling thread for a debugger and for the process's thread list; best effort.
-        [[maybe_unused]] void nameCurrentThread(const char* name)
+        void nameCurrentThread(const char* name)
         {
 #ifdef _WIN32
             using SetThreadDescriptionFn = HRESULT(WINAPI*)(HANDLE, PCWSTR);
@@ -570,6 +572,26 @@ namespace vsgUtil
 
         bool mCacheCleaned = false; // cleanCache ran (after the first compile)
 
+        std::map<std::string, std::vector<uint32_t>> mDone; // worker results when there is no cache folder (mMutex)
+
+        // The worker (queue item 3 of decision 0012, step 3). Its jobs own copies of what they need.
+        struct Job
+        {
+            SlangRuntimeRequest mRequest;
+            SlangRuntimeCheck mCheck;
+            std::string mKey;
+            std::int64_t mRequestedMicroseconds = 0;
+        };
+        std::mutex mQueueMutex;
+        std::condition_variable mQueueChanged;
+        std::deque<Job> mQueue;
+        std::set<std::string> mQueuedKeys; // keys queued or compiling
+        bool mStop = false;
+        bool mBusy = false; // the worker is compiling a job
+        bool mWorkerStarted = false;
+        std::thread mWorker;
+        std::atomic<std::thread::id> mWorkerId{};
+
         void warn(const std::string& text)
         {
             std::function<void(bool, const std::string&)> sink;
@@ -585,7 +607,10 @@ namespace vsgUtil
 
         SlangThreadKind threadKind() const
         {
-            return std::this_thread::get_id() == mCreator ? SlangThreadKind::Main : SlangThreadKind::Other;
+            const std::thread::id id = std::this_thread::get_id();
+            if (id == mCreator)
+                return SlangThreadKind::Main;
+            return id == mWorkerId.load() ? SlangThreadKind::Worker : SlangThreadKind::Other;
         }
 
         // Reports an event to the sink (copied under the mutex, called outside it).
@@ -667,18 +692,35 @@ namespace vsgUtil
 
     SlangRuntime::~SlangRuntime()
     {
+        // The queue is dropped (nothing is compiled for a game that is ending) and the worker is joined: it finishes
+        // the compile in flight, if any, which takes about 150 ms (seconds when it is still loading the library).
+        // It is not detached: Slang may have threads of its own and a worker running into static teardown crashes.
+        {
+            std::lock_guard lock(mState->mQueueMutex);
+            mState->mStop = true;
+            {
+                std::lock_guard statsLock(mState->mMutex);
+                mState->mStats.mDroppedAtExit += mState->mQueue.size();
+            }
+            mState->mQueue.clear();
+            mState->mQueuedKeys.clear();
+        }
+        mState->mQueueChanged.notify_all();
+        if (mState->mWorker.joinable())
+            mState->mWorker.join();
         // One line at the end of a run that compiled or read anything: what the runtime did and what it cost.
         const Stats stats = mState->mStats;
-        if (stats.mCompiled + stats.mCacheHits + stats.mFailed + stats.mRefusedSets == 0)
+        if (stats.mCompiled + stats.mCacheHits + stats.mFailed + stats.mRefusedSets + stats.mQueued == 0)
             return;
-        char text[512];
+        char text[640];
         std::snprintf(text, sizeof(text),
             "Slang run-time shaders: %zu compiled in %.0f ms (%zu on the main thread, %zu on other threads), %zu read "
             "from the cache in %.1f ms, %zu failed, %zu refused sets remembered; longest wait on the compile lock "
-            "%.0f ms (%s thread)",
+            "%.0f ms (%s thread); %zu queued for the worker, %zu found the queue full, %zu dropped at exit",
             stats.mCompiled, stats.mCompileMilliseconds, stats.mCompiledOnMain, stats.mCompiledOnOther,
             stats.mCacheHits, stats.mCacheMilliseconds, stats.mFailed, stats.mRefusedSets,
-            stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other");
+            stats.mLongestWaitMilliseconds, stats.mLongestWaitWasMain ? "main" : "other", stats.mQueued,
+            stats.mQueueFull, stats.mDroppedAtExit);
         try
         {
             if (mState->mLog)
@@ -717,6 +759,108 @@ namespace vsgUtil
         std::lock_guard lock(mState->mCompileMutex);
         mState->mSelfTests.emplace_back(std::move(request), std::move(expected));
         mState->mSelfTestsDone = false;
+    }
+
+    SlangObtained SlangRuntime::obtainOrQueue(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const
+    {
+        State& state = *mState;
+        SlangObtained result;
+        try
+        {
+            Step step = Step::Nothing;
+            std::string key;
+            // The cache read is quick and stays on this thread; a compile is never started here (mayCompile false).
+            result.mWords = obtainStep(request, check, false, step, key, nullptr, false);
+            if (step == Step::Words)
+            {
+                result.mState = SlangAvailability::Ready;
+                return result;
+            }
+            if (step == Step::Nothing)
+                return result;
+            result.mState = SlangAvailability::Pending;
+            {
+                std::lock_guard lock(state.mQueueMutex);
+                if (state.mStop || state.mQueuedKeys.count(key) != 0)
+                    return result;
+                if (state.mQueue.size() >= maxQueuedCompiles)
+                {
+                    std::lock_guard statsLock(state.mMutex);
+                    ++state.mStats.mQueueFull;
+                    return result;
+                }
+                State::Job job;
+                job.mRequest = request;
+                job.mCheck = check;
+                job.mKey = key;
+                job.mRequestedMicroseconds = microsecondsNow();
+                state.mQueue.push_back(std::move(job));
+                state.mQueuedKeys.insert(key);
+                {
+                    std::lock_guard statsLock(state.mMutex);
+                    ++state.mStats.mQueued;
+                }
+                if (!state.mWorkerStarted)
+                {
+                    state.mWorkerStarted = true;
+                    state.mWorker = std::thread([this, &state] { workerMain(state); });
+                }
+            }
+            state.mQueueChanged.notify_all();
+        }
+        catch (const std::exception& e)
+        {
+            state.warn(std::string("The Slang runtime compiler failed: ") + e.what() + "; the GLSL is used");
+            result = {};
+        }
+        catch (...)
+        {
+            result = {};
+        }
+        return result;
+    }
+
+    // The worker: one job at a time, in the order the requests were made. The compiler starts and the self-tests run
+    // on its first job (obtainStep), so a run whose requests are all cache hits never loads the library.
+    void SlangRuntime::workerMain(State& state) const
+    {
+        nameCurrentThread("slang-compile");
+        state.mWorkerId.store(std::this_thread::get_id());
+        for (;;)
+        {
+            State::Job job;
+            {
+                std::unique_lock lock(state.mQueueMutex);
+                state.mQueueChanged.wait(lock, [&state] { return state.mStop || !state.mQueue.empty(); });
+                if (state.mStop)
+                    return;
+                job = std::move(state.mQueue.front());
+                state.mQueue.pop_front();
+                state.mBusy = true;
+            }
+            try
+            {
+                Step step = Step::Nothing;
+                std::string key;
+                obtainStep(job.mRequest, job.mCheck, true, step, key, &job.mRequestedMicroseconds, true);
+            }
+            catch (...)
+            {
+            }
+            {
+                std::lock_guard lock(state.mQueueMutex);
+                state.mQueuedKeys.erase(job.mKey);
+                state.mBusy = false;
+            }
+            state.mQueueChanged.notify_all();
+        }
+    }
+
+    void SlangRuntime::waitForIdle() const
+    {
+        State& state = *mState;
+        std::unique_lock lock(state.mQueueMutex);
+        state.mQueueChanged.wait(lock, [&state] { return state.mStop || (state.mQueue.empty() && !state.mBusy); });
     }
 
     bool SlangRuntime::disabled() const
@@ -1034,12 +1178,26 @@ namespace vsgUtil
 
     std::vector<uint32_t> SlangRuntime::obtain(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check) const
     {
+        Step step = Step::Nothing;
+        std::string key;
+        return obtainStep(request, check, true, step, key, nullptr, false);
+    }
+
+    // The one path of obtain (mayCompile) and of obtainOrQueue (not mayCompile: stops where the compile would begin and
+    // says NeedsCompile) and of the worker (mayCompile, `requestedMicroseconds` set, `keepWords`: the words are kept
+    // for the next ask when there is no cache folder).
+    std::vector<uint32_t> SlangRuntime::obtainStep(const SlangRuntimeRequest& request, const SlangRuntimeCheck& check,
+        bool mayCompile, Step& step, std::string& keyOut, const std::int64_t* requestedMicroseconds,
+        bool keepWords) const
+    {
         State& state = *mState;
+        step = Step::Nothing;
         try
         {
             if (disabled())
                 return {};
             const std::string key = keyText(request, check);
+            keyOut = key;
             bool filesMissing = false;
             {
                 std::lock_guard lock(state.mMutex);
@@ -1048,6 +1206,11 @@ namespace vsgUtil
                     state.mDisabled = true;
                 else if (state.mFailed.count(key) != 0)
                     return {};
+                else if (const auto done = state.mDone.find(key); done != state.mDone.end())
+                {
+                    step = Step::Words;
+                    return done->second;
+                }
             }
             if (filesMissing)
             {
@@ -1123,7 +1286,15 @@ namespace vsgUtil
                 return words;
             };
             if (auto words = readFromCache(); !words.empty())
+            {
+                step = Step::Words;
                 return words;
+            }
+            if (!mayCompile)
+            {
+                step = Step::NeedsCompile;
+                return {};
+            }
 
             const bool onMain = std::this_thread::get_id() == state.mCreator;
             const auto waitStart = Clock::now();
@@ -1140,7 +1311,10 @@ namespace vsgUtil
             }
             // Another thread may have compiled it while this one waited.
             if (auto words = readFromCache(); !words.empty())
+            {
+                step = Step::Words;
                 return words;
+            }
             const std::int64_t compileBeginUs = microsecondsNow();
             const auto report = [&](SlangEventKind kind) {
                 SlangCompileEvent event;
@@ -1151,6 +1325,14 @@ namespace vsgUtil
                 event.mBeginMicroseconds = compileBeginUs;
                 event.mEndMicroseconds = microsecondsNow();
                 event.mWaitMilliseconds = waited;
+                if (requestedMicroseconds != nullptr)
+                {
+                    // A worker job: the wait is the time in the queue, and the pipeline that asked has waited since
+                    // its request.
+                    event.mWaitMilliseconds = static_cast<double>(compileBeginUs - *requestedMicroseconds) / 1000.0;
+                    event.mSinceRequestMilliseconds
+                        = static_cast<double>(event.mEndMicroseconds - *requestedMicroseconds) / 1000.0;
+                }
                 state.report(event);
             };
             const auto fail = [&](const std::string& reason, bool remember) -> std::vector<uint32_t> {
@@ -1189,6 +1371,12 @@ namespace vsgUtil
             if (!cacheFile.empty() && !writeCache(cacheFile, key, words))
                 state.warn("The Slang shader cache cannot be written to " + cacheFile.parent_path().string());
             report(SlangEventKind::Compiled);
+            if (keepWords && cacheFile.empty())
+            {
+                std::lock_guard lock(state.mMutex);
+                state.mDone[key] = words;
+            }
+            step = Step::Words;
             // The first compile of a run also cleans the cache folder (what the start-up preload did): entries of
             // another compiler or other sources, stale temporary files, and the oldest above the size limit.
             bool clean = false;

@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
@@ -517,8 +518,28 @@ namespace vsgUtil
             return true;
         }
 
-        // A twin compiled at run time for a set the manifest does not list, or null: the GLSL draws it.
-        vsg::ref_ptr<vsg::ShaderModule> runtimeTwin(const std::string& path, const std::set<std::string>& defines,
+        // What the worker's check needs, owned by it: the job outlives the call that queued it, so nothing here may
+        // point into the caller's stage.
+        struct OwnedCheckData
+        {
+            std::string mPath;
+            std::set<std::string> mDefines;
+            std::string mSource;
+            std::set<std::string> mRequested;
+            // The options without the runtime: the runtime holds the job that holds these, so the real options would
+            // be a cycle (and the runtime could end up destroyed on its own worker).
+            vsg::ref_ptr<const vsg::Options> mOptions;
+        };
+
+        struct RuntimeAnswer
+        {
+            vsg::ref_ptr<vsg::ShaderModule> mModule;
+            SlangAvailability mState = SlangAvailability::Unavailable;
+        };
+
+        // A twin for a set the manifest does not list: from the cache now, or queued for the worker (Pending), or none
+        // (the GLSL draws it).
+        RuntimeAnswer runtimeTwin(const std::string& path, const std::set<std::string>& defines,
             const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage& glsl)
         {
             auto* runtime = options ? options->getObject<SlangRuntime>(slangRuntimeKey) : nullptr;
@@ -546,15 +567,29 @@ namespace vsgUtil
                     mix(" " + name);
             }
             check.mKey = std::to_string(hash) + ":" + std::to_string(glsl.mSource.size());
-            check.mCheck = [&path, &defines, &glsl, &options](const std::vector<uint32_t>& words) {
-                return checkTwinAgainstGlsl(path, defines, glsl, words, options);
+            auto owned = std::make_shared<OwnedCheckData>();
+            owned->mPath = path;
+            owned->mDefines = defines;
+            owned->mSource = std::string(glsl.mSource);
+            if (glsl.mRequested != nullptr)
+                owned->mRequested = *glsl.mRequested;
+            vsg::ref_ptr<vsg::Options> withoutRuntime(new vsg::Options(*options));
+            withoutRuntime->setObject(slangRuntimeKey, vsg::ref_ptr<vsg::Object>());
+            owned->mOptions = withoutRuntime;
+            check.mCheck = [owned](const std::vector<uint32_t>& words) {
+                const SlangGlslStage stage{ owned->mSource, &owned->mRequested };
+                return checkTwinAgainstGlsl(owned->mPath, owned->mDefines, stage, words, owned->mOptions);
             };
             // A cache hit was checked in full when it was made; it is read back for the structure only.
             check.mCheckHit = checkSlangTwinStructure;
-            auto words = runtime->obtain(request, check);
-            if (words.empty())
-                return {};
-            return makeTwinModule(std::move(words));
+            auto obtained = runtime->obtainOrQueue(request, check);
+            RuntimeAnswer answer;
+            answer.mState = obtained.mState;
+            if (obtained.mState == SlangAvailability::Ready && !obtained.mWords.empty())
+                answer.mModule = makeTwinModule(std::move(obtained.mWords));
+            else if (obtained.mState == SlangAvailability::Ready)
+                answer.mState = SlangAvailability::Unavailable;
+            return answer;
         }
     }
 
@@ -686,8 +721,10 @@ namespace vsgUtil
     }
 
     vsg::ref_ptr<vsg::ShaderModule> findSlangPermutation(const std::string& path, const std::set<std::string>& defines,
-        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl)
+        const vsg::ref_ptr<const vsg::Options>& options, const SlangGlslStage* glsl, bool* pending)
     {
+        if (pending != nullptr)
+            *pending = false;
         std::string key;
         try
         {
@@ -781,7 +818,15 @@ namespace vsgUtil
         }
         if (!compileAtRun)
             return {};
-        auto module = runtimeTwin(path, defines, options, *glsl);
+        const RuntimeAnswer answer = runtimeTwin(path, defines, options, *glsl);
+        if (answer.mState == SlangAvailability::Pending)
+        {
+            // On the worker's queue: the GLSL draws for now, and the set is not remembered as failed.
+            if (pending != nullptr)
+                *pending = true;
+            return {};
+        }
+        const auto& module = answer.mModule;
         std::lock_guard lock(cache.mMutex);
         ModuleEntry& entry = cache.mModules[moduleKey];
         if (!module)
@@ -838,15 +883,17 @@ namespace vsgUtil
 
     vsg::ref_ptr<vsg::ShaderModule> slangTwin(const std::string& path, const std::set<std::string>& requested,
         std::string_view glslSource, bool preferSlang, const vsg::ref_ptr<const vsg::Options>& options,
-        std::optional<uint32_t> numUvSets)
+        std::optional<uint32_t> numUvSets, bool* pending)
     {
+        if (pending != nullptr)
+            *pending = false;
         if (!preferSlang)
             return {};
         const auto defines = slangSelectionSet(path, requested, glslSource, options, numUvSets);
         if (!defines)
             return {};
         const SlangGlslStage glsl{ glslSource, &requested };
-        return findSlangPermutation(path, *defines, options, &glsl);
+        return findSlangPermutation(path, *defines, options, &glsl, pending);
     }
 
     bool takeSlangTwinsTogether(vsg::ShaderStages& stages, const std::vector<vsg::ref_ptr<vsg::ShaderModule>>& twins)
@@ -884,7 +931,7 @@ namespace vsgUtil
         if (!choice->byPipeline)
         {
             const SlangGlslStage glsl{ choice->glslSource, &requested };
-            choice->twin = findSlangPermutation(path, choice->defines, options, &glsl);
+            choice->twin = findSlangPermutation(path, choice->defines, options, &glsl, &choice->pending);
         }
         stage.setObject(slangStageChoiceKey, choice);
         return choice;
@@ -895,16 +942,39 @@ namespace vsgUtil
         return stage.getObject<SlangStageChoice>(slangStageChoiceKey);
     }
 
-    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(
-        const SlangStageChoice& choice, uint32_t numUvSets, const vsg::ref_ptr<const vsg::Options>& options)
+    vsg::ref_ptr<vsg::ShaderModule> slangTwinFor(const SlangStageChoice& choice, uint32_t numUvSets,
+        const vsg::ref_ptr<const vsg::Options>& options, bool* pending)
     {
-        if (!choice.byPipeline)
-            return choice.twin;
-        std::set<std::string> defines = choice.defines;
-        defines.insert(uvSetsDefine(numUvSets));
+        if (pending != nullptr)
+            *pending = false;
         static const std::set<std::string> noDefines;
         const SlangGlslStage glsl{ choice.glslSource, choice.glslHints ? &choice.glslHints->defines : &noDefines };
-        return findSlangPermutation(choice.path, defines, options, &glsl);
+        if (!choice.byPipeline)
+        {
+            // The twin of a stage that is not counted by pipeline is worked out when the choice is made. If it was
+            // still being compiled then, ask again: the choice is shared by every pipeline of the stage and would
+            // otherwise keep its null twin for the session.
+            static std::mutex choiceMutex;
+            {
+                std::lock_guard lock(choiceMutex);
+                if (choice.twin || !choice.pending)
+                    return choice.twin;
+            }
+            bool stillPending = false;
+            auto twin = findSlangPermutation(choice.path, choice.defines, options, &glsl, &stillPending);
+            if (pending != nullptr)
+                *pending = stillPending;
+            std::lock_guard lock(choiceMutex);
+            auto& writable = const_cast<SlangStageChoice&>(choice);
+            if (twin)
+                writable.twin = twin;
+            if (twin || !stillPending)
+                writable.pending = false;
+            return twin;
+        }
+        std::set<std::string> defines = choice.defines;
+        defines.insert(uvSetsDefine(numUvSets));
+        return findSlangPermutation(choice.path, defines, options, &glsl, pending);
     }
 
     const std::set<std::string>* glslDefinesOf(const vsg::ShaderStage& stage)
