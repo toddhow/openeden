@@ -16,6 +16,8 @@
 #include <vsg/state/ShaderModule.h>
 #include <vsg/state/ShaderStage.h>
 
+#include "slangruntime.hpp"
+
 namespace vsgUtil
 {
     /*
@@ -133,10 +135,12 @@ namespace vsgUtil
     /// `log` for its one-line messages. Needs `options` to have its search path (the shader folder) and preferSlang
     /// set. With `preload` (the game; review round 4, finding 3) a worker thread starts the library and runs the
     /// self-tests and the cache cleaning at once (SlangRuntime::startPreload); without it the first compile does.
+    /// `eventSink` (optional) gets one record per run-time compile (SlangRuntime::setEventSink).
     /// Nothing is made (and `options` is left alone) when the build has no permutations to test the library with.
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log, bool preload = false);
+        std::function<void(bool warning, const std::string&)> log, bool preload = false,
+        std::function<void(const SlangCompileEvent&)> eventSink = {});
 
     /// Review of stage h (round 4), finding 2: the cheap check a cache hit passes before it is used (the full check
     /// ran when the entry was made, and its version is in the cache key): the words parse, are SPIR-V 1.0 and have no

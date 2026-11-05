@@ -14,6 +14,7 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -77,7 +78,16 @@ namespace Resource
                 [](bool warning, const std::string& message) {
                     Log(warning ? Debug::Warning : Debug::Info) << message;
                 },
-                true); // preload: the library starts on a worker at once (review of stage h, finding 3)
+                true, // preload: the library starts on a worker at once (review of stage h, finding 3)
+                // One record per run-time compile, to match a stutter to its cause: in the log (Info with the load
+                // trace on, else Verbose) and, with the load trace on, in load-trace.jsonl as "slang.compile".
+                [](const vsgUtil::SlangCompileEvent& event) {
+                    const bool trace = Misc::LoadTrace::enabled();
+                    Log(trace ? Debug::Info : Debug::Verbose) << vsgUtil::formatSlangCompileEvent(event);
+                    if (trace && event.mKind != vsgUtil::SlangEventKind::CacheHit)
+                        Misc::LoadTrace::record("slang.compile", event.mBeginMicroseconds, event.mEndMicroseconds,
+                            static_cast<std::int64_t>(event.mThread));
+                });
         }
         return options;
     }

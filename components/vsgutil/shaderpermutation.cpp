@@ -560,7 +560,8 @@ namespace vsgUtil
 
     void createSlangRuntime(const vsg::ref_ptr<vsg::Options>& options, const std::filesystem::path& shaderRoot,
         const std::filesystem::path& libraryDirectory, const std::filesystem::path& cacheDirectory,
-        std::function<void(bool warning, const std::string&)> log, bool preload)
+        std::function<void(bool warning, const std::string&)> log, bool preload,
+        std::function<void(const SlangCompileEvent&)> eventSink)
     {
         std::error_code absoluteError;
         std::filesystem::path root = std::filesystem::absolute(shaderRoot, absoluteError);
@@ -568,6 +569,8 @@ namespace vsgUtil
             root = shaderRoot;
         auto runtime = SlangRuntime::create(createDynamicSlangCompiler(libraryDirectory), cacheDirectory);
         runtime->setLog(std::move(log));
+        if (eventSink)
+            runtime->setEventSink(std::move(eventSink));
         // The self-tests: the library must reproduce the build's permutations byte for byte. Read through the
         // manifest like any twin; without them (no permutations built) the runtime has nothing to be checked by, and
         // stays off. The small test is the omwfx vertex stage; the large one is the object shader's fragment stage

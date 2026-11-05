@@ -104,6 +104,54 @@ namespace vsgUtil
         std::function<std::string(const std::vector<uint32_t>& words)> mCheckHit = nullptr;
     };
 
+    /*
+     * Task 0072, stage h (queue item 3 of decision 0012, step 1): one record per run-time compile (and per cache read
+     * that took long), so that a stutter in the game can be matched to the compile that caused it. The times are
+     * microseconds on the steady clock, the clock Misc::LoadTrace uses, so a compile can be set beside the frames of
+     * `load-trace.jsonl`.
+     */
+    enum class SlangThreadKind
+    {
+        Main, // the thread that made the runtime (the game's main thread)
+        Worker, // the runtime's own compile thread (compile on a worker, step 3)
+        Other, // any other thread that asked for a compile
+    };
+
+    enum class SlangEventKind
+    {
+        Compiled, // compiled now (and cached)
+        CacheHit, // read from the disk cache
+        Failed, // the compile failed, or the checks refused its result
+    };
+
+    struct SlangCompileEvent
+    {
+        std::string mStageFile; // "default/main.frag"
+        std::set<std::string> mDefines; // the set, as the build passes it with -D
+        SlangEventKind mKind = SlangEventKind::Compiled;
+        SlangThreadKind mThread = SlangThreadKind::Main;
+        std::int64_t mBeginMicroseconds = 0;
+        std::int64_t mEndMicroseconds = 0;
+        /// Time spent waiting for the compile lock before this began; for a worker job the time from the request
+        /// to the start of the compile (the queue latency).
+        double mWaitMilliseconds = 0;
+        /// A worker job: milliseconds from the request to its end (what the pipeline that asked waited for the Slang
+        /// version); zero otherwise.
+        double mSinceRequestMilliseconds = 0;
+    };
+
+    /// A cache read slower than this many milliseconds is reported (faster ones are not worth a line).
+    inline constexpr double slangCacheHitReportMilliseconds = 5.0;
+
+    /// A short, stable id of a define set: 8 lower-case hex digits of a hash of its canonical text (the names in byte
+    /// order, one space between). Not the hash the build puts in a permutation's file name, only a label for the log.
+    std::string slangSetId(const std::set<std::string>& defines);
+
+    /// The log line of an event, one line, no trailing newline:
+    /// "Slang shader <compiled|cache hit|FAILED>: <stage> set <id> (<n> defines) <ms> ms on the <main|worker|other>
+    /// thread, waited <ms> ms, at <begin>..<end> us". Pure.
+    std::string formatSlangCompileEvent(const SlangCompileEvent& event);
+
     class SlangRuntime : public vsg::Inherit<vsg::Object, SlangRuntime>
     {
     public:
@@ -115,6 +163,11 @@ namespace vsgUtil
         /// log: VSG's own logger writes to stderr, which openmw.log does not show). Without one, vsg::warn or
         /// vsg::info.
         void setLog(std::function<void(bool warning, const std::string&)> log);
+
+        /// Where the per-compile records go (see SlangCompileEvent). Called on whichever thread did the work, after
+        /// the compile lock was released; it must be thread safe and quick. Without one nothing is reported (the
+        /// summary at the end still counts everything).
+        void setEventSink(std::function<void(const SlangCompileEvent&)> sink);
 
         /// The self-test the first compile runs: `request` is compiled and its words must equal `expected`, the
         /// permutation the build shipped for it. Without a test set (or when it fails) the runtime is disabled.

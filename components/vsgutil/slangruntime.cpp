@@ -43,6 +43,11 @@ namespace vsgUtil
     {
         using Clock = std::chrono::steady_clock;
 
+        std::int64_t microsecondsNow()
+        {
+            return std::chrono::duration_cast<std::chrono::microseconds>(Clock::now().time_since_epoch()).count();
+        }
+
         double millisecondsSince(Clock::time_point start)
         {
             return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
@@ -506,11 +511,48 @@ namespace vsgUtil
         return std::make_unique<DynamicCompiler>(libraryDirectory, options);
     }
 
+    std::string slangSetId(const std::set<std::string>& defines)
+    {
+        std::string text;
+        for (const std::string& name : defines)
+            text += (text.empty() ? "" : " ") + name;
+        return hex64(fnv1a(text.data(), text.size(), 0)).substr(0, 8);
+    }
+
+    std::string formatSlangCompileEvent(const SlangCompileEvent& event)
+    {
+        const char* kind = "compiled";
+        if (event.mKind == SlangEventKind::CacheHit)
+            kind = "cache hit";
+        else if (event.mKind == SlangEventKind::Failed)
+            kind = "FAILED";
+        const char* thread = "other";
+        if (event.mThread == SlangThreadKind::Main)
+            thread = "main";
+        else if (event.mThread == SlangThreadKind::Worker)
+            thread = "worker";
+        const double milliseconds = static_cast<double>(event.mEndMicroseconds - event.mBeginMicroseconds) / 1000.0;
+        char text[512];
+        std::snprintf(text, sizeof(text),
+            "Slang shader %s: %s set %s (%zu defines) %.1f ms on the %s thread, %s %.1f ms, at %lld..%lld us", kind,
+            event.mStageFile.c_str(), slangSetId(event.mDefines).c_str(), event.mDefines.size(), milliseconds, thread,
+            event.mThread == SlangThreadKind::Worker ? "queued" : "waited", event.mWaitMilliseconds,
+            static_cast<long long>(event.mBeginMicroseconds), static_cast<long long>(event.mEndMicroseconds));
+        std::string line = text;
+        if (event.mSinceRequestMilliseconds > 0)
+        {
+            std::snprintf(text, sizeof(text), ", %.1f ms since the request", event.mSinceRequestMilliseconds);
+            line += text;
+        }
+        return line;
+    }
+
     struct SlangRuntime::State
     {
         std::unique_ptr<SlangRuntimeCompiler> mCompiler;
         std::filesystem::path mCacheDirectory;
         std::function<void(bool, const std::string&)> mLog;
+        std::function<void(const SlangCompileEvent&)> mEventSink;
         std::thread::id mCreator; // the thread that made the runtime: the game's main thread
 
         std::mutex mMutex; // everything below except what the compile mutex guards
@@ -543,6 +585,30 @@ namespace vsgUtil
                 sink(true, text);
             else
                 vsg::warn(text);
+        }
+
+        SlangThreadKind threadKind() const
+        {
+            return std::this_thread::get_id() == mCreator ? SlangThreadKind::Main : SlangThreadKind::Other;
+        }
+
+        // Reports an event to the sink (copied under the mutex, called outside it).
+        void report(const SlangCompileEvent& event)
+        {
+            std::function<void(const SlangCompileEvent&)> sink;
+            {
+                std::lock_guard lock(mMutex);
+                sink = mEventSink;
+            }
+            if (!sink)
+                return;
+            try
+            {
+                sink(event);
+            }
+            catch (...)
+            {
+            }
         }
 
         void disable(const std::string& text)
@@ -637,6 +703,12 @@ namespace vsgUtil
     {
         std::lock_guard lock(mState->mMutex);
         mState->mLog = std::move(log);
+    }
+
+    void SlangRuntime::setEventSink(std::function<void(const SlangCompileEvent&)> sink)
+    {
+        std::lock_guard lock(mState->mMutex);
+        mState->mEventSink = std::move(sink);
     }
 
     void SlangRuntime::setSelfTest(SlangRuntimeRequest request, std::vector<uint32_t> expected)
@@ -1070,6 +1142,7 @@ namespace vsgUtil
                 if (cacheFile.empty() || entryRefused)
                     return {};
                 const auto start = Clock::now();
+                const std::int64_t beginUs = microsecondsNow();
                 auto words = readCache(cacheFile, key);
                 if (!words.empty() && check.mCheckHit)
                 {
@@ -1089,9 +1162,23 @@ namespace vsgUtil
                 }
                 if (!words.empty())
                 {
-                    std::lock_guard lock(state.mMutex);
-                    ++state.mStats.mCacheHits;
-                    state.mStats.mCacheMilliseconds += millisecondsSince(start);
+                    const double milliseconds = millisecondsSince(start);
+                    {
+                        std::lock_guard lock(state.mMutex);
+                        ++state.mStats.mCacheHits;
+                        state.mStats.mCacheMilliseconds += milliseconds;
+                    }
+                    if (milliseconds > slangCacheHitReportMilliseconds)
+                    {
+                        SlangCompileEvent event;
+                        event.mStageFile = request.mStageFile;
+                        event.mDefines = request.mDefines;
+                        event.mKind = SlangEventKind::CacheHit;
+                        event.mThread = state.threadKind();
+                        event.mBeginMicroseconds = beginUs;
+                        event.mEndMicroseconds = microsecondsNow();
+                        state.report(event);
+                    }
                 }
                 return words;
             };
@@ -1101,8 +1188,9 @@ namespace vsgUtil
             const bool onMain = std::this_thread::get_id() == state.mCreator;
             const auto waitStart = Clock::now();
             std::lock_guard compileLock(state.mCompileMutex);
+            double waited = 0;
             {
-                const double waited = millisecondsSince(waitStart);
+                waited = millisecondsSince(waitStart);
                 std::lock_guard lock(state.mMutex);
                 if (waited > state.mStats.mLongestWaitMilliseconds)
                 {
@@ -1113,7 +1201,20 @@ namespace vsgUtil
             // Another thread may have compiled it while this one waited.
             if (auto words = readFromCache(); !words.empty())
                 return words;
+            const std::int64_t compileBeginUs = microsecondsNow();
+            const auto report = [&](SlangEventKind kind) {
+                SlangCompileEvent event;
+                event.mStageFile = request.mStageFile;
+                event.mDefines = request.mDefines;
+                event.mKind = kind;
+                event.mThread = state.threadKind();
+                event.mBeginMicroseconds = compileBeginUs;
+                event.mEndMicroseconds = microsecondsNow();
+                event.mWaitMilliseconds = waited;
+                state.report(event);
+            };
             const auto fail = [&](const std::string& reason, bool remember) -> std::vector<uint32_t> {
+                report(SlangEventKind::Failed);
                 {
                     std::lock_guard lock(state.mMutex);
                     state.mFailed.insert(key);
@@ -1147,6 +1248,7 @@ namespace vsgUtil
             }
             if (!cacheFile.empty() && !writeCache(cacheFile, key, words))
                 state.warn("The Slang shader cache cannot be written to " + cacheFile.parent_path().string());
+            report(SlangEventKind::Compiled);
             return words;
         }
         catch (const std::exception& e)

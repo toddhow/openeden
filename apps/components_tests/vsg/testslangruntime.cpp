@@ -181,6 +181,105 @@ namespace
         EXPECT_EQ(compiler->mSeen[0].mShaderRoot, f.mRequest.mShaderRoot);
     }
 
+    // Queue item 3 of decision 0012, step 1: a record for every run-time compile.
+    TEST(SlangCompileEvents, the_line_is_formatted_from_the_event_alone)
+    {
+        vsgUtil::SlangCompileEvent event;
+        event.mStageFile = "default/main.frag";
+        event.mDefines = { "DIFFUSE_MAP", "MATERIAL" };
+        event.mKind = vsgUtil::SlangEventKind::Compiled;
+        event.mThread = vsgUtil::SlangThreadKind::Main;
+        event.mBeginMicroseconds = 1000000;
+        event.mEndMicroseconds = 1152300;
+        event.mWaitMilliseconds = 3.5;
+        const std::string id = vsgUtil::slangSetId(event.mDefines);
+        EXPECT_EQ(vsgUtil::formatSlangCompileEvent(event),
+            "Slang shader compiled: default/main.frag set " + id
+                + " (2 defines) 152.3 ms on the main thread, waited 3.5 ms, at 1000000..1152300 us");
+        event.mKind = vsgUtil::SlangEventKind::CacheHit;
+        event.mThread = vsgUtil::SlangThreadKind::Other;
+        event.mEndMicroseconds = 1007000;
+        event.mWaitMilliseconds = 0;
+        EXPECT_EQ(vsgUtil::formatSlangCompileEvent(event),
+            "Slang shader cache hit: default/main.frag set " + id
+                + " (2 defines) 7.0 ms on the other thread, waited 0.0 ms, at 1000000..1007000 us");
+        event.mKind = vsgUtil::SlangEventKind::Failed;
+        event.mThread = vsgUtil::SlangThreadKind::Worker;
+        event.mWaitMilliseconds = 12.0;
+        event.mSinceRequestMilliseconds = 40.5;
+        EXPECT_EQ(vsgUtil::formatSlangCompileEvent(event),
+            "Slang shader FAILED: default/main.frag set " + id
+                + " (2 defines) 7.0 ms on the worker thread, queued 12.0 ms, at 1000000..1007000 us, 40.5 ms since "
+                  "the request");
+    }
+
+    TEST(SlangCompileEvents, the_set_id_is_eight_hex_digits_and_follows_the_set)
+    {
+        const std::string a = vsgUtil::slangSetId({ "DIFFUSE_MAP", "MATERIAL" });
+        EXPECT_EQ(a.size(), 8u);
+        EXPECT_EQ(a.find_first_not_of("0123456789abcdef"), std::string::npos) << a;
+        EXPECT_EQ(a, vsgUtil::slangSetId({ "MATERIAL", "DIFFUSE_MAP" }));
+        EXPECT_NE(a, vsgUtil::slangSetId({ "DIFFUSE_MAP" }));
+        EXPECT_EQ(vsgUtil::slangSetId({}).size(), 8u);
+    }
+
+    TEST(SlangCompileEvents, a_compile_reports_one_event_with_its_times_and_thread)
+    {
+        Fixture f;
+        FakeCompiler* compiler = nullptr;
+        auto runtime = f.runtime(compiler);
+        std::mutex mutex;
+        std::vector<vsgUtil::SlangCompileEvent> events;
+        runtime->setEventSink([&](const vsgUtil::SlangCompileEvent& event) {
+            std::lock_guard lock(mutex);
+            events.push_back(event);
+        });
+        const auto before
+            = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+                  .count();
+        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
+        const auto after
+            = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
+                  .count();
+        ASSERT_EQ(events.size(), 1u);
+        EXPECT_EQ(events[0].mKind, vsgUtil::SlangEventKind::Compiled);
+        EXPECT_EQ(events[0].mThread, vsgUtil::SlangThreadKind::Main);
+        EXPECT_EQ(events[0].mStageFile, "default/main.frag");
+        EXPECT_EQ(events[0].mDefines, f.mRequest.mDefines);
+        EXPECT_GE(events[0].mBeginMicroseconds, before);
+        EXPECT_GE(events[0].mEndMicroseconds - events[0].mBeginMicroseconds, 4000) << "the fake sleeps 5 ms";
+        EXPECT_LE(events[0].mEndMicroseconds, after);
+        // A cache read of a small entry is fast and is not reported; one that is reported took more than the limit.
+        EXPECT_EQ(runtime->obtain(f.mRequest, f.mCheck), fakeWords(1));
+        for (const auto& event : events)
+        {
+            if (event.mKind == vsgUtil::SlangEventKind::CacheHit)
+                EXPECT_GT(event.mEndMicroseconds - event.mBeginMicroseconds, 5000);
+        }
+        // Another thread is "other".
+        auto request = f.mRequest;
+        request.mDefines.insert("NORMAL");
+        std::thread other([&] { runtime->obtain(request, f.mCheck); });
+        other.join();
+        ASSERT_GE(events.size(), 2u);
+        EXPECT_EQ(events.back().mKind, vsgUtil::SlangEventKind::Compiled);
+        EXPECT_EQ(events.back().mThread, vsgUtil::SlangThreadKind::Other);
+    }
+
+    TEST(SlangCompileEvents, a_failed_compile_reports_a_failed_event)
+    {
+        Fixture f;
+        FakeCompiler* compiler = nullptr;
+        auto runtime = f.runtime(compiler);
+        compiler->mOutput.clear();
+        compiler->mError = "syntax error";
+        std::vector<vsgUtil::SlangCompileEvent> events;
+        runtime->setEventSink([&](const vsgUtil::SlangCompileEvent& event) { events.push_back(event); });
+        EXPECT_TRUE(runtime->obtain(f.mRequest, f.mCheck).empty());
+        ASSERT_EQ(events.size(), 1u);
+        EXPECT_EQ(events[0].mKind, vsgUtil::SlangEventKind::Failed);
+    }
+
     TEST(SlangRuntime, everything_the_result_depends_on_is_in_the_key)
     {
         Fixture f;
