@@ -37,8 +37,37 @@ The user versions of Oblivion, Fallout 3/NV and Skyrim LE are recalled, not read
 - [ ] Linux `-Werror` build and the sanitizer tests pass (run once before the push)
 Out of scope: drawing `BSTriShape`; Havok `.hkx`; NIF writing for any game; the `nif.xml` generator; Starfield/FO76 support beyond the constants.
 
+## Reference: the fo76utils NifSkope fork
+Research note 0044 (`docs/research/0044-loading-modern-nifs-fo76utils-nifskope.md`) records what was read in the fork (`fo76utils/nifskope`, commit `380631a408`) and in the upstream schema. The fork is a reference and an oracle; **no file from it enters the repository** and no Havok-related code was opened. Findings that change this plan:
+
+1. **The fork's reader is a run-time interpreter of `nif.xml`**, producing a tree of named variant items (`NifModel::loadXML`, `loadItem`). It is not a model for a fast typed reader; it confirms open question 1 (hand-written reader, the schema as oracle). It also shows the whole selection mechanism is small: `since`/`until` on the file version, `vercond` on the stream version, `cond` on earlier fields, `arg` for the vertex flags.
+2. **Version table, per the schema (`nif.xml` rows 191 to 221):** Oblivion 20.0.0.5 user 10 or 11 stream 11; Fallout 3/NV 20.2.0.7 user 11 stream 34; Skyrim LE user 12 stream 83; Skyrim SE stream 100; Fallout 4 stream 130; Fallout 76 stream 155; Starfield 170 and up. This replaces "recalled" above with "per the schema"; tests still read the numbers from real files.
+3. **Skyrim SE skinned shapes have no vertex data in the shape.** `BSTriShape.Data Size` is 0 and the vertices, bone weights and indices are in `NiSkinPartition.Vertex Data` (stream 100 only); the triangles are the partitions' own lists. Fallout 4 (stream 130) keeps vertices in the shape and uses `BSSkin::Instance`/`BoneData`. The fork's viewer **assumes** the vertex stream's bone indices index the skin instance's `Bones` list and ignores the partition's own `Bones`, `Global VB` and `LOD Level`: our oracle must check that on toddhow's files.
+4. **Vertex format is decided by the flag bits 44 to 55 of `BSVertexDesc`, not by the offsets.** Fixed field order; the position's 4th slot holds bitangent X; positions are always 3 floats in stream 100 and half floats in stream 130 and later unless `Full_Precision` (bit 10) is set.
+5. **Tangent naming is swapped** relative to glTF: the fork exports the NIF's "bitangent" as the glTF tangent and recovers the sign by cross product. `Nif::Scene` must state its convention and pin it with a test. Normal-map green-channel convention: not read.
+6. **Units:** the fork converts stream < 170 to metres with 0.9144/64 per unit, the same as Morrowind (the fork author's assumption, not a measurement). `BSDynamicTriShape` (heads) takes positions from a separate 4-float array.
+7. **Licence:** the schema in niftools/nifxml at the fork's pinned commit is under the **GNU GPL v3** (its `LICENSE`), not BSD as note 0043 recalled; the fork's schema edits state no licence. Reading it as a dev oracle outside the repository is fine; committing it or generating code from it is a decision for toddhow (open question 5).
+
+### The oracle (dev tool, separate approval)
+- **What:** a dev tool `niftest --compare-gltf <glb> <nif>` (or a script in `tools/`) that loads one NIF with our reader, builds the `Scene`, reads the same file's glTF export made by toddhow in NifSkope's GUI (File, Export, glTF; the fork's headless mode cannot export), and prints **aggregates only**: counts of shapes, vertices, triangles, bones; maximum position difference (after undoing metres and the root Y-up rotation), maximum normal and tangent difference (after the tangent swap), maximum weight difference (tolerance about 2e-5: 16-bit quantisation and the 1e-5 cut), bone-name set equality, material texture paths equal. No file contents are written or committed; the report goes to the work folder.
+- **Never run the fork's headless mode on game or mod folders:** every headless option rewrites `.nif` files in place. Copies only.
+- **Second oracle (schema):** a dev tool that lists, per version row, the block types the schema has and our factory lacks; run on a local copy of `nif.xml` kept outside the repository.
+- **Third check (cheap):** a parse-success sweep: our reader against the fork's "load without messages" over the same copied folder, listing files where they disagree.
+
+### Reimplement first for Skyrim SE (order, replacing the implicit order above)
+1. **Header and version table** for 20.2.0.7 stream 100 (the string table and block-type index path is already in `Reader::parse`; the new part is `ReadOptions` and the table).
+2. **`BSVertexDesc` and `BSVertexDataSSE`**: flag decode, fixed field order, half UVs, byte normals and tangents, colours, 4 half weights and 4 byte indices; the bitangent-X-in-W rule; `Data Size == 0` handled as "no data here".
+3. **`BSTriShape` (+ `BSDynamicTriShape`, `BSSubIndexTriShape` as thin subclasses)** into `Scene` geometry; then **`NiSkinPartition`'s global vertex stream and per-partition triangles**, and `NiSkinInstance`/`NiSkinData`/`BSDismemberSkinInstance` bind poses; this is what brings the 60 zero-vertex skinned shapes of note 0036 into `Scene`.
+4. **`BSLightingShaderProperty` / `BSEffectShaderProperty` / `BSShaderTextureSet`** as value structs with texture paths (shader type, the two flag words, UV scale/offset, alpha, specular, emissive, clamp mode, the type-specific tail by `Shader Type`), plus `NiAlphaProperty`.
+5. Then Skyrim LE data blocks (`NiTriShapeData`), Oblivion/Fallout 3 shaders, Fallout 4 (`BSVertexData` half positions, `BSSkin::*`, BGSM/BGEM material paths), collision shapes as data only (never Havok-specific generation), controllers.
+
 ## Open questions (recommendation first)
 1. Hand-written reader plus `nif.xml` as an oracle, or a generated reader? Recommend the first (research note 0043 section 5.2): cheaper, clean licence, same coverage when checked.
 2. Is `components/nifscene` a new directory or part of `components/nif`? Recommend new, so `nif` stays the record reader and the scene stays a consumer; both are in the formats layer.
 3. Where do Morrowind's `bip01` and animation-name conventions live afterwards? Recommend `compat_morrowind` supplies the `SceneOptions` (it is already the Morrowind data adapter).
 4. How far down the influences does `Scene` go (4 as the renderer uses, 8 as read)? Recommend keep what the file has and let the consumer cut; the merged-body work (task 0069) already cuts to four.
+5. May a **local copy of `nif.xml`** (GPL-3.0 upstream, the fork's edits unlicensed) be used by the dev oracle tool, kept outside the repository and never committed? Recommend yes, local only; revisit before any generated reader.
+6. Build the oracle on the fork's **GUI glTF export** (your hands, per file) or ask for a local, uncommitted patch to the fork that adds a headless dump? Recommend the GUI export first: no new code to maintain; the patch only if the number of files makes it tiresome.
+7. For `Scene` tangents: store **glTF-style tangent + sign** (recommended: matches the oracle and the renderer's normal mapping) or the NIF's two vectors as read?
+8. Treat SSE vertex-stream bone indices as **global** (the fork's assumption) until the oracle finds a counter-example? Recommend yes, with a loud error rather than silent skinning when a partition's bone map differs from the identity.
+
