@@ -16,6 +16,7 @@
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/misc/loadtrace.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/terrain.hpp>
 #include <components/render/parallaxmath.hpp>
@@ -94,12 +95,25 @@ namespace Terrain
                     reference = key;
                     referenceCount = count;
                 }
+            // Task 0089: a layer convertToArrayTexture converts exactly (another size of the array's uncompressed
+            // format, BC1 to BC3 in an RGBA8 array) is kept; the rest is left out. Only a key rarer than the
+            // reference is kept, so convertToArrayTexture picks the same reference (it takes the first most common).
+            vsgUtil::LayerShape referenceShape;
+            for (const auto& image : images)
+                if (image && ImageKey{ image->width(), image->height(), image->properties.format } == reference)
+                {
+                    referenceShape = vsgUtil::layerShapeOf(*image);
+                    break;
+                }
             std::vector<int> indices(paths.size(), -1);
             for (size_t i = 0; i < images.size(); ++i)
             {
                 if (!images[i])
                     continue;
-                if (ImageKey{ images[i]->width(), images[i]->height(), images[i]->properties.format } != reference)
+                if (ImageKey{ images[i]->width(), images[i]->height(), images[i]->properties.format } != reference
+                    && !(counts[{ images[i]->width(), images[i]->height(), images[i]->properties.format }]
+                            < referenceCount
+                        && vsgUtil::arrayLayerConvertible(vsgUtil::layerShapeOf(*images[i]), referenceShape)))
                 {
                     std::cerr << "Terrain " << what << " " << paths[i]
                               << " differs in size or format from the others and is not used" << std::endl;
@@ -189,6 +203,7 @@ namespace Terrain
             else
                 resolved.push_back(layer);
         }
+        Misc::LoadTrace::Scope traceLayers("terrain.layers.total");
         const TerrainLayerMaps maps = findTerrainLayerMaps(resolved, mMapSettings.autoMaps, mMapSettings.exists);
 
         // The normal map array keeps only maps of its most common size and format: convertToArrayTexture would fill
@@ -197,8 +212,11 @@ namespace Terrain
         std::vector<vsg::ref_ptr<vsg::Data>> normalImages;
         using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
         std::map<ImageKey, size_t> keyCounts;
+        Misc::LoadTrace::Scope traceNormalReads(
+            "terrain.layers.read.normal", static_cast<std::int64_t>(maps.normalMaps.size()));
         const auto normalReads = vsgUtil::readArrayImages(
             maps.normalMaps, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Normal), true);
+        traceNormalReads.end();
         for (size_t n = 0; n < maps.normalMaps.size(); ++n)
         {
             const auto& data = normalReads[n];
@@ -208,6 +226,7 @@ namespace Terrain
         }
         ImageKey reference{};
         size_t referenceCount = 0;
+        vsgUtil::LayerShape referenceShape;
         for (const auto& image : normalImages)
         {
             const ImageKey key{ image->width(), image->height(), image->properties.format };
@@ -215,6 +234,7 @@ namespace Terrain
             {
                 reference = key;
                 referenceCount = keyCounts[key];
+                referenceShape = vsgUtil::layerShapeOf(*image);
             }
         }
         vsg::DataList normalData;
@@ -222,7 +242,10 @@ namespace Terrain
         for (size_t i = 0; i < normalImages.size(); ++i)
         {
             const auto& image = normalImages[i];
-            if (ImageKey{ image->width(), image->height(), image->properties.format } != reference)
+            // Task 0089: a map the array converts exactly (another size of its uncompressed format) is kept.
+            if (ImageKey{ image->width(), image->height(), image->properties.format } != reference
+                && !(keyCounts[{ image->width(), image->height(), image->properties.format }] < referenceCount
+                    && vsgUtil::arrayLayerConvertible(vsgUtil::layerShapeOf(*image), referenceShape)))
             {
                 std::cerr << "Terrain normal map " << maps.normalMaps[i]
                           << " differs in size or format from the others and is not used" << std::endl;
@@ -267,8 +290,11 @@ namespace Terrain
         diffusePaths.reserve(maps.layers.size());
         for (const TerrainLayer& layer : maps.layers)
             diffusePaths.push_back(layer.diffuseMap);
+        Misc::LoadTrace::Scope traceDiffuseReads(
+            "terrain.layers.read.diffuse", static_cast<std::int64_t>(diffusePaths.size()));
         const auto diffuseImages = vsgUtil::readArrayImages(
             diffusePaths, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour), true);
+        traceDiffuseReads.end();
         for (size_t i = 0; i < maps.layers.size(); ++i)
         {
             const TerrainLayer& layer = maps.layers[i];
@@ -311,6 +337,7 @@ namespace Terrain
                         Render::Parallax::depthScale(displacement, mMapSettings.parallaxScale), 0.f, 0.f));
             }
         }
+        Misc::LoadTrace::Scope traceConvert("terrain.layers.arrays");
         auto arrayData = vsgUtil::convertToArrayTexture(imageData);
         mLayerDescriptor
             = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);

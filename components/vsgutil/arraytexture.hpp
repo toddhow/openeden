@@ -213,6 +213,52 @@ namespace vsgUtil
     }
 
     /*
+     * Task 0089: what an array layer looks like, for deciding whether convertToArrayTexture can put it in an array of
+     * another size or format without a grey fill. Texels for width and height, whatever the compression.
+     */
+    struct LayerShape
+    {
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        bool blockCompressed = false;
+        uint32_t bytesPerTexel = 0; // uncompressed images only
+        uint32_t width = 0;
+        uint32_t height = 0;
+    };
+
+    /*
+     * True when convertToArrayTexture puts `layer` into an array whose size and format are `reference`'s with its
+     * pixels (not grey): the same layer, an uncompressed 4 byte layer of the array's format at another size
+     * (resampled), or a BC1, BC2 or BC3 layer in an RGBA8 array (decoded and resampled). Keep in step with that
+     * function's branches. Block compressed arrays take only layers of their own size and format.
+     */
+    inline bool arrayLayerConvertible(const LayerShape& layer, const LayerShape& reference)
+    {
+        if (layer.format == reference.format && layer.width == reference.width && layer.height == reference.height)
+            return true;
+        if (reference.blockCompressed)
+            return false;
+        if (layer.format == reference.format && !layer.blockCompressed && layer.bytesPerTexel == 4)
+            return true;
+        if (!layer.blockCompressed || !detail::isRgba8(reference.format))
+            return false;
+        const bool bc1 = layer.format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && layer.format <= VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+        const bool bc2 = layer.format == VK_FORMAT_BC2_UNORM_BLOCK || layer.format == VK_FORMAT_BC2_SRGB_BLOCK;
+        const bool bc3 = layer.format == VK_FORMAT_BC3_UNORM_BLOCK || layer.format == VK_FORMAT_BC3_SRGB_BLOCK;
+        return bc1 || bc2 || bc3;
+    }
+
+    inline LayerShape layerShapeOf(const vsg::Data& image)
+    {
+        LayerShape shape;
+        shape.format = image.properties.format;
+        shape.blockCompressed = detail::isBlockCompressed(image);
+        shape.bytesPerTexel = shape.blockCompressed ? 0 : static_cast<uint32_t>(image.valueSize());
+        shape.width = image.width() * image.properties.blockWidth;
+        shape.height = image.height() * image.properties.blockHeight;
+        return shape;
+    }
+
+    /*
      * Converts textures to array texture to circumvent resource limits and descriptor indexing limitations.
      * openeden-vsg: the array takes the most common layer size and format rather than the first layer's (Morrowind's
      * land textures are 256x256 RGBA while OpenMW's _land_default.dds, layer 0, is a 64x64 BC1, which left every

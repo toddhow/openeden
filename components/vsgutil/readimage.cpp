@@ -1,10 +1,13 @@
 #include "readimage.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <exception>
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <stdexcept>
+#include <thread>
 #include <tuple>
 
 #include <vsg/core/Data.h>
@@ -173,15 +176,59 @@ namespace vsgUtil
         return data;
     }
 
+    size_t arrayReadThreadCount(size_t imageCount, size_t requested)
+    {
+        // Named constant: past this the disk, not the decoder, is the limit and the thread stacks are wasted.
+        constexpr size_t maxArrayReadThreads = 8;
+        size_t count = requested;
+        if (count == 0)
+            count = std::min<size_t>(maxArrayReadThreads, std::max(1u, std::thread::hardware_concurrency()));
+        return std::max<size_t>(1, std::min(count, imageCount));
+    }
+
     std::vector<vsg::ref_ptr<vsg::Data>> readArrayImages(const std::vector<std::string>& paths,
-        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required)
+        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required, size_t threads)
     {
         auto readAll = [&](const ImageUse& readUse) {
-            std::vector<vsg::ref_ptr<vsg::Data>> images;
-            images.reserve(paths.size());
-            for (const auto& path : paths)
-                images.push_back(
-                    required ? readImage(path, options, readUse) : readOptionalImage(path, options, readUse));
+            std::vector<vsg::ref_ptr<vsg::Data>> images(paths.size());
+            std::vector<std::exception_ptr> failures(paths.size());
+            auto readOne = [&](size_t n) {
+                try
+                {
+                    images[n] = required ? readImage(paths[n], options, readUse)
+                                         : readOptionalImage(paths[n], options, readUse);
+                }
+                catch (...)
+                {
+                    failures[n] = std::current_exception();
+                }
+            };
+            const size_t count = arrayReadThreadCount(paths.size(), threads);
+            if (count <= 1)
+            {
+                for (size_t n = 0; n < paths.size(); ++n)
+                    readOne(n);
+            }
+            else
+            {
+                // Every path is read by exactly one thread; the calling thread works too. The readers share the
+                // options' object cache, which locks, as the model loader threads already rely on.
+                std::atomic<size_t> next{ 0 };
+                auto work = [&] {
+                    for (size_t n = next++; n < paths.size(); n = next++)
+                        readOne(n);
+                };
+                std::vector<std::thread> workers;
+                workers.reserve(count - 1);
+                for (size_t t = 1; t < count; ++t)
+                    workers.emplace_back(work);
+                work();
+                for (auto& worker : workers)
+                    worker.join();
+            }
+            for (const auto& failure : failures)
+                if (failure)
+                    std::rethrow_exception(failure);
             return images;
         };
         auto images = readAll(use);

@@ -3252,9 +3252,18 @@ namespace MWRender
         mRain->update(dt, cameraPosition, mRainParameters, aboveWater);
         mWaterRipples->update(dt, paused);
         Misc::LoadTrace::Scope traceDistant("render.groundcover.distant.lod");
-        updateGroundcover(cameraPosition);
-        updateDistantObjects(cameraPosition);
-        updateLodClusters(cameraPosition, dt);
+        {
+            Misc::LoadTrace::Scope traceGroundcover("render.update.groundcover");
+            updateGroundcover(cameraPosition);
+        }
+        {
+            Misc::LoadTrace::Scope traceObjects("render.update.distantobjects");
+            updateDistantObjects(cameraPosition);
+        }
+        {
+            Misc::LoadTrace::Scope traceClusters("render.update.lodclusters");
+            updateLodClusters(cameraPosition, dt);
+        }
         traceDistant.end();
         if (mRenderModes[Render_Sky])
             mSky->update(dt);

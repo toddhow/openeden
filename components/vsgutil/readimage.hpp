@@ -35,9 +35,16 @@ namespace vsgUtil
      * larger than the cap (a block compressed image with a single level cannot be made smaller), they are all read
      * again without a cap, so that capping never turns an array of layers of one size into one of mixed sizes (which
      * the array draws grey). Unreadable images are null, or throw when `required`.
+     * Task 0089: the files are read on `threads` threads (0: up to 8, but not more than the machine has), so a
+     * layer set of a few hundred megabytes does not hold the calling thread for the sum of the reads. The result is in
+     * the order of `paths`; when several fail, the first in that order is the one that throws.
      */
     std::vector<vsg::ref_ptr<vsg::Data>> readArrayImages(const std::vector<std::string>& paths,
-        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required);
+        vsg::ref_ptr<const vsg::Options> options, const ImageUse& use, bool required, size_t threads = 0);
+
+    /// Task 0089: how many threads read `imageCount` images when `requested` are asked for (0: up to 8, no more than
+    /// the machine has); never more than there are images, never 0.
+    size_t arrayReadThreadCount(size_t imageCount, size_t requested);
 
     /// openeden-vsg: replaces an 8-bit sRGB format with its UNORM equivalent (same bytes, no conversion on sampling).
     void removeSrgb(vsg::Data& data);
