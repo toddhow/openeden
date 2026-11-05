@@ -79,6 +79,7 @@ namespace vsg
 namespace vsgUtil
 {
     class SuspendRenderPass;
+    class DeferredBin;
     struct CompileOp;
     class CompileContext;
     class UpdateThreads;
@@ -517,6 +518,12 @@ namespace MWRender
         // Task 0075: temporal anti-aliasing; null unless [Rendering] taa took effect (it needs hdr, gbuffer and a
         // single-sampled scene). Resolves the scene before the bloom and the tonemap.
         std::unique_ptr<Render::TaaPass> mTaa;
+        // Task 0075 (transparents after the resolve): with TAA the main view's depth-sorted bin only collects; the
+        // overlay graph, between the resolve and the bloom, draws its elements into the resolved picture.
+        vsg::ref_ptr<vsgUtil::DeferredBin> mTransparentBin;
+        vsg::ref_ptr<vsg::RenderGraph> mOverlayGraph;
+        // Builds the overlay graph's framebuffer over the TAA output (start and every resize).
+        bool rebuildTaaOverlay();
         // What the bloom and the tonemap show: the resolved picture with TAA, else the target's colour.
         vsg::ref_ptr<vsg::ImageView> sceneColourView() const;
         vsg::dmat4 mPreviousView;

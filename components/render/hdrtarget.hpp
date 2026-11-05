@@ -71,6 +71,12 @@ namespace Render
         // Task 0029: the ambient part of the colour, for the occlusion; only with ambient occlusion on.
         vsg::ref_ptr<vsg::ImageView> ambientView() const { return outputOrNull(5); }
 
+        // Task 0075: a framebuffer in a second render pass compatible with this target's, over the same extra outputs
+        // and depth (loaded, not cleared) and `colour` in place of colour 0, for the draws that follow the TAA resolve.
+        // `colour` must be a colour attachment of this target's format and extent, in GENERAL when the pass begins; it
+        // leaves in SHADER_READ_ONLY_OPTIMAL. Null when the target is multisampled. Rebuild after a resize.
+        vsg::ref_ptr<vsg::Framebuffer> createOverlayFramebuffer(vsg::ref_ptr<vsg::ImageView> colour) const;
+
         // The G-buffer outputs start every frame as "no surface" (all zero), not at the scene's clear colour: call
         // after RenderGraph::setClearValues, which gives every colour attachment the same value.
         void clearExtraOutputs(vsg::RenderGraph& graph) const;
@@ -99,6 +105,7 @@ namespace Render
         VkExtent2D mExtent{};
         std::vector<VkFormat> mColorFormats;
         vsg::ref_ptr<vsg::RenderPass> mRenderPass;
+        vsg::ref_ptr<vsg::RenderPass> mOverlayRenderPass;
         vsg::ref_ptr<vsg::Framebuffer> mFramebuffer;
         std::vector<vsg::ref_ptr<vsg::ImageView>> mResolvedColor;
         vsg::ref_ptr<vsg::ImageView> mResolvedDepth;

@@ -92,6 +92,7 @@
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/compileop.hpp>
 #include <components/vsgutil/computebin.hpp>
+#include <components/vsgutil/deferredbin.hpp>
 #include <components/vsgutil/nullbin.hpp>
 #include <components/vsgutil/projection.hpp>
 #include <components/vsgutil/readnode.hpp>
@@ -942,7 +943,15 @@ namespace MWRender
         mView = vsgUtil::createSharedView(mRenderCamera ? mRenderCamera : mSceneCamera, viewRoot);
         mView->viewDependentState = collectLights;
         mView->mask = ~Mask_GUI;
-        mView->bins.push_back(vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING));
+        if (mTaaJitter)
+        {
+            // Task 0075: blended draws (rain, snow, particles, glass) have no depth or velocity for the resolve to
+            // follow, so they are drawn after it (the overlay graph below) and this bin only collects them.
+            mTransparentBin = vsgUtil::DeferredBin::create(Bin_DepthSorted, vsg::Bin::DESCENDING);
+            mView->bins.push_back(mTransparentBin);
+        }
+        else
+            mView->bins.push_back(vsg::Bin::create(Bin_DepthSorted, vsg::Bin::DESCENDING));
 
         if (mHdrTarget)
         {
@@ -1007,6 +1016,7 @@ namespace MWRender
                 if (!parsedDebug)
                     Log(Debug::Warning) << "[Rendering] taa debug: unknown '" << debug << "', using none";
                 taa.debug = parsedDebug.value_or(Render::Taa::DebugView::None);
+                taa.overlay = true;
                 mTaa = std::make_unique<Render::TaaPass>(
                     mCompileContext->clone(~vsg::Mask(0)), shaderOptions, taa, mTaaJitter);
                 Log(Debug::Info) << "TAA: temporal anti-aliasing, " << Render::Taa::jitterPeriod
@@ -1018,6 +1028,19 @@ namespace MWRender
         // The graph that has the window: the one the GUI pass and the extents follow.
         const vsg::ref_ptr<vsg::RenderGraph> windowGraph = mTonemapGraph ? mTonemapGraph : mRenderGraph;
         mRenderGraph->children = { mView };
+        if (mTaa)
+        {
+            // Task 0075: the second render pass over the resolved picture. Its view replays the main view's
+            // depth-sorted bin with the unjittered camera, so the streaks do not move with the jitter; the bins
+            // are null because the elements' own bins are all collected by the main view.
+            mOverlayGraph = vsg::RenderGraph::create();
+            mOverlayGraph->windowResizeHandler = nullptr;
+            auto overlayView = vsgUtil::createSharedView(mSceneCamera, vsgUtil::BinReplay::create(mTransparentBin));
+            overlayView->mask = ~Mask_GUI;
+            for (int bin = Bin_DepthSorted; bin <= Bin_Cloud; ++bin)
+                overlayView->bins.push_back(vsgUtil::NullBin::create(bin));
+            mOverlayGraph->children = { overlayView };
+        }
         mSuspend = vsg::ref_ptr{ new vsgUtil::SuspendRenderPass(mRenderGraph) };
 
         mGuiRenderGraph = vsg::RenderGraph::create();
@@ -1108,7 +1131,7 @@ namespace MWRender
         mCommandGraph->children = { View::postComputeBarrier(), mRenderGraph };
         // The first index after the scene (and its velocity and occlusion passes).
         const int afterScene
-            = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mAoTemporal ? 1 : 0) + (mTaa ? 1 : 0);
+            = 2 + (mVelocity ? 1 : 0) + (mAmbientOcclusion ? 1 : 0) + (mAoTemporal ? 1 : 0) + (mTaa ? 2 : 0);
         if (mTonemapGraph)
         {
             // Scene, then bloom, then the tonemap into the swapchain, then everything that works on the 8-bit picture.
@@ -1134,7 +1157,10 @@ namespace MWRender
                 mCommandGraph->children.insert(
                     mCommandGraph->children.begin() + 2 + (mVelocity ? 1 : 0), mAoTemporal->node());
             if (mTaa)
-                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 1, mTaa->node());
+            {
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 2, mTaa->node());
+                mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene - 1, mOverlayGraph);
+            }
             if (mBloom)
             {
                 mCommandGraph->children.insert(mCommandGraph->children.begin() + afterScene, mBloom->node());
@@ -1167,7 +1193,10 @@ namespace MWRender
         if (mAoTemporal)
             timeChild(mGpuTimer, mCommandGraph->children, mAoTemporal->node().get(), "ao temporal");
         if (mTaa)
+        {
             timeChild(mGpuTimer, mCommandGraph->children, mTaa->node().get(), "taa");
+            timeChild(mGpuTimer, mCommandGraph->children, mOverlayGraph.get(), "taa overlay");
+        }
         if (mBloom)
             timeChild(mGpuTimer, mCommandGraph->children, mBloom->node().get(), "bloom");
         if (mTonemapGraph)
@@ -1292,6 +1321,8 @@ namespace MWRender
                     mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 throw std::runtime_error("The temporal anti-aliasing pass could not be built");
+            if (mTaa && !rebuildTaaOverlay())
+                throw std::runtime_error("The temporal anti-aliasing overlay could not be built");
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, sceneColourView(), mHdrTarget->extent(),
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
@@ -1730,7 +1761,13 @@ namespace MWRender
         if (mRenderModes[Render_Sky])
             mSceneRoot->addChild(mWeatherEffects->node());
         if (mRenderModes[Render_Sky])
-            mSceneRoot->addChild(mRain->node());
+        {
+            // With TAA the rain joins the bin that is drawn after the resolve.
+            if (mTransparentBin)
+                mSceneRoot->addChild(vsgUtil::createBinSetter(Bin_DepthSorted, mRain->node()));
+            else
+                mSceneRoot->addChild(mRain->node());
+        }
         mSceneRoot->addChild(mDebugGeometry->node());
         mSceneRoot->addChild(mNavMeshGeometry->node());
         if (mProbeGeometry)
@@ -3578,6 +3615,8 @@ namespace MWRender
                 && !mTaa->setSource(mHdrTarget->colorView(), mHdrTarget->linearDepthView(), mVelocity->result(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
                 Log(Debug::Error) << "The temporal anti-aliasing pass could not be rebuilt after a resize";
+            if (mTaa && !rebuildTaaOverlay())
+                Log(Debug::Error) << "The temporal anti-aliasing overlay could not be rebuilt after a resize";
             if (mBloom
                 && !mBloom->setSource(*mHdrContext, sceneColourView(), extent,
                     [this](vsg::ref_ptr<vsg::Object> retired) { mCompileContext->detach(retired); }))
@@ -3589,6 +3628,19 @@ namespace MWRender
         updateProjectionMatrix();
         if (mPostProcess)
             mPostProcess->resize(extent.width, extent.height);
+    }
+
+    bool RenderManager::rebuildTaaOverlay()
+    {
+        if (mOverlayGraph->framebuffer)
+            mCompileContext->detach(mOverlayGraph->framebuffer);
+        // The framebuffer reads the view's Vulkan handle when it is made, and nothing else has compiled this view yet
+        // (the resolve's descriptors use views of their own); compiling twice does nothing.
+        if (mTaa->result())
+            mTaa->result()->compile(*mHdrContext);
+        mOverlayGraph->framebuffer = mHdrTarget->createOverlayFramebuffer(mTaa->result());
+        mOverlayGraph->renderArea = { { 0, 0 }, mHdrTarget->extent() };
+        return mOverlayGraph->framebuffer != nullptr;
     }
 
     vsg::ref_ptr<vsg::OperationThreads> RenderManager::getOperationThreads()

@@ -70,6 +70,10 @@ namespace Render::Taa
         Clipping clipping = defaultClipping;
         float clipGamma = varianceGamma; // the variance box's width in standard deviations (Salvi 2016: 1)
         DebugView debug = DebugView::None;
+        // Not a user setting: the transparent draws are made after the resolve, in a render pass of their own over
+        // the output (RenderManager, HdrTarget::createOverlayFramebuffer). The output is then a colour attachment and
+        // stays in GENERAL for that pass, which leaves it readable.
+        bool overlay = false;
     };
 
     struct FrameInput

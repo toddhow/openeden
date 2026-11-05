@@ -28,9 +28,10 @@ namespace Render
             return (pixels + groupSize - 1) / groupSize;
         }
 
-        vsg::ref_ptr<vsg::Image> createImage(const VkExtent2D& extent)
+        vsg::ref_ptr<vsg::Image> createImage(const VkExtent2D& extent, VkImageUsageFlags extraUsage = 0)
         {
-            return vsgUtil::createImage(imageFormat, extent, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+            return vsgUtil::createImage(
+                imageFormat, extent, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | extraUsage);
         }
 
         vsg::ref_ptr<vsg::ImageView> createView(vsg::ref_ptr<vsg::Image> image)
@@ -133,7 +134,8 @@ namespace Render
 
         auto resolveImage = createImage(extent);
         auto historyImage = createImage(extent);
-        auto outputImage = createImage(extent);
+        // With an overlay the output is also a colour attachment: the transparent draws are blended into it.
+        auto outputImage = createImage(extent, mSettings.overlay ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 0);
         mResult = createView(outputImage);
 
         vsg::DescriptorSetLayoutBindings bindings{
@@ -197,12 +199,21 @@ namespace Render
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
             vsg::MemoryBarrier::create(
                 VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT));
-        // The output goes to the bloom and the tonemap, which sample it in SHADER_READ_ONLY_OPTIMAL.
-        auto after = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-            vsg::ImageMemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
-                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_QUEUE_FAMILY_IGNORED,
-                VK_QUEUE_FAMILY_IGNORED, outputImage, range));
+        // The output goes to the bloom and the tonemap, which sample it in SHADER_READ_ONLY_OPTIMAL. With an overlay
+        // the render pass that draws the transparents on it leaves it there (it begins in GENERAL), so this only
+        // makes the compute writes visible to its attachment accesses.
+        vsg::ref_ptr<vsg::PipelineBarrier> after;
+        if (mSettings.overlay)
+            after = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0,
+                vsg::MemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT,
+                    VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT));
+        else
+            after = vsg::PipelineBarrier::create(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                vsg::ImageMemoryBarrier::create(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                    VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_QUEUE_FAMILY_IGNORED,
+                    VK_QUEUE_FAMILY_IGNORED, outputImage, range));
 
         auto commands = vsg::Commands::create();
         // The pipeline first: a push constant is recorded against the layout of the pipeline bound last, so before a

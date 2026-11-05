@@ -186,7 +186,7 @@ add_component_dir (vsgutil
     # Object extensions.
     attachable name id operation image debugmessenger
     # Nodes.
-    setviewportstate projection viewrelative computebin nullbin suspendrenderpass distancelod recordwithviewid
+    setviewportstate projection viewrelative computebin deferredbin nullbin suspendrenderpass distancelod recordwithviewid
     # Algorithms.
     convert bounds transform computetransform intersectnormal toggle group compilecontext compileop updatethreads arraytexture
     # Visitors.

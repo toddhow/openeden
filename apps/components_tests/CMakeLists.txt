@@ -272,6 +272,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testlightcontroller.cpp
     mwanimation/testpointshadowcarrier.cpp
     vsgutil/testimagepixels.cpp
+    vsgutil/testdeferredbin.cpp
     vsgutil/testarraystate.cpp
     vsgutil/testhitnormal.cpp
     vsgutil/testhitnormalmesh.cpp

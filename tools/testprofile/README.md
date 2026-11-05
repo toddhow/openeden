@@ -114,7 +114,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Subsurface scattering* (0033): close to a face (third person, stand near an NPC) the skin is slightly soft and warm at
   edges. `gbuffer debug view = subsurface` shows what is marked as skin (eyes are not).
 - *TAA* (0075): edges are smooth and thin wires do not shimmer when you turn. Wrong: ghost trails behind things that
-  move; rain fainter than vanilla (known). `taa debug = velocity`, `reject` or `weight`. `variants/msaa.cfg` compares.
+  move; rain or snow fainter than with `taa` off (fixed: blended draws come after the resolve). `taa debug = velocity`, `reject` or `weight`. `variants/msaa.cfg` compares.
 - *Atmosphere* (0034): at `set gamehour to 18.5` the sky and fog are at their sunset colours; ash storms, blight and the
   night keep the weather's own colours. *Procedural sun* (0047): the sun is a disc with a glow, not a flat texture; look
   toward it at 15:00. *Sun glow* (0040): a warm halo in foggy or hazy weather, none in clear weather.
@@ -176,7 +176,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 
 ## Known limits
 
-- **TAA makes rain streaks fainter**, and fast-moving things may leave a faint trail. `variants/msaa.cfg` swaps it out.
+- Blended draws (rain, snow, glass, particles) are drawn after the TAA resolve, so their edges are not anti-aliased; fast-moving things may leave a faint trail. `variants/msaa.cfg` swaps it out.
 - **A cold shader cache no longer stalls the game** (`user\openeden\shadercache`, one per profile): a Slang variant the
   build did not list is compiled on a worker thread (80 to 110 ms each, 400 to 430 ms for the first, which loads the library)
   while the GLSL draws, so for the first minutes some objects, and the terrain until the next start, are drawn by the GLSL

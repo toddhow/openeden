@@ -104,6 +104,50 @@ namespace Render
             return vsg::RenderPass::create(
                 device, attachments, vsg::RenderPass::Subpasses{ subpass }, hdrDependencies());
         }
+
+        /*
+         * Task 0075: a second render pass over the same attachments, for the draws that follow the TAA resolve. Same
+         * formats, sample count and subpass as createHdrRenderPass (so the scene's pipelines are compatible with it);
+         * every attachment is loaded and stored, and colour 0 is the TAA output, which the resolve leaves in GENERAL.
+         * Single sample only (TAA refuses multisampling).
+         */
+        vsg::ref_ptr<vsg::RenderPass> createOverlayRenderPass(
+            vsg::Device* device, const std::vector<VkFormat>& colorFormats)
+        {
+            vsg::RenderPass::Attachments attachments;
+            vsg::SubpassDescription subpass;
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            const uint32_t n = static_cast<uint32_t>(colorFormats.size());
+            for (uint32_t i = 0; i < n; ++i)
+            {
+                auto a = attachment(colorFormats[i], VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_LOAD,
+                    VK_ATTACHMENT_STORE_OP_STORE, HdrTarget::colorFinalLayout);
+                a.initialLayout = i == 0 ? VK_IMAGE_LAYOUT_GENERAL : HdrTarget::colorFinalLayout;
+                attachments.push_back(a);
+                subpass.colorAttachments.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+            }
+            auto depth = attachment(compatibleDepthFormat, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_LOAD,
+                VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+            depth.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            attachments.push_back(depth);
+            subpass.depthStencilAttachments.push_back({ n, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL });
+
+            // Before: everything recorded earlier (the scene pass, the compute resolve, whose writes are made
+            // available by the explicit barrier that ends the resolve node), as the screenshot code argues for its
+            // copy. After: the bloom and the tonemap sample colour 0.
+            constexpr VkPipelineStageFlags attachmentStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            constexpr VkAccessFlags attachmentAccess = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+                | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            vsg::SubpassDependency before = { VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                attachmentStages, VK_ACCESS_MEMORY_WRITE_BIT, attachmentAccess, 0 };
+            vsg::SubpassDependency after = { 0, VK_SUBPASS_EXTERNAL, attachmentStages,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, attachmentAccess,
+                VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT, 0 };
+            return vsg::RenderPass::create(device, attachments, vsg::RenderPass::Subpasses{ subpass },
+                vsg::RenderPass::Dependencies{ before, after });
+        }
     }
 
     HdrTarget::HdrTarget(vsg::Context& context, VkSampleCountFlagBits samples, const VkExtent2D& extent,
@@ -113,7 +157,21 @@ namespace Render
     {
         mColorFormats.insert(mColorFormats.end(), extraColorFormats.begin(), extraColorFormats.end());
         mRenderPass = createHdrRenderPass(context.device, samples, mColorFormats);
+        if (samples == VK_SAMPLE_COUNT_1_BIT)
+            mOverlayRenderPass = createOverlayRenderPass(context.device, mColorFormats);
         createImages(context, extent);
+    }
+
+    vsg::ref_ptr<vsg::Framebuffer> HdrTarget::createOverlayFramebuffer(vsg::ref_ptr<vsg::ImageView> colour) const
+    {
+        if (!mOverlayRenderPass || !colour)
+            return {};
+        vsg::ImageViews attachments;
+        attachments.push_back(colour);
+        for (std::size_t i = 1; i < mResolvedColor.size(); ++i)
+            attachments.push_back(mResolvedColor[i]);
+        attachments.push_back(mResolvedDepth);
+        return vsg::Framebuffer::create(mOverlayRenderPass, attachments, mExtent.width, mExtent.height, 1);
     }
 
     void HdrTarget::clearExtraOutputs(vsg::RenderGraph& graph) const
