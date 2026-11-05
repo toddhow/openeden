@@ -38,9 +38,10 @@ namespace Render::Ao::Temporal
     constexpr float normalRejectHigh = 0.95f;
     // The frames after a build that take nothing from the history (its images are put in their layout on them).
     constexpr std::uint32_t warmupFrames = 3;
-    // The default width of the neighbourhood clamp in standard deviations (task 0076 stage d: 1.0, Salvi 2016's gamma;
-    // frames: 1.5 left a trail behind a moving rigid object about a quarter bigger, 0.7 raised the mean level).
-    constexpr float defaultClampGamma = 1.0f;
+    // The default width of the neighbourhood clamp in standard deviations: 0, none (decision 0012: the variance box is
+    // covered by US10116916B2, so it is an opt-in; task 0076 stage d measured 1.0, Salvi 2016's gamma, as the best
+    // width; frames: 1.5 left a trail behind a moving rigid object about a quarter bigger, 0.7 raised the mean level).
+    constexpr float defaultClampGamma = 0.f;
 
     inline float fract(double x)
     {

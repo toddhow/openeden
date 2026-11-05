@@ -163,7 +163,7 @@ namespace
         EXPECT_FLOAT_EQ(normalRejectLow, 0.8f);
         EXPECT_FLOAT_EQ(normalRejectHigh, 0.95f);
         EXPECT_EQ(warmupFrames, 3u);
-        EXPECT_FLOAT_EQ(defaultClampGamma, 1.0f);
+        EXPECT_FLOAT_EQ(defaultClampGamma, 0.f);
     }
 
     // ---- noise offset ------------------------------------------------------------------------------------------
