@@ -383,6 +383,7 @@ namespace MWWorld
         bool toggleRenderMode(MWRender::RenderMode mode) override;
 
         bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message) override;
+        std::string textureMipsCommand(const std::string& argument) override;
         void removeDebugRagdoll() override;
         ///< Toggle a render mode.
         ///< \return Resulting mode

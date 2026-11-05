@@ -3143,13 +3143,14 @@ namespace MWRender
     }
 
     // Task 0080 stage d: made when the scene exists, then ticked once a frame (main thread).
-    void RenderManager::updateTextureMips(float dt)
+    bool RenderManager::ensureTextureMips()
     {
         if (!mTextureMips)
         {
             if (!mCompileContext || !mSceneRoot)
-                return;
+                return false;
             TextureMipsDriver::Services services;
+            services.camera = [this] { return mCamera->getPosition(); };
             services.compile = mCompileContext->clone(~vsg::Mask(0));
             services.root = [this]() -> vsg::Node* {
                 // The main scene, and the graph that draws the inventory preview and the local map.
@@ -3183,7 +3184,22 @@ namespace MWRender
                 Log(Debug::Warning) << "OPENEDEN_TEXTURE_MIPS_TEST is not valid ('seconds:level,...') and is ignored";
             Log(Debug::Info) << "[VideoMemory] texture mips: the swapper is ready";
         }
-        mTextureMips->update(dt);
+        return true;
+    }
+
+    void RenderManager::updateTextureMips(float dt)
+    {
+        if (ensureTextureMips())
+            mTextureMips->update(dt);
+    }
+
+    // The `texturemips` console command (task 0080): making the swapper on the first call also makes it tick.
+    std::string RenderManager::textureMipsCommand(const std::string& argument)
+    {
+        mTextureMipsWanted = true;
+        if (!ensureTextureMips())
+            return "Texture mips: the scene is not ready";
+        return mTextureMips->command(argument);
     }
 
     void RenderManager::update(float dt, bool paused)

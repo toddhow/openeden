@@ -25,6 +25,9 @@ namespace Render::VideoMemory::TextureMips
         std::uint64_t minFramesBetweenChanges = 300;
         /// The most textures one plan changes (the caller swaps them in slices).
         int maxChanges = 4;
+        /// A texture counts as in use when some object that draws it has its bounding sphere this close (game units) to
+        /// the camera. It is a distance, not a frustum test: an object behind the camera counts.
+        double visibleDistance = 3000.0;
     };
 
     struct Texture

@@ -226,6 +226,7 @@ namespace Compiler
         const int opcodeCmRagdollOff = 0x2000329;
         const int opcodeCmStyle = 0x20031;
         const int opcodeCmStyleExplicit = 0x20032;
+        const int opcodeTextureMips = 0x20033;
         const int opcodeBodyCheck = 0x200032a;
         const int opcodeBodyCheckExplicit = 0x200032b;
         const int opcodeToggleWireframe = 0x200013b;

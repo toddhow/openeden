@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -10,6 +11,7 @@
 #include <vsg/core/Data.h>
 #include <vsg/core/observer_ptr.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/maths/vec3.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/utils/SharedObjects.h>
@@ -63,6 +65,14 @@ namespace vsgUtil::TextureMips
         /// Walks the graph below `root`, updates the table and returns the eligible textures it holds.
         std::vector<Render::VideoMemory::TextureMips::Texture> scan(vsg::Node& root);
 
+        /// As above, and feeds the plan's use signal: a texture is `visible` when a group that draws it lies inside a
+        /// bounding sphere (vsg::CullNode or CullGroup, moved by the transforms above it) whose surface is within
+        /// `params().visibleDistance` of `camera`; `lastUsedFrame` is the `frame` of the last scan where that held.
+        /// Limits: a distance only (no frustum, so objects behind the camera count), the sphere's radius is not scaled
+        /// by the transforms, groups with no sphere above them (the cached model templates) never count.
+        std::vector<Render::VideoMemory::TextureMips::Texture> scan(
+            vsg::Node& root, const vsg::dvec3& camera, std::uint64_t frame);
+
         /// Puts every bind of texture `id` at `toDrop` dropped top levels.
         SwapResult swap(std::uint64_t id, int toDrop, std::uint64_t frame);
 
@@ -91,6 +101,7 @@ namespace vsgUtil::TextureMips
         {
             vsg::observer_ptr<vsg::StateGroup> group;
             int drop = 0;
+            double distance = std::numeric_limits<double>::infinity(); // to the nearest sphere above it
         };
         struct Entry
         {
@@ -100,9 +111,12 @@ namespace vsgUtil::TextureMips
             std::vector<User> users;
             bool changedBefore = false;
             std::uint64_t lastChangeFrame = 0;
+            std::uint64_t lastNearFrame = 0;
         };
 
         friend struct ScanVisitor;
+        std::vector<Render::VideoMemory::TextureMips::Texture> scanImpl(
+            vsg::Node& root, const vsg::dvec3* camera, std::uint64_t frame);
         Hooks mHooks;
         Render::VideoMemory::TextureMips::Params mParams;
         std::vector<Entry> mEntries;

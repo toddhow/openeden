@@ -302,6 +302,9 @@ namespace MWRender
         void onFrame(float dt);
         void update(float dt, bool paused);
 
+        /// The `texturemips` console command of task 0080: status, a manual level or off. Returns the line to print.
+        std::string textureMipsCommand(const std::string& argument);
+
         MWAnim::Object* getObject(const MWWorld::Ptr& ptr);
         const MWAnim::Object* getObject(const MWWorld::ConstPtr& ptr) const;
         vsg::box getBoundingBox(const MWWorld::ConstPtr& ptr) const;
@@ -644,6 +647,7 @@ namespace MWRender
         bool mTextureMipsWanted = false;
         std::string mTextureMipsScript;
         void updateTextureMips(float dt);
+        bool ensureTextureMips();
         Lod::FarTier mFarTierName = Lod::FarTier::High;
         Lod::FarTierSettings mFarTier;
         std::uint32_t mFarLevels = 0; // the highest tile and cluster level read and drawn; 0 means all

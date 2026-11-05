@@ -331,6 +331,9 @@ namespace MWBase
         /// The cmRagdoll debug console command (task 0035). Returns false, with the reason in message, if it did not
         /// run.
         virtual bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message) = 0;
+
+        /// The `texturemips` console command (task 0080): the texture mip swapper's status, a manual level, or off.
+        virtual std::string textureMipsCommand(const std::string& argument) = 0;
         virtual void removeDebugRagdoll() = 0;
         ///< Toggle a render mode.
         ///< \return Resulting mode

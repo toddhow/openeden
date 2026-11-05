@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include <vsg/core/ref_ptr.h>
+#include <vsg/maths/vec3.h>
 #include <vsg/nodes/Node.h>
 
 #include <components/render/vramscaler.hpp>
@@ -40,6 +42,7 @@ namespace MWRender
         {
             vsg::ref_ptr<vsgUtil::CompileContext> compile; // contexts that compile for every view
             std::function<vsg::Node*()> root; // the scene graph to scan; may return null
+            std::function<vsg::dvec3()> camera; // where the camera is (the use signal); may be empty
             std::function<void()> pruneCaches; // ResourceSystem::updateCache: frees what only the caches hold
             std::function<Render::VideoMemory::Sample()> memory; // the driver's numbers; may be empty
             std::function<std::int64_t()> releasePools; // Engine::releaseUnusedDeviceMemory; may be empty
@@ -56,9 +59,17 @@ namespace MWRender
         /// Once a frame, with the frame time in seconds (0 when paused).
         void update(float dt);
 
-        /// Sets the ladder level at once (the adapter and the test script both end here).
+        /// The scale-back controller's level (the adapter and the test script both end here). Ignored for as long
+        /// as a manual level is set.
         void setLevel(int level);
         int level() const { return mLevel; }
+
+        /// The `texturemips` console command: `status` (or nothing), `off` (drops a manual level: the controller's
+        /// level, 0 without one, applies again) or a level 0 to 2 (a manual level that wins over the controller and
+        /// ignores the hysteresis). Returns the line to print.
+        std::string command(const std::string& argument);
+        /// One line: the level and who set it, textures reduced, ledger numbers, the driver's heap use.
+        std::string status();
 
         /// Parses OPENEDEN_TEXTURE_MIPS_TEST; false when it is empty or not valid.
         bool setScript(const std::string& text);
@@ -73,12 +84,15 @@ namespace MWRender
         vsgUtil::TextureMips::Swapper mSwapper;
         std::vector<Render::VideoMemory::TextureMips::Texture> mTextures;
         Render::VideoMemory::TextureMips::Params mParams;
-        int mLevel = 0;
+        int mLevel = 0; // the level in force: the manual one, else the controller's
+        int mControllerLevel = 0;
+        std::optional<int> mManual;
         std::uint64_t mFrame = 0;
         double mTime = 0.0;
         double mLastScan = -1000.0;
         bool mWorking = false; // more swaps are due for the current level
         bool mAnyReduced = false;
+        bool mReportIdle = false; // log the status once the swaps of a manual command are done
         double mLastScanMs = 0.0;
 
         struct Step

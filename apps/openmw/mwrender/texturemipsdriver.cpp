@@ -83,8 +83,62 @@ namespace MWRender
 
     void TextureMipsDriver::setLevel(int level)
     {
-        mLevel = std::clamp(level, 0, maxLevel);
+        mControllerLevel = std::clamp(level, 0, maxLevel);
+        if (!mManual)
+        {
+            mLevel = mControllerLevel;
+            mWorking = true;
+        }
+    }
+
+    std::string TextureMipsDriver::status()
+    {
+        rescan();
+        std::int64_t full = 0;
+        std::int64_t held = 0;
+        int reduced = 0;
+        int nearCount = 0;
+        for (const TM::Texture& t : mTextures)
+        {
+            full += TM::chainBytes(t, 0);
+            held += TM::residentBytes(t);
+            reduced += t.drop > 0 ? 1 : 0;
+            nearCount += t.visible ? 1 : 0;
+        }
+        std::ostringstream out;
+        out << "Texture mips: level " << mLevel << (mManual ? " (manual)" : " (controller)") << ", " << reduced
+            << " of " << mTextures.size() << " textures of 2048 texels or more reduced (" << nearCount
+            << " near the camera), the ledger holds " << static_cast<double>(held) / mebibyte << " of "
+            << static_cast<double>(full) / mebibyte << " MiB (" << static_cast<double>(full - held) / mebibyte
+            << " MiB freed)";
+        if (mServices.memory)
+        {
+            const Render::VideoMemory::Sample sample = mServices.memory();
+            out << ", driver heapUsage " << static_cast<double>(sample.usageBytes) / mebibyte << " of budget "
+                << static_cast<double>(sample.budgetBytes) / mebibyte << " MiB";
+        }
+        return out.str();
+    }
+
+    std::string TextureMipsDriver::command(const std::string& argument)
+    {
+        const std::string usage = "Usage: texturemips <0|1|2|off|status>";
+        if (argument.empty() || argument == "status")
+            return status();
+        if (argument == "off")
+        {
+            mManual.reset();
+            mLevel = mControllerLevel;
+            mWorking = true;
+            return "Texture mips: manual level dropped; " + status();
+        }
+        if (argument.size() != 1 || argument[0] < '0' || argument[0] > '0' + maxLevel)
+            return usage;
+        mReportIdle = true;
+        mManual = argument[0] - '0';
+        mLevel = *mManual;
         mWorking = true;
+        return "Texture mips: manual level " + argument + " set, swaps follow over the next frames";
     }
 
     void TextureMipsDriver::rescan()
@@ -97,7 +151,10 @@ namespace MWRender
             return;
         }
         const auto begin = std::chrono::steady_clock::now();
-        mTextures = mSwapper.scan(*root);
+        if (mServices.camera)
+            mTextures = mSwapper.scan(*root, mServices.camera(), mFrame);
+        else
+            mTextures = mSwapper.scan(*root);
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
         mLastScanMs = ms;
         Log(Debug::Verbose) << "Texture mips: scan found " << mTextures.size() << " textures of 2048 texels or more in "
@@ -118,10 +175,20 @@ namespace MWRender
     void TextureMipsDriver::applyPending()
     {
         rescan();
-        const std::vector<TM::Change> changes = TM::plan(mTextures, mLevel, mFrame, mParams);
+        // A manual level is a command: it is not held back by the hysteresis.
+        TM::Params params = mParams;
+        if (mManual)
+            params.minFramesBetweenChanges = 0;
+        const std::vector<TM::Change> changes = TM::plan(mTextures, mLevel, mFrame, params);
         if (changes.empty())
         {
             mWorking = false;
+            if (mReportIdle)
+            {
+                mReportIdle = false;
+                const std::string line = status(); // not inside the Log statement: a Log holds the log's lock and status() logs too
+                Log(Debug::Info) << line;
+            }
             return;
         }
         for (const TM::Change& change : changes)

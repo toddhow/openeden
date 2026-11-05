@@ -9,6 +9,9 @@
 
 #include <vsg/core/MipmapLayout.h>
 #include <vsg/core/Visitor.h>
+#include <vsg/nodes/CullGroup.h>
+#include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/Transform.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/state/DescriptorSet.h>
@@ -126,6 +129,9 @@ namespace vsgUtil::TextureMips
         Swapper& swapper;
         std::unordered_set<const vsg::StateGroup*> seen;
         std::vector<std::size_t> touched; // entries seen
+        const vsg::dvec3* camera = nullptr; // null: no use signal
+        std::vector<vsg::dmat4> matrices{ vsg::dmat4() }; // the transforms above the node being visited
+        double sphereDistance = std::numeric_limits<double>::infinity(); // of the innermost sphere above
 
         explicit ScanVisitor(Swapper& s)
             : swapper(s)
@@ -171,12 +177,39 @@ namespace vsgUtil::TextureMips
                     touched.push_back(entryIndex);
                     swapper.mEntries[entryIndex].users.clear();
                 }
-                swapper.mEntries[entryIndex].users.push_back({ vsg::observer_ptr<vsg::StateGroup>(&group), drop });
+                swapper.mEntries[entryIndex].users.push_back(
+                    { vsg::observer_ptr<vsg::StateGroup>(&group), drop, sphereDistance });
             }
         }
 
         // vsg::Visitor's default for a node does nothing; every node must pass the visit on to its children.
         void apply(vsg::Object& object) override { object.traverse(*this); }
+
+        void apply(vsg::Transform& transform) override
+        {
+            matrices.push_back(transform.transform(matrices.back()));
+            transform.traverse(*this);
+            matrices.pop_back();
+        }
+
+        void visitSphere(const vsg::dsphere& bound, vsg::Group* group, vsg::Node* child)
+        {
+            const double saved = sphereDistance;
+            if (camera)
+            {
+                const vsg::dvec3 center = matrices.back() * bound.center;
+                sphereDistance = vsg::length(center - *camera) - bound.radius;
+            }
+            if (group)
+                group->traverse(*this);
+            else if (child)
+                child->accept(*this);
+            sphereDistance = saved;
+        }
+
+        void apply(vsg::CullNode& node) override { visitSphere(node.bound, nullptr, node.child.get()); }
+
+        void apply(vsg::CullGroup& node) override { visitSphere(node.bound, &node, nullptr); }
 
         void apply(vsg::StateGroup& group) override
         {
@@ -204,6 +237,16 @@ namespace vsgUtil::TextureMips
 
     std::vector<TM::Texture> Swapper::scan(vsg::Node& root)
     {
+        return scanImpl(root, nullptr, 0);
+    }
+
+    std::vector<TM::Texture> Swapper::scan(vsg::Node& root, const vsg::dvec3& camera, std::uint64_t frame)
+    {
+        return scanImpl(root, &camera, frame);
+    }
+
+    std::vector<TM::Texture> Swapper::scanImpl(vsg::Node& root, const vsg::dvec3* camera, std::uint64_t frame)
+    {
         // Entries are rebuilt from what is bound now: the index covers the full image and each reduced copy.
         mDataIndex.clear();
         for (std::size_t i = 0; i < mEntries.size(); ++i)
@@ -214,6 +257,7 @@ namespace vsgUtil::TextureMips
         }
 
         ScanVisitor visitor(*this);
+        visitor.camera = camera;
         root.accept(visitor);
 
         // Entries not seen any more have no users: those at drop 0 are forgotten, the others keep their reduced copy
@@ -240,7 +284,7 @@ namespace vsgUtil::TextureMips
 
         std::vector<TM::Texture> textures;
         textures.reserve(mEntries.size());
-        for (const Entry& entry : mEntries)
+        for (Entry& entry : mEntries)
         {
             TM::Texture t = describe(*entry.full, entry.id);
             t.drop = entry.users.empty() ? 0 : entry.users.front().drop;
@@ -248,6 +292,12 @@ namespace vsgUtil::TextureMips
                 t.drop = std::min(t.drop, user.drop);
             t.changedBefore = entry.changedBefore;
             t.lastChangeFrame = entry.lastChangeFrame;
+            t.visible = camera
+                && std::any_of(entry.users.begin(), entry.users.end(),
+                    [&](const User& u) { return u.distance < mParams.visibleDistance; });
+            if (t.visible)
+                entry.lastNearFrame = frame;
+            t.lastUsedFrame = entry.lastNearFrame;
             textures.push_back(t);
         }
         return textures;

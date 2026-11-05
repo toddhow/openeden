@@ -1568,6 +1568,11 @@ namespace MWWorld
         }
     }
 
+    std::string World::textureMipsCommand(const std::string& argument)
+    {
+        return mRendering->textureMipsCommand(argument);
+    }
+
     bool World::spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message)
     {
         return mPhysics->spawnDebugRagdoll(ptr, message);

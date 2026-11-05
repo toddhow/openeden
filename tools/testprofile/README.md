@@ -178,6 +178,10 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   MiB)`: the far field's live memory budgets are halved one step at a time, in the order of `order`, and the farthest
   objects thin out (a frame viewed at 25,000 units up: sparser distant vegetation, no holes). Restoring needs the load
   to fall well below the budget (see the task's stage log). `report = true` prints one summary line at exit.
+  `texture mips` is last in the profile's `order`: with a small budget it drops the top mip levels of textures of 2048
+  and up after the far field (`VRAM scale-back: reduced texture mips to step N`), and the console command `texturemips
+  status|0|1|2|off` calls it by hand (a texture mod such as Landscape Remastered shows it; the full profile with that mod is
+  ended by the freeze monitor at start, a known separate problem).
 
 ## Known limits
 

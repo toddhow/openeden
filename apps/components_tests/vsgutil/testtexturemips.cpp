@@ -9,7 +9,10 @@
 
 #include "texturetestutil.hpp"
 
+#include <vsg/nodes/CullGroup.h>
+#include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/Group.h>
+#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/StateGroup.h>
 #include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/DescriptorImage.h>
@@ -644,5 +647,141 @@ namespace
         auto full = vsgUtil::readOptionalImage(path.string(), options);
         EXPECT_EQ(full.get(), first.get());
         std::filesystem::remove(path);
+    }
+
+    // The use signal: a CullNode sphere (moved by the transforms above it) near the camera.
+    vsg::ref_ptr<vsg::Node> placed(vsg::dvec3 at, vsg::ref_ptr<vsg::Node> child, double radius = 10.0)
+    {
+        auto cull = vsg::CullNode::create(vsg::dsphere(vsg::dvec3(0, 0, 0), radius), child);
+        auto transform = vsg::MatrixTransform::create(vsg::translate(at));
+        transform->addChild(cull);
+        return transform;
+    }
+
+    TEST(TextureMipsUse, a_group_inside_a_near_sphere_makes_the_texture_visible)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 1000, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        const auto textures = swapper.scan(*root, vsg::dvec3(0, 0, 0), 77);
+        ASSERT_EQ(textures.size(), 1u);
+        EXPECT_TRUE(textures[0].visible);
+        EXPECT_EQ(textures[0].lastUsedFrame, 77u);
+    }
+
+    TEST(TextureMipsUse, a_far_sphere_is_not_visible_and_has_no_last_use)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 9000, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        const auto textures = swapper.scan(*root, vsg::dvec3(0, 0, 0), 77);
+        ASSERT_EQ(textures.size(), 1u);
+        EXPECT_FALSE(textures[0].visible);
+        EXPECT_EQ(textures[0].lastUsedFrame, 0u);
+    }
+
+    TEST(TextureMipsUse, the_distance_is_to_the_surface_of_the_sphere)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params()); // visibleDistance 3000
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 3400, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12))), 500.0));
+        EXPECT_TRUE(swapper.scan(*root, vsg::dvec3(0, 0, 0), 1)[0].visible); // 3400 - 500 = 2900
+        auto other = vsg::Group::create();
+        other->addChild(placed({ 3600, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12))), 500.0));
+        EXPECT_FALSE(swapper.scan(*other, vsg::dvec3(0, 0, 0), 1)[0].visible); // 3100
+    }
+
+    TEST(TextureMipsUse, transforms_above_the_sphere_add_up)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto outer = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(2000, 0, 0)));
+        outer->addChild(placed({ 900, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        auto root = vsg::Group::create();
+        root->addChild(outer);
+        EXPECT_TRUE(swapper.scan(*root, vsg::dvec3(0, 0, 0), 1)[0].visible); // 2900 - 10
+        EXPECT_FALSE(swapper.scan(*root, vsg::dvec3(0, 0, 5000), 1)[0].visible);
+    }
+
+    TEST(TextureMipsUse, the_camera_decides_not_the_origin)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 20000, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        EXPECT_FALSE(swapper.scan(*root, vsg::dvec3(0, 0, 0), 1)[0].visible);
+        EXPECT_TRUE(swapper.scan(*root, vsg::dvec3(19000, 0, 0), 2)[0].visible);
+    }
+
+    TEST(TextureMipsUse, a_group_with_no_sphere_above_it_never_counts)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(bigTexture(2048, 12))));
+        EXPECT_FALSE(swapper.scan(*root, vsg::dvec3(0, 0, 0), 5)[0].visible);
+    }
+
+    TEST(TextureMipsUse, one_near_user_is_enough)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 90000, 0, 0 }, makeGroup(makeBind(data))));
+        root->addChild(placed({ 100, 0, 0 }, makeGroup(makeBind(data))));
+        const auto textures = swapper.scan(*root, vsg::dvec3(0, 0, 0), 9);
+        ASSERT_EQ(textures.size(), 1u);
+        EXPECT_TRUE(textures[0].visible);
+    }
+
+    TEST(TextureMipsUse, the_last_use_is_kept_when_the_texture_goes_out_of_range)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 1000, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        swapper.scan(*root, vsg::dvec3(0, 0, 0), 100);
+        const auto later = swapper.scan(*root, vsg::dvec3(50000, 0, 0), 400);
+        EXPECT_FALSE(later[0].visible);
+        EXPECT_EQ(later[0].lastUsedFrame, 100u);
+    }
+
+    TEST(TextureMipsUse, a_cull_group_counts_like_a_cull_node)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto cull = vsg::CullGroup::create(vsg::dsphere(vsg::dvec3(0, 0, 0), 10.0));
+        cull->addChild(makeGroup(makeBind(bigTexture(2048, 12))));
+        auto transform = vsg::MatrixTransform::create(vsg::translate(vsg::dvec3(500, 0, 0)));
+        transform->addChild(cull);
+        auto root = vsg::Group::create();
+        root->addChild(transform);
+        EXPECT_TRUE(swapper.scan(*root, vsg::dvec3(0, 0, 0), 3)[0].visible);
+    }
+
+    TEST(TextureMipsUse, the_plain_scan_gives_no_signal)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 100, 0, 0 }, makeGroup(makeBind(bigTexture(2048, 12)))));
+        const auto textures = swapper.scan(*root);
+        EXPECT_FALSE(textures[0].visible);
+        EXPECT_EQ(textures[0].lastUsedFrame, 0u);
+    }
+
+    TEST(TextureMipsUse, a_swap_still_reaches_groups_below_a_sphere)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto group = makeGroup(makeBind(bigTexture(2048, 12)));
+        auto root = vsg::Group::create();
+        root->addChild(placed({ 100, 0, 0 }, group));
+        const auto id = swapper.scan(*root, vsg::dvec3(0, 0, 0), 3)[0].id;
+        EXPECT_EQ(swapper.swap(id, 1, 4).groups, 1);
     }
 }

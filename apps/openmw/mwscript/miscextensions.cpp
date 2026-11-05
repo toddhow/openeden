@@ -433,6 +433,23 @@ namespace MWScript
             }
         };
 
+        // Debug console command of task 0080: the texture mip swapper (`texturemips status`, `0`, `1`, `2`, `off`).
+        class OpTextureMips : public Interpreter::Opcode1
+        {
+        public:
+            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            {
+                std::string argument;
+                if (arg0 > 0)
+                {
+                    argument = runtime.getStringLiteral(runtime[0].mInteger);
+                    runtime.pop();
+                }
+                ::Misc::StringUtils::lowerCaseInPlace(argument);
+                runtime.getContext().report(MWBase::Environment::get().getWorld()->textureMipsCommand(argument));
+            }
+        };
+
         // Debug console command of task 0063 (AdvancedBodies B1): describes the default body Morrowind's records give
         // the target's race and sex (the player when no actor is selected) and checks it with the body validator. It
         // changes nothing. Mesh summaries are not built in B1, so every part warns about that.
@@ -1858,6 +1875,7 @@ namespace MWScript
             interpreter.installSegment5<OpCmRagdollOff>(Compiler::Misc::opcodeCmRagdollOff);
             interpreter.installSegment3<OpCmStyle<ImplicitRef>>(Compiler::Misc::opcodeCmStyle);
             interpreter.installSegment3<OpCmStyle<ExplicitRef>>(Compiler::Misc::opcodeCmStyleExplicit);
+            interpreter.installSegment3<OpTextureMips>(Compiler::Misc::opcodeTextureMips);
             interpreter.installSegment5<OpBodyCheck<ImplicitRef>>(Compiler::Misc::opcodeBodyCheck);
             interpreter.installSegment5<OpBodyCheck<ExplicitRef>>(Compiler::Misc::opcodeBodyCheckExplicit);
             interpreter.installSegment5<OpToggleWireframe>(Compiler::Misc::opcodeToggleWireframe);
