@@ -93,6 +93,32 @@ namespace Terrain
         return it == mEntries.end() ? 1.f : it->second.mFade;
     }
 
+    ChunkShare ChunkFader::shareOf(const Bounds& bounds) const
+    {
+        const auto it = mEntries.find(bounds);
+        if (it == mEntries.end())
+            return ChunkShare{};
+        const Entry& entry = it->second;
+        if (entry.mWanted || entry.mFade < 1.f)
+            return ChunkShare{ entry.mFade, false };
+        // A solid leaving chunk: is it replaced completely?
+        double covered = 0.0;
+        float weakest = 1.f;
+        for (const auto& [otherBounds, other] : mEntries)
+        {
+            if (!other.mWanted || !boundsOverlap(bounds, otherBounds))
+                continue;
+            const float width = std::min(bounds.max().x, otherBounds.max().x) - std::max(bounds.min.x, otherBounds.min.x);
+            const float height = std::min(bounds.max().y, otherBounds.max().y) - std::max(bounds.min.y, otherBounds.min.y);
+            covered += static_cast<double>(width) * static_cast<double>(height);
+            weakest = std::min(weakest, other.mFade);
+        }
+        const double area = static_cast<double>(bounds.size) * static_cast<double>(bounds.size);
+        if (covered < area * 0.9999)
+            return ChunkShare{ entry.mFade, false };
+        return ChunkShare{ weakest, true };
+    }
+
     std::vector<Bounds> ChunkFader::leaving() const
     {
         std::vector<Bounds> result;

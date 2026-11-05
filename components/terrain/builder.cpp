@@ -1,6 +1,7 @@
 #include "builder.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include <iostream>
 #include <limits>
@@ -501,6 +502,22 @@ namespace Terrain
         return true;
     }
 
+    bool Builder::setBatchShare(const BatchData& data, float fade, float complementOf)
+    {
+        auto* uniform = data.batchUniform ? data.batchUniform->cast<vsg::Value<Pipeline::Data::Batch>>() : nullptr;
+        if (!uniform)
+            return false;
+        constexpr float steps = 1024.f;
+        auto rounded = [](float value) { return std::round(std::clamp(value, 0.f, 1.f) * steps) / steps; };
+        const float code = complementOf >= 0.f ? -1.f - rounded(complementOf) : rounded(fade);
+        if (uniform->value().fade != code)
+        {
+            uniform->value().fade = code;
+            uniform->dirty();
+        }
+        return true;
+    }
+
     Builder::Batch Builder::createBatch(const Bounds& bounds, uint8_t lod) const
     {
         auto batchData = getBatchData(bounds, lod);
@@ -526,7 +543,7 @@ namespace Terrain
     }
 
     vsg::ref_ptr<vsg::Node> Builder::createDraw(const Builder::Batch& batch, const Bounds& bounds, uint8_t lod,
-        uint32_t lodFlags, float fade, DrawHandle* handle) const
+        uint32_t lodFlags, ChunkShare share, DrawHandle* handle) const
     {
         uint32_t numVerts = mStorage->numVerts(bounds.size, lod);
         auto bindIndexBuffer = indexCache.getOrCreate(std::make_pair(numVerts, lodFlags), CreateIndexBuffer());
@@ -537,7 +554,7 @@ namespace Terrain
         instance |= static_cast<uint32_t>(gridPos.x) << 16;
         instance |= static_cast<uint32_t>(gridPos.y) << 24;
         auto draw = vsg::DrawIndexed::create(
-            bindIndexBuffer->indices->data->valueCount(), 1, 0, 0, encodeChunkFade(instance, fade));
+            bindIndexBuffer->indices->data->valueCount(), 1, 0, 0, encodeChunkShare(instance, share));
         if (handle != nullptr)
         {
             handle->draw = draw;

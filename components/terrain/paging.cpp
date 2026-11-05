@@ -70,7 +70,7 @@ namespace Terrain
             if (view.fader.step(fade->deltaSeconds, fade->fadeSeconds))
                 view.fadeDirty = true;
             for (const ViewData::FadeDraw& item : view.fadeDraws)
-                item.draw->firstInstance = encodeChunkFade(item.baseInstance, view.fader.fadeOf(item.bounds));
+                item.draw->firstInstance = encodeChunkShare(item.baseInstance, view.fader.shareOf(item.bounds));
         }
 
         const uint64_t coverageVersion = coverage ? coverage->version + 1 : 0;
@@ -298,7 +298,7 @@ namespace Terrain
                         }
                         Builder::DrawHandle handle;
                         auto node = mBuilder->createDraw(
-                            batch, entry.bounds, vertexLod, lodFlags, view.fader.fadeOf(entry.bounds), &handle);
+                            batch, entry.bounds, vertexLod, lodFlags, view.fader.shareOf(entry.bounds), &handle);
                         batch.leafGroup->addChild(node);
                         view.fadeDraws.push_back({ entry.bounds, handle.draw, handle.baseInstance });
                     }
@@ -308,7 +308,7 @@ namespace Terrain
                         auto lodFlags = getLodFlags(ghost, vertexLod);
                         Builder::DrawHandle handle;
                         auto node = mBuilder->createDraw(
-                            batch, ghost, vertexLod, lodFlags, view.fader.fadeOf(ghost), &handle);
+                            batch, ghost, vertexLod, lodFlags, view.fader.shareOf(ghost), &handle);
                         batch.leafGroup->addChild(node);
                         view.fadeDraws.push_back({ ghost, handle.draw, handle.baseInstance });
                     }

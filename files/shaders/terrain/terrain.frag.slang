@@ -403,8 +403,13 @@ FragmentOutput fragMain(FragmentInput input)
         outColor.xyz = float3(0, 0, 1);
 #endif
     // Task 0087: the dither of the GLSL's last statement (see terrain/main.frag).
-    float fade = data.batch.fade * input.io.chunkFade;
-    if (fade < 1.0 && dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, fade) == 0.0)
+    float code = input.io.chunkFade < 1.0 ? input.io.chunkFade : data.batch.fade;
+    if (code < 0.0)
+    {
+        if (dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, -1.0 - code) != 0.0)
+            discard;
+    }
+    else if (code < 1.0 && dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, code) == 0.0)
         discard;
     output.color = outColor;
     return output;

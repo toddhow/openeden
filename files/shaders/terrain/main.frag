@@ -416,7 +416,14 @@ void main()
     // LOD_FADE, here so that the colour, the G-buffer and the shadow cascades drop the same ones. Last, so that no
     // derivative above (the layers, the parallax march) is taken in a quad with a dropped pixel. A fade of 1 drops none.
     // Task 0088: a live chunk fading in or out multiplies its own share (from the draw) into the batch's.
-    float fade = batch.fade * frag_in.chunkFade;
-    if (fade < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, fade) == 0.0)
+    // The fade code (below 0: the complement of the incoming draw's dither, so that the two never draw one pixel
+    // twice and never leave one out). A chunk's own code wins; a tile's is the batch's.
+    float code = frag_in.chunkFade < 1.0 ? frag_in.chunkFade : batch.fade;
+    if (code < 0.0)
+    {
+        if (dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, -1.0 - code) != 0.0)
+            discard;
+    }
+    else if (code < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, code) == 0.0)
         discard;
 }

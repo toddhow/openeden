@@ -39,12 +39,18 @@ namespace Lod
         TileChoice mChoice = TileChoice::Unset;
         std::int32_t mParent = -1; // nearest ancestor in the pack (as nearestAncestors), -1 for none
         RefinedGate mGate = RefinedGate::Stay; // used when mChoice is Live
+        // Task 0088: for a Live tile that stays (Stay) until finer tiles replace it: the weakest fade of the tiles that
+        // replace it, when they cover its whole square; below 0 when none does. The tile then shows the complement.
+        float mReplacementFade = -1.f;
     };
 
     struct TerrainFadeState
     {
         TileFade mFade; // phase and the dither share (0 to 1)
         bool mCovers = false; // the live terrain leaves out this tile's square
+        // Task 0088, the complementary dither: at or above 0 the tile shows the pixels the INCOMING draw (with this fade)
+        // drops, instead of its own fade; below 0 it shows its own fade (`mFade.mFade`).
+        float mComplementOf = -1.f;
     };
 
     enum class TerrainFadeEvent : std::uint8_t

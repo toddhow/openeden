@@ -32,7 +32,10 @@ void main()
     int dropped = ((gl_InstanceIndex >> 4) & 0xf) | (((gl_InstanceIndex >> 12) & 0xf) << 4);
     int numVerts = int(batch.numVerts-1) / (1 << (shiftSize + lod)) + 1;
     ivec2 vert = ivec2(gl_VertexIndex / numVerts, gl_VertexIndex % numVerts);
-    vec2 gridPos = vec2((gl_InstanceIndex >> 16)&0xff, (gl_InstanceIndex >> 24)&0xff);
+    // Bit 23 says the share is INVERTED (task 0088, the complementary dither): the chunk keeps the pixels that the
+    // incoming chunk, with the fade in the nibbles, drops. The grid x never passes 15, so bits 20 to 23 are free.
+    bool inverted = ((gl_InstanceIndex >> 23) & 1) != 0;
+    vec2 gridPos = vec2((gl_InstanceIndex >> 16)&0xf, (gl_InstanceIndex >> 24)&0xff);
     float scale = 1.0 / (1 << shiftSize);
     vec2 uv = scale * (gridPos + vert / float(numVerts-1));
     ivec2 texSize = textureSize(heightMap, 0);
@@ -58,7 +61,8 @@ void main()
     vert_out.localTexCoord = vert / float(numVerts-1);
     #endif
     vert_out.viewNormal = viewNormal;
-    vert_out.chunkFade = 1.0 - float(dropped) / 255.0;
+    float share = 1.0 - float(dropped) / 255.0;
+    vert_out.chunkFade = inverted ? -1.0 - share : share;
 #ifdef TERRAIN_MAPS
     // OpenMW's terrain tangent frame (compatibility/terrain.vert): (1, 0, 0) through generateTangentSpace, then the
     // tangent re-derived at right angles to the normal.

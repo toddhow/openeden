@@ -895,6 +895,27 @@ namespace MWRender
             return Lod::refinedParentMayGo(std::span<const Lod::RefinedChild>(children.data(), count));
         }
 
+        // Task 0088: the weakest fade of the four finer tiles that replace this one, when all four are built tiles that
+        // are fading in or solid (so that together they cover its whole square); below 0 otherwise. Their fades are the
+        // ones of the last frame, so the pair can double a pixel for a frame at worst, never leave one out.
+        float replacementFade(std::size_t index) const
+        {
+            constexpr std::size_t childrenOfATile = 4;
+            if (mChildren[index].size() != childrenOfATile)
+                return -1.f;
+            float weakest = 1.f;
+            for (const std::uint32_t child : mChildren[index])
+            {
+                if (mNodes[child] == nullptr || mStates[child].mChoice != Lod::TileChoice::Tile)
+                    return -1.f;
+                const Lod::FadePhase phase = mFadeStates[child].mFade.mPhase;
+                if (phase != Lod::FadePhase::FadingIn && phase != Lod::FadePhase::Solid)
+                    return -1.f;
+                weakest = std::min(weakest, mFadeStates[child].mFade.mFade);
+            }
+            return weakest;
+        }
+
         // Task 0087: one frame of the fade machine (Lod::stepTerrainFades) in place of the removal loop of update().
         // A tile that appears dithers in over what drew its square, a replaced tile stays solid until what replaces it
         // is solid and then goes, a tile given to the live terrain dithers out over it. Returns whether a draw was
@@ -924,6 +945,8 @@ namespace MWRender
                     bool staysForGood = false;
                     input.mGate = refinedTileMayGo(i, camera, staysForGood) ? Lod::RefinedGate::Covered
                                                                             : Lod::RefinedGate::Stay;
+                    // Task 0088: waiting for four drawn finer tiles, the tile shows what the weakest of them drops.
+                    input.mReplacementFade = replacementFade(i);
                 }
             }
             mCoversBefore.resize(count);
@@ -953,7 +976,8 @@ namespace MWRender
                 if (coversSquare(i) != static_cast<bool>(mCoversBefore[i]))
                     changed = true;
                 if (mNodes[i])
-                    Terrain::Builder::setBatchFade(mBatches[i].data, mFadeStates[i].mFade.mFade);
+                    Terrain::Builder::setBatchShare(
+                        mBatches[i].data, mFadeStates[i].mFade.mFade, mFadeStates[i].mComplementOf);
             }
             return changed;
         }

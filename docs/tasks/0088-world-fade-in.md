@@ -126,6 +126,50 @@ Geomorphing (decided 2026-11-05: no), the baked data, the object clusters and ti
   `clang-tidy`, clang-format 14 (only a 23 was available; new files formatted with it, changed lines kept under 120 columns by hand),
   Lua tests, a play-through. `components-tests` 6409, `openmw-tests` 1058 pass, `eden-studio` builds.
 
+**Stage e (2026-11-05, Windows): the complementary dither, tiles and live chunks (toddhow's decision).** The leaving draw keeps
+exactly the pixels the incoming one drops, so each pixel is drawn by one of the two instead of two opaque layers.
+- *Encoding.* One "fade code" float reaches the fragment stage: the fade (0 to 1), or, below 0, `-1 - incoming fade` (keep the
+  pixels that fade drops). A live chunk's code rides in its `firstInstance`: bit 23 (above the four bits of the grid x) is
+  the "inverted" flag and the same two nibbles hold the incoming fade (`Terrain::ChunkShare`, `encodeChunkShare`,
+  `decodeChunkShare`, `fadeCode`); a solid chunk is still the old value. A tile's code is the batch uniform's `fade`
+  (`Builder::setBatchShare`, both numbers rounded to 1/1024 so that the pair reads the same float). The fragment stages (GLSL and
+  Slang): `code = chunkFade < 1 ? chunkFade : batch.fade; if (code < 0) discard where dither8(-1 - code) != 0; else if (code < 1)
+  discard where dither8(code) == 0` still as the LAST statement, no new define or permutation (`SlangPermutations` passes).
+- *Pure parts.* `ChunkFader::shareOf`: a SOLID leaving chunk that wanted chunks replace COMPLETELY (their overlap areas add up to
+  its area) shows the complement of the weakest of them; one only partly replaced, still fading in, or replaced by nothing keeps its
+  old behaviour. `Lod::stepTerrainFades` gained `TerrainFadeState::mComplementOf` (a solid finer tile under a coarser tile that is
+  fading in shows the complement of that tile's fade) and `TerrainFadeInput::mReplacementFade` (the caller, for a refined tile that
+  waits for four drawn finer tiles: `LodTerrain::replacementFade`, their weakest fade of the last frame).
+- *Tests, run red first:* 13 `TerrainChunkComplement` (3 of the 10 that can fail did against a `shareOf` stub; the rest are the
+  encoding and rule tests, written with the code; a 40-seed property test at PIXEL level, 64 pixels a unit cell: no pixel of a wanted
+  cell is ever lost across changes and steps; a split of four equal children has every pixel drawn by exactly one chunk; the dither table
+  in the C++ twin equals both shader files) and 5 `TerrainFadeComplement` (2 of 5 red against fields with no logic); the batch
+  uniform test (`setBatchShare`) was written together with the code (not run red). `components-tests` 6449 and `openmw-tests` 1058
+  pass; `eden-studio` builds.
+- **Existing tests changed (mine, from stage b, one file, awaiting your approval):** `apps/components_tests/terrain/testchunkfadeinstance.cpp`, the
+  test `the_fragment_stages_multiply_the_batch_fade_by_the_chunks`, 4 lines: the old expected text `float fade = batch.fade *
+  frag_in.chunkFade;` and `if (fade < 1.0 && dither8(... fade) == 0.0)` (GLSL) and `float fade = data.batch.fade * input.io.chunkFade;`
+  and `dither8(..., fade) == 0.0` (Slang) became the fade-code lines above. The test's name is stale. No test of an earlier task changed.
+- **Limits, plainly.** (1) The hand-over is exact (every pixel by exactly one draw) only where the replacing chunks share one fade;
+  the leaving draw follows the WEAKEST replacement so that no pixel is ever lost, and a replacement that is further along than the
+  weakest overlaps the leaving draw (depth decides which wins). In a flight the children of one tile appear at different times, so
+  the complement mostly sits at the weakest one's value. (2) Only the replaced-by-live-chunk and tile-replaced-by-tile hand-overs are
+  complementary. A tile that fades out OVER the live terrain (to live) and live chunks that appear under it still use the old two layer
+  rule (the tile dithers out over solid live chunks); coupling the two systems' fades was not done. (3) A fade that already runs is
+  not re-timed.
+- **Frames.** A temporary build tinted every complement-mode (leaving) pixel red (the tint was removed again, not committed):
+  a 6 s fade flight (`keep/screenshot060.png`, `keep/sheet-tint.png` crops of four times): the leaving chunks are red and
+  the incoming ground interleaves with them in the dither pattern where the weakest fade is above 0 (fine lines at the red region's
+  edges and inside it; no black or doubled pixel seen); large areas stay all red for seconds (limit 1). I did not get a plain
+  (untinted) before/after pair: old and new ground have the same colours, so the interleave is invisible without the tint, which is
+  what the hand-over should look like. `exe-new2` frames of a 25,000 to 16,000 descent (6 s fade) show nothing to the eye either way.
+- **Cost, not measured:** no GPU or CPU numbers for the second branch in the fragment stage (it replaces the old one with the
+  same count of texture-free instructions) and for `shareOf` (one map lookup per draw each frame; leaving draws scan the map once
+  each). Not run: Linux gate, Lua tests, clang-tidy, clang-format 14.
+- **Found, not mine:** with `[WorldLod] terrain tile threshold = 100000` a low flight (`FROM 0,0,2500 TO 5000,0,2500`) crashes the game
+  (`openmw-crash.dmp`) in the old executable before this task as well (`exe` of 11:41, and the stage b one). One huge tile covers 589 of
+  591 tiles ("589 covered"). Not investigated.
+
 **Stage c: object paging chunks. Not feasible without a decision.** A chunk is a `CullGroup` of the SHARED model prototypes (`readNode`) with
 their own pipelines and materials; `LOD_FADE` reads `material.specular.a`, one value per material shared by every instance of the model, and
 a push constant per chunk needs a new object shader permutation for EVERY static pipeline (every `default/main.frag` set doubles: 55 listed

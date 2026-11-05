@@ -55,6 +55,10 @@ namespace Terrain
         /// after setDynamicBatchData(true) for the change to reach the GPU.
         static bool setBatchFade(const BatchData& data, float fade);
 
+        /// Task 0088: sets the uniform to the fade code of the complementary dither: `fade` (0 to 1) when
+        /// `complementOf` is below 0, else -1 minus `complementOf` (0 to 1). Both are rounded to 1/1024.
+        static bool setBatchShare(const BatchData& data, float fade, float complementOf);
+
         BatchData create(const Key& key) const;
         BatchData getBatchData(const Bounds& bounds, uint8_t lod = 0) const;
 
@@ -76,10 +80,11 @@ namespace Terrain
             uint32_t baseInstance = 0;
         };
 
-        /// `fade` (task 0088) is the chunk's share of the dither (1: all of it, the old value of firstInstance);
+        /// `share` (task 0088) is the chunk's share of the dither (1: all of it, the old value of firstInstance), or the
+        /// complement of an incoming chunk's;
         /// `handle`, when given, receives the draw command.
         vsg::ref_ptr<vsg::Node> createDraw(const Batch& batch, const Bounds& bounds, uint8_t lod = 0,
-            uint32_t lodFlags = 0, float fade = 1.f, DrawHandle* handle = nullptr) const;
+            uint32_t lodFlags = 0, ChunkShare share = {}, DrawHandle* handle = nullptr) const;
 
         // OpenEden (task 0073): the lowest and highest terrain height under `bounds`, a part of the batch
         // `batchBounds`, from the batch data's height ranges (the values the cull node of a smaller draw is made from).

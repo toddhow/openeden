@@ -37,6 +37,11 @@ has no fade define. The log shows no event at the moment of a pop because tile s
 - **e. Frames.** A scripted flight over the same stretch with and without the fade, a frame every few frames around a
   swap, viewed; and toddhow's own look.
 
+## Update 2026-11-05 (task 0088)
+A tile replaced by a coarser or finer tile now shows the COMPLEMENT of the incoming tile's dither instead of staying opaque
+under it (`TerrainFadeState::mComplementOf`, `Builder::setBatchShare`); a tile that fades out over the live terrain is unchanged.
+See `docs/tasks/0088-world-fade-in.md`, stage e.
+
 ## Open questions for toddhow
 1. Fade time: 0.4 s as the clusters, or longer for tiles (they are bigger)?
 2. A dithered fade shows a stipple pattern on large flat ground for 0.4 s; with TAA on it blends. Is a stipple

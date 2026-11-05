@@ -78,8 +78,12 @@ namespace Lod
                 }
                 wanted = gate == RefinedGate::Stay;
             }
+            state.mComplementOf = -1.f;
             events[i] = stepOne(state, wanted, seconds, fadeSeconds);
             updateCovers(state);
+            // A refined tile that waits for its replacement shows what that one drops (task 0088).
+            if (input.mChoice == TileChoice::Live && wanted && input.mReplacementFade >= 0.f && terrainTileIsSolid(state))
+                state.mComplementOf = input.mReplacementFade;
         }
         // Then the tiles under a drawn ancestor: they stay until the ancestor is solid, then they go at once.
         for (std::size_t i = 0; i < count; ++i)
@@ -99,8 +103,14 @@ namespace Lod
                 continue;
             }
             // Not yet: it stays wanted (a tile that was fading in goes on and reaches solid).
+            state.mComplementOf = -1.f;
             events[i] = stepOne(state, true, seconds, fadeSeconds);
             updateCovers(state);
+            // Task 0088: while the coarser tile dithers in, a solid finer tile shows the pixels it drops.
+            if (ancestor >= 0 && inputs[static_cast<std::size_t>(ancestor)].mBuilt
+                && states[static_cast<std::size_t>(ancestor)].mFade.mPhase == FadePhase::FadingIn
+                && terrainTileIsSolid(state))
+                state.mComplementOf = states[static_cast<std::size_t>(ancestor)].mFade.mFade;
         }
     }
 }

@@ -24,6 +24,14 @@
 
 namespace Terrain
 {
+    /// What a chunk's draw shows: `mFade` is the share of the dither it keeps, or, when `mInverted`, the INCOMING
+    /// chunk's fade: the draw keeps the pixels that fade drops.
+    struct ChunkShare
+    {
+        float mFade = 1.f;
+        bool mInverted = false;
+    };
+
     class ChunkFader
     {
     public:
@@ -39,6 +47,11 @@ namespace Terrain
 
         /// The share of the dither a wanted or leaving chunk keeps (1: fully drawn); 1 for a chunk it does not know.
         float fadeOf(const Bounds& bounds) const;
+
+        /// What the draw of a wanted or leaving chunk shows (task 0088, the complementary dither): its own fade, or, for
+        /// a chunk that is solid and that wanted chunks replace COMPLETELY, the complement of the weakest of them (it
+        /// keeps exactly the pixels they drop). A chunk the wanted ones cover only in part stays a normal, solid chunk.
+        ChunkShare shareOf(const Bounds& bounds) const;
 
         /// The chunks that are still drawn although the view no longer wants them, in a fixed order.
         std::vector<Bounds> leaving() const;
@@ -77,6 +90,56 @@ namespace Terrain
         const float clamped = fade < 0.f ? 0.f : (fade > 1.f ? 1.f : fade);
         const std::uint32_t dropped = 255u - static_cast<std::uint32_t>(clamped * 255.f + 0.5f);
         return instance | ((dropped & 0xfu) << 4) | (((dropped >> 4) & 0xfu) << 12);
+    }
+
+    /// With the complementary dither: bit 23 of the instance (above the four bits of the grid x, which never pass 15)
+    /// says "inverted"; the fade nibbles then hold the incoming chunk's fade. A solid, normal share is the old value.
+    inline std::uint32_t encodeChunkShare(std::uint32_t instance, ChunkShare share)
+    {
+        constexpr std::uint32_t invertedBit = 0x00800000u;
+        if (!share.mInverted)
+            return encodeChunkFade(instance, share.mFade);
+        if ((instance & (0xf0f0u | invertedBit)) != 0)
+            return instance;
+        const float clamped = share.mFade < 0.f ? 0.f : (share.mFade > 1.f ? 1.f : share.mFade);
+        const std::uint32_t dropped = 255u - static_cast<std::uint32_t>(clamped * 255.f + 0.5f);
+        return instance | invertedBit | ((dropped & 0xfu) << 4) | (((dropped >> 4) & 0xfu) << 12);
+    }
+
+    /// What the vertex stage reads back from the instance.
+    inline ChunkShare decodeChunkShare(std::uint32_t instance)
+    {
+        const std::uint32_t dropped = ((instance >> 4) & 0xfu) | (((instance >> 12) & 0xfu) << 4);
+        return ChunkShare{ 1.f - static_cast<float>(dropped) / 255.f, (instance & 0x00800000u) != 0 };
+    }
+
+    /// The one float the fragment stage works with: the fade (0 to 1), or -1 minus the incoming fade (below 0).
+    inline float fadeCode(ChunkShare share)
+    {
+        return share.mInverted ? -1.f - share.mFade : share.mFade;
+    }
+
+    /// The 8 by 8 Bayer table of lib/view/dither.glsl and .slang (a test reads both files and compares).
+    inline int ditherTable(int x, int y)
+    {
+        static constexpr int table[8][8] = { { 0, 32, 8, 40, 2, 34, 10, 42 }, { 48, 16, 56, 24, 50, 18, 58, 26 },
+            { 12, 44, 4, 36, 14, 46, 6, 38 }, { 60, 28, 52, 20, 62, 30, 54, 22 }, { 3, 35, 11, 43, 1, 33, 9, 41 },
+            { 51, 19, 59, 27, 49, 17, 57, 25 }, { 15, 47, 7, 39, 13, 45, 5, 37 }, { 63, 31, 55, 23, 61, 29, 53, 21 } };
+        return table[x & 7][y & 7];
+    }
+
+    /// dither8 != 0: the pixel is kept at this fade.
+    inline bool ditherKeeps(int x, int y, float fade)
+    {
+        return !(fade < static_cast<float>(ditherTable(x, y) + 1) / 64.f);
+    }
+
+    /// The fragment stage's rule: does a draw with this fade code keep the pixel?
+    inline bool fadeCodeKeepsPixel(int x, int y, float code)
+    {
+        if (code < 0.f)
+            return !ditherKeeps(x, y, -1.f - code);
+        return code >= 1.f || ditherKeeps(x, y, code);
     }
 
     /// What the vertex stage reads back: 1 for a solid chunk.

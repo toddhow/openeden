@@ -106,6 +106,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     terrain/testbatchindex.cpp
     terrain/testbordersharing.cpp
+    terrain/testchunkcomplement.cpp
     terrain/testchunkfade.cpp
     terrain/testchunkfadeinstance.cpp
     terrain/testcoverage.cpp
@@ -251,6 +252,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testclusterfade.cpp
     lod/testtileswap.cpp
     lod/testterrainfade.cpp
+    lod/testterrainfadecomplement.cpp
     lod/testclusterplan.cpp
     lod/testclusterfoliage.cpp
     lod/testnifflatten.cpp
