@@ -186,7 +186,8 @@ namespace MWRender
             if (mReportIdle)
             {
                 mReportIdle = false;
-                const std::string line = status(); // not inside the Log statement: a Log holds the log's lock and status() logs too
+                const std::string line
+                    = status(); // not inside the Log statement: a Log holds the log's lock and status() logs too
                 Log(Debug::Info) << line;
             }
             return;
@@ -262,7 +263,8 @@ namespace MWRender
             logMemory("after the caches were pruned, before the pools are released");
             const auto retired = mSwapper.retiredReport();
             Log(Debug::Info) << "Texture mips: " << retired.alive << " of " << retired.retired
-                             << " retired binds are still alive (reference count total " << retired.referenceCounts << ")";
+                             << " retired binds are still alive (reference count total " << retired.referenceCounts
+                             << ")";
             Log(Debug::Info) << "Texture mips: " << retired.imagesAlive << " of " << retired.imagesRetired
                              << " swapped-away images still exist (reference count total "
                              << retired.imageReferenceCounts << ")";

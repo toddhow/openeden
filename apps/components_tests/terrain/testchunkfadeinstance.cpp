@@ -106,8 +106,8 @@ TEST(TerrainChunkFadeInstance, the_fragment_stages_multiply_the_batch_fade_by_th
 {
     const std::string glsl = readSource("terrain/main.frag");
     EXPECT_TRUE(contains(glsl, "float code = frag_in.chunkFade < 1.0 ? frag_in.chunkFade : batch.fade;"));
-    EXPECT_TRUE(
-        contains(glsl, "else if (code < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, code) == 0.0)"));
+    EXPECT_TRUE(contains(
+        glsl, "else if (code < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, code) == 0.0)"));
     const std::string slang = readSource("terrain/terrain.frag.slang");
     EXPECT_TRUE(contains(slang, "float code = input.io.chunkFade < 1.0 ? input.io.chunkFade : data.batch.fade;"));
     EXPECT_TRUE(contains(slang, "dither8(int(input.fragCoord.x) & 7, int(input.fragCoord.y) & 7, -1.0 - code) != 0.0"));

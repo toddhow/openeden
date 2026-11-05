@@ -108,8 +108,10 @@ namespace Terrain
         {
             if (!other.mWanted || !boundsOverlap(bounds, otherBounds))
                 continue;
-            const float width = std::min(bounds.max().x, otherBounds.max().x) - std::max(bounds.min.x, otherBounds.min.x);
-            const float height = std::min(bounds.max().y, otherBounds.max().y) - std::max(bounds.min.y, otherBounds.min.y);
+            const float width
+                = std::min(bounds.max().x, otherBounds.max().x) - std::max(bounds.min.x, otherBounds.min.x);
+            const float height
+                = std::min(bounds.max().y, otherBounds.max().y) - std::max(bounds.min.y, otherBounds.min.y);
             covered += static_cast<double>(width) * static_cast<double>(height);
             weakest = std::min(weakest, other.mFade);
         }

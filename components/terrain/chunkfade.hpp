@@ -48,9 +48,10 @@ namespace Terrain
         /// The share of the dither a wanted or leaving chunk keeps (1: fully drawn); 1 for a chunk it does not know.
         float fadeOf(const Bounds& bounds) const;
 
-        /// What the draw of a wanted or leaving chunk shows (task 0088, the complementary dither): its own fade, or, for
-        /// a chunk that is solid and that wanted chunks replace COMPLETELY, the complement of the weakest of them (it
-        /// keeps exactly the pixels they drop). A chunk the wanted ones cover only in part stays a normal, solid chunk.
+        /// What the draw of a wanted or leaving chunk shows (task 0088, the complementary dither): its own fade, or,
+        /// for a chunk that is solid and that wanted chunks replace COMPLETELY, the complement of the weakest of them
+        /// (it keeps exactly the pixels they drop). A chunk the wanted ones cover only in part stays a normal, solid
+        /// chunk.
         ChunkShare shareOf(const Bounds& bounds) const;
 
         /// The chunks that are still drawn although the view no longer wants them, in a fixed order.

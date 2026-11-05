@@ -80,9 +80,8 @@ namespace Terrain
             uint32_t baseInstance = 0;
         };
 
-        /// `share` (task 0088) is the chunk's share of the dither (1: all of it, the old value of firstInstance), or the
-        /// complement of an incoming chunk's;
-        /// `handle`, when given, receives the draw command.
+        /// `share` (task 0088) is the chunk's share of the dither (1: all of it, the old value of firstInstance), or
+        /// the complement of an incoming chunk's; `handle`, when given, receives the draw command.
         vsg::ref_ptr<vsg::Node> createDraw(const Batch& batch, const Bounds& bounds, uint8_t lod = 0,
             uint32_t lodFlags = 0, ChunkShare share = {}, DrawHandle* handle = nullptr) const;
 

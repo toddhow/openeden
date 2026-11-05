@@ -48,8 +48,8 @@ namespace Lod
     {
         TileFade mFade; // phase and the dither share (0 to 1)
         bool mCovers = false; // the live terrain leaves out this tile's square
-        // Task 0088, the complementary dither: at or above 0 the tile shows the pixels the INCOMING draw (with this fade)
-        // drops, instead of its own fade; below 0 it shows its own fade (`mFade.mFade`).
+        // Task 0088, the complementary dither: at or above 0 the tile shows the pixels the INCOMING draw (with this
+        // fade) drops, instead of its own fade; below 0 it shows its own fade (`mFade.mFade`).
         float mComplementOf = -1.f;
     };
 

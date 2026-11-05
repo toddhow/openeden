@@ -82,7 +82,8 @@ namespace Lod
             events[i] = stepOne(state, wanted, seconds, fadeSeconds);
             updateCovers(state);
             // A refined tile that waits for its replacement shows what that one drops (task 0088).
-            if (input.mChoice == TileChoice::Live && wanted && input.mReplacementFade >= 0.f && terrainTileIsSolid(state))
+            if (input.mChoice == TileChoice::Live && wanted && input.mReplacementFade >= 0.f
+                && terrainTileIsSolid(state))
                 state.mComplementOf = input.mReplacementFade;
         }
         // Then the tiles under a drawn ancestor: they stay until the ancestor is solid, then they go at once.

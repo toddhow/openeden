@@ -377,8 +377,10 @@ namespace
         ASSERT_NE(boundData(*group->stateCommands[0], 0), nullptr);
         EXPECT_NE(boundData(*group->stateCommands[0], 0), a.get());
         EXPECT_EQ(boundData(*group->stateCommands[0], 1), b.get());
-        const auto* second
-            = group->stateCommands[0]->cast<vsg::BindDescriptorSet>()->descriptorSet->descriptors[1]->cast<vsg::DescriptorImage>();
+        const auto* second = group->stateCommands[0]
+                                 ->cast<vsg::BindDescriptorSet>()
+                                 ->descriptorSet->descriptors[1]
+                                 ->cast<vsg::DescriptorImage>();
         EXPECT_EQ(second->dstBinding, 1u);
         // The second texture swaps in the new bind.
         swapper.swap(textures[1].id, 1, 10);
@@ -399,8 +401,10 @@ namespace
         auto root = vsg::Group::create();
         root->addChild(group);
         swapper.swap(swapper.scan(*root)[0].id, 1, 10);
-        const auto* now = group->stateCommands[0]->cast<vsg::BindDescriptorSet>()
-                              ->descriptorSet->descriptors[0]->cast<vsg::DescriptorImage>();
+        const auto* now = group->stateCommands[0]
+                              ->cast<vsg::BindDescriptorSet>()
+                              ->descriptorSet->descriptors[0]
+                              ->cast<vsg::DescriptorImage>();
         EXPECT_EQ(now->imageInfoList[0]->sampler.get(), sampler.get());
         EXPECT_EQ(now->imageInfoList[0]->imageView->image->usage, usage);
         EXPECT_EQ(now->imageInfoList[0]->imageLayout, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

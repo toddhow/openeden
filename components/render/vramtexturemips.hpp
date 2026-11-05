@@ -131,7 +131,8 @@ namespace Render::VideoMemory::TextureMips
     /// them: reductions first (textures not in use, then the ones used longest ago, then the bigger saving), then
     /// restores (visible first, then the most recently used). Ties by id, so the result does not depend on the order
     /// of `textures`.
-    inline std::vector<Change> plan(const std::vector<Texture>& textures, int level, std::uint64_t frame, const Params& p)
+    inline std::vector<Change> plan(
+        const std::vector<Texture>& textures, int level, std::uint64_t frame, const Params& p)
     {
         struct Candidate
         {

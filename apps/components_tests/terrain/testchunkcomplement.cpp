@@ -83,7 +83,8 @@ TEST(TerrainChunkComplement, the_share_round_trips_with_its_flag)
         const float fade = static_cast<float>(step) / 255.f;
         for (const bool inverted : { false, true })
         {
-            const ChunkShare back = Terrain::decodeChunkShare(Terrain::encodeChunkShare(base, ChunkShare{ fade, inverted }));
+            const ChunkShare back
+                = Terrain::decodeChunkShare(Terrain::encodeChunkShare(base, ChunkShare{ fade, inverted }));
             EXPECT_NEAR(back.mFade, fade, 1e-6f) << step;
             EXPECT_EQ(back.mInverted, inverted) << step;
         }
@@ -325,8 +326,8 @@ TEST(TerrainChunkComplement, a_split_hands_over_with_every_pixel_drawn_by_exactl
     }
 }
 
-// A tile's fade code goes through the batch uniform: its own fade, or -1 minus the fade of the draw that replaces it. Both
-// are rounded to 1/1024 so that the two draws of a pair read the same number back (exact in a float).
+// A tile's fade code goes through the batch uniform: its own fade, or -1 minus the fade of the draw that replaces it.
+// Both are rounded to 1/1024 so that the two draws of a pair read the same number back (exact in a float).
 TEST(TerrainChunkComplement, the_batch_uniform_holds_the_fade_code_rounded_to_a_1024th)
 {
     Terrain::Builder::BatchData data;

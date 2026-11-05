@@ -641,7 +641,8 @@ namespace MWRender
         // Task 0080: the video memory scale-back. Null unless [VideoMemory] enabled (and a system that can be reduced).
         std::unique_ptr<Render::VideoMemory::Scaler> mVramScaler;
         void setupVideoMemory();
-        // Task 0080 stage d: texture mip swaps (the `texture mips` system, or OPENEDEN_TEXTURE_MIPS_TEST). Null otherwise.
+        // Task 0080 stage d: texture mip swaps (the `texture mips` system, or OPENEDEN_TEXTURE_MIPS_TEST). Null
+        // otherwise.
         std::unique_ptr<class TextureMipsDriver> mTextureMips;
         vsg::ref_ptr<vsg::Group> mTextureMipsRoots; // scratch: the roots the swapper scans
         bool mTextureMipsWanted = false;

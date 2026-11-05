@@ -292,9 +292,9 @@ namespace vsgUtil::TextureMips
                 t.drop = std::min(t.drop, user.drop);
             t.changedBefore = entry.changedBefore;
             t.lastChangeFrame = entry.lastChangeFrame;
-            t.visible = camera
-                && std::any_of(entry.users.begin(), entry.users.end(),
-                    [&](const User& u) { return u.distance < mParams.visibleDistance; });
+            t.visible = camera && std::any_of(entry.users.begin(), entry.users.end(), [&](const User& u) {
+                return u.distance < mParams.visibleDistance;
+            });
             if (t.visible)
                 entry.lastNearFrame = frame;
             t.lastUsedFrame = entry.lastNearFrame;
@@ -482,8 +482,8 @@ namespace vsgUtil::TextureMips
                 user.drop = toDrop;
             }
         }
-        result.replaceMs = millisecondsSince(replaceBegin) - (result.buildMs - buildBefore)
-            - (result.compileMs - compileBefore);
+        result.replaceMs
+            = millisecondsSince(replaceBegin) - (result.buildMs - buildBefore) - (result.compileMs - compileBefore);
 
         for (auto& object : retired)
             mRetiredProbes.push_back({ vsg::observer_ptr<vsg::Object>(object), id });
