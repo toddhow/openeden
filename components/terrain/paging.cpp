@@ -1,5 +1,9 @@
 #include "paging.hpp"
 
+#include <algorithm>
+#include <cmath>
+
+#include <components/debug/debuglog.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/vsgutil/convert.hpp>
 
@@ -54,16 +58,26 @@ namespace Terrain
         return vsg::ref_ptr{ new vsgUtil::CompileOp(view.rootNode, mCompile, [&view]() { view.clear(); }) };
     }
 
-    vsg::ref_ptr<vsgUtil::CompileOp> Paging::updateView(
-        View& v, const vsg::dvec3& viewPoint, float viewDistance, bool preload, const Coverage* coverage) const
+    vsg::ref_ptr<vsgUtil::CompileOp> Paging::updateView(View& v, const vsg::dvec3& viewPoint, float viewDistance,
+        bool preload, const Coverage* coverage, const ChunkFadeParams* fade) const
     {
         ViewData& view = static_cast<ViewData&>(v);
+        const bool fading = fade != nullptr && fade->fadeSeconds > 0.f && !preload;
+        if (fading && view.fader.active())
+        {
+            // Move the fades on and write them into the draws that are in the scene (the command graph is recorded
+            // every frame). A chunk that was dropped needs the draws rebuilt, below.
+            if (view.fader.step(fade->deltaSeconds, fade->fadeSeconds))
+                view.fadeDirty = true;
+            for (const ViewData::FadeDraw& item : view.fadeDraws)
+                item.draw->firstInstance = encodeChunkFade(item.baseInstance, view.fader.fadeOf(item.bounds));
+        }
 
         const uint64_t coverageVersion = coverage ? coverage->version + 1 : 0;
         const unsigned int previousCount = view.numEntries;
         const bool coverageChanged = view.coverageVersion != coverageVersion;
         if (vsg::length2(view.viewPoint - viewPoint) > View::sqrReuseDistance || view.viewDistance != viewDistance
-            || view.coverageVersion != coverageVersion)
+            || view.coverageVersion != coverageVersion || view.fadeDirty)
         {
             view.reset();
             view.coverageVersion = coverageVersion;
@@ -122,6 +136,7 @@ namespace Terrain
                 size_t end;
                 float distance;
                 Bounds bounds;
+                std::vector<Bounds> leaving; // task 0088: chunks that stay drawn while they fade out
             };
             std::vector<Batch> batches;
 
@@ -137,10 +152,70 @@ namespace Terrain
                     if (start != end)
                     {
                         float dist = distance(bounds, viewCell);
-                        batches.push_back(Batch{ start, end, dist, bounds });
+                        batches.push_back(Batch{ start, end, dist, bounds, {} });
                     }
                 }
             }
+
+            // Task 0088: hand the wanted chunks to the fader, and add the chunks it keeps drawn as they leave.
+            std::vector<Bounds> leaving;
+            if (fading)
+            {
+                std::vector<Bounds> wanted;
+                wanted.reserve(view.numEntries);
+                for (unsigned int i = 0; i < view.numEntries; ++i)
+                    wanted.push_back(view.entries[i].bounds);
+                // A new view with nothing in common with the old one (a teleport, a first build) starts solid; so does
+                // a chunk where something else (a LOD tile) drew a moment ago, and a leaving chunk goes at once where
+                // something else draws now.
+                const bool instant = !view.fader.sharesAreaWith(wanted);
+                const std::vector<Bounds> drawnBefore = view.previousCoverage;
+                view.fader.setDesired(
+                    wanted, instant,
+                    [coverage](const Bounds& b) { return coverage != nullptr && coverage->contains(b); },
+                    [&drawnBefore](const Bounds& b) {
+                        return std::any_of(drawnBefore.begin(), drawnBefore.end(),
+                            [&b](const Bounds& square) { return boundsOverlap(square, b); });
+                    });
+                view.previousCoverage.clear();
+                if (coverage != nullptr)
+                {
+                    for (const CoveredSquare& square : coverage->squares)
+                        view.previousCoverage.push_back(square.bounds);
+                }
+                leaving = view.fader.leaving();
+                if (instant && view.numEntries > 0)
+                    Log(Debug::Verbose) << "Terrain chunk fade: the live view starts solid (" << view.numEntries
+                                        << " chunks)";
+                else if (!leaving.empty() || view.fader.active())
+                {
+                    size_t appearing = 0;
+                    for (const Bounds& b : wanted)
+                        appearing += view.fader.fadeOf(b) < 1.f ? 1 : 0;
+                    Log(Debug::Verbose) << "Terrain chunk fade: " << view.numEntries << " chunks, " << appearing
+                                        << " fading in, " << leaving.size() << " leaving";
+                }
+                for (const Bounds& ghost : leaving)
+                {
+                    // A batch of the current size that holds the chunk; one bigger than a batch cannot be drawn.
+                    if (ghost.size > static_cast<float>(batchSize))
+                        continue;
+                    const Bounds batchBounds{ static_cast<float>(batchSize),
+                        vsg::vec2(std::floor(ghost.min.x / batchSize) * batchSize,
+                            std::floor(ghost.min.y / batchSize) * batchSize) };
+                    auto found = std::find_if(batches.begin(), batches.end(),
+                        [&batchBounds](const Batch& batch) { return batch.bounds == batchBounds; });
+                    if (found == batches.end())
+                    {
+                        batches.push_back(Batch{ 0, 0, distance(batchBounds, viewCell), batchBounds, {} });
+                        found = batches.end() - 1;
+                    }
+                    found->leaving.push_back(ghost);
+                }
+                if (!leaving.empty() || view.fadeDirty)
+                    view.changed = true;
+            }
+            view.fadeDirty = false;
 
             // Task 0055: ViewData::add notices a chunk that differs from the old one at the same index, but not a list
             // that got shorter or longer (a tile now covers the last chunks, or lets them go). With a coverage, a
@@ -193,6 +268,7 @@ namespace Terrain
                 view.rootNode->children.clear();
                 view.rootNode->children.reserve(batches.size());
 
+                view.fadeDraws.clear();
                 for (const auto& viewBatch : batches)
                 {
                     // At the moment, applying lod to batches won't help because we have to loop over all affected
@@ -214,8 +290,27 @@ namespace Terrain
                         const auto& entry = view.entries[i];
                         auto vertexLod = getVertexLod(entry.bounds.size, vertexLodMod);
                         auto lodFlags = getLodFlags(entry.bounds, vertexLod);
-                        auto node = mBuilder->createDraw(batch, entry.bounds, vertexLod, lodFlags);
+                        if (!fading)
+                        {
+                            auto node = mBuilder->createDraw(batch, entry.bounds, vertexLod, lodFlags);
+                            batch.leafGroup->addChild(node);
+                            continue;
+                        }
+                        Builder::DrawHandle handle;
+                        auto node = mBuilder->createDraw(
+                            batch, entry.bounds, vertexLod, lodFlags, view.fader.fadeOf(entry.bounds), &handle);
                         batch.leafGroup->addChild(node);
+                        view.fadeDraws.push_back({ entry.bounds, handle.draw, handle.baseInstance });
+                    }
+                    for (const Bounds& ghost : viewBatch.leaving)
+                    {
+                        auto vertexLod = getVertexLod(ghost.size, vertexLodMod);
+                        auto lodFlags = getLodFlags(ghost, vertexLod);
+                        Builder::DrawHandle handle;
+                        auto node = mBuilder->createDraw(
+                            batch, ghost, vertexLod, lodFlags, view.fader.fadeOf(ghost), &handle);
+                        batch.leafGroup->addChild(node);
+                        view.fadeDraws.push_back({ ghost, handle.draw, handle.baseInstance });
                     }
                     view.rootNode->children.push_back(batch.root);
                 }

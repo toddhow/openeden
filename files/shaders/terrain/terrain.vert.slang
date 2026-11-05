@@ -32,8 +32,10 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID, uint instanceIndexU
     int vertexIndex = int(vertexIndexU);
     int instanceIndex = int(instanceIndexU);
     VertexOutput output;
-    int lod = instanceIndex & 0xff;
-    int shiftSize = (instanceIndex >> 8) & 0xff;
+    // Task 0088: see the GLSL.
+    int lod = instanceIndex & 0xf;
+    int shiftSize = (instanceIndex >> 8) & 0xf;
+    int dropped = ((instanceIndex >> 4) & 0xf) | (((instanceIndex >> 12) & 0xf) << 4);
     int numVerts = int(data.batch.numVerts - 1) / (1 << (shiftSize + lod)) + 1;
     int2 vert = int2(vertexIndex / numVerts, vertexIndex % numVerts);
     float2 gridPos = float2((instanceIndex >> 16) & 0xff, (instanceIndex >> 24) & 0xff);
@@ -61,6 +63,7 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID, uint instanceIndexU
     output.io.localTexCoord = float2(vert) / float(numVerts - 1);
 #endif
     output.io.viewNormal = viewNormal;
+    output.io.chunkFade = 1.0 - float(dropped) / 255.0;
 #ifdef TERRAIN_MAPS
     // OpenMW's terrain tangent frame (see the GLSL).
     float3 modelNormal = normalize(normal);

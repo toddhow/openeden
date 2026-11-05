@@ -119,7 +119,7 @@ add_component_dir (bodynif
 # Views terrain.
 # Depends on pipeline.
 add_component_dir (terrain
-    bounds coverage batchindex storage indexbuffer builder layermaps
+    bounds coverage batchindex storage indexbuffer builder layermaps chunkfade
     lod view viewdata paging preload
     )
 # Adapts nif to vsg::Node and kf to Anim::ControllerMap.

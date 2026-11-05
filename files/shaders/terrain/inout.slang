@@ -16,6 +16,8 @@ struct TerrainInout
     float3 viewTangent : V_VIEWTANGENT;
     float3 viewBinormal : V_VIEWBINORMAL;
 #endif
+    // Task 0088: see inout.glsl.
+    nointerpolation float chunkFade : V_CHUNKFADE;
 };
 
 #endif

@@ -10,3 +10,5 @@ vec2 localTexCoord;
 vec3 viewTangent;
 vec3 viewBinormal;
 #endif
+// OpenEden (task 0088): the share of the dither a live chunk keeps (1 for a solid one), from the draw's instance index.
+flat float chunkFade;

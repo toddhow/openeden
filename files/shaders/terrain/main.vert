@@ -25,8 +25,11 @@ layout(std140, set=TEXTURE_SET, binding=BATCH_DATA_BINDING) uniform Data {
 out gl_PerVertex{ vec4 gl_Position; };
 void main()
 {
-    int lod = gl_InstanceIndex & 0xff;
-    int shiftSize = (gl_InstanceIndex >> 8) & 0xff;
+    // OpenEden (task 0088): lod and shift are the low nibbles of their bytes; the high nibbles hold the share of the dither
+    // a fading live chunk drops (255 is all of it), see Terrain::encodeChunkFade.
+    int lod = gl_InstanceIndex & 0xf;
+    int shiftSize = (gl_InstanceIndex >> 8) & 0xf;
+    int dropped = ((gl_InstanceIndex >> 4) & 0xf) | (((gl_InstanceIndex >> 12) & 0xf) << 4);
     int numVerts = int(batch.numVerts-1) / (1 << (shiftSize + lod)) + 1;
     ivec2 vert = ivec2(gl_VertexIndex / numVerts, gl_VertexIndex % numVerts);
     vec2 gridPos = vec2((gl_InstanceIndex >> 16)&0xff, (gl_InstanceIndex >> 24)&0xff);
@@ -55,6 +58,7 @@ void main()
     vert_out.localTexCoord = vert / float(numVerts-1);
     #endif
     vert_out.viewNormal = viewNormal;
+    vert_out.chunkFade = 1.0 - float(dropped) / 255.0;
 #ifdef TERRAIN_MAPS
     // OpenMW's terrain tangent frame (compatibility/terrain.vert): (1, 0, 0) through generateTangentSpace, then the
     // tangent re-derived at right angles to the normal.

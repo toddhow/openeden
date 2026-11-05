@@ -1,12 +1,14 @@
 #ifndef VSGOPENMW_TERRAIN_BUILDER_H
 #define VSGOPENMW_TERRAIN_BUILDER_H
 
+#include <vsg/commands/DrawIndexed.h>
 #include <vsg/core/Array2D.h>
 #include <vsg/nodes/StateGroup.h>
 
 #include <components/vsgutil/cache.hpp>
 
 #include "bounds.hpp"
+#include "chunkfade.hpp"
 #include "indexbuffer.hpp"
 #include "layermaps.hpp"
 #include "storage.hpp"
@@ -66,8 +68,18 @@ namespace Terrain
         };
         Batch createBatch(const Bounds& bounds, uint8_t lod = 0) const;
 
-        vsg::ref_ptr<vsg::Node> createDraw(
-            const Batch& batch, const Bounds& bounds, uint8_t lod = 0, uint32_t lodFlags = 0) const;
+        /// OpenEden (task 0088): a chunk's draw command and the firstInstance it has without a fade, so that the live
+        /// terrain can change its fade each frame (`draw->firstInstance = encodeChunkFade(baseInstance, fade)`).
+        struct DrawHandle
+        {
+            vsg::ref_ptr<vsg::DrawIndexed> draw;
+            uint32_t baseInstance = 0;
+        };
+
+        /// `fade` (task 0088) is the chunk's share of the dither (1: all of it, the old value of firstInstance);
+        /// `handle`, when given, receives the draw command.
+        vsg::ref_ptr<vsg::Node> createDraw(const Batch& batch, const Bounds& bounds, uint8_t lod = 0,
+            uint32_t lodFlags = 0, float fade = 1.f, DrawHandle* handle = nullptr) const;
 
         // OpenEden (task 0073): the lowest and highest terrain height under `bounds`, a part of the batch
         // `batchBounds`, from the batch data's height ranges (the values the cull node of a smaller draw is made from).

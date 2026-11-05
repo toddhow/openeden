@@ -415,6 +415,8 @@ void main()
     // OpenEden (task 0087): a world LOD tile fading in or out drops pixels by the ordered dither of default/main.frag's
     // LOD_FADE, here so that the colour, the G-buffer and the shadow cascades drop the same ones. Last, so that no
     // derivative above (the layers, the parallax march) is taken in a quad with a dropped pixel. A fade of 1 drops none.
-    if (batch.fade < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, batch.fade) == 0.0)
+    // Task 0088: a live chunk fading in or out multiplies its own share (from the draw) into the batch's.
+    float fade = batch.fade * frag_in.chunkFade;
+    if (fade < 1.0 && dither8(int(gl_FragCoord.x) & 7, int(gl_FragCoord.y) & 7, fade) == 0.0)
         discard;
 }

@@ -2355,7 +2355,15 @@ namespace MWRender
         const auto rebuildStart
             = coverageChanged ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
         Misc::LoadTrace::Scope traceUpdateView("terrain.updateview");
-        auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage);
+        // Task 0088: the live terrain's chunks dither in and out over the same time as the LOD tiles, with the world
+        // LOD on and a fade time above 0; otherwise none of it runs.
+        Terrain::ChunkFadeParams chunkFade;
+        if (Settings::worldLod().mEnabled)
+        {
+            chunkFade.fadeSeconds = Settings::worldLod().mTerrainFadeTime;
+            chunkFade.deltaSeconds = dt;
+        }
+        auto compile = mTerrain->updateView(*mTerrainView, pos, mViewDistance, false, coverage, &chunkFade);
         traceUpdateView.end();
         if (compile)
         {

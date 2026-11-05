@@ -106,6 +106,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     terrain/testbatchindex.cpp
     terrain/testbordersharing.cpp
+    terrain/testchunkfade.cpp
+    terrain/testchunkfadeinstance.cpp
     terrain/testcoverage.cpp
     terrain/testlayermaps.cpp
     terrain/testlayerrmaos.cpp

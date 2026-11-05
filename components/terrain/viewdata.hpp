@@ -6,7 +6,10 @@
 
 #include <vsg/nodes/Group.h>
 
+#include <vsg/commands/DrawIndexed.h>
+
 #include "bounds.hpp"
+#include "chunkfade.hpp"
 #include "view.hpp"
 
 namespace Terrain
@@ -67,7 +70,24 @@ namespace Terrain
             numEntries = 0;
             entries.clear();
             rootNode->children.clear();
+            fader.clear();
+            fadeDraws.clear();
+            fadeDirty = false;
+            previousCoverage.clear();
         }
+
+        // OpenEden (task 0088): the live terrain's chunk fade. Only the player's view uses it (Paging::updateView with
+        // fade parameters); the preload views and the map's never do.
+        struct FadeDraw
+        {
+            Bounds bounds;
+            vsg::ref_ptr<vsg::DrawIndexed> draw;
+            uint32_t baseInstance = 0;
+        };
+        ChunkFader fader;
+        std::vector<FadeDraw> fadeDraws; // every draw of the last rebuild
+        bool fadeDirty = false; // a leaving chunk was dropped: the draws must be rebuilt
+        std::vector<Bounds> previousCoverage; // the squares something else drew at the last rebuild
 
         vsg::dvec3 viewPoint;
         // OpenEden (task 0055): the Coverage version this view was built for (0: none).

@@ -525,8 +525,8 @@ namespace Terrain
         return dataCache.getOrCreate(std::make_pair(bounds, lod), *this);
     }
 
-    vsg::ref_ptr<vsg::Node> Builder::createDraw(
-        const Builder::Batch& batch, const Bounds& bounds, uint8_t lod, uint32_t lodFlags) const
+    vsg::ref_ptr<vsg::Node> Builder::createDraw(const Builder::Batch& batch, const Bounds& bounds, uint8_t lod,
+        uint32_t lodFlags, float fade, DrawHandle* handle) const
     {
         uint32_t numVerts = mStorage->numVerts(bounds.size, lod);
         auto bindIndexBuffer = indexCache.getOrCreate(std::make_pair(numVerts, lodFlags), CreateIndexBuffer());
@@ -536,7 +536,13 @@ namespace Terrain
         vsg::vec2 gridPos = (bounds.min - batch.bounds.min) / bounds.size;
         instance |= static_cast<uint32_t>(gridPos.x) << 16;
         instance |= static_cast<uint32_t>(gridPos.y) << 24;
-        auto draw = vsg::DrawIndexed::create(bindIndexBuffer->indices->data->valueCount(), 1, 0, 0, instance);
+        auto draw = vsg::DrawIndexed::create(
+            bindIndexBuffer->indices->data->valueCount(), 1, 0, 0, encodeChunkFade(instance, fade));
+        if (handle != nullptr)
+        {
+            handle->draw = draw;
+            handle->baseInstance = instance;
+        }
         auto commands = vsg::Commands::create();
         commands->children = { bindIndexBuffer, draw };
         if (bounds.size < batch.bounds.size)

@@ -19,6 +19,14 @@ namespace Terrain
     struct Builder;
     class ViewData;
 
+    /// OpenEden (task 0088): the live terrain's chunk fade, for the player's view only. `fadeSeconds` at or below 0 is
+    /// off (the old code, nothing remembered); `deltaSeconds` is the time since the last call.
+    struct ChunkFadeParams
+    {
+        float fadeSeconds = 0.f;
+        float deltaSeconds = 0.f;
+    };
+
     /**
      * @brief Terrain implementation that draws cells in batches, with geometry LOD
      * @note The const implementation must be thread safe.
@@ -51,8 +59,10 @@ namespace Terrain
         // inside them are left out, chunks that only partly overlap them are split, and chunks next to them stitch
         // their edges to the covering draw's vertex LOD. Only the main thread's call passes it, and it must not change
         // during the call. A view built for another coverage version is rebuilt even if the view point did not move.
+        // OpenEden (task 0088): with `fade` the chunks that appear dither in, the ones that leave stay drawn and dither
+        // out (or stay until what replaces them is solid); the view is rebuilt when one is dropped. Main thread only.
         vsg::ref_ptr<vsgUtil::CompileOp> updateView(View& view, const vsg::dvec3& viewPoint, float viewDistance,
-            bool preload = false, const Coverage* coverage = nullptr) const;
+            bool preload = false, const Coverage* coverage = nullptr, const ChunkFadeParams* fade = nullptr) const;
         void clearView(View& view) const;
 
         void pruneCache() const;
