@@ -43,6 +43,8 @@ namespace MWRender
             std::function<void()> pruneCaches; // ResourceSystem::updateCache: frees what only the caches hold
             std::function<Render::VideoMemory::Sample()> memory; // the driver's numbers; may be empty
             std::function<std::int64_t()> releasePools; // Engine::releaseUnusedDeviceMemory; may be empty
+            // The models cached by the loaders' shared objects (they hold the binds of the scene too).
+            std::function<std::vector<vsg::ref_ptr<vsg::Node>>()> cachedModels;
         };
 
         explicit TextureMipsDriver(Services services);

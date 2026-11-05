@@ -3142,14 +3142,6 @@ namespace MWRender
         };
     }
 
-    void RenderManager::update(float dt, bool paused)
-    {
-        if (paused)
-            dt = 0; // return;
-        else
-            mSceneData->value().time += dt;
-
-        if (mVramScaler)
     // Task 0080 stage d: made when the scene exists, then ticked once a frame (main thread).
     void RenderManager::updateTextureMips(float dt)
     {
@@ -3162,10 +3154,22 @@ namespace MWRender
             services.root = [this]() -> vsg::Node* {
                 // The main scene, and the graph that draws the inventory preview and the local map.
                 mTextureMipsRoots = vsg::Group::create();
-                if (mCommandGraph)
-                    mTextureMipsRoots->addChild(mCommandGraph);
+                for (const auto& graph : mEngine.allCommandGraphs())
+                    mTextureMipsRoots->addChild(graph);
                 if (mGuiRenderGraph)
                     mTextureMipsRoots->addChild(mGuiRenderGraph);
+                // The models the loaders cache are what scene objects are cloned from, and they hold the same binds.
+                const auto addModels = [this](const vsg::ref_ptr<const vsg::Options>& options) {
+                    if (options && options->sharedObjects)
+                        for (const auto& model : vsgUtil::TextureMips::cachedModels(*options->sharedObjects))
+                            mTextureMipsRoots->addChild(model);
+                };
+                addModels(mResourceSystem->nodeOptions);
+                addModels(mScene->context.nodeOptions);
+                addModels(mScene->context.effectOptions);
+                addModels(mScene->context.actorOptions);
+                for (const auto& options : mScene->context.partBoneOptions)
+                    addModels(options);
                 return mTextureMipsRoots.get();
             };
             services.pruneCaches = [this] {
@@ -3182,7 +3186,17 @@ namespace MWRender
         mTextureMips->update(dt);
     }
 
+    void RenderManager::update(float dt, bool paused)
+    {
+        if (paused)
+            dt = 0; // return;
+        else
+            mSceneData->value().time += dt;
+
+        if (mVramScaler)
             mVramScaler->tick(dt);
+        if (mTextureMipsWanted)
+            updateTextureMips(dt);
         mEffects->update(dt);
         mProjectiles->update(dt);
         static const std::string noEffect;
@@ -3191,8 +3205,6 @@ namespace MWRender
         const vsg::vec3 cameraPosition(mCamera->getPosition());
         const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
         // Task 0040: lit snow (and blizzard): the sun's part of the flakes' light, from the sun's colour and the angle
-        if (mTextureMipsWanted)
-            updateTextureMips(dt);
         // between the camera's direction and the sun, in the display-encoded colour the material's emissive takes.
         if (mPrecipitationLit && mRenderModes[Render_Sky])
         {

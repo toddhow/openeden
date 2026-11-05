@@ -4,6 +4,7 @@
 // never edited, it may be in flight), every group that held the old bind points at the new one, groups sharing one
 // bind share the new one, the old bind goes to the retire hook, the full image comes back on a restore.
 
+#include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/texturemips.hpp>
 
 #include "texturetestutil.hpp"
@@ -19,7 +20,12 @@
 #include <vsg/state/Sampler.h>
 #include <vsg/state/StateSwitch.h>
 
+#include <vsgXchange/all.h>
+
 #include <gtest/gtest.h>
+
+#include <filesystem>
+#include <fstream>
 
 namespace
 {
@@ -472,5 +478,171 @@ namespace
         EXPECT_EQ(first[0].id, second[0].id);
         EXPECT_EQ(first[1].id, second[1].id);
         EXPECT_NE(first[0].id, first[1].id);
+    }
+
+    TEST(TextureMipsReduction, a_swapped_texture_is_handed_out_reduced_to_later_readers)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto group = makeGroup(makeBind(data));
+        auto root = vsg::Group::create();
+        root->addChild(group);
+        EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+        const auto id = swapper.scan(*root)[0].id;
+        swapper.swap(id, 1, 10);
+        const auto reduced = vsgUtil::TextureMips::activeReduction(data.get());
+        ASSERT_TRUE(reduced.valid());
+        EXPECT_EQ(reduced.get(), boundData(*group->stateCommands[0]));
+        EXPECT_EQ(reduced->properties.mipLevels, 11);
+    }
+
+    TEST(TextureMipsReduction, a_restore_ends_it)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(data)));
+        const auto id = swapper.scan(*root)[0].id;
+        swapper.swap(id, 1, 10);
+        swapper.swap(id, 0, 400);
+        EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+    }
+
+    TEST(TextureMipsReduction, the_reduction_follows_the_latest_drop)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(4096, 13);
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(data)));
+        const auto id = swapper.scan(*root)[0].id;
+        swapper.swap(id, 1, 10);
+        const auto first = vsgUtil::TextureMips::activeReduction(data.get());
+        swapper.swap(id, 2, 400);
+        const auto second = vsgUtil::TextureMips::activeReduction(data.get());
+        ASSERT_TRUE(second.valid());
+        EXPECT_NE(first.get(), second.get());
+        EXPECT_EQ(second->properties.mipLevels, 11);
+    }
+
+    TEST(TextureMipsReduction, a_texture_that_left_the_scene_is_no_longer_reduced_for_readers)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(data)));
+        swapper.swap(swapper.scan(*root)[0].id, 1, 10);
+        root->children.clear();
+        swapper.scan(*root);
+        EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+    }
+
+    TEST(TextureMipsReduction, a_failed_swap_sets_no_reduction)
+    {
+        Recorder recorder;
+        recorder.failCompile = true;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(data)));
+        swapper.swap(swapper.scan(*root)[0].id, 1, 10);
+        EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+    }
+
+    TEST(TextureMipsCachedModels, the_models_of_a_shared_object_cache_are_listed)
+    {
+        auto shared = vsg::SharedObjects::create();
+        auto options = vsg::Options::create();
+        options->sharedObjects = shared;
+        auto model = vsg::Group::create();
+        shared->add(model, "meshes/a.nif", options);
+        auto other = vsg::Group::create();
+        shared->add(other, "meshes/b.nif", options);
+        const auto models = vsgUtil::TextureMips::cachedModels(*shared);
+        ASSERT_EQ(models.size(), 2u);
+        const bool hasModel = models[0].get() == model.get() || models[1].get() == model.get();
+        const bool hasOther = models[0].get() == other.get() || models[1].get() == other.get();
+        EXPECT_TRUE(hasModel);
+        EXPECT_TRUE(hasOther);
+    }
+
+    TEST(TextureMipsCachedModels, an_empty_cache_lists_nothing)
+    {
+        auto shared = vsg::SharedObjects::create();
+        EXPECT_TRUE(vsgUtil::TextureMips::cachedModels(*shared).empty());
+    }
+
+    TEST(TextureMipsCachedModels, a_cached_model_that_is_gone_is_left_out)
+    {
+        auto shared = vsg::SharedObjects::create();
+        auto options = vsg::Options::create();
+        {
+            auto model = vsg::Group::create();
+            shared->add(model, "meshes/a.nif", options);
+        }
+        shared->prune(); // nothing else holds the model: the cache lets it go
+        EXPECT_TRUE(vsgUtil::TextureMips::cachedModels(*shared).empty());
+    }
+
+    TEST(TextureMipsCachedModels, a_template_holding_a_bind_is_reached_by_the_swapper)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto data = bigTexture(2048, 12);
+        auto oldBind = makeBind(data);
+        auto templateGroup = makeGroup(oldBind);
+        auto templateRoot = vsg::Group::create();
+        templateRoot->addChild(templateGroup);
+        auto shared = vsg::SharedObjects::create();
+        auto options = vsg::Options::create();
+        shared->add(templateRoot, "meshes/a.nif", options);
+        auto sceneGroup = makeGroup(oldBind); // the scene's own group, the same bind
+        auto root = vsg::Group::create();
+        root->addChild(sceneGroup);
+        for (const auto& model : vsgUtil::TextureMips::cachedModels(*shared))
+            root->addChild(model);
+        const auto textures = swapper.scan(*root);
+        ASSERT_EQ(textures.size(), 1u);
+        const auto result = swapper.swap(textures[0].id, 1, 10);
+        EXPECT_EQ(result.groups, 2);
+        EXPECT_EQ(templateGroup->stateCommands[0].get(), sceneGroup->stateCommands[0].get());
+    }
+
+    TEST(TextureMipsReduction, a_later_read_of_the_file_gets_the_reduced_image_and_a_restore_the_full_one)
+    {
+        const std::filesystem::path path = std::filesystem::temp_directory_path() / "openeden_mips_read_test.dds";
+        {
+            const auto bytes = makeDds(DdsFormat::Bc1Legacy, 2048, 2048, 12);
+            std::ofstream out(path, std::ios::binary);
+            out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        }
+        auto options = vsg::Options::create();
+        options->readerWriters.push_back(vsgXchange::all::create());
+        options->sharedObjects = vsg::SharedObjects::create();
+
+        auto first = vsgUtil::readOptionalImage(path.string(), options);
+        ASSERT_TRUE(first.valid());
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(makeBind(first)));
+        const auto id = swapper.scan(*root)[0].id;
+
+        auto unchanged = vsgUtil::readOptionalImage(path.string(), options);
+        EXPECT_EQ(unchanged.get(), first.get());
+
+        swapper.swap(id, 1, 10);
+        auto reduced = vsgUtil::readOptionalImage(path.string(), options);
+        ASSERT_TRUE(reduced.valid());
+        EXPECT_NE(reduced.get(), first.get());
+        EXPECT_EQ(reduced->properties.mipLevels, 11);
+
+        swapper.swap(id, 0, 400);
+        auto full = vsgUtil::readOptionalImage(path.string(), options);
+        EXPECT_EQ(full.get(), first.get());
+        std::filesystem::remove(path);
     }
 }

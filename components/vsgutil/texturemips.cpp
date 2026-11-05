@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <mutex>
+#include <typeindex>
 #include <unordered_set>
 
 #include <vsg/core/MipmapLayout.h>
@@ -64,6 +67,51 @@ namespace vsgUtil::TextureMips
         }
     }
 
+    namespace
+    {
+        std::mutex reductionMutex;
+        // The full image to the reduced copy new readers get. The key stays valid while the swapper's entry holds the
+        // full image; the swapper removes the pair when it forgets the entry.
+        std::map<const vsg::Data*, vsg::ref_ptr<vsg::Data>> activeReductions;
+
+        void setReduction(const vsg::Data* full, vsg::ref_ptr<vsg::Data> reduced)
+        {
+            std::scoped_lock lock(reductionMutex);
+            if (reduced)
+                activeReductions[full] = std::move(reduced);
+            else
+                activeReductions.erase(full);
+        }
+
+        // Reads a SharedObjects' internals: its LoadedObject entries are not reachable through its public interface.
+        struct SharedObjectsPeek : vsg::SharedObjects
+        {
+            using vsg::SharedObjects::_sharedObjects;
+        };
+    }
+
+    vsg::ref_ptr<vsg::Data> activeReduction(const vsg::Data* full)
+    {
+        std::scoped_lock lock(reductionMutex);
+        const auto found = activeReductions.find(full);
+        return found == activeReductions.end() ? vsg::ref_ptr<vsg::Data>() : found->second;
+    }
+
+    std::vector<vsg::ref_ptr<vsg::Node>> cachedModels(vsg::SharedObjects& sharedObjects)
+    {
+        std::vector<vsg::ref_ptr<vsg::Node>> models;
+        std::scoped_lock lock(sharedObjects.mutex);
+        auto& peek = static_cast<SharedObjectsPeek&>(sharedObjects);
+        const auto found = peek._sharedObjects.find(std::type_index(typeid(vsg::LoadedObject)));
+        if (found == peek._sharedObjects.end())
+            return models;
+        for (const auto& object : found->second)
+            if (auto* loaded = dynamic_cast<vsg::LoadedObject*>(object.get()))
+                if (auto node = loaded->object.cast<vsg::Node>())
+                    models.push_back(node);
+        return models;
+    }
+
     bool reducible(const vsg::Data& data)
     {
         if (data.dimensions() != 2 || data.depth() > 1 || levelCount(data) < 2)
@@ -82,6 +130,8 @@ namespace vsgUtil::TextureMips
         explicit ScanVisitor(Swapper& s)
             : swapper(s)
         {
+            // A switched-off child (a hidden object, an unused alternative) still holds its binds: visit it too.
+            overrideMask = vsg::MASK_ALL;
         }
 
         void note(vsg::StateGroup& group, vsg::StateCommand* command)
@@ -172,7 +222,10 @@ namespace vsgUtil::TextureMips
         for (std::size_t i = 0; i < mEntries.size(); ++i)
         {
             if (std::find(visitor.touched.begin(), visitor.touched.end(), i) == visitor.touched.end())
+            {
+                setReduction(mEntries[i].full.get(), {}); // forgotten: readers get the full image again
                 continue;
+            }
             Entry& entry = mEntries[i];
             for (auto it = entry.reduced.begin(); it != entry.reduced.end();)
             {
@@ -233,6 +286,16 @@ namespace vsgUtil::TextureMips
             }
         }
         mRetiredProbes = std::move(alive);
+        std::vector<vsg::observer_ptr<vsg::Object>> imagesAlive;
+        report.imagesRetired = static_cast<int>(mRetiredImages.size());
+        for (auto& probe : mRetiredImages)
+            if (auto object = probe.ref_ptr())
+            {
+                ++report.imagesAlive;
+                report.imageReferenceCounts += object->referenceCount() - 1;
+                imagesAlive.push_back(probe);
+            }
+        mRetiredImages = std::move(imagesAlive);
         return report;
     }
 
@@ -296,6 +359,7 @@ namespace vsgUtil::TextureMips
                 if (current < 0 || current == toDrop)
                     continue;
                 const auto& info = oldImage->imageInfoList[0];
+                mRetiredImages.emplace_back(info->imageView->image.get());
                 auto image = vsg::Image::create(target);
                 image->usage = info->imageView->image->usage;
                 auto view = vsg::ImageView::create(image);
@@ -379,6 +443,8 @@ namespace vsgUtil::TextureMips
         entry.changedBefore = true;
         entry.lastChangeFrame = frame;
         result.ok = !failed;
+        if (result.ok)
+            setReduction(entry.full.get(), toDrop > 0 ? target : vsg::ref_ptr<vsg::Data>());
         return result;
     }
 }

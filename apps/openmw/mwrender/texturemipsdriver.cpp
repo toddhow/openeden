@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include <components/debug/debuglog.hpp>
+
 #include <components/vsgutil/compilecontext.hpp>
 
 namespace MWRender
@@ -195,6 +196,9 @@ namespace MWRender
             const auto retired = mSwapper.retiredReport();
             Log(Debug::Info) << "Texture mips: " << retired.alive << " of " << retired.retired
                              << " retired binds are still alive (reference count total " << retired.referenceCounts << ")";
+            Log(Debug::Info) << "Texture mips: " << retired.imagesAlive << " of " << retired.imagesRetired
+                             << " swapped-away images still exist (reference count total "
+                             << retired.imageReferenceCounts << ")";
             for (const std::uint64_t texture : retired.aliveTextures)
                 Log(Debug::Info) << "Texture mips:   a retired bind of texture " << texture << " is still alive";
             if (mServices.releasePools)

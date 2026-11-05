@@ -11,6 +11,7 @@
 #include <vsg/core/observer_ptr.h>
 #include <vsg/io/read.h>
 
+#include "texturemips.hpp"
 #include "textureresize.hpp"
 
 namespace vsgUtil
@@ -164,6 +165,11 @@ namespace vsgUtil
             if (cap > 0)
                 data = capImage(data, cap, use, options && options->sharedObjects);
         }
+        // Task 0080 stage d: a texture that is swapped down is read at its reduced size, or a model loaded later would
+        // bring the full image back (the cache holds the full one).
+        if (data)
+            if (auto reduced = TextureMips::activeReduction(data.get()))
+                data = std::move(reduced);
         return data;
     }
 

@@ -487,6 +487,17 @@ namespace Render
         return static_cast<int64_t>(pools->releaseUnusedPools());
     }
 
+    std::vector<vsg::ref_ptr<vsg::CommandGraph>> Engine::allCommandGraphs() const
+    {
+        std::vector<vsg::ref_ptr<vsg::CommandGraph>> graphs;
+        if (!mViewer)
+            return graphs;
+        for (const auto& task : mViewer->recordAndSubmitTasks)
+            for (const auto& graph : task->commandGraphs)
+                graphs.push_back(graph);
+        return graphs;
+    }
+
     GpuTimer* Engine::enableGpuTiming()
     {
         if (mGpuTimingTried)

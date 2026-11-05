@@ -12,6 +12,7 @@
 #include <vsg/core/ref_ptr.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/nodes/StateGroup.h>
+#include <vsg/utils/SharedObjects.h>
 
 #include <components/render/vramtexturemips.hpp>
 
@@ -78,6 +79,9 @@ namespace vsgUtil::TextureMips
             int alive = 0;
             unsigned referenceCounts = 0;
             std::vector<std::uint64_t> aliveTextures; // the texture each live bind was retired for
+            int imagesRetired = 0; // the images of the retired binds that were swapped away
+            int imagesAlive = 0; // and how many of them still exist
+            unsigned imageReferenceCounts = 0;
         };
         RetiredReport retiredReport();
         const Render::VideoMemory::TextureMips::Params& params() const { return mParams; }
@@ -110,7 +114,18 @@ namespace vsgUtil::TextureMips
             std::uint64_t texture = 0;
         };
         std::vector<Probe> mRetiredProbes;
+        std::vector<vsg::observer_ptr<vsg::Object>> mRetiredImages;
     };
+
+    /// The reduced copy that images read from now on should be given in place of `full`, or null: while a texture is
+    /// swapped down, a model loaded later (which shares the cached full image) would bring the full image back.
+    /// Thread safe (the readers run on loader threads). Set and cleared by Swapper::swap and forgotten by scan.
+    vsg::ref_ptr<vsg::Data> activeReduction(const vsg::Data* full);
+
+    /// The models cached in a SharedObjects (its LoadedObject entries): they are the templates scene objects are
+    /// cloned from, and they share the binds of the scene, so the swapper has to reach them too (task 0080: two binds
+    /// stayed alive because their template, in this cache, still held them).
+    std::vector<vsg::ref_ptr<vsg::Node>> cachedModels(vsg::SharedObjects& sharedObjects);
 
     /// True for an image the swapper can reduce: a plain 2D image with a mip chain of at least two levels.
     bool reducible(const vsg::Data& data);

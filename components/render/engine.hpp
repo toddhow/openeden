@@ -166,6 +166,9 @@ namespace Render
         // (from RenderManager::update). Returns the bytes released, -1 when the device has no pools yet.
         int64_t releaseUnusedDeviceMemory();
 
+        // Task 0080 stage d: every command graph of the viewer's record-and-submit tasks (the texture mip swapper scans them).
+        std::vector<vsg::ref_ptr<vsg::CommandGraph>> allCommandGraphs() const;
+
         // Task 0054 (S0): named numbers that loop() adds to the OPENEDEN_FRAME_STATS_FILE as columns. Whoever wants a
         // column registers it before loop() starts, and only when [Rendering] frame counters is on; with none
         // registered the file is exactly as before.
