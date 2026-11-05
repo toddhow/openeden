@@ -2930,6 +2930,13 @@ namespace MWRender
         input.lightSteps = tier.lightSteps;
         input.hazeLengthMeters = Render::CloudVolume::hazeLengthMeters(mFog->getFogEnd(false));
         input.debug = Render::CloudVolume::parseDebugView(rendering.mVolumetricCloudsDebug.get());
+        // The curved layer (a planet radius, a longer reach) and the variety (the wind wrap is the sky's).
+        if (rendering.mVolumetricCloudsCurved)
+        {
+            input.planetRadiusMeters = rendering.mVolumetricCloudsPlanetRadius * 1000.f;
+            input.rayLimitMeters = Render::CloudVolume::curvedMaxRayMeters;
+        }
+        input.variety = rendering.mVolumetricCloudsVariety;
         mCloudVolume->setParams(input, mViewMatrix->transform(), mProjectionMatrix->transform());
     }
 

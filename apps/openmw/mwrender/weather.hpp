@@ -187,6 +187,8 @@ namespace MWRender
         // picture once it exists, the share of the sky the volume draws now and heading for, the coverage the weather
         // gives (two layers, blended by the weather manager's factor) and the wind (double: it grows all session).
         bool mVolumeCloudsOn = false;
+        // OpenEden (task 0042 follow-up): the volume's dome is lowered below the horizon and its fade is not applied.
+        bool mVolumeHorizon = false;
         vsg::ref_ptr<vsg::Descriptor> mVolumeImage;
         float mVolumeShare = 0.f;
         float mVolumeShareTarget = 0.f;

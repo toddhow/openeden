@@ -212,6 +212,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testcloudvolumemath.cpp
     render/testbluenoise.cpp
     render/testcloudbicubic.cpp
+    render/testcloudcurved.cpp
     render/testcloudvolumegpu.cpp
     render/testcovermath.cpp
     render/testlightningmath.cpp

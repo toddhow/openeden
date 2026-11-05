@@ -87,6 +87,8 @@ namespace View
         // The last parameters, kept for the frames when the clouds are not drawn (the shadow map then says "no
         // shadow").
         std::array<float, Render::CloudVolume::paramsFloats> mLastParams{};
+        // The extra vec4 after the main block (the planet radius, the variety flag).
+        std::array<float, Render::CloudVolume::curveParamsFloats> mLastCurve{};
         // The first frames put the images into their layout and build the noise; later ones keep their contents.
         vsg::ref_ptr<vsg::Switch> mFirstSwitch;
         vsg::ref_ptr<vsg::Switch> mEnableSwitch;

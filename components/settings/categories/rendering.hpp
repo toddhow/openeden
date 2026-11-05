@@ -180,6 +180,13 @@ namespace Settings
             makeClampSanitizerFloat(0, 4) };
         SettingValue<bool> mVolumetricCloudsShadows{ mIndex, "Rendering", "volumetric clouds shadows" };
         SettingValue<std::string> mVolumetricCloudsDebug{ mIndex, "Rendering", "volumetric clouds debug" };
+        // OpenEden (task 0042, follow-up of 2026-11-05): clouds to the horizon, a curved layer and less repetition. All
+        // off by default.
+        SettingValue<bool> mVolumetricCloudsHorizon{ mIndex, "Rendering", "volumetric clouds horizon" };
+        SettingValue<bool> mVolumetricCloudsCurved{ mIndex, "Rendering", "volumetric clouds curved layer" };
+        SettingValue<float> mVolumetricCloudsPlanetRadius{ mIndex, "Rendering", "volumetric clouds planet radius",
+            makeClampSanitizerFloat(100, 1000000) };
+        SettingValue<bool> mVolumetricCloudsVariety{ mIndex, "Rendering", "volumetric clouds variety" };
         // OpenEden (task 0079): the cirrus layer (read at start; needs hdr and atmosphere).
         SettingValue<bool> mCirrus{ mIndex, "Rendering", "cirrus" };
         SettingValue<float> mCirrusCoverage{ mIndex, "Rendering", "cirrus coverage", makeClampSanitizerFloat(0, 2) };

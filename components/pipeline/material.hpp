@@ -38,7 +38,11 @@ namespace Pipeline
         // OpenEden (task 0042): makes the cloud shader draw the volumetric clouds' picture instead of the cloud
         // texture's. The flag is the ambient alpha (which the cloud shader does not use), 1 by default, so a material
         // that never calls this stays vanilla; the shader tests for more than 1.5.
-        void setVolumeClouds(bool on) { update(value().ambient.a, on ? 2.f : 1.f); }
+        // `horizon` (volumetric clouds horizon) makes it 3: the dome's vertex fade is not applied.
+        void setVolumeClouds(bool on, bool horizon = false)
+        {
+            update(value().ambient.a, on ? (horizon ? 3.f : 2.f) : 1.f);
+        }
         static Data::Material createDefault()
         {
             return { vsg::vec4(1, 1, 1, 1), vsg::vec4(1, 1, 1, 1), vsg::vec4(0, 0, 0, 1), vsg::vec4(0, 0, 0, 0), 0.f,

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "cloudcurvemath.hpp"
 #include "cloudvolumemath.hpp"
 
 /*
@@ -86,7 +87,38 @@ namespace Render::CloudVolume
         float shadowShare = 0.f; // the share of the sky the volume draws (0: it casts no shadow)
         float shadowStrength = 0.f; // 0 to 1: how dark the shadow of a thick cloud is
         std::array<float, 16> toPreviousClip{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+        // The farthest a ray is followed, in metres (maxRayMeters for the flat layer, curvedMaxRayMeters for the
+        // shell).
+        float rayLimitMeters = maxRayMeters;
+        // The curved layer's planet radius in metres; 0 keeps the flat layer.
+        float planetRadiusMeters = 0.f;
+        // The large scale variety of the shape lookup and the coverage (cloudcurvemath.hpp).
+        bool variety = false;
     };
+
+    // The extra vec4 after the ten of the main block (the block grew by it; `paramsVec4s` stays the main block's):
+    // x the planet radius in metres (0: flat layer), y 1 with the variety, z and w unused.
+    constexpr std::uint32_t curveParamsVec4s = 1;
+    constexpr std::uint32_t curveParamsFloats = curveParamsVec4s * 4;
+
+    inline std::array<float, curveParamsFloats> buildCurveParams(const ParamsInput& in)
+    {
+        std::array<float, curveParamsFloats> p{};
+        const bool planet = std::isfinite(in.planetRadiusMeters) && in.planetRadiusMeters >= minPlanetRadiusMeters;
+        p[0] = planet ? in.planetRadiusMeters : 0.f;
+        p[1] = in.variety ? 1.f : 0.f;
+        return p;
+    }
+
+    // The wind offset wrapped by `tile` (a whole number of every noise tile, so the clouds do not jump at the wrap).
+    inline float wrapWind(double meters, float tile)
+    {
+        const double period = static_cast<double>(tile);
+        double wrapped = std::fmod(meters, period);
+        if (wrapped < 0.0)
+            wrapped += period;
+        return static_cast<float>(wrapped);
+    }
 
     // The wind offset kept below the shape tile (a whole number of detail tiles), so a float keeps
     // its precision in a long session: the caller adds in double and wraps here.
@@ -108,7 +140,7 @@ namespace Render::CloudVolume
         p[3] = static_cast<float>(in.fullSize[1]);
         p[4] = metersToUnits(layerBaseMeters);
         p[5] = metersToUnits(layerTopMeters);
-        p[6] = metersToUnits(maxRayMeters);
+        p[6] = metersToUnits(in.rayLimitMeters);
         p[7] = std::clamp(in.coverage, 0.f, 1.f);
         p[8] = std::max(in.densityScale, 0.f);
         p[9] = in.windMeters[0];

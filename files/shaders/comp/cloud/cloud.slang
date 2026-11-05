@@ -57,6 +57,7 @@ struct CloudParams
     float4 look; // x: erosion, y: sun gain, z: ambient gain, w: haze length in metres
     float4 debug; // x: debug view (0 none), y: frame counter, z: share of the sky the volume draws, w: shadow strength
     float4x4 toPreviousClip; // this frame view direction to the previous frame clip space (rotation only)
+    float4 curve; // x: planet radius in metres (0: the flat layer), y: 1 with the large scale variety
 };
 // The compute set (lib/sets.glsl: COMPUTE_SET = 3).
 [[vk::binding(0, 3)]] [format("rgba8")] RWTexture3D<float4> shapeStore;
@@ -114,6 +115,11 @@ static const uint shadowMapSize = 256;
 static const float shadowHalfExtentMeters = 20000.0;
 static const float shadowSunUp = 0.05;
 static const int shadowSteps = 12;
+// cloudcurvemath.hpp: the far fade of the curved layer, and the large scale variety.
+static const float farFadeStart = 0.6;
+static const float largeTileMeters = 84000.0;
+static const float varietyWarpMeters = 6000.0;
+static const float varietyCoverageAmount = 0.2;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The noise (cloudvolumemath.hpp: hashUint, hashCell, hashToUnit, worley, perlin, perlinFbm, perlinWorley)
@@ -340,12 +346,32 @@ static const int detailBound = 0;
 static const int detailMean = 1;
 static const int detailFull = 2;
 
+// The large scale variety at a place (cloudcurvemath.hpp: varietyWarp, varietyCoverage): x, y the sideways move of the
+// shape lookup in metres, z the coverage there. One lookup of the shape noise over a tile of `largeTileMeters` for the
+// warp and one, shifted, for the coverage; without the variety (cloud.curve.y is 0) the move is 0 and the coverage the
+// weather's own, and nothing is read.
+float4 varietyAt(float2 xyMeters)
+{
+    float coverage = cloud.layer.w;
+    if (cloud.curve.y < 0.5)
+        return float4(0.0, 0.0, coverage, 0.0);
+    float2 uv = frac((xyMeters - cloud.density.yz) / largeTileMeters);
+    float4 a = shapeTex.SampleLevel(float3(uv, 0.5), 0.0);
+    float4 b = shapeTex.SampleLevel(float3(frac(uv + float2(0.41, 0.17)), 0.5), 0.0);
+    float2 warp = (clamp(a.gb, 0.0, 1.0) - 0.5) * 2.0 * varietyWarpMeters;
+    coverage = saturate(coverage + (clamp(b.g, 0.0, 1.0) - 0.5) * 2.0 * varietyCoverageAmount);
+    return float4(warp, coverage, 0.0);
+}
+
 // The density at `positionMeters` (world, metres), whose height fraction in the layer is `f`. The wind carries the
-// clouds along windDirection, so the noise is read where the point came from.
-float densityAt(float3 positionMeters, float f, int detailMode)
+// clouds along windDirection, so the noise is read where the point came from. `variety` is varietyAt of the place.
+float densityAt(float3 positionMeters, float f, int detailMode, float4 variety)
 {
     float3 wind = float3(cloud.density.y, cloud.density.z, 0.0);
-    float3 uvw = frac((positionMeters - wind) / shapeTileMeters);
+    float3 shapePoint = positionMeters - wind;
+    if (cloud.curve.y > 0.5)
+        shapePoint.xy += variety.xy;
+    float3 uvw = frac(shapePoint / shapeTileMeters);
     float4 s = shapeTex.SampleLevel(uvw, 0.0);
     float shape = saturate(remap(s.r, worleyFbm(s.g, s.b, s.a) - 1.0, 1.0, 0.0, 1.0));
     float detail = detailMode == detailBound ? 0.0 : 0.5;
@@ -361,13 +387,61 @@ float densityAt(float3 positionMeters, float f, int detailMode)
         float mixed = coarse * (1.0 - detailFineWeight) + fine * detailFineWeight;
         detail = saturate(0.5 + (mixed - 0.5) * detailContrast);
     }
-    return cloudDensity(shape, detail, cloud.layer.w, heightGradient(f), cloud.look.x);
+    return cloudDensity(shape, detail, variety.z, heightGradient(f), cloud.look.x);
 }
 
 // The optical depth of `density` over `stepUnits` game units (cloudvolumemath.hpp: opticalDepth).
 float opticalDepthOf(float density, float stepUnits)
 {
     return max(density, 0.0) * cloud.density.x * extinctionPerMeter * (stepUnits / unitsPerMeter);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The curved layer (cloudcurvemath.hpp: Detail::rootToHeight, curvedLayerSpan, radialHeight, farFade)
+// ---------------------------------------------------------------------------------------------------------------------
+
+// The positive distance along an upward ray from height z0 to the sphere h above the surface (z0 < h), in metres.
+float rootToHeight(float z0, float dirZ, float radius, float h)
+{
+    float b = (radius + z0) * dirZ;
+    float c = (z0 - h) * (2.0 * radius + z0 + h);
+    float q = -(b + sqrt(b * b - c));
+    return c / q;
+}
+
+// The height above the surface of the point at the offset (relXY, relZ) metres from a camera z0 up.
+float radialHeight(float2 relXY, float z0, float relZ, float radius)
+{
+    float z = z0 + relZ;
+    float d2 = dot(relXY, relXY);
+    float r = sqrt(d2 + (radius + z) * (radius + z));
+    return (d2 + z * (2.0 * radius + z)) / (r + radius);
+}
+
+float farFade(float distanceMeters, float capMeters)
+{
+    float start = capMeters * farFadeStart;
+    if (distanceMeters <= start)
+        return 1.0;
+    return 1.0 - smoothStep(start, capMeters, distanceMeters);
+}
+
+// The point of a ray at `position` (game units) as the noise and the height gradient want it: metres, with z the flat
+// height or the height above the curved surface, and the unclamped height fraction in the layer. The planet's centre is
+// straight below the camera at `origin`.
+float3 cloudPoint(float3 position, float3 origin, out float fraction)
+{
+    float base = cloud.layer.x;
+    float top = cloud.layer.y;
+    if (cloud.curve.x <= 0.0)
+    {
+        fraction = (position.z - base) / (top - base);
+        return position / unitsPerMeter;
+    }
+    float3 rel = (position - origin) / unitsPerMeter;
+    float h = radialHeight(rel.xy, origin.z / unitsPerMeter, rel.z, cloud.curve.x);
+    fraction = (h * unitsPerMeter - base) / (top - base);
+    return float3(position.xy / unitsPerMeter, h);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -388,16 +462,35 @@ float4 marchRay(float2 uv, float2 pixel)
     float3 dir = normalize(mul(scene.invView, float4(dirView, 0.0)).xyz);
     float3 origin = mul(scene.invView, float4(0.0, 0.0, 0.0, 1.0)).xyz;
     float4 clear = float4(0.0, 0.0, 0.0, 1.0);
-    if (dir.z <= 1e-4)
+    bool curved = cloud.curve.x > 0.0;
+    if (dir.z <= (curved ? 0.0 : 1e-4))
         return clear;
 
-    // cloudvolumemath.hpp: layerSpan, for a camera below the layer or inside it.
     float base = cloud.layer.x;
     float top = cloud.layer.y;
-    float t0 = (base - origin.z) / dir.z;
-    float t1 = (top - origin.z) / dir.z;
-    float enter = max(min(t0, t1), 0.0);
-    float exitT = min(max(t0, t1), cloud.layer.z);
+    float enter;
+    float exitT;
+    if (curved)
+    {
+        // cloudcurvemath.hpp: curvedLayerSpan, in metres (the planet's centre is straight below the camera).
+        float z0 = origin.z / unitsPerMeter;
+        float baseM = base / unitsPerMeter;
+        float topM = top / unitsPerMeter;
+        if (z0 >= topM)
+            return clear;
+        float enterM = z0 >= baseM ? 0.0 : rootToHeight(z0, dir.z, cloud.curve.x, baseM);
+        float exitM = min(rootToHeight(z0, dir.z, cloud.curve.x, topM), cloud.layer.z / unitsPerMeter);
+        enter = enterM * unitsPerMeter;
+        exitT = exitM * unitsPerMeter;
+    }
+    else
+    {
+        // cloudvolumemath.hpp: layerSpan, for a camera below the layer or inside it.
+        float t0 = (base - origin.z) / dir.z;
+        float t1 = (top - origin.z) / dir.z;
+        enter = max(min(t0, t1), 0.0);
+        exitT = min(max(t0, t1), cloud.layer.z);
+    }
     if (exitT <= enter)
         return clear;
 
@@ -420,13 +513,15 @@ float4 marchRay(float2 uv, float2 pixel)
     {
         float t = enter + (float(i) + offset) * dt;
         float3 position = origin + dir * t;
-        float3 positionMeters = position / unitsPerMeter;
-        float f = saturate((position.z - base) / (top - base));
+        float fraction;
+        float3 positionMeters = cloudPoint(position, origin, fraction);
+        float f = saturate(fraction);
+        float4 variety = varietyAt(positionMeters.xy);
         // Empty space costs only the shape lookup.
-        float coarse = densityAt(positionMeters, f, detailBound);
+        float coarse = densityAt(positionMeters, f, detailBound, variety);
         if (coarse <= 0.0)
             continue;
-        float density = densityAt(positionMeters, f, detailFull);
+        float density = densityAt(positionMeters, f, detailFull, variety);
         if (density <= 0.0)
             continue;
         float od = opticalDepthOf(density, dt);
@@ -439,10 +534,12 @@ float4 marchRay(float2 uv, float2 pixel)
             float len = lightRay * float(j + 1) / (float(lightSteps) * float(lightSteps + 1) * 0.5);
             float3 lp = position + sunDir * (travelled + 0.5 * len);
             travelled += len;
-            float lf = (lp.z - base) / (top - base);
+            float lf;
+            float3 lpMeters = cloudPoint(lp, origin, lf);
             if (lf < 0.0 || lf > 1.0)
                 continue;
-            sunOd += opticalDepthOf(densityAt(lp / unitsPerMeter, lf, detailMean), len);
+            // The variety is that of the step own place (the light ray is 600 m long).
+            sunOd += opticalDepthOf(densityAt(lpMeters, lf, detailMean, variety), len);
         }
         float lit = multiScatter(sunOd, cosTheta, 3);
         // The powder term: thin edges are darker than Beer law alone says (cloudvolumemath.hpp: powder), over a fixed
@@ -470,6 +567,11 @@ float4 marchRay(float2 uv, float2 pixel)
     {
         float meanMeters = (distanceSum / weightSum) / unitsPerMeter;
         float haze = 1.0 - exp(-meanMeters / max(cloud.look.w, 1.0));
+        if (curved)
+        {
+            // The far end of the march fades into the haze colour instead of ending (cloudcurvemath.hpp: farFade).
+            haze = 1.0 - (1.0 - haze) * farFade(meanMeters, cloud.layer.z / unitsPerMeter);
+        }
         scattered = lerp(scattered, scene.fogColor.xyz * (1.0 - transmittance), haze);
     }
     return float4(scattered, transmittance);
@@ -665,7 +767,10 @@ void shadowMain(uint3 id : SV_DispatchThreadID)
     {
         float3 p = start + span * ((float(i) + 0.5) / float(shadowSteps));
         float f = saturate((p.z - cloud.layer.x) / (cloud.layer.y - cloud.layer.x));
-        opticalDepth += opticalDepthOf(densityAt(p / unitsPerMeter, f, detailFull), lengthUnits / float(shadowSteps));
+        // The ground shadow keeps the flat layer: at its 20 km reach the curved layer is 31 m lower (d^2 / 2R) than the
+        // flat one, of a layer 2.5 km thick.
+        float3 pm = p / unitsPerMeter;
+        opticalDepth += opticalDepthOf(densityAt(pm, f, detailFull, varietyAt(pm.xy)), lengthUnits / float(shadowSteps));
     }
     shadowStore[id.xy] = float4(exp(-opticalDepth), 0.0, 0.0, 1.0);
 }

@@ -626,6 +626,7 @@ namespace MWRender
             Settings::rendering().mCloudShadows, Settings::rendering().mHdr, Settings::rendering().mAtmosphere);
         mVolumeCloudsOn = Render::CloudVolume::useVolumetricClouds(
             Settings::rendering().mVolumetricClouds, Settings::rendering().mHdr, Settings::rendering().mAtmosphere);
+        mVolumeHorizon = mVolumeCloudsOn && Settings::rendering().mVolumetricCloudsHorizon;
         auto nodeOptions = vsg::Options::create(*resourceSystem.nodeOptions);
         // openeden-vsg: an unreadable sky model (the example suite's .osgt clouds and stars: an OpenSceneGraph format
         // the VSG build has no reader for) must stay empty. The world's fallback would draw the error marker, which can
@@ -1088,8 +1089,12 @@ namespace MWRender
         VolumeCloudInput input;
         input.valid = mVolumeImage != nullptr;
         input.coverage = mVolumeCoverage;
-        input.windX = Render::CloudVolume::wrapWind(mVolumeWind[0]);
-        input.windY = Render::CloudVolume::wrapWind(mVolumeWind[1]);
+        // With the variety on the wind wraps by the large tile (a whole number of every noise tile).
+        const bool variety = Settings::rendering().mVolumetricCloudsVariety;
+        input.windX = variety ? Render::CloudVolume::wrapWind(mVolumeWind[0], Render::CloudVolume::largeTileMeters)
+                              : Render::CloudVolume::wrapWind(mVolumeWind[0]);
+        input.windY = variety ? Render::CloudVolume::wrapWind(mVolumeWind[1], Render::CloudVolume::largeTileMeters)
+                              : Render::CloudVolume::wrapWind(mVolumeWind[1]);
         input.share = mVolumeShare;
         return input;
     }
@@ -1122,7 +1127,11 @@ namespace MWRender
         if (!mVolumeImage)
             return;
 
-        mClouds->material.setVolumeClouds(mVolumeShare > 0.f);
+        mClouds->material.setVolumeClouds(mVolumeShare > 0.f, mVolumeHorizon);
+        // Horizon mode: the dome stops 5.7 degrees above the horizon, so the volume's dome is lowered until its rim is
+        // below it; the vanilla picture, when it has the dome, is not moved.
+        mClouds->translation
+            = vsg::vec3(0.f, 0.f, mVolumeHorizon && mVolumeShare > 0.f ? -Render::CloudVolume::domeHorizonDrop : 0.f);
         if (mVolumeShare <= 0.f)
             return;
         mClouds->setTexture(mVolumeImage, *mCompile);

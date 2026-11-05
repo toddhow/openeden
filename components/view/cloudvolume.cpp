@@ -138,7 +138,7 @@ namespace View
                 createView(mShadowImage), VK_IMAGE_LAYOUT_GENERAL),
             Pipeline::Descriptors::VIEW_CLOUD_SHADOW_BINDING, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-        mParams = vsg::vec4Array::create(paramsVec4s);
+        mParams = vsg::vec4Array::create(paramsVec4s + curveParamsVec4s);
         for (auto& v : *mParams)
             v = vsg::vec4(0.f, 0.f, 0.f, 0.f);
         mParams->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
@@ -326,6 +326,7 @@ namespace View
             mLastParams[22] = 0.f;
             auto* out = reinterpret_cast<float*>(mParams->dataPointer());
             std::copy(mLastParams.begin(), mLastParams.end(), out);
+            std::copy(mLastCurve.begin(), mLastCurve.end(), out + Render::CloudVolume::paramsFloats);
             mParams->dirty();
             return;
         }
@@ -375,8 +376,10 @@ namespace View
 
         const auto values = Render::CloudVolume::buildParams(input);
         mLastParams = values;
+        mLastCurve = Render::CloudVolume::buildCurveParams(input);
         auto* out = reinterpret_cast<float*>(mParams->dataPointer());
         std::copy(values.begin(), values.end(), out);
+        std::copy(mLastCurve.begin(), mLastCurve.end(), out + Render::CloudVolume::paramsFloats);
         mParams->dirty();
     }
 }

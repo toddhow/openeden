@@ -23,7 +23,8 @@ float4 fragMain(FragmentInput input) : SV_Target0
         float4 volume = diffuseMap.Sample(input.fragCoord.xy / scene.resolution);
         float opacity = 1.0 - clamp(volume.a, 0.0, 1.0);
         outColor = float4(volume.rgb / max(opacity, 1e-4), opacity);
-        outColor.a *= input.color.a * material.diffuse.a;
+        // Horizon mode (ambient alpha 3): the dome's vertex fade is not applied (see main.frag).
+        outColor.a *= (material.ambient.a > 2.5 ? 1.0 : input.color.a) * material.diffuse.a;
         return outColor;
     }
     float4 cloudPicture = diffuseMap.Sample(input.texCoord);

@@ -23,7 +23,9 @@ void main()
         float opacity = 1.0 - clamp(volume.a, 0.0, 1.0);
         outColor = vec4(volume.rgb / max(opacity, 1e-4), opacity);
         // The vertex alpha fades the dome's lowest rows into the horizon; the material alpha is the volume's share.
-        outColor.a *= frag_in.color.a * material.diffuse.a;
+        // In horizon mode (ambient alpha 3, `volumetric clouds horizon`) the fade is not applied: the dome has been
+        // lowered below the horizon and the volume's own haze does the fading.
+        outColor.a *= (material.ambient.a > 2.5 ? 1.0 : frag_in.color.a) * material.diffuse.a;
         return;
     }
     vec4 cloudPicture = texture(diffuseMap, frag_in.texCoord);

@@ -61,6 +61,7 @@ Rendering|texture max size objects|tuning of the texture downscaler
 Rendering|texture max size terrain|tuning of the texture downscaler
 Rendering|volumetric clouds coverage scale|tuning of volumetric clouds
 Rendering|volumetric clouds density|tuning of volumetric clouds
+Rendering|volumetric clouds planet radius|tuning of the curved cloud layer (6371 km is the default)
 Rendering|volumetric clouds quality|tuning of volumetric clouds (medium is the default)
 Rendering|volumetrics anisotropy|tuning of volumetrics
 Rendering|volumetrics density|tuning of volumetrics
