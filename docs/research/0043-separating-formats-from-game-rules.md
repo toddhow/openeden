@@ -220,7 +220,9 @@ default path, and an engine-neutral scene.
   guarded by attributes (`ver1`, `ver2`, `vercond`, `cond`, `userver`, `userver2`, `since`, `until`). The tools in that
   family (NifSkope, Niflib, pyffi, nifly, the Blender add-on) all read or derive from it. Whether OpenMW or OpenEden
   may take the file: **licence of `nif.xml` and of NifSkope must be read before anything is copied.** I recall a BSD
-  3-clause licence for nifxml and Niflib and GPL-3.0 for current NifSkope: both **recalled, verify**. Per the root
+  3-clause licence for nifxml and Niflib and GPL-3.0 for current NifSkope: both **recalled, verify**.
+  **Corrected 2026-11-04 (note 0044, read from the files):** the upstream nifxml repository's `LICENSE` is GPL-3.0 and
+  `nif.xml` has no header of its own; the fork's NifSkope source is BSD 3-clause. Per the root
   guide a dependency is recorded in `docs/dependencies.md` only when adopted; this note adopts nothing.
 - **Generated against hand-written:**
 
