@@ -206,6 +206,8 @@ Clang_Format:
     - CI/check_cmake_format.sh
     - CI/check_file_names.sh
     - CI/check_no_osg.sh
+    - CI/check_layer_rules.sh
+    - CI/test_layer_rules.sh
     - CI/check_clang_format.sh
     - CI/check_extension_sdk.sh
 

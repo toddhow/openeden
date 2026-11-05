@@ -1,0 +1,349 @@
+# Layer rules for the repository's C and C++ sources (task 0081; docs/design/game-packs.md section 2;
+# docs/research/0043-separating-formats-from-game-rules.md). Read by CI/check_layer_rules.sh.
+#
+# Layers, lowest first. A file may include a header of its own layer or of a layer its layer allows (the `allow` lines).
+#   base     small utilities: no format, no engine, no game rule
+#   formats  file formats: no renderer, no Lua, no world model, no game rule
+#   engine   the generic engine in components/
+#   rules    Morrowind's rules (what a game pack takes): apps/openmw/mw{mechanics,world,class,dialogue,script,state}, the script VM
+#   ui       the game's windows and the widget toolkit
+#   host     the rest of apps/openmw (the game executable's glue, renderer and physics adapters, Lua bindings)
+#   tools    every other program under apps/ (Eden Studio, launcher, tools, tests): may include anything
+#
+# `dir <path prefix> <layer>`: the longest matching prefix wins. A directory under components/ or apps/ that no line
+# names is an error, so a new directory cannot join a layer by accident. Files outside components/ and apps/ are not
+# checked (extensions/ and sdk/ have CI/check_extension_sdk.sh).
+# `allow <layer> <layers...>`: the layers a layer may include (its own layer is always allowed).
+# `deny <from prefix> <to prefix>`: no file under the first path may include a file under the second, whatever the layers.
+# `except <file> -> <included file>  # reason`: a violation that exists today. THE LIST MAY SHRINK AND NEVER GROW:
+# the check fails on a violation that is not listed and on a listed pair that no longer occurs (a stale exception),
+# so fixing one means deleting its line. The included file is written as the repository path it resolves to.
+
+layers base formats engine rules ui host tools
+
+# base
+dir components/misc base
+dir components/files base
+dir components/debug base
+dir components/toutf8 base
+dir components/serialization base
+dir components/settings base
+dir components/fallback base
+dir components/sqlite3 base
+dir components/version base
+dir components/platform base
+
+# formats
+dir components/esm formats
+dir components/esm3 formats
+dir components/esm4 formats
+dir components/nif formats
+dir components/bsa formats
+dir components/esmloader formats
+dir components/bgsm formats
+
+# engine (everything else under components/ that is not rules or ui)
+dir components/animation engine
+dir components/animtrace engine
+dir components/body engine
+dir components/bodynif engine
+dir components/cmphysics engine
+dir components/config engine
+dir components/contentselector engine
+dir components/crashcatcher engine
+dir components/creativemotion engine
+dir components/detournavigator engine
+dir components/esm3terrain engine
+dir components/esmterrain engine
+dir components/extension engine
+dir components/fontloader engine
+dir components/fx engine
+dir components/inertialmotion engine
+dir components/l10n engine
+dir components/lod engine
+dir components/loadinglistener engine
+dir components/lua engine
+dir components/lua_ui engine
+dir components/mwanimation engine
+dir components/navmeshtool engine
+dir components/nifjolt engine
+dir components/physicshelpers engine
+dir components/pipeline engine
+dir components/process engine
+dir components/render engine
+dir components/resource engine
+dir components/sceneutil engine
+dir components/sdlutil engine
+dir components/terrain engine
+dir components/testing engine
+dir components/translation engine
+dir components/vfs engine
+dir components/view engine
+dir components/vsgadapters engine
+dir components/vsgutil engine
+
+# rules
+dir components/compiler rules
+dir components/interpreter rules
+dir apps/openmw/mwmechanics rules
+dir apps/openmw/mwworld rules
+dir apps/openmw/mwclass rules
+dir apps/openmw/mwdialogue rules
+dir apps/openmw/mwscript rules
+dir apps/openmw/mwstate rules
+
+# ui
+dir apps/openmw/mwgui ui
+dir components/widgets ui
+dir components/myguiplatform ui
+
+# Not directories: doxygen-only files, and a directory that no longer exists (one dead include of it, in
+# components/resource/bulletshapereader.hpp, a header nothing includes).
+dir components/doc.hpp base
+dir apps/doc.hpp tools
+dir components/nifbullet engine
+
+# host
+dir apps/openmw host
+
+# tools
+dir apps/benchmarks tools
+dir apps/bsatool tools
+dir apps/components_tests tools
+dir apps/creativemotioncheck tools
+dir apps/edenarchive tools
+dir apps/edenbodyvalidate tools
+dir apps/edenskelstat tools
+dir apps/esmtool tools
+dir apps/essimporter tools
+dir apps/launcher tools
+dir apps/mwiniimporter tools
+dir apps/navmeshtool tools
+dir apps/niftest tools
+dir apps/opencs tools
+dir apps/opencs_tests tools
+dir apps/openmw_tests tools
+dir apps/physicsobjecttool tools
+dir apps/wizard tools
+
+allow base
+allow formats base
+allow engine base
+allow rules base formats engine rules ui host tools
+allow ui base formats engine rules ui host tools
+allow host base formats engine rules ui host tools
+allow tools base formats engine rules ui host tools
+
+# The core's libraries never include the game or the tools.
+deny components/ apps/
+deny components/esm/ components/esm3/
+deny components/esm/ components/esm4/
+
+# Exceptions: every violation of the rules above in the tree at the commit that added this file. The list may shrink
+# and never grows (see the top). A reason names the research note or the task that removes it.
+except components/bodynif/skeletonread.cpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bodynif/skeletonread.hpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bodynif/skinnedshape.cpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bodynif/skinnedshape.cpp -> components/nif/property.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bodynif/skinnedshape.cpp -> components/nif/texture.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bodynif/skinnedshape.hpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/bsa/ba2dx10file.cpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/bsa/ba2gnrlfile.cpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/bsa/compressedbsafile.cpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/contentselector/model/contentmodel.cpp -> components/esm/format.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/contentselector/model/contentmodel.cpp -> components/esm3/esmreader.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/contentselector/model/contentmodel.cpp -> components/esm4/reader.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/contentselector/model/esmfile.hpp -> components/esm3/formatversion.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/debug/debugging.cpp -> components/crashcatcher/crashcatcher.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/debug/debugging.cpp -> components/crashcatcher/windowscrashcatcher.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/detournavigator/makenavmesh.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/detournavigator/navigatorimpl.cpp -> components/esm3/loadpgrd.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/detournavigator/navmeshdb.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/detournavigator/navmeshmanager.cpp -> components/esm/util.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/detournavigator/objecttransform.hpp -> components/esm/position.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/detournavigator/recastcontext.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/esm/attr.cpp -> components/esm3/esmreader.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/attr.cpp -> components/esm3/esmwriter.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/defs.hpp -> components/esm4/common.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/esmbridge.cpp -> components/esm3/loadcell.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/esmbridge.cpp -> components/esm4/loadcell.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/esmbridge.hpp -> components/esm3/cellref.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/esmbridge.hpp -> components/esm4/loadachr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/esmbridge.hpp -> components/esm4/loadrefr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/esmterrain.cpp -> components/esm3/loadland.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/esmterrain.cpp -> components/esm4/loadland.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/esmterrain.hpp -> components/esm4/loadland.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/exteriorcelllocation.hpp -> components/esm3/loadcell.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/luascripts.cpp -> components/esm3/esmreader.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/luascripts.cpp -> components/esm3/esmwriter.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/luascripts.cpp -> components/lua/configuration.hpp  # esm/luascripts reaches components/lua (note 0043 1.2; task 0083)
+except components/esm/luascripts.cpp -> components/lua/luastateptr.hpp  # esm/luascripts reaches components/lua (note 0043 1.2; task 0083)
+except components/esm/luascripts.cpp -> components/lua/serialization.hpp  # esm/luascripts reaches components/lua (note 0043 1.2; task 0083)
+except components/esm/luascripts.hpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/esm/records.hpp -> components/esm3/loadacti.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadalch.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadappa.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadarmo.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadbody.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadbook.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadbsgn.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadcell.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadclas.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadclot.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadcont.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadcrea.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loaddial.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loaddoor.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadench.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadfact.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadglob.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadgmst.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadinfo.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadingr.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadland.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadlevlist.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadligh.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadlock.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadltex.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadmgef.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadmisc.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadnpc.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadpgrd.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadprob.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadrace.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadregn.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadrepa.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadscpt.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadskil.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadsndg.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadsoun.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadspel.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadsscr.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadstat.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm3/loadweap.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadachr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadacti.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadalch.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadammo.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadarma.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadarmo.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadbook.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadcell.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadclot.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadcont.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadcrea.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loaddoor.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadflor.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadfurn.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadhair.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadhdpt.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadimod.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadingr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadland.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadligh.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadltex.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadlvlc.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadlvli.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadlvln.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadmisc.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadmstt.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadnpc.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadotft.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadrace.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadrefr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadscol.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadsndr.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadsoun.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadstat.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadterm.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadtree.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadtxst.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadweap.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/records.hpp -> components/esm4/loadwrld.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/util.cpp -> components/esm3/loadland.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm/util.cpp -> components/esm4/loadland.hpp  # esm is meant to be the shared base but includes esm4 records (note 0043 1.2; task 0083)
+except components/esm/util.hpp -> components/esm3/loadcell.hpp  # esm is meant to be the shared base but includes esm3 records (note 0043 1.2; task 0083)
+except components/esm3terrain/storage.hpp -> components/esm/util.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/esm3terrain/storage.hpp -> components/esm3/loadland.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/esm3terrain/storage.hpp -> components/esm3/loadltex.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/esm4/loadland.hpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/esm4/reader.cpp -> components/vfs/manager.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/esmloader/load.cpp -> components/loadinglistener/loadinglistener.hpp  # a format includes an engine header (found by this checker)
+except components/fontloader/fontloader.cpp -> components/myguiplatform/scalinglayer.hpp  # engine code includes a widget header (found by this checker)
+except components/fx/widgets.cpp -> components/widgets/box.hpp  # engine code includes a widget header (found by this checker)
+except components/lod/nifflatten.cpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/lod/nifflatten.cpp -> components/nif/property.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/lod/nifflatten.cpp -> components/nif/texture.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/lod/nifflatten.hpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/lua/configuration.cpp -> components/esm3/esmreader.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/configuration.cpp -> components/esm3/esmwriter.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/configuration.hpp -> components/esm/luascripts.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/configuration.hpp -> components/esm3/refnum.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/scriptscontainer.cpp -> components/esm/luascripts.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/scriptscontainer.hpp -> components/esm/luascripts.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/serialization.hpp -> components/esm3/cellref.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/lua/util.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/misc/convert.hpp -> components/esm/position.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/convert.hpp -> components/esm3/loadpgrd.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/coordinateconverter.hpp -> components/esm/esmbridge.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/coordinateconverter.hpp -> components/esm3/loadcell.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/coordinateconverter.hpp -> components/esm3/loadpgrd.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/coordinateconverter.hpp -> components/esm4/loadcell.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/finitevalues.hpp -> components/lua/luastate.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/misc/pathgridutils.hpp -> components/esm3/loadpgrd.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/resourcehelpers.cpp -> components/esm/common.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/resourcehelpers.cpp -> components/esm/refid.hpp  # a base utility includes the formats layer (not in note 0043 1.2; found by this checker)
+except components/misc/resourcehelpers.cpp -> components/vfs/manager.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/misc/resourcehelpers.cpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/misc/resourcehelpers.hpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/mwanimation/light.cpp -> components/esm3/loadligh.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/mwanimation/partbones.hpp -> components/esm3/loadarmo.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/mwanimation/position.hpp -> components/esm/position.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/nif/niffile.hpp -> components/vfs/pathutil.hpp  # a format reads a VFS type (path or manager); vfs is engine (task 0083)
+except components/nif/node.cpp -> components/resource/physicsshape.hpp  # nif includes components/resource once (note 0043 1.2; task 0082)
+except components/nifjolt/joltnifloader.cpp -> components/nif/extra.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/nifjolt/joltnifloader.cpp -> components/nif/nifstream.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/nifjolt/joltnifloader.cpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/nifjolt/joltnifloader.cpp -> components/nif/parent.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/nifjolt/joltnifloader.hpp -> components/nif/niffile.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/resource/foreachphysicsobject.cpp -> components/esm3/cellref.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esm3/esmreader.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esm3/loadcell.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esm3/readerscache.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esmloader/esmdata.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esmloader/lessbyid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.cpp -> components/esmloader/record.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/foreachphysicsobject.hpp -> components/esm/position.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/resource/niffilemanager.hpp -> components/nif/niffile.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/settings/categories/game.hpp -> components/detournavigator/collisionshapetype.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/categories/models.hpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/categories/shaders.hpp -> components/sceneutil/lightingmethod.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/categories/video.hpp -> components/sdlutil/vsyncmode.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settings.hpp -> components/detournavigator/collisionshapetype.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settings.hpp -> components/sceneutil/lightingmethod.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settings.hpp -> components/sdlutil/vsyncmode.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settings.hpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settingvalue.hpp -> components/detournavigator/collisionshapetype.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/settings/settingvalue.hpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
+except components/terrain/storage.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
+except components/vfs/bsaarchive.hpp -> components/bsa/ba2dx10file.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
+except components/vfs/bsaarchive.hpp -> components/bsa/ba2gnrlfile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
+except components/vfs/bsaarchive.hpp -> components/bsa/bsafile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
+except components/vfs/bsaarchive.hpp -> components/bsa/compressedbsafile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
+except components/vsgadapters/nif/anim.hpp -> components/nif/controller.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/anim.hpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/anim.hpp -> components/nif/extra.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/anim.hpp -> components/nif/nifkey.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/anim.hpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/channel.hpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/internaltexture.cpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/kf.cpp -> components/nif/extra.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/controller.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/effect.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/extra.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/niffile.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/particle.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/property.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/nif.cpp -> components/nif/texture.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/vsgadapters/nif/particle.cpp -> components/nif/particle.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)

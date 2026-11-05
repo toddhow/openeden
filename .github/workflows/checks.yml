@@ -28,6 +28,11 @@ jobs:
     - name: No OpenSceneGraph
       run: CI/check_no_osg.sh
 
+    - name: Layer rules
+      run: |
+        CI/check_layer_rules.sh
+        CI/test_layer_rules.sh
+
     - name: clang-format
       run: CI/check_clang_format.sh
 
