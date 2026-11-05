@@ -257,7 +257,9 @@ namespace
         for (const auto& event : events)
         {
             if (event.mKind == vsgUtil::SlangEventKind::CacheHit)
+            {
                 EXPECT_GT(event.mEndMicroseconds - event.mBeginMicroseconds, 5000);
+            }
         }
         // Another thread is "other".
         auto request = f.mRequest;
