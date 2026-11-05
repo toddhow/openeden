@@ -994,8 +994,8 @@ namespace MWRender
                 const std::string clipping = Settings::rendering().mTaaClipping.get();
                 const auto parsedClipping = Render::Taa::parseClipping(clipping);
                 if (!parsedClipping)
-                    Log(Debug::Warning) << "[Rendering] taa clipping: unknown '" << clipping << "', using variance";
-                taa.clipping = parsedClipping.value_or(Render::Taa::Clipping::Variance);
+                    Log(Debug::Warning) << "[Rendering] taa clipping: unknown '" << clipping << "', using minmax";
+                taa.clipping = parsedClipping.value_or(Render::Taa::defaultClipping);
                 const std::string debug = Settings::rendering().mTaaDebug.get();
                 const auto parsedDebug = Render::Taa::parseDebugView(debug);
                 if (!parsedDebug)

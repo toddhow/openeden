@@ -67,7 +67,7 @@ namespace Render::Taa
         float sharpness = 0.25f;
         float jitterScale = 1.f;
         float history = defaultHistoryWeight;
-        Clipping clipping = Clipping::Variance;
+        Clipping clipping = defaultClipping;
         float clipGamma = varianceGamma; // the variance box's width in standard deviations (Salvi 2016: 1)
         DebugView debug = DebugView::None;
     };

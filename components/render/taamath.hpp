@@ -23,9 +23,9 @@
 namespace Render::Taa
 {
     constexpr std::uint32_t jitterPeriod = 16;
-    // The share of the previous frame in the resolved colour: Salvi 2016 ("typically we blend 10% of the current frame
-    // with 90% of the past").
-    constexpr float defaultHistoryWeight = 0.9f;
+    // The share of the previous frame in the resolved colour: Salvi 2016 suggests 0.9 ("typically we blend 10% of the
+    // current frame with 90% of the past"); decision 0012 raised the default to 0.95 (half the still-camera shimmer).
+    constexpr float defaultHistoryWeight = 0.95f;
     // At this pixel speed the history weight has fallen to `movingWeightShare` of its base. A chosen value: a bilinear
     // or even a bicubic lookup at a moving position is blurrier the further it moves (docs/research/0037, section 6).
     constexpr float velocityFullPixels = 16.f;
@@ -102,6 +102,10 @@ namespace Render::Taa
         Variance,
         MinMax
     };
+
+    // The default is the plain min/max box: the variance box is covered by US10116916B2, so it is an opt-in (decision
+    // 0012).
+    constexpr Clipping defaultClipping = Clipping::MinMax;
 
     inline std::optional<Clipping> parseClipping(std::string_view name)
     {

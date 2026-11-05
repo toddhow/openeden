@@ -59,7 +59,7 @@ namespace
     TEST(RenderTaaConstants, hold_the_values_the_spec_lists)
     {
         EXPECT_EQ(jitterPeriod, 16u);
-        EXPECT_FLOAT_EQ(defaultHistoryWeight, 0.9f);
+        EXPECT_FLOAT_EQ(defaultHistoryWeight, 0.95f);
         EXPECT_FLOAT_EQ(velocityFullPixels, 16.f);
         EXPECT_FLOAT_EQ(movingWeightShare, 0.5f);
         EXPECT_FLOAT_EQ(depthRejectLow, 0.03f);
@@ -286,6 +286,12 @@ namespace
         EXPECT_FALSE(useTaa(true, true, true, 2));
         EXPECT_FALSE(useTaa(true, true, true, 4));
         EXPECT_FALSE(useTaa(true, true, true, 8));
+    }
+
+    TEST(RenderTaaSettings, the_default_clipping_is_minmax)
+    {
+        // Decision 0012: the variance box is covered by a patent (US10116916B2), so it is an opt-in.
+        EXPECT_TRUE(defaultClipping == Clipping::MinMax);
     }
 
     TEST(RenderTaaSettings, parseClipping_accepts_the_two_names)
