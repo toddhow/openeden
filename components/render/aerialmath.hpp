@@ -44,7 +44,7 @@ namespace Render::Aerial
         /// H, in world units.
         float mScaleHeight = 4000.f;
         /// How steeply weather thickens the air: beta is multiplied by exp(gain * (fog depth - clear)) up to the cap.
-        float mWeatherGain = 10.f;
+        float mWeatherGain = 3.f;
     };
 
     /// The density at the ground in clear weather: ln(10) / visibility, so that T = 0.1 at the visibility.
