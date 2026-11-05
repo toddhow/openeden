@@ -375,6 +375,30 @@ namespace Render::CloudVolume
         return { j[0], j[1] };
     }
 
+    // --- The bicubic upscale of the march image --------------------------------------------------------------------
+
+    // The Catmull-Rom weights of the four taps at -1, 0, 1 and 2 around a fraction `t` (0 to 1) between taps 0 and 1:
+    // they add up to 1, give tap 0 at t = 0 and tap 1 at t = 1, reproduce a straight ramp, and have small negative
+    // lobes on the outer taps (the sharper look of a bicubic filter). A fraction outside 0 to 1 is clamped, and a
+    // value that is not a number is 0. The shader repeats it (`catmullRomWeights` in cloud.slang).
+    inline std::array<float, 4> catmullRomWeights(float t)
+    {
+        const float x = std::isfinite(t) ? std::clamp(t, 0.f, 1.f) : 0.f;
+        const float x2 = x * x;
+        const float x3 = x2 * x;
+        return { -0.5f * x3 + x2 - 0.5f * x, 1.5f * x3 - 2.5f * x2 + 1.f, -1.5f * x3 + 2.f * x2 + 0.5f * x,
+            0.5f * x3 - 0.5f * x2 };
+    }
+
+    // The bicubic result is kept between the two taps it lies between, so the negative lobes cannot ring past the
+    // edge of a cloud or go below 0 (and a value that is not a number gives `a`).
+    inline float clampToNearestTaps(float value, float a, float b)
+    {
+        if (!std::isfinite(value))
+            return a;
+        return std::clamp(value, std::min(a, b), std::max(a, b));
+    }
+
     // --- Weather ---------------------------------------------------------------------------------------------------
 
     // D4: Morrowind's weather records carry no coverage value of their own, only the cloud picture (and its scroll
