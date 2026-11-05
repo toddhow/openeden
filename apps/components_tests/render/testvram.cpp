@@ -273,8 +273,7 @@ TEST(VideoMemoryController, settling_holds_back_a_second_reduce_when_the_ledger_
     double firstSecond = -1;
     for (double t = 0.0; t <= 6.0; t += 0.5)
     {
-        const Action a
-            = controller.update(t, { budget, 1000 }, ledger, [](int, bool down) { return down ? 200 : 200; });
+        const Action a = controller.update(t, { budget, 1000 }, ledger, [](int, bool) { return 200; });
         if (a.kind == Kind::Reduce)
         {
             controller.applied(a.system, a.kind);
@@ -461,7 +460,9 @@ TEST(VideoMemoryController, a_refused_action_is_retried_after_the_dwell_and_skip
         {
             ++tries;
             if (tries > 1)
+            {
                 EXPECT_GE(t - last, 2.0) << "retried only after the dwell";
+            }
             last = t;
         }
     }
