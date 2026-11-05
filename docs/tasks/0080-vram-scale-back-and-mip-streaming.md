@@ -1,0 +1,190 @@
+# Task: Video memory scale-back and texture mip streaming
+Design doc section: `docs/design/world-lod-and-streaming.md` 5.7 (budgets and eviction: "raise the minimum texture mip globally first ... with hysteresis"), 5.8 (texture mip streaming) and 8 (graphics tiers); decision 0012, "World LOD" (toddhow, 2026-11-04: a dynamic scale-back in an order the user chooses replaces the fixed tier budgets); `docs/research/0042-vram-pressure-and-mip-streaming.md` (read it first: it names every source, what was read and what is recalled, and why `heapUsage` alone cannot be the pressure signal).
+Goal: let the renderer measure the video memory it holds, and when it comes near the budget scale back the systems the user has listed, in the order the user chose, starting with per-object texture mip streaming, and restore them when memory allows, without flicker.
+Inherited code touched, at commit `908b8cada4` (read, extend or hook, each named so the stage specs can be checked): `components/render/engine.cpp`/`.hpp` (`Engine::deviceLocalMiB`, `deviceLocalUsageMiB`: a budget reader is added beside them), `components/render/devicereport.cpp` (`memory.budget.heap<i>`, `ext.memory_budget`, `ext.memory_priority`, `feature.sparseResidencyImage2D`), `FrameCounters` and the counters registered in the `RenderManager` constructor (`gpu_used_mib`, `rss_mib`), `apps/openmw/mwrender/rendermanager.cpp`/`.hpp` (`RenderManager::RenderManager`, `onFrame`: the controller's tick and the adapters' owners), `components/vsgutil/texturecap.*` and `textureresize.*` (`planLevels`, `capFromBudget`, `effectiveCap`, `bytesOfChain`, `dropMipLevels`, `applyCap`), `components/vsgutil/readimage.cpp` (the capped-image weak cache), `components/vsgadapters/nif/nif.cpp` and `internaltexture.cpp` (where a NIF's texture becomes a `vsg::DescriptorImage`), `components/terrain/builder.cpp` (terrain layer arrays: `vsgUtil::readArrayImages`), `components/lod/residency.*`, `components/lod/fartier.*`, `apps/openmw/mwrender/lodclusters.*`, `lodterrain.*` (the live far budgets), `components/view/pointshadow.*` and `components/view/shadow.*` (shadow targets), `components/view/volumefog.cpp`, `cloudvolume.cpp` (volume images), `components/render/taa*`, `ao*` (history targets), `components/vsgutil/deletionqueue.*` (frees a GPU object after the frames that may use it), `components/settings/categories/` and `files/settings-default.cfg` (new settings), and VSG's `MemoryBufferPools::releaseUnusedPools` (`include/vsg/vk/MemoryBufferPools.h`).
+Inputs / outputs: new `[VideoMemory]` settings category (section Settings); new pure headers `components/render/vramaccount.hpp` (the ledger), `vramcontroller.hpp` (the state machine), `vramsource.hpp` (the memory source interface and its fake), `miprequest.hpp` (the mip estimate and the per-texture planner); `components/render/vramadapters.*` (the adapters, one small class each); new frame counters `vram_budget_mib`, `vram_used_mib`, `vram_accounted_mib`, `vram_level` (a count of active reductions); one log line when a step is taken or undone. No change to any file format, save, Lua API or extension contract.
+
+Status: draft for toddhow's approval (his go on the open questions at the end). Full loop (Track V renderer): this spec, tests from the interfaces below by a separate writer, implementation, a fresh reviewer, a frame viewed before every render commit (user memory rule).
+
+## Facts this is built on (checked at `908b8cada4`; the research note has the rest and the sources)
+
+- The renderer reads video memory in one place: `Engine::deviceLocalUsageMiB()`, the sum of `heapUsage` over device-local heaps from `VK_EXT_memory_budget`, -1 without it. No budget is read. `Engine::deviceLocalMiB()` is the largest device-local heap's size.
+- VSG allocates one `VkImage` with all its mips and binds memory from 16 MiB pools; a freed slot goes back to the pool and the driver sees nothing until `releaseUnusedPools()` frees a wholly unused entry (VSG source, read). So **usage may not fall after a reduction**; the controller works from the project's own ledger and uses the driver's numbers for the budget and as a cross-check.
+- VSG writes a descriptor set once, at compile (`DescriptorSet::Implementation::assign`). Swapping a texture's image means a new `vsg::Image` and a rebuilt descriptor set, swapped between frames, the old one released through `DeletionQueue`. A view's `baseMipLevel` and a sampler's `minLod` hide levels but free nothing. VSG has no sparse-image support.
+- The static downscaler (task 0049) already drops top levels at load, with a weak cache keyed by (full image, cap, kind, cutoff) and the "terrain arrays stay one size" rule. Faultier data3 in Balmora: no cap +629 MiB, 1024 +369, 512 +254, 256 +222 on a 12 GiB card. Morrowind alone never nears a budget (219 to 252 MiB on the device), so the controller's first customers are heavy texture packs and, later, Skyrim-class content.
+- Most candidate systems read their settings once at start (`shadow map resolution`, `point light shadow resolution`, `volumetrics quality`, `taa`, `ao`); a few are live (`far memory budget`, tile and cluster planners). A reduction of a start-time system is a rebuild.
+- Reversed depth, the frame-identical-when-off bar and the frame-check rule apply to anything that draws differently (a lower mip draws a blurrier texture by design: "unchanged when off" means unchanged when `[VideoMemory] enabled = false`).
+
+## Design
+
+### Settings (`[VideoMemory]`, read at start, off by default)
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `false` | The whole feature. Off: no ledger counters beyond `gpu_used_mib` already present, no controller, no streamer, and the static downscaler behaves as today. |
+| `budget` | `auto` | `auto` = the driver's `heapBudget` summed over device-local heaps times `budget fraction`; a number = that many MiB (simulates a smaller card exactly as `texture memory budget = <MiB>` does); without `VK_EXT_memory_budget`, `auto` = `deviceLocalMiB()` times `budget fraction` and the log line says so. |
+| `budget fraction` | `0.85` | The share of the budget the game may fill (leaves room for the driver, the compositor and the untracked remainder). Starting value, to be measured. |
+| `high water` | `0.92` | Pressure (ledger plus untracked, over the budget) above which a step is taken. |
+| `low water` | `0.75` | A step is undone only if the pressure after undoing it, projected from the step's known cost, stays at or below `high water - margin` (see the state machine), and the pressure now is below this mark. |
+| `order` | `texture detail, point light shadows, volumetrics, cloud quality, history features, far objects, far terrain` | A comma list of system names, first reduced first, last restored first. A system not listed is never touched. `texture detail` is the mip streamer (stage d) or, before it exists, the flat cap. (The settings reader's handling of list values is **verify**; if it has none, this is one string split by commas in a small parser with its own tests.) |
+| `<system> minimum` | per system | How far a system may be reduced (section Adapters). |
+| `restore` | `automatic` | `automatic` or `manual` (a restore happens only on the user's request, via a console command and the settings page). |
+| `apply` | `anytime` | `anytime`, `outside combat` or `at cell changes`: when a reduction that causes a visible rebuild may run (a texture step is always allowed). |
+| `dwell` | `4` | Minimum seconds between two steps in the same direction. |
+| `restore dwell` | `30` | Minimum seconds the pressure must have been low before a restore. |
+| `sample interval` | `0.5` | Seconds between memory samples; the controller runs on this cadence, not every frame. |
+| `report` | `false` | One summary line at exit: time at each level, steps, the highest pressure. |
+
+The settings page (stage e) exposes `enabled`, `budget`, the order as a re-orderable list with a tick per system, `restore` and `apply`. The first-run hook: the first-run preset picks `enabled` and a default `order` from the device report (a card under 6 GiB or an integrated GPU turns it on); how that is surfaced is toddhow's decision (open question 7).
+
+### The ledger (stage a)
+
+`Render::VideoMemory::Ledger` is a pure table: named entries `{ category, bytes }` set by owners (`set(name, bytes)`, `add`, `remove`), a total, and `untracked(heapUsageBytes) = max(0, usage - total)`. Categories: `texture.object`, `texture.terrain`, `texture.lod`, `lod.geometry`, `target.hdr`, `target.gbuffer`, `target.history` (TAA, AO), `target.bloom`, `shadow.cascades`, `shadow.point`, `volume.fog`, `volume.cloud`, `gi`, `ui`. Owners compute their own bytes from the dimensions and formats they create (`bytesOfChain` for textures, `width * height * bytesPerTexel * layers` for targets); nothing is read back from Vulkan per object. The texture categories are added when a read is *kept* (the capped copy in the weak cache) and removed when the image is released, so the ledger's texture entries cannot drift from the cache. A `vram_accounted_mib` counter and a periodic log line (every 30 s with `report`) give the totals; at exit with `report` the ledger and the driver's heap table are written.
+
+`Render::VideoMemory::Source` is the interface the controller reads: `struct Sample { int64_t budgetBytes; int64_t usageBytes; }` (-1 for unknown) from `virtual Sample sample()`. The engine's implementation reads `VK_EXT_memory_budget` (`Engine::deviceLocalBudgetMiB`, new, beside `deviceLocalUsageMiB`, summing `heapBudget` over the same heaps); `FakeSource` is a scripted list of samples for tests and for the in-game stress mode.
+
+### The controller (stage b): a pure state machine
+
+`Render::VideoMemory::Controller` (no Vulkan, no clock: time and samples are arguments). State: the ordered list of systems, each with `level` (0 = full, up to `maxLevel`), `stepDownBytes(level)` and `stepUpBytes(level)` (what the adapter says the step frees or costs; they are estimates from the ledger), a smoothed pressure, the time of the last step in each direction, a "settling" amount. `Action update(double nowSeconds, const Sample&, const Ledger&)` returns none, `{ReduceStep, system}` or `{RestoreStep, system}`.
+
+Rules (each is a test):
+1. **Pressure** `p = (ledgerTotal + untracked) / budget` with `untracked` the usage the ledger cannot explain, smoothed by an exponential average over about 2 s (sample cadence aware). A missing usage reading means `p` is the ledger alone over the budget; a missing budget disables the controller with one message.
+2. **Reduce** when `p > high water` for at least two consecutive samples, `now - lastReduce >= dwell`, and not settling. Take the first system in order whose `level < min(maxLevel, its minimum)`; reduce it one step. If none can, return `Exhausted` once per episode (logged; the controller then does nothing until pressure falls).
+3. **Settling.** After a reduce, the expected relief (`stepDownBytes`) counts as already applied for `settle` seconds or until the ledger reflects it, whichever is first (the VSG pools may keep the usage up; the ledger is the truth and `releaseUnusedPools()` is requested by the adapter). Without this a slow-to-release step would trigger a second reduce at once.
+4. **Restore** (if `restore = automatic`) only when `p` has been below `low water` for `restore dwell`, `now - lastAny >= dwell`, and the projected pressure `p + stepUpBytes / budget <= high water - margin` (margin 0.05). It restores the last-reduced reducible system first (the reverse of the order). This is the no-oscillation invariant: after a restore the pressure cannot exceed `high water` on the data the controller had, so a reduce does not follow.
+5. **Hysteresis gap.** `low water` must be at least `high water` minus 0.30 and `high water - low water` larger than the largest `stepUpBytes / budget` known; the settings reader clamps and warns otherwise.
+6. **Determinism.** The same samples and times give the same actions; no random, no clock, no container whose order matters.
+7. **Combat/cell gating** is the caller's: the controller returns the action and `apply = outside combat` makes the caller hold it until the condition is true (the sample keeps updating, so a held action is recomputed).
+
+### Adapters (stage c): what it can reduce
+
+Each adapter implements `{ name, maxLevel, level(), applyDown(), applyUp(), bytesDown(), bytesUp(), cost }` where `cost` is `free`, `rebuild` (hitch) or `reload` (cell-sized). One small class each, in `vramadapters.*`, registered by `RenderManager`. A start-time system is only registered if it was enabled and the rebuild path exists; otherwise it is absent from the order with a message.
+
+| System (name in `order`) | One step | Memory at stake (derived from the formats; the stage measures) | Cost |
+| --- | --- | --- | --- |
+| `texture detail` | Streaming (d): all streamed textures' budget share one level lower. Before d: the flat cap one power of two lower (task 0049's `applyCap`, new loads only; existing images are re-read through the cache when their cap changes) | the largest (hundreds of MiB to GiB) | free (streaming) or reload (flat cap) |
+| `point light shadows` | Level 1: resolution 512 to 256 to 128 (re-render into a smaller region of the same image if the atlas is allocated at start size, else rebuild); level 2: shadowed lights 4 to 2 to 1; level 3: off | 512, 4 lights: 24 MiB; 1024: 96 MiB; 2048, 8 lights: 768 MiB | free for the count, rebuild for the size |
+| `volumetrics` | quality high to medium to low to off | froxel grid 240x135x96 (high) is about 3.1 M cells; at RGBA16F that is about 25 MiB per image, several images (format and count: verify) | rebuild |
+| `cloud quality` | the volumetric cloud march resolution 1/2 to 1/4 to 1/8; shadow map off | tens of MiB | rebuild |
+| `history features` | TAA history off (the image is freed, jitter stops), then AO temporal off | a 1440p RGBA16F history is 28 MiB | free (a disabled path) to rebuild |
+| `far objects` | the live cluster budget one tier lower (`far memory budget`'s planner re-plans; `Lod::planResidency` frees the farthest) | up to 450 MiB with the high tier (task 0066 stage e) | free |
+| `far terrain` | the tile budget one tier lower, then `far levels` one less | tens of MiB | free |
+
+Default order: as in the `order` row above. Reasoning, for toddhow's review: textures are first because toddhow chose them and their per-step memory is large and their visible price (blur only on distant objects) is smallest; the shadow and volumetric systems next because their cost per MiB is high in look; history features are small and their loss is visible (TAA shimmer), so they come late; the far field goes last because the world LOD is what the card-limited player most wants to keep.
+
+### Texture mip streaming (stage d)
+
+Highest risk; it begins with a spike (d0) that decides go/no-go before any design below is built.
+
+**d0 spike (one day, results in the stage log).** Measure on the real code, with the Faultier data3 pack and the synthetic Skyrim-class scene (stage f): (1) the cost of replacing one material's `vsg::Image` and its `DescriptorSet` at run time on the main thread (new image, upload of N levels, rebuilt set, old ones to `DeletionQueue`), per texture, in ms and in transfer bytes; (2) whether the NIF path keeps one shared `DescriptorSet`/`StateGroup` per material (so one rebuild covers all nodes) or one per node (`components/vsgadapters/nif/nif.cpp`); (3) the real memory returned after the swap, with and without `releaseUnusedPools()`, as `heapUsage` shows it; (4) the effect of one 16 MiB pool entry kept alive by one small image. **No-go if** a swap costs more than 1 ms on the main thread per material with the work sliced, or if memory is not returned (the pool never empties). A no-go leaves the flat cap as the `texture detail` adapter and closes d.
+
+**The estimate (pure, `miprequest.hpp`, tested).** For a renderable and one of its textures: `texelsPerWorld` (a constant per geometry and texture, computed when the mesh is built: `texSize * sqrt(uvArea / worldArea)` from the triangles' UV and world areas; cached on the node, deterministic), `nearestDistance` (the distance from the camera to the node's bounding sphere surface, never below the near plane), `pixelWorldSize = 2 * nearestDistance * tan(fovY / 2) / viewportHeight`, `wanted = clamp(floor(log2(texelsPerWorld * pixelWorldSize) - bias), 0, levels - 1)` where level 0 is the full size and `bias` (default 0.5 level; anisotropy and a safety margin) is a setting. A texture used by many nodes takes the **minimum** (finest) wanted level among them, taken from the visible nodes of the last frame (no occlusion: an upper bound, as the census). Terrain layers use the tile's distance and the layer's tiling. The estimate uses the camera as of the last update; no per-frame work per node: a pass over the visible set every 100 ms, on a worker, writing the wanted level into the texture's record.
+
+**The planner (pure, tested).** Input: textures `{id, levels, bytesPerLevel, wantedLevel, residentLevel, lastWantedFrame, pinned}`, the budget in bytes (the `texture detail` adapter's current share: the budget minus everything else in the ledger, times the adapter's level factor), the previous plan. Output: a list of `{id, targetLevel}`. Rules: tail levels (below 64 px) are always resident and counted; satisfy every texture's wanted level nearest-first if the budget allows; under pressure lower the textures with the **largest bytes saved per level of visible error** first (the farthest, biggest ones), never below `wantedLevel + k` for textures in the player's cell; a higher level is not requested until it has been wanted for `upgradeDelayFrames` (about 10 frames) and a lower one is not released until unwanted for `downgradeDelayFrames` (about 120), the hysteresis against flicker at a distance threshold; changes per update are capped (`maxSwapsPerFrame`, byte budget per frame `maxUploadBytesPerFrame`, default 4 MiB, a setting) so the main thread never stalls. Deterministic: ties by id.
+
+**Residency and the swap.** Per texture: a CPU-side retained chain (the loaded data, as now), a resident GPU image holding levels `residentLevel` to the tail. A change builds a new image holding the target levels from the CPU chain (a texture read from `.edenpak` KTX2 reads only the wanted levels' chunks: later, with task 0060's chunk reads), uploads in slices of at most `maxUploadBytesPerFrame` through the transfer task, then in one main-thread step replaces the image in the shared descriptor and rebuilds the set; the old image goes to `DeletionQueue`. A higher level appears with a short blend: the sampler's `minLod` on the new image is set to `wantedLevel - residentLevel` only after its upload completes; the previous image keeps drawing until then (no black or garbage frames). The look at the swap is not a fade (the change is one mip level, below perception at the thresholds chosen) unless a frame shows a pop, in which case a one-frame `lod bias` ramp through the sampler is tried (open question 6).
+
+**Settings used:** `texture streaming = true` under `[VideoMemory]` (default true once `enabled`; false keeps the flat cap), `mip bias`, `max upload bytes per frame`, `texture detail minimum` (the lowest allowed top level: default 128 px so nothing near is ever below 128).
+
+Out of scope for d: sparse residency, a GPU feedback pass, streaming individual mod DDS files by chunk (they stay whole in RAM; only GPU memory is saved), `VK_EXT_memory_priority` (listed as a later option).
+
+### Settings page and first-run (stage e)
+
+The launcher's graphics page and the in-game settings window get a `Video memory` section: enable, budget, a re-orderable list of the systems with a tick each, restore, apply. Qt strings regenerate the translation files (`CI/check_qt_translations.sh`); game strings use the YAML localisation. The order is written as the `order` setting. Presets (the first-run hook) are a function `defaultOrder(deviceReport)` that is pure and tested; it only returns defaults.
+
+## Constraints
+
+Determinism: the controller, the estimate and the planner are pure and use no clock or unordered iteration; in the game the only inputs are the samples, the camera and the visible set. Allocation: the ledger is a fixed table; the controller allocates nothing per tick; the planner reuses its buffers; the estimate pass writes in place. Threading: the memory sample, the controller and the adapters' `apply` run on the main thread in `onFrame`; the estimate runs on a worker and writes wanted levels with relaxed atomics; uploads go through VSG's transfer task from the main thread's slices; GPU objects are released only through `DeletionQueue`. Off by default and unchanged when off: with `[VideoMemory] enabled = false` there is no controller, ledger counters (beyond `gpu_used_mib`), estimate pass or swap, the textures are read as today and the frame equals the commit before (compared as the earlier tasks' off-runs: three off runs and the new off run pairwise). Ownership: `RenderManager` owns the `Controller`, the `Ledger` and the adapters through `std::unique_ptr`; each adapter's target is owned by its system; the texture planner is owned by the streamer, which `RenderManager` owns.
+
+## Interfaces (pure parts, for tests written from this spec alone)
+
+Namespace `Render::VideoMemory`. Header-only, no Vulkan or VSG include.
+
+```cpp
+struct Sample { std::int64_t budgetBytes = -1; std::int64_t usageBytes = -1; };   // -1 = unknown
+class Source { public: virtual ~Source() = default; virtual Sample sample() = 0; };
+class FakeSource final : public Source { /* a scripted list of Samples; the last repeats */ };
+
+class Ledger {
+public:
+    void set(std::string_view name, std::int64_t bytes);       // creates or replaces
+    void add(std::string_view name, std::int64_t deltaBytes);  // adds; the entry is removed at 0
+    std::int64_t total() const;
+    std::int64_t untracked(std::int64_t usageBytes) const;     // max(0, usage - total)
+    const std::vector<std::pair<std::string, std::int64_t>>& entries() const;   // sorted by name (deterministic)
+};
+
+enum class Kind { None, Reduce, Restore, Exhausted };
+struct Action { Kind kind = Kind::None; int system = -1; };
+struct SystemInfo { std::string name; int maxLevel = 1; int minimumLevel = 0; /* the level it may not go past (a setting) */ };
+struct Params { double highWater = 0.92, lowWater = 0.75, margin = 0.05, smoothSeconds = 2.0, dwell = 4.0, restoreDwell = 30.0, settleSeconds = 3.0; bool automaticRestore = true; };
+
+class Controller {
+public:
+    Controller(std::vector<SystemInfo> order, const Params&);
+    // bytesDown/bytesUp: what a step of `system` frees / costs at its current level (estimates).
+    Action update(double nowSeconds, const Sample&, const Ledger&,
+                  const std::function<std::int64_t(int system, bool down)>& stepBytes);
+    void applied(int system, Kind);                // the caller confirms it carried the action out; levels change here
+    void notApplied(int system);                   // the caller could not (gated, failed): the controller retries after `dwell`
+    int level(int system) const;
+    double pressure() const;                       // the smoothed p
+    int reductions() const;                        // sum of levels
+};
+
+// Mip estimate and planner (miprequest.hpp)
+struct MipInput { double texelsPerWorld, nearestDistance, fovYRadians, viewportHeight, bias; int levels; };
+int wantedLevel(const MipInput&);                  // 0 = full size; clamp to [0, levels - 1]; nearestDistance <= 0 -> 0
+struct TextureState { std::uint64_t id; int levels; std::vector<std::int64_t> bytesPerLevel; int wanted, resident; std::uint64_t lastWantedFrame; bool pinned; };
+struct PlanParams { std::int64_t budgetBytes; int tailLevels; std::uint32_t upgradeDelay = 10, downgradeDelay = 120; std::int64_t maxUploadBytes = 4 << 20; int maxSwaps = 8; int nearFloor = 2; };
+struct Change { std::uint64_t id; int target; };
+std::vector<Change> plan(const std::vector<TextureState>&, const PlanParams&, std::uint64_t frame, const std::vector<Change>& previous);
+std::vector<std::string> defaultOrder(/* the device-report summary */);
+```
+
+## Acceptance criteria
+
+- [ ] **Stage a, measure:** with `[VideoMemory] enabled` and `report`, a session in Balmora with Faultier data3 logs, every 30 s and at exit, the ledger by category, `heapBudget`, `heapUsage`, the untracked remainder and per heap values; the ledger's total is within 15 percent of `heapUsage` minus the untracked baseline measured at the main menu (the stage log gives the real gap and the largest untracked contributors). Counters `vram_budget_mib`, `vram_used_mib`, `vram_accounted_mib`, `vram_level` appear in the frame stats; a texture read through `readImage` adds exactly `bytesOfChain` to the ledger and releasing it removes exactly that (test). The cadence and the lag of `heapUsage` against a known allocation are measured and written down.
+- [ ] **Stage b, controller:** the pure tests (section Interfaces) pass: pressure rising above `high water` for two samples reduces the first system by one step and not before; the next reduction waits `dwell`; the controller never reduces twice for one slow-to-release step (settling); `Exhausted` is returned once; restore waits `restore dwell`, picks the last-reduced system, and is refused when the projected pressure would exceed `high water - margin` (the no-oscillation invariant: a randomised property test of 10,000 fake pressure series with stable load finds no reduce within `restore dwell` of a restore); a system at its minimum is skipped; an unknown budget disables it with one message; the same series gives byte-identical action logs twice; unconfigured systems are never touched; `automaticRestore = false` never restores.
+- [ ] **Stage c, adapters:** each registered adapter reduces and restores one step on a real run and the ledger shows the expected change within 10 percent of `bytesDown`; with the order `point light shadows` only, a fake source pushes the pressure up and the game's frame shows the lower shadow resolution (a frame viewed, a before and after at the same pose); the rebuild adapters' hitch (max frame time over the step) is measured and in the stage log; a system whose feature is off is not registered. After a step that returns memory, `releaseUnusedPools()` is requested and the heap's `heapUsage` fall, or the lack of it, is logged and written in the stage log.
+- [ ] **Stage d0:** the spike's four measurements are in the stage log with a go or no-go (no-go if a swap costs more than 1 ms per material sliced or memory is not returned).
+- [ ] **Stage d, if go:** on the Skyrim-class synthetic scene (stage f), with `budget = 2048` (a simulated 2 GiB card), the streamer keeps `vram_used_mib` below `budget * budget fraction` while the nearest 50 textures stay at their full wanted level (the estimate says full); the total texture bytes with streaming are at most 60 percent of a flat cap that gives the same memory to the *nearest* objects' look (the comparison is measured, both numbers in the log); no frame in a 120-second scripted walk through the scene is longer than 25 ms because of uploads (the load trace attributes them); an upgrade of a texture the camera approaches never shows a black or garbage frame (a frame sequence viewed at 10 frames around a swap); the planner tests pass (the nearest-first rule, the tails never evicted, the hysteresis delays, the per-frame byte cap, the minimum-level rule in the player's cell, and determinism over 1,000 random inputs).
+- [ ] **Stage e, settings:** the page shows the systems in the chosen order and writes `order`; an order with one system removed never touches it (a log of 5 minutes under fake pressure); a bad value (unknown system, thresholds out of order) is clamped or ignored with one warning naming the key; the translation files are regenerated.
+- [ ] **Stage f, end to end:** (1) `budget = 1024` with Faultier data3 in Balmora under the walk script settles with `vram_used_mib` at or below the budget in all frames after the first 20 s and the log shows the steps taken and the order; (2) raising `budget` to 8192 in a running game (the console command) restores in order; (3) a fake source that oscillates between two pressures 20 percent apart makes at most 4 steps in 5 minutes (no flicker); (4) a run where another process holds 2 GiB (a second game or a Vulkan memory hog tool) lowers `heapBudget`, and the controller follows it within 10 s; (5) with `enabled = false` the frames equal the commit before.
+- [ ] **Off means unchanged:** `[VideoMemory] enabled = false` builds nothing, reads no memory budget, and the textures and frames are as before (compared pairwise as earlier tasks did); default settings contain no change of default.
+- [ ] A fresh reviewer's findings are fixed or recorded; Linux gate run before the push.
+
+## Failure modes (each is designed for, and a test or a stage-log check covers it)
+
+- **Oscillation.** Reduce, memory comes back, restore, reduce... Guards: the two thresholds, the dwell times, settling, and the restore-only-if-it-fits invariant (rule 4). The fake-source test of acceptance f(3) and the randomised property test cover it.
+- **A system that cannot reduce further** (all at minimum): `Exhausted` is logged once per episode and shown in the report; nothing else changes; the user sees a message on the first occurrence ("Video memory is full: nothing left to reduce"); the game must not fail an allocation silently, so a `VK_ERROR_OUT_OF_DEVICE_MEMORY` from VSG keeps the existing error path.
+- **Memory used by other processes.** The budget follows `heapBudget` (and falls when another application starts); `untracked` includes anything the ledger does not know, so a leak in a system we did not account shows up as rising untracked and as pressure, not as silence. The controller cannot tell "another process" from "our untracked", and need not: both are pressure on the same budget.
+- **The usage figure does not fall after a reduction** (pool retention, section 2 of the research note): settling uses the ledger; the adapter requests `releaseUnusedPools()`; a reduction that frees memory the pools keep is logged "freed in the ledger, not returned to the driver"; if this persists the stage d0 result decides whether the design is viable.
+- **The budget is wrong or unknown:** no extension means `deviceLocalMiB() * budget fraction`; a software device reports system memory and gets a manual budget; `budget` can always be set by hand.
+- **A rebuild fails or hitches:** the adapter reports failure through `notApplied`, the controller retries after `dwell`, then skips that system for the session after three failures (logged).
+- **Streaming thrash** (a texture on a distance threshold): the up and down delays, the nearest-first rule and the swap cap; the stage log counts swaps per texture per minute in the walk script (target: none above 3).
+- **Interaction with the flat cap and `texture memory budget`:** the static cap is a floor for what is read and stays as it is; streaming works below it. If both are set, the smaller wins and the log says which.
+
+## Out of scope
+
+Sparse image residency, a GPU feedback pass, `VK_EXT_memory_priority` (a later option), streaming mod DDS textures by file chunk, changing the default of any existing setting, a renderer abstraction layer, host (system) memory pressure (the working set; only noted in the report), scaling for frame time (dynamic resolution), and anything on the extension SDK.
+
+## Stages
+
+a: the ledger, the budget reader, the counters and the log lines (tests first for the ledger; the measurement in the stage log); b: the pure controller and its tests, then the engine hook in `onFrame` with the adapters empty; c: the adapters one at a time, `texture detail` as the flat cap first, each with its frame; d0: the spike; d: the estimate, the planner and the streamer if d0 is go; e: the settings reader (list parsing), the page, the first-run function; f: the synthetic scene, the stress runs and the end-to-end acceptance. The reviewer runs after b, after d and at the end.
+
+## Open questions for toddhow (recommendation first)
+
+1. **Default order.** Recommend: `texture detail, point light shadows, volumetrics, cloud quality, history features, far objects, far terrain`. Alternative: far objects before shadows, if you would rather lose distant towers than shadow detail. Which?
+2. **Restore automatic or manual?** Recommend automatic, with the restore-only-if-it-fits rule and a 30-second dwell; manual stays a setting. A step that changes how the game looks mid-play, then back, is the main way this can feel bad.
+3. **During combat or only at cell changes?** Recommend `outside combat` for steps that rebuild (shadow size, volumetrics, history) and *always allowed* for texture steps and the far field (those change a blur level or a distant draw, not the picture). The setting `apply` lets you choose; the default would be `outside combat`.
+4. **Per-system minimums.** Recommend: texture detail never below 128 px at the top level near the camera (level cap by `texture detail minimum`); point shadows may go to off; volumetrics may go to off; history features may go to off; far objects down to the `minimal` tier's budget; far terrain never below levels 1 to 3 (the tiles that cover the map). Confirm or change.
+5. **Go on the d0 spike first.** Recommend: yes, build a, b, c with the flat cap, then d0, and only then decide on d. If d0 is no-go, the project keeps a controller and a ladder without mip streaming; the flat cap steps stand in for `texture detail`. Do you want d to wait for a real Skyrim-class content test (a pack you choose) rather than the synthetic scene?
+6. **How a higher mip appears.** Recommend a plain swap (one level change, below perception at the thresholds); add a one-frame bias ramp only if a viewed frame shows a pop.
+7. **First-run preset.** Recommend turning `enabled` on by default only in the first-run preset for cards below 6 GiB, and for everyone else leaving it off until the feature has been used by someone for a while. The setting stays false in `settings-default.cfg`. Which cards, and should the first-run prompt exist at all (the first-run prompt is still on the open list)?
+8. **Budget fraction.** Recommend 0.85 of `heapBudget` as the starting value, measured in stage a against the untracked remainder; confirm that using less than the whole budget is wanted (the alternative is 0.95 and relying on the controller's speed).
+9. **Memory priority.** Recommend leaving `VK_EXT_memory_priority` out of this task; revisit if stage a shows paging when the budget is exceeded.
+
+## Stage log
+
+(empty: not started)
