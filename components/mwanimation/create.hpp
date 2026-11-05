@@ -38,8 +38,9 @@ namespace MWAnim
         if (light)
         {
             auto presult = clonePlaceholdersIfRequired(node);
-            addLight(presult.placeholders.attachLight, obj->transform(), *light,
-                obj->autoPlay.getOrCreateGroup().controllers);
+            markPointShadowCarrier(obj->transform(),
+                addLight(presult.placeholders.attachLight, obj->transform(), *light,
+                    obj->autoPlay.getOrCreateGroup().controllers));
             result = presult;
         }
         else

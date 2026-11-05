@@ -183,6 +183,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowselect.cpp
     render/testpointshadowgpu.cpp
     render/testpointshadowshader.cpp
+    render/testpointshadowmemory.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
     render/testmaterialmath.cpp
@@ -263,6 +264,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testclonematerials.cpp
     mwanimation/testskinprevious.cpp
     mwanimation/testlightcontroller.cpp
+    mwanimation/testpointshadowcarrier.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testarraystate.cpp
     vsgutil/testhitnormal.cpp

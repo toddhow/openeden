@@ -13,6 +13,7 @@ namespace MWAnim
     PlaceholderResult decorate(vsg::ref_ptr<vsg::Node>& node, const ESM::Light* light, bool mirror)
     {
         auto result = clonePlaceholdersIfRequired(node);
+        vsg::ref_ptr<Anim::Transform> carrier;
         if (!result.contents.contains(Anim::Contents::Skins) && (result.placeholders.boneOffset || light || mirror))
         {
             auto t = vsg::ref_ptr{ new Anim::Transform };
@@ -24,6 +25,7 @@ namespace MWAnim
                 t->scale = { -1, 1, 1 };
             vsgUtil::addChildren(*t, *node);
             node = t;
+            carrier = t;
         }
         if (light)
         {
@@ -40,7 +42,8 @@ namespace MWAnim
                     node = fallback;
                 }
             }
-            addLight(attachLight, fallback, *light, result.controllers);
+            // Task 0077: a part with a skin has no transform of its own, and so no exclusion.
+            markPointShadowCarrier(carrier.get(), addLight(attachLight, fallback, *light, result.controllers));
         }
         return result;
     }

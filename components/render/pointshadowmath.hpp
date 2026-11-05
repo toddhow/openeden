@@ -5,6 +5,8 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <string>
 
 #include <vsg/maths/mat4.h>
 #include <vsg/maths/transform.h>
@@ -29,6 +31,32 @@ namespace Render::PointShadow
     constexpr double nearPlane = 4.0; // game units
     constexpr double farMargin = 1.1; // far plane = farMargin * the light's reach
     constexpr double defaultGuardTexels = 2.0;
+    // Bytes of the shadow maps above which a warning is logged at start. A round figure chosen with toddhow's
+    // decision 0012 in mind (8 slots at 2048 texels is 768 MiB); about a fifth of a 12 GiB card, a quarter of 8 GiB
+    // headroom for textures. Not measured against any card: it is a prompt to look, not a limit.
+    constexpr std::uint64_t memoryWarningBytes = 256ull * 1024ull * 1024ull;
+    constexpr int depthBytesPerTexel = 4; // D32_SFLOAT
+
+    /// The memory of the shadow maps: slots * 6 faces * resolution squared * 4 bytes (View::PointShadow's one array).
+    inline std::uint64_t memoryBytes(int slots, int resolution)
+    {
+        if (slots <= 0 || resolution <= 0)
+            return 0;
+        const auto texels = static_cast<std::uint64_t>(resolution) * static_cast<std::uint64_t>(resolution);
+        return static_cast<std::uint64_t>(slots) * facesPerLight * texels * depthBytesPerTexel;
+    }
+
+    /// The start-up warning, or an empty string when the maps take at most memoryWarningBytes.
+    inline std::string memoryWarningText(int slots, int resolution)
+    {
+        const std::uint64_t bytes = memoryBytes(slots, resolution);
+        if (bytes <= memoryWarningBytes)
+            return {};
+        return "Point light shadows: " + std::to_string(slots) + " slots at " + std::to_string(resolution)
+            + " texels take " + std::to_string(bytes / (1024ull * 1024ull))
+            + " MiB of video memory. To use less, lower [Shadows] point light shadow count or point light shadow "
+              "resolution (each halving of the resolution divides the memory by four).";
+    }
 
     struct FaceAxes
     {

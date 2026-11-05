@@ -1,5 +1,6 @@
 #include "light.hpp"
 
+#include <cstdint>
 #include <optional>
 
 #include <vsg/lighting/Light.h>
@@ -100,5 +101,17 @@ namespace MWAnim
             controllers.emplace_back(ctrl, l);
         }
         return l;
+    }
+}
+
+namespace MWAnim
+{
+    void markPointShadowCarrier(Anim::Transform* carrier, vsg::Node* light)
+    {
+        if (!carrier || !light)
+            return;
+        // The id is the PointLight's address, as View::CollectLights records it; it is only compared.
+        if (auto* pointLight = dynamic_cast<vsg::PointLight*>(light))
+            carrier->setPointShadowCarrier(reinterpret_cast<std::uintptr_t>(pointLight));
     }
 }

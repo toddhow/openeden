@@ -1,6 +1,8 @@
 #ifndef VSGOPENMW_ANIMATION_TRANSFORM_H
 #define VSGOPENMW_ANIMATION_TRANSFORM_H
 
+#include <cstdint>
+
 #include <vsg/nodes/Transform.h>
 
 namespace Anim
@@ -39,8 +41,20 @@ namespace Anim
             return in * matrix;
         }
 
+        /// The id (address) of the PointLight this transform's subtree carries, or 0 (task 0077): the subtree is left
+        /// out of the shadow pass of that light (pointshadowcarrier.hpp). Set only on a model that carries its light.
+        void setPointShadowCarrier(std::uint64_t lightId) { mPointShadowCarrier = lightId; }
+        std::uint64_t pointShadowCarrier() const { return mPointShadowCarrier; }
+
+        void traverse(vsg::Visitor& visitor) override { vsg::Transform::traverse(visitor); }
+        void traverse(vsg::ConstVisitor& visitor) const override { vsg::Transform::traverse(visitor); }
+        void traverse(vsg::RecordTraversal& visitor) const override;
+
         void read(vsg::Input& input) override;
         void write(vsg::Output& output) const override;
+
+    private:
+        std::uint64_t mPointShadowCarrier = 0;
     };
 }
 namespace vsg

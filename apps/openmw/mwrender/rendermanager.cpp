@@ -22,6 +22,7 @@
 #include <vsg/utils/ComputeBounds.h>
 #include <vsg/vk/Context.h>
 
+#include <components/animation/pointshadowcarrier.hpp>
 #include <components/animation/skin.hpp>
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
@@ -1207,7 +1208,8 @@ namespace MWRender
                 {
                     auto rg = maps.renderGraph(slot, face);
                     auto view = maps.faceView(slot, face);
-                    view->mask = mShadow->viewMask();
+                    // The slot's bit tells a light's own model that this is its light's pass (Anim::Transform).
+                    view->mask = mShadow->viewMask() | Anim::pointShadowSlotMask(slot);
                     view->bins = { vsg::Bin::create(Bin_DepthSorted, vsg::Bin::NO_SORT),
                         vsgUtil::NullBin::create(Bin_Compute) };
                     auto root = createCastShadowState();

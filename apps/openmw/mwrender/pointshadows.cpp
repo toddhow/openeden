@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <components/animation/pointshadowcarrier.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/render/pointshadowmath.hpp>
 #include <components/settings/values.hpp>
@@ -27,6 +28,10 @@ namespace MWRender
             static_cast<std::uint32_t>(Settings::shadows().mPointLightShadowResolution), maxLights)
         , mMaxLights(maxLights)
     {
+        const std::string memoryWarning
+            = Render::PointShadow::memoryWarningText(mMaps.slotCount, static_cast<int>(mMaps.resolution));
+        if (!memoryWarning.empty())
+            Log(Debug::Warning) << memoryWarning;
         mSelection.maxSlots = mMaps.slotCount;
         mSlots.assign(static_cast<std::size_t>(mMaps.slotCount), Render::PointShadow::Slot{});
         mMissing.assign(static_cast<std::size_t>(mMaps.slotCount), 0u);
@@ -115,6 +120,12 @@ namespace MWRender
                 Log(Debug::Verbose) << "Point light shadow: slot " << k << " is free";
         }
         mSlots = mResult.slots;
+        // Which light holds which slot, for the models that carry a light (Anim::Transform::setPointShadowCarrier).
+        for (int k = 0; k < Anim::pointShadowSlotCount; ++k)
+        {
+            const bool held = k < mMaps.slotCount && mSlots[static_cast<std::size_t>(k)].used;
+            Anim::setPointShadowOwner(k, held ? mSlots[static_cast<std::size_t>(k)].id : 0);
+        }
 
         mSlotPositions.clear();
         mEntries.clear();
