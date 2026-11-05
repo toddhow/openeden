@@ -187,6 +187,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testvramscaler.cpp
     render/testvrampoolrelease.cpp
     render/testpointshadowshader.cpp
+    render/testvramtexturemips.cpp
     render/testpointshadowmemory.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
@@ -286,6 +287,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testtextureresize.cpp
     vsgutil/testtexturecapread.cpp
     vsgutil/testtexturecaparray.cpp
+    vsgutil/testtexturemips.cpp
 
     fx/lexer.cpp
     fx/technique.cpp

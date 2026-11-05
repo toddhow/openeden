@@ -151,7 +151,7 @@ add_component_dir (pipeline
 add_component_dir (render
     engine download screenshot framecapture headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal vramaccount vramsource vramcontroller vramorder vramscaler materialoverrides probes probebake skyvisbake ambientocclusion
+    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal vramaccount vramsource vramcontroller vramorder vramtexturemips vramscaler materialoverrides probes probebake skyvisbake ambientocclusion
     )
 # Renders pipelines.
 # Depends on pipeline, render.
@@ -192,7 +192,7 @@ add_component_dir (vsgutil
     # Visitors.
     traverse traversestate nodepath cullnode searchbyname searchbytype cameradistanceintersector arraystate
     # I/O.
-    cache virtualfile imageio imagepixels readimage texturecap textureresize decompress readnode readshader share shareimage deletionqueue
+    cache virtualfile imageio imagepixels readimage texturecap textureresize texturemips decompress readnode readshader share shareimage deletionqueue
     # Slang twins of the GLSL shaders (task 0072).
     shaderpermutation spirvinterface passstages compilermessage slangruntime
     # Temporary workarounds.

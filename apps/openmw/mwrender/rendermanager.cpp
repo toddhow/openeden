@@ -137,6 +137,7 @@
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
 #include "terrainstorage.hpp"
+#include "texturemipsdriver.hpp"
 #include "thumbnailstate.hpp"
 #include "water.hpp"
 #include "weather.hpp"
@@ -386,6 +387,15 @@ namespace MWRender
         }
 
         // OpenEden (task 0080): the video memory scale-back. Nothing is made, and no memory budget is read, unless on.
+        // Task 0080 stage d: the texture mip swapper exists once the scene does (updateTextureMips).
+        if (const char* mipsScript = std::getenv("OPENEDEN_TEXTURE_MIPS_TEST"))
+        {
+            mTextureMipsScript = mipsScript;
+            mTextureMipsWanted = true;
+        }
+        if (Settings::videoMemory().mEnabled
+            && Settings::videoMemory().mOrder.get().find("texture mips") != std::string::npos)
+            mTextureMipsWanted = true;
         if (Settings::videoMemory().mEnabled)
             setupVideoMemory();
 
@@ -1530,6 +1540,27 @@ namespace MWRender
         else
             Log(Debug::Info) << "[VideoMemory] the far field is not active ([WorldLod] enabled, [Terrain] distant "
                                 "terrain and map view are needed), so far objects and far terrain are not available";
+
+        if (mTextureMipsWanted)
+        {
+            VM::Adapter mips;
+            mips.name = "texture mips";
+            mips.maxLevel = TextureMipsDriver::maxLevel;
+            mips.account = [this](VM::Ledger& ledger) {
+                if (mTextureMips)
+                    mTextureMips->account(ledger);
+            };
+            mips.apply = [this](int level) {
+                if (!mTextureMips)
+                    return false;
+                mTextureMips->setLevel(level);
+                return true;
+            };
+            mips.stepBytes = [this](int level, bool down) -> std::int64_t {
+                return mTextureMips ? mTextureMips->stepBytes(level, down) : 0;
+            };
+            adapters.push_back(std::move(mips));
+        }
 
         VM::ScalerConfig config;
         config.params.highWater = settings.mHighWater;
@@ -3111,6 +3142,38 @@ namespace MWRender
             mSceneData->value().time += dt;
 
         if (mVramScaler)
+    // Task 0080 stage d: made when the scene exists, then ticked once a frame (main thread).
+    void RenderManager::updateTextureMips(float dt)
+    {
+        if (!mTextureMips)
+        {
+            if (!mCompileContext || !mSceneRoot)
+                return;
+            TextureMipsDriver::Services services;
+            services.compile = mCompileContext->clone(~vsg::Mask(0));
+            services.root = [this]() -> vsg::Node* {
+                // The main scene, and the graph that draws the inventory preview and the local map.
+                mTextureMipsRoots = vsg::Group::create();
+                if (mCommandGraph)
+                    mTextureMipsRoots->addChild(mCommandGraph);
+                if (mGuiRenderGraph)
+                    mTextureMipsRoots->addChild(mGuiRenderGraph);
+                return mTextureMipsRoots.get();
+            };
+            services.pruneCaches = [this] {
+                mResourceSystem->updateCache(0.0);
+                mScene->context.prune(); // the actors' and parts' shared objects, as the cell change does
+            };
+            services.memory = [this] { return mEngine.deviceLocalMemorySample(); };
+            services.releasePools = [this] { return mEngine.releaseUnusedDeviceMemory(); };
+            mTextureMips = std::make_unique<TextureMipsDriver>(std::move(services));
+            if (!mTextureMipsScript.empty() && !mTextureMips->setScript(mTextureMipsScript))
+                Log(Debug::Warning) << "OPENEDEN_TEXTURE_MIPS_TEST is not valid ('seconds:level,...') and is ignored";
+            Log(Debug::Info) << "[VideoMemory] texture mips: the swapper is ready";
+        }
+        mTextureMips->update(dt);
+    }
+
             mVramScaler->tick(dt);
         mEffects->update(dt);
         mProjectiles->update(dt);
@@ -3120,6 +3183,8 @@ namespace MWRender
         const vsg::vec3 cameraPosition(mCamera->getPosition());
         const bool aboveWater = !(mRenderModes[Render_Water].active && mWater->isUnderwater(cameraPosition));
         // Task 0040: lit snow (and blizzard): the sun's part of the flakes' light, from the sun's colour and the angle
+        if (mTextureMipsWanted)
+            updateTextureMips(dt);
         // between the camera's direction and the sun, in the display-encoded colour the material's emissive takes.
         if (mPrecipitationLit && mRenderModes[Render_Sky])
         {
