@@ -311,6 +311,7 @@ CSMDoc::Document::Document(const Files::ConfigurationManager& configuration, std
     , mRunner(mProjectPath)
     , mDirty(false)
     , mIdCompletionManager(mData)
+    , mUndoRouting(mUndoStack)
 {
     if (mContentFiles.empty())
         throw std::runtime_error("Empty content file sequence");

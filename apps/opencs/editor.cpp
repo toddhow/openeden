@@ -821,17 +821,40 @@ namespace
             }
             Log(Debug::Info) << "UI check: module panel shows title " << (title ? title->text().toStdString() : "?")
                              << " weight " << weight->value() << " unit " << weight->suffix().toStdString();
-            const int before = document->getUndoStack().count();
+            // Module steps go on the document's module stack, not on the content stack (CSMDoc::UndoRouting): the
+            // document must stay unmodified, and Edit > Undo acts on the module stack while it was touched last.
+            QUndoStack& moduleStack = document->getUndoRouting().moduleStack();
+            auto editMenuAction = [](const QString& prefix) -> QAction* {
+                for (QWidget* top : QApplication::topLevelWidgets())
+                    if (auto* window = qobject_cast<QMainWindow*>(top); window && window->menuBar())
+                        for (QAction* menuAction : window->menuBar()->actions())
+                            if (menuAction->menu() && menuAction->text().remove('&') == "Edit")
+                                for (QAction* inner : menuAction->menu()->actions())
+                                    if (inner->text().startsWith(prefix))
+                                        return inner;
+                return nullptr;
+            };
+            const int before = moduleStack.count();
+            const int contentBefore = document->getUndoStack().count();
             weight->setValue(6.0);
             weight->setValue(7.5);
-            Log(Debug::Info) << "UI check: module edit: undo steps " << before << " -> "
-                             << document->getUndoStack().count() << " (two edits merge into one), weight "
+            Log(Debug::Info) << "UI check: module edit: undo steps " << before << " -> " << moduleStack.count()
+                             << " (two edits merge into one), content undo steps " << contentBefore << " -> "
+                             << document->getUndoStack().count() << ", document modified "
+                             << ((document->getState() & CSMDoc::State_Modified) != 0) << ", weight "
                              << weight->value();
-            document->getUndoStack().undo();
-            Log(Debug::Info) << "UI check: module undo: weight " << weight->value() << ", undo steps "
-                             << document->getUndoStack().count();
-            document->getUndoStack().redo();
-            Log(Debug::Info) << "UI check: module redo: weight " << weight->value();
+            QAction* editUndo = editMenuAction("Undo");
+            Log(Debug::Info) << "UI check: module edit menu: Undo '"
+                             << (editUndo ? editUndo->text().toStdString() : std::string("none")) << "' enabled "
+                             << (editUndo && editUndo->isEnabled());
+            if (editUndo != nullptr)
+                editUndo->trigger();
+            Log(Debug::Info) << "UI check: module undo (Edit > Undo): weight " << weight->value()
+                             << ", module stack index " << moduleStack.index() << ", document modified "
+                             << ((document->getState() & CSMDoc::State_Modified) != 0);
+            if (QAction* editRedo = editMenuAction("Redo"))
+                editRedo->trigger();
+            Log(Debug::Info) << "UI check: module redo (Edit > Redo): weight " << weight->value();
             // The inspector section and the timeline strip.
             for (QWidget* top : QApplication::topLevelWidgets())
             {
@@ -911,15 +934,15 @@ namespace
                 return;
             }
             const double before = twist->value();
-            const int steps = document->getUndoStack().count();
+            const int steps = document->getUndoRouting().moduleStack().count();
             twist->setValue(before - 0.1);
             twist->setValue(before - 0.2);
             Log(Debug::Info) << "UI check: rig twist " << twist->objectName().toStdString() << " unit "
                              << twist->suffix().toStdString() << " " << before << " -> " << twist->value()
-                             << ", undo steps " << steps << " -> " << document->getUndoStack().count();
-            document->getUndoStack().undo();
+                             << ", undo steps " << steps << " -> " << document->getUndoRouting().moduleStack().count();
+            document->getUndoRouting().moduleStack().undo();
             Log(Debug::Info) << "UI check: rig undo: " << twist->value();
-            document->getUndoStack().redo();
+            document->getUndoRouting().moduleStack().redo();
             std::string error;
             const bool saved = CSVModule::ModuleUi::get()->activeAsset()->save(error);
             Log(Debug::Info) << "UI check: rig saved " << saved << " " << error << ", dirty "
@@ -958,11 +981,12 @@ namespace
             if (QDoubleSpinBox* stiffness = findField("property_default.stiffnessNmPerRad"))
             {
                 const double before = stiffness->value();
-                const int steps = document->getUndoStack().count();
+                const int steps = document->getUndoRouting().moduleStack().count();
                 stiffness->setValue(before + 100);
                 Log(Debug::Info) << "UI check: rig stiffness edit " << before << " -> " << stiffness->value()
-                                 << ", undo steps " << steps << " -> " << document->getUndoStack().count();
-                document->getUndoStack().undo();
+                                 << ", undo steps " << steps << " -> "
+                                 << document->getUndoRouting().moduleStack().count();
+                document->getUndoRouting().moduleStack().undo();
                 Log(Debug::Info) << "UI check: rig stiffness undo " << stiffness->value();
             }
             int index = 0;

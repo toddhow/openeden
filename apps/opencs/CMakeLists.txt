@@ -5,7 +5,7 @@ set (OPENCS_SRC
     )
 
 opencs_units (model/doc
-    document operation saving documentmanager loader runner operationholder
+    document operation saving documentmanager loader runner operationholder undorouting
     )
 
 opencs_units (model/doc

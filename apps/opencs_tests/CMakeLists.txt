@@ -1,5 +1,6 @@
 file(GLOB OPENCS_TESTS_SRC_FILES
     main.cpp
+    model/doc/testundorouting.cpp
     model/extension/testeditorextensionhost.cpp
     model/extension/testeditorextensionhostphysics.cpp
     model/extension/testeditormodulesources.cpp

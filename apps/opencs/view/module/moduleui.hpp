@@ -15,6 +15,7 @@
 #include <openeden/editor_module/registrar.hpp>
 #include <openeden/editor_module/types.hpp>
 
+#include <apps/opencs/model/doc/undorouting.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 
@@ -36,8 +37,9 @@ namespace CSVModule
     /// and the drawing of what they registered (property forms, overlay lines, timeline keys). Qt types stay here:
     /// the API itself has none.
     ///
-    /// Commands a module pushes go on the active document's undo stack (the editor's one stack) wrapped in a
-    /// QUndoCommand, so Edit > Undo undoes them. The objects a module hands over (commands, the active asset) have
+    /// Commands a module pushes go on the active document's module undo stack (CSMDoc::UndoRouting, not the content
+    /// stack, whose clean flag is the document's modified state) wrapped in a QUndoCommand, so Edit > Undo undoes them
+    /// while that stack is the one touched last. The objects a module hands over (commands, the active asset) have
     /// code in the module's library, so releaseModuleObjects() must run before the library is unloaded.
     ///
     /// Owned by CS::Editor, after the registry and before the module host. Main thread only.
@@ -49,6 +51,10 @@ namespace CSVModule
         /// \param documentProvider the document commands go to (the active window's), or null if there is none.
         ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider);
         ~ModuleUi() override;
+
+        /// The dynamic property that marks a widget as part of the module UI (a property form): the focus moving into
+        /// it makes Edit > Undo act on the module stack when that holds a step (CSMDoc::UndoRouting::noteFocus).
+        static constexpr const char* sOwnedProperty = "edenModuleOwned";
 
         /// The editor's, or null (capture mode and tests have none).
         static ModuleUi* get() { return sInstance; }
@@ -125,6 +131,7 @@ namespace CSVModule
         std::filesystem::path mUserDataPath;
         std::set<std::string> mDirtyAssets;
         std::vector<QPointer<QUndoStack>> mStacks;
+        std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used
         QUndoStack mOwnStack; // used when there is no document
         static ModuleUi* sInstance;
     };

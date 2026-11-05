@@ -22,6 +22,7 @@
 #include "operationholder.hpp"
 #include "runner.hpp"
 #include "saving.hpp"
+#include "undorouting.hpp"
 
 class QTextDocument;
 
@@ -70,6 +71,9 @@ namespace CSMDoc
         // QObject destructor, which is way too late.
         QUndoStack mUndoStack;
 
+        // After mUndoStack, which it is built over; destroyed before it.
+        UndoRouting mUndoRouting;
+
         // not implemented
         Document(const Document&);
         Document& operator=(const Document&);
@@ -98,6 +102,10 @@ namespace CSMDoc
         ~Document() override = default;
 
         QUndoStack& getUndoStack();
+
+        /// The editor modules' undo stack beside the document's own, and which one Edit > Undo acts on. A module's step
+        /// is not a change to the content, so it never marks the document modified (UndoRouting).
+        UndoRouting& getUndoRouting() { return mUndoRouting; }
 
         int getState() const;
 

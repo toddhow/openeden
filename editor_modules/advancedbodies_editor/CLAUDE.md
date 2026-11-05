@@ -39,7 +39,7 @@ task's "Stage f, design" section.
   The inspector's summary is one fixed source whose values follow the shown body.
 - **Choosing a body is not an undo step.** `Bodies > Next Body` and `Previous Body` (`selectBody`, then
   `requestRedraw`). A first version used an editable Choice row and an undo command: Studio pushes module commands on
-  the content document's undo stack, whose clean flag is the document's modified state, so viewing another body marked
+  the content document's undo stack (module steps have a stack of their own since 2026-11-05, which does not mark the document modified, but choosing a body is still no edit), so viewing another body marked
   the ESM document modified and the editor's close waited on a save question.
 - **Hostile input:** packs and folders through `components/body`'s capped readers; region maps coloured with a
   "next free triangle" union-find (near-linear in triangles and ranges); the stage a report capped at 64 MiB, nesting

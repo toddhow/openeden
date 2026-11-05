@@ -168,17 +168,33 @@ void CSVDoc::View::setupEditMenu()
 {
     QMenu* edit = menuBar()->addMenu(tr("Edit"));
 
-    mUndo = mDocument->getUndoStack().createUndoAction(this, tr("Undo"));
+    // Undo and Redo act on the stack touched last: the document's own, or the editor modules' (CSMDoc::UndoRouting).
+    CSMDoc::UndoRouting& routing = mDocument->getUndoRouting();
+    mUndo = routing.group().createUndoAction(this, tr("Undo"));
     setupShortcut("document-edit-undo", mUndo);
     connect(mUndo, &QAction::changed, this, &View::undoActionChanged);
     mUndo->setIcon(Misc::ScalableIcon::load(":menu-undo"));
     edit->addAction(mUndo);
 
-    mRedo = mDocument->getUndoStack().createRedoAction(this, tr("Redo"));
+    mRedo = routing.group().createRedoAction(this, tr("Redo"));
     connect(mRedo, &QAction::changed, this, &View::redoActionChanged);
     setupShortcut("document-edit-redo", mRedo);
     mRedo->setIcon(Misc::ScalableIcon::load(":menu-redo"));
     edit->addAction(mRedo);
+
+    connect(&routing, &CSMDoc::UndoRouting::activeChanged, this, [this] { updateUndoRedoEnabled(); });
+    connect(&routing.group(), &QUndoGroup::canUndoChanged, this, [this] { updateUndoRedoEnabled(); });
+    connect(&routing.group(), &QUndoGroup::canRedoChanged, this, [this] { updateUndoRedoEnabled(); });
+    // The focus moving into a module's own widgets (a property form) or out of them chooses the stack when nothing was
+    // edited in between.
+    connect(qApp, &QApplication::focusChanged, this, [this](QWidget*, QWidget* now) {
+        if (now == nullptr || !isAncestorOf(now))
+            return;
+        bool inModuleUi = false;
+        for (const QWidget* widget = now; widget != nullptr && !inModuleUi; widget = widget->parentWidget())
+            inModuleUi = widget->property(CSVModule::ModuleUi::sOwnedProperty).toBool();
+        mDocument->getUndoRouting().noteFocus(inModuleUi);
+    });
 
     QAction* userSettings = createMenuEntry("Preferences", ":menu-preferences", edit, "document-edit-preferences");
     connect(userSettings, &QAction::triggered, this, &View::editSettingsRequest);
@@ -677,6 +693,13 @@ void CSVDoc::View::updateSubViewIndices(SubView* view)
     }
 }
 
+void CSVDoc::View::updateUndoRedoEnabled()
+{
+    const bool editing = !(mDocument->getState() & CSMDoc::State_Locked);
+    mUndo->setEnabled(editing && mDocument->getUndoRouting().canUndo());
+    mRedo->setEnabled(editing && mDocument->getUndoRouting().canRedo());
+}
+
 void CSVDoc::View::updateActions()
 {
     bool editing = !(mDocument->getState() & CSMDoc::State_Locked);
@@ -685,8 +708,7 @@ void CSVDoc::View::updateActions()
     for (std::vector<QAction*>::iterator iter(mEditingActions.begin()); iter != mEditingActions.end(); ++iter)
         (*iter)->setEnabled(editing);
 
-    mUndo->setEnabled(editing && mDocument->getUndoStack().canUndo());
-    mRedo->setEnabled(editing && mDocument->getUndoStack().canRedo());
+    updateUndoRedoEnabled();
 
     mSave->setEnabled(!(mDocument->getState() & CSMDoc::State_Saving) && !running);
     mVerify->setEnabled(!(mDocument->getState() & CSMDoc::State_Verifying));

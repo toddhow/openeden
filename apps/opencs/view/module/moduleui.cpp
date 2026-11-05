@@ -48,6 +48,7 @@ namespace CSVModule
                 , mLayout(new QFormLayout(this))
                 , mGeneration(ui.generation())
             {
+                setProperty(ModuleUi::sOwnedProperty, true);
                 build();
                 connect(&ui, &ModuleUi::changed, this, [this] { refresh(); });
             }
@@ -292,10 +293,16 @@ namespace CSVModule
     {
         if (!command)
             return;
+        // The document's module stack, not its own: a module's step is not an edit of the content, and the content
+        // stack's clean flag is the document's modified state (CSMDoc::UndoRouting).
         QUndoStack* stack = &mOwnStack;
+        CSMDoc::UndoRouting* routing = nullptr;
         if (mDocumentProvider)
             if (CSMDoc::Document* document = mDocumentProvider())
-                stack = &document->getUndoStack();
+            {
+                routing = &document->getUndoRouting();
+                stack = &routing->moduleStack();
+            }
         if (std::none_of(
                 mStacks.begin(), mStacks.end(), [&](const QPointer<QUndoStack>& known) { return known == stack; }))
         {
@@ -304,6 +311,14 @@ namespace CSVModule
                 connect(stack, &QUndoStack::indexChanged, this, &ModuleUi::changed);
         }
         stack->push(new UndoCommand(std::move(command), mAssetToken));
+        // Edit > Undo undoes what was just edited (also when the step came from a menu command, not a form).
+        if (routing != nullptr)
+        {
+            if (std::none_of(mRoutings.begin(), mRoutings.end(),
+                    [&](const QPointer<CSMDoc::UndoRouting>& known) { return known == routing; }))
+                mRoutings.emplace_back(routing);
+            routing->activate(CSMDoc::UndoRouting::Target::Module);
+        }
         emit changed();
     }
 
@@ -360,6 +375,10 @@ namespace CSVModule
             if (stack)
                 stack->clear();
         mStacks.clear();
+        for (const QPointer<CSMDoc::UndoRouting>& routing : mRoutings)
+            if (routing)
+                routing->clearModuleStack(); // also hands Edit > Undo back to the document
+        mRoutings.clear();
         mOwnStack.clear();
     }
 

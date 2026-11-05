@@ -113,6 +113,9 @@ namespace CSVDoc
 
         void updateActions();
 
+        /// Undo and Redo follow the active stack (the document's or the editor modules'), and a locked document.
+        void updateUndoRedoEnabled();
+
         void exitApplication();
 
         /// User preference function
