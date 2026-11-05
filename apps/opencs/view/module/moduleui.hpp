@@ -62,6 +62,10 @@ namespace CSVModule
         void requestRedraw() override;
         openeden::editor::AssetDocument* openAsset(const std::filesystem::path& path) override;
         openeden::editor::AssetDocument* activeAsset() override { return mActive.get(); }
+        std::filesystem::path userDataPath() const override { return mUserDataPath; }
+
+        /// Studio's user data folder (the configuration's `user-data`), which modules may ask for (API 1.1).
+        void setUserDataPath(std::filesystem::path path) { mUserDataPath = std::move(path); }
 
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
@@ -118,6 +122,7 @@ namespace CSVModule
         unsigned long mGeneration = 0;
         std::string mOpenError;
         std::vector<std::filesystem::path> mAssetRoots;
+        std::filesystem::path mUserDataPath;
         std::set<std::string> mDirtyAssets;
         std::vector<QPointer<QUndoStack>> mStacks;
         QUndoStack mOwnStack; // used when there is no document

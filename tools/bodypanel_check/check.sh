@@ -21,7 +21,9 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #   2. every source opened, and choosing a body left the undo stack and the document's modified flag unchanged
 #   3. a frame of the Mesh view was written for every source
 #   4. the synthetic package lists exactly its two planted errors (BODY-GEOM-005, BODY-WELD-005)
-#   5. the real user folder is unchanged
+#   5. a second run with no source and no OPENEDEN_CS_ASSETDIR opens the merged cache through the host's user data
+#      folder (API 1.1)
+#   6. the real user folder is unchanged
 set -u
 [ $# -ge 5 ] || { sed -n 4,16p "$0"; exit 2; }
 BUILD=$(cd "$1" && { pwd -W 2>/dev/null || pwd; })
@@ -84,6 +86,15 @@ if grep -q "body 1 row finding.0 = /regionMap/regions:" "$LOG" && grep -q "body 
     pass "the synthetic package lists exactly BODY-GEOM-005 and BODY-WELD-005"
 else
     fail "the synthetic package's findings are not the two planted ones (see $LOG)"
+fi
+# A second run with no source and no OPENEDEN_CS_ASSETDIR: the module's "Open Merged Body Cache" command finds the cache
+# through the host's user data folder (Editor Module API 1.1, EditorContext::userDataPath).
+(cd "$BUILD" && OPENEDEN_CS_UI_CHECK="c:#-2 -9;40000" OPENEDEN_CS_BODYCHECK="$W/frames/default"     OPENEDEN_CS_GRAB="$W/frames" timeout 300 ./eden-studio.exe --replace=config --config "$W/config"     --user-data "$W/user" -- "$CONTENT" > "$WORK/run-default.out" 2>&1)
+rc=$?
+if [ $rc = 0 ] && grep -q "UI check: body 0 opened the default merged cache: yes" "$LOG" 2>/dev/null; then
+    pass "the merged cache was found through the user data folder, no asset root named (exit code 0)"
+else
+    fail "the default merged cache was not opened (exit code $rc, see $WORK/run-default.out and $LOG)"
 fi
 snapshot > "$WORK/real-after.tsv"
 cmp -s "$WORK/real-before.tsv" "$WORK/real-after.tsv" && pass "the real user folder is unchanged: $REAL" \

@@ -18,8 +18,10 @@ task's "Stage f, design" section.
   decoded, so an LOD or texture pack in an asset root is refused without reading it), `current` (the merged cache of
   its folder, through `Body::loadCurrentCache`). `body.json` and `current` are registered as file name endings (the
   registry's rule), so the Asset Browser also lists `somebody.json` or `recurrent`; the open refuses them. A package's
-  files are dropped once its body is worked out. A merged cache is found by the Asset Browser only when its folder is
-  an asset root (`OPENEDEN_CS_ASSETDIR` or a data folder): API 1.0 gives a module no user data folder.
+  files are dropped once its body is worked out. The Asset Browser lists a merged cache only when its folder is an
+  asset root (`OPENEDEN_CS_ASSETDIR` or a data folder), but `Bodies > Open Merged Body Cache`
+  (`advancedbodies.openMerged`) opens `<user data>/openeden/bodies/current` through the host's user data folder (API
+  1.1, `EditorContext::userDataPath`, `mergedCachePath`); with no cache it opens nothing and logs where it looked.
 - **The validator** runs with exactly `edenbodyvalidate`'s file reader plus `PayloadMeshSource`, which summarises the
   package's own `bodymesh` payloads (the tool has none and warns BODY-MESH-001 instead). A merged entry is validated as
   the package `mergedEntryPackage` derives from what the cache knows; it has no skeleton binding, so BODY-BIND-001 and

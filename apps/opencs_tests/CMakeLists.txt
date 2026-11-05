@@ -6,6 +6,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/advancedbodies/testabfill.cpp
     model/module/advancedbodies/testabhostile.cpp
     model/module/advancedbodies/testabmodule.cpp
+    model/module/advancedbodies/testabuserdata.cpp
     model/module/advancedbodies/testabview.cpp
     model/module/creativemotion/testcmdocuments.cpp
     model/module/creativemotion/testcmgizmos.cpp

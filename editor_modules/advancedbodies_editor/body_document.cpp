@@ -488,6 +488,11 @@ namespace advancedbodies_editor
         return body != nullptr ? &body->summary() : nullptr;
     }
 
+    std::filesystem::path mergedCachePath(const std::filesystem::path& userData)
+    {
+        return userData.empty() ? std::filesystem::path() : userData / "openeden" / "bodies" / "current";
+    }
+
     RegionDisplay regionDisplay(const AssetDocument& document)
     {
         const auto* body = dynamic_cast<const BodyDocument*>(&document);

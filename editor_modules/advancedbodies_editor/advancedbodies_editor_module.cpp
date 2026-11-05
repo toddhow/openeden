@@ -8,6 +8,9 @@
 
 #include <openeden/editor_module/module.hpp>
 
+#include <filesystem>
+#include <system_error>
+
 namespace advancedbodies_editor
 {
     using namespace openeden::editor;
@@ -78,6 +81,32 @@ namespace advancedbodies_editor
                     };
                     registrar.registerCommand(command);
                 }
+
+                // The merged body cache `openmw --bake-bodies` made, found through the host's user data folder
+                // (API 1.1) instead of an asset root: the one place a player's own bodies are.
+                CommandDesc openMerged;
+                openMerged.id = "advancedbodies.openMerged";
+                openMerged.label = "Open Merged Body Cache";
+                openMerged.menuPath = "Bodies/Open Merged Body Cache";
+                openMerged.handler
+                    =
+                        [](EditorContext& context) {
+                            const std::filesystem::path current = mergedCachePath(context.userDataPath());
+                            std::error_code error;
+                            if (current.empty() || !std::filesystem::is_regular_file(current, error))
+                            {
+                                context.log(LogLevel::Warning,
+                            "There is no merged body cache at '" + current.string()
+                                + "' (the bodies folder of the user data folder): run openmw --bake-bodies first");
+                                return;
+                            }
+                            if (context.openAsset(current) != nullptr)
+                            {
+                                context.requestRedraw();
+                            }
+                        };
+                openMerged.enabledWhen = [this] { return mContext != nullptr && !mContext->userDataPath().empty(); };
+                registrar.registerCommand(openMerged);
 
                 // What the regions gizmo draws: the fill and the edges, the fill alone, or the edges alone (Editor
                 // Module API 1.1 gave it filled triangles). Not an undo step either.

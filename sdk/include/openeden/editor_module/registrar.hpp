@@ -41,6 +41,11 @@ namespace openeden::editor
         /// Opens through the registered asset types. Null if there is none or it failed.
         virtual AssetDocument* openAsset(const std::filesystem::path& path) = 0;
         virtual AssetDocument* activeAsset() = 0;
+        /// API 1.1. Studio's user data folder, where the game keeps what it derives from the player's data (for example
+        /// <user data>/openeden/bodies/), or an empty path if the host has none. Read only: a module may look there
+        /// and read; it never learns where anything else is. Added at the end of the interface; the default is an
+        /// empty path, so a host written for 1.0 still compiles.
+        virtual std::filesystem::path userDataPath() const { return {}; }
     };
 
     struct WorkspaceDesc

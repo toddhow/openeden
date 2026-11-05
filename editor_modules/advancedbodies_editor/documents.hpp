@@ -45,6 +45,10 @@ namespace advancedbodies_editor
         Edges
     };
 
+    /// Where `openmw --bake-bodies` writes the merged body cache's `current` pointer under a user data folder
+    /// (<user data>/openeden/bodies/current); an empty path for an empty folder.
+    std::filesystem::path mergedCachePath(const std::filesystem::path& userData);
+
     /// What a document this module made shows; FillAndEdges for another module's document.
     RegionDisplay regionDisplay(const openeden::editor::AssetDocument& document);
 

@@ -188,6 +188,7 @@ void CS::Editor::startModules(const Files::PathContainer& dataDirs)
     if (const char* folder = std::getenv("OPENEDEN_CS_ASSETDIR"))
         roots.push_back(std::filesystem::path(folder));
     mModuleUi.setAssetRoots(std::move(roots));
+    mModuleUi.setUserDataPath(mCfgMgr.getUserDataPath());
 }
 
 CS::Editor::~Editor()
@@ -981,13 +982,15 @@ namespace
     void runBodyCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
     {
         const QStringList parts = QString::fromStdString(spec).split(';', Qt::SkipEmptyParts);
-        if (parts.size() < 2)
+        if (parts.empty())
         {
-            Log(Debug::Error) << "UI check: body: OPENEDEN_CS_BODYCHECK needs <prefix>;<source>";
+            Log(Debug::Error) << "UI check: body: OPENEDEN_CS_BODYCHECK needs <prefix>[;<source>]";
             return;
         }
         const std::string prefix = parts.front().toStdString();
-        const int sources = static_cast<int>(parts.size()) - 1;
+        // With no source the check opens the merged body cache of Studio's user data folder, as the module's own
+        // "Open Merged Body Cache" command does (Editor Module API 1.1, EditorContext::userDataPath).
+        const int sources = std::max(1, static_cast<int>(parts.size()) - 1);
         const int step = std::max(700, milliseconds / (6 * sources + 4));
 
         auto visibleWindow = []() -> QMainWindow* {
@@ -1084,7 +1087,7 @@ namespace
 
         for (int i = 0; i < sources; ++i)
         {
-            const QStringList source = parts[i + 1].split('|');
+            const QStringList source = i + 1 < parts.size() ? parts[i + 1].split('|') : QStringList{ QString() };
             const std::filesystem::path path = source.front().toStdString();
             const std::string entry = source.size() > 1 ? source[1].toStdString() : std::string();
             const int base = (2 + 6 * i) * step;
@@ -1092,9 +1095,13 @@ namespace
             QTimer::singleShot(base, qApp, [=] {
                 CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
                 const auto start = std::chrono::steady_clock::now();
-                ui->openAsset(path);
+                if (path.empty())
+                    ui->registry().runCommand("advancedbodies.openMerged");
+                else
+                    ui->openAsset(path);
                 Log(Debug::Info)
-                    << "UI check: body " << label << " opened " << path.string() << ": "
+                    << "UI check: body " << label << " opened "
+                    << (path.empty() ? std::string("the default merged cache") : path.string()) << ": "
                     << (ui->activeAsset() ? "yes" : "no") << " format " << ui->activeFormat() << " " << ui->openError()
                     << " in "
                     << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count()

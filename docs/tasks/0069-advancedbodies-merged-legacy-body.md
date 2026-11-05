@@ -1150,3 +1150,11 @@ two `commands().size()` pins, 2 to 3 (the module registers the cycle command). R
 over them: `I:/Projects/OpenEden-work/studio2/bp1/frames/shot_0_mesh.png` (before, edges only:
 `I:/Projects/OpenEden-work/0069f/bodypanel2/frames/shot_0_mesh.png`). Not looked at: the fill alone, the edges alone
 (unit-tested), an always-on-top triangle (no module uses it yet; the second geometry is untested in a frame).
+
+**The merged cache without `OPENEDEN_CS_ASSETDIR` (2026-11-05; open question 2 of stage f).** API 1.1's
+`EditorContext::userDataPath()` lets the module find `<user data>/openeden/bodies/current` itself:
+`Bodies > Open Merged Body Cache` (`advancedbodies.openMerged`, enabled when the host has a user data folder; with no
+cache it logs "run openmw --bake-bodies first" and opens nothing). `OPENEDEN_CS_BODYCHECK=<prefix>` with no source runs
+the same command. The module has 4 commands now (the two `commands().size()` pins went 3 to 4, awaiting toddhow's
+approval). Tests: `advancedbodies/testabuserdata.cpp` (6, 5 red first). `tools/bodypanel_check/check.sh` passes 6 of 6
+lines, the new one with no asset root named.

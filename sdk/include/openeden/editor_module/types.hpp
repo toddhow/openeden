@@ -18,10 +18,10 @@ namespace openeden::editor
     /// The API's own version (plan section 4.4), separate from the engine SDK's. A module built for {M, m} loads when
     /// openeden::sdk::isCompatible({M, m}, kApiVersion). Minor versions only add.
     ///
-    /// 1.1 (task 0031 follow-up, toddhow 2026-11-04) adds filled overlay triangles (OverlaySink::triangle). It is a
-    /// new virtual function at the END of its interface with a do-nothing default, so a 1.0 module still loads on a
-    /// 1.1 host. A module built with these headers declares 1.1, so a 1.0 host refuses it (its tables have no such
-    /// function).
+    /// 1.1 (task 0031 follow-up, toddhow 2026-11-04) adds filled overlay triangles (OverlaySink::triangle) and the user
+    /// data folder (EditorContext::userDataPath). Each is a new virtual function at the END of its interface with a
+    /// do-nothing default, so a 1.0 module still loads on a 1.1 host. A module built with these headers declares 1.1,
+    /// so a 1.0 host refuses it (its tables have no such functions).
     inline constexpr openeden::sdk::Version kApiVersion{ 1, 1 };
 
     /// Meters, Z up (CreativeMotion's convention). Studio converts to the world's unit at its overlay boundary.
