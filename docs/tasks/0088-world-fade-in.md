@@ -1,5 +1,5 @@
 # Task: Everything fades in (world fade-in)
-Status: draft spec with stage a (survey) done, 2026-11-05. Stages b onwards are in the stage log below as they land.
+Status: draft spec; stages a and b done, c not feasible without a decision, d is a ranked list (2026-11-05).
 Design doc section: `docs/design/` world LOD (tasks 0055, 0060, 0066, 0087).
 Goal: nothing in the world appears or disappears in a single frame while the player moves; each piece dithers in or out
 over the `[WorldLod] terrain fade time` (0.4 s), as the object clusters (task 0059) and the LOD terrain tiles (task 0087)
@@ -78,4 +78,65 @@ the live terrain rebuild has no log. Stage b adds a Verbose line per live chunk 
 Geomorphing (decided 2026-11-05: no), the baked data, the object clusters and tiles (already fade).
 
 ## Stage log
-(see below as stages land)
+
+**Stage b (2026-11-05, Windows): the live terrain's chunks fade (`c25402e64f`).** On only with `[WorldLod] enabled` and
+`terrain fade time` above 0 (the same setting as the tiles; with the world LOD off, which is the default game, nothing runs).
+- *Pure part.* `Terrain::ChunkFader` (`components/terrain/chunkfade.*`) remembers the live view's chunks across its
+  rebuilds by `Bounds`. A new chunk fades in; a chunk that is replaced (split into finer chunks, merged into a coarser one)
+  stays at full, and a half-faded one rises to full, until every chunk that overlaps it is solid, and is then dropped in one
+  frame; a chunk nothing replaces fades out; a chunk a LOD tile already covers is dropped at once; a new chunk where a tile
+  drew just before (the hand-back of task 0087) and every chunk of a view that shares no area with the old one (a
+  teleport, the first build) start solid. 14 tests, 8 red first against a do-nothing stub (the other 5 pass against it
+  trivially), a 300-seed property test: no cell that was drawn solid and is still wanted ever loses its solid cover before
+  its replacement is solid. Not mutation-tested.
+- *Shader part.* A chunk's `firstInstance` packs lod (byte 0), shift (byte 1) and grid x, y (bytes 2, 3). All four never pass 15,
+  so the high nibbles of bytes 0 and 1 hold the share of the dither that is DROPPED (255 minus the fade in 255ths):
+  `Terrain::encodeChunkFade`. A solid chunk and every other user of the terrain pipeline (the map, the editor, the tiles)
+  keep the old value exactly. The vertex stage (GLSL and Slang) masks lod and shift with 0xf and writes a `flat float
+  chunkFade` varying (last in the block, so no other location moves); the fragment stages multiply it into `batch.fade`. 8
+  tests (the encode functions, the shader text in both languages; red first: the file did not compile). `SlangPermutations`
+  passes (all 39 listed fragment sets and the 4 vertex sets). No new define, no new permutation.
+- *Paging.* `Paging::updateView(..., const ChunkFadeParams*)`: with parameters the main thread steps the fader, writes the
+  fades into the `DrawIndexed::firstInstance` of the draws in the scene (the command graph is recorded every frame), and
+  rebuilds the view when a leaving chunk was dropped; the leaving chunks are drawn again in each rebuild (their batch is
+  created if the batch left the range). Preload views and the map pass nothing and run the old code.
+- *Not changed by it:* the batch uniform stays one per batch; the cost of a rebuild is that of any rebuild (batch data is cached).
+- **Off is unchanged:** with `terrain fade time = 0` and the world LOD on, old and new executables give the same frames as two
+  runs of the old one (a flight, PSNR old-vs-old 45 to 50 dB, old-vs-new 46 to 50, new-vs-new 49 to 52). With `[WorldLod]
+  enabled = false` (the default game, a still pose, the changed terrain shader): old-vs-new 59.5 to 59.9 dB, new-vs-new 58.8.
+  Neither pair is byte identical (cloud and NPC animation).
+- **What I saw, plainly.** The log shows the fade working (`Terrain chunk fade: 129 chunks, 32 fading in, 8 leaving`, Verbose),
+  and with a 60 s fade, tiles off and a flight the pictures differ from the old executable only in far ground and at edges,
+  amplified difference `dnt14.png`; I could NOT make a frame in which the live fade is visibly different to the eye: the
+  chunks that appear at the edge of the live range mostly lie over a tile (they start solid by rule) or over the sky past
+  the fog. No before/after pair of an obvious live pop was obtained. The fade is therefore proven by tests and logs, not
+  yet by a picture.
+- **What it can and cannot fix** (read this before relying on it). A split or merge keeps the old chunk opaque under the new
+  ones, depth tested: during the fade the screen shows the nearer of the two surfaces, not a blend, and when the old chunk drops
+  where its coarser surface was in front of the finer one still changes in one frame. The fade helps chunks that appear at
+  the edge of the range or over sky, and squares a tile hands back; it does little for geometry LOD changes. The 0087 tiles
+  share that limit. A *complementary* dither (the leaving chunk keeps exactly the pixels the incoming one drops) would give an
+  exact per-pixel hand-over: one flag in the encoding (dropped values of 128 or more meaning "inverted", 7 bits of
+  precision). Not built; offered.
+- **Two `updateTerrain` callers:** `RenderManager::changeCellGrid` calls it with the player's position and dt 0, the frame loop
+  with the camera and dt; at a cell crossing the two builds can want different chunk sets (seen: 105 / 129 chunks 3 ms apart,
+  fades continuous, no pop). Both pass the fade parameters, so neither rebuilds without the fader.
+- **Not measured:** the CPU and GPU cost (`load-trace.jsonl` was not written, the runs ended by a timeout; the number of rebuilds
+  at fade 6: 338 `Terrain chunk fade` lines in a 25 s flight), a ground walk, rain, TAA, `slang shaders` on, Linux gate,
+  `clang-tidy`, clang-format 14 (only a 23 was available; new files formatted with it, changed lines kept under 120 columns by hand),
+  Lua tests, a play-through. `components-tests` 6409, `openmw-tests` 1058 pass, `eden-studio` builds.
+
+**Stage c: object paging chunks. Not feasible without a decision.** A chunk is a `CullGroup` of the SHARED model prototypes (`readNode`) with
+their own pipelines and materials; `LOD_FADE` reads `material.specular.a`, one value per material shared by every instance of the model, and
+a push constant per chunk needs a new object shader permutation for EVERY static pipeline (every `default/main.frag` set doubles: 55 listed
+Slang sets plus the GLSL). Options, cheapest first: (1) a push constant `fade` read by a runtime branch in the object shader (no new
+permutation, but every object draw of the game pays a read and a branch, the shader is the hottest one; needs a frame comparison for "off"); (2) a
+per-chunk copy of the prototypes with their own materials (loses sharing: memory and descriptor sets grow by the number of cells in range; the
+LOD clusters already are such a copy); (3) let the clusters do it: bake or start the clusters closer so object paging covers less of the far view.
+
+**Stage d: ranked list for toddhow (cost, risk).**
+1. The complementary dither for tiles and live chunks (small, a flag in the encoding and the discard test; makes the hand-over exact).
+2. Object paging chunks by a push-constant branch (option 1 above; medium cost, touches every object draw).
+3. Cell objects and actors on a load (rows 6, 7): the incremental build already spreads them; a fade needs the same per-draw value as (2).
+4. Groundcover chunks (row 7): not read; probably a per-instance array, a fade needs a per-chunk uniform.
+5. The ash fog (Finding 1): a one-constant change in `weatherBeta` (or `haze weather gain`), the biggest visible effect of the four.
