@@ -152,7 +152,7 @@ namespace Render::CloudVolume
     }
 
     // How hard the detail noise eats the cloud's edges (0 none, 1 all the way).
-    constexpr float defaultErosion = 0.6f;
+    constexpr float defaultErosion = 0.85f;
 
     // The density, 0 to 1, from the shape value (0 to 1), the detail value (0 to 1), the weather's coverage (0 clear
     // to 1 overcast) and the height gradient:
@@ -451,7 +451,31 @@ namespace Render::CloudVolume
     // D3: one tile of the shape texture (128 cubed) covers this many metres, and one tile of the detail texture (32
     // cubed) this many. The sampler repeats them. Chosen so the big forms are a few kilometres across.
     constexpr float shapeTileMeters = 12000.f;
-    constexpr float detailTileMeters = 1500.f;
+    constexpr float detailTileMeters = 800.f;
+
+    // The detail texture is read twice: at the coarse tile above and at this finer one (shifted, so the two lookups
+    // are not the same cell), and the two are mixed by `combineDetail`. 12000 is a whole number of both tiles, which
+    // `wrapWind` needs. A chosen value, set by looking at frames (task 0042's stage log, 2026-11-04): with only the
+    // 1500 m tile the clouds read as smooth blobs.
+    constexpr float detailFineTileMeters = 300.f;
+    // The fine lookup's share of the mix, and the factor that puts back the spread that mixing two lookups takes out.
+    constexpr float detailFineWeight = 0.4f;
+    constexpr float detailContrast = 1.6f;
+
+    // The detail value the density uses: 0.5 + (coarse (1 - w) + fine w - 0.5) * contrast, kept in 0 to 1 (a value that
+    // is not a number counts as 0). Equal inputs of 0.5 give 0.5, so the mean erosion does not change.
+    inline float combineDetail(float coarse, float fine)
+    {
+        const float c = std::isfinite(coarse) ? std::clamp(coarse, 0.f, 1.f) : 0.f;
+        const float f = std::isfinite(fine) ? std::clamp(fine, 0.f, 1.f) : 0.f;
+        const float mixed = c * (1.f - detailFineWeight) + f * detailFineWeight;
+        return std::clamp(0.5f + (mixed - 0.5f) * detailContrast, 0.f, 1.f);
+    }
+
+    // The sun light is multiplied by this before the phase function (which integrates to 1 over the sphere, so 4 pi
+    // would make an even scatterer reflect the whole sun). Half of that: with 4 pi the sunlit tops of cumulus clipped
+    // to white in the tonemap (5 percent of a cloudy noon sky's cloud pixels and 85 percent of a clear one's).
+    constexpr float sunPhaseScale = 6.28318530718f;
 
     constexpr std::uint32_t shapeSize = 128;
     constexpr std::uint32_t detailSize = 32;

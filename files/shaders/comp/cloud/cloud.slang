@@ -79,7 +79,11 @@ static const float pi = 3.14159265358979;
 // ---- cloudvolumemath.hpp constants ----
 static const float unitsPerMeter = 69.99125109;
 static const float shapeTileMeters = 12000.0;
-static const float detailTileMeters = 1500.0;
+static const float detailTileMeters = 800.0;
+static const float detailFineTileMeters = 300.0;
+static const float detailFineWeight = 0.4;
+static const float detailContrast = 1.6;
+static const float sunPhaseScale = 6.28318530718;
 static const uint shapeSize = 128;
 static const uint detailSize = 32;
 static const uint curlSize = 128;
@@ -340,7 +344,13 @@ float densityAt(float3 positionMeters, float f, int detailMode)
     {
         float2 curl = curlTex.SampleLevel(uvw.xy, 0.0).xy * 2.0 - 1.0;
         float3 detailUvw = frac((positionMeters - wind) / detailTileMeters + float3(curl * curlStrength * (1.0 - f), 0.0));
-        detail = detailTex.SampleLevel(detailUvw, 0.0).a;
+        float coarse = detailTex.SampleLevel(detailUvw, 0.0).a;
+        // The finer lookup is shifted so that it does not read the same cell (cloudvolumemath.hpp: combineDetail).
+        float3 fineUvw = frac((positionMeters - wind) / detailFineTileMeters + float3(0.37, 0.11, 0.73)
+            + float3(curl * curlStrength * (1.0 - f), 0.0));
+        float fine = detailTex.SampleLevel(fineUvw, 0.0).a;
+        float mixed = coarse * (1.0 - detailFineWeight) + fine * detailFineWeight;
+        detail = saturate(0.5 + (mixed - 0.5) * detailContrast);
     }
     return cloudDensity(shape, detail, cloud.layer.w, heightGradient(f), cloud.look.x);
 }
@@ -389,7 +399,7 @@ float4 marchRay(float2 uv, float2 pixel)
 
     float3 sunDir = normalize(mul(scene.invView, float4(scene.lightViewPos.xyz, 0.0)).xyz);
     float cosTheta = dot(dir, sunDir);
-    float3 sunColor = scene.lightDiffuse.xyz * cloud.look.y * 4.0 * pi; // the phase integrates to 1 (see volume.slang)
+    float3 sunColor = scene.lightDiffuse.xyz * cloud.look.y * sunPhaseScale; // the phase integrates to 1 (see volume.slang), so 4 pi is a full sun; half of it
     float3 ambient = scene.ambient.xyz * cloud.look.z;
     float lightRay = lightRayMeters * unitsPerMeter;
 

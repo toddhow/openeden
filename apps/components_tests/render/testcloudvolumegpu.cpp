@@ -351,6 +351,10 @@ namespace
         expectSlangNumber(slang, "unitsPerMeter", metersToUnits(1.f));
         expectSlangNumber(slang, "shapeTileMeters", shapeTileMeters);
         expectSlangNumber(slang, "detailTileMeters", detailTileMeters);
+        expectSlangNumber(slang, "detailFineTileMeters", detailFineTileMeters);
+        expectSlangNumber(slang, "detailFineWeight", detailFineWeight);
+        expectSlangNumber(slang, "detailContrast", detailContrast);
+        expectSlangNumber(slang, "sunPhaseScale", sunPhaseScale);
         expectSlangNumber(slang, "shapeSize", shapeSize);
         expectSlangNumber(slang, "detailSize", detailSize);
         expectSlangNumber(slang, "curlSize", curlSize);

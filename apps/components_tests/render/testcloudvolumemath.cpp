@@ -79,7 +79,7 @@ namespace
     {
         EXPECT_FLOAT_EQ(layerBaseMeters, 1500.f);
         EXPECT_FLOAT_EQ(layerTopMeters, 4000.f);
-        EXPECT_FLOAT_EQ(defaultErosion, 0.6f);
+        EXPECT_FLOAT_EQ(defaultErosion, 0.85f);
         EXPECT_FLOAT_EQ(extinctionPerMeter, 0.045f);
         EXPECT_FLOAT_EQ(forwardAnisotropy, 0.8f);
         EXPECT_FLOAT_EQ(backAnisotropy, -0.3f);
@@ -91,8 +91,62 @@ namespace
         EXPECT_EQ(shapeSize, 128u);
         EXPECT_EQ(detailSize, 32u);
         EXPECT_FLOAT_EQ(shapeTileMeters, 12000.f);
-        EXPECT_FLOAT_EQ(detailTileMeters, 1500.f);
+        EXPECT_FLOAT_EQ(detailTileMeters, 800.f);
         EXPECT_FLOAT_EQ(shareSeconds, 3.f);
+    }
+
+    // --- The detail look (task 0042 stage log, 2026-11-04) ----------------------------------------------------------
+
+    TEST(RenderCloudVolumeDetailLook, theTilesDivideTheWindWrap)
+    {
+        // wrapWind keeps the offset below the shape tile: every detail tile must divide it, or the clouds jump.
+        EXPECT_FLOAT_EQ(std::fmod(shapeTileMeters, detailTileMeters), 0.f);
+        EXPECT_FLOAT_EQ(std::fmod(shapeTileMeters, detailFineTileMeters), 0.f);
+        EXPECT_LT(detailFineTileMeters, detailTileMeters);
+    }
+
+    TEST(RenderCloudVolumeDetailLook, combineDetailKeepsTheMiddleAndTheRange)
+    {
+        EXPECT_NEAR(combineDetail(0.5f, 0.5f), 0.5f, 1e-6f);
+        EXPECT_FLOAT_EQ(combineDetail(0.f, 0.f), 0.f);
+        EXPECT_FLOAT_EQ(combineDetail(1.f, 1.f), 1.f);
+        for (float a : { -3.f, 0.f, 0.2f, 0.9f, 1.f, 7.f })
+            for (float b : { -3.f, 0.f, 0.4f, 1.f, 7.f })
+            {
+                const float v = combineDetail(a, b);
+                EXPECT_GE(v, 0.f);
+                EXPECT_LE(v, 1.f);
+            }
+        EXPECT_FLOAT_EQ(combineDetail(std::nanf(""), 0.5f), combineDetail(0.f, 0.5f));
+    }
+
+    TEST(RenderCloudVolumeDetailLook, combineDetailStretchesTheContrast)
+    {
+        // Two lookups averaged would flatten the detail; the contrast factor puts the spread back.
+        EXPECT_GT(combineDetail(0.7f, 0.7f), 0.7f);
+        EXPECT_LT(combineDetail(0.3f, 0.3f), 0.3f);
+        EXPECT_NEAR(combineDetail(0.7f, 0.7f) - 0.5f, (0.7f - 0.5f) * detailContrast, 1e-5f);
+    }
+
+    TEST(RenderCloudVolumeDetailLook, combineDetailIsMonotoneAndWeighsTheCoarseLookupMore)
+    {
+        float last = -1.f;
+        for (int i = 0; i <= 20; ++i)
+        {
+            const float v = combineDetail(static_cast<float>(i) / 20.f, 0.5f);
+            EXPECT_GE(v, last);
+            last = v;
+        }
+        // Moving the coarse value by d moves the result by more than moving the fine one by d (where not clamped).
+        const float dCoarse = combineDetail(0.55f, 0.5f) - combineDetail(0.5f, 0.5f);
+        const float dFine = combineDetail(0.5f, 0.55f) - combineDetail(0.5f, 0.5f);
+        EXPECT_GT(dCoarse, dFine);
+        EXPECT_NEAR(dCoarse / dFine, (1.f - detailFineWeight) / detailFineWeight, 1e-3f);
+    }
+
+    TEST(RenderCloudVolumeDetailLook, theSunScaleIsTwoPi)
+    {
+        EXPECT_NEAR(sunPhaseScale, 6.28318530718f, 1e-5f);
     }
 
     TEST(RenderCloudVolume, parseQualityReadsTheThreeNames)
@@ -1027,7 +1081,7 @@ namespace
     {
         EXPECT_NEAR(noiseCoordinate(3000.f, 0.f, shapeTileMeters), 0.25f, tol);
         EXPECT_NEAR(noiseCoordinate(3000.f, 3000.f, shapeTileMeters), 0.5f, tol);
-        EXPECT_NEAR(noiseCoordinate(6000.f, 0.f, detailTileMeters), 0.f, tol);
+        EXPECT_NEAR(noiseCoordinate(8.f * detailTileMeters, 0.f, detailTileMeters), 0.f, tol);
         EXPECT_NEAR(noiseCoordinate(-3000.f, 0.f, shapeTileMeters), 0.75f, tol);
         // One whole tile away is the same place.
         EXPECT_NEAR(noiseCoordinate(1000.f + shapeTileMeters, 0.f, shapeTileMeters),
