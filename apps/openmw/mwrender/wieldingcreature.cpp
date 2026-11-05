@@ -18,6 +18,7 @@
 #include "autoplaytrace.hpp"
 #include "env.hpp"
 #include "equipmentupdate.hpp"
+#include "partreaderrorlog.hpp"
 #include "transparency.hpp"
 
 namespace MWRender
@@ -139,7 +140,7 @@ namespace MWRender
         {
             // Task 0074e (finding 7 of the review of 0074d), as OpenMW 0.51 (CreatureWeaponAnimation::updatePart,
             // 442eec6e2f): the model cannot be read, so the part is skipped and the update goes on.
-            Log(Debug::Error) << "Can not add creature part: " << e.what();
+            logPartReadError("Can not add creature part: ", model, e);
             return;
         }
         linkPart(slot, std::move(node), light, bonename, getGlowColor(item));

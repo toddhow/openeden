@@ -38,7 +38,7 @@ source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPEN
 
 add_openmw_dir (mwrender
     mask bin rendermode renderinginterface renderpass intersect rendermanager terrainstorage landmanager lodterrain lodclusters
-    animcontext bodyparts bodylegacy mergedbody partslots wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
+    animcontext bodyparts bodylegacy mergedbody partslots partreaderrorlog wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map mapdepthrange worldmap preview shadow pointshadows
     fogmanager water screenshotinterface bonepose footikmath actorikcontroller joltdebugdraw navmesh creativemotiondriver creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells distantobjects waterripples groundcoverinstances groundcover

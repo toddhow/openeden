@@ -37,6 +37,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testitemlights.cpp
     mwrender/testnpcrebuild.cpp
     mwrender/testpartreaderrors.cpp
+    mwrender/testpartreaderrorlog.cpp
     mwrender/testquiverupdate.cpp
     mwrender/testthumbnailstate.cpp
     mwrender/testcreatureglow.cpp

@@ -54,6 +54,7 @@
 #include "env.hpp"
 #include "equipmentupdate.hpp"
 #include "mergedbody.hpp"
+#include "partreaderrorlog.hpp"
 #include "transparency.hpp"
 
 namespace MWRender
@@ -546,7 +547,7 @@ namespace MWRender
             // 442eec6e2f): the part's model cannot be read (vsgUtil::readNode reads through vsgAdapters::vfs, whose
             // VFS::Manager::get can throw), so the part is skipped and the update goes on. Nothing has changed yet:
             // the slot stays taken (PartSlots::take ran before) and the body part under it stays hidden, as in 0.51.
-            Log(Debug::Error) << "Error adding NPC part: " << e.what();
+            logPartReadError("Error adding NPC part: ", model, e);
             return false;
         }
         traceRead.end();
