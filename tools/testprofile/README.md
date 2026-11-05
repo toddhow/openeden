@@ -175,6 +175,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   (the look differs only by rounding). The cache stays, so the second start reads everything at once. After a minute with
   nothing to compile the compiler gives back its about 265 MiB. With `[Cells] load trace = true` every compile is a
   line in `openmw.log` and a `slang.compile` record in `load-trace.jsonl`.
+- **Terrain pops and the log (task 0087):** every terrain tile change of the world LOD is a `World LOD tile swap: frame N, ...: new|refined|coarsened|to live|removed` line in `openmw.log`, and with the `stats` variant (`[Cells] load trace = true`) also an event `lod.tile.<kind>` in `load-trace.jsonl`; match a pop in a video to the nearest swap in time.
 - **`map view` costs memory:** about +100 MiB resident with terrain tiles alone and +200 to +450 MiB with object clusters
   (the tier decides; `variants/lowtier.cfg` and `far memory budget` limit it).
 - **Volumetric fog and volumetric clouds are the heaviest GPU effects**; with everything on, expect a much lower frame

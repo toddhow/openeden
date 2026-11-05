@@ -18,6 +18,8 @@
 #include <components/lod/residency.hpp>
 #include <components/lod/texturedecode.hpp>
 #include <components/lod/tilepack.hpp>
+#include <components/lod/tileswap.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/render/processmemory.hpp>
 #include <components/terrain/builder.hpp>
 #include <components/vfs/manager.hpp>
@@ -751,6 +753,7 @@ namespace MWRender
             ++mLevelCount[slot];
             mBatches[index] = std::move(batch);
             mFlags[index] = 0;
+            logSwap(index, Lod::TileSwapKind::New);
             return true;
         }
 
@@ -761,6 +764,39 @@ namespace MWRender
                 return mDrawBytes[index];
             const std::size_t slot = std::min<std::size_t>(mLoaded.mTiles[index].mId.mLevel, levelSlots - 1);
             return mLevelCount[slot] > 0 ? mLevelBytes[slot] / mLevelCount[slot] : firstTileEstimate;
+        }
+
+        // One line per change of a tile's drawn state (task 0087, stage a): in the log at Verbose and, with
+        // [Cells] load trace, as an event named lod.tile.<kind> with the level as its value, so that a pop in a video
+        // can be matched to a swap. Called only when something changes, never per frame.
+        void logSwap(std::size_t index, Lod::TileSwapKind kind) const
+        {
+            const Lod::TileId& id = mLoaded.mTiles[index].mId;
+            Log(Debug::Verbose) << Lod::formatTileSwap(mFrame, id, kind);
+            if (Misc::LoadTrace::enabled())
+            {
+                const std::int64_t now = Misc::LoadTrace::nowMicroseconds();
+                Misc::LoadTrace::record(Lod::tileSwapTraceName(kind), now, now, id.mLevel);
+            }
+        }
+
+        // The kind of swap when the tile at `index` stops being drawn, from why the selection no longer wants it.
+        Lod::TileSwapKind removalKind(std::size_t index) const
+        {
+            switch (mStates[index].mChoice)
+            {
+                case Lod::TileChoice::Covered:
+                    return Lod::TileSwapKind::Coarsened;
+                case Lod::TileChoice::Live:
+                    for (const std::uint32_t child : mChildren[index])
+                    {
+                        if (mNodes[child])
+                            return Lod::TileSwapKind::Refined;
+                    }
+                    return Lod::TileSwapKind::ToLive;
+                default:
+                    return Lod::TileSwapKind::Removed;
+            }
         }
 
         void remove(std::size_t index)
@@ -922,6 +958,7 @@ namespace MWRender
         std::vector<std::uint32_t> mLods;
         std::vector<bool> mFailed;
         // The residency planner (task 0060): its input and output are reused every frame.
+        std::uint64_t mFrame = 0; // calls of update() with tiles in use, for the swap log lines (task 0087)
         std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
         // What each tile's draw held when last built (batchResidentBytes); 0: never built.
         std::vector<std::uint64_t> mDrawBytes;
@@ -991,6 +1028,7 @@ namespace MWRender
         }
         if (!state.mLoaded.mUsable)
             return nullptr;
+        ++state.mFrame;
 
         Lod::SelectionCamera selection;
         selection.mX = camera.mEye.x;
@@ -1100,6 +1138,7 @@ namespace MWRender
                 continue;
             // Freed while still chosen: the live terrain draws its square, and it is not drawn again for a while.
             state.mCooldown[index] = 2 * evictedFrames;
+            state.logSwap(index, Lod::TileSwapKind::Removed);
             state.remove(index);
             changed = true;
         }
@@ -1127,6 +1166,7 @@ namespace MWRender
             if (keepRefinedTiles && state.mStates[i].mChoice == Lod::TileChoice::Live
                 && !state.refinedTileMayGo(i, camera, staysForGood))
                 continue;
+            state.logSwap(i, state.removalKind(i));
             state.remove(i);
             changed = true;
         }
