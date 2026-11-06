@@ -165,6 +165,9 @@ endif()
 #   -profile spirv_1_0           the same SPIR-V version the GLSL path produces (Vulkan 1.0 instance)
 #   -matrix-layout-column-major  matrices lie in memory as GLSL's mat4 does, so the C++ side uploads the same bytes
 #   -warnings-disable 50011      Slang warns that SPIR-V 1.0 is old; that is the point
+#   -O2                          (permutations only, the twins of GLSL stages) Slang's default -O1 left the object shader's code
+#                                0.3 ms of GPU time slower than the GLSL in a lit scene, -O2 is as fast (task 0072, stage j); the
+#                                run-time compiler uses the same level (components/vsgutil/slangruntime.cpp)
 # slangc validates its output with the SPIRV-Tools inside it unless -skip-spirv-validation is given, which it is not.
 # On top of that every output is checked by the pinned spirv-val (extern/CMakeLists.txt) for Vulkan 1.0. slangc writes
 # to <output>.tmp, spirv-val checks it, and only a valid file is renamed to <output>: a rejected shader fails the build
@@ -319,7 +322,7 @@ function(openeden_add_slang_permutations)
         add_custom_command(
             OUTPUT "${output}"
             COMMAND "${OPENEDEN_SLANGC}" "${source}" -target spirv -profile spirv_1_0 -matrix-layout-column-major
-                    -warnings-disable 50011 ${defines} -I "${CMAKE_CURRENT_SOURCE_DIR}"
+                    -warnings-disable 50011 -O2 ${defines} -I "${CMAKE_CURRENT_SOURCE_DIR}"
                     -entry ${P_ENTRY} -stage ${P_STAGE} -o "${output}.tmp"
             COMMAND $<TARGET_FILE:spirv-val> --target-env vulkan1.0 "${output}.tmp"
             COMMAND ${CMAKE_COMMAND} -E rename "${output}.tmp" "${output}"

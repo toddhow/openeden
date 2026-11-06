@@ -106,8 +106,9 @@ namespace vsgUtil
 
         // The Slang flags of the build, in the text of the cache key: a change of any of them changes every key.
         // (files/shaders/CMakeLists.txt: -target spirv -profile spirv_1_0 -matrix-layout-column-major
-        // -warnings-disable 50011, GLSL compatibility on for "import glsl".)
-        constexpr char flagsText[] = "spirv_1_0;column-major;disable-warning-50011;glsl-module;v1";
+        // -warnings-disable 50011 -O2, GLSL compatibility on for "import glsl".) Task 0072, stage j: -O2 (Slang's
+        // default is -O1), because the object shader's -O1 code cost 0.3 ms of GPU time in a lit scene.
+        constexpr char flagsText[] = "spirv_1_0;column-major;disable-warning-50011;O2;glsl-module;v2";
 
         unsigned long processId()
         {
@@ -449,12 +450,16 @@ namespace vsgUtil
                 desc.searchPathCount = 1;
                 desc.preprocessorMacros = macros.data();
                 desc.preprocessorMacroCount = static_cast<SlangInt>(macros.size());
-                slang::CompilerOptionEntry warning;
-                warning.name = slang::CompilerOptionName::DisableWarning;
-                warning.value.kind = slang::CompilerOptionValueKind::String;
-                warning.value.stringValue0 = "50011"; // SPIR-V 1.0 is old: the point
-                desc.compilerOptionEntries = &warning;
-                desc.compilerOptionEntryCount = 1;
+                slang::CompilerOptionEntry options[2];
+                options[0].name = slang::CompilerOptionName::DisableWarning;
+                options[0].value.kind = slang::CompilerOptionValueKind::String;
+                options[0].value.stringValue0 = "50011"; // SPIR-V 1.0 is old: the point
+                // -O2: the build's slangc is given the same level (files/shaders/CMakeLists.txt).
+                options[1].name = slang::CompilerOptionName::Optimization;
+                options[1].value.kind = slang::CompilerOptionValueKind::Int;
+                options[1].value.intValue0 = SLANG_OPTIMIZATION_LEVEL_HIGH;
+                desc.compilerOptionEntries = options;
+                desc.compilerOptionEntryCount = 2;
                 // SkipSPIRVValidation is left at its default (off): the validation slangc does runs here too.
                 Slang::ComPtr<slang::ISession> session;
                 if (SLANG_FAILED(mGlobal->createSession(desc, session.writeRef())) || !session)
