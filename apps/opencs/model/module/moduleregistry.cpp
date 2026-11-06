@@ -62,7 +62,8 @@ namespace CSMModule
     }
 
     ModuleRegistry::ModuleRegistry()
-        : mNullContext(std::make_unique<NullContext>())
+        : mSettings([](const std::string& text) { Log(Debug::Warning) << "Editor module setting: " << text; })
+        , mNullContext(std::make_unique<NullContext>())
     {
         mBus.setThrowReport([this](const std::string& owner, const std::string& what) {
             fail(owner, "an event handler threw: " + what);
@@ -93,6 +94,7 @@ namespace CSMModule
         eraseModule(mSections, moduleId);
         eraseModule(mTrackProviders, moduleId);
         mBus.removeOwner(moduleId);
+        mSettings.removeModule(moduleId);
     }
 
     void ModuleRegistry::fail(const std::string& moduleId, const std::string& message)
@@ -115,6 +117,16 @@ namespace CSMModule
     EditorContext& ModuleRegistry::context()
     {
         return mContext != nullptr ? *mContext : *mNullContext;
+    }
+
+    Registration ModuleRegistry::registerSetting(const SettingDesc& desc)
+    {
+        if (!mHasCurrent)
+            return refuse("no module is being registered");
+        const Registration result = mSettings.add(mCurrent, desc);
+        if (!result.ok)
+            return refuse(result.error);
+        return result;
     }
 
     Registration ModuleRegistry::subscribe(EventHandler handler)

@@ -12,6 +12,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLineEdit>
+#include <QMetaObject>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QUndoCommand>
@@ -288,6 +289,7 @@ namespace CSVModule
     ModuleUi::ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider)
         : mRegistry(registry)
         , mDocumentProvider(std::move(documentProvider))
+        , mTasks([this](std::function<void()> work) { postToUi(std::move(work)); })
         , mSelection(registry.bus())
     {
         sInstance = this;
@@ -366,6 +368,9 @@ namespace CSVModule
         mOpenError.clear();
         cancelHandle(); // a drag belongs to the old asset's gizmo
         mHighlightId.clear();
+        // The old asset's tasks stop (and are waited for) before it is destroyed.
+        if (mActive)
+            mTasks.cancelAsset(std::string(mActive->assetId()));
         const auto* type = mRegistry.findAssetType(path);
         mActiveFormat = type != nullptr ? type->mDesc.formatId : std::string();
         mActiveOwner = type != nullptr ? type->mModule : std::string();
@@ -384,6 +389,43 @@ namespace CSVModule
         mRegistry.bus().publish(opened);
         emit changed();
         return mActive.get();
+    }
+
+    void ModuleUi::postToUi(std::function<void()> work)
+    {
+        // Called from a pool thread too. A module's callback that throws is logged here, never lets go of the loop.
+        QMetaObject::invokeMethod(
+            this,
+            [work = std::move(work)] {
+                try
+                {
+                    work();
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Error) << "An editor module's task callback threw: " << e.what();
+                }
+                catch (...)
+                {
+                    Log(Debug::Error) << "An editor module's task callback threw";
+                }
+            },
+            Qt::QueuedConnection);
+    }
+
+    std::optional<PropertyValue> ModuleUi::setting(std::string_view id) const
+    {
+        return mRegistry.settings().get(id);
+    }
+
+    TaskId ModuleUi::startTask(TaskDesc task)
+    {
+        return mTasks.start(std::move(task));
+    }
+
+    void ModuleUi::cancelTask(TaskId id)
+    {
+        mTasks.cancelTask(id);
     }
 
     void ModuleUi::select(const Selection& selection)
@@ -414,6 +456,7 @@ namespace CSVModule
 
     void ModuleUi::releaseModuleObjects()
     {
+        mTasks.cancelAll(); // their code is in the libraries that are about to go
         cancelHandle();
         mHighlightId.clear();
         mSelection.clear(); // the modules are going: nothing to tell the panels

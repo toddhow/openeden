@@ -20,6 +20,9 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testeventbus.cpp
     model/module/testoverlaypick.cpp
     model/module/testoverlaylabels.cpp
+    model/module/testmodulesettings.cpp
+    model/module/testtaskrunner.cpp
+    model/module/testmanagersettingsstore.cpp
     model/module/testdragsession.cpp
     model/module/testmoduleevents.cpp
     model/module/testoldapimodules.cpp
@@ -29,6 +32,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testmoduleregistry.cpp
     model/module/testoverlaytriangles.cpp
     model/module/testsamplemodule.cpp
+    model/module/testsamplemodule12.cpp
     model/mesh/testanimationkeys.cpp
     model/mesh/testframemath.cpp
     model/mesh/testimagesize.cpp

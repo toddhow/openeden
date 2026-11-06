@@ -15,10 +15,13 @@
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/view/prefs/pagebase.hpp>
 
+#include "../../model/module/moduleregistry.hpp"
 #include "../../model/prefs/state.hpp"
+#include "../module/moduleui.hpp"
 
 #include "contextmenulist.hpp"
 #include "keybindingpage.hpp"
+#include "modulesettingspage.hpp"
 #include "page.hpp"
 
 void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
@@ -43,6 +46,15 @@ void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 
         list->addItem(label);
     }
+
+    // The editor modules' own settings (Editor Module API 1.2): a last page, only when a module registered one.
+    if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+        if (!modules->registry().settings().entries().empty())
+        {
+            const QString label = ModuleSettingsPage::sKey;
+            maxWidth = std::max(maxWidth, metrics.horizontalAdvance(label));
+            list->addItem(label);
+        }
 
     list->setMaximumWidth(maxWidth + 50);
 
@@ -130,11 +142,26 @@ void CSVPrefs::Dialogue::selectionChanged(QListWidgetItem* current, QListWidgetI
     {
         std::string key = current->text().toUtf8().data();
 
+        if (key == ModuleSettingsPage::sKey)
+        {
+            if (mModulesPage == nullptr)
+            {
+                CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+                if (modules == nullptr)
+                    return;
+                mModulesPage = new ModuleSettingsPage(modules->registry().settings(), mContent);
+                mContent->addWidget(mModulesPage);
+            }
+            mContent->setCurrentWidget(mModulesPage);
+            return;
+        }
+
         for (int i = 0; i < mContent->count(); ++i)
         {
-            PageBase& page = dynamic_cast<PageBase&>(*mContent->widget(i));
+            // The modules' page is not a PageBase.
+            PageBase* page = dynamic_cast<PageBase*>(mContent->widget(i));
 
-            if (page.getCategory().getKey() == key)
+            if (page != nullptr && page->getCategory().getKey() == key)
             {
                 mContent->setCurrentIndex(i);
                 return;

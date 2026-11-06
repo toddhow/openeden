@@ -22,6 +22,7 @@
 
 #include "model/doc/documentmanager.hpp"
 #include "model/extension/editorextensionhost.hpp"
+#include "model/module/managersettingsstore.hpp"
 #include "model/module/modulehost.hpp"
 #include "model/module/moduleregistry.hpp"
 #include "model/physics/studioworld.hpp"
@@ -78,6 +79,8 @@ namespace CS
         // The editor modules (task 0031): the registry and the UI they talk to come first, the host that owns the
         // modules last, so that the modules go before the extensions whose manifests named some of them.
         CSMModule::ModuleRegistry mModuleRegistry;
+        CSMModule::ManagerSettingsStore
+            mModuleSettingsStore; ///< The modules' settings: [module.<id>] in eden-studio.cfg
         CSVModule::ModuleUi mModuleUi{ mModuleRegistry, [this] { return activeDocument(); } };
         CSMDoc::Document* activeDocument();
         std::unique_ptr<CSMModule::ModuleHost> mModuleHost;

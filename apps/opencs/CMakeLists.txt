@@ -66,7 +66,7 @@ opencs_units (model/extension
     )
 
 opencs_units (model/module
-    moduleregistry modulehost overlaybuffer eventbus overlaypick dragsession labelstroke
+    moduleregistry modulehost overlaybuffer eventbus overlaypick dragsession labelstroke modulesettings taskrunner managersettingsstore
     )
 
 opencs_units (model/mesh
@@ -199,7 +199,7 @@ opencs_units (view/tools
     )
 
 opencs_units (view/prefs
-    dialogue pagebase page keybindingpage contextmenulist
+    dialogue pagebase page keybindingpage contextmenulist modulesettingspage
     )
 
 opencs_units (view/filter

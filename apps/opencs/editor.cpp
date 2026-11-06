@@ -1,5 +1,7 @@
 #include "editor.hpp"
 
+#include "model/prefs/state.hpp"
+
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QApplication>
@@ -24,6 +26,7 @@
 #include <optional>
 #include <set>
 
+#include <QListWidget>
 #include <QMouseEvent>
 #include <QTabBar>
 #include <QTimer>
@@ -78,6 +81,7 @@
 #include "view/doc/subview.hpp"
 #include "view/doc/viewmanager.hpp"
 #include "view/module/moduleui.hpp"
+#include "view/prefs/dialogue.hpp"
 #include "view/render/meshviewwidget.hpp"
 #include "view/render/physicshub.hpp"
 #include "view/render/scenehost.hpp"
@@ -164,6 +168,8 @@ CSMDoc::Document* CS::Editor::activeDocument()
 
 void CS::Editor::startModules(const Files::PathContainer& dataDirs)
 {
+    // The modules' settings are kept in eden-studio.cfg, under [module.<id>] (API 1.2, task 0091).
+    mModuleRegistry.settings().setStore(&mModuleSettingsStore);
     mModuleHost = std::make_unique<CSMModule::ModuleHost>(mModuleRegistry, mModuleUi);
 
     // Core systems' modules first (decision 0007), then the extensions' (their manifests' "editor" entries).
@@ -182,6 +188,16 @@ void CS::Editor::startModules(const Files::PathContainer& dataDirs)
         for (CSMModule::ModuleSource& source : mExtensionHost->editorModuleSources())
             sources.push_back(std::move(source));
     mModuleHost->load(sources);
+    // Defaults the modules just registered (and repairs of the values found) reach the file now.
+    if (mModuleRegistry.settings().takeWritten())
+        try
+        {
+            CSMPrefs::State::get().save();
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "Could not save the editor modules' settings: " << e.what();
+        }
     for (const CSMModule::ModuleInfo& info : mModuleHost->modules())
         if (info.mState == CSMModule::ModuleInfo::State::Failed)
             Log(Debug::Error) << "Editor module '" << info.mId << "' failed: " << info.mMessage;
@@ -202,6 +218,7 @@ CS::Editor::~Editor()
     mViewManager = nullptr;
     // What the modules handed over has code in their libraries: gone before the libraries are.
     mModuleUi.releaseModuleObjects();
+    mModuleRegistry.settings().setStore(nullptr); // the store is a member that goes before the registry
     mModuleHost.reset();
 
     mLockFile.unlock();
@@ -744,7 +761,7 @@ namespace
     /// module ...".
     void runModuleCheck(CSMDoc::Document* document, const std::string& prefix, int milliseconds)
     {
-        const int step = std::max(500, milliseconds / 9);
+        const int step = std::max(500, milliseconds / 10);
         QTimer::singleShot(step * 2, qApp, [=] {
             // The Extensions menu: the module's submenu and items, then the sample command.
             for (QWidget* widget : QApplication::topLevelWidgets())
@@ -881,6 +898,43 @@ namespace
             for (QWidget* widget : QApplication::topLevelWidgets())
                 if (widget->isVisible() && qobject_cast<QMainWindow*>(widget))
                     widget->grab().save(QString::fromStdString(prefix) + "_window" + QString::number(index++) + ".png");
+        });
+        // The preferences window's "Modules" page (API 1.2, task 0091 stage e): lists the sample's two settings, an
+        // edit of the axis length goes to the store and is written to eden-studio.cfg by the window's own saving.
+        QTimer::singleShot(step * 8, qApp, [=] {
+            auto* dialogue = new CSVPrefs::Dialogue();
+            dialogue->show();
+            QListWidget* categories = dialogue->findChild<QListWidget*>();
+            bool found = false;
+            if (categories != nullptr)
+                for (int row = 0; row < categories->count(); ++row)
+                    if (categories->item(row)->text() == "Modules")
+                    {
+                        categories->setCurrentRow(row);
+                        found = true;
+                    }
+            Log(Debug::Info) << "UI check: prefs Modules category " << (found ? "listed" : "missing");
+            QStringList names;
+            for (QWidget* field : dialogue->findChildren<QWidget*>())
+                if (field->objectName().startsWith("moduleSetting_"))
+                    names << field->objectName();
+            names.sort();
+            Log(Debug::Info) << "UI check: prefs module settings shown: " << names.join(",").toStdString();
+            if (auto* spin = dialogue->findChild<QDoubleSpinBox*>("moduleSetting_sample.axisHalfLength"))
+            {
+                const double before = spin->value();
+                spin->setValue(4.5);
+                const auto stored = CSVModule::ModuleUi::get()->setting("sample.axisHalfLength");
+                Log(Debug::Info) << "UI check: prefs axis length " << before << " -> " << spin->value() << ", setting "
+                                 << (stored ? std::get<double>(*stored) : -1.0) << ", range " << spin->minimum()
+                                 << " to " << spin->maximum();
+                spin->setValue(99.0); // beyond the range: the box clamps it
+                Log(Debug::Info) << "UI check: prefs axis length clamped to " << spin->value();
+                spin->setValue(4.5);
+            }
+            dialogue->grab().save(QString::fromStdString(prefix) + "_prefs.png");
+            dialogue->close(); // saves eden-studio.cfg
+            dialogue->deleteLater();
         });
     }
 

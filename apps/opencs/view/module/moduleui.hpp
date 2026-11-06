@@ -21,6 +21,7 @@
 #include <apps/opencs/model/module/eventbus.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/module/overlaypick.hpp>
+#include <apps/opencs/model/module/taskrunner.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 
 class QWidget;
@@ -77,6 +78,14 @@ namespace CSVModule
         openeden::editor::Selection selection() const override { return mSelection.current(); }
         void select(const openeden::editor::Selection& selection) override;
         void publish(const openeden::editor::EditorEvent& event) override;
+
+        std::optional<openeden::editor::PropertyValue> setting(std::string_view id) const override;
+        /// Background tasks (API 1.2, task 0091 stage e) run on Studio's pool; their callbacks come back on this
+        /// (the UI) thread through the event loop. A task of an asset that is replaced or closed is cancelled and
+        /// waited for first, and every task before the modules are unloaded (releaseModuleObjects).
+        openeden::editor::TaskId startTask(openeden::editor::TaskDesc task) override;
+        void cancelTask(openeden::editor::TaskId id) override;
+        const CSMModule::TaskRunner& tasks() const { return mTasks; }
 
         /// Studio publishes the physics world's step (called by CSVRender::PhysicsHub for each fixed step it ran).
         void publishSimulationStep(std::uint64_t step);
@@ -200,6 +209,9 @@ namespace CSVModule
         std::vector<QPointer<QUndoStack>> mStacks;
         std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used
         QUndoStack mOwnStack; // used when there is no document
+        void postToUi(std::function<void()> work);
+
+        CSMModule::TaskRunner mTasks;
         std::optional<HandleRef> mPressed; ///< The handle under the button.
         CSMModule::PickRay mPressRay; ///< Meters.
         std::unique_ptr<CSMModule::DragSession> mDrag;

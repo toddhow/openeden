@@ -10,12 +10,14 @@ class QListWidgetItem;
 namespace CSVPrefs
 {
     class PageBase;
+    class ModuleSettingsPage;
 
     class Dialogue : public QMainWindow
     {
         Q_OBJECT
 
         QStackedWidget* mContent;
+        QWidget* mModulesPage = nullptr; ///< The editor modules' settings (API 1.2); made when first chosen.
 
     private:
         void buildCategorySelector(QSplitter* main);
