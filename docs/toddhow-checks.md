@@ -48,6 +48,8 @@ Each one was built and measured but never seen by you.
 - [ ] **Inherited reader bugs filed as findings in task 0082:** four CBBE files that fail in the inherited NIF `post` cast, and Fallout 4 weight sums of 0.16 on some vertices. Say when to look at them.
 - [ ] **Tangent sign (task 0082, needs your hands):** the manual step is a NifSkope (fo76utils fork) glTF export of a few Skyrim SE files, compared with what `Nif::Scene` reads. The exact steps are in the 0082 spec once Claude finishes that slice.
 - [ ] **Slang and other open questions with a recommendation already given** are listed at the end of each task spec; the ones that waited longest: task 0069 (merged body) questions, task 0070 (skeleton mapping, research note 0036 section 9: read the table before stage e), task 0071 (facial animation: a hands-on test on your machine).
+- [ ] **Light grid (task 0072 follow-up 3, same in GLSL and Slang):** a cluster touched by more than 50 lights stores a count over its 50-slot list, so the shading loops read undefined entries past the 50th; and `testLight` never uses the grid's z, so the 24 depth slices of a tile hold the same list (effectively a 16x8 tile grid). The overflow fix is two lines in both shaders and changes the picture only in overflowing clusters. Say when to do it as its own task.
+- [ ] **ObScript grammar (task 0092):** forms and references used as values (`Set x to SomeRef`, `GetActionRef == Player`) are about 90% of the remaining New Vegas compile failures; it needs a runtime op from a name to a form id plus a typing rule. Say if it is the next grammar item (recommended: yes).
 
 ## 4. Owner-level items from the guide (no deadline)
 
