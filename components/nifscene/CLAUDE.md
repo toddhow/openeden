@@ -21,6 +21,13 @@ Rules and pitfalls:
 - **The vertex layout is the schema's `BSVertexData`** (`packedVertexStride` has the byte count per attribute). A
   descriptor that disagrees with its own flags is a warning in `Scene::mWarnings`; 197 Skyrim SE and 783 Fallout 4 real
   files give none.
+- **Materials are value structs** (`ShaderMaterial`, `TextureSet`, `AlphaProperty`; a geometry's `mMaterial`/`mAlpha` index them,
+  records shared by shapes are deduplicated). Only the fields the file stores for its stream version and shader type are copied:
+  the nif records leave the others uninitialised, and copying them would make the scene differ from run to run. Fallout 4
+  material files (`.bgsm`, `.bgem`) are paths only (`mName`); streams 155 and up (and user version 11 and below) are
+  not read, with a warning. A shader property of another kind (water, sky, `BSShaderPPLightingProperty`) gives no material, with a warning.
+- **NiTriShape skins** (Morrowind, Oblivion, Skyrim LE shapes) come from `NiSkinData`'s per-bone weight lists, turned into per-vertex
+  influences in bone order. Later games keep the weights in the skin partition (Skyrim LE's `NiSkinPartition` weights are not read yet).
 - No renderer work lives here. `vsgadapters/nif` still draws `NiGeometry` only.
 - Real files are read in place and only aggregates are written (`apps/components_tests/nifscene/testscenereal.cpp`,
   skipped unless `OPENEDEN_NIF_REPORT_DIRS` and `OPENEDEN_NIF_REPORT_OUT` are set). Never copy a game file into the repository.

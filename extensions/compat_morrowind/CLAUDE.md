@@ -8,7 +8,7 @@ It is enabled by default in the shipped `openmw.cfg` (task 0018), so anything th
 
 - **Allowed:**
   - the SDK (`sdk/include`)
-  - `components/nif`, to read Morrowind's records
+  - `components/nif`, to read Morrowind's records, and `components/nifscene` (formats layer) for the scene options
   - small engine utilities: `components/misc` strings and `components/debug` logging
   - nlohmann JSON
   - VSG math types (`vsg::vec3`, `vsg::dquat`) in the pack's own code, as `components/nif` hands them over; never in a contract
@@ -24,6 +24,13 @@ It is enabled by default in the shipped `openmw.cfg` (task 0018), so anything th
   - Any change to that behaviour is a behaviour change. It needs a task spec and the converter's tests.
 - **`kf_converter.*`** partitions text keys into clips and resamples tracks at `resampleRateHz`. It writes a GLB plus the `opas.clipsidecar` JSON with the clip events.
 - **Coordinates:** the engine frame (+Z up, +Y forward) maps to glTF (+Y up, +Z forward) as (X, Y, Z) → (−X, Z, Y). Units divide by `unitsPerMeter`. Both conversions happen in `toGltfTranslation` and `toGltfRotation`, and nowhere else.
+
+## Reading options (task 0082)
+
+- **`scene_options.*`** supplies `morrowindReadOptions()` and `morrowindSceneOptions()`: Morrowind's file versions and the root-node rule
+  (the first `NiNode` loses its own transform unless it is called `bip01`, any case). The nif reader and the scene builder name no
+  game; the dependency points from the pack to the formats layer only, never back. The core's own default path (`Reader::parse(stream)`)
+  keeps the same values as its default, because the core may not depend on an extension; a test pins that the two give the same scene.
 
 ## Tests
 

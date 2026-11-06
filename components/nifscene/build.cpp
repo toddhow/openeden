@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <string>
@@ -10,6 +11,8 @@
 #include <components/nif/data.hpp>
 #include <components/nif/exception.hpp>
 #include <components/nif/node.hpp>
+#include <components/nif/property.hpp>
+#include <components/nif/texture.hpp>
 
 #include "vertexdecode.hpp"
 
@@ -42,6 +45,9 @@ namespace NifScene
             Scene mScene;
             std::map<std::uint32_t, std::uint32_t> mNodeOfRecord; // record index to node index
             std::map<std::uint32_t, std::uint32_t> mSkinOfRecord; // skin instance record index to skin index
+            std::map<std::uint32_t, std::uint32_t> mMaterialOfRecord; // shader property record to material index
+            std::map<std::uint32_t, std::uint32_t> mTextureSetOfRecord;
+            std::map<std::uint32_t, std::uint32_t> mAlphaOfRecord;
 
             Builder(const Nif::NIFFile& file, const SceneOptions& options)
                 : mFile(file)
@@ -170,6 +176,197 @@ namespace NifScene
                 }
             }
 
+            // The reader reads the Fallout 4 era rim light fields up to this stream version
+            // (BSLightingShaderProperty::read).
+            static constexpr std::uint32_t sLastRimLightStream = 139;
+
+            std::uint32_t buildTextureSet(const Nif::BSShaderTextureSet& set)
+            {
+                const auto known = mTextureSetOfRecord.find(set.mRecordIndex);
+                if (known != mTextureSetOfRecord.end())
+                    return known->second;
+                TextureSet result;
+                result.mTextures = set.mTextures;
+                const auto index = static_cast<std::uint32_t>(mScene.mTextureSets.size());
+                mScene.mTextureSets.push_back(std::move(result));
+                mTextureSetOfRecord[set.mRecordIndex] = index;
+                return index;
+            }
+
+            static Vec2 toVec2(const vsg::vec2& v) { return { v.x, v.y }; }
+            static Vec3 toVec3(const vsg::vec3& v) { return { v.x, v.y, v.z }; }
+            static Vec4 toVec4(const vsg::vec4& v) { return { v.x, v.y, v.z, v.w }; }
+
+            // Only the fields the file stores for its stream version (and shader type) are copied: the record keeps
+            // the others uninitialised, and copying them would make the scene differ from run to run.
+            void fillLighting(ShaderMaterial& m, const Nif::BSLightingShaderProperty& l)
+            {
+                const std::uint32_t stream = mFile.mBethVersion;
+                m.mKind = ShaderKind::Lighting;
+                m.mShaderType = l.mType;
+                if (!l.mTextureSet.empty())
+                    m.mTextureSet = buildTextureSet(*l.mTextureSet.getPtr());
+                m.mEmissiveColor = toVec3(l.mEmissive);
+                m.mEmissiveMultiple = l.mEmissiveMult;
+                m.mClampMode = l.mClamp;
+                m.mAlpha = l.mAlpha;
+                m.mRefractionStrength = l.mRefractionStrength;
+                m.mSpecularColor = toVec3(l.mSpecular);
+                m.mSpecularStrength = l.mSpecStrength;
+                const bool fo4 = stream >= Nif::NIFFile::BethVersion::BETHVER_FO4;
+                if (!fo4)
+                {
+                    m.mGlossiness = l.mGlossiness;
+                    m.mLightingEffects = { l.mLightingEffects[0], l.mLightingEffects[1] };
+                }
+                else
+                {
+                    m.mRootMaterial = l.mRootMaterial;
+                    m.mSmoothness = l.mSmoothness;
+                    if (stream <= sLastRimLightStream)
+                    {
+                        m.mSubsurfaceRolloff = l.mSubsurfaceRolloff;
+                        m.mRimlightPower = l.mRimlightPower;
+                        if (l.mRimlightPower == std::numeric_limits<float>::max())
+                            m.mBacklightPower = l.mBacklightPower;
+                    }
+                    m.mGrayscaleToPaletteScale = l.mGrayscaleToPaletteScale;
+                    m.mFresnelPower = l.mFresnelPower;
+                    m.mWetnessSpecScale = l.mWetness.mSpecScale;
+                    m.mWetnessSpecPower = l.mWetness.mSpecPower;
+                    m.mWetnessMinVar = l.mWetness.mMinVar;
+                    if (stream == Nif::NIFFile::BethVersion::BETHVER_FO4)
+                        m.mWetnessEnvMapScale = l.mWetness.mEnvMapScale;
+                    m.mWetnessFresnelPower = l.mWetness.mFresnelPower;
+                    m.mWetnessMetalness = l.mWetness.mMetalness;
+                }
+                switch (static_cast<Nif::BSLightingShaderType>(l.mType))
+                {
+                    case Nif::BSLightingShaderType::ShaderType_EnvMap:
+                        if (stream <= sLastRimLightStream)
+                            m.mEnvMapScale = l.mEnvMapScale;
+                        if (fo4)
+                        {
+                            m.mUseSSR = l.mUseSSR;
+                            m.mWetnessUseSSR = l.mWetnessUseSSR;
+                        }
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_SkinTint:
+                        m.mSkinTintColor = toVec3(l.mSkinTintColor);
+                        if (fo4)
+                            m.mSkinTintAlpha = l.mSkinTintAlpha;
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_HairTint:
+                        m.mHairTintColor = toVec3(l.mHairTintColor);
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_ParallaxOcc:
+                        m.mParallaxMaxPasses = l.mParallax.mMaxPasses;
+                        m.mParallaxScale = l.mParallax.mScale;
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_MultiLayerParallax:
+                        m.mInnerLayerThickness = l.mMultiLayerParallax.mInnerLayerThickness;
+                        m.mInnerRefractionScale = l.mMultiLayerParallax.mRefractionScale;
+                        m.mInnerLayerTextureScale = toVec2(l.mMultiLayerParallax.mInnerLayerTextureScale);
+                        m.mInnerEnvMapScale = l.mMultiLayerParallax.mEnvMapScale;
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_SparkleSnow:
+                        m.mSparkle = toVec4(l.mSparkle);
+                        break;
+                    case Nif::BSLightingShaderType::ShaderType_EyeEnvmap:
+                        m.mEyeCubeMapScale = l.mCubeMapScale;
+                        m.mLeftEyeReflectionCenter = toVec3(l.mLeftEyeReflectionCenter);
+                        m.mRightEyeReflectionCenter = toVec3(l.mRightEyeReflectionCenter);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            void fillEffect(ShaderMaterial& m, const Nif::BSEffectShaderProperty& e)
+            {
+                m.mKind = ShaderKind::Effect;
+                m.mSourceTexture = e.mSourceTexture;
+                m.mClampMode = e.mClamp;
+                m.mLightingInfluence = e.mLightingInfluence;
+                m.mEnvMapMinLod = e.mEnvMapMinLOD;
+                m.mFalloff = toVec4(e.mFalloffParams);
+                m.mBaseColor = toVec4(e.mBaseColor);
+                m.mBaseColorScale = e.mBaseColorScale;
+                m.mSoftFalloffDepth = e.mFalloffDepth;
+                m.mGreyscaleTexture = e.mGreyscaleTexture;
+                if (mFile.mBethVersion >= Nif::NIFFile::BethVersion::BETHVER_FO4)
+                {
+                    m.mEnvMapTexture = e.mEnvMapTexture;
+                    m.mNormalTexture = e.mNormalTexture;
+                    m.mEnvMaskTexture = e.mEnvMaskTexture;
+                    m.mEffectEnvMapScale = e.mEnvMapScale;
+                }
+            }
+
+            std::uint32_t buildMaterial(const Nif::BSShaderProperty& property, const std::string& shapeName)
+            {
+                const auto known = mMaterialOfRecord.find(property.mRecordIndex);
+                if (known != mMaterialOfRecord.end())
+                    return known->second;
+                const auto* lighting = dynamic_cast<const Nif::BSLightingShaderProperty*>(&property);
+                const auto* effect = dynamic_cast<const Nif::BSEffectShaderProperty*>(&property);
+                if (lighting == nullptr && effect == nullptr)
+                {
+                    warn("shape '" + shapeName + "': shader property record " + std::to_string(property.mRecordIndex)
+                        + " is a " + property.mRecordName + ", which the scene does not read");
+                    return sNone;
+                }
+                if (mFile.mBethVersion >= Nif::NIFFile::BethVersion::BETHVER_F76 || mFile.mUserVersion <= 11)
+                {
+                    warn("shape '" + shapeName + "': a " + property.mRecordName + " of stream version "
+                        + std::to_string(mFile.mBethVersion) + " is not read");
+                    return sNone;
+                }
+                ShaderMaterial m;
+                m.mRecordType = property.mRecordName;
+                m.mName = property.mName;
+                m.mFlags1 = property.mShaderFlags1;
+                m.mFlags2 = property.mShaderFlags2;
+                m.mUVOffset = toVec2(property.mUVOffset);
+                m.mUVScale = toVec2(property.mUVScale);
+                if (lighting != nullptr)
+                    fillLighting(m, *lighting);
+                else
+                    fillEffect(m, *effect);
+                const auto index = static_cast<std::uint32_t>(mScene.mMaterials.size());
+                mScene.mMaterials.push_back(std::move(m));
+                mMaterialOfRecord[property.mRecordIndex] = index;
+                return index;
+            }
+
+            std::uint32_t buildAlpha(const Nif::NiAlphaProperty& property)
+            {
+                const auto known = mAlphaOfRecord.find(property.mRecordIndex);
+                if (known != mAlphaOfRecord.end())
+                    return known->second;
+                AlphaProperty a;
+                a.mFlags = property.mFlags;
+                a.mThreshold = property.mThreshold;
+                a.mBlend = property.useAlphaBlending();
+                a.mTest = property.useAlphaTesting();
+                a.mNoSorter = property.noSorter();
+                a.mSourceBlend = static_cast<std::uint8_t>(property.sourceBlendMode());
+                a.mDestinationBlend = static_cast<std::uint8_t>(property.destinationBlendMode());
+                a.mTestMode = static_cast<std::uint8_t>(property.alphaTestMode());
+                const auto index = static_cast<std::uint32_t>(mScene.mAlphaProperties.size());
+                mScene.mAlphaProperties.push_back(a);
+                mAlphaOfRecord[property.mRecordIndex] = index;
+                return index;
+            }
+
+            void linkMaterial(Geometry& g, const Nif::BSShaderPropertyPtr& shader, const Nif::NiAlphaPropertyPtr& alpha)
+            {
+                if (!shader.empty())
+                    g.mMaterial = buildMaterial(*shader.getPtr(), g.mName);
+                if (!alpha.empty())
+                    g.mAlpha = buildAlpha(*alpha.getPtr());
+            }
+
             void buildBSTriShape(const Nif::BSTriShape& shape, std::uint32_t nodeIdx)
             {
                 Geometry g;
@@ -250,6 +447,8 @@ namespace NifScene
                                 + std::to_string(vertexCount) + " vertices of shape '" + shape.mName + "'");
                     }
                 }
+
+                linkMaterial(g, shape.mShaderProperty, shape.mAlphaProperty);
 
                 if (!decoded.mWeights.empty())
                     buildInfluences(g, decoded, shape.mName, partitions, fromPartitions);
@@ -357,6 +556,42 @@ namespace NifScene
                 }
             }
 
+            // The per-bone (vertex, weight) lists of a NiSkinData as per-vertex influences, in bone order. Nothing is
+            // stored when no bone lists a weight (the weights of later games live in the skin partition).
+            void buildBoneWeights(Geometry& g, const Nif::NiSkinData& data, const std::string& name)
+            {
+                const std::size_t vertexCount = g.mPositions.size();
+                std::vector<std::uint32_t> starts(vertexCount + 1, 0);
+                std::size_t total = 0;
+                for (std::size_t bone = 0; bone < data.mBones.size(); ++bone)
+                {
+                    for (const auto& weight : data.mBones[bone].mWeights)
+                    {
+                        if (weight.first >= vertexCount)
+                        {
+                            fail(mFile,
+                                "bone " + std::to_string(bone) + " weights vertex " + std::to_string(weight.first)
+                                    + ", outside the " + std::to_string(vertexCount) + " vertices of shape '" + name
+                                    + "'");
+                        }
+                        ++starts[weight.first + 1];
+                        ++total;
+                    }
+                }
+                if (total == 0)
+                    return;
+                for (std::size_t v = 0; v < vertexCount; ++v)
+                    starts[v + 1] += starts[v];
+                g.mInfluenceStart = starts;
+                g.mInfluences.resize(total);
+                std::vector<std::uint32_t> next(starts.begin(), starts.end() - 1);
+                for (std::size_t bone = 0; bone < data.mBones.size(); ++bone)
+                {
+                    for (const auto& weight : data.mBones[bone].mWeights)
+                        g.mInfluences[next[weight.first]++] = { static_cast<std::uint32_t>(bone), weight.second };
+                }
+            }
+
             // Morrowind and Oblivion shapes: positions, normals, the first UV set, colours and triangles.
             void buildTriShape(const Nif::NiTriShape& shape, std::uint32_t nodeIdx)
             {
@@ -389,6 +624,11 @@ namespace NifScene
                                 + std::to_string(g.mPositions.size()) + " vertices of shape '" + shape.mName + "'");
                     }
                 }
+                const Nif::NiSkinInstance* skinInstance = shape.mSkin.empty() ? nullptr : shape.mSkin.getPtr();
+                g.mSkin = buildSkin(skinInstance, shape.mName);
+                if (g.mSkin != sNone && skinInstance != nullptr && !skinInstance->mData.empty())
+                    buildBoneWeights(g, *skinInstance->mData.getPtr(), shape.mName);
+                linkMaterial(g, shape.mShaderProperty, shape.mAlphaProperty);
                 const auto index = static_cast<std::uint32_t>(mScene.mGeometries.size());
                 if (nodeIdx != sNone)
                     mScene.mNodes[nodeIdx].mGeometry = index;
@@ -438,6 +678,82 @@ namespace NifScene
         Nif::Reader reader(file, encoder);
         reader.parse(std::move(stream), options.mRead);
         return buildScene(file, options);
+    }
+
+    namespace
+    {
+        void dumpMaterials(std::ostream& out, const Scene& scene)
+        {
+            for (std::size_t i = 0; i < scene.mGeometries.size(); ++i)
+            {
+                const Geometry& g = scene.mGeometries[i];
+                if (g.mMaterial == sNone && g.mAlpha == sNone)
+                    continue;
+                out << "geometry-material " << i
+                    << " material=" << static_cast<std::int64_t>(g.mMaterial == sNone ? -1 : g.mMaterial)
+                    << " alpha=" << static_cast<std::int64_t>(g.mAlpha == sNone ? -1 : g.mAlpha) << "\n";
+            }
+            for (std::size_t i = 0; i < scene.mTextureSets.size(); ++i)
+            {
+                out << "textureset " << i << " paths=";
+                for (const std::string& texture : scene.mTextureSets[i].mTextures)
+                    out << texture << ";";
+                out << "\n";
+            }
+            auto vec = [&out](const char* label, const auto& values) {
+                out << " " << label << "=";
+                for (float value : values)
+                    out << value << ",";
+            };
+            for (std::size_t i = 0; i < scene.mMaterials.size(); ++i)
+            {
+                const ShaderMaterial& m = scene.mMaterials[i];
+                out << "material " << i << " " << m.mRecordType << " name=" << m.mName << " root=" << m.mRootMaterial
+                    << " type=" << m.mShaderType << " flags1=" << m.mFlags1 << " flags2=" << m.mFlags2
+                    << " textureset=" << static_cast<std::int64_t>(m.mTextureSet == sNone ? -1 : m.mTextureSet)
+                    << " clamp=" << m.mClampMode << " alpha=" << m.mAlpha;
+                vec("uvoffset", m.mUVOffset);
+                vec("uvscale", m.mUVScale);
+                vec("emissive", m.mEmissiveColor);
+                out << " emissivemult=" << m.mEmissiveMultiple << " refraction=" << m.mRefractionStrength;
+                vec("specular", m.mSpecularColor);
+                out << " specstrength=" << m.mSpecularStrength << " glossiness=" << m.mGlossiness
+                    << " smoothness=" << m.mSmoothness << " rolloff=" << m.mSubsurfaceRolloff
+                    << " rim=" << m.mRimlightPower << " backlight=" << m.mBacklightPower
+                    << " palette=" << m.mGrayscaleToPaletteScale << " fresnel=" << m.mFresnelPower
+                    << " wet=" << m.mWetnessSpecScale << "," << m.mWetnessSpecPower << "," << m.mWetnessMinVar << ","
+                    << m.mWetnessEnvMapScale << "," << m.mWetnessFresnelPower << "," << m.mWetnessMetalness;
+                vec("lightingeffects", m.mLightingEffects);
+                out << " envscale=" << m.mEnvMapScale << " ssr=" << m.mUseSSR << "," << m.mWetnessUseSSR;
+                vec("skintint", m.mSkinTintColor);
+                out << " skintintalpha=" << m.mSkinTintAlpha;
+                vec("hairtint", m.mHairTintColor);
+                out << " parallax=" << m.mParallaxMaxPasses << "," << m.mParallaxScale
+                    << " inner=" << m.mInnerLayerThickness << "," << m.mInnerRefractionScale << ","
+                    << m.mInnerEnvMapScale;
+                vec("innerscale", m.mInnerLayerTextureScale);
+                vec("sparkle", m.mSparkle);
+                out << " eye=" << m.mEyeCubeMapScale;
+                vec("lefteye", m.mLeftEyeReflectionCenter);
+                vec("righteye", m.mRightEyeReflectionCenter);
+                out << " source=" << m.mSourceTexture << " greyscale=" << m.mGreyscaleTexture
+                    << " envmap=" << m.mEnvMapTexture << " normal=" << m.mNormalTexture
+                    << " envmask=" << m.mEnvMaskTexture << " influence=" << static_cast<int>(m.mLightingInfluence)
+                    << " minlod=" << static_cast<int>(m.mEnvMapMinLod);
+                vec("falloff", m.mFalloff);
+                vec("basecolor", m.mBaseColor);
+                out << " basescale=" << m.mBaseColorScale << " softdepth=" << m.mSoftFalloffDepth
+                    << " effectenvscale=" << m.mEffectEnvMapScale << "\n";
+            }
+            for (std::size_t i = 0; i < scene.mAlphaProperties.size(); ++i)
+            {
+                const AlphaProperty& a = scene.mAlphaProperties[i];
+                out << "alpha " << i << " flags=" << a.mFlags << " threshold=" << static_cast<int>(a.mThreshold)
+                    << " blend=" << a.mBlend << " test=" << a.mTest << " nosorter=" << a.mNoSorter
+                    << " src=" << static_cast<int>(a.mSourceBlend) << " dst=" << static_cast<int>(a.mDestinationBlend)
+                    << " testmode=" << static_cast<int>(a.mTestMode) << "\n";
+            }
+        }
     }
 
     std::string dump(const Scene& scene)
@@ -519,6 +835,7 @@ namespace NifScene
             out << " nonIdentity=" << s.mNonIdentityPartitionBoneMaps
                 << " outside=" << s.mInfluencesOutsidePartitionBones << "\n";
         }
+        dumpMaterials(out, scene);
         for (const std::string& warning : scene.mWarnings)
             out << "warning " << warning << "\n";
         return out.str();

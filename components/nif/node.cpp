@@ -186,7 +186,7 @@ namespace Nif
         // FIXME: doing this here is awful.
         // We want to do this on world scene graph level rather than local scene graph level.
         if (mRecordIndex == 0 && nif->getFile().getOptions().mMorrowindRootRule
-            && !Misc::StringUtils::ciEqual(mName, "bip01"))
+            && !Misc::StringUtils::ciEqual(mName, nif->getFile().getOptions().mRootRuleExemptName))
         {
             mTransform = Nif::NiTransform::getIdentity();
         }

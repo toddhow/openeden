@@ -76,6 +76,113 @@ namespace NifScene
         std::uint32_t mInfluencesOutsidePartitionBones = 0;
     };
 
+    /// A BSShaderTextureSet: the texture paths by slot, as stored. Skyrim: 0 diffuse, 1 normal, 2 glow or skin, 3
+    /// height, 4 environment, 5 environment mask, 6 subsurface or inner layer, 7 specular or back light (the file may
+    /// store 8 or 9). Fallout 4 stores 9 (the last one smoothness/spec). Paths are not normalised.
+    struct TextureSet
+    {
+        std::vector<std::string> mTextures;
+    };
+
+    enum class ShaderKind : std::uint8_t
+    {
+        Lighting, // BSLightingShaderProperty
+        Effect, // BSEffectShaderProperty
+    };
+
+    /// BSLightingShaderProperty and BSEffectShaderProperty as plain values. Only the fields the file stores for its
+    /// stream version (and, for a lighting shader, its shader type) are filled; every other field keeps its default,
+    /// so the same file always gives the same values. Fallout 4 material files (.bgsm, .bgem) are named, never read:
+    /// mName holds the path the shader property is called, mRootMaterial the "root material" string.
+    struct ShaderMaterial
+    {
+        ShaderKind mKind = ShaderKind::Lighting;
+        std::string mRecordType;
+        std::string mName; // Fallout 4: the .bgsm or .bgem path when the property is named after one
+        std::string mRootMaterial; // Fallout 4 lighting shaders only
+        std::uint32_t mShaderType
+            = 0; // BSLightingShaderType (lighting shaders only); 0 default, 1 env map, 5 skin tint, ...
+        std::uint32_t mFlags1 = 0;
+        std::uint32_t mFlags2 = 0;
+        Vec2 mUVOffset{ 0.f, 0.f };
+        Vec2 mUVScale{ 1.f, 1.f };
+        std::uint32_t mTextureSet = sNone; // index into Scene::mTextureSets (lighting shaders)
+        /// Texture clamp mode as stored: 0 clamp/clamp, 1 clamp S wrap T, 2 wrap S clamp T, 3 wrap/wrap.
+        std::uint32_t mClampMode = 3;
+        float mAlpha = 1.f;
+
+        // Lighting shader, common to Skyrim and Fallout 4
+        Vec3 mEmissiveColor{ 0.f, 0.f, 0.f };
+        float mEmissiveMultiple = 1.f;
+        float mRefractionStrength = 0.f;
+        Vec3 mSpecularColor{ 0.f, 0.f, 0.f };
+        float mSpecularStrength = 1.f;
+        // Skyrim (stream < 130)
+        float mGlossiness = 0.f;
+        Vec2 mLightingEffects{ 0.f, 0.f };
+        // Fallout 4 (stream 130 to 139)
+        float mSmoothness = 0.f;
+        float mSubsurfaceRolloff = 0.f;
+        float mRimlightPower = 0.f;
+        float mBacklightPower = 0.f; // only stored when the rim light power is the float maximum
+        float mGrayscaleToPaletteScale = 1.f;
+        float mFresnelPower = 5.f;
+        float mWetnessSpecScale = 0.f;
+        float mWetnessSpecPower = 0.f;
+        float mWetnessMinVar = 0.f;
+        float mWetnessEnvMapScale = 0.f; // stream 130 only
+        float mWetnessFresnelPower = 0.f;
+        float mWetnessMetalness = 0.f;
+
+        // The tail by shader type
+        float mEnvMapScale = 0.f; // type 1 (env map), Skyrim
+        bool mUseSSR = false; // type 1, Fallout 4
+        bool mWetnessUseSSR = false; // type 1, Fallout 4
+        Vec3 mSkinTintColor{ 0.f, 0.f, 0.f }; // type 5
+        float mSkinTintAlpha = 1.f; // type 5, Fallout 4
+        Vec3 mHairTintColor{ 0.f, 0.f, 0.f }; // type 6
+        float mParallaxMaxPasses = 0.f; // type 7
+        float mParallaxScale = 0.f; // type 7
+        float mInnerLayerThickness = 0.f; // type 11
+        float mInnerRefractionScale = 0.f; // type 11
+        Vec2 mInnerLayerTextureScale{ 0.f, 0.f }; // type 11
+        float mInnerEnvMapScale = 0.f; // type 11
+        Vec4 mSparkle{ 0.f, 0.f, 0.f, 0.f }; // type 14
+        float mEyeCubeMapScale = 0.f; // type 16
+        Vec3 mLeftEyeReflectionCenter{ 0.f, 0.f, 0.f }; // type 16
+        Vec3 mRightEyeReflectionCenter{ 0.f, 0.f, 0.f }; // type 16
+
+        // Effect shader
+        std::string mSourceTexture;
+        std::string mGreyscaleTexture;
+        std::string mEnvMapTexture; // Fallout 4
+        std::string mNormalTexture; // Fallout 4
+        std::string mEnvMaskTexture; // Fallout 4
+        std::uint8_t mLightingInfluence = 0;
+        std::uint8_t mEnvMapMinLod = 0;
+        Vec4 mFalloff{ 0.f, 0.f, 0.f, 0.f }; // start angle, stop angle, start opacity, stop opacity
+        Vec4 mBaseColor{ 0.f, 0.f, 0.f, 0.f };
+        float mBaseColorScale = 0.f;
+        float mSoftFalloffDepth = 0.f;
+        float mEffectEnvMapScale = 0.f; // Fallout 4
+    };
+
+    /// A NiAlphaProperty. The blend factors are the property's own codes: 0 one, 1 zero, 2 source colour, 3 inverse
+    /// source colour, 4 destination colour, 5 inverse destination colour, 6 source alpha, 7 inverse source alpha,
+    /// 8 destination alpha, 9 inverse destination alpha, 10 source alpha saturate. Test modes: 0 always, 1 less,
+    /// 2 equal, 3 less or equal, 4 greater, 5 not equal, 6 greater or equal, 7 never.
+    struct AlphaProperty
+    {
+        std::uint16_t mFlags = 0;
+        std::uint8_t mThreshold = 0;
+        bool mBlend = false;
+        bool mTest = false;
+        bool mNoSorter = false;
+        std::uint8_t mSourceBlend = 0;
+        std::uint8_t mDestinationBlend = 0;
+        std::uint8_t mTestMode = 0;
+    };
+
     enum class GeometryKind : std::uint8_t
     {
         TriShape, // BSTriShape and its plain subclasses
@@ -99,6 +206,8 @@ namespace NifScene
         std::vector<std::uint32_t> mInfluenceStart;
         std::vector<Influence> mInfluences;
         std::uint32_t mSkin = sNone; // index into Scene::mSkins
+        std::uint32_t mMaterial = sNone; // index into Scene::mMaterials, or none
+        std::uint32_t mAlpha = sNone; // index into Scene::mAlphaProperties, or none
         /// The shape stores no vertex data of its own (Data Size 0): the vertices came from the skin partition.
         bool mVerticesFromSkinPartition = false;
         /// There was no vertex data anywhere: the arrays are empty.
@@ -113,6 +222,9 @@ namespace NifScene
         std::vector<Node> mNodes;
         std::vector<Geometry> mGeometries;
         std::vector<Skin> mSkins;
+        std::vector<TextureSet> mTextureSets;
+        std::vector<ShaderMaterial> mMaterials;
+        std::vector<AlphaProperty> mAlphaProperties;
         std::vector<std::uint32_t> mRoots; // indices into mNodes
         /// Things a consumer may want to log: a vertex layout that disagrees with its declared size, partition bone
         /// lists that are not the identity. Deterministic, in the order found.

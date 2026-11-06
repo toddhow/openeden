@@ -4,12 +4,14 @@ set(COMPAT_MORROWIND_SOURCES
     src/morrowind_compat_extension.cpp
     src/kf_converter.cpp
     src/kf_animation.cpp
+    src/scene_options.cpp
 )
 
 set(COMPAT_MORROWIND_HEADERS
     include/compat_morrowind/morrowind_compat_extension.hpp
     include/compat_morrowind/kf_converter.hpp
     include/compat_morrowind/kf_animation.hpp
+    include/compat_morrowind/scene_options.hpp
 )
 
 openeden_add_extension(compat_morrowind

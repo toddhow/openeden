@@ -41,7 +41,11 @@ namespace Nif
 
     void BSShaderTextureSet::read(NIFStream* nif)
     {
-        nif->getSizedStrings(mTextures, nif->get<uint32_t>());
+        const uint32_t count = nif->get<uint32_t>();
+        // Every string takes at least its 4-byte length: a count beyond the stream is refused before anything is
+        // reserved.
+        nif->ensureFits(static_cast<std::size_t>(count) * sizeof(uint32_t));
+        nif->getSizedStrings(mTextures, count);
     }
 
 }

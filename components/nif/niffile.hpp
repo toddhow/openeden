@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstdint>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -58,6 +59,11 @@ namespace Nif
         /// Morrowind's rule in NiNode::read: the first record, if it is a NiNode not named "bip01", loses its
         /// transform. On for every caller that existed before the option; a scene reader of another game turns it off.
         bool mMorrowindRootRule = true;
+        /// The name (compared without regard to case) of a first NiNode that keeps its transform when
+        /// mMorrowindRootRule is on. The reader names no game itself: Morrowind's value comes from the
+        /// compatibility pack (compat_morrowind::morrowindReadOptions), and the same value is the default here so
+        /// that every caller that existed before the option reads as it always did.
+        std::string mRootRuleExemptName = "bip01";
     };
 
     struct NIFFile

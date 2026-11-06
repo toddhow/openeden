@@ -157,8 +157,12 @@ file(GLOB UNITTEST_SRC_FILES
 
     extension/test_version.cpp
     extension/test_resolution.cpp
+    nifscene/shaderbuilder.hpp
     extension/test_lifecycle.cpp
+    nifscene/testscenematerial.cpp
+    nifscene/testscenemorrowindskin.cpp
     extension/test_empty_host.cpp
+    nifscene/testscenerealmaterials.cpp
     extension/test_manifest_editor_entry.cpp
     extension/test_manifest_editor_library.cpp
     extension/test_manifest_io.cpp
@@ -350,6 +354,8 @@ list(APPEND UNITTEST_SRC_FILES
 )
 
 # Task 0035 stage a: CMPhysics::HostedJoltWorld (CreativeMotion's PhysicsWorld over the host's Jolt system).
+    extension/test_compat_morrowind_scene.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/scene_options.cpp
 # testhostedjoltallocation.cpp replaces the global operator new to count allocations (see the comment in that file).
 list(APPEND UNITTEST_SRC_FILES
     cmphysics/testhostedjoltworld.cpp

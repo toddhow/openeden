@@ -117,7 +117,8 @@ namespace NifScene::Testing
         block.mData.put(static_cast<std::uint32_t>(children.size()));
         for (std::int32_t child : children)
             block.mData.put(child);
-        block.mData.put(static_cast<std::uint32_t>(0)); // effects
+        if (file.mStreamVersion < 130)
+            block.mData.put(static_cast<std::uint32_t>(0)); // effects (Fallout 4 nodes have none)
         return block;
     }
 
@@ -126,6 +127,8 @@ namespace NifScene::Testing
         std::string mName = "Shape";
         std::string mType = "BSTriShape";
         std::int32_t mSkin = -1;
+        std::int32_t mShader = -1; // record index of a shader property
+        std::int32_t mAlphaProperty = -1; // record index of a NiAlphaProperty
         std::uint16_t mFlags = VF_Vertex;
         // 0 means "use sseStride(mFlags)"; tests set it to write a descriptor that disagrees with the flags.
         std::uint32_t mDeclaredStride = 0;
@@ -145,11 +148,14 @@ namespace NifScene::Testing
         Nif::Testing::writeAvObject(out, file.string(spec.mName), spec.mTranslation);
         out.floats({ 0.f, 0.f, 0.f, 1.f }); // bounding sphere
         out.put(spec.mSkin);
-        out.put(static_cast<std::int32_t>(-1)); // shader property
-        out.put(static_cast<std::int32_t>(-1)); // alpha property
+        out.put(spec.mShader);
+        out.put(spec.mAlphaProperty);
         const std::uint32_t stride = spec.mDeclaredStride != 0 ? spec.mDeclaredStride : sseStride(spec.mFlags);
         out.put(vertexDesc(spec.mFlags, stride));
-        out.put(static_cast<std::uint16_t>(spec.mTriangles.size()));
+        if (file.mStreamVersion >= 130)
+            out.put(static_cast<std::uint32_t>(spec.mTriangles.size())); // Fallout 4 counts triangles in 32 bits
+        else
+            out.put(static_cast<std::uint16_t>(spec.mTriangles.size()));
         out.put(static_cast<std::uint16_t>(spec.mVertices.size()));
         const std::uint32_t dataSize = spec.mStoreData
             ? static_cast<std::uint32_t>(spec.mVertices.size() * sseStride(spec.mFlags) + spec.mTriangles.size() * 6)
@@ -165,7 +171,8 @@ namespace NifScene::Testing
                     out.put(index);
             }
         }
-        out.put(static_cast<std::uint32_t>(0)); // particle data size
+        if (file.mStreamVersion == 100)
+            out.put(static_cast<std::uint32_t>(0)); // particle data size (Skyrim SE only)
         if (spec.mType == "BSDynamicTriShape")
         {
             out.put(static_cast<std::uint32_t>(spec.mDynamic.size() * 16));
