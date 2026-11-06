@@ -77,12 +77,12 @@ namespace CSMModule
             buffer.triangle(Vec3{ 0, 0, 0 }, Vec3{ 1, 0, 0 }, Vec3{ 0, 1, 0 }, cRed, depth);
         }
 
-        TEST(EditorApi11, versionIsOneDotOneAndOldModulesStillLoad)
+        TEST(EditorApi11, versionIsOneDotTwoAndOldModulesStillLoad)
         {
-            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 1 }));
+            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 2 }));
             EXPECT_TRUE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 0 }, kApiVersion));
             EXPECT_TRUE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 1 }, kApiVersion));
-            EXPECT_FALSE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 2 }, kApiVersion));
+            EXPECT_FALSE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 3 }, kApiVersion));
         }
 
         TEST(EditorApi11, aSinkWrittenForOneDotZeroKeepsWorkingAndIgnoresTriangles)

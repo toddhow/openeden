@@ -64,6 +64,9 @@ namespace CSMModule
     ModuleRegistry::ModuleRegistry()
         : mNullContext(std::make_unique<NullContext>())
     {
+        mBus.setThrowReport([this](const std::string& owner, const std::string& what) {
+            fail(owner, "an event handler threw: " + what);
+        });
     }
 
     ModuleRegistry::~ModuleRegistry() = default;
@@ -89,6 +92,7 @@ namespace CSMModule
         eraseModule(mAssetTypes, moduleId);
         eraseModule(mSections, moduleId);
         eraseModule(mTrackProviders, moduleId);
+        mBus.removeOwner(moduleId);
     }
 
     void ModuleRegistry::fail(const std::string& moduleId, const std::string& message)
@@ -111,6 +115,16 @@ namespace CSMModule
     EditorContext& ModuleRegistry::context()
     {
         return mContext != nullptr ? *mContext : *mNullContext;
+    }
+
+    Registration ModuleRegistry::subscribe(EventHandler handler)
+    {
+        if (!mHasCurrent)
+            return refuse("no module is being registered");
+        if (!handler)
+            return refuse("a subscription needs a handler");
+        mBus.subscribe(mCurrent, std::move(handler));
+        return {};
     }
 
     Registration ModuleRegistry::registerWorkspace(const WorkspaceDesc& desc)

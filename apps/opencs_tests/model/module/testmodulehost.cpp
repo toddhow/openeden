@@ -170,9 +170,9 @@ namespace CSMModule
 
         // ---- API version -----------------------------------------------------------------------------------
 
-        TEST(CSMModuleApiVersionTest, isOneDotOne)
+        TEST(CSMModuleApiVersionTest, isOneDotTwo)
         {
-            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 1 }));
+            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 2 }));
         }
 
         TEST(CSMModuleApiVersionTest, sameMajorAndHostMinorAtLeastTheModulesIsCompatible)
@@ -328,7 +328,7 @@ namespace CSMModule
             ASSERT_NE(major, nullptr);
             EXPECT_EQ(major->mState, ModuleInfo::State::Failed);
             EXPECT_NE(major->mMessage.find("2.0"), std::string::npos) << major->mMessage;
-            EXPECT_NE(major->mMessage.find("1.1"), std::string::npos) << major->mMessage;
+            EXPECT_NE(major->mMessage.find("1.2"), std::string::npos) << major->mMessage;
 
             const ModuleInfo* minor = find(host, "m1");
             ASSERT_NE(minor, nullptr);

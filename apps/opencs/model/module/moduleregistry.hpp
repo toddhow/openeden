@@ -8,6 +8,8 @@
 #include <string_view>
 #include <vector>
 
+#include "eventbus.hpp"
+
 #include <openeden/editor_module/registrar.hpp>
 #include <openeden/editor_module/types.hpp>
 
@@ -71,6 +73,10 @@ namespace CSMModule
         openeden::editor::Registration registerTimelineTrackProvider(
             const openeden::editor::TimelineTrackProviderDesc& desc) override;
         openeden::editor::EditorContext& context() override;
+        openeden::editor::Registration subscribe(openeden::editor::EventHandler handler) override;
+
+        /// The editor event bus (task 0091 stage b). A handler that throws withdraws its module like any callback.
+        EventBus& bus() { return mBus; }
 
         const std::vector<WorkspaceEntry>& workspaces() const { return mWorkspaces; }
         const std::vector<PanelEntry>& panels() const { return mPanels; }
@@ -131,6 +137,7 @@ namespace CSMModule
         std::vector<AssetTypeEntry> mAssetTypes;
         std::vector<SectionEntry> mSections;
         std::vector<TrackProviderEntry> mTrackProviders;
+        EventBus mBus;
         std::string mCurrent;
         bool mHasCurrent = false;
         openeden::editor::EditorContext* mContext = nullptr;

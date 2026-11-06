@@ -16,6 +16,7 @@
 #include <openeden/editor_module/types.hpp>
 
 #include <apps/opencs/model/doc/undorouting.hpp>
+#include <apps/opencs/model/module/eventbus.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 
@@ -69,6 +70,13 @@ namespace CSVModule
         openeden::editor::AssetDocument* openAsset(const std::filesystem::path& path) override;
         openeden::editor::AssetDocument* activeAsset() override { return mActive.get(); }
         std::filesystem::path userDataPath() const override { return mUserDataPath; }
+        // API 1.2
+        openeden::editor::Selection selection() const override { return mSelection.current(); }
+        void select(const openeden::editor::Selection& selection) override { mSelection.select(selection); }
+        void publish(const openeden::editor::EditorEvent& event) override;
+
+        /// Studio publishes the physics world's step (called by CSVRender::PhysicsHub for each fixed step it ran).
+        void publishSimulationStep(std::uint64_t step);
 
         /// Studio's user data folder (the configuration's `user-data`), which modules may ask for (API 1.1).
         void setUserDataPath(std::filesystem::path path) { mUserDataPath = std::move(path); }
@@ -85,6 +93,9 @@ namespace CSVModule
         const std::string& openError() const { return mOpenError; }
         /// Changes whenever the active asset is replaced or closed (an address may be reused, a generation is not).
         unsigned long generation() const { return mGeneration; }
+        /// Changes with the generation and whenever the selection changes: what a panel or section shows is built
+        /// again then (a source may describe fewer fields for a selected joint), but a view is not reframed.
+        unsigned long layoutRevision() const { return mLayoutRevision; }
 
         /// Closes the active asset and empties the undo stacks that hold module commands. Call before the module
         /// host unloads the libraries.
@@ -144,6 +155,7 @@ namespace CSVModule
         std::string mActiveOwner;
         std::string mAssetOwnerFilter;
         unsigned long mGeneration = 0;
+        unsigned long mLayoutRevision = 0;
         std::string mOpenError;
         std::vector<std::filesystem::path> mAssetRoots;
         std::filesystem::path mUserDataPath;
@@ -151,6 +163,7 @@ namespace CSVModule
         std::vector<QPointer<QUndoStack>> mStacks;
         std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used
         QUndoStack mOwnStack; // used when there is no document
+        CSMModule::SelectionModel mSelection; // after mRegistry: it publishes on the registry's bus
         static ModuleUi* sInstance;
     };
 }

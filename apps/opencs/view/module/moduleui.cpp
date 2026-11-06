@@ -30,6 +30,12 @@ namespace CSVModule
 
     namespace
     {
+        // The owner name of Studio's own bus subscriptions (never a module id: those have no leading colon).
+        const std::string sBusOwner = ":studio";
+    }
+
+    namespace
+    {
         // QUndoCommand ids of module commands start here, so that they never merge with the editor's own.
         constexpr int cMergeIdBase = 0x4D4F4400;
         // A double spin box needs finite limits.
@@ -76,7 +82,15 @@ namespace CSVModule
                 try
                 {
                     if (std::unique_ptr<Command> command = mSource->makeSetCommand(id, value))
+                    {
                         mUi.pushCommand(std::move(command));
+                        EditorEvent event;
+                        event.type = EditorEventType::ParameterChanged;
+                        event.subject = id;
+                        if (AssetDocument* active = mUi.activeAsset())
+                            event.detail = std::string(active->assetId());
+                        mUi.publish(event);
+                    }
                     else
                         refresh(); // refused: show the value that stays
                 }
@@ -279,13 +293,23 @@ namespace CSVModule
     ModuleUi::ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider)
         : mRegistry(registry)
         , mDocumentProvider(std::move(documentProvider))
+        , mSelection(registry.bus())
     {
         sInstance = this;
+        // Panels, overlay and form follow the selection.
+        mRegistry.bus().subscribe(sBusOwner, [this](const EditorEvent& event) {
+            if (event.type == EditorEventType::SelectionChanged)
+            {
+                ++mLayoutRevision;
+                emit changed();
+            }
+        });
         connect(&mOwnStack, &QUndoStack::indexChanged, this, &ModuleUi::changed);
     }
 
     ModuleUi::~ModuleUi()
     {
+        mRegistry.bus().removeOwner(sBusOwner);
         sInstance = nullptr;
     }
 
@@ -361,15 +385,37 @@ namespace CSVModule
         mActive = std::move(document);
         mAssetToken = std::make_shared<int>(0);
         ++mGeneration;
+        ++mLayoutRevision;
         Log(Debug::Info) << "Opened '" << path.string() << "' (" << mActiveFormat << ")";
+        // The selection belongs to the asset it was made in.
+        mSelection.clear();
+        EditorEvent opened;
+        opened.type = EditorEventType::AssetOpened;
+        opened.subject = std::string(mActive->assetId());
+        mRegistry.bus().publish(opened);
         emit changed();
         return mActive.get();
     }
 
+    void ModuleUi::publish(const EditorEvent& event)
+    {
+        mRegistry.bus().publish(event);
+    }
+
+    void ModuleUi::publishSimulationStep(std::uint64_t step)
+    {
+        EditorEvent event;
+        event.type = EditorEventType::SimulationStepped;
+        event.step = step;
+        mRegistry.bus().publish(event);
+    }
+
     void ModuleUi::releaseModuleObjects()
     {
+        mSelection.clear();
         mAssetToken.reset();
         ++mGeneration;
+        ++mLayoutRevision;
         mActive.reset();
         mActiveFormat.clear();
         mActiveOwner.clear();

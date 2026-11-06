@@ -66,7 +66,7 @@ opencs_units (model/extension
     )
 
 opencs_units (model/module
-    moduleregistry modulehost overlaybuffer
+    moduleregistry modulehost overlaybuffer eventbus
     )
 
 opencs_units (model/mesh

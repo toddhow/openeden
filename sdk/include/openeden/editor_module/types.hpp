@@ -22,7 +22,15 @@ namespace openeden::editor
     /// data folder (EditorContext::userDataPath). Each is a new virtual function at the END of its interface with a
     /// do-nothing default, so a 1.0 module still loads on a 1.1 host. A module built with these headers declares 1.1,
     /// so a 1.0 host refuses it (its tables have no such functions).
-    inline constexpr openeden::sdk::Version kApiVersion{ 1, 1 };
+    ///
+    /// 1.2 (task 0091, toddhow 2026-11-06) adds a selection value the host owns, an editor event bus, picking and
+    /// dragging of gizmo handles in the viewport, text labels that Studio draws, module settings and background tasks.
+    /// Like 1.1 it only adds: new virtual functions at the END of the interfaces Studio implements (EditorContext,
+    /// EditorRegistrar, OverlaySink) with do-nothing defaults, and new types. Nothing a module implements (Gizmo,
+    /// AssetDocument, PropertySource, Command) and no struct that crosses the boundary has changed, so a 1.0 or 1.1
+    /// module's vtables and layouts are read exactly as before. A module built with these headers declares 1.2, so a
+    /// 1.0 or 1.1 host refuses it.
+    inline constexpr openeden::sdk::Version kApiVersion{ 1, 2 };
 
     /// Meters, Z up (CreativeMotion's convention). Studio converts to the world's unit at its overlay boundary.
     struct Vec3
@@ -100,6 +108,37 @@ namespace openeden::editor
         AlwaysOnTop ///< Drawn over everything.
     };
 
+    /// API 1.2. What is selected in Studio: a kind chosen by the module that owns the asset ("joint", "region") and an
+    /// id within the active asset ("spine_01"). An empty kind is "nothing selected". Studio owns the value; it is
+    /// cleared when the active asset changes.
+    struct Selection
+    {
+        std::string kind;
+        std::string id;
+
+        bool empty() const { return kind.empty(); }
+        friend bool operator==(const Selection& a, const Selection& b) { return a.kind == b.kind && a.id == b.id; }
+        friend bool operator!=(const Selection& a, const Selection& b) { return !(a == b); }
+    };
+
+    /// API 1.2. The events on Studio's bus (plan section 3.10).
+    enum class EditorEventType
+    {
+        SelectionChanged, ///< subject: the selection's kind, detail: its id (both empty when it was cleared).
+        AssetOpened, ///< subject: the asset's id.
+        SimulationStepped, ///< step: the physics world's step index. Published once per fixed step while Playing.
+        ParameterChanged ///< subject: the property's id, detail: the asset's id.
+    };
+
+    /// API 1.2. Plain data: no pointers into Studio.
+    struct EditorEvent
+    {
+        EditorEventType type = EditorEventType::SelectionChanged;
+        std::string subject;
+        std::string detail;
+        std::uint64_t step = 0;
+    };
+
     /// Overlay data submitted each time it is drawn; Studio draws it (plan section 3.5).
     class OverlaySink
     {
@@ -107,6 +146,10 @@ namespace openeden::editor
         virtual ~OverlaySink() = default;
         virtual void line(const Vec3& a, const Vec3& b, const Colour& colour) = 0;
         virtual void point(const Vec3& p, const Colour& colour, float sizePixels) = 0;
+        /// Text next to a point. Hosts older than 1.2 drop it; Studio 1.2 draws it in the viewport as screen-space text
+        /// of a fixed pixel height, with the same colour rules as a line. ASCII only (lower case is drawn as upper
+        /// case); any other byte, a text longer than CSMModule::kMaxLabelLength or a count past
+        /// CSMModule::kMaxOverlayLabels is refused or dropped, and a label is part of the captured frame like any line.
         virtual void label(const Vec3& p, std::string_view text, const Colour& colour) = 0;
         /// API 1.1. One filled triangle of one colour; alpha below 1 is blended. Both sides are drawn. Studio refuses a
         /// triangle with a coordinate or colour that is not finite, and drops the triangles past a cap per drawing (see

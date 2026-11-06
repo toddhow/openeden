@@ -14,6 +14,8 @@
 
 #include "scenehost.hpp"
 
+#include "../module/moduleui.hpp"
+
 namespace CSVRender
 {
     namespace
@@ -130,7 +132,12 @@ namespace CSVRender
     {
         const bool stepped = mWorld.tick();
         if (stepped)
+        {
+            // Editor modules hear of each fixed step (API 1.2, task 0091).
+            if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+                modules->publishSimulationStep(mWorld.stepIndex());
             refresh();
+        }
         if (isPlaying() != mWasPlaying)
         {
             mWasPlaying = isPlaying();

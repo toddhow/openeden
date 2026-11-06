@@ -4,9 +4,11 @@
 
 #include <openeden/editor_module/types.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -25,6 +27,54 @@ namespace openeden::editor
         Left,
         Right,
         Bottom
+    };
+
+    /// API 1.2. Calls with this signature run on Studio's main (UI) thread.
+    using EventHandler = std::function<void(const EditorEvent&)>;
+
+    /// API 1.2. One module setting: shown in the preferences window and stored in eden-studio.cfg under
+    /// `[module.<module id>]`. the property id is the setting's full id ("sample.greeting"); it is unique across
+    /// modules like every other id, and it is the key written. The type is Bool, Int, Float, String or Choice (a Vec3
+    /// is refused); min and max bound an Int or a Float.
+    struct SettingDesc
+    {
+        PropertyDesc property;
+        PropertyValue defaultValue;
+    };
+
+    using TaskId = std::uint64_t;
+
+    /// API 1.2. What the task's work function is given, on the pool thread. Both calls are thread safe.
+    class TaskControl
+    {
+    public:
+        virtual ~TaskControl() = default;
+        /// True once the task was cancelled (cancelTask, or its asset was closed). The work function should return soon
+        /// after; its result is then not delivered as Finished.
+        virtual bool cancelled() const = 0;
+        /// The fraction in [0, 1]; Studio clamps it. The progress callback is queued to the UI thread.
+        virtual void reportProgress(double fraction, std::string_view message) = 0;
+    };
+
+    enum class TaskOutcome
+    {
+        Finished,
+        Cancelled,
+        Failed ///< The work function threw; the error text is passed to `done`.
+    };
+
+    /// API 1.2. A background task. `work` runs on Studio's thread pool and must not touch Studio, the active asset or
+    /// the module's UI state; it keeps its result in something it captured (a shared_ptr). `progress` and `done` run
+    /// on the UI thread, in order, `done` last and exactly once, and never after the task's asset was replaced or
+    /// closed, or after the module was unloaded (such a task is cancelled and joined first).
+    struct TaskDesc
+    {
+        std::string label;
+        std::string
+            assetId; ///< The document the task belongs to; closing or replacing it cancels the task. May be empty.
+        std::function<void(TaskControl&)> work;
+        std::function<void(double fraction, const std::string& message)> progress; ///< May be empty.
+        std::function<void(TaskOutcome, const std::string& error)> done; ///< May be empty.
     };
 
     /// What Studio gives a module. Main thread only.
@@ -46,6 +96,24 @@ namespace openeden::editor
         /// and read; it never learns where anything else is. Added at the end of the interface; the default is an
         /// empty path, so a host written for 1.0 still compiles.
         virtual std::filesystem::path userDataPath() const { return {}; }
+
+        /// API 1.2. What is selected now (empty: nothing). Studio owns the value.
+        virtual Selection selection() const { return {}; }
+        /// API 1.2. Sets the selection. A change publishes EditorEventType::SelectionChanged; setting the same value
+        /// again publishes nothing. The selection is cleared when the active asset is replaced or closed.
+        virtual void select(const Selection& /*selection*/) {}
+        /// API 1.2. Publishes an event to every subscriber (including this module's own), after the current dispatch if
+        /// one is running. Studio itself publishes SelectionChanged, AssetOpened, SimulationStepped and (for edits made
+        /// in a property form) ParameterChanged.
+        virtual void publish(const EditorEvent& /*event*/) {}
+        /// API 1.2. The current value of a setting registered with registerSetting (the default when the file holds
+        /// none), or nothing if the id is unknown.
+        virtual std::optional<PropertyValue> setting(std::string_view /*id*/) const { return std::nullopt; }
+        /// API 1.2. Starts a background task. Returns its id, or 0 if it was refused (no work function, or the host
+        /// runs no tasks). The id is only for cancelTask.
+        virtual TaskId startTask(TaskDesc /*task*/) { return 0; }
+        /// API 1.2. Asks a task to stop. Safe for an id that is done or unknown.
+        virtual void cancelTask(TaskId /*id*/) {}
     };
 
     struct WorkspaceDesc
@@ -123,5 +191,20 @@ namespace openeden::editor
         virtual Registration registerInspectorSection(const InspectorSectionDesc& desc) = 0;
         virtual Registration registerTimelineTrackProvider(const TimelineTrackProviderDesc& desc) = 0;
         virtual EditorContext& context() = 0;
+
+        /// API 1.2. Registers a setting (see SettingDesc). Refused with a reason for an empty or duplicate id, a type
+        /// that is not allowed, or a default outside the declared range. When the file has no value for it the default
+        /// is written; a stored value outside the range is clamped with one warning.
+        virtual Registration registerSetting(const SettingDesc& /*desc*/)
+        {
+            return { false, "this Eden Studio does not provide settings (editor API 1.2)" };
+        }
+        /// API 1.2. Subscribes to Studio's event bus. Handlers run on the UI thread in the order of their registration
+        /// (across modules, in load order). A handler that throws is withdrawn with its whole module, like any
+        /// callback.
+        virtual Registration subscribe(EventHandler /*handler*/)
+        {
+            return { false, "this Eden Studio does not provide an event bus (editor API 1.2)" };
+        }
     };
 }

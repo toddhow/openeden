@@ -12,11 +12,28 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace creativemotion_editor
 {
     inline constexpr const char* kRigFormat = "opas.rig";
     inline constexpr const char* kProfileFormat = "opas.profile";
+    /// The handle at each joint's origin; a click on it selects the joint (the host reports it as a "handle"
+    /// selection).
+    inline constexpr const char* kJointHandlePrefix = "creativemotion.joint.";
+
+    /// Implemented by the rig document (API 1.2, task 0091): which joint the panel and the limits drawing single out.
+    /// The module sets it from the host's selection; the host never sees this interface.
+    class JointSelectable
+    {
+    public:
+        virtual ~JointSelectable() = default;
+        /// The rig's joints by bone name, in rig order.
+        virtual std::vector<std::string> jointNames() const = 0;
+        /// A bone name that is not a joint of the rig, or an empty one, clears the selection.
+        virtual void setSelectedJoint(const std::string& bone) = 0;
+        virtual const std::string& selectedJoint() const = 0;
+    };
 
     /// A rig file as an asset. Null with \a error set (the loader's located message) if it cannot be read or is
     /// invalid.

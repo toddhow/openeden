@@ -12,8 +12,13 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/creativemotion/testcmdocuments.cpp
     model/module/creativemotion/testcmgizmos.cpp
     model/module/creativemotion/testcmmodule.cpp
+    model/module/creativemotion/testcmselection.cpp
     model/module/testheader_module.cpp
     model/module/testheader_registrar.cpp
+    model/module/testapi12.cpp
+    model/module/testeventbus.cpp
+    model/module/testmoduleevents.cpp
+    model/module/testoldapimodules.cpp
     model/module/testheader_types.cpp
     model/module/testmodulehost.cpp
     model/module/testmoduleowner.cpp
@@ -69,6 +74,25 @@ target_compile_definitions(eden-studio-tests PRIVATE
     "ADVANCEDBODIES_EDITOR_PATH=\"$<TARGET_FILE:advancedbodies_editor>\"")
 target_compile_definitions(eden-studio-tests PRIVATE
     "SAMPLE_EDITOR_MODULE_PATH=\"$<TARGET_FILE:sample_editor_module>\"")
+
+# Modules built against the FROZEN headers of API 1.0 and 1.1 (task 0091): each is a library of its own, so that two
+# definitions of openeden::editor::Gizmo never meet in one executable. The tests load them by path.
+foreach(old_api 1_0 1_1)
+    set(old_target sample_editor_module_api${old_api})
+    add_library(${old_target} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/sample_note_module_old.cpp)
+    target_compile_features(${old_target} PRIVATE cxx_std_20)
+    target_include_directories(${old_target} BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/api${old_api})
+    target_link_libraries(${old_target} PRIVATE nlohmann_json::nlohmann_json)
+    set_target_properties(${old_target} PROPERTIES
+        OUTPUT_NAME "${old_target}"
+        DEBUG_POSTFIX "" RELEASE_POSTFIX "" RELWITHDEBINFO_POSTFIX "" MINSIZEREL_POSTFIX ""
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+    add_dependencies(eden-studio-tests ${old_target})
+    string(TOUPPER ${old_api} old_api_upper)
+    target_compile_definitions(eden-studio-tests PRIVATE
+        "OLD_API_${old_api_upper}_MODULE_PATH=\"$<TARGET_FILE:${old_target}>\"")
+endforeach()
 
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})

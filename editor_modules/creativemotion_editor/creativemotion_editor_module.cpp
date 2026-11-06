@@ -11,6 +11,8 @@ namespace creativemotion_editor
 
     namespace
     {
+        constexpr const char* kJointKind = "joint";
+
         class CreativeMotionEditorModule final : public EditorModule
         {
         public:
@@ -53,6 +55,19 @@ namespace creativemotion_editor
                 };
                 registrar.registerCommand(save);
 
+                // Joint selection (API 1.2, task 0091): the host owns the selection; the module narrows the active rig.
+                for (const bool next : { true, false })
+                {
+                    CommandDesc walk;
+                    walk.id = next ? "creativemotion.nextJoint" : "creativemotion.previousJoint";
+                    walk.label = next ? "Next Joint" : "Previous Joint";
+                    walk.menuPath = next ? "Rig/Next Joint" : "Rig/Previous Joint";
+                    walk.enabledWhen = [this] { return activeRig() != nullptr; };
+                    walk.handler = [this, next](EditorContext& context) { walkJoints(context, next); };
+                    registrar.registerCommand(walk);
+                }
+                registrar.subscribe([this](const EditorEvent& event) { onEvent(event); });
+
                 GizmoProviderDesc gizmos;
                 gizmos.id = "creativemotion.gizmos";
                 gizmos.gizmos = [this]() -> std::vector<Gizmo*> {
@@ -89,6 +104,47 @@ namespace creativemotion_editor
             void shutdown() override { mContext = nullptr; }
 
         private:
+            JointSelectable* activeRig() const
+            {
+                AssetDocument* active = mContext != nullptr ? mContext->activeAsset() : nullptr;
+                return dynamic_cast<JointSelectable*>(active);
+            }
+
+            void walkJoints(EditorContext& context, bool next)
+            {
+                JointSelectable* rig = activeRig();
+                if (rig == nullptr)
+                    return;
+                const std::vector<std::string> names = rig->jointNames();
+                if (names.empty())
+                    return;
+                const Selection current = context.selection();
+                // From nothing, next lands on the first joint and previous on the last.
+                std::size_t target = next ? 0 : names.size() - 1;
+                if (current.kind == kJointKind)
+                    for (std::size_t i = 0; i < names.size(); ++i)
+                        if (names[i] == current.id)
+                            target = next ? (i + 1) % names.size() : (i + names.size() - 1) % names.size();
+                context.select({ kJointKind, names[target] });
+            }
+
+            void onEvent(const EditorEvent& event)
+            {
+                if (event.type != EditorEventType::SelectionChanged || mContext == nullptr)
+                    return;
+                JointSelectable* rig = activeRig();
+                if (rig == nullptr)
+                    return;
+                if (event.subject == "handle" && event.detail.rfind(kJointHandlePrefix, 0) == 0)
+                {
+                    // A click on a joint's handle: select that joint (queued behind this event).
+                    mContext->select({ kJointKind, event.detail.substr(std::string(kJointHandlePrefix).size()) });
+                    return;
+                }
+                rig->setSelectedJoint(event.subject == kJointKind ? event.detail : std::string());
+                mContext->requestRedraw();
+            }
+
             EditorContext* mContext = nullptr;
         };
 

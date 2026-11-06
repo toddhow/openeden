@@ -309,10 +309,10 @@ void CSVDoc::ContextInspector::rebuildModuleSections()
             if (section.mDesc.selectionKind == modules->activeFormat())
                 wanted.push_back(section.mDesc.id);
     if (wanted == mModuleSectionIds && (!wanted.empty() || mModuleSections->count() == 0)
-        && mModuleSectionGeneration == modules->generation())
+        && mModuleSectionGeneration == modules->layoutRevision())
         return;
     mModuleSectionIds = wanted;
-    mModuleSectionGeneration = modules->generation();
+    mModuleSectionGeneration = modules->layoutRevision();
     while (QLayoutItem* item = mModuleSections->takeAt(0))
     {
         if (item->widget() != nullptr)

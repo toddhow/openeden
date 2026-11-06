@@ -6,6 +6,7 @@
 #include <opas/rig/Rig.hpp>
 #include <opas/rig/RigFile.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <numbers>
@@ -35,6 +36,8 @@ namespace creativemotion_editor
         const Colour kOrange{ 1.0f, 0.6f, 0.1f, 1.0f };
         const Colour kCyan{ 0.1f, 0.9f, 0.9f, 1.0f };
         const Colour kWhite{ 1.0f, 1.0f, 1.0f, 1.0f };
+        /// The selected joint's limits are drawn in this colour (API 1.2 selection, task 0091).
+        const Colour kHighlight{ 1.0f, 1.0f, 0.2f, 1.0f };
 
         using V = opas::math::Vec3;
 
@@ -171,8 +174,9 @@ namespace creativemotion_editor
         class RigLimitsGizmo final : public Gizmo
         {
         public:
-            explicit RigLimitsGizmo(const opas::rig::Rig& rig)
+            RigLimitsGizmo(const opas::rig::Rig& rig, const std::string& selectedJoint)
                 : mRig(rig)
+                , mSelected(selectedJoint)
             {
             }
 
@@ -186,6 +190,8 @@ namespace creativemotion_editor
                     const auto bone = opas::rig::findBone(mRig.skeleton, joint.bone);
                     if (!bone)
                         continue;
+                    const bool selected = joint.bone == mSelected;
+                    const auto tinted = [selected](const Colour& colour) { return selected ? kHighlight : colour; };
                     const opas::math::Transform& w = world[*bone];
                     const V origin = w.translation;
                     const V x = joint.twistAxis;
@@ -200,7 +206,7 @@ namespace creativemotion_editor
                     };
                     const auto pointAt = [&](V dir) { return add(origin, scaled(dir, kLimitLengthM)); };
 
-                    line(sink, origin, pointAt(direction(1, 0, 0)), kWhite);
+                    line(sink, origin, pointAt(direction(1, 0, 0)), tinted(kWhite));
 
                     if (joint.swing == opas::rig::SwingShape::Cone)
                     {
@@ -215,9 +221,9 @@ namespace creativemotion_editor
                                 rim[k] = pointAt(swingDir(planeHalf * std::cos(t), normalHalf * std::sin(t)));
                             }
                             for (int k = 0; k < kCircleSegments; ++k)
-                                line(sink, rim[k], rim[(k + 1) % kCircleSegments], kOrange);
+                                line(sink, rim[k], rim[(k + 1) % kCircleSegments], tinted(kOrange));
                             for (int k = 0; k < kCircleSegments; k += kConeSpokeStep)
-                                line(sink, origin, rim[k], kOrange);
+                                line(sink, origin, rim[k], tinted(kOrange));
                         }
                     }
                     else
@@ -229,9 +235,9 @@ namespace creativemotion_editor
                             pointAt(swingDir(joint.planeSwingMinRad, joint.normalSwingMaxRad)),
                         };
                         for (int i = 0; i < 4; ++i)
-                            line(sink, corner[i], corner[(i + 1) % 4], kOrange);
+                            line(sink, corner[i], corner[(i + 1) % 4], tinted(kOrange));
                         for (int i = 0; i < 4; ++i)
-                            line(sink, origin, corner[i], kOrange);
+                            line(sink, origin, corner[i], tinted(kOrange));
                     }
 
                     // The twist range as an arc around the twist axis.
@@ -243,7 +249,7 @@ namespace creativemotion_editor
                         const V p = add(origin,
                             scaled(direction(0, std::cos(a), std::sin(a)), kTwistArcRadiusFactor * kLimitLengthM));
                         if (i > 0)
-                            line(sink, previous, p, kCyan);
+                            line(sink, previous, p, tinted(kCyan));
                         previous = p;
                     }
                 }
@@ -251,9 +257,10 @@ namespace creativemotion_editor
 
         private:
             const opas::rig::Rig& mRig;
+            const std::string& mSelected;
         };
 
-        class RigDocument final : public AssetDocument, public PropertySource
+        class RigDocument final : public AssetDocument, public PropertySource, public JointSelectable
         {
         public:
             RigDocument(std::filesystem::path path, opas::rig::Rig rig)
@@ -261,9 +268,24 @@ namespace creativemotion_editor
                 , mAssetId(mPath.string())
                 , mRig(std::move(rig))
                 , mShapes(mRig)
-                , mLimits(mRig)
+                , mLimits(mRig, mSelectedJoint)
             {
             }
+
+            std::vector<std::string> jointNames() const override
+            {
+                std::vector<std::string> names;
+                for (const opas::rig::Joint& joint : mRig.joints)
+                    names.push_back(joint.bone);
+                return names;
+            }
+            void setSelectedJoint(const std::string& bone) override
+            {
+                const bool known = std::any_of(
+                    mRig.joints.begin(), mRig.joints.end(), [&](const opas::rig::Joint& j) { return j.bone == bone; });
+                mSelectedJoint = known ? bone : std::string();
+            }
+            const std::string& selectedJoint() const override { return mSelectedJoint; }
 
             std::string_view assetId() const override { return mAssetId; }
             PropertySource& properties() override { return *this; }
@@ -310,6 +332,9 @@ namespace creativemotion_editor
                 readOnly("rig.joints", "Joints", PropertyType::Int, "Rig");
                 for (const opas::rig::Joint& joint : mRig.joints)
                 {
+                    // With a joint selected the panel shows only that joint (API 1.2 selection).
+                    if (!mSelectedJoint.empty() && joint.bone != mSelectedJoint)
+                        continue;
                     readOnly("joint." + joint.bone + ".swing", "Swing", PropertyType::String, joint.bone);
                     for (const JointField& field : kJointFields)
                     {
@@ -397,6 +422,7 @@ namespace creativemotion_editor
             std::filesystem::path mPath;
             std::string mAssetId;
             opas::rig::Rig mRig;
+            std::string mSelectedJoint; // before mLimits, which holds a reference to it
             RigShapesGizmo mShapes;
             RigLimitsGizmo mLimits;
             bool mDirty = false;
