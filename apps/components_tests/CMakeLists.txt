@@ -132,6 +132,7 @@ file(GLOB UNITTEST_SRC_FILES
     bsa/testcompressedbsafile.cpp
     compiler/testmorrowindprogramgolden.cpp
     compiler/testparseroptions.cpp
+    compiler/testlogicaloperators.cpp
     interpreter/testrunlimits.cpp
 
     # Task 0092: the ObScript runtime of the common compatibility pack (generated scripts, an invented world).

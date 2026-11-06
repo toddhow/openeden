@@ -70,6 +70,22 @@ namespace Interpreter
         }
     };
 
+    /// "&&" and "||" (task 0092): both integers are on the stack, the result is 1 or 0.
+    template <bool And>
+    class OpLogical : public Opcode0
+    {
+    public:
+        void execute(Runtime& runtime) override
+        {
+            const bool left = runtime[1].mInteger != 0;
+            const bool right = runtime[0].mInteger != 0;
+
+            runtime.pop();
+
+            runtime[0].mInteger = And ? (left && right) : (left || right);
+        }
+    };
+
     template <typename T, typename C>
     class OpCompare : public Opcode0
     {

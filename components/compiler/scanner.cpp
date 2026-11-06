@@ -543,6 +543,19 @@ namespace Compiler
             special = S_mult;
         else if (c == '/')
             special = S_div;
+        else if (mLogicalOperators && (c == '&' || c == '|'))
+        {
+            // Task 0092: "&&" and "||" (a single character stays an error)
+            MultiChar next;
+            if (!get(next))
+                return false;
+            if (!(next == c))
+            {
+                putback(next);
+                return false;
+            }
+            special = c == '&' ? S_and : S_or;
+        }
         else
             return false;
 

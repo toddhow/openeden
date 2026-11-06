@@ -285,6 +285,19 @@ End
         EXPECT_EQ(mFixture.mWorld.mGlobals["testglobal"].integer, 8);
     }
 
+    // The masters have scripts that declare a variable inside a block (measured in the stage e check).
+    TEST_F(ObScriptRun, a_declaration_inside_a_block_declares_a_local_of_the_whole_script)
+    {
+        const ScriptId script = mFixture.compileOk("InBlock",
+            "ScriptName InBlock\nshort first\nBegin GameMode\n    int later;\n    Set later to first + 5\nEnd\nBegin "
+            "OnActivate\n    Set later to later + 1\nEnd\n");
+        ASSERT_NE(script, 0u) << (mFixture.mLastReports.empty() ? "" : mFixture.mLastReports.front());
+        const InstanceId instance = runtime().createInstance(script, sCrate);
+        ASSERT_TRUE(runtime().run(instance, "GameMode").ok);
+        ASSERT_TRUE(runtime().run(instance, "OnActivate").ok);
+        EXPECT_EQ(runtime().getLocal(instance, "later").integer, 6);
+    }
+
     TEST_F(ObScriptRun, two_scripts_get_different_ids)
     {
         const ScriptId a = mFixture.compileOk("BasicScript", sBasic);

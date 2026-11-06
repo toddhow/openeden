@@ -34,6 +34,11 @@ namespace
         code.push_back(Compiler::Generator::segment5(6));
     }
 
+    void opFloatToInt1(Compiler::Generator::CodeContainer& code)
+    {
+        code.push_back(Compiler::Generator::segment5(18));
+    }
+
     void opStoreLocalShort(Compiler::Generator::CodeContainer& code)
     {
         code.push_back(Compiler::Generator::segment5(0));
@@ -583,6 +588,15 @@ namespace Compiler::Generator
                     assert(0);
             }
         }
+    }
+
+    void logical(CodeContainer& code, char op, char valueType1, char valueType2)
+    {
+        if (valueType1 == 'f')
+            opFloatToInt1(code);
+        if (valueType2 == 'f')
+            opFloatToInt(code);
+        code.push_back(segment5(op == '&' ? 71 : 72));
     }
 
     void assignToGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name,

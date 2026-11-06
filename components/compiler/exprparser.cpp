@@ -30,6 +30,14 @@ namespace Compiler
 
                 return 0;
 
+            case '|': // || (task 0092): looser than &&, which is looser than the comparisons
+
+                return 1;
+
+            case '&': // &&
+
+                return 2;
+
             case 'e': // ==
             case 'n': // !=
             case 'l': // <
@@ -37,21 +45,21 @@ namespace Compiler
             case 'g': // <
             case 'G': // >=
 
-                return 1;
+                return 3;
 
             case '+':
             case '-':
 
-                return 2;
+                return 4;
 
             case '*':
             case '/':
 
-                return 3;
+                return 5;
 
             case 'm':
 
-                return 4;
+                return 6;
         }
 
         return 0;
@@ -152,6 +160,16 @@ namespace Compiler
             case 'G':
 
                 Generator::compare(mCode, op, getOperandType(1), getOperandType());
+                popOperator();
+                popOperand();
+                popOperand();
+                mOperands.push_back('l');
+                break;
+
+            case '&':
+            case '|':
+
+                Generator::logical(mCode, op, getOperandType(1), getOperandType());
                 popOperator();
                 popOperand();
                 popOperand();
@@ -598,6 +616,12 @@ namespace Compiler
                     break;
                 case Scanner::S_cmpGE:
                     c = 'G';
+                    break;
+                case Scanner::S_and:
+                    c = '&';
+                    break;
+                case Scanner::S_or:
+                    c = '|';
                     break;
             }
 

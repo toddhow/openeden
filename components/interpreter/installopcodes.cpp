@@ -73,6 +73,9 @@ namespace Interpreter
         interpreter.installSegment5<OpCompare<Type_Float, std::greater<Type_Float>>>(36);
         interpreter.installSegment5<OpCompare<Type_Float, std::greater_equal<Type_Float>>>(37);
 
+        interpreter.installSegment5<OpLogical<true>>(71);
+        interpreter.installSegment5<OpLogical<false>>(72);
+
         // control structures
         interpreter.installSegment5<OpReturn>(20);
         interpreter.installSegment5<OpSkipZero>(24);

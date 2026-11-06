@@ -86,6 +86,10 @@ namespace Compiler
 
         void compare(CodeContainer& code, char op, char valueType1, char valueType2);
 
+        /// "&&" (op '&') and "||" (op '|') of the two values on the stack; a float is cut to an integer first (task
+        /// 0092). Both values are always evaluated. The result is an integer, 1 or 0.
+        void logical(CodeContainer& code, char op, char valueType1, char valueType2);
+
         void assignToGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name,
             const CodeContainer& value, char valueType);
 

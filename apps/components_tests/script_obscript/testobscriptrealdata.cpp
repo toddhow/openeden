@@ -301,8 +301,10 @@ namespace
             std::size_t mFile;
             std::string mName;
             std::uint32_t mScript;
+            std::uint32_t mBase; // a placed reference: the object it is made from, whose script it has
         };
         std::vector<Owner> owners;
+        std::map<std::pair<std::size_t, std::uint32_t>, std::uint32_t> baseScripts; // record id -> its script id
         std::size_t fileIndex = 0;
         for (const auto& file : files)
         {
@@ -310,6 +312,7 @@ namespace
                 std::string name;
                 char type = 's';
                 std::uint32_t scriptRef = 0;
+                std::uint32_t baseRef = 0;
                 ValueKind pendingKind = ValueKind::Integer;
                 std::unordered_map<std::string, ValueKind> variables;
                 for (const Sub& sub : record.mSubs)
@@ -326,6 +329,11 @@ namespace
                     {
                         scriptRef = le32(reinterpret_cast<const std::uint8_t*>(sub.mData.data()));
                     }
+                    else if (sub.mType == "NAME" && sub.mData.size() == 4
+                        && (record.mType == "REFR" || record.mType == "ACHR" || record.mType == "ACRE"))
+                    {
+                        baseRef = le32(reinterpret_cast<const std::uint8_t*>(sub.mData.data()));
+                    }
                     if (sub.mType == "EDID")
                     {
                         name = lowered(sub.mData.substr(0, sub.mData.find('\0')));
@@ -339,13 +347,17 @@ namespace
                 {
                     scriptVariables[{ fileIndex, record.mFormId }] = std::move(variables);
                 }
+                if (scriptRef != 0)
+                {
+                    baseScripts[{ fileIndex, record.mFormId }] = scriptRef;
+                }
                 if (name.empty())
                 {
                     return;
                 }
-                if (scriptRef != 0)
+                if (scriptRef != 0 || baseRef != 0)
                 {
-                    owners.push_back({ fileIndex, name, scriptRef });
+                    owners.push_back({ fileIndex, name, scriptRef, baseRef });
                 }
                 world.mForms.emplace(name, nextId++);
                 if (record.mType == "GLOB")
@@ -356,9 +368,28 @@ namespace
             ++fileIndex;
         }
 
+        // An id in a DLC may name a record of the base game: try the same file, then the first master by its low bits.
+        auto findIn = [](const auto& map, std::size_t file, std::uint32_t id) {
+            auto it = map.find({ file, id });
+            if (it == map.end())
+            {
+                it = map.find({ std::size_t(0), id & 0xFFFFFFu });
+            }
+            return it;
+        };
         for (const Owner& owner : owners)
         {
-            const auto variables = scriptVariables.find({ owner.mFile, owner.mScript });
+            std::uint32_t script = owner.mScript;
+            if (script == 0 && owner.mBase != 0)
+            {
+                const auto base = findIn(baseScripts, owner.mFile, owner.mBase);
+                if (base == baseScripts.end())
+                {
+                    continue;
+                }
+                script = base->second;
+            }
+            const auto variables = findIn(scriptVariables, owner.mFile, script);
             const auto form = world.mForms.find(owner.mName);
             if (variables != scriptVariables.end() && form != world.mForms.end())
             {

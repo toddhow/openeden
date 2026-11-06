@@ -649,6 +649,7 @@ namespace ScriptObscript
             Compiler::ParserOptions options;
             options.mDotExplicitReference = true;
             options.mReferenceLocals = true;
+            options.mLogicalOperators = true;
             context.setOptions(options);
 
             try
@@ -657,6 +658,7 @@ namespace ScriptObscript
                 // No parser.reset(): it would clear the locals declared above, and each block has a parser of its own.
                 std::istringstream input(text);
                 Compiler::Scanner scanner(handler, input, &extensions);
+                scanner.setLogicalOperators(options.mLogicalOperators);
                 scanner.scan(parser);
                 block.mProgram = parser.getProgram();
             }
@@ -834,6 +836,34 @@ namespace ScriptObscript
                 }
             }
 
+            // A declaration inside a block (the masters have some) declares a local of the whole script. The line is
+            // left blank in the text given to the compiler, so that the line numbers stay the same.
+            std::set<std::size_t> declarationLines;
+            if (source.kind == ScriptKind::Script)
+            {
+                bool tooManyReported = false;
+                for (const BlockSpan& block : structure.mBlocks)
+                {
+                    for (std::size_t i = block.mFirstBody; i < block.mEndLine; ++i)
+                    {
+                        const Line& line = lines[i];
+                        const std::string word = !line.mTokens.empty() && line.mTokens[0].mKind == Token::Kind::Word
+                            ? lower(line.mTokens[0].mText)
+                            : std::string();
+                        if (localTypeFor(word) != ' ')
+                        {
+                            declareLocal(line, word, output.mScript, reporter, tooManyReported);
+                            declarationLines.insert(i);
+                        }
+                    }
+                }
+                if (reporter.hasErrors())
+                {
+                    finish();
+                    return output;
+                }
+            }
+
             // Names that are not known: an error in strict mode, an ignored function in tolerant mode.
             std::vector<Candidate> candidates;
             if (source.kind == ScriptKind::Script)
@@ -894,7 +924,10 @@ namespace ScriptObscript
                     std::string text;
                     for (std::size_t i = span.mFirstBody; i < span.mEndLine; ++i)
                     {
-                        text.append(lines[i].mRaw);
+                        if (!declarationLines.contains(i))
+                        {
+                            text.append(lines[i].mRaw);
+                        }
                         text += '\n';
                     }
                     text += "End\n";

@@ -207,6 +207,7 @@ namespace Compiler
         bool mIgnoreNewline;
         bool mExpectName;
         bool mIgnoreSpecial;
+        bool mLogicalOperators = false;
 
     public:
         enum Keyword
@@ -244,7 +245,9 @@ namespace Compiler
             S_mult,
             S_div,
             S_ref,
-            S_member
+            S_member,
+            S_and, ///< "&&", only when Scanner::setLogicalOperators(true) (task 0092)
+            S_or ///< "||", likewise
         };
 
     private:
@@ -293,6 +296,9 @@ namespace Compiler
 
         void putbackKeyword(int keyword, const TokenLoc& loc);
         ///< put back a keyword token
+
+        /// Read "&&" and "||" as the tokens S_and and S_or. Off by default: Morrowind scripts have no such operators.
+        void setLogicalOperators(bool enabled) { mLogicalOperators = enabled; }
 
         void listKeywords(std::vector<std::string>& keywords);
         ///< Append all known keywords to \a keywords.

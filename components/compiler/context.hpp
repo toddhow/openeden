@@ -22,6 +22,12 @@ namespace Compiler
         /// A local variable that Context::isId accepts (a variable that holds a reference) may stand before "->" or
         /// "." in an expression, as the name of an object may. Off: a local is always just a value, as in Morrowind.
         bool mReferenceLocals = false;
+
+        /// "&&" and "||" join conditions: "a && b" is true when both are not zero, "a || b" when one is. "&&" binds
+        /// tighter than "||", and both bind looser than the comparisons. Both sides are always evaluated. The caller
+        /// must also call Scanner::setLogicalOperators(true), because the scanner does not see the context. Off:
+        /// the characters are not an operator, as in Morrowind.
+        bool mLogicalOperators = false;
     };
 
     class Context
