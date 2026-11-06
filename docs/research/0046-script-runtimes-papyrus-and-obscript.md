@@ -230,7 +230,7 @@ For New Vegas the same policy applies to NVSE: its expression language (`let`, a
 
 ## 8. Open questions for toddhow (recommendation first)
 
-1. **Where does the ObScript function table come from?** Recommend: derive from the engine's own data where possible (opcodes and argument counts can be read off `SCDA` statements; types and names cannot), and write the first hundred commands by hand from the GECK wiki and from OpenMW's equivalents, each with a test and a source cited; xNVSE/FOSE table files are a candidate source only after their licence is read.
+1. **Where does the ObScript function table come from?** (Researched 2026-11-06: see section 10; xNVSE publishes no licence in what was read, so its tables cannot be copied.) Recommend: derive from the engine's own data where possible (opcodes and argument counts can be read off `SCDA` statements; types and names cannot), and write the first hundred commands by hand from the GECK wiki and from OpenMW's equivalents, each with a test and a source cited; xNVSE/FOSE table files are a candidate source only after their licence is read.
 2. **Both runtimes in the common pack, or the interpreter in the core (section 7)?** Recommend the common pack.
 3. **Order:** ObScript first, Papyrus after (recommended), or the reverse? The data favours ObScript for the games named; Skyrim's mod ecosystem favours Papyrus for reach.
 4. **Extender policy (section 6):** recommend option 1, starting with the platform set and no library until a game pack runs.
@@ -244,3 +244,42 @@ For New Vegas the same policy applies to NVSE: its expression language (`let`, a
 ## 9. Not verified
 
 Everything in section 2 beyond the measured columns; the meaning of every opcode name; NVSE, FOSE, OBSE, SKSE and F4SE behaviour; the licences of any extender or library; the latent set; the Fallout 3 and Oblivion layouts; any run in the game (nothing was built or run); Linux (not applicable to these tools). The measurement tools live outside the repository and can be rerun; their results are in `I:\Projects\OpenEden-work\scriptvm\result_sky.json`, `result_fo4.json` and `result_fnv.json`.
+
+## 10. Where an ObScript function table can legitimately come from (added 2026-11-06)
+
+toddhow's answers of 2026-11-06 (recorded in decision 0014's amendment): both runtimes in the common pack, ObScript first, tiered extender policy. The remaining blocker is the **function table** (name, opcode, parameter types, return type, for Fallout 3, New Vegas and Oblivion). Pages opened with WebFetch and WebSearch this session are marked **READ** (URL and what was seen); anything not opened is **RECALLED-VERIFY**. Several sites refused the fetch tool (HTTP 403 or an SSL handshake failure), listed below. This is not legal advice; "licence verdict" means what the published terms appear to allow, to be confirmed by toddhow.
+
+### 10.1 What was read
+
+| Source | Result | Status |
+| --- | --- | --- |
+| xNVSE, `https://github.com/xNVSE/NVSE` (and the GitHub API listings `.../contents/` and `.../contents/nvse/nvse`) | The repository root has 9 entries (`.github`, `.gitignore`, `DEVELOPMENT.md`, `README.md`, `common`, `nvse`, `nvse_plugin_example`, `package.lnk`, `package_nvse.ps1`): **no LICENSE or COPYING file**. The `nvse/nvse` directory (about 170 entries, all read) has `CommandTable.cpp/.h`, 42 `Commands_*.cpp/.h` files, `GameAPI`, `ParamInfos.h`, `ScriptTokens`, `PluginAPI.h` and **no licence or readme file**. The GitHub licence endpoint for the repository returned 404 (GitHub's detection found none). `DEVELOPMENT.md` says nothing about licensing. | **READ** (2026-11-06). A LICENSE inside `common/` or `nvse/nvse/Compiler/` was not looked for. |
+| Search snippets on licences | JohnnyGuitarNVSE (a plugin, not xNVSE) states LGPLv2.1-only; the FOSE Nexus permissions page (mod 26125) shows the text of LGPL 2.1 but nothing confirms it covers FOSE itself; `https://fose.silverlock.org` says only that modders "are free to release mods based upon it" and gives no licence for the source. | **READ** as snippets and one page; FOSE and xOBSE terms **unconfirmed**. |
+| xOBSE | The guessed GitHub API path returned 404; nothing else opened. Oblivion's table was not read. | Not read. |
+| GECK wikis | `geckwiki.com` and `geck.uesp.net` returned HTTP 403 to the fetch tool; `geck.bethsoft.com` failed the SSL handshake. A search returned only titles and one-line snippets: the uesp.net GECK wiki is "no longer maintained" and the community moved to geckwiki.com; per-function pages show description, syntax and "added by NVSE x.y". The **wiki's content licence was not read**, and no snippet showed an opcode column. | Snippets **READ**; page content and licence **not read**. |
+
+### 10.2 Licence verdicts (as far as read)
+
+- **xNVSE source: no licence is published** in what was read. Under default copyright that means all rights reserved: its `CommandTable.cpp`, `Commands_*.cpp` and `ParamInfos.h` **must not be copied, adapted or transliterated** into the repository. Reading them in order to write our own table is a clean-room contamination risk (the Delirium Physics rule, "ideas only", is the model). The root guide's GPL-3.0-or-later compatibility rule cannot be met by code with no stated licence. Asking the maintainers to add a licence is possible and is toddhow's call.
+- **FOSE and xOBSE:** unconfirmed (LGPL 2.1 is suggested for FOSE by one Nexus page). LGPL 2.1 would be usable in a GPL-3.0-or-later program only through its GPL-conversion clause and with their notices kept; verify from the source distribution's own file before anything is used.
+- **Wiki text:** the pages' prose is someone's expression; whatever licence the wiki states (not read) governs copying. **Facts** (that a command exists, its name, the order and kinds of its parameters) are not themselves protected, but a wholesale transcription of a list can copy its selection and arrangement. Safe route: facts re-entered by hand into our own format, each source cited, no pasted text.
+- **Bethesda's own data (the GECK and game executables, resource strings):** the guardrails say no game binaries, no decompiled game code and no Bethesda files in the repository. That also forbids a table that is a transcription of a decompiled engine table. Reading them **on the user's machine at run time** is a different act (nothing is shipped), but knowing where the table sits and how it is laid out in an executable is knowledge obtained by reverse engineering, so **the layout knowledge must come from a source we may use**. That is a legal question for toddhow before any attempt.
+
+### 10.3 Routes, in recommended order
+
+1. **Derive the table from the user's own plugin data (clean-room, no outside source).** The masters hold both `SCTX` (source: the command names as written) and `SCDA` (bytecode: the opcode and length of each statement). Walking source statements and compiled statements together (the walker of section 3.4 reaches the exact end of all 3,715 scripts) pairs a **name** with an **opcode** and an observed **argument shape** for every command the shipped scripts use. Built on the user's machine at first run (or by a dev tool) and cached; the repository holds the tool, never its output. Limits: only commands the data uses (at least 199 vanilla opcodes, section 3.4; mods add more); parameter *types* beyond what the encoding shows (reference, integer, float, string index) are inferred, not known; commands that appear only inside expressions need the expression encoding understood. **Not tested yet**: it is the first experiment of the ObScript front-end work and is cheap (about a day). It is also a check on the grammar: if names and opcodes pair up consistently, the compiler is right.
+2. **A hand-written table of the commands the engine actually needs**, entered from the GECK wiki pages and OpenMW's Morrowind equivalents, in our own format, each entry with a test and a cited page, under whatever the wiki's licence allows (to be read: the pages refused the fetch tool; toddhow can open them in a browser, or the next session can use the Chrome tools). Grows with demand; this is the hundred-command start of section 8, question 1.
+3. **A community table under a clear compatible licence:** none was found. The candidates (xNVSE, FOSE, xOBSE) are unlicensed or unconfirmed; other community tables (xEdit's data, the GECK wiki) were not read. One more search for a permissively licensed command list is worth doing; any find needs its licence file read first.
+4. **Ask the extender maintainers for a licence grant or permission** for the command table only. Slow and uncertain; do not depend on it.
+5. **Reading the installed GECK or game executable at run time:** rejected for now (needs layout knowledge we are not cleared to use, fragile across builds, and sits against the guardrails). Revisit only if toddhow decides the legal position.
+
+### 10.4 What is allowed, in one list
+
+- Allowed: our own code and tests; a table generated on the user's machine from their data; a table of facts re-entered by hand with cited sources and no pasted text; command names in tests as short facts (not a list copied from a page).
+- Not allowed: copying or adapting xNVSE, FOSE or xOBSE source or tables; pasting wiki pages or their lists; adding any Bethesda file, decompiled code or dump of an engine table to the repository.
+- Needs toddhow's decision: reading the GECK or game executable at run time; contacting the extender maintainers; relying on the wiki once its licence is read.
+
+### 10.5 Open for toddhow (new)
+
+- **Function-table source.** Recommend routes 1 then 2: derive from the user's data (a one-day experiment first), supplement by hand from the wiki with citations, leave the extender tables alone. May the next session read the GECK wiki's licence page and function lists in a real browser? Can you accept that unnamed commands print as `fn_0x1xxx` until named (tolerant mode already makes them harmless)?
+- **NVSE-added functions** (opcodes from `0x1400`, RECALLED-VERIFY) cannot be derived from the shipped masters at all (section 3.4: none appear); they need route 2 per command, driven by which mods you play.

@@ -100,7 +100,7 @@ through a named core service; the loader hands a service out only to the kinds a
 | Record types | no | yes | the **record store contract** (section 5.1): the pack registers record types and the core stores them |
 | Content loading | no | yes | the pack registers decoders for plugin records (section 5.2) |
 | Save data | no (decision 0005) | yes | a **save chunk handler**: named, versioned chunks written to and read from the save by the main thread; unchanged bytes for Morrowind (section 7) |
-| Script language | no | yes | a **script host contract**: compile a script, run a script, register commands; the interpreter VM stays in the core |
+| Script language | no | yes | a **script host contract** (changed 2026-11-06, decision 0014): the script runtimes (ObScript, Papyrus) live in the common pack behind `openeden.script.*`; the pack supplies commands or natives; the Morrowind interpreter stays in the core until the Morrowind game pack takes it (task 0085) |
 | GUI windows | no | yes | through the core's UI service: a window description and callbacks; the toolkit (MyGUI) stays in the core |
 | Lua API surface | no (decision 0003) | **record descriptors only** | the pack registers record-type *descriptors* (field names, types, accessors); the core builds the Lua tables from them. A pack never receives `sol` types. |
 | Physics | read-only | read-only | **unchanged and deliberate**: a game pack does not own Jolt. Anything the rules need (actor shapes, collision filters) is asked of the core's actor model. |
@@ -160,9 +160,16 @@ copying; the first version is exactly what Skyrim SE would also need, found by w
 ### 5.6 Script host (`openeden.scripts`)
 
 `compile(source, context) -> Program or located errors`, `run(program, target)`, `registerCommand(...)`, plus the
-variable storage the save chunk covers. Backed by `components/interpreter` in the core; `components/compiler` and the
-mwscript command set move into `game_morrowind`. Skyrim's Papyrus is a different VM and out of scope for the second
-pack's skeleton (it needs `.pex` execution; not planned here).
+variable storage the save chunk covers.
+
+**Changed 2026-11-06 (decision 0014, toddhow's answers):** both script runtimes live in the **common compatibility
+pack** as contracts of one family, `openeden.script.*`: ObScript (Oblivion, Fallout 3, New Vegas; first) and Papyrus
+(Skyrim, Fallout 4, Starfield; after). The runtimes hold no authority; a game pack supplies the function table or
+natives and world access and writes the save chunk. ObScript reuses the game-neutral parts of `components/compiler`
+and `components/interpreter` through a seam (task 0092). **Until the Morrowind game pack takes it (task 0085) the
+Morrowind interpreter, compiler and mwscript command set stay where they are, in the core and `apps/openmw`.** The
+earlier text of this section (interpreter in the core, compiler and commands to `game_morrowind`, Papyrus out of
+scope) is superseded; see research note 0046 and task 0092 for the contract and the first slice.
 
 ### 5.7 Save chunk handler
 
@@ -229,8 +236,8 @@ pack; it shows Skyrim records only after the record descriptors.
 4. **SDK 4.0 against 3.1.** Recommend: 4.0 (section 6).
 5. **Generated or hand-written NIF.** Recommend: hand-written reader plus `nif.xml` as an oracle in a dev tool,
    subject to the licence reading (research note 0043 section 5.2).
-6. **Papyrus and `.hkx`.** Not planned in these stages; they are what Skyrim needs beyond data and meshes. Decide
-   after the skeleton pack (stage f).
+6. **Papyrus and `.hkx`.** `.hkx` is not planned in these stages. **Papyrus (changed 2026-11-06, decision 0014):** the VM is in
+   the common pack, ObScript first, Papyrus after (research note 0046, task 0092); the Skyrim game pack supplies its natives.
 
 ## 10. Staged migration plan
 

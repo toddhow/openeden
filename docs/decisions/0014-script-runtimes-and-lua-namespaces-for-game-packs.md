@@ -36,7 +36,9 @@ It builds nothing and changes no behaviour. The first follow-ups, each needing t
 
 ## Amendment draft 2026-11-06: ObScript
 
-**Proposed only; the numbered decision text above is unchanged. Awaiting toddhow's signature, like the rest of this draft.**
+**Proposed only; the numbered decision text above is unchanged. Awaiting toddhow's signature, like the rest of this draft. Answers recorded 2026-11-06 (toddhow), below.**
+
+**Answers recorded 2026-11-06.** (1) **Both runtimes live in the common compatibility pack as contracts; decision 0014 stands.** `docs/design/game-packs.md` section 5.6 (and the table row, and its open question 6) are updated accordingly, dated and pointing here. The Morrowind interpreter stays in the core until the Morrowind game pack takes it (task 0085); the seam work of task 0092 moves toward the common pack. (2) **ObScript first, Papyrus after.** (3) **Extender policy:** tiered built-ins (platform set first, libraries later as optional extensions); an unknown function logs once and does nothing in tolerant mode; a strict mode exists for tests. Open questions 4 to 6 of this amendment are answered by these; question 7 (the function table's source) is addressed by research note 0046 section 10 and is still open for toddhow. This decision remains a DRAFT overall until he signs it.
 
 **Request.** toddhow, 2026-11-06: "Can you get started on the Papyrus/ObScript VM; we will need ObScript support for Fallout 3 / New Vegas." ObScript is the Morrowind-style procedural script language of Oblivion, Fallout 3 and Fallout New Vegas (records `SCPT`, with source text `SCTX` and compiled `SCDA`, plus fragments in `INFO`, `QUST`, `PACK`, `TERM`, `REFR`, `PERK`). Research: `docs/research/0046-script-runtimes-papyrus-and-obscript.md`.
 
