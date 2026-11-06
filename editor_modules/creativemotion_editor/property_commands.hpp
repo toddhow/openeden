@@ -53,6 +53,47 @@ namespace creativemotion_editor
         double mNew;
         int mMergeId;
     };
+
+    /// The undo step of a cone's half angle (API 1.2 handle drag, task 0091): sets min = -half and max = +half on redo,
+    /// the old pair on undo, and marks the document dirty both ways. The drag session runs redo() and undo() as a
+    /// preview, so only the last of a drag is pushed.
+    class SetConeHalfAngleCommand final : public openeden::editor::Command
+    {
+    public:
+        SetConeHalfAngleCommand(std::string label, double* minTarget, double* maxTarget, bool* dirty, double half)
+            : mLabel(std::move(label))
+            , mMin(minTarget)
+            , mMax(maxTarget)
+            , mDirty(dirty)
+            , mOldMin(*minTarget)
+            , mOldMax(*maxTarget)
+            , mHalf(half)
+        {
+        }
+
+        std::string_view label() const override { return mLabel; }
+        void redo() override
+        {
+            *mMin = -mHalf;
+            *mMax = mHalf;
+            *mDirty = true;
+        }
+        void undo() override
+        {
+            *mMin = mOldMin;
+            *mMax = mOldMax;
+            *mDirty = true;
+        }
+
+    private:
+        std::string mLabel;
+        double* mMin;
+        double* mMax;
+        bool* mDirty;
+        double mOldMin;
+        double mOldMax;
+        double mHalf;
+    };
 }
 
 #endif

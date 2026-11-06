@@ -1,5 +1,7 @@
 #include "meshviewwidget.hpp"
 
+#include <algorithm>
+
 #include <QKeyEvent>
 #include <QMouseEvent>
 
@@ -22,6 +24,9 @@ namespace CSVRender
         constexpr int sClickTolerance = 4;
         // The way the camera looks at a new model: along +Y and down, so that it sits in front, above and to the left.
         const std::array<double, 3> sViewDirection{ 0.5, 1.0, -0.4 };
+        // How near a mouse must be to a module gizmo's handle to take it, in pixels (API 1.2 picking).
+        constexpr double sHandlePickPixels = 9.0;
+        constexpr double sDegreesToRadians = 3.14159265358979323846 / 180.0;
     }
 
     MeshViewWidget::MeshViewWidget(CSMWorld::Data& worldData, QWidget* parent)
@@ -195,14 +200,69 @@ namespace CSVRender
         return mScene && mScene->isAnimated();
     }
 
+    CSMModule::PickRay MeshViewWidget::mouseRay(const QPointF& position) const
+    {
+        const Picking::Ray ray = Picking::viewRay(getHost()->getProjectionMatrix(), getHost()->getViewMatrix(),
+            position.x() / std::max(1, width()), position.y() / std::max(1, height()));
+        return { { ray.mStart.x, ray.mStart.y, ray.mStart.z },
+            { ray.mEnd.x - ray.mStart.x, ray.mEnd.y - ray.mStart.y, ray.mEnd.z - ray.mStart.z } };
+    }
+
+    double MeshViewWidget::handlePickSlope() const
+    {
+        return CSMModule::pickSlope(sHandlePickPixels, sFieldOfView * sDegreesToRadians, height());
+    }
+
     void MeshViewWidget::mousePressEvent(QMouseEvent* event)
     {
         mPressPosition = event->pos();
+        CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+        if (mModuleAsset && modules != nullptr && getHost() != nullptr && event->button() == Qt::LeftButton)
+        {
+            // This view's module coordinates are relative to its own origin (updateModuleOverlay).
+            const float origin[3] = { 0.f, 0.f, 0.f };
+            if (modules->pressHandle(mouseRay(event->position()), handlePickSlope(), origin))
+            {
+                mHandlePressed = true;
+                event->accept();
+                return;
+            }
+        }
         SceneWidget::mousePressEvent(event);
+    }
+
+    void MeshViewWidget::mouseMoveEvent(QMouseEvent* event)
+    {
+        CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get();
+        if (mModuleAsset && modules != nullptr && getHost() != nullptr)
+        {
+            if (mHandlePressed)
+            {
+                const bool past = (event->pos() - mPressPosition).manhattanLength() > sClickTolerance;
+                modules->dragHandle(mouseRay(event->position()), past);
+                event->accept();
+                return;
+            }
+            if (event->buttons() == Qt::NoButton)
+            {
+                const float origin[3] = { 0.f, 0.f, 0.f };
+                modules->hoverHandle(mouseRay(event->position()), handlePickSlope(), origin);
+            }
+        }
+        SceneWidget::mouseMoveEvent(event);
     }
 
     void MeshViewWidget::mouseReleaseEvent(QMouseEvent* event)
     {
+        if (mHandlePressed && event->button() == Qt::LeftButton)
+        {
+            mHandlePressed = false;
+            if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+                if (getHost() != nullptr)
+                    modules->releaseHandle(mouseRay(event->position()));
+            event->accept();
+            return;
+        }
         SceneWidget::mouseReleaseEvent(event);
         if (event->button() != Qt::LeftButton || !mScene || !getHost() || width() <= 0 || height() <= 0)
             return;

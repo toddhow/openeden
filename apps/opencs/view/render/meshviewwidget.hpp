@@ -6,11 +6,13 @@
 #include <string>
 
 #include <apps/opencs/model/mesh/meshviewstate.hpp>
+#include <apps/opencs/model/module/overlaypick.hpp>
 
 #include "meshscene.hpp"
 #include "scenewidget.hpp"
 
 class QKeyEvent;
+class QPointF;
 class QMouseEvent;
 
 namespace CSVRender
@@ -66,6 +68,7 @@ namespace CSVRender
         bool isAnimated() const override;
         void mousePressEvent(QMouseEvent* event) override;
         void mouseReleaseEvent(QMouseEvent* event) override;
+        void mouseMoveEvent(QMouseEvent* event) override;
         void keyPressEvent(QKeyEvent* event) override;
 
     private:
@@ -73,11 +76,15 @@ namespace CSVRender
         void applyViewLighting();
         void showModuleAsset();
         void updateModuleOverlay();
+        /// The camera ray through a mouse position (pixels) in the world's unit.
+        CSMModule::PickRay mouseRay(const QPointF& position) const;
+        double handlePickSlope() const;
 
         std::unique_ptr<MeshScene> mScene;
         CSMMesh::MeshViewState mState;
         std::string mPendingPath;
         QPoint mPressPosition;
+        bool mHandlePressed = false; ///< The press took a module gizmo handle: the camera does not move with the mouse.
 
         bool mModuleAsset = false;
         std::unique_ptr<PhysicsDebugView> mModuleOverlay; ///< Only in a view with no model.

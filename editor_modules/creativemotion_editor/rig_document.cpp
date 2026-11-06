@@ -28,6 +28,10 @@ namespace creativemotion_editor
         constexpr int kHalfCircleSegments = 12;
         constexpr int kTwistArcSegments = 16;
         constexpr int kConeSpokeStep = 6; // spokes at rim points 0, 6, 12, 18
+        /// A drag position nearer the joint's origin than this gives no direction (meters).
+        constexpr double kMinDragDistanceM = 1.0e-6;
+        constexpr const char* kConePlaneHandle = "creativemotion.cone.plane";
+        constexpr const char* kConeNormalHandle = "creativemotion.cone.normal";
         // Merge IDs of rig properties: kMergeBase + the property's index, so edits of one property merge and no two
         // properties do.
         constexpr int kMergeBase = 0x2000;
@@ -171,12 +175,45 @@ namespace creativemotion_editor
             const opas::rig::Rig& mRig;
         };
 
+        /// A joint's frame in model space: X = twist axis, Z = plane axis, Y = Z cross X (docs/formats/rig.md).
+        struct JointFrame
+        {
+            V mOrigin;
+            opas::math::Quat mRotation;
+            V mX;
+            V mY;
+            V mZ;
+
+            /// Joint coordinates to a model space direction.
+            V direction(double dx, double dy, double dz) const
+            {
+                return opas::math::rotate(mRotation, add(add(scaled(mX, dx), scaled(mY, dy)), scaled(mZ, dz)));
+            }
+            V swingDir(double p, double n) const
+            {
+                return direction(std::cos(p) * std::cos(n), std::cos(p) * std::sin(n), -std::sin(p));
+            }
+            V pointAt(const V& dir) const { return add(mOrigin, scaled(dir, kLimitLengthM)); }
+        };
+
+        JointFrame makeFrame(const opas::rig::Joint& joint, const opas::math::Transform& world)
+        {
+            JointFrame frame;
+            frame.mOrigin = world.translation;
+            frame.mRotation = world.rotation;
+            frame.mX = joint.twistAxis;
+            frame.mZ = joint.planeAxis;
+            frame.mY = opas::math::cross(frame.mZ, frame.mX);
+            return frame;
+        }
+
         class RigLimitsGizmo final : public Gizmo
         {
         public:
-            RigLimitsGizmo(const opas::rig::Rig& rig, const std::string& selectedJoint)
+            RigLimitsGizmo(opas::rig::Rig& rig, const std::string& selectedJoint, bool& dirty)
                 : mRig(rig)
                 , mSelected(selectedJoint)
+                , mDirty(dirty)
             {
             }
 
@@ -192,21 +229,12 @@ namespace creativemotion_editor
                         continue;
                     const bool selected = joint.bone == mSelected;
                     const auto tinted = [selected](const Colour& colour) { return selected ? kHighlight : colour; };
-                    const opas::math::Transform& w = world[*bone];
-                    const V origin = w.translation;
-                    const V x = joint.twistAxis;
-                    const V z = joint.planeAxis;
-                    const V y = opas::math::cross(z, x);
-                    // Joint coordinates to model space.
-                    const auto direction = [&](double dx, double dy, double dz) -> V {
-                        return opas::math::rotate(w.rotation, add(add(scaled(x, dx), scaled(y, dy)), scaled(z, dz)));
-                    };
-                    const auto swingDir = [&](double p, double n) {
-                        return direction(std::cos(p) * std::cos(n), std::cos(p) * std::sin(n), -std::sin(p));
-                    };
-                    const auto pointAt = [&](V dir) { return add(origin, scaled(dir, kLimitLengthM)); };
+                    const JointFrame frame = makeFrame(joint, world[*bone]);
+                    const V origin = frame.mOrigin;
+                    const auto pointAt = [&](V dir) { return frame.pointAt(dir); };
+                    const auto swingDir = [&](double p, double n) { return frame.swingDir(p, n); };
 
-                    line(sink, origin, pointAt(direction(1, 0, 0)), tinted(kWhite));
+                    line(sink, origin, pointAt(frame.direction(1, 0, 0)), tinted(kWhite));
 
                     if (joint.swing == opas::rig::SwingShape::Cone)
                     {
@@ -247,7 +275,8 @@ namespace creativemotion_editor
                         const double a
                             = joint.twistMinRad + (joint.twistMaxRad - joint.twistMinRad) * i / kTwistArcSegments;
                         const V p = add(origin,
-                            scaled(direction(0, std::cos(a), std::sin(a)), kTwistArcRadiusFactor * kLimitLengthM));
+                            scaled(
+                                frame.direction(0, std::cos(a), std::sin(a)), kTwistArcRadiusFactor * kLimitLengthM));
                         if (i > 0)
                             line(sink, previous, p, tinted(kCyan));
                         previous = p;
@@ -255,9 +284,88 @@ namespace creativemotion_editor
                 }
             }
 
+            /// A click handle at every joint's origin, and for a selected cone joint the two half angle handles at the
+            /// rim points the drawing has at t = 0 and t = 90 degrees (API 1.2 picking and dragging).
+            std::vector<GizmoHandle> handles() const override
+            {
+                std::vector<GizmoHandle> result;
+                const std::vector<opas::math::Transform> world = opas::rig::computeWorldRest(mRig.skeleton);
+                for (const opas::rig::Joint& joint : mRig.joints)
+                    if (const auto bone = opas::rig::findBone(mRig.skeleton, joint.bone))
+                        result.push_back(
+                            { std::string(kJointHandlePrefix) + joint.bone, toEditor(world[*bone].translation) });
+                if (const opas::rig::Joint* cone = selectedCone())
+                    if (const auto bone = opas::rig::findBone(mRig.skeleton, cone->bone))
+                    {
+                        const JointFrame frame = makeFrame(*cone, world[*bone]);
+                        result.push_back(
+                            { kConePlaneHandle, toEditor(frame.pointAt(frame.swingDir(cone->planeSwingMaxRad, 0.0))) });
+                        result.push_back({ kConeNormalHandle,
+                            toEditor(frame.pointAt(frame.swingDir(0.0, cone->normalSwingMaxRad))) });
+                    }
+                return result;
+            }
+
+            std::unique_ptr<Command> drag(std::string_view handleId, const Vec3& newPosition) override
+            {
+                const bool plane = handleId == kConePlaneHandle;
+                if (!plane && handleId != kConeNormalHandle)
+                    return nullptr;
+                if (!std::isfinite(newPosition.x) || !std::isfinite(newPosition.y) || !std::isfinite(newPosition.z))
+                    return nullptr;
+                opas::rig::Joint* joint = selectedCone();
+                if (joint == nullptr)
+                    return nullptr;
+                const auto bone = opas::rig::findBone(mRig.skeleton, joint->bone);
+                if (!bone)
+                    return nullptr;
+                const std::vector<opas::math::Transform> world = opas::rig::computeWorldRest(mRig.skeleton);
+                const JointFrame frame = makeFrame(*joint, world[*bone]);
+                const V toPoint{ newPosition.x - frame.mOrigin.x, newPosition.y - frame.mOrigin.y,
+                    newPosition.z - frame.mOrigin.z };
+                const double distance = opas::math::length(toPoint);
+                if (!std::isfinite(distance) || !(distance > kMinDragDistanceM))
+                    return nullptr;
+                // The direction in joint coordinates (the inverse of JointFrame::direction).
+                const V local = opas::math::rotate(opas::math::conjugate(frame.mRotation), toPoint);
+                const double dx = opas::math::dot(local, frame.mX);
+                const double dy = opas::math::dot(local, frame.mY);
+                const double dz = opas::math::dot(local, frame.mZ);
+                const double angle = plane ? std::atan2(-dz, dx) : std::atan2(dy, dx);
+                const double half = std::min(std::abs(angle), kPi);
+                if (!std::isfinite(half))
+                    return nullptr;
+                // The rig that results must be valid, as for a number typed into the panel.
+                opas::rig::Rig candidate = mRig;
+                for (opas::rig::Joint& other : candidate.joints)
+                    if (other.bone == joint->bone)
+                    {
+                        (plane ? other.planeSwingMinRad : other.normalSwingMinRad) = -half;
+                        (plane ? other.planeSwingMaxRad : other.normalSwingMaxRad) = half;
+                    }
+                if (!opas::rig::validateRig(candidate).empty())
+                    return nullptr;
+                return std::make_unique<SetConeHalfAngleCommand>(
+                    std::string("Drag ") + joint->bone + (plane ? " plane half angle" : " normal half angle"),
+                    plane ? &joint->planeSwingMinRad : &joint->normalSwingMinRad,
+                    plane ? &joint->planeSwingMaxRad : &joint->normalSwingMaxRad, &mDirty, half);
+            }
+
         private:
-            const opas::rig::Rig& mRig;
+            /// The selected joint if it is a cone, else null.
+            opas::rig::Joint* selectedCone() const
+            {
+                if (mSelected.empty())
+                    return nullptr;
+                for (opas::rig::Joint& joint : mRig.joints)
+                    if (joint.bone == mSelected)
+                        return joint.swing == opas::rig::SwingShape::Cone ? &joint : nullptr;
+                return nullptr;
+            }
+
+            opas::rig::Rig& mRig; // the document's rig: a drag changes it through a command
             const std::string& mSelected;
+            bool& mDirty;
         };
 
         class RigDocument final : public AssetDocument, public PropertySource, public JointSelectable
@@ -268,7 +376,7 @@ namespace creativemotion_editor
                 , mAssetId(mPath.string())
                 , mRig(std::move(rig))
                 , mShapes(mRig)
-                , mLimits(mRig, mSelectedJoint)
+                , mLimits(mRig, mSelectedJoint, mDirty)
             {
             }
 

@@ -66,7 +66,7 @@ opencs_units (model/extension
     )
 
 opencs_units (model/module
-    moduleregistry modulehost overlaybuffer eventbus
+    moduleregistry modulehost overlaybuffer eventbus overlaypick dragsession
     )
 
 opencs_units (model/mesh

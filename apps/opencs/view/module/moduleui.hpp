@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -16,8 +17,10 @@
 #include <openeden/editor_module/types.hpp>
 
 #include <apps/opencs/model/doc/undorouting.hpp>
+#include <apps/opencs/model/module/dragsession.hpp>
 #include <apps/opencs/model/module/eventbus.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
+#include <apps/opencs/model/module/overlaypick.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 
 class QWidget;
@@ -125,6 +128,26 @@ namespace CSVModule
         /// dropped (CSMModule::OverlayBuffer). overlayLines() is this one's lines.
         CSMModule::OverlayData overlay(const float origin[3]) const;
 
+        /// Handle picking and dragging in a 3D view (API 1.2, task 0091 stage c). Rays are in the world's unit, as the
+        /// view makes them from a mouse position; \a origin is the point that module coordinates are relative to (the
+        /// one given to overlay()), \a slope the pixel tolerance as CSMModule::pickSlope. The press either takes a
+        /// handle (true: the view must not start a camera drag) or leaves the mouse to the view.
+        bool pressHandle(const CSMModule::PickRay& ray, double slope, const float origin[3]);
+        /// A move with the button down: the first one past the click tolerance starts the drag, then each moves the
+        /// preview. Does nothing without a pressed handle.
+        void dragHandle(const CSMModule::PickRay& ray, bool pastClickTolerance);
+        /// The release: ends a drag with ONE command pushed on the module undo stack, or, if the mouse never moved
+        /// past the tolerance, selects the handle ({"handle", id} on the bus). \return whether a handle was pressed.
+        bool releaseHandle(const CSMModule::PickRay& ray);
+        /// Undoes any preview and forgets the press.
+        void cancelHandle();
+        /// Highlights the handle under a mouse that moves with no button down (nothing hit clears it). \return whether
+        /// the highlighted handle changed (the view then draws again).
+        bool hoverHandle(const CSMModule::PickRay& ray, double slope, const float origin[3]);
+        /// The id of the handle that is pressed or highlighted, or empty.
+        std::string highlightedHandle() const { return mHighlightId; }
+        bool isDraggingHandle() const { return mDrag != nullptr; }
+
         /// The keys of every track of the active asset and of the registered providers: (track title, key).
         std::vector<std::pair<std::string, openeden::editor::TimelineKey>> timelineKeys() const;
 
@@ -145,6 +168,20 @@ namespace CSVModule
     private:
         class UndoCommand;
 
+        struct HandleRef
+        {
+            openeden::editor::Gizmo* mGizmo = nullptr;
+            std::string mId;
+            openeden::editor::Vec3 mPosition; ///< Meters.
+        };
+
+        std::vector<openeden::editor::Gizmo*> activeGizmos() const;
+        std::vector<HandleRef> collectHandles() const;
+        std::optional<HandleRef> pickHandle(const CSMModule::PickRay& metersRay, double slopeMeters) const;
+        CSMModule::PickRay toMeters(const CSMModule::PickRay& worldRay, const float origin[3]) const;
+        void setHighlight(const std::string& id, const openeden::editor::Vec3& position);
+        void drawHighlight(CSMModule::OverlayBuffer& sink) const;
+
         CSMModule::ModuleRegistry& mRegistry;
         std::function<CSMDoc::Document*()> mDocumentProvider;
         std::unique_ptr<openeden::editor::AssetDocument> mActive;
@@ -163,6 +200,12 @@ namespace CSVModule
         std::vector<QPointer<QUndoStack>> mStacks;
         std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used
         QUndoStack mOwnStack; // used when there is no document
+        std::optional<HandleRef> mPressed; ///< The handle under the button.
+        CSMModule::PickRay mPressRay; ///< Meters.
+        std::unique_ptr<CSMModule::DragSession> mDrag;
+        float mViewOrigin[3] = { 0.f, 0.f, 0.f };
+        std::string mHighlightId;
+        openeden::editor::Vec3 mHighlightPosition;
         CSMModule::SelectionModel mSelection; // after mRegistry: it publishes on the registry's bus
         static ModuleUi* sInstance;
     };

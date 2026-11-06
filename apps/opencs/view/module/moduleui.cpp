@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -377,6 +378,8 @@ namespace CSVModule
             return nullptr;
         }
         mOpenError.clear();
+        cancelHandle(); // a drag belongs to the old asset's gizmo
+        mHighlightId.clear();
         const auto* type = mRegistry.findAssetType(path);
         mActiveFormat = type != nullptr ? type->mDesc.formatId : std::string();
         mActiveOwner = type != nullptr ? type->mModule : std::string();
@@ -412,6 +415,8 @@ namespace CSVModule
 
     void ModuleUi::releaseModuleObjects()
     {
+        cancelHandle();
+        mHighlightId.clear();
         mSelection.clear();
         mAssetToken.reset();
         ++mGeneration;
@@ -455,9 +460,8 @@ namespace CSVModule
         return overlay(origin).mLines;
     }
 
-    CSMModule::OverlayData ModuleUi::overlay(const float origin[3]) const
+    std::vector<Gizmo*> ModuleUi::activeGizmos() const
     {
-        CSMModule::OverlayBuffer sink(origin, CSMPhysics::StudioWorld::sUnitsPerMeter);
         std::vector<Gizmo*> gizmos;
         if (mActive)
             gizmos = mActive->gizmos();
@@ -465,9 +469,196 @@ namespace CSVModule
             if (CSMModule::ModuleRegistry::appliesTo(provider.mModule, mActiveOwner))
                 for (Gizmo* gizmo : mRegistry.gizmosOf(provider.mDesc.id))
                     gizmos.push_back(gizmo);
-        // A gizmo may appear twice (the sample's provider returns the active asset's own): draw each once.
-        std::sort(gizmos.begin(), gizmos.end());
-        gizmos.erase(std::unique(gizmos.begin(), gizmos.end()), gizmos.end());
+        // A gizmo may appear twice (the sample's provider returns the active asset's own): use each once, in the order
+        // the modules gave them (a pick must not depend on addresses).
+        std::vector<Gizmo*> unique;
+        for (Gizmo* gizmo : gizmos)
+            if (std::find(unique.begin(), unique.end(), gizmo) == unique.end())
+                unique.push_back(gizmo);
+        return unique;
+    }
+
+    std::vector<ModuleUi::HandleRef> ModuleUi::collectHandles() const
+    {
+        std::vector<HandleRef> handles;
+        for (Gizmo* gizmo : activeGizmos())
+        {
+            try
+            {
+                for (const GizmoHandle& handle : gizmo->handles())
+                    handles.push_back({ gizmo, handle.id, handle.position });
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "A gizmo failed to list its handles: " << e.what();
+            }
+        }
+        return handles;
+    }
+
+    CSMModule::PickRay ModuleUi::toMeters(const CSMModule::PickRay& worldRay, const float origin[3]) const
+    {
+        // The inverse of OverlayBuffer::convert: the one place where world units become meters again.
+        const double unitsPerMeter = CSMPhysics::StudioWorld::sUnitsPerMeter;
+        CSMModule::PickRay ray;
+        ray.mOrigin = { (worldRay.mOrigin.x - origin[0]) / unitsPerMeter,
+            (worldRay.mOrigin.y - origin[1]) / unitsPerMeter, (worldRay.mOrigin.z - origin[2]) / unitsPerMeter };
+        ray.mDirection = worldRay.mDirection; // a direction has no unit
+        return ray;
+    }
+
+    std::optional<ModuleUi::HandleRef> ModuleUi::pickHandle(const CSMModule::PickRay& metersRay, double slope) const
+    {
+        const std::vector<HandleRef> handles = collectHandles();
+        std::vector<CSMModule::PickItem> items;
+        items.reserve(handles.size());
+        for (const HandleRef& handle : handles)
+        {
+            CSMModule::PickItem item;
+            item.mKind = CSMModule::PickItem::Kind::Point;
+            item.mA = handle.mPosition;
+            items.push_back(item);
+        }
+        // The slope is per unit of distance, so it is the same in meters and in world units.
+        if (const auto hit = CSMModule::pickNearest(metersRay, items, slope))
+            return handles[hit->mIndex];
+        return std::nullopt;
+    }
+
+    void ModuleUi::setHighlight(const std::string& id, const Vec3& position)
+    {
+        mHighlightId = id;
+        mHighlightPosition = position;
+    }
+
+    void ModuleUi::drawHighlight(CSMModule::OverlayBuffer& sink) const
+    {
+        if (mHighlightId.empty())
+            return;
+        // A small yellow box round the handle, drawn by Studio (a module does not draw its own pick feedback).
+        constexpr double cHalfM = 0.012;
+        constexpr Colour cYellow{ 1.f, 0.95f, 0.1f, 1.f };
+        const Vec3& c = mHighlightPosition;
+        const auto corner = [&](int i) {
+            return Vec3{ c.x + ((i & 1) ? cHalfM : -cHalfM), c.y + ((i & 2) ? cHalfM : -cHalfM),
+                c.z + ((i & 4) ? cHalfM : -cHalfM) };
+        };
+        for (int i = 0; i < 8; ++i)
+            for (int bit = 1; bit <= 4; bit <<= 1)
+                if ((i & bit) == 0)
+                    sink.line(corner(i), corner(i | bit), cYellow);
+    }
+
+    bool ModuleUi::pressHandle(const CSMModule::PickRay& ray, double slope, const float origin[3])
+    {
+        cancelHandle();
+        std::copy(origin, origin + 3, mViewOrigin);
+        const CSMModule::PickRay meters = toMeters(ray, origin);
+        const std::optional<HandleRef> hit = pickHandle(meters, slope);
+        if (!hit)
+            return false;
+        mPressed = hit;
+        mPressRay = meters;
+        setHighlight(hit->mId, hit->mPosition);
+        emit changed();
+        return true;
+    }
+
+    void ModuleUi::dragHandle(const CSMModule::PickRay& ray, bool pastClickTolerance)
+    {
+        if (!mPressed || !pastClickTolerance)
+            return;
+        const CSMModule::PickRay meters = toMeters(ray, mViewOrigin);
+        try
+        {
+            if (!mDrag)
+            {
+                mDrag = std::make_unique<CSMModule::DragSession>(
+                    *mPressed->mGizmo, mPressed->mId, mPressed->mPosition, mPressRay);
+                if (!mDrag->valid())
+                {
+                    mDrag.reset();
+                    return;
+                }
+            }
+            if (mDrag->update(meters))
+            {
+                setHighlight(mPressed->mId, mDrag->position());
+                emit changed();
+            }
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "A gizmo handle drag failed: " << e.what();
+            mDrag.reset();
+            mPressed.reset();
+        }
+    }
+
+    bool ModuleUi::releaseHandle(const CSMModule::PickRay& ray)
+    {
+        if (!mPressed)
+            return false;
+        const HandleRef pressed = *mPressed;
+        mPressed.reset();
+        std::unique_ptr<Command> command;
+        const bool wasDragging = mDrag != nullptr;
+        try
+        {
+            if (mDrag)
+            {
+                mDrag->update(toMeters(ray, mViewOrigin));
+                command = mDrag->finish();
+            }
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "A gizmo handle drag failed: " << e.what();
+        }
+        mDrag.reset();
+        if (command)
+            pushCommand(std::move(command)); // one step for the whole drag
+        else if (!wasDragging)
+            select({ "handle", pressed.mId }); // a click
+        emit changed();
+        return true;
+    }
+
+    void ModuleUi::cancelHandle()
+    {
+        if (mDrag)
+        {
+            try
+            {
+                mDrag->cancel();
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "A gizmo handle drag could not be cancelled: " << e.what();
+            }
+            mDrag.reset();
+        }
+        mPressed.reset();
+    }
+
+    bool ModuleUi::hoverHandle(const CSMModule::PickRay& ray, double slope, const float origin[3])
+    {
+        if (mPressed)
+            return false;
+        std::copy(origin, origin + 3, mViewOrigin);
+        const std::optional<HandleRef> hit = pickHandle(toMeters(ray, origin), slope);
+        const std::string id = hit ? hit->mId : std::string();
+        if (id == mHighlightId)
+            return false;
+        setHighlight(id, hit ? hit->mPosition : Vec3());
+        emit changed();
+        return true;
+    }
+
+    CSMModule::OverlayData ModuleUi::overlay(const float origin[3]) const
+    {
+        CSMModule::OverlayBuffer sink(origin, CSMPhysics::StudioWorld::sUnitsPerMeter);
+        const std::vector<Gizmo*> gizmos = activeGizmos();
         for (Gizmo* gizmo : gizmos)
         {
             try
@@ -479,6 +670,7 @@ namespace CSVModule
                 Log(Debug::Error) << "A gizmo failed to draw: " << e.what();
             }
         }
+        drawHighlight(sink);
         CSMModule::OverlayData data = sink.take();
         if (data.mRefused > 0 || data.mDropped > 0)
             Log(Debug::Warning) << "An editor module's overlay: " << data.mRefused

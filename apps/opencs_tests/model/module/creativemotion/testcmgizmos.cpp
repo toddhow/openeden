@@ -201,7 +201,7 @@ namespace CMTest
             EXPECT_EQ(gizmos[1]->id(), "creativemotion.rig.limits");
             for (Gizmo* gizmo : gizmos)
             {
-                EXPECT_TRUE(gizmo->handles().empty());
+                EXPECT_EQ(gizmo->handles().size(), gizmo == gizmos[1] ? 3u : 0u); // API 1.2: a click handle per joint, 3 joints
                 EXPECT_EQ(gizmo->drag("anything", edit::Vec3{ 1.0, 2.0, 3.0 }), nullptr);
             }
         }
