@@ -28,8 +28,8 @@ import lib.material.pbr;
 #include "lib/material/cover.slang"
 #endif
 #include "terrain/bindings.slang"
-#include "terrain/data.slang"
-#include "terrain/inout.slang"
+import terrain.data;
+import terrain.inout;
 import lib.view.dither;
 
 // Task 0087: the batch's uniform, as terrain.vert.slang declares it; the fragment stage reads only the fade.
@@ -51,9 +51,9 @@ static const uint PARALLAX_FLAG = 1u << 16;
 static const uint SPECULAR_FLAG = 1u << 17;
 import lib.view.screencoord;
 #ifdef POINT_SHADOW
-#include "lib/light/pointshadow.slang"
+import lib.light.pointshadow;
 #endif
-#include "lib/light/pixellighting.slang"
+import lib.light.pixellighting;
 #ifdef PARALLAX_POM
 // Task 0045: the layers' `_p` height files and per layer its array index (x) and depth (y); pomLayer is the array
 // layer the height function reads.
@@ -80,7 +80,7 @@ static const uint MATERIAL_SHIFT = 20u;
 static const uint NO_MATERIAL_MAP = 0xfffu;
 [[vk::binding(MATERIAL_LAYER_BINDING, TEXTURE_SET)]] Sampler2DArray materialLayers;
 [[vk::binding(LAYER_SCALES_BINDING, TEXTURE_SET)]] StructuredBuffer<float4> layerScales;
-#include "lib/light/pbrlighting.slang"
+import lib.light.pbrlighting;
 #endif
 #endif
 

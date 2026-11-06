@@ -6,6 +6,9 @@
 import lib.light.equations;
 import lib.light.pointlights;
 import lib.light.select;
+#ifdef POINT_SHADOW
+import lib.light.pointshadow;
+#endif
 
 // OpenMW's calcSpecIntensity.
 float specularIntensity(float3 viewNormal, float3 viewDir, float shininess, float3 lightDir)

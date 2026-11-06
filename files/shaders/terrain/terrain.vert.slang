@@ -10,8 +10,8 @@ import lib.view.scene;
 import lib.view.screencoord;
 import lib.light.pointdiffuse;
 #include "terrain/bindings.slang"
-#include "terrain/data.slang"
-#include "terrain/inout.slang"
+import terrain.data;
+import terrain.inout;
 
 [[vk::binding(HEIGHTMAP_BINDING, TEXTURE_SET)]] Sampler2D heightMap;
 [[vk::binding(NORMALMAP_BINDING, TEXTURE_SET)]] Sampler2D normalMap;

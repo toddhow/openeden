@@ -70,11 +70,11 @@ import lib.light.directional;
 #ifdef PER_PIXEL_LIGHTING
 import lib.view.screencoord;
 #ifdef POINT_SHADOW
-#include "lib/light/pointshadow.slang"
+import lib.light.pointshadow;
 #endif
-#include "lib/light/pixellighting.slang"
+import lib.light.pixellighting;
 #ifdef PBR_LIT
-#include "lib/light/pbrlighting.slang"
+import lib.light.pbrlighting;
 #endif
 #endif
 #ifdef PRECIPITATION_LIT

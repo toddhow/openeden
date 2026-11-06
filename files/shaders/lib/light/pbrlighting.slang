@@ -3,6 +3,14 @@
 #ifndef LIB_LIGHT_PBRLIGHTING_SLANG
 #define LIB_LIGHT_PBRLIGHTING_SLANG
 
+import lib.light.equations;
+import lib.light.pointlights;
+import lib.material.pbr;
+import lib.light.select;
+#ifdef POINT_SHADOW
+import lib.light.pointshadow;
+#endif
+
 void pbrPointLights(float2 screenCoord, float3 normal, float3 viewPos, float roughness, float3 f0, out float3 diffuse,
     out float3 specular)
 {
