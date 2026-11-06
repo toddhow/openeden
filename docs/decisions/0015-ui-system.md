@@ -1,0 +1,42 @@
+# 0015 — A UI system to replace MyGUI: components in Lua, style sheets for looks, one backend behind a small protocol
+
+Date: 2026-11-06 · Proposed by: Claude (at toddhow's request) · **Status: DRAFT, awaiting toddhow's signature.** Nothing is built, no dependency is added, no file moves.
+
+Background and evidence: `docs/research/0045-ui-system.md` (items marked RECALLED-VERIFY there are not checked). Builds on decisions 0002 (one renderer, Vulkan on VSG), 0003 and 0014 (one sandboxed Lua host; game packs register function descriptors under `core.<game>.*`) and 0013 (game packs).
+
+## toddhow's answers (2026-11-06), as given
+1. In the end MyGUI is completely replaced; Morrowind's windows migrate last.
+2. CSS-like style sheets are only for styling elements. The UI is built from a set of base components (like React or Roblox's Fusion: declarative, composed from small components, reactive state and values, computed values, children), styled by default to match the vanilla look of each game, and the components are called from the Lua API. A game pack ships style sheets and theme tokens, component definitions or documents, fonts and art as VFS data, plus Lua that wires them to game state through its `core.<game>.*` namespace.
+3. Controller navigation can wait, but the focus model must make it possible later.
+4. Later, UI must also render into the 3D world (terminals, in-world screens): render to a texture and route input to it.
+SWF is never loaded.
+
+## Decision (proposed)
+1. **Components and reactivity live in OpenEden's own Lua library** (`openeden.ui`, core-owned, game-neutral): base layout containers, content, controls, collections and overlays (research note 6.1), and a fine-grained reactive model (`Value`, `Computed`, `Effect`, scopes, keyed list mapping; note 6.2). Packs supply themes, documents and wiring, not components' behaviour.
+2. **Style sheets style only.** Appearance (colours, fonts, spacing, nine-slice art, transitions, state looks, scale and accessibility variants) is in style sheets with theme tokens, loaded from the VFS with later data winning, so a mod reskins by replacing a sheet or tokens, or overrides one component by registering a replacement.
+3. **One backend behind a small element protocol.** The library talks to an engine-independent element protocol (create, set property, parent, class/state, events, layout box query, focus). The first backend is **RmlUi** (MIT; research note 4.2), used for layout, RCSS styling and rendering through a VSG render interface; **its Lua plugin and data binding are not used**, so there is one Lua state and one reactive system. The fallback backend, if the spike fails, is a custom C++ engine (Yoga for flexbox, our own text), behind the same protocol.
+4. **The choice of RmlUi is conditional on a throwaway spike (U0)** that answers the unknowns: a Vulkan/VSG render interface with acceptable draw calls and no per-frame allocation, bitmap (`.omwfont`) and TrueType text, a context drawn into an offscreen image and sampled in the 3D scene with input routed by UV, and mouse/IME input. A "no" sends the work to the custom engine.
+5. **Focus model:** a focus tree with navigation events (up/down/left/right/accept/back) is part of the base components from the start; gamepad becomes another source of those events later. Viewport and scale belong to a context, never a global, so several contexts (the screen, world surfaces, the editor preview) can exist.
+6. **Coexistence with MyGUI** is by fixed draw bands in the GUI graph and one input arbiter (topmost hit decides; one keyboard focus owner; one cursor), not free interleaving. OpenMW's Lua UI keeps working on MyGUI until the Morrowind stage, then `lua_ui` is re-implemented over the new system so existing mods survive.
+7. **First client:** the Skyrim SE game pack's UI (it has none), after the game-pack tier exists; the Morrowind windows migrate last, then MyGUI and its glue are deleted.
+8. **Text:** UTF-8, TrueType and bitmap fonts, font fallback, ICU-based line breaking (to be verified in the build), all strings through the YAML localisation system. Right-to-left and complex shaping are **not promised**; the text engine stays replaceable (a HarfBuzz and bidi layer can be added).
+9. **UI state is not save data.** Window positions and similar preferences go in settings; a game pack may keep game state in its own save chunk (decision 0013).
+
+## Why this shape
+- It meets all four answers: complete replacement (1), looks in data and structure in Lua components (2), a focus model that can take a gamepad (3), and a context design that allows offscreen rendering (4).
+- RmlUi already offers style sheets with custom properties, flexbox, animations, a replaceable font engine and a render interface close to VSG's needs, under MIT; the unknowns are exactly what a spike can settle cheaply.
+- Keeping reactivity and the Lua binding in our layer keeps decisions 0003 and 0014 intact (one sandboxed Lua host, no foreign Lua state) and makes the backend replaceable.
+
+## Alternatives considered
+- **Lua component layer over the existing MyGUI-based Lua UI:** rejected as the end state (MyGUI stays; no render to texture; no real style cascade). Acceptable as a staging device because the component library is written against the element protocol.
+- **A fully custom C++ UI engine from the start:** rejected as the first move (largest cost, the owner is learning C++); kept as the fallback and for parts RmlUi does badly (font engine first).
+- **RmlUi with its own Lua plugin and data binding:** rejected (second Lua state against decisions 0003 and 0014; reactivity would live in RmlUi's model and not be portable).
+- **Qt Quick:** rejected for the game (a second toolkit and scene graph in the engine, JavaScript instead of Lua, Qt deployment). Not evaluated beyond that.
+- **Dear ImGui as the game UI:** rejected (immediate mode, restricted skinning, no text beyond Latin-style shaping; its own FAQ says it is built for debug tools). It may be considered later for developer overlays, a separate decision.
+- **Proprietary middleware (Scaleform and similar) and SWF:** excluded by the guardrail and by toddhow.
+
+## What this decision does not do
+It builds nothing and adds no dependency (RmlUi's licence and pinned version would be recorded in `docs/dependencies.md` when it is adopted, after the spike). It does not fix the Lua API (the research note's sketch is illustrative), does not choose the document format (recommended: Lua tables first), does not promise RTL, gamepad support or world surfaces on any date, and does not change MyGUI or the Lua UI until the migration stages. Each stage (U0 to U7 in the note) is a separate task spec that toddhow approves.
+
+## Open questions for toddhow
+See research note 0045 section 11: the spike approval (recommend yes), Lua tables versus a markup file (tables first), accepting the element protocol (yes), the library as a core feature (yes), RTL (not now), ImGui for developer tools (not now), compatibility of existing Lua UI mods (keep), scheduling relative to Track V and the game-pack stages (after both), and art for default looks coming from the player's installed data (confirm).
