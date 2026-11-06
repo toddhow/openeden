@@ -141,6 +141,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptcompile.cpp
     script_obscript/testobscriptbudget.cpp
     script_obscript/testobscriptsave.cpp
+    script_obscript/testobscriptlogic.cpp
     script_obscript/testobscriptrealdata.cpp
 
     nif/node.hpp
