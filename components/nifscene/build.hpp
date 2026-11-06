@@ -3,7 +3,6 @@
 
 #include <components/files/istreamptr.hpp>
 #include <components/nif/niffile.hpp>
-#include <components/vfs/pathutil.hpp>
 
 #include "scene.hpp"
 

@@ -87,7 +87,7 @@ target_compile_definitions(eden-studio-tests PRIVATE
 # definitions of openeden::editor::Gizmo never meet in one executable. The tests load them by path.
 foreach(old_api 1_0 1_1)
     set(old_target sample_editor_module_api${old_api})
-    add_library(${old_target} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/sample_note_module_old.cpp)
+    add_library(${old_target} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/samplenotemoduleold.cpp)
     target_compile_features(${old_target} PRIVATE cxx_std_20)
     target_include_directories(${old_target} BEFORE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/api${old_api})
     target_link_libraries(${old_target} PRIVATE nlohmann_json::nlohmann_json)
