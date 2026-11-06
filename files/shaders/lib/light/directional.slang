@@ -3,7 +3,7 @@
 #ifndef LIB_LIGHT_DIRECTIONAL_SLANG
 #define LIB_LIGHT_DIRECTIONAL_SLANG
 
-#include "lib/light/equations.slang"
+import lib.light.equations;
 
 float3 directionalDiffuse(float3 viewNormal)
 {

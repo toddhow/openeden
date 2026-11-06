@@ -10,6 +10,10 @@
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
 
+import lib.view.fogsettings;
+import lib.view.linear;
+import lib.view.scene;
+
 [[vk::binding(VIEW_VOLUME_BINDING, VIEW_SET)]] Sampler3D volumeFog;
 
 struct VolumeParams

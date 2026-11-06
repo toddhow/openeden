@@ -3,8 +3,8 @@
 #ifndef LIB_LIGHT_PIXELLIGHTING_SLANG
 #define LIB_LIGHT_PIXELLIGHTING_SLANG
 
-#include "lib/light/equations.slang"
-#include "lib/light/pointlights.slang"
+import lib.light.equations;
+import lib.light.pointlights;
 #include "lib/light/select.slang"
 
 // OpenMW's calcSpecIntensity.

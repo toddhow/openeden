@@ -2,9 +2,9 @@
 // It must declare what the GLSL declares (checked by SlangPermutations); neither stage imports a define. The
 // fog.settings values come as specialization constants (lib/view/fogsettings.slang).
 #include "lib/pushconstants.slang"
-#include "lib/view/fog.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/scene.slang"
+import lib.view.fog;
+import lib.view.linear;
+import lib.view.scene;
 
 struct VertexInput
 {

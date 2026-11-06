@@ -9,10 +9,10 @@ import glsl;
 static const int colorMode = 2;
 
 #include "lib/sets.slang"
-#include "lib/view/scene.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/fog.slang"
-#include "lib/view/shadow.slang"
+import lib.view.scene;
+import lib.view.linear;
+import lib.view.fog;
+import lib.view.shadow;
 #include "lib/light/directional.slang"
 #include "lib/material/terms.slang"
 #ifdef GI_SKY
@@ -30,7 +30,7 @@ static const int colorMode = 2;
 #include "terrain/bindings.slang"
 #include "terrain/data.slang"
 #include "terrain/inout.slang"
-#include "lib/view/dither.slang"
+import lib.view.dither;
 
 // Task 0087: the batch's uniform, as terrain.vert.slang declares it; the fragment stage reads only the fade.
 [[vk::binding(BATCH_DATA_BINDING, TEXTURE_SET)]] ConstantBuffer<Data> data;
@@ -49,9 +49,9 @@ static const int colorMode = 2;
 static const uint NO_NORMAL_MAP = 0xffffu;
 static const uint PARALLAX_FLAG = 1u << 16;
 static const uint SPECULAR_FLAG = 1u << 17;
-#include "lib/view/screencoord.slang"
+import lib.view.screencoord;
 #ifdef POINT_SHADOW
-#include "lib/light/pointshadow.slang"
+import lib.light.pointshadow;
 #endif
 #include "lib/light/pixellighting.slang"
 #ifdef PARALLAX_POM

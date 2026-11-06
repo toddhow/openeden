@@ -13,8 +13,8 @@
 #endif
 #include "lib/material/descriptors_frag.slang"
 #include "lib/pushconstants.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/scene.slang"
+import lib.view.linear;
+import lib.view.scene;
 
 struct VertexOutput
 {

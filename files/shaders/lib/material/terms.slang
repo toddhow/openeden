@@ -16,7 +16,7 @@
 #define LIB_MATERIAL_TERMS_SLANG
 
 #include "lib/material/materialsettings.slang"
-#include "lib/view/linear.slang"
+import lib.view.linear;
 
 float4 getDiffuse(float4 vertexColor)
 {

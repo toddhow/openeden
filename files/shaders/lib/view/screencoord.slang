@@ -2,7 +2,7 @@
 #ifndef LIB_VIEW_SCREENCOORD_SLANG
 #define LIB_VIEW_SCREENCOORD_SLANG
 
-#include "lib/math/projection.slang"
+import lib.math.projection;
 
 float2 clipPosToScreenCoord(float4 clipPos)
 {

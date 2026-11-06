@@ -3,8 +3,8 @@
 #ifndef LIB_LIGHT_EQUATIONS_SLANG
 #define LIB_LIGHT_EQUATIONS_SLANG
 
-#include "lib/light/lightsettings.slang"
-#include "lib/util/quickstep.slang"
+import lib.light.lightsettings;
+import lib.util.quickstep;
 
 float lambert(float3 light, float3 normal)
 {

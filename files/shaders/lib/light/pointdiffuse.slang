@@ -3,8 +3,8 @@
 #ifndef LIB_LIGHT_POINTDIFFUSE_SLANG
 #define LIB_LIGHT_POINTDIFFUSE_SLANG
 
-#include "lib/light/equations.slang"
-#include "lib/light/pointlights.slang"
+import lib.light.equations;
+import lib.light.pointlights;
 #include "lib/light/select.slang"
 
 float3 pointLightDiffuse(float2 screenCoord, float3 viewNormal, float3 viewPos)

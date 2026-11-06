@@ -38,9 +38,9 @@
 #ifndef LIB_VIEW_RAYTRACE_SLANG
 #define LIB_VIEW_RAYTRACE_SLANG
 
-#include "lib/math/distance.slang"
-#include "lib/math/projection.slang"
-#include "lib/view/depthbuffer.slang"
+import lib.math.distance;
+import lib.math.projection;
+import lib.view.depthbuffer;
 
 void swapFloats(inout float a, inout float b)
 {

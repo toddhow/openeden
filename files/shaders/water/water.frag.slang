@@ -8,12 +8,12 @@ import glsl;
 #include "lib/inout.slang"
 #include "lib/light/pointspecular.slang"
 #include "lib/material/descriptors_frag.slang"
-#include "lib/view/fog.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/reflect.slang"
-#include "lib/view/scene.slang"
-#include "lib/view/screencoord.slang"
-#include "lib/view/shadow.slang"
+import lib.view.fog;
+import lib.view.linear;
+import lib.view.reflect;
+import lib.view.scene;
+import lib.view.screencoord;
+import lib.view.shadow;
 #include "water/fresnel.slang"
 #include "water/rainripples.slang"
 

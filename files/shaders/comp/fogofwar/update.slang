@@ -2,7 +2,7 @@
 // must declare what the GLSL declares, the local size included (checked by SlangPermutations). The work group size and
 // the constants are those of comp/fogofwar/workgroupsize.glsl and constants.glsl; change them together (the C++ side
 // dispatches by the work group size).
-#include "lib/math/distance.slang"
+import lib.math.distance;
 #include "lib/sets.slang"
 
 static const int workGroupSize = 8;

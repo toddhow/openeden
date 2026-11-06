@@ -4,7 +4,7 @@
 #include "lib/attributes.slang"
 #include "lib/material/descriptors_vert.slang"
 #include "lib/pushconstants.slang"
-#include "lib/view/scene.slang"
+import lib.view.scene;
 #include "sky/clouds/inout.slang"
 
 struct VertexOutput

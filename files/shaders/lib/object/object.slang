@@ -3,7 +3,7 @@
 #ifndef LIB_OBJECT_OBJECT_SLANG
 #define LIB_OBJECT_OBJECT_SLANG
 
-#include "lib/object/data.slang"
+import lib.object.data;
 #include "lib/sets.slang"
 
 [[vk::binding(0, OBJECT_SET)]] ConstantBuffer<Object> object;

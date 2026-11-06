@@ -4,7 +4,7 @@
 #define LIB_MATERIAL_DESCRIPTORS_FRAG_SLANG
 
 #include "lib/material/bindings.slang"
-#include "lib/material/data.slang"
+import lib.material.data;
 #include "lib/sets.slang"
 
 #ifdef DIFFUSE_MAP

@@ -4,7 +4,7 @@
 
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
-#include "lib/view/data.slang"
+import lib.view.data;
 
 [[vk::binding(VIEW_SCENE_BINDING, VIEW_SET)]] ConstantBuffer<Scene> scene;
 

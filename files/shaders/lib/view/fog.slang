@@ -9,9 +9,10 @@
 #ifndef LIB_VIEW_FOG_SLANG
 #define LIB_VIEW_FOG_SLANG
 
-#include "lib/view/fogsettings.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/volume.slang"
+__exported import lib.view.fogsettings;
+import lib.view.scene;
+import lib.view.linear;
+import lib.view.volume;
 
 static const float sunGlowAnisotropy = 0.7;
 static const float sunGlowGain = 0.06;

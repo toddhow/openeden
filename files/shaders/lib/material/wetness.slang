@@ -5,7 +5,7 @@
 #define LIB_MATERIAL_WETNESS_SLANG
 
 #ifdef GI_SKY
-#include "lib/view/reflection.slang"
+import lib.view.reflection;
 #endif
 
 static const float wetMaxDarkening = 0.45;

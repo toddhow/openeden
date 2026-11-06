@@ -2,13 +2,14 @@
 // defines). It must declare what the GLSL declares, the local size included (checked by SlangPermutations). The work
 // group size is that of comp/light/workgroupsize.glsl, which components/view/lightgrid.cpp includes to dispatch;
 // change both together. STORAGE_ARGS_BINDING is that of comp/bindings.glsl.
-#include "lib/light/equations.slang"
-#include "lib/light/grid.slang"
-#include "lib/light/maxlights.slang"
-#include "lib/light/pointlights.slang"
+import lib.light.equations;
+import lib.light.grid;
+import lib.light.maxlights;
+import lib.light.pointlights;
 #include "lib/sets.slang"
-#include "lib/view/scene.slang"
-#include "lib/view/screencoord.slang"
+#include "lib/view/bindings.slang"
+import lib.view.scene;
+import lib.view.screencoord;
 
 static const int workGroupSizeX = 8;
 static const int workGroupSizeY = 4;

@@ -6,6 +6,7 @@
 
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
+import lib.view.scene;
 #include "lib/view/raytrace.slang"
 
 [[vk::binding(VIEW_REFLECT_MAP_BINDING, VIEW_SET)]] Sampler2D reflectMap;

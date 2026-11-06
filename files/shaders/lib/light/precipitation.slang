@@ -4,10 +4,10 @@
 #ifndef LIB_LIGHT_PRECIPITATION_SLANG
 #define LIB_LIGHT_PRECIPITATION_SLANG
 
-#include "lib/light/equations.slang"
-#include "lib/light/pointlights.slang"
+import lib.light.equations;
+import lib.light.pointlights;
 #include "lib/light/select.slang"
-#include "lib/view/screencoord.slang"
+import lib.view.screencoord;
 
 static const float precipAmbientShare = 0.9;
 static const float precipPointShare = 0.6;

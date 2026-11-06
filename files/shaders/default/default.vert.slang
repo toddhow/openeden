@@ -8,8 +8,8 @@ import glsl;
 
 #include "lib/pushconstants.slang"
 #include "lib/material/descriptors_vert.slang"
-#include "lib/view/scene.slang"
-#include "lib/view/screencoord.slang"
+import lib.view.scene;
+import lib.view.screencoord;
 #include "lib/light/pointdiffuse.slang"
 
 [[vk::constant_id(START_UVSET_CONSTANTS + TEXMAT_BINDING)]] const int texmatUv = 0;
@@ -22,12 +22,12 @@ import glsl;
 #endif
 
 #ifdef PARTICLE
-#include "lib/particle/data.slang"
+import lib.particle.data;
 [[vk::binding(PARTICLE_BINDING, TEXTURE_SET)]] StructuredBuffer<Particle> particles;
 #endif
 
 #ifdef BILLBOARD
-#include "lib/math/billboard.slang"
+import lib.math.billboard;
 #endif
 
 #ifdef INSTANCE

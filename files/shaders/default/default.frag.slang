@@ -8,6 +8,9 @@
 // lerp, .st .xy; gl_SampleMask[0] is the SV_Coverage output.
 import glsl;
 
+#include "lib/sets.slang"
+#include "lib/view/bindings.slang"
+
 #include "lib/material/descriptors_frag.slang"
 
 [[vk::constant_id(1)]] const int alphaTestMode = 0;
@@ -37,12 +40,12 @@ import glsl;
 #define COVER_LIT 1
 #endif
 
-#include "lib/view/scene.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/env.slang"
-#include "lib/view/fog.slang"
-#include "lib/view/shadow.slang"
-#include "lib/view/dither.slang"
+import lib.view.scene;
+import lib.view.linear;
+import lib.view.env;
+import lib.view.fog;
+import lib.view.shadow;
+import lib.view.dither;
 #include "lib/object/object.slang"
 #include "lib/material/alphatest.slang"
 #include "lib/material/terms.slang"
@@ -50,8 +53,8 @@ import glsl;
 #include "lib/material/pbr.slang"
 #endif
 #ifdef GI
-#include "lib/view/gi.slang"
-#include "lib/view/reflection.slang"
+import lib.view.gi;
+import lib.view.reflection;
 #ifdef GI_SKY
 #include "lib/view/skyvis.slang"
 #endif
@@ -64,9 +67,9 @@ import glsl;
 #endif
 #include "lib/light/directional.slang"
 #ifdef PER_PIXEL_LIGHTING
-#include "lib/view/screencoord.slang"
+import lib.view.screencoord;
 #ifdef POINT_SHADOW
-#include "lib/light/pointshadow.slang"
+import lib.light.pointshadow;
 #endif
 #include "lib/light/pixellighting.slang"
 #ifdef PBR_LIT
@@ -104,11 +107,13 @@ float2 pomTextureSize()
 #endif
 #ifdef SOFT_PARTICLE
 // Soft particles fade against the opaque scene's depth (task 0012, V4k).
-#include "lib/view/screencoord.slang"
+import lib.view.screencoord;
 [[vk::binding(VIEW_REFLECT_DEPTH_MAP_BINDING, VIEW_SET)]] Sampler2D reflectDepthMap;
 #endif
 
 #include "lib/inout.slang"
+#include "lib/sets.slang"
+#include "lib/view/bindings.slang"
 
 struct FragmentInput
 {

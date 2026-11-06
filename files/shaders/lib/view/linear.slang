@@ -3,6 +3,8 @@
 #ifndef LIB_VIEW_LINEAR_SLANG
 #define LIB_VIEW_LINEAR_SLANG
 
+import lib.view.scene;
+
 static const float displayGamma = 2.2;
 
 bool linearView()

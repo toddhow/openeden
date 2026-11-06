@@ -13,14 +13,15 @@
 
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
-#include "lib/view/cascades.slang"
-#include "lib/view/shadowsettings.slang"
+import lib.view.scene;
+__exported import lib.view.cascades;
+__exported import lib.view.shadowsettings;
 
 #ifdef CLOUD_SHADOW
-#include "lib/view/cloudshadow.slang"
+__exported import lib.view.cloudshadow;
 #endif
 #ifdef VOLUME_CLOUD_SHADOW
-#include "lib/view/volumecloudshadow.slang"
+__exported import lib.view.volumecloudshadow;
 #endif
 
 [[vk::binding(VIEW_SHADOW_MAP_BINDING, VIEW_SET)]] Texture2DArray<float> shadowMap;

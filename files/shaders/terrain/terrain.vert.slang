@@ -6,8 +6,8 @@ import glsl;
 
 #include "lib/pushconstants.slang"
 #include "lib/sets.slang"
-#include "lib/view/scene.slang"
-#include "lib/view/screencoord.slang"
+import lib.view.scene;
+import lib.view.screencoord;
 #include "lib/light/pointdiffuse.slang"
 #include "terrain/bindings.slang"
 #include "terrain/data.slang"

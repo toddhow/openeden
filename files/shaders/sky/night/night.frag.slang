@@ -1,8 +1,8 @@
 // The night sky (stars), fragment stage, in Slang (task 0072, stage b): the twin of sky/night/main.frag. It must
 // declare what the GLSL declares (checked by SlangPermutations).
 #include "lib/material/descriptors_frag.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/scene.slang"
+import lib.view.linear;
+import lib.view.scene;
 
 struct FragmentInput
 {

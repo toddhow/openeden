@@ -6,6 +6,7 @@
 
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
+import lib.view.scene;
 
 [[vk::binding(VIEW_CLOUD_SHADOW_BINDING, VIEW_SET)]] Sampler2D cloudShadowMap;
 

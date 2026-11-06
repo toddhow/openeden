@@ -1,8 +1,8 @@
 // The sky's clouds, fragment stage, in Slang (task 0072, stage b): the twin of sky/clouds/main.frag. It must declare
 // what the GLSL declares (checked by SlangPermutations). The cloud.settings values come as specialization constants.
 #include "lib/material/descriptors_frag.slang"
-#include "lib/view/linear.slang"
-#include "lib/view/scene.slang"
+import lib.view.linear;
+import lib.view.scene;
 #include "sky/clouds/cloudsettings.slang"
 #include "sky/clouds/inout.slang"
 #include "sky/clouds/lit.slang"

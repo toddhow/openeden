@@ -5,8 +5,8 @@ import glsl;
 
 #include "lib/inout.slang"
 #include "lib/pushconstants.slang"
-#include "lib/view/depthrange.slang"
-#include "lib/view/scene.slang"
+import lib.view.depthrange;
+import lib.view.scene;
 
 struct VertexOutput
 {
