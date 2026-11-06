@@ -6,6 +6,7 @@
 #include <string>
 
 #include <apps/opencs/model/mesh/meshviewstate.hpp>
+#include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/module/overlaypick.hpp>
 
 #include "meshscene.hpp"
@@ -76,6 +77,8 @@ namespace CSVRender
         void applyViewLighting();
         void showModuleAsset();
         void updateModuleOverlay();
+        /// Shows mOverlayData with its labels laid out for the camera as it is now (API 1.2 labels, task 0091).
+        void showOverlayWithLabels();
         /// The camera ray through a mouse position (pixels) in the world's unit.
         CSMModule::PickRay mouseRay(const QPointF& position) const;
         double handlePickSlope() const;
@@ -87,6 +90,8 @@ namespace CSVRender
         bool mHandlePressed = false; ///< The press took a module gizmo handle: the camera does not move with the mouse.
 
         bool mModuleAsset = false;
+        CSMModule::OverlayData mOverlayData; ///< What the modules drew last, labels not yet turned into lines.
+        vsg::dmat4 mLabelViewMatrix; ///< The view matrix the labels were laid out for.
         std::unique_ptr<PhysicsDebugView> mModuleOverlay; ///< Only in a view with no model.
         CSMMesh::Aabb mModuleBounds; ///< Of the module overlay's lines, for "frame object".
         std::size_t mModuleLines = 0;

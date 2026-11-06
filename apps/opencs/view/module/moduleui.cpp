@@ -31,12 +31,6 @@ namespace CSVModule
 
     namespace
     {
-        // The owner name of Studio's own bus subscriptions (never a module id: those have no leading colon).
-        const std::string sBusOwner = ":studio";
-    }
-
-    namespace
-    {
         // QUndoCommand ids of module commands start here, so that they never merge with the editor's own.
         constexpr int cMergeIdBase = 0x4D4F4400;
         // A double spin box needs finite limits.
@@ -297,20 +291,12 @@ namespace CSVModule
         , mSelection(registry.bus())
     {
         sInstance = this;
-        // Panels, overlay and form follow the selection.
-        mRegistry.bus().subscribe(sBusOwner, [this](const EditorEvent& event) {
-            if (event.type == EditorEventType::SelectionChanged)
-            {
-                ++mLayoutRevision;
-                emit changed();
-            }
-        });
+
         connect(&mOwnStack, &QUndoStack::indexChanged, this, &ModuleUi::changed);
     }
 
     ModuleUi::~ModuleUi()
     {
-        mRegistry.bus().removeOwner(sBusOwner);
         sInstance = nullptr;
     }
 
@@ -391,13 +377,26 @@ namespace CSVModule
         ++mLayoutRevision;
         Log(Debug::Info) << "Opened '" << path.string() << "' (" << mActiveFormat << ")";
         // The selection belongs to the asset it was made in.
-        mSelection.clear();
+        select({});
         EditorEvent opened;
         opened.type = EditorEventType::AssetOpened;
         opened.subject = std::string(mActive->assetId());
         mRegistry.bus().publish(opened);
         emit changed();
         return mActive.get();
+    }
+
+    void ModuleUi::select(const Selection& selection)
+    {
+        const Selection before = mSelection.current();
+        mSelection.select(selection);
+        if (mSelection.current() == before)
+            return;
+        // After the bus has delivered the change to the modules (the whole dispatch is over when this returns, unless
+        // a module's handler called it: the outermost call comes last), so that what the panels and the overlay read
+        // is up to date. Panels, overlay and forms follow the selection.
+        ++mLayoutRevision;
+        emit changed();
     }
 
     void ModuleUi::publish(const EditorEvent& event)
@@ -417,7 +416,7 @@ namespace CSVModule
     {
         cancelHandle();
         mHighlightId.clear();
-        mSelection.clear();
+        mSelection.clear(); // the modules are going: nothing to tell the panels
         mAssetToken.reset();
         ++mGeneration;
         ++mLayoutRevision;
@@ -583,7 +582,12 @@ namespace CSVModule
             }
             if (mDrag->update(meters))
             {
-                setHighlight(mPressed->mId, mDrag->position());
+                // Where the module put the handle (it may clamp), not where the mouse is.
+                Vec3 shown = mDrag->position();
+                for (const HandleRef& handle : collectHandles())
+                    if (handle.mGizmo == mPressed->mGizmo && handle.mId == mPressed->mId)
+                        shown = handle.mPosition;
+                setHighlight(mPressed->mId, shown);
                 emit changed();
             }
         }

@@ -42,6 +42,7 @@
 
 #include "cameracontroller.hpp"
 #include "instancemode.hpp"
+#include "labelcamera.hpp"
 #include "mask.hpp"
 #include "object.hpp"
 #include "objectmarker.hpp"
@@ -550,7 +551,33 @@ void CSVRender::WorldspaceWidget::updateModuleOverlay()
         mOverlayOrigin[1] = static_cast<float>(centre.y);
         mOverlayOrigin[2] = static_cast<float>(centre.z);
     }
-    mModuleOverlay->show(modules->overlay(mOverlayOrigin));
+    mOverlayData = modules->overlay(mOverlayOrigin);
+    showOverlayWithLabels();
+}
+
+void CSVRender::WorldspaceWidget::frameUpdate(float dt)
+{
+    SceneWidget::frameUpdate(dt);
+    // Labels are screen-space text: laid out again when the camera moved.
+    if (mModuleOverlay && !mOverlayData.mLabels.empty() && getHost() != nullptr
+        && getHost()->getViewMatrix() != mLabelViewMatrix)
+        showOverlayWithLabels();
+}
+
+void CSVRender::WorldspaceWidget::showOverlayWithLabels()
+{
+    if (!mModuleOverlay || getHost() == nullptr)
+        return;
+    if (mOverlayData.mLabels.empty())
+    {
+        mModuleOverlay->show(mOverlayData);
+        return;
+    }
+    CSMModule::OverlayData shown = mOverlayData;
+    mLabelViewMatrix = getHost()->getViewMatrix();
+    CSMModule::addLabelLines(
+        shown, makeLabelCamera(mLabelViewMatrix, getHost()->getProjectionMatrix(), static_cast<double>(height())));
+    mModuleOverlay->show(shown);
 }
 
 void CSVRender::WorldspaceWidget::runRequest(const std::string& profile)

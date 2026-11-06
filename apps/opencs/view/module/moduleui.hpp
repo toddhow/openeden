@@ -75,7 +75,7 @@ namespace CSVModule
         std::filesystem::path userDataPath() const override { return mUserDataPath; }
         // API 1.2
         openeden::editor::Selection selection() const override { return mSelection.current(); }
-        void select(const openeden::editor::Selection& selection) override { mSelection.select(selection); }
+        void select(const openeden::editor::Selection& selection) override;
         void publish(const openeden::editor::EditorEvent& event) override;
 
         /// Studio publishes the physics world's step (called by CSVRender::PhysicsHub for each fixed step it ran).

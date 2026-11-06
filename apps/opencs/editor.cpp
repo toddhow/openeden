@@ -21,6 +21,10 @@
 #include <QMimeData>
 #include <QRegularExpression>
 #include <QSpinBox>
+#include <optional>
+#include <set>
+
+#include <QMouseEvent>
 #include <QTabBar>
 #include <QTimer>
 #include <QTreeView>
@@ -996,6 +1000,187 @@ namespace
         });
     }
 
+    /// The gizmo handle check (task 0091 stages b to d): OPENEDEN_CS_HANDLECHECK=<prefix>;<rig file>. Opens the rig as
+    /// a module asset in a model-less Mesh view, selects the first joint through the module's own command (the panel
+    /// narrows, the joint's name is drawn as a label), then with synthetic mouse events on the view: hovers the cone
+    /// half angle handle (Studio highlights it), presses it and drags it across several moves, releases (one undo
+    /// step), undoes. Frames <prefix>_labels.png, _hover.png, _drag.png, _after.png. Logged as "UI check: handle ...".
+    void runHandleCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
+    {
+        const std::size_t semicolon = spec.find(';');
+        if (semicolon == std::string::npos)
+        {
+            Log(Debug::Error) << "UI check: handle: OPENEDEN_CS_HANDLECHECK needs <prefix>;<rig file>";
+            return;
+        }
+        const std::string prefix = spec.substr(0, semicolon);
+        const std::filesystem::path rigPath = spec.substr(semicolon + 1);
+        const int step = std::max(600, milliseconds / 12);
+
+        auto meshView = []() -> CSVRender::MeshViewWidget* {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                for (auto* view : widget->findChildren<CSVRender::MeshViewWidget*>())
+                    if (view->showsModuleAsset())
+                        return view;
+            return nullptr;
+        };
+        // The pixel of a world position in the view (the mapping Picking::viewRay inverts).
+        auto pixelOf = [](CSVRender::MeshViewWidget* view, const vsg::dvec3& world) {
+            const vsg::dmat4 viewProjection = view->getHost()->getProjectionMatrix() * view->getHost()->getViewMatrix();
+            const vsg::dvec4 clip = viewProjection * vsg::dvec4(world.x, world.y, world.z, 1.0);
+            return QPointF(
+                (clip.x / clip.w * 0.5 + 0.5) * view->width(), (clip.y / clip.w * 0.5 + 0.5) * view->height());
+        };
+        auto send = [](CSVRender::MeshViewWidget* view, QEvent::Type type, const QPointF& at, Qt::MouseButton button,
+                        Qt::MouseButtons buttons) {
+            QMouseEvent event(type, at, view->mapToGlobal(at.toPoint()), button, buttons, Qt::NoModifier);
+            QApplication::sendEvent(view, &event);
+        };
+        auto handlePosition = [](const std::string& id) -> std::optional<openeden::editor::Vec3> {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            if (ui == nullptr || ui->activeAsset() == nullptr)
+                return std::nullopt;
+            for (openeden::editor::Gizmo* gizmo : ui->activeAsset()->gizmos())
+                for (const openeden::editor::GizmoHandle& handle : gizmo->handles())
+                    if (handle.id == id)
+                        return handle.position;
+            return std::nullopt;
+        };
+        auto frame = [=](const std::string& name) {
+            if (CSVRender::MeshViewWidget* view = meshView())
+            {
+                view->flagAsModified();
+                QTimer::singleShot(step / 3, qApp, [=] {
+                    if (CSVRender::MeshViewWidget* again = meshView())
+                    {
+                        const std::filesystem::path file = prefix + "_" + name + ".png";
+                        Log(Debug::Info) << "UI check: handle frame " << file.string() << ": "
+                                         << (again->saveScreenshot(file) ? "written" : "no frame");
+                    }
+                });
+            }
+        };
+        auto halfAngle = []() {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            const auto value = ui->activeAsset()->properties().get("joint.Head.planeSwingMaxRad");
+            return std::get_if<double>(&value) != nullptr ? std::get<double>(value) : -1.0;
+        };
+
+        QTimer::singleShot(step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            ui->openAsset(rigPath);
+            Log(Debug::Info) << "UI check: handle opened " << (ui->activeAsset() ? "yes" : "no") << " "
+                             << ui->openError();
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                    for (int i = 0; i < tabs->count(); ++i)
+                        if (tabs->tabText(i) == "CreativeMotion")
+                            tabs->setCurrentIndex(i);
+            if (meshView() == nullptr)
+                for (QWidget* top : QApplication::topLevelWidgets())
+                    if (auto* window = qobject_cast<QMainWindow*>(top); window && window->isVisible())
+                        for (QAction* action : window->findChildren<QAction*>("showModuleAssetInMeshViewer"))
+                        {
+                            action->trigger();
+                            break;
+                        }
+        });
+        QTimer::singleShot(3 * step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            // Spine, Chest, Head: the first joint that is a cone.
+            for (int i = 0; i < 3; ++i)
+                ui->registry().runCommand("creativemotion.nextJoint");
+            Log(Debug::Info) << "UI check: handle selection " << ui->selection().kind << " " << ui->selection().id;
+            if (CSVRender::MeshViewWidget* view = meshView())
+            {
+                for (QWidget* up = view->parentWidget(); up != nullptr; up = up->parentWidget())
+                    if (auto* dock = qobject_cast<QDockWidget*>(up))
+                    {
+                        if (!dock->isFloating())
+                        {
+                            dock->setFloating(true);
+                            dock->resize(960, 720);
+                        }
+                        break;
+                    }
+                view->frameObject();
+            }
+            else
+                Log(Debug::Error) << "UI check: handle: no model-less Mesh view";
+        });
+        QTimer::singleShot(5 * step, qApp, [=] {
+            // The module's panel dock: how many joint rows, and whose.
+            int rows = 0;
+            std::set<std::string> joints;
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* dock = top->findChild<QDockWidget*>("modulePanel_creativemotion.panel"))
+                    for (QWidget* field : dock->findChildren<QWidget*>())
+                        if (field->objectName().startsWith("property_joint."))
+                        {
+                            ++rows;
+                            joints.insert(field->objectName().mid(15).split('.').front().toStdString());
+                        }
+            Log(Debug::Info) << "UI check: handle panel joint rows " << rows << " of " << joints.size() << " joints";
+            frame("labels");
+        });
+        QTimer::singleShot(6 * step, qApp, [=] {
+            CSVRender::MeshViewWidget* view = meshView();
+            const auto position = handlePosition("creativemotion.cone.plane");
+            if (view == nullptr || !position)
+            {
+                Log(Debug::Error) << "UI check: handle: no view or no cone handle";
+                return;
+            }
+            constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
+            const QPointF at = pixelOf(view, vsg::dvec3(position->x * units, position->y * units, position->z * units));
+            Log(Debug::Info) << "UI check: handle cone.plane at pixel " << at.x() << " " << at.y() << " of "
+                             << view->width() << "x" << view->height();
+            send(view, QEvent::MouseMove, at, Qt::NoButton, Qt::NoButton);
+            Log(Debug::Info) << "UI check: handle hover highlights '" << CSVModule::ModuleUi::get()->highlightedHandle()
+                             << "'";
+        });
+        QTimer::singleShot(7 * step, qApp, [=] { frame("hover"); });
+        QTimer::singleShot(8 * step, qApp, [=] {
+            CSVRender::MeshViewWidget* view = meshView();
+            const auto position = handlePosition("creativemotion.cone.plane");
+            if (view == nullptr || !position)
+                return;
+            constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
+            const QPointF start
+                = pixelOf(view, vsg::dvec3(position->x * units, position->y * units, position->z * units));
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            Log(Debug::Info) << "UI check: handle half angle before " << halfAngle() << ", undo steps "
+                             << document->getUndoRouting().moduleStack().count();
+            send(view, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+            for (int i = 1; i <= 8; ++i)
+                send(view, QEvent::MouseMove, start + QPointF(14.0 * i, -6.0 * i), Qt::NoButton, Qt::LeftButton);
+            Log(Debug::Info) << "UI check: handle during drag: half angle " << halfAngle() << ", dragging "
+                             << (ui->isDraggingHandle() ? "yes" : "no") << ", undo steps "
+                             << document->getUndoRouting().moduleStack().count();
+        });
+        QTimer::singleShot(9 * step, qApp, [=] { frame("drag"); });
+        QTimer::singleShot(10 * step, qApp, [=] {
+            CSVRender::MeshViewWidget* view = meshView();
+            if (view == nullptr)
+                return;
+            // The mouse is where the drag left it.
+            const auto position = handlePosition("creativemotion.cone.plane");
+            constexpr double units = CSMPhysics::StudioWorld::sUnitsPerMeter;
+            send(view, QEvent::MouseButtonRelease,
+                position ? pixelOf(view, vsg::dvec3(position->x * units, position->y * units, position->z * units))
+                         : QPointF(0, 0),
+                Qt::LeftButton, Qt::NoButton);
+            Log(Debug::Info) << "UI check: handle released: half angle " << halfAngle() << ", undo steps "
+                             << document->getUndoRouting().moduleStack().count();
+            document->getUndoRouting().moduleStack().undo();
+            Log(Debug::Info) << "UI check: handle undone: half angle " << halfAngle() << ", undo steps "
+                             << document->getUndoRouting().moduleStack().count();
+            document->getUndoRouting().moduleStack().redo();
+            Log(Debug::Info) << "UI check: handle redone: half angle " << halfAngle();
+        });
+        QTimer::singleShot(11 * step, qApp, [=] { frame("after"); });
+    }
+
     /// The body package panel check (task 0069 stage f): OPENEDEN_CS_BODYCHECK=<prefix>;<source>[;<source>...], each
     /// source a module asset path (a body.json, a .edenpak or a merged cache's current), optionally followed by
     /// "|<race> <sex> <view>" to choose that body of a merged cache afterwards. For each source: opens it as a module
@@ -1331,6 +1516,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_RIGCHECK=<prefix>;<rig>;<profile>: the CreativeMotion rig check, see runRigCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_RIGCHECK"))
                 runRigCheck(document, spec, milliseconds);
+            // OPENEDEN_CS_HANDLECHECK=<prefix>;<rig>: selection, labels and handle dragging, see runHandleCheck.
+            if (const char* spec = std::getenv("OPENEDEN_CS_HANDLECHECK"))
+                runHandleCheck(document, spec, milliseconds);
             // OPENEDEN_CS_BODYCHECK=<prefix>;<source>[|<body>]...: the body package panel check, see runBodyCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_BODYCHECK"))
                 runBodyCheck(document, spec, milliseconds);

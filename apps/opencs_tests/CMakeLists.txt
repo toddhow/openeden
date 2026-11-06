@@ -19,6 +19,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testapi12.cpp
     model/module/testeventbus.cpp
     model/module/testoverlaypick.cpp
+    model/module/testoverlaylabels.cpp
     model/module/testdragsession.cpp
     model/module/testmoduleevents.cpp
     model/module/testoldapimodules.cpp

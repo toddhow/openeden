@@ -164,6 +164,21 @@ namespace CMTest
             EXPECT_EQ(highlighted, 1u + 4u + 4u + 16u);
         }
 
+        TEST_F(CmSelectionTest, onlyTheSelectedJointsNameIsDrawnAsALabelAtItsOriginInTheHighlightColour)
+        {
+            auto document = openLimitsRig();
+            auto* selectable = dynamic_cast<creativemotion_editor::JointSelectable*>(document.get());
+            ASSERT_NE(selectable, nullptr);
+            RecordingSink none;
+            document->gizmos().at(1)->draw(none);
+            EXPECT_EQ(none.mLabels, 0);
+
+            selectable->setSelectedJoint("LeftShin");
+            RecordingSink one;
+            document->gizmos().at(1)->draw(one);
+            EXPECT_EQ(one.mLabels, 1);
+        }
+
         class CmSelectionModuleTest : public CmSelectionTest
         {
         protected:

@@ -9,6 +9,7 @@
 
 #include "../module/moduleui.hpp"
 #include "cameracontroller.hpp"
+#include "labelcamera.hpp"
 #include "lighting.hpp"
 #include "physicshub.hpp"
 #include "picking.hpp"
@@ -87,9 +88,10 @@ namespace CSVRender
             return;
         // Module coordinates are metres relative to the origin given here: the view's own origin.
         const float origin[3] = { 0.f, 0.f, 0.f };
-        const CSMModule::OverlayData overlay = modules->overlay(origin);
+        mOverlayData = modules->overlay(origin);
+        const CSMModule::OverlayData& overlay = mOverlayData;
         const std::vector<CSMPhysics::DebugLine>& lines = overlay.mLines;
-        mModuleOverlay->show(overlay);
+        showOverlayWithLabels();
         mModuleLines = lines.size();
         mModuleBounds = CSMMesh::Aabb();
         for (const CSMPhysics::DebugLine& line : lines)
@@ -108,6 +110,22 @@ namespace CSVRender
         }
         flagAsModified();
         emit moduleOverlayChanged(static_cast<int>(lines.size()));
+    }
+
+    void MeshViewWidget::showOverlayWithLabels()
+    {
+        if (!mModuleOverlay || getHost() == nullptr)
+            return;
+        if (mOverlayData.mLabels.empty())
+        {
+            mModuleOverlay->show(mOverlayData);
+            return;
+        }
+        CSMModule::OverlayData shown = mOverlayData;
+        mLabelViewMatrix = getHost()->getViewMatrix();
+        CSMModule::addLabelLines(
+            shown, makeLabelCamera(mLabelViewMatrix, getHost()->getProjectionMatrix(), static_cast<double>(height())));
+        mModuleOverlay->show(shown);
     }
 
     void MeshViewWidget::load()
@@ -193,6 +211,10 @@ namespace CSVRender
         SceneWidget::frameUpdate(dt);
         if (mScene)
             mScene->update(dt);
+        // Labels are screen-space text: laid out again when the camera moved.
+        if (mModuleOverlay && !mOverlayData.mLabels.empty() && getHost() != nullptr
+            && getHost()->getViewMatrix() != mLabelViewMatrix)
+            showOverlayWithLabels();
     }
 
     bool MeshViewWidget::isAnimated() const

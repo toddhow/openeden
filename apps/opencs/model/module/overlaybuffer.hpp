@@ -2,6 +2,7 @@
 #define CSM_MODULE_OVERLAYBUFFER_H
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -16,6 +17,9 @@ namespace CSMModule
     inline constexpr std::size_t kMaxOverlayLines = 32768;
     /// Most filled triangles one drawing may hold (API 1.1). Three vertices of 28 bytes each: about 5 MB.
     inline constexpr std::size_t kMaxOverlayTriangles = 60000;
+    /// Most labels one drawing may hold (API 1.2) and the longest text of one, in characters.
+    inline constexpr std::size_t kMaxOverlayLabels = 256;
+    inline constexpr std::size_t kMaxLabelLength = 64;
     /// A coordinate further than this from the module's origin is refused: it cannot be a body, a rig or a gizmo, and
     /// converted to the world's unit it would lose all its precision as a float.
     inline constexpr double kMaxOverlayCoordinateMetres = 1.0e6;
@@ -28,11 +32,20 @@ namespace CSMModule
         bool mAlwaysOnTop = false;
     };
 
+    /// One text label in the world's unit (API 1.2). The text is printable ASCII, upper case.
+    struct OverlayLabel
+    {
+        float mPosition[3];
+        std::string mText;
+        float mColour[4];
+    };
+
     /// What one drawing of the modules' gizmos came to.
     struct OverlayData
     {
         std::vector<CSMPhysics::DebugLine> mLines;
         std::vector<OverlayTriangle> mTriangles;
+        std::vector<OverlayLabel> mLabels;
         std::size_t mRefused = 0; ///< Primitives with a coordinate or colour that is not finite, or out of reach.
         std::size_t mDropped = 0; ///< Valid primitives past kMaxOverlayLines / kMaxOverlayTriangles.
     };
@@ -42,7 +55,10 @@ namespace CSMModule
     /// meters become world units. It is the host's defence against a module's hostile or broken data: a primitive with
     /// a non-finite or far-out coordinate, or a non-finite colour, is refused and counted; colour components are
     /// clamped to [0, 1]; past the caps further primitives are dropped and counted. No exception, no allocation beyond
-    /// the two vectors (which never grow past the caps). Text labels are not drawn (the debug geometry has no text).
+    /// the two vectors (which never grow past the caps). A label (API 1.2) with a non-finite or far-out position or
+    /// colour, with a character that is not printable ASCII, empty or longer than kMaxLabelLength, is refused and
+    /// counted; past kMaxOverlayLabels labels are dropped and counted; lower case becomes upper case. labelstroke.hpp
+    /// turns the labels into lines for a camera.
     ///
     /// Ownership: owns its data. Main thread only.
     class OverlayBuffer final : public openeden::editor::OverlaySink

@@ -83,9 +83,31 @@ namespace CSMModule
         addLine({ p.x, p.y, p.z - r }, { p.x, p.y, p.z + r }, colour);
     }
 
-    void OverlayBuffer::label(const Vec3&, std::string_view, const Colour&)
+    void OverlayBuffer::label(const Vec3& p, std::string_view text, const Colour& colour)
     {
-        // The debug geometry has no text (task 0031: labels are not drawn yet).
+        // Printable ASCII only: the stroke font has no more, and a label is data a module chose.
+        const bool printable = std::all_of(text.begin(), text.end(),
+            [](char c) { return static_cast<unsigned char>(c) >= 0x20 && static_cast<unsigned char>(c) < 0x7F; });
+        if (text.empty() || text.size() > kMaxLabelLength || !printable || !accepts(p) || !accepts(colour))
+        {
+            ++mData.mRefused;
+            return;
+        }
+        if (mData.mLabels.size() >= kMaxOverlayLabels)
+        {
+            ++mData.mDropped;
+            return;
+        }
+        OverlayLabel label;
+        convert(p, label.mPosition);
+        label.mText.reserve(text.size());
+        for (const char c : text)
+            label.mText.push_back(c >= 'a' && c <= 'z' ? static_cast<char>(c - 'a' + 'A') : c);
+        label.mColour[0] = clamp01(colour.r);
+        label.mColour[1] = clamp01(colour.g);
+        label.mColour[2] = clamp01(colour.b);
+        label.mColour[3] = clamp01(colour.a);
+        mData.mLabels.push_back(std::move(label));
     }
 
     void OverlayBuffer::triangle(const Vec3& a, const Vec3& b, const Vec3& c, const Colour& colour, OverlayDepth depth)

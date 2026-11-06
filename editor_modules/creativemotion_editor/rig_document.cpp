@@ -235,6 +235,9 @@ namespace creativemotion_editor
                     const auto swingDir = [&](double p, double n) { return frame.swingDir(p, n); };
 
                     line(sink, origin, pointAt(frame.direction(1, 0, 0)), tinted(kWhite));
+                    // The selected joint's name next to it (API 1.2 labels, task 0091).
+                    if (selected)
+                        sink.label(toEditor(origin), joint.bone, kHighlight);
 
                     if (joint.swing == opas::rig::SwingShape::Cone)
                     {

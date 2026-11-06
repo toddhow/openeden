@@ -7,12 +7,14 @@
 #include <QPoint>
 #include <QTimer>
 
+#include <vsg/maths/mat4.h>
 #include <vsg/maths/vec3.h>
 
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
 #include "instancedragmodes.hpp"
@@ -86,6 +88,11 @@ namespace CSVRender
         std::unique_ptr<PhysicsDebugView> mPhysicsView; ///< Null without an editor-wide PhysicsHub.
         std::unique_ptr<PhysicsDebugView> mModuleOverlay; ///< The editor modules' gizmos (task 0031); null without any.
         void updateModuleOverlay();
+        void frameUpdate(float dt) override;
+        /// Shows mOverlayData with its labels laid out for the camera as it is now (API 1.2, task 0091).
+        void showOverlayWithLabels();
+        CSMModule::OverlayData mOverlayData; ///< What the modules drew last, labels not yet turned into lines.
+        vsg::dmat4 mLabelViewMatrix; ///< The view matrix the labels were laid out for.
         unsigned long mOverlayGeneration = ~0ul; ///< The ModuleUi generation the overlay origin was chosen for.
         float mOverlayOrigin[3] = { 0.f, 0.f, 0.f };
         /// Where the button that started the drag went down: a drag starts there, not where the first mouse move lands.
