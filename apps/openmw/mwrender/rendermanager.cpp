@@ -366,6 +366,8 @@ namespace MWRender
             Render::FrameCounters& counters = mEngine.frameCounters();
             counters.add("rss mib", [] { return static_cast<double>(Render::processWorkingSetBytes() >> 20); });
             counters.add("gpu used mib", [this] { return static_cast<double>(mEngine.deviceLocalUsageMiB()); });
+            counters.add("pshadow faces",
+                [this] { return mPointShadows ? static_cast<double>(mPointShadows->facesDrawn()) : 0.0; });
             counters.add("cells", [this] { return static_cast<double>(mLoadedExteriorCells.load()); });
             counters.add("cells loaded total", [this] { return static_cast<double>(mExteriorCellLoadsTotal.load()); });
             // The census walks the whole scene graph, so it runs every 30 frames and the totals are carried between
@@ -1268,6 +1270,12 @@ namespace MWRender
                             [this, rg, view] { mCompileContext->compileManager->add(*rg->framebuffer, view); });
                 }
                 mPointShadows->setGraph(slot, castGraph);
+                // The timer table is small: the first slots are timed (the pass "point shadow <slot>").
+                if (mGpuTimer && slot < 4)
+                {
+                    const std::size_t pass = mGpuTimer->addPass("point shadow " + std::to_string(slot));
+                    mPointShadows->setSlotTimer(slot, mGpuTimer->beginNode(pass), mGpuTimer->endNode(pass));
+                }
                 threads.push_back(castGraph);
                 mRecordShadow.push_back(castGraph->recordTraversal);
             }
@@ -2594,11 +2602,22 @@ namespace MWRender
             shadow->cascadeView(i)->children = createCastShadowScene(enabled);
         if (mPointShadows)
         {
-            auto& maps = mPointShadows->maps();
-            for (int slot = 0; slot < maps.slotCount; ++slot)
+            // The weather calls this every frame. The casters change only when the state does; with the cache on
+            // that is the only time the faces' scenes are set again and the maps are drawn afresh (task 0077, e).
+            const bool changed = mPointShadowSkyState != static_cast<int>(enabled);
+            if (changed || !mPointShadows->cacheEnabled())
             {
-                for (int face = 0; face < Render::PointShadow::facesPerLight; ++face)
-                    maps.faceView(slot, face)->children = createPointShadowScene();
+                auto& maps = mPointShadows->maps();
+                for (int slot = 0; slot < maps.slotCount; ++slot)
+                {
+                    for (int face = 0; face < Render::PointShadow::facesPerLight; ++face)
+                        maps.faceView(slot, face)->children = createPointShadowScene();
+                }
+            }
+            if (changed)
+            {
+                mPointShadowSkyState = static_cast<int>(enabled);
+                mPointShadows->invalidateAll();
             }
         }
     }
@@ -2703,7 +2722,29 @@ namespace MWRender
         {
             if (auto collect = dynamic_cast<View::CollectLights*>(mView->viewDependentState.get()))
             {
-                mPointShadows->update(mViewMatrix->transform(), collect->snapshots());
+                std::uint32_t worldEpoch = 0;
+                if (mPointShadows->cacheEnabled())
+                {
+                    // The moving casters: actors, doors and the player (their sphere and pose, compared with the
+                    // last frame's inside the tracker), and the scene's own change counter.
+                    auto& motion = mPointShadows->motion();
+                    motion.begin();
+                    mScene->collectMoving(motion);
+                    if (mPlayer && mPlayer->transform())
+                    {
+                        const Anim::Transform& t = *mPlayer->transform();
+                        Render::PointShadow::MotionTracker::Pose pose{};
+                        for (int i = 0; i < 3; ++i)
+                            pose[static_cast<std::size_t>(i)] = t.translation[i];
+                        for (int i = 0; i < 3; ++i)
+                            for (int j = 0; j < 3; ++j)
+                                pose[static_cast<std::size_t>(3 + i * 3 + j)] = t.rotation(i, j);
+                        motion.add(reinterpret_cast<std::uintptr_t>(mPlayer.get()), pose,
+                            vsg::dvec3(t.translation[0], t.translation[1], t.translation[2] + 64.0), 150.f);
+                    }
+                    worldEpoch = mScene->changeCounter();
+                }
+                mPointShadows->update(mViewMatrix->transform(), collect->snapshots(), worldEpoch);
                 collect->setShadowEntries(mPointShadows->entries());
             }
         }

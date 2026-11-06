@@ -55,6 +55,11 @@ namespace Settings
             makeClampSanitizerInt(1, 16) };
         SettingValue<float> mPointLightShadowBias{ mIndex, "Shadows", "point light shadow bias",
             makeClampSanitizerFloat(0.25, 6) };
+        SettingValue<bool> mPointLightShadowCache{ mIndex, "Shadows", "point light shadow cache" };
+        SettingValue<int> mPointLightShadowRefreshFaces{ mIndex, "Shadows", "point light shadow refresh faces",
+            makeClampSanitizerInt(1, 48) };
+        SettingValue<int> mPointLightShadowRefreshFrames{ mIndex, "Shadows", "point light shadow refresh frames",
+            makeClampSanitizerInt(2, 600) };
     };
 }
 

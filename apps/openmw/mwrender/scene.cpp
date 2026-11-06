@@ -1,6 +1,7 @@
 #include "scene.hpp"
 
 #include <algorithm>
+#include <vector>
 
 #include <vsg/io/Options.h>
 #include <vsg/nodes/Switch.h>
@@ -8,10 +9,12 @@
 #include <components/animation/transform.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/mwanimation/create.hpp>
+#include <components/render/pointshadowcache.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/operation.hpp>
@@ -61,6 +64,8 @@ namespace MWRender
         };
         vsg::ref_ptr<vsg::Group> group;
         Objects objects;
+        // The doors among `objects` (task 0077: their swing is a moving caster); raw pointers into `objects`.
+        std::vector<MWAnim::Object*> doors;
         vsg::ref_ptr<Update> update;
         // openeden-vsg: switches of NIF NightDaySwitch nodes in this cell (task 0012).
         std::vector<vsg::ref_ptr<vsg::Switch>> nightDaySwitches;
@@ -219,7 +224,10 @@ namespace MWRender
     {
         auto& cell = getOrCreateCell(ptr, actor);
         cell.group->addChild(anim->node());
+        if (!actor && ptr.getType() == ESM::Door::sRecordId)
+            cell.doors.push_back(anim.get());
         cell.objects.emplace(ptr, std::move(anim));
+        ++mChangeCounter;
     }
 
     void Scene::insertNPC(const MWWorld::Ptr& ptr)
@@ -245,7 +253,10 @@ namespace MWRender
         {
             moveNightDaySwitches(*iter->second, *cell, nullptr);
             vsgUtil::removeChild(cell->group, iter->second->node());
+            cell->doors.erase(
+                std::remove(cell->doors.begin(), cell->doors.end(), iter->second.get()), cell->doors.end());
             cell->objects.erase(iter);
+            ++mChangeCounter;
             return true;
         }
         return false;
@@ -253,6 +264,7 @@ namespace MWRender
 
     void Scene::removeCell(const MWWorld::CellStore* store)
     {
+        ++mChangeCounter;
         auto iter = mActorCells.find(store);
         if (iter != mActorCells.end())
         {
@@ -279,6 +291,12 @@ namespace MWRender
         {
             auto& anim = iter->second;
             moveNightDaySwitches(*anim, *oldcell, &cell);
+            const auto door = std::find(oldcell->doors.begin(), oldcell->doors.end(), anim.get());
+            if (door != oldcell->doors.end())
+            {
+                oldcell->doors.erase(door);
+                cell.doors.push_back(anim.get());
+            }
             cell.group->addChild(anim->node());
             vsgUtil::removeChild(oldcell->group, anim->node());
             cell.objects[cur] = std::move(anim);
@@ -339,6 +357,43 @@ namespace MWRender
         for (auto& [cellstore, cell] : mActorCells)
             for (auto& [ptr, object] : cell.objects)
                 object->updateOnMainThread();
+    }
+
+    namespace
+    {
+        // Spheres that hold an actor (feet at the transform's origin; reach of a weapon included) and a door (it
+        // swings about a hinge at its origin, up to its width). Game units.
+        constexpr float actorMotionRadius = 150.f;
+        constexpr double actorMotionCentreHeight = 64.0;
+        constexpr float doorMotionRadius = 160.f;
+
+        void addMoving(Render::PointShadow::MotionTracker& tracker, const MWAnim::Object& object, float radius,
+            double centreHeight)
+        {
+            const Anim::Transform* t = object.transform();
+            if (!t)
+                return;
+            Render::PointShadow::MotionTracker::Pose pose{};
+            pose[0] = t->translation[0];
+            pose[1] = t->translation[1];
+            pose[2] = t->translation[2];
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    pose[static_cast<std::size_t>(3 + i * 3 + j)] = t->rotation(i, j);
+            // The key only recognises the object next frame; it is never followed.
+            tracker.add(reinterpret_cast<std::uintptr_t>(&object), pose,
+                vsg::dvec3(t->translation[0], t->translation[1], t->translation[2] + centreHeight), radius);
+        }
+    }
+
+    void Scene::collectMoving(Render::PointShadow::MotionTracker& tracker) const
+    {
+        for (const auto& [cellstore, cell] : mActorCells)
+            for (const auto& [ptr, object] : cell.objects)
+                addMoving(tracker, *object, actorMotionRadius, actorMotionCentreHeight);
+        for (const auto& [cellstore, cell] : mObjectCells)
+            for (const MWAnim::Object* door : cell.doors)
+                addMoving(tracker, *door, doorMotionRadius, 0.0);
     }
 
     vsg::ref_ptr<vsgUtil::UpdateThreads> Scene::getUpdateThreads()

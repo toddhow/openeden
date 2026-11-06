@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_MWRENDER_SCENE_H
 #define VSGOPENMW_MWRENDER_SCENE_H
 
+#include <cstdint>
 #include <map>
 
 #include <vsg/core/ref_ptr.h>
@@ -22,6 +23,10 @@ namespace vsgUtil
 {
     class UpdateThreads;
 }
+namespace Render::PointShadow
+{
+    class MotionTracker;
+}
 namespace MWRender
 {
     /*
@@ -40,6 +45,8 @@ namespace MWRender
         unsigned int mNightDayMode = 0;
         /// Takes one registration of each of object's NightDaySwitch nodes out of from, adding it to to unless null.
         static void moveNightDaySwitches(MWAnim::Object& object, Cell& from, Cell* to);
+
+        std::uint32_t mChangeCounter = 0;
 
         vsg::ref_ptr<vsg::Switch> mActorGroup;
         vsg::ref_ptr<vsg::Switch> mObjectGroup;
@@ -82,6 +89,14 @@ namespace MWRender
         /// Shows child mode (0 day, 1 night) of the objects' NightDaySwitch nodes, when "day night switches" is on.
         void setNightDayMode(unsigned int mode);
         vsg::ref_ptr<vsgUtil::UpdateThreads> getUpdateThreads();
+
+        /// Goes up whenever an object or actor is added, removed or a cell is removed (point light shadow cache,
+        /// task 0077): anything a shadow map may hold has then perhaps changed.
+        std::uint32_t changeCounter() const { return mChangeCounter; }
+
+        /// Reports every actor and every door to the tracker, with the sphere that holds it (task 0077). Main
+        /// thread, after `update`.
+        void collectMoving(Render::PointShadow::MotionTracker& tracker) const;
     };
 
 }

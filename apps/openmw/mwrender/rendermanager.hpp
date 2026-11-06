@@ -413,6 +413,7 @@ namespace MWRender
         std::unique_ptr<Shadow> mShadow;
         // Task 0077: shadows of the nearest point lights (null unless [Shadows] point light shadows took effect).
         std::unique_ptr<PointShadows> mPointShadows;
+        int mPointShadowSkyState = -1; // the last setSkyEnabled value the point light shadow cache saw
         std::unique_ptr<View::LightGrid> mLightGrid;
         // Task 0041: the volumetric fog; null unless `[Rendering] volumetrics` is on (and its shaders were found).
         std::unique_ptr<View::VolumeFog> mVolumeFog;

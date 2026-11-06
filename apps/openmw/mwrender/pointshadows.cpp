@@ -36,6 +36,15 @@ namespace MWRender
         mSlots.assign(static_cast<std::size_t>(mMaps.slotCount), Render::PointShadow::Slot{});
         mMissing.assign(static_cast<std::size_t>(mMaps.slotCount), 0u);
         mGraphs.resize(static_cast<std::size_t>(mMaps.slotCount));
+        mCacheEnabled = Settings::shadows().mPointLightShadowCache;
+        mCacheParams.facesPerFrame = Settings::shadows().mPointLightShadowRefreshFaces;
+        mCacheParams.refreshFrames = static_cast<std::uint32_t>(Settings::shadows().mPointLightShadowRefreshFrames);
+        if (mCacheEnabled)
+        {
+            Log(Debug::Info) << "Shadows: point light shadow cache on, at most " << mCacheParams.facesPerFrame
+                             << " stale faces a frame, a face is redrawn at the latest after "
+                             << mCacheParams.refreshFrames << " frames";
+        }
         mGpu.resolution = mMaps.resolution;
         mGpu.tanHalf = mMaps.tanHalf;
         mGpu.pcfRadiusTexels = pcfRadiusTexels;
@@ -52,12 +61,25 @@ namespace MWRender
         mGraphs[static_cast<std::size_t>(slot)] = std::move(graph);
     }
 
+    void PointShadows::setSlotTimer(int slot, vsg::ref_ptr<vsg::Node> begin, vsg::ref_ptr<vsg::Node> end)
+    {
+        const std::size_t k = static_cast<std::size_t>(slot);
+        if (mTimerBegin.size() <= k)
+        {
+            mTimerBegin.resize(k + 1);
+            mTimerEnd.resize(k + 1);
+        }
+        mTimerBegin[k] = std::move(begin);
+        mTimerEnd[k] = std::move(end);
+    }
+
     int PointShadows::usedSlots() const
     {
         return static_cast<int>(std::count_if(mSlots.begin(), mSlots.end(), [](const auto& s) { return s.used; }));
     }
 
-    void PointShadows::update(const vsg::dmat4& viewMatrix, const std::vector<View::LightSnapshot>& lights)
+    void PointShadows::update(
+        const vsg::dmat4& viewMatrix, const std::vector<View::LightSnapshot>& lights, std::uint32_t worldEpoch)
     {
         // The lights' eye positions belong to the view of the frame that collected them.
         const vsg::dmat4 inverseView = vsg::inverse(mHaveListView ? mListView : viewMatrix);
@@ -127,6 +149,31 @@ namespace MWRender
             Anim::setPointShadowOwner(k, held ? mSlots[static_cast<std::size_t>(k)].id : 0);
         }
 
+        // Which faces are drawn this frame.
+        mFacesDrawn = 0;
+        mFacesPossible = 0;
+        if (mCacheEnabled)
+        {
+            mCacheLights.resize(mSlots.size());
+            for (std::size_t k = 0; k < mSlots.size(); ++k)
+            {
+                Render::PointShadow::CacheLight& c = mCacheLights[k];
+                c.used = mSlots[k].used;
+                c.id = mSlots[k].id;
+                c.position = mSlots[k].position;
+                c.radius = mSlots[k].radius;
+            }
+            mMotion.end(mDisturbances);
+            mCache.step(mCacheLights, mDisturbances, worldEpoch + mExtraEpoch, mCacheParams, mDraw);
+            if (++mCacheLogCounter % 120 == 0)
+            {
+                Log(Debug::Verbose) << "Point light shadow cache: " << mCache.lastHardSlots()
+                                    << " slots redrawn whole, " << mCache.lastPendingFaces() << " stale faces waiting, "
+                                    << mDisturbances.size() << " disturbances, epoch " << worldEpoch << "+"
+                                    << mExtraEpoch;
+            }
+        }
+
         mSlotPositions.clear();
         mEntries.clear();
         for (int k = 0; k < mMaps.slotCount; ++k)
@@ -149,8 +196,20 @@ namespace MWRender
             if (graph)
             {
                 graph->children.clear();
+                const bool timed
+                    = static_cast<std::size_t>(k) < mTimerBegin.size() && mTimerBegin[static_cast<std::size_t>(k)];
+                if (timed)
+                    graph->children.push_back(mTimerBegin[static_cast<std::size_t>(k)]);
                 for (int f = 0; f < Render::PointShadow::facesPerLight; ++f)
+                {
+                    ++mFacesPossible;
+                    if (mCacheEnabled && !mDraw[static_cast<std::size_t>(k * Render::PointShadow::facesPerLight + f)])
+                        continue;
+                    ++mFacesDrawn;
                     graph->children.push_back(mMaps.renderGraph(k, f));
+                }
+                if (timed)
+                    graph->children.push_back(mTimerEnd[static_cast<std::size_t>(k)]);
             }
         }
 

@@ -144,6 +144,10 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Point-light shadows* (0077): in Arrille's Tradehouse a lantern, the plant and the stool cast shadows on the walls;
   NPCs and the player cast moving shadows past a torch. Known: a lantern's own bars cast spoke shadows; water glints are
   not shadowed. Only the nearest `point light shadow count` (4) lights cast.
+- *Point-light shadow cache* (0077, stage e): the same scene with `point light shadow cache` on (the profile): a walking
+  NPC's or a swinging door's shadow follows within a few frames, a lantern left alone costs almost nothing. Wrong: a
+  shadow that stays where a moved actor or door was for more than about half a second, or a shadow that flickers with the
+  torch. Set it to false to compare.
 
 **World**
 - *Whole-map view* (0055, 0059, 0066): `tcl`, `tgm`, then `player->setpos z 25000` over Balmora: land, towers and trees out
