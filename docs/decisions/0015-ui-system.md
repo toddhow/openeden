@@ -1,6 +1,6 @@
 # 0015 — A UI system to replace MyGUI: components in Lua, style sheets for looks, one backend behind a small protocol
 
-Date: 2026-11-06 · Proposed by: Claude (at toddhow's request) · **Status: DRAFT, awaiting toddhow's signature.** Nothing is built, no dependency is added, no file moves.
+Date: 2026-11-06 · Proposed by: Claude (at toddhow's request) · **Status: DRAFT; four of its nine questions answered by toddhow on 2026-11-06 (see "Answers to the open questions" at the end); the RmlUi choice waits for the U0 spike.** Nothing is built, no dependency is added, no file moves.
 
 Background and evidence: `docs/research/0045-ui-system.md` (items marked RECALLED-VERIFY there are not checked). Builds on decisions 0002 (one renderer, Vulkan on VSG), 0003 and 0014 (one sandboxed Lua host; game packs register function descriptors under `core.<game>.*`) and 0013 (game packs).
 
@@ -40,3 +40,10 @@ It builds nothing and adds no dependency (RmlUi's licence and pinned version wou
 
 ## Open questions for toddhow
 See research note 0045 section 11: the spike approval (recommend yes), Lua tables versus a markup file (tables first), accepting the element protocol (yes), the library as a core feature (yes), RTL (not now), ImGui for developer tools (not now), compatibility of existing Lua UI mods (keep), scheduling relative to Track V and the game-pack stages (after both), and art for default looks coming from the player's installed data (confirm).
+
+## Answers to the open questions (toddhow, 2026-11-06)
+- **U0 spike on RmlUi before committing: yes.** A throwaway prototype of one window through a VSG render interface, with render-to-texture and cost measured; the backend choice (RmlUi, or the custom C++ fallback behind the same protocol) is made on its result.
+- **Components as Lua tables first, not a markup file: yes.** A markup layer can be added later without changing components.
+- **Keep existing OpenMW Lua UI mods working during the Morrowind stage, by re-implementing `lua_ui` over the new system: yes.**
+- **Schedule: after Track V and game-pack stage d.** No UI work starts before then.
+- Not yet asked: the element protocol (question 3), core ownership of the component library (4), right-to-left and complex scripts (5), Dear ImGui for developer tools (6) and default art from the player's installed data (9); the note's recommendations stand for them until toddhow says otherwise.
