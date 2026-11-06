@@ -180,6 +180,19 @@ namespace Interpreter
         }
     };
 
+    /// A form used as a value (task 0092): the string literal on the stack is the form's name (lower case), the
+    /// result is its form id, or 0 when the context does not know the name.
+    class OpFetchForm : public Opcode0
+    {
+    public:
+        void execute(Runtime& runtime) override
+        {
+            int index = runtime[0].mInteger;
+            std::string_view name = runtime.getStringLiteral(index);
+            runtime[0].mInteger = runtime.getContext().getFormId(name);
+        }
+    };
+
     class OpFetchGlobalFloat : public Opcode0
     {
     public:

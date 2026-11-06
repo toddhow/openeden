@@ -28,6 +28,13 @@ namespace Compiler
         /// must also call Scanner::setLogicalOperators(true), because the scanner does not see the context. Off:
         /// the characters are not an operator, as in Morrowind.
         bool mLogicalOperators = false;
+
+        /// A name that Context::isId accepts, and a local variable that it accepts, may be used as a VALUE: "Set x to
+        /// SomeRef", "If ( x == Player )". The value is the form id, asked for by name at run time
+        /// (Generator::fetchForm, Interpreter::Context::getFormId). Forms may be compared and stored but not used in
+        /// arithmetic; a name that is not a local, a global or an id is a warning and counts as zero. Off: a name that
+        /// is an id may only be followed by "->" or ".", as in Morrowind.
+        bool mFormValues = false;
     };
 
     class Context

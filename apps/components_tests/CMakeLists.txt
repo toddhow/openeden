@@ -133,6 +133,7 @@ file(GLOB UNITTEST_SRC_FILES
     compiler/testmorrowindprogramgolden.cpp
     compiler/testparseroptions.cpp
     compiler/testlogicaloperators.cpp
+    compiler/testformvalues.cpp
     interpreter/testrunlimits.cpp
 
     # Task 0092: the ObScript runtime of the common compatibility pack (generated scripts, an invented world).
@@ -142,6 +143,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptbudget.cpp
     script_obscript/testobscriptsave.cpp
     script_obscript/testobscriptlogic.cpp
+    script_obscript/testobscriptforms.cpp
     script_obscript/testobscriptrealdata.cpp
 
     nif/node.hpp

@@ -81,6 +81,10 @@ namespace Interpreter
 
         virtual std::string_view getCurrentCellName() const = 0;
 
+        /// The form id of the form named  name (lower case), for scripts that use a form as a value (task 0092,
+        /// Compiler::ParserOptions::mFormValues). 0 means "no such form". Not pure: Morrowind never asks.
+        virtual int getFormId(std::string_view /*name*/) const { return 0; }
+
         virtual int getMemberShort(ESM::RefId id, std::string_view name, bool global) const = 0;
 
         virtual int getMemberLong(ESM::RefId id, std::string_view name, bool global) const = 0;

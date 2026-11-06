@@ -90,6 +90,9 @@ namespace Compiler
         /// 0092). Both values are always evaluated. The result is an integer, 1 or 0.
         void logical(CodeContainer& code, char op, char valueType1, char valueType2);
 
+        /// A form used as a value (task 0092): pushes the name, then the opcode that replaces it by the form id.
+        void fetchForm(CodeContainer& code, Literals& literals, const std::string& name);
+
         void assignToGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name,
             const CodeContainer& value, char valueType);
 

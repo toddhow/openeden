@@ -26,6 +26,9 @@ the save chunk (it stores what `serialise` returns).
   inherited parsers.
 - **Function table:** clean-room. Nothing is copied from xNVSE, FOSE or xOBSE source or tables; no game executable is
   read. Names and argument shapes come from the user's installed data (note 0046 section 10).
+- **Forms as values (item 1):** `ParserOptions::mFormValues` is on in `compileText`. A form name is fetched by name at
+  run time (`OpFetchForm`, `InstanceContext::getFormId`, no allocation); forms compare and store but do not take part
+  in arithmetic. `ObScriptWorld::resolveForm` answers `Player` like any name.
 
 ## Pitfalls met
 

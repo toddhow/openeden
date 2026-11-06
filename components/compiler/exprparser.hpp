@@ -62,6 +62,11 @@ namespace Compiler
 
         bool handleMemberAccess(const std::string& name);
 
+        /// Task 0092 (ParserOptions::mFormValues): the name just read is an id that no "->" or "." follows, so it is
+        /// a value: generate its fetch and make it an operand of type 'r' (a form, held as an integer). Returns false
+        /// when the option is off or no id is waiting.
+        bool flushFormValue();
+
     public:
         ExprParser(ErrorHandler& errorHandler, const Context& context, Locals& locals, Literals& literals,
             bool argument = false);

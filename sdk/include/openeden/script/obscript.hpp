@@ -68,7 +68,11 @@ namespace openeden::script
     public:
         virtual ~ObScriptWorld() = default;
 
-        /// Does \a editorId name a form? Names are compared by the world, case-insensitively.
+        /// Does \a editorId name a form? Names are compared by the world, case-insensitively. Used when a script is
+        /// compiled (is this name a form?) and each time a line that uses a form as a value runs (what is its id?); a
+        /// name that no longer resolves reads as 0, "none". The run time calls
+        /// happen in the middle of the instruction loop, which allocates nothing: an implementation should not allocate
+        /// either (take a view of the name, do not build a string).
         virtual bool resolveForm(std::string_view editorId, FormId& form) const = 0;
 
         /// Does \a owner (a quest or object) have a script variable \a name, and of which kind?
@@ -107,7 +111,10 @@ namespace openeden::script
     {
     public:
         static constexpr std::string_view kId = "openeden.script.obscript";
-        static constexpr sdk::Version kVersion{ 1, 0 };
+        /// 1.1 (2026-11-06): additive. A form used as a value in a script ("Set x to SomeRef", "If ( x == Player )")
+        /// is looked up with ObScriptWorld::resolveForm at the moment the line runs; the name "Player" is not special
+        /// to the runtime, the world resolves it like any other name.
+        static constexpr sdk::Version kVersion{ 1, 1 };
 
         virtual ~ObScriptContract() = default;
 

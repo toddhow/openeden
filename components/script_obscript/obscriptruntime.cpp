@@ -96,6 +96,14 @@ namespace ScriptObscript
 
             ESM::RefId getTarget() const override { return ESM::RefId(); }
 
+            /// A form used as a value (Compiler::ParserOptions::mFormValues). The compiler gives the name in lower
+            /// case and locals never come here, so the world is asked directly (no allocation).
+            int getFormId(std::string_view name) const override
+            {
+                FormId form = 0;
+                return mWorld.resolveForm(name, form) ? static_cast<int>(form) : 0;
+            }
+
             int getLocalShort(int index) const override { return at(mInstance.mShorts, index); }
             int getLocalLong(int index) const override { return at(mInstance.mLongs, index); }
             float getLocalFloat(int index) const override { return at(mInstance.mFloats, index); }

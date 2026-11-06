@@ -599,6 +599,12 @@ namespace Compiler::Generator
         code.push_back(segment5(op == '&' ? 71 : 72));
     }
 
+    void fetchForm(CodeContainer& code, Literals& literals, const std::string& name)
+    {
+        opPushInt(code, literals.addString(name));
+        code.push_back(segment5(73));
+    }
+
     void assignToGlobal(CodeContainer& code, Literals& literals, char localType, const std::string& name,
         const CodeContainer& value, char valueType)
     {

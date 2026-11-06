@@ -265,6 +265,79 @@ namespace
         return kind;
     }
 
+    // The SHAPE of one source line, so that failures can be counted by what kind of line they are without recording any
+    // text: words become W (the language's own words stay as they are), numbers N, strings S, punctuation stays.
+    std::string lineShape(const std::string& text, std::uint32_t lineNumber)
+    {
+        static const std::set<std::string> language
+            = { "set", "to", "if", "elseif", "else", "endif", "while", "endwhile", "return", "begin", "end", "short",
+                  "long", "int", "float", "ref", "scn", "scriptname", "messagebox" };
+        std::size_t start = 0;
+        for (std::uint32_t n = 1; n < lineNumber; ++n)
+        {
+            start = text.find('\n', start);
+            if (start == std::string::npos)
+            {
+                return "(past the end)";
+            }
+            ++start;
+        }
+        const std::size_t end = std::min(text.find('\n', start), text.size());
+        const std::string line = text.substr(start, end - start);
+        std::string shape;
+        std::size_t i = 0;
+        while (i < line.size() && shape.size() < 60)
+        {
+            const char c = line[i];
+            if (c == ';')
+            {
+                break;
+            }
+            if (c == ' ' || c == '\t' || c == ',' || c == '\r')
+            {
+                ++i;
+                continue;
+            }
+            if (!shape.empty())
+            {
+                shape += ' ';
+            }
+            if (c == '"')
+            {
+                const std::size_t close = line.find('"', i + 1);
+                shape += 'S';
+                i = close == std::string::npos ? line.size() : close + 1;
+            }
+            else if (c >= '0' && c <= '9')
+            {
+                while (i < line.size() && ((line[i] >= '0' && line[i] <= '9') || line[i] == '.'))
+                {
+                    ++i;
+                }
+                shape += 'N';
+            }
+            else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')
+            {
+                std::size_t j = i;
+                while (j < line.size()
+                    && ((line[j] >= '0' && line[j] <= '9') || (line[j] >= 'a' && line[j] <= 'z')
+                        || (line[j] >= 'A' && line[j] <= 'Z') || line[j] == '_'))
+                {
+                    ++j;
+                }
+                const std::string word = lowered(line.substr(i, j - i));
+                shape += language.contains(word) ? word : "W";
+                i = j;
+            }
+            else
+            {
+                shape += c;
+                ++i;
+            }
+        }
+        return shape;
+    }
+
     TEST(ObScriptRealData, aggregate_compile_report_for_the_new_vegas_masters)
     {
         const char* folderName = std::getenv("OPENEDEN_FNV_DATA");
@@ -368,6 +441,13 @@ namespace
             ++fileIndex;
         }
 
+        // "Player" is the engine's own name for the player reference (it is no editor id): the world answers it as it
+        // answers "PlayerRef" (note 0046, item 1 of the 0092 stage log).
+        {
+            const auto playerRef = world.mForms.find("playerref");
+            world.mForms.emplace("player", playerRef != world.mForms.end() ? playerRef->second : nextId++);
+        }
+
         // An id in a DLC may name a record of the base game: try the same file, then the first master by its low bits.
         auto findIn = [](const auto& map, std::size_t file, std::uint32_t id) {
             auto it = map.find({ file, id });
@@ -410,6 +490,7 @@ namespace
         std::size_t unknownFunctions = 0;
         std::map<std::string, std::size_t> failures;
         std::map<std::string, std::size_t> kinds; // the first error of each failed script, by kind
+        std::map<std::string, std::size_t> shapes; // the shape of the line of that first error
 
         for (const auto& file : files)
         {
@@ -471,6 +552,8 @@ namespace
                             if (report.severity == openeden::script::Severity::Error)
                             {
                                 ++kinds[messageKind(report.message)];
+                                ++shapes[messageKind(report.message) + " | "
+                                    + (report.line == 0 ? std::string("(no line)") : lineShape(text, report.line))];
                                 break;
                             }
                         }
@@ -507,6 +590,17 @@ namespace
         for (std::size_t i = 0; i < ranked.size() && i < 12; ++i)
         {
             std::cout << "OBSCRIPT-CHECK first error kind (" << ranked[i].second << ") " << ranked[i].first << "\n";
+        }
+        std::vector<std::pair<std::size_t, std::string>> rankedShapes;
+        for (const auto& [shape, count] : shapes)
+        {
+            rankedShapes.emplace_back(count, shape);
+        }
+        std::sort(rankedShapes.rbegin(), rankedShapes.rend());
+        for (std::size_t i = 0; i < rankedShapes.size() && i < 40; ++i)
+        {
+            std::cout << "OBSCRIPT-CHECK failing line shape (" << rankedShapes[i].second << ") "
+                      << rankedShapes[i].first << "\n";
         }
         std::cout << "OBSCRIPT-CHECK distinct unknown function names accepted " << unknownFunctions << "\n";
         std::cout

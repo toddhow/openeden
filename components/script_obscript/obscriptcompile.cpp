@@ -650,6 +650,7 @@ namespace ScriptObscript
             options.mDotExplicitReference = true;
             options.mReferenceLocals = true;
             options.mLogicalOperators = true;
+            options.mFormValues = true;
             context.setOptions(options);
 
             try

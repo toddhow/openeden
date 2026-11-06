@@ -96,10 +96,31 @@ namespace Compiler
         mOperands.resize(mOperands.size() - 1);
     }
 
+    namespace
+    {
+        // A form value ('r') is an integer for every purpose but the rules about mixing it with numbers.
+        char plainType(char type)
+        {
+            return type == 'r' ? 'l' : type;
+        }
+    }
+
+    bool ExprParser::flushFormValue()
+    {
+        if (!getContext().getOptions().mFormValues || mExplicit.empty() || mRefOp || mMemberOp)
+            return false;
+
+        Generator::fetchForm(mCode, mLiterals, mExplicit);
+        mNextOperand = false;
+        mOperands.push_back('r');
+        mExplicit.clear();
+        return true;
+    }
+
     void ExprParser::replaceBinaryOperands()
     {
-        char t1 = getOperandType(1);
-        char t2 = getOperandType();
+        char t1 = plainType(getOperandType(1));
+        char t2 = plainType(getOperandType());
 
         popOperand();
         popOperand();
@@ -120,34 +141,32 @@ namespace Compiler
         {
             case 'm':
 
+                if (getOperandType() == 'r')
+                {
+                    getErrorHandler().error("A reference cannot be negated", mTokenLoc);
+                    popOperand();
+                    mOperands.push_back('l');
+                }
                 Generator::negate(mCode, getOperandType());
                 popOperator();
                 break;
 
             case '+':
-
-                Generator::add(mCode, getOperandType(1), getOperandType());
-                popOperator();
-                replaceBinaryOperands();
-                break;
-
             case '-':
-
-                Generator::sub(mCode, getOperandType(1), getOperandType());
-                popOperator();
-                replaceBinaryOperands();
-                break;
-
             case '*':
-
-                Generator::mul(mCode, getOperandType(1), getOperandType());
-                popOperator();
-                replaceBinaryOperands();
-                break;
-
             case '/':
 
-                Generator::div(mCode, getOperandType(1), getOperandType());
+                if (getOperandType(1) == 'r' || getOperandType() == 'r')
+                    getErrorHandler().error("A reference cannot be used in arithmetic", mTokenLoc);
+
+                if (op == '+')
+                    Generator::add(mCode, plainType(getOperandType(1)), plainType(getOperandType()));
+                else if (op == '-')
+                    Generator::sub(mCode, plainType(getOperandType(1)), plainType(getOperandType()));
+                else if (op == '*')
+                    Generator::mul(mCode, plainType(getOperandType(1)), plainType(getOperandType()));
+                else
+                    Generator::div(mCode, plainType(getOperandType(1)), plainType(getOperandType()));
                 popOperator();
                 replaceBinaryOperands();
                 break;
@@ -159,7 +178,10 @@ namespace Compiler
             case 'g':
             case 'G':
 
-                Generator::compare(mCode, op, getOperandType(1), getOperandType());
+                if ((getOperandType(1) == 'r' || getOperandType() == 'r') && op != 'e' && op != 'n')
+                    getErrorHandler().warning("Forms are ordered by their ids", mTokenLoc);
+
+                Generator::compare(mCode, op, plainType(getOperandType(1)), plainType(getOperandType()));
                 popOperator();
                 popOperand();
                 popOperand();
@@ -169,7 +191,7 @@ namespace Compiler
             case '&':
             case '|':
 
-                Generator::logical(mCode, op, getOperandType(1), getOperandType());
+                Generator::logical(mCode, op, plainType(getOperandType(1)), plainType(getOperandType()));
                 popOperator();
                 popOperand();
                 popOperand();
@@ -255,7 +277,7 @@ namespace Compiler
 
     bool ExprParser::parseInt(int value, const TokenLoc& loc, Scanner& scanner)
     {
-        if (!mExplicit.empty())
+        if (!mExplicit.empty() && !flushFormValue())
             return Parser::parseInt(value, loc, scanner);
 
         mFirst = false;
@@ -277,7 +299,7 @@ namespace Compiler
 
     bool ExprParser::parseFloat(float value, const TokenLoc& loc, Scanner& scanner)
     {
-        if (!mExplicit.empty())
+        if (!mExplicit.empty() && !flushFormValue())
             return Parser::parseFloat(value, loc, scanner);
 
         mFirst = false;
@@ -306,7 +328,8 @@ namespace Compiler
                 if (mMemberOp && handleMemberAccess(name))
                     return true;
 
-                return Parser::parseName(name, loc, scanner);
+                if (!flushFormValue())
+                    return Parser::parseName(name, loc, scanner);
             }
             else
             {
@@ -330,7 +353,9 @@ namespace Compiler
                 const std::size_t codeStart = mCode.size();
                 Generator::fetchLocal(mCode, type, mLocals.getIndex(name2));
                 mNextOperand = false;
-                mOperands.push_back(type == 'f' ? 'f' : 'l');
+                const bool holdsForm = getContext().getOptions().mFormValues && type != 'f'
+                    && getContext().isId(ESM::RefId::stringRefId(name2));
+                mOperands.push_back(type == 'f' ? 'f' : holdsForm ? 'r' : 'l');
                 if (getContext().getOptions().mReferenceLocals && getContext().isId(ESM::RefId::stringRefId(name2)))
                 {
                     mAfterReferenceLocal = true;
@@ -354,6 +379,17 @@ namespace Compiler
             if (mExplicit.empty() && getContext().isId(ESM::RefId::stringRefId(name2)))
             {
                 mExplicit = std::move(name2);
+                return true;
+            }
+
+            if (getContext().getOptions().mFormValues)
+            {
+                // Task 0092: a name that is nothing we know is a located warning (an error where warnings are
+                // errors) and counts as zero, not as a number parsed from the letters.
+                pushIntegerLiteral(0);
+                mTokenLoc = loc;
+                getErrorHandler().warning(
+                    "Parsing a non-variable string as a number: 0 (unknown name '" + name + "')", loc);
                 return true;
             }
 
@@ -412,6 +448,8 @@ namespace Compiler
         }
 
         mFirst = false;
+
+        flushFormValue(); // a keyword after an id ends the expression: the id was a value
 
         if (!mExplicit.empty())
         {
@@ -500,6 +538,9 @@ namespace Compiler
             mExplicit = mReferenceLocalName;
         }
         mAfterReferenceLocal = false;
+
+        if (code != Scanner::S_ref && code != Scanner::S_member)
+            flushFormValue(); // anything but "->" or "." after an id: the id was a value
 
         if (!mExplicit.empty())
         {
@@ -659,6 +700,8 @@ namespace Compiler
 
     char ExprParser::append(std::vector<Interpreter::Type_Code>& code)
     {
+        flushFormValue();
+
         if (mOperands.empty() && mOperators.empty())
         {
             getErrorHandler().error("Missing expression", mTokenLoc);
@@ -677,7 +720,7 @@ namespace Compiler
         std::copy(mCode.begin(), mCode.end(), std::back_inserter(code));
 
         assert(mOperands.size() == 1);
-        return mOperands[0];
+        return plainType(mOperands[0]);
     }
 
     int ExprParser::parseArguments(const std::string& arguments, Scanner& scanner,
