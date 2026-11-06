@@ -240,9 +240,10 @@ namespace ScriptObscript
         class OpFunction final : public Interpreter::Opcode1
         {
         public:
-            OpFunction(FunctionEntry& entry, bool explicitReference)
+            OpFunction(FunctionEntry& entry, bool explicitReference, bool skipVariant = false)
                 : mEntry(entry)
                 , mExplicit(explicitReference)
+                , mSkipVariant(skipVariant)
             {
             }
 
@@ -258,14 +259,17 @@ namespace ScriptObscript
                     reference = context.resolveReference(name);
                 }
 
-                if (mEntry.mUnknown)
+                if (mEntry.mUnknown || mEntry.mSkipArguments || mSkipVariant)
                 {
                     if (!mEntry.mNoticeGiven)
                     {
                         mEntry.mNoticeGiven = true;
-                        context.world().report(std::format("unknown function '{}' is ignored", mEntry.mName));
+                        context.world().report(mEntry.mUnknown
+                                ? std::format("unknown function '{}' is ignored", mEntry.mName)
+                                : std::format(
+                                    "function '{}' is declared without a shape and is ignored", mEntry.mName));
                     }
-                    runtime.push(Interpreter::Type_Integer{ 0 });
+                    pushZero(runtime);
                     return;
                 }
 
@@ -274,6 +278,23 @@ namespace ScriptObscript
                     throw ScriptError(std::format("function '{}' was given too many arguments", mEntry.mName));
                 }
                 const std::size_t count = mEntry.mRequired + optionalCount;
+
+                if (!mEntry.mHandler)
+                {
+                    // Declared from a table and not implemented: take the arguments off the stack, say so once.
+                    for (std::size_t i = 0; i < count; ++i)
+                    {
+                        runtime.pop();
+                    }
+                    if (!mEntry.mNoticeGiven)
+                    {
+                        mEntry.mNoticeGiven = true;
+                        context.world().report(std::format(
+                            "function '{}' is declared but has no implementation and is ignored", mEntry.mName));
+                    }
+                    pushZero(runtime);
+                    return;
+                }
                 std::array<Value, Limits::kMaxFunctionArguments> arguments;
                 for (std::size_t i = 0; i < count; ++i)
                 {
@@ -334,8 +355,21 @@ namespace ScriptObscript
             }
 
         private:
+            void pushZero(Interpreter::Runtime& runtime) const
+            {
+                if (mEntry.mReturns == ValueKind::Float)
+                {
+                    runtime.push(0.0f);
+                }
+                else
+                {
+                    runtime.push(Interpreter::Type_Integer{ 0 });
+                }
+            }
+
             FunctionEntry& mEntry;
             bool mExplicit;
+            bool mSkipVariant; // compiled with the arguments skipped: nothing of them is on the stack
         };
 
         // ---- save blob helpers -------------------------------------------------------------------------------
@@ -450,7 +484,8 @@ namespace ScriptObscript
                         return false;
                     }
                     const std::string name = lowerText(descriptor.name);
-                    if (mByName.contains(name))
+                    const auto existing = mByName.find(name);
+                    if (existing != mByName.end() && !existing->second->mDeclared)
                     {
                         error.message = "a function with this name is already registered";
                         return false;
@@ -478,6 +513,26 @@ namespace ScriptObscript
                     {
                         error.message = problem;
                         return false;
+                    }
+
+                    if (existing != mByName.end())
+                    {
+                        // A declaration gets its handler, if the host's shape is the declared one (scripts compiled
+                        // against the declaration depend on it).
+                        FunctionEntry& declared = *existing->second;
+                        const std::string normalised = descriptor.signature.find('/') == std::string::npos
+                            ? descriptor.signature + "/"
+                            : descriptor.signature;
+                        if (declared.mSkipArguments || declared.mSignature != normalised
+                            || declared.mReturns != descriptor.returns)
+                        {
+                            error.message = "the shape differs from the function's declaration";
+                            return false;
+                        }
+                        declared.mAllowsExplicit = descriptor.allowsExplicitReference;
+                        declared.mHandler = std::move(handler);
+                        declared.mDeclared = false;
+                        return true;
                     }
 
                     FunctionEntry& entry = addEntry(name, descriptor.name);
@@ -511,6 +566,86 @@ namespace ScriptObscript
                 }
             }
 
+            bool declareFunction(const FunctionDescriptor& descriptor, ErrorReport& error) noexcept override
+            {
+                try
+                {
+                    error = ErrorReport();
+                    error.script = descriptor.name;
+                    if (!isValidFunctionName(descriptor.name))
+                    {
+                        error.message = "not a valid function name";
+                        return false;
+                    }
+                    const std::string name = lowerText(descriptor.name);
+                    if (mByName.contains(name))
+                    {
+                        error.message = "a function with this name is already registered or declared";
+                        return false;
+                    }
+                    if (descriptor.returns != ValueKind::Integer && descriptor.returns != ValueKind::Float)
+                    {
+                        error.message = "a function returns an Integer or a Float";
+                        return false;
+                    }
+                    if (mRegisteredCount >= Limits::kMaxFunctions || !hasCodes(4))
+                    {
+                        error.message = "the function table is full";
+                        return false;
+                    }
+                    const bool skip = descriptor.signature == "*";
+                    std::size_t required = 0;
+                    std::size_t total = 0;
+                    std::string translated = "/zzzzzzzzzzzz"; // skip up to twelve arguments
+                    if (!skip)
+                    {
+                        std::string problem;
+                        translated = translateSignature(descriptor.signature, required, total, problem);
+                        if (translated.empty())
+                        {
+                            error.message = problem;
+                            return false;
+                        }
+                    }
+
+                    FunctionEntry& entry = addEntry(name, descriptor.name);
+                    entry.mSkipCode = mNextCode;
+                    mNextCode += 2;
+                    mInterpreter.installSegment3<OpFunction>(entry.mSkipCode, entry, false, true);
+                    mInterpreter.installSegment3<OpFunction>(entry.mSkipCode + 1, entry, true, true);
+                    ++mDeclaredCount;
+                    entry.mSignature = skip                                   ? "*"
+                        : descriptor.signature.find('/') == std::string::npos ? descriptor.signature + "/"
+                                                                              : descriptor.signature;
+                    entry.mCompilerSignature = translated;
+                    entry.mRequired = required;
+                    entry.mTotal = total;
+                    entry.mReturns = descriptor.returns;
+                    entry.mAllowsExplicit = descriptor.allowsExplicitReference;
+                    entry.mDeclared = true;
+                    entry.mSkipArguments = skip;
+                    for (const char c : descriptor.signature)
+                    {
+                        if (c != '/' && c != '*')
+                        {
+                            entry.mArgKinds += c;
+                        }
+                    }
+                    ++mRegisteredCount;
+                    return true;
+                }
+                catch (const std::exception& e)
+                {
+                    error.message = std::format("the function could not be declared ({})", e.what());
+                    return false;
+                }
+                catch (...)
+                {
+                    error.message = "the function could not be declared";
+                    return false;
+                }
+            }
+
             CompileResult compile(const ScriptSource& source) noexcept override
             {
                 CompileResult result;
@@ -519,6 +654,7 @@ namespace ScriptObscript
                     CompileServices services;
                     services.mWorld = &mWorld;
                     services.mPolicy = mPolicy;
+                    services.mHasDeclared = mDeclaredCount > 0;
                     services.mFind = [this](const std::string& name) -> const FunctionEntry* {
                         const auto it = mByName.find(name);
                         return it == mByName.end() ? nullptr : it->second;
@@ -915,7 +1051,7 @@ namespace ScriptObscript
             }
 
         private:
-            bool hasCodes() const { return mNextCode + 1 <= kLastFunctionCode; }
+            bool hasCodes(int pairs = 2) const { return mNextCode + pairs - 1 <= kLastFunctionCode; }
 
             // Add an entry to the table and install its two opcodes (plain and explicit reference).
             FunctionEntry& addEntry(const std::string& name, const std::string& spelling)
@@ -944,6 +1080,7 @@ namespace ScriptObscript
             int mNextCode = kFirstFunctionCode;
             std::size_t mRegisteredCount = 0;
             std::size_t mUnknownCount = 0;
+            std::size_t mDeclaredCount = 0;
             std::uint32_t mRunDepth = 0;
         };
     }

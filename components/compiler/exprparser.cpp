@@ -794,7 +794,7 @@ namespace Compiler
 
                 if (discardParser.isEmpty())
                     break;
-                else
+                else if (!getContext().getOptions().mQuietSkippedArguments)
                     getErrorHandler().warning("Extra argument", discardParser.getTokenLoc());
             }
             else if (argument == 'j')

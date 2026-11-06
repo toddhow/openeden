@@ -111,10 +111,11 @@ namespace openeden::script
     {
     public:
         static constexpr std::string_view kId = "openeden.script.obscript";
+        /// 1.2 (2026-11-06): additive. declareFunction (a function with a shape and no behaviour yet, from a table).
         /// 1.1 (2026-11-06): additive. A form used as a value in a script ("Set x to SomeRef", "If ( x == Player )")
         /// is looked up with ObScriptWorld::resolveForm at the moment the line runs; the name "Player" is not special
         /// to the runtime, the world resolves it like any other name.
-        static constexpr sdk::Version kVersion{ 1, 1 };
+        static constexpr sdk::Version kVersion{ 1, 2 };
 
         virtual ~ObScriptContract() = default;
 
@@ -122,6 +123,21 @@ namespace openeden::script
         /// signature or a full table. Register before compiling: scripts compiled earlier do not see it.
         virtual bool registerFunction(
             const FunctionDescriptor& descriptor, FunctionHandler handler, ErrorReport& error) noexcept = 0;
+
+        /// Declare a function that has a shape and no behaviour yet, as a table derived from the player's data gives
+        /// them: scripts that call it compile with typed arguments, and running it logs once per name and returns
+        /// zero (of its return type), as an unknown function does. The signature may also be "*": the arguments are
+        /// not known, so the compiler skips them. A name that is already registered or declared is refused. Later
+        /// registerFunction with the same name and the same signature and return type gives the declaration a handler;
+        /// any other registerFunction on a declared name is refused, because scripts compiled against the declaration
+        /// depend on its shape. Register and declare before compiling.
+        virtual bool declareFunction(const FunctionDescriptor& descriptor, ErrorReport& error) noexcept
+        {
+            error = ErrorReport();
+            error.script = descriptor.name;
+            error.message = "this runtime does not support declared functions";
+            return false;
+        }
 
         /// Compile source text. Never reads compiled bytecode. A failure in one script does not affect the next.
         virtual CompileResult compile(const ScriptSource& source) noexcept = 0;

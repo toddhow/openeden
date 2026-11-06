@@ -37,6 +37,10 @@ namespace ScriptObscript
         bool mAllowsExplicit = true;
         bool mUnknown = false; ///< An unknown name accepted by the tolerant policy.
         bool mNoticeGiven = false; ///< An unknown name has been reported once.
+        bool mDeclared = false; ///< Declared from a table: a shape and no handler yet (registerFunction may add one).
+        bool mSkipArguments = false; ///< Declared with the "*" shape: the compiler skips its arguments.
+        int mSkipCode
+            = 0; ///< A declared function's second pair of opcodes, for scripts compiled with its arguments skipped.
         int mCode = 0; ///< Segment 3 opcode; mCode + 1 is the explicit reference form.
         openeden::script::FunctionHandler mHandler;
     };
@@ -73,6 +77,10 @@ namespace ScriptObscript
         std::function<const FunctionEntry*(const std::string&)> mFind;
         /// Accept an unknown name (tolerant mode): returns its entry, or null when the table is full.
         std::function<const FunctionEntry*(const std::string& lowerName, const std::string& spelling)> mAddUnknown;
+        /// Tolerant mode only: compile every function that is declared but has no handler with its arguments skipped,
+        /// whatever its declared shape (the fallback for a script the declared shapes do not fit).
+        bool mDeclaredAsSkip = false;
+        bool mHasDeclared = false; ///< The runtime has at least one declared function.
         /// The functions the compiler's command table starts from, in registration order.
         std::function<void(const std::function<void(const FunctionEntry&)>&)> mForEachFunction;
     };

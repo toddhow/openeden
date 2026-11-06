@@ -134,6 +134,7 @@ file(GLOB UNITTEST_SRC_FILES
     compiler/testparseroptions.cpp
     compiler/testlogicaloperators.cpp
     compiler/testformvalues.cpp
+    compiler/testskippedarguments.cpp
     interpreter/testrunlimits.cpp
 
     # Task 0092: the ObScript runtime of the common compatibility pack (generated scripts, an invented world).
@@ -144,6 +145,9 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptsave.cpp
     script_obscript/testobscriptlogic.cpp
     script_obscript/testobscriptforms.cpp
+    script_obscript/testobscriptderive.cpp
+    script_obscript/testobscriptdeclare.cpp
+    script_obscript/testobscripttablecheck.cpp
     script_obscript/testobscriptrealdata.cpp
 
     nif/node.hpp

@@ -601,7 +601,7 @@ namespace ScriptObscript
             {
                 if (mTolerant && type == WarningMessage && message == "Extra argument")
                 {
-                    return; // the arguments of an unknown function are skipped on purpose
+                    return; // tolerant mode: extra arguments after a call are ignored
                 }
                 const std::uint32_t line = static_cast<std::uint32_t>(loc.mLine) + 1 + mLineOffset;
                 const std::uint32_t column = static_cast<std::uint32_t>(loc.mColumn) + 1;
@@ -637,12 +637,9 @@ namespace ScriptObscript
             const Compiler::Extensions& extensions, const CompileServices& services, CompiledScript& script,
             Reporter& reporter, CompiledBlock& block, bool& failed)
         {
+            // Strict mode makes the warnings errors in the Reporter, not in the handler.
             CollectingHandler handler(reporter, services.mPolicy == UnknownFunctionPolicy::Tolerant);
             handler.setLineOffset(lineOffset);
-            if (services.mPolicy == UnknownFunctionPolicy::Strict)
-            {
-                handler.setWarningsMode(2); // warnings are errors
-            }
 
             ScriptContext context(services, script);
             context.setExtensions(&extensions);
@@ -651,6 +648,7 @@ namespace ScriptObscript
             options.mReferenceLocals = true;
             options.mLogicalOperators = true;
             options.mFormValues = true;
+            options.mQuietSkippedArguments = true;
             context.setOptions(options);
 
             try
@@ -759,7 +757,44 @@ namespace ScriptObscript
         return result;
     }
 
+    static CompileOutput compileOnce(
+        const openeden::script::ScriptSource& source, const CompileServices& services) noexcept;
+
     CompileOutput compileScript(const openeden::script::ScriptSource& source, const CompileServices& services) noexcept
+    {
+        CompileOutput first = compileOnce(source, services);
+        if (first.mOk || services.mPolicy != UnknownFunctionPolicy::Tolerant || !services.mHasDeclared
+            || services.mDeclaredAsSkip)
+        {
+            return first;
+        }
+        // Tolerant mode: the declared shapes came from data and may not fit every use. Try again with their
+        // arguments skipped, as for an unknown function; if that fails too, the first attempt's errors are the ones
+        // worth reading.
+        try
+        {
+            CompileServices retry = services;
+            retry.mDeclaredAsSkip = true;
+            CompileOutput second = compileOnce(source, retry);
+            if (!second.mOk)
+            {
+                return first;
+            }
+            ErrorReport note;
+            note.severity = Severity::Warning;
+            note.script = source.name;
+            note.message = "the arguments of declared functions were skipped because their declared shapes do not fit";
+            second.mReports.push_back(std::move(note));
+            return second;
+        }
+        catch (...)
+        {
+            return first;
+        }
+    }
+
+    static CompileOutput compileOnce(
+        const openeden::script::ScriptSource& source, const CompileServices& services) noexcept
     {
         CompileOutput output;
         try
@@ -837,8 +872,8 @@ namespace ScriptObscript
                 }
             }
 
-            // A declaration inside a block (the masters have some) declares a local of the whole script. The line is
-            // left blank in the text given to the compiler, so that the line numbers stay the same.
+            // A declaration inside a block (the masters have some) declares a local of the whole script. The line
+            // is left blank in the text given to the compiler, so that the line numbers stay the same.
             std::set<std::size_t> declarationLines;
             if (source.kind == ScriptKind::Script)
             {
@@ -912,7 +947,14 @@ namespace ScriptObscript
 
             // The command table: every registered function and every accepted unknown name.
             Compiler::Extensions extensions;
-            services.mForEachFunction([&extensions](const FunctionEntry& entry) {
+            const bool declaredAsSkip = services.mDeclaredAsSkip;
+            services.mForEachFunction([&extensions, declaredAsSkip](const FunctionEntry& entry) {
+                if (declaredAsSkip && entry.mDeclared && entry.mSkipCode != 0)
+                {
+                    extensions.registerFunction(entry.mName, entry.mReturns == ValueKind::Float ? 'f' : 'l',
+                        "/zzzzzzzzzzzz", entry.mSkipCode, entry.mAllowsExplicit ? entry.mSkipCode + 1 : -1);
+                    return;
+                }
                 extensions.registerFunction(entry.mName, entry.mReturns == ValueKind::Float ? 'f' : 'l',
                     entry.mCompilerSignature, entry.mCode, entry.mAllowsExplicit ? entry.mCode + 1 : -1);
             });

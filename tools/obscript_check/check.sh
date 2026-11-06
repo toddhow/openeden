@@ -23,3 +23,9 @@ if [ ! -x "$TESTS" ]; then
     exit 1
 fi
 OPENEDEN_FNV_DATA="$DATA" "$TESTS" --gtest_filter='ObScriptRealData.*' | grep -E "OBSCRIPT-CHECK|PASSED|FAILED|SKIPPED"
+
+# Second check (item 2 of task 0092): derive the function table from the same data and print aggregate numbers only
+# (OBSCRIPT-TABLE lines). Set OPENEDEN_OBSCRIPT_TABLE_OUT to a file OUTSIDE the repository to keep the derived table
+# there; it is made from the player's data and is never committed or shipped. OPENEDEN_OBSCRIPT_SHAPES=1 adds the
+# shapes (token classes, no words) of the lines that still fail.
+OPENEDEN_FNV_DATA="$DATA" "$TESTS" --gtest_filter='ObScriptTableData.*' | grep -E "OBSCRIPT-TABLE|PASSED|FAILED|SKIPPED"

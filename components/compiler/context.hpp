@@ -35,6 +35,11 @@ namespace Compiler
         /// arithmetic; a name that is not a local, a global or an id is a warning and counts as zero. Off: a name that
         /// is an id may only be followed by "->" or ".", as in Morrowind.
         bool mFormValues = false;
+
+        /// Arguments that a command table says to skip (the 'z' argument kind) give no "Extra argument" warning. Off:
+        /// each skipped token is a warning, as in Morrowind. The skipped arguments of a command declared without a
+        /// shape are not a mistake, so the ObScript runtime asks for this.
+        bool mQuietSkippedArguments = false;
     };
 
     class Context

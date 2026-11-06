@@ -29,6 +29,17 @@ the save chunk (it stores what `serialise` returns).
 - **Forms as values (item 1):** `ParserOptions::mFormValues` is on in `compileText`. A form name is fetched by name at
   run time (`OpFetchForm`, `InstanceContext::getFormId`, no allocation); forms compare and store but do not take part
   in arithmetic. `ObScriptWorld::resolveForm` answers `Player` like any name.
+- **The function table (item 2):** `derive.*` pairs command names in `SCTX` with opcodes in `SCDA` (the format is
+  written at the top of `derive.hpp`); `functiontable.*` holds the table, its canonical text, `mergeSeed` and
+  `declareAll`. The table is derived on the user's machine and written to a user folder: **never commit or ship a
+  table or any text read from game data**, and never print a command name from the data in a report. A seed entry
+  needs a source that starts with READ or RECALLED-VERIFY; nothing may come from another project's tables.
+- **Declared functions:** `declareFunction` gives a shape and no handler. Running one pops its arguments, logs once
+  per name and returns zero. Each declared function has a second pair of opcodes (`mSkipCode`) for scripts compiled
+  with its arguments skipped: tolerant mode retries a failed script that way (`compileScript` calls `compileOnce`
+  twice) and adds one warning. Strict mode never retries.
+- **Strict mode makes warnings errors in the `Reporter`, not in the compiler's handler**, so that the "Extra argument"
+  warnings of skipped arguments can be told from the others (`ParserOptions::mQuietSkippedArguments`).
 
 ## Pitfalls met
 
