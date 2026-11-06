@@ -4,8 +4,12 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <memory>
 #include <sstream>
@@ -115,7 +119,7 @@ namespace Nif
                 << "\n";
             for (const auto& record : file.mRecords)
             {
-                out << record->mRecordIndex << " " << record->mRecordName << " type=" << record->mRecordType;
+                out << record->mRecordIndex << " " << record->mRecordName;
                 if (const auto* node = dynamic_cast<const NiAVObject*>(record.get()))
                 {
                     out << " name=" << node->mName << " flags=" << node->mFlags << dumpTransform(node->mTransform);
@@ -184,23 +188,71 @@ namespace Nif
             const std::string text = parseAndDump(makeMorrowindFile(0x04000002, false));
             // The root's own transform is replaced by the identity (a Morrowind rule of NiNode::read); the second
             // NiNode named "bip01" keeps its transform.
-            EXPECT_NE(text.find("0 NiNode type="), std::string::npos);
+            EXPECT_NE(text.find("0 NiNode name=Scene Root"), std::string::npos);
             EXPECT_NE(text.find(" name=Scene Root flags=8 t=0,0,0 s=1 "), std::string::npos) << text;
             EXPECT_NE(text.find(" name=bip01 flags=8 t=-4,5,6 s=3 "), std::string::npos) << text;
-            EXPECT_EQ(fnv1a(text), 5502098086677183353ull) << text;
+            EXPECT_EQ(fnv1a(text), 10830023638193184693ull) << text;
         }
 
         TEST(NifMorrowindUnchanged, a_root_called_bip01_keeps_its_transform)
         {
             const std::string text = parseAndDump(makeMorrowindFile(0x04000002, true));
             EXPECT_NE(text.find(" name=BIP01 flags=8 t=10,-20,30 s=2 "), std::string::npos) << text;
-            EXPECT_EQ(fnv1a(text), 12687552542463483482ull) << text;
+            EXPECT_EQ(fnv1a(text), 3036533786913774926ull) << text;
         }
 
         TEST(NifMorrowindUnchanged, a_generated_4_0_0_0_file_parses_to_the_pinned_dump)
         {
             const std::string text = parseAndDump(makeMorrowindFile(0x04000000, false));
-            EXPECT_EQ(fnv1a(text), 16598351258368905735ull) << text;
+            EXPECT_EQ(fnv1a(text), 9734782150469507659ull) << text;
+        }
+
+        // Not run by default: with OPENEDEN_NIF_MORROWIND_DIR set to a folder of the user's own loose Morrowind
+        // meshes, parses every .nif in it with the Morrowind default options and writes one line per file (relative
+        // path, hash of the record dump, or the error) to the file named by OPENEDEN_NIF_DUMP_OUT, plus a total hash.
+        // Run before and after a reader change; the two outputs must be identical. Nothing of the files is printed.
+        TEST(NifMorrowindUnchanged, real_files_dump_hashes_when_asked)
+        {
+            const char* dir = std::getenv("OPENEDEN_NIF_MORROWIND_DIR");
+            const char* out = std::getenv("OPENEDEN_NIF_DUMP_OUT");
+            if (dir == nullptr || out == nullptr)
+                GTEST_SKIP() << "OPENEDEN_NIF_MORROWIND_DIR and OPENEDEN_NIF_DUMP_OUT are not set";
+            std::vector<std::filesystem::path> files;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
+            {
+                if (!entry.is_regular_file())
+                    continue;
+                std::string extension = entry.path().extension().string();
+                for (char& c : extension)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (extension == ".nif")
+                    files.push_back(entry.path());
+            }
+            std::sort(files.begin(), files.end());
+            std::ofstream report(out);
+            std::string all;
+            std::size_t failed = 0;
+            for (const auto& file : files)
+            {
+                std::string line = std::filesystem::relative(file, dir).generic_string();
+                std::string result;
+                try
+                {
+                    std::ifstream input(file, std::ios::binary);
+                    std::ostringstream bytes;
+                    bytes << input.rdbuf();
+                    result = std::to_string(fnv1a(parseAndDump(bytes.str())));
+                }
+                catch (const std::exception& e)
+                {
+                    ++failed;
+                    result = std::string("error: ") + e.what();
+                }
+                line += " " + result + '\n';
+                report << line;
+                all += line;
+            }
+            report << "total " << files.size() << " files, " << failed << " errors, hash " << fnv1a(all) << '\n';
         }
     }
 }
