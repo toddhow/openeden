@@ -53,7 +53,9 @@ namespace Nif
         {
             NifBhkRagdollTemplateTest()
             {
-                Nif::Reader::setLoadUnsupportedFiles(true);
+                Nif::ReadOptions options;
+                options.mAllowedVersions = Nif::VersionSet::Any;
+                Nif::Reader::setDefaultReadOptions(options);
                 Nif::Reader::setWriteNifDebugLog(true);
             }
         };

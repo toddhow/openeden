@@ -13,8 +13,8 @@
 // components/misc/constants.hpp). That Skyrim and Fallout 4 files use the same unit is an assumption; the skeleton
 // heights in the report let a reader check it.
 //
-// Reading: Nif::Reader::setLoadUnsupportedFiles(true), as niftest does, so that files other than Morrowind's 4.0.0.2
-// are parsed (components/nif/niffile.cpp, Reader::parse refuses other versions otherwise).
+// Reading: Nif::Reader::setDefaultReadOptions with VersionSet::Any, as niftest does, so that files other than
+// Morrowind's 4.0.0.2 are parsed (components/nif/niffile.cpp, Reader::parse refuses other versions otherwise).
 
 #include <components/body/skeletonstats.hpp>
 #include <components/bodynif/skeletonread.hpp>
@@ -244,7 +244,9 @@ int main(int argc, char** argv)
         baseRoles.push_back({ mapping.source, mapping.target, {} });
     }
 
-    Nif::Reader::setLoadUnsupportedFiles(true);
+    Nif::ReadOptions readOptions;
+    readOptions.mAllowedVersions = Nif::VersionSet::Any;
+    Nif::Reader::setDefaultReadOptions(readOptions);
     bool failures = false;
 
     std::map<std::string, std::vector<Body::RestBone>> baseSkeletons;

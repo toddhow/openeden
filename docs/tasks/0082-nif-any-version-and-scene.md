@@ -168,3 +168,62 @@ Not compared: `vsgadapters/nif`'s output (unchanged code), an in-game frame.
   changed `.cpp`, in a throwaway container, passed), the sanitizer jobs, the 32 Lua tests, the in-game check of Morrowind cells.
 - A file parsed with the Morrowind root rule on shows the identity transform on record 0 in its scene; `readScene`
   turns the rule off.
+
+### Follow-up (2026-11-06, toddhow's answers): the process-wide flag is gone
+
+toddhow's decisions of 2026-11-06: (1) answer 8 stands as implemented (counts and a warning; a hard error only for an index outside the
+skin); (2) `setLoadUnsupportedFiles` is removed, with the existing tests and callers moved; (3) the two inherited reader findings below are a later task;
+(4) the tangent sign stays unverified until the manual oracle step.
+
+**Change.** `Reader::setLoadUnsupportedFiles(bool)` and its `atomic_bool` are removed. In their place `Reader::setDefaultReadOptions(const ReadOptions&)`
+and `getDefaultReadOptions()` (a mutex-protected copy, set once at start-up). `Reader::parse(stream)` uses the default options; `parse(stream, options)` is
+unchanged. The default is `Morrowind` (as before the flag was set). Callers moved: `apps/niftest/niftest.cpp` and `apps/edenskelstat/main.cpp`
+(`VersionSet::Any`), `apps/openmw/mwrender/rendermanager.cpp` (`Any` when `[Models] load unsupported nif files` is true, else `Morrowind`: the same
+decision as before). **Limit, stated plainly:** the game's many other readers (`Resource::NifFileManager`, `vsgadapters/nif`, `bodycommon`,
+`lodobjectbaker`, `meshscene`, `kf_converter`, ...) still call `parse(stream)` and so still share one process-wide default; threading explicit options through them is
+not done. Only the setter named in the spec is removed.
+
+**Existing test lines edited (toddhow's approval, 2026-11-06):** `apps/components_tests/nif/testphysics.cpp`, in the constructor of
+`NifBhkRagdollTemplateTest`: the line `Nif::Reader::setLoadUnsupportedFiles(true);` became four lines
+(`Nif::ReadOptions options; options.mAllowedVersions = Nif::VersionSet::Any; Nif::Reader::setDefaultReadOptions(options);`). No other existing test
+called the setter. Nothing else in any existing test changed.
+
+## Findings for a later task (not investigated)
+
+1. **Four BodySlide-output NIFs fail in the inherited `Reader::parse` post-processing.** Seen in the CBBE output folder (4,456 Skyrim SE files, 4 failed).
+   Error text, path removed: `NIFFile Error: Failed to cast record pointer to struct Nif::NiObjectNET`. It is thrown by the `RecordPtrT` cast in the `post` pass,
+   i.e. a reference (a controller, extra data, a skin root or bone) points at a record that is not a `NiObjectNET`. Hypotheses, none tested: a skin instance bone
+   or root that points at a non-node record; a `BSDismemberSkinInstance`/`NiSkinInstance` whose bone list holds a reference to a different block type
+   (a mod tool that renumbers blocks); a block type the factory maps onto the wrong C++ type (for example a Bethesda extra-data or controller type registered as a
+   plain `NiObjectNET`); corrupt files. First step of that task: list the four files' block types around the failing reference (with `niftest -d` or a dump), and see whether
+   NifSkope loads them.
+2. **Fallout 4 weight sums reach 0.16 away from 1** in some vertices of the 783 files read (BodyTalk, Fusion Girl, ZeX; stream 130; worst
+   |sum - 1| = 0.16; Skyrim SE files: 4.3e-4 worst, 0.096 over the armour output). Hypotheses: the file stores four half-float weights that really do not sum to 1
+   (authoring tools do not always renormalise; research note 0036 measured "within 1e-2" on a smaller set); more than four influences per vertex cut to four by the tool;
+   a vertex using the unused fourth slot with a non-zero weight; the half-float conversion. First step: count vertices by deviation bucket, check whether they are
+   the same shapes (hands and feet), and compare with NifSkope's weights for one file.
+
+## The manual oracle step (toddhow's hands; decides the tangent sign and the SSE bone index space)
+
+Nothing here needs the repository to change. The dev tool `niftest --compare-gltf <glb> <nif>` does not exist yet; until it does, the comparison is by eye or by
+the numbers below. Do this on a COPY of one file, in a work folder outside the repository.
+
+1. Copy one skinned Skyrim SE body NIF (for example a CBBE body `femalebody_1.nif`) and one head with a normal map (a `BSDynamicTriShape`) to a work folder.
+2. Open the copy in the NifSkope fork (fo76utils, commit `380631a408`). Do **not** use the fork's headless options: they rewrite `.nif` files in place.
+3. File, Export, glTF. Save `body.glb` (binary) next to the copy.
+4. Read the same NIF with the scene reader (the gated test `NifSceneReal` prints aggregates only; for one file point `OPENEDEN_NIF_REPORT_DIRS` at the work folder
+   and `OPENEDEN_NIF_REPORT_OUT` at a file in the work folder) and note: shape count, vertex count, triangle count, bone count.
+5. Open `body.glb` in any glTF viewer that prints counts (Blender's import statistics, or `gltf-transform inspect`). Compare the same four numbers. They must match.
+6. For the tangent sign: in Blender, import both the glTF and view the normal-mapped shading of the head with the game's normal map; the glTF the fork exports flips
+   the NIF's bitangent into the glTF tangent. Our `Scene` stores the same vector (xyz) and a `w` that is +1 when `cross(normal, xyz)` points the way the NIF's own tangent points.
+   Check on three vertices (one per side of a UV seam) that the glTF `TANGENT` attribute's `w` equals the `Scene` `w`. If they differ in sign everywhere, the convention in
+   `components/nifscene/vertexdecode.cpp` (`decodeVertices`) and the two `tangent_sign_*` tests flip together; tell the project owner.
+7. For the bone index space: for a skinned body, check that the glTF `JOINTS_0`/`WEIGHTS_0` of a few vertices name the same bones (by name) as `Scene` influences do (`Skin::mBoneNames[influence.mBone]`). The reader treats the packed indices as skin bone
+   indices; research note 0036 and 197 files already agree with `NiSkinData`, so a mismatch would be new information.
+8. Write the result (match, or the numbers that differ) into the stage log. No file content or path goes into the repository.
+
+**Checks after the setter removal.** `Nif*` tests 64 pass; the three Morrowind golden dumps pass; the 7,343-mesh per-file hash comparison is again identical to the
+baseline taken before any reader change (`cmp`, total hash 7216450887293321327). `niftest.exe`, `edenskelstat.exe` and `rendermanager.cpp` build on Windows.
+GCC 13 `-Werror -fsyntax-only` with CI's warning flags (throwaway container, gate volume read-only) passes on every new or changed `.cpp`: `components/nif/{niffile,data,node}.cpp`,
+`components/nifscene/{build,vertexdecode}.cpp`, `apps/niftest/niftest.cpp`, `apps/edenskelstat/main.cpp`, `apps/openmw/mwrender/rendermanager.cpp` and the five new or edited
+test files (`testmorrowindunchanged`, `testreadoptions`, `testphysics`, `testvertexdecode`, `testscenebuild`, `testscenereal`). Not run: the Linux link and tests, sanitizers, Lua tests, an in-game check.

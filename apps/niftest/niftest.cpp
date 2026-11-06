@@ -272,7 +272,9 @@ int main(int argc, char** argv)
     if (!parseOptions(argc, argv, files, sources, writeDebugLog, quiet))
         return 1;
 
-    Nif::Reader::setLoadUnsupportedFiles(true);
+    Nif::ReadOptions readOptions;
+    readOptions.mAllowedVersions = Nif::VersionSet::Any;
+    Nif::Reader::setDefaultReadOptions(readOptions);
     Nif::Reader::setWriteNifDebugLog(writeDebugLog);
 
     std::unique_ptr<VFS::Manager> vfs;

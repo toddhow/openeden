@@ -7,6 +7,7 @@
 #include <array>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 
@@ -573,9 +574,7 @@ namespace Nif
 
     void Reader::parse(Files::IStreamPtr&& stream)
     {
-        ReadOptions options;
-        options.mAllowedVersions = sLoadUnsupportedFiles ? VersionSet::Any : VersionSet::Morrowind;
-        parse(std::move(stream), options);
+        parse(std::move(stream), getDefaultReadOptions());
     }
 
     void Reader::parse(Files::IStreamPtr&& stream, const ReadOptions& options)
@@ -798,12 +797,24 @@ namespace Nif
         mUseSkinning = skinning;
     }
 
-    std::atomic_bool Reader::sLoadUnsupportedFiles = false;
     std::atomic_bool Reader::sWriteNifDebugLog = false;
 
-    void Reader::setLoadUnsupportedFiles(bool load)
+    namespace
     {
-        sLoadUnsupportedFiles = load;
+        std::mutex sDefaultOptionsMutex;
+        ReadOptions sDefaultOptions;
+    }
+
+    void Reader::setDefaultReadOptions(const ReadOptions& options)
+    {
+        const std::lock_guard<std::mutex> lock(sDefaultOptionsMutex);
+        sDefaultOptions = options;
+    }
+
+    ReadOptions Reader::getDefaultReadOptions()
+    {
+        const std::lock_guard<std::mutex> lock(sDefaultOptionsMutex);
+        return sDefaultOptions;
     }
 
     void Reader::setWriteNifDebugLog(bool value)

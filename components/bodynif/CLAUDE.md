@@ -32,7 +32,7 @@ Rules and pitfalls:
 `readSkeleton` (every NiNode a bone, parents first, ancestors' scales folded into the translation, the node's own scale
 reported, not applied) and `readSkinWeights` (the skin weight per bone of every skinned shape, by three routes).
 
-- **Later games' files parse only with `Nif::Reader::setLoadUnsupportedFiles(true)`** (`Reader::parse` refuses other
+- **Later games' files parse only with `Nif::Reader::setDefaultReadOptions` (VersionSet::Any)** (`Reader::parse` refuses other
   versions than 4.0.0.0 and 4.0.0.2). The renderer (`components/vsgadapters/nif`) has no `BSTriShape` path: these
   readers measure files the game cannot draw.
 - **Skyrim SE skinned `BSTriShape`s store a vertex count of 0**; the vertices are in the `NiSkinPartition`, so the count

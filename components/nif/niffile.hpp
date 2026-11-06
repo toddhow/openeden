@@ -161,7 +161,6 @@ namespace Nif
         const ToUTF8::StatelessUtf8Encoder* mEncoder;
         ReadOptions mOptions;
 
-        static std::atomic_bool sLoadUnsupportedFiles;
         static std::atomic_bool sWriteNifDebugLog;
 
         /// Get the file's version in a human readable form
@@ -172,8 +171,8 @@ namespace Nif
         /// Open a NIF stream. The name is used for error messages.
         explicit Reader(NIFFile& file, const ToUTF8::StatelessUtf8Encoder* encoder = nullptr);
 
-        /// Parse the file with the process-wide options: Morrowind versions only, or every version after
-        /// setLoadUnsupportedFiles(true).
+        /// Parse the file with the process-wide default options (Morrowind versions only until
+        /// setDefaultReadOptions changes them).
         void parse(Files::IStreamPtr&& stream);
 
         /// Parse the file with explicit options. Errors name the file, the version and, for a record, its index and
@@ -205,7 +204,11 @@ namespace Nif
         /// Get the Bethesda version of the NIF format used
         std::uint32_t getBethVersion() const { return mBethVersion; }
 
-        static void setLoadUnsupportedFiles(bool load);
+        /// The options parse(stream) uses. Set once at start-up, before any thread reads NIF files; the many readers
+        /// that call parse(stream) (the game's resource managers, the renderer's NIF loader) share it. A reader that
+        /// needs other options calls parse(stream, options).
+        static void setDefaultReadOptions(const ReadOptions& options);
+        static ReadOptions getDefaultReadOptions();
 
         static void setWriteNifDebugLog(bool load);
     };

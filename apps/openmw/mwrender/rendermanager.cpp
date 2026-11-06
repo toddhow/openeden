@@ -403,7 +403,10 @@ namespace MWRender
 
         mRenderModes.resize(Render_Count);
         // As OpenMW's RenderingManager (task 0012).
-        Nif::Reader::setLoadUnsupportedFiles(Settings::models().mLoadUnsupportedNifFiles);
+        Nif::ReadOptions nifOptions;
+        nifOptions.mAllowedVersions
+            = Settings::models().mLoadUnsupportedNifFiles ? Nif::VersionSet::Any : Nif::VersionSet::Morrowind;
+        Nif::Reader::setDefaultReadOptions(nifOptions);
         mCamera.reset(new Camera);
 
         mShadow = std::make_unique<Shadow>(*context, mEngine.getEnabledFeatures().depthClamp);
