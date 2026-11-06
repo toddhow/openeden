@@ -1,0 +1,10 @@
+# Recorded interface of the GLSL stage post/omwfx.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+entry 0 main
+in builtin=42
+out builtin=0
+out location=0 vec2f32
+end

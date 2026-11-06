@@ -1,0 +1,19 @@
+# Recorded interface of the GLSL stage sky/night/main.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines COLOR NORMAL NORMAL_MAP SKIN TEXCOORD VERTEX
+set COLOR NORMAL TEXCOORD VERTEX
+capability 1
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+out builtin=0
+out location=0 vec4f32
+out location=1 vec2f32
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+spec_constant id=0 i32
+spec_constant_default id=0 bits 1
+end

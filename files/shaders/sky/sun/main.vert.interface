@@ -1,0 +1,13 @@
+# Recorded interface of the GLSL stage sky/sun/main.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+entry 0 main
+in builtin=42
+member push_constant 0:projection
+member push_constant 64:modelview
+out builtin=0
+out location=0 vec2f32
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end

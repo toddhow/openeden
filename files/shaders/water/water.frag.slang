@@ -15,8 +15,8 @@ import lib.view.reflect;
 import lib.view.scene;
 import lib.view.screencoord;
 import lib.view.shadow;
-#include "water/fresnel.slang"
-#include "water/rainripples.slang"
+import water.fresnel;
+import water.rainripples;
 
 struct FragmentInput
 {

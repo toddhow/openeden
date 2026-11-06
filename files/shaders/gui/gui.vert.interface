@@ -1,0 +1,13 @@
+# Recorded interface of the GLSL stage gui/gui.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+entry 0 main
+in location=0 vec3f32
+in location=1 vec4f32
+in location=2 vec2f32
+out builtin=0
+out location=1 vec4f32
+out location=2 vec2f32
+end

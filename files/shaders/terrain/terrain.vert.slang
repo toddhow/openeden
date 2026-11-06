@@ -4,7 +4,7 @@
 // m[c][r] is m[r][c] here and mul(M, v) is M * v.
 import glsl;
 
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 #include "lib/sets.slang"
 import lib.view.scene;
 import lib.view.screencoord;

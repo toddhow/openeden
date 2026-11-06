@@ -4,7 +4,7 @@
 import glsl;
 
 import lib.inout;
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 import lib.view.depthrange;
 import lib.view.scene;
 

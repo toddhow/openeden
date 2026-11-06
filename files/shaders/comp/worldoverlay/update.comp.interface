@@ -1,0 +1,14 @@
+# Recorded interface of the GLSL stage comp/worldoverlay/update.comp per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+descriptor set=2 binding=0 image(f32,dim1,arrayed0,ms0,sampled2,format4)
+descriptor set=2 binding=1 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=3 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 5 main
+execution_mode 17 9 9 1
+in builtin=28
+member push_constant 0:dstRect
+push_constant 0:vec4f32;
+end

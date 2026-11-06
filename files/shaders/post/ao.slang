@@ -4,7 +4,7 @@
 // SlangPermutations); the settings are specialization constants (post/aosettings.slang). View space looks down -Z and
 // the linear depth is the distance in front of the camera; proj.xy are the projection's x and y scales (their signs
 // carry the target's axis directions). A pixel with no opaque surface is fully open.
-#include "post/aosettings.slang"
+import post.aosettings;
 
 [[vk::binding(0, 0)]] Sampler2D linearDepth;
 [[vk::binding(1, 0)]] Sampler2D viewNormal;

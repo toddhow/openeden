@@ -1,0 +1,923 @@
+# Recorded interface of the GLSL stage default/main.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines BILLBOARD COLOR ENV_MAP GBUFFER_MOTION INSTANCE MORPH NORMAL NORMAL_MAP PARTICLE SKIN SOFT_PARTICLE TEXCOORD TEXMAT VERTEX
+set COLOR GBUFFER_MOTION NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=3 storage 0:runtime_array stride64;0:mat4xvec4f32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+in location=4 vec4f32
+in location=5 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=3 0:[]
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+out location=5 vec2f32
+out location=6 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set COLOR MORPH NORMAL TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=5 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=2 binding=6 storage 0:runtime_array stride4;0:f32;
+entry 0 main
+in builtin=42
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=5 0:[]
+member set=2 binding=6 0:[]
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+out location=5 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set COLOR NORMAL NORMAL_MAP TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+in location=4 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+out location=5 vec3f32
+out location=6 vec3f32
+out location=7 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set COLOR NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=3 storage 0:runtime_array stride64;0:mat4xvec4f32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+in location=4 vec4f32
+in location=5 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=3 0:[]
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+out location=5 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set COLOR NORMAL TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+out location=5 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set COLOR NORMAL VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 vec2f32
+out location=4 vec3f32
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set ENV_MAP NORMAL TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set GBUFFER_MOTION NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=3 storage 0:runtime_array stride64;0:mat4xvec4f32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+in location=4 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=3 0:[]
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 vec2f32
+out location=5 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set MORPH NORMAL TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=5 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=2 binding=6 storage 0:runtime_array stride4;0:f32;
+entry 0 main
+in builtin=42
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=5 0:[]
+member set=2 binding=6 0:[]
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set NORMAL NORMAL_MAP TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 vec3f32
+out location=5 vec3f32
+out location=6 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=3 storage 0:runtime_array stride64;0:mat4xvec4f32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+in location=4 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=3 0:[]
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set NORMAL SKIN VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=3 storage 0:runtime_array stride64;0:mat4xvec4f32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec4f32
+in location=3 vec4f32
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=3 0:[]
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set NORMAL TEXCOORD TEXMAT UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=4 uniform 0:mat4xvec4f32 stride16;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=4 0:texmat
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+spec_constant id=8 i32
+spec_constant_default id=8 bits 0
+end
+set NORMAL TEXCOORD UVSETS_1 VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 array1(vec2f32)
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set NORMAL VERTEX
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+entry 0 main
+in location=0 vec3f32
+in location=1 vec3f32
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+out builtin=0
+out location=0 vec3f32
+out location=1 vec3f32
+out location=2 vec2f32
+out location=3 vec3f32
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set PARTICLE SOFT_PARTICLE UVSETS_1
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=2 storage 0:runtime_array stride64;0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+entry 0 main
+in builtin=42
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=2 0:[].positionSize
+member set=2 binding=2 16:[].color
+member set=2 binding=2 32:[].velocityAge
+member set=2 binding=2 48:[].maxAge
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 f32
+out location=3 vec3f32
+out location=4 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end
+set PARTICLE UVSETS_1
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=2 binding=2 storage 0:runtime_array stride64;0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+entry 0 main
+in builtin=42
+member push_constant 0:projection
+member push_constant 64:modelview
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=2 binding=2 0:[].positionSize
+member set=2 binding=2 16:[].color
+member set=2 binding=2 32:[].velocityAge
+member set=2 binding=2 48:[].maxAge
+out builtin=0
+out location=0 vec4f32
+out location=1 vec3f32
+out location=2 vec3f32
+out location=3 array1(vec2f32)
+push_constant 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;
+end

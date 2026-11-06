@@ -1,10 +1,10 @@
 // The sky's clouds, vertex stage, in Slang (task 0072, stage b): the twin of sky/clouds/main.vert. It must declare what
 // the GLSL declares (checked by SlangPermutations), apart from the texture coordinate array of lib/attributes.slang
 // (see sky/clouds/main.vert.interface-exceptions).
-#include "lib/attributes.slang"
+import lib.attributes;
 #include "lib/material/bindings.slang"
 #include "lib/material/descriptors_vert.slang"
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 import lib.view.scene;
 #include "sky/clouds/inout.slang"
 

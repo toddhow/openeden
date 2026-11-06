@@ -169,6 +169,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsg/testslangshaders.cpp
     vsg/testshaderdefines.cpp
     vsg/testshaderpermutation.cpp
+    vsg/testslanginterfacerecords.cpp
     vsg/testslangpermutations.cpp
     vsg/testspirvinterface.cpp
     vsg/testpassstages.cpp

@@ -1,7 +1,7 @@
 // The moon's vertex stage, in Slang (task 0072, stage b): the twin of sky/moon/main.vert (no defines). It must declare
 // what the GLSL declares (checked by SlangPermutations). One file per stage, as the GLSL has: Slang checks every entry
 // point of a file, and the fragment stage's textures exist only with its defines.
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 
 struct VertexOutput
 {

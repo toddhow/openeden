@@ -4,9 +4,9 @@
 #include "lib/material/descriptors_frag.slang"
 import lib.view.linear;
 import lib.view.scene;
-#include "sky/clouds/cloudsettings.slang"
+import sky.clouds.cloudsettings;
 #include "sky/clouds/inout.slang"
-#include "sky/clouds/lit.slang"
+import sky.clouds.lit;
 
 struct FragmentInput
 {

@@ -49,34 +49,8 @@ struct Material
 // lib/material/bindings.glsl: MATERIAL_BINDING = 1 in TEXTURE_SET (DIFFUSE_UNIT = 0 is not read here)
 [[vk::binding(1, 2)]] ConstantBuffer<Material> material;
 
-// lib/view/data.glsl (std140). The whole struct is declared so that the block has the size the C++ side uploads,
-// although only skyColor is read here.
-struct Scene
-{
-    float4x4 invProjection;
-    float4x4 projection;
-    float4x4 invView;
-    float4 cascadeSplits;
-    float4x4 viewToCascadeProj[4];
-    float4 cascadeFrustumWidths;
-    float4 lightDiffuse;
-    float4 lightSpecular;
-    float4 lightViewPos;
-    float4 ambient;
-    float4 fogColor;
-    float4 skyColor; // .a = glareView
-    float2 resolution;
-    float fogStart;
-    float fogScale;
-    float time;
-    float zNear;
-    float zFar;
-    float rainIntensity;
-    float4 groundcoverPlayer;
-    float4 groundcoverParams;
-};
-// lib/view/bindings.glsl: VIEW_SCENE_BINDING = 0, in VIEW_SET
-[[vk::binding(0, 0)]] ConstantBuffer<Scene> scene;
+// The scene uniform: one declaration for every shader (lib/view/data.slang, lib/view/scene.slang).
+import lib.view.scene;
 
 struct VertexOutput
 {

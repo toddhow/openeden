@@ -1,8 +1,8 @@
 // The night sky (stars), vertex stage, in Slang (task 0072, stage b): the twin of sky/night/main.vert. It must declare
 // what the GLSL declares (checked by SlangPermutations), apart from the texture coordinate array of
 // lib/attributes.slang (see sky/night/main.vert.interface-exceptions).
-#include "lib/attributes.slang"
-#include "lib/pushconstants.slang"
+import lib.attributes;
+import lib.pushconstants;
 
 // sky/night/inout.glsl: color is always declared (a block must not be empty), texCoord with TEXCOORD.
 struct VertexOutput

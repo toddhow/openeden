@@ -13,7 +13,7 @@
 #endif
 #include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 import lib.view.linear;
 import lib.view.scene;
 

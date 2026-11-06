@@ -1,7 +1,7 @@
 // The sky's dome (the atmosphere), in Slang (task 0072, stage b): the twin of sky/atmosphere/main.vert and main.frag.
 // It must declare what the GLSL declares (checked by SlangPermutations); neither stage imports a define. The
 // fog.settings values come as specialization constants (lib/view/fogsettings.slang).
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 import lib.view.fog;
 import lib.view.linear;
 import lib.view.scene;

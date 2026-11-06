@@ -6,7 +6,7 @@
 // M * v is mul(M, v) and v * M is mul(v, M); mat3(m) of a mat4 is (float3x3)m; inverse comes from the glsl module.
 import glsl;
 
-#include "lib/pushconstants.slang"
+import lib.pushconstants;
 #include "lib/material/bindings.slang"
 #include "lib/material/descriptors_vert.slang"
 import lib.view.scene;
@@ -15,7 +15,7 @@ import lib.light.pointdiffuse;
 
 [[vk::constant_id(START_UVSET_CONSTANTS + TEXMAT_BINDING)]] const int texmatUv = 0;
 
-#include "lib/attributes.slang"
+import lib.attributes;
 
 #ifdef MORPH
 [[vk::binding(MORPH_BINDING, TEXTURE_SET)]] StructuredBuffer<float4> morphdata;

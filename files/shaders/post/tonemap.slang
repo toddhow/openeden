@@ -3,7 +3,7 @@
 // SlangPermutations): the C++ side builds the descriptor set layout and the push constant offsets by hand. The curves
 // and the constants repeat Render::Hdr (hdrmath.hpp), the occlusion filter Render::Ao (aomath.hpp) and the subsurface
 // scattering Render::Sss (sssmath.hpp); change them together.
-#include "post/tonemapconstants.slang"
+import post.tonemapconstants;
 
 [[vk::binding(0, 0)]] Sampler2D sceneColor;
 #ifdef BLOOM

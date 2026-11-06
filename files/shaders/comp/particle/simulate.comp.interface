@@ -1,0 +1,50 @@
+# Recorded interface of the GLSL stage comp/particle/simulate.comp per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+capability 43
+descriptor set=2 binding=2 storage 0:runtime_array stride64;0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;
+descriptor set=2 binding=3 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:f32;52:f32;56:f32;60:f32;64:vec4f32;80:vec4f32;96:vec4f32;112:vec4f32;128:vec4f32;144:vec4f32;
+descriptor set=2 binding=4 storage 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:vec4i32;144:vec4f32;160:mat4xvec4f32 stride16;224:mat4xvec4f32 stride16;288:vec4f32;
+descriptor set=2 binding=5 sampled_image(image(f32,dim0,arrayed0,ms0))
+entry 5 main
+execution_mode 17 32 1 1
+in builtin=28
+member set=2 binding=2 0:[].positionSize
+member set=2 binding=2 16:[].color
+member set=2 binding=2 32:[].velocityAge
+member set=2 binding=2 48:[].maxAge
+member set=2 binding=3 0:emit.offsetRandom
+member set=2 binding=3 112:collide.xVectorRadius
+member set=2 binding=3 128:collide.yVectorRadius
+member set=2 binding=3 144:collide.plane
+member set=2 binding=3 16:emit.direction
+member set=2 binding=3 32:emit.velocityLifetime
+member set=2 binding=3 48:size.growTime
+member set=2 binding=3 52:size.fadeTime
+member set=2 binding=3 56:size.defaultSize
+member set=2 binding=3 60:size.dummy
+member set=2 binding=3 64:gravity.positionDecay
+member set=2 binding=3 80:gravity.directionForce
+member set=2 binding=3 96:collide.positionBounce
+member set=2 binding=4 0:worldOffset
+member set=2 binding=4 128:emitCount
+member set=2 binding=4 144:time
+member set=2 binding=4 160:wrapMatrix
+member set=2 binding=4 224:wrapInverse
+member set=2 binding=4 288:wrapRange
+member set=2 binding=4 64:emitMatrix
+spec_constant id=0 bool
+spec_constant id=1 bool
+spec_constant id=2 bool
+spec_constant id=3 bool
+spec_constant id=4 bool
+spec_constant id=5 bool
+spec_constant_default id=0 false
+spec_constant_default id=1 false
+spec_constant_default id=2 false
+spec_constant_default id=3 false
+spec_constant_default id=4 false
+spec_constant_default id=5 false
+end
