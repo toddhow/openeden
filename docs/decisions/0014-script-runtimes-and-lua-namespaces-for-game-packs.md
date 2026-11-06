@@ -33,3 +33,24 @@ It builds nothing and changes no behaviour. The first follow-ups, each needing t
 1. Is `core.<game>.*` the right Lua namespace shape, or `core.<game>` registered under a pack-chosen short name?
 2. Should the contract's script-state serialisation be versioned independently of the save format (recommended: yes, a version number in the chunk), so a VM fix does not invalidate saves?
 3. Does the VM run on the main thread only (recommended at first: Papyrus is single-threaded per stack but many stacks interleave; main thread keeps determinism) or on a worker with a handoff?
+
+## Amendment draft 2026-11-06: ObScript
+
+**Proposed only; the numbered decision text above is unchanged. Awaiting toddhow's signature, like the rest of this draft.**
+
+**Request.** toddhow, 2026-11-06: "Can you get started on the Papyrus/ObScript VM; we will need ObScript support for Fallout 3 / New Vegas." ObScript is the Morrowind-style procedural script language of Oblivion, Fallout 3 and Fallout New Vegas (records `SCPT`, with source text `SCTX` and compiled `SCDA`, plus fragments in `INFO`, `QUST`, `PACK`, `TERM`, `REFR`, `PERK`). Research: `docs/research/0046-script-runtimes-papyrus-and-obscript.md`.
+
+**Proposed placement.**
+1. **Both runtimes are shared runtimes in the common compatibility pack**, as contracts of one family, provisionally `openeden.script.papyrus` and `openeden.script.obscript`, with shared pieces (value type, located error report, per-frame budget, versioned save blob). Points 2 to 5 above apply to both unchanged: no new rights for the common pack, the game pack supplies the natives or the function table, the world and the globals, and the game pack writes the save chunk by asking each runtime to serialise.
+2. **ObScript reuses OpenMW's compiler and interpreter where they are game-neutral** (`components/compiler`: scanner, parsers, generator; `components/interpreter`: `Runtime`, `Program`, segment dispatch and the control, math and local-variable opcodes), through a seam (parser options and a command table that the caller fills). The Morrowind command set and the Morrowind-shaped parts of `Interpreter::Context` stay Morrowind's and move with the Morrowind pack later. Morrowind must compile and run exactly as before. **Recompiling from `SCTX` source is the primary route** (every one of the 3,715 `SCPT` records of the installed New Vegas masters carries source); decoding `SCDA` is a fallback and a cross-check.
+3. **Both runtimes are designed together and built in sequence**, ObScript first (its source and loader exist and it serves the two games named), Papyrus after, sharing the contract family from the start.
+
+**This conflicts with `docs/design/game-packs.md` section 5.6**, which keeps the interpreter in the core, moves the compiler and command set into `game_morrowind`, and leaves Papyrus out of scope. If this amendment is signed, 5.6 is rewritten in the same change (recorded as a question below, not decided here).
+
+**Open questions added.**
+4. Both runtimes in the common pack (recommended), or the interpreter stays in the core as 5.6 says?
+5. Order: ObScript first (recommended) or Papyrus first?
+6. Extender policy for SKSE/F4SE/NVSE/FOSE-added functions: the measured share in the installed Skyrim mods is 17.9 percent of native call sites (6.2 percent in Fallout 4; New Vegas unmeasured). Recommended: tiered built-ins, platform set first, libraries as optional extensions, tolerant no-op for the rest (research note 0046 section 6).
+7. The ObScript function table has no source in the plugin data; where it comes from (note 0046 open question 1) decides the licence position.
+
+Follow-up 1 of "What this decision does not do" (the Skyrim read-only survey) is done in note 0046 for Skyrim SE, Fallout 4 and Fallout New Vegas; follow-up 3 becomes task 0092 (ObScript first slice, draft).
