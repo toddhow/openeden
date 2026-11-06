@@ -5,6 +5,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <span>
+#include <string_view>
 #include <vector>
 
 #include <components/files/istreamptr.hpp>
@@ -19,6 +21,44 @@ namespace ToUTF8
 
 namespace Nif
 {
+    /// Which file versions a Reader accepts. Each version row of versionTable() is first allowed in one of these sets
+    /// and in every later one (task 0082).
+    enum class VersionSet : std::uint8_t
+    {
+        Morrowind, // 4.0.0.0 and 4.0.0.2: what the game reads
+        SkyrimSE, // Morrowind's and Skyrim SE (20.2.0.7, user version 12, stream version 100)
+        Any, // every version the record reader can parse; unknown version numbers are tried too
+    };
+
+    /// One row of the table of NIF versions the project knows by name.
+    struct VersionInfo
+    {
+        /// A user version that is not compared even when ReadOptions::mStrict is set.
+        static constexpr std::uint32_t sAnyUserVersion = 0xFFFFFFFFu;
+
+        std::string_view mName;
+        std::uint32_t mVersion;
+        std::uint32_t mUserVersion;
+        std::uint32_t mBethVersion; // the Bethesda stream version
+        VersionSet mFirstAllowedIn;
+    };
+
+    /// The known versions, in a fixed order.
+    std::span<const VersionInfo> versionTable();
+
+    /// The row for a file version and Bethesda stream version, or null.
+    const VersionInfo* findVersion(std::uint32_t version, std::uint32_t bethVersion);
+
+    /// How a file is read.
+    struct ReadOptions
+    {
+        VersionSet mAllowedVersions = VersionSet::Morrowind;
+        /// Also compare the user version with the version row's.
+        bool mStrict = false;
+        /// Morrowind's rule in NiNode::read: the first record, if it is a NiNode not named "bip01", loses its
+        /// transform. On for every caller that existed before the option; a scene reader of another game turns it off.
+        bool mMorrowindRootRule = true;
+    };
 
     struct NIFFile
     {
@@ -119,6 +159,7 @@ namespace Nif
 
         bool& mUseSkinning;
         const ToUTF8::StatelessUtf8Encoder* mEncoder;
+        ReadOptions mOptions;
 
         static std::atomic_bool sLoadUnsupportedFiles;
         static std::atomic_bool sWriteNifDebugLog;
@@ -131,8 +172,16 @@ namespace Nif
         /// Open a NIF stream. The name is used for error messages.
         explicit Reader(NIFFile& file, const ToUTF8::StatelessUtf8Encoder* encoder = nullptr);
 
-        /// Parse the file
+        /// Parse the file with the process-wide options: Morrowind versions only, or every version after
+        /// setLoadUnsupportedFiles(true).
         void parse(Files::IStreamPtr&& stream);
+
+        /// Parse the file with explicit options. Errors name the file, the version and, for a record, its index and
+        /// type.
+        void parse(Files::IStreamPtr&& stream, const ReadOptions& options);
+
+        /// The options of the parse in progress or the last one.
+        const ReadOptions& getOptions() const { return mOptions; }
 
         /// Get a given record
         Record* getRecord(size_t index) const { return mRecords.at(index).get(); }

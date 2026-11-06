@@ -100,6 +100,10 @@ namespace Nif
 
         const Reader& getFile() const { return mReader; }
 
+        /// Throws if a read of this many bytes could not fit in the stream. Use it before reserving memory from a
+        /// count read from the file.
+        void ensureFits(std::size_t bytes) { checkStreamSize(bytes); }
+
         unsigned int getVersion() const;
         unsigned int getUserVersion() const;
         unsigned int getBethVersion() const;

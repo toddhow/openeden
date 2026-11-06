@@ -23,6 +23,41 @@
 
 namespace Nif
 {
+    namespace
+    {
+        // The rows are the versions the schema names (research note 0044, item 2). The user versions are read from
+        // the schema; tests still read the numbers from real files before asserting them.
+        constexpr std::array<VersionInfo, 8> sVersionTable = { {
+            { "Morrowind 4.0.0.0", NIFStream::generateVersion(4, 0, 0, 0), 0, 0, VersionSet::Morrowind },
+            { "Morrowind", NIFFile::VER_MW, 0, 0, VersionSet::Morrowind },
+            { "Oblivion", NIFFile::VER_OB, VersionInfo::sAnyUserVersion, 11, VersionSet::Any },
+            { "Fallout 3 and New Vegas", NIFFile::VER_BGS, 11, NIFFile::BETHVER_FO3, VersionSet::Any },
+            { "Skyrim LE", NIFFile::VER_BGS, 12, NIFFile::BETHVER_SKY, VersionSet::Any },
+            { "Skyrim SE", NIFFile::VER_BGS, 12, NIFFile::BETHVER_SSE, VersionSet::SkyrimSE },
+            { "Fallout 4", NIFFile::VER_BGS, 12, NIFFile::BETHVER_FO4, VersionSet::Any },
+            { "Fallout 76", NIFFile::VER_BGS, 12, NIFFile::BETHVER_F76, VersionSet::Any },
+        } };
+
+        bool isAllowedIn(VersionSet allowed, const VersionInfo& row)
+        {
+            return static_cast<std::uint8_t>(allowed) >= static_cast<std::uint8_t>(row.mFirstAllowedIn);
+        }
+    }
+
+    std::span<const VersionInfo> versionTable()
+    {
+        return sVersionTable;
+    }
+
+    const VersionInfo* findVersion(std::uint32_t version, std::uint32_t bethVersion)
+    {
+        for (const VersionInfo& row : sVersionTable)
+        {
+            if (row.mVersion == version && row.mBethVersion == bethVersion)
+                return &row;
+        }
+        return nullptr;
+    }
 
     Reader::Reader(NIFFile& file, const ToUTF8::StatelessUtf8Encoder* encoder)
         : mVersion(file.mVersion)
@@ -538,6 +573,14 @@ namespace Nif
 
     void Reader::parse(Files::IStreamPtr&& stream)
     {
+        ReadOptions options;
+        options.mAllowedVersions = sLoadUnsupportedFiles ? VersionSet::Any : VersionSet::Morrowind;
+        parse(std::move(stream), options);
+    }
+
+    void Reader::parse(Files::IStreamPtr&& stream, const ReadOptions& options)
+    {
+        mOptions = options;
         const bool writeDebug = sWriteNifDebugLog;
         if (writeDebug)
             Log(Debug::Verbose) << "NIF Debug: Reading file: '" << mFilename << "'";
@@ -562,15 +605,17 @@ namespace Nif
         nif.read(mVersion);
         // 4.0.0.0 is an older, practically identical version of the format.
         // It's not used by Morrowind assets but Morrowind supports it.
-        static const std::array<uint32_t, 2> supportedVers = {
-            NIFStream::generateVersion(4, 0, 0, 0),
-            NIFFile::VER_MW,
-        };
-        const bool supportedVersion
-            = std::find(supportedVers.begin(), supportedVers.end(), mVersion) != supportedVers.end();
-
-        if (!supportedVersion && !sLoadUnsupportedFiles)
-            throw Nif::Exception("Unsupported NIF version: " + versionToString(mVersion), mFilename);
+        // The file version is checked here against the allowed rows; the stream version, which is read later, is
+        // checked after the Bethesda header.
+        if (mOptions.mAllowedVersions != VersionSet::Any)
+        {
+            const bool supportedVersion
+                = std::any_of(sVersionTable.begin(), sVersionTable.end(), [&](const VersionInfo& row) {
+                      return row.mVersion == mVersion && isAllowedIn(mOptions.mAllowedVersions, row);
+                  });
+            if (!supportedVersion)
+                throw Nif::Exception("Unsupported NIF version: " + versionToString(mVersion), mFilename);
+        }
 
         const bool hasEndianness = mVersion >= NIFStream::generateVersion(20, 0, 0, 4);
         const bool hasUserVersion = mVersion >= NIFStream::generateVersion(10, 0, 1, 8);
@@ -602,6 +647,8 @@ namespace Nif
 
         const std::uint32_t recordsCount = nif.get<std::uint32_t>();
 
+        // A record takes at least one byte: a larger count cannot be true and must not reserve memory.
+        nif.ensureFits(recordsCount);
         mRecords.reserve(recordsCount);
 
         // Bethesda stream header
@@ -626,6 +673,20 @@ namespace Nif
                 nif.getExportString(); // Export script
                 if (mBethVersion >= 103)
                     nif.getExportString(); // Max file path
+            }
+        }
+
+        if (mOptions.mAllowedVersions != VersionSet::Any)
+        {
+            const VersionInfo* row = findVersion(mVersion, mBethVersion);
+            const bool supportedRow = row != nullptr && isAllowedIn(mOptions.mAllowedVersions, *row)
+                && (!mOptions.mStrict || row->mUserVersion == VersionInfo::sAnyUserVersion
+                    || row->mUserVersion == mUserVersion);
+            if (!supportedRow)
+            {
+                throw Nif::Exception("Unsupported NIF version: " + versionToString(mVersion) + ", user version "
+                        + std::to_string(mUserVersion) + ", stream version " + std::to_string(mBethVersion),
+                    mFilename);
             }
         }
 
@@ -663,6 +724,8 @@ namespace Nif
             std::uint32_t stringNum, maxStringLength;
             nif.read(stringNum);
             nif.read(maxStringLength);
+            // A string takes at least its four byte length.
+            nif.ensureFits(static_cast<std::size_t>(stringNum) * sizeof(std::uint32_t));
             nif.getSizedStrings(mStrings, stringNum);
         }
 

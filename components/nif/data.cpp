@@ -453,7 +453,11 @@ namespace Nif
             nif->read(mVertexSize);
             mVertexDesc.read(nif);
 
-            uint32_t numVertices = mDataSize / mVertexSize;
+            if (mVertexSize == 0 && mDataSize != 0)
+                throw Nif::Exception(
+                    "NiSkinPartition has vertex data but a vertex size of zero", nif->getFile().getFilename());
+            nif->ensureFits(mDataSize);
+            uint32_t numVertices = mVertexSize == 0 ? 0 : mDataSize / mVertexSize;
             mVertexData.reserve(numVertices);
             for (uint32_t i = 0; i < numVertices; ++i)
                 mVertexData.emplace_back().read(nif, mVertexDesc.mFlags);

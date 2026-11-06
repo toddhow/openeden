@@ -135,6 +135,12 @@ file(GLOB UNITTEST_SRC_FILES
     nif/testphysics.cpp
     nif/nifbuilder.hpp
     nif/testmorrowindunchanged.cpp
+    nif/testreadoptions.cpp
+
+    nifscene/ssebuilder.hpp
+    nifscene/testscenebuild.cpp
+    nifscene/testscenereal.cpp
+    nifscene/testvertexdecode.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp

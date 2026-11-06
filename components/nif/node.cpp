@@ -185,7 +185,8 @@ namespace Nif
         // FIXME: if node 0 is *not* the only root node, this must not happen.
         // FIXME: doing this here is awful.
         // We want to do this on world scene graph level rather than local scene graph level.
-        if (mRecordIndex == 0 && !Misc::StringUtils::ciEqual(mName, "bip01"))
+        if (mRecordIndex == 0 && nif->getFile().getOptions().mMorrowindRootRule
+            && !Misc::StringUtils::ciEqual(mName, "bip01"))
         {
             mTransform = Nif::NiTransform::getIdentity();
         }
