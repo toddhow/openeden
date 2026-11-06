@@ -1,5 +1,5 @@
-// Task 0092 stage b: Morrowind's compiled script programs must be byte-identical before and after the parser-options seam
-// in components/compiler and the budget seam in components/interpreter.
+// Task 0092 stage b: Morrowind's compiled script programs must be byte-identical before and after the parser-options
+// seam in components/compiler and the budget seam in components/interpreter.
 //
 // In plain words: the script compiler turns the text of a Morrowind script into a Program (four lists of numbers and
 // strings). Task 0092 adds options to the compiler so that another game's scripts can use it. The one thing that must
@@ -15,7 +15,8 @@
 // (declarations, set, if/elseif/else, while, return, messagebox, globals and member variables, strings, expressions,
 // fragments without Begin, and malformed input).
 //
-// Every script is wrapped in "Begin ... End" except the fragments, which go through ScriptParser as dialogue results do.
+// Every script is wrapped in "Begin ... End" except the fragments, which go through ScriptParser as dialogue results
+// do.
 
 #include <gtest/gtest.h>
 
@@ -279,12 +280,14 @@ namespace
             { "locals", wrap("short a\nlong b\nfloat c\nSet a to 1\nSet b to a + 2\nSet c to b * 1.5") },
             { "redeclare", wrap("short a\nshort a\nlong a") },
             { "arith", wrap("short a\nfloat f\nSet a to ( 1 + 2 ) * 3 - 4 / 2\nSet f to a / 3.0 + 0.5") },
-            { "compare", wrap("short a\nif ( a == 1 )\n Set a to 2\nelseif ( a != 3 )\n Set a to 4\nelse\n Set a to 5\nendif") },
+            { "compare",
+                wrap("short a\nif ( a == 1 )\n Set a to 2\nelseif ( a != 3 )\n Set a to 4\nelse\n Set a to 5\nendif") },
             { "comparisons", wrap("short a\nif ( a < 1 || a > 2 )\nendif") },
             { "comparisons2", wrap("short a\nif ( a <= 1 )\nendif\nif ( a >= 1 )\nendif") },
             { "nestedif", wrap("short a\nif a == 1\n if a == 2\n  Set a to 3\n else\n  Set a to 4\n endif\nendif") },
             { "while", wrap("short a\nwhile ( a < 10 )\n Set a to a + 1\nendwhile") },
-            { "whilereturn", wrap("short a\nwhile ( a < 10 )\n if ( a == 5 )\n  return\n endif\n Set a to a + 1\nendwhile") },
+            { "whilereturn",
+                wrap("short a\nwhile ( a < 10 )\n if ( a == 5 )\n  return\n endif\n Set a to a + 1\nendwhile") },
             { "return", wrap("return") },
             { "globals", wrap("Set globalshort to 1\nSet globallong to globalshort + 2\nSet globalfloat to 2.5") },
             { "members", wrap("Set someone.membershort to 1\nSet someone.memberlong to someone.memberlong + 1") },
@@ -308,7 +311,8 @@ namespace
             { "namedifferent", "Begin A\nreturn\nEnd B\n" },
             { "keywordname", "Begin Set\nreturn\nEnd\n" },
             { "junkafterend", "Begin A\nreturn\nEnd\nshort junk\nSet junk to 1" },
-            { "longline", wrap("Set globallong to 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1") },
+            { "longline",
+                wrap("Set globallong to 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1") },
             { "neglit", wrap("Set globalshort to -5\nSet globalfloat to -1.25") },
             { "explicitmember", wrap("Set player.membershort to 3") },
             { "highdigits", wrap("Set globallong to 2147483647") },
@@ -362,8 +366,11 @@ namespace
             }
             const bool hasOptionals = arguments.find('/') != std::string::npos;
 
-            dump << "# " << keyword << ' ' << (isFunction ? 'F' : isInstruction ? 'I' : '?') << ' ' << returnType
-                 << " sig=" << escape(arguments) << " explicit=" << (explicitOk ? 1 : 0) << '\n';
+            dump << "# " << keyword << ' '
+                 << (isFunction             ? 'F'
+                            : isInstruction ? 'I'
+                                            : '?')
+                 << ' ' << returnType << " sig=" << escape(arguments) << " explicit=" << (explicitOk ? 1 : 0) << '\n';
 
             std::vector<std::pair<std::string, bool>> variants = { { "", false } };
             if (hasOptionals)
@@ -399,7 +406,8 @@ namespace
 
     std::string readGolden()
     {
-        const std::filesystem::path path = std::filesystem::path(__FILE__).parent_path() / "morrowind_programs.golden.txt";
+        const std::filesystem::path path
+            = std::filesystem::path(__FILE__).parent_path() / "morrowind_programs.golden.txt";
         std::ifstream in(path, std::ios::binary);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         text.erase(std::remove(text.begin(), text.end(), '\r'), text.end());

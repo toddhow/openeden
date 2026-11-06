@@ -450,6 +450,14 @@ namespace Compiler
             return true;
         }
 
+        // Task 0092: with the dot option "ref.Command" is an explicit reference, as "ref->Command" is.
+        if (code == Scanner::S_member && mState == PotentialExplicitState && !mAllowExpression
+            && getContext().getOptions().mDotExplicitReference)
+        {
+            mState = ExplicitState;
+            return true;
+        }
+
         if (code == Scanner::S_member && mState == PotentialExplicitState && mAllowExpression)
         {
             mState = MemberState;

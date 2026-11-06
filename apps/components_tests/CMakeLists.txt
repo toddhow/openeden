@@ -131,6 +131,8 @@ file(GLOB UNITTEST_SRC_FILES
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
     compiler/testmorrowindprogramgolden.cpp
+    compiler/testparseroptions.cpp
+    interpreter/testrunlimits.cpp
 
     nif/node.hpp
     nif/testphysics.cpp

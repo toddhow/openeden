@@ -389,7 +389,8 @@ namespace Compiler
 
         if (!mExplicit.empty())
         {
-            if (mRefOp && mNextOperand)
+            // Task 0092: with the dot option "ref.Function" is an explicit reference call, as "ref->Function" is.
+            if ((mRefOp || (mMemberOp && getContext().getOptions().mDotExplicitReference)) && mNextOperand)
             {
 
                 // check for custom extensions
@@ -416,6 +417,7 @@ namespace Compiler
                         mOperands.push_back(returnType);
                         mExplicit.clear();
                         mRefOp = false;
+                        mMemberOp = false;
 
                         mNextOperand = false;
                         return true;

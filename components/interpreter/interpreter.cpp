@@ -117,14 +117,41 @@ namespace Interpreter
 
     void Interpreter::run(const Program& program, Context& context)
     {
+        run(program, context, RunLimits{});
+    }
+
+    void Interpreter::run(const Program& program, Context& context, const RunLimits& limits)
+    {
+        // The limits belong to the outermost call and stay in force for runs nested inside it.
+        const bool outermost = !mRunning;
         begin();
+        if (outermost)
+        {
+            mLimits = limits;
+            mExecuted = 0;
+            mDepth = 0;
+        }
+        ++mDepth;
 
         try
         {
+            if (mLimits.mMaxDepth != 0 && mDepth > mLimits.mMaxDepth)
+            {
+                throw BudgetExceeded(
+                    std::format("script call depth limit of {} reached", mLimits.mMaxDepth), mExecuted);
+            }
+
             mRuntime.configure(program, context);
 
             while (mRuntime.getPC() >= 0 && static_cast<std::size_t>(mRuntime.getPC()) < program.mInstructions.size())
             {
+                if (mLimits.mMaxInstructions != 0 && mExecuted >= mLimits.mMaxInstructions)
+                {
+                    throw BudgetExceeded(
+                        std::format("instruction budget of {} reached", mLimits.mMaxInstructions), mExecuted);
+                }
+                ++mExecuted;
+
                 const Type_Code instruction = program.mInstructions[mRuntime.getPC()];
                 mRuntime.setPC(mRuntime.getPC() + 1);
                 execute(instruction);
@@ -132,10 +159,12 @@ namespace Interpreter
         }
         catch (...)
         {
+            --mDepth;
             end();
             throw;
         }
 
+        --mDepth;
         end();
     }
 }
