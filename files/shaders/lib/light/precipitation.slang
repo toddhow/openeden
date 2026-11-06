@@ -6,7 +6,8 @@
 
 import lib.light.equations;
 import lib.light.pointlights;
-#include "lib/light/select.slang"
+import lib.light.select;
+import lib.view.scene;
 import lib.view.screencoord;
 
 static const float precipAmbientShare = 0.9;

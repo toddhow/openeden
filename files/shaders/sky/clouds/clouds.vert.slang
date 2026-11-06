@@ -2,6 +2,7 @@
 // the GLSL declares (checked by SlangPermutations), apart from the texture coordinate array of lib/attributes.slang
 // (see sky/clouds/main.vert.interface-exceptions).
 #include "lib/attributes.slang"
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_vert.slang"
 #include "lib/pushconstants.slang"
 import lib.view.scene;

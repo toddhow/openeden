@@ -8,7 +8,7 @@ import glsl;
 #include "lib/sets.slang"
 import lib.view.scene;
 import lib.view.screencoord;
-#include "lib/light/pointdiffuse.slang"
+import lib.light.pointdiffuse;
 #include "terrain/bindings.slang"
 #include "terrain/data.slang"
 #include "terrain/inout.slang"

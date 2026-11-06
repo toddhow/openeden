@@ -6,7 +6,8 @@
 import glsl;
 
 #include "lib/inout.slang"
-#include "lib/light/pointspecular.slang"
+import lib.light.pointspecular;
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"
 import lib.view.fog;
 import lib.view.linear;

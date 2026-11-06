@@ -11,6 +11,7 @@
 #ifndef MATERIAL
 #define MATERIAL
 #endif
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"
 #include "lib/pushconstants.slang"
 import lib.view.linear;

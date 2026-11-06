@@ -4,7 +4,8 @@
 #ifndef LIB_LIGHT_SELECT_SLANG
 #define LIB_LIGHT_SELECT_SLANG
 
-import lib.light.grid;
+__exported import lib.light.grid;
+import lib.view.scene;
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
 

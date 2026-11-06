@@ -5,7 +5,7 @@
 
 import lib.light.equations;
 import lib.light.pointlights;
-#include "lib/light/select.slang"
+import lib.light.select;
 
 // OpenMW's calcSpecIntensity.
 float specularIntensity(float3 viewNormal, float3 viewDir, float shininess, float3 lightDir)

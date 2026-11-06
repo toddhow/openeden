@@ -7,10 +7,11 @@
 import glsl;
 
 #include "lib/pushconstants.slang"
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_vert.slang"
 import lib.view.scene;
 import lib.view.screencoord;
-#include "lib/light/pointdiffuse.slang"
+import lib.light.pointdiffuse;
 
 [[vk::constant_id(START_UVSET_CONSTANTS + TEXMAT_BINDING)]] const int texmatUv = 0;
 
@@ -31,7 +32,7 @@ import lib.math.billboard;
 #endif
 
 #ifdef INSTANCE
-#include "lib/groundcover.slang"
+import lib.groundcover;
 #endif
 
 #include "lib/inout.slang"

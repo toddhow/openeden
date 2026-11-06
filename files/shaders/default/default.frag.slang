@@ -11,6 +11,7 @@ import glsl;
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
 
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"
 
 [[vk::constant_id(1)]] const int alphaTestMode = 0;
@@ -46,11 +47,11 @@ import lib.view.env;
 import lib.view.fog;
 import lib.view.shadow;
 import lib.view.dither;
-#include "lib/object/object.slang"
+import lib.object.object;
 #include "lib/material/alphatest.slang"
 #include "lib/material/terms.slang"
 #if defined(GBUFFER_MATERIAL) || defined(PBR)
-#include "lib/material/pbr.slang"
+import lib.material.pbr;
 #endif
 #ifdef GI
 import lib.view.gi;
@@ -65,11 +66,11 @@ import lib.view.reflection;
 #ifdef COVER_LIT
 #include "lib/material/cover.slang"
 #endif
-#include "lib/light/directional.slang"
+import lib.light.directional;
 #ifdef PER_PIXEL_LIGHTING
 import lib.view.screencoord;
 #ifdef POINT_SHADOW
-import lib.light.pointshadow;
+#include "lib/light/pointshadow.slang"
 #endif
 #include "lib/light/pixellighting.slang"
 #ifdef PBR_LIT
@@ -78,7 +79,7 @@ import lib.light.pointshadow;
 #endif
 #ifdef PRECIPITATION_LIT
 // Task 0040: rain lit as scattering streaks.
-#include "lib/light/precipitation.slang"
+import lib.light.precipitation;
 #endif
 #ifdef PARALLAX_POM
 // Task 0045: the height file, read with the caller's derivatives.
@@ -103,7 +104,7 @@ float2 pomTextureSize()
 #define MATERIAL_ROUGHNESS_SCALE material.align_dummy2
 #endif
 #ifdef PARTICLE_OCCLUSION
-#include "lib/particle/weatherocclusion.slang"
+import lib.particle.weatherocclusion;
 #endif
 #ifdef SOFT_PARTICLE
 // Soft particles fade against the opaque scene's depth (task 0012, V4k).

@@ -13,13 +13,13 @@ import lib.view.scene;
 import lib.view.linear;
 import lib.view.fog;
 import lib.view.shadow;
-#include "lib/light/directional.slang"
+import lib.light.directional;
 #include "lib/material/terms.slang"
 #ifdef GI_SKY
 #include "lib/view/skyvis.slang"
 #endif
 #if defined(WETNESS) || defined(TERRAIN_PBR)
-#include "lib/material/pbr.slang"
+import lib.material.pbr;
 #endif
 #ifdef WETNESS
 #include "lib/material/wetness.slang"
@@ -51,7 +51,7 @@ static const uint PARALLAX_FLAG = 1u << 16;
 static const uint SPECULAR_FLAG = 1u << 17;
 import lib.view.screencoord;
 #ifdef POINT_SHADOW
-import lib.light.pointshadow;
+#include "lib/light/pointshadow.slang"
 #endif
 #include "lib/light/pixellighting.slang"
 #ifdef PARALLAX_POM

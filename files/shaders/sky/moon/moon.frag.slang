@@ -1,6 +1,7 @@
 // The moon's fragment stage, in Slang (task 0072, stage b): the twin of sky/moon/main.frag, drawn with DIFFUSE_MAP,
 // GLOW_MAP and MATERIAL (MWRender weather.cpp, the moon's pipeline options). It must declare what the GLSL declares
 // (checked by SlangPermutations).
+#include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"
 import lib.view.linear;
 import lib.view.scene;

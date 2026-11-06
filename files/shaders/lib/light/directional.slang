@@ -4,6 +4,7 @@
 #define LIB_LIGHT_DIRECTIONAL_SLANG
 
 import lib.light.equations;
+import lib.view.scene;
 
 float3 directionalDiffuse(float3 viewNormal)
 {

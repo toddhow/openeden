@@ -5,7 +5,7 @@
 
 import lib.light.equations;
 import lib.light.pointlights;
-#include "lib/light/select.slang"
+import lib.light.select;
 
 float3 pointLightSpecular(float2 screenCoord, float3 reflectedViewNormal, float3 viewPos, float shininess)
 {

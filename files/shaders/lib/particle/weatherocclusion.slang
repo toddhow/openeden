@@ -5,6 +5,7 @@
 
 #include "lib/material/bindings.slang"
 #include "lib/sets.slang"
+import lib.view.scene;
 
 [[vk::binding(OCCLUSION_UNIT, TEXTURE_SET)]] Sampler2D occlusionMap;
 
