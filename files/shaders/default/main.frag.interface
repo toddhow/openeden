@@ -1,6 +1,310 @@
 # Recorded interface of the GLSL stage default/main.frag per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
 # reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
 defines ADJUST_COVERAGE ALPHA_TO_COVERAGE BUMP_MAP CLOUD_SHADOW CLOUD_SHADOW_DEBUG COLOR COVER COVER_DEBUG DARK_MAP DEBUG_SHADOW DECAL_MAP DETAIL_MAP DIFFUSE_MAP ENV_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION GI GI_SKY GLOW_MAP HEIGHT_MAP LOD_FADE MATERIAL MATERIAL_MAP MATERIAL_MAP_RMAOS NORMAL NORMAL_MAP PARALLAX PARALLAX_DISCARD PARALLAX_POM PARALLAX_POM_HIGH PARALLAX_POM_LOW PARTICLE PARTICLE_OCCLUSION PBR PBR_PHYSICAL POINT_SHADOW PRECIPITATION_LIT RECONSTRUCT_NORMAL_Z SOFT_PARTICLE SPECULAR_MAP TEXCOORD VOLUME_CLOUD_SHADOW WETNESS WETNESS_DEBUG WETNESS_PUDDLES
+set ADJUST_COVERAGE CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY LOD_FADE MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION GI GI_SKY HEIGHT_MAP MATERIAL MATERIAL_MAP MATERIAL_MAP_RMAOS NORMAL NORMAL_MAP PARALLAX_POM PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+descriptor set=2 binding=13 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=17 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 vec3f32
+in location=6 vec3f32
+in location=7 vec2f32
+in location=8 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 vec2f32
+in location=6 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
 set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -58,6 +362,308 @@ member set=0 binding=15 48:sun
 member set=0 binding=15 64:lamps
 member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY HEIGHT_MAP MATERIAL MATERIAL_MAP MATERIAL_MAP_RMAOS NORMAL NORMAL_MAP PARALLAX_POM PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+descriptor set=2 binding=13 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=17 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 vec3f32
+in location=6 vec3f32
+in location=7 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY LOD_FADE MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
 member set=0 binding=3 0:[]
@@ -177,6 +783,264 @@ spec_constant id=1 i32
 spec_constant id=2 i32
 spec_constant id=4 i32
 spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GI GI_SKY NORMAL PBR PBR_PHYSICAL POINT_SHADOW PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+out location=0 vec4f32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GI GI_SKY NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+out location=0 vec4f32
+spec_constant id=2 i32
+spec_constant id=4 i32
 spec_constant_default id=2 bits 0
 spec_constant_default id=4 bits 0
 end
@@ -409,6 +1273,101 @@ spec_constant id=4 i32
 spec_constant_default id=2 bits 0
 spec_constant_default id=4 bits 0
 end
+set CLOUD_SHADOW COLOR COVER GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 vec2f32
+in location=4 vec3f32
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+end
 set CLOUD_SHADOW COLOR COVER GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -580,6 +1539,105 @@ spec_constant id=2 i32
 spec_constant_default id=1 bits 0
 spec_constant_default id=2 bits 0
 end
+set CLOUD_SHADOW COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+in location=4 vec2f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
 set CLOUD_SHADOW COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -636,6 +1694,207 @@ member set=0 binding=15 48:sun
 member set=0 binding=15 64:lamps
 member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY HEIGHT_MAP MATERIAL MATERIAL_MAP MATERIAL_MAP_RMAOS NORMAL NORMAL_MAP PARALLAX_POM PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+descriptor set=2 binding=13 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=17 sampled_image(image(f32,dim1,arrayed0,ms0))
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+in location=4 vec3f32
+in location=5 vec3f32
+in location=6 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+in location=4 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
 member set=0 binding=3 0:[]
@@ -757,6 +2016,99 @@ spec_constant_default id=1 bits 0
 spec_constant_default id=2 bits 0
 spec_constant_default id=4 bits 0
 end
+set CLOUD_SHADOW COVER DIFFUSE_MAP GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+in location=4 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
 set CLOUD_SHADOW COVER DIFFUSE_MAP MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -840,6 +2192,102 @@ spec_constant_default id=1 bits 0
 spec_constant_default id=2 bits 0
 spec_constant_default id=4 bits 0
 end
+set CLOUD_SHADOW COVER GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+in location=4 vec2f32
+in location=5 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+end
 set CLOUD_SHADOW COVER GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -895,6 +2343,100 @@ member set=0 binding=15 48:sun
 member set=0 binding=15 64:lamps
 member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+out location=1 vec4f32
+out location=2 f32
+out location=3 vec2f32
+out location=4 vec4f32
+out location=5 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+end
+set CLOUD_SHADOW COVER GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
 member set=0 binding=3 0:[]
@@ -1010,6 +2552,95 @@ spec_constant id=2 i32
 spec_constant_default id=1 bits 0
 spec_constant_default id=2 bits 0
 end
+set CLOUD_SHADOW COVER GI GI_SKY MATERIAL NORMAL PBR PBR_PHYSICAL POINT_SHADOW VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
+capability 1
+capability 50
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=10 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=11 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=12 storage 0:runtime_array stride4;0:f32;
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
+descriptor set=0 binding=18 sampler
+descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
+descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
+descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec3f32
+in location=1 vec3f32
+in location=2 vec2f32
+in location=3 vec3f32
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=10 0:[]
+member set=0 binding=11 0:[]
+member set=0 binding=12 0:[]
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=0 binding=19 0:[]
+member set=0 binding=2 0:[].colorIntensity
+member set=0 binding=2 16:[].position
+member set=0 binding=3 0:[]
+member set=0 binding=4 0:[].offset
+member set=0 binding=4 4:[].count
+member set=0 binding=5 0:x
+member set=0 binding=5 12:unused
+member set=0 binding=5 4:y
+member set=0 binding=5 8:z
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+end
 set CLOUD_SHADOW COVER MATERIAL NORMAL PBR VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES
 capability 1
 capability 50
@@ -1111,6 +2742,74 @@ in location=1 vec3f32
 in location=2 f32
 in location=3 vec3f32
 in location=4 array1(vec2f32)
+member set=0 binding=0 0:invProjection
+member set=0 binding=0 128:invView
+member set=0 binding=0 192:cascadeSplits
+member set=0 binding=0 208:viewToCascadeProj[]
+member set=0 binding=0 464:cascadeFrustumWidths
+member set=0 binding=0 480:lightDiffuse
+member set=0 binding=0 496:lightSpecular
+member set=0 binding=0 512:lightViewPos
+member set=0 binding=0 528:ambient
+member set=0 binding=0 544:fogColor
+member set=0 binding=0 560:skyColor
+member set=0 binding=0 576:resolution
+member set=0 binding=0 584:fogStart
+member set=0 binding=0 588:fogScale
+member set=0 binding=0 592:time
+member set=0 binding=0 596:zNear
+member set=0 binding=0 600:zFar
+member set=0 binding=0 604:rainIntensity
+member set=0 binding=0 608:groundcoverPlayer
+member set=0 binding=0 624:groundcoverParams
+member set=0 binding=0 64:projection
+member set=0 binding=13 0:[]
+member set=0 binding=15 0:grid
+member set=0 binding=15 16:range
+member set=0 binding=15 32:fog
+member set=0 binding=15 48:sun
+member set=0 binding=15 64:lamps
+member set=0 binding=15 80:jitter
+member set=0 binding=15 96:toPreviousClip
+member set=1 binding=0 0:envColor
+member set=1 binding=0 16:alpha
+member set=2 binding=1 0:ambient
+member set=2 binding=1 16:diffuse
+member set=2 binding=1 32:emissive
+member set=2 binding=1 48:specular
+member set=2 binding=1 64:shininess
+member set=2 binding=1 68:alphaTestCutoff
+member set=2 binding=1 72:subsurface
+member set=2 binding=1 76:align_dummy2
+member set=2 binding=1 80:pbr
+out location=0 vec4f32
+spec_constant id=1 i32
+spec_constant id=2 i32
+spec_constant id=4 i32
+spec_constant_default id=1 bits 0
+spec_constant_default id=2 bits 0
+spec_constant_default id=4 bits 0
+end
+set CLOUD_SHADOW DIFFUSE_MAP MATERIAL PARTICLE UVSETS_1 VOLUME_CLOUD_SHADOW
+capability 1
+descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;
+descriptor set=0 binding=1 sampled_image(image(f32,dim1,arrayed1,ms0))
+descriptor set=0 binding=13 storage 0:runtime_array stride16;0:vec4f32;
+descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
+descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
+descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
+descriptor set=0 binding=7 sampler
+descriptor set=1 binding=0 uniform 0:vec4f32;16:f32;
+descriptor set=2 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))
+descriptor set=2 binding=1 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:f32;68:f32;72:f32;76:f32;80:vec4f32;
+entry 4 main
+execution_mode 7
+in builtin=15
+in location=0 vec4f32
+in location=1 vec3f32
+in location=2 vec3f32
+in location=3 array1(vec2f32)
 member set=0 binding=0 0:invProjection
 member set=0 binding=0 128:invView
 member set=0 binding=0 192:cascadeSplits
