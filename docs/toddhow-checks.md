@@ -1,0 +1,64 @@
+# What waits on toddhow
+
+One place for everything only you can check or decide, so nobody has to ask each time. Written 2026-11-06. Work through it at your own pace: the items are ordered by how much each one blocks. Tick a box in this file when done, or just tell Claude the result and it will record it. Anything marked **(Claude)** needs no action from you.
+
+## 0. How to run a test game
+
+- **Prepare a profile** (a copy of your config; your real folder is never touched): `tools\testprofile\prepare.bat <your config folder> [variants]`. Add `--no-bake` to skip the slow bakes when they already exist. Variants are in `tools/testprofile/variants/` (for example `stats` writes the cell-load trace and frame counters; `nolod` turns the world LOD off; `msaa`, `glsl`, `lowtier`, `aces`, `pcss`, `lowmemory`, `vramsmall`).
+- **Start the game** with the generated script in the profile folder, for example `I:\Projects\OpenEden-work\testprofile\main\start_game.bat`; the editor is `start_editor.bat` beside it. The `_quiet` scripts are for unattended checks (windows off-screen): do not use them to play.
+- **Console** (`~`): `ChangeWeather "<Region>" <id>` (0 clear, 1 cloudy, 2 foggy, 3 overcast, 4 rain, 5 thunder, 6 ash, 7 blight, 8 snow, 9 blizzard; entering a new region forces the weather at once, so after setting it, `coc "Seyda Neen"` or walk over a border), `set gamehour to 12`, `set timescale to 0` (stops time), `player->additem "<id>" 1`, `texturemips status|0|1|2|off` (the texture memory swap).
+- **When something looks wrong:** note the place, weather, hour and which profile (and variant); if it is a pop or a stall, run the `stats` variant and give me the time or the log; screenshots are enough otherwise (F12 saves one).
+- **The texture mod:** `bash tools/testprofile/texturemod.sh <profile folder> add [--lava]` adds Landscape Remastered (extracted at `I:\Projects\OpenEden-work\mods\landscape-remastered`) to a profile copy; `remove` takes it out. Run it after `prepare`, which writes a new `openmw.cfg`. Re-bake the terrain pack once after adding it.
+
+## 1. Verdicts that block closing Track V (task 0010, 0012, 0013, 0014)
+
+These are the open boxes of Track V in the guide.
+
+- [ ] **Reference scenes, image and performance verdicts (task 0010).** Run `tools/render_compare.sh` (it compares the scenes against the OSG reference images), look at each scene, and say for each: accepted, or a bug with what is wrong. Differences are expected: the Vulkan renderer lights, shadows and draws water differently. Performance: the exterior CPU cost versus the OSG build is the number to judge.
+- [ ] **A short play-through on Vulkan (task 0010):** movement, combat, AI pathing with the navigator on, saving and loading. Report anything that is wrong.
+- [ ] **V4 decisions (task 0012):** post-processing (`.omwfx` mod shaders) and VR: keep them working, port them, or remove them? Every renderer setting is supposed to work, migrate or be removed with a reason: say if you want a pass over the settings list.
+- [ ] **V5 (task 0013):** nothing for you to do; Claude will run the fixed-seed scenario, AI pathing and image comparison that were skipped if you say so **(Claude)**.
+- [ ] **The editor's hands-on list, task 0014, "Check list for toddhow"** (`docs/tasks/0014-vulkan-v6-editor-tools-osg-removal.md`, line 355). Items 1, 3 to 8 are ticked. Still open: **2** (drag an exterior cell onto a new Scene subview), **9** (focus by clicking and the camera key), **10** (a shortcut held across a focus change), **11** (shortcuts over the view), **12** (mouse tracking: frame rate and log), **13** (quit without a crash dump), **14** (steps 1 to 8 once on Linux under X11).
+- [ ] **CI on GitHub (decision 0008):** the workflow exists but has not run since the checks changed. Once you push or open the repository, check the Actions tab: Checks, Ubuntu GCC, Windows. Report red jobs.
+
+## 2. Things to look at in game (by eye), with the exact steps
+
+Each one was built and measured but never seen by you.
+
+- [ ] **Ashlands fog.** The haze gain was lowered from 10 to 3, so an ash storm now sees about 30,000 units instead of about 1,800. Steps: start the profile, `ChangeWeather "Ashlands Region" 6`, walk into the Ashlands region (or `coc` to a spot there such as Ghostgate's surroundings), look toward the mountains. You should see ridges far away through grey haze, not a wall. Tell me if it is too clear or too thick; the knob is `[WorldLod] haze weather gain` (3 now; 5 gives 10% light at 13,500 units).
+- [ ] **Fade-in of terrain and tiles (tasks 0087, 0088).** Steps: walk (or fly) toward distant mountains with the `stats` variant on. Distant terrain should dither in over about 0.4 s and not pop. If a pop remains, give me the time in the video or the line from `openmw.log` around it ("World LOD tile swap"). If it is too sudden, try `[WorldLod] terrain fade time = 0.8`. 0 gives the old instant swap.
+- [ ] **Clouds.** Needs `[Rendering] volumetric clouds = true` (the profile has it). Look toward the horizon at noon and dusk: clouds should reach the horizon (the `horizon` setting is on by default now) and big clouds should not show a repeating pattern (`variety` is on by default). `curved layer` is on in the profile only. Say whether the cirrus (thin high streaks, `cirrus = true`) looks varied.
+- [ ] **Point-light shadows and the cache.** Steps: `coc "Seyda Neen, Arrille's Tradehouse"`; shadows from the lanterns on walls and floor; walk past the lamps and open the door. Look for a shadow that lags (it can lag up to about half a second when nothing detects a change) or leaks light. The cache is on by default now (`point light shadow cache`).
+- [ ] **TAA and rain/snow (task 0075).** `ChangeWeather` to rain (4) and snow (8) with `taa` on: streaks should be visible and not smeared; glass and fires should not ghost. Compare with `msaa` variant if unsure.
+- [ ] **The texture mod's land (tasks 0089).** With the mod added (section 0): the start-up freeze of 5 s or more should be gone and the land should show its textures, with no grey or red patches anywhere. Look at the lava ground (Red Mountain, Ghostgate) and the Ashlands roads. Tell me where any grey or red appears (the place and a screenshot).
+- [ ] **Texture memory swap (task 0080).** With the mod: `texturemips status`, then `texturemips 1` (drops the top mip level of big textures and terrain arrays, frees about 1 GiB or more), look at the land close up (no black, grey or wrong layer), then `texturemips off`. The `vramsmall` variant plus `[VideoMemory] enabled = true` exercises the automatic path.
+- [ ] **Equipment and body parts.** Equip and unequip armour on yourself and an NPC (the merged body is on in the profile): no skin through a garment, no gaps at the wrists or knees.
+- [ ] **Screenshots, saves.** Take a screenshot (F12), save, load: the picture in the save slot should show the scene without the HUD.
+
+## 3. Decisions and sign-offs waiting (docs and golden data)
+
+- [ ] **Decision 0014 (script runtimes and Lua namespaces for game packs): DRAFT.** Sign, or say what to change. Includes the ObScript amendment once Claude's research note lands (`docs/research/0046-script-runtimes-papyrus-and-obscript.md`).
+- [ ] **Decision 0015 (the UI system): DRAFT.** The U0 spike's verdict will be in `docs/research/0045-ui-system.md` when it finishes; sign after reading it. Unanswered questions there keep the note's recommendations until you say otherwise: the element protocol, core ownership of the component library, right-to-left text (not now), Dear ImGui for tools (not now), default art from the player's installed data.
+- [ ] **Task 0092 (script runtime contracts and the first ObScript slice): DRAFT.** Approve, change, or reject when it appears.
+- [ ] **Golden data awaiting your review:** the 33 recorded shader interface files `files/shaders/*.interface` (task 0072 stage j; they replace the GLSL as the reference if the GLSL is ever deleted). Review the format in one file (for example `files/shaders/gui/gui.frag.interface`); no need to read all of them.
+- [ ] **Slang default and GLSL deletion (task 0072 stage j):** `slang shaders` stays off by default and no GLSL is deleted until the profile's cost is re-measured on a quiet machine; that is a later decision (the agent's report will list the numbers).
+- [ ] **Terrain array size policy (task 0089):** the array takes the most common layer size, so a mod that covers fewer than half the layers would shrink its own textures. Say if that matters to you; the fix is a shader change (a per-layer scale) or one array per size.
+- [ ] **Inherited reader bugs filed as findings in task 0082:** four CBBE files that fail in the inherited NIF `post` cast, and Fallout 4 weight sums of 0.16 on some vertices. Say when to look at them.
+- [ ] **Tangent sign (task 0082, needs your hands):** the manual step is a NifSkope (fo76utils fork) glTF export of a few Skyrim SE files, compared with what `Nif::Scene` reads. The exact steps are in the 0082 spec once Claude finishes that slice.
+- [ ] **Slang and other open questions with a recommendation already given** are listed at the end of each task spec; the ones that waited longest: task 0069 (merged body) questions, task 0070 (skeleton mapping, research note 0036 section 9: read the table before stage e), task 0071 (facial animation: a hands-on test on your machine).
+
+## 4. Owner-level items from the guide (no deadline)
+
+- [ ] **Executable and data names:** when `openmw` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs migrate.
+- [ ] **macOS:** keep or drop the platform (Vulkan there needs MoltenVK).
+- [ ] **CI and hosting:** what to push to GitHub `master` first and what `master` there becomes; whether GitLab CI stays.
+- [ ] **The extension system's open questions 1 to 6** (C ABI timing, contracts location, user-overridable load order, hot reload, licence policy).
+- [ ] **The `openeden.animation` contract:** keep it (no provider since decision 0001) or remove it from the SDK?
+- [ ] **Track J in-game list:** flying over the world, backface-collision mods and moving platforms, a short play-through, and the actor collider shape drawn by `tcb`.
+
+## 5. Already decided (so nobody asks again)
+
+- The Linux gate runs before every push; Claude pushes only after it is green and records every existing-test edit for your approval.
+- Games' UI will be replaced by the declarative component UI after its spike; MyGUI goes last with Morrowind.
+- Game packs are confirmed (decision 0013); Skyrim SE is the second game; ObScript and Papyrus runtimes go in the common pack.
+- Background agents run on Sonnet at default effort.
