@@ -1,6 +1,6 @@
 # 0013 — Game packs and compatibility packs: Morrowind's rules move out of the core
 
-Date: 2026-11-04 · Decided by: toddhow (direction and second game) · **Status: proposed, awaiting toddhow's confirmation of the terms below** (the direction and Skyrim SE as the second game are decided)
+Date: 2026-11-04 · Decided by: toddhow (direction and second game) · **Status: decided, terms confirmed by toddhow on 2026-11-06** (the direction and Skyrim SE as the second game were decided on 2026-11-04)
 
 Design: `docs/design/game-packs.md`. Background: `docs/research/0043-separating-formats-from-game-rules.md`. Tasks 0081 to 0086.
 
@@ -9,7 +9,7 @@ Design: `docs/design/game-packs.md`. Background: `docs/research/0043-separating-
 - After the analysis: "We will go with the game packs + compatibility packs."
 - Second game: **Skyrim SE** (toddhow, 2026-11-04). His installed set (CBBE 3BBB, XPMSSE, HIMBO, The New Gentleman) and research note 0036 are the test material. Skyrim's seamless body ties into AdvancedBodies. Oblivion and Fallout 3/NV (partly covered by `components/esm4`) remain a later, cheaper step, not the second game.
 
-## Assumptions to confirm (the terms)
+## The terms (confirmed by toddhow, 2026-11-06)
 1. **Three kinds of pack, and the core.** The **common compatibility pack** is the shared format layer (ESM/ESP, archives, art, NIF of any version), game-neutral, no rules. A **compatibility pack** adapts one game's data conventions (an extension; `compat_morrowind` is the first). A **game pack** (manifest `kind: "game"`) carries one game's rules; it is a new tier. "Game module" is an alias of game pack.
 2. **A game normally has two packs:** `compat_<game>` and `game_<game>`. The alternative (one pack per game, `compat_morrowind` becoming the game pack) is accepted by the design with a shorter pack list.
 3. **The game pack is compiled in first** (same registrar and contracts as a loaded pack), dynamic loading later. **The common pack is a set of libraries first.**

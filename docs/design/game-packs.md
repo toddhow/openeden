@@ -1,7 +1,7 @@
 # Game packs and compatibility packs: moving each game's rules out of the core
 
-**Status:** proposed, awaiting toddhow's confirmation of the terms (decision 0013). The direction and the second game
-are decided. **Date:** 2026-11-04. **Background:** `docs/research/0043-separating-formats-from-game-rules.md` (read
+**Status:** decided; toddhow confirmed the terms of decision 0013 on 2026-11-06. The direction and the second game
+were decided on 2026-11-04. **Date:** 2026-11-04. **Background:** `docs/research/0043-separating-formats-from-game-rules.md` (read
 it first: it holds the measurements this document relies on). **Companions:** `docs/design/openeden-extension-system.md`
 (the extension system), `docs/design/working-extension-system.md`, decisions 0001, 0003, 0005 and 0006.
 

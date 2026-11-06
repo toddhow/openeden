@@ -3,7 +3,7 @@ Design doc section: `docs/design/game-packs.md` section 3 (the common compatibil
 Goal: the NIF reader loads every version the game packs need by explicit option, with tests on generated and on user-supplied files, and offers its content as plain arrays (`Nif::Scene`) that no renderer type appears in.
 Inherited code touched, at commit `671c7676e9`: `components/nif/niffile.cpp` (`Reader::parse`: `supportedVers`, `sLoadUnsupportedFiles`, `setLoadUnsupportedFiles`, the hashed-record-type and big-endian refusals) and `niffile.hpp` (`NIFFile::NIFVersion`, `BethVersion`); `components/nif/node.cpp` line 188 (`NiNode::read` replaces record 0's transform by the identity unless the node is named `bip01`: a Morrowind rule); `components/nif/node.hpp` (`BSTriShape`, `BSDynamicTriShape`, `BSSubIndexTriShape`), `data.cpp`, `physics.cpp`; the callers of `Reader::setLoadUnsupportedFiles` (`apps/niftest`, `apps/edenskelstat`, the body tools). Read-only for reference: `components/vsgadapters/nif/nif.cpp` (the NIF to VSG converter; `NiGeometry` only), `components/bodynif/*`, `components/nifjolt`, `components/lod/nifflatten.*`, `extensions/compat_morrowind/src`.
 Inputs / outputs: new `Nif::ReadOptions` (`allowedVersions`, `strict`) replacing the process-wide flag; new `components/nifscene/` (`scene.hpp`, `build.cpp`: `Nif::Scene buildScene(const NIFFile&, const SceneOptions&)`); a generated-file builder for tests in `apps/components_tests/nif/`; a tool `apps/niftest` extension (`--report <folder>`, aggregate output only); no change to a file format.
-Status: draft for toddhow's approval. **Full loop** (root guide: it handles untrusted input).
+Status: **approved by toddhow, 2026-11-06, with all eight recommendations of the open questions below** (answers recorded after them). **Full loop** (root guide: it handles untrusted input).
 
 ## Version priority (toddhow, 2026-11-04: Skyrim SE is the second game)
 1. Morrowind 4.0.0.2 (and 4.0.0.0): must be byte-for-byte what loads today.
@@ -70,4 +70,14 @@ Research note 0044 (`docs/research/0044-loading-modern-nifs-fo76utils-nifskope.m
 6. Build the oracle on the fork's **GUI glTF export** (your hands, per file) or ask for a local, uncommitted patch to the fork that adds a headless dump? Recommend the GUI export first: no new code to maintain; the patch only if the number of files makes it tiresome.
 7. For `Scene` tangents: store **glTF-style tangent + sign** (recommended: matches the oracle and the renderer's normal mapping) or the NIF's two vectors as read?
 8. Treat SSE vertex-stream bone indices as **global** (the fork's assumption) until the oracle finds a counter-example? Recommend yes, with a loud error rather than silent skinning when a partition's bone map differs from the identity.
+
+### Answers (toddhow, 2026-11-06: every recommendation accepted)
+1. Hand-written reader; `nif.xml` only as an oracle.
+2. New directory `components/nifscene` in the formats layer; `components/nif` stays the record reader.
+3. `compat_morrowind` supplies the Morrowind `SceneOptions`; the `bip01` and animation-name rules move out of the nif reader there, step by step, with Morrowind loading byte for byte as today.
+4. `Scene` keeps every influence the file has; the consumer cuts.
+5. A local copy of `nif.xml` may be used by a dev oracle; it is never committed.
+6. The oracle is the NifSkope fork's GUI glTF export, made by toddhow's hands; the reader is built against note 0036's measurements and the schema notes, and the comparison is a documented manual step that does not block the work.
+7. `Scene` tangents are glTF-style tangent plus sign.
+8. SSE vertex-stream bone indices are treated as global; a partition whose bone map differs from the identity is a loud error.
 
