@@ -465,7 +465,7 @@ add_component_dir (interpreter
 # Task 0092: the ObScript runtime of the common compatibility pack (a contract implementation over compiler and
 # interpreter; no ESM record, no engine type in its public header).
 add_component_dir (script_obscript
-    obscriptruntime obscriptlimits
+    obscriptruntime obscriptlimits obscriptcompile
     )
 
 add_component_dir (translation

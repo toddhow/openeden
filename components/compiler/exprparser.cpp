@@ -309,9 +309,17 @@ namespace Compiler
 
             if (type != ' ')
             {
+                const std::size_t codeStart = mCode.size();
                 Generator::fetchLocal(mCode, type, mLocals.getIndex(name2));
                 mNextOperand = false;
                 mOperands.push_back(type == 'f' ? 'f' : 'l');
+                if (getContext().getOptions().mReferenceLocals && getContext().isId(ESM::RefId::stringRefId(name2)))
+                {
+                    mAfterReferenceLocal = true;
+                    mReferenceLocalCodeStart = codeStart;
+                    mReferenceLocalCodeEnd = mCode.size();
+                    mReferenceLocalName = name2;
+                }
                 return true;
             }
 
@@ -464,6 +472,17 @@ namespace Compiler
 
     bool ExprParser::parseSpecial(int code, const TokenLoc& loc, Scanner& scanner)
     {
+        if (mAfterReferenceLocal && (code == Scanner::S_ref || code == Scanner::S_member) && !mNextOperand
+            && mExplicit.empty() && mCode.size() == mReferenceLocalCodeEnd)
+        {
+            // The local that was just read is the reference of a call: take the read back.
+            mCode.resize(mReferenceLocalCodeStart);
+            popOperand();
+            mNextOperand = true;
+            mExplicit = mReferenceLocalName;
+        }
+        mAfterReferenceLocal = false;
+
         if (!mExplicit.empty())
         {
             if (mRefOp && code == Scanner::S_open)
@@ -610,6 +629,7 @@ namespace Compiler
         mExplicit.clear();
         mRefOp = false;
         mMemberOp = false;
+        mAfterReferenceLocal = false;
         Parser::reset();
     }
 

@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 #include "stubworld.hpp"
 
@@ -271,15 +272,17 @@ End
         EXPECT_EQ(mFixture.mCalls.size(), 2u);
     }
 
-    TEST_F(ObScriptRun, a_fragment_cannot_declare_locals)
+    // The result scripts of the New Vegas masters declare locals (research note 0046, stage e measurements), so a
+    // fragment may, and the variables live as long as the fragment's instance.
+    TEST_F(ObScriptRun, a_fragment_may_declare_locals_and_needs_no_trailing_newline)
     {
-        openeden::script::ScriptSource source;
-        source.name = "BadFragment";
-        source.text = "short x\nSet x to 1\n";
-        source.kind = ScriptKind::Fragment;
-        const auto result = runtime().compile(source);
-        EXPECT_FALSE(result.ok);
-        EXPECT_FALSE(result.reports.empty());
+        const ScriptId script = mFixture.compileOk(
+            "LocalFragment", "short x\nref r\nSet x to 4\nSet TestGlobal to x * 2", ScriptKind::Fragment);
+        ASSERT_NE(script, 0u) << (mFixture.mLastReports.empty() ? "" : mFixture.mLastReports.front());
+        const InstanceId instance = runtime().createInstance(script, sPlayer);
+        ASSERT_TRUE(runtime().run(instance, "").ok);
+        EXPECT_EQ(runtime().getLocal(instance, "x").integer, 4);
+        EXPECT_EQ(mFixture.mWorld.mGlobals["testglobal"].integer, 8);
     }
 
     TEST_F(ObScriptRun, two_scripts_get_different_ids)
@@ -334,11 +337,11 @@ End
         descriptor.name = "Recurse";
         descriptor.signature = "";
         openeden::script::ErrorReport error;
-        openeden::script::RunResult inner;
+        std::vector<openeden::script::RunResult> inner;
         ASSERT_TRUE(fixture.mRuntime->registerFunction(
             descriptor,
             [&](const openeden::script::CallArgs&) {
-                inner = fixture.mRuntime->run(instance, "GameMode");
+                inner.push_back(fixture.mRuntime->run(instance, "GameMode"));
                 return Value::makeInteger(0);
             },
             error));
@@ -348,9 +351,18 @@ End
         Budget budget;
         budget.maxCallDepth = 5;
         const auto result = fixture.mRuntime->run(instance, "GameMode", budget);
-        // The innermost run is stopped by the cap; its error is reported by the run that was stopped.
-        EXPECT_FALSE(result.ok && inner.ok);
-        std::string text = result.error.message + inner.error.message;
-        EXPECT_NE(text.find("call depth"), std::string::npos) << text;
+        // The run that goes one level too deep is stopped by the cap and says so; the runs above it carry on.
+        EXPECT_TRUE(result.ok) << result.error.format();
+        std::size_t stopped = 0;
+        for (const auto& run : inner)
+        {
+            if (!run.ok)
+            {
+                ++stopped;
+                EXPECT_NE(run.error.message.find("call depth"), std::string::npos) << run.error.format();
+            }
+        }
+        EXPECT_EQ(stopped, 1u);
+        EXPECT_EQ(inner.size(), 5u);
     }
 }

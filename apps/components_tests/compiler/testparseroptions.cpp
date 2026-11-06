@@ -42,7 +42,8 @@ namespace
         }
         bool isId(const ESM::RefId& name) const override
         {
-            return name == ESM::RefId::stringRefId("player") || name == ESM::RefId::stringRefId("myquest");
+            return name == ESM::RefId::stringRefId("player") || name == ESM::RefId::stringRefId("myquest")
+                || name == ESM::RefId::stringRefId("refvar");
         }
     };
 
@@ -58,7 +59,7 @@ namespace
         Interpreter::Program mProgram;
     };
 
-    Compiled compile(const std::string& source, bool dotOption)
+    Compiled compile(const std::string& source, bool dotOption, bool referenceLocals = false)
     {
         Compiler::Extensions extensions;
         extensions.registerInstruction("dothing", "l/l", sCodeDoThing, sCodeDoThing + 1);
@@ -69,6 +70,7 @@ namespace
         context.setExtensions(&extensions);
         Compiler::ParserOptions options;
         options.mDotExplicitReference = dotOption;
+        options.mReferenceLocals = referenceLocals;
         context.setOptions(options);
 
         Compiler::FileParser parser(handler, context);
@@ -92,8 +94,10 @@ namespace
     {
         const Compiler::ParserOptions options;
         EXPECT_FALSE(options.mDotExplicitReference);
+        EXPECT_FALSE(options.mReferenceLocals);
         OptionsContext context;
         EXPECT_FALSE(context.getOptions().mDotExplicitReference);
+        EXPECT_FALSE(context.getOptions().mReferenceLocals);
     }
 
     TEST(CompilerParserOptions, a_dot_call_of_an_instruction_equals_the_arrow_call_with_the_option_on)
@@ -151,5 +155,41 @@ namespace
         ASSERT_TRUE(on.mOk);
         EXPECT_EQ(on.mProgram.mInstructions, off.mProgram.mInstructions);
         EXPECT_EQ(on.mProgram.mStrings, off.mProgram.mStrings);
+    }
+
+    const std::string sLocalReference = "Begin T\nlong refvar\nshort a\nSet a to refvar.GetThing 2\nEnd\n";
+
+    TEST(CompilerParserOptions, a_local_that_is_a_reference_calls_a_function_in_an_expression_with_the_option_on)
+    {
+        const Compiled on = compile(sLocalReference, true, true);
+        ASSERT_TRUE(on.mOk);
+        // The explicit form of the function is used (with its one optional argument) and the reference's name travels
+        // as a string literal.
+        bool explicitCode = false;
+        for (const auto code : on.mProgram.mInstructions)
+        {
+            explicitCode
+                = explicitCode || code == ((0x30u << 26) | (static_cast<unsigned>(sCodeGetThing + 1) << 8) | 1u);
+        }
+        EXPECT_TRUE(explicitCode);
+        ASSERT_FALSE(on.mProgram.mStrings.empty());
+        EXPECT_EQ(on.mProgram.mStrings.front(), "refvar");
+    }
+
+    TEST(CompilerParserOptions, a_local_that_is_a_reference_is_only_a_value_with_the_option_off)
+    {
+        EXPECT_FALSE(compile(sLocalReference, true, false).mOk);
+    }
+
+    TEST(CompilerParserOptions, a_reference_local_read_as_a_value_is_unchanged_by_the_option)
+    {
+        const std::string text
+            = "Begin T\nlong refvar\nlong other\nSet other to refvar\nSet other to refvar + 1\nEnd\n";
+        const Compiled on = compile(text, true, true);
+        const Compiled off = compile(text, true, false);
+        ASSERT_TRUE(on.mOk);
+        ASSERT_TRUE(off.mOk);
+        EXPECT_EQ(on.mProgram.mInstructions, off.mProgram.mInstructions);
+        EXPECT_EQ(on.mProgram.mIntegers, off.mProgram.mIntegers);
     }
 }

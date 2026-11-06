@@ -18,6 +18,10 @@ namespace Compiler
         /// "ref.Command" is a command called on another reference, as "ref->Command" is. Off: the dot only means a
         /// variable of another script ("ref.variable"), as in Morrowind.
         bool mDotExplicitReference = false;
+
+        /// A local variable that Context::isId accepts (a variable that holds a reference) may stand before "->" or
+        /// "." in an expression, as the name of an object may. Off: a local is always just a value, as in Morrowind.
+        bool mReferenceLocals = false;
     };
 
     class Context

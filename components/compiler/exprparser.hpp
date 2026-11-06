@@ -27,6 +27,12 @@ namespace Compiler
         std::string mExplicit;
         bool mRefOp;
         bool mMemberOp;
+        // Task 0092 (ParserOptions::mReferenceLocals): the operand just read is a local variable that is also a
+        // reference, so a '.' or '->' after it makes it an explicit reference instead.
+        bool mAfterReferenceLocal = false;
+        std::size_t mReferenceLocalCodeStart = 0;
+        std::size_t mReferenceLocalCodeEnd = 0;
+        std::string mReferenceLocalName;
 
         static int getPriority(char op);
 
