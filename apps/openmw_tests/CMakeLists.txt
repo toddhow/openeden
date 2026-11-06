@@ -55,6 +55,9 @@ file(GLOB UNITTEST_SRC_FILES
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp
 
+    # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
+    script_obscript/testobscriptallocation.cpp
+
     # Task 0035 stage b: the RAGDOLL layer, HostedWorldConfig::gravityFactor and MWPhysics::RagdollHost.
     mwphysics/testjoltlayers.cpp
     mwphysics/testgravityfactor.cpp
