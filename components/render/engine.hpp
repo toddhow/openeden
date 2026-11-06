@@ -166,6 +166,10 @@ namespace Render
         // (from RenderManager::update). Returns the bytes released, -1 when the device has no pools yet.
         int64_t releaseUnusedDeviceMemory();
 
+        /// Task 0080: VSG's device memory pools: bytes reserved by live allocations and bytes free inside the pools
+        /// (-1, -1 before the device exists). A pool entry with a live allocation cannot be returned to the driver.
+        std::pair<int64_t, int64_t> deviceMemoryPoolStats();
+
         // Task 0080 stage d: every command graph of the viewer's record-and-submit tasks (the texture mip swapper scans
         // them).
         std::vector<vsg::ref_ptr<vsg::CommandGraph>> allCommandGraphs() const;

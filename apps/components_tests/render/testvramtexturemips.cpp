@@ -408,4 +408,49 @@ namespace
         ASSERT_EQ(changes.size(), 1u);
         EXPECT_EQ(changes[0].toDrop, 1);
     }
+
+    // An array of layers (the terrain's layer arrays): every level is stored for all layers.
+    TEST(VramTextureMips, a_layer_array_counts_every_layer_in_a_level)
+    {
+        Texture t = bc1(1, 2048);
+        const std::int64_t single = levelBytes(t, 0);
+        t.layers = 133;
+        EXPECT_EQ(levelBytes(t, 0), single * 133);
+        EXPECT_EQ(chainBytes(t, 1), chainBytes(bc1(1, 2048), 1) * 133);
+    }
+
+    TEST(VramTextureMips, a_layer_array_saves_all_layers_when_a_level_is_dropped)
+    {
+        Texture t = bc1(1, 2048);
+        t.layers = 100;
+        EXPECT_EQ(savedBytes(t, 0, 1), levelBytes(t, 0));
+        EXPECT_EQ(residentBytes(t), chainBytes(t, 0));
+        t.drop = 1;
+        EXPECT_EQ(residentBytes(t), chainBytes(t, 1));
+    }
+
+    TEST(VramTextureMips, a_layer_array_follows_the_same_eligibility_and_floor)
+    {
+        Texture t = bc1(1, 2048);
+        t.layers = 96;
+        EXPECT_TRUE(eligible(t, Params{}));
+        EXPECT_EQ(maxDrop(t, Params{}), 1);
+        Texture small = bc1(2, 256);
+        small.layers = 133;
+        EXPECT_FALSE(eligible(small, Params{}));
+    }
+
+    TEST(VramTextureMips, a_step_of_the_ladder_counts_the_layers)
+    {
+        Texture t = bc1(1, 2048);
+        t.layers = 10;
+        const std::vector<Texture> textures = { t };
+        EXPECT_EQ(stepBytes(textures, 0, true, Params{}), levelBytes(t, 0));
+        EXPECT_EQ(levelBytes(t, 0), 10 * 2048 * 2048 / 2);
+    }
+
+    TEST(VramTextureMips, the_default_layer_count_is_one)
+    {
+        EXPECT_EQ(Texture{}.layers, 1u);
+    }
 }

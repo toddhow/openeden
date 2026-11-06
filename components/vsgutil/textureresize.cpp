@@ -227,6 +227,107 @@ namespace vsgUtil::TextureResize
             properties, layout);
     }
 
+    vsg::ref_ptr<vsg::Data> dropArrayLevels(const vsg::Data& source, int levels)
+    {
+        if (levels <= 0)
+            return vsg::ref_ptr<vsg::Data>(const_cast<vsg::Data*>(&source));
+        if (source.dimensions() != 3 || source.properties.imageViewType != VK_IMAGE_VIEW_TYPE_2D_ARRAY
+            || !detail::isBlockCompressed(source))
+            return {};
+        const vsg::MipmapLayout* layout = source.getMipmapLayout();
+        if (!layout || layout->size() <= static_cast<size_t>(levels))
+            return {};
+        const vsg::uivec4 first = layout->at(static_cast<size_t>(levels));
+        const size_t tailOffset = first.w;
+        if (tailOffset >= source.dataSize())
+            return {};
+        const size_t tailSize = source.dataSize() - tailOffset;
+
+        const size_t kept = layout->size() - static_cast<size_t>(levels);
+        auto newLayout = vsg::MipmapLayout::create(kept);
+        for (size_t i = 0; i < kept; ++i)
+        {
+            const vsg::uivec4 level = layout->at(static_cast<size_t>(levels) + i);
+            if (level.w < tailOffset)
+                return {};
+            newLayout->set(i, vsg::uivec4(level.x, level.y, level.z, static_cast<uint32_t>(level.w - tailOffset)));
+        }
+
+        vsg::Data::Properties properties = source.properties;
+        properties.mipLevels = static_cast<uint8_t>(kept);
+        properties.allocatorType = vsg::ALLOCATOR_TYPE_VSG_ALLOCATOR;
+        const uint32_t widthBlocks = ceilDiv(first.x, std::max<uint32_t>(1, properties.blockWidth));
+        const uint32_t heightBlocks = ceilDiv(first.y, std::max<uint32_t>(1, properties.blockHeight));
+        vsg::ref_ptr<vsg::Data> result;
+        if (source.valueSize() == 8)
+            result = detail::createArray<vsg::block64Array3D>(
+                widthBlocks, heightBlocks, source.depth(), tailSize, properties, newLayout);
+        else if (source.valueSize() == 16)
+            result = detail::createArray<vsg::block128Array3D>(
+                widthBlocks, heightBlocks, source.depth(), tailSize, properties, newLayout);
+        if (!result)
+            return {};
+        std::memcpy(result->dataPointer(), static_cast<const uint8_t*>(source.dataPointer()) + tailOffset, tailSize);
+        return result;
+    }
+
+    vsg::ref_ptr<vsg::Data> shrinkArray(const vsg::Data& source, int levels, Kind kind)
+    {
+        if (levels <= 0)
+            return vsg::ref_ptr<vsg::Data>(const_cast<vsg::Data*>(&source));
+        if (source.dimensions() != 3 || source.properties.imageViewType != VK_IMAGE_VIEW_TYPE_2D_ARRAY
+            || source.getMipmapLayout() || detail::isBlockCompressed(source) || source.valueSize() != 4
+            || shrinkableChannels(source.properties.format) != 4 || !source.dataPointer())
+            return {};
+        const uint32_t width = source.width();
+        const uint32_t height = source.height();
+        const uint32_t depth = source.depth();
+        if (levels >= 31 || std::min(width, height) >> levels < 1)
+            return {};
+        uint32_t outWidth = width;
+        uint32_t outHeight = height;
+        for (int level = 0; level < levels; ++level)
+        {
+            outWidth = std::max(1u, outWidth / 2);
+            outHeight = std::max(1u, outHeight / 2);
+        }
+        const bool normals = kind == Kind::Normal;
+        vsg::Data::Properties properties = source.properties;
+        properties.mipLevels = 0; // the GPU makes the chain
+        properties.allocatorType = vsg::ALLOCATOR_TYPE_VSG_ALLOCATOR;
+        const size_t layerBytes = size_t(outWidth) * outHeight * 4;
+        auto result = detail::createArray<vsg::ubvec4Array3D>(
+            outWidth, outHeight, depth, layerBytes * depth, properties, nullptr);
+        auto* out = static_cast<uint8_t*>(result->dataPointer());
+        const auto* in = static_cast<const uint8_t*>(source.dataPointer());
+        const size_t sourceLayerBytes = size_t(width) * height * 4;
+        std::vector<uint8_t> buffers[2];
+        for (uint32_t layer = 0; layer < depth; ++layer)
+        {
+            const uint8_t* current = in + layer * sourceLayerBytes;
+            uint32_t w = width;
+            uint32_t h = height;
+            for (int level = 0; level < levels; ++level)
+            {
+                const uint32_t nw = std::max(1u, w / 2);
+                const uint32_t nh = std::max(1u, h / 2);
+                uint8_t* target;
+                if (level == levels - 1)
+                    target = out + layer * layerBytes;
+                else
+                {
+                    buffers[level % 2].resize(size_t(nw) * nh * 4);
+                    target = buffers[level % 2].data();
+                }
+                halve(current, w, h, 4, target, nw, nh, normals);
+                current = target;
+                w = nw;
+                h = nh;
+            }
+        }
+        return result;
+    }
+
     vsg::ref_ptr<vsg::Data> shrinkUncompressed(const vsg::Data& source, int levels, Kind kind, float alphaCutoff)
     {
         if (levels <= 0)

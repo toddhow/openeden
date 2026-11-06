@@ -1,9 +1,11 @@
 #ifndef VSGOPENMW_TERRAIN_PAGING_H
 #define VSGOPENMW_TERRAIN_PAGING_H
 
+#include <map>
 #include <memory>
 
 #include <vsg/io/Options.h>
+#include <vsg/state/BindDescriptorSet.h>
 #include <vsg/state/Sampler.h>
 
 #include <components/vsgutil/compilecontext.hpp>
@@ -47,6 +49,11 @@ namespace Terrain
 
         /// Task 0089: whether the terrain's layer arrays are built (see Builder::layersReady).
         bool layersReady() const;
+
+        /// Task 0080 (texture mips): see Builder::replaceArrayDescriptor and Builder::replaceBinds.
+        bool replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement);
+        void replaceBinds(
+            const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced);
 
         std::unique_ptr<View> createView() const;
         // Fill in view with just the specified cell without LOD, reusing batch data created for referenceViewDistance.

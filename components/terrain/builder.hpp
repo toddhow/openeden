@@ -2,6 +2,8 @@
 #define VSGOPENMW_TERRAIN_BUILDER_H
 
 #include <future>
+#include <map>
+#include <mutex>
 
 #include <vsg/commands/DrawIndexed.h>
 #include <vsg/core/Array2D.h>
@@ -67,6 +69,17 @@ namespace Terrain
         static bool setBatchShare(const BatchData& data, float fade, float complementOf);
 
         BatchData create(const Key& key) const;
+
+        /// Task 0080 (texture mips): when a layer array is swapped for a reduced one, the descriptor this builder
+        /// hands to every batch built from now on must be the new one, or the old array stays alive for as long as the
+        /// builder does. Replaces whichever of the layer, normal, material and height array descriptors is `old`.
+        /// Thread safe against create(). True when one was replaced.
+        bool replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement);
+
+        /// Task 0080: the cached batch data and, through `leaf` callers, whoever else copied a bind must follow a swap:
+        /// replaces every cached bind that is a key of `replaced` by its value. Thread safe against create().
+        void replaceBinds(
+            const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced);
         BatchData getBatchData(const Bounds& bounds, uint8_t lod = 0) const;
 
         struct Batch
@@ -109,6 +122,8 @@ namespace Terrain
         // Waits for that build (a no-op once it is done) and rethrows what it threw. Any thread.
         void waitForLayers() const;
         std::shared_future<void> mLayersReady;
+        // Guards the layer array descriptors below once the build is done (replaceArrayDescriptor).
+        mutable std::mutex mDescriptorMutex;
 
         vsg::ref_ptr<vsg::Node> createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds,
             const BatchData& data, const Bounds& bounds) const;

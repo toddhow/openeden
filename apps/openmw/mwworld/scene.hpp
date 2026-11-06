@@ -69,6 +69,10 @@ namespace MWWorld
     class Scene
     {
     public:
+        /// Task 0080 (texture mips): drops the terrain views built ahead of the player (see
+        /// Terrain::Preload::releaseViews).
+        void releaseTerrainPreload();
+
         using CellStoreCollection = std::set<CellStore*, std::less<>>;
 
     private:

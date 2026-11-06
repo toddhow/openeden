@@ -345,6 +345,12 @@ namespace MWWorld
         preloadCells(duration);
     }
 
+    void Scene::releaseTerrainPreload()
+    {
+        if (mTerrainPreloader)
+            mTerrainPreloader->releaseViews();
+    }
+
     void Scene::unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
     {
         if (mActiveCells.find(cell) == mActiveCells.end())

@@ -476,6 +476,13 @@ namespace MWRender
         return mViewData.back().get();
     }
 
+    void Map::clearIdleTerrainViews()
+    {
+        for (auto& entry : mViewData)
+            if (entry->terrainView && entry->sceneChildren.empty())
+                mTerrain->clearView(*entry->terrainView);
+    }
+
     void Map::addCell(MWWorld::CellStore* cell)
     {
         if (cell->isExterior())

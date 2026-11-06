@@ -334,6 +334,10 @@ namespace MWBase
 
         /// The `texturemips` console command (task 0080): the texture mip swapper's status, a manual level, or off.
         virtual std::string textureMipsCommand(const std::string& argument) = 0;
+
+        /// Task 0080: drops the terrain views that were built ahead of the player (the layer arrays they bind stay
+        /// alive otherwise while a texture mip swap tries to free them).
+        virtual void releaseTerrainPreload() = 0;
         virtual void removeDebugRagdoll() = 0;
         ///< Toggle a render mode.
         ///< \return Resulting mode

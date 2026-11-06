@@ -3155,6 +3155,34 @@ namespace MWRender
                 return false;
             TextureMipsDriver::Services services;
             services.camera = [this] { return mCamera->getPosition(); };
+            // The terrain's layer arrays. Chunks nobody draws now still bind the old arrays: the views built ahead of
+            // the player, the pooled local map views and the batch cache entries only they held are dropped before and
+            // after an array swap (they build again from the new descriptors when needed).
+            services.beforeArraySwap = [this] {
+                MWBase::Environment::get().getWorld()->releaseTerrainPreload();
+                if (mMap)
+                    mMap->clearIdleTerrainViews();
+                // Last: an entry the cache shares with a view is only the cache's once the views let it go.
+                if (mTerrain)
+                    mTerrain->pruneCache();
+            };
+            services.afterArraySwap = services.beforeArraySwap;
+            // The Builder (and the LOD tiles' own) hand the new descriptor to later batches, and the batch caches
+            // follow the new binds.
+            services.arrayDescriptorReplaced
+                = [this](const vsg::DescriptorImage* old, vsg::ref_ptr<vsg::DescriptorImage> replacement) {
+                      if (mTerrain)
+                          mTerrain->replaceArrayDescriptor(old, replacement);
+                      if (mLodTerrain)
+                          mLodTerrain->replaceArrayDescriptor(old, replacement);
+                  };
+            services.bindsReplaced =
+                [this](const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced) {
+                    if (mTerrain)
+                        mTerrain->replaceBinds(replaced);
+                    if (mLodTerrain)
+                        mLodTerrain->replaceBinds(replaced);
+                };
             services.compile = mCompileContext->clone(~vsg::Mask(0));
             services.root = [this]() -> vsg::Node* {
                 // The main scene, and the graph that draws the inventory preview and the local map.
@@ -3183,6 +3211,7 @@ namespace MWRender
             };
             services.memory = [this] { return mEngine.deviceLocalMemorySample(); };
             services.releasePools = [this] { return mEngine.releaseUnusedDeviceMemory(); };
+            services.poolStats = [this] { return mEngine.deviceMemoryPoolStats(); };
             mTextureMips = std::make_unique<TextureMipsDriver>(std::move(services));
             if (!mTextureMipsScript.empty() && !mTextureMips->setScript(mTextureMipsScript))
                 Log(Debug::Warning) << "OPENEDEN_TEXTURE_MIPS_TEST is not valid ('seconds:level,...') and is ignored";

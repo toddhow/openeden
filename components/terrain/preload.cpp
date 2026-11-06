@@ -44,6 +44,14 @@ namespace Terrain
             mOperation->wait();
     }
 
+    void Preload::releaseViews()
+    {
+        if (mOperation)
+            mOperation->wait();
+        mViews.clear();
+        mPositions.clear();
+    }
+
     void Preload::setPositions(const std::vector<Preload::Position>& positions)
     {
         if (positions.empty())

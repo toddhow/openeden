@@ -3,11 +3,17 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 
 #include <components/debug/debuglog.hpp>
 
 #include <components/vsgutil/compilecontext.hpp>
+
+namespace TerrainBindings
+{
+#include <files/shaders/terrain/bindings.glsl>
+}
 
 namespace MWRender
 {
@@ -25,6 +31,11 @@ namespace MWRender
         constexpr double releaseDelaySeconds = 0.5;
         // A swapped texture is left alone for this many frames in the test script (the game's default is 300).
         constexpr std::uint64_t scriptHysteresisFrames = 30;
+        // A swap is made in steps: at most this many new binds in a step, a step stops after this much main thread
+        // time (but always does one bind), and a frame spends at most frameBudgetMs on swaps.
+        constexpr int maxBindsPerStep = 8;
+        constexpr double stepBudgetMs = 0.8;
+        constexpr double frameBudgetMs = 1.5;
     }
 
     TextureMipsDriver::TextureMipsDriver(Services services)
@@ -38,6 +49,31 @@ namespace MWRender
                   hooks.retire = [this](vsg::ref_ptr<vsg::Object> object) {
                       if (mServices.compile)
                           mServices.compile->detach(std::move(object));
+                  };
+                  hooks.arrayKind = [](std::uint32_t binding) {
+                      return binding == static_cast<std::uint32_t>(TerrainBindings::NORMAL_LAYER_BINDING)
+                          ? vsgUtil::TextureResize::Kind::Normal
+                          : vsgUtil::TextureResize::Kind::Colour;
+                  };
+                  hooks.beforeArraySwap = [this] {
+                      if (mServices.beforeArraySwap)
+                          mServices.beforeArraySwap();
+                  };
+                  hooks.afterArraySwap = [this] {
+                      if (mServices.afterArraySwap)
+                          mServices.afterArraySwap();
+                  };
+                  hooks.descriptorReplaced
+                      = [this](const vsg::DescriptorImage* old, vsg::ref_ptr<vsg::DescriptorImage> replacement) {
+                            if (mServices.arrayDescriptorReplaced)
+                                mServices.arrayDescriptorReplaced(old, std::move(replacement));
+                        };
+                  hooks.bindsReplaced = [this](const auto& pairs) {
+                      if (!mServices.bindsReplaced)
+                          return;
+                      std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>> map(
+                          pairs.begin(), pairs.end());
+                      mServices.bindsReplaced(map);
                   };
                   return hooks;
               }(),
@@ -93,7 +129,8 @@ namespace MWRender
 
     std::string TextureMipsDriver::status()
     {
-        rescan();
+        if (!mSwapper.swapping())
+            rescan();
         std::int64_t full = 0;
         std::int64_t held = 0;
         int reduced = 0;
@@ -111,11 +148,31 @@ namespace MWRender
             << " near the camera), the ledger holds " << static_cast<double>(held) / mebibyte << " of "
             << static_cast<double>(full) / mebibyte << " MiB (" << static_cast<double>(full - held) / mebibyte
             << " MiB freed)";
+        if (mSwapper.swapping() || !mQueue.empty())
+            out << ", swaps in progress (" << mQueue.size() << " more waiting)";
+        // The terrain's layer arrays have a line of their own: they are the big textures of a land texture mod.
+        std::int64_t arrayFull = 0;
+        std::int64_t arrayHeld = 0;
+        int arrays = 0;
+        int arraysReduced = 0;
+        for (const TM::Texture& t : mTextures)
+        {
+            if (t.layers <= 1)
+                continue;
+            ++arrays;
+            arraysReduced += t.drop > 0 ? 1 : 0;
+            arrayFull += TM::chainBytes(t, 0);
+            arrayHeld += TM::residentBytes(t);
+        }
+        if (arrays > 0)
+            out << "\nTexture mips: terrain layer arrays: " << arraysReduced << " of " << arrays << " reduced, holding "
+                << static_cast<double>(arrayHeld) / mebibyte << " of " << static_cast<double>(arrayFull) / mebibyte
+                << " MiB (" << static_cast<double>(arrayFull - arrayHeld) / mebibyte << " MiB freed)";
         if (mServices.memory)
         {
             const Render::VideoMemory::Sample sample = mServices.memory();
-            out << ", driver heapUsage " << static_cast<double>(sample.usageBytes) / mebibyte << " of budget "
-                << static_cast<double>(sample.budgetBytes) / mebibyte << " MiB";
+            out << "\nTexture mips: driver heapUsage " << static_cast<double>(sample.usageBytes) / mebibyte
+                << " of budget " << static_cast<double>(sample.budgetBytes) / mebibyte << " MiB";
         }
         return out.str();
     }
@@ -170,48 +227,105 @@ namespace MWRender
                          << static_cast<double>(sample.usageBytes) / mebibyte << " MiB, heapBudget "
                          << static_cast<double>(sample.budgetBytes) / mebibyte << " MiB, textures held "
                          << static_cast<double>(mSwapper.residentBytes()) / mebibyte << " MiB";
+        if (mServices.poolStats)
+        {
+            const auto [reserved, available] = mServices.poolStats();
+            Log(Debug::Info) << "Texture mips: device memory pools: " << static_cast<double>(reserved) / mebibyte
+                             << " MiB reserved, " << static_cast<double>(available) / mebibyte << " MiB free inside";
+        }
+    }
+
+    void TextureMipsDriver::logSwap(const vsgUtil::TextureMips::SwapResult& result)
+    {
+        const auto found = std::find_if(
+            mTextures.begin(), mTextures.end(), [&](const TM::Texture& t) { return t.id == mJobTexture; });
+        std::ostringstream out;
+        out << "Texture mips: texture " << mJobTexture;
+        if (found != mTextures.end())
+        {
+            out << " (" << found->width << " x " << found->height;
+            if (found->layers > 1)
+                out << " x " << found->layers << " layers";
+            out << ")";
+        }
+        out << " drop " << mJobFrom << " -> " << mJobTo << ": " << (result.ok ? "ok" : "FAILED") << ", "
+            << result.groups << " groups, " << result.binds << " binds, freed "
+            << static_cast<double>(result.bytesBefore - result.bytesAfter) / mebibyte << " MiB in the ledger, "
+            << "main thread " << mJobMs << " ms in " << mJobSteps << " steps (build " << result.buildMs << ", compile "
+            << result.compileMs << ", replace " << result.replaceMs << ")";
+        Log(result.ok ? Debug::Info : Debug::Warning) << out.str();
     }
 
     void TextureMipsDriver::applyPending()
     {
-        rescan();
-        // A manual level is a command: it is not held back by the hysteresis.
-        TM::Params params = mParams;
-        if (mManual)
-            params.minFramesBetweenChanges = 0;
-        const std::vector<TM::Change> changes = TM::plan(mTextures, mLevel, mFrame, params);
-        if (changes.empty())
+        if (mHoldQueue && !mSwapper.swapping())
+            return; // waiting for the pools to be released after an array swap
+        const auto frameBegin = std::chrono::steady_clock::now();
+        const auto frameMs = [&] {
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameBegin).count();
+        };
+        do
         {
-            mWorking = false;
-            if (mReportIdle)
+            if (!mSwapper.swapping())
             {
-                mReportIdle = false;
-                const std::string line
-                    = status(); // not inside the Log statement: a Log holds the log's lock and status() logs too
-                Log(Debug::Info) << line;
+                if (mQueue.empty())
+                {
+                    rescan();
+                    // A manual level is a command: it is not held back by the hysteresis.
+                    TM::Params params = mParams;
+                    if (mManual)
+                        params.minFramesBetweenChanges = 0;
+                    for (const TM::Change& change : TM::plan(mTextures, mLevel, mFrame, params))
+                        mQueue.push_back(change);
+                    if (mQueue.empty())
+                    {
+                        mWorking = false;
+                        if (mReportIdle)
+                        {
+                            mReportIdle = false;
+                            // Not inside the Log statement: a Log holds the log's lock and status() logs too.
+                            const std::string line = status();
+                            Log(Debug::Info) << line;
+                        }
+                        return;
+                    }
+                }
+                const TM::Change change = mQueue.front();
+                mQueue.pop_front();
+                mJobTexture = change.id;
+                mJobFrom = change.fromDrop;
+                mJobTo = change.toDrop;
+                mJobMs = 0.0;
+                mJobSteps = 0;
+                if (!mSwapper.beginSwap(change.id, change.toDrop, mFrame))
+                {
+                    Log(Debug::Warning) << "Texture mips: texture " << change.id << " could not be swapped";
+                    continue;
+                }
             }
-            return;
-        }
-        for (const TM::Change& change : changes)
-        {
-            const auto found = std::find_if(
-                mTextures.begin(), mTextures.end(), [&](const TM::Texture& t) { return t.id == change.id; });
-            const auto begin = std::chrono::steady_clock::now();
-            const vsgUtil::TextureMips::SwapResult result = mSwapper.swap(change.id, change.toDrop, mFrame);
-            const double total
-                = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
-            std::ostringstream out;
-            out << "Texture mips: texture " << change.id;
-            if (found != mTextures.end())
-                out << " (" << found->width << " x " << found->height << ")";
-            out << " drop " << change.fromDrop << " -> " << change.toDrop << ": " << (result.ok ? "ok" : "FAILED")
-                << ", " << result.groups << " groups, " << result.binds << " binds, freed "
-                << static_cast<double>(result.bytesBefore - result.bytesAfter) / mebibyte << " MiB in the ledger, "
-                << "main thread " << total << " ms (build " << result.buildMs << ", compile " << result.compileMs
-                << ", replace " << result.replaceMs << ")";
-            Log(result.ok ? Debug::Info : Debug::Warning) << out.str();
-            mPruneAt = mTime + pruneDelaySeconds;
-        }
+            const auto stepBegin = std::chrono::steady_clock::now();
+            const vsgUtil::TextureMips::Swapper::StepResult step = mSwapper.stepSwap(maxBindsPerStep, stepBudgetMs);
+            if (!step.waiting)
+            {
+                mJobMs
+                    += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - stepBegin).count();
+                ++mJobSteps;
+            }
+            if (step.done)
+            {
+                logSwap(step.total);
+                mPruneAt = mTime + pruneDelaySeconds;
+                // An array's old images are the biggest blocks in VSG's pools. Whatever is allocated before they are
+                // returned (the next swap's new image) lands in the free block and keeps it: so the queue waits until
+                // the caches are pruned and the pools released (see update).
+                const auto done = std::find_if(
+                    mTextures.begin(), mTextures.end(), [&](const TM::Texture& t) { return t.id == mJobTexture; });
+                if (done != mTextures.end() && done->layers > 1)
+                    mHoldQueue = true;
+            }
+            if (step.waiting)
+                return; // the reduced array is still being made on a worker: look again next frame
+        } while (frameMs() < frameBudgetMs && (mSwapper.swapping() || !mQueue.empty()));
     }
 
     void TextureMipsDriver::update(float dt)
@@ -256,6 +370,19 @@ namespace MWRender
                 mServices.pruneCaches();
             if (!mScript.empty())
                 mReleaseAt = mTime + releaseDelaySeconds;
+            if (mHoldQueue)
+            {
+                mHoldQueue = false;
+                if (mServices.releasePools)
+                {
+                    const auto begin = std::chrono::steady_clock::now();
+                    const std::int64_t bytes = mServices.releasePools();
+                    const double ms
+                        = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
+                    Log(Debug::Info) << "Texture mips: pools released after an array swap: "
+                                     << static_cast<double>(bytes) / mebibyte << " MiB in " << ms << " ms";
+                }
+            }
         }
         if (mReleaseAt > 0.0 && mTime >= mReleaseAt)
         {
@@ -268,8 +395,19 @@ namespace MWRender
             Log(Debug::Info) << "Texture mips: " << retired.imagesAlive << " of " << retired.imagesRetired
                              << " swapped-away images still exist (reference count total "
                              << retired.imageReferenceCounts << ")";
+            std::map<std::uint64_t, int> aliveImages;
+            for (const std::uint64_t texture : retired.aliveImageTextures)
+                ++aliveImages[texture];
+            for (const auto& [texture, count] : aliveImages)
+                if (count > 0 && (texture == 1 || texture == 2))
+                    Log(Debug::Info) << "Texture mips:   " << count << " swapped-away images of texture " << texture
+                                     << " still exist";
+            std::map<std::uint64_t, int> aliveByTexture;
             for (const std::uint64_t texture : retired.aliveTextures)
-                Log(Debug::Info) << "Texture mips:   a retired bind of texture " << texture << " is still alive";
+                ++aliveByTexture[texture];
+            for (const auto& [texture, count] : aliveByTexture)
+                Log(Debug::Info) << "Texture mips:   " << count << " retired binds of texture " << texture
+                                 << " are still alive";
             if (mServices.releasePools)
             {
                 const auto begin = std::chrono::steady_clock::now();

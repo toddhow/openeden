@@ -4,6 +4,7 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <set>
 #include <typeindex>
 #include <unordered_set>
 
@@ -47,12 +48,43 @@ namespace vsgUtil::TextureMips
             return info->imageView->image->data.get();
         }
 
+        // An array of layers as convertToArrayTexture makes it (the terrain's layer arrays).
+        bool isArrayData(const vsg::Data& data)
+        {
+            return data.dimensions() == 3 && data.properties.imageViewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY
+                && data.depth() > 1;
+        }
+
+        bool isCompressed(const vsg::Data& data)
+        {
+            return data.properties.blockWidth > 1 || data.properties.blockHeight > 1;
+        }
+
         // The levels of the chain: the layout when the image has one (what the DDS reader gives), else the property.
+        // An uncompressed array stores one level and the GPU makes the rest: its chain is counted down to one texel.
         std::uint32_t levelCount(const vsg::Data& data)
         {
             if (const vsg::MipmapLayout* layout = data.getMipmapLayout())
                 return static_cast<std::uint32_t>(layout->size());
+            if (isArrayData(data) && !isCompressed(data))
+            {
+                std::uint32_t levels = 1;
+                for (std::uint32_t side = std::max(data.width(), data.height()); side > 1; side >>= 1)
+                    ++levels;
+                return levels;
+            }
             return data.properties.mipLevels;
+        }
+
+        // The reduced copy of an image or an array: a 2D image loses its top levels, a compressed array too, an
+        // uncompressed array is shrunk by the box filter. Reads `full` only, so it may run on a worker thread.
+        vsg::ref_ptr<vsg::Data> makeReduced(const vsg::ref_ptr<vsg::Data>& full, int drop, TextureResize::Kind kind)
+        {
+            if (!isArrayData(*full))
+                return TextureResize::dropMipLevels(*full, drop);
+            if (isCompressed(*full))
+                return TextureResize::dropArrayLevels(*full, drop);
+            return TextureResize::shrinkArray(*full, drop, kind);
         }
 
         TM::Texture describe(const vsg::Data& data, std::uint64_t id)
@@ -66,6 +98,7 @@ namespace vsgUtil::TextureMips
             t.blockWidth = std::max<std::uint32_t>(1, data.properties.blockWidth);
             t.blockHeight = std::max<std::uint32_t>(1, data.properties.blockHeight);
             t.blockBytes = static_cast<std::uint32_t>(data.valueSize());
+            t.layers = isArrayData(data) ? data.depth() : 1;
             return t;
         }
     }
@@ -117,6 +150,12 @@ namespace vsgUtil::TextureMips
 
     bool reducible(const vsg::Data& data)
     {
+        if (isArrayData(data))
+        {
+            if (data.getMipmapLayout())
+                return isCompressed(data) && levelCount(data) >= 2 && (data.valueSize() == 8 || data.valueSize() == 16);
+            return !isCompressed(data) && data.valueSize() == 4;
+        }
         if (data.dimensions() != 2 || data.depth() > 1 || levelCount(data) < 2)
             return false;
         const int8_t type = data.properties.imageViewType;
@@ -166,6 +205,8 @@ namespace vsgUtil::TextureMips
                         continue;
                     Swapper::Entry entry;
                     entry.id = swapper.mNextId++;
+                    if (isArrayData(*data) && swapper.mHooks.arrayKind)
+                        entry.kind = swapper.mHooks.arrayKind(image->dstBinding);
                     entry.full = vsg::ref_ptr<vsg::Data>(data);
                     entryIndex = swapper.mEntries.size();
                     swapper.mEntries.push_back(std::move(entry));
@@ -336,12 +377,13 @@ namespace vsgUtil::TextureMips
             }
         }
         mRetiredProbes = std::move(alive);
-        std::vector<vsg::observer_ptr<vsg::Object>> imagesAlive;
+        std::vector<Probe> imagesAlive;
         report.imagesRetired = static_cast<int>(mRetiredImages.size());
         for (auto& probe : mRetiredImages)
-            if (auto object = probe.ref_ptr())
+            if (auto object = probe.object.ref_ptr())
             {
                 ++report.imagesAlive;
+                report.aliveImageTextures.push_back(probe.texture);
                 report.imageReferenceCounts += object->referenceCount() - 1;
                 imagesAlive.push_back(probe);
             }
@@ -349,152 +391,295 @@ namespace vsgUtil::TextureMips
         return report;
     }
 
-    SwapResult Swapper::swap(std::uint64_t id, int toDrop, std::uint64_t frame)
+    // A swap in progress (see beginSwap and stepSwap).
+    struct Swapper::Job
     {
+        struct Slot
+        {
+            vsg::ref_ptr<vsg::StateGroup> group;
+            vsg::ref_ptr<vsg::StateSwitch> choice; // set when the bind is a child of a switch
+            std::size_t index = 0;
+        };
+        struct BindJob
+        {
+            vsg::ref_ptr<vsg::BindDescriptorSet> old;
+            std::vector<Slot> slots;
+        };
+
+        std::uint64_t id = 0;
+        int toDrop = 0;
+        std::uint64_t frame = 0;
+        TM::Texture size;
+        vsg::ref_ptr<vsg::Data> full;
+        vsg::ref_ptr<vsg::Data> target;
+        std::future<vsg::ref_ptr<vsg::Data>> pending; // the reduced array being made on a worker
+        std::map<const vsg::Data*, int> dataDrops; // the images of this texture a bind may hold now, and their drops
+        std::vector<BindJob> binds;
+        std::size_t next = 0;
+        std::map<const vsg::DescriptorImage*, vsg::ref_ptr<vsg::DescriptorImage>> descriptors;
+        std::set<const vsg::StateGroup*> groupsTouched;
         SwapResult result;
+        bool failed = false;
+        bool isArray = false;
+    };
+
+    Swapper::~Swapper() = default;
+
+    bool Swapper::beginSwap(std::uint64_t id, int toDrop, std::uint64_t frame)
+    {
+        if (mJob || toDrop < 0)
+            return false;
         const auto found = std::find_if(mEntries.begin(), mEntries.end(), [&](const Entry& e) { return e.id == id; });
-        if (found == mEntries.end() || toDrop < 0)
-            return result;
+        if (found == mEntries.end())
+            return false;
         Entry& entry = *found;
         const TM::Texture size = describe(*entry.full, entry.id);
         if (toDrop > TM::maxDrop(size, mParams))
-            return result;
+            return false;
 
+        auto job = std::make_shared<Job>();
+        job->id = id;
+        job->toDrop = toDrop;
+        job->frame = frame;
+        job->size = size;
+        job->full = entry.full;
+        job->isArray = isArrayData(*entry.full);
         const auto buildBegin = Clock::now();
-        vsg::ref_ptr<vsg::Data> target = entry.full;
-        if (toDrop > 0)
+        if (toDrop == 0)
+            job->target = entry.full;
+        else if (const auto cached = entry.reduced.find(toDrop); cached != entry.reduced.end() && cached->second)
+            job->target = cached->second;
+        else if (isArrayData(*entry.full))
         {
-            auto& slot = entry.reduced[toDrop];
-            if (!slot)
-                slot = TextureResize::dropMipLevels(*entry.full, toDrop);
-            if (!slot)
-            {
-                entry.reduced.erase(toDrop);
-                return result;
-            }
-            target = slot;
+            if (mHooks.beforeArraySwap)
+                mHooks.beforeArraySwap();
+            job->pending = std::async(std::launch::async,
+                [full = entry.full, toDrop, kind = entry.kind] { return makeReduced(full, toDrop, kind); });
         }
-        result.buildMs += millisecondsSince(buildBegin);
+        else
+        {
+            job->target = makeReduced(entry.full, toDrop, entry.kind);
+            if (!job->target)
+                return false;
+            entry.reduced[toDrop] = job->target;
+        }
+        if (isArrayData(*entry.full) && toDrop == 0 && mHooks.beforeArraySwap)
+            mHooks.beforeArraySwap();
+        job->result.buildMs += millisecondsSince(buildBegin);
 
-        // The data pointers this entry's binds may hold now.
-        const auto dropOf = [&](const vsg::Data* data) -> int {
-            if (data == entry.full.get())
-                return 0;
-            for (const auto& [drop, reduced] : entry.reduced)
-                if (reduced.get() == data)
-                    return drop;
-            return -1;
+        job->dataDrops[entry.full.get()] = 0;
+        for (const auto& [drop, reduced] : entry.reduced)
+            job->dataDrops[reduced.get()] = drop;
+
+        // The distinct binds that hold this texture at another drop, and where each is installed.
+        std::map<const vsg::BindDescriptorSet*, std::size_t> bindIndex;
+        const auto holdsTexture = [&](const vsg::BindDescriptorSet& bind) {
+            if (!bind.descriptorSet)
+                return false;
+            for (const auto& descriptor : bind.descriptorSet->descriptors)
+            {
+                const vsg::DescriptorImage* image = nullptr;
+                const vsg::Data* data = singleImageData(*descriptor, image);
+                const auto drop = data ? job->dataDrops.find(data) : job->dataDrops.end();
+                if (drop != job->dataDrops.end() && drop->second != toDrop)
+                    return true;
+            }
+            return false;
         };
+        const auto addSlot = [&](vsg::BindDescriptorSet& bind, Job::Slot slot) {
+            auto [at, inserted] = bindIndex.emplace(&bind, job->binds.size());
+            if (inserted)
+            {
+                job->binds.emplace_back();
+                job->binds.back().old = vsg::ref_ptr<vsg::BindDescriptorSet>(&bind);
+            }
+            job->binds[at->second].slots.push_back(std::move(slot));
+        };
+        for (User& user : entry.users)
+        {
+            auto group = user.group.ref_ptr();
+            if (!group)
+                continue;
+            for (std::size_t i = 0; i < group->stateCommands.size(); ++i)
+            {
+                if (auto* choice = group->stateCommands[i]->cast<vsg::StateSwitch>())
+                {
+                    for (std::size_t c = 0; c < choice->children.size(); ++c)
+                    {
+                        auto* bind = choice->children[c].stateCommand
+                            ? choice->children[c].stateCommand->cast<vsg::BindDescriptorSet>()
+                            : nullptr;
+                        if (bind && holdsTexture(*bind))
+                            addSlot(*bind, { group, vsg::ref_ptr<vsg::StateSwitch>(choice), c });
+                    }
+                }
+                else if (auto* bind = group->stateCommands[i]->cast<vsg::BindDescriptorSet>())
+                {
+                    if (holdsTexture(*bind))
+                        addSlot(*bind, { group, {}, i });
+                }
+            }
+        }
+        mJob = std::move(job);
+        return true;
+    }
 
-        std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>> replacements;
-        std::vector<vsg::ref_ptr<vsg::Object>> retired;
-        bool failed = false;
+    Swapper::StepResult Swapper::stepSwap(int maxBinds, double budgetMs)
+    {
+        StepResult step;
+        if (!mJob)
+        {
+            step.done = true;
+            return step;
+        }
+        Job& job = *mJob;
+        SwapResult& result = job.result;
+        const auto stepBegin = Clock::now();
 
-        const auto replacementFor = [&](vsg::BindDescriptorSet& old) -> vsg::ref_ptr<vsg::BindDescriptorSet> {
-            const auto cached = replacements.find(&old);
-            if (cached != replacements.end())
-                return cached->second;
-            if (!old.descriptorSet)
-                return {};
-            const auto begin = Clock::now();
+        if (!job.target)
+        {
+            if (job.pending.valid())
+            {
+                if (job.pending.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                {
+                    step.waiting = true;
+                    step.total = result;
+                    return step;
+                }
+                job.target = job.pending.get();
+            }
+            const auto found
+                = std::find_if(mEntries.begin(), mEntries.end(), [&](const Entry& e) { return e.id == job.id; });
+            if (!job.target || found == mEntries.end())
+            {
+                job.failed = true; // the array could not be reduced, or the texture is gone
+                job.next = job.binds.size();
+            }
+            else
+                found->reduced[job.toDrop] = job.target;
+        }
+
+        std::vector<std::pair<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>> replaced;
+        int processed = 0;
+        while (job.next < job.binds.size() && processed < maxBinds && !job.failed
+            && (processed == 0 || millisecondsSince(stepBegin) < budgetMs))
+        {
+            Job::BindJob& work = job.binds[job.next++];
+            ++processed;
+            vsg::BindDescriptorSet& old = *work.old;
+            const auto buildBegin = Clock::now();
             vsg::Descriptors descriptors = old.descriptorSet->descriptors;
-            bool changed = false;
             for (auto& descriptor : descriptors)
             {
                 const vsg::DescriptorImage* oldImage = nullptr;
                 vsg::Data* data = singleImageData(*descriptor, oldImage);
-                if (!data)
+                const auto drop = data ? job.dataDrops.find(data) : job.dataDrops.end();
+                if (drop == job.dataDrops.end() || drop->second == job.toDrop)
                     continue;
-                const int current = dropOf(data);
-                if (current < 0 || current == toDrop)
-                    continue;
-                const auto& info = oldImage->imageInfoList[0];
-                mRetiredImages.emplace_back(info->imageView->image.get());
-                auto image = vsg::Image::create(target);
-                image->usage = info->imageView->image->usage;
-                auto view = vsg::ImageView::create(image);
-                auto newInfo = vsg::ImageInfo::create(info->sampler, view, info->imageLayout);
-                descriptor = vsg::DescriptorImage::create(
-                    newInfo, oldImage->dstBinding, oldImage->dstArrayElement, oldImage->descriptorType);
-                changed = true;
-                result.bytesBefore += TM::chainBytes(size, current);
-                result.bytesAfter += TM::chainBytes(size, toDrop);
-            }
-            if (!changed)
-            {
-                replacements[&old] = {};
-                return {};
+                auto cached = job.descriptors.find(oldImage);
+                if (cached == job.descriptors.end())
+                {
+                    // One new image for every bind that held this descriptor.
+                    const auto& info = oldImage->imageInfoList[0];
+                    mRetiredImages.push_back({ vsg::observer_ptr<vsg::Object>(info->imageView->image.get()), job.id });
+                    auto image = vsg::Image::create(job.target);
+                    image->usage = info->imageView->image->usage;
+                    auto view = vsg::ImageView::create(image);
+                    auto newInfo = vsg::ImageInfo::create(info->sampler, view, info->imageLayout);
+                    auto fresh = vsg::DescriptorImage::create(
+                        newInfo, oldImage->dstBinding, oldImage->dstArrayElement, oldImage->descriptorType);
+                    cached = job.descriptors.emplace(oldImage, fresh).first;
+                    result.bytesBefore += TM::chainBytes(job.size, drop->second);
+                    result.bytesAfter += TM::chainBytes(job.size, job.toDrop);
+                    if (mHooks.descriptorReplaced)
+                        mHooks.descriptorReplaced(oldImage, fresh);
+                }
+                descriptor = cached->second;
             }
             auto set = vsg::DescriptorSet::create(old.descriptorSet->setLayout, descriptors);
             auto bind = vsg::BindDescriptorSet::create(old.pipelineBindPoint, old.layout, old.firstSet, set);
             bind->slot = old.slot;
-            result.buildMs += millisecondsSince(begin);
+            result.buildMs += millisecondsSince(buildBegin);
+
             const auto compileBegin = Clock::now();
             if (mHooks.compile && !mHooks.compile(bind))
             {
-                failed = true;
-                return {};
+                job.failed = true;
+                break;
             }
             result.compileMs += millisecondsSince(compileBegin);
             ++result.binds;
-            replacements[&old] = bind;
-            retired.push_back(vsg::ref_ptr<vsg::Object>(&old));
-            return bind;
-        };
 
-        const auto replaceBegin = Clock::now();
-        const double buildBefore = result.buildMs;
-        const double compileBefore = result.compileMs;
-        for (User& user : entry.users)
-        {
-            auto group = user.group.ref_ptr();
-            if (!group || failed)
-                continue;
-            bool touched = false;
-            for (auto& command : group->stateCommands)
+            const auto replaceBegin = Clock::now();
+            for (Job::Slot& slot : work.slots)
             {
-                if (auto* choice = command->cast<vsg::StateSwitch>())
+                if (slot.choice)
                 {
-                    for (auto& child : choice->children)
-                    {
-                        auto* bind = child.stateCommand ? child.stateCommand->cast<vsg::BindDescriptorSet>() : nullptr;
-                        if (!bind)
-                            continue;
-                        if (auto replacement = replacementFor(*bind))
-                        {
-                            child.stateCommand = replacement;
-                            touched = true;
-                        }
-                    }
+                    if (slot.index < slot.choice->children.size()
+                        && slot.choice->children[slot.index].stateCommand == work.old)
+                        slot.choice->children[slot.index].stateCommand = bind;
+                    else
+                        continue;
                 }
-                else if (auto* bind = command->cast<vsg::BindDescriptorSet>())
+                else
                 {
-                    if (auto replacement = replacementFor(*bind))
-                    {
-                        command = replacement;
-                        touched = true;
-                    }
+                    if (slot.index < slot.group->stateCommands.size()
+                        && slot.group->stateCommands[slot.index] == work.old)
+                        slot.group->stateCommands[slot.index] = bind;
+                    else
+                        continue;
                 }
+                job.groupsTouched.insert(slot.group.get());
             }
-            if (touched)
-            {
-                ++result.groups;
-                user.drop = toDrop;
-            }
+            result.replaceMs += millisecondsSince(replaceBegin);
+            replaced.emplace_back(work.old.get(), bind);
+            mRetiredProbes.push_back({ vsg::observer_ptr<vsg::Object>(work.old.get()), job.id });
+            if (mHooks.retire)
+                mHooks.retire(work.old);
+            work.old = nullptr;
+            work.slots.clear();
         }
-        result.replaceMs
-            = millisecondsSince(replaceBegin) - (result.buildMs - buildBefore) - (result.compileMs - compileBefore);
+        if (mHooks.bindsReplaced && !replaced.empty())
+            mHooks.bindsReplaced(replaced);
 
-        for (auto& object : retired)
-            mRetiredProbes.push_back({ vsg::observer_ptr<vsg::Object>(object), id });
-        if (mHooks.retire)
-            for (auto& object : retired)
-                mHooks.retire(object);
-        entry.changedBefore = true;
-        entry.lastChangeFrame = frame;
-        result.ok = !failed;
-        if (result.ok)
-            setReduction(entry.full.get(), toDrop > 0 ? target : vsg::ref_ptr<vsg::Data>());
-        return result;
+        if (job.failed || job.next >= job.binds.size())
+        {
+            result.groups = static_cast<int>(job.groupsTouched.size());
+            result.ok = !job.failed;
+            const auto found
+                = std::find_if(mEntries.begin(), mEntries.end(), [&](const Entry& e) { return e.id == job.id; });
+            if (found != mEntries.end())
+            {
+                found->changedBefore = true;
+                found->lastChangeFrame = job.frame;
+                for (User& user : found->users)
+                    if (job.groupsTouched.contains(user.group.ref_ptr().get()))
+                        user.drop = job.toDrop;
+            }
+            if (result.ok)
+                setReduction(job.full.get(), job.toDrop > 0 ? job.target : vsg::ref_ptr<vsg::Data>());
+            step.done = true;
+            step.total = result;
+            const bool wasArray = job.isArray;
+            mJob.reset();
+            if (wasArray && mHooks.afterArraySwap)
+                mHooks.afterArraySwap();
+            return step;
+        }
+        step.total = result;
+        return step;
+    }
+
+    SwapResult Swapper::swap(std::uint64_t id, int toDrop, std::uint64_t frame)
+    {
+        if (!beginSwap(id, toDrop, frame))
+            return {};
+        if (mJob->pending.valid())
+            mJob->pending.wait();
+        StepResult step;
+        do
+            step = stepSwap(std::numeric_limits<int>::max(), 1.0e9);
+        while (!step.done);
+        return step.total;
     }
 }

@@ -39,6 +39,7 @@ namespace Render::VideoMemory::TextureMips
         std::uint32_t blockWidth = 1; // texels per block (4 for BC formats)
         std::uint32_t blockHeight = 1;
         std::uint32_t blockBytes = 4; // bytes per block (per texel when uncompressed)
+        std::uint32_t layers = 1; // an array texture (the terrain's layers) stores every level for all its layers
         int drop = 0; // top levels dropped now
         std::uint64_t lastUsedFrame = 0; // the last frame something drawn with it was visible
         bool visible = false; // visible in the last frame
@@ -54,7 +55,7 @@ namespace Render::VideoMemory::TextureMips
         int toDrop = 0;
     };
 
-    /// Bytes of mip level `level` (0 is the top); 0 for a level outside the chain.
+    /// Bytes of mip level `level` (0 is the top) of all layers; 0 for a level outside the chain.
     inline std::int64_t levelBytes(const Texture& t, int level)
     {
         if (level < 0 || level >= static_cast<int>(t.mipLevels) || t.blockWidth == 0 || t.blockHeight == 0)
@@ -63,7 +64,7 @@ namespace Render::VideoMemory::TextureMips
         const std::uint64_t h = std::max<std::uint32_t>(1, t.height >> level);
         const std::uint64_t bx = (w + t.blockWidth - 1) / t.blockWidth;
         const std::uint64_t by = (h + t.blockHeight - 1) / t.blockHeight;
-        return static_cast<std::int64_t>(bx * by * t.blockBytes);
+        return static_cast<std::int64_t>(bx * by * t.blockBytes * std::max<std::uint32_t>(1, t.layers));
     }
 
     /// Bytes of the chain from level `first` to the end.

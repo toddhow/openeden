@@ -2,7 +2,9 @@
 #define OPENMW_MWRENDER_TEXTUREMIPSDRIVER_H
 
 #include <cstdint>
+#include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -45,7 +47,16 @@ namespace MWRender
             std::function<vsg::dvec3()> camera; // where the camera is (the use signal); may be empty
             std::function<void()> pruneCaches; // ResourceSystem::updateCache: frees what only the caches hold
             std::function<Render::VideoMemory::Sample()> memory; // the driver's numbers; may be empty
+            std::function<std::pair<std::int64_t, std::int64_t>()> poolStats; // reserved, available; may be empty
             std::function<std::int64_t()> releasePools; // Engine::releaseUnusedDeviceMemory; may be empty
+            // The terrain's layer arrays (all may be empty): drop cached batches nothing draws with before an array
+            // swap; the Builder hands the new descriptor to later batches; caches that hold binds follow a step.
+            std::function<void()> beforeArraySwap;
+            std::function<void()> afterArraySwap;
+            std::function<void(const vsg::DescriptorImage*, vsg::ref_ptr<vsg::DescriptorImage>)>
+                arrayDescriptorReplaced;
+            std::function<void(const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>&)>
+                bindsReplaced;
             // The models cached by the loaders' shared objects (they hold the binds of the scene too).
             std::function<std::vector<vsg::ref_ptr<vsg::Node>>()> cachedModels;
         };
@@ -78,6 +89,7 @@ namespace MWRender
     private:
         void rescan();
         void applyPending();
+        void logSwap(const vsgUtil::TextureMips::SwapResult& result);
         void logMemory(const char* when);
 
         Services mServices;
@@ -91,6 +103,13 @@ namespace MWRender
         double mTime = 0.0;
         double mLastScan = -1000.0;
         bool mWorking = false; // more swaps are due for the current level
+        std::deque<Render::VideoMemory::TextureMips::Change> mQueue; // swaps planned, not begun
+        std::uint64_t mJobTexture = 0; // the texture the running swap belongs to
+        int mJobFrom = 0;
+        int mJobTo = 0;
+        double mJobMs = 0.0; // main thread time of the running swap so far
+        int mJobSteps = 0;
+        bool mHoldQueue = false; // after an array swap: no new swap before the pools are released
         bool mAnyReduced = false;
         bool mReportIdle = false; // log the status once the swaps of a manual command are done
         double mLastScanMs = 0.0;

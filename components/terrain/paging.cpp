@@ -338,6 +338,17 @@ namespace Terrain
         mBuilder->pruneCache();
     }
 
+    bool Paging::replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement)
+    {
+        return mBuilder->replaceArrayDescriptor(old, replacement);
+    }
+
+    void Paging::replaceBinds(
+        const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced)
+    {
+        mBuilder->replaceBinds(replaced);
+    }
+
     bool Paging::layersReady() const
     {
         return mBuilder->layersReady();

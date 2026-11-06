@@ -4,6 +4,7 @@
 // never edited, it may be in flight), every group that held the old bind points at the new one, groups sharing one
 // bind share the new one, the old bind goes to the retire hook, the full image comes back on a restore.
 
+#include <components/vsgutil/arraytexture.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/texturemips.hpp>
 
@@ -787,5 +788,360 @@ namespace
         root->addChild(placed({ 100, 0, 0 }, group));
         const auto id = swapper.scan(*root, vsg::dvec3(0, 0, 0), 3)[0].id;
         EXPECT_EQ(swapper.swap(id, 1, 4).groups, 1);
+    }
+
+    // Terrain layer arrays: one Array3D per kind, bound by many batches that share its descriptor.
+    vsg::ref_ptr<vsg::Data> bc1Array2048(uint32_t layers)
+    {
+        vsg::DataList images;
+        for (uint32_t i = 0; i < layers; ++i)
+        {
+            auto image = bigTexture(2048, 12);
+            auto* bytes = static_cast<uint8_t*>(image->dataPointer());
+            bytes[0] = static_cast<uint8_t>(i + 1); // a mark of the layer
+            images.push_back(image);
+        }
+        return vsgUtil::convertToArrayTexture(images);
+    }
+
+    vsg::ref_ptr<vsg::Data> rgbaArray2048(uint32_t layers, vsg::ubvec4 colour)
+    {
+        vsg::DataList images;
+        for (uint32_t i = 0; i < layers; ++i)
+            images.push_back(
+                vsg::ubvec4Array2D::create(2048, 2048, colour, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
+        return vsgUtil::convertToArrayTexture(images);
+    }
+
+    // A bind that holds `descriptor` (shared with other binds) and a small image of its own.
+    vsg::ref_ptr<vsg::BindDescriptorSet> bindWith(vsg::ref_ptr<vsg::DescriptorImage> descriptor, uint32_t own)
+    {
+        auto small = vsg::ubvec4Array2D::create(
+            4, 4, vsg::ubvec4(own, 0, 0, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+        vsg::Descriptors descriptors = { descriptor, imageDescriptor(small, 3) };
+        auto set = vsg::DescriptorSet::create(vsg::ref_ptr<vsg::DescriptorSetLayout>(), descriptors);
+        return vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, nullptr, 2, set);
+    }
+
+    vsg::ref_ptr<vsg::DescriptorImage> arrayDescriptor(vsg::ref_ptr<vsg::Data> array, uint32_t binding = 2)
+    {
+        return imageDescriptor(array, binding);
+    }
+
+    TEST(TextureMipsArrays, a_compressed_layer_array_is_one_texture_with_its_layers)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = bc1Array2048(3);
+        auto descriptor = arrayDescriptor(array);
+        auto root = vsg::Group::create();
+        for (uint32_t i = 0; i < 4; ++i)
+            root->addChild(makeGroup(bindWith(descriptor, i)));
+        const auto textures = swapper.scan(*root);
+        ASSERT_EQ(textures.size(), 1u);
+        EXPECT_EQ(textures[0].width, 2048u);
+        EXPECT_EQ(textures[0].height, 2048u);
+        EXPECT_EQ(textures[0].layers, 3u);
+        EXPECT_EQ(textures[0].mipLevels, 12u);
+        EXPECT_EQ(textures[0].blockBytes, 8u);
+        EXPECT_EQ(TM::chainBytes(textures[0], 0), 3 * TM::chainBytes(TM::Texture{ 0, 2048, 2048, 12, 4, 4, 8 }, 0));
+    }
+
+    TEST(TextureMipsArrays, a_small_layer_array_is_not_tracked)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        vsg::DataList images;
+        for (int i = 0; i < 3; ++i)
+            images.push_back(bigTexture(256, 9));
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(bindWith(arrayDescriptor(vsgUtil::convertToArrayTexture(images)), 1)));
+        EXPECT_TRUE(swapper.scan(*root).empty());
+    }
+
+    TEST(TextureMipsArrays, an_uncompressed_array_counts_the_chain_the_gpu_makes)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = rgbaArray2048(2, vsg::ubvec4(1, 2, 3, 4));
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(bindWith(arrayDescriptor(array), 1)));
+        const auto textures = swapper.scan(*root);
+        ASSERT_EQ(textures.size(), 1u);
+        EXPECT_EQ(textures[0].layers, 2u);
+        EXPECT_EQ(textures[0].mipLevels, 12u); // 2048 down to 1
+        EXPECT_EQ(textures[0].blockBytes, 4u);
+        EXPECT_EQ(TM::levelBytes(textures[0], 0), 2048 * 2048 * 4 * 2);
+    }
+
+    TEST(TextureMipsArrays, a_swap_gives_every_bind_the_one_new_descriptor)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = bc1Array2048(2);
+        auto descriptor = arrayDescriptor(array);
+        auto root = vsg::Group::create();
+        std::vector<vsg::ref_ptr<vsg::StateGroup>> groups;
+        for (uint32_t i = 0; i < 5; ++i)
+        {
+            groups.push_back(makeGroup(bindWith(descriptor, i)));
+            root->addChild(groups.back());
+        }
+        const auto id = swapper.scan(*root)[0].id;
+        const auto result = swapper.swap(id, 1, 10);
+        ASSERT_TRUE(result.ok);
+        EXPECT_EQ(result.binds, 5);
+        EXPECT_EQ(result.groups, 5);
+        const vsg::Descriptor* first = nullptr;
+        for (const auto& group : groups)
+        {
+            const auto* bind = group->stateCommands[0]->cast<vsg::BindDescriptorSet>();
+            ASSERT_NE(bind, nullptr);
+            const auto* now = bind->descriptorSet->descriptors[0].get();
+            if (!first)
+                first = now;
+            EXPECT_EQ(now, first); // one new descriptor, one new image
+            EXPECT_NE(now, descriptor.get());
+            const vsg::Data* data = boundData(*group->stateCommands[0]);
+            EXPECT_NE(data, array.get());
+            EXPECT_EQ(data->depth(), 2u);
+            EXPECT_EQ(data->width(), 256u); // 1024 texels in blocks
+            EXPECT_EQ(data->properties.mipLevels, 11);
+            // the bind's own small image is kept
+            EXPECT_EQ(bind->descriptorSet->descriptors[1]->cast<vsg::DescriptorImage>()->dstBinding, 3u);
+        }
+    }
+
+    TEST(TextureMipsArrays, the_replaced_descriptor_is_reported_once_and_binds_in_pairs)
+    {
+        Recorder recorder;
+        int descriptorCalls = 0;
+        const vsg::DescriptorImage* oldSeen = nullptr;
+        vsg::ref_ptr<vsg::DescriptorImage> newSeen;
+        std::vector<std::pair<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>> pairs;
+        auto hooks = recorder.hooks();
+        hooks.descriptorReplaced
+            = [&](const vsg::DescriptorImage* old, vsg::ref_ptr<vsg::DescriptorImage> replacement) {
+                  ++descriptorCalls;
+                  oldSeen = old;
+                  newSeen = replacement;
+              };
+        hooks.bindsReplaced = [&](const auto& list) { pairs.insert(pairs.end(), list.begin(), list.end()); };
+        Swapper swapper(hooks, params());
+        auto array = bc1Array2048(2);
+        auto descriptor = arrayDescriptor(array);
+        auto root = vsg::Group::create();
+        std::vector<const vsg::BindDescriptorSet*> olds;
+        for (uint32_t i = 0; i < 3; ++i)
+        {
+            auto bind = bindWith(descriptor, i);
+            olds.push_back(bind.get());
+            root->addChild(makeGroup(bind));
+        }
+        swapper.swap(swapper.scan(*root)[0].id, 1, 10);
+        EXPECT_EQ(descriptorCalls, 1);
+        EXPECT_EQ(oldSeen, descriptor.get());
+        ASSERT_TRUE(newSeen.valid());
+        ASSERT_EQ(pairs.size(), 3u);
+        for (size_t i = 0; i < 3; ++i)
+        {
+            EXPECT_EQ(pairs[i].first, olds[i]);
+            EXPECT_EQ(pairs[i].second->descriptorSet->descriptors[0].get(), newSeen.get());
+        }
+    }
+
+    TEST(TextureMipsArrays, an_uncompressed_array_is_shrunk_and_a_normal_array_renormalised)
+    {
+        Recorder recorder;
+        auto hooks = recorder.hooks();
+        hooks.arrayKind = [](std::uint32_t binding) {
+            return binding == 5 ? vsgUtil::TextureResize::Kind::Normal : vsgUtil::TextureResize::Kind::Colour;
+        };
+        Swapper swapper(hooks, params());
+        auto normals = rgbaArray2048(2, vsg::ubvec4(200, 128, 128, 77));
+        auto colours = rgbaArray2048(2, vsg::ubvec4(200, 128, 128, 77));
+        auto groupN = makeGroup(bindWith(arrayDescriptor(normals, 5), 1));
+        auto groupC = makeGroup(bindWith(arrayDescriptor(colours, 2), 2));
+        auto root = vsg::Group::create();
+        root->addChild(groupN);
+        root->addChild(groupC);
+        const auto textures = swapper.scan(*root);
+        ASSERT_EQ(textures.size(), 2u);
+        for (const auto& texture : textures)
+            ASSERT_TRUE(swapper.swap(texture.id, 1, 10).ok);
+        const vsg::Data* n = boundData(*groupN->stateCommands[0]);
+        const vsg::Data* c = boundData(*groupC->stateCommands[0]);
+        ASSERT_NE(n, nullptr);
+        ASSERT_NE(c, nullptr);
+        EXPECT_EQ(n->width(), 1024u);
+        EXPECT_EQ(n->depth(), 2u);
+        EXPECT_EQ(static_cast<const uint8_t*>(n->dataPointer())[0], 255); // renormalised
+        EXPECT_EQ(static_cast<const uint8_t*>(c->dataPointer())[0], 200); // a colour is left as it was
+        EXPECT_EQ(static_cast<const uint8_t*>(n->dataPointer())[3], 77);
+    }
+
+    TEST(TextureMipsArrays, a_restore_hands_the_full_array_back)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = bc1Array2048(2);
+        auto group = makeGroup(bindWith(arrayDescriptor(array), 1));
+        auto root = vsg::Group::create();
+        root->addChild(group);
+        const auto id = swapper.scan(*root)[0].id;
+        swapper.swap(id, 1, 10);
+        EXPECT_EQ(swapper.scan(*root)[0].drop, 1);
+        swapper.swap(id, 0, 400);
+        EXPECT_EQ(boundData(*group->stateCommands[0]), array.get());
+    }
+
+    TEST(TextureMipsArrays, the_before_hook_runs_once_for_an_array_and_not_for_a_plain_image)
+    {
+        Recorder recorder;
+        int calls = 0;
+        auto hooks = recorder.hooks();
+        hooks.beforeArraySwap = [&] { ++calls; };
+        Swapper swapper(hooks, params());
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(bindWith(arrayDescriptor(bc1Array2048(2)), 1)));
+        root->addChild(makeGroup(makeBind(bigTexture(2048, 12))));
+        const auto textures = swapper.scan(*root);
+        ASSERT_EQ(textures.size(), 2u);
+        for (const auto& texture : textures)
+            swapper.swap(texture.id, 1, 10);
+        EXPECT_EQ(calls, 1);
+    }
+
+    TEST(TextureMipsArrays, a_swap_in_slices_installs_a_few_binds_a_step)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto descriptor = arrayDescriptor(bc1Array2048(2));
+        auto root = vsg::Group::create();
+        std::vector<vsg::ref_ptr<vsg::StateGroup>> groups;
+        for (uint32_t i = 0; i < 5; ++i)
+        {
+            groups.push_back(makeGroup(bindWith(descriptor, i)));
+            root->addChild(groups.back());
+        }
+        const auto id = swapper.scan(*root)[0].id;
+        ASSERT_TRUE(swapper.beginSwap(id, 1, 10));
+        EXPECT_TRUE(swapper.swapping());
+        EXPECT_FALSE(swapper.beginSwap(id, 1, 10)); // one at a time
+        int steps = 0;
+        Swapper::StepResult step;
+        for (;;)
+        {
+            step = swapper.stepSwap(2, 1000.0);
+            if (step.waiting)
+                continue; // the worker is still making the array
+            ++steps;
+            if (step.done)
+                break;
+            ASSERT_LT(steps, 10);
+        }
+        EXPECT_EQ(steps, 3); // 2 + 2 + 1
+        EXPECT_TRUE(step.total.ok);
+        EXPECT_EQ(step.total.binds, 5);
+        EXPECT_FALSE(swapper.swapping());
+        for (const auto& group : groups)
+            EXPECT_NE(boundData(*group->stateCommands[0]), nullptr);
+    }
+
+    TEST(TextureMipsArrays, between_steps_some_groups_hold_the_old_bind_and_some_the_new)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = bc1Array2048(2);
+        auto descriptor = arrayDescriptor(array);
+        auto root = vsg::Group::create();
+        std::vector<vsg::ref_ptr<vsg::StateGroup>> groups;
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            groups.push_back(makeGroup(bindWith(descriptor, i)));
+            root->addChild(groups.back());
+        }
+        const auto id = swapper.scan(*root)[0].id;
+        ASSERT_TRUE(swapper.beginSwap(id, 1, 10));
+        Swapper::StepResult step;
+        do
+            step = swapper.stepSwap(1, 1000.0);
+        while (step.waiting);
+        EXPECT_FALSE(step.done);
+        int old = 0;
+        int fresh = 0;
+        for (const auto& group : groups)
+            (boundData(*group->stateCommands[0]) == array.get() ? old : fresh)++;
+        EXPECT_EQ(old, 3);
+        EXPECT_EQ(fresh, 1);
+        while (!step.done)
+            step = swapper.stepSwap(1, 1000.0);
+    }
+
+    TEST(TextureMipsArrays, a_group_that_changed_since_the_begin_keeps_what_it_holds_now)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto descriptor = arrayDescriptor(bc1Array2048(2));
+        auto root = vsg::Group::create();
+        auto group = makeGroup(bindWith(descriptor, 1));
+        root->addChild(group);
+        const auto id = swapper.scan(*root)[0].id;
+        ASSERT_TRUE(swapper.beginSwap(id, 1, 10));
+        auto other = makeGroup(makeBind(bigTexture(2048, 12)));
+        group->stateCommands[0] = other->stateCommands[0]; // someone else replaced it
+        Swapper::StepResult step;
+        do
+            step = swapper.stepSwap(8, 1000.0);
+        while (!step.done);
+        EXPECT_EQ(group->stateCommands[0].get(), other->stateCommands[0].get());
+    }
+
+    TEST(TextureMipsArrays, the_budget_ends_a_step_after_at_least_one_bind)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto descriptor = arrayDescriptor(bc1Array2048(2));
+        auto root = vsg::Group::create();
+        for (uint32_t i = 0; i < 6; ++i)
+            root->addChild(makeGroup(bindWith(descriptor, i)));
+        const auto id = swapper.scan(*root)[0].id;
+        ASSERT_TRUE(swapper.beginSwap(id, 1, 10));
+        Swapper::StepResult step;
+        do
+            step = swapper.stepSwap(100, 0.0); // no time at all: still one bind
+        while (step.waiting);
+        EXPECT_EQ(step.total.binds, 1);
+        EXPECT_FALSE(step.done);
+        while (!step.done)
+            step = swapper.stepSwap(100, 0.0);
+        EXPECT_EQ(step.total.binds, 6);
+    }
+
+    TEST(TextureMipsArrays, an_unknown_texture_or_a_drop_past_the_floor_does_not_begin)
+    {
+        Recorder recorder;
+        Swapper swapper(recorder.hooks(), params());
+        auto root = vsg::Group::create();
+        root->addChild(makeGroup(bindWith(arrayDescriptor(bc1Array2048(2)), 1)));
+        const auto id = swapper.scan(*root)[0].id;
+        EXPECT_FALSE(swapper.beginSwap(99, 1, 10));
+        EXPECT_FALSE(swapper.beginSwap(id, 2, 10)); // 2048 -> 512 is under the floor
+        EXPECT_FALSE(swapper.swapping());
+    }
+
+    TEST(TextureMipsArrays, a_failed_compile_ends_the_swap_as_failed)
+    {
+        Recorder recorder;
+        recorder.failCompile = true;
+        Swapper swapper(recorder.hooks(), params());
+        auto array = bc1Array2048(2);
+        auto group = makeGroup(bindWith(arrayDescriptor(array), 1));
+        auto root = vsg::Group::create();
+        root->addChild(group);
+        const auto result = swapper.swap(swapper.scan(*root)[0].id, 1, 10);
+        EXPECT_FALSE(result.ok);
+        EXPECT_EQ(boundData(*group->stateCommands[0]), array.get());
+        EXPECT_FALSE(swapper.swapping());
     }
 }

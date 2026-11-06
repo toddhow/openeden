@@ -384,6 +384,7 @@ namespace MWWorld
 
         bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message) override;
         std::string textureMipsCommand(const std::string& argument) override;
+        void releaseTerrainPreload() override;
         void removeDebugRagdoll() override;
         ///< Toggle a render mode.
         ///< \return Resulting mode

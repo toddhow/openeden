@@ -45,6 +45,14 @@ namespace vsgUtil
                     ++it;
             }
         }
+        // Calls f(key, object) for every entry under the lock; f may change the object (not the map).
+        template <class Function>
+        void forEach(Function f) const
+        {
+            std::lock_guard<std::mutex> guard(this->mMutex);
+            for (auto& [key, object] : this->mMap)
+                f(key, object);
+        }
         size_t size() const
         {
             std::lock_guard<std::mutex> guard(this->mMutex);

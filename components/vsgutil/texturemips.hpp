@@ -3,8 +3,10 @@
 
 #include <cstdint>
 #include <functional>
+#include <future>
 #include <limits>
 #include <map>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -14,9 +16,13 @@
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/nodes/StateGroup.h>
+#include <vsg/state/BindDescriptorSet.h>
+#include <vsg/state/DescriptorImage.h>
+#include <vsg/state/StateSwitch.h>
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/render/vramtexturemips.hpp>
+#include <components/vsgutil/textureresize.hpp>
 
 namespace vsgUtil::TextureMips
 {
@@ -43,6 +49,22 @@ namespace vsgUtil::TextureMips
         std::function<bool(const vsg::ref_ptr<vsg::Object>&)> compile;
         /// Gives an old object up; it must stay alive until no frame in flight can use it.
         std::function<void(vsg::ref_ptr<vsg::Object>)> retire;
+        /// What an array's texels mean (a normal array is renormalised when it is shrunk), from the binding its
+        /// descriptor has. Empty: colour.
+        std::function<TextureResize::Kind(std::uint32_t binding)> arrayKind;
+        /// Called once when a swap starts building new binds for an array, on the main thread, before the scan data
+        /// is used: the place to drop cached binds nothing draws with (they would keep the old array alive).
+        std::function<void()> beforeArraySwap;
+        /// Called when an array swap has finished (or failed): drop what was rebuilt meanwhile with the old arrays.
+        std::function<void()> afterArraySwap;
+        /// An old descriptor is replaced by a new one (once per swap and old descriptor): whoever keeps descriptors
+        /// for later batches (the terrain Builder) must hand out the new one from now on, or the old image stays alive.
+        std::function<void(const vsg::DescriptorImage* oldDescriptor, vsg::ref_ptr<vsg::DescriptorImage> replacement)>
+            descriptorReplaced;
+        /// Binds that were replaced, as (old, new) pairs, after each step: caches that hold binds follow.
+        std::function<void(
+            const std::vector<std::pair<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>>&)>
+            bindsReplaced;
     };
 
     struct SwapResult
@@ -73,8 +95,24 @@ namespace vsgUtil::TextureMips
         std::vector<Render::VideoMemory::TextureMips::Texture> scan(
             vsg::Node& root, const vsg::dvec3& camera, std::uint64_t frame);
 
-        /// Puts every bind of texture `id` at `toDrop` dropped top levels.
+        /// Puts every bind of texture `id` at `toDrop` dropped top levels, all at once (the reduced array of an array
+        /// texture is made here, on the calling thread: use beginSwap and stepSwap for those).
         SwapResult swap(std::uint64_t id, int toDrop, std::uint64_t frame);
+
+        /// A swap in slices. beginSwap collects the binds to replace (and, for an array, starts making the reduced
+        /// array on a worker thread); false when the texture is unknown, `toDrop` is beyond its floor or a swap is
+        /// already running. stepSwap then builds, compiles and installs at most `maxBinds` new binds, stopping early
+        /// when `budgetMs` of main thread time is used (always at least one bind); `waiting` while the worker is still
+        /// making the array. The result is the total so far. One swap at a time; no scan while one runs.
+        bool beginSwap(std::uint64_t id, int toDrop, std::uint64_t frame);
+        struct StepResult
+        {
+            bool done = false;
+            bool waiting = false;
+            SwapResult total;
+        };
+        StepResult stepSwap(int maxBinds, double budgetMs);
+        bool swapping() const { return mJob != nullptr; }
 
         /// Resident bytes of all tracked textures at their current drops (by the plan's numbers; per distinct image).
         std::int64_t residentBytes() const;
@@ -92,6 +130,7 @@ namespace vsgUtil::TextureMips
             int imagesRetired = 0; // the images of the retired binds that were swapped away
             int imagesAlive = 0; // and how many of them still exist
             unsigned imageReferenceCounts = 0;
+            std::vector<std::uint64_t> aliveImageTextures; // the texture each live image was swapped away for
         };
         RetiredReport retiredReport();
         const Render::VideoMemory::TextureMips::Params& params() const { return mParams; }
@@ -112,7 +151,9 @@ namespace vsgUtil::TextureMips
             bool changedBefore = false;
             std::uint64_t lastChangeFrame = 0;
             std::uint64_t lastNearFrame = 0;
+            TextureResize::Kind kind = TextureResize::Kind::Colour; // of an array
         };
+        struct Job; // a swap in progress
 
         friend struct ScanVisitor;
         std::vector<Render::VideoMemory::TextureMips::Texture> scanImpl(
@@ -128,7 +169,11 @@ namespace vsgUtil::TextureMips
             std::uint64_t texture = 0;
         };
         std::vector<Probe> mRetiredProbes;
-        std::vector<vsg::observer_ptr<vsg::Object>> mRetiredImages;
+        std::vector<Probe> mRetiredImages;
+        std::shared_ptr<Job> mJob;
+
+    public:
+        ~Swapper();
     };
 
     /// The reduced copy that images read from now on should be given in place of `full`, or null: while a texture is
@@ -141,7 +186,8 @@ namespace vsgUtil::TextureMips
     /// stayed alive because their template, in this cache, still held them).
     std::vector<vsg::ref_ptr<vsg::Node>> cachedModels(vsg::SharedObjects& sharedObjects);
 
-    /// True for an image the swapper can reduce: a plain 2D image with a mip chain of at least two levels.
+    /// True for an image the swapper can reduce: a plain 2D image with a mip chain of at least two levels, or an array
+    /// of layers as convertToArrayTexture makes them (block compressed with its layout, or uncompressed 4 byte).
     bool reducible(const vsg::Data& data);
 }
 

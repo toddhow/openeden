@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <future>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -159,6 +160,12 @@ namespace MWRender
         /// budget.
         void setResidentBudget(std::uint64_t bytes);
         std::uint64_t residentBudget() const;
+
+        /// Task 0080 (texture mips): the tile builder and the tiles' own copies of their binds follow a swap of the
+        /// layer arrays (see Terrain::Builder::replaceArrayDescriptor and replaceBinds).
+        void replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement);
+        void replaceBinds(
+            const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced);
 
         /// The squares of the tiles that are drawn now, in world units, for the cluster client's ground test (task
         /// 0060, far cluster eviction: Lod::groundDrawnOver). Rebuilt together with the coverage; the version changes

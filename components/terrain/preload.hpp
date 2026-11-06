@@ -24,6 +24,11 @@ namespace Terrain
         using Position = std::pair<vsg::dvec3, float>; // float viewDistance
         void setPositions(const std::vector<Position>& positions);
 
+        /// Task 0080 (texture mips): waits for the running load and drops every view built so far, so that the chunks
+        /// they hold (and the layer arrays those chunks bind) are released. The next setPositions builds them again.
+        /// Main thread.
+        void releaseViews();
+
     private:
         std::vector<std::unique_ptr<View>> mViews;
         std::vector<Position> mPositions;

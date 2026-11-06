@@ -1147,6 +1147,25 @@ namespace MWRender
         mState->mSetup.mResidentBudgetBytes = bytes;
     }
 
+    void LodTerrain::replaceArrayDescriptor(
+        const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement)
+    {
+        if (mState->mBuilder)
+            mState->mBuilder->replaceArrayDescriptor(old, replacement);
+    }
+
+    void LodTerrain::replaceBinds(
+        const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced)
+    {
+        if (mState->mBuilder)
+            mState->mBuilder->replaceBinds(replaced);
+        for (auto& batch : mState->mBatches)
+            for (auto& command : batch.data.stateCommands)
+                if (const auto* bind = command ? command->cast<vsg::BindDescriptorSet>() : nullptr)
+                    if (const auto found = replaced.find(bind); found != replaced.end())
+                        command = found->second;
+    }
+
     std::uint64_t LodTerrain::residentBudget() const
     {
         return mState->mSetup.mResidentBudgetBytes;

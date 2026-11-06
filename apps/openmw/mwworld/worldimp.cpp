@@ -1568,6 +1568,11 @@ namespace MWWorld
         }
     }
 
+    void World::releaseTerrainPreload()
+    {
+        mWorldScene->releaseTerrainPreload();
+    }
+
     std::string World::textureMipsCommand(const std::string& argument)
     {
         return mRendering->textureMipsCommand(argument);

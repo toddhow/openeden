@@ -55,6 +55,8 @@ namespace MWRender
          * Request a map render for the given cell. Render textures can be retrieved with the getMapTexture function.
          */
         void requestExteriorMap(const MWWorld::CellStore* cell);
+        /// Task 0080 (texture mips): empties the terrain views of the pooled map renders that are not drawing now.
+        void clearIdleTerrainViews();
         void requestInteriorMap(const MWWorld::CellStore* cell);
 
         void addCell(MWWorld::CellStore* cell);

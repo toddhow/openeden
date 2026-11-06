@@ -459,6 +459,38 @@ namespace Terrain
         }
     }
 
+    bool Builder::replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement)
+    {
+        waitForLayers();
+        std::scoped_lock lock(mDescriptorMutex);
+        for (auto* member :
+            { &mLayerDescriptor, &mNormalLayerDescriptor, &mMaterialLayerDescriptor, &mHeightLayerDescriptor })
+        {
+            if (member->get() == old)
+            {
+                *member = replacement;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void Builder::replaceBinds(
+        const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced)
+    {
+        dataCache.forEach([&](const Key&, BatchData& data) {
+            for (auto& command : data.stateCommands)
+            {
+                if (const auto* bind = command->cast<vsg::BindDescriptorSet>())
+                {
+                    const auto found = replaced.find(bind);
+                    if (found != replaced.end())
+                        command = found->second;
+                }
+            }
+        });
+    }
+
     Builder::BatchData Builder::create(const Key& key) const
     {
         waitForLayers();
@@ -473,7 +505,18 @@ namespace Terrain
         if (!mMapSettings.enabled())
             diffuseOverride = mStorage->getDiffuseOverride(bounds);
         vsg::ref_ptr<vsg::Data> blendmap;
-        vsg::ref_ptr<vsg::Descriptor> layerDescriptor = mLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> layerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> normalLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> materialLayerDescriptor;
+        vsg::ref_ptr<vsg::Descriptor> heightLayerDescriptor;
+        {
+            // A texture mip swap may replace these while a paging thread builds a batch.
+            std::scoped_lock lock(mDescriptorMutex);
+            layerDescriptor = mLayerDescriptor;
+            normalLayerDescriptor = mNormalLayerDescriptor;
+            materialLayerDescriptor = mMaterialLayerDescriptor;
+            heightLayerDescriptor = mHeightLayerDescriptor;
+        }
         if (diffuseOverride)
         {
             // One blend texel whose four layer indices are 0: the shader then reads layer 0 at the chunk's own texture
@@ -524,20 +567,20 @@ namespace Terrain
 
         vsg::Descriptors descriptors = { blendDescriptor, batchDescriptor, layerDescriptor, heightsDescriptor,
             normalsDescriptor, colorDescriptor };
-        if (mNormalLayerDescriptor)
+        if (normalLayerDescriptor)
         {
-            descriptors.push_back(mNormalLayerDescriptor);
+            descriptors.push_back(normalLayerDescriptor);
             descriptors.push_back(mLayerFlagsDescriptor);
         }
-        if (mMaterialLayerDescriptor)
+        if (materialLayerDescriptor)
         {
-            descriptors.push_back(mMaterialLayerDescriptor);
+            descriptors.push_back(materialLayerDescriptor);
             descriptors.push_back(mLayerScalesDescriptor);
         }
 
-        if (mHeightLayerDescriptor)
+        if (heightLayerDescriptor)
         {
-            descriptors.push_back(mHeightLayerDescriptor);
+            descriptors.push_back(heightLayerDescriptor);
             descriptors.push_back(mLayerHeightsDescriptor);
         }
 

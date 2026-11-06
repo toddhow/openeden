@@ -37,6 +37,22 @@ namespace vsgUtil::TextureResize
     vsg::ref_ptr<vsg::Data> shrinkUncompressed(const vsg::Data& source, int levels, Kind kind, float alphaCutoff);
 
     /*
+     * Task 0080 (terrain layer arrays): the same for an array of layers as convertToArrayTexture lays it out.
+     *
+     * dropArrayLevels: a block compressed 2D array (imageViewType 2D_ARRAY, a MipmapLayout, each mip level stored for
+     * all layers in turn) without its top `levels` levels: the stored bytes from the first kept level on, the layout
+     * rebased, the size of the new top level, the same layer count and format. `levels <= 0` returns `source` itself.
+     * Null when the image is not such an array or does not have `levels` + 1 levels.
+     *
+     * shrinkArray: an uncompressed 4 byte 2D array (one level stored, the GPU makes the chain) with each layer halved
+     * `levels` times by the box filter of shrinkUncompressed (Kind::Normal renormalises xyz). `levels <= 0` returns
+     * `source`. Null for any other array, or when a layer would shrink below one texel.
+     * Both read `source` only, so they may run on a worker thread while the array is in use.
+     */
+    vsg::ref_ptr<vsg::Data> dropArrayLevels(const vsg::Data& source, int levels);
+    vsg::ref_ptr<vsg::Data> shrinkArray(const vsg::Data& source, int levels, Kind kind);
+
+    /*
      * Brings `source` to a longest side of at most `cap` by dropping levels and then shrinking. Returns `source` itself
      * if `cap` <= 0 or nothing is needed or nothing can be done (a block-compressed image with one level, an
      * unsupported format), in which case the last is counted in the report as left big. Counts what it did in report().
