@@ -56,9 +56,9 @@ namespace
         buffer.label({ 0, 0, 0 }, std::string(kMaxLabelLength + 1, 'A'), { 1, 1, 1, 1 }); // too long
         buffer.label({ 0, 0, 0 }, "caf\xC3\xA9", { 1, 1, 1, 1 }); // not ASCII
         buffer.label({ 0, 0, 0 }, "tab\there", { 1, 1, 1, 1 }); // a control character
-        buffer.label({ nan, 0, 0 }, "X", { 1, 1, 1, 1 });
+        buffer.label({ static_cast<float>(nan), 0, 0 }, "X", { 1, 1, 1, 1 });
         buffer.label({ 2.0e6, 0, 0 }, "X", { 1, 1, 1, 1 }); // beyond kMaxOverlayCoordinateMetres
-        buffer.label({ 0, 0, 0 }, "X", { nan, 1, 1, 1 });
+        buffer.label({ 0, 0, 0 }, "X", { static_cast<float>(nan), 1, 1, 1 });
         EXPECT_TRUE(buffer.data().mLabels.empty());
         EXPECT_EQ(buffer.data().mRefused, 7u);
         // The longest allowed text is accepted.

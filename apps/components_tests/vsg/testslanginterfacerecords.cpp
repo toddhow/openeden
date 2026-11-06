@@ -493,9 +493,11 @@ namespace
 
         bool create()
         {
-            VkApplicationInfo app{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
+            VkApplicationInfo app = {};
+            app.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
             app.apiVersion = VK_API_VERSION_1_1;
-            VkInstanceCreateInfo instanceInfo{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+            VkInstanceCreateInfo instanceInfo = {};
+            instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
             instanceInfo.pApplicationInfo = &app;
             if (vkCreateInstance(&instanceInfo, nullptr, &mInstance) != VK_SUCCESS)
             {
@@ -532,11 +534,13 @@ namespace
             }
             vkGetPhysicalDeviceMemoryProperties(mPhysical, &mMemory);
             const float priority = 1.0f;
-            VkDeviceQueueCreateInfo queueInfo{ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
+            VkDeviceQueueCreateInfo queueInfo = {};
+            queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
             queueInfo.queueFamilyIndex = mFamily;
             queueInfo.queueCount = 1;
             queueInfo.pQueuePriorities = &priority;
-            VkDeviceCreateInfo deviceInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
+            VkDeviceCreateInfo deviceInfo = {};
+            deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
             deviceInfo.queueCreateInfoCount = 1;
             deviceInfo.pQueueCreateInfos = &queueInfo;
             if (vkCreateDevice(mPhysical, &deviceInfo, nullptr, &mDevice) != VK_SUCCESS)
@@ -551,7 +555,8 @@ namespace
         {
             Buffer result;
             result.mSize = size;
-            VkBufferCreateInfo info{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+            VkBufferCreateInfo info = {};
+            info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             info.size = size;
             info.usage = usage;
             info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -570,7 +575,8 @@ namespace
                     break;
                 }
             }
-            VkMemoryAllocateInfo allocate{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+            VkMemoryAllocateInfo allocate = {};
+            allocate.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
             allocate.allocationSize = requirements.size;
             allocate.memoryTypeIndex = type;
             vkAllocateMemory(mDevice, &allocate, nullptr, &result.mMemory);
@@ -617,7 +623,8 @@ namespace
         constexpr uint32_t gridZ = 24;
         constexpr uint32_t clusters = gridX * gridY * gridZ;
         const uint32_t lightCount = static_cast<uint32_t>(lights.size() / 8);
-        VkShaderModuleCreateInfo moduleInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+        VkShaderModuleCreateInfo moduleInfo = {};
+        moduleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         moduleInfo.codeSize = spirv.size() * sizeof(uint32_t);
         moduleInfo.pCode = spirv.data();
         VkShaderModule module = VK_NULL_HANDLE;
@@ -650,19 +657,23 @@ namespace
         const std::array<const std::vector<VkDescriptorSetLayoutBinding>*, 4> all = { &set0, &none, &none, &set3 };
         for (std::size_t i = 0; i < 4; ++i)
         {
-            VkDescriptorSetLayoutCreateInfo info{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+            VkDescriptorSetLayoutCreateInfo info = {};
+            info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             info.bindingCount = static_cast<uint32_t>(all[i]->size());
             info.pBindings = all[i]->data();
             vkCreateDescriptorSetLayout(gpu.mDevice, &info, nullptr, &layouts[i]);
         }
-        VkPipelineLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+        VkPipelineLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         layoutInfo.setLayoutCount = 4;
         layoutInfo.pSetLayouts = layouts.data();
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
         vkCreatePipelineLayout(gpu.mDevice, &layoutInfo, nullptr, &pipelineLayout);
-        VkComputePipelineCreateInfo pipelineInfo{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+        VkComputePipelineCreateInfo pipelineInfo = {};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
         pipelineInfo.layout = pipelineLayout;
-        pipelineInfo.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        pipelineInfo.stage = VkPipelineShaderStageCreateInfo{};
+        pipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         pipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
         pipelineInfo.stage.module = module;
         pipelineInfo.stage.pName = "main";
@@ -674,14 +685,16 @@ namespace
         }
         const VkDescriptorPoolSize poolSizes[2]
             = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 }, { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4 } };
-        VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.maxSets = 4;
         poolInfo.poolSizeCount = 2;
         poolInfo.pPoolSizes = poolSizes;
         VkDescriptorPool pool = VK_NULL_HANDLE;
         vkCreateDescriptorPool(gpu.mDevice, &poolInfo, nullptr, &pool);
         std::array<VkDescriptorSet, 4> sets{};
-        VkDescriptorSetAllocateInfo allocate{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        VkDescriptorSetAllocateInfo allocate = {};
+        allocate.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocate.descriptorPool = pool;
         allocate.descriptorSetCount = 4;
         allocate.pSetLayouts = layouts.data();
@@ -692,7 +705,8 @@ namespace
                   { sizeBuffer.mBuffer, 0, VK_WHOLE_SIZE }, { countBuffer.mBuffer, 0, VK_WHOLE_SIZE } };
         const auto write
             = [&](VkDescriptorSet set, uint32_t index, VkDescriptorType type, const VkDescriptorBufferInfo& info) {
-                  VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+                  VkWriteDescriptorSet w = {};
+                  w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                   w.dstSet = set;
                   w.dstBinding = index;
                   w.descriptorCount = 1;
@@ -707,24 +721,28 @@ namespace
         write(sets[0], 5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, infos[4]);
         write(sets[3], 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, infos[5]);
 
-        VkCommandPoolCreateInfo commandPoolInfo{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+        VkCommandPoolCreateInfo commandPoolInfo = {};
+        commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         commandPoolInfo.queueFamilyIndex = gpu.mFamily;
         VkCommandPool commandPool = VK_NULL_HANDLE;
         vkCreateCommandPool(gpu.mDevice, &commandPoolInfo, nullptr, &commandPool);
-        VkCommandBufferAllocateInfo commandInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+        VkCommandBufferAllocateInfo commandInfo = {};
+        commandInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         commandInfo.commandPool = commandPool;
         commandInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         commandInfo.commandBufferCount = 1;
         VkCommandBuffer commands = VK_NULL_HANDLE;
         vkAllocateCommandBuffers(gpu.mDevice, &commandInfo, &commands);
-        VkCommandBufferBeginInfo begin{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+        VkCommandBufferBeginInfo begin = {};
+        begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(commands, &begin);
         vkCmdBindPipeline(commands, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
         vkCmdBindDescriptorSets(
             commands, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 4, sets.data(), 0, nullptr);
         vkCmdDispatch(commands, gridX / 8, gridY / 4, gridZ / 4);
         vkEndCommandBuffer(commands);
-        VkSubmitInfo submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+        VkSubmitInfo submit = {};
+        submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit.commandBufferCount = 1;
         submit.pCommandBuffers = &commands;
         vkQueueSubmit(gpu.mQueue, 1, &submit, VK_NULL_HANDLE);
