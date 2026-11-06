@@ -665,7 +665,14 @@ namespace MWRender
             mStorage = std::make_unique<BakedStorage>(*mSetup.mLive, mSetup.mLayers, mLoaded.mTiles, mBase, useAlbedo);
             mBuilder = std::make_unique<Terrain::Builder>(
                 mSetup.mImageOptions, mSetup.mShaderOptions, mSetup.mSampler, mSetup.mMapSettings);
-            mBuilder->setStorage(mStorage.get());
+            // Task 0080: the same layers and settings make the same arrays as the live terrain's, so use those (a
+            // texture mod's arrays are about 1.7 GiB, and a mip swap then covers the tiles with the live terrain).
+            if (mSetup.mShareLayersFrom)
+                mSharesLayers = mBuilder->setStorageSharingLayers(mStorage.get(), *mSetup.mShareLayersFrom);
+            else
+                mBuilder->setStorage(mStorage.get());
+            Log(Debug::Info) << "World LOD terrain: the tiles " << (mSharesLayers ? "share" : "build their own")
+                             << " layer arrays";
             // Task 0087: a tile's fade is its batch uniform, uploaded again whenever it changes.
             mBuilder->setDynamicBatchData(fading());
 
@@ -1099,6 +1106,7 @@ namespace MWRender
         std::array<std::uint64_t, levelSlots> mLevelBytes{}; // sum of the bytes of the tiles built, per level
         std::array<std::uint32_t, levelSlots> mLevelCount{};
         int mPruneFrames = 0;
+        bool mSharesLayers = false;
         std::vector<Lod::ResidencyItem> mItems;
         Lod::ResidencyPlan mResidencyPlan;
         bool mLoggedBudget = false;
@@ -1164,6 +1172,17 @@ namespace MWRender
                 if (const auto* bind = command ? command->cast<vsg::BindDescriptorSet>() : nullptr)
                     if (const auto found = replaced.find(bind); found != replaced.end())
                         command = found->second;
+    }
+
+    void LodTerrain::pruneCache()
+    {
+        if (mState->mBuilder)
+            mState->mBuilder->pruneCache();
+    }
+
+    bool LodTerrain::sharesLayerArrays() const
+    {
+        return mState->mSharesLayers;
     }
 
     std::uint64_t LodTerrain::residentBudget() const

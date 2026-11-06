@@ -1416,6 +1416,7 @@ namespace MWRender
             setup.mShaderOptions = mResourceSystem->shaderOptions;
             setup.mSampler = mResourceSystem->builder->createSampler();
             setup.mMapSettings = *mTerrainMapsForLod;
+            setup.mShareLayersFrom = &mTerrain->builder();
             setup.mVfs = mResourceSystem->getVFS();
             setup.mFadeSeconds = Settings::worldLod().mTerrainFadeTime;
             mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
@@ -3165,6 +3166,8 @@ namespace MWRender
                 // Last: an entry the cache shares with a view is only the cache's once the views let it go.
                 if (mTerrain)
                     mTerrain->pruneCache();
+                if (mLodTerrain)
+                    mLodTerrain->pruneCache();
             };
             services.afterArraySwap = services.beforeArraySwap;
             // The Builder (and the LOD tiles' own) hand the new descriptor to later batches, and the batch caches

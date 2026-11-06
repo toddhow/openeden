@@ -38,6 +38,11 @@
 #include <components/terrain/storage.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
+namespace Terrain
+{
+    struct Builder;
+}
+
 namespace vsg
 {
     class Options;
@@ -141,6 +146,10 @@ namespace MWRender
             vsg::ref_ptr<const vsg::Options> mShaderOptions;
             vsg::ref_ptr<vsg::Sampler> mSampler;
             Terrain::TerrainMapSettings mMapSettings;
+            /// Task 0080: the live terrain's builder. When its layer arrays equal the ones this tile builder would
+            /// make, they are used instead of a second set. Only read when the tiles are adopted (main thread); the
+            /// builder outlives it (RenderManager's terrain is made first and destroyed last). May be null.
+            const Terrain::Builder* mShareLayersFrom = nullptr;
             const VFS::Manager* mVfs = nullptr;
             /// Task 0087: seconds a tile takes to dither in or out when it appears, is replaced or is handed to the
             /// live terrain (`[WorldLod] terrain fade time`); 0 or less: the old instant swap, no fade code runs.
@@ -166,6 +175,10 @@ namespace MWRender
         void replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement);
         void replaceBinds(
             const std::map<const vsg::BindDescriptorSet*, vsg::ref_ptr<vsg::BindDescriptorSet>>& replaced);
+        /// Drops the tile builder's cached batches that nothing draws with (before and after an array swap).
+        void pruneCache();
+        /// Whether the tile builder uses the live terrain's layer arrays (valid once the pack is adopted).
+        bool sharesLayerArrays() const;
 
         /// The squares of the tiles that are drawn now, in world units, for the cluster client's ground test (task
         /// 0060, far cluster eviction: Lod::groundDrawnOver). Rebuilt together with the coverage; the version changes

@@ -207,6 +207,7 @@ namespace Terrain
             std::cerr << "layerInfos.size() > 256" << std::endl;
             layers.resize(256);
         }
+        mLayerList = layers;
 
         if (mMapSettings.enabled())
         {
@@ -230,6 +231,45 @@ namespace Terrain
             mLayerDescriptor
                 = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
         }).share();
+    }
+
+    bool Builder::setStorageSharingLayers(Storage* in_storage, const Builder& shareFrom)
+    {
+        auto layers = in_storage->getLayers();
+        if (layers.size() > 256)
+            layers.resize(256);
+        if (&shareFrom != this && shareFrom.mStorage != nullptr
+            && layerArraysShareable(layers, mMapSettings, shareFrom.mLayerList, shareFrom.mMapSettings))
+        {
+            shareFrom.waitForLayers();
+            // The descriptors are read under the source's lock: a texture mip swap may be replacing them.
+            std::scoped_lock lock(shareFrom.mDescriptorMutex);
+            if (shareFrom.mLayerDescriptor)
+            {
+                // An earlier build of this builder's own would still write the members below.
+                try
+                {
+                    waitForLayers();
+                }
+                catch (...)
+                {
+                }
+                mLayersReady = {};
+                mStorage = in_storage;
+                mLayerList = std::move(layers);
+                std::scoped_lock own(mDescriptorMutex);
+                mLayerDescriptor = shareFrom.mLayerDescriptor;
+                mNormalLayerDescriptor = shareFrom.mNormalLayerDescriptor;
+                mLayerFlagsDescriptor = shareFrom.mLayerFlagsDescriptor;
+                mMaterialLayerDescriptor = shareFrom.mMaterialLayerDescriptor;
+                mLayerScalesDescriptor = shareFrom.mLayerScalesDescriptor;
+                mHeightLayerDescriptor = shareFrom.mHeightLayerDescriptor;
+                mLayerHeightsDescriptor = shareFrom.mLayerHeightsDescriptor;
+                return true;
+            }
+        }
+        setStorage(in_storage);
+        return false;
     }
 
     void Builder::setLayersWithMaps(const std::vector<LayerInfo>& layers)

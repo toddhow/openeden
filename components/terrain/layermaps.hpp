@@ -93,6 +93,26 @@ namespace Terrain
         }
     };
 
+    /// Task 0080: true when two builders given these layer lists and settings would build equal layer arrays, so the
+    /// second may use the first's (the LOD terrain's Builder and the live one).
+    inline bool layerArraysShareable(const std::vector<std::string>& layersA, const TerrainMapSettings& settingsA,
+        const std::vector<std::string>& layersB, const TerrainMapSettings& settingsB)
+    {
+        if (layersA != layersB || settingsA.enabled() != settingsB.enabled())
+            return false;
+        if (!settingsA.enabled())
+            return true; // the plain diffuse array, nothing else decides it
+        const vsgAdapters::AutoMapSettings& a = settingsA.autoMaps;
+        const vsgAdapters::AutoMapSettings& b = settingsB.autoMaps;
+        return settingsA.pbr == settingsB.pbr && settingsA.parallaxQuality == settingsB.parallaxQuality
+            && settingsA.parallaxScale == settingsB.parallaxScale && a.autoUseNormalMaps == b.autoUseNormalMaps
+            && a.autoUseSpecularMaps == b.autoUseSpecularMaps && a.normalMapPattern == b.normalMapPattern
+            && a.normalHeightMapPattern == b.normalHeightMapPattern && a.specularMapPattern == b.specularMapPattern
+            && a.autoUseMaterialMaps == b.autoUseMaterialMaps && a.materialMapPattern == b.materialMapPattern
+            && a.rmaosMapPattern == b.rmaosMapPattern && a.autoUseHeightMaps == b.autoUseHeightMaps
+            && a.heightMapPattern == b.heightMapPattern;
+    }
+
     struct TerrainLayerMaps
     {
         std::vector<TerrainLayer> layers;

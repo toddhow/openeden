@@ -37,6 +37,12 @@ namespace Terrain
 
         void setStorage(Storage* in_storage);
 
+        /// Task 0080: as setStorage, but when `shareFrom` has (or is building) layer arrays that equal the ones this
+        /// storage's layers and settings would make (`layerArraysShareable`), they are used as they are: the LOD
+        /// terrain then holds no second set (about 1.7 GiB with a texture mod). Waits for `shareFrom`'s build. Main
+        /// thread. `shareFrom` must outlive the call only. True when the arrays are shared.
+        bool setStorageSharingLayers(Storage* in_storage, const Builder& shareFrom);
+
         /// Task 0089: false while the layer arrays set by setStorage are still being built on their own thread. The
         /// main thread asks before it builds terrain, so that it never waits for the build; batches built on other
         /// threads wait.
@@ -122,6 +128,8 @@ namespace Terrain
         // Waits for that build (a no-op once it is done) and rethrows what it threw. Any thread.
         void waitForLayers() const;
         std::shared_future<void> mLayersReady;
+        // The layer list the arrays were made from (setStorage), for setStorageSharingLayers.
+        std::vector<LayerInfo> mLayerList;
         // Guards the layer array descriptors below once the build is done (replaceArrayDescriptor).
         mutable std::mutex mDescriptorMutex;
 

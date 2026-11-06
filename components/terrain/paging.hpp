@@ -46,6 +46,8 @@ namespace Terrain
 
         /// @param storage Storage instance to get terrain data from (heights, normals, colors, textures..)
         void setStorage(Storage* storage);
+        /// Task 0080: the builder, for the LOD terrain to share its layer arrays (Builder::setStorageSharingLayers).
+        const Builder& builder() const { return *mBuilder; }
 
         /// Task 0089: whether the terrain's layer arrays are built (see Builder::layersReady).
         bool layersReady() const;

@@ -112,6 +112,7 @@ file(GLOB UNITTEST_SRC_FILES
     terrain/testcoverage.cpp
     terrain/testindexstitch.cpp
     terrain/testlayermaps.cpp
+    terrain/testlayershare.cpp
     terrain/testlayerrmaos.cpp
     terrain/testterrainfade.cpp
 
