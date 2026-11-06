@@ -22,8 +22,8 @@ Acceptance criteria:
 - [ ] Stage f: the object shader (`default/main.vert`, `main.frag`) ported with the recorded define sets plus the sets of a long play-through and of the Faultier PBR test data; the texture-coordinate arrays redesigned (note 0005, section 7); frame time on the benchmark scenes no worse than the GLSL's
 - [ ] Stage g: the GLSL inside C++ (tonemap, bloom, velocity, ambient occlusion, post-processing's own stages) moved to `.slang` files; `.omwfx` mod shaders keep GLSL input (decision 0009)
 - [ ] Stage h: option B of note 0035 (the Slang library in the game with an on-disk cache) **decided by toddhow, 2026-11-04: ship it**; implemented as decided (task 0072 stage h log), together with the `.omwfx` passes' vertex stage in Slang (`post/omwfx.vert`, decided the same day)
-- [ ] Stage i: shared `lib/*.glsl` includes become Slang modules (`import`) once every consumer is Slang; duplicated declarations (the sun's own copy of `Scene`) removed
-- [ ] Stage j: `[Rendering] slang shaders` on by default, then each family's GLSL deleted only after toddhow agrees, with `SlangPermutations` changed to compare against recorded interfaces
+- [x] Stage i (2026-11-06): 56 shared Slang includes are `import`ed modules, 14 stay `#include` with reasons (survey table in the stage i log); the `Scene` copies of the sun, clouds, volume and cirrus shaders removed; SPIR-V of all 191 built stages byte-identical; frames viewed
+- [ ] Stage j: `[Rendering] slang shaders` on by default, then each family's GLSL deleted only after toddhow agrees, with `SlangPermutations` changed to compare against recorded interfaces (2026-11-06: step 1, the recorded interfaces and their tests, and step 2, the evidence and the options table, are done; the default is NOT flipped and no GLSL is deleted: both wait for toddhow, see the stage j log)
 - [ ] With the switch off, every frame of `tools/render_scenes.txt` is unchanged against the commit before each stage (byte-identical where the scene is still, within run noise elsewhere, the noise measured by two runs of the same binary)
 - [ ] Linux: the permutation build and `SlangPermutations` pass in the Linux gate
 Out of scope: changing what any shader draws; new rendering features; the `.omwfx` language; removing glslang (stage h decides).
@@ -512,3 +512,153 @@ The "before" rows are the earlier session's runs of a different binary (differen
 **Test edits that await toddhow's approval** (existing tests of this task's own file, changed, not deleted): `SlangCacheCleaning.removes_what_this_runtime_cannot_use_again_and_nothing_else` (the first compile of each runtime now cleans the cache, so its set-up leaves one entry and its counts changed: `mCleaned` 1 and 1, then 1 temp file removed and 2 in all); the production test's `mCacheHits` 1 became 2 (the pipeline's ask after the worker finished is the first hit); the library tests (`the_runtime_the_game_makes...`, `a_refused_set_falls_back...`, `sets_the_build_never_listed_pass_through...`) ask through `findWaiting` instead of expecting a module from the first call; `SlangFirstCompile.*` renamed and rewired as listed above.
 
 **Not proven / not done.** Tests of steps 1 and 4 were written after the code (step 3 has a recorded red run: the stub answered Unavailable, the first test failed on that and the next hung on the gate). No fresh reviewer. The Linux gate was not run (the unload is Windows-only code; GCC traps were avoided, not checked). toddhow's own stutters were not reproduced with his profile (these flights use the stage h profile): that no stall overlaps a compile is shown for the flight, not for every way of playing. The library's release and reload in a live game with VSG and the loading threads running, and the memory it frees there, were not exercised (the live run released once and exited). The terrain stays GLSL for a session on a cold cache. The mixed session (some objects GLSL, some Slang) differs by rounding and the particle colour only.
+
+
+### Stage i, 2026-11-06: the shared includes as Slang modules (toddhow: "Start on the slang stages i and j")
+
+**What changed.** 56 shared Slang files are `import`ed modules now instead of `#include`d text (`import lib.view.scene;`, `import lib.light.equations;`, ...); 14 stay `#include` for reasons found by trying them (table below). The `Scene` struct is declared once: `lib/view/data.slang` and the binding in `lib/view/scene.slang`; the four Slang-only shaders that carried a private copy of it (`sky/sun/proceduralsun.slang`, `comp/cloud/cloud.slang`, `comp/volume/volume.slang`, `sky/cirrus/cirrus.slang`) import it. Nothing was added to the C++ or to the game: slangc and the runtime compiler both search the shader root, and the runtime cache key already hashes every `.slang` file.
+
+**Method.** Each conversion was made, then every one of the 191 `slangc` commands of the build (`build.ninja`, run into a work folder with the build's own `slangc`, `I:\Projects\OpenEden-work\slangij\run.sh`) was run on the working tree and the SPIR-V hashed; a conversion stayed only if all 191 compiled and **no hash changed** (reverted otherwise; a failing build was reverted too). The listed sets do not include `POINT_SHADOW`, `GI_SKY`, `WETNESS_PUDDLES`, `DEBUG_SHADOW`, `CLOUD_SHADOW` or `VOLUME_CLOUD_SHADOW` in the object, terrain and water families (the game compiles those at run time), so a second comparison compiled every listed object, terrain and water stage with four extra define groups (512 compiles, 485 valid on both trees, the 27 invalid combinations invalid on both): the base tree (HEAD before this stage, `git archive`) and the new tree give **485 of 485 identical files**. The first attempt at `pointshadow` as a module passed the 191 and failed three of those extra sets (`scene` not imported): the second comparison is not redundant.
+
+**Result: SPIR-V hashes changed 0 of 191 (and 0 of 485 extra).** Not one file differs in a single byte, which is more than "where pure" asked for; the reason was not investigated (presumably slangc emits the used declarations in the same order as for the textual include).
+
+**Rules found** (also in `files/shaders/CLAUDE.md`): a module does not see the includer's macros or declarations; macros do not leave a module (macro headers stay `#include`); a module imports what it uses; `__exported import` where the includer uses a module's imports; a `static` global a caller writes may live in a module; the includers that used a macro through an include now include its header themselves.
+
+**Survey** (every shared Slang include; "GLSL copy" is the `.glsl` twin and how many shader stages include it, which is why the `.glsl` files stay: each still has a GLSL consumer):
+
+| Include | GLSL copy (consumer stages) | Slang consumer files | Result | Why / risk |
+| --- | --- | --- | --- | --- |
+| `lib/attributes.slang` | `attributes.glsl` (4) | 3 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/groundcover.slang` | `groundcover.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/inout.slang` | `inout.glsl` (4) | 4 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/directional.slang` | `directional.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/equations.slang` | `equations.glsl` (1) | 7 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/grid.slang` | `grid.glsl` (1) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/lightsettings.slang` | none | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/maxlights.slang` | `maxlights.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pbrlighting.slang` | `pbrlighting.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pixellighting.slang` | `pixellighting.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pointdiffuse.slang` | `pointdiffuse.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pointlights.slang` | `pointlights.glsl` (1) | 6 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pointshadow.slang` | `pointshadow.glsl` (2) | 4 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/pointspecular.slang` | `pointspecular.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/precipitation.slang` | `precipitation.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/light/select.slang` | `select.glsl` (0) | 5 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/material/alphatest.slang` | `alphatest.glsl` (1) | 1 | stays `#include` | reads `alphaTestMode`, a constant the includer declares |
+| `lib/material/bindings.slang` | `bindings.glsl` (1) | 14 | stays `#include` | macro header (unit numbers used in `[[vk::binding]]` by includers) |
+| `lib/material/cover.slang` | `cover.glsl` (2) | 2 | stays `#include` | includes wetness |
+| `lib/material/data.slang` | `data.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/material/descriptors_frag.slang` | `descriptors_frag.glsl` (7) | 7 | stays `#include` | `sky/sun/sun.slang` defines `DIFFUSE_MAP` and `MATERIAL` before including it; a module cannot see the includer's macros |
+| `lib/material/descriptors_vert.slang` | `descriptors_vert.glsl` (2) | 2 | stays `#include` | same family as descriptors_frag (macro-selected bindings) |
+| `lib/material/materialsettings.slang` | none | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/material/parallax.slang` | `parallax.glsl` (2) | 2 | stays `#include` | uses functions the includer defines (`pomTextureSize`) |
+| `lib/material/pbr.slang` | `pbr.glsl` (2) | 3 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/material/terms.slang` | `terms.glsl` (2) | 2 | stays `#include` | reads `colorMode` and `material` the includer declares |
+| `lib/material/wetness.slang` | `wetness.glsl` (3) | 3 | stays `#include` | calls `skyVisUp` from skyvis (see there) |
+| `lib/math/billboard.slang` | `billboard.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/math/distance.slang` | `distance.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/math/projection.slang` | `projection.glsl` (3) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/object/data.slang` | `data.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/object/object.slang` | `object.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/particle/data.slang` | `data.glsl` (2) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/particle/weatherocclusion.slang` | `weatherocclusion.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/pushconstants.slang` | `pushconstants.glsl` (8) | 8 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/sets.slang` | `sets.glsl` (6) | 26 | stays `#include` | macro header (set numbers) |
+| `lib/util/quickstep.slang` | `quickstep.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/uvsets.slang` | none | 4 | stays `#include` | macro header (`NUM_UV_SETS`, `UVSETS_<n>`) |
+| `lib/view/bindings.slang` | `bindings.glsl` (0) | 16 | stays `#include` | macro header (binding numbers) |
+| `lib/view/cascades.slang` | `cascades.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/cloudshadow.slang` | `cloudshadow.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/data.slang` | `data.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/depthbuffer.slang` | `depthbuffer.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/depthrange.slang` | `depthrange.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/dither.slang` | `dither.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/env.slang` | `env.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/fog.slang` | `fog.glsl` (4) | 4 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/fogsettings.slang` | none | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/gi.slang` | `gi.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/linear.slang` | `linear.glsl` (11) | 12 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/raytrace.slang` | `raytrace.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/reflect.slang` | `reflect.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/reflection.slang` | `reflection.glsl` (2) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/scene.slang` | `scene.glsl` (14) | 30 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/screencoord.slang` | `screencoord.glsl` (7) | 7 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/shadow.slang` | `shadow.glsl` (3) | 3 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/shadowsettings.slang` | none | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/skyvis.slang` | `skyvis.glsl` (2) | 2 | stays `#include` | declares `skyHeader` only when `cloudshadow` has not (the includer's order decides) |
+| `lib/view/volume.slang` | `volume.glsl` (1) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `lib/view/volumecloudshadow.slang` | `volumecloudshadow.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `post/aosettings.slang` | none | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `post/tonemapconstants.slang` | `tonemapconstants.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `sky/clouds/cloudsettings.slang` | none | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `sky/clouds/inout.slang` | `inout.glsl` (0) | 2 | stays `#include` | builds the interface block from macros (`CLOUDS_INOUT`) |
+| `sky/clouds/lit.slang` | `lit.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `terrain/bindings.slang` | `bindings.glsl` (0) | 2 | stays `#include` | macros for the terrain's binding numbers |
+| `terrain/data.slang` | `data.glsl` (0) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `terrain/inout.slang` | `inout.glsl` (0) | 2 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `water/fresnel.slang` | `fresnel.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+| `water/rainripples.slang` | `rainripples.glsl` (0) | 1 | module (`import`) | pure: SPIR-V of all built stages unchanged |
+
+The 14 that stay are the macro headers (5), the files that read names or macros their includer provides (`alphatest`, `terms`, `parallax`, `descriptors_frag`/`_vert`, `clouds/inout`), and the chain `skyvis` -> `wetness` -> `cover`. They could become modules only by passing the includer's state as parameters, which is a code change (and a likely SPIR-V change), so it was not done: a decision for toddhow if he wants the last 14 converted (each would need its own frame proof). The `.omwfx` GLSL prelude stays GLSL (decision 0009). The GLSL files are untouched.
+
+**Tests.** `components-tests` 6,691 pass, 7 skipped (the two new record tests among the passes; `SlangRuntimeLibrary.every_permutation_the_build_wrote_is_reproduced_byte_for_byte` passes with the modules, i.e. the game's runtime compiler gives the same bytes as the build's `slangc` for all listed sets). No existing test changed.
+
+**Frames** (same binary, snapshot copy, `OPENEDEN_FIXED_FRAME_TIME`, `--random-seed 1`, 1280x720, frame 120; `slang shaders` on after a warm-cache pass, off, off; folder `I:\Projects\OpenEden-work\slangij\shots`): 
+| Scene | off vs off (px differ / >4 / max) | off vs on (px differ / >4 / max) | Viewed |
+| --- | --- | --- | --- |
+| Seyda Neen clear noon (land, water, sky) | 0 / 0 / 0 | 738 / 24 / 161 | on |
+| Seyda Neen rain | 0 / 0 / 0 | 28,120 / 5,814 / 108 | on and off: same picture, the water's rain ripples differ (the known rain-ripple hash, stage d) and the rain streaks' colour |
+| Seyda Neen sunset (cloudy) | 0 / 0 / 0 | 435 / 22 / 114 | on |
+| Seyda Neen night | 19 / 0 / 1 | 2,177 / 114 / 13 | not viewed |
+| Balmora noon | 0 / 0 / 0 | 0 / 0 / 0 | not viewed |
+| Arrille's Tradehouse | 873,914 / 13,062 / 12 (a flickering lamp) | 154,743 / 0 / 2 | not viewed |
+| Caldera, Guild of Mages | 231,076 / 0 / 1 | 89,591 / 0 / 3 | on (a wall: dark) |
+
+Of 921,600 pixels each. The switch-off frames of the exterior scenes are byte-identical run to run, so the comparison is exact; the interiors flicker with their lights. **Switch on against off differs by rounding (the known state of the twins) and by the one deliberate difference (particle colour), the same as before this stage**: because every SPIR-V file is byte-identical to the build before, a switch-on frame of the commit before can only be the same; no frame of the commit before was captured (it would be the same binary's shaders). Only the exterior frames of clear, rain and sunset were viewed; the others are numbers only.
+
+
+### Stage j, 2026-11-06 (toddhow: step 1 recorded interfaces and step 2 the evidence; **nothing deleted, the default NOT flipped**)
+
+**(1) Recorded interfaces: golden data awaiting toddhow's review.** The 33 `files/shaders/<stage>.interface` files (one per stage with a twin, next to `<stage>.sets` and `<stage>.interface-exceptions`; 469 KiB in all, 4,412 lines for `default/main.frag`) record, for every define set the build lists, the interface lines of the GLSL stage (the lines `vsgUtil::readSpirvInterface` gives, the object shader's texture coordinate count pinned as the old test did) and, in a `defines` line, the names a set of that stage may contain (what the old test took from the GLSL's `#pragma import_defines` and the settings files it includes). They are written by `SlangInterfaceRecords.write_the_records_when_asked` (a test that skips unless `OPENEDEN_RECORD_INTERFACES=1`; it writes into `files/shaders` and needs a build with slangc), in `apps/components_tests/vsg/testslanginterfacerecords.cpp`. Three tests, new, **no existing test edited** (toddhow's rule: `SlangPermutations.every_permutation_has_the_interface_of_its_glsl_stage` is unchanged and still compares with the live GLSL; the new `every_permutation_has_the_recorded_interface` is the same check read from the records, with the same `.interface-exceptions` files, and is what remains the day the GLSL goes; switching `SlangPermutations` over, or deleting it, is yours to approve):
+- `records_equal_the_live_glsl_interfaces`: every record equals the live GLSL's interface for every listed set, set lists equal, `defines` equal. **Proven against the current GLSL: passes (10.8 s).** It stays only as long as the GLSL does.
+- `every_permutation_has_the_recorded_interface`: every built twin against its record (and its exceptions, and no `OpSpecConstantOp`, version 1.0, defines valid). Passes (0.06 s: no GLSL compile).
+- Red evidence: one binding number changed by hand in `gui/gui.frag.interface` makes both tests fail; restored (the file is as generated).
+
+**These records are golden data (rule: golden data changes only in a pull request that says why, reviewed by toddhow): please review the format and the 33 files before anything depends on them. Never regenerate them to make a failing twin pass.** What the records do not replace: the game itself reads the GLSL (below), so a deleted GLSL file still has C++ to change.
+
+**(2) Evidence for the default, same binary (`openmw.exe` of this tree, a snapshot copy), Windows, RTX 4070, 1280x720, a shared machine.**
+- **Frames, scene matrix:** table in stage i above (7 scenes: Seyda Neen clear, rain, sunset, night, Balmora, Arrille's Tradehouse, the Guild of Mages; land, water, sky, rain, point lights). Off against off: byte-identical in five of seven (the two interiors flicker). On against off: rounding-level, rain the largest (5,814 px over 4 of 921,600: the water's ripple hash and the rain streaks).
+- **Cost, benchmark scenes** (`tools/benchmark.sh`, last 400 frames, wall ms median; the machine was shared with other work, the repeat spread is about 10 percent with one 2x outlier, so read the pairs, not the decimals): Ebonheart crowd off 3.79 / on cold 3.89 / on warm 3.75 / off again 1.91; Balmora long view 3.96 / 4.01 / 3.68 / 3.95; Balmora walk 2.50 / 2.78 / 2.62 / 2.82. Frames over 25 ms in the whole run: Ebonheart 2 and 2 off, 7 cold (one set compiled, 116 ms on the worker) and 3 warm; the Balmora scenes 3 to 5 in every variant. These scenes use only listed sets, so on and off are within the noise.
+- **Cost, the living test profile** (`tools/testprofile` profile `main`: hdr, gbuffer, pbr, TAA, point light shadows, volumetrics, ...; Seyda Neen; a copy of its folder): first pass, last 400 frames of a 2,400 frame run: off 7.06 and 6.52 ms, on with a cold cache 11.17, on with a warm cache 12.79 (GPU main pass 2.76 off against 2.87 and 3.11 on); **a second pass of 1,200 frames each, run on and off alternately: on 6.29 and 6.93, off 6.43 and 6.71; a third pair with the load trace on: on 10.94, off 11.63.** I could not reproduce the first pass's 60 to 80 percent increase; the three passes together say "no difference this machine can resolve", but the first pass is a warning: **re-measure on a quiet machine before the default is flipped** (nothing else was identified as running; the two high runs were both Slang-on).
+- **Cold shader cache, the profile:** the first run draws the GLSL while the worker compiles: per scene 16 to 21 sets compiled on the one worker thread (5.2 s, 10.6 s and 17.1 s of worker time for three scenes, 0 on the main thread; the first compile of a session is the slowest), 11 to 22 later read back from the cache, 0 failed; in the first 900 frames 15 to 22 of the 33 to 41 object pipelines were built from the GLSL while their set was pending (Seyda clear 20 of 41, rain 22 of 40, Balmora 18 of 33); frames over 25 ms in a 2,400 frame run: cold 211, warm 53, off 15 and 54. **A cold cache means mixed GLSL and Slang drawing for the first 5 to 17 seconds of a new profile, never a wrong picture.**
+- **Disk:** the shader cache of a profile scene is 2.5 to 3.8 MiB (3.6, 3.8, 3.2, 2.7, 2.5 MiB for the five scenes; the vanilla-settings benchmark scenes need 0 to 16 KiB); capped at 1 GiB by `cleanCache`. Shipped: 191 permutation files 9.9 MB, the 33.8 MB compiler library in `resources/slang`, the `.slang` sources.
+- **Coverage in a play session** (`OPENEDEN_SHADER_TRACE`, cold cache, frame 150, six scenes, vanilla-like settings): **every stage and every pipeline was a listed set** (all `pipeline` lines `slang`). With the **test profile** (5 scenes, distinct sets traced against the manifests): every family fully listed except **`default/main.frag`: 18 sets seen, 0 of them listed; `default/main.vert`: 2 of 17 unlisted; `terrain/main.frag`: 1 (the hdr/pbr set) unlisted**. The 55 listed object fragment sets come from older profile traces; adding the profile's 18 object and 1 terrain sets to `default/main.frag.sets` and `terrain/main.frag.sets` would let a profile session run with no compile (19 more files, roughly 2 MB and some build time).
+
+**Twin coverage per family** (listed = built at build time, "reachable" = what the content and settings can make; from stages a to f):
+
+| Family (stages) | Listed | Reachable | Falls back to GLSL / compiles at run time | GLSL deletable? |
+| --- | --- | --- | --- | --- |
+| GUI (2) | 1 + 1 | 1 + 1 | never | yes, with the C++ changes below |
+| Sky: atmosphere, clouds, moon, night, sun, sunglare (12) | 1 each | 1 each | never | yes |
+| Compute: fog of war, light assign, particle simulate, world overlay (4) | 1 each | 1 each | never | yes |
+| Post: tonemap (16 sets), ao, bloom down and up, velocity, present, fullscreen (9 files) | all | all | never | yes; `.omwfx` partners stay GLSL by decision 0009 (`omwfx.vert` is Slang) |
+| Water (2) | vertex 1, fragment 12 | 12 (stage d counted them) | never | yes |
+| Terrain vertex | 4 | 4 | never | yes |
+| Terrain fragment | 39 | **26,040** | **yes: 26,001 sets compile at run time on the worker, GLSL meanwhile** (the profile's hdr set is among them) | **no**: needs the GLSL fallback, or a decision on cold-cache behaviour (hold the terrain back, draw nothing, or pre-bake) |
+| Object vertex | 17 | open-ended (content drives it) | yes (2 of 17 seen in the profile) | no |
+| Object fragment | 55 | open-ended (17,856 for one draw kind alone) | **yes: all 18 profile sets** | **no** |
+
+**What deleting any family's GLSL needs, besides toddhow's yes** (the game reads the GLSL, not only the tests): `Pipeline::Graphics::createShaderStage` and the terrain, GUI and post loaders create the pipeline's stages from GLSL source and hand VSG that; the twin replaces the module's code after the fact (`vsgUtil::slangTwinFor`, `SlangStageChoice`); the define set is worked out from the GLSL text (`vsgUtil::importedDefines`, `effectiveDefines`, `stageDefines`; the record's `defines` line holds the same names for the tests, not for the game); the runtime compiler checks each new twin against the GLSL stage it replaces (`vsgUtil::checkTwinAgainstGlsl`, `shaderpermutation.cpp`); a pending, failed or refused set is drawn with the GLSL. So a family whose every set is listed (GUI, sky, compute, post, water, terrain vertex) can lose its GLSL only after (a) a C++ change that makes the stage from SPIR-V directly, and (b) the defines and the interface check read from the records instead of the GLSL. Each is a Track V task with the full loop, frames before and after, and your approval per family.
+
+**Options for toddhow** (nothing is changed; the proposals are for you to pick):
+
+| # | Option | What it needs | Risk |
+| --- | --- | --- | --- |
+| 1 | **Keep the default off** | nothing | the twins and the compiler stay unproven for most players |
+| 2 | **Flip `[Rendering] slang shaders` to true now, GLSL stays** (option 3 first is the recommended order) | one default and a line in the living profile; the first run on a profile draws GLSL for 5 to 17 s; the cache is 2.5 to 3.8 MiB per scene | the one unexplained cost pass (first profile run: +60 to 80 percent CPU, not reproduced in two more pairs); the Linux gate and the Lua tests are not run |
+| 3 | **Add the profile's 19 sets to the `.sets` files, re-measure on a quiet machine, then option 2** | `default/main.frag.sets` and `terrain/main.frag.sets` +19 lines, a clean build, the same measurements | build time and about 2 MB of disk |
+| 4 | **Delete the GLSL of the fully listed families** (GUI, sky, compute, post, water, terrain vertex), one family per task, after option 2 has run a while | the C++ change (a), the record-based checks (b) and your approval each | a bug found later has no GLSL to fall back on |
+| 5 | **Keep the object and terrain-fragment GLSL for good** (the open-ended families) | nothing; or a pre-bake plus a rule for a cold cache | deleting them would make the first draw of a set wait for the worker (or draw nothing): a missing object, not a wrong one |
+| 6 | **Convert the last 14 includes to modules** | each needs its includer's names passed as parameters and its own frame proof | a likely SPIR-V change |
+
+**Not verified:** the Linux gate and GCC `-Werror` (the new test file was written to the traps list: braces on every if/else, no shadowing, `[[maybe_unused]]` helpers, but it was not compiled with GCC; the shaders were not built on Linux), clang-tidy and clang-format 14 on `testslanginterfacerecords.cpp` (not run), the Lua tests, a fresh reviewer (none), the editor's shader use, and the `.omwfx` post pass with a real mod. `SlangRuntimeLibrary.every_permutation_the_build_wrote_is_reproduced_byte_for_byte` passes on Windows with the modules.

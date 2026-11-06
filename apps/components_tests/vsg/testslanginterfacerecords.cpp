@@ -126,14 +126,14 @@ namespace
 
     struct Record
     {
-        std::set<std::string> mDefines;                          // the names a set of this stage may contain
+        std::set<std::string> mDefines; // the names a set of this stage may contain
         std::map<std::string, std::set<std::string>> mInterface; // canonical set -> interface lines
     };
 
     [[maybe_unused]] std::optional<Record> readRecord(const std::string& stageFile)
     {
-        std::ifstream in(std::filesystem::path(OPENEDEN_SHADER_SOURCE_DIR) / (stageFile + ".interface"),
-            std::ios::binary);
+        std::ifstream in(
+            std::filesystem::path(OPENEDEN_SHADER_SOURCE_DIR) / (stageFile + ".interface"), std::ios::binary);
         if (!in)
             return std::nullopt;
         Record record;
@@ -204,8 +204,8 @@ namespace
             relative.replace_extension();
             std::ifstream in(entry.path(), std::ios::binary);
             const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-            result.push_back({ relative.generic_string(), entry.path().parent_path(),
-                vsgUtil::parsePermutationManifest(text) });
+            result.push_back(
+                { relative.generic_string(), entry.path().parent_path(), vsgUtil::parsePermutationManifest(text) });
         }
         std::sort(result.begin(), result.end(),
             [](const Manifest& a, const Manifest& b) { return a.mStageFile < b.mStageFile; });
@@ -412,8 +412,9 @@ namespace
             }
             for (const auto& [key, used] : exceptions.mLines)
             {
-                EXPECT_TRUE(used) << manifest.mStageFile << ".interface-exceptions lists a difference that does not occur: ["
-                                  << key.first << "] " << key.second;
+                EXPECT_TRUE(used) << manifest.mStageFile
+                                  << ".interface-exceptions lists a difference that does not occur: [" << key.first
+                                  << "] " << key.second;
             }
         }
         EXPECT_GT(checked, 0u);
