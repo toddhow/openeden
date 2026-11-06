@@ -302,6 +302,8 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testarrayreencode.cpp
     vsgutil/testbc1encode.cpp
     vsgutil/testbc7decode.cpp
+    vsgutil/testbc4.cpp
+    vsgutil/testbc4array.cpp
     vsgutil/testblockconvert.cpp
     vsgutil/testrgbaresize.cpp
 

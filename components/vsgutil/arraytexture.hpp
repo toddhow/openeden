@@ -19,9 +19,11 @@
 #include <vsg/core/MipmapLayout.h>
 
 #include "bc1encode.hpp"
+#include "bc4.hpp"
 #include "bc7decode.hpp"
 #include "blockconvert.hpp"
 #include "name.hpp"
+#include "r8resize.hpp"
 #include "rgbaresize.hpp"
 
 namespace vsgUtil
@@ -237,6 +239,12 @@ namespace vsgUtil
             return format == VK_FORMAT_BC7_UNORM_BLOCK || format == VK_FORMAT_BC7_SRGB_BLOCK;
         }
 
+        // Task 0089: BC4 (one channel) layers, the terrain's height maps.
+        inline bool isBc4(VkFormat format)
+        {
+            return format == VK_FORMAT_BC4_UNORM_BLOCK;
+        }
+
         inline bool isBc1Or2Or3(VkFormat format)
         {
             return (format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && format <= VK_FORMAT_BC3_SRGB_BLOCK);
@@ -340,6 +348,62 @@ namespace vsgUtil
         }
     }
 
+    namespace detail
+    {
+        // Task 0089: a BC4 array's grey: both endpoints 128 and index 0 everywhere (the old 0x80 bytes are a block of
+        // varying values).
+        inline void fillGreyBc4(uint8_t* dst, size_t size)
+        {
+            for (size_t offset = 0; offset + Bc4::blockBytes <= size; offset += Bc4::blockBytes)
+            {
+                std::memset(dst + offset, 0, Bc4::blockBytes);
+                dst[offset] = 128;
+                dst[offset + 1] = 128;
+            }
+        }
+
+        /*
+         * Task 0089: a BC4 layer into a BC4 array whose levels are `levels`: decode the top level, resize it to the
+         * array's size, then encode it and each box-halved level. Writes layer `layer` of each level; false when the
+         * layer is shorter than its top level or a level's size is not the array's.
+         */
+        inline bool encodeBc4Layer(const vsg::Data& image, uint32_t layer, const std::vector<MipLevel>& levels,
+            const std::vector<size_t>& levelOffsets, uint8_t* arrayBytes)
+        {
+            const uint32_t sourceWidth = image.width() * image.properties.blockWidth;
+            const uint32_t sourceHeight = image.height() * image.properties.blockHeight;
+            if (sourceWidth == 0 || sourceHeight == 0 || Bc4::encodedSize(sourceWidth, sourceHeight) > image.dataSize())
+                return false;
+            std::vector<uint8_t> decoded(static_cast<size_t>(sourceWidth) * sourceHeight);
+            Bc4::decodeImage(
+                reinterpret_cast<const uint8_t*>(image.dataPointer()), sourceWidth, sourceHeight, decoded.data());
+            std::vector<uint8_t> current(static_cast<size_t>(levels[0].width) * levels[0].height);
+            R8Resize::resize(
+                decoded.data(), sourceWidth, sourceHeight, current.data(), levels[0].width, levels[0].height);
+            decoded = std::vector<uint8_t>();
+            uint32_t currentWidth = levels[0].width;
+            uint32_t currentHeight = levels[0].height;
+            std::vector<uint8_t> next;
+            for (size_t level = 0; level < levels.size(); ++level)
+            {
+                if (level > 0)
+                {
+                    next.resize(static_cast<size_t>(levels[level].width) * levels[level].height);
+                    R8Resize::resize(current.data(), currentWidth, currentHeight, next.data(), levels[level].width,
+                        levels[level].height);
+                    current.swap(next);
+                    currentWidth = levels[level].width;
+                    currentHeight = levels[level].height;
+                }
+                if (Bc4::encodedSize(currentWidth, currentHeight) != levels[level].size)
+                    return false;
+                Bc4::encodeImage(current.data(), currentWidth, currentHeight,
+                    arrayBytes + levelOffsets[level] + layer * levels[level].size);
+            }
+            return true;
+        }
+    }
+
     /*
      * Task 0089 (re-encoding): with `reencode` set, a layer the array cannot take as it is (another size, another
      * format, BC7, a BC1 array's uncompressed layer) is decoded, resized and, for a BC1 array, encoded again with its
@@ -402,6 +466,10 @@ namespace vsgUtil
                 = !reference.blockCompressed && detail::isRgbaOrder(reference.format) && reference.bytesPerTexel == 4;
             if ((bc1Array || rgbaArray)
                 && detail::canDecodeToRgba8(layer.format, layer.blockCompressed, layer.bytesPerTexel))
+                return true;
+            // A BC4 array (the height maps) takes BC4 layers of any size: decoded, resized and encoded again.
+            if (reference.blockCompressed && detail::isBc4(reference.format) && layer.blockCompressed
+                && detail::isBc4(layer.format))
                 return true;
         }
         if (reference.blockCompressed)
@@ -518,6 +586,7 @@ namespace vsgUtil
         const bool bc1Array = compressed && BlockConvert::isBc1(properties.format);
         const bool rgbaArray = !compressed && first.valueSize() == 4 && detail::isRgbaOrder(properties.format);
         const bool reencodeArray = options.reencode && (bc1Array || rgbaArray);
+        const bool bc4Array = compressed && detail::isBc4(properties.format);
         std::vector<uint32_t> jobs;
         std::vector<uint32_t> greyLayers;
         for (uint32_t i = 0; i < depth; ++i)
@@ -548,6 +617,9 @@ namespace vsgUtil
                         levels[level].size / BlockConvert::bc1BlockBytes);
                 ++counts.transcoded;
             }
+            else if (options.reencode && bc4Array && detail::isBlockCompressed(image)
+                && detail::isBc4(image.properties.format))
+                jobs.push_back(i);
             else if (reencodeArray && (!bc1Array || options.encodeToBc1 || BlockConvert::isBc1(image.properties.format))
                 && detail::canDecodeToRgba8(image.properties.format, detail::isBlockCompressed(image),
                     detail::isBlockCompressed(image) ? 0 : static_cast<uint32_t>(image.valueSize())))
@@ -578,6 +650,8 @@ namespace vsgUtil
                 // The array's size in texels (width and height above count blocks in a block compressed array).
                 const uint32_t targetWidth = levels[0].width;
                 const uint32_t targetHeight = levels[0].height;
+                if (bc4Array)
+                    return detail::encodeBc4Layer(*images[i], i, levels, levelOffsets, pDst);
                 std::vector<uint8_t> rgba;
                 uint32_t sourceWidth = 0;
                 uint32_t sourceHeight = 0;
@@ -656,7 +730,7 @@ namespace vsgUtil
         {
             if (jobOk[j])
             {
-                if (bc1Array)
+                if (bc1Array || bc4Array)
                     ++counts.encoded;
                 else if (detail::isBlockCompressed(*images[jobs[j]]))
                     ++counts.decoded;
@@ -680,6 +754,8 @@ namespace vsgUtil
                 uint8_t* dst = pDst + levelOffsets[level] + i * levels[level].size;
                 if (options.reencode && bc1Array && options.encodeToBc1)
                     BlockConvert::fillGrey(properties.format, dst, levels[level].size);
+                else if (options.reencode && bc4Array)
+                    detail::fillGreyBc4(dst, levels[level].size);
                 else
                     std::memset(dst, 0x80, levels[level].size);
                 // Task 0089: in a BC1 array a 0x80 byte fill is the endpoint (131, 16, 0), a dark red, not a grey.
