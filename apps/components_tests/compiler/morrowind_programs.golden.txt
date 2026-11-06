@@ -1,0 +1,1648 @@
+# keywords 512
+empty|source-exception|w0|e1|msg;E:file:unexpected end of file|code|int|flt|str|loc s: l: f:
+emptybody|ok|w0|e0|msg|code|int|flt|str|loc s: l: f:
+locals|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000000 00000000 00000000 c8000015 00000001 c8000004 c8000009 c8000001 00000000 00000000 c8000016 00000000 c8000005 c8000011 c800000e c8000002|int 1 2|flt 3fc00000|str|loc s:a, l:b, f:c,
+redeclare|ok|w2|e0|msg;W2:7:Local variable re-declaration;W3:6:Local variable re-declaration|code|int|flt|str|loc s:a, l: f:
+arith|ok|w0|e0|msg|code 00000000 00000000 c8000004 00000001 c8000004 c8000009 00000002 c8000004 c800000d 00000003 c8000004 00000004 c8000004 c800000f c800000b c8000000 00000000 00000000 c8000015 00000000 c8000005 c8000011 c8000010 00000001 c8000005 c800000a c8000002|int 1 2 3 4 2|flt 40400000 3f000000|str|loc s:a, l: f:f,
+compare|ok|w0|e0|msg|code 00000000 c8000015 00000000 c8000004 c800001a c8000019 01000006 00000000 00000001 c8000004 c8000000 01000011 00000000 c8000015 00000002 c8000004 c800001b c8000019 01000006 00000000 00000003 c8000004 c8000000 01000005 00000000 00000004 c8000004 c8000000|int 1 2 3 4 5|flt|str|loc s:a, l: f:
+comparisons|source-exception|w0|e1|msg;E2:12:Syntax error|code|int 1|flt|str|loc s:a, l: f:
+comparisons2|ok|w0|e0|msg|code 00000000 c8000015 00000000 c8000004 c800001d c8000019 01000001 00000000 c8000015 00000001 c8000004 c800001f c8000019 01000001|int 1 1|flt|str|loc s:a, l: f:
+nestedif|ok|w0|e0|msg|code 00000000 c8000015 00000000 c8000004 c800001a c8000019 01000011 00000000 c8000015 00000001 c8000004 c800001a c8000019 01000006 00000000 00000002 c8000004 c8000000 01000005 00000000 00000003 c8000004 c8000000|int 1 2 3 4|flt|str|loc s:a, l: f:
+while|ok|w0|e0|msg|code 00000000 c8000015 00000000 c8000004 c800001c c8000019 01000009 00000000 00000000 c8000015 00000001 c8000004 c8000009 c8000000 0200000e|int 10 1|flt|str|loc s:a, l: f:
+whilereturn|ok|w0|e0|msg|code 00000000 c8000015 00000000 c8000004 c800001c c8000019 01000011 00000000 c8000015 00000001 c8000004 c800001a c8000019 01000002 c8000014 00000000 00000000 c8000015 00000002 c8000004 c8000009 c8000000 02000016|int 10 5 1|flt|str|loc s:a, l: f:
+return|ok|w0|e0|msg|code c8000014|int|flt|str|loc s: l: f:
+globals|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000027 00000002 00000001 c800002a 00000001 c8000004 c8000009 c8000028 00000003 00000000 c8000005 c8000029|int 1 2|flt 40200000|str;globalshort;globalshort;globallong;globalfloat|loc s: l: f:
+members|ok|w0|e0|msg|code 00000000 00000001 00000000 c8000004 c8000041 00000004 00000005 00000002 00000003 c800003f 00000001 c8000004 c8000009 c800003c|int 1 1|flt|str;membershort;someone;memberlong;someone;memberlong;someone|loc s: l: f:
+membersunknown|errors|w0|e1|msg;E1:19:Unknown variable|code|int|flt|str|loc s: l: f:
+unknownset|ok|w1|e0|msg;W1:14:Unknown variable|code|int|flt|str|loc s: l: f:
+unknownname|source-exception|w0|e1|msg;E1:7:Unexpected name|code|int|flt|str|loc s: l: f:
+messagebox|ok|w0|e0|msg|code 00000000 c8000015 c8000003 00000000 c0000000|int|flt|str;Hello %g|loc s:a, l: f:
+messageboxbuttons|ok|w0|e0|msg|code 00000000 00000001 00000002 00000003 c0000003|int|flt|str;One;Two;Three;Pick|loc s: l: f:
+messageboxfloat|ok|w0|e0|msg|code 00000000 c8000017 00000000 c0000000|int|flt|str;x %.2f|loc s: l: f:f,
+comment|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000000|int 1|flt|str|loc s:a, l: f:
+case|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000000 00000000 c8000015 00000001 c8000004 c800001a c8000019 01000001|int 1 1|flt|str|loc s:a, l: f:
+stringargs|source-exception|w2|e1|msg;W2:0:string contains newline character, make sure that it is intended;W3:0:string contains newline character, make sure that it is intended;E:file:unexpected end of file|code|int|flt|str|loc s: l: f:
+missingend|source-exception|w0|e1|msg;E:file:unexpected end of file|code 00000000 00000000 c8000004 c8000000|int 1|flt|str|loc s:a, l: f:
+missingbegin|source-exception|w0|e1|msg;E0:5:Unexpected keyword|code|int|flt|str|loc s: l: f:
+endifwithoutif|ok|w1|e0|msg;W1:5:endif without matching if/elseif|code|int|flt|str|loc s: l: f:
+elsewithoutif|ok|w1|e0|msg;W1:4:Stray else|code|int|flt|str|loc s: l: f:
+unclosedif|source-exception|w0|e1|msg;E3:3:Unexpected keyword|code|int 1 1|flt|str;globalshort|loc s: l: f:
+unclosedparen|exception:Unknown operator|w0|e0|msg|code|int 1 2|flt|str|loc s: l: f:
+typemix|ok|w1|e0|msg;W2:15:Parsing a non-variable string as a number: 0|code 00000000 00000000 c8000005 c8000006 c8000000|int|flt 00000000|str|loc s:a, l: f:
+stray|source-exception|w0|e1|msg;E1:1:Unexpected numeric value|code|int|flt|str|loc s: l: f:
+namedifferent|ok|w1|e0|msg;W2:5:Names for script A do not match|code c8000014|int|flt|str|loc s: l: f:
+keywordname|ok|w0|e0|msg|code c8000014|int|flt|str|loc s: l: f:
+junkafterend|ok|w0|e0|msg|code c8000014|int|flt|str|loc s: l: f:
+longline|ok|w0|e0|msg|code 00000000 00000000 c8000004 00000001 c8000004 c8000009 00000002 c8000004 c8000009 00000003 c8000004 c8000009 00000004 c8000004 c8000009 00000005 c8000004 c8000009 00000006 c8000004 c8000009 00000007 c8000004 c8000009 00000008 c8000004 c8000009 00000009 c8000004 c8000009 0000000a c8000004 c8000009 0000000b c8000004 c8000009 0000000c c8000004 c8000009 0000000d c8000004 c8000009 0000000e c8000004 c8000009 0000000f c8000004 c8000009 00000010 c8000004 c8000009 00000011 c8000004 c8000009 c8000028|int 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1|flt|str;globallong|loc s: l: f:
+neglit|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000007 c8000027 00000001 00000000 c8000005 c8000008 c8000029|int 5|flt 3fa00000|str;globalshort;globalfloat|loc s: l: f:
+explicitmember|ok|w0|e0|msg|code 00000000 00000001 00000000 c8000004 c8000041|int 3|flt|str;membershort;player|loc s: l: f:
+highdigits|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000028|int 2147483647|flt|str;globallong|loc s: l: f:
+nonascii|ok|w0|e0|msg|code 00000000 c0000000|int|flt|str;caf\xc3\xa9|loc s: l: f:
+tabsandcommas|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000000|int 1|flt|str|loc s:a, l: f:
+frag_set|ok|w0|e0|msg|code 00000000 00000000 c8000004 c8000027|int 1|flt|str;globalshort|loc s: l: f:
+frag_if|ok|w0|e0|msg|code 00000000 c800002a 00000000 c8000004 c800001a c8000019 01000005 00000001 00000001 c8000004 c8000027|int 1 2|flt|str;globalshort;globalshort|loc s: l: f:
+frag_messagebox|ok|w0|e0|msg|code 00000000 c0000000|int|flt|str;hi|loc s: l: f:
+frag_empty|ok|w0|e0|msg|code|int|flt|str|loc s: l: f:
+frag_unknown|source-exception|w0|e1|msg;E0:14:Unexpected name|code|int|flt|str|loc s: l: f:
+frag_return|ok|w0|e0|msg|code c8000014|int|flt|str|loc s: l: f:
+frag_endextra|source-exception|w0|e1|msg;E1:3:Unexpected keyword|code 00000000 00000000 c8000004 c8000027|int 1|flt|str;globalshort|loc s: l: f:
+# activate I   sig=x explicit=1
+cmd:activate:implicit|ok|w1|e0|msg;W1:12:Extra argument|code ca000075|int|flt|str|loc s: l: f:
+cmd:activate:explicit|ok|w1|e0|msg;W1:20:Extra argument|code 00000000 c8000004 ca000244|int 0|flt|str;player|loc s: l: f:
+# additem I   sig=clX explicit=1
+cmd:additem:implicit|ok|w1|e0|msg;W1:17:Extra argument|code 00000000 c8000004 00000000 ca000076|int 3 4|flt|str;abc|loc s: l: f:
+cmd:additem:explicit|ok|w1|e0|msg;W1:25:Extra argument|code 00000000 c8000004 00000000 00000002 c8000004 ca000077|int 3 4 1|flt|str;abc;player|loc s: l: f:
+# addsoulgem I   sig=ccX explicit=1
+cmd:addsoulgem:implicit|ok|w1|e0|msg;W1:24:Extra argument|code 00000001 00000000 ca0001f3|int 4|flt|str;abc;abc|loc s: l: f:
+cmd:addsoulgem:explicit|ok|w1|e0|msg;W1:32:Extra argument|code 00000001 00000000 00000001 c8000004 ca0001f4|int 4 2|flt|str;abc;abc;player|loc s: l: f:
+# addspell I   sig=cz explicit=1
+cmd:addspell:implicit|ok|w1|e0|msg;W1:16:Extra argument|code 00000000 ca000147|int|flt|str;abc|loc s: l: f:
+cmd:addspell:explicit|ok|w1|e0|msg;W1:24:Extra argument|code 00000000 00000000 c8000004 ca000148|int 1|flt|str;abc;player|loc s: l: f:
+# addtolevcreature I   sig=ccl explicit=0
+cmd:addtolevcreature:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca0002fb|int 3|flt|str;abc;abc|loc s: l: f:
+# addtolevitem I   sig=ccl explicit=0
+cmd:addtolevitem:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca0002fd|int 3|flt|str;abc;abc|loc s: l: f:
+# addtopic I   sig=S explicit=0
+cmd:addtopic:implicit|ok|w0|e0|msg|code 00000000 ca00013a|int|flt|str;Abc|loc s: l: f:
+# aiactivate I   sig=c/l explicit=1
+cmd:aiactivate:implicit|ok|w0|e0|msg|code 00000000 c2001e00|int|flt|str;abc|loc s: l: f:
+cmd:aiactivate:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2001f00|int 1|flt|str;abc;player|loc s: l: f:
+cmd:aiactivate:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 c2001e01|int 3|flt|str;abc|loc s: l: f:
+cmd:aiactivate:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 c2001f01|int 3 1|flt|str;abc;player|loc s: l: f:
+# aiescort I   sig=cffff/l explicit=1
+cmd:aiescort:implicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c2000200|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:aiescort:explicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 00000000 c8000004 c2000300|int 1|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+cmd:aiescort:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c2000201|int 3|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:aiescort:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 00000001 c8000004 c2000301|int 3 1|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+# aiescortcell I   sig=ccffff/l explicit=1
+cmd:aiescortcell:implicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 c2002000|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc|loc s: l: f:
+cmd:aiescortcell:explicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 00000000 c8000004 c2002100|int 2|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc;player|loc s: l: f:
+cmd:aiescortcell:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 c2002001|int 3|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc|loc s: l: f:
+cmd:aiescortcell:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 00000001 c8000004 c2002101|int 3 2|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc;player|loc s: l: f:
+# aifollow I   sig=cffff/llllllll explicit=1
+cmd:aifollow:implicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c2002200|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:aifollow:explicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 00000000 c8000004 c2002300|int 1|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+cmd:aifollow:implicitall|ok|w0|e0|msg|code 00000007 c8000004 00000006 c8000004 00000005 c8000004 00000004 c8000004 00000003 c8000004 00000002 c8000004 00000001 c8000004 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c2002208|int 3 3 3 3 3 3 3 3|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:aifollow:explicitall|ok|w0|e0|msg|code 00000007 c8000004 00000006 c8000004 00000005 c8000004 00000004 c8000004 00000003 c8000004 00000002 c8000004 00000001 c8000004 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 00000008 c8000004 c2002308|int 3 3 3 3 3 3 3 3 1|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+# aifollowcell I   sig=ccffff/l explicit=1
+cmd:aifollowcell:implicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 c2002400|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc|loc s: l: f:
+cmd:aifollowcell:explicit|ok|w0|e0|msg|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 00000000 c8000004 c2002500|int 2|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc;player|loc s: l: f:
+cmd:aifollowcell:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 c2002401|int 3|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc|loc s: l: f:
+cmd:aifollowcell:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 00000001 c8000004 c2002501|int 3 2|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc;player|loc s: l: f:
+# aitravel I   sig=fff/lx explicit=1
+cmd:aitravel:implicit|ok|w0|e0|msg|code 00000002 c8000005 00000001 c8000005 00000000 c8000005 c2000000|int|flt 3fc00000 3fc00000 3fc00000|str|loc s: l: f:
+cmd:aitravel:explicit|ok|w0|e0|msg|code 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c8000004 c2000100|int 0|flt 3fc00000 3fc00000 3fc00000|str;player|loc s: l: f:
+cmd:aitravel:implicitall|ok|w1|e0|msg;W1:26:Extra argument|code 00000000 c8000004 00000002 c8000005 00000001 c8000005 00000000 c8000005 c2000001|int 3|flt 3fc00000 3fc00000 3fc00000|str|loc s: l: f:
+cmd:aitravel:explicitall|ok|w1|e0|msg;W1:34:Extra argument|code 00000000 c8000004 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 c8000004 c2000101|int 3 0|flt 3fc00000 3fc00000 3fc00000|str;player|loc s: l: f:
+# aiwander I   sig=fff/llllllllll explicit=1
+cmd:aiwander:implicit|ok|w0|e0|msg|code 00000002 c8000005 00000001 c8000005 00000000 c8000005 c2001000|int|flt 3fc00000 3fc00000 3fc00000|str|loc s: l: f:
+cmd:aiwander:explicit|ok|w0|e0|msg|code 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c8000004 c2001100|int 0|flt 3fc00000 3fc00000 3fc00000|str;player|loc s: l: f:
+cmd:aiwander:implicitall|ok|w0|e0|msg|code 00000009 c8000004 00000008 c8000004 00000007 c8000004 00000006 c8000004 00000005 c8000004 00000004 c8000004 00000003 c8000004 00000002 c8000004 00000001 c8000004 00000000 c8000004 00000002 c8000005 00000001 c8000005 00000000 c8000005 c200100a|int 3 3 3 3 3 3 3 3 3 3|flt 3fc00000 3fc00000 3fc00000|str|loc s: l: f:
+cmd:aiwander:explicitall|ok|w0|e0|msg|code 00000009 c8000004 00000008 c8000004 00000007 c8000004 00000006 c8000004 00000005 c8000004 00000004 c8000004 00000003 c8000004 00000002 c8000004 00000001 c8000004 00000000 c8000004 00000002 c8000005 00000001 c8000005 00000000 c8000005 0000000a c8000004 c200110a|int 3 3 3 3 3 3 3 3 3 3 0|flt 3fc00000 3fc00000 3fc00000|str;player|loc s: l: f:
+# bc I   sig=/S explicit=1
+cmd:bc:implicit|ok|w0|e0|msg|code c2002d00|int|flt|str|loc s: l: f:
+cmd:bc:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002e00|int 0|flt|str;player|loc s: l: f:
+cmd:bc:implicitall|ok|w0|e0|msg|code 00000000 c2002d01|int|flt|str;Abc|loc s: l: f:
+cmd:bc:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002e01|int 1|flt|str;Abc;player|loc s: l: f:
+# becomewerewolf I   sig= explicit=1
+cmd:becomewerewolf:implicit|ok|w0|e0|msg|code ca000217|int|flt|str|loc s: l: f:
+cmd:becomewerewolf:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000218|int 0|flt|str;player|loc s: l: f:
+# betacomment I   sig=/S explicit=1
+cmd:betacomment:implicit|ok|w0|e0|msg|code c2002d00|int|flt|str|loc s: l: f:
+cmd:betacomment:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002e00|int 0|flt|str;player|loc s: l: f:
+cmd:betacomment:implicitall|ok|w0|e0|msg|code 00000000 c2002d01|int|flt|str;Abc|loc s: l: f:
+cmd:betacomment:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002e01|int 1|flt|str;Abc;player|loc s: l: f:
+# bodycheck I   sig= explicit=1
+cmd:bodycheck:implicit|ok|w0|e0|msg|code ca00032a|int|flt|str|loc s: l: f:
+cmd:bodycheck:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00032b|int 0|flt|str;player|loc s: l: f:
+# cast I   sig=SS explicit=1
+cmd:cast:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000227|int|flt|str;Abc;Abc|loc s: l: f:
+cmd:cast:explicit|ok|w0|e0|msg|code 00000001 00000000 00000000 c8000004 ca000228|int 2|flt|str;Abc;Abc;player|loc s: l: f:
+# cellchanged F l sig= explicit=0
+cmd:cellchanged:implicit|ok|w0|e0|msg|code 00000000 ca000000 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:cellchanged:cond|ok|w0|e0|msg|code ca000000 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# centeroncell I   sig=S explicit=0
+cmd:centeroncell:implicit|ok|w0|e0|msg|code 00000000 ca000026|int|flt|str;Abc|loc s: l: f:
+# centeronexterior I   sig=ll explicit=0
+cmd:centeronexterior:implicit|ok|w0|e0|msg|code 00000001 c8000004 00000000 c8000004 ca000226|int 3 3|flt|str|loc s: l: f:
+# changeweather I   sig=Sl explicit=0
+cmd:changeweather:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 ca000140|int 3|flt|str;Abc|loc s: l: f:
+# choice I   sig=j/SlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSl explicit=0
+cmd:choice:implicit|ok|w0|e0|msg|code c2000a00|int|flt|str|loc s: l: f:
+cmd:choice:implicitall|ok|w0|e0|msg|code 00000017 c8000004 00000017 00000016 c8000004 00000016 00000015 c8000004 00000015 00000014 c8000004 00000014 00000013 c8000004 00000013 00000012 c8000004 00000012 00000011 c8000004 00000011 00000010 c8000004 00000010 0000000f c8000004 0000000f 0000000e c8000004 0000000e 0000000d c8000004 0000000d 0000000c c8000004 0000000c 0000000b c8000004 0000000b 0000000a c8000004 0000000a 00000009 c8000004 00000009 00000008 c8000004 00000008 00000007 c8000004 00000007 00000006 c8000004 00000006 00000005 c8000004 00000005 00000004 c8000004 00000004 00000003 c8000004 00000003 00000002 c8000004 00000002 00000001 c8000004 00000001 00000000 c8000004 00000000 c2000a30|int 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3|flt|str;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc;Abc|loc s: l: f:
+# clearforcejump I   sig= explicit=1
+cmd:clearforcejump:implicit|ok|w0|e0|msg|code ca000258|int|flt|str|loc s: l: f:
+cmd:clearforcejump:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000259|int 0|flt|str;player|loc s: l: f:
+# clearforcemovejump I   sig= explicit=1
+cmd:clearforcemovejump:implicit|ok|w0|e0|msg|code ca00025c|int|flt|str|loc s: l: f:
+cmd:clearforcemovejump:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00025d|int 0|flt|str;player|loc s: l: f:
+# clearforcerun I   sig= explicit=1
+cmd:clearforcerun:implicit|ok|w0|e0|msg|code ca000154|int|flt|str|loc s: l: f:
+cmd:clearforcerun:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000155|int 0|flt|str;player|loc s: l: f:
+# clearforcesneak I   sig= explicit=1
+cmd:clearforcesneak:implicit|ok|w0|e0|msg|code ca000158|int|flt|str|loc s: l: f:
+cmd:clearforcesneak:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000159|int 0|flt|str;player|loc s: l: f:
+# clearinfoactor I   sig= explicit=1
+cmd:clearinfoactor:implicit|ok|w0|e0|msg|code ca000245|int|flt|str|loc s: l: f:
+cmd:clearinfoactor:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000246|int 0|flt|str;player|loc s: l: f:
+# cmragdoll I   sig= explicit=1
+cmd:cmragdoll:implicit|ok|w0|e0|msg|code ca000327|int|flt|str|loc s: l: f:
+cmd:cmragdoll:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000328|int 0|flt|str;player|loc s: l: f:
+# cmragdolloff I   sig= explicit=0
+cmd:cmragdolloff:implicit|ok|w0|e0|msg|code ca000329|int|flt|str|loc s: l: f:
+# cmstyle I   sig=/S explicit=1
+cmd:cmstyle:implicit|ok|w0|e0|msg|code c2003100|int|flt|str|loc s: l: f:
+cmd:cmstyle:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2003200|int 0|flt|str;player|loc s: l: f:
+cmd:cmstyle:implicitall|ok|w0|e0|msg|code 00000000 c2003101|int|flt|str;Abc|loc s: l: f:
+cmd:cmstyle:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2003201|int 1|flt|str;Abc;player|loc s: l: f:
+# coc I   sig=S explicit=0
+cmd:coc:implicit|ok|w0|e0|msg|code 00000000 ca000026|int|flt|str;Abc|loc s: l: f:
+# coe I   sig=ll explicit=0
+cmd:coe:implicit|ok|w0|e0|msg|code 00000001 c8000004 00000000 c8000004 ca000226|int 3 3|flt|str|loc s: l: f:
+# disable I   sig=x explicit=1
+cmd:disable:implicit|ok|w1|e0|msg;W1:11:Extra argument|code ca000318|int|flt|str|loc s: l: f:
+cmd:disable:explicit|ok|w1|e0|msg;W1:19:Extra argument|code 00000000 c8000004 ca00031b|int 0|flt|str;player|loc s: l: f:
+# disablelevitation I   sig= explicit=0
+cmd:disablelevitation:implicit|ok|w0|e0|msg|code ca000220|int|flt|str|loc s: l: f:
+# disableplayercontrols I   sig= explicit=0
+cmd:disableplayercontrols:implicit|ok|w0|e0|msg|code ca000085|int|flt|str|loc s: l: f:
+# disableplayerfighting I   sig= explicit=0
+cmd:disableplayerfighting:implicit|ok|w0|e0|msg|code ca000086|int|flt|str|loc s: l: f:
+# disableplayerjumping I   sig= explicit=0
+cmd:disableplayerjumping:implicit|ok|w0|e0|msg|code ca000087|int|flt|str|loc s: l: f:
+# disableplayerlooking I   sig= explicit=0
+cmd:disableplayerlooking:implicit|ok|w0|e0|msg|code ca000088|int|flt|str|loc s: l: f:
+# disableplayermagic I   sig= explicit=0
+cmd:disableplayermagic:implicit|ok|w0|e0|msg|code ca000089|int|flt|str|loc s: l: f:
+# disableplayerviewswitch I   sig= explicit=0
+cmd:disableplayerviewswitch:implicit|ok|w0|e0|msg|code ca00008a|int|flt|str|loc s: l: f:
+# disableteleporting I   sig= explicit=0
+cmd:disableteleporting:implicit|ok|w0|e0|msg|code ca000215|int|flt|str|loc s: l: f:
+# disablevanitymode I   sig= explicit=0
+cmd:disablevanitymode:implicit|ok|w0|e0|msg|code ca00008b|int|flt|str|loc s: l: f:
+# dontsaveobject I   sig= explicit=0
+cmd:dontsaveobject:implicit|ok|w0|e0|msg|code ca000153|int|flt|str|loc s: l: f:
+# drop I   sig=cl explicit=1
+cmd:drop:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 ca0001f8|int 3|flt|str;abc|loc s: l: f:
+cmd:drop:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 ca0001f9|int 3 1|flt|str;abc;player|loc s: l: f:
+# dropsoulgem I   sig=c explicit=1
+cmd:dropsoulgem:implicit|ok|w0|e0|msg|code 00000000 ca0001fa|int|flt|str;abc|loc s: l: f:
+cmd:dropsoulgem:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca0001fb|int 1|flt|str;abc;player|loc s: l: f:
+# enable I   sig=x explicit=1
+cmd:enable:implicit|ok|w1|e0|msg;W1:10:Extra argument|code ca000317|int|flt|str|loc s: l: f:
+cmd:enable:explicit|ok|w1|e0|msg;W1:18:Extra argument|code 00000000 c8000004 ca00031a|int 0|flt|str;player|loc s: l: f:
+# enablebirthmenu I   sig= explicit=0
+cmd:enablebirthmenu:implicit|ok|w0|e0|msg|code ca00000e|int|flt|str|loc s: l: f:
+# enableclassmenu I   sig= explicit=0
+cmd:enableclassmenu:implicit|ok|w0|e0|msg|code ca00000f|int|flt|str|loc s: l: f:
+# enableinventorymenu I   sig= explicit=0
+cmd:enableinventorymenu:implicit|ok|w0|e0|msg|code ca000013|int|flt|str|loc s: l: f:
+# enablelevelupmenu I   sig= explicit=0
+cmd:enablelevelupmenu:implicit|ok|w0|e0|msg|code ca000300|int|flt|str|loc s: l: f:
+# enablelevitation I   sig= explicit=0
+cmd:enablelevitation:implicit|ok|w0|e0|msg|code ca000221|int|flt|str|loc s: l: f:
+# enablemagicmenu I   sig= explicit=0
+cmd:enablemagicmenu:implicit|ok|w0|e0|msg|code ca000014|int|flt|str|loc s: l: f:
+# enablemapmenu I   sig= explicit=0
+cmd:enablemapmenu:implicit|ok|w0|e0|msg|code ca000015|int|flt|str|loc s: l: f:
+# enablenamemenu I   sig= explicit=0
+cmd:enablenamemenu:implicit|ok|w0|e0|msg|code ca000010|int|flt|str|loc s: l: f:
+# enableplayercontrols I   sig= explicit=0
+cmd:enableplayercontrols:implicit|ok|w0|e0|msg|code ca00007e|int|flt|str|loc s: l: f:
+# enableplayerfighting I   sig= explicit=0
+cmd:enableplayerfighting:implicit|ok|w0|e0|msg|code ca00007f|int|flt|str|loc s: l: f:
+# enableplayerjumping I   sig= explicit=0
+cmd:enableplayerjumping:implicit|ok|w0|e0|msg|code ca000080|int|flt|str|loc s: l: f:
+# enableplayerlooking I   sig= explicit=0
+cmd:enableplayerlooking:implicit|ok|w0|e0|msg|code ca000081|int|flt|str|loc s: l: f:
+# enableplayermagic I   sig= explicit=0
+cmd:enableplayermagic:implicit|ok|w0|e0|msg|code ca000082|int|flt|str|loc s: l: f:
+# enableplayerviewswitch I   sig= explicit=0
+cmd:enableplayerviewswitch:implicit|ok|w0|e0|msg|code ca000083|int|flt|str|loc s: l: f:
+# enableracemenu I   sig= explicit=0
+cmd:enableracemenu:implicit|ok|w0|e0|msg|code ca000011|int|flt|str|loc s: l: f:
+# enablerest I   sig= explicit=0
+cmd:enablerest:implicit|ok|w0|e0|msg|code ca000017|int|flt|str|loc s: l: f:
+# enablestatreviewmenu I   sig= explicit=0
+cmd:enablestatreviewmenu:implicit|ok|w0|e0|msg|code ca000012|int|flt|str|loc s: l: f:
+# enablestatsmenu I   sig= explicit=0
+cmd:enablestatsmenu:implicit|ok|w0|e0|msg|code ca000016|int|flt|str|loc s: l: f:
+# enableteleporting I   sig= explicit=0
+cmd:enableteleporting:implicit|ok|w0|e0|msg|code ca000216|int|flt|str|loc s: l: f:
+# enablevanitymode I   sig= explicit=0
+cmd:enablevanitymode:implicit|ok|w0|e0|msg|code ca000084|int|flt|str|loc s: l: f:
+# equip I   sig=cX explicit=1
+cmd:equip:implicit|ok|w1|e0|msg;W1:13:Extra argument|code 00000000 ca0001b3|int 4|flt|str;abc|loc s: l: f:
+cmd:equip:explicit|ok|w1|e0|msg;W1:21:Extra argument|code 00000000 00000001 c8000004 ca0001b4|int 4 1|flt|str;abc;player|loc s: l: f:
+# explodespell I   sig=S explicit=1
+cmd:explodespell:implicit|ok|w0|e0|msg|code 00000000 ca000229|int|flt|str;Abc|loc s: l: f:
+cmd:explodespell:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca00022a|int 1|flt|str;Abc;player|loc s: l: f:
+# face I   sig=ffX explicit=1
+cmd:face:implicit|ok|w1|e0|msg;W1:14:Extra argument|code 00000001 c8000005 00000000 c8000005 ca00024c|int 4|flt 3fc00000 3fc00000|str|loc s: l: f:
+cmd:face:explicit|ok|w1|e0|msg;W1:22:Extra argument|code 00000001 c8000005 00000000 c8000005 00000001 c8000004 ca00024d|int 4 0|flt 3fc00000 3fc00000|str;player|loc s: l: f:
+# fadein I   sig=f explicit=0
+cmd:fadein:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00013c|int|flt 3fc00000|str|loc s: l: f:
+# fadeout I   sig=f explicit=0
+cmd:fadeout:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00013d|int|flt 3fc00000|str|loc s: l: f:
+# fadeto I   sig=ff explicit=0
+cmd:fadeto:implicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 ca00013e|int|flt 3fc00000 3fc00000|str|loc s: l: f:
+# fall I   sig= explicit=1
+cmd:fall:implicit|ok|w0|e0|msg|code ca00020a|int|flt|str|loc s: l: f:
+cmd:fall:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00020b|int 0|flt|str;player|loc s: l: f:
+# filljournal I   sig= explicit=0
+cmd:filljournal:implicit|ok|w0|e0|msg|code ca000326|int|flt|str|loc s: l: f:
+# fillmap I   sig= explicit=0
+cmd:fillmap:implicit|ok|w0|e0|msg|code ca0001a1|int|flt|str|loc s: l: f:
+# fixme I   sig= explicit=0
+cmd:fixme:implicit|ok|w0|e0|msg|code ca000302|int|flt|str|loc s: l: f:
+# forcegreeting I   sig=z explicit=1
+cmd:forcegreeting:implicit|ok|w1|e0|msg;W1:15:Extra argument|code ca00014f|int|flt|str|loc s: l: f:
+cmd:forcegreeting:explicit|ok|w1|e0|msg;W1:23:Extra argument|code 00000000 c8000004 ca000150|int 0|flt|str;player|loc s: l: f:
+# forcejump I   sig= explicit=1
+cmd:forcejump:implicit|ok|w0|e0|msg|code ca00025a|int|flt|str|loc s: l: f:
+cmd:forcejump:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00025b|int 0|flt|str;player|loc s: l: f:
+# forcemovejump I   sig= explicit=1
+cmd:forcemovejump:implicit|ok|w0|e0|msg|code ca00025e|int|flt|str|loc s: l: f:
+cmd:forcemovejump:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00025f|int 0|flt|str;player|loc s: l: f:
+# forcerun I   sig= explicit=1
+cmd:forcerun:implicit|ok|w0|e0|msg|code ca000156|int|flt|str|loc s: l: f:
+cmd:forcerun:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000157|int 0|flt|str;player|loc s: l: f:
+# forcesneak I   sig= explicit=1
+cmd:forcesneak:implicit|ok|w0|e0|msg|code ca00015a|int|flt|str|loc s: l: f:
+cmd:forcesneak:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00015b|int 0|flt|str;player|loc s: l: f:
+# getacrobatics F f sig= explicit=1
+cmd:getacrobatics:implicit|ok|w0|e0|msg|code 00000000 ca0000a2 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getacrobatics:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000bd c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getacrobatics:cond|ok|w0|e0|msg|code ca0000a2 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getagility F f sig= explicit=1
+cmd:getagility:implicit|ok|w0|e0|msg|code 00000000 ca00002a c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getagility:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000032 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getagility:cond|ok|w0|e0|msg|code ca00002a 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getaipackagedone F l sig= explicit=1
+cmd:getaipackagedone:implicit|ok|w0|e0|msg|code 00000000 ca00007c c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getaipackagedone:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00007d c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getaipackagedone:cond|ok|w0|e0|msg|code ca00007c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getalarm F l sig= explicit=1
+cmd:getalarm:implicit|ok|w0|e0|msg|code 00000000 ca0001c5 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getalarm:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001c6 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getalarm:cond|ok|w0|e0|msg|code ca0001c5 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getalchemy F f sig= explicit=1
+cmd:getalchemy:implicit|ok|w0|e0|msg|code 00000000 ca00009e c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getalchemy:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b9 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getalchemy:cond|ok|w0|e0|msg|code ca00009e 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getalteration F f sig= explicit=1
+cmd:getalteration:implicit|ok|w0|e0|msg|code 00000000 ca000099 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getalteration:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b4 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getalteration:cond|ok|w0|e0|msg|code ca000099 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getangle F f sig=c explicit=1
+cmd:getangle:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00016a c8000006 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getangle:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca00016b c8000006 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getangle:cond|ok|w0|e0|msg|code 00000000 ca00016a 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getarmorbonus F l sig= explicit=1
+cmd:getarmorbonus:implicit|ok|w0|e0|msg|code 00000000 ca000274 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getarmorbonus:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028c c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getarmorbonus:cond|ok|w0|e0|msg|code ca000274 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getarmorer F f sig= explicit=1
+cmd:getarmorer:implicit|ok|w0|e0|msg|code 00000000 ca00008f c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getarmorer:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000aa c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getarmorer:cond|ok|w0|e0|msg|code ca00008f 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getarmortype F l sig=l explicit=1
+cmd:getarmortype:implicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca0001d1 c8000028|int 3|flt|str;globallong|loc s: l: f:
+cmd:getarmortype:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 00000001 c8000004 ca0001d2 c8000028|int 3 0|flt|str;player;globallong|loc s: l: f:
+cmd:getarmortype:cond|ok|w0|e0|msg|code 00000000 c8000004 ca0001d1 00000001 c8000004 c800001a c8000019 01000001|int 3 1|flt|str|loc s: l: f:
+# getathletics F f sig= explicit=1
+cmd:getathletics:implicit|ok|w0|e0|msg|code 00000000 ca000096 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getathletics:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b1 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getathletics:cond|ok|w0|e0|msg|code ca000096 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getattackbonus F l sig= explicit=1
+cmd:getattackbonus:implicit|ok|w0|e0|msg|code 00000000 ca00027a c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getattackbonus:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000292 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getattackbonus:cond|ok|w0|e0|msg|code ca00027a 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getattacked F l sig= explicit=1
+cmd:getattacked:implicit|ok|w0|e0|msg|code 00000000 ca0001d3 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getattacked:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001d4 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getattacked:cond|ok|w0|e0|msg|code ca0001d3 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getaxe F f sig= explicit=1
+cmd:getaxe:implicit|ok|w0|e0|msg|code 00000000 ca000094 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getaxe:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000af c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getaxe:cond|ok|w0|e0|msg|code ca000094 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getblightdisease F l sig= explicit=1
+cmd:getblightdisease:implicit|ok|w0|e0|msg|code 00000000 ca0001aa c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getblightdisease:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001ab c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getblightdisease:cond|ok|w0|e0|msg|code ca0001aa 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getblindness F l sig= explicit=1
+cmd:getblindness:implicit|ok|w0|e0|msg|code 00000000 ca000277 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getblindness:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028f c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getblindness:cond|ok|w0|e0|msg|code ca000277 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getblock F f sig= explicit=1
+cmd:getblock:implicit|ok|w0|e0|msg|code 00000000 ca00008e c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getblock:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000a9 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getblock:cond|ok|w0|e0|msg|code ca00008e 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getbluntweapon F f sig= explicit=1
+cmd:getbluntweapon:implicit|ok|w0|e0|msg|code 00000000 ca000092 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getbluntweapon:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000ad c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getbluntweapon:cond|ok|w0|e0|msg|code ca000092 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getbuttonpressed F l sig= explicit=0
+cmd:getbuttonpressed:implicit|ok|w0|e0|msg|code 00000000 ca000137 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getbuttonpressed:cond|ok|w0|e0|msg|code ca000137 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcastpenalty F l sig= explicit=1
+cmd:getcastpenalty:implicit|ok|w0|e0|msg|code 00000000 ca000275 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcastpenalty:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028d c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getcastpenalty:cond|ok|w0|e0|msg|code ca000275 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getchameleon F l sig= explicit=1
+cmd:getchameleon:implicit|ok|w0|e0|msg|code 00000000 ca00026f c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getchameleon:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000287 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getchameleon:cond|ok|w0|e0|msg|code ca00026f 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcollidingactor F l sig= explicit=1
+cmd:getcollidingactor:implicit|ok|w0|e0|msg|code 00000000 ca000252 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcollidingactor:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000253 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getcollidingactor:cond|ok|w0|e0|msg|code ca000252 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcollidingpc F l sig= explicit=1
+cmd:getcollidingpc:implicit|ok|w0|e0|msg|code 00000000 ca000250 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcollidingpc:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000251 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getcollidingpc:cond|ok|w0|e0|msg|code ca000250 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcommondisease F l sig= explicit=1
+cmd:getcommondisease:implicit|ok|w0|e0|msg|code 00000000 ca0001a8 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcommondisease:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001a9 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getcommondisease:cond|ok|w0|e0|msg|code ca0001a8 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getconjuration F f sig= explicit=1
+cmd:getconjuration:implicit|ok|w0|e0|msg|code 00000000 ca00009b c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getconjuration:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b6 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getconjuration:cond|ok|w0|e0|msg|code ca00009b 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcurrentaipackage F l sig= explicit=1
+cmd:getcurrentaipackage:implicit|ok|w0|e0|msg|code 00000000 ca0001ef c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcurrentaipackage:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001f0 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getcurrentaipackage:cond|ok|w0|e0|msg|code ca0001ef 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcurrenttime F f sig= explicit=0
+cmd:getcurrenttime:implicit|ok|w0|e0|msg|code 00000000 ca0001dd c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcurrenttime:cond|ok|w0|e0|msg|code ca0001dd 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getcurrentweather F l sig= explicit=0
+cmd:getcurrentweather:implicit|ok|w0|e0|msg|code 00000000 ca00013f c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getcurrentweather:cond|ok|w0|e0|msg|code ca00013f 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getdeadcount F l sig=c explicit=0
+cmd:getdeadcount:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001a3 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getdeadcount:cond|ok|w0|e0|msg|code 00000000 ca0001a3 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getdefendbonus F l sig= explicit=1
+cmd:getdefendbonus:implicit|ok|w0|e0|msg|code 00000000 ca00027b c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getdefendbonus:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000293 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getdefendbonus:cond|ok|w0|e0|msg|code ca00027b 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getdestruction F f sig= explicit=1
+cmd:getdestruction:implicit|ok|w0|e0|msg|code 00000000 ca000098 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getdestruction:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b3 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getdestruction:cond|ok|w0|e0|msg|code ca000098 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getdetected F l sig=c explicit=1
+cmd:getdetected:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001f1 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getdetected:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001f2 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getdetected:cond|ok|w0|e0|msg|code 00000000 ca0001f1 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getdisabled F l sig=x explicit=1
+cmd:getdisabled:implicit|ok|w1|e0|msg;W1:33:Extra argument|code 00000000 ca000319 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getdisabled:explicit|ok|w1|e0|msg;W1:41:Extra argument|code 00000001 00000000 c8000004 ca00031c c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getdisabled:cond|ok|w1|e0|msg;W1:20:Extra argument|code ca000319 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getdisposition F l sig= explicit=1
+cmd:getdisposition:implicit|ok|w0|e0|msg|code 00000000 ca0001a6 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getdisposition:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001a7 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getdisposition:cond|ok|w0|e0|msg|code ca0001a6 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getdistance F f sig=c explicit=1
+cmd:getdistance:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00031e c8000006 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getdistance:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca00031f c8000006 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getdistance:cond|ok|w0|e0|msg|code 00000000 ca00031e 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# geteffect F l sig=S explicit=1
+cmd:geteffect:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001cf c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:geteffect:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001d0 c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:geteffect:cond|ok|w0|e0|msg|code 00000000 ca0001cf 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# getenchant F f sig= explicit=1
+cmd:getenchant:implicit|ok|w0|e0|msg|code 00000000 ca000097 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getenchant:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b2 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getenchant:cond|ok|w0|e0|msg|code ca000097 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getendurance F f sig= explicit=1
+cmd:getendurance:implicit|ok|w0|e0|msg|code 00000000 ca00002c c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getendurance:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000034 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getendurance:cond|ok|w0|e0|msg|code ca00002c 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getfactionreaction F l sig=ccX explicit=0
+cmd:getfactionreaction:implicit|ok|w1|e0|msg;W1:50:Extra argument|code 00000002 00000001 00000000 ca000243 c8000028|int 4|flt|str;abc;abc;globallong|loc s: l: f:
+cmd:getfactionreaction:cond|ok|w1|e0|msg;W1:41:Extra argument|code 00000001 00000000 ca000243 00000001 c8000004 c800001a c8000019 01000001|int 4 1|flt|str;abc;abc|loc s: l: f:
+# getfatigue F f sig=x explicit=1
+cmd:getfatigue:implicit|ok|w1|e0|msg;W1:32:Extra argument|code 00000000 ca000059 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getfatigue:explicit|ok|w1|e0|msg;W1:40:Extra argument|code 00000001 00000000 c8000004 ca00005c c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getfatigue:cond|ok|w1|e0|msg;W1:19:Extra argument|code ca000059 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getfatiguegetratio F f sig= explicit=1
+cmd:getfatiguegetratio:implicit|ok|w0|e0|msg|code 00000000 ca000071 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getfatiguegetratio:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000074 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getfatiguegetratio:cond|ok|w0|e0|msg|code ca000071 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getfight F l sig= explicit=1
+cmd:getfight:implicit|ok|w0|e0|msg|code 00000000 ca0001c1 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getfight:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001c2 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getfight:cond|ok|w0|e0|msg|code ca0001c1 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getflee F l sig= explicit=1
+cmd:getflee:implicit|ok|w0|e0|msg|code 00000000 ca0001c3 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getflee:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001c4 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getflee:cond|ok|w0|e0|msg|code ca0001c3 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getflying F l sig= explicit=1
+cmd:getflying:implicit|ok|w0|e0|msg|code 00000000 ca000273 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getflying:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028b c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getflying:cond|ok|w0|e0|msg|code ca000273 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getforcejump F l sig= explicit=1
+cmd:getforcejump:implicit|ok|w0|e0|msg|code 00000000 ca000260 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getforcejump:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000261 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getforcejump:cond|ok|w0|e0|msg|code ca000260 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getforcemovejump F l sig= explicit=1
+cmd:getforcemovejump:implicit|ok|w0|e0|msg|code 00000000 ca000262 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getforcemovejump:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000263 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getforcemovejump:cond|ok|w0|e0|msg|code ca000262 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getforcerun F l sig= explicit=1
+cmd:getforcerun:implicit|ok|w0|e0|msg|code 00000000 ca0001cb c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getforcerun:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001cd c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getforcerun:cond|ok|w0|e0|msg|code ca0001cb 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getforcesneak F l sig= explicit=1
+cmd:getforcesneak:implicit|ok|w0|e0|msg|code 00000000 ca0001cc c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getforcesneak:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001ce c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getforcesneak:cond|ok|w0|e0|msg|code ca0001cc 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# gethandtohand F f sig= explicit=1
+cmd:gethandtohand:implicit|ok|w0|e0|msg|code 00000000 ca0000a8 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:gethandtohand:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000c3 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:gethandtohand:cond|ok|w0|e0|msg|code ca0000a8 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# gethealth F f sig=x explicit=1
+cmd:gethealth:implicit|ok|w1|e0|msg;W1:31:Extra argument|code 00000000 ca000057 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:gethealth:explicit|ok|w1|e0|msg;W1:39:Extra argument|code 00000001 00000000 c8000004 ca00005a c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:gethealth:cond|ok|w1|e0|msg;W1:18:Extra argument|code ca000057 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# gethealthgetratio F f sig= explicit=1
+cmd:gethealthgetratio:implicit|ok|w0|e0|msg|code 00000000 ca00006f c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:gethealthgetratio:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000072 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:gethealthgetratio:cond|ok|w0|e0|msg|code ca00006f 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getheavyarmor F f sig= explicit=1
+cmd:getheavyarmor:implicit|ok|w0|e0|msg|code 00000000 ca000091 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getheavyarmor:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000ac c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getheavyarmor:cond|ok|w0|e0|msg|code ca000091 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# gethello F l sig= explicit=1
+cmd:gethello:implicit|ok|w0|e0|msg|code 00000000 ca0001bf c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:gethello:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001c0 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:gethello:cond|ok|w0|e0|msg|code ca0001bf 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getillusion F f sig= explicit=1
+cmd:getillusion:implicit|ok|w0|e0|msg|code 00000000 ca00009a c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getillusion:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b5 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getillusion:cond|ok|w0|e0|msg|code ca00009a 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getintelligence F f sig= explicit=1
+cmd:getintelligence:implicit|ok|w0|e0|msg|code 00000000 ca000028 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getintelligence:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000030 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getintelligence:cond|ok|w0|e0|msg|code ca000028 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getinterior F l sig= explicit=0
+cmd:getinterior:implicit|ok|w0|e0|msg|code 00000000 ca000131 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getinterior:cond|ok|w0|e0|msg|code ca000131 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getinvisible F l sig= explicit=1
+cmd:getinvisible:implicit|ok|w0|e0|msg|code 00000000 ca000279 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getinvisible:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000291 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getinvisible:cond|ok|w0|e0|msg|code ca000279 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getitemcount F l sig=cX explicit=1
+cmd:getitemcount:implicit|ok|w1|e0|msg;W1:38:Extra argument|code 00000001 00000000 ca000078 c8000028|int 4|flt|str;abc;globallong|loc s: l: f:
+cmd:getitemcount:explicit|ok|w1|e0|msg;W1:46:Extra argument|code 00000002 00000000 00000001 c8000004 ca000079 c8000028|int 4 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getitemcount:cond|ok|w1|e0|msg;W1:29:Extra argument|code 00000000 ca000078 00000001 c8000004 c800001a c8000019 01000001|int 4 1|flt|str;abc|loc s: l: f:
+# getjournalindex F l sig=c explicit=0
+cmd:getjournalindex:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000135 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getjournalindex:cond|ok|w0|e0|msg|code 00000000 ca000135 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getlevel F l sig= explicit=1
+cmd:getlevel:implicit|ok|w0|e0|msg|code 00000000 ca00018c c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getlevel:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00018d c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getlevel:cond|ok|w0|e0|msg|code ca00018c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getlightarmor F f sig= explicit=1
+cmd:getlightarmor:implicit|ok|w0|e0|msg|code 00000000 ca0000a3 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getlightarmor:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000be c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getlightarmor:cond|ok|w0|e0|msg|code ca0000a3 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getlineofsight F l sig=c explicit=1
+cmd:getlineofsight:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000222 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getlineofsight:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000223 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getlineofsight:cond|ok|w0|e0|msg|code 00000000 ca000222 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getlocked F l sig= explicit=1
+cmd:getlocked:implicit|ok|w0|e0|msg|code 00000000 ca0001c7 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getlocked:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001c8 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getlocked:cond|ok|w0|e0|msg|code ca0001c7 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getlongblade F f sig= explicit=1
+cmd:getlongblade:implicit|ok|w0|e0|msg|code 00000000 ca000093 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getlongblade:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000ae c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getlongblade:cond|ok|w0|e0|msg|code ca000093 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getlos F l sig=c explicit=1
+cmd:getlos:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000222 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getlos:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000223 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getlos:cond|ok|w0|e0|msg|code 00000000 ca000222 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getluck F f sig= explicit=1
+cmd:getluck:implicit|ok|w0|e0|msg|code 00000000 ca00002e c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getluck:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000036 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getluck:cond|ok|w0|e0|msg|code ca00002e 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmagicka F f sig=x explicit=1
+cmd:getmagicka:implicit|ok|w1|e0|msg;W1:32:Extra argument|code 00000000 ca000058 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmagicka:explicit|ok|w1|e0|msg;W1:40:Extra argument|code 00000001 00000000 c8000004 ca00005b c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmagicka:cond|ok|w1|e0|msg;W1:19:Extra argument|code ca000058 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmagickagetratio F f sig= explicit=1
+cmd:getmagickagetratio:implicit|ok|w0|e0|msg|code 00000000 ca000070 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmagickagetratio:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000073 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmagickagetratio:cond|ok|w0|e0|msg|code ca000070 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmarksman F f sig= explicit=1
+cmd:getmarksman:implicit|ok|w0|e0|msg|code 00000000 ca0000a5 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmarksman:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000c0 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmarksman:cond|ok|w0|e0|msg|code ca0000a5 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmasserphase F l sig= explicit=0
+cmd:getmasserphase:implicit|ok|w0|e0|msg|code 00000000 ca000024 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmasserphase:cond|ok|w0|e0|msg|code ca000024 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmediumarmor F f sig= explicit=1
+cmd:getmediumarmor:implicit|ok|w0|e0|msg|code 00000000 ca000090 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmediumarmor:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000ab c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmediumarmor:cond|ok|w0|e0|msg|code ca000090 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmercantile F f sig= explicit=1
+cmd:getmercantile:implicit|ok|w0|e0|msg|code 00000000 ca0000a6 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmercantile:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000c1 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmercantile:cond|ok|w0|e0|msg|code ca0000a6 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getmysticism F f sig= explicit=1
+cmd:getmysticism:implicit|ok|w0|e0|msg|code 00000000 ca00009c c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getmysticism:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b7 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getmysticism:cond|ok|w0|e0|msg|code ca00009c 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getparalysis F l sig= explicit=1
+cmd:getparalysis:implicit|ok|w0|e0|msg|code 00000000 ca000278 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getparalysis:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000290 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getparalysis:cond|ok|w0|e0|msg|code ca000278 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpccell F l sig=c explicit=0
+cmd:getpccell:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000136 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getpccell:cond|ok|w0|e0|msg|code 00000000 ca000136 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getpccrimelevel F f sig= explicit=0
+cmd:getpccrimelevel:implicit|ok|w0|e0|msg|code 00000000 ca0001ec c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpccrimelevel:cond|ok|w0|e0|msg|code ca0001ec 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcfacrep F l sig=/c explicit=1
+cmd:getpcfacrep:implicit|ok|w0|e0|msg|code 00000000 c2001200 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcfacrep:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 c2001300 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getpcfacrep:cond|ok|w0|e0|msg|code c2001200 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+cmd:getpcfacrep:implicitall|ok|w0|e0|msg|code 00000001 00000000 c2001201 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getpcfacrep:explicitall|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 c2001301 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getpcfacrep:condall|ok|w0|e0|msg|code 00000000 c2001201 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getpcinjail F l sig= explicit=0
+cmd:getpcinjail:implicit|ok|w0|e0|msg|code 00000000 ca00023e c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcinjail:cond|ok|w0|e0|msg|code ca00023e 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcjumping F l sig= explicit=0
+cmd:getpcjumping:implicit|ok|w0|e0|msg|code 00000000 ca000233 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcjumping:cond|ok|w0|e0|msg|code ca000233 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcrank F l sig=/S explicit=1
+cmd:getpcrank:implicit|ok|w0|e0|msg|code 00000000 c2000e00 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcrank:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 c2000f00 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getpcrank:cond|ok|w0|e0|msg|code c2000e00 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+cmd:getpcrank:implicitall|ok|w0|e0|msg|code 00000001 00000000 c2000e01 c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:getpcrank:explicitall|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 c2000f01 c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:getpcrank:condall|ok|w0|e0|msg|code 00000000 c2000e01 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# getpcrunning F l sig= explicit=0
+cmd:getpcrunning:implicit|ok|w0|e0|msg|code 00000000 ca0001c9 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcrunning:cond|ok|w0|e0|msg|code ca0001c9 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcsleep F l sig= explicit=0
+cmd:getpcsleep:implicit|ok|w0|e0|msg|code 00000000 ca00019f c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcsleep:cond|ok|w0|e0|msg|code ca00019f 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcsneaking F l sig= explicit=0
+cmd:getpcsneaking:implicit|ok|w0|e0|msg|code 00000000 ca0001ca c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcsneaking:cond|ok|w0|e0|msg|code ca0001ca 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpctraveling F l sig= explicit=0
+cmd:getpctraveling:implicit|ok|w0|e0|msg|code 00000000 ca00023f c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpctraveling:cond|ok|w0|e0|msg|code ca00023f 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpcvisionbonus F f sig= explicit=0
+cmd:getpcvisionbonus:implicit|ok|w0|e0|msg|code 00000000 ca000322 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpcvisionbonus:cond|ok|w0|e0|msg|code ca000322 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpersonality F f sig= explicit=1
+cmd:getpersonality:implicit|ok|w0|e0|msg|code 00000000 ca00002d c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getpersonality:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000035 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getpersonality:cond|ok|w0|e0|msg|code ca00002d 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayercontrolsdisabled F l sig= explicit=0
+cmd:getplayercontrolsdisabled:implicit|ok|w0|e0|msg|code 00000000 ca000175 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayercontrolsdisabled:cond|ok|w0|e0|msg|code ca000175 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayerfightingdisabled F l sig= explicit=0
+cmd:getplayerfightingdisabled:implicit|ok|w0|e0|msg|code 00000000 ca000176 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayerfightingdisabled:cond|ok|w0|e0|msg|code ca000176 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayerjumpingdisabled F l sig= explicit=0
+cmd:getplayerjumpingdisabled:implicit|ok|w0|e0|msg|code 00000000 ca000177 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayerjumpingdisabled:cond|ok|w0|e0|msg|code ca000177 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayerlookingdisabled F l sig= explicit=0
+cmd:getplayerlookingdisabled:implicit|ok|w0|e0|msg|code 00000000 ca000178 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayerlookingdisabled:cond|ok|w0|e0|msg|code ca000178 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayermagicdisabled F l sig= explicit=0
+cmd:getplayermagicdisabled:implicit|ok|w0|e0|msg|code 00000000 ca000179 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayermagicdisabled:cond|ok|w0|e0|msg|code ca000179 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getplayerviewswitchdisabled F l sig= explicit=0
+cmd:getplayerviewswitchdisabled:implicit|ok|w0|e0|msg|code 00000000 ca00017a c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getplayerviewswitchdisabled:cond|ok|w0|e0|msg|code ca00017a 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getpos F f sig=c explicit=1
+cmd:getpos:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000190 c8000006 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getpos:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000191 c8000006 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getpos:cond|ok|w0|e0|msg|code 00000000 ca000190 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getrace F l sig=c explicit=1
+cmd:getrace:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001d9 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getrace:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001da c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getrace:cond|ok|w0|e0|msg|code 00000000 ca0001d9 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getreputation F l sig= explicit=1
+cmd:getreputation:implicit|ok|w0|e0|msg|code 00000000 ca0001b1 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getreputation:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001b2 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getreputation:cond|ok|w0|e0|msg|code ca0001b1 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistblight F l sig= explicit=1
+cmd:getresistblight:implicit|ok|w0|e0|msg|code 00000000 ca000269 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistblight:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000281 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistblight:cond|ok|w0|e0|msg|code ca000269 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistcorprus F l sig= explicit=1
+cmd:getresistcorprus:implicit|ok|w0|e0|msg|code 00000000 ca00026a c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistcorprus:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000282 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistcorprus:cond|ok|w0|e0|msg|code ca00026a 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistdisease F l sig= explicit=1
+cmd:getresistdisease:implicit|ok|w0|e0|msg|code 00000000 ca000268 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistdisease:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000280 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistdisease:cond|ok|w0|e0|msg|code ca000268 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistfire F l sig= explicit=1
+cmd:getresistfire:implicit|ok|w0|e0|msg|code 00000000 ca000265 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistfire:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00027d c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistfire:cond|ok|w0|e0|msg|code ca000265 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistfrost F l sig= explicit=1
+cmd:getresistfrost:implicit|ok|w0|e0|msg|code 00000000 ca000266 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistfrost:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00027e c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistfrost:cond|ok|w0|e0|msg|code ca000266 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistmagicka F l sig= explicit=1
+cmd:getresistmagicka:implicit|ok|w0|e0|msg|code 00000000 ca000264 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistmagicka:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00027c c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistmagicka:cond|ok|w0|e0|msg|code ca000264 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistnormalweapons F l sig= explicit=1
+cmd:getresistnormalweapons:implicit|ok|w0|e0|msg|code 00000000 ca00026d c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistnormalweapons:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000285 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistnormalweapons:cond|ok|w0|e0|msg|code ca00026d 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistparalysis F l sig= explicit=1
+cmd:getresistparalysis:implicit|ok|w0|e0|msg|code 00000000 ca00026c c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistparalysis:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000284 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistparalysis:cond|ok|w0|e0|msg|code ca00026c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistpoison F l sig= explicit=1
+cmd:getresistpoison:implicit|ok|w0|e0|msg|code 00000000 ca00026b c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistpoison:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000283 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistpoison:cond|ok|w0|e0|msg|code ca00026b 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getresistshock F l sig= explicit=1
+cmd:getresistshock:implicit|ok|w0|e0|msg|code 00000000 ca000267 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getresistshock:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00027f c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getresistshock:cond|ok|w0|e0|msg|code ca000267 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getrestoration F f sig= explicit=1
+cmd:getrestoration:implicit|ok|w0|e0|msg|code 00000000 ca00009d c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getrestoration:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b8 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getrestoration:cond|ok|w0|e0|msg|code ca00009d 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getscale F f sig= explicit=1
+cmd:getscale:implicit|ok|w0|e0|msg|code 00000000 ca000168 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getscale:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000169 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getscale:cond|ok|w0|e0|msg|code ca000168 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsecondspassed F f sig= explicit=0
+cmd:getsecondspassed:implicit|ok|w0|e0|msg|code 00000000 ca000316 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsecondspassed:cond|ok|w0|e0|msg|code ca000316 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsecundaphase F l sig= explicit=0
+cmd:getsecundaphase:implicit|ok|w0|e0|msg|code 00000000 ca000025 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsecundaphase:cond|ok|w0|e0|msg|code ca000025 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsecurity F f sig= explicit=1
+cmd:getsecurity:implicit|ok|w0|e0|msg|code 00000000 ca0000a0 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsecurity:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000bb c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getsecurity:cond|ok|w0|e0|msg|code ca0000a0 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getshortblade F f sig= explicit=1
+cmd:getshortblade:implicit|ok|w0|e0|msg|code 00000000 ca0000a4 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getshortblade:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000bf c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getshortblade:cond|ok|w0|e0|msg|code ca0000a4 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsilence F l sig= explicit=1
+cmd:getsilence:implicit|ok|w0|e0|msg|code 00000000 ca000276 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsilence:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028e c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getsilence:cond|ok|w0|e0|msg|code ca000276 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsneak F f sig= explicit=1
+cmd:getsneak:implicit|ok|w0|e0|msg|code 00000000 ca0000a1 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsneak:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000bc c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getsneak:cond|ok|w0|e0|msg|code ca0000a1 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsoundplaying F l sig=c explicit=1
+cmd:getsoundplaying:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00000b c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getsoundplaying:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000020 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getsoundplaying:cond|ok|w0|e0|msg|code 00000000 ca00000b 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getspear F f sig= explicit=1
+cmd:getspear:implicit|ok|w0|e0|msg|code 00000000 ca000095 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getspear:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000b0 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getspear:cond|ok|w0|e0|msg|code ca000095 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getspeechcraft F f sig= explicit=1
+cmd:getspeechcraft:implicit|ok|w0|e0|msg|code 00000000 ca0000a7 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getspeechcraft:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000c2 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getspeechcraft:cond|ok|w0|e0|msg|code ca0000a7 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getspeed F f sig= explicit=1
+cmd:getspeed:implicit|ok|w0|e0|msg|code 00000000 ca00002b c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getspeed:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000033 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getspeed:cond|ok|w0|e0|msg|code ca00002b 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getspell F l sig=c explicit=1
+cmd:getspell:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00014b c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getspell:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca00014c c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getspell:cond|ok|w0|e0|msg|code 00000000 ca00014b 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getspelleffects F l sig=c explicit=1
+cmd:getspelleffects:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001db c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getspelleffects:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001dc c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getspelleffects:cond|ok|w0|e0|msg|code 00000000 ca0001db 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getspellreadied F l sig= explicit=1
+cmd:getspellreadied:implicit|ok|w0|e0|msg|code 00000000 ca000231 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getspellreadied:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000232 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getspellreadied:cond|ok|w0|e0|msg|code ca000231 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsquareroot F f sig=f explicit=0
+cmd:getsquareroot:implicit|ok|w0|e0|msg|code 00000000 00000000 c8000005 ca0001e7 c8000006 c8000028|int|flt 3fc00000|str;globallong|loc s: l: f:
+cmd:getsquareroot:cond|ok|w0|e0|msg|code 00000000 c8000005 ca0001e7 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt 3fc00000|str|loc s: l: f:
+# getstandingactor F l sig= explicit=1
+cmd:getstandingactor:implicit|ok|w0|e0|msg|code 00000000 ca00020e c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getstandingactor:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00020f c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getstandingactor:cond|ok|w0|e0|msg|code ca00020e 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getstandingpc F l sig= explicit=1
+cmd:getstandingpc:implicit|ok|w0|e0|msg|code 00000000 ca00020c c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getstandingpc:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00020d c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getstandingpc:cond|ok|w0|e0|msg|code ca00020c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getstartingangle F f sig=c explicit=1
+cmd:getstartingangle:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000210 c8000006 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getstartingangle:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000211 c8000006 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getstartingangle:cond|ok|w0|e0|msg|code 00000000 ca000210 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getstartingpos F f sig=c explicit=1
+cmd:getstartingpos:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000194 c8000006 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getstartingpos:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000195 c8000006 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getstartingpos:cond|ok|w0|e0|msg|code 00000000 ca000194 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getstat F l sig=c explicit=1
+cmd:getstat:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00024e c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:getstat:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca00024f c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:getstat:cond|ok|w0|e0|msg|code 00000000 ca00024e 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getstrength F f sig= explicit=1
+cmd:getstrength:implicit|ok|w0|e0|msg|code 00000000 ca000027 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getstrength:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00002f c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getstrength:cond|ok|w0|e0|msg|code ca000027 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getsuperjump F l sig= explicit=1
+cmd:getsuperjump:implicit|ok|w0|e0|msg|code 00000000 ca000272 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getsuperjump:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00028a c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getsuperjump:cond|ok|w0|e0|msg|code ca000272 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getswimspeed F l sig= explicit=1
+cmd:getswimspeed:implicit|ok|w0|e0|msg|code 00000000 ca000271 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getswimspeed:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000289 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getswimspeed:cond|ok|w0|e0|msg|code ca000271 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# gettarget F l sig=c explicit=1
+cmd:gettarget:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000238 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:gettarget:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000239 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:gettarget:cond|ok|w0|e0|msg|code 00000000 ca000238 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# getunarmored F f sig= explicit=1
+cmd:getunarmored:implicit|ok|w0|e0|msg|code 00000000 ca00009f c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getunarmored:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0000ba c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getunarmored:cond|ok|w0|e0|msg|code ca00009f 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getvanitymodedisabled F l sig= explicit=0
+cmd:getvanitymodedisabled:implicit|ok|w0|e0|msg|code 00000000 ca00017b c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getvanitymodedisabled:cond|ok|w0|e0|msg|code ca00017b 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwaterbreathing F l sig= explicit=1
+cmd:getwaterbreathing:implicit|ok|w0|e0|msg|code 00000000 ca00026e c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwaterbreathing:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000286 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getwaterbreathing:cond|ok|w0|e0|msg|code ca00026e 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwaterlevel F f sig= explicit=0
+cmd:getwaterlevel:implicit|ok|w0|e0|msg|code 00000000 ca000141 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwaterlevel:cond|ok|w0|e0|msg|code ca000141 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwaterwalking F l sig= explicit=1
+cmd:getwaterwalking:implicit|ok|w0|e0|msg|code 00000000 ca000270 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwaterwalking:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000288 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getwaterwalking:cond|ok|w0|e0|msg|code ca000270 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getweapondrawn F l sig= explicit=1
+cmd:getweapondrawn:implicit|ok|w0|e0|msg|code 00000000 ca0001d7 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getweapondrawn:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001d8 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getweapondrawn:cond|ok|w0|e0|msg|code ca0001d7 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getweapontype F l sig= explicit=1
+cmd:getweapontype:implicit|ok|w0|e0|msg|code 00000000 ca0001e0 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getweapontype:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001e1 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getweapontype:cond|ok|w0|e0|msg|code ca0001e0 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwerewolfkills F l sig= explicit=0
+cmd:getwerewolfkills:implicit|ok|w0|e0|msg|code 00000000 ca0001e2 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwerewolfkills:cond|ok|w0|e0|msg|code ca0001e2 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwillpower F f sig= explicit=1
+cmd:getwillpower:implicit|ok|w0|e0|msg|code 00000000 ca000029 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwillpower:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000031 c8000006 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:getwillpower:cond|ok|w0|e0|msg|code ca000029 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# getwindspeed F f sig= explicit=0
+cmd:getwindspeed:implicit|ok|w0|e0|msg|code 00000000 ca000212 c8000006 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:getwindspeed:cond|ok|w0|e0|msg|code ca000212 00000000 c8000004 c8000003 c8000020 c8000019 01000001|int 1|flt|str|loc s: l: f:
+# goodbye I   sig= explicit=0
+cmd:goodbye:implicit|ok|w0|e0|msg|code ca000152|int|flt|str|loc s: l: f:
+# gotojail I   sig= explicit=0
+cmd:gotojail:implicit|ok|w0|e0|msg|code ca000235|int|flt|str|loc s: l: f:
+# hasitemequipped F l sig=c explicit=1
+cmd:hasitemequipped:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001d5 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:hasitemequipped:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001d6 c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:hasitemequipped:cond|ok|w0|e0|msg|code 00000000 ca0001d5 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# hassoulgem F l sig=c explicit=1
+cmd:hassoulgem:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0001de c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:hassoulgem:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0001df c8000028|int 1|flt|str;abc;player;globallong|loc s: l: f:
+cmd:hassoulgem:cond|ok|w0|e0|msg|code 00000000 ca0001de 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# help I   sig= explicit=0
+cmd:help:implicit|ok|w0|e0|msg|code ca000320|int|flt|str|loc s: l: f:
+# hitattemptonme F l sig=S explicit=1
+cmd:hitattemptonme:implicit|ok|w0|e0|msg|code 00000001 00000000 ca0002f9 c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:hitattemptonme:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca0002fa c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:hitattemptonme:cond|ok|w0|e0|msg|code 00000000 ca0002f9 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# hitonme F l sig=S explicit=1
+cmd:hitonme:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000213 c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:hitonme:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca000214 c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:hitonme:cond|ok|w0|e0|msg|code 00000000 ca000213 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# hurtcollidingactor I   sig=f explicit=1
+cmd:hurtcollidingactor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000256|int|flt 3fc00000|str|loc s: l: f:
+cmd:hurtcollidingactor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000257|int 0|flt 3fc00000|str;player|loc s: l: f:
+# hurtstandingactor I   sig=f explicit=1
+cmd:hurtstandingactor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000254|int|flt 3fc00000|str|loc s: l: f:
+cmd:hurtstandingactor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000255|int 0|flt 3fc00000|str;player|loc s: l: f:
+# iswerewolf F l sig= explicit=1
+cmd:iswerewolf:implicit|ok|w0|e0|msg|code 00000000 ca0001fd c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:iswerewolf:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001fe c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:iswerewolf:cond|ok|w0|e0|msg|code ca0001fd 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# journal I   sig=cl explicit=1
+cmd:journal:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 ca000133|int 3|flt|str;abc|loc s: l: f:
+cmd:journal:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 ca00030b|int 3 1|flt|str;abc;player|loc s: l: f:
+# lock I   sig=/l explicit=1
+cmd:lock:implicit|ok|w0|e0|msg|code c2000400|int|flt|str|loc s: l: f:
+cmd:lock:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2000500|int 0|flt|str;player|loc s: l: f:
+cmd:lock:implicitall|ok|w0|e0|msg|code 00000000 c8000004 c2000401|int 3|flt|str|loc s: l: f:
+cmd:lock:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 c2000501|int 3 0|flt|str;player|loc s: l: f:
+# loopgroup I   sig=cl/l explicit=1
+cmd:loopgroup:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 c2000800|int 3|flt|str;abc|loc s: l: f:
+cmd:loopgroup:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 c2000900|int 3 1|flt|str;abc;player|loc s: l: f:
+cmd:loopgroup:implicitall|ok|w0|e0|msg|code 00000001 c8000004 00000000 c8000004 00000000 c2000801|int 3 3|flt|str;abc|loc s: l: f:
+cmd:loopgroup:explicitall|ok|w0|e0|msg|code 00000001 c8000004 00000000 c8000004 00000000 00000002 c8000004 c2000901|int 3 3 1|flt|str;abc;player|loc s: l: f:
+# lowerrank I   sig=x explicit=1
+cmd:lowerrank:implicit|ok|w1|e0|msg;W1:13:Extra argument|code ca0001ea|int|flt|str|loc s: l: f:
+cmd:lowerrank:explicit|ok|w1|e0|msg;W1:21:Extra argument|code 00000000 c8000004 ca0001eb|int 0|flt|str;player|loc s: l: f:
+# menumode F l sig= explicit=0
+cmd:menumode:implicit|ok|w0|e0|msg|code 00000000 ca000311 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:menumode:cond|ok|w0|e0|msg|code ca000311 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# menutest I   sig=/l explicit=0
+cmd:menutest:implicit|ok|w0|e0|msg|code c2002c00|int|flt|str|loc s: l: f:
+cmd:menutest:implicitall|ok|w0|e0|msg|code 00000000 c8000004 c2002c01|int 3|flt|str|loc s: l: f:
+# modacrobatics I   sig=f explicit=1
+cmd:modacrobatics:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010e|int|flt 3fc00000|str|loc s: l: f:
+cmd:modacrobatics:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000129|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modagility I   sig=f explicit=1
+cmd:modagility:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00004a|int|flt 3fc00000|str|loc s: l: f:
+cmd:modagility:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000052|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modalarm I   sig=l explicit=1
+cmd:modalarm:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001bd|int 3|flt|str|loc s: l: f:
+cmd:modalarm:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001be|int 3 0|flt|str;player|loc s: l: f:
+# modalchemy I   sig=f explicit=1
+cmd:modalchemy:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010a|int|flt 3fc00000|str|loc s: l: f:
+cmd:modalchemy:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000125|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modalteration I   sig=f explicit=1
+cmd:modalteration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000105|int|flt 3fc00000|str|loc s: l: f:
+cmd:modalteration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000120|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modarmorbonus I   sig=l explicit=1
+cmd:modarmorbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d4|int 3|flt|str|loc s: l: f:
+cmd:modarmorbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ec|int 3 0|flt|str;player|loc s: l: f:
+# modarmorer I   sig=f explicit=1
+cmd:modarmorer:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000fb|int|flt 3fc00000|str|loc s: l: f:
+cmd:modarmorer:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000116|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modathletics I   sig=f explicit=1
+cmd:modathletics:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000102|int|flt 3fc00000|str|loc s: l: f:
+cmd:modathletics:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011d|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modattackbonus I   sig=l explicit=1
+cmd:modattackbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002da|int 3|flt|str|loc s: l: f:
+cmd:modattackbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002f2|int 3 0|flt|str;player|loc s: l: f:
+# modaxe I   sig=f explicit=1
+cmd:modaxe:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000100|int|flt 3fc00000|str|loc s: l: f:
+cmd:modaxe:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011b|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modblindness I   sig=l explicit=1
+cmd:modblindness:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d7|int 3|flt|str|loc s: l: f:
+cmd:modblindness:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ef|int 3 0|flt|str;player|loc s: l: f:
+# modblock I   sig=f explicit=1
+cmd:modblock:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000fa|int|flt 3fc00000|str|loc s: l: f:
+cmd:modblock:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000115|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modbluntweapon I   sig=f explicit=1
+cmd:modbluntweapon:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000fe|int|flt 3fc00000|str|loc s: l: f:
+cmd:modbluntweapon:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000119|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modcastpenalty I   sig=l explicit=1
+cmd:modcastpenalty:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d5|int 3|flt|str|loc s: l: f:
+cmd:modcastpenalty:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ed|int 3 0|flt|str;player|loc s: l: f:
+# modchameleon I   sig=l explicit=1
+cmd:modchameleon:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002cf|int 3|flt|str|loc s: l: f:
+cmd:modchameleon:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e7|int 3 0|flt|str;player|loc s: l: f:
+# modconjuration I   sig=f explicit=1
+cmd:modconjuration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000107|int|flt 3fc00000|str|loc s: l: f:
+cmd:modconjuration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000122|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modcurrentfatigue I   sig=f explicit=1
+cmd:modcurrentfatigue:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00006b|int|flt 3fc00000|str|loc s: l: f:
+cmd:modcurrentfatigue:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00006e|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modcurrenthealth I   sig=f explicit=1
+cmd:modcurrenthealth:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000069|int|flt 3fc00000|str|loc s: l: f:
+cmd:modcurrenthealth:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00006c|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modcurrentmagicka I   sig=f explicit=1
+cmd:modcurrentmagicka:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00006a|int|flt 3fc00000|str|loc s: l: f:
+cmd:modcurrentmagicka:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00006d|int 0|flt 3fc00000|str;player|loc s: l: f:
+# moddefendbonus I   sig=l explicit=1
+cmd:moddefendbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002db|int 3|flt|str|loc s: l: f:
+cmd:moddefendbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002f3|int 3 0|flt|str;player|loc s: l: f:
+# moddestruction I   sig=f explicit=1
+cmd:moddestruction:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000104|int|flt 3fc00000|str|loc s: l: f:
+cmd:moddestruction:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011f|int 0|flt 3fc00000|str;player|loc s: l: f:
+# moddisposition I   sig=l explicit=1
+cmd:moddisposition:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00014d|int 3|flt|str|loc s: l: f:
+cmd:moddisposition:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca00014e|int 3 0|flt|str;player|loc s: l: f:
+# modenchant I   sig=f explicit=1
+cmd:modenchant:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000103|int|flt 3fc00000|str|loc s: l: f:
+cmd:modenchant:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011e|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modendurance I   sig=f explicit=1
+cmd:modendurance:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00004c|int|flt 3fc00000|str|loc s: l: f:
+cmd:modendurance:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000054|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modfactionreaction I   sig=ccl explicit=0
+cmd:modfactionreaction:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca000242|int 3|flt|str;abc;abc|loc s: l: f:
+# modfatigue I   sig=f explicit=1
+cmd:modfatigue:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000065|int|flt 3fc00000|str|loc s: l: f:
+cmd:modfatigue:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000068|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modfight I   sig=l explicit=1
+cmd:modfight:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001b9|int 3|flt|str|loc s: l: f:
+cmd:modfight:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001ba|int 3 0|flt|str;player|loc s: l: f:
+# modflee I   sig=l explicit=1
+cmd:modflee:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001bb|int 3|flt|str|loc s: l: f:
+cmd:modflee:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001bc|int 3 0|flt|str;player|loc s: l: f:
+# modflying I   sig=l explicit=1
+cmd:modflying:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d3|int 3|flt|str|loc s: l: f:
+cmd:modflying:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002eb|int 3 0|flt|str;player|loc s: l: f:
+# modhandtohand I   sig=f explicit=1
+cmd:modhandtohand:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000114|int|flt 3fc00000|str|loc s: l: f:
+cmd:modhandtohand:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012f|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modhealth I   sig=f explicit=1
+cmd:modhealth:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000063|int|flt 3fc00000|str|loc s: l: f:
+cmd:modhealth:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000066|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modheavyarmor I   sig=f explicit=1
+cmd:modheavyarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000fd|int|flt 3fc00000|str|loc s: l: f:
+cmd:modheavyarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000118|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modhello I   sig=l explicit=1
+cmd:modhello:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001b7|int 3|flt|str|loc s: l: f:
+cmd:modhello:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001b8|int 3 0|flt|str;player|loc s: l: f:
+# modillusion I   sig=f explicit=1
+cmd:modillusion:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000106|int|flt 3fc00000|str|loc s: l: f:
+cmd:modillusion:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000121|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modintelligence I   sig=f explicit=1
+cmd:modintelligence:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000048|int|flt 3fc00000|str|loc s: l: f:
+cmd:modintelligence:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000050|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modinvisible I   sig=l explicit=1
+cmd:modinvisible:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d9|int 3|flt|str|loc s: l: f:
+cmd:modinvisible:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002f1|int 3 0|flt|str;player|loc s: l: f:
+# modlightarmor I   sig=f explicit=1
+cmd:modlightarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010f|int|flt 3fc00000|str|loc s: l: f:
+cmd:modlightarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012a|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modlongblade I   sig=f explicit=1
+cmd:modlongblade:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000ff|int|flt 3fc00000|str|loc s: l: f:
+cmd:modlongblade:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011a|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modluck I   sig=f explicit=1
+cmd:modluck:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00004e|int|flt 3fc00000|str|loc s: l: f:
+cmd:modluck:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000056|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modmagicka I   sig=f explicit=1
+cmd:modmagicka:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000064|int|flt 3fc00000|str|loc s: l: f:
+cmd:modmagicka:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000067|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modmarksman I   sig=f explicit=1
+cmd:modmarksman:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000111|int|flt 3fc00000|str|loc s: l: f:
+cmd:modmarksman:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012c|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modmediumarmor I   sig=f explicit=1
+cmd:modmediumarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000fc|int|flt 3fc00000|str|loc s: l: f:
+cmd:modmediumarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000117|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modmercantile I   sig=f explicit=1
+cmd:modmercantile:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000112|int|flt 3fc00000|str|loc s: l: f:
+cmd:modmercantile:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012d|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modmysticism I   sig=f explicit=1
+cmd:modmysticism:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000108|int|flt 3fc00000|str|loc s: l: f:
+cmd:modmysticism:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000123|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modparalysis I   sig=l explicit=1
+cmd:modparalysis:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d8|int 3|flt|str|loc s: l: f:
+cmd:modparalysis:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002f0|int 3 0|flt|str;player|loc s: l: f:
+# modpccrimelevel I   sig=f explicit=0
+cmd:modpccrimelevel:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0001ee|int|flt 3fc00000|str|loc s: l: f:
+# modpcfacrep I   sig=l/c explicit=1
+cmd:modpcfacrep:implicit|ok|w0|e0|msg|code 00000000 c8000004 c2001600|int 3|flt|str|loc s: l: f:
+cmd:modpcfacrep:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 c2001700|int 3 0|flt|str;player|loc s: l: f:
+cmd:modpcfacrep:implicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2001601|int 3|flt|str;abc|loc s: l: f:
+cmd:modpcfacrep:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 00000001 c8000004 c2001701|int 3 1|flt|str;abc;player|loc s: l: f:
+# modpcvisionbonus I   sig=f explicit=0
+cmd:modpcvisionbonus:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000324|int|flt 3fc00000|str|loc s: l: f:
+# modpersonality I   sig=f explicit=1
+cmd:modpersonality:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00004d|int|flt 3fc00000|str|loc s: l: f:
+cmd:modpersonality:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000055|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modregion I   sig=S/llllllllllX explicit=0
+cmd:modregion:implicit|ok|w0|e0|msg|code 00000000 c2002600|int|flt|str;Abc|loc s: l: f:
+cmd:modregion:implicitall|ok|w1|e0|msg;W1:37:Extra argument|code 00000009 c8000004 00000008 c8000004 00000007 c8000004 00000006 c8000004 00000005 c8000004 00000004 c8000004 00000003 c8000004 00000002 c8000004 00000001 c8000004 00000000 c8000004 00000000 c200260a|int 3 3 3 3 3 3 3 3 3 3 4|flt|str;Abc|loc s: l: f:
+# modreputation I   sig=l explicit=1
+cmd:modreputation:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001ae|int 3|flt|str|loc s: l: f:
+cmd:modreputation:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001b0|int 3 0|flt|str;player|loc s: l: f:
+# modresistblight I   sig=l explicit=1
+cmd:modresistblight:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c9|int 3|flt|str|loc s: l: f:
+cmd:modresistblight:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e1|int 3 0|flt|str;player|loc s: l: f:
+# modresistcorprus I   sig=l explicit=1
+cmd:modresistcorprus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002ca|int 3|flt|str|loc s: l: f:
+cmd:modresistcorprus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e2|int 3 0|flt|str;player|loc s: l: f:
+# modresistdisease I   sig=l explicit=1
+cmd:modresistdisease:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c8|int 3|flt|str|loc s: l: f:
+cmd:modresistdisease:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e0|int 3 0|flt|str;player|loc s: l: f:
+# modresistfire I   sig=l explicit=1
+cmd:modresistfire:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c5|int 3|flt|str|loc s: l: f:
+cmd:modresistfire:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002dd|int 3 0|flt|str;player|loc s: l: f:
+# modresistfrost I   sig=l explicit=1
+cmd:modresistfrost:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c6|int 3|flt|str|loc s: l: f:
+cmd:modresistfrost:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002de|int 3 0|flt|str;player|loc s: l: f:
+# modresistmagicka I   sig=l explicit=1
+cmd:modresistmagicka:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c4|int 3|flt|str|loc s: l: f:
+cmd:modresistmagicka:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002dc|int 3 0|flt|str;player|loc s: l: f:
+# modresistnormalweapons I   sig=l explicit=1
+cmd:modresistnormalweapons:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002cd|int 3|flt|str|loc s: l: f:
+cmd:modresistnormalweapons:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e5|int 3 0|flt|str;player|loc s: l: f:
+# modresistparalysis I   sig=l explicit=1
+cmd:modresistparalysis:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002cc|int 3|flt|str|loc s: l: f:
+cmd:modresistparalysis:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e4|int 3 0|flt|str;player|loc s: l: f:
+# modresistpoison I   sig=l explicit=1
+cmd:modresistpoison:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002cb|int 3|flt|str|loc s: l: f:
+cmd:modresistpoison:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e3|int 3 0|flt|str;player|loc s: l: f:
+# modresistshock I   sig=l explicit=1
+cmd:modresistshock:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002c7|int 3|flt|str|loc s: l: f:
+cmd:modresistshock:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002df|int 3 0|flt|str;player|loc s: l: f:
+# modrestoration I   sig=f explicit=1
+cmd:modrestoration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000109|int|flt 3fc00000|str|loc s: l: f:
+cmd:modrestoration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000124|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modscale I   sig=f explicit=1
+cmd:modscale:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0001e3|int|flt 3fc00000|str|loc s: l: f:
+cmd:modscale:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0001e4|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modsecurity I   sig=f explicit=1
+cmd:modsecurity:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010c|int|flt 3fc00000|str|loc s: l: f:
+cmd:modsecurity:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000127|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modshortblade I   sig=f explicit=1
+cmd:modshortblade:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000110|int|flt 3fc00000|str|loc s: l: f:
+cmd:modshortblade:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012b|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modsilence I   sig=l explicit=1
+cmd:modsilence:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d6|int 3|flt|str|loc s: l: f:
+cmd:modsilence:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ee|int 3 0|flt|str;player|loc s: l: f:
+# modsneak I   sig=f explicit=1
+cmd:modsneak:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010d|int|flt 3fc00000|str|loc s: l: f:
+cmd:modsneak:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000128|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modspear I   sig=f explicit=1
+cmd:modspear:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000101|int|flt 3fc00000|str|loc s: l: f:
+cmd:modspear:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00011c|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modspeechcraft I   sig=f explicit=1
+cmd:modspeechcraft:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000113|int|flt 3fc00000|str|loc s: l: f:
+cmd:modspeechcraft:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00012e|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modspeed I   sig=f explicit=1
+cmd:modspeed:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00004b|int|flt 3fc00000|str|loc s: l: f:
+cmd:modspeed:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000053|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modstrength I   sig=f explicit=1
+cmd:modstrength:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000047|int|flt 3fc00000|str|loc s: l: f:
+cmd:modstrength:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00004f|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modsuperjump I   sig=l explicit=1
+cmd:modsuperjump:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d2|int 3|flt|str|loc s: l: f:
+cmd:modsuperjump:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ea|int 3 0|flt|str;player|loc s: l: f:
+# modswimspeed I   sig=l explicit=1
+cmd:modswimspeed:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d1|int 3|flt|str|loc s: l: f:
+cmd:modswimspeed:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e9|int 3 0|flt|str;player|loc s: l: f:
+# modunarmored I   sig=f explicit=1
+cmd:modunarmored:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00010b|int|flt 3fc00000|str|loc s: l: f:
+cmd:modunarmored:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000126|int 0|flt 3fc00000|str;player|loc s: l: f:
+# modwaterbreathing I   sig=l explicit=1
+cmd:modwaterbreathing:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002ce|int 3|flt|str|loc s: l: f:
+cmd:modwaterbreathing:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e6|int 3 0|flt|str;player|loc s: l: f:
+# modwaterlevel I   sig=f explicit=0
+cmd:modwaterlevel:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000143|int|flt 3fc00000|str|loc s: l: f:
+# modwaterwalking I   sig=l explicit=1
+cmd:modwaterwalking:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002d0|int 3|flt|str|loc s: l: f:
+cmd:modwaterwalking:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002e8|int 3 0|flt|str;player|loc s: l: f:
+# modwillpower I   sig=f explicit=1
+cmd:modwillpower:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000049|int|flt 3fc00000|str|loc s: l: f:
+cmd:modwillpower:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000051|int 0|flt 3fc00000|str;player|loc s: l: f:
+# move I   sig=cf explicit=1
+cmd:move:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca000206|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:move:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000207|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# moveworld I   sig=cf explicit=1
+cmd:moveworld:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca000208|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:moveworld:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000209|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# onactivate F l sig= explicit=1
+cmd:onactivate:implicit|ok|w0|e0|msg|code 00000000 ca00000d c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:onactivate:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000306 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:onactivate:cond|ok|w0|e0|msg|code ca00000d 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# ondeath F l sig= explicit=1
+cmd:ondeath:implicit|ok|w0|e0|msg|code 00000000 ca0001fc c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:ondeath:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000205 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:ondeath:cond|ok|w0|e0|msg|code ca0001fc 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# onknockout F l sig= explicit=1
+cmd:onknockout:implicit|ok|w0|e0|msg|code 00000000 ca000240 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:onknockout:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca000241 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:onknockout:cond|ok|w0|e0|msg|code ca000240 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# onmurder F l sig= explicit=1
+cmd:onmurder:implicit|ok|w0|e0|msg|code 00000000 ca000249 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:onmurder:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00024a c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:onmurder:cond|ok|w0|e0|msg|code ca000249 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# ori I   sig=/S explicit=1
+cmd:ori:implicit|ok|w0|e0|msg|code c2002d00|int|flt|str|loc s: l: f:
+cmd:ori:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002e00|int 0|flt|str;player|loc s: l: f:
+cmd:ori:implicitall|ok|w0|e0|msg|code 00000000 c2002d01|int|flt|str;Abc|loc s: l: f:
+cmd:ori:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002e01|int 1|flt|str;Abc;player|loc s: l: f:
+# outputrefinfo I   sig=/S explicit=1
+cmd:outputrefinfo:implicit|ok|w0|e0|msg|code c2002d00|int|flt|str|loc s: l: f:
+cmd:outputrefinfo:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002e00|int 0|flt|str;player|loc s: l: f:
+cmd:outputrefinfo:implicitall|ok|w0|e0|msg|code 00000000 c2002d01|int|flt|str;Abc|loc s: l: f:
+cmd:outputrefinfo:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002e01|int 1|flt|str;Abc;player|loc s: l: f:
+# payfine I   sig= explicit=0
+cmd:payfine:implicit|ok|w0|e0|msg|code ca000236|int|flt|str|loc s: l: f:
+# payfinethief I   sig= explicit=0
+cmd:payfinethief:implicit|ok|w0|e0|msg|code ca000237|int|flt|str|loc s: l: f:
+# pcclearexpelled I   sig=/S explicit=1
+cmd:pcclearexpelled:implicit|ok|w0|e0|msg|code c2001c00|int|flt|str|loc s: l: f:
+cmd:pcclearexpelled:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2001d00|int 0|flt|str;player|loc s: l: f:
+cmd:pcclearexpelled:implicitall|ok|w0|e0|msg|code 00000000 c2001c01|int|flt|str;Abc|loc s: l: f:
+cmd:pcclearexpelled:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2001d01|int 1|flt|str;Abc;player|loc s: l: f:
+# pcexpell I   sig=/S explicit=1
+cmd:pcexpell:implicit|ok|w0|e0|msg|code c2001a00|int|flt|str|loc s: l: f:
+cmd:pcexpell:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2001b00|int 0|flt|str;player|loc s: l: f:
+cmd:pcexpell:implicitall|ok|w0|e0|msg|code 00000000 c2001a01|int|flt|str;Abc|loc s: l: f:
+cmd:pcexpell:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2001b01|int 1|flt|str;Abc;player|loc s: l: f:
+# pcexpelled F l sig=/S explicit=1
+cmd:pcexpelled:implicit|ok|w0|e0|msg|code 00000000 c2001800 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:pcexpelled:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 c2001900 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:pcexpelled:cond|ok|w0|e0|msg|code c2001800 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+cmd:pcexpelled:implicitall|ok|w0|e0|msg|code 00000001 00000000 c2001801 c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:pcexpelled:explicitall|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 c2001901 c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:pcexpelled:condall|ok|w0|e0|msg|code 00000000 c2001801 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# pcforce1stperson I   sig= explicit=0
+cmd:pcforce1stperson:implicit|ok|w0|e0|msg|code ca0002f6|int|flt|str|loc s: l: f:
+# pcforce3rdperson I   sig= explicit=0
+cmd:pcforce3rdperson:implicit|ok|w0|e0|msg|code ca0002f7|int|flt|str|loc s: l: f:
+# pcget3rdperson F l sig= explicit=0
+cmd:pcget3rdperson:implicit|ok|w0|e0|msg|code 00000000 ca0002f8 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:pcget3rdperson:cond|ok|w0|e0|msg|code ca0002f8 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# pcjoinfaction I   sig=/S explicit=1
+cmd:pcjoinfaction:implicit|ok|w0|e0|msg|code c2000d00|int|flt|str|loc s: l: f:
+cmd:pcjoinfaction:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002b00|int 0|flt|str;player|loc s: l: f:
+cmd:pcjoinfaction:implicitall|ok|w0|e0|msg|code 00000000 c2000d01|int|flt|str;Abc|loc s: l: f:
+cmd:pcjoinfaction:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002b01|int 1|flt|str;Abc;player|loc s: l: f:
+# pclowerrank I   sig=/S explicit=1
+cmd:pclowerrank:implicit|ok|w0|e0|msg|code c2000c00|int|flt|str|loc s: l: f:
+cmd:pclowerrank:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002a00|int 0|flt|str;player|loc s: l: f:
+cmd:pclowerrank:implicitall|ok|w0|e0|msg|code 00000000 c2000c01|int|flt|str;Abc|loc s: l: f:
+cmd:pclowerrank:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002a01|int 1|flt|str;Abc;player|loc s: l: f:
+# pcraiserank I   sig=/S explicit=1
+cmd:pcraiserank:implicit|ok|w0|e0|msg|code c2000b00|int|flt|str|loc s: l: f:
+cmd:pcraiserank:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2002900|int 0|flt|str;player|loc s: l: f:
+cmd:pcraiserank:implicitall|ok|w0|e0|msg|code 00000000 c2000b01|int|flt|str;Abc|loc s: l: f:
+cmd:pcraiserank:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002901|int 1|flt|str;Abc;player|loc s: l: f:
+# placeatme I   sig=clflX explicit=1
+cmd:placeatme:implicit|ok|w1|e0|msg;W1:25:Extra argument|code 00000001 c8000004 00000000 c8000005 00000000 c8000004 00000000 ca00019d|int 3 3 4|flt 3fc00000|str;abc|loc s: l: f:
+cmd:placeatme:explicit|ok|w1|e0|msg;W1:33:Extra argument|code 00000001 c8000004 00000000 c8000005 00000000 c8000004 00000000 00000003 c8000004 ca00019e|int 3 3 4 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# placeatpc I   sig=clflX explicit=0
+cmd:placeatpc:implicit|ok|w1|e0|msg;W1:25:Extra argument|code 00000001 c8000004 00000000 c8000005 00000000 c8000004 00000000 ca00019c|int 3 3 4|flt 3fc00000|str;abc|loc s: l: f:
+# placeitem I   sig=cffffX explicit=0
+cmd:placeitem:implicit|ok|w1|e0|msg;W1:33:Extra argument|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 ca00019b|int 4|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+# placeitemcell I   sig=ccffffX explicit=0
+cmd:placeitemcell:implicit|ok|w1|e0|msg;W1:43:Extra argument|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000001 00000000 ca00019a|int 4|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;abc|loc s: l: f:
+# playbink I   sig=Sl explicit=0
+cmd:playbink:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 ca0001f7|int 3|flt|str;Abc|loc s: l: f:
+# playgroup I   sig=c/l explicit=1
+cmd:playgroup:implicit|ok|w0|e0|msg|code 00000000 c2000600|int|flt|str;abc|loc s: l: f:
+cmd:playgroup:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2000700|int 1|flt|str;abc;player|loc s: l: f:
+cmd:playgroup:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 c2000601|int 3|flt|str;abc|loc s: l: f:
+cmd:playgroup:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 c2000701|int 3 1|flt|str;abc;player|loc s: l: f:
+# playloopsound3d I   sig=cXX explicit=1
+cmd:playloopsound3d:implicit|ok|w2|e0|msg;W1:23:Extra argument;W1:25:Extra argument|code 00000000 ca000008|int 4 4|flt|str;abc|loc s: l: f:
+cmd:playloopsound3d:explicit|ok|w2|e0|msg;W1:31:Extra argument;W1:33:Extra argument|code 00000000 00000002 c8000004 ca00001d|int 4 4 1|flt|str;abc;player|loc s: l: f:
+# playloopsound3dvp I   sig=cff explicit=1
+cmd:playloopsound3dvp:implicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 00000000 ca000009|int|flt 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:playloopsound3dvp:explicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 00000000 00000000 c8000004 ca00001e|int 1|flt 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+# playsound I   sig=cXX explicit=0
+cmd:playsound:implicit|ok|w2|e0|msg;W1:17:Extra argument;W1:19:Extra argument|code 00000000 ca000004|int 4 4|flt|str;abc|loc s: l: f:
+# playsound3d I   sig=cXX explicit=1
+cmd:playsound3d:implicit|ok|w2|e0|msg;W1:19:Extra argument;W1:21:Extra argument|code 00000000 ca000006|int 4 4|flt|str;abc|loc s: l: f:
+cmd:playsound3d:explicit|ok|w2|e0|msg;W1:27:Extra argument;W1:29:Extra argument|code 00000000 00000002 c8000004 ca00001b|int 4 4 1|flt|str;abc;player|loc s: l: f:
+# playsound3dvp I   sig=cff explicit=1
+cmd:playsound3dvp:implicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 00000000 ca000007|int|flt 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:playsound3dvp:explicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 00000000 00000000 c8000004 ca00001c|int 1|flt 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+# playsoundvp I   sig=cff explicit=0
+cmd:playsoundvp:implicit|ok|w0|e0|msg|code 00000001 c8000005 00000000 c8000005 00000000 ca000005|int|flt 3fc00000 3fc00000|str;abc|loc s: l: f:
+# position I   sig=ffffz explicit=1
+cmd:position:implicit|ok|w1|e0|msg;W1:26:Extra argument|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 ca000196|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str|loc s: l: f:
+cmd:position:explicit|ok|w1|e0|msg;W1:34:Extra argument|code 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c8000004 ca000197|int 0|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;player|loc s: l: f:
+# positioncell I   sig=ffffczz explicit=1
+cmd:positioncell:implicit|ok|w2|e0|msg;W1:36:Extra argument;W1:38:Extra argument|code 00000000 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 ca000198|int|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc|loc s: l: f:
+cmd:positioncell:explicit|ok|w2|e0|msg;W1:44:Extra argument;W1:46:Extra argument|code 00000000 00000003 c8000005 00000002 c8000005 00000001 c8000005 00000000 c8000005 00000000 c8000004 ca000199|int 1|flt 3fc00000 3fc00000 3fc00000 3fc00000|str;abc;player|loc s: l: f:
+# ra I   sig= explicit=0
+cmd:ra:implicit|ok|w0|e0|msg|code ca0002f4|int|flt|str|loc s: l: f:
+# raiserank I   sig=x explicit=1
+cmd:raiserank:implicit|ok|w1|e0|msg;W1:13:Extra argument|code ca0001e8|int|flt|str|loc s: l: f:
+cmd:raiserank:explicit|ok|w1|e0|msg;W1:21:Extra argument|code 00000000 c8000004 ca0001e9|int 0|flt|str;player|loc s: l: f:
+# random F f sig=l explicit=0
+cmd:random:implicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca000312 c8000006 c8000028|int 3|flt|str;globallong|loc s: l: f:
+cmd:random:cond|ok|w0|e0|msg|code 00000000 c8000004 ca000312 00000001 c8000004 c8000003 c8000020 c8000019 01000001|int 3 1|flt|str|loc s: l: f:
+# reloadlua I   sig= explicit=0
+cmd:reloadlua:implicit|ok|w0|e0|msg|code ca000321|int|flt|str|loc s: l: f:
+# removeeffects I   sig=l explicit=1
+cmd:removeeffects:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00022d|int 3|flt|str|loc s: l: f:
+cmd:removeeffects:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca00022e|int 3 0|flt|str;player|loc s: l: f:
+# removefromlevcreature I   sig=ccl explicit=0
+cmd:removefromlevcreature:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca0002fc|int 3|flt|str;abc;abc|loc s: l: f:
+# removefromlevitem I   sig=ccl explicit=0
+cmd:removefromlevitem:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca0002fe|int 3|flt|str;abc;abc|loc s: l: f:
+# removeitem I   sig=clX explicit=1
+cmd:removeitem:implicit|ok|w1|e0|msg;W1:20:Extra argument|code 00000000 c8000004 00000000 ca00007a|int 3 4|flt|str;abc|loc s: l: f:
+cmd:removeitem:explicit|ok|w1|e0|msg;W1:28:Extra argument|code 00000000 c8000004 00000000 00000002 c8000004 ca00007b|int 3 4 1|flt|str;abc;player|loc s: l: f:
+# removesoulgem I   sig=c/l explicit=1
+cmd:removesoulgem:implicit|ok|w0|e0|msg|code 00000000 c2002700|int|flt|str;abc|loc s: l: f:
+cmd:removesoulgem:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2002800|int 1|flt|str;abc;player|loc s: l: f:
+cmd:removesoulgem:implicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 c2002701|int 3|flt|str;abc|loc s: l: f:
+cmd:removesoulgem:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000000 00000001 c8000004 c2002801|int 3 1|flt|str;abc;player|loc s: l: f:
+# removespell I   sig=cz explicit=1
+cmd:removespell:implicit|ok|w1|e0|msg;W1:19:Extra argument|code 00000000 ca000149|int|flt|str;abc|loc s: l: f:
+cmd:removespell:explicit|ok|w1|e0|msg;W1:27:Extra argument|code 00000000 00000000 c8000004 ca00014a|int 1|flt|str;abc;player|loc s: l: f:
+# removespelleffects I   sig=c explicit=1
+cmd:removespelleffects:implicit|ok|w0|e0|msg|code 00000000 ca00022b|int|flt|str;abc|loc s: l: f:
+cmd:removespelleffects:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca00022c|int 1|flt|str;abc;player|loc s: l: f:
+# repairedonme F l sig=S explicit=1
+cmd:repairedonme:implicit|ok|w0|e0|msg|code 00000001 00000000 ca00030c c8000028|int|flt|str;Abc;globallong|loc s: l: f:
+cmd:repairedonme:explicit|ok|w0|e0|msg|code 00000002 00000000 00000000 c8000004 ca00030d c8000028|int 1|flt|str;Abc;player;globallong|loc s: l: f:
+cmd:repairedonme:cond|ok|w0|e0|msg|code 00000000 ca00030c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;Abc|loc s: l: f:
+# resetactors I   sig= explicit=0
+cmd:resetactors:implicit|ok|w0|e0|msg|code ca0002f4|int|flt|str|loc s: l: f:
+# resurrect I   sig= explicit=1
+cmd:resurrect:implicit|ok|w0|e0|msg|code ca00022f|int|flt|str|loc s: l: f:
+cmd:resurrect:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000230|int 0|flt|str;player|loc s: l: f:
+# rotate I   sig=cf explicit=1
+cmd:rotate:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca0001ff|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:rotate:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000200|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# rotateworld I   sig=cf explicit=1
+cmd:rotateworld:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca000201|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:rotateworld:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000202|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# samefaction F l sig= explicit=1
+cmd:samefaction:implicit|ok|w0|e0|msg|code 00000000 ca0001b5 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:samefaction:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca0001b6 c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:samefaction:cond|ok|w0|e0|msg|code ca0001b5 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# say I   sig=SS explicit=1
+cmd:say:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000001|int|flt|str;Abc;Abc|loc s: l: f:
+cmd:say:explicit|ok|w0|e0|msg|code 00000001 00000000 00000000 c8000004 ca000019|int 2|flt|str;Abc;Abc;player|loc s: l: f:
+# saydone F l sig= explicit=1
+cmd:saydone:implicit|ok|w0|e0|msg|code 00000000 ca000002 c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:saydone:explicit|ok|w0|e0|msg|code 00000001 00000000 c8000004 ca00001a c8000028|int 0|flt|str;player;globallong|loc s: l: f:
+cmd:saydone:cond|ok|w0|e0|msg|code ca000002 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:
+# scriptrunning F l sig=c explicit=0
+cmd:scriptrunning:implicit|ok|w0|e0|msg|code 00000001 00000000 ca000313 c8000028|int|flt|str;abc;globallong|loc s: l: f:
+cmd:scriptrunning:cond|ok|w0|e0|msg|code 00000000 ca000313 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str;abc|loc s: l: f:
+# setacrobatics I   sig=f explicit=1
+cmd:setacrobatics:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d8|int|flt 3fc00000|str|loc s: l: f:
+cmd:setacrobatics:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f3|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setagility I   sig=f explicit=1
+cmd:setagility:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00003a|int|flt 3fc00000|str|loc s: l: f:
+cmd:setagility:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000042|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setalarm I   sig=l explicit=1
+cmd:setalarm:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000162|int 3|flt|str|loc s: l: f:
+cmd:setalarm:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca000163|int 3 0|flt|str;player|loc s: l: f:
+# setalchemy I   sig=f explicit=1
+cmd:setalchemy:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d4|int|flt 3fc00000|str|loc s: l: f:
+cmd:setalchemy:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000ef|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setalteration I   sig=f explicit=1
+cmd:setalteration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000cf|int|flt 3fc00000|str|loc s: l: f:
+cmd:setalteration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000ea|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setangle I   sig=cf explicit=1
+cmd:setangle:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca000166|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:setangle:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000167|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# setarmorbonus I   sig=l explicit=1
+cmd:setarmorbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a4|int 3|flt|str|loc s: l: f:
+cmd:setarmorbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002bc|int 3 0|flt|str;player|loc s: l: f:
+# setarmorer I   sig=f explicit=1
+cmd:setarmorer:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c5|int|flt 3fc00000|str|loc s: l: f:
+cmd:setarmorer:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e0|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setathletics I   sig=f explicit=1
+cmd:setathletics:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000cc|int|flt 3fc00000|str|loc s: l: f:
+cmd:setathletics:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e7|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setatstart I   sig= explicit=1
+cmd:setatstart:implicit|ok|w0|e0|msg|code ca000203|int|flt|str|loc s: l: f:
+cmd:setatstart:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000204|int 0|flt|str;player|loc s: l: f:
+# setattackbonus I   sig=l explicit=1
+cmd:setattackbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002aa|int 3|flt|str|loc s: l: f:
+cmd:setattackbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002c2|int 3 0|flt|str;player|loc s: l: f:
+# setaxe I   sig=f explicit=1
+cmd:setaxe:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000ca|int|flt 3fc00000|str|loc s: l: f:
+cmd:setaxe:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e5|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setblindness I   sig=l explicit=1
+cmd:setblindness:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a7|int 3|flt|str|loc s: l: f:
+cmd:setblindness:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002bf|int 3 0|flt|str;player|loc s: l: f:
+# setblock I   sig=f explicit=1
+cmd:setblock:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c4|int|flt 3fc00000|str|loc s: l: f:
+cmd:setblock:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000df|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setbluntweapon I   sig=f explicit=1
+cmd:setbluntweapon:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c8|int|flt 3fc00000|str|loc s: l: f:
+cmd:setbluntweapon:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e3|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setcastpenalty I   sig=l explicit=1
+cmd:setcastpenalty:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a5|int 3|flt|str|loc s: l: f:
+cmd:setcastpenalty:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002bd|int 3 0|flt|str;player|loc s: l: f:
+# setchameleon I   sig=l explicit=1
+cmd:setchameleon:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029f|int 3|flt|str|loc s: l: f:
+cmd:setchameleon:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b7|int 3 0|flt|str;player|loc s: l: f:
+# setconjuration I   sig=f explicit=1
+cmd:setconjuration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d1|int|flt 3fc00000|str|loc s: l: f:
+cmd:setconjuration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000ec|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setdefendbonus I   sig=l explicit=1
+cmd:setdefendbonus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002ab|int 3|flt|str|loc s: l: f:
+cmd:setdefendbonus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002c3|int 3 0|flt|str;player|loc s: l: f:
+# setdelete I   sig=l explicit=1
+cmd:setdelete:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001e5|int 3|flt|str|loc s: l: f:
+cmd:setdelete:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001e6|int 3 0|flt|str;player|loc s: l: f:
+# setdestruction I   sig=f explicit=1
+cmd:setdestruction:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000ce|int|flt 3fc00000|str|loc s: l: f:
+cmd:setdestruction:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e9|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setdisposition I   sig=l explicit=1
+cmd:setdisposition:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001a4|int 3|flt|str|loc s: l: f:
+cmd:setdisposition:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001a5|int 3 0|flt|str;player|loc s: l: f:
+# setenchant I   sig=f explicit=1
+cmd:setenchant:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000cd|int|flt 3fc00000|str|loc s: l: f:
+cmd:setenchant:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e8|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setendurance I   sig=f explicit=1
+cmd:setendurance:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00003c|int|flt 3fc00000|str|loc s: l: f:
+cmd:setendurance:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000044|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setfactionreaction I   sig=ccl explicit=0
+cmd:setfactionreaction:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 00000000 ca0002ff|int 3|flt|str;abc;abc|loc s: l: f:
+# setfatigue I   sig=f explicit=1
+cmd:setfatigue:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00005f|int|flt 3fc00000|str|loc s: l: f:
+cmd:setfatigue:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000062|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setfight I   sig=l explicit=1
+cmd:setfight:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00015e|int 3|flt|str|loc s: l: f:
+cmd:setfight:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca00015f|int 3 0|flt|str;player|loc s: l: f:
+# setflee I   sig=l explicit=1
+cmd:setflee:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000160|int 3|flt|str|loc s: l: f:
+cmd:setflee:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca000161|int 3 0|flt|str;player|loc s: l: f:
+# setflying I   sig=l explicit=1
+cmd:setflying:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a3|int 3|flt|str|loc s: l: f:
+cmd:setflying:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002bb|int 3 0|flt|str;player|loc s: l: f:
+# sethandtohand I   sig=f explicit=1
+cmd:sethandtohand:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000de|int|flt 3fc00000|str|loc s: l: f:
+cmd:sethandtohand:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f9|int 0|flt 3fc00000|str;player|loc s: l: f:
+# sethealth I   sig=f explicit=1
+cmd:sethealth:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00005d|int|flt 3fc00000|str|loc s: l: f:
+cmd:sethealth:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000060|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setheavyarmor I   sig=f explicit=1
+cmd:setheavyarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c7|int|flt 3fc00000|str|loc s: l: f:
+cmd:setheavyarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e2|int 0|flt 3fc00000|str;player|loc s: l: f:
+# sethello I   sig=l explicit=1
+cmd:sethello:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00015c|int 3|flt|str|loc s: l: f:
+cmd:sethello:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca00015d|int 3 0|flt|str;player|loc s: l: f:
+# setillusion I   sig=f explicit=1
+cmd:setillusion:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d0|int|flt 3fc00000|str|loc s: l: f:
+cmd:setillusion:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000eb|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setintelligence I   sig=f explicit=1
+cmd:setintelligence:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000038|int|flt 3fc00000|str|loc s: l: f:
+cmd:setintelligence:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000040|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setinvisible I   sig=l explicit=1
+cmd:setinvisible:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a9|int 3|flt|str|loc s: l: f:
+cmd:setinvisible:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002c1|int 3 0|flt|str;player|loc s: l: f:
+# setjournalindex I   sig=cl explicit=0
+cmd:setjournalindex:implicit|ok|w0|e0|msg|code 00000000 c8000004 00000000 ca000134|int 3|flt|str;abc|loc s: l: f:
+# setlevel I   sig=l explicit=1
+cmd:setlevel:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00018e|int 3|flt|str|loc s: l: f:
+cmd:setlevel:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca00018f|int 3 0|flt|str;player|loc s: l: f:
+# setlightarmor I   sig=f explicit=1
+cmd:setlightarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d9|int|flt 3fc00000|str|loc s: l: f:
+cmd:setlightarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f4|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setlongblade I   sig=f explicit=1
+cmd:setlongblade:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c9|int|flt 3fc00000|str|loc s: l: f:
+cmd:setlongblade:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e4|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setluck I   sig=f explicit=1
+cmd:setluck:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00003e|int|flt 3fc00000|str|loc s: l: f:
+cmd:setluck:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000046|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setmagicka I   sig=f explicit=1
+cmd:setmagicka:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00005e|int|flt 3fc00000|str|loc s: l: f:
+cmd:setmagicka:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000061|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setmarksman I   sig=f explicit=1
+cmd:setmarksman:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000db|int|flt 3fc00000|str|loc s: l: f:
+cmd:setmarksman:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f6|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setmediumarmor I   sig=f explicit=1
+cmd:setmediumarmor:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000c6|int|flt 3fc00000|str|loc s: l: f:
+cmd:setmediumarmor:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e1|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setmercantile I   sig=f explicit=1
+cmd:setmercantile:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000dc|int|flt 3fc00000|str|loc s: l: f:
+cmd:setmercantile:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f7|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setmysticism I   sig=f explicit=1
+cmd:setmysticism:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d2|int|flt 3fc00000|str|loc s: l: f:
+cmd:setmysticism:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000ed|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setnavmeshnumber I   sig=l explicit=0
+cmd:setnavmeshnumber:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00030a|int 3|flt|str|loc s: l: f:
+# setparalysis I   sig=l explicit=1
+cmd:setparalysis:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a8|int 3|flt|str|loc s: l: f:
+cmd:setparalysis:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002c0|int 3 0|flt|str;player|loc s: l: f:
+# setpccrimelevel I   sig=f explicit=0
+cmd:setpccrimelevel:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0001ed|int|flt 3fc00000|str|loc s: l: f:
+# setpcfacrep I   sig=l/c explicit=1
+cmd:setpcfacrep:implicit|ok|w0|e0|msg|code 00000000 c8000004 c2001400|int 3|flt|str|loc s: l: f:
+cmd:setpcfacrep:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 c2001500|int 3 0|flt|str;player|loc s: l: f:
+cmd:setpcfacrep:implicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 c2001401|int 3|flt|str;abc|loc s: l: f:
+cmd:setpcfacrep:explicitall|ok|w0|e0|msg|code 00000000 00000000 c8000004 00000001 c8000004 c2001501|int 3 1|flt|str;abc;player|loc s: l: f:
+# setpcvisionbonus I   sig=f explicit=0
+cmd:setpcvisionbonus:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000323|int|flt 3fc00000|str|loc s: l: f:
+# setpersonality I   sig=f explicit=1
+cmd:setpersonality:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00003d|int|flt 3fc00000|str|loc s: l: f:
+cmd:setpersonality:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000045|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setpos I   sig=cf explicit=1
+cmd:setpos:implicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 ca000192|int|flt 3fc00000|str;abc|loc s: l: f:
+cmd:setpos:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 00000000 c8000004 ca000193|int 1|flt 3fc00000|str;abc;player|loc s: l: f:
+# setreputation I   sig=l explicit=1
+cmd:setreputation:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0001ad|int 3|flt|str|loc s: l: f:
+cmd:setreputation:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0001af|int 3 0|flt|str;player|loc s: l: f:
+# setresistblight I   sig=l explicit=1
+cmd:setresistblight:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000299|int 3|flt|str|loc s: l: f:
+cmd:setresistblight:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b1|int 3 0|flt|str;player|loc s: l: f:
+# setresistcorprus I   sig=l explicit=1
+cmd:setresistcorprus:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029a|int 3|flt|str|loc s: l: f:
+cmd:setresistcorprus:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b2|int 3 0|flt|str;player|loc s: l: f:
+# setresistdisease I   sig=l explicit=1
+cmd:setresistdisease:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000298|int 3|flt|str|loc s: l: f:
+cmd:setresistdisease:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b0|int 3 0|flt|str;player|loc s: l: f:
+# setresistfire I   sig=l explicit=1
+cmd:setresistfire:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000295|int 3|flt|str|loc s: l: f:
+cmd:setresistfire:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ad|int 3 0|flt|str;player|loc s: l: f:
+# setresistfrost I   sig=l explicit=1
+cmd:setresistfrost:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000296|int 3|flt|str|loc s: l: f:
+cmd:setresistfrost:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ae|int 3 0|flt|str;player|loc s: l: f:
+# setresistmagicka I   sig=l explicit=1
+cmd:setresistmagicka:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000294|int 3|flt|str|loc s: l: f:
+cmd:setresistmagicka:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ac|int 3 0|flt|str;player|loc s: l: f:
+# setresistnormalweapons I   sig=l explicit=1
+cmd:setresistnormalweapons:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029d|int 3|flt|str|loc s: l: f:
+cmd:setresistnormalweapons:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b5|int 3 0|flt|str;player|loc s: l: f:
+# setresistparalysis I   sig=l explicit=1
+cmd:setresistparalysis:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029c|int 3|flt|str|loc s: l: f:
+cmd:setresistparalysis:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b4|int 3 0|flt|str;player|loc s: l: f:
+# setresistpoison I   sig=l explicit=1
+cmd:setresistpoison:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029b|int 3|flt|str|loc s: l: f:
+cmd:setresistpoison:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b3|int 3 0|flt|str;player|loc s: l: f:
+# setresistshock I   sig=l explicit=1
+cmd:setresistshock:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca000297|int 3|flt|str|loc s: l: f:
+cmd:setresistshock:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002af|int 3 0|flt|str;player|loc s: l: f:
+# setrestoration I   sig=f explicit=1
+cmd:setrestoration:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d3|int|flt 3fc00000|str|loc s: l: f:
+cmd:setrestoration:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000ee|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setscale I   sig=f explicit=1
+cmd:setscale:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000164|int|flt 3fc00000|str|loc s: l: f:
+cmd:setscale:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000165|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setsecurity I   sig=f explicit=1
+cmd:setsecurity:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d6|int|flt 3fc00000|str|loc s: l: f:
+cmd:setsecurity:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f1|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setshortblade I   sig=f explicit=1
+cmd:setshortblade:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000da|int|flt 3fc00000|str|loc s: l: f:
+cmd:setshortblade:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f5|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setsilence I   sig=l explicit=1
+cmd:setsilence:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a6|int 3|flt|str|loc s: l: f:
+cmd:setsilence:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002be|int 3 0|flt|str;player|loc s: l: f:
+# setsneak I   sig=f explicit=1
+cmd:setsneak:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d7|int|flt 3fc00000|str|loc s: l: f:
+cmd:setsneak:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f2|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setspear I   sig=f explicit=1
+cmd:setspear:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000cb|int|flt 3fc00000|str|loc s: l: f:
+cmd:setspear:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000e6|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setspeechcraft I   sig=f explicit=1
+cmd:setspeechcraft:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000dd|int|flt 3fc00000|str|loc s: l: f:
+cmd:setspeechcraft:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f8|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setspeed I   sig=f explicit=1
+cmd:setspeed:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca00003b|int|flt 3fc00000|str|loc s: l: f:
+cmd:setspeed:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000043|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setstrength I   sig=f explicit=1
+cmd:setstrength:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000037|int|flt 3fc00000|str|loc s: l: f:
+cmd:setstrength:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca00003f|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setsuperjump I   sig=l explicit=1
+cmd:setsuperjump:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a2|int 3|flt|str|loc s: l: f:
+cmd:setsuperjump:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002ba|int 3 0|flt|str;player|loc s: l: f:
+# setswimspeed I   sig=l explicit=1
+cmd:setswimspeed:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a1|int 3|flt|str|loc s: l: f:
+cmd:setswimspeed:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b9|int 3 0|flt|str;player|loc s: l: f:
+# setunarmored I   sig=f explicit=1
+cmd:setunarmored:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca0000d5|int|flt 3fc00000|str|loc s: l: f:
+cmd:setunarmored:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca0000f0|int 0|flt 3fc00000|str;player|loc s: l: f:
+# setwaterbreathing I   sig=l explicit=1
+cmd:setwaterbreathing:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca00029e|int 3|flt|str|loc s: l: f:
+cmd:setwaterbreathing:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b6|int 3 0|flt|str;player|loc s: l: f:
+# setwaterlevel I   sig=f explicit=0
+cmd:setwaterlevel:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000142|int|flt 3fc00000|str|loc s: l: f:
+# setwaterwalking I   sig=l explicit=1
+cmd:setwaterwalking:implicit|ok|w0|e0|msg|code 00000000 c8000004 ca0002a0|int 3|flt|str|loc s: l: f:
+cmd:setwaterwalking:explicit|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 ca0002b8|int 3 0|flt|str;player|loc s: l: f:
+# setwerewolfacrobatics I   sig= explicit=1
+cmd:setwerewolfacrobatics:implicit|ok|w0|e0|msg|code ca00021b|int|flt|str|loc s: l: f:
+cmd:setwerewolfacrobatics:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00021c|int 0|flt|str;player|loc s: l: f:
+# setwillpower I   sig=f explicit=1
+cmd:setwillpower:implicit|ok|w0|e0|msg|code 00000000 c8000005 ca000039|int|flt 3fc00000|str|loc s: l: f:
+cmd:setwillpower:explicit|ok|w0|e0|msg|code 00000000 c8000005 00000000 c8000004 ca000041|int 0|flt 3fc00000|str;player|loc s: l: f:
+# show I   sig=c explicit=1
+cmd:show:implicit|ok|w0|e0|msg|code 00000000 ca000304|int|flt|str;abc|loc s: l: f:
+cmd:show:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca000305|int 1|flt|str;abc;player|loc s: l: f:
+# showmap I   sig=Sxxxx explicit=0
+cmd:showmap:implicit|ok|w4|e0|msg;W1:17:Extra argument;W1:21:Extra argument;W1:25:Extra argument;W1:29:Extra argument|code 00000000 ca0001a0|int|flt|str;Abc|loc s: l: f:
+# showrestmenu I   sig= explicit=1
+cmd:showrestmenu:implicit|ok|w0|e0|msg|code ca000018|int|flt|str|loc s: l: f:
+cmd:showrestmenu:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000234|int 0|flt|str;player|loc s: l: f:
+# showscenegraph I   sig=/l explicit=1
+cmd:showscenegraph:implicit|ok|w0|e0|msg|code c2002f00|int|flt|str|loc s: l: f:
+cmd:showscenegraph:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2003000|int 0|flt|str;player|loc s: l: f:
+cmd:showscenegraph:implicitall|ok|w0|e0|msg|code 00000000 c8000004 c2002f01|int 3|flt|str|loc s: l: f:
+cmd:showscenegraph:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 c2003001|int 3 0|flt|str;player|loc s: l: f:
+# showvars I   sig= explicit=1
+cmd:showvars:implicit|ok|w0|e0|msg|code ca00021d|int|flt|str|loc s: l: f:
+cmd:showvars:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00021e|int 0|flt|str;player|loc s: l: f:
+# skipanim I   sig= explicit=1
+cmd:skipanim:implicit|ok|w0|e0|msg|code ca000138|int|flt|str|loc s: l: f:
+cmd:skipanim:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca000139|int 0|flt|str;player|loc s: l: f:
+# ssg I   sig=/l explicit=1
+cmd:ssg:implicit|ok|w0|e0|msg|code c2002f00|int|flt|str|loc s: l: f:
+cmd:ssg:explicit|ok|w0|e0|msg|code 00000000 c8000004 c2003000|int 0|flt|str;player|loc s: l: f:
+cmd:ssg:implicitall|ok|w0|e0|msg|code 00000000 c8000004 c2002f01|int 3|flt|str|loc s: l: f:
+cmd:ssg:explicitall|ok|w0|e0|msg|code 00000000 c8000004 00000001 c8000004 c2003001|int 3 0|flt|str;player|loc s: l: f:
+# startcombat I   sig=c explicit=1
+cmd:startcombat:implicit|ok|w0|e0|msg|code 00000000 ca00023a|int|flt|str;abc|loc s: l: f:
+cmd:startcombat:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca00023b|int 1|flt|str;abc;player|loc s: l: f:
+# startscript I   sig=c explicit=1
+cmd:startscript:implicit|ok|w0|e0|msg|code 00000000 ca000314|int|flt|str;abc|loc s: l: f:
+cmd:startscript:explicit|ok|w0|e0|msg|code 00000000 00000000 c8000004 ca00031d|int 1|flt|str;abc;player|loc s: l: f:
+# stopcombat I   sig=x explicit=1
+cmd:stopcombat:implicit|ok|w1|e0|msg;W1:14:Extra argument|code ca00023c|int|flt|str|loc s: l: f:
+cmd:stopcombat:explicit|ok|w1|e0|msg;W1:22:Extra argument|code 00000000 c8000004 ca00023d|int 0|flt|str;player|loc s: l: f:
+# stopscript I   sig=c explicit=0
+cmd:stopscript:implicit|ok|w0|e0|msg|code 00000000 ca000315|int|flt|str;abc|loc s: l: f:
+# stopsound I   sig=cXX explicit=1
+cmd:stopsound:implicit|ok|w2|e0|msg;W1:17:Extra argument;W1:19:Extra argument|code 00000000 ca00000a|int 4 4|flt|str;abc|loc s: l: f:
+cmd:stopsound:explicit|ok|w2|e0|msg;W1:25:Extra argument;W1:27:Extra argument|code 00000000 00000002 c8000004 ca00001f|int 4 4 1|flt|str;abc;player|loc s: l: f:
+# streammusic I   sig=S explicit=0
+cmd:streammusic:implicit|ok|w0|e0|msg|code 00000000 ca000003|int|flt|str;Abc|loc s: l: f:
+# sv I   sig= explicit=1
+cmd:sv:implicit|ok|w0|e0|msg|code ca00021d|int|flt|str|loc s: l: f:
+cmd:sv:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00021e|int 0|flt|str;player|loc s: l: f:
+# t3d I   sig= explicit=0
+cmd:t3d:implicit|ok|w0|e0|msg|code ca000325|int|flt|str|loc s: l: f:
+# tai I   sig= explicit=0
+cmd:tai:implicit|ok|w0|e0|msg|code ca000224|int|flt|str|loc s: l: f:
+# tap I   sig= explicit=0
+cmd:tap:implicit|ok|w0|e0|msg|code ca000309|int|flt|str|loc s: l: f:
+# tb I   sig= explicit=0
+cmd:tb:implicit|ok|w0|e0|msg|code ca000307|int|flt|str|loc s: l: f:
+# tcb I   sig= explicit=0
+cmd:tcb:implicit|ok|w0|e0|msg|code ca0001ac|int|flt|str|loc s: l: f:
+# tcg I   sig= explicit=0
+cmd:tcg:implicit|ok|w0|e0|msg|code ca000132|int|flt|str|loc s: l: f:
+# tcl I   sig= explicit=0
+cmd:tcl:implicit|ok|w0|e0|msg|code ca000130|int|flt|str|loc s: l: f:
+# testcells I   sig= explicit=0
+cmd:testcells:implicit|ok|w0|e0|msg|code ca00030e|int|flt|str|loc s: l: f:
+# testinteriorcells I   sig= explicit=0
+cmd:testinteriorcells:implicit|ok|w0|e0|msg|code ca00030f|int|flt|str|loc s: l: f:
+# testmodels I   sig= explicit=0
+cmd:testmodels:implicit|ok|w0|e0|msg|code ca000325|int|flt|str|loc s: l: f:
+# texturemips I   sig=/S explicit=0
+cmd:texturemips:implicit|ok|w0|e0|msg|code c2003300|int|flt|str|loc s: l: f:
+cmd:texturemips:implicitall|ok|w0|e0|msg|code 00000000 c2003301|int|flt|str;Abc|loc s: l: f:
+# tfh I   sig= explicit=0
+cmd:tfh:implicit|ok|w0|e0|msg|code ca000151|int|flt|str|loc s: l: f:
+# tfow I   sig= explicit=0
+cmd:tfow:implicit|ok|w0|e0|msg|code ca000145|int|flt|str|loc s: l: f:
+# tgm I   sig= explicit=0
+cmd:tgm:implicit|ok|w0|e0|msg|code ca00021f|int|flt|str|loc s: l: f:
+# tm I   sig= explicit=0
+cmd:tm:implicit|ok|w0|e0|msg|code ca00024b|int|flt|str|loc s: l: f:
+# toggleactorspaths I   sig= explicit=0
+cmd:toggleactorspaths:implicit|ok|w0|e0|msg|code ca000309|int|flt|str|loc s: l: f:
+# toggleai I   sig= explicit=0
+cmd:toggleai:implicit|ok|w0|e0|msg|code ca000224|int|flt|str|loc s: l: f:
+# toggleborders I   sig= explicit=0
+cmd:toggleborders:implicit|ok|w0|e0|msg|code ca000307|int|flt|str|loc s: l: f:
+# togglecollision I   sig= explicit=0
+cmd:togglecollision:implicit|ok|w0|e0|msg|code ca000130|int|flt|str|loc s: l: f:
+# togglecollisionboxes I   sig= explicit=0
+cmd:togglecollisionboxes:implicit|ok|w0|e0|msg|code ca0001ac|int|flt|str|loc s: l: f:
+# togglecollisiongrid I   sig= explicit=0
+cmd:togglecollisiongrid:implicit|ok|w0|e0|msg|code ca000132|int|flt|str|loc s: l: f:
+# togglefogofwar I   sig= explicit=0
+cmd:togglefogofwar:implicit|ok|w0|e0|msg|code ca000145|int|flt|str|loc s: l: f:
+# togglefullhelp I   sig= explicit=0
+cmd:togglefullhelp:implicit|ok|w0|e0|msg|code ca000151|int|flt|str|loc s: l: f:
+# togglegodmode I   sig= explicit=0
+cmd:togglegodmode:implicit|ok|w0|e0|msg|code ca00021f|int|flt|str|loc s: l: f:
+# togglemenus I   sig= explicit=0
+cmd:togglemenus:implicit|ok|w0|e0|msg|code ca00024b|int|flt|str|loc s: l: f:
+# togglenavmesh I   sig= explicit=0
+cmd:togglenavmesh:implicit|ok|w0|e0|msg|code ca000308|int|flt|str|loc s: l: f:
+# togglepathgrid I   sig= explicit=0
+cmd:togglepathgrid:implicit|ok|w0|e0|msg|code ca000146|int|flt|str|loc s: l: f:
+# togglerecastmesh I   sig= explicit=0
+cmd:togglerecastmesh:implicit|ok|w0|e0|msg|code ca000310|int|flt|str|loc s: l: f:
+# togglescripts I   sig= explicit=0
+cmd:togglescripts:implicit|ok|w0|e0|msg|code ca000301|int|flt|str|loc s: l: f:
+# togglesky I   sig= explicit=0
+cmd:togglesky:implicit|ok|w0|e0|msg|code ca000021|int|flt|str|loc s: l: f:
+# togglevanitymode I   sig= explicit=0
+cmd:togglevanitymode:implicit|ok|w0|e0|msg|code ca000174|int|flt|str|loc s: l: f:
+# togglewater I   sig= explicit=0
+cmd:togglewater:implicit|ok|w0|e0|msg|code ca000144|int|flt|str|loc s: l: f:
+# togglewireframe I   sig= explicit=0
+cmd:togglewireframe:implicit|ok|w0|e0|msg|code ca00013b|int|flt|str|loc s: l: f:
+# toggleworld I   sig= explicit=0
+cmd:toggleworld:implicit|ok|w0|e0|msg|code ca0002f5|int|flt|str|loc s: l: f:
+# tpg I   sig= explicit=0
+cmd:tpg:implicit|ok|w0|e0|msg|code ca000146|int|flt|str|loc s: l: f:
+# ts I   sig= explicit=0
+cmd:ts:implicit|ok|w0|e0|msg|code ca000021|int|flt|str|loc s: l: f:
+# turnmoonred I   sig= explicit=0
+cmd:turnmoonred:implicit|ok|w0|e0|msg|code ca000023|int|flt|str|loc s: l: f:
+# turnmoonwhite I   sig= explicit=0
+cmd:turnmoonwhite:implicit|ok|w0|e0|msg|code ca000022|int|flt|str|loc s: l: f:
+# tvm I   sig= explicit=0
+cmd:tvm:implicit|ok|w0|e0|msg|code ca000174|int|flt|str|loc s: l: f:
+# tw I   sig= explicit=0
+cmd:tw:implicit|ok|w0|e0|msg|code ca0002f5|int|flt|str|loc s: l: f:
+# twa I   sig= explicit=0
+cmd:twa:implicit|ok|w0|e0|msg|code ca000144|int|flt|str|loc s: l: f:
+# twf I   sig= explicit=0
+cmd:twf:implicit|ok|w0|e0|msg|code ca00013b|int|flt|str|loc s: l: f:
+# undowerewolf I   sig= explicit=1
+cmd:undowerewolf:implicit|ok|w0|e0|msg|code ca000219|int|flt|str|loc s: l: f:
+cmd:undowerewolf:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00021a|int 0|flt|str;player|loc s: l: f:
+# unlock I   sig= explicit=1
+cmd:unlock:implicit|ok|w0|e0|msg|code ca00008c|int|flt|str|loc s: l: f:
+cmd:unlock:explicit|ok|w0|e0|msg|code 00000000 c8000004 ca00008d|int 0|flt|str;player|loc s: l: f:
+# wakeuppc I   sig= explicit=0
+cmd:wakeuppc:implicit|ok|w0|e0|msg|code ca0001a2|int|flt|str|loc s: l: f:
+# xbox F l sig= explicit=0
+cmd:xbox:implicit|ok|w0|e0|msg|code 00000000 ca00000c c8000028|int|flt|str;globallong|loc s: l: f:
+cmd:xbox:cond|ok|w0|e0|msg|code ca00000c 00000000 c8000004 c800001a c8000019 01000001|int 1|flt|str|loc s: l: f:

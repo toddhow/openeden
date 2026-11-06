@@ -130,6 +130,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
+    compiler/testmorrowindprogramgolden.cpp
 
     nif/node.hpp
     nif/testphysics.cpp
