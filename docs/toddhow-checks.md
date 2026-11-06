@@ -52,6 +52,7 @@ Each one was built and measured but never seen by you.
 ## 4. Owner-level items from the guide (no deadline)
 
 - [ ] **Executable and data names:** when `openmw` and `openmw.cfg` become OpenEden names, and how existing OpenMW configs migrate.
+- [ ] **GitHub: set the default branch to `main`** (repository Settings, Branches) and **protect `master`** (no pushes, no force pushes): `master` is the clean record of OpenMW. `vulkan` is kept equal to `main` until 2026-11-13; say when to delete it. Local `master` now tracks `origin/master` (newer than our fork point).
 - [ ] **macOS:** keep or drop the platform (Vulkan there needs MoltenVK).
 - [ ] **CI and hosting:** what to push to GitHub `master` first and what `master` there becomes; whether GitLab CI stays.
 - [ ] **The extension system's open questions 1 to 6** (C ABI timing, contracts location, user-overridable load order, hot reload, licence policy).
