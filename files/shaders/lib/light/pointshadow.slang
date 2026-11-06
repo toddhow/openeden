@@ -10,6 +10,7 @@
 
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
+import lib.view.scene;
 
 static const int POINT_SHADOW_HEADER_VEC4S = 2;
 static const int POINT_SHADOW_MAX_SLOTS = 8;
