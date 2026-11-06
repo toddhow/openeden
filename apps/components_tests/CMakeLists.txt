@@ -133,6 +133,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     nif/node.hpp
     nif/testphysics.cpp
+    nif/nifbuilder.hpp
+    nif/testmorrowindunchanged.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp
