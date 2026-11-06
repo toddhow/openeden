@@ -109,6 +109,8 @@ namespace MWRender
         vsg::ref_ptr<vsg::Data> mLightData;
 
         Terrain::Paging* mTerrain;
+        // Task 0089: exterior map requests that waited for the terrain layers (see requestExteriorMap).
+        size_t mDeferredRequests = 0;
         float mReferenceViewDistance;
 
         class Blit;

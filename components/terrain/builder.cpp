@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include <chrono>
+#include <cstdlib>
 #include <future>
 #include <iostream>
 #include <limits>
@@ -18,6 +19,7 @@
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/pipeline/terrain.hpp>
@@ -51,10 +53,43 @@ namespace Terrain
             return use;
         }
 
+        // Task 0089: the layer arrays re-encode what does not fit (BC7, other sizes, uncompressed layers in a BC1
+        // array) instead of filling it grey. OPENEDEN_TERRAIN_REENCODE=0 switches that off, as a test aid for
+        // comparing against the build before.
+        vsgUtil::ArrayConvertOptions terrainConvertOptions()
+        {
+            static const bool off = [] {
+                const char* value = std::getenv("OPENEDEN_TERRAIN_REENCODE");
+                return value != nullptr && std::string(value) == "0";
+            }();
+            vsgUtil::ArrayConvertOptions options;
+            options.reencode = !off;
+            return options;
+        }
+
+        vsgUtil::ArrayConvertOptions terrainDataOptions()
+        {
+            vsgUtil::ArrayConvertOptions options = terrainConvertOptions();
+            options.encodeToBc1 = false;
+            return options;
+        }
+
+        // A layer's format and size for the log, for example "BC7 4096x4096" (VkFormat numbers: 145 is BC7).
+        std::string describeShape(const vsgUtil::LayerShape& shape)
+        {
+            return "format " + std::to_string(static_cast<int>(shape.format)) + " " + std::to_string(shape.width) + "x"
+                + std::to_string(shape.height);
+        }
+        std::string describeLayer(const vsg::Data& image)
+        {
+            return describeShape(vsgUtil::layerShapeOf(image));
+        }
+
         // Task 0044: reads the files and keeps those of the most common size and format, as the normal map array does
         // (convertToArrayTexture fills any other with grey bytes). Returns, for each path, its place in `kept` or -1.
+        // Task 0089: `dropped` receives how many layers were left out.
         std::vector<int> readUniformImages(const std::vector<std::string>& paths,
-            vsg::ref_ptr<const vsg::Options> options, vsg::DataList& kept, const char* what,
+            vsg::ref_ptr<const vsg::Options> options, vsg::DataList& kept, const char* what, size_t& dropped,
             bool (*accept)(VkFormat) = nullptr, const vsgUtil::ImageUse& use = {})
         {
             using ImageKey = std::tuple<uint32_t, uint32_t, VkFormat>;
@@ -73,12 +108,14 @@ namespace Terrain
                 {
                     std::cerr << "Terrain " << what << " " << path << " has no mip levels and is not used" << std::endl;
                     data = nullptr;
+                    ++dropped;
                 }
                 else if (data && accept && !accept(data->properties.format))
                 {
                     std::cerr << "Terrain " << what << " " << path << " is not a usable image and is not used"
                               << std::endl;
                     data = nullptr;
+                    ++dropped;
                 }
                 else if (data)
                 {
@@ -86,7 +123,10 @@ namespace Terrain
                     ++counts[{ data->width(), data->height(), data->properties.format }];
                 }
                 else if (!data)
+                {
                     std::cerr << "Terrain " << what << " " << path << " could not be read and is not used" << std::endl;
+                    ++dropped;
+                }
                 images.push_back(data);
             }
             ImageKey reference{};
@@ -115,10 +155,14 @@ namespace Terrain
                 if (ImageKey{ images[i]->width(), images[i]->height(), images[i]->properties.format } != reference
                     && !(counts[{ images[i]->width(), images[i]->height(), images[i]->properties.format }]
                             < referenceCount
-                        && vsgUtil::arrayLayerConvertible(vsgUtil::layerShapeOf(*images[i]), referenceShape)))
+                        && vsgUtil::arrayLayerConvertible(
+                            vsgUtil::layerShapeOf(*images[i]), referenceShape, terrainDataOptions())))
                 {
                     std::cerr << "Terrain " << what << " " << paths[i]
-                              << " differs in size or format from the others and is not used" << std::endl;
+                              << " differs in size or format from the others and is not used ("
+                              << describeLayer(*images[i]) << ", the array " << describeShape(referenceShape) << ")"
+                              << std::endl;
+                    ++dropped;
                     continue;
                 }
                 indices[i] = static_cast<int>(kept.size());
@@ -227,7 +271,7 @@ namespace Terrain
                 vsgUtil::setName(*layerImages[n], layerPaths[n]);
                 imageData.push_back(layerImages[n]);
             }
-            auto arrayData = vsgUtil::convertToArrayTexture(imageData);
+            auto arrayData = vsgUtil::convertToArrayTexture(imageData, terrainConvertOptions());
             mLayerDescriptor
                 = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
         }).share();
@@ -306,6 +350,18 @@ namespace Terrain
     void Builder::buildLayersWithMaps(
         const TerrainLayerMaps& maps, const std::vector<Render::Pbr::OverrideValues>& layerValues)
     {
+        const auto buildStart = std::chrono::steady_clock::now();
+        const vsgUtil::ArrayConvertOptions convertOptions = terrainConvertOptions();
+        // Normal, material and height maps carry data in alpha, which a BC1 array cannot hold.
+        vsgUtil::ArrayConvertOptions dataOptions = convertOptions;
+        dataOptions.encodeToBc1 = false;
+        size_t droppedNormal = 0;
+        size_t droppedMaterial = 0;
+        size_t droppedHeight = 0;
+        vsgUtil::ArrayConvertStats diffuseStats;
+        vsgUtil::ArrayConvertStats normalStats;
+        vsgUtil::ArrayConvertStats materialStats;
+        vsgUtil::ArrayConvertStats heightStats;
         // The normal map array keeps only maps of its most common size and format: convertToArrayTexture would fill
         // any other with grey bytes, which decode to a badly tilted normal rather than a flat one. Layers whose map is
         // left out are drawn without one.
@@ -345,10 +401,12 @@ namespace Terrain
             // Task 0089: a map the array converts exactly (another size of its uncompressed format) is kept.
             if (ImageKey{ image->width(), image->height(), image->properties.format } != reference
                 && !(keyCounts[{ image->width(), image->height(), image->properties.format }] < referenceCount
-                    && vsgUtil::arrayLayerConvertible(vsgUtil::layerShapeOf(*image), referenceShape)))
+                    && vsgUtil::arrayLayerConvertible(vsgUtil::layerShapeOf(*image), referenceShape, dataOptions)))
             {
                 std::cerr << "Terrain normal map " << maps.normalMaps[i]
-                          << " differs in size or format from the others and is not used" << std::endl;
+                          << " differs in size or format from the others and is not used (" << describeLayer(*image)
+                          << ", the array " << describeShape(referenceShape) << ")" << std::endl;
+                ++droppedNormal;
                 continue;
             }
             arrayIndex[i] = static_cast<int>(normalData.size());
@@ -360,7 +418,7 @@ namespace Terrain
         std::vector<int> materialArrayIndex;
         if (mMapSettings.pbr)
             materialArrayIndex = readUniformImages(maps.materialMaps, mImageOptions, materialData, "material map",
-                nullptr, terrainImageUse(vsgUtil::TextureCap::Kind::Data));
+                droppedMaterial, nullptr, terrainImageUse(vsgUtil::TextureCap::Kind::Data));
 
         // Task 0045: the same for the height files.
         vsg::DataList heightData;
@@ -369,7 +427,7 @@ namespace Terrain
         if (mMapSettings.parallaxQuality > 0)
         {
             heightArrayIndex = readUniformImages(maps.heightMaps, mImageOptions, heightData, "height map",
-                Render::Parallax::usableHeightFormat,
+                droppedHeight, Render::Parallax::usableHeightFormat,
                 terrainImageUse(vsgUtil::TextureCap::Kind::Data, vsgUtil::TextureCap::heightMapFloor));
             heights = vsg::vec4Array::create(static_cast<uint32_t>(std::max<size_t>(maps.layers.size(), 1)));
             heights->set(0, vsg::vec4(-1.f, 0.f, 0.f, 0.f));
@@ -438,7 +496,9 @@ namespace Terrain
             }
         }
         Misc::LoadTrace::Scope traceConvert("terrain.layers.arrays");
-        auto arrayData = vsgUtil::convertToArrayTexture(imageData);
+        const auto convertStart = std::chrono::steady_clock::now();
+        auto arrayData = vsgUtil::convertToArrayTexture(imageData, convertOptions, &diffuseStats);
+        const auto diffuseEnd = std::chrono::steady_clock::now();
         mLayerDescriptor
             = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
 
@@ -448,8 +508,9 @@ namespace Terrain
             normalData.push_back(vsg::ubvec4Array2D::create(
                 1, 1, vsg::ubvec4(128, 128, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
         }
-        mNormalLayerDescriptor = vsg::DescriptorImage::create(
-            mSamplerOptions, vsgUtil::convertToArrayTexture(normalData), Pipeline::Descriptors::NORMAL_LAYER_BINDING);
+        mNormalLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions,
+            vsgUtil::convertToArrayTexture(normalData, dataOptions, &normalStats),
+            Pipeline::Descriptors::NORMAL_LAYER_BINDING);
         mLayerFlagsDescriptor = vsg::DescriptorBuffer::create(
             flags, Pipeline::Descriptors::LAYER_FLAGS_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         if (heights)
@@ -464,7 +525,7 @@ namespace Terrain
             vsg::ref_ptr<vsg::Data> heightArray;
             try
             {
-                heightArray = vsgUtil::convertToArrayTexture(heightData);
+                heightArray = vsgUtil::convertToArrayTexture(heightData, dataOptions, &heightStats);
             }
             catch (const std::exception& e)
             {
@@ -493,10 +554,29 @@ namespace Terrain
                     1, 1, vsg::ubvec4(255, 0, 255, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
             }
             mMaterialLayerDescriptor = vsg::DescriptorImage::create(mSamplerOptions,
-                vsgUtil::convertToArrayTexture(materialData), Pipeline::Descriptors::MATERIAL_LAYER_BINDING);
+                vsgUtil::convertToArrayTexture(materialData, dataOptions, &materialStats),
+                Pipeline::Descriptors::MATERIAL_LAYER_BINDING);
             mLayerScalesDescriptor = vsg::DescriptorBuffer::create(
                 scales, Pipeline::Descriptors::LAYER_SCALES_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         }
+        const auto now = std::chrono::steady_clock::now();
+        auto milliseconds = [](auto from, auto to) {
+            return std::chrono::duration_cast<std::chrono::milliseconds>(to - from).count();
+        };
+        auto describe = [](const char* name, size_t layers, const vsgUtil::ArrayConvertStats& stats) {
+            return std::string(name) + " " + std::to_string(layers) + " (copied " + std::to_string(stats.copied)
+                + ", transcoded " + std::to_string(stats.transcoded) + ", encoded " + std::to_string(stats.encoded)
+                + ", decoded " + std::to_string(stats.decoded) + ", resized " + std::to_string(stats.resampled)
+                + ", grey " + std::to_string(stats.grey) + ")";
+        };
+        Log(Debug::Info) << "Terrain layer arrays: " << describe("diffuse", imageData.size(), diffuseStats) << "; "
+                         << describe("normal", normalData.size(), normalStats) << "; dropped normal maps "
+                         << droppedNormal << ", material maps " << droppedMaterial << ", height maps " << droppedHeight
+                         << "; " << describe("material", materialData.size(), materialStats) << "; "
+                         << describe("height", heightData.size(), heightStats) << "; re-encoding "
+                         << (convertOptions.reencode ? "on" : "off") << "; diffuse conversion "
+                         << milliseconds(convertStart, diffuseEnd) << " ms, all " << milliseconds(buildStart, now)
+                         << " ms";
     }
 
     bool Builder::replaceArrayDescriptor(const vsg::Descriptor* old, const vsg::ref_ptr<vsg::Descriptor>& replacement)

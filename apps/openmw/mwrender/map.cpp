@@ -551,6 +551,23 @@ namespace MWRender
         if (!segment.needUpdate)
             return;
 
+        // Task 0089: the terrain's layer arrays are built on a worker (at start-up they take seconds with a texture
+        // mod), and building the cell's batch would wait for them on this thread. The map window asks again every
+        // frame while it has no texture for the cell (LocalMapBase::updateRequiredMaps), so the map appears once the
+        // layers are ready and looks as it did without a map until then.
+        if (mTerrain != nullptr && !mTerrain->layersReady())
+        {
+            ++mDeferredRequests;
+            return;
+        }
+        if (mDeferredRequests > 0)
+        {
+            Log(Debug::Info) << "Local map: " << mDeferredRequests
+                             << " exterior map requests were deferred until the terrain layers were ready; cell (" << x
+                             << ", " << y << ") is rendered now";
+            mDeferredRequests = 0;
+        }
+
         if (!segment.fogTexture)
             loadFogOfWar(segment);
 

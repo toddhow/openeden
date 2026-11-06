@@ -297,7 +297,11 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testtexturecapread.cpp
     vsgutil/testtexturecaparray.cpp
     vsgutil/testarraylayers.cpp
+    vsgutil/testarrayreencode.cpp
+    vsgutil/testbc1encode.cpp
+    vsgutil/testbc7decode.cpp
     vsgutil/testblockconvert.cpp
+    vsgutil/testrgbaresize.cpp
 
     fx/lexer.cpp
     fx/technique.cpp
