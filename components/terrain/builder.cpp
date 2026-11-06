@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <chrono>
+#include <future>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -138,8 +140,6 @@ namespace Terrain
             mMapSettings.parallaxQuality, mMapSettings.aoTerrain, mMapSettings.pointShadow);
     }
 
-    Builder::~Builder() {}
-
     void Builder::pruneCache() const
     {
         dataCache.removeObjects([](const Builder::BatchData& d) -> bool {
@@ -157,8 +157,46 @@ namespace Terrain
         dataCache.removeObjects([](const Builder::BatchData&) -> bool { return true; });
     }
 
+    Builder::~Builder()
+    {
+        // The build uses this object's members.
+        try
+        {
+            waitForLayers();
+        }
+        catch (...)
+        {
+        }
+    }
+
+    bool Builder::layersReady() const
+    {
+        return !mLayersReady.valid() || mLayersReady.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    }
+
+    void Builder::waitForLayers() const
+    {
+        if (!mLayersReady.valid())
+            return;
+        if (mLayersReady.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+        {
+            Misc::LoadTrace::Scope traceWait("terrain.layers.wait");
+            mLayersReady.wait();
+        }
+        mLayersReady.get(); // rethrows what the build threw
+    }
+
     void Builder::setStorage(Storage* in_storage)
     {
+        // An earlier build still writes the descriptors.
+        try
+        {
+            waitForLayers();
+        }
+        catch (...)
+        {
+        }
+        mLayersReady = {};
         mStorage = in_storage;
 
         auto layers = mStorage->getLayers();
@@ -176,18 +214,22 @@ namespace Terrain
             return;
         }
 
-        vsg::DataList imageData;
+        // Task 0089: the reads and the array are built on a thread of their own (see waitForLayers).
         const std::vector<std::string> layerPaths(layers.begin(), layers.end());
-        const auto layerImages = vsgUtil::readArrayImages(
-            layerPaths, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour), true);
-        for (size_t n = 0; n < layerPaths.size(); ++n)
-        {
-            vsgUtil::setName(*layerImages[n], layerPaths[n]);
-            imageData.push_back(layerImages[n]);
-        }
-        auto arrayData = vsgUtil::convertToArrayTexture(imageData);
-        mLayerDescriptor
-            = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+        mLayersReady = std::async(std::launch::async, [this, layerPaths] {
+            Misc::LoadTrace::Scope traceTotal("terrain.layers.total");
+            vsg::DataList imageData;
+            const auto layerImages = vsgUtil::readArrayImages(
+                layerPaths, mImageOptions, terrainImageUse(vsgUtil::TextureCap::Kind::Colour), true);
+            for (size_t n = 0; n < layerPaths.size(); ++n)
+            {
+                vsgUtil::setName(*layerImages[n], layerPaths[n]);
+                imageData.push_back(layerImages[n]);
+            }
+            auto arrayData = vsgUtil::convertToArrayTexture(imageData);
+            mLayerDescriptor
+                = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
+        }).share();
     }
 
     void Builder::setLayersWithMaps(const std::vector<LayerInfo>& layers)
@@ -203,9 +245,27 @@ namespace Terrain
             else
                 resolved.push_back(layer);
         }
-        Misc::LoadTrace::Scope traceLayers("terrain.layers.total");
         const TerrainLayerMaps maps = findTerrainLayerMaps(resolved, mMapSettings.autoMaps, mMapSettings.exists);
+        // The material table is read here, on the calling thread, for every layer: the build runs on another one.
+        std::vector<Render::Pbr::OverrideValues> values;
+        if (mMapSettings.layerValues)
+        {
+            values.reserve(resolved.size());
+            for (const std::string& path : resolved)
+                values.push_back(mMapSettings.layerValues(path));
+        }
 
+        // Task 0089: the reads and the arrays (hundreds of megabytes with a texture mod) are built on a thread of
+        // their own; whoever first builds a batch waits for it (waitForLayers), which is in the loading screen's time.
+        mLayersReady = std::async(std::launch::async, [this, maps, values] {
+            Misc::LoadTrace::Scope traceTotal("terrain.layers.total");
+            buildLayersWithMaps(maps, values);
+        }).share();
+    }
+
+    void Builder::buildLayersWithMaps(
+        const TerrainLayerMaps& maps, const std::vector<Render::Pbr::OverrideValues>& layerValues)
+    {
         // The normal map array keeps only maps of its most common size and format: convertToArrayTexture would fill
         // any other with grey bytes, which decode to a badly tilted normal rather than a flat one. Layers whose map is
         // left out are drawn without one.
@@ -309,9 +369,9 @@ namespace Terrain
                     & flagMask);
             // The tier 2 scales of the layer's texture: a roughness scale (0: none) and a reflectance (-1: none).
             vsg::vec4 scale(0.f, -1.f, 0.f, 0.f);
-            if (mMapSettings.pbr && mMapSettings.layerValues)
+            if (mMapSettings.pbr && i < layerValues.size())
             {
-                const Render::Pbr::OverrideValues values = mMapSettings.layerValues(resolved[i]);
+                const Render::Pbr::OverrideValues& values = layerValues[i];
                 if (values.roughnessScale)
                     scale.x = static_cast<float>(*values.roughnessScale);
                 if (values.reflectance)
@@ -326,9 +386,9 @@ namespace Terrain
                 // The layer's array index (-1: none) and its depth in texture coordinates, `parallax scale` included.
                 const int heightIndex = layer.heightMapIndex >= 0 ? heightArrayIndex[layer.heightMapIndex] : -1;
                 float displacement = std::numeric_limits<float>::quiet_NaN(); // not set: the default
-                if (mMapSettings.layerValues)
+                if (i < layerValues.size())
                 {
-                    const Render::Pbr::OverrideValues values = mMapSettings.layerValues(resolved[i]);
+                    const Render::Pbr::OverrideValues& values = layerValues[i];
                     if (values.displacementScale)
                         displacement = static_cast<float>(*values.displacementScale);
                 }
@@ -401,6 +461,7 @@ namespace Terrain
 
     Builder::BatchData Builder::create(const Key& key) const
     {
+        waitForLayers();
         const auto& bounds = key.first;
         auto lod = key.second;
 

@@ -45,6 +45,9 @@ namespace Terrain
         /// @param storage Storage instance to get terrain data from (heights, normals, colors, textures..)
         void setStorage(Storage* storage);
 
+        /// Task 0089: whether the terrain's layer arrays are built (see Builder::layersReady).
+        bool layersReady() const;
+
         std::unique_ptr<View> createView() const;
         // Fill in view with just the specified cell without LOD, reusing batch data created for referenceViewDistance.
         // Return a CompileOp that can be run straight away, or added to an OperationThread if care is taken to avoid

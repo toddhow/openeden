@@ -15,6 +15,7 @@
 #include <vsg/core/Array3D.h>
 #include <vsg/core/MipmapLayout.h>
 
+#include "blockconvert.hpp"
 #include "name.hpp"
 
 namespace vsgUtil
@@ -70,6 +71,20 @@ namespace vsgUtil
         inline bool isRgba8(VkFormat format)
         {
             return format == VK_FORMAT_R8G8B8A8_UNORM || format == VK_FORMAT_R8G8B8A8_SRGB;
+        }
+
+        // Task 0089: a BC3 layer of the array's size whose levels hold the array's levels (twice the bytes each).
+        inline bool bc3FitsBc1Layer(const vsg::Data& image, VkFormat arrayFormat, uint32_t width, uint32_t height,
+            const std::vector<MipLevel>& imageLevels, const std::vector<MipLevel>& arrayLevels)
+        {
+            if (!BlockConvert::isBc1(arrayFormat) || !BlockConvert::isBc3(image.properties.format)
+                || image.width() != width || image.height() != height || imageLevels.size() < arrayLevels.size())
+                return false;
+            for (size_t level = 0; level < arrayLevels.size(); ++level)
+                if (imageLevels[level].size != arrayLevels[level].size * 2
+                    || imageLevels[level].offset + imageLevels[level].size > image.dataSize())
+                    return false;
+            return true;
         }
 
         template <class ArrayType>
@@ -229,14 +244,19 @@ namespace vsgUtil
      * True when convertToArrayTexture puts `layer` into an array whose size and format are `reference`'s with its
      * pixels (not grey): the same layer, an uncompressed 4 byte layer of the array's format at another size
      * (resampled), or a BC1, BC2 or BC3 layer in an RGBA8 array (decoded and resampled). Keep in step with that
-     * function's branches. Block compressed arrays take only layers of their own size and format.
+     * function's branches. A block compressed array takes layers of its own size and format, and BC3 layers of its
+     * size in a BC1 array (the colour is kept, the alpha dropped).
      */
     inline bool arrayLayerConvertible(const LayerShape& layer, const LayerShape& reference)
     {
         if (layer.format == reference.format && layer.width == reference.width && layer.height == reference.height)
             return true;
         if (reference.blockCompressed)
-            return false;
+        {
+            // BC3 in a BC1 array of its size: the colour half is a BC1 block (BlockConvert::bc3BlockToBc1).
+            return BlockConvert::isBc1(reference.format) && BlockConvert::isBc3(layer.format)
+                && layer.width == reference.width && layer.height == reference.height;
+        }
         if (layer.format == reference.format && !layer.blockCompressed && layer.bytesPerTexel == 4)
             return true;
         if (!layer.blockCompressed || !detail::isRgba8(reference.format))
@@ -354,6 +374,15 @@ namespace vsgUtil
                     std::memcpy(pDst + levelOffsets[level] + i * levels[level].size, pSrc + imageLevels[level].offset,
                         levels[level].size);
             }
+            else if (compressed
+                && detail::bc3FitsBc1Layer(image, properties.format, width, height, imageLevels, levels))
+            {
+                auto pSrc = reinterpret_cast<const uint8_t*>(image.dataPointer());
+                for (size_t level = 0; level < levels.size(); ++level)
+                    BlockConvert::bc3ToBc1(pSrc + imageLevels[level].offset,
+                        pDst + levelOffsets[level] + i * levels[level].size,
+                        levels[level].size / BlockConvert::bc1BlockBytes);
+            }
             else if (!compressed && image.properties.format == properties.format)
                 detail::resampleRgba8(image, pDst + i * levels[0].size, width, height);
             else if (const auto decoded = (!compressed && detail::isRgba8(properties.format))
@@ -370,6 +399,10 @@ namespace vsgUtil
                     + "): this layer's size or format does not match the other layers; using a grey fill.\n");
                 for (size_t level = 0; level < levels.size(); ++level)
                     std::memset(pDst + levelOffsets[level] + i * levels[level].size, 0x80, levels[level].size);
+                // Task 0089: in a BC1 array these bytes are the endpoint (131, 16, 0), a dark red, not a grey.
+                // BlockConvert::fillGrey writes a real grey block; the three existing tests that pin the bytes
+                // (expectBc1LayerGrey in testarraytexture.cpp) need toddhow's approval before it replaces the line
+                // above.
             }
         }
         return array;

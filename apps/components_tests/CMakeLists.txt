@@ -292,6 +292,7 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testtexturecapread.cpp
     vsgutil/testtexturecaparray.cpp
     vsgutil/testarraylayers.cpp
+    vsgutil/testblockconvert.cpp
     vsgutil/testtexturemips.cpp
 
     fx/lexer.cpp

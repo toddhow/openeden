@@ -338,6 +338,11 @@ namespace Terrain
         mBuilder->pruneCache();
     }
 
+    bool Paging::layersReady() const
+    {
+        return mBuilder->layersReady();
+    }
+
     void Paging::setStorage(Storage* storage)
     {
         mStorage = storage;

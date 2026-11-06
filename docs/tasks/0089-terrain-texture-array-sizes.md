@@ -51,3 +51,50 @@ C. **Normal maps.** A BC7 decoder (about 200 lines) would admit the three BC7 ma
 ## Not verified
 
 Linux gate; the Lua integration tests; clang-tidy; the groundcover/cluster compile stall (seen once, not isolated); the red land in the frames; a frame showing the 1024 `_nh` layer (no lava ground near the start; a unit test covers the rule and the log line for lava03 is gone); a run on a cold file cache after the change (the first, cold run was the 5 s one before it).
+
+## Stage log, second round (toddhow's decisions of 2026-11-05)
+
+Decisions: (1) build the layer arrays on a worker thread; (2) transcode BC3 to BC1 losslessly; find why the land is red; report what stays grey (no encoder yet).
+
+### The land was red because of the grey fill itself
+
+`convertToArrayTexture` fills a layer it cannot convert with bytes of 0x80. In a BC1 array a block of 0x80 bytes has both endpoints 0x8080, which is RGB565 r 16, g 4, b 0: **(131, 16, 0), a dark red**. All 79 grey-filled layers of the BC1 array were drawn red, not grey (the test `BlockConvert.the_old_byte_fill_of_bc1_was_red` decodes it). In an uncompressed array 0x80 is a real grey, which is why only the mod's compressed array showed it. Evidence: the same code, the same frames with the fill replaced by a valid grey block (`vsgUtil::BlockConvert::fillGrey`: BC1 endpoints 0x8410, BC2/BC3 opaque alpha) show no red (`frames/after_final.png` against `frames/before_base.png`). Not a swizzle and not a wrong-format read.
+
+**The fix is written but not switched on:** `convertToArrayTexture` still fills with 0x80, because three existing tests pin those bytes (`VsgUtilArrayTextureTest.MostCommonSizeWinsOverFirstLayer`, `.MostCommonCompressedFormatWins` and `.LayerWhoseLayoutPointsPastDataSizeIsGrey`, through the helper `expectBc1LayerGrey` in `testarraytexture.cpp`, which expects every byte 0x80 in a BC1 layer). I may not edit them: with toddhow's approval, change that helper to accept a grey BC1 block (endpoints 0x8410, indices 0) and replace the `std::memset` in the grey branch of `convertToArrayTexture` with `BlockConvert::fillGrey(properties.format, ...)` (a comment at the line says so); the disabled test `BlockConvertArray.DISABLED_a_bc7_layer_is_a_grey_block_not_red` then runs. The frames `after_final.png` (no red) were made with the fill switched on in a build that was then reverted; the committed build still draws the 44 remaining layers red.
+
+### BC3 to BC1
+
+`vsgUtil::BlockConvert::bc3BlockToBc1` (`components/vsgutil/blockconvert.hpp`): the last 8 bytes of a BC3 block are a BC1 colour block that is always read in four colour mode; a BC1 block is in four colour mode only when endpoint 0 is greater than endpoint 1. Copied as it is when it is; otherwise the endpoints are swapped and every index's low bit flipped (0<->1, 2<->3: the same four colours, byte xor 0x55); equal endpoints become index 0 everywhere. Every mip level is converted (`convertToArrayTexture`, when the array is BC1 and a layer is BC3 of the same size with the levels the array has). Alpha is dropped. Terrain diffuse alpha is read only for the layer's specular strength when the layer was found as a `_diffusespec`-pattern file (`terrain/main.frag`, `SPECULAR_FLAG`); such a layer would lose that alpha. Before it was grey (red), so nothing is lost, but it is not specular either. The test decodes 3000 random BC3 blocks (a seventh with equal endpoints) and the transcoded BC1 and checks every texel's RGB is identical. 14 tests in `testblockconvert.cpp`; red first (6 failed against the stubs), green after.
+
+### What stays grey (mod + Faultier data3 + vanilla, `main` profile): 44 of 133 diffuse layers (79 before)
+
+| Layers | What | Count |
+| --- | --- | --- |
+| Vanilla and Bloodmoon textures the mod and Faultier do not replace (in the BSAs) | DXT1 at their own size (the load shows 34 layers with 9 mip levels, 256 x 256, and 5 with 6 levels, 32 x 32) | 37 |
+| Faultier data3 | DXT1 256 x 256 | 5 |
+| the mod | uncompressed RGBA8 2048 | 2 |
+
+So a BC1 encoder (decode, upscale to the array size, encode, with the mips regenerated) would cover all 44; 42 of them are upscales of a 256 layer, which would be as soft as nearest or bilinear upscaling. The alternative that needs no encoder is the other direction: the texture cap at 256 brings every layer to the vanilla size and leaves only the RGBA8 ones. The BC7 normal maps (3) stay dropped. Not built, as decided.
+
+### The worker thread
+
+`Terrain::Builder::setStorage` now only collects the layer names, the resolved paths, the maps found next to them and the material table's values for every layer (the calling thread: they use the VFS and the material table), then starts `std::async(launch::async)` for the reads, the arrays and the descriptors (`buildLayersWithMaps`; the plain branch the same). `Builder::create` (which every batch goes through, from any thread) calls `waitForLayers()`, a no-op once the build is done, which rethrows what the build threw; `~Builder` and a second `setStorage` wait first. The main thread does not wait on its own account: `RenderManager::updateTerrain` returns while `mTerrain->layersReady()` is false (the terrain follows in the first frame after the build, and the loading screen keeps drawing: 900 to 1,900 frames before the first terrain). Threads: the build touches only members nothing else reads until `waitForLayers()` returned (the descriptors), reads through `vsg::read` with the shared options as the model loader threads do, and creates VSG objects but compiles and uploads nothing (the compile is the main thread's, as before). The LOD tiles' own builder is the same code on its worker; `DeletionQueue` is not involved (the build owns what it creates and the descriptors go to the batches by `ref_ptr`).
+
+**Still blocking the main thread:** the first exterior local map request (`Map::requestExteriorMap` -> `Paging::updateViewForCell` -> `Builder::createBatch`) comes from the cell grid change (`grid.window.changecell`) and waits for the build: 0 to 1.6 s of the 2 to 5 s the build takes (it is not retried if skipped: `LocalMapBase::updateMap` asks once). Deferring it needs a retry in the map code (not done).
+
+### Measurements (load trace; frames = main thread; mod = Landscape Remastered 00 core + 02 + Faultier data3; the same executable with `TMP_SYNC_LAYERS` making the build synchronous = before)
+
+| Run | Longest main-thread frame | Main thread waiting on the build | Build (`terrain.layers.total`, worker) | Last frame over 200 ms ends at |
+| --- | --- | --- | --- | --- |
+| mod, synchronous x3 | 3.04, 3.93, 2.46 s (the build itself) | 2.85, 3.74, 2.26 s | 2.3 to 3.7 s | 7.4, 6.6, 5.2 s |
+| mod, worker x5 | 2.15 s (first), then 2.72, 1.07, 2.29, 2.0 s | 0, 0.17, 0.67, 0.90, 1.62 s (map request) | 2.8 to 5.6 s | 4.0 to 12.3 s |
+| Faultier only (no mod), synchronous x2 / worker x2 | 0.79, 0.78 / 0.78, 0.78 s | 17 to 173 ms / 0 to 19 ms | 5 to 173 ms | the same |
+| pure vanilla, synchronous x2 / worker x2 | 0.76, 0.77 / 0.75, 1.02 s | 15, 5 ms / none | 5 to 15 ms | the same |
+
+The worst main-thread frame with the mod went from 2.5 to 3.9 s (6.1 s once before, in a disk-bound run) to 1.1 to 2.7 s, none of it the build except the map request's wait; what remains in those frames is cell loading (`grid.total` up to 1.3 s, `insert.objects`) and `loop.record.submit` (1.2 to 1.5 s): other existing stalls. The build itself got longer on the worker (2.8 to 5.6 s against 2.3 to 3.7 s), because it now runs beside everything else that loads and the machine was shared; the time to a settled scene is not worse (last frame over 200 ms at 4.0 to 12.3 s against 5.2 to 7.4 s) but it varies widely between runs, so no gain in total load time is claimed. Vanilla is not slower (the build is 5 to 170 ms and the frames equal). The terrain appears when the build ends instead of with the first frame.
+
+Frames viewed: `I:\Projects\OpenEden-work\texmod\frames\` `before_base.png` (red land), `after_final.png` (no red; the ground is the transcoded and grey-filled layers).
+
+### Not verified (second round)
+
+Linux gate; the Lua tests; clang-tidy; the async build has no unit test (the builder needs a device: it is shown by the trace only); a failing build (a missing texture) now throws from `create` on whichever thread builds the first batch instead of from `setStorage`; the editor (`apps/opencs`) uses the same Paging/Builder and was not run; a run where the mod's grey layers matter (the lava ground) in a frame; the player seeing the terrain appear late at the end of a loading screen (no frame of the first seconds was viewed); a cold file cache.

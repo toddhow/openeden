@@ -63,12 +63,16 @@ namespace
         EXPECT_FALSE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC5_UNORM_BLOCK, 2048), rgba(2048)));
     }
 
-    TEST(ArrayLayerConvertible, a_block_compressed_array_takes_only_its_own_size_and_format)
+    TEST(ArrayLayerConvertible, a_block_compressed_array_takes_its_own_size_and_format_and_bc3_of_its_size_in_bc1)
     {
         const auto bc1 = block(VK_FORMAT_BC1_RGBA_UNORM_BLOCK, 2048);
         EXPECT_FALSE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC1_RGBA_UNORM_BLOCK, 256), bc1));
-        EXPECT_FALSE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC3_UNORM_BLOCK, 2048), bc1));
         EXPECT_FALSE(vsgUtil::arrayLayerConvertible(rgba(2048), bc1));
+        EXPECT_FALSE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC7_UNORM_BLOCK, 2048), bc1));
+        EXPECT_TRUE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC3_UNORM_BLOCK, 2048), bc1));
+        EXPECT_FALSE(vsgUtil::arrayLayerConvertible(block(VK_FORMAT_BC3_UNORM_BLOCK, 1024), bc1));
+        EXPECT_FALSE(vsgUtil::arrayLayerConvertible(
+            block(VK_FORMAT_BC1_RGBA_UNORM_BLOCK, 2048), block(VK_FORMAT_BC3_UNORM_BLOCK, 2048)));
     }
 
     TEST(ArrayLayerConvertible, an_rgba8_array_does_not_take_another_uncompressed_format_or_a_one_byte_layer)

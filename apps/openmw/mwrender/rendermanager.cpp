@@ -2331,6 +2331,10 @@ namespace MWRender
 
     void RenderManager::updateTerrain(const vsg::dvec3& pos, float dt)
     {
+        // Task 0089: the layer arrays are built on a thread of their own; the main thread does not wait for them, the
+        // terrain follows in the first frame after they are done.
+        if (!mTerrain->layersReady())
+            return;
         const Terrain::Coverage* coverage = nullptr;
         if (mLodTerrain)
         {

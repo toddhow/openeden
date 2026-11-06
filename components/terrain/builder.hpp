@@ -1,6 +1,8 @@
 #ifndef VSGOPENMW_TERRAIN_BUILDER_H
 #define VSGOPENMW_TERRAIN_BUILDER_H
 
+#include <future>
+
 #include <vsg/commands/DrawIndexed.h>
 #include <vsg/core/Array2D.h>
 #include <vsg/nodes/StateGroup.h>
@@ -32,6 +34,11 @@ namespace Terrain
         void clearCache() const;
 
         void setStorage(Storage* in_storage);
+
+        /// Task 0089: false while the layer arrays set by setStorage are still being built on their own thread. The
+        /// main thread asks before it builds terrain, so that it never waits for the build; batches built on other
+        /// threads wait.
+        bool layersReady() const;
 
         using IndexKey = std::pair<uint32_t /*numVerts*/, uint32_t /*flags*/>;
         vsgUtil::RefCache<IndexKey, vsg::BindIndexBuffer> indexCache;
@@ -96,6 +103,12 @@ namespace Terrain
         static constexpr uint32_t sParallaxFlag = 1u << 16;
         static constexpr uint32_t sSpecularFlag = 1u << 17;
         void setLayersWithMaps(const std::vector<LayerInfo>& layers);
+        // Task 0089: runs on the build's own thread; writes the descriptors below.
+        void buildLayersWithMaps(
+            const TerrainLayerMaps& maps, const std::vector<Render::Pbr::OverrideValues>& layerValues);
+        // Waits for that build (a no-op once it is done) and rethrows what it threw. Any thread.
+        void waitForLayers() const;
+        std::shared_future<void> mLayersReady;
 
         vsg::ref_ptr<vsg::Node> createCullNode(vsg::ref_ptr<vsg::Node> child, const Bounds& batchBounds,
             const BatchData& data, const Bounds& bounds) const;
