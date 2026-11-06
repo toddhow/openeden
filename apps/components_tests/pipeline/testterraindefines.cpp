@@ -78,6 +78,14 @@ namespace
         EXPECT_EQ(defines(0, false, false, {}, false, { false, true }), Defines{});
     }
 
+    TEST(PipelineTerrainDefines, point_light_shadows_need_the_maps)
+    {
+        EXPECT_EQ(Pipeline::terrainDefines(true, 0, false, {}, false, {}, 0, false, true),
+            (Defines{ "POINT_SHADOW", "TERRAIN_MAPS" }));
+        // A terrain lit per vertex cannot take one light's share out of the sum.
+        EXPECT_EQ(Pipeline::terrainDefines(false, 0, false, {}, false, {}, 0, false, true), Defines{});
+    }
+
     // The settings that reach the terrain's define sets. normalMaps stands for `[Shaders] auto use terrain normal
     // maps` or `auto use terrain specular maps` (either turns the maps on); parallax is 0 (off) or the quality, 1 to 3;
     // volumetricShadows is `volumetric clouds` with `volumetric clouds shadows`.
@@ -103,6 +111,8 @@ namespace
         bool volumetricShadows = false;
         bool debugShadow = false;
         bool debugChunks = false;
+        // `[Shadows] point light shadows` (task 0077): on only with the material output (pbr and the G-buffer).
+        bool pointShadows = false;
     };
 
     std::string readSource(const std::string& relative)
@@ -118,6 +128,7 @@ namespace
         // RenderManager: everything but the maps and parallax lives inside the hdr block (a window is assumed).
         const bool hdr = Render::Hdr::useHdrPath(p.hdr, true);
         unsigned int outputs = 0;
+        bool materialOutputOn = false;
         bool pbr = false;
         bool ao = false;
         bool giSky = false;
@@ -128,6 +139,7 @@ namespace
             const bool gbuffer = Render::GBuffer::useGBuffer(p.gbuffer, true);
             pbr = Render::Pbr::usePbr(p.pbr, true);
             const bool materialOutput = Render::Pbr::useMaterialOutput(pbr, gbuffer);
+            materialOutputOn = materialOutput;
             ao = Render::Ao::useAo(p.ao, gbuffer, materialOutput);
             if (gbuffer)
                 outputs
@@ -143,8 +155,11 @@ namespace
         // and normal maps, parallax for the height maps; any of them turns the maps on (TerrainMapSettings::enabled).
         const bool terrainPbr = pbr && p.materialMaps;
         const bool maps = p.normalMaps || terrainPbr || p.parallax > 0;
-        const Defines requested
-            = Pipeline::terrainDefines(maps, outputs, giSky, wetness, terrainPbr, cover, p.parallax, ao && p.aoTerrain);
+        // RenderManager: the point light shadows need the material output (pbr with the G-buffer) and the terrain's
+        // maps (Pipeline::terrainDefines adds POINT_SHADOW only with them).
+        const bool pointShadow = hdr && p.pointShadows && pbr && materialOutputOn;
+        const Defines requested = Pipeline::terrainDefines(
+            maps, outputs, giSky, wetness, terrainPbr, cover, p.parallax, ao && p.aoTerrain, pointShadow);
 
         // ShaderSettings reads the hdr setting itself, not the hdr path.
         Defines shadowSettings;
@@ -194,7 +209,7 @@ namespace
             // The names each stage imports (vsgUtil::effectiveDefines keeps only these), read once.
             const Defines vertexImports = vsgUtil::importedDefines(readSource("terrain/main.vert"));
             const Defines fragmentImports = vsgUtil::importedDefines(readSource("terrain/main.frag"));
-            constexpr unsigned int flagCount = 19;
+            constexpr unsigned int flagCount = 20;
             for (unsigned int bits = 0; bits < (1u << flagCount); ++bits)
             {
                 const auto on = [bits](unsigned int i) { return ((bits >> i) & 1u) != 0; };
@@ -218,6 +233,7 @@ namespace
                 p.volumetricShadows = on(16);
                 p.debugShadow = on(17);
                 p.debugChunks = on(18);
+                p.pointShadows = on(19);
                 if ((p.aoTerrain && !p.ao) || ((p.puddles || p.wetnessDebug) && !p.wetness)
                     || (p.coverDebug && !p.cover) || (p.cloudShadowDebug && !p.cloudShadows))
                     continue;
@@ -262,12 +278,15 @@ namespace
     // With pbr: 9 map states (off; on, and on with each parallax quality, each with or without TERRAIN_PBR), 4 G-buffer
     // states, 12 sky and cloud shadow states (none; or, with the atmosphere, GI_SKY or not times 6 cloud shadow states,
     // less the one equal to none), 5 wetness, 3 cover, and DEBUG_SHADOW and DEBUG_CHUNKS: 25,920. hdr without pbr adds
-    // the 120 with GBUFFER alone (5 maps x 6 cloud shadow states x 4); every set without hdr is made with hdr too. Too
-    // many to build (task 0072, stage e): the listed sets are a part, and a set that is not listed draws with the GLSL.
-    TEST(PipelineTerrainDefines, the_settings_reach_26040_fragment_sets_and_every_listed_one_is_among_them)
+    // the 120 with GBUFFER alone (5 maps x 6 cloud shadow states x 4); every set without hdr is made with hdr too.
+    // Task 0077 (task 0072 stage j, 2026-11-06): POINT_SHADOW adds a set to every one with the maps (8 of the 9 map
+    // states) and the material output (3 of the 4 G-buffer states: the output of 4, of 5, and of 5 with AO_TERRAIN):
+    // 8 x 3 x (12 x 5 x 3 x 4) = 17,280 more, 43,320 in all. Too many to build (task 0072, stage e): the listed sets
+    // are a part, and a set that is not listed draws with the GLSL or is compiled at run time.
+    TEST(PipelineTerrainDefines, the_settings_reach_43320_fragment_sets_and_every_listed_one_is_among_them)
     {
         ASSERT_FALSE(readSource("terrain/main.frag").empty()) << "the shader sources are not beside the tests";
-        EXPECT_EQ(reachable().fragment.size(), 26040u);
+        EXPECT_EQ(reachable().fragment.size(), 43320u);
         const std::set<std::string> listed = listedSets("terrain/main.frag.sets");
         EXPECT_FALSE(listed.empty());
         for (const std::string& set : listed)

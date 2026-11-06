@@ -309,6 +309,37 @@ namespace
 #endif
     }
 
+    // Task 0072, stage j (the GPU cost of the object shader): writes the SPIR-V glslang makes of every listed set of
+    // the stages under OPENEDEN_DUMP_GLSL=<folder>, as <folder>/<stage>/<twin's file name>, so that it can be compared
+    // with the twin's file of the same name (instruction counts, a disassembly). A development aid; skipped without the
+    // variable.
+    TEST(SlangInterfaceRecords, dump_the_glsl_spirv_when_asked)
+    {
+#if !OPENEDEN_SLANG_ENABLED
+        GTEST_SKIP() << "this build has no slangc";
+#else
+        const char* folder = std::getenv("OPENEDEN_DUMP_GLSL");
+        if (!folder)
+        {
+            GTEST_SKIP() << "set OPENEDEN_DUMP_GLSL=<folder> to write the GLSL stages' SPIR-V";
+        }
+        for (const Manifest& manifest : builtManifests())
+        {
+            const std::filesystem::path directory = std::filesystem::path(folder) / manifest.mStageFile;
+            std::filesystem::create_directories(directory.parent_path());
+            for (const auto& [defines, file] : manifest.mFiles.mFiles)
+            {
+                const auto words = compileGlsl(manifest.mStageFile, defines);
+                ASSERT_FALSE(words.empty()) << manifest.mStageFile << " [" << defines << "] did not compile";
+                std::filesystem::create_directories(directory);
+                std::ofstream out(directory / file, std::ios::binary | std::ios::trunc);
+                out.write(reinterpret_cast<const char*>(words.data()),
+                    static_cast<std::streamsize>(words.size() * sizeof(uint32_t)));
+            }
+        }
+#endif
+    }
+
     TEST(SlangInterfaceRecords, records_equal_the_live_glsl_interfaces)
     {
 #if !OPENEDEN_SLANG_ENABLED
