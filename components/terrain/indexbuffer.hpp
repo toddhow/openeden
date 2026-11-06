@@ -1,13 +1,54 @@
 #ifndef VSGOPENMW_TERRAIN_INDEXBUFFER_H
 #define VSGOPENMW_TERRAIN_INDEXBUFFER_H
 
-#include <cassert>
+#include <atomic>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
 
 #include <vsg/commands/BindIndexBuffer.h>
+
+#include <components/debug/debuglog.hpp>
 
 namespace Terrain
 {
     using IndexBufferKey = std::pair<uint32_t /*numVerts*/, uint32_t /*flags*/>;
+
+    // Task 0090: the largest LOD step an edge of a grid of numVerts x numVerts vertices can be stitched down by. An
+    // edge of N = numVerts - 1 quads is stitched in groups of 1 << delta quads, so the group must divide N: the
+    // largest power of two that divides N is the limit (65 vertices: 6, 129: 7, 49: 4). A larger step writes more
+    // indices than the buffer was sized for (a heap overflow; found with a LOD tile of 64 cells next to a one-cell
+    // chunk). A grid with fewer than 3 vertices has no edge that can be stitched.
+    inline uint32_t maxStitchDelta(uint32_t numVerts)
+    {
+        if (numVerts < 3)
+            return 0;
+        uint32_t quads = numVerts - 1;
+        uint32_t delta = 0;
+        while ((quads & 1u) == 0)
+        {
+            quads >>= 1;
+            ++delta;
+        }
+        return delta;
+    }
+
+    // The four 4-bit steps of `flags` (north, east, south, west), each cut down to maxStitchDelta(numVerts). Bits
+    // above the fourth nibble are ignored. The edge stays unstitched against a much coarser neighbour (a visible
+    // crack), which is better than a corrupted heap.
+    inline uint32_t safeLodFlags(uint32_t numVerts, uint32_t flags)
+    {
+        const uint32_t limit = maxStitchDelta(numVerts);
+        uint32_t result = 0;
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            uint32_t delta = (flags >> (4 * i)) & 0xfu;
+            if (delta > limit)
+                delta = limit;
+            result |= delta << (4 * i);
+        }
+        return result;
+    }
 
     struct CreateIndexBuffer
     {
@@ -21,11 +62,25 @@ namespace Terrain
 
         vsg::ref_ptr<vsg::BindIndexBuffer> create(const IndexBufferKey& key) const
         {
-            auto numVerts = key.first;
-            if (numVerts * numVerts <= 0xffffu)
-                return t_create<vsg::ushortArray>(key);
+            const auto numVerts = key.first;
+            const IndexBufferKey safeKey{ numVerts, safeLodFlags(numVerts, key.second) };
+            if (safeKey.second != key.second)
+            {
+                // Once per session: a stitch step the grid cannot take was asked for (a very coarse LOD tile next to a
+                // small live chunk); the edge is left with a crack instead of writing past the buffer.
+                static std::atomic<bool> warned{ false };
+                if (!warned.exchange(true))
+                {
+                    Log(Debug::Warning) << "Terrain chunk of " << numVerts << " vertices a side asked for edge steps 0x"
+                                        << std::hex << key.second << " but can take 0x" << safeKey.second << std::dec
+                                        << " at most (task 0090); the stitching is cut, a crack may show";
+                }
+            }
+            // 64 bits: numVerts * numVerts wraps in 32 bits above 65535 vertices
+            if (static_cast<uint64_t>(numVerts) * numVerts <= 0xffffu)
+                return t_create<vsg::ushortArray>(safeKey);
             else
-                return t_create<vsg::uintArray>(key);
+                return t_create<vsg::uintArray>(safeKey);
         }
 
         template <class IndexArrayType>
@@ -188,7 +243,10 @@ namespace Terrain
                     }
                 }
             }
-            assert(static_cast<size_t>(ptr - indices->data()) == indices->valueCount());
+            // Task 0090: checked in every build (the assert it replaces was compiled out of the game), after the fact
+            if (static_cast<size_t>(ptr - indices->data()) != indices->valueCount())
+                throw std::logic_error("terrain index buffer: " + std::to_string(ptr - indices->data())
+                    + " indices written, " + std::to_string(indices->valueCount()) + " expected");
             return vsg::BindIndexBuffer::create(indices);
         }
     };

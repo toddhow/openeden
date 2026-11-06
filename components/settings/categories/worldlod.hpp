@@ -16,16 +16,18 @@ namespace Settings
         using WithIndex::WithIndex;
 
         SettingValue<bool> mEnabled{ mIndex, "WorldLod", "enabled" };
+        // Task 0090: the ranges below are cut silently to what the code was tried with (0.01 to 1,000,000 pixels).
         SettingValue<float> mTerrainTileThreshold{ mIndex, "WorldLod", "terrain tile threshold",
-            makeMaxStrictSanitizerFloat(0) };
+            makeClampSanitizerFloat(0.01f, 1000000.f) };
         // Task 0087: seconds a terrain tile takes to dither in or out; 0 is the instant swap of before.
-        SettingValue<float> mTerrainFadeTime{ mIndex, "WorldLod", "terrain fade time", makeMaxSanitizerFloat(0) };
+        SettingValue<float> mTerrainFadeTime{ mIndex, "WorldLod", "terrain fade time",
+            makeClampSanitizerFloat(0, 60.f) };
         // Task 0059: baked object clusters (DRAFT layout), off by default; they need `enabled` too.
         SettingValue<bool> mObjectClusters{ mIndex, "WorldLod", "object clusters" };
         SettingValue<float> mObjectClusterThreshold{ mIndex, "WorldLod", "object cluster threshold",
-            makeMaxStrictSanitizerFloat(0) };
+            makeClampSanitizerFloat(0.01f, 1000000.f) };
         SettingValue<float> mObjectClusterFadeTime{ mIndex, "WorldLod", "object cluster fade time",
-            makeMaxSanitizerFloat(0) };
+            makeClampSanitizerFloat(0, 60.f) };
         // The viewing distance used while the world LOD is on (distant terrain on too): the larger of this and
         // [Camera] viewing distance, so far land is drawn out to the horizon without editing [Camera]. A number of
         // units or `auto` (task 0066: with `map view` on, the reach of the loaded world's land); it is text so that
@@ -35,14 +37,17 @@ namespace Settings
         // paging range are one number as before.
         SettingValue<bool> mMapView{ mIndex, "WorldLod", "map view" };
         // The most `view distance = auto` may reach, in units (a hardware budget).
-        SettingValue<float> mMaxViewDistance{ mIndex, "WorldLod", "max view distance", makeMaxStrictSanitizerFloat(0) };
+        SettingValue<float> mMaxViewDistance{ mIndex, "WorldLod", "max view distance",
+            makeClampSanitizerFloat(1.f, 10000000.f) };
         // Task 0066 stage c: the aerial haze of the whole-map view (with `map view` on): the light from far land fades
         // into the air's colour. `haze` turns it on; the distance, scale height and weather gain shape it
         // (aerialmath.hpp).
         SettingValue<bool> mHaze{ mIndex, "WorldLod", "haze" };
-        SettingValue<float> mHazeVisibility{ mIndex, "WorldLod", "haze visibility", makeMaxStrictSanitizerFloat(0) };
-        SettingValue<float> mHazeHeight{ mIndex, "WorldLod", "haze height", makeMaxStrictSanitizerFloat(0) };
-        SettingValue<float> mHazeWeatherGain{ mIndex, "WorldLod", "haze weather gain", makeMaxSanitizerFloat(0) };
+        SettingValue<float> mHazeVisibility{ mIndex, "WorldLod", "haze visibility",
+            makeClampSanitizerFloat(1.f, 10000000.f) };
+        SettingValue<float> mHazeHeight{ mIndex, "WorldLod", "haze height", makeClampSanitizerFloat(1.f, 1000000.f) };
+        SettingValue<float> mHazeWeatherGain{ mIndex, "WorldLod", "haze weather gain",
+            makeClampSanitizerFloat(0, 100.f) };
         // Task 0066 stage e: the hardware tier of the whole-map view (with `map view` on). `tier` is auto or one of
         // minimal, low, medium, high (to try a weaker machine); `far levels` is the highest tile level kept resident, 0
         // meaning the tier's; `far texture max size` caps the pictures of the far object clusters, 0 meaning the

@@ -74,7 +74,16 @@ namespace Settings
             {
             }
 
-            T apply(const T& value) const override { return std::clamp(value, mMin, mMax); }
+            T apply(const T& value) const override
+            {
+                // Task 0090: std::clamp returns a NaN unchanged, which then passed every later comparison
+                if constexpr (std::is_floating_point_v<T>)
+                {
+                    if (std::isnan(value))
+                        return mMin;
+                }
+                return std::clamp(value, mMin, mMax);
+            }
         };
 
         template <class T>
