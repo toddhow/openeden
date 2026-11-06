@@ -157,18 +157,18 @@ file(GLOB UNITTEST_SRC_FILES
     nif/testreadoptions.cpp
 
     nifscene/ssebuilder.hpp
+    nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp
+    nifscene/testscenematerial.cpp
+    nifscene/testscenemorrowindskin.cpp
     nifscene/testscenereal.cpp
+    nifscene/testscenerealmaterials.cpp
     nifscene/testvertexdecode.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp
-    nifscene/shaderbuilder.hpp
     extension/test_lifecycle.cpp
-    nifscene/testscenematerial.cpp
-    nifscene/testscenemorrowindskin.cpp
     extension/test_empty_host.cpp
-    nifscene/testscenerealmaterials.cpp
     extension/test_manifest_editor_entry.cpp
     extension/test_manifest_editor_library.cpp
     extension/test_manifest_io.cpp
@@ -331,9 +331,9 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testarraylayers.cpp
     vsgutil/testarrayreencode.cpp
     vsgutil/testbc1encode.cpp
-    vsgutil/testbc7decode.cpp
     vsgutil/testbc4.cpp
     vsgutil/testbc4array.cpp
+    vsgutil/testbc7decode.cpp
     vsgutil/testblockconvert.cpp
     vsgutil/testrgbaresize.cpp
 
@@ -354,14 +354,14 @@ file(GLOB UNITTEST_SRC_FILES
 # The Morrowind compatibility pack's converter, renderer-free since task 0011.
 list(APPEND UNITTEST_SRC_FILES
     extension/test_compat_morrowind.cpp
+    extension/test_compat_morrowind_scene.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/kf_animation.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/kf_converter.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/morrowind_compat_extension.cpp
 )
 
 # Task 0035 stage a: CMPhysics::HostedJoltWorld (CreativeMotion's PhysicsWorld over the host's Jolt system).
-    extension/test_compat_morrowind_scene.cpp
-    ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/scene_options.cpp
 # testhostedjoltallocation.cpp replaces the global operator new to count allocations (see the comment in that file).
 list(APPEND UNITTEST_SRC_FILES
     cmphysics/testhostedjoltworld.cpp
