@@ -110,6 +110,7 @@ file(GLOB UNITTEST_SRC_FILES
     terrain/testchunkfade.cpp
     terrain/testchunkfadeinstance.cpp
     terrain/testcoverage.cpp
+    terrain/testindexstitch.cpp
     terrain/testlayermaps.cpp
     terrain/testlayerrmaos.cpp
     terrain/testterrainfade.cpp
@@ -188,9 +189,9 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowgpu.cpp
     render/testvram.cpp
     render/testvramscaler.cpp
+    render/testvramtexturemips.cpp
     render/testvrampoolrelease.cpp
     render/testpointshadowshader.cpp
-    render/testvramtexturemips.cpp
     render/testpointshadowmemory.cpp
     render/testgbuffermath.cpp
     render/testdepthmath.cpp
@@ -289,11 +290,11 @@ file(GLOB UNITTEST_SRC_FILES
     vsgutil/testremovesrgb.cpp
     vsgutil/testtexturecap.cpp
     vsgutil/testtextureresize.cpp
+    vsgutil/testtexturemips.cpp
     vsgutil/testtexturecapread.cpp
     vsgutil/testtexturecaparray.cpp
     vsgutil/testarraylayers.cpp
     vsgutil/testblockconvert.cpp
-    vsgutil/testtexturemips.cpp
 
     fx/lexer.cpp
     fx/technique.cpp
