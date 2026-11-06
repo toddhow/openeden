@@ -3,7 +3,7 @@
 // the view frustum's corners, as in the GLSL; the statements follow it one for one. GLSL's m[c][r] is m[r][c] here.
 import glsl;
 
-#include "lib/inout.slang"
+import lib.inout;
 #include "lib/pushconstants.slang"
 import lib.view.depthrange;
 import lib.view.scene;

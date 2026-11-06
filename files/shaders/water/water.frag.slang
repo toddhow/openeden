@@ -5,7 +5,7 @@
 // from both files. GLSL's dFdx is ddx, mix is lerp, a row vector times a matrix is mul(v, m).
 import glsl;
 
-#include "lib/inout.slang"
+import lib.inout;
 import lib.light.pointspecular;
 #include "lib/material/bindings.slang"
 #include "lib/material/descriptors_frag.slang"

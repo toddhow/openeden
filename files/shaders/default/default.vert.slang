@@ -35,7 +35,8 @@ import lib.math.billboard;
 import lib.groundcover;
 #endif
 
-#include "lib/inout.slang"
+#include "lib/uvsets.slang"
+import lib.inout;
 
 struct VertexOutput
 {

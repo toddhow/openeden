@@ -112,7 +112,8 @@ import lib.view.screencoord;
 [[vk::binding(VIEW_REFLECT_DEPTH_MAP_BINDING, VIEW_SET)]] Sampler2D reflectDepthMap;
 #endif
 
-#include "lib/inout.slang"
+#include "lib/uvsets.slang"
+import lib.inout;
 #include "lib/sets.slang"
 #include "lib/view/bindings.slang"
 
