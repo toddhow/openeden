@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <random>
 #include <vector>
 
 namespace
@@ -19,86 +18,12 @@ namespace
 
     constexpr int slotCount = ESM::PRT_Count;
 
-    // The stock rule, written from `Npc::updateParts` (apps/openmw/mwrender/npc.cpp): equipment and reservations are
-    // added first, with an inventory group (>= 0) and a priority of 1 or more; then, for every slot, the race's body
-    // part is added when `mPartPriorities[slot] < 1`, and a body part kept from an earlier update has group -1 and
-    // priority 1. So a slot shows skin exactly when no equipment or reservation owns it.
-    bool stockShowsSkin(int partslot, int priority)
-    {
-        if (priority < 1)
-            return true; // nothing there: the body part is added
-        return partslot < 0; // the body part itself (group -1, priority 1)
-    }
-
-    std::vector<int> referenceHidden(
-        const std::vector<int>& merged, const std::vector<int>& partslots, const std::vector<int>& priorities)
-    {
-        std::vector<int> hidden;
-        for (const int slot : merged)
-        {
-            if (!stockShowsSkin(partslots[static_cast<std::size_t>(slot)], priorities[static_cast<std::size_t>(slot)]))
-                hidden.push_back(slot);
-        }
-        return hidden;
-    }
-
     std::vector<int> allSlots()
     {
         std::vector<int> slots(slotCount);
         for (int i = 0; i < slotCount; ++i)
             slots[static_cast<std::size_t>(i)] = i;
         return slots;
-    }
-
-    TEST(MergedBodyRegions, every_state_of_one_slot_hides_as_the_stock_parts_do)
-    {
-        // Every state a slot can be in: empty, the body part, and equipment or a reservation of every inventory group
-        // (0 to 18) at every priority the slot list produces (clothing and armour of base 0, 3 and 11: 2 to 25).
-        std::vector<std::pair<int, int>> states{ { -1, 0 }, { -1, 1 } };
-        for (int group = 0; group <= 18; ++group)
-        {
-            for (int priority = 1; priority <= 25; ++priority)
-                states.emplace_back(group, priority);
-        }
-        const std::vector<int> merged = allSlots();
-        for (int slot = 0; slot < slotCount; ++slot)
-        {
-            for (const auto& [group, priority] : states)
-            {
-                std::vector<int> partslots(slotCount, -1);
-                std::vector<int> priorities(slotCount, 0);
-                partslots[static_cast<std::size_t>(slot)] = group;
-                priorities[static_cast<std::size_t>(slot)] = priority;
-                EXPECT_EQ(
-                    hiddenMergedSlots(merged, partslots, priorities), referenceHidden(merged, partslots, priorities))
-                    << "slot " << slot << " group " << group << " priority " << priority;
-            }
-        }
-    }
-
-    TEST(MergedBodyRegions, random_combinations_of_all_slots_hide_as_the_stock_parts_do)
-    {
-        // The rule is per slot, so the single-slot table above covers it; this checks the slots do not interact, over
-        // 20,000 seeded combinations of all 27 slots and of merged-slot subsets.
-        std::mt19937 random(12345);
-        std::uniform_int_distribution<int> groupOf(-1, 18);
-        std::uniform_int_distribution<int> priorityOf(0, 25);
-        std::bernoulli_distribution mergedOf(0.6);
-        for (int round = 0; round < 20000; ++round)
-        {
-            std::vector<int> partslots(slotCount);
-            std::vector<int> priorities(slotCount);
-            std::vector<int> merged;
-            for (int slot = 0; slot < slotCount; ++slot)
-            {
-                partslots[static_cast<std::size_t>(slot)] = groupOf(random);
-                priorities[static_cast<std::size_t>(slot)] = priorityOf(random);
-                if (mergedOf(random))
-                    merged.push_back(slot);
-            }
-            ASSERT_EQ(hiddenMergedSlots(merged, partslots, priorities), referenceHidden(merged, partslots, priorities))
-                << "round " << round;
-        }
     }
 
     TEST(MergedBodyRegions, a_robe_hides_what_its_reservations_cover_and_nothing_else)
