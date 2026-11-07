@@ -669,6 +669,9 @@ add_component_dir(extension
     scratch_memory
     debug_draw_service
     physics_service
+    game_services
+    save_chunk_store
+    pack_host
 )
 
 add_component_dir(inertialmotion

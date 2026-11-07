@@ -54,7 +54,7 @@ cat > "$WORK/extensions/$ID/extension.json" <<EOF
   "name": "Data check",
   "extensionVersion": "1.0.0",
   "kind": "feature",
-  "sdk": { "major": 3, "minor": 0 },
+  "sdk": { "major": 4, "minor": 0 },
   "toolchain": "",
   "library": { "windows": "LIBRARY", "linux": "LIBRARY" },
   "provides": [],

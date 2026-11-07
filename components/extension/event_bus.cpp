@@ -142,7 +142,7 @@ namespace openeden::extension
     EventBusImpl::EventBusImpl(std::size_t capacity)
         : mCapacity(capacity)
     {
-        // Pre-allocate fixed circular ring buffer for each of the 6 phases
+        // Pre-allocate fixed circular ring buffer for each phase (the 6 frame phases and the 2 game phases)
         const openeden::sdk::Phase allPhases[] = {
             openeden::sdk::Phase::Input,
             openeden::sdk::Phase::PreSimulation,
@@ -150,6 +150,8 @@ namespace openeden::extension
             openeden::sdk::Phase::Animation,
             openeden::sdk::Phase::PreRender,
             openeden::sdk::Phase::Ui,
+            openeden::sdk::Phase::GameSimulation,
+            openeden::sdk::Phase::GameUpdateUi,
         };
 
         for (const auto phase : allPhases)

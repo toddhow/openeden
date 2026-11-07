@@ -38,6 +38,10 @@ namespace ESM
         float mCurrentHealth = 0;
         float mMaximumHealth = 0;
 
+        // The game pack the save was made with (task 0084); empty for a save made with none. Written only when set.
+        std::string mGamePackId;
+        std::string mGamePackVersion;
+
         void load(ESMReader& esm);
         void save(ESMWriter& esm) const;
 

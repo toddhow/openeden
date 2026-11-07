@@ -217,9 +217,9 @@ namespace
             }
             return {};
         };
-        EXPECT_NE(messageFor("oldExtension").find("built for SDK 1.0; this host provides 3.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldExtension").find("built for SDK 1.0; this host provides 4.0"), std::string::npos)
             << messageFor("oldExtension");
-        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 1.7; this host provides 3.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 1.7; this host provides 4.0"), std::string::npos)
             << messageFor("oldMinorExtension");
     }
 
@@ -245,9 +245,9 @@ namespace
             }
             return {};
         };
-        EXPECT_NE(messageFor("oldExtension").find("built for SDK 2.0; this host provides 3.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldExtension").find("built for SDK 2.0; this host provides 4.0"), std::string::npos)
             << messageFor("oldExtension");
-        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 2.7; this host provides 3.0"), std::string::npos)
+        EXPECT_NE(messageFor("oldMinorExtension").find("built for SDK 2.7; this host provides 4.0"), std::string::npos)
             << messageFor("oldMinorExtension");
     }
 

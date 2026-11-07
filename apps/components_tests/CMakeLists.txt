@@ -75,6 +75,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     esm3/readerscache.cpp
     esm3/testsaveload.cpp
+    esm3/testsavedgamepack.cpp
     esm3/testesmwriter.cpp
     esm3/testinfoorder.cpp
     esm3/testcstringids.cpp
@@ -183,6 +184,9 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_scratch_memory.cpp
     extension/test_debug_draw.cpp
     extension/test_physics_service.cpp
+    extension/test_game_pack_manifest.cpp
+    extension/test_game_pack_lifecycle.cpp
+    extension/test_game_pack_save.cpp
     inertialmotion/test_locomotion_state.cpp
     inertialmotion/testleansmoother.cpp
     inertialmotion/testmovementrequest.cpp

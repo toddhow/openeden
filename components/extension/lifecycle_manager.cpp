@@ -17,6 +17,7 @@ namespace openeden::extension
     LifecycleManager::LifecycleManager(openeden::sdk::Host& host)
         : mHost(host)
     {
+        mRegistry.setCapabilityLog(&mCapabilityLog);
     }
 
     LifecycleManager::~LifecycleManager()
@@ -32,6 +33,7 @@ namespace openeden::extension
         record.manifest = std::move(manifest);
         record.instance = std::move(extension);
         record.library = std::move(library);
+        record.kind = openeden::sdk::parsePackKind(record.manifest.kind).value_or(openeden::sdk::PackKind::Feature);
         record.started = false;
         mExtensions[id] = std::move(record);
     }
@@ -48,12 +50,33 @@ namespace openeden::extension
             return true;
         }
 
+        // One game pack per session: the first by ID is the one of this session, any other is refused before it is
+        // resolved (task 0084). mExtensions is ordered by ID, so the choice does not depend on the order packs were
+        // added.
+        for (const auto& [id, record] : mExtensions)
+        {
+            if (record.kind != openeden::sdk::PackKind::Game)
+                continue;
+            if (mGamePackId.empty())
+            {
+                mGamePackId = id;
+                mGamePackVersion = record.manifest.extensionVersion;
+                continue;
+            }
+            const std::string reason = "second game pack '" + id + "' refused: '" + mGamePackId
+                + "' is already the game pack of this session (one game pack per session)";
+            Log(Debug::Error) << "Extension '" << id << "' failed at game: " << reason;
+            mFailures.push_back(Failure{ id, "game", reason });
+            mDisabledExtensions.insert(id);
+        }
+
         // Collect manifests
         std::vector<ExtensionManifest> manifests;
         manifests.reserve(mExtensions.size());
         for (const auto& [id, record] : mExtensions)
         {
-            manifests.push_back(record.manifest);
+            if (mDisabledExtensions.find(id) == mDisabledExtensions.end())
+                manifests.push_back(record.manifest);
         }
 
         // Resolve dependencies
@@ -63,6 +86,7 @@ namespace openeden::extension
         {
             Log(Debug::Error) << "Extension '" << error.extensionId << "' failed at resolve: " << error.message;
             mFailures.push_back(Failure{ error.extensionId, "resolve", error.message });
+            noteGamePackFailure(error.extensionId, "resolve", error.message);
         }
 
         for (const auto& disabledId : resolution.disabledExtensions)
@@ -110,7 +134,7 @@ namespace openeden::extension
             auto it = mExtensions.find(id);
             if (it != mExtensions.end() && it->second.instance)
             {
-                mRegistry.setCurrentExtension(id);
+                mRegistry.setCurrentExtension(id, it->second.kind);
                 try
                 {
                     it->second.instance->registerServices(mRegistry);
@@ -157,6 +181,7 @@ namespace openeden::extension
 
                 if (!resolveSuccess)
                 {
+                    noteGamePackFailure(id, "resolve", "resolve() reported that the pack cannot run");
                     newlyDisabled.insert(id);
                     mDisabledExtensions.insert(id);
                     mActiveExtensions.erase(id);
@@ -189,6 +214,7 @@ namespace openeden::extension
                                 const std::string reason = "depends on disabled extension '" + disabledId + "'";
                                 Log(Debug::Error) << "Extension '" << id << "' failed at resolve: " << reason;
                                 mFailures.push_back(Failure{ id, "resolve", reason });
+                                noteGamePackFailure(id, "resolve", reason);
                                 mDisabledExtensions.insert(id);
                                 mActiveExtensions.erase(id);
                                 mRegistry.withdrawExtension(id);
@@ -216,7 +242,9 @@ namespace openeden::extension
             {
                 try
                 {
-                    it->second.instance->start(mHost);
+                    it->second.scopedHost
+                        = std::make_unique<PackScopedHost>(mHost, id, it->second.kind, mCapabilityLog);
+                    it->second.instance->start(*it->second.scopedHost);
                     it->second.started = true;
                     mStartedOrder.push_back(id);
                 }
@@ -245,38 +273,45 @@ namespace openeden::extension
             eb->processDeferredEvents(phase);
         }
 
-        // No heap allocation in hot path: traverse const reference directly
+        // No heap allocation in hot path: traverse const reference directly. A game pack's callbacks run before the
+        // callbacks of the other kinds in the same phase (pass one, then pass two), each in load order.
         const auto& callbacks = mRegistry.getFrameCallbacks(phase);
-        for (const auto& entry : callbacks)
+        for (const bool gamePass : { true, false })
         {
-            if (!entry.extensionId.empty())
+            for (const auto& entry : callbacks)
             {
-                if (mActiveExtensions.find(entry.extensionId) == mActiveExtensions.end()
-                    || mFaultedExtensions.find(entry.extensionId) != mFaultedExtensions.end())
-                {
+                if (entry.game != gamePass)
                     continue;
-                }
-            }
 
-            try
-            {
-                if (entry.callback)
-                {
-                    entry.callback(dt);
-                }
-            }
-            catch (const std::exception& e)
-            {
                 if (!entry.extensionId.empty())
                 {
-                    markExtensionFaulted(entry.extensionId, "runPhase", e.what());
+                    if (mActiveExtensions.find(entry.extensionId) == mActiveExtensions.end()
+                        || mFaultedExtensions.find(entry.extensionId) != mFaultedExtensions.end())
+                    {
+                        continue;
+                    }
                 }
-            }
-            catch (...)
-            {
-                if (!entry.extensionId.empty())
+
+                try
                 {
-                    markExtensionFaulted(entry.extensionId, "runPhase", "Unknown exception");
+                    if (entry.callback)
+                    {
+                        entry.callback(dt);
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    if (!entry.extensionId.empty())
+                    {
+                        markExtensionFaulted(entry.extensionId, "runPhase", e.what());
+                    }
+                }
+                catch (...)
+                {
+                    if (!entry.extensionId.empty())
+                    {
+                        markExtensionFaulted(entry.extensionId, "runPhase", "Unknown exception");
+                    }
                 }
             }
         }
@@ -339,6 +374,7 @@ namespace openeden::extension
         for (auto& [id, record] : mExtensions)
         {
             record.instance.reset();
+            record.scopedHost.reset();
         }
 
         // Clear all registered callbacks (std::function) and contracts BEFORE unloading dynamic libraries
@@ -378,10 +414,25 @@ namespace openeden::extension
         Log(Debug::Error) << "Extension '" << extensionId << "' failed at " << (stage ? stage : "unknown") << ": "
                           << (reason ? reason : "no reason given");
 
+        noteGamePackFailure(extensionId, stage ? stage : "unknown", reason ? reason : "no reason given");
+
         mFaultedExtensions.insert(extensionId);
         mActiveExtensions.erase(extensionId);
         mDisabledExtensions.insert(extensionId);
         mPendingFaultedExtensions.push_back(extensionId);
+    }
+
+    void LifecycleManager::noteGamePackFailure(
+        const std::string& extensionId, std::string_view stage, std::string_view reason)
+    {
+        // Only the game pack of this session: a refused second pack is not the game. The first failure is reported.
+        if (extensionId != mGamePackId || !mSessionError.empty())
+            return;
+        mSessionError = "Game pack '" + extensionId + "' failed at " + std::string(stage) + ": " + std::string(reason)
+            + ". The game cannot go on and saving is refused.";
+        Log(Debug::Error) << mSessionError;
+        if (auto* host = dynamic_cast<HostImpl*>(&mHost))
+            host->saveChunks().refuseSaving(mSessionError);
     }
 
     void LifecycleManager::processDeferredFaults()

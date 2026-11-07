@@ -6,15 +6,22 @@
 #       SOURCES <source1.cpp> ...
 #       [MANIFEST <extension.json>]
 #       [DATA <folder>]
+#       [GROUP <folder>]
 #       [NO_INSTALL]
 #   )
+#
+# GROUP names the folder that holds the pack: "extensions" (the default) or "game_packs" (openeden_add_game_pack(), task
+# 0084).
 #
 # The result is the layout of extension doc 5.1, in the build folder and in an install, where the game finds it:
 #   extensions/<id>/extension.json, the library, data/, LICENSE
 
 
 function(openeden_add_extension EXTENSION_ID)
-    cmake_parse_arguments(ARG "NO_INSTALL" "MANIFEST;DATA" "SOURCES" ${ARGN})
+    cmake_parse_arguments(ARG "NO_INSTALL" "MANIFEST;DATA;GROUP" "SOURCES" ${ARGN})
+    if(NOT ARG_GROUP)
+        set(ARG_GROUP "extensions")
+    endif()
 
     if(NOT ARG_SOURCES)
         message(FATAL_ERROR "openeden_add_extension: No SOURCES provided for extension '${EXTENSION_ID}'")
@@ -35,7 +42,7 @@ function(openeden_add_extension EXTENSION_ID)
     # Default visibility hidden
     # The manifest names the library, so its file name must not change with the build type. Each extension has a folder
     # of its own rather than the build folder's root, whatever the configuration.
-    set(EXTENSION_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/extensions/${EXTENSION_ID}")
+    set(EXTENSION_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${ARG_GROUP}/${EXTENSION_ID}")
     set_target_properties(${EXTENSION_ID} PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
@@ -91,7 +98,7 @@ function(openeden_add_extension EXTENSION_ID)
     endif()
 
     if(NOT ARG_NO_INSTALL)
-        set(EXTENSION_INSTALL_DIRECTORY "extensions/${EXTENSION_ID}")
+        set(EXTENSION_INSTALL_DIRECTORY "${ARG_GROUP}/${EXTENSION_ID}")
         install(TARGETS ${EXTENSION_ID}
             RUNTIME DESTINATION "${EXTENSION_INSTALL_DIRECTORY}"
             LIBRARY DESTINATION "${EXTENSION_INSTALL_DIRECTORY}"

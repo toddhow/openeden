@@ -12,6 +12,9 @@ namespace openeden::extension
     {
         mEventBus.unsubscribeAll(extensionId);
         mEntityManager.unregisterLifecycleListener(extensionId);
+        // A disabled game pack's handlers point into the pack; its record types, loaders, languages and windows go
+        // with it (the pack is the only registrant, and there is one per session).
+        mSaveChunks.unregisterPack(extensionId);
     }
 
     void HostImpl::releaseExtensionObjects()
@@ -20,6 +23,11 @@ namespace openeden::extension
         mEntityManager.releaseExtensionObjects();
         mVfsService.releaseExtensionObjects();
         mLoggingService.releaseExtensionObjects();
+        mSaveChunks.clear();
+        mRecords.clear();
+        mContent.clear();
+        mScriptHost.clear();
+        mUi.clear();
     }
 
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const

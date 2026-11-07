@@ -12,7 +12,7 @@ namespace CSMExtension
     {
         const char* const validManifest = R"({
   "format": "openeden.extension", "version": 1, "id": "%ID%", "name": "Test %ID%", "extensionVersion": "1.2.3",
-  "kind": "feature", "sdk": { "major": 3, "minor": 0 }, "toolchain": "",
+  "kind": "feature", "sdk": { "major": 4, "minor": 0 }, "toolchain": "",
   "library": { "windows": "nothing-here.dll", "linux": "libnothing-here.so" },
   "provides": [], "requires": [], "optional": [], "loadAfter": [], "data": "data", "settings": [],
   "licence": "GPL-3.0-or-later"

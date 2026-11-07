@@ -3,6 +3,7 @@
 #include <components/extension/dependency_resolver.hpp>
 #include <components/extension/dynamic_library.hpp>
 #include <components/extension/manifest.hpp>
+#include <components/extension/pack_host.hpp>
 #include <components/extension/service_registry.hpp>
 #include <openeden/extension.hpp>
 #include <openeden/host.hpp>
@@ -98,9 +99,34 @@ namespace openeden::extension
          */
         const std::vector<std::string>& getDisabledExtensions() const;
 
+        /**
+         * @brief Requests an extension made for something its kind may not have: a game service from the Host it was
+         * given, or a game phase callback. The request got nullptr (or was ignored) and is listed here, located.
+         */
+        const std::vector<CapabilityDenial>& getCapabilityDenials() const { return mCapabilityLog.denials(); }
+
+        /**
+         * @brief The ID of the session's game pack (manifest kind "game"), or empty if none was added. There is one:
+         * a second game pack is refused in initialize() with a failure naming both.
+         */
+        const std::string& getGamePackId() const { return mGamePackId; }
+
+        /// The game pack's manifest "extensionVersion" ("major.minor.patch"), recorded in the save header. Empty with
+        /// no game pack.
+        const std::string& getGamePackVersion() const { return mGamePackVersion; }
+
+        /**
+         * @brief True once the game pack has failed at any stage (design doc 7: it is the game, so the session cannot
+         * go on). The message names the pack and the stage. Saving is refused from then on (isSavingAllowed()).
+         */
+        bool hasSessionError() const { return !mSessionError.empty(); }
+        const std::string& getSessionError() const { return mSessionError; }
+        bool isSavingAllowed() const { return mSessionError.empty(); }
+
     private:
         void markExtensionFaulted(const std::string& extensionId, const char* stage, const char* reason = nullptr);
         void processDeferredFaults();
+        void noteGamePackFailure(const std::string& extensionId, std::string_view stage, std::string_view reason);
 
         openeden::sdk::Host& mHost;
         ServiceRegistry mRegistry;
@@ -111,7 +137,9 @@ namespace openeden::extension
         {
             ExtensionManifest manifest;
             std::unique_ptr<DynamicLibrary> library;
+            std::unique_ptr<PackScopedHost> scopedHost; // what start() is given; declared before instance: outlives it
             std::unique_ptr<openeden::sdk::Extension> instance;
+            openeden::sdk::PackKind kind = openeden::sdk::PackKind::Feature;
             bool started = false;
         };
 
@@ -123,6 +151,10 @@ namespace openeden::extension
         std::set<std::string> mFaultedExtensions;
         std::vector<std::string> mDisabledExtensionsList;
         std::vector<std::string> mPendingFaultedExtensions;
+        CapabilityLog mCapabilityLog;
+        std::string mGamePackId;
+        std::string mGamePackVersion;
+        std::string mSessionError;
         bool mInitialized = false;
     };
 } // namespace openeden::extension

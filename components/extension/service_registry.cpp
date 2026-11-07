@@ -7,7 +7,21 @@ namespace openeden::extension
     void ServiceRegistry::registerPhaseCallback(
         openeden::sdk::Phase phase, openeden::sdk::PhaseCallback callback, bool parallel)
     {
-        mFrameCallbacks[phase].push_back({ mCurrentExtensionId, std::move(callback), parallel });
+        const bool gamePhase
+            = phase == openeden::sdk::Phase::GameSimulation || phase == openeden::sdk::Phase::GameUpdateUi;
+        const bool gamePack = openeden::sdk::hasGameCapabilities(mCurrentKind);
+        if (gamePhase && !gamePack)
+        {
+            // Refused: the callback is dropped and the request is on record. The extension keeps running.
+            if (mCapabilityLog != nullptr)
+            {
+                mCapabilityLog->add(mCurrentExtensionId, mCurrentKind,
+                    phase == openeden::sdk::Phase::GameSimulation ? "game phase GameSimulation"
+                                                                  : "game phase GameUpdateUi");
+            }
+            return;
+        }
+        mFrameCallbacks[phase].push_back({ mCurrentExtensionId, std::move(callback), parallel, gamePack });
     }
 
     void ServiceRegistry::provideService(std::string_view contractId, openeden::sdk::Version version, void* implPointer)
@@ -30,9 +44,10 @@ namespace openeden::extension
         return nullptr;
     }
 
-    void ServiceRegistry::setCurrentExtension(std::string extensionId)
+    void ServiceRegistry::setCurrentExtension(std::string extensionId, openeden::sdk::PackKind kind)
     {
         mCurrentExtensionId = std::move(extensionId);
+        mCurrentKind = kind;
     }
 
     void ServiceRegistry::withdrawExtension(const std::string& extensionId)

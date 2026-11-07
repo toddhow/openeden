@@ -1,11 +1,12 @@
 #!/bin/bash -e
 
 # Decision 0003: extensions read physics, never change it, have no fixed-step phases and no Lua API.
-# Decision 0005: extensions do not affect save data.
+# Decision 0005: extensions do not affect save data. Task 0084 (SDK 4.0, decision 0013): the save chunk handler is back for
+# game packs only, so it may be declared in sdk/include/openeden/game/ and named by the Host accessor, nowhere else.
 # This fails if an SDK header declares any of those again. The only Lua words allowed are the ones
 # that ask the core to forward an event; no extension code runs in Lua.
 
-REMOVED='\b(createBody|destroyBody|createJoint|destroyJoint|createCollisionGroup|setSubGroupsCollide|destroyCollisionGroup|registerCollisionLayer|declareCollisionPair|CollisionLayer|setJointMotor|setJointPositionSteps|setJointTarget|applyImpulse|setVelocity|setBodyDamping|setKinematicTarget|setMotionType|fixedStepSeconds|stepIndex|FixedStep[A-Za-z]*|PhysicsService|getPhysicsService|isConstraintValid|BodyDesc|JointDesc|JointMotor|PhysicsWorldConfig|CreateResult|JointId|ConstraintId|CollisionGroupId|ScriptingService|getScriptingService|LuaTable|lua_State|sol::[A-Za-z_]+|registerModule|SaveService|getSaveService|SaveChunk[A-Za-z]*)\b|\bstep *\('
+REMOVED='\b(createBody|destroyBody|createJoint|destroyJoint|createCollisionGroup|setSubGroupsCollide|destroyCollisionGroup|registerCollisionLayer|declareCollisionPair|CollisionLayer|setJointMotor|setJointPositionSteps|setJointTarget|applyImpulse|setVelocity|setBodyDamping|setKinematicTarget|setMotionType|fixedStepSeconds|stepIndex|FixedStep[A-Za-z]*|PhysicsService|getPhysicsService|isConstraintValid|BodyDesc|JointDesc|JointMotor|PhysicsWorldConfig|CreateResult|JointId|ConstraintId|CollisionGroupId|ScriptingService|getScriptingService|LuaTable|lua_State|sol::[A-Za-z_]+|registerModule|SaveService|getSaveService)\b|\bstep *\('
 
 # git grep exits 0 on a match, 1 on none and higher on an error, which must not pass as "none".
 status=0
@@ -38,6 +39,31 @@ status=0
 git grep -nE '\b(EditorService|EditorWorkspace|EditorInspector|EditorGizmo|getEditorService)\b' -- 'sdk/include/openeden/' || status=$?
 if [ "$status" -eq 0 ]; then
     echo 'An SDK header declares the removed runtime editor hooks: use an editor module instead (docs/decisions/0007-eden-studio-editor-design.md)'
+    exit 1
+elif [ "$status" -ne 1 ]; then
+    echo "git grep failed with status $status"
+    exit "$status"
+fi
+
+# Task 0084 (SDK 4.0, decision 0013): the game services live in sdk/include/openeden/game/ and are for packs of kind
+# "game" only. Another SDK header may name the save chunk types only to declare the Host accessor (host.hpp).
+status=0
+other=$(git grep -nE '\bSaveChunk[A-Za-z]*\b|\b(ChunkWriter|ChunkReader)\b' -- 'sdk/include/openeden/' ':!sdk/include/openeden/game/' ':!sdk/include/openeden/host.hpp') || status=$?
+if [ "$status" -eq 0 ]; then
+    echo "$other"
+    echo 'An SDK header outside openeden/game/ names the save chunk handler: it is for game packs only (decisions 0005 and 0013)'
+    exit 1
+elif [ "$status" -ne 1 ]; then
+    echo "git grep failed with status $status"
+    exit "$status"
+fi
+
+# A feature extension or a compatibility pack never includes a game-only header (the loader would hand it nullptr anyway).
+# Game packs live in game_packs/ (decision 0013); the test game pack is the one other place allowed.
+status=0
+git grep -nE '#include *[<"]openeden/(game/|pack_kind\.hpp)' -- 'extensions/' 'editor_modules/' 'apps/openmw_tests/extension/testextension/' ':!apps/openmw_tests/extension/testextension/testgamepack.cpp' || status=$?
+if [ "$status" -eq 0 ]; then
+    echo 'A feature extension, compatibility pack or editor module includes a game-only SDK header: only a game pack (game_packs/) may (decision 0013)'
     exit 1
 elif [ "$status" -ne 1 ]; then
     echo "git grep failed with status $status"

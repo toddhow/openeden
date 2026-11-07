@@ -3,9 +3,11 @@
 #include <components/extension/debug_draw_service.hpp>
 #include <components/extension/entity_manager.hpp>
 #include <components/extension/event_bus.hpp>
+#include <components/extension/game_services.hpp>
 #include <components/extension/logging_service.hpp>
 #include <components/extension/physics_service.hpp>
 #include <components/extension/profiler_service.hpp>
+#include <components/extension/save_chunk_store.hpp>
 #include <components/extension/scratch_memory.hpp>
 #include <components/extension/settings_service.hpp>
 #include <components/extension/vfs_service.hpp>
@@ -94,6 +96,14 @@ namespace openeden::extension
             return mScratchMemoryService;
         }
 
+        // The game services (SDK 4.0). HostImpl does not hand them out through Host::get...Service(): a game pack gets
+        // them from the Host that LifecycleManager passes to its start() (PackScopedHost), scoped to its pack id.
+        [[nodiscard]] SaveChunkServiceImpl& saveChunks() noexcept { return mSaveChunks; }
+        [[nodiscard]] RecordServiceImpl& records() noexcept { return mRecords; }
+        [[nodiscard]] ContentServiceImpl& content() noexcept { return mContent; }
+        [[nodiscard]] ScriptHostServiceImpl& scriptHost() noexcept { return mScriptHost; }
+        [[nodiscard]] UiServiceImpl& ui() noexcept { return mUi; }
+
         [[nodiscard]] DebugDrawServiceImpl& debugDrawService() noexcept { return mDebugDrawService; }
         [[nodiscard]] const DebugDrawServiceImpl& debugDrawService() const noexcept { return mDebugDrawService; }
 
@@ -108,5 +118,10 @@ namespace openeden::extension
         ProfilerServiceImpl mProfilerService;
         ScratchMemoryServiceImpl mScratchMemoryService;
         DebugDrawServiceImpl mDebugDrawService;
+        SaveChunkServiceImpl mSaveChunks;
+        RecordServiceImpl mRecords;
+        ContentServiceImpl mContent;
+        ScriptHostServiceImpl mScriptHost;
+        UiServiceImpl mUi;
     };
 } // namespace openeden::extension

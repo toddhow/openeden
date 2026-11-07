@@ -63,7 +63,7 @@ namespace openeden::sdk
     /**
      * @brief Current version of the OpenEden SDK.
      */
-    constexpr Version kSdkVersion{ 3, 0 };
+    constexpr Version kSdkVersion{ 4, 0 };
     constexpr Version kVersion = kSdkVersion;
 
     inline std::ostream& operator<<(std::ostream& os, const Version& v)

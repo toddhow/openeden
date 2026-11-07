@@ -6,7 +6,7 @@
   "extensionVersion": "1.0.0",
   "kind": "compatibility",
   "sdk": {
-    "major": 3,
+    "major": 4,
     "minor": 0
   },
   "toolchain": "",

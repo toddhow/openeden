@@ -1,5 +1,7 @@
 #include "manifest_io.hpp"
 
+#include <openeden/pack_kind.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -131,7 +133,8 @@ namespace openeden::extension
             return std::nullopt;
         }
         manifest.version = root["version"].get<int>();
-        if (manifest.version != 1)
+        // Format 2 (SDK 4.0, task 0084) adds the kind "game" and checks the kind; format 1 reads as before.
+        if (manifest.version != 1 && manifest.version != 2)
         {
             error.file = std::string(filename);
             error.line = findKeyLine(jsonText, "version");
@@ -183,6 +186,22 @@ namespace openeden::extension
             return std::nullopt;
         }
         manifest.kind = root["kind"].get<std::string>();
+        if (manifest.version == 1 && manifest.kind == openeden::sdk::kKindGame)
+        {
+            error.file = std::string(filename);
+            error.line = findKeyLine(jsonText, "kind");
+            error.field = "/kind";
+            error.message = "kind 'game' needs manifest format version 2";
+            return std::nullopt;
+        }
+        if (manifest.version >= 2 && !openeden::sdk::parsePackKind(manifest.kind))
+        {
+            error.file = std::string(filename);
+            error.line = findKeyLine(jsonText, "kind");
+            error.field = "/kind";
+            error.message = "unknown kind '" + manifest.kind + "': expected 'feature', 'compatibility' or 'game'";
+            return std::nullopt;
+        }
 
         // sdk
         const auto& sdkVal = root["sdk"];

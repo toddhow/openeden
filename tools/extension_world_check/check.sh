@@ -169,7 +169,7 @@ cat > "$WORK/extension_template/$ID/extension.json" <<EOF
   "name": "World check",
   "extensionVersion": "1.0.0",
   "kind": "feature",
-  "sdk": { "major": 3, "minor": 0 },
+  "sdk": { "major": 4, "minor": 0 },
   "toolchain": "",
   "library": { "windows": "$(basename "$LIBRARY")", "linux": "$(basename "$LIBRARY")" },
   "provides": [],

@@ -41,6 +41,10 @@ namespace ESM
         esm.getHNOT(mCurrentDay, "CDAY");
         esm.getHNOT(mCurrentHealth, "CHLT");
         esm.getHNOT(mMaximumHealth, "MHLT");
+
+        // Task 0084: the game pack the save was made with. Absent in a save made with none.
+        mGamePackId = esm.getHNOString("GPCK");
+        mGamePackVersion = esm.getHNOString("GPVR");
     }
 
     void SavedGame::save(ESMWriter& esm) const
@@ -68,6 +72,13 @@ namespace ESM
         esm.writeHNT("CDAY", mCurrentDay);
         esm.writeHNT("CHLT", mCurrentHealth);
         esm.writeHNT("MHLT", mMaximumHealth);
+
+        // Additive and only when a game pack is active, so a save made with none is what it always was
+        if (!mGamePackId.empty())
+        {
+            esm.writeHNString("GPCK", mGamePackId);
+            esm.writeHNString("GPVR", mGamePackVersion);
+        }
     }
 
     std::vector<std::string_view> SavedGame::getMissingContentFiles(

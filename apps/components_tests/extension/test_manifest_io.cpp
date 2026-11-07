@@ -287,7 +287,7 @@ TEST(ManifestIoTest, UnsupportedFormatVersion_RejectedWithLocatedError)
 {
     const std::string wrongVersionJson = R"({
   "format": "openeden.extension",
-  "version": 2,
+  "version": 3,
   "id": "futureextension",
   "name": "Future Extension",
   "extensionVersion": "1.0.0",

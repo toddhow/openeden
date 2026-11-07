@@ -17,7 +17,12 @@ namespace openeden::sdk
         PostSimulation,
         Animation,
         PreRender,
-        Ui
+        Ui,
+        /// Game packs only (docs/design/game-packs.md section 4): the host runs it where the game's mechanics and
+        /// scripts update, before Phase::PreSimulation. A callback from any other kind is refused at registration.
+        GameSimulation,
+        /// Game packs only: the host runs it just before Phase::Ui.
+        GameUpdateUi
     };
 
     /**

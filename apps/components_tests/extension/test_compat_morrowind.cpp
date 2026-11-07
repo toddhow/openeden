@@ -194,7 +194,7 @@ TEST(CompatMorrowindTest, ManifestValidation)
     const auto& m = *manifestOpt;
     EXPECT_EQ(m.id, "compat_morrowind");
     EXPECT_EQ(m.kind, "compatibility");
-    EXPECT_EQ(m.sdkVersion.major, 3);
+    EXPECT_EQ(m.sdkVersion.major, 4);
     EXPECT_EQ(m.sdkVersion.minor, 0);
 
     bool hasGame = false;
