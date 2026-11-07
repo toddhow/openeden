@@ -157,6 +157,9 @@ file(GLOB UNITTEST_SRC_FILES
     nif/testmorrowindunchanged.cpp
     nif/testreadoptions.cpp
 
+    contentsource/pluginbuilder.hpp
+    contentsource/testplugin.cpp
+
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

@@ -5,6 +5,8 @@ set(ESMTOOL
     record.hpp
     record.cpp
     arguments.hpp
+    index.hpp
+    index.cpp
     tes4.hpp
     tes4.cpp
 )

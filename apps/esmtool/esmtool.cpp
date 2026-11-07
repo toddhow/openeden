@@ -21,6 +21,7 @@
 #include <components/misc/vsgmath.hpp>
 
 #include "arguments.hpp"
+#include "index.hpp"
 #include "labels.hpp"
 #include "record.hpp"
 #include "tes4.hpp"
@@ -53,6 +54,7 @@ Allowed modes:
   dump   Dumps all readable data from the input file.
   clone  Clones the input file to the output file.
   comp   Compares the given files.
+  index  Prints the header and counts per record type of a plugin of either family (no names).
 
 Allowed options)");
         auto addOption = desc.add_options();
@@ -136,7 +138,7 @@ Allowed options)");
             info.name = variables["name"].as<std::string>();
 
         info.mode = variables["mode"].as<std::string>();
-        if (!(info.mode == "dump" || info.mode == "clone" || info.mode == "comp"))
+        if (!(info.mode == "dump" || info.mode == "clone" || info.mode == "comp" || info.mode == "index"))
         {
             std::cout << "\nERROR: invalid mode \"" << info.mode << "\"\n\n" << desc << finalText << std::endl;
             return false;
@@ -205,6 +207,8 @@ int main(int argc, char** argv)
             return clone(info);
         else if (info.mode == "comp")
             return comp(info);
+        else if (info.mode == "index")
+            return index(info);
         else
         {
             std::cout << "Invalid or no mode specified, dying horribly. Have a nice day." << std::endl;

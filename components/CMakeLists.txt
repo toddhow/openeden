@@ -264,6 +264,12 @@ add_component_dir (nif
     base controller data effect extra niffile nifkey nifstream niftypes node parent particle physics property record recordptr texture
     )
 
+# The record source, layer 1 (task 0083): plugin header, masters and raw records of TES3 and the TES4 family, no game rule.
+# Formats layer.
+add_component_dir (contentsource
+    plugin
+    )
+
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene
