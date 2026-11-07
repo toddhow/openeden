@@ -362,7 +362,9 @@ namespace OMW
 
         Settings::ShaderManager::get().load(mCfgMgr.getUserConfigPath() / "shaders.yaml");
         mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
-            { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions" }, args.extensions });
+            { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions",
+                mCfgMgr.getLocalPath() / "game_packs", mCfgMgr.getUserDataPath() / "game_packs" },
+            args.extensions, args.gamePack });
         mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();

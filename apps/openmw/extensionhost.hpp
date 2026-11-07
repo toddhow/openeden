@@ -42,6 +42,9 @@ namespace OMW
             std::vector<std::filesystem::path> searchDirs;
             /// Extension IDs to load. Empty means none: unlike filterEnabledExtensions, nothing loads by default.
             std::vector<std::string> enabled;
+            /// The game pack of this session (game=), empty for none. It is loaded without being in `enabled`; any
+            /// other pack of kind "game" is refused, and with this empty so is every one (task 0084).
+            std::string gamePackId;
         };
 
         explicit ExtensionHost(const Config& config);
@@ -63,6 +66,17 @@ namespace OMW
         }
 
         [[nodiscard]] bool hasExtensions() const noexcept { return mLoaded; }
+
+        /// The ID of the session's game pack once start() has run; empty if none is loaded.
+        [[nodiscard]] const std::string& gamePackId() const noexcept override { return mLifecycle.getGamePackId(); }
+
+        [[nodiscard]] const std::string& gamePackVersion() const noexcept override
+        {
+            return mLifecycle.getGamePackVersion();
+        }
+
+        /// Non-empty once the game pack has failed: the session cannot go on and saving is refused.
+        [[nodiscard]] const std::string& sessionError() const noexcept override { return mLifecycle.getSessionError(); }
 
         /// The loaded extensions' data folders that exist, in load order, for the game's VFS.
         [[nodiscard]] const std::vector<openeden::extension::ExtensionDataDir>& dataDirs() const noexcept

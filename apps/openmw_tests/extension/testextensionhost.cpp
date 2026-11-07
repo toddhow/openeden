@@ -71,7 +71,7 @@ namespace
     {
         std::string mId;
         std::string mLibraryFile;
-        int mSdkMajor = 3;
+        int mSdkMajor = 4;
         bool mProvidesA = false;
         bool mRequiresA = false;
     };
@@ -605,7 +605,7 @@ namespace
         host.start();
 
         expectOnlyCRuns(host);
-        EXPECT_THAT(engineLog(), HasSubstr("built for SDK 2.0; this host provides 3.0"));
+        EXPECT_THAT(engineLog(), HasSubstr("built for SDK 2.0; this host provides 4.0"));
         EXPECT_EQ(count(kA, "register"), 0);
     }
 

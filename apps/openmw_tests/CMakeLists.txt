@@ -69,6 +69,8 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testextensionfailures.cpp
     extension/testextensionhost.cpp
     extension/testextensionworld.cpp
+    extension/testgamepackallocation.cpp
+    extension/testgamepackhost.cpp
 )
 
 # Task 0063 (AdvancedBodies B1): the legacy adapter's tests need the game's store, bodyparts.cpp and bodylegacy.cpp
@@ -152,6 +154,24 @@ endforeach()
 target_compile_definitions(openeden_test_extension_a PRIVATE OPENEDEN_TEST_EXTENSION_PROVIDES_A)
 target_compile_definitions(openeden_test_extension_b PRIVATE OPENEDEN_TEST_EXTENSION_REQUIRES_A)
 target_compile_definitions(openeden_test_extension_kf PRIVATE OPENEDEN_TEST_EXTENSION_USES_KF)
+
+# A game pack as a shared library, for the dynamic route of the game-pack tier (task 0084). Built by the same helper
+# that the real game packs use; the test copies the library into a game_packs folder of its own.
+include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenGamePack.cmake)
+openeden_add_game_pack(openeden_test_game_pack SOURCES extension/testextension/testgamepack.cpp NO_INSTALL)
+set_target_properties(openeden_test_game_pack PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>")
+foreach(OPENEDEN_TEST_EXTENSION_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${OPENEDEN_TEST_EXTENSION_CONFIG} OPENEDEN_TEST_EXTENSION_CONFIG)
+    set_target_properties(openeden_test_game_pack PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${OPENEDEN_TEST_EXTENSION_CONFIG} "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>"
+        LIBRARY_OUTPUT_DIRECTORY_${OPENEDEN_TEST_EXTENSION_CONFIG} "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>")
+endforeach()
+target_compile_definitions(openeden_test_game_pack PRIVATE OPENEDEN_TEST_GAME_PACK_ID="openeden_test_game_pack")
+add_dependencies(openmw-tests openeden_test_game_pack)
+target_compile_definitions(openmw-tests
+    PRIVATE OPENEDEN_TEST_GAME_PACK_PATH="$<TARGET_FILE:openeden_test_game_pack>")
 
 # The real Morrowind pack, for the test that calls its converter through the registry (task 0018).
 add_dependencies(openmw-tests compat_morrowind)

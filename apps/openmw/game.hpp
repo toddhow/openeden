@@ -196,7 +196,11 @@ namespace OMW
 
                 // Simulation phases run only while the game is unpaused, as the simulation does. dt is simulation time.
                 if (!paused)
+                {
+                    // The game pack's mechanics hook (SDK 4.0): before the other kinds' PreSimulation callbacks
+                    mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::GameSimulation, dt);
                     mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::PreSimulation, dt);
+                }
 
                 traceTime.end();
                 {
@@ -223,6 +227,9 @@ namespace OMW
                     timeManager.setSimulationTime(timeManager.getSimulationTime() + dt);
                     timeManager.setRenderingSimulationTime(timeManager.getRenderingSimulationTime() + dt);
                 }
+
+                // The game pack's window update (SDK 4.0), where the game's windows update, paused or not
+                mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::GameUpdateUi, dt);
 
                 Misc::LoadTrace::Scope traceTail("run.window.focus.sound");
                 mEngine.mWindowManager->update(dt);

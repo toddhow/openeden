@@ -48,6 +48,10 @@ namespace OpenMW
             bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
             "OpenEden extension ID(s) to enable; adds to the extension= lines in openmw.cfg");
 
+        addOption("game", bpo::value<std::string>()->default_value(""),
+            "ID of the OpenEden game pack of this session (a pack of kind \"game\"); one per session, recorded in "
+            "saves");
+
         addOption("no-extensions", bpo::value<bool>()->implicit_value(true)->default_value(false),
             "load no OpenEden extensions, whatever is enabled");
 

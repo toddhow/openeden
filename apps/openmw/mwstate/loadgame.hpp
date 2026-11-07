@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <sstream>
+#include <stdexcept>
 
 #include <SDL_clipboard.h>
 
@@ -27,6 +28,7 @@
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/extension/save_chunk_store.hpp>
 #include <components/files/conversion.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -93,6 +95,13 @@ namespace MWState
 
         void verifyProfile(const ESM::SavedGame& profile)
         {
+            // A save of another game, or of a newer game pack, is refused before anything is read (task 0084)
+            const MWBase::ExtensionManager& extensions = *MWBase::Environment::get().getExtensionManager();
+            const std::string packMessage = openeden::extension::checkSavedGamePack(
+                profile.mGamePackId, profile.mGamePackVersion, extensions.gamePackId(), extensions.gamePackVersion());
+            if (!packMessage.empty())
+                throw std::runtime_error(packMessage);
+
             const auto& selectedContentFiles = MWBase::Environment::get().getWorld()->getContentFiles();
             for (std::string_view contentFile : profile.getMissingContentFiles(selectedContentFiles))
             {

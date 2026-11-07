@@ -13,6 +13,7 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/journal.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -130,6 +131,14 @@ namespace MWState
     {
         if (mState != State_Running)
             return;
+        // A game pack that failed is the game that failed: never write a save from it (task 0084)
+        const MWBase::ExtensionManager& extensions = *MWBase::Environment::get().getExtensionManager();
+        if (!extensions.sessionError().empty())
+        {
+            Log(Debug::Error) << "Saving refused: " << extensions.sessionError();
+            MWBase::Environment::get().getWindowManager()->messageBox(extensions.sessionError());
+            return;
+        }
         MWBase::Environment::get().getWindowManager()->asyncPrepareSaveMap();
         MWBase::Environment::get().getLuaManager()->applyDelayedActions();
 
@@ -149,6 +158,8 @@ namespace MWState
         gameState->slot = slot;
         gameState->description = description;
         gameState->stateManager = this;
+        gameState->gamePackId = extensions.gamePackId();
+        gameState->gamePackVersion = extensions.gamePackVersion();
 
         auto loadingScreen = MWBase::Environment::get().getWindowManager()->createLoadingScreen();
         loadingScreen->loading = gameState;

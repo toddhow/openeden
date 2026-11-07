@@ -19,6 +19,8 @@ namespace OMW
         std::filesystem::path dataLocal; ///< Also the last of dataDirs, if set and it exists
         std::vector<std::string> archives;
         std::vector<std::string> extensions;
+        /// The ID of the game pack of this session (game= or --game), empty for none (task 0084)
+        std::string gamePack;
         std::filesystem::path resourceDir;
         ToUTF8::FromType encoding = ToUTF8::WINDOWS_1252;
 

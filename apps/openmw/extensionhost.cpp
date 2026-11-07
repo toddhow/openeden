@@ -21,6 +21,7 @@
 #include <components/extension/extension_loader.hpp>
 
 #include <openeden/logging.hpp>
+#include <openeden/pack_kind.hpp>
 
 namespace OMW
 {
@@ -129,7 +130,8 @@ namespace OMW
             = extension::discoverExtensionDirectories(config.searchDirs, &errors);
 
         const auto isEnabled = [&](const std::string& id) {
-            return std::find(config.enabled.begin(), config.enabled.end(), id) != config.enabled.end();
+            return id == config.gamePackId
+                || std::find(config.enabled.begin(), config.enabled.end(), id) != config.enabled.end();
         };
 
         // A broken manifest has no reliable ID to check against the enable list, so it is always reported
@@ -161,6 +163,17 @@ namespace OMW
                 continue;
             }
 
+            // One game pack per session, chosen by game= (task 0084)
+            if (item.manifest.kind == openeden::sdk::kKindGame && id != config.gamePackId)
+            {
+                const std::string reason = config.gamePackId.empty()
+                    ? "no game= line chooses a game pack"
+                    : "this session's game pack is '" + config.gamePackId + "'";
+                Log(Debug::Error) << "Game pack '" << id << "' not loaded: " << reason;
+                mLoadFailures.push_back(id + ": game pack not loaded, " + reason);
+                continue;
+            }
+
             Log(Debug::Info) << "Loading extension '" << id << "' from " << item.directory;
             extension::ExtensionLoadResult result = extension::loadExtensionLibrary(item, mHost.getHostInfo());
             if (!result.success)
@@ -182,6 +195,11 @@ namespace OMW
         {
             if (seen.find(id) == seen.end())
                 Log(Debug::Warning) << "Extension '" << id << "' is enabled but not installed";
+        }
+        if (!config.gamePackId.empty() && seen.find(config.gamePackId) == seen.end())
+        {
+            Log(Debug::Error) << "Game pack '" << config.gamePackId << "' (game=) is not installed";
+            mLoadFailures.push_back(config.gamePackId + ": the game pack chosen by game= is not installed");
         }
 
         // The VFS is built before extensions start, and start() is where the lifecycle resolves them too. Resolving is

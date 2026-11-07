@@ -9,15 +9,18 @@ Rules and pitfalls for new OpenEden code here. Rendering has its own guide, `mwr
 - **Startup:** `Engine::prepareEngine` creates it before the VFS, which finds and loads the enabled extensions' libraries. The `Game` state's constructor gives it the world and calls `start()`, which runs register, resolve and start: extensions keep the services they get there, and the world exists only by then. So no phases run on the first loading screen.
 - **Where extensions come from:** `extensions/` in the local path (beside the executable on Windows), then `extensions/` in the user data folder. Each extension is a folder with an `extension.json`.
 - **Enable list:** `extension=<id>` lines in `openmw.cfg`, plus `--extension=<id>` for one run. `--no-extensions` loads none. Nothing loads unless listed; an installed extension that is not listed is only named in the log. The shipped `openmw.cfg` enables `compat_morrowind`.
+- **Game packs (task 0084, decision 0013):** a pack of manifest kind `game` loads only if `game=<id>` (`openmw.cfg`, `--game`) names it; any other enabled game pack is refused with a message, and with no `game=` line none loads. Game packs are searched in `game_packs/` as well as `extensions/`. The pack's id and version go into every save header (`ESM::SavedGame::mGamePackId`, `mGamePackVersion`, written only when set); loading a save of another game or of a newer pack version is refused (`LoadGame::verifyProfile`). A game pack that fails sets `ExtensionHost::sessionError()` and saving is refused (`StateManager::saveGame`). Its callbacks run before the other kinds' in every phase.
 - **Failures** show one message box at the main menu, from `Engine::frame`: the `Game` state does not run while a menu is on top of it.
 - **Frame phases:**
 
 | Phase | Called from | Runs when |
 | --- | --- | --- |
 | `Input` | `Engine::frame`, after the input update and the hidden-window check | Every frame the window is visible |
+| `GameSimulation` | `Game::run`, just before `PreSimulation` | In a game, unpaused; game packs only (SDK 4.0) |
 | `PreSimulation` | `Game::run`, before the mechanics update | In a game, unpaused |
 | `PostSimulation` | `Game::run`, after the world update | In a game, unpaused |
 | `Animation` | `Game::run`, straight after `PostSimulation`; the mechanics update has already advanced animations | In a game, unpaused |
+| `GameUpdateUi` | `Game::run`, just before the window manager's update | In a game, paused or not; game packs only (SDK 4.0) |
 | `PreRender` | `Engine::frame`, before the window manager's frame | Every frame that completes |
 | `Ui` | `Engine::frame`, after the window manager's frame | Every frame that completes |
 

@@ -46,6 +46,9 @@ namespace MWState
         double timePlayed{};
         MWRender::ScreenshotInterface* screenshotInterface{};
         StateManager* stateManager{};
+        // The game pack of the session, copied on the main thread; empty with none (task 0084)
+        std::string gamePackId;
+        std::string gamePackVersion;
 
         struct ScreenshotState
         {
@@ -85,6 +88,8 @@ namespace MWState
             profile.mDescription = description;
             profile.mCurrentHealth = stats.getHealth().getCurrent();
             profile.mMaximumHealth = stats.getHealth().getModified();
+            profile.mGamePackId = gamePackId;
+            profile.mGamePackVersion = gamePackVersion;
 
             if (screenshot.data)
                 profile.mScreenshot = vsgUtil::writeImageToMemory(screenshot.data, ".jpg");

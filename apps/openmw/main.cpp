@@ -140,7 +140,10 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
     Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
     args.useSound = !variables["no-sound"].as<bool>();
     if (!variables["no-extensions"].as<bool>())
+    {
         args.extensions = variables["extension"].as<StringsVector>();
+        args.gamePack = variables["game"].as<std::string>();
+    }
     args.activationDistanceOverride = variables["activate-dist"].as<int>();
     args.randomSeed = variables["random-seed"].as<unsigned int>();
     args.grabMouse = !variables["no-grab"].as<bool>();

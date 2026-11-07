@@ -89,7 +89,7 @@ namespace
              << "  \"name\": \"Test extension\",\n"
              << "  \"extensionVersion\": \"1.0.0\",\n"
              << "  \"kind\": \"feature\",\n"
-             << "  \"sdk\": { \"major\": 3, \"minor\": 0 },\n"
+             << "  \"sdk\": { \"major\": 4, \"minor\": 0 },\n"
              << "  \"toolchain\": \"\",\n"
              << "  \"library\": { \"windows\": \"" << libraryFile << "\", \"linux\": \"" << libraryFile << "\" },\n"
              << "  \"provides\": " << provides << ",\n"
