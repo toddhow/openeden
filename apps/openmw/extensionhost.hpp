@@ -44,7 +44,7 @@ namespace OMW
             std::vector<std::string> enabled;
             /// The game pack of this session (game=), empty for none. It is loaded without being in `enabled`; any
             /// other pack of kind "game" is refused, and with this empty so is every one (task 0084).
-            std::string gamePackId;
+            std::string gamePackId = {};
         };
 
         explicit ExtensionHost(const Config& config);
