@@ -183,6 +183,8 @@ e starts with the pieces that have fewer callers and leaves `mwgui` (41k lines) 
 
 ## 6. SDK version impact
 
+**Status (2026-11-06, task 0084):** SDK 4.0 is built. `kind` is checked in manifest format 2; the game services are handed out by kind through a per-extension `Host` (`PackScopedHost`); phases `GameSimulation` and `GameUpdateUi` exist; one game pack per session by `game=`; the save header records the pack (`GPCK`, `GPVR`). The earlier sketch of `game_rules.hpp` and the Lua descriptor service are not built; they belong to task 0085.
+
 The SDK is 3.0 (`openeden::sdk::kSdkVersion`, `sdk/include/openeden/version.hpp`). Under the extension doc's own
 rules adding services and contracts is a **minor** change. This document recommends **4.0** anyway, because three
 things change that a 3.x extension must not silently meet: the manifest gains `kind: "game"` (manifest format
@@ -251,7 +253,7 @@ by toddhow (CI and tools) except where they touch the NIF reader (full loop: it 
 | a | 0081 | The dependency map made executable: a rule file and `CI/check_layer_rules.sh`; optional CMake object libraries per layer | No | The check passes on today's tree (with a recorded exceptions list that only shrinks); builds identical |
 | b | 0082 | NIF of any version: version-explicit reader, `Nif::Scene`, tests on generated and user-supplied files | Small | Existing nif tests, a byte-identical converter result for Morrowind meshes, the 43 files of note 0036 read |
 | c | 0083 | Record-source abstraction and the common ESM/ESP loaders | Some | `esmtool` output unchanged on Morrowind data; `ESMStore` loads through the abstraction; load time within noise |
-| d | 0084 | The game-pack tier: SDK 4.0, contracts, loader changes, a trivial test game pack | No | Zero game packs changes nothing; a test pack proves each capability; extension gates still pass |
+| d | 0084 | The game-pack tier: SDK 4.0, contracts, loader changes, a trivial test game pack (**built 2026-11-06 on Windows; Linux gate, Lua tests and a fresh review pending**, stage log in the task) | No | Zero game packs changes nothing; a test pack proves each capability; extension gates still pass |
 | e | 0085 | Moving Morrowind's rules into `game_morrowind`, three candidate moves first | Yes | Per move: unit and Lua tests, a recorded scenario compare, save round trip |
 | f | 0086 | Skyrim SE game pack skeleton | New | Loads Skyrim SE's plugin headers and meshes in Eden Studio and the game host's content step, runs nothing of its rules |
 
