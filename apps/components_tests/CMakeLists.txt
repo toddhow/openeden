@@ -159,6 +159,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     contentsource/pluginbuilder.hpp
     contentsource/testplugin.cpp
+    contentsource/testdecoderregistry.cpp
 
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp

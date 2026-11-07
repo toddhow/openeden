@@ -12,6 +12,7 @@
 #include <components/esm3/readerscache.hpp>
 #include <components/esm4/common.hpp>
 #include <components/esm4/reader.hpp>
+#include <components/contentsource/decoderregistry.hpp>
 #include <components/esm4/readerutils.hpp>
 #include <components/esmloader/load.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
@@ -231,11 +232,26 @@ namespace MWWorld
 {
     using IDMap = std::unordered_map<ESM::RefId, int>;
 
+    // What a Morrowind record decoder works on: the store it fills, the reader positioned at the record, and the
+    // dialogue that INFO records attach to. The dialogue pointer is carried from one record to the next (and from one
+    // file to the next, EsmLoader keeps it), exactly as the loop in ESMStore::load did before the decoders (task 0083).
+    struct Tes3Decode
+    {
+        ESMStore& mStore;
+        ESM::ESMReader& mReader;
+        ESM::Dialogue*& mDialogue;
+    };
+
     struct ESMStoreImp
     {
         ESMStore::StoreTuple mStores;
 
         std::map<ESM::RecNameInts, DynamicStore*> mRecNameToStore;
+
+        // The record decoders (task 0083, Content::DecoderRegistry). These are the first registrations: the typed
+        // loaders that ESMStore::load and loadESM4 used to reach through branches and a fold, unchanged.
+        Content::DecoderRegistry<Tes3Decode> mTes3Decoders;
+        Content::DecoderRegistry<ESM4::Reader> mEsm4Decoders;
 
         // Lookup of all IDs. Makes looking up references faster. Just
         // maps the id name to the record type.
@@ -286,10 +302,119 @@ namespace MWWorld
             return false;
         }
 
+        template <typename T>
+        static void registerDecoderESM4(ESMStoreImp& imp, Store<T>& store)
+        {
+            if constexpr (HasRecordId<T>::value)
+            {
+                if constexpr (ESM::isESM4Rec(T::sRecordId))
+                {
+                    // The first store with a record id keeps it, as the fold over the tuple did.
+                    imp.mEsm4Decoders.add(static_cast<std::uint32_t>(T::sRecordId), [&store](ESM4::Reader& reader) {
+                        reader.getRecordData();
+                        T value;
+                        value.load(reader);
+                        store.insertStatic(value);
+                        return true;
+                    });
+                }
+            }
+        }
+
         static bool readRecord(ESM4::Reader& reader, ESMStore& store)
         {
-            return std::apply(
-                [&reader](auto&... x) { return (typedReadRecordESM4(reader, x) || ...); }, store.mStoreImp->mStores);
+            ESMStoreImp& imp = *store.mStoreImp;
+            const std::uint32_t typeId = reader.hdr().record.typeId;
+            const auto esm4RecName
+                = static_cast<std::uint32_t>(ESM::esm4Recname(static_cast<ESM4::RecordTypes>(typeId)));
+            const auto* decoder = imp.mEsm4Decoders.find(esm4RecName);
+            if (decoder == nullptr)
+            {
+                imp.mEsm4Decoders.countSkipped(typeId);
+                return false;
+            }
+            return (*decoder)(reader);
+        }
+
+        static void registerDecoders(ESMStore& stores)
+        {
+            ESMStoreImp& imp = *stores.mStoreImp;
+            const auto add = [&imp](ESM::RecNameInts recName, Content::DecoderRegistry<Tes3Decode>::Decoder decoder) {
+                if (!imp.mTes3Decoders.add(static_cast<std::uint32_t>(recName), std::move(decoder)))
+                {
+                    throw std::logic_error("Record type registered twice: " + ESM::NAME(recName).toString());
+                }
+            };
+            for (const auto& [recName, dynamicStore] : imp.mRecNameToStore)
+            {
+                DynamicStore* target = dynamicStore;
+                const ESM::RecNameInts type = recName;
+                add(type, [target, type](Tes3Decode& decode) {
+                    const RecordId id = target->load(decode.mReader);
+                    if (id.mIsDeleted)
+                    {
+                        target->eraseStatic(id.mId);
+                        return false;
+                    }
+
+                    if (type == ESM::REC_DIAL)
+                    {
+                        decode.mDialogue
+                            = const_cast<ESM::Dialogue*>(decode.mStore.getWritable<ESM::Dialogue>().find(id.mId));
+                    }
+                    else
+                    {
+                        decode.mDialogue = nullptr;
+                    }
+                    return true;
+                });
+            }
+            // The loop used these only for record types that no store claims, so a type a store already holds keeps its
+            // store (MagicEffect and Skill are such stores today).
+            const auto addUnlessClaimed = [&imp, &add](ESM::RecNameInts recName, auto decoder) {
+                if (imp.mTes3Decoders.find(static_cast<std::uint32_t>(recName)) == nullptr)
+                {
+                    add(recName, std::move(decoder));
+                }
+            };
+            addUnlessClaimed(ESM::REC_INFO, [](Tes3Decode& decode) {
+                if (decode.mDialogue != nullptr)
+                {
+                    decode.mDialogue->readInfo(decode.mReader);
+                }
+                else
+                {
+                    Log(Debug::Error) << "Error: info record without dialog";
+                    decode.mReader.skipRecord();
+                }
+                return true;
+            });
+            addUnlessClaimed(ESM::REC_MGEF, [](Tes3Decode& decode) {
+                decode.mStore.getWritable<ESM::MagicEffect>().load(decode.mReader);
+                return true;
+            });
+            addUnlessClaimed(ESM::REC_SKIL, [](Tes3Decode& decode) {
+                decode.mStore.getWritable<ESM::Skill>().load(decode.mReader);
+                return true;
+            });
+            // ignore project file only records
+            addUnlessClaimed(ESM::REC_FILT, [](Tes3Decode& decode) {
+                decode.mReader.skipRecord();
+                return true;
+            });
+            addUnlessClaimed(ESM::REC_DBGP, [](Tes3Decode& decode) {
+                decode.mReader.skipRecord();
+                return true;
+            });
+            addUnlessClaimed(ESM::REC_LUAL, [](Tes3Decode& decode) {
+                ESM::LuaScriptsCfg cfg;
+                cfg.load(decode.mReader);
+                cfg.adjustRefNums(decode.mReader);
+                decode.mStore.mLuaContent.push_back(std::move(cfg));
+                return true;
+            });
+
+            std::apply([&imp](auto&... x) { (registerDecoderESM4(imp, x), ...); }, imp.mStores);
         }
     };
 
@@ -317,6 +442,7 @@ namespace MWWorld
     {
         mStoreImp = std::make_unique<ESMStoreImp>();
         std::apply([this](auto&... x) { (ESMStoreImp::assignStoreToIndex(*this, x), ...); }, mStoreImp->mStores);
+        ESMStoreImp::registerDecoders(*this);
         mDynamicCount = 0;
         getWritable<ESM::Pathgrid>().setCells(getWritable<ESM::Cell>());
     }
@@ -401,65 +527,16 @@ namespace MWWorld
             }
 
             // Look up the record type.
-            ESM::RecNameInts recName = static_cast<ESM::RecNameInts>(n.toInt());
-            const auto& it = mStoreImp->mRecNameToStore.find(recName);
-
-            if (it == mStoreImp->mRecNameToStore.end())
+            const auto* decoder = mStoreImp->mTes3Decoders.find(n.toInt());
+            if (decoder == nullptr)
             {
-                if (recName == ESM::REC_INFO)
-                {
-                    if (dialogue)
-                    {
-                        dialogue->readInfo(esm);
-                    }
-                    else
-                    {
-                        Log(Debug::Error) << "Error: info record without dialog";
-                        esm.skipRecord();
-                    }
-                }
-                else if (n.toInt() == ESM::REC_MGEF)
-                {
-                    getWritable<ESM::MagicEffect>().load(esm);
-                }
-                else if (n.toInt() == ESM::REC_SKIL)
-                {
-                    getWritable<ESM::Skill>().load(esm);
-                }
-                else if (n.toInt() == ESM::REC_FILT || n.toInt() == ESM::REC_DBGP)
-                {
-                    // ignore project file only records
-                    esm.skipRecord();
-                }
-                else if (n.toInt() == ESM::REC_LUAL)
-                {
-                    ESM::LuaScriptsCfg cfg;
-                    cfg.load(esm);
-                    cfg.adjustRefNums(esm);
-                    mLuaContent.push_back(std::move(cfg));
-                }
-                else
-                {
-                    throw std::runtime_error("Unknown record: " + n.toString());
-                }
+                throw std::runtime_error("Unknown record: " + n.toString());
             }
-            else
-            {
-                RecordId id = it->second->load(esm);
-                if (id.mIsDeleted)
-                {
-                    it->second->eraseStatic(id.mId);
-                    continue;
-                }
 
-                if (n.toInt() == ESM::REC_DIAL)
-                {
-                    dialogue = const_cast<ESM::Dialogue*>(getWritable<ESM::Dialogue>().find(id.mId));
-                }
-                else
-                {
-                    dialogue = nullptr;
-                }
+            Tes3Decode decode{ *this, esm, dialogue };
+            if (!(*decoder)(decode))
+            {
+                continue;
             }
             state.setComplete(esm.getFileOffset() / static_cast<float>(esm.getFileSize()));
         }
@@ -468,7 +545,23 @@ namespace MWWorld
     void ESMStore::loadESM4(ESM4::Reader& reader)
     {
         auto visitorRec = [this](ESM4::Reader& r) { return ESMStoreImp::readRecord(r, *this); };
+        const auto skippedBefore = mStoreImp->mEsm4Decoders.skipped();
         ESM4::ReaderUtils::readAll(reader, visitorRec, [](ESM4::Reader&) {});
+        // Records with no decoder are skipped, not errors; the count says how much of the file was not read.
+        std::uint64_t skippedRecords = 0;
+        std::size_t skippedTypes = 0;
+        for (const auto& [type, count] : mStoreImp->mEsm4Decoders.skipped())
+        {
+            const auto before = skippedBefore.find(type);
+            const std::uint64_t delta = count - (before != skippedBefore.end() ? before->second : 0);
+            skippedRecords += delta;
+            skippedTypes += delta != 0 ? 1 : 0;
+        }
+        if (skippedRecords != 0)
+        {
+            Log(Debug::Verbose) << "Skipped " << skippedRecords << " records of " << skippedTypes
+                                << " types that have no decoder";
+        }
     }
 
     void ESMStore::setIdType(const ESM::RefId& id, ESM::RecNameInts type)

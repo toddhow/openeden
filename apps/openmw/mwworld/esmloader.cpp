@@ -2,8 +2,10 @@
 #include "esmstore.hpp"
 
 #include <fstream>
+#include <memory>
+#include <stdexcept>
 
-#include <components/esm/format.hpp>
+#include <components/contentsource/plugin.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esm4/reader.hpp>
@@ -31,13 +33,19 @@ namespace MWWorld
     void EsmLoader::load(const std::filesystem::path& filepath, int& index, MWState::Loading& state)
     {
 
-        auto stream = Files::openBinaryInputFileStream(filepath);
-        const ESM::Format format = ESM::readFormat(*stream);
-        stream->seekg(0);
-
-        switch (format)
+        // Which family the file is comes from its header, read by Content::Plugin (task 0083); the typed readers below
+        // are the same as before.
+        Content::Error probeError;
+        const std::unique_ptr<Content::Plugin> plugin = Content::Plugin::open(
+            Files::openBinaryInputFileStream(filepath), Files::pathToUnicodeString(filepath.filename()), probeError);
+        if (plugin == nullptr)
         {
-            case ESM::Format::Tes3:
+            throw std::runtime_error(probeError.describe());
+        }
+
+        switch (plugin->header().mFamily)
+        {
+            case Content::Family::Tes3:
             {
                 const ESM::ReadersCache::BusyItem reader = mReaders.get(static_cast<std::size_t>(index));
                 reader->setEncoder(mEncoder);
@@ -63,9 +71,9 @@ namespace MWWorld
                     mMasterFileFormat = reader->getFormatVersion();
                 break;
             }
-            case ESM::Format::Tes4:
+            case Content::Family::Tes4:
             {
-                ESM4::Reader reader(std::move(stream), filepath,
+                ESM4::Reader reader(Files::openBinaryInputFileStream(filepath), filepath,
                     MWBase::Environment::get().getResourceSystem()->getVFS(),
                     mEncoder != nullptr ? &mEncoder->getStatelessEncoder() : nullptr);
                 reader.setModIndex(index);
