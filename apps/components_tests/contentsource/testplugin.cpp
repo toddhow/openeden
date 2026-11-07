@@ -340,6 +340,30 @@ namespace
         EXPECT_EQ(plugin->header().mDeclaredRecords, 0u);
     }
 
+    TEST(ContentPluginTes4, a_declared_record_count_is_not_trusted)
+    {
+        // HEDR says four billion records; the walk counts what is there and allocates nothing by the claimed count.
+        Bytes file = tes4Header(1.7f, 1, "", "", 0xFFFFFFFFu, {});
+        file.append(record4("STAT", 0, 1, Bytes().text("x")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        EXPECT_EQ(plugin->header().mDeclaredRecords, 0xFFFFFFFFu);
+        Content::Summary summary;
+        EXPECT_FALSE(Content::summarise(*plugin, summary).has_value());
+        EXPECT_EQ(summary.mRecords, 1u);
+    }
+
+    TEST(ContentPluginTes3, a_declared_record_count_is_not_trusted)
+    {
+        Bytes file = tes3Header(1.3f, 1, "", "", 0xFFFFFFFFu, {});
+        file.append(record3("STAT", 0, cellName("a")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        Content::Summary summary;
+        EXPECT_FALSE(Content::summarise(*plugin, summary).has_value());
+        EXPECT_EQ(summary.mRecords, 1u);
+    }
+
     TEST(ContentPluginTes4, a_header_without_hedr_is_accepted_with_a_24_byte_record_header)
     {
         const Bytes file = record4("TES4", 0, 0, Bytes());
@@ -634,6 +658,7 @@ namespace
         };
         EXPECT_EQ(guess(1.7f, 24, 44), Content::GameGuess::SkyrimSE);
         EXPECT_EQ(guess(1.71f, 24, 44), Content::GameGuess::SkyrimSE);
+        EXPECT_EQ(guess(1.7f, 24, 43), Content::GameGuess::SkyrimSE);
         EXPECT_EQ(guess(0.95f, 24, 131), Content::GameGuess::Fallout4);
         EXPECT_EQ(guess(1.0f, 24, 131), Content::GameGuess::Fallout4);
         EXPECT_EQ(guess(1.34f, 24, 15), Content::GameGuess::FalloutNV);

@@ -94,7 +94,7 @@ namespace Content
 
         // What was measured (task 0083 stage log, toddhow's installed games, headers only):
         //   Skyrim SE   80 plugins (Skyrim.esm, the DLC masters, Creation Club): 24 byte headers, form version 44, HEDR
-        //               version 1.7 or 1.71.
+        //               version 1.7 or 1.71; and 479 plugins of a mod list, 8 of them form version 43 with HEDR 1.7.
         //   Fallout 4   20 plugins: 24 byte headers, form version 131, HEDR version 0.95 or 1.0.
         //   Fallout NV  11 plugins: 24 byte headers, form version 2 or 15, HEDR version 1.32 to 1.34.
         // Oblivion, Fallout 3 and Skyrim LE are not installed here and are not named: they stay Unknown.
@@ -108,7 +108,8 @@ namespace Content
             {
                 return GameGuess::Unknown;
             }
-            if (header.mFormVersion == 44 && header.mVersion > 1.69f && header.mVersion < 1.72f)
+            if ((header.mFormVersion == 43 || header.mFormVersion == 44) && header.mVersion > 1.69f
+                && header.mVersion < 1.72f)
             {
                 return GameGuess::SkyrimSE;
             }
