@@ -70,7 +70,6 @@ namespace ScriptPapyrus
         namespace
         {
             constexpr std::size_t kMaxQueuedStacks = 1u << 16;
-            constexpr std::size_t kMaxStacksPerTick = 1u << 20;
             constexpr std::uint32_t kHardArrayCeiling = 65536;
             constexpr std::uint64_t kFallbackInstructions = 1'000'000;
             constexpr std::uint32_t kFallbackDepth = 64;
@@ -645,6 +644,7 @@ namespace ScriptPapyrus
                 // releaseStack must never allocate: it runs when an exception is already on its way.
                 mFreeStacks.reserve(mStackPool.size());
             }
+            stack->seq = mNextSeq++;
             stack->instance = 0;
             stack->eventName = 0;
             stack->argCount = 0;
@@ -728,6 +728,7 @@ namespace ScriptPapyrus
             }
             catch (const std::exception& error)
             {
+                mSuspendRequested = false;
                 mErrKind = ErrorKind::None;
                 const bool limit = dynamic_cast<const std::length_error*>(&error) != nullptr;
                 const bool memory = dynamic_cast<const std::bad_alloc*>(&error) != nullptr;
@@ -736,6 +737,7 @@ namespace ScriptPapyrus
             }
             catch (...)
             {
+                mSuspendRequested = false;
                 mErrKind = ErrorKind::None;
                 fail(ErrorKind::Internal, "an exception that is not a std::exception");
             }
@@ -761,6 +763,11 @@ namespace ScriptPapyrus
             mRunning.push_back(&stack);
             RunningGuard guard{ mRunning };
             executed = 0;
+            if (stack.started)
+            {
+                // Woken from a latent call: its frames are as it left them, the budget is a new one.
+                return executeStack(stack, maxInstructions, maxDepth, executed);
+            }
 
             Instance& instance = mInstances[stack.instance - 1];
             const Resolved resolved = findFunction(instance.script, instance.stateId, stack.eventName);
@@ -804,7 +811,7 @@ namespace ScriptPapyrus
             }
             --mStats.scriptCalls; // the first frame is the start, not a call
             stack.started = true;
-            return execute(stack, maxInstructions, maxDepth, executed) ? 0 : 2;
+            return executeStack(stack, maxInstructions, maxDepth, executed);
         }
 
         bool Runtime::queueEvent(std::uint32_t instanceId, std::uint32_t eventName,
@@ -996,8 +1003,17 @@ namespace ScriptPapyrus
             std::uint64_t executed = 0;
             const int outcome = runStack(*stack, false, effectiveInstructions({}), effectiveDepth({}), executed);
             ++mStats.stacksRun;
-            ++mStats.stacksFinished;
             result.instructionsExecuted = executed;
+            if (outcome == 3)
+            {
+                // A latent call parked the stack: it belongs to the scheduler now and resumes in a tick().
+                parkStack(*stack);
+                lease.keep();
+                result.ok = true;
+                result.suspended = true;
+                return result;
+            }
+            ++mStats.stacksFinished;
             if (outcome == 0)
             {
                 result.ok = true;
@@ -1010,63 +1026,17 @@ namespace ScriptPapyrus
             return result;
         }
 
-        TickResult Runtime::tick(double, const Budget& budget) noexcept
+        TickResult Runtime::tick(double scriptTime, const Budget& budget) noexcept
         {
             try
             {
-                return tickImpl(budget);
+                return tickImpl(scriptTime, budget);
             }
             catch (...)
             {
                 mErrKind = ErrorKind::None;
                 return {};
             }
-        }
-
-        TickResult Runtime::tickImpl(const Budget& budget)
-        {
-            TickResult result;
-            if (mInNative)
-            {
-                result.errors.push_back(apiError(ErrorKind::Internal, "tick() cannot be used from inside a native"));
-                return result;
-            }
-            const std::uint64_t maxInstructions = effectiveInstructions(budget);
-            const std::uint32_t maxDepth = effectiveDepth(budget);
-            std::size_t processed = 0;
-            // The whole tick has a budget too: once the stacks run so far have spent it, the others stay queued.
-            while (mReadyHead < mReady.size() && processed < kMaxStacksPerTick
-                && result.instructionsExecuted < mOptions.maxInstructionsPerTick)
-            {
-                Stack* stack = mReady[mReadyHead++];
-                StackLease lease(*this, stack);
-                ++processed;
-                std::uint64_t executed = 0;
-                const int outcome = runStack(*stack, true, maxInstructions, maxDepth, executed);
-                ++result.stacksRun;
-                ++result.stacksFinished;
-                ++mStats.stacksRun;
-                ++mStats.stacksFinished;
-                result.instructionsExecuted += executed;
-                if (outcome == 2)
-                {
-                    result.errors.push_back(takeError());
-                }
-            }
-            if (mReadyHead >= mReady.size())
-            {
-                mReady.clear();
-                mReadyHead = 0;
-            }
-            else if (mReadyHead >= 64 && mReadyHead * 2 >= mReady.size())
-            {
-                // Under sustained overload the queue never drains: give back the slots already consumed.
-                mReady.erase(mReady.begin(), mReady.begin() + static_cast<std::ptrdiff_t>(mReadyHead));
-                mReadyHead = 0;
-            }
-            result.stacksWaiting = static_cast<std::uint32_t>(mReady.size() - mReadyHead);
-            mStats.readyQueueSlots = mReady.size();
-            return result;
         }
 
         // ---- save and restore (stage e)

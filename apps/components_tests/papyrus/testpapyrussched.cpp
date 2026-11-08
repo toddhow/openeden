@@ -1,5 +1,5 @@
-// Task 0093 stage d: the scheduler. Latent natives park a stack, tick() wakes it when script time reaches its wake time,
-// in (wake time, creation sequence) order, other stacks keep running meanwhile, the host can complete or cancel a
+// Task 0093 stage d: the scheduler. Latent natives park a stack, tick() wakes it when script time reaches its wake
+// time, in (wake time, creation sequence) order, other stacks keep running meanwhile, the host can complete or cancel a
 // parked stack, and the caps and the per-tick budget hold. Written from the task's spec before the scheduler and run
 // red against a stub (the stage c behaviour) first. No game asset anywhere: every script is generated.
 
@@ -170,8 +170,8 @@ namespace
                 host.mWaitTokens.push_back(vm.rt().latentToken());
                 host.mLastWait = call.arguments[0].number;
                 NativeResult result;
-                result.waitSeconds = std::isnan(host.mNextWait) ? static_cast<double>(call.arguments[0].number)
-                                                                : host.mNextWait;
+                result.waitSeconds
+                    = std::isnan(host.mNextWait) ? static_cast<double>(call.arguments[0].number) : host.mNextWait;
                 return result;
             },
             error))
@@ -224,8 +224,7 @@ namespace
 
     struct Rig
     {
-        explicit Rig(Target target = Target::SkyrimSE,
-            UnknownFunctionPolicy policy = UnknownFunctionPolicy::Tolerant,
+        explicit Rig(Target target = Target::SkyrimSE, UnknownFunctionPolicy policy = UnknownFunctionPolicy::Tolerant,
             const ScriptPapyrus::RuntimeOptions& options = latentOptions())
             : mVm(target, policy, options)
         {
@@ -446,7 +445,8 @@ namespace
             if (policy == UnknownFunctionPolicy::Tolerant)
             {
                 EXPECT_TRUE(tick.errors.empty());
-                EXPECT_EQ(vm.varInt(a, "counter"), 5) << "the call returned the zero of its type and the script went on";
+                EXPECT_EQ(vm.varInt(a, "counter"), 5)
+                    << "the call returned the zero of its type and the script went on";
             }
             else
             {
@@ -621,7 +621,8 @@ namespace
         }
         for (int i = 0; i < 4; ++i)
         {
-            rig.send(ids[static_cast<std::size_t>(i)], "OnGo", { F(1.0f + 0.1f * static_cast<float>(i)), I(100 * (i + 1)) });
+            rig.send(
+                ids[static_cast<std::size_t>(i)], "OnGo", { F(1.0f + 0.1f * static_cast<float>(i)), I(100 * (i + 1)) });
         }
         // Each tick runs one stack: the four events start one by one.
         for (int i = 0; i < 4; ++i)
@@ -822,8 +823,9 @@ namespace
                             marks.push_back(10 * (p.mId + 1) + p.mStep);
                             if (p.mStep < 3)
                             {
-                                parked.push_back({ now + static_cast<double>(plans[static_cast<std::size_t>(p.mId)].mWait[p.mStep]),
-                                    p.mSeq, p.mId, p.mStep + 1 });
+                                parked.push_back(
+                                    { now + static_cast<double>(plans[static_cast<std::size_t>(p.mId)].mWait[p.mStep]),
+                                        p.mSeq, p.mId, p.mStep + 1 });
                             }
                         }
                         for (int i = 0; i < stacks; ++i)
@@ -831,8 +833,9 @@ namespace
                             if (plans[static_cast<std::size_t>(i)].mSendTick == t)
                             {
                                 marks.push_back(10 * (i + 1));
-                                parked.push_back({ now + static_cast<double>(plans[static_cast<std::size_t>(i)].mWait[0]),
-                                    nextSeq++, i, 1 });
+                                parked.push_back(
+                                    { now + static_cast<double>(plans[static_cast<std::size_t>(i)].mWait[0]), nextSeq++,
+                                        i, 1 });
                             }
                         }
                     }

@@ -282,12 +282,14 @@ namespace ScriptPapyrus::Vm
         std::uint32_t argCount = 0; ///< Arguments waiting in values[0, argCount) until the stack starts.
         bool started = false;
         std::uint64_t seq = 0; ///< Creation sequence: the tie-break of equal wake times, and the latent token.
+        double wake = 0.0; ///< While parked: the script time it is due at (infinite: the host completes it).
         std::vector<Frame> frames;
         std::vector<Val> values;
         Val result;
     };
 
-    /// A stack parked on a latent call (task 0093 stage d): ordered by (wake, seq); an infinite wake waits for the host.
+    /// A stack parked on a latent call (task 0093 stage d): ordered by (wake, seq); an infinite wake waits for the
+    /// host.
     struct WaitEntry
     {
         double wake = 0.0;
@@ -367,7 +369,7 @@ namespace ScriptPapyrus::Vm
             std::span<const openeden::script::PapyrusValue> arguments);
         openeden::script::CallResult sendImpl(openeden::script::InstanceId instance, std::string_view eventName,
             std::span<const openeden::script::PapyrusValue> arguments);
-        openeden::script::TickResult tickImpl(const openeden::script::Budget& budget);
+        openeden::script::TickResult tickImpl(double scriptTime, const openeden::script::Budget& budget);
         openeden::script::InstanceId attachImpl(const openeden::script::AttachKey& key, std::string_view scriptName);
         bool registerNativeImpl(const openeden::script::NativeDescriptor& descriptor,
             openeden::script::NativeHandler handler, openeden::script::ErrorReport& error);
@@ -551,8 +553,8 @@ namespace ScriptPapyrus::Vm
         std::vector<Stack*> mReady; ///< Queued stacks, oldest first (from mReadyHead).
         std::size_t mReadyHead = 0;
         std::vector<Stack*> mRunning; ///< Stacks being executed (calls can nest through natives).
-        // The scheduler (papyrussched.cpp). mWaiting is a binary heap on (wake, seq); mDue holds the entries a tick took
-        // out of it (from mDueHead on, the ones not run yet).
+        // The scheduler (papyrussched.cpp). mWaiting is a binary heap on (wake, seq); mDue holds the entries a tick
+        // took out of it (from mDueHead on, the ones not run yet).
         std::vector<WaitEntry> mWaiting;
         std::vector<WaitEntry> mDue;
         std::size_t mDueHead = 0;

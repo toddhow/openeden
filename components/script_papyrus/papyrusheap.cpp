@@ -342,6 +342,18 @@ namespace ScriptPapyrus::Vm
         {
             markStack(stack);
         }
+        // Parked stacks (task 0093 stage d): the ones in the heap and the due ones a tick has not run yet.
+        for (const WaitEntry& entry : mWaiting)
+        {
+            markStack(entry.stack);
+        }
+        for (std::size_t i = mDueHead; i < mDue.size(); ++i)
+        {
+            if (mDue[i].stack != nullptr)
+            {
+                markStack(mDue[i].stack);
+            }
+        }
     }
 
     // A collection looks at the live dynamic strings and the live arrays and structs only, never at the slots of the

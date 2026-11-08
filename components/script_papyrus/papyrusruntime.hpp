@@ -68,8 +68,8 @@ namespace ScriptPapyrus
         /// Task 0093 stage d. False (the stage c behaviour): a latent native that the host registered is not run;
         /// tolerant mode returns the zero of its type and counts Stats::latentSkipped, strict mode fails the stack.
         /// True: its handler runs, the stack is parked for NativeResult::waitSeconds of script time (or until the host
-        /// calls completeLatent) and the other stacks go on. Off by default so that a runtime built for stage c does not
-        /// change; a game pack that registers latent natives turns it on.
+        /// calls completeLatent) and the other stacks go on. Off by default so that a runtime built for stage c does
+        /// not change; a game pack that registers latent natives turns it on.
         bool runLatentNatives = false;
         /// Stacks parked on latent calls at one time (timed and waiting for the host together). A latent call over it
         /// ends that stack with [limit exceeded]; the others are unaffected.

@@ -763,6 +763,8 @@ namespace ScriptPapyrus::Vm
         auto label = [&]() { return owner.mClass + "." + std::string(nameText(function.name)); };
         const std::uint64_t key = (static_cast<std::uint64_t>(owner.mClassId) << 32) | function.name;
         Val result = zeroOf(function.ret);
+        bool suspend = false;
+        double suspendWake = 0.0;
         const auto bound = mNativeByKey.find(key);
         if (bound == mNativeByKey.end())
         {
@@ -774,7 +776,7 @@ namespace ScriptPapyrus::Vm
             logOnce("native:" + label(),
                 "native '" + label() + "' is declared and not registered; it returns the zero of its type");
         }
-        else if (mNatives[bound->second].desc.latent)
+        else if (mNatives[bound->second].desc.latent && !mOptions.runLatentNatives)
         {
             if (mPolicy == UnknownFunctionPolicy::Strict)
             {
@@ -787,6 +789,19 @@ namespace ScriptPapyrus::Vm
         }
         else
         {
+            const bool latent = mNatives[bound->second].desc.latent;
+            if (latent)
+            {
+                // Before the handler runs, so that a failure leaves the call undone: the cap, and room in the
+                // scheduler's lists (which can throw; runStack turns that into an error).
+                if (mSuspendedCount >= mOptions.maxSuspendedStacks)
+                {
+                    return fail(ErrorKind::LimitExceeded,
+                        "latent native '" + label() + "': " + std::to_string(mOptions.maxSuspendedStacks)
+                            + " stacks are already parked");
+                }
+                reserveForPark();
+            }
             mNativeArgs.clear();
             for (std::size_t i = 0; i < argCount; ++i)
             {
@@ -802,6 +817,13 @@ namespace ScriptPapyrus::Vm
             std::string what;
             {
                 WorldScope scope(*this);
+                // The token completeLatent() takes, readable only while the handler of a latent native runs.
+                struct TokenScope
+                {
+                    Runtime& mRuntime;
+                    ~TokenScope() { mRuntime.mLatentToken = 0; }
+                } tokenScope{ *this };
+                mLatentToken = latent ? stack.seq : 0;
                 try
                 {
                     nativeResult = mNatives[bound->second].fn(call);
@@ -828,8 +850,26 @@ namespace ScriptPapyrus::Vm
                 return false;
             }
             result = coerce(converted, function.ret);
+            if (latent)
+            {
+                // A negative wait is "until the host completes it"; NaN is a fault of the handler; a long or infinite
+                // one is cut to the longest wait.
+                const double wait = nativeResult.waitSeconds;
+                if (std::isnan(wait))
+                {
+                    return fail(ErrorKind::NativeFailed, "native '" + label() + "' returned a wait of NaN seconds");
+                }
+                suspendWake = wait < 0.0 ? std::numeric_limits<double>::infinity()
+                                         : mNow + std::min(wait, mOptions.maxWaitSeconds);
+                suspend = true;
+            }
         }
         writeOp(stack, stack.frames.back(), dest, result);
+        if (suspend && mErrKind == ErrorKind::None)
+        {
+            mSuspendRequested = true;
+            mSuspendWake = suspendWake;
+        }
         return mErrKind == ErrorKind::None;
     }
 
@@ -1670,6 +1710,12 @@ namespace ScriptPapyrus::Vm
                     const Frame& at = stack.frames.back();
                     locate(at, at.pc == 0 ? 0 : at.pc - 1);
                     return false;
+                }
+                if (mSuspendRequested)
+                {
+                    // A latent native parked the stack (task 0093 stage d): the frames stay as they are and the
+                    // scheduler runs them again from here.
+                    return true;
                 }
                 if (!returning)
                 {
