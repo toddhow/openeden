@@ -208,6 +208,9 @@ Clang_Format:
     - CI/check_no_osg.sh
     - CI/check_layer_rules.sh
     - CI/test_layer_rules.sh
+    - CI/check_tests_registered.sh
+    - CI/test_tests_registered.sh
+    - CI/check_game_conventions.sh
     - CI/check_clang_format.sh
     - CI/check_extension_sdk.sh
 

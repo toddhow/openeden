@@ -33,6 +33,14 @@ jobs:
         CI/check_layer_rules.sh
         CI/test_layer_rules.sh
 
+    - name: Unit test files are registered
+      run: |
+        CI/check_tests_registered.sh
+        CI/test_tests_registered.sh
+
+    - name: Game conventions stay in the pack
+      run: CI/check_game_conventions.sh
+
     - name: clang-format
       run: CI/check_clang_format.sh
 
