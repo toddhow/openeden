@@ -170,7 +170,7 @@ namespace ScriptPapyrus::Vm
         return type;
     }
 
-    Val Runtime::valueOfPex(const Pex::File& file, const Pex::Value& value)
+    Val Runtime::valueOfPex(Script& script, const Pex::Value& value)
     {
         switch (value.mType)
         {
@@ -181,7 +181,7 @@ namespace ScriptPapyrus::Vm
             case Pex::ValueType::Bool:
                 return Val::makeBool(value.mInteger != 0);
             case Pex::ValueType::String:
-                return Val::makeString(internString(file.str(value.mString)));
+                return Val::makeString(scriptStringId(script, value.mString));
             default:
                 return Val{};
         }
@@ -234,8 +234,16 @@ namespace ScriptPapyrus::Vm
         struct DepthGuard
         {
             std::size_t& mDepth;
-            ~DepthGuard() { --mDepth; }
-        } guard{ mPrepareDepth };
+            Script& mScript;
+            ~DepthGuard()
+            {
+                --mDepth;
+                // The per-entry caches only serve the compile below; drop them with it.
+                std::vector<Script::TypeCache>().swap(mScript.mStringTypes);
+                std::vector<std::uint32_t>().swap(mScript.mStringIds);
+                std::vector<std::uint32_t>().swap(mScript.mStringNameIds);
+            }
+        } guard{ mPrepareDepth, script };
 
         const Pex::File& file = script.mFile;
         const Pex::Object& object = file.mObjects[0];
@@ -282,9 +290,9 @@ namespace ScriptPapyrus::Vm
         for (const Pex::Variable& variable : object.mVariables)
         {
             VarInfo info;
-            info.name = nameId(file.str(variable.mName));
-            info.type = parseType(file.str(variable.mType));
-            info.initial = valueOfPex(file, variable.mInitial);
+            info.name = scriptNameId(script, variable.mName);
+            info.type = scriptType(script, variable.mType);
+            info.initial = valueOfPex(script, variable.mInitial);
             if (variable.mInitial.mType == Pex::ValueType::None)
             {
                 info.initial = zeroOf(info.type);
@@ -293,30 +301,30 @@ namespace ScriptPapyrus::Vm
             script.mVars.push_back(info);
         }
         script.mAutoStateName = internString(file.str(object.mAutoState));
-        script.mAutoStateId = nameId(file.str(object.mAutoState));
+        script.mAutoStateId = scriptNameId(script, object.mAutoState);
 
         for (const Pex::StructDef& definition : object.mStructs)
         {
             StructInfo info;
             for (const Pex::StructMember& member : definition.mMembers)
             {
-                info.memberNames.push_back(nameId(file.str(member.mName)));
-                info.memberTypes.push_back(parseType(file.str(member.mType)));
-                Val initial = valueOfPex(file, member.mInitial);
+                info.memberNames.push_back(scriptNameId(script, member.mName));
+                info.memberTypes.push_back(scriptType(script, member.mType));
+                Val initial = valueOfPex(script, member.mInitial);
                 if (member.mInitial.mType == Pex::ValueType::None)
                 {
                     initial = zeroOf(info.memberTypes.back());
                 }
                 info.memberDefaults.push_back(initial);
             }
-            script.mStructs.emplace(nameId(file.str(definition.mName)), std::move(info));
+            script.mStructs.emplace(scriptNameId(script, definition.mName), std::move(info));
         }
 
         // Functions of every state, then the accessors of the full properties.
         for (const Pex::State& state : object.mStates)
         {
             StateInfo info;
-            info.name = nameId(file.str(state.mName));
+            info.name = scriptNameId(script, state.mName);
             for (const Pex::Function& source : state.mFunctions)
             {
                 CFunc compiled;
@@ -331,12 +339,12 @@ namespace ScriptPapyrus::Vm
         for (const Pex::Property& property : object.mProperties)
         {
             PropInfo info;
-            info.type = parseType(file.str(property.mType));
+            info.type = scriptType(script, property.mType);
             const std::string propertyName(file.str(property.mName));
             if ((property.mFlags & Pex::Property::kAuto) != 0)
             {
                 info.autoProperty = true;
-                const auto backing = script.mVarIndex.find(nameId(file.str(property.mAutoVariable)));
+                const auto backing = script.mVarIndex.find(scriptNameId(script, property.mAutoVariable));
                 if (backing == script.mVarIndex.end())
                 {
                     continue;
@@ -366,25 +374,67 @@ namespace ScriptPapyrus::Vm
         return true;
     }
 
+    TypeRef Runtime::scriptType(Script& script, std::uint32_t stringIndex)
+    {
+        if (script.mStringTypes.size() != script.mFile.mStrings.size())
+        {
+            script.mStringTypes.assign(script.mFile.mStrings.size(), Script::TypeCache{});
+        }
+        Script::TypeCache& cached = script.mStringTypes[stringIndex];
+        if (!cached.mSet)
+        {
+            cached.mType = parseType(script.mFile.str(stringIndex));
+            cached.mSet = true;
+        }
+        return cached.mType;
+    }
+
+    std::uint32_t Runtime::scriptStringId(Script& script, std::uint32_t stringIndex)
+    {
+        if (script.mStringIds.size() != script.mFile.mStrings.size())
+        {
+            script.mStringIds.assign(script.mFile.mStrings.size(), kNoScript);
+        }
+        std::uint32_t& cached = script.mStringIds[stringIndex];
+        if (cached == kNoScript)
+        {
+            cached = internString(script.mFile.str(stringIndex));
+        }
+        return cached;
+    }
+
+    std::uint32_t Runtime::scriptNameId(Script& script, std::uint32_t stringIndex)
+    {
+        if (script.mStringNameIds.size() != script.mFile.mStrings.size())
+        {
+            script.mStringNameIds.assign(script.mFile.mStrings.size(), kNoScript);
+        }
+        std::uint32_t& cached = script.mStringNameIds[stringIndex];
+        if (cached == kNoScript)
+        {
+            cached = nameId(script.mFile.str(stringIndex));
+        }
+        return cached;
+    }
+
     void Runtime::compileFunction(Script& script, const Pex::Function& source, std::uint32_t stateId, CFunc& out)
     {
-        const Pex::File& file = script.mFile;
-        out.name = source.mName == Pex::Function::kNoName ? 0 : nameId(file.str(source.mName));
+        out.name = source.mName == Pex::Function::kNoName ? 0 : scriptNameId(script, source.mName);
         out.state = stateId;
         out.global = source.isGlobal();
         out.native = source.isNative();
-        out.ret = parseType(file.str(source.mReturnType));
+        out.ret = scriptType(script, source.mReturnType);
         std::unordered_map<std::uint32_t, std::uint32_t> slots;
         for (const Pex::Parameter& parameter : source.mParameters)
         {
-            slots.emplace(nameId(file.str(parameter.mName)), static_cast<std::uint32_t>(out.slotTypes.size()));
-            out.slotTypes.push_back(parseType(file.str(parameter.mType)));
+            slots.emplace(scriptNameId(script, parameter.mName), static_cast<std::uint32_t>(out.slotTypes.size()));
+            out.slotTypes.push_back(scriptType(script, parameter.mType));
         }
         out.paramCount = static_cast<std::uint16_t>(source.mParameters.size());
         for (const Pex::Parameter& local : source.mLocals)
         {
-            slots.emplace(nameId(file.str(local.mName)), static_cast<std::uint32_t>(out.slotTypes.size()));
-            out.slotTypes.push_back(parseType(file.str(local.mType)));
+            slots.emplace(scriptNameId(script, local.mName), static_cast<std::uint32_t>(out.slotTypes.size()));
+            out.slotTypes.push_back(scriptType(script, local.mType));
         }
         out.frameSize = static_cast<std::uint16_t>(out.slotTypes.size());
 
@@ -401,7 +451,7 @@ namespace ScriptPapyrus::Vm
                 if (value.mType == Pex::ValueType::Identifier || value.mType == Pex::ValueType::String)
                 {
                     op.kind = OpKind::Name;
-                    op.n = nameId(file.str(value.mString));
+                    op.n = scriptNameId(script, value.mString);
                 }
                 else
                 {
@@ -423,10 +473,10 @@ namespace ScriptPapyrus::Vm
                     return op;
                 }
                 op.kind = OpKind::Const;
-                op.v = valueOfPex(file, value);
+                op.v = valueOfPex(script, value);
                 return op;
             }
-            const std::uint32_t id = nameId(file.str(value.mString));
+            const std::uint32_t id = scriptNameId(script, value.mString);
             op.n = id;
             if (const auto local = slots.find(id); local != slots.end())
             {

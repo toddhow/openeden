@@ -169,6 +169,7 @@ file(GLOB UNITTEST_SRC_FILES
     papyrus/testpapyrusvmdata.cpp
     papyrus/testpapyrusvmfuzz.cpp
     papyrus/testpapyrusrealrun.cpp
+    papyrus/testpapyrusreview.cpp
 
     nif/node.hpp
     nif/testphysics.cpp

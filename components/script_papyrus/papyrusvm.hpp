@@ -192,6 +192,14 @@ namespace ScriptPapyrus::Vm
         std::unordered_map<std::uint32_t, std::uint32_t> mStateIndex; ///< State name id to index in mStates.
         std::unordered_map<std::uint32_t, PropInfo> mProps;
         std::unordered_map<std::uint32_t, StructInfo> mStructs; ///< Struct name id to its definition.
+        struct TypeCache
+        {
+            TypeRef mType;
+            bool mSet = false;
+        };
+        std::vector<TypeCache> mStringTypes;
+        std::vector<std::uint32_t> mStringIds; ///< internString id per string table entry, kNoScript until asked.
+        std::vector<std::uint32_t> mStringNameIds; ///< nameId per string table entry, kNoScript until asked.
 
         std::uint32_t totalVars() const { return mVarBase + static_cast<std::uint32_t>(mVars.size()); }
     };
@@ -358,7 +366,10 @@ namespace ScriptPapyrus::Vm
         bool prepare(std::uint32_t scriptIndex);
         void prepareFail(Script& script, const std::string& why);
         TypeRef parseType(std::string_view text);
-        Val valueOfPex(const Pex::File& file, const Pex::Value& value);
+        Val valueOfPex(Script& script, const Pex::Value& value);
+        /// parseType and internString of a string table entry, worked out once per entry.
+        TypeRef scriptType(Script& script, std::uint32_t stringIndex);
+        std::uint32_t scriptStringId(Script& script, std::uint32_t stringIndex);
         Val zeroOf(const TypeRef& type) const;
         void compileFunction(Script& script, const Pex::Function& source, std::uint32_t stateId, CFunc& out);
         std::uint32_t scriptByClassId(std::uint32_t classId) const;
@@ -366,6 +377,9 @@ namespace ScriptPapyrus::Vm
 
         // names and strings (papyrusheap.cpp)
         std::uint32_t nameId(std::string_view text);
+        /// nameId of string  stringIndex of  script's string table, worked out once per entry (a long name used
+        /// by many operands is hashed once).
+        std::uint32_t scriptNameId(Script& script, std::uint32_t stringIndex);
         std::uint32_t findNameId(std::string_view text) const; ///< 0 when never seen (and the text is not empty).
         std::string_view nameText(std::uint32_t id) const;
         std::uint32_t internString(std::string_view text);

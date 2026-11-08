@@ -4,6 +4,7 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "papyruslimits.hpp"
@@ -75,6 +76,8 @@ namespace ScriptPapyrus::Pex
         constexpr std::uint8_t kLastFallout4Opcode = 47;
         constexpr std::uint8_t kFirstGuardOpcode = 48;
         constexpr std::uint8_t kLastGuardOpcode = 50;
+
+        constexpr std::uint32_t kNoId = 0xFFFFFFFFu;
 
         class Reader
         {
@@ -205,7 +208,7 @@ namespace ScriptPapyrus::Pex
             void readObject(File& file, std::vector<ErrorReport>& reports, std::string_view name);
             void readDebug();
 
-            bool resolves(const std::string& lowerName) const;
+            bool resolves(std::uint32_t lowId) const;
 
             std::span<const std::uint8_t> mBytes;
             ParseOptions mOptions;
@@ -223,8 +226,13 @@ namespace ScriptPapyrus::Pex
             std::uint8_t mOpcode = 0;
 
             // Names an identifier operand may refer to: this function's, then the object's.
-            std::unordered_set<std::string> mFunctionNames;
-            std::unordered_set<std::string> mObjectNames;
+            // Lower-cased string table entries share one id each, worked out once per entry when the table is read
+            // (hashing a name per operand would make the work the product of two caps instead of the file's size).
+            std::vector<std::uint32_t> mLowId;
+            std::uint32_t mSelfId = kNoId;
+            std::uint32_t mStateId = kNoId;
+            std::unordered_set<std::uint32_t> mFunctionNames;
+            std::unordered_set<std::uint32_t> mObjectNames;
             bool mParentMayOwn = false;
         };
 
@@ -260,10 +268,10 @@ namespace ScriptPapyrus::Pex
             return result;
         }
 
-        bool Reader::resolves(const std::string& lowerName) const
+        bool Reader::resolves(std::uint32_t lowId) const
         {
-            return lowerName == "self" || lowerName == "::state" || mFunctionNames.contains(lowerName)
-                || mObjectNames.contains(lowerName);
+            return lowId == mSelfId || lowId == mStateId || mFunctionNames.contains(lowId)
+                || mObjectNames.contains(lowId);
         }
 
         Value Reader::operand(char kind, const char* what)
@@ -294,8 +302,7 @@ namespace ScriptPapyrus::Pex
             }
             if (result.mType == ValueType::Identifier && kind != static_cast<char>(Kind::Name))
             {
-                const std::string name = lowered(mStrings[result.mString]);
-                if (!resolves(name) && !mParentMayOwn)
+                if (!mParentMayOwn && !resolves(mLowId[result.mString]))
                 {
                     fail("identifier '" + mStrings[result.mString] + "' (opcode " + std::to_string(mOpcode)
                         + ") names no local, parameter or variable of the script");
@@ -413,7 +420,7 @@ namespace ScriptPapyrus::Pex
                 Parameter p;
                 p.mName = index("parameter name");
                 p.mType = index("parameter type");
-                mFunctionNames.insert(lowered(mStrings[p.mName]));
+                mFunctionNames.insert(mLowId[p.mName]);
                 function.mParameters.push_back(p);
             }
             const std::size_t locals
@@ -424,7 +431,7 @@ namespace ScriptPapyrus::Pex
                 Parameter p;
                 p.mName = index("local name");
                 p.mType = index("local type");
-                mFunctionNames.insert(lowered(mStrings[p.mName]));
+                mFunctionNames.insert(mLowId[p.mName]);
                 function.mLocals.push_back(p);
             }
             readInstructions(function);
@@ -529,7 +536,7 @@ namespace ScriptPapyrus::Pex
                 {
                     variable.mIsConst = u8("variable const flag") != 0;
                 }
-                mObjectNames.insert(lowered(mStrings[variable.mName]));
+                mObjectNames.insert(mLowId[variable.mName]);
                 object.mVariables.push_back(variable);
             }
 
@@ -552,7 +559,7 @@ namespace ScriptPapyrus::Pex
                 if ((property.mFlags & Property::kAuto) != 0)
                 {
                     property.mAutoVariable = index("auto property variable");
-                    if (!mObjectNames.contains(lowered(mStrings[property.mAutoVariable])))
+                    if (!mObjectNames.contains(mLowId[property.mAutoVariable]))
                     {
                         fail("auto property '" + propertyName + "' names variable '" + mStrings[property.mAutoVariable]
                             + "' that the object does not have");
@@ -574,24 +581,24 @@ namespace ScriptPapyrus::Pex
 
             const std::size_t states = count(u16("state count"), Limits::kMaxStates, 4, "object has states");
             object.mStates.reserve(states);
-            std::unordered_set<std::string> stateNames;
+            std::unordered_set<std::uint32_t> stateNames;
             for (std::size_t i = 0; i < states; ++i)
             {
                 State state;
                 state.mName = index("state name");
-                if (!stateNames.insert(lowered(mStrings[state.mName])).second)
+                if (!stateNames.insert(mLowId[state.mName]).second)
                 {
                     fail("duplicate state '" + mStrings[state.mName] + "'");
                 }
                 const std::size_t functions
                     = count(u16("function count"), Limits::kMaxFunctionsPerState, 15, "state has functions");
                 state.mFunctions.reserve(functions);
-                std::unordered_set<std::string> functionNames;
+                std::unordered_set<std::uint32_t> functionNames;
                 for (std::size_t f = 0; f < functions; ++f)
                 {
                     Function function;
                     readFunction(function, true, std::string());
-                    if (!functionNames.insert(lowered(mStrings[function.mName])).second)
+                    if (!functionNames.insert(mLowId[function.mName]).second)
                     {
                         fail("duplicate function '" + mStrings[function.mName] + "' in state '" + mStrings[state.mName]
                             + "'");
@@ -711,6 +718,19 @@ namespace ScriptPapyrus::Pex
                 mStrings.push_back(wstring("string"));
             }
             file.mStrings = mStrings;
+            {
+                std::unordered_map<std::string, std::uint32_t> ids;
+                mLowId.reserve(mStrings.size());
+                for (const std::string& text : mStrings)
+                {
+                    const auto added = ids.emplace(lowered(text), static_cast<std::uint32_t>(ids.size()));
+                    mLowId.push_back(added.first->second);
+                }
+                const auto self = ids.find("self");
+                mSelfId = self == ids.end() ? kNoId : self->second;
+                const auto state = ids.find("::state");
+                mStateId = state == ids.end() ? kNoId : state->second;
+            }
 
             const std::uint8_t hasDebug = u8("debug flag");
             if (hasDebug > 1)

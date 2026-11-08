@@ -54,6 +54,10 @@ namespace ScriptPapyrus
         std::uint64_t maxHeapBytes = 16u << 20;
         /// Instances one runtime may hold.
         std::uint32_t maxInstances = 1u << 20;
+        /// Instructions all the stacks of one tick() may run together. No new stack is started once the total has
+        /// reached it (the one running finishes within its own budget); stacks not started stay queued for the next
+        /// tick.
+        std::uint64_t maxInstructionsPerTick = 20'000'000;
     };
 
     /// Counters of one runtime (task 0093 stage c). Deterministic: they depend only on the scripts and the calls.

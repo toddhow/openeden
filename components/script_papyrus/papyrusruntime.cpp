@@ -125,6 +125,10 @@ namespace ScriptPapyrus
             {
                 mOptions.defaultBudget.maxInstructions = kFallbackInstructions;
             }
+            if (mOptions.maxInstructionsPerTick == 0)
+            {
+                mOptions.maxInstructionsPerTick = ScriptPapyrus::RuntimeOptions{}.maxInstructionsPerTick;
+            }
             if (mOptions.defaultBudget.maxCallDepth == 0)
             {
                 mOptions.defaultBudget.maxCallDepth = kFallbackDepth;
@@ -915,7 +919,9 @@ namespace ScriptPapyrus
             const std::uint64_t maxInstructions = effectiveInstructions(budget);
             const std::uint32_t maxDepth = effectiveDepth(budget);
             std::size_t processed = 0;
-            while (mReadyHead < mReady.size() && processed < kMaxStacksPerTick)
+            // The whole tick has a budget too: once the stacks run so far have spent it, the others stay queued.
+            while (mReadyHead < mReady.size() && processed < kMaxStacksPerTick
+                && result.instructionsExecuted < mOptions.maxInstructionsPerTick)
             {
                 Stack* stack = mReady[mReadyHead++];
                 ++processed;
@@ -937,6 +943,7 @@ namespace ScriptPapyrus
                 mReady.clear();
                 mReadyHead = 0;
             }
+            result.stacksWaiting = static_cast<std::uint32_t>(mReady.size() - mReadyHead);
             return result;
         }
 
