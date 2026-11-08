@@ -58,6 +58,13 @@ file(GLOB UNITTEST_SRC_FILES
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp
 
+    # Task 0085 move 2, stage 2b: characterization tests of the crafting rules (alchemy, enchanting, recharge, repair).
+    mwmechanics/craftingfixture.cpp
+    mwmechanics/testcraftingrepair.cpp
+    mwmechanics/testcraftingrecharge.cpp
+    mwmechanics/testcraftingalchemy.cpp
+    mwmechanics/testcraftingenchanting.cpp
+
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
     script_obscript/testobscriptformallocation.cpp
