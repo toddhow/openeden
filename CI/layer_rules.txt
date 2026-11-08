@@ -90,6 +90,8 @@ dir components/interpreter rules
 # The ObScript runtime (task 0092) sits in `rules` because it is built on the script compiler and interpreter, which are
 # `rules` today; it moves with them to the common pack's directory when task 0084 fixes that (decision 0014).
 dir components/script_obscript rules
+# The Papyrus runtime (task 0093) is built the same way: `rules` for now, it moves with the common pack (decision 0014).
+dir components/script_papyrus rules
 dir apps/openmw/mwmechanics rules
 dir apps/openmw/mwworld rules
 dir apps/openmw/mwclass rules

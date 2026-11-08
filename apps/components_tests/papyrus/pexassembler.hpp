@@ -19,6 +19,7 @@
 #include <bit>
 #include <cstdint>
 #include <initializer_list>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -180,7 +181,9 @@ namespace PexAsm
         bool mDebugInfo = false; ///< Write a debug section.
         bool mExtendedStringCount = false; ///< Write the count as 0xFFFF followed by a u32.
         std::size_t mPadStrings = 0; ///< Unused strings appended to the table.
-        std::size_t mTrailingBytes = 0; ///< Bytes of 0xA5 after the last object.
+        std::size_t mTrailingBytes = 0; ///< Bytes after the last object.
+        std::uint8_t mTrailingValue
+            = 0xA5; ///< What those bytes are (zero is the padding seen in 165 installed mod files).
         int mMajorOverride = -1;
         int mMinorOverride = -1;
         int mGameIdOverride = -1;
@@ -247,6 +250,15 @@ namespace PexAsm
                 }
             }
             void f32(float v) { u32(std::bit_cast<std::uint32_t>(v)); }
+            /// A count that a two byte field must hold: more than 65,535 cannot be written.
+            void count16(std::size_t n)
+            {
+                if (n > 0xFFFF)
+                {
+                    throw std::length_error("PexAsm: a count over 65,535 cannot be written in two bytes");
+                }
+                u16(static_cast<std::uint16_t>(n));
+            }
             void wstr(const std::string& text)
             {
                 u16(static_cast<std::uint16_t>(text.size()));
@@ -610,7 +622,7 @@ namespace PexAsm
             {
                 layout->mFirstFunctionParamCount = w.size();
             }
-            w.u16(static_cast<std::uint16_t>(f.mParameters.size()));
+            w.count16(f.mParameters.size());
             for (const auto& [name, type] : f.mParameters)
             {
                 w.u16(strings.get(name));
@@ -620,7 +632,7 @@ namespace PexAsm
             {
                 layout->mFirstFunctionLocalCount = w.size();
             }
-            w.u16(static_cast<std::uint16_t>(f.mLocals.size()));
+            w.count16(f.mLocals.size());
             for (const auto& [name, type] : f.mLocals)
             {
                 w.u16(strings.get(name));
@@ -630,7 +642,7 @@ namespace PexAsm
             {
                 layout->mFirstFunctionInstrCount = w.size();
             }
-            w.u16(static_cast<std::uint16_t>(f.mCode.size()));
+            w.count16(f.mCode.size());
             for (const Instr& instr : f.mCode)
             {
                 if (layout != nullptr)
@@ -726,7 +738,7 @@ namespace PexAsm
                             b.u16(strings.get(state.mName));
                             b.u16(strings.get(f.mName));
                             b.u8(0);
-                            b.u16(static_cast<std::uint16_t>(f.mCode.size()));
+                            b.count16(f.mCode.size());
                             for (std::size_t i = 0; i < f.mCode.size(); ++i)
                             {
                                 b.u16(static_cast<std::uint16_t>(i + 1));
@@ -752,7 +764,7 @@ namespace PexAsm
                 }
             }
             layout.mObjectCount = b.size();
-            b.u16(static_cast<std::uint16_t>(scripts.size()));
+            b.count16(scripts.size());
             bool firstObject = true;
             for (const ScriptBuilder& script : scripts)
             {
@@ -782,11 +794,11 @@ namespace PexAsm
                     {
                         layout.mStructCount = b.size();
                     }
-                    b.u16(static_cast<std::uint16_t>(script.mStructs.size()));
+                    b.count16(script.mStructs.size());
                     for (const StructDefn& s : script.mStructs)
                     {
                         b.u16(strings.get(s.mName));
-                        b.u16(static_cast<std::uint16_t>(s.mMembers.size()));
+                        b.count16(s.mMembers.size());
                         for (const StructMemberDef& m : s.mMembers)
                         {
                             b.u16(strings.get(m.mName));
@@ -802,7 +814,7 @@ namespace PexAsm
                 {
                     layout.mVariableCount = b.size();
                 }
-                b.u16(static_cast<std::uint16_t>(script.mVariables.size()));
+                b.count16(script.mVariables.size());
                 for (const VariableDef& v : script.mVariables)
                 {
                     b.u16(strings.get(v.mName));
@@ -818,7 +830,7 @@ namespace PexAsm
                 {
                     layout.mPropertyCount = b.size();
                 }
-                b.u16(static_cast<std::uint16_t>(script.mProperties.size()));
+                b.count16(script.mProperties.size());
                 for (const PropertyDef& p : script.mProperties)
                 {
                     b.u16(strings.get(p.mName));
@@ -846,7 +858,7 @@ namespace PexAsm
                 {
                     layout.mStateCount = b.size();
                 }
-                b.u16(static_cast<std::uint16_t>(script.mStates.size()));
+                b.count16(script.mStates.size());
                 bool firstFunction = true;
                 bool firstState = true;
                 for (const StateDef& state : script.mStates)
@@ -857,7 +869,7 @@ namespace PexAsm
                         layout.mFirstStateFunctionCount = b.size();
                     }
                     firstState = false;
-                    b.u16(static_cast<std::uint16_t>(state.mFunctions.size()));
+                    b.count16(state.mFunctions.size());
                     for (const FunctionDef& f : state.mFunctions)
                     {
                         writeFunction(b, strings, f, true, firstObject && firstFunction ? &layout : nullptr);
@@ -884,7 +896,7 @@ namespace PexAsm
             }
             for (std::size_t i = 0; i < options.mTrailingBytes; ++i)
             {
-                b.u8(0xA5);
+                b.u8(options.mTrailingValue);
             }
             body = std::move(b.bytes());
 

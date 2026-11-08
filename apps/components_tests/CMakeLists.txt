@@ -156,6 +156,14 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscripttablecheck.cpp
     script_obscript/testobscriptrealdata.cpp
 
+    # Task 0093: the Papyrus runtime of the common compatibility pack (generated .pex files from the test assembler).
+    papyrus/testpapyruscontract.cpp
+    papyrus/testpapyrusassembler.cpp
+    papyrus/testpapyrusreader.cpp
+    papyrus/testpapyrusfuzz.cpp
+    papyrus/testpapyrusload.cpp
+    papyrus/testpapyrusrealdata.cpp
+
     nif/node.hpp
     nif/testphysics.cpp
     nif/nifbuilder.hpp

@@ -21,10 +21,12 @@ namespace ScriptPapyrus::Limits
     inline constexpr std::size_t kMaxFunctionsPerState = 4096; ///< Measured 691.
     inline constexpr std::size_t kMaxParametersAndLocals = 4096; ///< Each. Measured 1,056 locals, 46 parameters (the
                                                                  ///< spec's 1,024 is below the measured maximum).
-    inline constexpr std::size_t kMaxInstructions = 65536; ///< Per function. Measured 5,149.
+    inline constexpr std::size_t kMaxInstructions = 32768; ///< Per function. Measured 5,149. (The spec said 65,536,
+                                                           ///< which a two byte count cannot reach.)
     inline constexpr std::size_t kMaxCallArguments = 256; ///< Measured 46.
     inline constexpr std::size_t kMaxStructs = 256; ///< Measured 18.
     inline constexpr std::size_t kMaxStructMembers = 256; ///< Measured 34.
+    inline constexpr std::size_t kMaxTrailingPadding = 64; ///< Zero bytes tolerated after the last object. Measured 51.
     inline constexpr std::size_t kMaxUserFlags = 1024; ///< Measured 6.
     inline constexpr std::size_t kMaxPropertyGroups = 1024; ///< Debug records.
     inline constexpr std::size_t kMaxStructOrders = 256; ///< Debug records.

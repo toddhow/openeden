@@ -479,6 +479,12 @@ add_component_dir (script_obscript
     obscriptruntime obscriptlimits obscriptcompile functiontable derive gamepackglue
     )
 
+# Task 0093: the Papyrus runtime of the common compatibility pack (the .pex reader and validator, the runtime that
+# loads scripts and links them; no ESM record and no engine type in its public header).
+add_component_dir (script_papyrus
+    papyrusruntime papyruslimits pexfile pexreader
+    )
+
 add_component_dir (translation
     translation
     )
