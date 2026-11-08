@@ -114,6 +114,23 @@ namespace Terrain
         return ChunkShare{ 1.f - static_cast<float>(dropped) / 255.f, (instance & 0x00800000u) != 0 };
     }
 
+    /// What the vertex stage reads from the instance besides the share: lod, shift, and the grid position in the batch.
+    struct ChunkGeometry
+    {
+        std::uint32_t lod = 0;
+        std::uint32_t shift = 0;
+        std::uint32_t gridX = 0;
+        std::uint32_t gridY = 0;
+    };
+
+    inline ChunkGeometry decodeChunkGeometry(std::uint32_t instance)
+    {
+        // The masks are the vertex stage's (terrain/main.vert, terrain.vert.slang): the high nibbles of bytes 0 and 1
+        // and bit 23 hold the fade, the grid x is the low nibble of byte 2.
+        return ChunkGeometry{ instance & 0xfu, (instance >> 8) & 0xfu, (instance >> 16) & 0xfu,
+            (instance >> 24) & 0xffu };
+    }
+
     /// The one float the fragment stage works with: the fade (0 to 1), or -1 minus the incoming fade (below 0).
     inline float fadeCode(ChunkShare share)
     {
