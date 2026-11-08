@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -908,6 +909,163 @@ namespace
             EXPECT_GT(withLights, 0u);
             EXPECT_EQ(different, 0u);
             EXPECT_EQ(glsl.mIndexCount, slang.mIndexCount);
+        }
+#endif
+    }
+
+    // Task 0072, stage j follow-up 4 (toddhow, 2026-11-08): the light grid keeps at most maxLightsPerCluster lights per
+    // cluster, stores that capped count (the shading loops read exactly that many entries), and puts a light only into
+    // the depth slices its range reaches. The reference is a CPU model of the slice maths; both languages must match.
+    TEST(SlangLightGridGpu, clusters_hold_at_most_fifty_lights_and_only_those_that_reach_their_depth_slice)
+    {
+#if !OPENEDEN_SLANG_ENABLED
+        GTEST_SKIP() << "this build has no slangc";
+#else
+        GpuLightGrid gpu;
+        if (!gpu.create())
+        {
+            GTEST_SKIP() << "no Vulkan device with a compute queue";
+        }
+        const auto glslWords = compileGlsl("comp/light/assign.comp", "-");
+        ASSERT_FALSE(glslWords.empty());
+        std::vector<uint32_t> slangWords;
+        for (const Manifest& manifest : builtManifests())
+        {
+            if (manifest.mStageFile == "comp/light/assign.comp")
+            {
+                for (const auto& [defines, file] : manifest.mFiles.mFiles)
+                {
+                    slangWords = readWords(manifest.mDirectory / file);
+                }
+            }
+        }
+        ASSERT_FALSE(slangWords.empty());
+
+        constexpr float nearPlane = 1.0f;
+        constexpr float farPlane = 7168.0f;
+        constexpr uint32_t gridZ = 24;
+        constexpr uint32_t maxPerCluster = 50;
+        const vsg::dmat4 projection
+            = vsg::perspective(vsg::radians(60.0), 16.0 / 9.0, double(nearPlane), double(farPlane));
+        std::vector<float> scene(256, 0.0f);
+        for (int c = 0; c < 4; ++c)
+        {
+            for (int r = 0; r < 4; ++r)
+            {
+                scene[16 + c * 4 + r] = static_cast<float>(projection[c][r]);
+            }
+        }
+        scene[149] = nearPlane;
+        scene[150] = farPlane;
+
+        // The grid's depth coordinate of a view space z (lib/light/grid.glsl screenToGridCoord).
+        const auto sliceCoord = [&](float viewZ) {
+            return std::min(float(gridZ - 1),
+                std::max(0.0f, float(gridZ) * std::log((-viewZ - nearPlane) / (farPlane - nearPlane) + 1.0f)));
+        };
+
+        uint32_t seed = 777;
+        const auto random = [&seed]() {
+            seed = seed * 1664525u + 1013904223u;
+            return static_cast<float>((seed >> 8) & 0xFFFF) / 65535.0f;
+        };
+        struct Scenario
+        {
+            const char* mName;
+            uint32_t mRandom;
+            uint32_t mBlob;
+        };
+        const Scenario scenarios[] = { { "one light", 0, 1 }, { "scattered lights", 400, 0 },
+            { "dense blob (overflow)", 100, 70 } };
+        for (const Scenario& scenario : scenarios)
+        {
+            SCOPED_TRACE(scenario.mName);
+            std::vector<float> lights;
+            const auto add = [&lights](float x, float y, float z, float radius) {
+                lights.insert(lights.end(), { 1.0f, 0.9f, 0.7f, radius, x, y, z, 0.0f });
+            };
+            for (uint32_t i = 0; i < scenario.mRandom; ++i)
+            {
+                add((random() - 0.5f) * 3000.0f, (random() - 0.5f) * 1500.0f, -(2.0f + random() * 4000.0f),
+                    40.0f + random() * 300.0f);
+            }
+            for (uint32_t i = 0; i < scenario.mBlob; ++i)
+            {
+                // The radius is half the range (lightRange without classic falloff).
+                add(100.0f + random() * 10.0f, 50.0f + random() * 10.0f,
+                    scenario.mRandom == 0 ? -600.0f : -600.0f - random() * 10.0f, 45.0f);
+            }
+            const uint32_t lightCount = static_cast<uint32_t>(lights.size() / 8);
+            lights[7] = static_cast<float>(lightCount);
+            GridResult results[2];
+            std::string error;
+            ASSERT_TRUE(runLightGrid(gpu, glslWords, scene, lights, results[0], error)) << error;
+            ASSERT_TRUE(runLightGrid(gpu, slangWords, scene, lights, results[1], error)) << error;
+            for (int language = 0; language < 2; ++language)
+            {
+                SCOPED_TRACE(language == 0 ? "GLSL" : "Slang");
+                const GridResult& result = results[language];
+                std::size_t overCap = 0;
+                std::size_t capped = 0;
+                std::size_t badIndex = 0;
+                std::size_t wrongSlice = 0;
+                std::size_t listed = 0;
+                std::size_t total = 0;
+                std::set<uint32_t> slicesUsed;
+                for (std::size_t i = 0; i < result.mCounts.size(); ++i)
+                {
+                    const uint32_t slice = static_cast<uint32_t>(i / (16 * 8));
+                    overCap += result.mCounts[i] > maxPerCluster ? 1 : 0;
+                    capped += result.mCounts[i] == maxPerCluster ? 1 : 0;
+                    total += result.mCounts[i];
+                    listed += result.mCounts[i] != 0 ? 1 : 0;
+                    if (result.mCounts[i] != 0)
+                    {
+                        slicesUsed.insert(slice);
+                    }
+                    for (const uint32_t index : result.mLists[i])
+                    {
+                        if (index >= lightCount)
+                        {
+                            ++badIndex;
+                            continue;
+                        }
+                        const float z = lights[index * 8 + 6];
+                        const float range = lights[index * 8 + 3] * 2.0f;
+                        const float nearZ = std::min(-nearPlane, z + range);
+                        const float farZ = std::max(-farPlane, z - range);
+                        // The light reaches slice s when its depth span meets [s, s + 1] (slack for the float maths).
+                        const float lo = sliceCoord(nearZ);
+                        const float hi = sliceCoord(farZ);
+                        if (hi < float(slice) - 0.01f || lo > float(slice + 1) + 0.01f)
+                        {
+                            ++wrongSlice;
+                        }
+                    }
+                }
+                std::cout << "[light grid 4] " << scenario.mName << (language == 0 ? " GLSL" : " Slang") << ": "
+                          << listed << " clusters with lights, " << capped << " at the cap, " << overCap
+                          << " over it, entries " << total << ", index count " << result.mIndexCount
+                          << ", depth slices used " << slicesUsed.size()
+                          << ", entries in a slice the light does not reach " << wrongSlice << std::endl;
+                EXPECT_EQ(overCap, 0u) << "a stored count above the 50 slots of the list";
+                EXPECT_EQ(badIndex, 0u) << "an entry that is no light";
+                EXPECT_EQ(wrongSlice, 0u) << "a light in a depth slice its range does not reach";
+                EXPECT_EQ(result.mIndexCount, total) << "the index list holds exactly the stored counts";
+                EXPECT_GT(listed, 0u);
+                if (scenario.mBlob == 1 && scenario.mRandom == 0)
+                {
+                    // 600 +- 90 units: the grid depth coordinate is 1.65 to 2.2, so slices 1 and 2 and no other.
+                    EXPECT_EQ(slicesUsed, (std::set<uint32_t>{ 1, 2 }));
+                }
+                if (scenario.mBlob == 70)
+                {
+                    EXPECT_GT(capped, 0u) << "the blob must overflow a cluster";
+                }
+            }
+            EXPECT_EQ(results[0].mCounts, results[1].mCounts);
+            EXPECT_EQ(results[0].mLists, results[1].mLists);
+            EXPECT_EQ(results[0].mIndexCount, results[1].mIndexCount);
         }
 #endif
     }

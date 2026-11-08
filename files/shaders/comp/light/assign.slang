@@ -66,10 +66,13 @@ bool testLight(uint lightIndex, uint3 gridCoord)
     float3 grid_coord_min = screenToGridCoord(fp_min, vp_min.z, scene.zNear, scene.zFar);
     float3 grid_coord_max = screenToGridCoord(fp_max, vp_max.z, scene.zNear, scene.zFar);
 
+    // The depth slices too (see the GLSL, task 0072, stage j follow-up 4).
     return !((grid_coord_min.x < gridCoord.x && grid_coord_max.x < gridCoord.x)
         || (grid_coord_min.x > gridCoord.x + 1 && grid_coord_max.x > gridCoord.x + 1)
         || (grid_coord_min.y < gridCoord.y && grid_coord_max.y < gridCoord.y)
-        || (grid_coord_min.y > gridCoord.y + 1 && grid_coord_max.y > gridCoord.y + 1));
+        || (grid_coord_min.y > gridCoord.y + 1 && grid_coord_max.y > gridCoord.y + 1)
+        || (grid_coord_min.z < gridCoord.z && grid_coord_max.z < gridCoord.z)
+        || (grid_coord_min.z > gridCoord.z + 1 && grid_coord_max.z > gridCoord.z + 1));
 }
 
 [shader("compute")]
@@ -84,10 +87,12 @@ void assignMain(uint3 globalId : SV_DispatchThreadID)
     uint visibleLightIndices[maxLightsPerCluster];
     for (uint i = 0; i < lightCount; ++i)
     {
+        // A cluster keeps its first maxLightsPerCluster lights and stores that count (see the GLSL).
+        if (visibleLightCount == maxLightsPerCluster)
+            break;
         if (!testLight(i, gridCoord))
             continue;
-        uint visibleIndex = min(visibleLightCount++, maxLightsPerCluster - 1);
-        visibleLightIndices[visibleIndex] = i;
+        visibleLightIndices[visibleLightCount++] = i;
     }
 
     uint offset;

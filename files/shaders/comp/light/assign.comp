@@ -64,7 +64,10 @@ bool testLight(uint lightIndex, uvec3 gridCoord)
 	vec3 grid_coord_min = screenToGridCoord(fp_min, vp_min.z, scene.zNear, scene.zFar);
 	vec3 grid_coord_max = screenToGridCoord(fp_max, vp_max.z, scene.zNear, scene.zFar);
 
-    return !((grid_coord_min.x < gridCoord.x && grid_coord_max.x < gridCoord.x) || (grid_coord_min.x > gridCoord.x+1 && grid_coord_max.x > gridCoord.x+1) || (grid_coord_min.y < gridCoord.y && grid_coord_max.y < gridCoord.y) || (grid_coord_min.y > gridCoord.y+1 && grid_coord_max.y > gridCoord.y+1));
+    // OpenEden (task 0072, stage j follow-up 4): the depth slices too. grid_coord_min.z and grid_coord_max.z are the grid
+    // depth of the light's near and far ends (screenToGridCoord clamps them to the last slice, so the last slice takes
+    // every light that reaches past it); before, a light was in every slice of the tiles it covered.
+    return !((grid_coord_min.x < gridCoord.x && grid_coord_max.x < gridCoord.x) || (grid_coord_min.x > gridCoord.x+1 && grid_coord_max.x > gridCoord.x+1) || (grid_coord_min.y < gridCoord.y && grid_coord_max.y < gridCoord.y) || (grid_coord_min.y > gridCoord.y+1 && grid_coord_max.y > gridCoord.y+1) || (grid_coord_min.z < gridCoord.z && grid_coord_max.z < gridCoord.z) || (grid_coord_min.z > gridCoord.z+1 && grid_coord_max.z > gridCoord.z+1));
 }
 
 void main()
@@ -79,10 +82,13 @@ void main()
         uint visibleLightIndices[maxLightsPerCluster];
         for(uint i=0; i<lightCount; ++i)
         {
+            // OpenEden (task 0072, stage j follow-up 4): a cluster keeps its first maxLightsPerCluster lights and
+            // stores that count, which is what the shading loops read (they read count entries from the list).
+            if (visibleLightCount == maxLightsPerCluster)
+                break;
             if (!testLight(i, gridCoord))
                 continue;
-            uint visibleIndex = min(visibleLightCount++,maxLightsPerCluster-1);
-            visibleLightIndices[visibleIndex] = i;
+            visibleLightIndices[visibleLightCount++] = i;
         }
 
         uint offset = atomicAdd(indexCount, visibleLightCount);
