@@ -66,7 +66,8 @@ namespace Content
     {
         Family mFamily = Family::Tes3;
         GameGuess mGame = GameGuess::Unknown;
-        /// HEDR's version number (a float in both families), as stored.
+        /// HEDR's version number (a float in both families), as stored; a TES3 header with no HEDR has 1.3, the typed
+        /// reader's default.
         float mVersion = 0.0f;
         /// The header record's own flag word. TES3: the `type` field of HEDR (0 esp, 1 esm, 32 ess), TES4 family: the
         /// record flags.

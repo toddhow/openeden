@@ -1,8 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <components/contentsource/plugin.hpp>
+#include <components/contentsource/probe.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm4/reader.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -742,5 +747,158 @@ namespace
         }
         EXPECT_GT(opened, 1000u);
         EXPECT_GT(walked, 1000u);
+    }
+
+    // Task 0083 stage 5: the launcher's content list reads author, description, version and masters from
+    // Content::probe instead of the typed readers. The typed readers stay here as the oracle.
+    Content::PluginInfo probeBytes(const std::string& bytes, const Content::TextConverter& convert)
+    {
+        Content::Error error;
+        const std::unique_ptr<Content::Plugin> plugin
+            = Content::Plugin::open(std::make_unique<std::istringstream>(bytes, std::ios::binary), "probe.esp", error);
+        EXPECT_NE(plugin, nullptr) << error.describe();
+        if (plugin == nullptr)
+            return {};
+        return Content::probe(plugin->header(), convert);
+    }
+
+    void expectSameAsTypedReader(const std::string& bytes, bool tes3);
+
+    // win1252 bytes of e acute, u umlaut, euro and trade mark, which the converter must turn into UTF-8
+    const std::string sAccents = "Caf\xe9 \xfc \x80 \x99";
+
+    TEST(ContentProbe, copies_the_header_facts_of_a_tes3_plugin)
+    {
+        const std::string bytes
+            = tes3Header(1.2f, 0, "Someone", "A description", 0, { { "A.esm", 5 }, { "B.esm", 7 } }).str();
+        const Content::PluginInfo info = probeBytes(bytes, {});
+        EXPECT_EQ(info.mFamily, Content::Family::Tes3);
+        EXPECT_FLOAT_EQ(info.mVersion, 1.2f);
+        EXPECT_EQ(info.mAuthor, "Someone");
+        EXPECT_EQ(info.mDescription, "A description");
+        EXPECT_EQ(info.mMasters, (std::vector<std::string>{ "A.esm", "B.esm" }));
+    }
+
+    TEST(ContentProbe, copies_the_header_facts_of_a_tes4_plugin)
+    {
+        const std::string bytes
+            = tes4Header(1.7f, 0, "Modder", "A mod", 0, { { "Skyrim.esm", 0 }, { "X.esl", 0 } }).str();
+        const Content::PluginInfo info = probeBytes(bytes, {});
+        EXPECT_EQ(info.mFamily, Content::Family::Tes4);
+        EXPECT_FLOAT_EQ(info.mVersion, 1.7f);
+        EXPECT_EQ(info.mAuthor, "Modder");
+        EXPECT_EQ(info.mDescription, "A mod");
+        EXPECT_EQ(info.mMasters, (std::vector<std::string>{ "Skyrim.esm", "X.esl" }));
+    }
+
+    TEST(ContentProbe, a_plugin_with_no_masters_lists_none)
+    {
+        EXPECT_TRUE(probeBytes(tes3Header(1.3f, 1, "a", "d", 0, {}).str(), {}).mMasters.empty());
+        EXPECT_TRUE(probeBytes(tes4Header(1.7f, 0, "a", "d", 0, {}).str(), {}).mMasters.empty());
+    }
+
+    TEST(ContentProbe, the_converter_is_applied_to_author_description_and_every_master)
+    {
+        const std::string bytes = tes3Header(1.3f, 0, "au", "de", 0, { { "m1", 1 }, { "m2", 2 } }).str();
+        const Content::PluginInfo info
+            = probeBytes(bytes, [](std::string_view text) { return "<" + std::string(text) + ">"; });
+        EXPECT_EQ(info.mAuthor, "<au>");
+        EXPECT_EQ(info.mDescription, "<de>");
+        EXPECT_EQ(info.mMasters, (std::vector<std::string>{ "<m1>", "<m2>" }));
+    }
+
+    TEST(ContentProbe, without_a_converter_the_text_stays_as_stored)
+    {
+        const Content::PluginInfo info = probeBytes(tes3Header(1.3f, 0, sAccents, "d", 0, {}).str(), {});
+        EXPECT_EQ(info.mAuthor, sAccents);
+    }
+
+    TEST(ContentProbe, a_tes3_header_without_hedr_gives_empty_text_and_the_typed_readers_default_version)
+    {
+        Bytes subs = sub3("MAST", Bytes().zstring("Only.esm"));
+        subs.append(sub3("DATA", Bytes().u64(1)));
+        const Content::PluginInfo info = probeBytes(record3("TES3", 0, subs).str(), {});
+        EXPECT_EQ(info.mAuthor, "");
+        EXPECT_EQ(info.mDescription, "");
+        // ESM3::Header::clear sets version 1.3 (VER_130, components/esm3/loadtes3.cpp) and HEDR may be missing
+        EXPECT_FLOAT_EQ(info.mVersion, 1.3f);
+        EXPECT_EQ(info.mMasters, (std::vector<std::string>{ "Only.esm" }));
+        expectSameAsTypedReader(record3("TES3", 0, subs).str(), true);
+    }
+
+    struct ExpectedFromTypedReader
+    {
+        float mVersion = 0;
+        std::string mAuthor, mDescription;
+        std::vector<std::string> mMasters;
+    };
+
+    ExpectedFromTypedReader typedTes3(const std::string& bytes, ToUTF8::FromType encoding)
+    {
+        ToUTF8::Utf8Encoder encoder(encoding);
+        ESM::ESMReader reader;
+        reader.setEncoder(&encoder);
+        reader.open(std::make_unique<std::istringstream>(bytes, std::ios::binary), std::filesystem::path("oracle.esp"));
+        ExpectedFromTypedReader out;
+        out.mVersion = reader.esmVersionF();
+        out.mAuthor = reader.getAuthor();
+        out.mDescription = reader.getDesc();
+        for (const auto& master : reader.getGameFiles())
+            out.mMasters.push_back(master.name);
+        return out;
+    }
+
+    ExpectedFromTypedReader typedTes4(const std::string& bytes, ToUTF8::FromType encoding)
+    {
+        ToUTF8::StatelessUtf8Encoder encoder(encoding);
+        ESM4::Reader reader(std::make_unique<std::istringstream>(bytes, std::ios::binary),
+            std::filesystem::path("oracle.esp"), nullptr, &encoder, true);
+        ExpectedFromTypedReader out;
+        out.mVersion = reader.esmVersionF();
+        out.mAuthor = reader.getAuthor();
+        out.mDescription = reader.getDesc();
+        for (const auto& master : reader.getGameFiles())
+            out.mMasters.push_back(master.name);
+        return out;
+    }
+
+    Content::TextConverter converterFor(ToUTF8::FromType encoding)
+    {
+        auto encoder = std::make_shared<ToUTF8::Utf8Encoder>(encoding);
+        return [encoder](std::string_view stored) { return std::string(encoder->getUtf8(stored)); };
+    }
+
+    void expectSameAsTypedReader(const std::string& bytes, bool tes3)
+    {
+        for (const ToUTF8::FromType encoding : { ToUTF8::WINDOWS_1250, ToUTF8::WINDOWS_1251, ToUTF8::WINDOWS_1252 })
+        {
+            const ExpectedFromTypedReader expected = tes3 ? typedTes3(bytes, encoding) : typedTes4(bytes, encoding);
+            const Content::PluginInfo got = probeBytes(bytes, converterFor(encoding));
+            EXPECT_FLOAT_EQ(got.mVersion, expected.mVersion) << "encoding " << encoding;
+            EXPECT_EQ(got.mAuthor, expected.mAuthor) << "encoding " << encoding;
+            EXPECT_EQ(got.mDescription, expected.mDescription) << "encoding " << encoding;
+            EXPECT_EQ(got.mMasters, expected.mMasters) << "encoding " << encoding;
+        }
+    }
+
+    TEST(ContentProbe, equals_the_typed_tes3_reader_on_ascii_and_legacy_code_pages)
+    {
+        expectSameAsTypedReader(tes3Header(1.3f, 1, "Bethesda", "Master file", 0, {}).str(), true);
+        expectSameAsTypedReader(
+            tes3Header(1.2f, 0, "Auth\xe9r", sAccents, 0, { { "Alpha.esm", 123456 }, { "Caf\xe9.esm", 5 } }).str(),
+            true);
+        expectSameAsTypedReader(
+            tes3Header(0.0f, 0, std::string(32, 'x'), std::string(256, 'y'), 0, { { "Alpha.esm", 1 } }).str(), true);
+        expectSameAsTypedReader(tes3Header(1.3f, 0, "", "", 0, {}).str(), true);
+    }
+
+    TEST(ContentProbe, equals_the_typed_tes4_reader_on_ascii_and_legacy_code_pages)
+    {
+        expectSameAsTypedReader(tes4Header(1.7f, 0x81, "Beth \xe9", sAccents, 0, {}).str(), false);
+        expectSameAsTypedReader(
+            tes4Header(1.71f, 0, "Modder", "A mod", 0, { { "Skyrimlike.esm", 0 }, { "Caf\xe9.esm", 0 } }).str(), false);
+        expectSameAsTypedReader(
+            tes4Header(1.0f, 0, "Old", "Short header", 0, { { "Skyrimlike.esm", 0 } }, 20).str(), false);
+        expectSameAsTypedReader(tes4Header(1.7f, 0, "", "", 0, {}).str(), false);
     }
 }

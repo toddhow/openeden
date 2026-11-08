@@ -17,6 +17,9 @@ namespace Content
         // (ESM3::Header::load, components/esm3/loadtes3.cpp).
         constexpr std::uint32_t sTes3RecordHeaderSize = 16;
         constexpr std::uint32_t sTes3HedrSize = 4 + 4 + 32 + 256 + 4;
+        // The version of a TES3 header with no HEDR: ESM3::Header::clear sets VER_130 (components/esm3/loadtes3.cpp,
+        // components/esm/common.hpp: 0x3fa66666, which is the float 1.3).
+        constexpr float sTes3DefaultVersion = 1.3f;
         // TES4 family: type, size, flags, id, revision, then (Skyrim and later only) a form version and an unknown
         // word. ESM4::Reader's constructor tells the two apart by the first subrecord name after the 20 byte header:
         // "HEDR" there means 20 byte headers (components/esm4/reader.cpp, the constructor). Groups have the same size
@@ -128,6 +131,7 @@ namespace Content
         // Parses the subrecords of a TES3 header record. Returns an error message or an empty string.
         std::string parseTes3Header(const std::vector<char>& data, Header& header, const Limits& limits)
         {
+            header.mVersion = sTes3DefaultVersion;
             std::size_t pos = 0;
             while (pos < data.size())
             {

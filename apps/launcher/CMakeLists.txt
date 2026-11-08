@@ -100,3 +100,11 @@ if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
         <vector>
     )
 endif()
+
+# A small tool that prints the launcher's content list model for some folders (tools/contentlist_check): used to prove
+# that a change to how plugin headers are read leaves the list unchanged. Not installed.
+option(OPENEDEN_BUILD_CONTENTLIST_CHECK "Build the content list model dump tool" OFF)
+if (OPENEDEN_BUILD_CONTENTLIST_CHECK)
+    add_executable(openeden-contentlist-dump ${CMAKE_SOURCE_DIR}/tools/contentlist_check/contentlistdump.cpp)
+    target_link_libraries(openeden-contentlist-dump components_qt Qt::Widgets Qt::Core Qt::Svg)
+endif()

@@ -4,8 +4,6 @@
 #include <QDateTime>
 #include <QStringList>
 
-#include <components/esm3/formatversion.hpp>
-
 #include "modelitem.hpp"
 
 class QMimeData;
@@ -95,7 +93,9 @@ namespace ContentSelectorModel
         QString mFileName;
         QString mAuthor;
         QDateTime mModified;
-        QString mVersion = QString::number(ESM::DefaultFormatVersion);
+        // A file the list has not read a header from (a script list) shows format version 0, as the typed readers'
+        // default format version (ESM::DefaultFormatVersion) did.
+        QString mVersion = QStringLiteral("0");
         QString mPath;
         QStringList mGameFiles;
         QString mDescription;

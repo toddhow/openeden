@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
+#include <string>
 #include <unordered_set>
 
 #include <QDataStream>
@@ -15,11 +17,12 @@
 #include <QIODevice>
 #include <QProgressDialog>
 
-#include <components/esm/format.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm4/reader.hpp>
+#include <components/contentsource/plugin.hpp>
+#include <components/contentsource/probe.hpp>
+#include <components/files/conversion.hpp>
 #include <components/files/openfile.hpp>
 #include <components/files/qtconversion.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 ContentSelectorModel::ContentModel::ContentModel(
     QObject* parent, QIcon& warningIcon, QIcon& errorIcon, bool showOMWScripts)
@@ -440,41 +443,37 @@ void ContentSelectorModel::ContentModel::addFiles(const QString& path, bool newf
                            << std::generic_category().message(errno).c_str();
                 continue;
             }
-            const ESM::Format format = ESM::readFormat(*stream);
-            stream->seekg(0);
-            switch (format)
+            // The header is read by the record source (task 0083): this list needs the author, the description, the
+            // format version and the masters, which every plugin family has, and no typed reader.
+            const std::optional<Content::Family> family = Content::probeFamily(*stream);
+            if (!family)
             {
-                case ESM::Format::Tes3:
-                {
-                    ToUTF8::Utf8Encoder encoder(ToUTF8::calculateEncoding(mEncoding.toStdString()));
-                    ESM::ESMReader fileReader;
-                    fileReader.setEncoder(&encoder);
-                    fileReader.open(std::move(stream), filepath);
-                    file->setAuthor(QString::fromUtf8(fileReader.getAuthor().c_str()));
-                    file->setFormat(QString::number(fileReader.esmVersionF()));
-                    file->setDescription(QString::fromUtf8(fileReader.getDesc().c_str()));
-                    for (const auto& master : fileReader.getGameFiles())
-                        file->addGameFile(QString::fromUtf8(master.name.c_str()));
-                    break;
-                }
-                case ESM::Format::Tes4:
-                {
-                    ToUTF8::StatelessUtf8Encoder encoder(ToUTF8::calculateEncoding(mEncoding.toStdString()));
-                    ESM4::Reader fileReader(std::move(stream), filepath, nullptr, &encoder, true);
-                    file->setAuthor(QString::fromUtf8(fileReader.getAuthor().c_str()));
-                    file->setFormat(QString::number(fileReader.esmVersionF()));
-                    file->setDescription(QString::fromUtf8(fileReader.getDesc().c_str()));
-                    for (const auto& master : fileReader.getGameFiles())
-                        file->addGameFile(QString::fromUtf8(master.name.c_str()));
-                    break;
-                }
-                default:
-                {
-                    qWarning() << "Error reading addon file " << info.fileName() << ": unsupported ESM format "
-                               << ESM::NAME(format).toString().c_str();
-                    continue;
-                }
+                char magic[4] = {};
+                stream->clear();
+                stream->seekg(0);
+                stream->read(magic, sizeof(magic));
+                qWarning() << "Error reading addon file " << info.fileName() << ": unsupported ESM format "
+                           << std::string(magic, static_cast<std::size_t>(stream->gcount())).c_str();
+                continue;
             }
+            stream->clear();
+            stream->seekg(0);
+            Content::Error readError;
+            const std::unique_ptr<Content::Plugin> plugin
+                = Content::Plugin::open(std::move(stream), Files::pathToUnicodeString(filepath), readError);
+            if (plugin == nullptr)
+            {
+                qWarning() << "Error reading addon file: " << readError.describe().c_str();
+                continue;
+            }
+            ToUTF8::Utf8Encoder encoder(ToUTF8::calculateEncoding(mEncoding.toStdString()));
+            const Content::PluginInfo plugInfo = Content::probe(
+                plugin->header(), [&encoder](std::string_view stored) { return std::string(encoder.getUtf8(stored)); });
+            file->setAuthor(QString::fromUtf8(plugInfo.mAuthor.c_str()));
+            file->setFormat(QString::number(plugInfo.mVersion));
+            file->setDescription(QString::fromUtf8(plugInfo.mDescription.c_str()));
+            for (const std::string& master : plugInfo.mMasters)
+                file->addGameFile(QString::fromUtf8(master.c_str()));
 
             // Put the file in the table
             if (add)
