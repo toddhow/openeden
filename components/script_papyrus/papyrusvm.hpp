@@ -281,9 +281,18 @@ namespace ScriptPapyrus::Vm
         std::uint32_t eventName = 0; ///< Lower-cased name id of the function to start.
         std::uint32_t argCount = 0; ///< Arguments waiting in values[0, argCount) until the stack starts.
         bool started = false;
+        std::uint64_t seq = 0; ///< Creation sequence: the tie-break of equal wake times, and the latent token.
         std::vector<Frame> frames;
         std::vector<Val> values;
         Val result;
+    };
+
+    /// A stack parked on a latent call (task 0093 stage d): ordered by (wake, seq); an infinite wake waits for the host.
+    struct WaitEntry
+    {
+        double wake = 0.0;
+        std::uint64_t seq = 0;
+        Stack* stack = nullptr;
     };
 
     struct NativeEntry
@@ -340,6 +349,10 @@ namespace ScriptPapyrus::Vm
             const openeden::script::PapyrusValue& value) noexcept override;
         std::string stateOf(openeden::script::InstanceId instance) const override;
         std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const override;
+        std::uint32_t suspendedStacks() const noexcept override { return mSuspendedCount; }
+        std::uint64_t latentToken() const noexcept override { return mLatentToken; }
+        bool completeLatent(std::uint64_t token) noexcept override;
+        std::uint32_t cancelWaiting(openeden::script::InstanceId instance) noexcept override;
 
     private:
         // papyrusruntime.cpp
@@ -492,6 +505,14 @@ namespace ScriptPapyrus::Vm
         std::uint64_t effectiveInstructions(const openeden::script::Budget& budget) const;
         std::uint32_t effectiveDepth(const openeden::script::Budget& budget) const;
         void gatherRoots(std::vector<std::uint32_t>& pending);
+        // papyrussched.cpp
+        /// Makes room for one more parked stack (and for the due ones that may go back): may throw, so it runs before
+        /// the handler of a latent native, never after.
+        void reserveForPark();
+        void parkStack(Stack& stack);
+        /// execute() with the suspension request turned into a result: 0 finished, 2 failed, 3 parked.
+        int executeStack(Stack& stack, std::uint64_t maxInstructions, std::uint32_t maxDepth, std::uint64_t& executed);
+        double acceptTime(double scriptTime);
         std::uint32_t arrayLimit() const { return mOptions.maxArrayLength; }
 
         openeden::script::PapyrusWorld& mWorld;
@@ -530,6 +551,17 @@ namespace ScriptPapyrus::Vm
         std::vector<Stack*> mReady; ///< Queued stacks, oldest first (from mReadyHead).
         std::size_t mReadyHead = 0;
         std::vector<Stack*> mRunning; ///< Stacks being executed (calls can nest through natives).
+        // The scheduler (papyrussched.cpp). mWaiting is a binary heap on (wake, seq); mDue holds the entries a tick took
+        // out of it (from mDueHead on, the ones not run yet).
+        std::vector<WaitEntry> mWaiting;
+        std::vector<WaitEntry> mDue;
+        std::size_t mDueHead = 0;
+        std::uint32_t mSuspendedCount = 0; ///< Parked stacks: mWaiting and the not yet run part of mDue.
+        std::uint64_t mNextSeq = 1;
+        std::uint64_t mLatentToken = 0;
+        double mNow = 0.0; ///< The time of the last tick.
+        bool mSuspendRequested = false; ///< A latent native asked for the running stack to be parked.
+        double mSuspendWake = 0.0;
 
         std::unordered_set<std::string> mLoggedOnce;
         std::string mScratch; ///< Reused text buffer.

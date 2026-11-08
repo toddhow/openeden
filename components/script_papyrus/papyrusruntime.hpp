@@ -65,6 +65,17 @@ namespace ScriptPapyrus
         std::uint32_t maxNames = 1u << 21;
         std::uint32_t maxInternedStrings = 1u << 21;
         std::uint64_t maxInternedBytes = 256u << 20;
+        /// Task 0093 stage d. False (the stage c behaviour): a latent native that the host registered is not run;
+        /// tolerant mode returns the zero of its type and counts Stats::latentSkipped, strict mode fails the stack.
+        /// True: its handler runs, the stack is parked for NativeResult::waitSeconds of script time (or until the host
+        /// calls completeLatent) and the other stacks go on. Off by default so that a runtime built for stage c does not
+        /// change; a game pack that registers latent natives turns it on.
+        bool runLatentNatives = false;
+        /// Stacks parked on latent calls at one time (timed and waiting for the host together). A latent call over it
+        /// ends that stack with [limit exceeded]; the others are unaffected.
+        std::uint32_t maxSuspendedStacks = 1u << 16;
+        /// The longest timed wait, in seconds of script time (a longer one is clamped to it, an infinite one too).
+        double maxWaitSeconds = 1.0e7;
     };
 
     /// Counters of one runtime (task 0093 stage c). Deterministic: they depend only on the scripts and the calls.
@@ -83,6 +94,9 @@ namespace ScriptPapyrus
         std::uint64_t collections = 0; ///< Garbage collections of the VM heap.
         std::uint64_t collectionVisits = 0; ///< Strings and heap objects the collections looked at, added up.
         std::uint64_t readyQueueSlots = 0; ///< Slots the queue of waiting stacks holds after the last tick.
+        std::uint64_t latentSuspended = 0; ///< Stacks parked by a latent native, counted at each park.
+        std::uint64_t stacksWoken = 0; ///< Parked stacks resumed by tick() (a timer or completeLatent).
+        std::uint64_t timeMovedBackwards = 0; ///< tick() calls whose time was below the last one (clamped to it).
         std::array<std::uint64_t, static_cast<std::size_t>(ErrorKind::Count)> errors{};
     };
 
@@ -116,6 +130,25 @@ namespace ScriptPapyrus
         /// the native) and a count, most called first, ties by name. Informational: the gated check uses it to name
         /// the natives a game pack would implement first.
         virtual std::vector<std::pair<std::string, std::uint64_t>> nativeCallSites() const = 0;
+
+        // ---- the scheduler (task 0093 stage d; not in the contract header) -----------------------------------------
+
+        /// Stacks parked on a latent call right now (timed or waiting for the host).
+        virtual std::uint32_t suspendedStacks() const noexcept = 0;
+
+        /// Inside a latent native's handler: the token of the stack that is calling it (never 0), which the handler can
+        /// keep to pass to completeLatent. 0 anywhere else. A handler that returns a negative waitSeconds parks the
+        /// stack until completeLatent(token) is called; it then resumes at the next tick.
+        virtual std::uint64_t latentToken() const noexcept = 0;
+
+        /// Wakes the parked stack of  token at the next tick(), whatever its timer says. False when no stack is
+        /// parked with that token. Refused (false) from inside a native.
+        virtual bool completeLatent(std::uint64_t token) noexcept = 0;
+
+        /// Drops every parked stack of  instance (0: of all instances) without running it again: what a game pack
+        /// does when it unloads the object the stacks belong to, and what restore will do first. Returns the number of
+        /// stacks dropped. Does nothing inside a native.
+        virtual std::uint32_t cancelWaiting(openeden::script::InstanceId instance) noexcept = 0;
     };
 
     std::unique_ptr<PapyrusRuntime> createRuntime(openeden::script::PapyrusWorld& world,

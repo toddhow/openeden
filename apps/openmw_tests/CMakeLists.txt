@@ -65,6 +65,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     # Task 0093: the Papyrus runtime allocates nothing per instruction (the counter lives in this binary).
     script_papyrus/testpapyrusallocation.cpp
+    script_papyrus/testpapyrusschedalloc.cpp
 
     # Task 0035 stage b: the RAGDOLL layer, HostedWorldConfig::gravityFactor and MWPhysics::RagdollHost.
     mwphysics/testjoltlayers.cpp
