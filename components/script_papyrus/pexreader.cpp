@@ -192,6 +192,28 @@ namespace ScriptPapyrus::Pex
                 return value;
             }
 
+            // A string index that names a type: a type may end in one "[]" at most (Papyrus has no array of arrays),
+            // checked here so that nothing downstream recurses or copies once per bracket (review of 2026-11-08).
+            std::uint16_t typeIndex(const char* what)
+            {
+                const std::uint16_t value = index(what);
+                const std::string& text = mStrings[value];
+                std::size_t end = text.size();
+                std::size_t dimensions = 0;
+                while (end > 2 && dimensions <= Limits::kMaxTypeArrayDimensions && text.compare(end - 2, 2, "[]") == 0)
+                {
+                    end -= 2;
+                    ++dimensions;
+                }
+                if (dimensions > Limits::kMaxTypeArrayDimensions)
+                {
+                    fail(std::string(what) + " '" + text.substr(0, 40) + "...' has more than "
+                        + std::to_string(Limits::kMaxTypeArrayDimensions)
+                        + " '[]' suffix (an array of arrays is not a Papyrus type)");
+                }
+                return value;
+            }
+
             void checkIndex(std::uint32_t value, const char* what) const
             {
                 if (value >= mStrings.size())
@@ -403,7 +425,7 @@ namespace ScriptPapyrus::Pex
             {
                 mFunction = label;
             }
-            function.mReturnType = index("return type");
+            function.mReturnType = typeIndex("return type");
             function.mDoc = index("function documentation");
             function.mUserFlags = u32("function user flags");
             function.mFlags = u8("function flags");
@@ -419,7 +441,7 @@ namespace ScriptPapyrus::Pex
             {
                 Parameter p;
                 p.mName = index("parameter name");
-                p.mType = index("parameter type");
+                p.mType = typeIndex("parameter type");
                 mFunctionNames.insert(mLowId[p.mName]);
                 function.mParameters.push_back(p);
             }
@@ -430,7 +452,7 @@ namespace ScriptPapyrus::Pex
             {
                 Parameter p;
                 p.mName = index("local name");
-                p.mType = index("local type");
+                p.mType = typeIndex("local type");
                 mFunctionNames.insert(mLowId[p.mName]);
                 function.mLocals.push_back(p);
             }
@@ -511,7 +533,7 @@ namespace ScriptPapyrus::Pex
                     {
                         StructMember member;
                         member.mName = index("member name");
-                        member.mType = index("member type");
+                        member.mType = typeIndex("member type");
                         member.mUserFlags = u32("member flags");
                         member.mInitial = value("member value");
                         member.mIsConst = u8("member const flag") != 0;
@@ -529,7 +551,7 @@ namespace ScriptPapyrus::Pex
             {
                 Variable variable;
                 variable.mName = index("variable name");
-                variable.mType = index("variable type");
+                variable.mType = typeIndex("variable type");
                 variable.mUserFlags = u32("variable flags");
                 variable.mInitial = value("variable value");
                 if (mGame == Game::Fallout4)
@@ -547,7 +569,7 @@ namespace ScriptPapyrus::Pex
             {
                 Property property;
                 property.mName = index("property name");
-                property.mType = index("property type");
+                property.mType = typeIndex("property type");
                 property.mDoc = index("property documentation");
                 property.mUserFlags = u32("property flags");
                 property.mFlags = u8("property function flags");

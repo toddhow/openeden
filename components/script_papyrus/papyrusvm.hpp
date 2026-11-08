@@ -175,7 +175,8 @@ namespace ScriptPapyrus::Vm
         std::unordered_map<std::string, bool> mFunctions;
 
         // Set by prepare() (papyrusprepare.cpp).
-        bool mPrepared = false;
+        bool mPrepared = false; ///< prepare() has finished, well or not (mPrepareFailed says which).
+        bool mPreparing = false; ///< prepare() is running on it: meeting it again is an inheritance cycle.
         bool mPrepareFailed = false;
         std::string mPrepareError;
         std::uint32_t mClassId = 0; ///< Lower-cased class name id.
@@ -383,6 +384,9 @@ namespace ScriptPapyrus::Vm
         std::uint32_t findNameId(std::string_view text) const; ///< 0 when never seen (and the text is not empty).
         std::string_view nameText(std::uint32_t id) const;
         std::uint32_t internString(std::string_view text);
+        /// Empty when  text can be added to the name table / the permanent strings; else why not (the table is full).
+        std::string nameTableFull(std::string_view text) const;
+        std::string stringTableFull(std::string_view text) const;
         std::string_view text(std::uint32_t stringId) const { return mStrings[stringId].text; }
         std::string_view textOf(const Val& value) const;
         bool newString(std::string_view text, Val& out);
@@ -429,6 +433,44 @@ namespace ScriptPapyrus::Vm
         // errors and logging
         bool fail(ErrorKind kind, const std::string& message);
         void logOnce(const std::string& key, const std::string& message);
+        /// Every call into the world goes through here or through WorldScope: the runtime refuses call, tick,
+        /// loadScript and registerNative while a native or a world callback is running.
+        void worldLog(openeden::script::Severity severity, std::string_view message);
+        struct WorldScope
+        {
+            explicit WorldScope(Runtime& runtime)
+                : mRuntime(runtime)
+                , mPrevious(runtime.mInNative)
+            {
+                runtime.mInNative = true;
+            }
+            ~WorldScope() { mRuntime.mInNative = mPrevious; }
+            WorldScope(const WorldScope&) = delete;
+            WorldScope& operator=(const WorldScope&) = delete;
+            Runtime& mRuntime;
+            bool mPrevious;
+        };
+        /// Gives a stack back to the pool when it goes out of scope, however the scope is left.
+        struct StackLease
+        {
+            StackLease(Runtime& runtime, Stack* stack)
+                : mRuntime(runtime)
+                , mStack(stack)
+            {
+            }
+            ~StackLease()
+            {
+                if (mStack != nullptr)
+                {
+                    mRuntime.releaseStack(mStack);
+                }
+            }
+            void keep() { mStack = nullptr; }
+            StackLease(const StackLease&) = delete;
+            StackLease& operator=(const StackLease&) = delete;
+            Runtime& mRuntime;
+            Stack* mStack;
+        };
         /// The error of the instruction that failed as a report (and counted and logged); clears the pending error.
         openeden::script::ErrorReport takeError();
         /// An error of the contract surface itself (no stack involved), counted and logged.
@@ -441,6 +483,8 @@ namespace ScriptPapyrus::Vm
         /// 0: the stack ran to its end; 1: the function is not defined and  isEvent was set; 2: it failed (the error
         /// is pending: takeError()).
         int runStack(
+            Stack& stack, bool isEvent, std::uint64_t maxInstructions, std::uint32_t maxDepth, std::uint64_t& executed);
+        int runStackBody(
             Stack& stack, bool isEvent, std::uint64_t maxInstructions, std::uint32_t maxDepth, std::uint64_t& executed);
         bool queueEvent(std::uint32_t instanceId, std::uint32_t eventName,
             std::span<const openeden::script::PapyrusValue> arguments, openeden::script::ErrorReport& error);
@@ -463,8 +507,12 @@ namespace ScriptPapyrus::Vm
         std::deque<StrEntry> mStrings;
         std::unordered_map<std::string, std::uint32_t, TextHash, TextEqual> mInterned;
         std::vector<std::uint32_t> mFreeStrings;
+        std::vector<std::uint32_t>
+            mLiveStrings; ///< Ids of the dynamic strings that are alive (what a collection visits).
+        std::uint64_t mPermanentBytes = 0; ///< Bytes of the names and permanent strings (counted twice: key and copy).
         std::deque<HeapObj> mHeap;
         std::vector<std::uint32_t> mFreeHeap;
+        std::vector<std::uint32_t> mLiveHeap; ///< Ids of the arrays and structs that are alive.
         std::uint64_t mHeapBytes = 0;
         std::vector<std::uint32_t> mMarkScratch;
 
@@ -474,6 +522,8 @@ namespace ScriptPapyrus::Vm
         std::vector<NativeEntry> mNatives;
         std::unordered_map<std::uint64_t, std::uint32_t> mNativeByKey;
         std::unordered_map<std::uint64_t, Resolved> mFunctionCache;
+        /// Class name id to the scripts that were prepared while it was not loaded (see load()).
+        std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> mWaitingForParent;
 
         std::vector<std::unique_ptr<Stack>> mStackPool;
         std::vector<Stack*> mFreeStacks;

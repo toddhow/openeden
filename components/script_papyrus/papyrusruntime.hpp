@@ -98,7 +98,9 @@ namespace ScriptPapyrus
 
         /// A variable or property of an instance by name (a property reads its backing variable or runs nothing: a
         /// full property is not evaluated). The characters of a string stay valid until the next call into the
-        /// runtime. False when the instance or the name does not exist.
+        /// runtime. An array or struct handle (here, in a CallResult, in a native's result) is valid the same way:
+        /// until the next call into the runtime that can allocate; nothing roots it, so do not keep it. False when
+        /// the instance or the name does not exist.
         virtual bool getVariable(openeden::script::InstanceId instance, std::string_view name,
             openeden::script::PapyrusValue& out) const noexcept = 0;
 

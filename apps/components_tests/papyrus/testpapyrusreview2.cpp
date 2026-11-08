@@ -139,7 +139,8 @@ namespace
         Fx fx;
         const LoadResult result = fx.load(withVar("Selfy", "Selfy"));
         EXPECT_FALSE(result.ok);
-        EXPECT_TRUE(anyReportHas(result, "cycle")) << (result.reports.empty() ? "no report" : result.reports[0].format());
+        EXPECT_TRUE(anyReportHas(result, "cycle"))
+            << (result.reports.empty() ? "no report" : result.reports[0].format());
         EXPECT_TRUE(anyReportHas(result, "Selfy"));
     }
 
@@ -216,8 +217,8 @@ namespace
             const Built built = script.build(optionsFor(Target::SkyrimSE));
             const ScriptPapyrus::Pex::ParseResult parsed = PapyrusTest::parseBytes(built.mBytes);
             EXPECT_FALSE(parsed.mOk) << place;
-            EXPECT_TRUE(PapyrusTest::contains(PapyrusTest::messages(parsed), "[]")) << place << ": "
-                                                                                    << PapyrusTest::messages(parsed);
+            EXPECT_TRUE(PapyrusTest::contains(PapyrusTest::messages(parsed), "[]"))
+                << place << ": " << PapyrusTest::messages(parsed);
         }
     }
 
@@ -362,7 +363,11 @@ namespace
         ScriptBuilder s("Checker");
         s.var("f", "Actor");
         s.var("hits", "Int");
-        s.function("OnCheck").local("b", "Bool").op(Op::Is, { Id("b"), Id("f"), Str("Actor") }).iadd(Id("hits"), Id("hits"), Int(1)).ret(Nil());
+        s.function("OnCheck")
+            .local("b", "Bool")
+            .op(Op::Is, { Id("b"), Id("f"), Str("Actor") })
+            .iadd(Id("hits"), Id("hits"), Int(1))
+            .ret(Nil());
         ASSERT_TRUE(fx.add(s));
         const InstanceId id = fx.attach("Checker");
         ASSERT_NE(id, 0u);
@@ -404,7 +409,7 @@ namespace
         s.var("held", "String[]");
         s.function("Spray").local("i", "Int").local("s", "String").local("c", "Bool");
         s.assign(Id("i"), Int(0));
-        s.op(Op::CompareLt, { Id("c"), Id("i"), Int(4000) });
+        s.op(Op::CompareLt, { Id("c"), Id("i"), Int(12000) });
         s.jmpf(Id("c"), 4);
         s.op(Op::StrCat, { Id("s"), Str("garbage"), Id("i") });
         s.iadd(Id("i"), Id("i"), Int(1));
@@ -448,8 +453,10 @@ namespace
         const std::uint64_t collections = fx.rt().stats().collections - collectionsBefore;
         const std::uint64_t visits = fx.rt().stats().collectionVisits - visitsBefore;
         ASSERT_GT(collections, 0u) << "the churn really ran into the cap";
-        EXPECT_LT(visits / collections, 200u) << "each collection looked at " << visits / collections
-                                              << " entries; about 15 are live";
+        // A collection looks at what was allocated since the last one (an amortised cost of about one visit per
+        // allocation) and never at the slots of the 12,000 strings that died before: those cost the old collector
+        // about 12,000 visits each time.
+        EXPECT_LT(visits, 3u * 3000u + 200u) << collections << " collections looked at " << visits << " entries";
     }
 
     // ---- finding 6: reentrancy, exceptions, a script that failed to prepare ------------------------------------
@@ -497,15 +504,19 @@ namespace
         bool loadRefused = false;
         bool registerRefused = false;
         ErrorReport registerError;
-        ASSERT_TRUE(fx2.rt().registerNative(global("Hook", "Poke"), [&](const NativeCall&) {
-            callRefused = !fx2.call(id, "Ping").ok;
-            const TickResult tick = fx2.rt().tick(0.0);
-            tickRefused = !tick.errors.empty();
-            const ScriptBuilder other = withVar("LoadedInside");
-            loadRefused = !fx2.load(other).ok;
-            registerRefused = !fx2.rt().registerNative(global("Hook", "Poke"), [](const NativeCall&) { return NativeResult{}; }, registerError);
-            return NativeResult{};
-        }, registerError));
+        ASSERT_TRUE(fx2.rt().registerNative(
+            global("Hook", "Poke"),
+            [&](const NativeCall&) {
+                callRefused = !fx2.call(id, "Ping").ok;
+                const TickResult tick = fx2.rt().tick(0.0);
+                tickRefused = !tick.errors.empty();
+                const ScriptBuilder other = withVar("LoadedInside");
+                loadRefused = !fx2.load(other).ok;
+                registerRefused = !fx2.rt().registerNative(
+                    global("Hook", "Poke"), [](const NativeCall&) { return NativeResult{}; }, registerError);
+                return NativeResult{};
+            },
+            registerError));
         const CallResult result = fx2.call(id, "Run");
         ASSERT_TRUE(result.ok) << result.error.format();
         EXPECT_EQ(result.returned.integer, 2) << "the run continued after the native";
@@ -528,16 +539,22 @@ namespace
         fx.rt().tick(0.0);
         std::vector<int> order;
         ErrorReport error;
-        ASSERT_TRUE(fx.rt().registerNative(global("Hook", "Poke"), [&](const NativeCall&) {
-            order.push_back(0);
-            EXPECT_TRUE(fx.rt().send(id, "OnA", {}).ok);
-            EXPECT_TRUE(fx.rt().send(id, "OnB", {}).ok);
-            return NativeResult{};
-        }, error));
-        ASSERT_TRUE(fx.rt().registerNative(global("Hook", "Note"), [&](const NativeCall& call) {
-            order.push_back(call.arguments[0].integer);
-            return NativeResult{ PapyrusValue::makeInt(0) };
-        }, error));
+        ASSERT_TRUE(fx.rt().registerNative(
+            global("Hook", "Poke"),
+            [&](const NativeCall&) {
+                order.push_back(0);
+                EXPECT_TRUE(fx.rt().send(id, "OnA", {}).ok);
+                EXPECT_TRUE(fx.rt().send(id, "OnB", {}).ok);
+                return NativeResult{};
+            },
+            error));
+        ASSERT_TRUE(fx.rt().registerNative(
+            global("Hook", "Note"),
+            [&](const NativeCall& call) {
+                order.push_back(call.arguments[0].integer);
+                return NativeResult{ PapyrusValue::makeInt(0) };
+            },
+            error));
         ASSERT_TRUE(fx.rt().send(id, "OnRun", {}).ok);
         const TickResult tick = fx.rt().tick(0.0);
         EXPECT_EQ(tick.stacksRun, 3u);
@@ -558,19 +575,22 @@ namespace
         fx.rt().tick(0.0);
         ErrorReport error;
         std::uint32_t attached = 0;
-        ASSERT_TRUE(fx.rt().registerNative(global("Hook", "Poke"), [&](const NativeCall&) {
-            for (std::uint32_t i = 0; i < 3000; ++i)
-            {
-                AttachKey key;
-                key.kind = AttachKind::Form;
-                key.formId = 0x90000u + i;
-                if (fx.rt().attach(key, "Spare") != 0)
+        ASSERT_TRUE(fx.rt().registerNative(
+            global("Hook", "Poke"),
+            [&](const NativeCall&) {
+                for (std::uint32_t i = 0; i < 3000; ++i)
                 {
-                    ++attached;
+                    AttachKey key;
+                    key.kind = AttachKind::Form;
+                    key.formId = 0x90000u + i;
+                    if (fx.rt().attach(key, "Spare") != 0)
+                    {
+                        ++attached;
+                    }
                 }
-            }
-            return NativeResult{};
-        }, error));
+                return NativeResult{};
+            },
+            error));
         const CallResult result = fx.call(id, "Run");
         ASSERT_TRUE(result.ok) << result.error.format();
         EXPECT_EQ(result.returned.integer, 2);
@@ -652,7 +672,8 @@ namespace
             }
         };
         const std::string huge(70000, 'x');
-        const CallResult refused = fx.rt().send(id, "OnBig", std::vector<PapyrusValue>{ PapyrusValue::makeString(huge) });
+        const CallResult refused
+            = fx.rt().send(id, "OnBig", std::vector<PapyrusValue>{ PapyrusValue::makeString(huge) });
         EXPECT_FALSE(refused.ok);
         const CallResult next = fx.call(id, "Ping");
         EXPECT_TRUE(next.ok) << next.error.format();
@@ -684,7 +705,8 @@ namespace
         ASSERT_NE(id, 0u);
         EXPECT_FALSE(fx.mWorld.logged("loaded after"));
         ASSERT_TRUE(fx.add(withVar("LateParent")));
-        EXPECT_TRUE(fx.mWorld.logged("loaded after")) << "the child keeps running without what it inherits, and says so";
+        EXPECT_TRUE(fx.mWorld.logged("loaded after"))
+            << "the child keeps running without what it inherits, and says so";
         EXPECT_EQ(fx.call(id, "Ping").returned.integer, 7);
         // A child attached from now on, before it was ever prepared, does get the parent.
         ASSERT_TRUE(fx.add(withVar("FreshChild", "LateParent")));
@@ -704,7 +726,10 @@ namespace
         s.function("MakeArr", "Int[]").local("a", "Int[]").op(Op::ArrayCreate, { Id("a"), Int(10) }).ret(Id("a"));
         s.function("Garbage").local("s", "String").op(Op::StrCat, { Id("s"), Str("g"), Str("g") }).ret(Nil());
         s.function("Eat").param("s", "String").ret(Nil());
-        s.function("TakeBoth", "Int").param("s", "String").param("a", "Int[]").local("n", "Int")
+        s.function("TakeBoth", "Int")
+            .param("s", "String")
+            .param("a", "Int[]")
+            .local("n", "Int")
             .op(Op::ArrayLength, { Id("n"), Id("a") })
             .ret(Id("n"));
         return s;
@@ -741,8 +766,7 @@ namespace
         const std::string garbage(640, 'z');
         // The garbage is a string argument of an earlier call that nobody keeps.
         ASSERT_TRUE(fx.call(id, "Eat", { PapyrusValue::makeString(garbage) }).ok);
-        const CallResult both
-            = fx.call(id, "TakeBoth", { PapyrusValue::makeString(big), made.returned });
+        const CallResult both = fx.call(id, "TakeBoth", { PapyrusValue::makeString(big), made.returned });
         ASSERT_TRUE(both.ok) << both.error.format();
         EXPECT_EQ(both.returned.integer, 10) << "the array was still there when the string argument made room";
     }

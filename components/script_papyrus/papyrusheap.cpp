@@ -1,6 +1,7 @@
 #include "papyrusvm.hpp"
 
 #include <bit>
+#include <stdexcept>
 
 // Names, strings, arrays, structs and the garbage collector of the Papyrus runtime (task 0093 stage c).
 //
@@ -68,6 +69,39 @@ namespace ScriptPapyrus::Vm
     // ---- names
     // -------------------------------------------------------------------------------------------------------
 
+    // The permanent tables (names and permanent strings) are bounded as a whole: a script that names a new state in a
+    // loop, or a host that sends a new event name every frame, must not grow them without end (review finding 3).
+    // Each entry counts its text twice, as key and as copy.
+    std::string Runtime::nameTableFull(std::string_view text) const
+    {
+        if (mNames.mShown.size() >= mOptions.maxNames)
+        {
+            return "the table of names is full (" + std::to_string(mNames.mShown.size()) + " names, cap "
+                + std::to_string(mOptions.maxNames) + ")";
+        }
+        if (mPermanentBytes + 2 * text.size() > mOptions.maxInternedBytes)
+        {
+            return "the permanent tables are full (" + std::to_string(mPermanentBytes) + " bytes, cap "
+                + std::to_string(mOptions.maxInternedBytes) + ")";
+        }
+        return {};
+    }
+
+    std::string Runtime::stringTableFull(std::string_view text) const
+    {
+        if (mInterned.size() >= mOptions.maxInternedStrings)
+        {
+            return "the table of permanent strings is full (" + std::to_string(mInterned.size()) + " strings, cap "
+                + std::to_string(mOptions.maxInternedStrings) + ")";
+        }
+        if (mPermanentBytes + 2 * text.size() > mOptions.maxInternedBytes)
+        {
+            return "the permanent tables are full (" + std::to_string(mPermanentBytes) + " bytes, cap "
+                + std::to_string(mOptions.maxInternedBytes) + ")";
+        }
+        return {};
+    }
+
     std::uint32_t Runtime::nameId(std::string_view text)
     {
         mNameScratch.assign(text);
@@ -80,7 +114,12 @@ namespace ScriptPapyrus::Vm
         {
             return found->second;
         }
+        if (const std::string full = nameTableFull(text); !full.empty())
+        {
+            throw std::length_error(full);
+        }
         const std::uint32_t id = static_cast<std::uint32_t>(mNames.mShown.size());
+        mPermanentBytes += 2 * text.size();
         mNames.mIds.emplace(mNameScratch, id);
         mNames.mShown.emplace_back(text);
         mNames.mIsEvent.push_back(mNameScratch.size() > 2 && mNameScratch[0] == 'o' && mNameScratch[1] == 'n' ? 1 : 0);
@@ -113,7 +152,12 @@ namespace ScriptPapyrus::Vm
         {
             return found->second;
         }
+        if (const std::string full = stringTableFull(text); !full.empty())
+        {
+            throw std::length_error(full);
+        }
         const std::uint32_t id = static_cast<std::uint32_t>(mStrings.size());
+        mPermanentBytes += 2 * text.size();
         StrEntry entry;
         entry.text.assign(text);
         mStrings.push_back(std::move(entry));
@@ -176,6 +220,7 @@ namespace ScriptPapyrus::Vm
         entry.dynamic = true;
         entry.live = true;
         entry.mark = false;
+        mLiveStrings.push_back(id);
         out = Val::makeString(id);
         return true;
     }
@@ -216,6 +261,7 @@ namespace ScriptPapyrus::Vm
         object.mark = false;
         object.elem = elem;
         object.items.assign(length, zeroOfKind(elem));
+        mLiveHeap.push_back(id);
         out = Val::makeArray(id);
         return true;
     }
@@ -241,6 +287,7 @@ namespace ScriptPapyrus::Vm
         object.script = scriptIndex;
         object.structName = structName;
         object.items = info.memberDefaults;
+        mLiveHeap.push_back(id);
         out = Val::makeStruct(id);
         return true;
     }
@@ -253,7 +300,7 @@ namespace ScriptPapyrus::Vm
         switch (value.kind)
         {
             case Kind::String:
-                if (value.a < mStrings.size() && mStrings[value.a].dynamic)
+                if (value.a < mStrings.size() && mStrings[value.a].dynamic && mStrings[value.a].live)
                 {
                     mStrings[value.a].mark = true;
                 }
@@ -297,20 +344,14 @@ namespace ScriptPapyrus::Vm
         }
     }
 
+    // A collection looks at the live dynamic strings and the live arrays and structs only, never at the slots of the
+    // ones already freed, so its cost does not depend on the high-water mark of earlier garbage (review finding 5).
+    // Marks are false outside a collection: the sweep clears the survivors'.
     void Runtime::collect()
     {
         ++mStats.collections;
-        mStats.collectionVisits += mStrings.size() + mHeap.size();
         std::vector<std::uint32_t>& pending = mMarkScratch;
         pending.clear();
-        for (StrEntry& entry : mStrings)
-        {
-            entry.mark = false;
-        }
-        for (HeapObj& object : mHeap)
-        {
-            object.mark = false;
-        }
         gatherRoots(pending);
         while (!pending.empty())
         {
@@ -323,42 +364,59 @@ namespace ScriptPapyrus::Vm
         }
 
         std::uint64_t bytes = 0;
-        for (std::size_t id = 0; id < mStrings.size(); ++id)
+        std::size_t kept = 0;
+        for (const std::uint32_t id : mLiveStrings)
         {
+            ++mStats.collectionVisits;
             StrEntry& entry = mStrings[id];
-            if (!entry.dynamic || !entry.live)
-            {
-                continue;
-            }
             if (entry.mark)
             {
+                entry.mark = false;
                 bytes += entry.text.size() + kObjectOverhead;
+                mLiveStrings[kept++] = id;
             }
             else
             {
                 entry.live = false;
-                entry.text.clear();
-                mFreeStrings.push_back(static_cast<std::uint32_t>(id));
+                // A freed 64 KiB string must not keep its buffer.
+                if (entry.text.capacity() > 1024)
+                {
+                    std::string().swap(entry.text);
+                }
+                else
+                {
+                    entry.text.clear();
+                }
+                mFreeStrings.push_back(id);
             }
         }
-        for (std::size_t id = 0; id < mHeap.size(); ++id)
+        mLiveStrings.resize(kept);
+        kept = 0;
+        for (const std::uint32_t id : mLiveHeap)
         {
+            ++mStats.collectionVisits;
             HeapObj& object = mHeap[id];
-            if (object.type == HeapObj::Type::Free)
-            {
-                continue;
-            }
             if (object.mark)
             {
+                object.mark = false;
                 bytes += object.items.size() * sizeof(Val) + kObjectOverhead;
+                mLiveHeap[kept++] = id;
             }
             else
             {
                 object.type = HeapObj::Type::Free;
-                object.items.clear();
-                mFreeHeap.push_back(static_cast<std::uint32_t>(id));
+                if (object.items.capacity() > 256)
+                {
+                    std::vector<Val>().swap(object.items);
+                }
+                else
+                {
+                    object.items.clear();
+                }
+                mFreeHeap.push_back(id);
             }
         }
+        mLiveHeap.resize(kept);
         mHeapBytes = bytes;
     }
 }

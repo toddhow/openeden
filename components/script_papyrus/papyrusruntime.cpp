@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <map>
+#include <new>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
@@ -221,6 +223,30 @@ namespace ScriptPapyrus
                 return result;
             }
 
+            // A script whose chain of parents leads back to itself can never be prepared. Every script is checked as
+            // it is loaded, against the parents already loaded by name, so no cycle can exist among loaded scripts.
+            {
+                std::string path = "'" + className + "'";
+                std::string cursor = Pex::lowered(file.str(object.mParent));
+                for (std::size_t depth = 0; !cursor.empty() && depth <= kMaxParentDepth; ++depth)
+                {
+                    if (cursor == lowerClass)
+                    {
+                        result.reports.push_back(plainReport(name,
+                            "'" + className + "' extends itself through its parents: " + path + " -> '" + className
+                                + "' (inheritance cycle)"));
+                        return result;
+                    }
+                    const auto parent = mByName.find(cursor);
+                    if (parent == mByName.end())
+                    {
+                        break;
+                    }
+                    path += " -> '" + mScripts[parent->second].mClass + "'";
+                    cursor = Pex::lowered(mScripts[parent->second].mParent);
+                }
+            }
+
             Script script;
             script.mFileName = std::string(name);
             script.mClass = className;
@@ -239,7 +265,7 @@ namespace ScriptPapyrus
             {
                 if (report.severity == Severity::Warning)
                 {
-                    mWorld.log(Severity::Warning, report.format());
+                    worldLog(Severity::Warning, report.format());
                 }
             }
 
@@ -253,8 +279,22 @@ namespace ScriptPapyrus
             result.ok = true;
             result.script = static_cast<ScriptId>(mScripts.size() + 1);
             mByName.emplace(lowerClass, mScripts.size());
-            mScriptByClassId.emplace(nameId(className), static_cast<std::uint32_t>(mScripts.size()));
+            const std::uint32_t classId = nameId(className);
+            mScriptByClassId.emplace(classId, static_cast<std::uint32_t>(mScripts.size()));
             mScripts.push_back(std::move(script));
+            // New scripts can change what a lookup finds: forget the remembered ones. A script that was prepared while
+            // this class was missing keeps running without it (its variable layout is fixed by then): say so.
+            mFunctionCache.clear();
+            if (const auto waiting = mWaitingForParent.find(classId); waiting != mWaitingForParent.end())
+            {
+                for (const std::uint32_t child : waiting->second)
+                {
+                    logOnce("lateparent:" + mScripts[child].mFileName,
+                        mScripts[child].mFileName + ": its parent '" + className
+                            + "' was loaded after it was prepared; it keeps running without what it inherits");
+                }
+                mWaitingForParent.erase(waiting);
+            }
             return result;
         }
 
@@ -563,14 +603,15 @@ namespace ScriptPapyrus
             report.message
                 = (mErrLoc.empty() ? std::string() : mErrLoc + ": ") + "[" + errorKindName(mErrKind) + "] " + mErrMsg;
             ++mStats.errors[static_cast<std::size_t>(mErrKind)];
-            if (mLoggedOnce.insert("error:" + report.message).second)
-            {
-                mWorld.log(Severity::Error, report.format());
-            }
+            // The pending error is cleared before anything that can throw runs (the world's log can).
             mErrKind = ErrorKind::None;
             mErrMsg.clear();
             mErrLoc.clear();
             mErrFile.clear();
+            if (mLoggedOnce.insert("error:" + report.message).second)
+            {
+                worldLog(Severity::Error, report.format());
+            }
             return report;
         }
 
@@ -581,7 +622,7 @@ namespace ScriptPapyrus
             ++mStats.errors[static_cast<std::size_t>(kind)];
             if (mLoggedOnce.insert("error:" + report.message).second)
             {
-                mWorld.log(Severity::Error, report.format());
+                worldLog(Severity::Error, report.format());
             }
             return report;
         }
@@ -601,6 +642,8 @@ namespace ScriptPapyrus
             {
                 mStackPool.push_back(std::make_unique<Stack>());
                 stack = mStackPool.back().get();
+                // releaseStack must never allocate: it runs when an exception is already on its way.
+                mFreeStacks.reserve(mStackPool.size());
             }
             stack->instance = 0;
             stack->eventName = 0;
@@ -640,25 +683,74 @@ namespace ScriptPapyrus
                     std::to_string(arguments.size()) + " arguments are over the cap of "
                         + std::to_string(kMaxCallArgs));
             }
-            mRunning.push_back(&stack);
-            bool ok = true;
-            stack.values.clear();
-            for (const PapyrusValue& argument : arguments)
+            struct RunningPush
             {
-                Val converted;
-                if (!fromPapyrus(argument, converted))
+                explicit RunningPush(std::vector<Stack*>& list, Stack* pushed)
+                    : mList(list)
                 {
-                    ok = false;
-                    break;
+                    mList.push_back(pushed);
                 }
-                stack.values.push_back(converted);
-            }
-            mRunning.pop_back();
+                ~RunningPush() { mList.pop_back(); }
+                std::vector<Stack*>& mList;
+            } running(mRunning, &stack);
+            stack.values.assign(arguments.size(), Val{});
             stack.argCount = static_cast<std::uint32_t>(arguments.size());
-            return ok;
+            // Strings are converted last: making one can start a collection, and an array or struct handle that came
+            // from an earlier call is held by nothing but the stack this fills. Converted first, the handles are
+            // roots before any string is allocated.
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                for (std::size_t i = 0; i < arguments.size(); ++i)
+                {
+                    if ((arguments[i].kind == PapyrusKind::String) != (pass == 1))
+                    {
+                        continue;
+                    }
+                    Val converted;
+                    if (!fromPapyrus(arguments[i], converted))
+                    {
+                        return false;
+                    }
+                    stack.values[i] = converted;
+                }
+            }
+            return true;
         }
 
+        // Anything thrown while a stack runs (out of memory, a table at its cap, a world callback that throws) ends
+        // that stack with an error; it never leaves the runtime half-way through a tick.
         int Runtime::runStack(
+            Stack& stack, bool isEvent, std::uint64_t maxInstructions, std::uint32_t maxDepth, std::uint64_t& executed)
+        {
+            try
+            {
+                return runStackBody(stack, isEvent, maxInstructions, maxDepth, executed);
+            }
+            catch (const std::exception& error)
+            {
+                mErrKind = ErrorKind::None;
+                const bool limit = dynamic_cast<const std::length_error*>(&error) != nullptr;
+                const bool memory = dynamic_cast<const std::bad_alloc*>(&error) != nullptr;
+                fail(limit ? ErrorKind::LimitExceeded : ErrorKind::Internal,
+                    memory ? std::string("out of memory") : std::string(error.what()));
+            }
+            catch (...)
+            {
+                mErrKind = ErrorKind::None;
+                fail(ErrorKind::Internal, "an exception that is not a std::exception");
+            }
+            if (!stack.frames.empty())
+            {
+                const Frame& at = stack.frames.back();
+                const Script& owner = mScripts[at.script];
+                mErrFile = owner.mFileName;
+                mErrLoc = owner.mClass + "." + std::string(nameText(owner.mFuncs[at.func].name)) + "@"
+                    + std::to_string(at.pc > 0 ? at.pc - 1 : 0);
+            }
+            return 2;
+        }
+
+        int Runtime::runStackBody(
             Stack& stack, bool isEvent, std::uint64_t maxInstructions, std::uint32_t maxDepth, std::uint64_t& executed)
         {
             struct RunningGuard
@@ -731,15 +823,16 @@ namespace ScriptPapyrus
                 return false;
             }
             Stack* stack = acquireStack();
+            StackLease lease(*this, stack);
             stack->instance = instanceId;
             stack->eventName = eventName;
             if (!fillArguments(*stack, arguments))
             {
                 error = takeError();
-                releaseStack(stack);
                 return false;
             }
             mReady.push_back(stack);
+            lease.keep();
             return true;
         }
 
@@ -765,7 +858,7 @@ namespace ScriptPapyrus
             const std::uint32_t scriptIndex = lowered == kNoScript ? kNoScript : scriptByClassId(lowered);
             if (scriptIndex == kNoScript)
             {
-                mWorld.log(Severity::Warning, "attach: the script '" + std::string(scriptName) + "' is not loaded");
+                worldLog(Severity::Warning, "attach: the script '" + std::string(scriptName) + "' is not loaded");
                 return 0;
             }
             if (mByKey.contains(key))
@@ -774,7 +867,7 @@ namespace ScriptPapyrus
             }
             if (mInstances.size() >= mOptions.maxInstances)
             {
-                mWorld.log(Severity::Warning,
+                worldLog(Severity::Warning,
                     "attach: the runtime holds the cap of " + std::to_string(mOptions.maxInstances) + " instances");
                 return 0;
             }
@@ -788,7 +881,14 @@ namespace ScriptPapyrus
             instance.script = scriptIndex;
             instance.stateName = script.mAutoStateName;
             instance.stateId = script.mAutoStateId;
-            instance.vars.resize(script.totalVars());
+            // Sized from every script of the chain, not from the first's own count alone, so that the writes below
+            // can never leave the vector.
+            std::size_t slots = script.totalVars();
+            for (const std::uint32_t owner : script.mChain)
+            {
+                slots = std::max<std::size_t>(slots, mScripts[owner].mVarBase + mScripts[owner].mVars.size());
+            }
+            instance.vars.resize(slots);
             for (const std::uint32_t owner : script.mChain)
             {
                 const Script& chainScript = mScripts[owner];
@@ -803,7 +903,7 @@ namespace ScriptPapyrus
             ErrorReport error;
             if (!queueEvent(id, nameId("OnInit"), {}, error))
             {
-                mWorld.log(Severity::Warning, "attach: OnInit could not be queued: " + error.format());
+                worldLog(Severity::Warning, "attach: OnInit could not be queued: " + error.format());
             }
             return id;
         }
@@ -815,8 +915,16 @@ namespace ScriptPapyrus
             {
                 return sendImpl(instance, eventName, arguments);
             }
+            catch (const std::length_error& error)
+            {
+                mErrKind = ErrorKind::None;
+                CallResult result;
+                result.error.message = std::string("[limit exceeded] ") + error.what();
+                return result;
+            }
             catch (...)
             {
+                mErrKind = ErrorKind::None;
                 CallResult result;
                 result.error.message = "[internal] out of memory or an internal error while queueing an event";
                 return result;
@@ -844,6 +952,13 @@ namespace ScriptPapyrus
             {
                 return callImpl(instance, functionName, arguments);
             }
+            catch (const std::length_error& error)
+            {
+                mErrKind = ErrorKind::None;
+                CallResult result;
+                result.error.message = std::string("[limit exceeded] ") + error.what();
+                return result;
+            }
             catch (...)
             {
                 mErrKind = ErrorKind::None;
@@ -868,13 +983,14 @@ namespace ScriptPapyrus
                     = apiError(ErrorKind::NoSuchInstance, "instance " + std::to_string(instance) + " does not exist");
                 return result;
             }
+            const std::uint32_t functionId = nameId(functionName);
             Stack* stack = acquireStack();
+            StackLease lease(*this, stack);
             stack->instance = instance;
-            stack->eventName = nameId(functionName);
+            stack->eventName = functionId;
             if (!fillArguments(*stack, arguments))
             {
                 result.error = takeError();
-                releaseStack(stack);
                 return result;
             }
             std::uint64_t executed = 0;
@@ -891,7 +1007,6 @@ namespace ScriptPapyrus
             {
                 result.error = takeError();
             }
-            releaseStack(stack);
             return result;
         }
 
@@ -924,6 +1039,7 @@ namespace ScriptPapyrus
                 && result.instructionsExecuted < mOptions.maxInstructionsPerTick)
             {
                 Stack* stack = mReady[mReadyHead++];
+                StackLease lease(*this, stack);
                 ++processed;
                 std::uint64_t executed = 0;
                 const int outcome = runStack(*stack, true, maxInstructions, maxDepth, executed);
@@ -936,11 +1052,16 @@ namespace ScriptPapyrus
                 {
                     result.errors.push_back(takeError());
                 }
-                releaseStack(stack);
             }
             if (mReadyHead >= mReady.size())
             {
                 mReady.clear();
+                mReadyHead = 0;
+            }
+            else if (mReadyHead >= 64 && mReadyHead * 2 >= mReady.size())
+            {
+                // Under sustained overload the queue never drains: give back the slots already consumed.
+                mReady.erase(mReady.begin(), mReady.begin() + static_cast<std::ptrdiff_t>(mReadyHead));
                 mReadyHead = 0;
             }
             result.stacksWaiting = static_cast<std::uint32_t>(mReady.size() - mReadyHead);
@@ -1085,6 +1206,21 @@ namespace ScriptPapyrus
             {
                 mErrKind = ErrorKind::None;
                 return false;
+            }
+            // A handle must still name an array or a struct, and of the declared kind of element or struct: a stale
+            // handle, or an Int[] offered for a Float[], is refused (memory-safe either way, but never stored).
+            if (value.kind == PapyrusKind::Array || value.kind == PapyrusKind::Struct)
+            {
+                if (converted.kind != (value.kind == PapyrusKind::Array ? Kind::Array : Kind::Struct))
+                {
+                    return false;
+                }
+                const HeapObj& object = mHeap[converted.a];
+                if (value.kind == PapyrusKind::Array ? object.elem != declared.elem
+                                                     : object.structName != declared.name2)
+                {
+                    return false;
+                }
             }
             mInstances[instance - 1].vars[slot] = coerce(converted, declared);
             return true;

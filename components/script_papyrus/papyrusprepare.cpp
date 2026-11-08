@@ -112,9 +112,17 @@ namespace ScriptPapyrus::Vm
         }
     }
 
+    // The reader refuses a type with more than one "[]" suffix, so no loop here is long for a loaded script; the
+    // suffixes are still counted without recursion or copies, and only the part before them is lower-cased.
     TypeRef Runtime::parseType(std::string_view text)
     {
         TypeRef type;
+        std::size_t dimensions = 0;
+        while (text.size() > 2 && text.compare(text.size() - 2, 2, "[]") == 0)
+        {
+            text.remove_suffix(2);
+            ++dimensions;
+        }
         std::string lower(text);
         for (char& c : lower)
         {
@@ -123,50 +131,50 @@ namespace ScriptPapyrus::Vm
                 c = static_cast<char>(c - 'A' + 'a');
             }
         }
+        TypeRef element;
         if (lower.empty() || lower == "none")
         {
-            return type;
+            element = TypeRef{};
         }
-        if (lower.size() > 2 && lower.compare(lower.size() - 2, 2, "[]") == 0)
+        else if (lower == "int")
         {
-            const TypeRef element = parseType(text.substr(0, text.size() - 2));
-            type.kind = TypeKind::Array;
-            type.elem = element.kind;
-            type.name = element.name;
-            type.name2 = element.name2;
-            return type;
-        }
-        if (lower == "int")
-        {
-            type.kind = TypeKind::Int;
+            element.kind = TypeKind::Int;
         }
         else if (lower == "float")
         {
-            type.kind = TypeKind::Float;
+            element.kind = TypeKind::Float;
         }
         else if (lower == "bool")
         {
-            type.kind = TypeKind::Bool;
+            element.kind = TypeKind::Bool;
         }
         else if (lower == "string")
         {
-            type.kind = TypeKind::String;
+            element.kind = TypeKind::String;
         }
         else if (lower == "var")
         {
-            type.kind = TypeKind::Var;
+            element.kind = TypeKind::Var;
         }
         else if (const std::size_t hash = lower.find('#'); hash != std::string::npos)
         {
-            type.kind = TypeKind::Struct;
-            type.name = nameId(text.substr(0, hash));
-            type.name2 = nameId(text.substr(hash + 1));
+            element.kind = TypeKind::Struct;
+            element.name = nameId(text.substr(0, hash));
+            element.name2 = nameId(text.substr(hash + 1));
         }
         else
         {
-            type.kind = TypeKind::Object;
-            type.name = nameId(text);
+            element.kind = TypeKind::Object;
+            element.name = nameId(text);
         }
+        if (dimensions == 0)
+        {
+            return element;
+        }
+        type.kind = TypeKind::Array;
+        type.elem = dimensions > 1 ? TypeKind::Array : element.kind;
+        type.name = element.name;
+        type.name2 = element.name2;
         return type;
     }
 
@@ -212,9 +220,15 @@ namespace ScriptPapyrus::Vm
 
     void Runtime::prepareFail(Script& script, const std::string& why)
     {
+        // The first reason stays: a script that failed because a parent failed keeps the parent's cause.
+        if (script.mPrepareFailed)
+        {
+            return;
+        }
+        script.mPrepared = true;
         script.mPrepareFailed = true;
         script.mPrepareError = why;
-        mWorld.log(Severity::Error, script.mFileName + ": the script cannot be run: " + why);
+        worldLog(Severity::Error, script.mFileName + ": the script cannot be run: " + why);
     }
 
     bool Runtime::prepare(std::uint32_t scriptIndex)
@@ -224,20 +238,38 @@ namespace ScriptPapyrus::Vm
         {
             return !script.mPrepareFailed;
         }
-        script.mPrepared = true;
+        if (script.mPreparing)
+        {
+            // Meeting a script that is being prepared means its chain of parents leads back to it. Load refuses such
+            // files; this keeps a half-built script from ever being reported ready if one gets here anyway.
+            prepareFail(script, "its chain of parents loops back to it (inheritance cycle)");
+            return false;
+        }
+        script.mPreparing = true;
         if (++mPrepareDepth > kMaxParentDepth)
         {
             --mPrepareDepth;
+            script.mPreparing = false;
             prepareFail(script, "the chain of parents is deeper than " + std::to_string(kMaxParentDepth));
             return false;
         }
+        // mPrepared becomes true only when the work is done or has failed; an exception (out of memory, a world that
+        // throws while it is told something) leaves the script failed, never half built and ready.
         struct DepthGuard
         {
             std::size_t& mDepth;
             Script& mScript;
+            bool mDone = false;
             ~DepthGuard()
             {
                 --mDepth;
+                mScript.mPreparing = false;
+                if (!mDone && !mScript.mPrepared)
+                {
+                    mScript.mPrepared = true;
+                    mScript.mPrepareFailed = true;
+                    mScript.mPrepareError = "out of memory or an internal error while preparing it";
+                }
                 // The per-entry caches only serve the compile below; drop them with it.
                 std::vector<Script::TypeCache>().swap(mScript.mStringTypes);
                 std::vector<std::uint32_t>().swap(mScript.mStringIds);
@@ -264,6 +296,7 @@ namespace ScriptPapyrus::Vm
                     prepareFail(script, "its parent '" + script.mParent + "' is not loaded");
                     return false;
                 }
+                mWaitingForParent[script.mParentId].push_back(scriptIndex);
                 logOnce("parent:" + script.mFileName,
                     script.mFileName + ": the parent '" + script.mParent
                         + "' is not loaded; the script runs without what it inherits");
@@ -371,6 +404,8 @@ namespace ScriptPapyrus::Vm
             }
             script.mProps.emplace(nameId(propertyName), info);
         }
+        script.mPrepared = true;
+        guard.mDone = true;
         return true;
     }
 

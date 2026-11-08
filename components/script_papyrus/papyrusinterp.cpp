@@ -113,8 +113,14 @@ namespace ScriptPapyrus::Vm
     {
         if (mLoggedOnce.insert(key).second)
         {
-            mWorld.log(Severity::Warning, message);
+            worldLog(Severity::Warning, message);
         }
+    }
+
+    void Runtime::worldLog(Severity severity, std::string_view message)
+    {
+        WorldScope scope(*this);
+        mWorld.log(severity, message);
     }
 
     // ---- values
@@ -192,8 +198,21 @@ namespace ScriptPapyrus::Vm
                         "the state is set where there is no script instance, or to something that is not a string");
                     return;
                 }
-                // A permanent copy: the string the script holds may be collected.
+                // A permanent copy: the string the script holds may be collected. A script that names a new state in
+                // a loop must not grow the permanent tables without end: past their caps the stack dies here.
                 const std::string_view name = textOf(value);
+                if (const std::string full = !mInterned.contains(name) ? stringTableFull(name) : std::string();
+                    !full.empty())
+                {
+                    fail(ErrorKind::LimitExceeded, full);
+                    return;
+                }
+                if (const std::string full = findNameId(name) == kNoScript ? nameTableFull(name) : std::string();
+                    !full.empty())
+                {
+                    fail(ErrorKind::LimitExceeded, full);
+                    return;
+                }
                 instance->stateName = internString(name);
                 instance->stateId = nameId(name);
                 break;
@@ -421,7 +440,12 @@ namespace ScriptPapyrus::Vm
         {
             return value.b;
         }
-        if (!mWorld.formClass(value.a, mScratchClass) || mScratchClass.empty())
+        bool known;
+        {
+            WorldScope scope(*this);
+            known = mWorld.formClass(value.a, mScratchClass);
+        }
+        if (!known || mScratchClass.empty())
         {
             return kNoScript;
         }
@@ -558,7 +582,7 @@ namespace ScriptPapyrus::Vm
                 break;
             }
         }
-        if (result.found && cacheable)
+        if (result.found && cacheable && mFunctionCache.size() < Limits::kMaxFunctionCacheEntries)
         {
             mFunctionCache.emplace(key, result);
         }
@@ -774,24 +798,25 @@ namespace ScriptPapyrus::Vm
             toPapyrus(self, call.self);
             call.arguments = std::span<const PapyrusValue>(mNativeArgs.data(), mNativeArgs.size());
             NativeResult nativeResult;
-            mInNative = true;
             bool threw = false;
             std::string what;
-            try
             {
-                nativeResult = mNatives[bound->second].fn(call);
+                WorldScope scope(*this);
+                try
+                {
+                    nativeResult = mNatives[bound->second].fn(call);
+                }
+                catch (const std::exception& error)
+                {
+                    threw = true;
+                    what = error.what();
+                }
+                catch (...)
+                {
+                    threw = true;
+                    what = "an exception that is not a std::exception";
+                }
             }
-            catch (const std::exception& error)
-            {
-                threw = true;
-                what = error.what();
-            }
-            catch (...)
-            {
-                threw = true;
-                what = "an exception that is not a std::exception";
-            }
-            mInNative = false;
             if (threw)
             {
                 return fail(ErrorKind::NativeFailed, "native '" + label() + "' threw: " + what);

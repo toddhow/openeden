@@ -33,6 +33,9 @@ namespace ScriptPapyrus::Limits
     inline constexpr std::size_t kMaxFunctionsPerFile = 65536; ///< All states of all objects together.
     inline constexpr std::size_t kMaxInstructionsPerFile = 1u << 20; ///< All functions together (memory bound).
     inline constexpr std::size_t kMaxScripts = 1u << 16; ///< Loaded scripts in one runtime.
+    inline constexpr std::size_t kMaxTypeArrayDimensions
+        = 1; ///< "[]" suffixes on a type: Papyrus has no array of arrays.
+    inline constexpr std::size_t kMaxFunctionCacheEntries = 1u << 20; ///< Resolved calls the runtime remembers.
     inline constexpr std::size_t kMaxLinkReports = 256; ///< Entries in LinkReport::unresolved.
 }
 
