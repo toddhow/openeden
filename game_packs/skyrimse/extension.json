@@ -1,0 +1,24 @@
+{
+  "format": "openeden.extension",
+  "version": 2,
+  "id": "skyrimse",
+  "name": "Skyrim Special Edition",
+  "extensionVersion": "0.1.0",
+  "kind": "game",
+  "sdk": {
+    "major": 4,
+    "minor": 0
+  },
+  "toolchain": "",
+  "library": {
+    "windows": "skyrimse.dll",
+    "linux": "libskyrimse.so"
+  },
+  "provides": [],
+  "requires": [],
+  "optional": [],
+  "loadAfter": [],
+  "data": "data",
+  "settings": [],
+  "licence": "GPL-3.0-or-later"
+}

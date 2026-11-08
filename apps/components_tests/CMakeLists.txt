@@ -393,6 +393,26 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/src/morrowind_compat_extension.cpp
 )
 
+# Task 0086: the Skyrim SE compatibility pack and game pack skeleton (generated plugins, archives and NIFs only; the
+# install-in-place test is skipped unless OPENEDEN_SKYRIMSE_DATA names a Data folder). The packs' own entry points are
+# left out because a test executable has one openeden_extension_entry already.
+list(APPEND UNITTEST_SRC_FILES
+    skyrimse/bsabuilder.hpp
+    skyrimse/testcompatskyrimse.cpp
+    skyrimse/testskyrimsepack.cpp
+    skyrimse/testskyrimseplugins.cpp
+    skyrimse/testskyrimsearchives.cpp
+    skyrimse/testskyrimserealdata.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
+    ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
+)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
+    PROPERTIES COMPILE_DEFINITIONS OPENEDEN_SKYRIMSE_NO_ENTRY)
+
 # Task 0035 stage a: CMPhysics::HostedJoltWorld (CreativeMotion's PhysicsWorld over the host's Jolt system).
 # testhostedjoltallocation.cpp replaces the global operator new to count allocations (see the comment in that file).
 list(APPEND UNITTEST_SRC_FILES
@@ -445,6 +465,8 @@ openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/include
+    ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/include
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/include
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/gltf/include
     ${CMAKE_SOURCE_DIR}/apps/openmw
     ${CMAKE_SOURCE_DIR}/components/creativemotion/anim/runtime/include

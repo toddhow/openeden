@@ -673,6 +673,7 @@ add_subdirectory(components/animtrace)
 add_subdirectory(apps/creativemotioncheck)
 
 add_subdirectory(extensions)
+add_subdirectory(game_packs)
 if (BUILD_COMPONENTS_TESTS)
     add_subdirectory(apps/components_tests)
 endif()

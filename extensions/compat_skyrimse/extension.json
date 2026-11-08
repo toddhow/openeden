@@ -1,0 +1,32 @@
+{
+  "format": "openeden.extension",
+  "version": 1,
+  "id": "compat_skyrimse",
+  "name": "Skyrim Special Edition Compatibility Pack",
+  "extensionVersion": "1.0.0",
+  "kind": "compatibility",
+  "sdk": {
+    "major": 4,
+    "minor": 0
+  },
+  "toolchain": "",
+  "library": {
+    "windows": "compat_skyrimse.dll",
+    "linux": "libcompat_skyrimse.so"
+  },
+  "provides": [
+    {
+      "contract": "openeden.game",
+      "version": [
+        1,
+        1
+      ]
+    }
+  ],
+  "requires": [],
+  "optional": [],
+  "loadAfter": [],
+  "data": "data",
+  "settings": [],
+  "licence": "GPL-3.0-or-later"
+}

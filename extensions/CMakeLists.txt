@@ -10,4 +10,5 @@ endif()
 set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_subdirectory(compat_morrowind)
+add_subdirectory(compat_skyrimse)
 add_subdirectory(example)
