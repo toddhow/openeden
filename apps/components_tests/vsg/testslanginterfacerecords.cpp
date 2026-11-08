@@ -975,8 +975,8 @@ namespace
             uint32_t mRandom;
             uint32_t mBlob;
         };
-        const Scenario scenarios[] = { { "one light", 0, 1 }, { "scattered lights", 400, 0 },
-            { "dense blob (overflow)", 100, 70 } };
+        const Scenario scenarios[]
+            = { { "one light", 0, 1 }, { "scattered lights", 400, 0 }, { "dense blob (overflow)", 100, 70 } };
         for (const Scenario& scenario : scenarios)
         {
             SCOPED_TRACE(scenario.mName);
