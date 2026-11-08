@@ -1,6 +1,8 @@
 #include "studioworld.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <exception>
 #include <stdexcept>
 #include <string>
 
@@ -164,8 +166,37 @@ namespace CSMPhysics
         ++mRevision;
     }
 
+    void StudioWorld::addPreStepHook(PreStepHook* hook)
+    {
+        if (hook == nullptr || std::find(mPreStepHooks.begin(), mPreStepHooks.end(), hook) != mPreStepHooks.end())
+            return;
+        mPreStepHooks.push_back(hook);
+    }
+
+    void StudioWorld::removePreStepHook(PreStepHook* hook)
+    {
+        mPreStepHooks.erase(std::remove(mPreStepHooks.begin(), mPreStepHooks.end(), hook), mPreStepHooks.end());
+    }
+
     void StudioWorld::stepOnce()
     {
+        // Indexed, not a range loop: a hook must not add or remove hooks, but a bad one cannot invalidate the loop.
+        for (std::size_t i = 0; i < mPreStepHooks.size(); ++i)
+        {
+            try
+            {
+                mPreStepHooks[i]->beforeStep();
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Physics pre-step hook failed: " << e.what();
+            }
+            catch (...)
+            {
+                Log(Debug::Error) << "Physics pre-step hook failed";
+            }
+        }
+
         if (mObserver != nullptr)
         {
             try

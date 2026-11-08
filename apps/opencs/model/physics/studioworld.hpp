@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <set>
+#include <vector>
 
 // clang-format off
 #include <Jolt/Jolt.h>
@@ -57,6 +58,17 @@ namespace CSMPhysics
             virtual void afterStep(float dt) = 0;
         };
 
+        /// Something that must act on the world just before a step, outside it (task 0065): the push sandbox applies
+        /// its queued impulses here. Run by stepOnce() before the observer's beforeStep and before the adapter's
+        /// beginStep, so a call into cmWorld() from here is not inside a step. May throw: the world logs it and goes
+        /// on.
+        class PreStepHook
+        {
+        public:
+            virtual ~PreStepHook() = default;
+            virtual void beforeStep() = 0;
+        };
+
         StudioWorld();
         ~StudioWorld();
 
@@ -96,6 +108,11 @@ namespace CSMPhysics
 
         void setStepObserver(StepObserver* observer) { mObserver = observer; }
 
+        /// Hooks run in registration order. Not owned: the owner removes its hook before it is destroyed. Adding one
+        /// twice, or removing one that is not there, does nothing. Not to be called from inside a hook.
+        void addPreStepHook(PreStepHook* hook);
+        void removePreStepHook(PreStepHook* hook);
+
     private:
         class BroadPhaseLayers;
         class ObjectVsBroadPhase;
@@ -116,6 +133,7 @@ namespace CSMPhysics
         std::uint64_t mStepIndex = 0;
         std::uint64_t mRevision = 0;
         StepObserver* mObserver = nullptr;
+        std::vector<PreStepHook*> mPreStepHooks;
     };
 }
 

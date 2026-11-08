@@ -78,7 +78,7 @@ opencs_units (model/lod
     )
 
 opencs_units (model/physics
-    joltruntime studioworld debuglinedrawer
+    joltruntime studioworld debuglinedrawer pushscene
     )
 
 opencs_units (model/filter
@@ -102,6 +102,7 @@ add_library(csmodel STATIC
 
 target_link_libraries(csmodel
     Boost::program_options
+    opas::motor opas::rig opas::math
     components_qt
     Qt::Widgets Qt::Core Qt::Network Qt::Svg
 )

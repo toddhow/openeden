@@ -48,6 +48,8 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/physics/testjoltruntime.cpp
     model/physics/teststudioworld.cpp
     model/physics/teststudioworldcm.cpp
+    model/physics/testpushscene.cpp
+    model/physics/teststudioworldhooks.cpp
     model/prefs/testconfigmigration.cpp
     model/prefs/testcommandline.cpp
     model/prefs/testquietwindow.cpp
