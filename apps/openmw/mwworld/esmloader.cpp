@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 
 #include <components/contentsource/plugin.hpp>
@@ -33,17 +34,20 @@ namespace MWWorld
     void EsmLoader::load(const std::filesystem::path& filepath, int& index, MWState::Loading& state)
     {
 
-        // Which family the file is comes from its header, read by Content::Plugin (task 0083); the typed readers below
-        // are the same as before.
-        Content::Error probeError;
-        const std::unique_ptr<Content::Plugin> plugin = Content::Plugin::open(
-            Files::openBinaryInputFileStream(filepath), Files::pathToUnicodeString(filepath.filename()), probeError);
-        if (plugin == nullptr)
+        // Which family the file is comes from its first four bytes, as before Content::Plugin existed (task 0083): the
+        // strict header parse of Content::Plugin::open would refuse files (a short HEDR, many masters) that the typed
+        // readers below decide about themselves.
+        const std::optional<Content::Family> family = [&filepath] {
+            const auto probeStream = Files::openBinaryInputFileStream(filepath);
+            return Content::probeFamily(*probeStream);
+        }();
+        if (!family.has_value())
         {
-            throw std::runtime_error(probeError.describe());
+            throw std::runtime_error(Files::pathToUnicodeString(filepath.filename())
+                + ": not a TES3 or TES4 plugin (the first four bytes are neither)");
         }
 
-        switch (plugin->header().mFamily)
+        switch (*family)
         {
             case Content::Family::Tes3:
             {

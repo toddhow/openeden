@@ -13,6 +13,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testptr.cpp
     mwworld/testweather.cpp
     mwworld/testesmstorecounts.cpp
+    mwworld/testesmloader.cpp
 
     mwdialogue/testkeywordsearch.cpp
 

@@ -329,6 +329,27 @@ namespace Content
         return text;
     }
 
+    std::optional<Family> probeFamily(std::istream& stream)
+    {
+        char first[4] = {};
+        stream.clear();
+        stream.seekg(0);
+        stream.read(first, sizeof(first));
+        if (stream.gcount() != static_cast<std::streamsize>(sizeof(first)))
+        {
+            stream.clear();
+            return std::nullopt;
+        }
+        stream.clear();
+        stream.seekg(0);
+        const std::uint32_t magic = readU32(first);
+        if (magic == fourCC("TES3"))
+            return Family::Tes3;
+        if (magic == fourCC("TES4"))
+            return Family::Tes4;
+        return std::nullopt;
+    }
+
     std::unique_ptr<Plugin> Plugin::open(
         std::unique_ptr<std::istream> stream, std::string name, Error& error, const Limits& limits)
     {

@@ -169,6 +169,12 @@ namespace Content
         bool mReadData = true;
     };
 
+    /// Which layout a file has, from its first four bytes only (the probe the game's loader always made before it
+    /// handed the file to a typed reader). It does not parse the header, so a file whose header record is odd (a short
+    /// HEDR, many masters) still answers: the typed reader decides what to do with it. Rewinds the stream first.
+    /// Returns nothing for fewer than four bytes or a magic that is neither TES3 nor TES4.
+    std::optional<Family> probeFamily(std::istream& stream);
+
     class Plugin
     {
     public:
