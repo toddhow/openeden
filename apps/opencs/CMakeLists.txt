@@ -70,7 +70,7 @@ opencs_units (model/module
     )
 
 opencs_units (model/mesh
-    meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay
+    meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay scenemodel
     )
 
 opencs_units (model/lod

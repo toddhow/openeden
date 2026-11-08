@@ -117,8 +117,15 @@ namespace CSVRender
         {
             CSMMesh::NodeId mNode = CSMMesh::kNoNode;
             CSMMesh::IndexedMesh mMesh; // positions and normals in model space (the root's frame)
+            std::array<float, 4> mColour{ 0.72f, 0.72f, 0.72f, 1.f }; // scene path only: the material's flat colour
         };
         friend class MeshCollector;
+
+        /// The scene path (task 0086 stage e): a Skyrim SE file is read as a Nif::Scene and drawn from the solid and
+        /// line overlays only, at the bind pose; the engine's renderer has no BSTriShape path.
+        bool loadScene(const std::string& name, std::string& error);
+        /// The part of loading both paths share: the scene graph root, the overlay and the state.
+        void finishLoad();
 
         void collect();
         void readTextureNames();
@@ -139,6 +146,10 @@ namespace CSVRender
         std::vector<std::string> mTextureNames;
         CSMMesh::MeshViewState mState;
         CSMMesh::NodeId mSelected = CSMMesh::kNoNode;
+
+        bool mFromScene = false; // loaded by loadScene: no MWAnim::Object, no textured mode
+        std::vector<std::array<std::array<float, 3>, 2>> mSceneHierarchy; // scene path: skeleton lines
+        std::vector<std::array<float, 3>> mSceneBones; // scene path: bind pose joints
 
         std::unique_ptr<MWAnim::Object> mObject;
         std::unique_ptr<CSMPhysics::JoltRuntime> mJolt;

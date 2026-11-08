@@ -31,6 +31,7 @@
 #include <components/mwanimation/create.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/nif/texture.hpp>
+#include <components/nifscene/build.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/options.hpp>
@@ -44,6 +45,7 @@
 #include <components/vsgutil/setbin.hpp>
 
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
+#include <apps/opencs/model/mesh/scenemodel.hpp>
 #include <apps/opencs/model/physics/joltruntime.hpp>
 
 #include "picking.hpp"
@@ -370,6 +372,27 @@ namespace CSVRender
             return false;
         }
 
+        // Skyrim SE files have no path in the engine's renderer: they are read as a Nif::Scene (task 0086 stage e).
+        // Every other file, Morrowind's included, goes the engine's way exactly as before.
+        if (lower.size() >= 4 && lower.compare(lower.size() - 4, 4, ".nif") == 0)
+        {
+            std::string start(96, '\0');
+            try
+            {
+                if (auto stream = vfs->get(VFS::Path::Normalized("meshes/" + name)))
+                {
+                    stream->read(start.data(), static_cast<std::streamsize>(start.size()));
+                    start.resize(static_cast<std::size_t>(stream->gcount()));
+                }
+            }
+            catch (const std::exception&)
+            {
+                start.clear();
+            }
+            if (CSMMesh::chooseNifReader(start) == CSMMesh::NifReader::Scene)
+                return loadScene(name, error);
+        }
+
         try
         {
             mObject = MWAnim::createObject(name, true, nullptr, mHost.animContext());
@@ -399,24 +422,8 @@ namespace CSVRender
                 CSMMesh::expand(mBounds, { p[0], p[1], p[2] });
         readTextureNames();
         buildCollision();
-
         mHost.compileContext()->compile(mObject->node());
-        mRoot = vsg::Group::create();
-        mModelSwitch = vsg::Switch::create();
-        mModelSwitch->addChild(vsg::MASK_ALL, mObject->node());
-        mRoot->addChild(SceneHost::maskNode(Mask_Reference, mModelSwitch));
-        mSolidHolder = vsg::Group::create();
-        mRoot->addChild(mSolidHolder);
-        mHost.contentRoot().addChild(mRoot);
-
-        std::size_t lineVertices = 4096 + mInfos.size() * 8 + mCollisionLines.size() * 2;
-        for (const Shape& shape : mShapes)
-            lineVertices += shape.mMesh.indices.size() * 2 + shape.mMesh.positions.size() * 2;
-        lineVertices = std::min(lineVertices, sMaxOverlayVertices);
-        mOverlay = std::make_unique<Render::DebugGeometry>(
-            *mHost.resources().builder, mHost.compileContext(), lineVertices, 0);
-        mOverlayRoot = vsgUtil::createBinSetter(SceneHost::sBinOverlay, mOverlay->node());
-        mHost.contentRoot().addChild(mOverlayRoot);
+        finishLoad();
 
         // The engine pairs some models with a .kf of the same name.
         const std::string sidecar = defaultAnimationFile();
@@ -429,6 +436,95 @@ namespace CSVRender
 
         setState(mState);
         return true;
+    }
+
+    bool MeshScene::loadScene(const std::string& name, std::string& error)
+    {
+        NifScene::Scene scene;
+        try
+        {
+            const VFS::Manager* vfs = mHost.resources().getVFS();
+            const VFS::Path::Normalized path("meshes/" + name);
+            // The scene reader's own defaults are the Skyrim SE version set and no Morrowind root rule, which is what
+            // compat_skyrimse's skyrimSceneOptions() states; the editor does not link the pack.
+            scene = NifScene::readScene(vfs->get(path), path, NifScene::SceneOptions{});
+        }
+        catch (const std::exception& e)
+        {
+            error = e.what();
+            return false;
+        }
+        const CSMMesh::SceneModel model = CSMMesh::buildSceneModel(scene);
+        for (const std::string& warning : model.warnings)
+            Log(Debug::Warning) << "Mesh viewer: " << name << ": " << warning;
+
+        mFromScene = true;
+        mPath = "meshes/" + name;
+        mTree = CSMMesh::MeshTree();
+        mInfos.clear();
+        mShapes.clear();
+        mInfos.resize(model.nodes.size());
+        for (std::size_t i = 0; i < model.nodes.size(); ++i)
+        {
+            const CSMMesh::SceneModelNode& source = model.nodes[i];
+            const CSMMesh::NodeId id = mTree.addNode(source.parent, source.name, source.type);
+            auto& node = mTree.mutableNode(id);
+            node.translation = source.translation;
+            node.scale = source.scale;
+            node.vertexCount = source.vertexCount;
+            node.triangleCount = source.triangleCount;
+            node.flags = source.flags;
+            node.textures = source.textures;
+            for (int column = 0; column < 4; ++column)
+                for (int row = 0; row < 4; ++row)
+                    mInfos[id].mWorld[column][row] = source.world[column * 4 + row];
+            if (source.shape >= 0)
+                mInfos[id].mShapes.push_back(static_cast<std::size_t>(source.shape));
+        }
+        for (const CSMMesh::SceneModelShape& source : model.shapes)
+        {
+            Shape shape;
+            shape.mNode = source.node;
+            shape.mMesh = source.mesh;
+            shape.mColour = source.colour;
+            mShapes.push_back(std::move(shape));
+        }
+        mBounds = model.bounds;
+        mTextureNames = model.textureNames;
+        mSceneHierarchy = model.hierarchyLines;
+        mSceneBones = model.bonePoints;
+        Log(Debug::Info) << "Mesh viewer: " << mPath << " read as a Nif::Scene: " << model.nodes.size() << " nodes, "
+                         << model.shapes.size() << " shapes, " << mSceneBones.size() << " bones, "
+                         << mSceneHierarchy.size() << " skeleton lines";
+        finishLoad();
+        setState(mState);
+        return true;
+    }
+
+    void MeshScene::finishLoad()
+    {
+        mRoot = vsg::Group::create();
+        mModelSwitch = vsg::Switch::create();
+        vsg::ref_ptr<vsg::Node> model;
+        if (mObject)
+            model = mObject->node();
+        else
+            model = vsg::Group::create();
+        mModelSwitch->addChild(vsg::MASK_ALL, model);
+        mRoot->addChild(SceneHost::maskNode(Mask_Reference, mModelSwitch));
+        mSolidHolder = vsg::Group::create();
+        mRoot->addChild(mSolidHolder);
+        mHost.contentRoot().addChild(mRoot);
+
+        std::size_t lineVertices = 4096 + mInfos.size() * 8 + mCollisionLines.size() * 2 + mSceneBones.size() * 6
+            + mSceneHierarchy.size() * 2;
+        for (const Shape& shape : mShapes)
+            lineVertices += shape.mMesh.indices.size() * 2 + shape.mMesh.positions.size() * 2;
+        lineVertices = std::min(lineVertices, sMaxOverlayVertices);
+        mOverlay = std::make_unique<Render::DebugGeometry>(
+            *mHost.resources().builder, mHost.compileContext(), lineVertices, 0);
+        mOverlayRoot = vsgUtil::createBinSetter(SceneHost::sBinOverlay, mOverlay->node());
+        mHost.contentRoot().addChild(mOverlayRoot);
     }
 
     std::vector<vsg::dvec3> MeshScene::boundsCorners() const
@@ -660,7 +756,9 @@ namespace CSVRender
             mSolidHolder->children.clear();
             mSolid = nullptr;
         }
-        if (!CSMMesh::needsTriangleOverlay(mState.mode))
+        // A scene-path model has no textured picture, so Textured shows its flat material colours.
+        const bool sceneSolid = mFromScene && mState.mode == CSMMesh::ViewMode::Textured;
+        if (!CSMMesh::needsTriangleOverlay(mState.mode) && !sceneSolid)
             return;
 
         std::vector<vsg::vec3> positions;
@@ -676,6 +774,14 @@ namespace CSVRender
                     colour = CSMMesh::flatShadeColour(CSMMesh::faceNormal(shape.mMesh.positions[t[0]],
                                                           shape.mMesh.positions[t[1]], shape.mMesh.positions[t[2]]),
                         sFlatLightDirection);
+                else if (sceneSolid)
+                {
+                    colour = CSMMesh::flatShadeColour(CSMMesh::faceNormal(shape.mMesh.positions[t[0]],
+                                                          shape.mMesh.positions[t[1]], shape.mMesh.positions[t[2]]),
+                        sFlatLightDirection);
+                    for (int c = 0; c < 3; ++c)
+                        colour[c] *= shape.mColour[c];
+                }
                 else
                 {
                     colour = shape.mMesh.colours.empty() ? sNoColourGrey : CSMMesh::averageColour(shape.mMesh, t);
@@ -768,7 +874,7 @@ namespace CSVRender
                     static_cast<float>(world[3][2]) };
                 if (mState.showNodeAxes)
                     add(CSMMesh::axesLines(origin, static_cast<float>(radius * 0.04)));
-                if (mState.showSkeleton)
+                if (mState.showSkeleton && !mFromScene)
                     for (CSMMesh::NodeId parent = node.parent; parent != CSMMesh::kNoNode;
                          parent = mTree.node(parent).parent)
                         if (mTree.node(parent).type == "Transform")
@@ -780,6 +886,22 @@ namespace CSVRender
                             break;
                         }
             }
+        if (mState.showSkeleton && mFromScene)
+        {
+            // The node hierarchy of a skeleton file, and a small cross at each skin bone's bind position.
+            for (const auto& line : mSceneHierarchy)
+                add({ { line[0], line[1], sSkeletonColour } });
+            const float arm = static_cast<float>(radius * 0.012);
+            for (const auto& p : mSceneBones)
+                for (int axis = 0; axis < 3; ++axis)
+                {
+                    std::array<float, 3> a = p;
+                    std::array<float, 3> b = p;
+                    a[axis] -= arm;
+                    b[axis] += arm;
+                    add({ { a, b, sSkeletonColour } });
+                }
+        }
         if (mState.showGrid)
             add(CSMMesh::gridLines(CSMMesh::gridSpacing(radius), 10));
         mOverlay->end();
