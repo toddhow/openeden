@@ -12,6 +12,7 @@
 #include <vsg/vk/DeviceFeatures.h>
 #include <vsgXchange/images.h>
 
+#include <components/archivekinds/archivekinds.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/loadtrace.hpp>
@@ -375,6 +376,7 @@ namespace OMW
         mFileCollections = Files::Collections(mDataDirs);
         // OpenMW 0.51 decodes archive file names with the content encoding.
         mEncoder = std::make_unique<ToUTF8::Utf8Encoder>(args.encoding);
+        VFS::registerBethesdaArchiveKinds();
         if (mExtensionHost->dataDirs().empty())
             VFS::registerArchives(mVFS.get(), mFileCollections, args.archives, true, &mEncoder->getStatelessEncoder());
         else

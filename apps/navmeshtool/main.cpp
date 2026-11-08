@@ -1,6 +1,7 @@
 #include "navmesh.hpp"
 #include "worldspacedata.hpp"
 
+#include <components/archivekinds/archivekinds.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
@@ -200,6 +201,7 @@ namespace NavMeshTool
 
             VFS::Manager vfs;
 
+            VFS::registerBethesdaArchiveKinds();
             VFS::registerArchives(&vfs, fileCollections, archives, true, &encoder.getStatelessEncoder());
 
             Settings::Manager::load(config);

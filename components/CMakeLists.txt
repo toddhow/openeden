@@ -236,8 +236,13 @@ add_component_dir (cmphysics
     hostedjoltworld
     )
 
+# The Bethesda archive kinds as VFS archive factories (task 0083 stage 3); the one place that includes both vfs and bsa.
+add_component_dir (archivekinds
+    archivekinds bsaarchive
+    )
+
 add_component_dir (vfs
-    manager archive bsaarchive filesystemarchive pathutil registerarchives rangeread archivefactory file entryname
+    manager archive filesystemarchive pathutil registerarchives rangeread archivefactory file entryname
     edenarchive
     )
 

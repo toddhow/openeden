@@ -177,10 +177,16 @@ namespace VFS
 
         // ---- the factory list ----
 
-        TEST_F(VFSArchiveKindsTest, makeArchiveShouldFallBackToBsaWhenNoFactoryIsAdded)
+        // Task 0083 stage 3: VFS no longer has a built-in Bethesda reader. This replaces the test that pinned the
+        // fallback
+        // ("makeArchiveShouldFallBackToBsaWhenNoFactoryIsAdded"); the Bethesda kinds are factories now.
+        TEST_F(VFSArchiveKindsTest, makeArchiveShouldKnowNoBsaWhenNoFactoryIsAdded)
         {
             const auto path = writeBsa(mTemp.path() / "one.bsa", { { "A.TXT", "a" } });
 
+            EXPECT_THROW((void)makeArchive(path, nullptr), std::runtime_error);
+
+            registerBethesdaArchiveKinds();
             const std::unique_ptr<Archive> archive = makeArchive(path, nullptr);
 
             ASSERT_NE(archive, nullptr);
@@ -209,9 +215,11 @@ namespace VFS
             EXPECT_TRUE(pack->getDescription().starts_with("second: "));
 
             log.clear();
+            registerBethesdaArchiveKinds();
             const std::unique_ptr<Archive> bsa = makeArchive(bsaPath, nullptr);
             ASSERT_NE(bsa, nullptr);
-            // Nobody recognised the BSA: every factory was asked, in order, then the BSA reader took it.
+            // The test's factories did not recognise the BSA: every one was asked, in order, then the registered
+            // Bethesda kinds took it.
             EXPECT_THAT(log, ElementsAre("first:b.bsa", "second:b.bsa", "third:b.bsa"));
             EXPECT_TRUE(bsa->getDescription().starts_with("BSA: "));
         }
@@ -302,6 +310,7 @@ namespace VFS
             clearArchiveFactories();
 
             EXPECT_THROW((void)makeArchive(mTemp.path() / "p.pack", nullptr), std::runtime_error);
+            registerBethesdaArchiveKinds();
             EXPECT_NE(makeArchive(bsaPath, nullptr), nullptr);
             // Clearing an empty list is fine.
             EXPECT_NO_THROW(clearArchiveFactories());

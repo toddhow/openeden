@@ -141,7 +141,7 @@ today dispatches on the TES3/TES4 header. The launcher's content list (`componen
 ### 5.3 VFS archive registration
 
 Packs register archive kinds (BSA versions, BA2) by file extension and magic with the existing archive-factory list
-(`VFS::Manager`); the core's `registerArchives` stops naming BSA. Already partly built (task 0050).
+(`VFS::Manager`); the core's `registerArchives` stops naming BSA. Already partly built (task 0050). **Built 2026-11-08 (task 0083 stage 3):** `components/archivekinds/` holds the three Bethesda kinds as factories (`tes3ArchiveFactory`, `tes4ArchiveFactory`, `ba2ArchiveFactory`, by magic bytes) and `registerBethesdaArchiveKinds()`, which each program calls at start-up; `VFS::makeArchive` knows only the added factories and the Eden pack; the four `vfs -> bsa` layer exceptions are gone (206 to 202). The directory is in the `host` layer because only a layer that may include both `vfs` (engine) and `bsa` (formats) can hold it; moving it into the common compatibility pack is task 0084's call.
 
 ### 5.4 Model and animation loader (`openeden.assets`)
 
@@ -252,7 +252,7 @@ by toddhow (CI and tools) except where they touch the NIF reader (full loop: it 
 | --- | --- | --- | --- | --- |
 | a | 0081 | The dependency map made executable: a rule file and `CI/check_layer_rules.sh`; optional CMake object libraries per layer | No | The check passes on today's tree (with a recorded exceptions list that only shrinks); builds identical |
 | b | 0082 | NIF of any version: version-explicit reader, `Nif::Scene`, tests on generated and user-supplied files | Small | Existing nif tests, a byte-identical converter result for Morrowind meshes, the 43 files of note 0036 read |
-| c | 0083 | Record-source abstraction and the common ESM/ESP loaders | Some | `esmtool` output unchanged on Morrowind data; `ESMStore` loads through the abstraction; load time within noise (**stages 1 and 2 built 2026-11-06 on Windows: `components/contentsource/` layer 1, the decoder registry, `ESMStore` and `EsmLoader` through it, `esmtool` byte-identical, load time within noise; stages 3 to 5 wait for toddhow, stage log in the task**) |
+| c | 0083 | Record-source abstraction and the common ESM/ESP loaders | Some | `esmtool` output unchanged on Morrowind data; `ESMStore` loads through the abstraction; load time within noise (**stages 1 and 2 built 2026-11-06 on Windows: `components/contentsource/` layer 1, the decoder registry, `ESMStore` and `EsmLoader` through it, `esmtool` byte-identical, load time within noise; stage 3 built 2026-11-08: the Bethesda archive kinds are VFS factories in `components/archivekinds/`, the `vfs -> bsa` exceptions are gone (206 to 202), Morrowind VFS counts identical; stages 4 and 5 wait for toddhow, stage log in the task**) |
 | d | 0084 | The game-pack tier: SDK 4.0, contracts, loader changes, a trivial test game pack (**built 2026-11-06 on Windows; Linux gate, Lua tests and a fresh review pending**, stage log in the task) | No | Zero game packs changes nothing; a test pack proves each capability; extension gates still pass |
 | e | 0085 | Moving Morrowind's rules into `game_morrowind`, three candidate moves first | Yes | Per move: unit and Lua tests, a recorded scenario compare, save round trip |
 | f | 0086 | Skyrim SE game pack skeleton | New | Loads Skyrim SE's plugin headers and meshes in Eden Studio and the game host's content step, runs nothing of its rules |

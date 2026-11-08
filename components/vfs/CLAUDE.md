@@ -22,8 +22,8 @@ archives (BSA, BA2) and, later, Eden packs are all `VFS::Archive` objects regist
   entries use the default (open the entry, which decompresses it, then slice). A file over 4 GiB is not supported on
   Windows (`Platform::File::size`).
 - **Packs in `data=` (task 0064).** A `data=` line may name a file ending in `.edenpak`; `registerArchives` registers it at the position of its line (`makeEdenArchive`), so it wins and loses like a folder there. `filterOutNonExistingPaths` keeps such a line; `Collections` and `MultiDirCollection` skip regular files. A file with that name that is not a pack stops start-up with a located error. Plugins in a pack are not readable (the readers take disk paths): `findContentFilesInArchive` lists them and `registerArchives` warns. Only the `fallback-archive=` route still puts a pack below all folders.
-- **New archive kinds** are added with `addArchiveFactory` during start-up, before `registerArchives`. A factory
-  recognises its file by magic bytes and returns `nullptr` otherwise.
+- **Archive kinds** are added with `addArchiveFactory` (or `addArchiveFactoryOnce(key, ...)`, which ignores a key it has) during start-up, before `registerArchives`. A factory
+  recognises its file by magic bytes and returns `nullptr` otherwise. VFS itself knows only the Eden pack: the Bethesda kinds (TES3 BSA, TES4-family BSA, BA2) are `components/archivekinds/`, and every program that opens archives calls `VFS::registerBethesdaArchiveKinds()` before `registerArchives` (openmw, Eden Studio's `Data`, navmeshtool, physicsobjecttool; tests through `registerAll`). Without it a BSA in `fallback-archive=` stops start-up with "Unknown archive type" (task 0083 stage 3).
 
 ## Pitfalls
 

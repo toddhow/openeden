@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/archivekinds/bsaarchive.hpp>
 #include <components/bgsm/file.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/constrainedfilestream.hpp>
@@ -15,7 +16,6 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/vfs/archive.hpp>
-#include <components/vfs/bsaarchive.hpp>
 #include <components/vfs/filesystemarchive.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>

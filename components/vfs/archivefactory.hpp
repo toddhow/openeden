@@ -1,9 +1,11 @@
 #ifndef OPENMW_COMPONENTS_VFS_ARCHIVEFACTORY_H
 #define OPENMW_COMPONENTS_VFS_ARCHIVEFACTORY_H
 
+#include <cstddef>
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <string>
 
 #include "archive.hpp"
 
@@ -21,13 +23,21 @@ namespace VFS
         const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder)>;
 
     /// Appends a factory to the process-wide list. Not thread-safe: call it while the program starts, before
-    /// registerArchives(). Future archive kinds (the Eden pack, task 0052) are added this way.
+    /// registerArchives(). Archive kinds other than the Eden pack are added this way.
     void addArchiveFactory(ArchiveFactory factory);
 
-    /// Empties the list. For tests.
+    /// Adds a factory under a key unless a factory with that key is already in the list; returns whether it was
+    /// added. For a group of factories that a start-up function registers and that may be asked to register twice.
+    bool addArchiveFactoryOnce(const std::string& key, ArchiveFactory factory);
+
+    /// How many factories are in the list.
+    std::size_t archiveFactoryCount();
+
+    /// Empties the list, keys included. For tests.
     void clearArchiveFactories();
 
-    /// Asks the added factories in the order they were added, then the built-in Bethesda reader (BSA and BA2).
+    /// Asks the added factories in the order they were added, then the built-in Eden pack reader. VFS knows no
+    /// other archive format: the Bethesda kinds are factories too (components/archivekinds).
     /// Throws std::runtime_error naming the file if nobody recognises it.
     std::unique_ptr<Archive> makeArchive(
         const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder);

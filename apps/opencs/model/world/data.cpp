@@ -26,6 +26,7 @@
 #include <apps/opencs/model/world/subcellcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
+#include <components/archivekinds/archivekinds.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>
@@ -145,6 +146,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& data
     , mVFS(std::make_unique<VFS::Manager>())
     , mResDir(resDir)
 {
+    VFS::registerBethesdaArchiveKinds();
     VFS::registerArchives(mVFS.get(), Files::Collections(mDataPaths), mArchives, true, &mEncoder.getStatelessEncoder());
 
     mResourcesManager.setVFS(mVFS.get());
@@ -1457,6 +1459,7 @@ std::vector<ESM::RefId> CSMWorld::Data::getIds(bool listDeleted) const
 void CSMWorld::Data::assetsChanged()
 {
     mVFS.get()->reset();
+    VFS::registerBethesdaArchiveKinds();
     VFS::registerArchives(mVFS.get(), Files::Collections(mDataPaths), mArchives, true, &mEncoder.getStatelessEncoder());
 
     const UniversalId assetTableIds[] = { UniversalId::Type_Meshes, UniversalId::Type_Icons, UniversalId::Type_Musics,

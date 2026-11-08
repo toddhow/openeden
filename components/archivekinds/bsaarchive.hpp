@@ -1,10 +1,10 @@
-#ifndef VFS_BSAARCHIVE_HPP_
-#define VFS_BSAARCHIVE_HPP_
+#ifndef ARCHIVEKINDS_BSAARCHIVE_HPP_
+#define ARCHIVEKINDS_BSAARCHIVE_HPP_
 
-#include "archive.hpp"
-#include "file.hpp"
-#include "pathutil.hpp"
-#include "rangeread.hpp"
+#include <components/vfs/archive.hpp>
+#include <components/vfs/file.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/rangeread.hpp>
 
 #include <components/bsa/ba2dx10file.hpp>
 #include <components/bsa/ba2gnrlfile.hpp>

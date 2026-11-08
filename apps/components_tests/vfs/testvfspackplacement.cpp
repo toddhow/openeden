@@ -121,6 +121,7 @@ namespace VFS
             void SetUp() override
             {
                 clearArchiveFactories();
+                registerBethesdaArchiveKinds();
                 registerEdenArchiveFactory();
 
                 mA = mTemp.makeDir("a");

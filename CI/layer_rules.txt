@@ -110,6 +110,9 @@ dir components/nifbullet engine
 
 # host
 dir apps/openmw host
+# The Bethesda archive kinds as VFS factories (task 0083 stage 3): vfs is `engine`, bsa is `formats`, and only a layer that
+# may include both can name them. Programs call registerBethesdaArchiveKinds() at start-up.
+dir components/archivekinds host
 
 # tools
 dir apps/benchmarks tools
@@ -331,10 +334,6 @@ except components/settings/settings.hpp -> components/vfs/pathutil.hpp  # a base
 except components/settings/settingvalue.hpp -> components/detournavigator/collisionshapetype.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
 except components/settings/settingvalue.hpp -> components/vfs/pathutil.hpp  # a base utility includes the engine layer (not in note 0043 1.2; found by this checker)
 except components/terrain/storage.hpp -> components/esm/refid.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
-except components/vfs/bsaarchive.hpp -> components/bsa/ba2dx10file.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
-except components/vfs/bsaarchive.hpp -> components/bsa/ba2gnrlfile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
-except components/vfs/bsaarchive.hpp -> components/bsa/bsafile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
-except components/vfs/bsaarchive.hpp -> components/bsa/compressedbsafile.hpp  # vfs knows one archive kind (design doc 5.3; task 0083)
 except components/vsgadapters/nif/anim.hpp -> components/nif/controller.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
 except components/vsgadapters/nif/anim.hpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
 except components/vsgadapters/nif/anim.hpp -> components/nif/extra.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)

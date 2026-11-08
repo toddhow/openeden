@@ -129,6 +129,8 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testvfsservicetraversal.cpp
     vfs/testvfspackplacement.cpp
 
+    archivekinds/testarchivekinds.cpp
+
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp
     compiler/testmorrowindprogramgolden.cpp

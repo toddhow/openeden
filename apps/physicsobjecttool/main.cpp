@@ -1,3 +1,4 @@
+#include <components/archivekinds/archivekinds.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
@@ -161,6 +162,7 @@ namespace
 
         VFS::Manager vfs;
 
+        VFS::registerBethesdaArchiveKinds();
         VFS::registerArchives(&vfs, fileCollections, archives, true, &encoder.getStatelessEncoder());
 
         Settings::Manager::load(config);
