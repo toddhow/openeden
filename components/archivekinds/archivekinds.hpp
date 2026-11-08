@@ -18,8 +18,8 @@ namespace VFS
     /// Version 0x100 (Morrowind), uncompressed.
     ArchiveFactory tes3ArchiveFactory();
 
-    /// The "BSA" magic with a zero byte (Oblivion to Skyrim Special Edition). The compressed BSA reader then checks the version
-    /// itself: a version it does not know throws an error naming the file.
+    /// The "BSA" magic with a zero byte (Oblivion to Skyrim Special Edition). The compressed BSA reader then checks the
+    /// version itself: a version it does not know throws an error naming the file.
     ArchiveFactory tes4ArchiveFactory();
 
     /// "BTDX" with "GNRL" or "DX10" (Fallout 4 and later).
