@@ -189,6 +189,7 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testscenereal.cpp
     nifscene/testscenerealmaterials.cpp
     nifscene/testvertexdecode.cpp
+    nifscene/testscenereview.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp

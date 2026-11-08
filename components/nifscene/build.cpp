@@ -92,7 +92,20 @@ namespace NifScene
                             continue;
                         const std::uint32_t index = nodeIndex(child.getPtr());
                         if (index != sNone && mScene.mNodes[index].mParent == sNone && index != parent)
+                        {
+                            // The tree stays a forest: the new parent must not already hang below the child.
+                            // Every earlier assignment passed this test, so the walk up ends at a root.
+                            for (std::uint32_t up = parent; up != sNone; up = mScene.mNodes[up].mParent)
+                            {
+                                if (up == index)
+                                {
+                                    fail(mFile,
+                                        "node '" + mScene.mNodes[index].mName + "' is its own ancestor: '"
+                                            + mScene.mNodes[parent].mName + "' lists it as a child (parent cycle)");
+                                }
+                            }
                             mScene.mNodes[index].mParent = parent;
+                        }
                     }
                 }
                 for (const Nif::Record* root : mFile.mRoots)
@@ -438,6 +451,23 @@ namespace NifScene
                 }
 
                 const std::size_t vertexCount = g.mPositions.size();
+                if (g.mKind == GeometryKind::DynamicTriShape)
+                {
+                    // The dynamic array replaced the positions; the other attributes come from the packed vertices
+                    // or the skin partition, whose count may not be the shape's.
+                    const auto checkLength = [&](const char* what, std::size_t count) {
+                        if (count != 0 && count != vertexCount)
+                        {
+                            fail(mFile,
+                                "dynamic shape '" + shape.mName + "' has " + std::to_string(vertexCount)
+                                    + " vertices but " + std::to_string(count) + " " + what);
+                        }
+                    };
+                    checkLength("normals", g.mNormals.size());
+                    checkLength("tangents", g.mTangents.size());
+                    checkLength("texture coordinates", g.mUV0.size());
+                    checkLength("colours", g.mColors.size());
+                }
                 for (std::size_t i = 0; i < g.mTriangles.size(); ++i)
                 {
                     if (g.mTriangles[i] >= vertexCount)
@@ -481,7 +511,8 @@ namespace NifScene
                         const std::uint32_t bone = decoded.mBoneIndices[v][k];
                         if (weight == 0.f && !mOptions.mKeepZeroWeights)
                             continue;
-                        if (weight != 0.f && bone >= boneCount)
+                        // A kept zero-weight entry is stored, so its bone must exist too.
+                        if (bone >= boneCount)
                         {
                             fail(mFile,
                                 "bone index " + std::to_string(bone) + " of vertex " + std::to_string(v)
