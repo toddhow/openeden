@@ -201,7 +201,7 @@ TEST(CompatMorrowindTest, ManifestValidation)
     bool hasKfConverter = false;
     for (const auto& c : m.providedContracts)
     {
-        if (c.contract == "openeden.game" && c.version == openeden::sdk::Version{ 1, 0 })
+        if (c.contract == "openeden.game" && c.version == openeden::sdk::Version{ 1, 1 })
             hasGame = true;
         if (c.contract == "openeden.compat.kf_converter" && c.version == openeden::sdk::Version{ 1, 0 })
             hasKfConverter = true;
