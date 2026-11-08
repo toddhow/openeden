@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -138,6 +139,106 @@ namespace
             }
         }
         EXPECT_GT(listingFailures, 0u);
+    }
+
+    // ---- Review 4, finding 2: hostile sizes in a compressed archive (inherited reader, newly reachable) ----
+
+    // Replaces the 4 byte "inflated size" in front of the first LZ4 frame of a generated archive.
+    std::string withInflatedSize(std::string archive, std::uint32_t claimed)
+    {
+        const std::string magic("\x04\x22M\x18", 4);
+        const std::size_t frame = archive.find(magic);
+        EXPECT_NE(frame, std::string::npos);
+        std::memcpy(&archive[frame - 4], &claimed, 4);
+        return archive;
+    }
+
+    std::vector<ArchiveFile> oneFile()
+    {
+        return { { "meshes", "a.nif", std::string(3000, 'q'), true } };
+    }
+
+    TEST_F(SkyrimSeArchiveTest, aValidArchiveStillReadsAfterTheHardening)
+    {
+        const fs::path path = write("ok.bsa", buildArchive(oneFile()));
+        std::string bytes;
+        std::string error;
+        ASSERT_TRUE(readArchiveEntry(path, "meshes/a.nif", bytes, error)) << error;
+        EXPECT_EQ(bytes, std::string(3000, 'q'));
+    }
+
+    TEST_F(SkyrimSeArchiveTest, anInflatedSizeFarAboveWhatTheFrameCouldHoldIsRefusedNotAllocated)
+    {
+        // 150 MiB claimed for a frame of a few dozen bytes (LZ4 cannot expand more than about 255 to 1).
+        const fs::path path = write("big.bsa", withInflatedSize(buildArchive(oneFile()), 150u * 1024 * 1024));
+        std::string bytes;
+        std::string error;
+        EXPECT_FALSE(readArchiveEntry(path, "meshes/a.nif", bytes, error));
+        EXPECT_EQ(error.rfind("big.bsa", 0), 0u) << error;
+        EXPECT_TRUE(bytes.empty());
+    }
+
+    TEST_F(SkyrimSeArchiveTest, anInflatedSizeOfFourGibibytesIsRefused)
+    {
+        const fs::path path = write("huge.bsa", withInflatedSize(buildArchive(oneFile()), 0xFFFFFFF0u));
+        std::string bytes;
+        std::string error;
+        EXPECT_FALSE(readArchiveEntry(path, "meshes/a.nif", bytes, error));
+        EXPECT_EQ(error.rfind("huge.bsa", 0), 0u) << error;
+    }
+
+    TEST_F(SkyrimSeArchiveTest, anInflatedSizeThatDisagreesWithTheFrameIsAnError)
+    {
+        // Smaller than the real content: the frame needs more room than was promised.
+        const fs::path path = write("small.bsa", withInflatedSize(buildArchive(oneFile()), 100));
+        std::string bytes;
+        std::string error;
+        EXPECT_FALSE(readArchiveEntry(path, "meshes/a.nif", bytes, error));
+        // Larger than the content (but within the ratio): the frame ends early, which is not a valid entry either.
+        const fs::path path2 = write("larger.bsa", withInflatedSize(buildArchive(oneFile()), 3200));
+        EXPECT_FALSE(readArchiveEntry(path2, "meshes/a.nif", bytes, error));
+    }
+
+    TEST_F(SkyrimSeArchiveTest, aFileRecordPointingPastTheEndOfTheArchiveFailsOnRead)
+    {
+        std::string archive = buildArchive(oneFile());
+        // The file record is the last 16 bytes before the file name block: hash(8) size(4) offset(4). Grow the size.
+        const std::size_t nameBlock = archive.find(std::string("a.nif\0", 6));
+        ASSERT_NE(nameBlock, std::string::npos);
+        const std::size_t sizeField = nameBlock - 8;
+        std::uint32_t size = 0;
+        std::memcpy(&size, &archive[sizeField], 4);
+        size += 100000;
+        std::memcpy(&archive[sizeField], &size, 4);
+        const fs::path path = write("past.bsa", archive);
+        std::string bytes;
+        std::string error;
+        EXPECT_FALSE(readArchiveEntry(path, "meshes/a.nif", bytes, error));
+        EXPECT_EQ(error.rfind("past.bsa", 0), 0u) << error;
+    }
+
+    TEST_F(SkyrimSeArchiveTest, aFolderCountLargerThanTheFileCanHoldIsRefusedWithoutReserving)
+    {
+        std::string archive = buildArchive(oneFile());
+        const std::uint32_t count = 0xFFFFFFFFu;
+        std::memcpy(&archive[36 + 8], &count, 4); // the first folder record's file count
+        const fs::path path = write("count.bsa", archive);
+        ArchiveListing listing;
+        std::string error;
+        EXPECT_FALSE(readArchiveListing(path, listing, error));
+        EXPECT_EQ(error.rfind("count.bsa", 0), 0u) << error;
+    }
+
+    TEST_F(SkyrimSeArchiveTest, embeddedNamesLongerThanTheEntryAreRefusedNotUnderflowed)
+    {
+        std::string archive = buildArchive(oneFile());
+        const std::uint32_t flags = 0x3 | 0x4 | 0x100; // folder names, file names, compress, embedded names
+        std::memcpy(&archive[12], &flags, 4);
+        const fs::path path = write("embedded.bsa", archive);
+        std::string bytes;
+        std::string error;
+        EXPECT_FALSE(readArchiveEntry(path, "meshes/a.nif", bytes, error));
+        EXPECT_EQ(error.rfind("embedded.bsa", 0), 0u) << error;
     }
 
     TEST_F(SkyrimSeArchiveTest, theArchiveKindsOpenAGeneratedSkyrimArchive)

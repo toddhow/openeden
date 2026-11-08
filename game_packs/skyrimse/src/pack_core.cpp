@@ -20,6 +20,7 @@ namespace game_skyrimse
 
         // Sizes read from a hostile file are checked against these before anything is allocated.
         constexpr std::uint64_t sMaxInflatedRecord = 512ull * 1024 * 1024;
+        constexpr std::uint64_t sMaxZlibRatio = 1032; // zlib's largest possible expansion
 
         // Skyrim Special Edition's record types. Written from recall of the game's record list; the real-data check
         // (testskyrimserealdata.cpp) prints every type it finds that is not here.
@@ -255,6 +256,10 @@ namespace game_skyrimse
                 + std::to_string(record.mUncompressedSize));
         if (declared > sMaxInflatedRecord)
             return fail("a compressed record claims " + std::to_string(declared) + " bytes when inflated");
+        // zlib cannot expand data more than 1032 to 1: a claim beyond that is false, and must not size a buffer.
+        if (static_cast<std::uint64_t>(declared) > (record.mData.size() - 4) * sMaxZlibRatio)
+            return fail("a compressed record of " + std::to_string(record.mData.size() - 4) + " bytes claims "
+                + std::to_string(declared) + " bytes when inflated, more than zlib can produce");
         out.assign(declared, std::byte{ 0 });
         z_stream stream{};
         if (inflateInit(&stream) != Z_OK)

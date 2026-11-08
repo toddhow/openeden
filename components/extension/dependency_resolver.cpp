@@ -86,7 +86,11 @@ namespace openeden::extension
                     disabled.insert(pId);
                     errors.push_back({ pId,
                         "Duplicate provider for contract " + contractKey.first + " major "
-                            + std::to_string(contractKey.second) + " provided by: " + conflictingList });
+                            + std::to_string(contractKey.second) + " provided by: " + conflictingList
+                            + (contractKey.first == "openeden.game"
+                                    ? " (only one game's compatibility pack can be enabled in a session: remove"
+                                      " the extension= line of the other game, or the game= line)"
+                                    : "") });
                 }
             }
         }

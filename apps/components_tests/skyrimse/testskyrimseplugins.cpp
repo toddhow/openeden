@@ -190,6 +190,45 @@ namespace
         EXPECT_EQ(error.mOffset, 0x40u);
     }
 
+    TEST(SkyrimSePlugins, aTinyRecordClaimingHugeInflatedSizeIsRefusedBeforeAnythingIsAllocated)
+    {
+        // Review 4, finding 3: zlib cannot expand by more than 1032 to 1, so 20 bytes cannot hold 500 MiB.
+        Bytes b;
+        b.u32(500u * 1024 * 1024);
+        for (int i = 0; i < 20; ++i)
+            b.u8(0x55);
+        std::vector<std::byte> out;
+        Content::Error error;
+        EXPECT_FALSE(inflateRecord(recordWith(toBytes(b), 500u * 1024 * 1024), "test.esp", out, error));
+        EXPECT_EQ(error.mOffset, 0x40u);
+        EXPECT_LT(out.capacity(), 1024u * 1024) << "the output buffer was sized from the claim";
+    }
+
+    TEST(SkyrimSePlugins, aCompressedRecordOfZeroBytesInflatesToNothing)
+    {
+        Bytes b;
+        b.u32(0);
+        b.text(zlibOf(""));
+        std::vector<std::byte> out{ std::byte{ 1 } };
+        Content::Error error;
+        EXPECT_TRUE(inflateRecord(recordWith(toBytes(b), 0), "test.esp", out, error)) << error.describe();
+        EXPECT_TRUE(out.empty());
+    }
+
+    TEST(SkyrimSePlugins, aRecordClaimingZeroBytesButHoldingDataFails)
+    {
+        const std::string plain = weaponSubrecords();
+        Bytes body = compressedBody(plain);
+        std::string text = body.str();
+        text.replace(0, 4, std::string(4, '\0'));
+        Bytes b;
+        b.text(text);
+        std::vector<std::byte> out;
+        Content::Error error;
+        EXPECT_FALSE(inflateRecord(recordWith(toBytes(b), 0), "test.esp", out, error));
+        EXPECT_FALSE(error.mMessage.empty());
+    }
+
     TEST(SkyrimSePlugins, aLocalisedStringRecordHoldsAnIdNotText)
     {
         Bytes subs;

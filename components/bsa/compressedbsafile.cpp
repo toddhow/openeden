@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
+#include <filesystem>
 #include <format>
 #include <istream>
 #include <system_error>
@@ -128,6 +129,11 @@ namespace Bsa
                 mHeader.mFolderNamesLength -= size;
             }
 
+            // Each file record is 16 bytes, so a folder cannot hold more files than the archive has room for (a hostile
+            // count would otherwise reserve gigabytes before the first read fails).
+            if (static_cast<std::uint64_t>(folder.mCount) * 16 > static_cast<std::uint64_t>(fsize))
+                fail("Compressed BSA folder claims " + std::to_string(folder.mCount)
+                    + " files, more than the archive can hold");
             filelist.reserve(folder.mCount);
 
             for (std::uint32_t i = 0; i < folder.mCount; ++i)
@@ -264,8 +270,23 @@ namespace Bsa
 
     Files::IStreamPtr CompressedBSAFile::getFile(const FileRecord& fileRecord)
     {
+        // The archive is untrusted input (a mod's): every size read from it is checked before it sizes a buffer.
+        // zlib cannot expand data more than 1032 to 1 and LZ4 more than about 255 to 1; no entry of a real archive is
+        // anywhere near the absolute cap.
+        constexpr std::uint64_t maxExpansionRatio = 1032;
+        constexpr std::uint64_t maxEntrySize = 1ull << 30;
+
+        const std::string entryName(fileRecord.mName.begin(), fileRecord.mName.end());
+        const auto failEntry
+            = [&](const std::string& what) { fail("Bad compressed BSA entry '" + entryName + "': " + what); };
+
         size_t size = fileRecord.mSize & (~FileSizeFlag_Compression);
         size_t resultSize = size;
+        std::error_code sizeError;
+        const std::uintmax_t archiveSize = std::filesystem::file_size(mFilepath, sizeError);
+        if (!sizeError && (static_cast<std::uint64_t>(fileRecord.mOffset) + size > archiveSize))
+            failEntry("its data (offset " + std::to_string(fileRecord.mOffset) + ", " + std::to_string(size)
+                + " bytes) lies beyond the end of the archive");
         Files::IStreamPtr streamPtr = Files::openConstrainedFileStream(mFilepath, fileRecord.mOffset, size);
         bool compressed = (fileRecord.mSize != size) == ((mHeader.mFlags & ArchiveFlag_Compress) == 0);
         if ((mHeader.mFlags & ArchiveFlag_EmbeddedNames) != 0)
@@ -273,13 +294,24 @@ namespace Bsa
             // Skip over the embedded file name
             uint8_t length = 0;
             streamPtr->read(reinterpret_cast<char*>(&length), 1);
+            if (streamPtr->fail() || size < static_cast<size_t>(length) + sizeof(uint8_t))
+                failEntry("the embedded name is longer than the entry");
             streamPtr->ignore(length);
             size -= length + sizeof(uint8_t);
         }
         if (compressed)
         {
-            streamPtr->read(reinterpret_cast<char*>(&resultSize), sizeof(uint32_t));
+            uint32_t declared = 0;
+            if (size < sizeof(uint32_t))
+                failEntry("it is too short to hold its uncompressed size");
+            streamPtr->read(reinterpret_cast<char*>(&declared), sizeof(uint32_t));
+            if (streamPtr->fail())
+                failEntry("its uncompressed size could not be read");
+            resultSize = declared;
             size -= sizeof(uint32_t);
+            if (resultSize > maxEntrySize || resultSize > static_cast<std::uint64_t>(size) * maxExpansionRatio)
+                failEntry("it claims " + std::to_string(resultSize) + " bytes when uncompressed, which "
+                    + std::to_string(size) + " compressed bytes cannot hold");
         }
         auto memoryStreamPtr = std::make_unique<MemoryInputStream>(resultSize);
 
@@ -287,6 +319,8 @@ namespace Bsa
         {
             std::vector<char> buffer(size);
             streamPtr->read(buffer.data(), size);
+            if (streamPtr->gcount() != static_cast<std::streamsize>(size))
+                failEntry("its data is cut short");
 
             if (mHeader.mVersion != Version_SSE)
             {
@@ -308,8 +342,12 @@ namespace Bsa
                 LZ4F_decompressionContext_t context = nullptr;
                 LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
                 LZ4F_decompressOptions_t options = {};
+                const size_t expected = resultSize;
                 LZ4F_errorCode_t errorCode = LZ4F_decompress(
                     context, memoryStreamPtr->getRawData(), &resultSize, buffer.data(), &size, &options);
+                // Zero is the hint of a finished frame; anything else means the frame wants more input than the entry
+                // holds, or output room that it was not promised.
+                const bool unfinished = !LZ4F_isError(errorCode) && errorCode != 0;
                 if (LZ4F_isError(errorCode))
                     fail("LZ4 decompression error (file " + Files::pathToUnicodeString(mFilepath)
                         + "): " + LZ4F_getErrorName(errorCode));
@@ -317,11 +355,16 @@ namespace Bsa
                 if (LZ4F_isError(errorCode))
                     fail("LZ4 decompression error (file " + Files::pathToUnicodeString(mFilepath)
                         + "): " + LZ4F_getErrorName(errorCode));
+                if (unfinished || resultSize != expected)
+                    failEntry("its LZ4 frame does not hold exactly the " + std::to_string(expected)
+                        + " bytes its size field promises");
             }
         }
         else
         {
             streamPtr->read(memoryStreamPtr->getRawData(), size);
+            if (streamPtr->gcount() != static_cast<std::streamsize>(size))
+                failEntry("its data is cut short");
         }
 
         return std::make_unique<Files::StreamWithBuffer<MemoryInputStream>>(std::move(memoryStreamPtr));

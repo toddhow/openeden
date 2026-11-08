@@ -21,4 +21,6 @@ target_include_directories(skyrimse
 target_link_libraries(skyrimse
     PRIVATE
         components
+        ZLIB::ZLIB # pack_core.cpp includes <zlib.h>
+        LZ4::LZ4 # and, through components/bsa/compressedbsafile.hpp, LZ4
 )

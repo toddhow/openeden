@@ -289,6 +289,24 @@ namespace
         EXPECT_TRUE(errorMentions(result.errors, "openeden.body"));
     }
 
+    TEST(DependencyResolverTest, TwoGameCompatibilityPacksAreRefusedWithAMessageSayingOnlyOneGameCanBeEnabled)
+    {
+        // Review 4, finding 9: `game=skyrimse` with compat_morrowind still enabled (the shipped default).
+        const ExtensionManifest morrowind = makeManifest("compat_morrowind", { { "openeden.game", { 1, 1 } } });
+        const ExtensionManifest skyrim = makeManifest("compat_skyrimse", { { "openeden.game", { 1, 1 } } });
+        const ResolutionResult result = resolveDependencies({ morrowind, skyrim }, openeden::sdk::kSdkVersion);
+        EXPECT_FALSE(result.success);
+        EXPECT_TRUE(contains(result.disabledExtensions, "compat_morrowind"));
+        EXPECT_TRUE(contains(result.disabledExtensions, "compat_skyrimse"));
+        ASSERT_FALSE(result.errors.empty());
+        for (const ResolutionError& error : result.errors)
+        {
+            EXPECT_NE(error.message.find("compat_morrowind"), std::string::npos) << error.message;
+            EXPECT_NE(error.message.find("compat_skyrimse"), std::string::npos) << error.message;
+            EXPECT_NE(error.message.find("only one game"), std::string::npos) << error.message;
+        }
+    }
+
     TEST(DependencyResolverTest, CycleDetection_DirectCycleDetectedAndReported)
     {
         // A -> B -> A

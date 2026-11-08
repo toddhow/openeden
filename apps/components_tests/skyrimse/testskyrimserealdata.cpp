@@ -7,6 +7,7 @@
 //                                repository); each is read as a Nif::Scene and only totals are printed
 #include <compat_skyrimse/scene_options.hpp>
 #include <compat_skyrimse/skyrimse_compat_extension.hpp>
+#include <components/bsa/compressedbsafile.hpp>
 #include <game_skyrimse/pack_core.hpp>
 
 #include <gtest/gtest.h>
@@ -287,5 +288,61 @@ namespace
             }
             set.print("set");
         }
+    }
+
+    // Review 4, finding 2: the hardened entry reader must accept every entry of every installed compressed archive
+    // (Skyrim SE LZ4, Fallout 3/New Vegas zlib) and read the same number of bytes the archive's size field promises.
+    // Opt-in: OPENEDEN_BSA_ENTRY_CHECK_DIRS names folders separated by ';'. Aggregates only.
+    TEST(SkyrimSeRealData, everyEntryOfTheInstalledCompressedArchivesReads)
+    {
+        const char* const env = std::getenv("OPENEDEN_BSA_ENTRY_CHECK_DIRS");
+        if (env == nullptr)
+            GTEST_SKIP() << "OPENEDEN_BSA_ENTRY_CHECK_DIRS is not set";
+        const std::string all(env);
+        std::size_t start = 0;
+        std::uint64_t archives = 0, entries = 0, failures = 0, bytes = 0, skipped = 0;
+        while (start <= all.size())
+        {
+            const std::size_t end = all.find(';', start);
+            const fs::path dir(all.substr(start, end == std::string::npos ? end : end - start));
+            start = end == std::string::npos ? all.size() + 1 : end + 1;
+            if (dir.empty() || !fs::is_directory(dir))
+                continue;
+            for (const auto& item : fs::directory_iterator(dir))
+            {
+                if (lower(item.path().extension().string()) != ".bsa")
+                    continue;
+                try
+                {
+                    Bsa::CompressedBSAFile archive;
+                    archive.open(item.path());
+                    ++archives;
+                    for (const Bsa::BSAFile::FileStruct& file : archive.getList())
+                    {
+                        ++entries;
+                        try
+                        {
+                            const Files::IStreamPtr stream = archive.getFile(&file);
+                            char buffer[1 << 16];
+                            while (stream->read(buffer, sizeof(buffer)) || stream->gcount() > 0)
+                                bytes += static_cast<std::uint64_t>(stream->gcount());
+                        }
+                        catch (const std::exception& e)
+                        {
+                            ++failures;
+                            if (failures <= 5)
+                                std::cout << "BSA-ENTRY-CHECK failure: " << e.what() << "\n";
+                        }
+                    }
+                }
+                catch (const std::exception&)
+                {
+                    ++skipped; // not a compressed TES4-family archive (Morrowind's format)
+                }
+            }
+        }
+        std::cout << "BSA-ENTRY-CHECK archives " << archives << " skipped " << skipped << " entries " << entries
+                  << " failures " << failures << " MiB " << bytes / (1024 * 1024) << "\n";
+        EXPECT_EQ(failures, 0u);
     }
 }
