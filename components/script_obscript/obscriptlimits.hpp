@@ -26,6 +26,7 @@ namespace ScriptObscript::Limits
     inline constexpr std::uint32_t kDefaultMaxCallDepth = 16; ///< Nested runs, when the caller sets none.
 
     inline constexpr std::uint32_t kSaveFormatVersion = 1; ///< The save blob layout this runtime writes and reads.
+    inline constexpr std::size_t kMaxSaveBlobBytes = 16u << 20; ///< A save chunk larger than this is refused unread.
 }
 
 #endif

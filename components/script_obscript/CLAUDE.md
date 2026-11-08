@@ -41,6 +41,23 @@ the save chunk (it stores what `serialise` returns).
 - **Strict mode makes warnings errors in the `Reporter`, not in the compiler's handler**, so that the "Extra argument"
   warnings of skipped arguments can be told from the others (`ParserOptions::mQuietSkippedArguments`).
 
+- **Grammar habits of the shipped scripts (item 3):** the front end sets three more `ParserOptions` (all off by default):
+  `mDigitLeadingMembers` (with `Scanner::setDigitLeadingMembers`: `Quest.2ndStage`), `mDottedSkippedArguments` (a skipped
+  argument may be `Quest.var`, a command name, or a member spelled like a keyword; `DiscardParser`) and
+  `mUnknownMembersAreWarnings` (`Set Quest.unknown to 1` is a warning and the line is skipped; an error in strict mode).
+  The line pass treats a record-named word at the start of a statement (or after if, elseif, while, to) as a command when
+  arguments follow, never registers a name after `Set Owner.` as a command, and lets a name after a dot be a command
+  unless the owner has a variable of that name. Punctuation-only lines outside the blocks and any text after the last
+  End are warnings (errors in strict mode); words before or between blocks stay an error. **Not supported:** a command's
+  result used as the reference of another (`GetFoo.Bar`), `%`, a skipped argument followed by a minus sign in an
+  expression (read as a negative argument).
+- **Game pack glue (item 4):** `gamepackglue.*`. `ObScriptSaveChunk` is the pack's save chunk handler `script.obscript`
+  (its bytes are the runtime's save blob and the chunk version is `Limits::kSaveFormatVersion`; a chunk over
+  `Limits::kMaxSaveBlobBytes` is refused unread); `attachToGamePack` declares the language `obscript` through
+  `sdk::ScriptHostService` and registers the handler through `sdk::SaveChunkService`. The 0084 service only declares a
+  language: the runtime itself is created and owned by the game pack. A pack that is not a game pack gets nullptr for
+  both services and a message back.
+
 ## Pitfalls met
 
 - `Compiler::ScriptParser::reset()` clears the `Locals` it was built with. Do not call it after declaring locals.

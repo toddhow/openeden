@@ -152,6 +152,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptderive.cpp
     script_obscript/testobscriptdeclare.cpp
     script_obscript/testobscriptlenient.cpp
+    script_obscript/testobscriptgamepack.cpp
     script_obscript/testobscripttablecheck.cpp
     script_obscript/testobscriptrealdata.cpp
 
