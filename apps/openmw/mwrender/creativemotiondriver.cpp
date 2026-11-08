@@ -6,6 +6,7 @@
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/gameconventions.hpp>
 #include <components/misc/strings/lower.hpp>
 
 #include <opas/anim/Interpolate.hpp>
@@ -32,7 +33,8 @@ namespace MWRender
 
         opas::math::Vec3 toMetres(const vsg::vec3& v)
         {
-            const double invScale = 1.0 / Constants::UnitsPerMeter;
+            // The length unit is the game's convention (task 0085, move 1).
+            const double invScale = 1.0 / Misc::gameConventions().mUnitsPerMeter;
             return { v.x * invScale, v.y * invScale, v.z * invScale };
         }
 
@@ -265,10 +267,12 @@ namespace MWRender
             return false;
         }
 
-        if (const int bip01 = getBoneIndex("bip01"); bip01 >= 0)
+        // The root bone names are the game's conventions (task 0085, move 1).
+        const Misc::GameConventions& game = Misc::gameConventions();
+        if (const int bip01 = getBoneIndex(game.mRootBone); bip01 >= 0)
             mAccumRoot = bip01;
         else
-            mAccumRoot = getBoneIndex("root bone");
+            mAccumRoot = getBoneIndex(game.mRootBoneFallback);
 
         const std::size_t numBones = mSkeleton.bones.size();
         mRestPose.resize(numBones);
@@ -504,7 +508,7 @@ namespace MWRender
             }
         }
 
-        const double unitsPerMeter = Constants::UnitsPerMeter;
+        const double unitsPerMeter = Misc::gameConventions().mUnitsPerMeter;
         for (std::size_t i = 0; i < mSkeleton.bones.size(); ++i)
         {
             const uint32_t group = mBoneGroups[i] < sNumBlendMasks ? mBoneGroups[i] : 0;
@@ -575,7 +579,7 @@ namespace MWRender
         outMaxRotDiff = 0.0f;
         outMaxDiffBone.clear();
 
-        const float invUnitsPerMeter = 1.0f / Constants::UnitsPerMeter;
+        const float invUnitsPerMeter = 1.0f / Misc::gameConventions().mUnitsPerMeter;
         for (std::size_t i = 0; i < mBoneNodes.size(); ++i)
         {
             if (!mAnimated[i])

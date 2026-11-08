@@ -5,6 +5,7 @@
 
 #include <components/animation/controllermap.hpp>
 #include <components/animation/reset.hpp>
+#include <components/misc/gameconventions.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
 namespace
@@ -113,14 +114,15 @@ namespace MWAnim
         anim->tcontrollers.resize(mControllerGroups.size());
         Anim::Transform* bip01{};
         Anim::Transform* root{};
+        const Misc::GameConventions& game = Misc::gameConventions(); // the root bone names are the game's (task 0085)
         for (auto& [target, ctrl] : map->map)
         {
             if (auto bone = this->bones.search(target))
             {
                 anim->tcontrollers[bone->group].emplace_back(ctrl, bone->node());
-                if (Misc::StringUtils::ciEqual(target, "bip01"))
+                if (Misc::StringUtils::ciEqual(target, game.mRootBone))
                     bip01 = bone->node();
-                else if (Misc::StringUtils::ciEqual(target, "root bone"))
+                else if (Misc::StringUtils::ciEqual(target, game.mRootBoneFallback))
                     root = bone->node();
             }
             else

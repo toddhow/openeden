@@ -3,6 +3,8 @@
 #include <iostream>
 #include <mutex>
 
+#include <components/misc/gameconventions.hpp>
+
 using Store = MWWorld::Store<ESM::BodyPart>;
 
 namespace
@@ -227,8 +229,8 @@ namespace MWRender
 
     const ESM::BodyPart* getBodyPart(bool firstPerson, const ESM::RefId& base, const Store& store)
     {
-        const char* ext = firstPerson ? ".1st" : "";
-        auto bodypart = store.search(ESM::RefId::stringRefId(base.getRefIdString() + ext));
+        // The first-person naming is the game's convention (task 0085, move 1).
+        auto bodypart = store.search(ESM::RefId::stringRefId(Misc::bodyPartIdFor(base.getRefIdString(), firstPerson)));
         if (!bodypart && firstPerson)
         {
             bodypart = store.search(base);

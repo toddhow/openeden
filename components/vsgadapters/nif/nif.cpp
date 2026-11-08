@@ -34,6 +34,7 @@
 #include <components/animation/tags.hpp>
 #include <components/animation/texmat.hpp>
 #include <components/animation/transformcontroller.hpp>
+#include <components/misc/gameconventions.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/nif/controller.hpp>
@@ -184,7 +185,8 @@ namespace
                 return false;
             // NPC skeleton files can not be optimized because of keyframes added in post
             // (most of them are usually named like 'xbase_anim.nif' anyway, but not all of them :( )
-            if (basename.compare(0, 9, "base_anim") == 0 || basename.compare(0, 4, "skin") == 0)
+            // Which names are skeletons is the game's convention (task 0085, move 1).
+            if (Misc::isSkeletonModelBaseName(basename))
                 return false;
             // For spell VFX, DummyXX nodes must remain intact. Not adding those to reservedNames to avoid being overly
             // cautious - instead, decide on filename

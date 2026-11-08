@@ -12,6 +12,7 @@
 #include <components/animation/transform.hpp>
 #include <components/esm/records.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/gameconventions.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -2159,7 +2160,7 @@ namespace MWMechanics
                 // before the animation thread runs.
                 mIntentWantsToMove = isMoving;
                 if (inertialActive)
-                    mIntentMeasuredMps = smoothedSpeed / static_cast<float>(Constants::UnitsPerMeter);
+                    mIntentMeasuredMps = smoothedSpeed / Misc::gameConventions().mUnitsPerMeter;
                 mIntentStanceChanged = mIntentStanceKnown && (sneak != mIntentLastSneak || isrunning != mIntentLastRun);
                 mIntentLastSneak = sneak;
                 mIntentLastRun = isrunning;
@@ -2268,7 +2269,7 @@ namespace MWMechanics
 
             speed = cls.getCurrentSpeed(mPtr);
             if (mIntentTracker != nullptr)
-                mIntentSpeedMps = speed / static_cast<float>(Constants::UnitsPerMeter);
+                mIntentSpeedMps = speed / Misc::gameConventions().mUnitsPerMeter;
             vec.x *= speed;
             vec.y *= speed;
 
@@ -2970,7 +2971,7 @@ namespace MWMechanics
             // The animation's own movement shrinks with the style's cadence, so divide that out (or the cadence
             // would feed back into the speed it is weighted by).
             const float measured = std::sqrt(moved.x * moved.x + moved.y * moved.y) / duration
-                / Constants::UnitsPerMeter / std::max(mStyleCadence.load(), 0.1f);
+                / Misc::gameConventions().mUnitsPerMeter / std::max(mStyleCadence.load(), 0.1f);
             measuredSpeedMps = measured;
             constexpr float speedSmoothingRate = 6.f;
             const float smoothed = mStyleSpeedMps;

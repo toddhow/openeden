@@ -4,6 +4,7 @@
 
 #include <components/animation/bones.hpp>
 #include <components/animation/rotate.hpp>
+#include <components/misc/gameconventions.hpp>
 
 #include "play.hpp"
 
@@ -62,9 +63,11 @@ namespace MWAnim
     void Actor::assignBones()
     {
         auto& bones = animation->bones;
-        mHead = bones.search("bip01 head");
-        mSpine[0] = bones.search("bip01 spine1");
-        mSpine[1] = bones.search("bip01 spine2");
-        mRoot = bones.search("bip01");
+        // The bone names are the game's conventions (task 0085, move 1).
+        const Misc::GameConventions& game = Misc::gameConventions();
+        mHead = bones.search(game.mHeadBone);
+        mSpine[0] = bones.search(game.mSpine1Bone);
+        mSpine[1] = bones.search(game.mSpine2Bone);
+        mRoot = bones.search(game.mRootBone);
     }
 }

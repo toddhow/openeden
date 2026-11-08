@@ -5,6 +5,7 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/animation/mask.hpp>
+#include <components/misc/gameconventions.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/mwanimation/partbones.hpp>
 #include <components/pipeline/material.hpp>
@@ -98,7 +99,7 @@ namespace MWRender
                      .baseanimfemale = Settings::Manager::getString("baseanimfemale", "Models") },
             .firstPersonFiles = { .wolfskin = Settings::Manager::getString("wolfskin1st", "Models"),
                 //.baseanim = Settings::Manager::getString("baseanim1st", "Models"),
-                .baseanim = "xbase_anim.1st.nif",
+                .baseanim = Misc::gameConventions().mFirstPersonBaseAnimationFile,
                 .baseanimkna = Settings::Manager::getString("baseanimkna1st", "Models"),
                 .baseanimfemale = Settings::Manager::getString("baseanimfemale1st", "Models") },
             .mask = { Mask_Particle },
