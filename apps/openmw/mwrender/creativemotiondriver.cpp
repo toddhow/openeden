@@ -269,9 +269,11 @@ namespace MWRender
 
         // The root bone names are the game's conventions (task 0085, move 1).
         const Misc::GameConventions& game = Misc::gameConventions();
-        if (const int bip01 = getBoneIndex(game.mRootBone); bip01 >= 0)
-            mAccumRoot = bip01;
-        else
+        // An empty name means the game has no such bone (a game may say "none"); never look it up.
+        const int rootIndex = game.mRootBone.empty() ? -1 : getBoneIndex(game.mRootBone);
+        if (rootIndex >= 0)
+            mAccumRoot = rootIndex;
+        else if (!game.mRootBoneFallback.empty())
             mAccumRoot = getBoneIndex(game.mRootBoneFallback);
 
         const std::size_t numBones = mSkeleton.bones.size();

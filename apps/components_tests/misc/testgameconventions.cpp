@@ -4,13 +4,16 @@
 #include <gtest/gtest.h>
 
 #include <compat_morrowind/morrowind_compat_extension.hpp>
+#include <compat_skyrimse/skyrimse_compat_extension.hpp>
 
 #include <components/extension/game_conventions.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstring>
+#include <limits>
 #include <string>
 
 namespace
@@ -169,4 +172,139 @@ TEST(GameConventionsContract, a_pack_that_specifies_nothing_leaves_the_engine_de
     EXPECT_EQ(fromPack.mSkeletonModelPrefixes, defaults.mSkeletonModelPrefixes);
     EXPECT_EQ(fromPack.mFirstPersonBodyPartSuffix, defaults.mFirstPersonBodyPartSuffix);
     EXPECT_EQ(fromPack.mFirstPersonBaseAnimationFile, defaults.mFirstPersonBaseAnimationFile);
+}
+
+// ---- Review 4, finding 1 and 7: a game can say "none", and pack data is validated. ----
+
+namespace
+{
+    // A contract that answers every convention itself, including with empty values.
+    class ExplicitContract : public openeden::contracts::GameContract
+    {
+    public:
+        float mUnit = 100.0f;
+        HumanoidBoneNames mBones{ "Root", "", "Head", "Spine", "Spine1" };
+        std::array<std::string_view, 2> mPrefixes{ "Rig_", "SKEL" };
+        std::string_view mSuffix = "";
+        std::string_view mAnim = "fp.nif";
+        [[nodiscard]] std::string_view getGameId() const noexcept override { return "explicit"; }
+        [[nodiscard]] std::string_view getGameDisplayName() const noexcept override { return "Explicit"; }
+        [[nodiscard]] float getUnitsPerMeter() const noexcept override { return mUnit; }
+        [[nodiscard]] std::string_view getDefaultHumanoidSkeleton() const noexcept override { return "x.nif"; }
+        [[nodiscard]] bool specifiesAllConventions() const noexcept override { return true; }
+        [[nodiscard]] HumanoidBoneNames getHumanoidBoneNames() const noexcept override { return mBones; }
+        [[nodiscard]] std::span<const std::string_view> getSkeletonModelNamePrefixes() const noexcept override
+        {
+            return mPrefixes;
+        }
+        [[nodiscard]] std::string_view getFirstPersonBodyPartSuffix() const noexcept override { return mSuffix; }
+        [[nodiscard]] std::string_view getFirstPersonBaseAnimationFile() const noexcept override { return mAnim; }
+    };
+}
+
+TEST(GameConventionsExplicit, empty_values_mean_none_and_are_not_replaced_by_morrowinds)
+{
+    const ConventionsGuard guard;
+    const ExplicitContract contract;
+    const Misc::GameConventions c = openeden::extension::gameConventionsFrom(contract);
+    EXPECT_TRUE(c.mRootBoneFallback.empty());
+    EXPECT_TRUE(c.mFirstPersonBodyPartSuffix.empty());
+    Misc::setGameConventions(c);
+    EXPECT_EQ(Misc::bodyPartIdFor("part", true), "part");
+}
+
+TEST(GameConventionsExplicit, every_empty_value_is_copied_verbatim)
+{
+    const ConventionsGuard guard;
+    ExplicitContract contract;
+    contract.mBones = {};
+    contract.mPrefixes = { "", "" };
+    contract.mAnim = "";
+    const Misc::GameConventions c = openeden::extension::gameConventionsFrom(contract);
+    EXPECT_TRUE(c.mRootBone.empty());
+    EXPECT_TRUE(c.mHeadBone.empty());
+    EXPECT_TRUE(c.mSpine1Bone.empty());
+    EXPECT_TRUE(c.mSpine2Bone.empty());
+    EXPECT_TRUE(c.mFirstPersonBaseAnimationFile.empty());
+    Misc::setGameConventions(c);
+    EXPECT_FALSE(Misc::isSkeletonModelBaseName("rig_a"));
+}
+
+TEST(GameConventionsExplicit, no_prefixes_means_no_file_is_a_skeleton)
+{
+    const ConventionsGuard guard;
+    ExplicitContract contract;
+    contract.mPrefixes = { "", "" };
+    Misc::setGameConventions(openeden::extension::gameConventionsFrom(contract));
+    EXPECT_FALSE(Misc::isSkeletonModelBaseName("base_anim"));
+    EXPECT_FALSE(Misc::isSkeletonModelBaseName("skin"));
+}
+
+TEST(GameConventionsExplicit, the_skyrim_pack_answers_all_and_inherits_nothing_from_morrowind)
+{
+    const ConventionsGuard guard;
+    const compat_skyrimse::SkyrimGameContract contract;
+    ASSERT_TRUE(contract.specifiesAllConventions());
+    const Misc::GameConventions c = openeden::extension::gameConventionsFrom(contract);
+    EXPECT_TRUE(c.mRootBoneFallback.empty());
+    EXPECT_TRUE(c.mFirstPersonBodyPartSuffix.empty());
+    EXPECT_EQ(c.mRootBone, "npc root [root]");
+    ASSERT_EQ(c.mSkeletonModelPrefixes.size(), 2u);
+    EXPECT_EQ(c.mSkeletonModelPrefixes[0], "skeleton");
+    Misc::setGameConventions(c);
+    EXPECT_EQ(Misc::bodyPartIdFor("x", true), "x");
+    EXPECT_FALSE(Misc::isSkeletonModelBaseName("base_anim"));
+}
+
+TEST(GameConventionsExplicit, the_morrowind_pack_also_specifies_everything)
+{
+    const compat_morrowind::MorrowindGameContract contract;
+    EXPECT_TRUE(contract.specifiesAllConventions());
+}
+
+TEST(GameConventionsExplicit, a_pack_for_contract_1_0_does_not_specify_and_keeps_the_defaults)
+{
+    const OldStyleContract contract;
+    EXPECT_FALSE(contract.specifiesAllConventions());
+}
+
+TEST(GameConventionsValidation, a_unit_that_is_not_finite_and_positive_keeps_the_default)
+{
+    const float bad[] = { std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN(), 0.0f, -3.0f };
+    for (const float unit : bad)
+    {
+        ExplicitContract contract;
+        contract.mUnit = unit;
+        const Misc::GameConventions c = openeden::extension::gameConventionsFrom(contract);
+        EXPECT_EQ(std::memcmp(&c.mUnitsPerMeter, &Constants::UnitsPerMeter, sizeof(float)), 0) << unit;
+    }
+    ExplicitContract good;
+    EXPECT_FLOAT_EQ(openeden::extension::gameConventionsFrom(good).mUnitsPerMeter, 100.0f);
+}
+
+TEST(GameConventionsValidation, names_and_prefixes_are_lower_cased_because_lookups_are)
+{
+    const ExplicitContract contract;
+    const Misc::GameConventions c = openeden::extension::gameConventionsFrom(contract);
+    EXPECT_EQ(c.mRootBone, "root");
+    EXPECT_EQ(c.mHeadBone, "head");
+    EXPECT_EQ(c.mSpine1Bone, "spine");
+    ASSERT_EQ(c.mSkeletonModelPrefixes.size(), 2u);
+    EXPECT_EQ(c.mSkeletonModelPrefixes[0], "rig_");
+    EXPECT_EQ(c.mSkeletonModelPrefixes[1], "skel");
+}
+
+TEST(GameConventionsValidation, the_old_path_lower_cases_too)
+{
+    class Mixed : public OtherGameContract
+    {
+    public:
+        [[nodiscard]] HumanoidBoneNames getHumanoidBoneNames() const noexcept override
+        {
+            return { "Pelvis_Root", "", "Head_B", "Spine_A", "Spine_B" };
+        }
+    };
+    const Mixed contract;
+    EXPECT_EQ(openeden::extension::gameConventionsFrom(contract).mRootBone, "pelvis_root");
 }

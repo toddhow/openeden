@@ -10,6 +10,14 @@
 // with no compatibility pack (the core must run with zero extensions, and Eden Studio and the tools start without
 // one), and they equal what `compat_morrowind` provides, so Morrowind plays the same either way (a test pins this).
 //
+// Not for packs: the store is a function-local static of an inline function, so each shared library that included
+// this header would get a store of its own (Windows). Only the host executable calls setGameConventions; a pack
+// states its values through the contract, and the contract says whether an empty value means "none"
+// (`specifiesAllConventions`). A pack that faults after start leaves the conventions as they are (resetting them
+// mid-session would mix two games' values); the session is marked failed and saving is refused instead. They are
+// installed after the packs start, not before: the first loading screen runs with Morrowind's values, and an actor
+// built before then keeps the bones it resolved (documented in task 0085's stage log).
+//
 // Threads: the values are published as an immutable snapshot (`setGameConventions`, called once on the main thread
 // when the pack starts and again, reset, when it stops); every reader takes one atomic pointer load and may hold the
 // returned reference for ever, because a snapshot is never freed. A reader that started before the pack did sees the
@@ -71,7 +79,9 @@ namespace Misc
 
         inline GameConventionsStore& gameConventionsStore()
         {
-            static GameConventionsStore store;
+            // Never destroyed: animation and physics workers may still read a snapshot while the process exits, and a
+            // function-local static would be destroyed under them. The release() is the deliberate leak, once.
+            static GameConventionsStore& store = *std::make_unique<GameConventionsStore>().release();
             return store;
         }
     }

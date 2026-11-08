@@ -46,12 +46,20 @@ namespace openeden::contracts
         // answer all of them (they become pure when the second game pack has). ----
 
         /**
+         * @brief True when this pack answers all four conventions below itself, so that an empty answer means "this
+         * game has none" and the engine takes it as it is. False (the default, for a pack written for 1.0): an empty
+         * answer means "not specified" and the engine keeps Morrowind's value for it. A pack of another game must
+         * return true. Added before 1.1 was released, so it is not a version change.
+         */
+        [[nodiscard]] virtual bool specifiesAllConventions() const noexcept { return false; }
+
+        /**
          * @brief The names of the humanoid skeleton's bones that the engine looks up by name, lower case.
          * Every view stays valid as long as the contract object does.
          */
         struct HumanoidBoneNames
         {
-            std::string_view root;         ///< the skeleton's root bone (Morrowind: "bip01"); empty: unspecified
+            std::string_view root; ///< the skeleton's root bone (Morrowind: "bip01"); empty: unspecified
             std::string_view rootFallback; ///< root of skeletons without `root`, e.g. creatures; empty: unspecified
             std::string_view head;
             std::string_view spine1;

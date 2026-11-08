@@ -120,9 +120,10 @@ namespace MWAnim
             if (auto bone = this->bones.search(target))
             {
                 anim->tcontrollers[bone->group].emplace_back(ctrl, bone->node());
-                if (Misc::StringUtils::ciEqual(target, game.mRootBone))
+                // An empty name means the game has no such bone; it must not match a bone with no name.
+                if (!game.mRootBone.empty() && Misc::StringUtils::ciEqual(target, game.mRootBone))
                     bip01 = bone->node();
-                else if (Misc::StringUtils::ciEqual(target, game.mRootBoneFallback))
+                else if (!game.mRootBoneFallback.empty() && Misc::StringUtils::ciEqual(target, game.mRootBoneFallback))
                     root = bone->node();
             }
             else

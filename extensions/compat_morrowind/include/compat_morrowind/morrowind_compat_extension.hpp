@@ -30,6 +30,7 @@ namespace compat_morrowind
 
         // Morrowind's conventions (task 0085, move 1). The engine's own defaults (Misc::GameConventions) equal these;
         // a test pins that.
+        [[nodiscard]] bool specifiesAllConventions() const noexcept override { return true; }
         [[nodiscard]] HumanoidBoneNames getHumanoidBoneNames() const noexcept override
         {
             return { "bip01", "root bone", "bip01 head", "bip01 spine1", "bip01 spine2" };

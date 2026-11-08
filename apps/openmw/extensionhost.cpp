@@ -433,12 +433,15 @@ namespace OMW
         });
 
         mRunning = true;
+        Misc::resetGameConventions(); // a session without a pack plays with the defaults
         mLifecycle.initialize();
 
         // The pack's data conventions go to the generic engine (task 0085, move 1). With no pack, or one that provides
         // the contract below version 1.1, the engine keeps its defaults, which are Morrowind's.
-        if (const openeden::contracts::GameContract* game
-            = mLifecycle.serviceLocator().find<openeden::contracts::GameContract>())
+        // A pack that failed to start (session error) installs nothing: its contract may be half set up.
+        if (const openeden::contracts::GameContract* game = mLifecycle.getSessionError().empty()
+                ? mLifecycle.serviceLocator().find<openeden::contracts::GameContract>()
+                : nullptr)
         {
             Misc::setGameConventions(openeden::extension::gameConventionsFrom(*game));
             Log(Debug::Info) << "Game conventions of '" << game->getGameId() << "' installed";
@@ -462,7 +465,8 @@ namespace OMW
 
         Log(Debug::Info) << "Stopping extensions";
         mLifecycle.shutdown();
-        Misc::resetGameConventions();
+        // The conventions are not reset here: workers may still be reading them while the session ends, the values are
+        // copies (nothing refers to the unloaded pack), and the next session sets them again at start().
 
         if (mWorld)
         {

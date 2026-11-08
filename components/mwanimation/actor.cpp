@@ -65,9 +65,11 @@ namespace MWAnim
         auto& bones = animation->bones;
         // The bone names are the game's conventions (task 0085, move 1).
         const Misc::GameConventions& game = Misc::gameConventions();
-        mHead = bones.search(game.mHeadBone);
-        mSpine[0] = bones.search(game.mSpine1Bone);
-        mSpine[1] = bones.search(game.mSpine2Bone);
-        mRoot = bones.search(game.mRootBone);
+        // An empty name means the game has no such bone (null, as for a bone the skeleton lacks).
+        const auto find = [&bones](const std::string& name) { return name.empty() ? nullptr : bones.search(name); };
+        mHead = find(game.mHeadBone);
+        mSpine[0] = find(game.mSpine1Bone);
+        mSpine[1] = find(game.mSpine2Bone);
+        mRoot = find(game.mRootBone);
     }
 }

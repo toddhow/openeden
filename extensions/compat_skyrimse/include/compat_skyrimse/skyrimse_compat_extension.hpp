@@ -19,12 +19,16 @@ namespace compat_skyrimse
         {
             return "The Elder Scrolls V: Skyrim Special Edition";
         }
-        /// Both games use a unit of about 1.43 cm; the value is Constants::UnitsPerMeter, Morrowind's, not measured here.
+        /// Both games use a unit of about 1.43 cm; the value is Constants::UnitsPerMeter, Morrowind's, not measured
+        /// here.
         [[nodiscard]] float getUnitsPerMeter() const noexcept override { return 69.99125109f; }
         [[nodiscard]] std::string_view getDefaultHumanoidSkeleton() const noexcept override
         {
             return defaultMaleSkeleton();
         }
+        /// Answers all four conventions itself, so its empty values (no fallback root bone, no first-person suffix) are
+        /// kept empty and Morrowind's are not inherited (review 4, finding 1).
+        [[nodiscard]] bool specifiesAllConventions() const noexcept override { return true; }
         [[nodiscard]] HumanoidBoneNames getHumanoidBoneNames() const noexcept override
         {
             return { "npc root [root]", "", "npc head [head]", "npc spine [spn0]", "npc spine1 [spn1]" };
