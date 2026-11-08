@@ -8,6 +8,11 @@
 # the game's scripts the loaded set resolves. Nothing from the game is written anywhere. Skipped, not failed, when the
 # data is absent.
 #
+# Stage c adds the VM run (lines starting PAPYRUS-RUN): a fixed sample of the game's own scripts (200 for Skyrim SE, 100
+# for Fallout 4, chosen by a stable hash of the script name; OPENEDEN_PAPYRUS_SAMPLE changes the size, 100000 runs them
+# all) is attached and run against a stub world with recorders for every native, with none, and with only the 106 most
+# called natives; OPENEDEN_PAPYRUS_VERBOSE=1 also names the scripts that fail.
+#
 # usage: tools/papyrus_check/check.sh <game Data folder> [mods folder] [build folder holding components-tests]
 #   Windows paths with forward slashes work, for example "I:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data".
 set -u
@@ -24,4 +29,4 @@ if [ ! -x "$TESTS" ]; then
     echo "papyrus_check: components-tests not found in $BUILD"
     exit 1
 fi
-OPENEDEN_PAPYRUS_DATA="$DATA" OPENEDEN_PAPYRUS_MODS="$MODS" "$TESTS" --gtest_filter='PapyrusRealData.*' | grep -E "PAPYRUS-CHECK|PASSED|FAILED|SKIPPED"
+OPENEDEN_PAPYRUS_DATA="$DATA" OPENEDEN_PAPYRUS_MODS="$MODS" "$TESTS" --gtest_filter='PapyrusRealData.*:PapyrusRealRun.*' | grep -E "PAPYRUS-CHECK|PAPYRUS-RUN|PASSED|FAILED|SKIPPED"

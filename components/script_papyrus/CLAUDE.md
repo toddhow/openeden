@@ -1,0 +1,13 @@
+# components/script_papyrus (task 0093)
+
+The Papyrus runtime of the common compatibility pack: `.pex` reader, VM, native registration. Provisional place; it moves with the common pack (task 0084 layout).
+
+- **Files:** `pexfile.hpp`/`pexreader.cpp` (the model and the hostile-input reader), `papyrusvm.hpp` (the inside: values, compiled code, the `Runtime` class), `papyrusprepare.cpp` (link to parents, compile functions), `papyrusheap.cpp` (names, strings, arrays, structs, garbage collection), `papyrusinterp.cpp` (instruction loop, calls, natives), `papyrusruntime.cpp` (contract surface: load, link, attach, call, send, tick, natives, variables). Only `papyrusruntime.hpp` and `sdk/include/openeden/script/papyrus.hpp` are public.
+- **Plain data stacks:** a `Stack` is frames of ids and indexes plus a vector of `Val`; no frame holds a pointer. Stage e writes it as a blob. Keep it that way: a pointer into a script or an instance in a frame breaks saving.
+- **Allocation:** the instruction loop allocates nothing after warm-up except the opcodes that make data (strcat, a cast to a string, array and struct creation, array growth, a native's string result). `apps/openmw_tests/script_papyrus/testpapyrusallocation.cpp` pins it. Error paths may allocate. Do not build a `std::string` on a path that runs for every call.
+- **Operand order** of every opcode was read from the installed scripts (task 0093 stage c log); 35, 41, 44 and 47 never occur in them and follow the pattern of their neighbours (recalled, tested as such).
+- **Names** are compared without regard to case: always go through `nameId()` (lower-cased id) and compare ids. The empty state is name id 0 and the empty string is string id 0.
+- **GC safety:** a collection starts only at the beginning of an allocation (`chargeHeap`). Read every operand first, allocate once, then store. Roots are the instances' variables and the values of queued and running stacks. A `string_view` handed out (a `CallResult`, a native argument) is valid until the next call into the runtime.
+- **Natives** cannot call `call`, `tick` or `loadScript` (`mInNative`); they may `send`, `attach` and read or set variables.
+- **Test assembler trap:** `ScriptBuilder::state("X")` stays chosen for every `function()` after it. Write a script's default functions first and the state functions last.
+- **GCC `-Werror`:** brace every `if`/`else`, no unused helpers, no shadowed parameters (see the root guide's pitfalls).
