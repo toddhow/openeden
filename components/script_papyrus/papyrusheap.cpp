@@ -300,6 +300,7 @@ namespace ScriptPapyrus::Vm
     void Runtime::collect()
     {
         ++mStats.collections;
+        mStats.collectionVisits += mStrings.size() + mHeap.size();
         std::vector<std::uint32_t>& pending = mMarkScratch;
         pending.clear();
         for (StrEntry& entry : mStrings)

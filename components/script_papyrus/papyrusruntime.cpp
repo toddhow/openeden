@@ -944,6 +944,7 @@ namespace ScriptPapyrus
                 mReadyHead = 0;
             }
             result.stacksWaiting = static_cast<std::uint32_t>(mReady.size() - mReadyHead);
+            mStats.readyQueueSlots = mReady.size();
             return result;
         }
 

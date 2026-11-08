@@ -58,6 +58,13 @@ namespace ScriptPapyrus
         /// reached it (the one running finishes within its own budget); stacks not started stay queued for the next
         /// tick.
         std::uint64_t maxInstructionsPerTick = 20'000'000;
+        /// Whole-runtime bounds on the tables scripts and hosts can grow (review of 2026-11-08, finding 3): distinct
+        /// names (every identifier, function, class and state name, case-folded), distinct permanent strings (script
+        /// constants and state names) and the bytes the last two hold. Past one of them the instruction or call
+        /// that would add an entry fails with a located error. The defaults are far above the installed games'.
+        std::uint32_t maxNames = 1u << 21;
+        std::uint32_t maxInternedStrings = 1u << 21;
+        std::uint64_t maxInternedBytes = 256u << 20;
     };
 
     /// Counters of one runtime (task 0093 stage c). Deterministic: they depend only on the scripts and the calls.
@@ -74,6 +81,8 @@ namespace ScriptPapyrus
         std::uint64_t missingClassCalls = 0; ///< Tolerant mode: a call into a class that is not loaded, zero returned.
         std::uint64_t ignoredEvents = 0; ///< An On... function that the receiver does not define.
         std::uint64_t collections = 0; ///< Garbage collections of the VM heap.
+        std::uint64_t collectionVisits = 0; ///< Strings and heap objects the collections looked at, added up.
+        std::uint64_t readyQueueSlots = 0; ///< Slots the queue of waiting stacks holds after the last tick.
         std::array<std::uint64_t, static_cast<std::size_t>(ErrorKind::Count)> errors{};
     };
 
