@@ -208,6 +208,7 @@ namespace Compiler
         bool mExpectName;
         bool mIgnoreSpecial;
         bool mLogicalOperators = false;
+        bool mDigitLeadingMembers = false;
 
     public:
         enum Keyword
@@ -275,6 +276,9 @@ namespace Compiler
 
         bool isStringCharacter(MultiChar& c, bool lookAhead = true);
 
+        /// Looks ahead without consuming: do digits, then a letter or an underscore, follow at the read position?
+        bool digitsFollowedByNameCharacter();
+
     public:
         Scanner(ErrorHandler& errorHandler, std::istream& inputStream, const Extensions* extensions = nullptr);
         ///< constructor
@@ -299,6 +303,10 @@ namespace Compiler
 
         /// Read "&&" and "||" as the tokens S_and and S_or. Off by default: Morrowind scripts have no such operators.
         void setLogicalOperators(bool enabled) { mLogicalOperators = enabled; }
+
+        /// Read ".2nd" after a name as the member operator and the name "2nd" (task 0092). Off: ".2" starts a
+        /// floating point number, as in Morrowind.
+        void setDigitLeadingMembers(bool enabled) { mDigitLeadingMembers = enabled; }
 
         void listKeywords(std::vector<std::string>& keywords);
         ///< Append all known keywords to \a keywords.

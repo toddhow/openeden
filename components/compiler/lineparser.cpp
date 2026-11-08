@@ -136,7 +136,11 @@ namespace Compiler
                 return true;
             }
 
-            getErrorHandler().error("Unknown variable", loc);
+            // Task 0092: a member the context does not know is a warning and the line is skipped, when asked.
+            if (getContext().getOptions().mUnknownMembersAreWarnings)
+                getErrorHandler().warning("Unknown variable", loc);
+            else
+                getErrorHandler().error("Unknown variable", loc);
             SkipParser skip(getErrorHandler(), getContext());
             scanner.scan(skip);
             return false;
@@ -242,6 +246,15 @@ namespace Compiler
                 mType = type.first;
                 mReferenceMember = type.second;
                 return true;
+            }
+
+            // Task 0092: a member spelled like a command or a keyword that the context does not know.
+            if (getContext().getOptions().mUnknownMembersAreWarnings)
+            {
+                getErrorHandler().warning("Unknown variable", loc);
+                SkipParser skip(getErrorHandler(), getContext());
+                scanner.scan(skip);
+                return false;
             }
         }
 

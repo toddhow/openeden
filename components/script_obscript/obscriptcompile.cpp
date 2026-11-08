@@ -372,6 +372,20 @@ namespace ScriptObscript
             structure.mName = header.mTokens[1].mText;
             ++index;
 
+            // A line of punctuation only (a row of "=" signs) outside the blocks is decoration, and so is any text
+            // after the last block: both are a warning (an error in strict mode). Words before or between blocks stay
+            // an error.
+            std::size_t lastBegin = 0;
+            for (std::size_t i = index; i < lines.size(); ++i)
+            {
+                if (!lines[i].mTokens.empty() && isWord(lines[i].mTokens[0], "begin"))
+                {
+                    lastBegin = i;
+                }
+            }
+            bool trailingReported = false;
+            bool decorationReported = false;
+
             bool tooManyReported = false;
             for (; index < lines.size(); ++index)
             {
@@ -423,6 +437,27 @@ namespace ScriptObscript
                     continue;
                 }
 
+                const bool decoration = std::none_of(line.mTokens.begin(), line.mTokens.end(),
+                    [](const Token& token) { return token.mKind != Token::Kind::Punct; });
+                if (decoration)
+                {
+                    if (!decorationReported)
+                    {
+                        decorationReported = true;
+                        reporter.warning(line.mNumber, first.mColumn, "ignored decoration outside the blocks");
+                    }
+                    continue;
+                }
+                if (!structure.mBlocks.empty() && index > lastBegin)
+                {
+                    if (!trailingReported)
+                    {
+                        trailingReported = true;
+                        reporter.warning(line.mNumber, first.mColumn, "ignored text after the last End");
+                    }
+                    continue;
+                }
+
                 reporter.error(line.mNumber, first.mColumn, "unexpected text outside a Begin ... End block");
             }
         }
@@ -446,6 +481,45 @@ namespace ScriptObscript
             static const std::unordered_set<std::string_view> operators
                 = { "(", "+", "-", "*", "/", "==", "!=", "<", "<=", ">", ">=", "&&", "||" };
             return operators.contains(token.mText);
+        }
+
+        // Is the word at position index, which names a record, written as a command? It stands first on its line, or
+        // after if, elseif, while or to; it is not followed by "." or "->" (those make it a reference); and it is
+        // either alone on its line or followed by a word, a number or a string (its arguments).
+        bool isRecordCommand(const std::vector<Token>& tokens, std::size_t index, const std::string& name,
+            const CompileServices& services, const CompiledScript& script)
+        {
+            if (kLanguageWords.contains(name) || script.mLocals.getType(name) != ' ' || services.mFind(name) != nullptr
+                || services.mWorld->globalKind(name) != ValueKind::String)
+            {
+                return false;
+            }
+            openeden::script::FormId form = 0;
+            if (!services.mWorld->resolveForm(name, form))
+            {
+                return false;
+            }
+            const bool next = index + 1 < tokens.size();
+            if (next && tokens[index + 1].mKind == Token::Kind::Punct
+                && (tokens[index + 1].mText == "." || tokens[index + 1].mText == "->"))
+            {
+                return false;
+            }
+            if (index == 0)
+            {
+                return !next || tokens[1].mKind != Token::Kind::Punct;
+            }
+            const Token& previous = tokens[index - 1];
+            if (previous.mKind != Token::Kind::Word)
+            {
+                return false;
+            }
+            const std::string before = lower(previous.mText);
+            if (before != "if" && before != "elseif" && before != "while" && before != "to")
+            {
+                return false;
+            }
+            return next && tokens[index + 1].mKind != Token::Kind::Punct;
         }
 
         // Names that stand where a function call can stand and are not known: the first word of a statement, the word
@@ -502,18 +576,39 @@ namespace ScriptObscript
                         position = isOperatorToken(previous);
                     }
                 }
-                if (!position || isKnown(name))
+                if (!position)
                 {
                     continue;
                 }
                 if (afterDot)
                 {
+                    // After a dot only a language word or a command we already have is settled. A name that is also a
+                    // record or a local is a command unless the owner has a variable of that name.
+                    if (kLanguageWords.contains(name) || services.mFind(name) != nullptr)
+                    {
+                        continue;
+                    }
                     // A variable of a quest or object, not a command.
                     openeden::script::FormId owner = 0;
                     openeden::script::ValueKind kind = ValueKind::Integer;
                     const std::string ownerName = lower(tokens[i - 2].mText);
                     if (services.mWorld->resolveForm(ownerName, owner)
                         && services.mWorld->findVariable(owner, name, kind))
+                    {
+                        continue;
+                    }
+                    // "Set Owner.name to ...": the name stays a name, so that the compiler can report the variable as
+                    // unknown (a warning) instead of the line failing on a command that was never meant.
+                    if (i == 3 && isWord(tokens[0], "set"))
+                    {
+                        continue;
+                    }
+                }
+                else if (isKnown(name))
+                {
+                    // A name that is also a record is a command when it stands where a command stands and is
+                    // followed by arguments; it stays a record when a dot or an arrow follows, or nothing does.
+                    if (!isRecordCommand(tokens, i, name, services, script))
                     {
                         continue;
                     }
@@ -649,6 +744,9 @@ namespace ScriptObscript
             options.mLogicalOperators = true;
             options.mFormValues = true;
             options.mQuietSkippedArguments = true;
+            options.mDigitLeadingMembers = true;
+            options.mDottedSkippedArguments = true;
+            options.mUnknownMembersAreWarnings = true;
             context.setOptions(options);
 
             try
@@ -658,6 +756,7 @@ namespace ScriptObscript
                 std::istringstream input(text);
                 Compiler::Scanner scanner(handler, input, &extensions);
                 scanner.setLogicalOperators(options.mLogicalOperators);
+                scanner.setDigitLeadingMembers(options.mDigitLeadingMembers);
                 scanner.scan(parser);
                 block.mProgram = parser.getProgram();
             }

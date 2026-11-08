@@ -12,7 +12,10 @@ namespace Compiler
         enum State
         {
             StartState,
-            MinusState
+            MinusState,
+            NameState, ///< a name was read and a dot may follow (ParserOptions::mDottedSkippedArguments only)
+            MemberState, ///< a dot was read and a name must follow
+            DoneState
         };
 
         State mState;
@@ -33,9 +36,16 @@ namespace Compiler
         ///< Handle a name token.
         /// \return fetch another token?
 
+        bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override;
+        ///< Handle a keyword token (only with ParserOptions::mDottedSkippedArguments).
+        /// \return fetch another token?
+
         bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override;
         ///< Handle a special character token.
         /// \return fetch another token?
+
+        void parseEOF(Scanner& scanner) override;
+        ///< The end of the input ends an argument that is a name (only with the option).
 
         void reset() override;
         ///< Reset parser to clean state.

@@ -459,7 +459,8 @@ namespace Compiler
             {
                 putback(next);
 
-                if (next.isDigit())
+                // Task 0092: ".2ndStage" after a name is the member "2ndStage", not the number ".2" and a stray word.
+                if (next.isDigit() && !(mDigitLeadingMembers && digitsFollowedByNameCharacter()))
                     return scanFloat("", parser, cont);
             }
 
@@ -576,6 +577,27 @@ namespace Compiler
         cont = parser.parseSpecial(special, loc, *this);
 
         return true;
+    }
+
+    bool Scanner::digitsFollowedByNameCharacter()
+    {
+        const std::streampos original = mStream.tellg();
+        if (original == std::streampos(-1))
+            return false;
+
+        bool result = false;
+        MultiChar c;
+        while (c.getFrom(mStream))
+        {
+            if (c.isDigit())
+                continue;
+            result = c.isAlpha() || c == '_';
+            break;
+        }
+
+        mStream.clear();
+        mStream.seekg(original);
+        return result;
     }
 
     bool Scanner::isStringCharacter(MultiChar& c, bool lookAhead)

@@ -40,6 +40,20 @@ namespace Compiler
         /// each skipped token is a warning, as in Morrowind. The skipped arguments of a command declared without a
         /// shape are not a mistake, so the ObScript runtime asks for this.
         bool mQuietSkippedArguments = false;
+
+        /// A member name after "." may begin with digits ("Quest.2ndStage"): the scanner would otherwise read ".2" as
+        /// a number and fail on the letters. The caller must also call Scanner::setDigitLeadingMembers(true), because
+        /// the scanner does not see the context. Off: as in Morrowind, where this is a syntax error.
+        bool mDigitLeadingMembers = false;
+
+        /// A skipped argument (the 'z' argument kind) may be a dotted name ("Quest.var"), a keyword (the name of
+        /// another command) or a name after the dot that is spelled like a keyword. Off: the dot ends the arguments
+        /// with an error, as in Morrowind.
+        bool mDottedSkippedArguments = false;
+
+        /// "Set Quest.name to value" where the context does not know the variable is a warning and the line is
+        /// skipped. Off: an error, as in Morrowind.
+        bool mUnknownMembersAreWarnings = false;
     };
 
     class Context
