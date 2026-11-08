@@ -10,7 +10,9 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/extension/dependency_resolver.hpp>
+#include <components/extension/game_conventions.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/gameconventions.hpp>
 
 #include "extensionworld.hpp"
 #include "mwbase/environment.hpp"
@@ -433,6 +435,15 @@ namespace OMW
         mRunning = true;
         mLifecycle.initialize();
 
+        // The pack's data conventions go to the generic engine (task 0085, move 1). With no pack, or one that provides
+        // the contract below version 1.1, the engine keeps its defaults, which are Morrowind's.
+        if (const openeden::contracts::GameContract* game
+            = mLifecycle.serviceLocator().find<openeden::contracts::GameContract>())
+        {
+            Misc::setGameConventions(openeden::extension::gameConventionsFrom(*game));
+            Log(Debug::Info) << "Game conventions of '" << game->getGameId() << "' installed";
+        }
+
         for (const std::string& id : mLifecycle.getLoadOrder())
         {
             if (mLifecycle.isExtensionActive(id))
@@ -451,6 +462,7 @@ namespace OMW
 
         Log(Debug::Info) << "Stopping extensions";
         mLifecycle.shutdown();
+        Misc::resetGameConventions();
 
         if (mWorld)
         {

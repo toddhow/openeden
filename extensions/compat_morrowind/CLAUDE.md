@@ -32,6 +32,19 @@ It is enabled by default in the shipped `openmw.cfg` (task 0018), so anything th
   game; the dependency points from the pack to the formats layer only, never back. The core's own default path (`Reader::parse(stream)`)
   keeps the same values as its default, because the core may not depend on an extension; a test pins that the two give the same scene.
 
+## The game's data conventions (task 0085, move 1)
+
+- `MorrowindGameContract` (`openeden.game` 1.1) answers the conventions the generic engine used to name itself: the length unit,
+  the root, head and spine bone names, the actor skeleton model prefixes (`base_anim`, `skin`), the first-person body part suffix
+  (`.1st`) and the first-person base animation file. `OMW::ExtensionHost::start()` copies them into `Misc::GameConventions`
+  (`components/misc/gameconventions.hpp`); generic code reads that snapshot.
+- Those values equal the snapshot's own defaults, which are what a session with no pack uses. `getUnitsPerMeter()` is exactly
+  `Constants::UnitsPerMeter` (it was a different float once); `apps/components_tests/misc/testgameconventions.cpp` pins both.
+  Change a value in both places, or Morrowind plays differently with and without the pack.
+- A new convention is: a method at the END of the contract (additive, with a default that means "unspecified"), a field in
+  `GameConventions` with the Morrowind default, the copy in `components/extension/game_conventions.hpp`, and a test with another
+  game's value at the site. `CI/check_game_conventions.sh` fails if a moved site names one again.
+
 ## Tests
 
 `apps/components_tests/extension/test_compat_morrowind.cpp` builds synthetic Nif records. Never use real game files in tests (guardrail: no game assets).

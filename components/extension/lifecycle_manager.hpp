@@ -111,6 +111,9 @@ namespace openeden::extension
          */
         const std::string& getGamePackId() const { return mGamePackId; }
 
+        /// Where contracts are looked up (read only): the host asks for `openeden.game` after initialize().
+        const openeden::sdk::ServiceLocator& serviceLocator() const { return mRegistry; }
+
         /// The game pack's manifest "extensionVersion" ("major.minor.patch"), recorded in the save header. Empty with
         /// no game pack.
         const std::string& getGamePackVersion() const { return mGamePackVersion; }
