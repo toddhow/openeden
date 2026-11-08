@@ -57,8 +57,8 @@ namespace ScriptObscript
         openeden::script::ScriptKind mKind = openeden::script::ScriptKind::Script;
         std::vector<CompiledBlock> mBlocks;
         Compiler::Locals mLocals; ///< Names and types; ints and refs are longs.
-        std::set<std::string> mRefLocals; ///< Lower-case names of the locals declared as ref.
-        std::set<std::string> mFormLocals; ///< Same as mRefLocals; kept apart for readers of the layout.
+        std::set<std::string, std::less<>> mRefLocals; ///< Lower-case names of the locals declared as ref.
+        std::set<std::string, std::less<>> mFormLocals; ///< Same as mRefLocals; kept apart for readers of the layout.
     };
 
     struct CompileOutput

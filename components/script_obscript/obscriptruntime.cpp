@@ -73,10 +73,27 @@ namespace ScriptObscript
             ObScriptWorld& world() { return mWorld; }
             FormId self() const { return mInstance.mSelf; }
 
-            /// A name written in a script ("ref.Function", a form argument): a local ref variable, else a form.
+            /// A name written in a script ("ref.Function", a form argument): a local ref variable, else a form. Runs
+            /// for every such call, so it lower-cases into a buffer on the stack (compiled names are at most
+            /// Limits::kMaxIdentifierLength characters) and allocates nothing.
             FormId resolveReference(std::string_view name) const
             {
-                const std::string lowered = lowerText(name);
+                char buffer[Limits::kMaxIdentifierLength];
+                std::string_view lowered;
+                std::string heap; // only for a name the compiler would have refused
+                if (name.size() <= sizeof(buffer))
+                {
+                    for (std::size_t i = 0; i < name.size(); ++i)
+                    {
+                        buffer[i] = Misc::StringUtils::toLower(name[i]);
+                    }
+                    lowered = std::string_view(buffer, name.size());
+                }
+                else
+                {
+                    heap = lowerText(name);
+                    lowered = heap;
+                }
                 if (mScript.mRefLocals.contains(lowered))
                 {
                     const int index = mScript.mLocals.searchIndex('l', lowered);
@@ -659,13 +676,19 @@ namespace ScriptObscript
                         const auto it = mByName.find(name);
                         return it == mByName.end() ? nullptr : it->second;
                     };
-                    services.mAddUnknown
-                        = [this](const std::string& name, const std::string& spelling) -> const FunctionEntry* {
-                        if (mUnknownCount >= Limits::kMaxUnknownFunctions || !hasCodes())
+                    // Unknown names a script introduces are only a proposal until the script compiles: they take
+                    // their codes now (the bytecode needs them) but get their opcodes, and keep their place in the
+                    // table, only when the script is stored. A script that fails leaves nothing behind.
+                    UnknownTransaction transaction(*this);
+                    services.mAddUnknown = [this, &transaction](const std::string& name,
+                                               const std::string& spelling) -> const FunctionEntry* {
+                        if (mUnknownCount >= Limits::kMaxUnknownFunctions
+                            || mUnknownCount - transaction.mUnknownBefore >= Limits::kMaxUnknownFunctionsPerScript
+                            || !hasCodes())
                         {
                             return nullptr;
                         }
-                        FunctionEntry& entry = addEntry(name, spelling);
+                        FunctionEntry& entry = addEntry(name, spelling, false);
                         entry.mUnknown = true;
                         entry.mSignature = "/";
                         entry.mCompilerSignature = "/zzzzzzzzzzzz"; // skip up to twelve arguments
@@ -692,6 +715,7 @@ namespace ScriptObscript
                             return result;
                         }
                         mScripts.push_back(std::make_unique<CompiledScript>(std::move(output.mScript)));
+                        transaction.commit();
                         result.script = static_cast<ScriptId>(mScripts.size());
                         mScriptByName[lowerText(source.name)] = result.script;
                         result.ok = true;
@@ -930,6 +954,12 @@ namespace ScriptObscript
                 RestoreResult result;
                 try
                 {
+                    if (mRunDepth > 0)
+                    {
+                        // A running script holds references into mInstances.
+                        result.error = saveError("restore cannot be used from inside a running script function");
+                        return result;
+                    }
                     if (blob.formatVersion != Limits::kSaveFormatVersion)
                     {
                         result.error = saveError(
@@ -943,6 +973,11 @@ namespace ScriptObscript
                     if (!reader.ok())
                     {
                         result.error = saveError("the script save is truncated");
+                        return result;
+                    }
+                    if (nextId == 0)
+                    {
+                        result.error = saveError("the script save has no next instance number");
                         return result;
                     }
                     // Check the count against what is left before reserving or looping on it.
@@ -1054,7 +1089,7 @@ namespace ScriptObscript
             bool hasCodes(int pairs = 2) const { return mNextCode + pairs - 1 <= kLastFunctionCode; }
 
             // Add an entry to the table and install its two opcodes (plain and explicit reference).
-            FunctionEntry& addEntry(const std::string& name, const std::string& spelling)
+            FunctionEntry& addEntry(const std::string& name, const std::string& spelling, bool install = true)
             {
                 mFunctions.emplace_back();
                 FunctionEntry& entry = mFunctions.back();
@@ -1063,10 +1098,71 @@ namespace ScriptObscript
                 entry.mCode = mNextCode;
                 mNextCode += 2;
                 mByName.emplace(name, &entry);
-                mInterpreter.installSegment3<OpFunction>(entry.mCode, entry, false);
-                mInterpreter.installSegment3<OpFunction>(entry.mCode + 1, entry, true);
+                if (install)
+                {
+                    installOpcodes(entry);
+                }
                 return entry;
             }
+
+            void installOpcodes(FunctionEntry& entry)
+            {
+                mInterpreter.installSegment3<OpFunction>(entry.mCode, entry, false);
+                mInterpreter.installSegment3<OpFunction>(entry.mCode + 1, entry, true);
+            }
+
+            // The unknown functions one compile() call adds. Rolled back unless commit() is called.
+            class UnknownTransaction
+            {
+            public:
+                explicit UnknownTransaction(RuntimeImpl& runtime)
+                    : mUnknownBefore(runtime.mUnknownCount)
+                    , mRuntime(runtime)
+                    , mFunctionsBefore(runtime.mFunctions.size())
+                    , mCodeBefore(runtime.mNextCode)
+                {
+                }
+                UnknownTransaction(const UnknownTransaction&) = delete;
+                UnknownTransaction& operator=(const UnknownTransaction&) = delete;
+
+                ~UnknownTransaction()
+                {
+                    if (mCommitted)
+                    {
+                        return;
+                    }
+                    try
+                    {
+                        while (mRuntime.mFunctions.size() > mFunctionsBefore)
+                        {
+                            mRuntime.mByName.erase(mRuntime.mFunctions.back().mName);
+                            mRuntime.mFunctions.pop_back();
+                        }
+                        mRuntime.mNextCode = mCodeBefore;
+                        mRuntime.mUnknownCount = mUnknownBefore;
+                    }
+                    catch (...)
+                    {
+                    }
+                }
+
+                void commit()
+                {
+                    mCommitted = true;
+                    for (std::size_t i = mFunctionsBefore; i < mRuntime.mFunctions.size(); ++i)
+                    {
+                        mRuntime.installOpcodes(mRuntime.mFunctions[i]);
+                    }
+                }
+
+                std::size_t mUnknownBefore;
+
+            private:
+                RuntimeImpl& mRuntime;
+                std::size_t mFunctionsBefore;
+                int mCodeBefore;
+                bool mCommitted = false;
+            };
 
             ObScriptWorld& mWorld;
             UnknownFunctionPolicy mPolicy;

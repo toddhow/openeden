@@ -110,6 +110,7 @@ namespace ScriptObscript
         inline constexpr std::size_t kMaxOpcodes = 16384;
         inline constexpr std::size_t kMaxLineBytes = 1024;
         inline constexpr std::size_t kMaxSignatureBytes = 40;
+        inline constexpr std::size_t kMaxSeedErrors = 100; ///< Errors mergeSeed lists before it stops reading.
     }
 }
 

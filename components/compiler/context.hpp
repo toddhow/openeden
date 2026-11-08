@@ -54,6 +54,11 @@ namespace Compiler
         /// "Set Quest.name to value" where the context does not know the variable is a warning and the line is
         /// skipped. Off: an error, as in Morrowind.
         bool mUnknownMembersAreWarnings = false;
+
+        /// The most typed calls that may stand inside the arguments of typed calls ("Set a to Foo Foo Foo 1" is
+        /// three deep). A call chain parses recursively, so hostile input could otherwise overflow the stack. 0: no
+        /// limit, as in Morrowind.
+        std::size_t mMaxCallDepth = 0;
     };
 
     class Context

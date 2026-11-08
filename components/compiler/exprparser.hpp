@@ -33,6 +33,8 @@ namespace Compiler
         std::size_t mReferenceLocalCodeStart = 0;
         std::size_t mReferenceLocalCodeEnd = 0;
         std::string mReferenceLocalName;
+        // Task 0092 (ParserOptions::mMaxCallDepth): how many calls enclose this parser's arguments.
+        std::size_t mCallDepth = 0;
 
         static int getPriority(char op);
 

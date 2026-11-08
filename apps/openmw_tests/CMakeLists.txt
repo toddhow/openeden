@@ -61,6 +61,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
     script_obscript/testobscriptformallocation.cpp
+    script_obscript/testobscriptlongnamealloc.cpp
 
     # Task 0093: the Papyrus runtime allocates nothing per instruction (the counter lives in this binary).
     script_papyrus/testpapyrusallocation.cpp

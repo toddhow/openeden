@@ -744,6 +744,7 @@ namespace ScriptObscript
             options.mLogicalOperators = true;
             options.mFormValues = true;
             options.mQuietSkippedArguments = true;
+            options.mMaxCallDepth = Limits::kMaxCallDepth;
             options.mDigitLeadingMembers = true;
             options.mDottedSkippedArguments = true;
             options.mUnknownMembersAreWarnings = true;
@@ -1034,7 +1035,8 @@ namespace ScriptObscript
                 {
                     reporter.error(candidate.mLine, candidate.mColumn,
                         std::format(
-                            "too many different unknown functions (the limit is {})", Limits::kMaxUnknownFunctions));
+                            "too many different unknown functions (the limits are {} in one script and {} in all)",
+                            Limits::kMaxUnknownFunctionsPerScript, Limits::kMaxUnknownFunctions));
                     break;
                 }
             }

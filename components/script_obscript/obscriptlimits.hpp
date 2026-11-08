@@ -15,8 +15,10 @@ namespace ScriptObscript::Limits
     inline constexpr std::size_t kMaxIdentifierLength = 128; ///< Characters in a name.
     inline constexpr std::size_t kMaxLocals = 1024; ///< Local variables in one script.
     inline constexpr std::size_t kMaxNesting = 64; ///< Brackets inside brackets in one line.
+    inline constexpr std::size_t kMaxCallDepth = 64; ///< Typed calls inside the arguments of typed calls ("Foo Foo 1").
     inline constexpr std::size_t kMaxBlocks = 256; ///< Begin ... End blocks in one script.
     inline constexpr std::size_t kMaxUnknownFunctions = 4096; ///< Distinct unknown function names in one runtime.
+    inline constexpr std::size_t kMaxUnknownFunctionsPerScript = 512; ///< Distinct unknown names in ONE script.
     inline constexpr std::size_t kMaxFunctions = 4096; ///< Registered functions in one runtime.
     inline constexpr std::size_t kMaxFunctionArguments = 16; ///< Arguments of one function.
     inline constexpr std::size_t kMaxScripts = 1u << 16; ///< Compiled scripts in one runtime.

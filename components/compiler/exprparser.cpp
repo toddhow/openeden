@@ -729,7 +729,15 @@ namespace Compiler
         bool optional = false;
         int optionalCount = 0;
 
+        const std::size_t maxCallDepth = getContext().getOptions().mMaxCallDepth;
+        if (maxCallDepth != 0 && mCallDepth >= maxCallDepth)
+        {
+            reportSeriousError(
+                "call nesting is too deep (the limit is " + std::to_string(maxCallDepth) + ")", mTokenLoc);
+        }
+
         ExprParser parser(getErrorHandler(), getContext(), mLocals, mLiterals, true);
+        parser.mCallDepth = mCallDepth + 1;
         StringParser stringParser(getErrorHandler(), getContext(), mLiterals);
         DiscardParser discardParser(getErrorHandler(), getContext());
         JunkParser junkParser(getErrorHandler(), getContext(), ignoreKeyword);

@@ -459,8 +459,22 @@ namespace ScriptObscript
         std::size_t lineNumber = 0;
         std::size_t start = 0;
         std::set<std::string> seen;
+        if (seedText.size() > TableLimits::kMaxBytes)
+        {
+            errors.push_back(makeError(fileName, 1,
+                std::format(
+                    "the seed is too large ({} bytes; the limit is {})", seedText.size(), TableLimits::kMaxBytes)));
+            return 0;
+        }
+        const std::size_t errorsAtStart = errors.size();
         while (start <= seedText.size())
         {
+            if (errors.size() - errorsAtStart >= TableLimits::kMaxSeedErrors)
+            {
+                errors.push_back(makeError(fileName, lineNumber + 1,
+                    std::format("more than {} errors; the rest of the seed is not read", TableLimits::kMaxSeedErrors)));
+                break;
+            }
             std::size_t end = seedText.find('\n', start);
             if (end == std::string_view::npos)
             {
