@@ -175,6 +175,7 @@ file(GLOB UNITTEST_SRC_FILES
     nif/nifbuilder.hpp
     nif/testmorrowindunchanged.cpp
     nif/testreadoptions.cpp
+    nif/testdefaultoptions.cpp
 
     contentsource/pluginbuilder.hpp
     contentsource/testplugin.cpp
