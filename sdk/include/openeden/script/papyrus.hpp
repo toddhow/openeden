@@ -221,6 +221,16 @@ namespace openeden::script
 
         /// The runtime's own log lines (a deviant file accepted, a native that is declared and not registered).
         virtual void log(Severity severity, std::string_view message) = 0;
+
+        /// Added after 1.0, last on purpose, with a default so that an existing game pack still compiles. restore()
+        /// asks it once for every instance of a blob: false when the game no longer has the form, alias or effect the
+        /// key names. A false answer refuses the whole blob (an instance cannot be left out: other values refer to it
+        /// by number), and the message names the key.
+        virtual bool attachKeyExists(const AttachKey& key) const
+        {
+            (void)key;
+            return true;
+        }
     };
 
     class PapyrusContract
