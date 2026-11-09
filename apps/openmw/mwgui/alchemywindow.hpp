@@ -13,9 +13,9 @@
 #include "itemselection.hpp"
 #include "windowbase.hpp"
 
-namespace MWMechanics
+namespace openeden::sdk::game
 {
-    class Alchemy;
+    class AlchemySession;
 }
 
 namespace MWGui
@@ -99,7 +99,7 @@ namespace MWGui
 
         void update();
 
-        std::unique_ptr<MWMechanics::Alchemy> mAlchemy;
+        std::unique_ptr<openeden::sdk::game::AlchemySession> mAlchemy;
 
         std::vector<ItemWidget*> mApparatus;
         std::vector<ItemWidget*> mIngredients;

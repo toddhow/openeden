@@ -10,10 +10,10 @@
 #include "../mwbase/windowmanager.hpp"
 
 #include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
+#include "../mwworld/craftingrules.hpp"
+#include "../mwworld/itemhandles.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/recharge.hpp"
 
 #include "inventoryitemmodel.hpp"
 #include "itemchargeview.hpp"
@@ -76,10 +76,10 @@ namespace MWGui
     {
         MWWorld::Ptr gem = *mGemIcon->getUserData<MWWorld::Ptr>();
 
-        const ESM::RefId& soul = gem.getCellRef().getSoul();
-        const ESM::Creature* creature = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().find(soul);
+        MWWorld::ItemHandleScope handles;
+        const int soul = MWWorld::requireCraftingRules().gemSoul(handles.make(gem));
 
-        mChargeLabel->setCaptionWithReplacing("#{sCharges} " + MyGUI::utility::toString(creature->mData.mSoul));
+        mChargeLabel->setCaptionWithReplacing("#{sCharges} " + MyGUI::utility::toString(soul));
 
         bool toolBoxVisible = gem.getCellRef().getCount() != 0;
         mGemBox->setVisible(toolBoxVisible);
@@ -136,7 +136,8 @@ namespace MWGui
     void Recharge::onItemClicked(MyGUI::Widget* /*sender*/, const MWWorld::Ptr& item)
     {
         MWWorld::Ptr gem = *mGemIcon->getUserData<MWWorld::Ptr>();
-        if (!MWMechanics::rechargeItem(item, gem))
+        MWWorld::ItemHandleScope handles;
+        if (!MWWorld::requireCraftingRules().rechargeWithGem(handles.make(item), handles.make(gem)))
             return;
 
         updateView();

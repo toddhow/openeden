@@ -5,7 +5,7 @@
 
 #include "windowbase.hpp"
 
-#include "../mwmechanics/repair.hpp"
+#include <openeden/game/crafting.hpp>
 
 namespace MWGui
 {
@@ -40,7 +40,7 @@ namespace MWGui
 
         MyGUI::Button* mCancelButton;
 
-        MWMechanics::Repair mRepair;
+        std::unique_ptr<openeden::sdk::game::RepairSession> mRepair;
 
         void updateRepairView();
 

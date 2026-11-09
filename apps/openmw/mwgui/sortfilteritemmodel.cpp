@@ -24,7 +24,9 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 
-#include "../mwmechanics/alchemy.hpp"
+#include "../mwworld/craftingrules.hpp"
+#include "../mwworld/itemhandles.hpp"
+
 #include "../mwmechanics/spellutil.hpp"
 
 namespace
@@ -254,7 +256,9 @@ namespace MWGui
                 MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
                 const auto alchemySkill = player.getClass().getSkill(player, ESM::Skill::Alchemy);
 
-                const auto effects = MWMechanics::Alchemy::effectsDescription(base, alchemySkill);
+                MWWorld::ItemHandleScope handles;
+                const auto effects
+                    = MWWorld::requireCraftingRules().ingredientEffectNames(handles.make(base), alchemySkill);
 
                 for (const auto& effect : effects)
                 {

@@ -8,7 +8,10 @@
 #include <components/settings/settings.hpp>
 #include <components/version/version.hpp>
 
+#include <game_morrowind/crafting_rules.hpp>
+
 #include "mwrender/lodbakemode.hpp"
+#include "mwworld/craftingrules.hpp"
 #include "options.hpp"
 #include "vsgengine.hpp"
 
@@ -153,6 +156,10 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
 int runApplication(int argc, char* argv[])
 {
     Platform::init();
+
+    // The Morrowind game pack's crafting rules: installed before the engine makes its first window (task 0085 move 2).
+    // openmw-lib reaches them only through the contract; this executable is the one place that names the pack.
+    MWWorld::installCraftingRules(game_morrowind::makeCraftingRules());
 
     Files::ConfigurationManager cfgMgr;
     OMW::Engine engine(cfgMgr);

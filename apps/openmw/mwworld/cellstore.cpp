@@ -77,7 +77,7 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/recharge.hpp"
+#include "craftingrules.hpp"
 #include "../mwmechanics/spellutil.hpp"
 
 #include "class.hpp"
@@ -1286,7 +1286,7 @@ namespace MWWorld
         }
         for (const auto& [item, charge] : mRechargingItems)
         {
-            MWMechanics::rechargeItem(item, charge, duration);
+            MWWorld::rechargeItemOverTime(item, charge, duration);
         }
     }
 

@@ -13,6 +13,8 @@
 #include "../mwmechanics/actorutil.hpp"
 
 #include "../mwworld/class.hpp"
+#include "../mwworld/craftingrules.hpp"
+#include "../mwworld/itemhandles.hpp"
 
 #include "inventoryitemmodel.hpp"
 #include "itemchargeview.hpp"
@@ -25,6 +27,7 @@ namespace MWGui
 
     Repair::Repair()
         : WindowBase("openmw_repair.layout")
+        , mRepair(MWWorld::requireCraftingRules().beginRepair())
     {
         getWidget(mRepairBox, "RepairBox");
         getWidget(mToolBox, "ToolBox");
@@ -67,7 +70,10 @@ namespace MWGui
 
         MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Item Repair Up"));
 
-        mRepair.setTool(item);
+        {
+            MWWorld::ItemHandleScope handles;
+            mRepair->setTool(handles.make(item));
+        }
 
         mToolIcon->setItem(item);
         mToolIcon->setUserString("ToolTipType", "ItemPtr");
@@ -78,13 +84,11 @@ namespace MWGui
 
     void Repair::updateRepairView()
     {
-        MWWorld::LiveCellRef<ESM::Repair>* ref = mRepair.getTool().get<ESM::Repair>();
+        const float quality = mRepair->toolQuality();
 
-        int uses = mRepair.getTool().getClass().getItemHealth(mRepair.getTool());
+        int uses = mRepair->toolUses();
 
-        float quality = ref->mBase->mData.mQuality;
-
-        mToolIcon->setUserData(mRepair.getTool());
+        mToolIcon->setUserData(MWWorld::resolveItem(mRepair->tool()));
 
         std::stringstream qualityStr;
         qualityStr << std::setprecision(3) << quality;
@@ -92,7 +96,7 @@ namespace MWGui
         mUsesLabel->setCaptionWithReplacing("#{sUses} " + MyGUI::utility::toString(uses));
         mQualityLabel->setCaptionWithReplacing("#{sQuality} " + qualityStr.str());
 
-        bool toolBoxVisible = (mRepair.getTool().getCellRef().getCount() != 0);
+        bool toolBoxVisible = (mRepair->toolCount() != 0);
         mToolBox->setVisible(toolBoxVisible);
         mToolBox->setUserString("Hidden", toolBoxVisible ? "false" : "true");
 
@@ -130,7 +134,10 @@ namespace MWGui
         mToolIcon->setUserString("ToolTipType", "ItemPtr");
         mToolIcon->setUserData(item);
 
-        mRepair.setTool(item);
+        {
+            MWWorld::ItemHandleScope handles;
+            mRepair->setTool(handles.make(item));
+        }
 
         MWBase::Environment::get().getWindowManager()->playSound(item.getClass().getDownSoundId(item));
         updateRepairView();
@@ -148,10 +155,11 @@ namespace MWGui
 
     void Repair::onRepairItem(MyGUI::Widget* /*sender*/, const MWWorld::Ptr& ptr)
     {
-        if (!mRepair.getTool().getCellRef().getCount())
+        if (!mRepair->toolCount())
             return;
 
-        mRepair.repair(ptr);
+        MWWorld::ItemHandleScope handles;
+        mRepair->repair(handles.make(ptr));
 
         updateRepairView();
     }

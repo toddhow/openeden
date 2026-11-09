@@ -18,11 +18,11 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/alchemy.hpp"
-#include "../mwmechanics/magiceffects.hpp"
 
 #include "../mwworld/class.hpp"
+#include "../mwworld/craftingrules.hpp"
 #include "../mwworld/esmstore.hpp"
+#include "../mwworld/itemhandles.hpp"
 
 #include <MyGUI_Macros.h>
 
@@ -39,7 +39,7 @@ namespace MWGui
         , mCurrentFilter(FilterType::ByName)
         , mModel(nullptr)
         , mSortModel(nullptr)
-        , mAlchemy(std::make_unique<MWMechanics::Alchemy>())
+        , mAlchemy(MWWorld::requireCraftingRules().beginAlchemy())
         , mApparatus(4)
         , mIngredients(4)
     {
@@ -121,7 +121,7 @@ namespace MWGui
 
     void AlchemyWindow::onCreateButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        mAlchemy->setPotionName(mNameEdit->getCaption());
+        mAlchemy->setPotionName(mNameEdit->getCaption().asUTF8());
         int count = mAlchemy->countPotionsToBrew();
         count = std::min(count, mBrewCountEdit->getValue());
         createPotions(count);
@@ -129,21 +129,22 @@ namespace MWGui
 
     void AlchemyWindow::createPotions(int count)
     {
-        MWMechanics::Alchemy::Result result = mAlchemy->create(mNameEdit->getCaption(), count);
+        using openeden::sdk::game::AlchemyResult;
+        AlchemyResult result = mAlchemy->create(mNameEdit->getCaption().asUTF8(), count);
         MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
 
         switch (result)
         {
-            case MWMechanics::Alchemy::Result_NoName:
+            case AlchemyResult::NoName:
                 winMgr->messageBox("#{sNotifyMessage37}");
                 break;
-            case MWMechanics::Alchemy::Result_NoMortarAndPestle:
+            case AlchemyResult::NoMortarAndPestle:
                 winMgr->messageBox("#{sNotifyMessage45}");
                 break;
-            case MWMechanics::Alchemy::Result_LessThanTwoIngredients:
+            case AlchemyResult::LessThanTwoIngredients:
                 winMgr->messageBox("#{sNotifyMessage6a}");
                 break;
-            case MWMechanics::Alchemy::Result_Success:
+            case AlchemyResult::Success:
                 winMgr->playSound(ESM::RefId::stringRefId("potion success"));
                 if (count == 1)
                     winMgr->messageBox("#{sPotionSuccess}");
@@ -151,8 +152,8 @@ namespace MWGui
                     winMgr->messageBox(
                         "#{sPotionSuccess} " + mNameEdit->getCaption().asUTF8() + " (" + std::to_string(count) + ")");
                 break;
-            case MWMechanics::Alchemy::Result_NoEffects:
-            case MWMechanics::Alchemy::Result_RandomFailure:
+            case AlchemyResult::NoEffects:
+            case AlchemyResult::RandomFailure:
                 winMgr->messageBox("#{sNotifyMessage8}");
                 winMgr->playSound(ESM::RefId::stringRefId("potion fail"));
                 break;
@@ -216,6 +217,7 @@ namespace MWGui
     void AlchemyWindow::updateFilters()
     {
         std::set<std::string> itemNames, itemEffects;
+        MWWorld::ItemHandleScope handles;
         for (size_t i = 0; i < mModel->getItemCount(); ++i)
         {
             MWWorld::Ptr item = mModel->getItem(static_cast<ItemModel::ModelIndex>(i)).mBase;
@@ -227,7 +229,8 @@ namespace MWGui
             MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
             auto const alchemySkill = player.getClass().getSkill(player, ESM::Skill::Alchemy);
 
-            auto const effects = MWMechanics::Alchemy::effectsDescription(item, alchemySkill);
+            auto const effects
+                = MWWorld::requireCraftingRules().ingredientEffectNames(handles.make(item), alchemySkill);
             itemEffects.insert(effects.begin(), effects.end());
         }
 
@@ -277,7 +280,10 @@ namespace MWGui
     void AlchemyWindow::onOpen()
     {
         mAlchemy->clear();
-        mAlchemy->setAlchemist(MWMechanics::getPlayer());
+        {
+            MWWorld::ItemHandleScope handles;
+            mAlchemy->setAlchemist(handles.make(MWMechanics::getPlayer()));
+        }
 
         auto model = std::make_unique<InventoryItemModel>(MWMechanics::getPlayer());
         mModel = model.get();
@@ -290,17 +296,16 @@ namespace MWGui
         mNameEdit->setCaption({});
         mBrewCountEdit->setValue(1);
 
-        size_t index = 0;
-        for (auto iter = mAlchemy->beginTools(); iter != mAlchemy->endTools() && index < mApparatus.size();
-             ++iter, ++index)
+        for (size_t index = 0; index < mApparatus.size(); ++index)
         {
+            const MWWorld::Ptr tool = MWWorld::resolveItem(mAlchemy->apparatusSlot(index));
             const auto& widget = mApparatus[index];
-            widget->setItem(*iter);
+            widget->setItem(tool);
             widget->clearUserStrings();
-            if (!iter->isEmpty())
+            if (!tool.isEmpty())
             {
                 widget->setUserString("ToolTipType", "ItemPtr");
-                widget->setUserData(MWWorld::Ptr(*iter));
+                widget->setUserData(MWWorld::Ptr(tool));
             }
         }
 
@@ -324,7 +329,10 @@ namespace MWGui
     {
         mItemSelectionDialog->setVisible(false);
 
-        int32_t index = item.get<ESM::Apparatus>()->mBase->mData.mType;
+        MWWorld::ItemHandleScope handles;
+        const int32_t index = MWWorld::requireCraftingRules().apparatusSlotOf(handles.make(item));
+        if (index < 0 || static_cast<size_t>(index) >= mApparatus.size())
+            throw std::runtime_error("Invalid argument in AlchemyWindow::onItemSelected: not an alchemy apparatus");
         const auto& widget = mApparatus[index];
 
         widget->setItem(item);
@@ -335,7 +343,7 @@ namespace MWGui
             return;
         }
 
-        mAlchemy->addApparatus(item);
+        mAlchemy->addApparatus(handles.make(item));
 
         widget->setUserString("ToolTipType", "ItemPtr");
         widget->setUserData(MWWorld::Ptr(item));
@@ -355,18 +363,18 @@ namespace MWGui
         if (sender->getUserData<MWWorld::Ptr>()->isEmpty()) // if this apparatus slot is empty
         {
             std::string title;
-            switch (i)
+            switch (static_cast<openeden::sdk::game::ApparatusSlot>(i))
             {
-                case ESM::Apparatus::AppaType::MortarPestle:
+                case openeden::sdk::game::ApparatusSlot::MortarPestle:
                     title = "#{sMortar}";
                     break;
-                case ESM::Apparatus::AppaType::Alembic:
+                case openeden::sdk::game::ApparatusSlot::Alembic:
                     title = "#{sAlembic}";
                     break;
-                case ESM::Apparatus::AppaType::Calcinator:
+                case openeden::sdk::game::ApparatusSlot::Calcinator:
                     title = "#{sCalcinator}";
                     break;
-                case ESM::Apparatus::AppaType::Retort:
+                case openeden::sdk::game::ApparatusSlot::Retort:
                     title = "#{sRetort}";
                     break;
                 default:
@@ -400,7 +408,8 @@ namespace MWGui
     void AlchemyWindow::onSelectedItem(int index)
     {
         MWWorld::Ptr item = mSortModel->getItem(index).mBase;
-        int res = mAlchemy->addIngredient(item);
+        MWWorld::ItemHandleScope handles;
+        int res = mAlchemy->addIngredient(handles.make(item));
 
         if (res != -1)
         {
@@ -422,17 +431,11 @@ namespace MWGui
 
         mSortModel->clearDragItems();
 
-        MWMechanics::Alchemy::TIngredientsIterator it = mAlchemy->beginIngredients();
         for (int i = 0; i < 4; ++i)
         {
             ItemWidget* ingredient = mIngredients[i];
 
-            MWWorld::Ptr item;
-            if (it != mAlchemy->endIngredients())
-            {
-                item = *it;
-                ++it;
-            }
+            const MWWorld::Ptr item = MWWorld::resolveItem(mAlchemy->ingredientSlot(i));
 
             if (!item.isEmpty())
                 mSortModel->addDragItem(item, item.getCellRef().getCount());
@@ -455,27 +458,21 @@ namespace MWGui
 
         mItemView->update();
 
-        std::vector<MWMechanics::EffectKey> effectIds = mAlchemy->listEffects();
         Widgets::SpellEffectList list;
-        unsigned int effectIndex = 0;
-        for (const MWMechanics::EffectKey& effectKey : effectIds)
+        for (const openeden::sdk::game::AlchemyEffectLine& line : mAlchemy->effects())
         {
             Widgets::SpellEffectParams params;
-            params.mEffectID = effectKey.mId;
-            const ESM::MagicEffect* magicEffect
-                = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(effectKey.mId);
-            if (magicEffect->mData.mFlags & ESM::MagicEffect::TargetSkill)
-                params.mSkill = effectKey.mArg;
-            else if (magicEffect->mData.mFlags & ESM::MagicEffect::TargetAttribute)
-                params.mAttribute = effectKey.mArg;
+            params.mEffectID = ESM::RefId::deserializeText(line.effectId);
+            // an empty id is the empty RefId, which is what SpellEffectParams holds when an effect targets neither
+            params.mSkill = ESM::RefId::deserializeText(line.skill);
+            params.mAttribute = ESM::RefId::deserializeText(line.attribute);
             params.mIsConstant = true;
             params.mNoTarget = true;
             params.mNoMagnitude = true;
 
-            params.mKnown = mAlchemy->knownEffect(effectIndex, MWBase::Environment::get().getWorld()->getPlayerPtr());
+            params.mKnown = line.known;
 
             list.push_back(params);
-            ++effectIndex;
         }
 
         while (mEffectsBox->getChildCount())

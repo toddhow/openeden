@@ -5,7 +5,9 @@
 
 #include "spellcreationdialog.hpp"
 
-#include "../mwmechanics/enchanting.hpp"
+#include <openeden/game/crafting.hpp>
+
+#include <components/esm3/effectlist.hpp>
 
 namespace MWGui
 {
@@ -71,7 +73,7 @@ namespace MWGui
         MyGUI::TextBox* mPrice;
         MyGUI::TextBox* mPriceText;
 
-        MWMechanics::Enchanting mEnchanting;
+        std::unique_ptr<openeden::sdk::game::EnchantingSession> mEnchanting;
         ESM::EffectList mEffectList;
 
         bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;

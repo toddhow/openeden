@@ -16,7 +16,7 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/levelledlist.hpp"
-#include "../mwmechanics/recharge.hpp"
+#include "craftingrules.hpp"
 #include "../mwmechanics/spellutil.hpp"
 
 #include "class.hpp"
@@ -603,7 +603,7 @@ void MWWorld::ContainerStore::rechargeItems(float duration)
     }
     for (auto& it : mRechargingItems)
     {
-        if (!MWMechanics::rechargeItem(*it.first, it.second, duration))
+        if (!MWWorld::rechargeItemOverTime(*it.first, it.second, duration))
             continue;
 
         // attempt to restack when fully recharged
