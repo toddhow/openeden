@@ -555,7 +555,9 @@ namespace ScriptObscript
                 bool afterDot = false;
                 if (i == 0)
                 {
-                    position = !(tokens.size() > 1 && tokens[1].mKind == Token::Kind::Punct && tokens[1].mText == ".");
+                    // A name before a dot is a command whose result is the reference of what follows ("GetFoo.Bar")
+                    // when nothing known has that name (task 0092, gap D); a form or variable is filtered below.
+                    position = true;
                 }
                 else
                 {
@@ -748,6 +750,7 @@ namespace ScriptObscript
             options.mDigitLeadingMembers = true;
             options.mDottedSkippedArguments = true;
             options.mUnknownMembersAreWarnings = true;
+            options.mCallResultReferences = true;
             context.setOptions(options);
 
             try
@@ -773,6 +776,17 @@ namespace ScriptObscript
             if (!handler.isGood())
             {
                 failed = true;
+            }
+            // A command's result used as a reference lives in a hidden local, "$ref<depth>" (the compiler declares
+            // it): the runtime must read it as a reference like any "ref" variable.
+            const Compiler::Locals& declared = script.mLocals;
+            for (const std::string& name : declared.get('l'))
+            {
+                if (name.starts_with("$ref"))
+                {
+                    script.mRefLocals.insert(name);
+                    script.mFormLocals.insert(name);
+                }
             }
         }
     }

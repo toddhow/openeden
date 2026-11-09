@@ -141,6 +141,7 @@ file(GLOB UNITTEST_SRC_FILES
     compiler/testformvalues.cpp
     compiler/testskippedarguments.cpp
     compiler/testdottednames.cpp
+    compiler/testcallresultreference.cpp
     interpreter/testrunlimits.cpp
 
     # Task 0092: the ObScript runtime of the common compatibility pack (generated scripts, an invented world).
@@ -158,6 +159,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscripttablecheck.cpp
     script_obscript/testobscriptrealdata.cpp
     script_obscript/testobscriptreview.cpp
+    script_obscript/testobscriptcallref.cpp
 
     # Task 0093: the Papyrus runtime of the common compatibility pack (generated .pex files from the test assembler).
     papyrus/testpapyruscontract.cpp

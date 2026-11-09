@@ -262,6 +262,86 @@ namespace Compiler
         return false;
     }
 
+    namespace
+    {
+        /// Reads one token to see whether "." or "->" comes next. Any other token is put back untouched.
+        class MemberProbe final : public Parser
+        {
+        public:
+            MemberProbe(ErrorHandler& errorHandler, const Context& context)
+                : Parser(errorHandler, context)
+            {
+            }
+
+            bool found() const { return mFound; }
+            bool arrow() const { return mArrow; }
+
+            bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override
+            {
+                scanner.putbackInt(value, loc);
+                return false;
+            }
+
+            bool parseFloat(float value, const TokenLoc& loc, Scanner& scanner) override
+            {
+                scanner.putbackFloat(value, loc);
+                return false;
+            }
+
+            bool parseName(const std::string& name, const TokenLoc& loc, Scanner& scanner) override
+            {
+                scanner.putbackName(name, loc);
+                return false;
+            }
+
+            bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override
+            {
+                scanner.putbackKeyword(keyword, loc);
+                return false;
+            }
+
+            bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override
+            {
+                if (code == Scanner::S_member || code == Scanner::S_ref)
+                {
+                    mFound = true;
+                    mArrow = code == Scanner::S_ref;
+                }
+                else
+                {
+                    scanner.putbackSpecial(code, loc);
+                }
+                return false;
+            }
+
+            void parseEOF(Scanner&) override {} // the owner meets the end of the file again
+
+        private:
+            bool mFound = false;
+            bool mArrow = false;
+        };
+    }
+
+    bool ExprParser::takeCallResultReference(Scanner& scanner, char returnType,
+        const std::vector<Interpreter::Type_Code>& callCode, std::vector<Interpreter::Type_Code>& out,
+        std::string& name, bool& arrow)
+    {
+        if (!getContext().getOptions().mCallResultReferences || returnType != 'l')
+            return false;
+
+        MemberProbe probe(getErrorHandler(), getContext());
+        scanner.scan(probe);
+        if (!probe.found())
+            return false;
+
+        name = "$ref" + std::to_string(mCallDepth);
+        if (mLocals.getType(name) == ' ')
+            mLocals.declare('l', name);
+        Generator::assignToLocal(out, 'l', mLocals.getIndex(name), callCode, 'l');
+        arrow = probe.arrow();
+        return true;
+    }
+
     ExprParser::ExprParser(
         ErrorHandler& errorHandler, const Context& context, Locals& locals, Literals& literals, bool argument)
         : Parser(errorHandler, context)
@@ -507,6 +587,32 @@ namespace Compiler
                 if (extensions->isFunction(keyword, returnType, argumentType, hasExplicit))
                 {
                     mTokenLoc = loc;
+
+                    if (getContext().getOptions().mCallResultReferences)
+                    {
+                        // The call's code is kept apart: a "." or "->" right after it makes the result the
+                        // reference of the next call (task 0092).
+                        std::vector<Interpreter::Type_Code> callCode;
+                        int optionals = parseArguments(argumentType, scanner, callCode);
+                        extensions->generateFunctionCode(keyword, callCode, mLiterals, "", optionals);
+
+                        std::string name;
+                        bool arrow = false;
+                        if (takeCallResultReference(scanner, returnType, callCode, mCode, name, arrow))
+                        {
+                            mExplicit = std::move(name);
+                            mRefOp = arrow;
+                            mMemberOp = !arrow;
+                            mNextOperand = true;
+                            return true;
+                        }
+
+                        mCode.insert(mCode.end(), callCode.begin(), callCode.end());
+                        mOperands.push_back(returnType);
+                        mNextOperand = false;
+                        return true;
+                    }
+
                     int optionals = parseArguments(argumentType, scanner);
 
                     extensions->generateFunctionCode(keyword, mCode, mLiterals, "", optionals);

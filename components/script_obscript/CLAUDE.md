@@ -48,9 +48,16 @@ the save chunk (it stores what `serialise` returns).
   The line pass treats a record-named word at the start of a statement (or after if, elseif, while, to) as a command when
   arguments follow, never registers a name after `Set Owner.` as a command, and lets a name after a dot be a command
   unless the owner has a variable of that name. Punctuation-only lines outside the blocks and any text after the last
-  End are warnings (errors in strict mode); words before or between blocks stay an error. **Not supported:** a command's
-  result used as the reference of another (`GetFoo.Bar`), `%`, a skipped argument followed by a minus sign in an
-  expression (read as a negative argument).
+  End are warnings (errors in strict mode); words before or between blocks stay an error. **Not supported:** `%`, a
+  skipped argument followed by a minus sign in an expression (read as a negative argument).
+- **A command's result as a reference (gap D, `GetFoo.Bar 1`):** `ParserOptions::mCallResultReferences` (on in
+  `compileText`). A typed call of type `l` right before `.` or `->` stores its result in a hidden local `$ref<depth>`
+  (depth = nesting of the `ExprParser` that read the call; one slot per depth is enough because the reference is read
+  when the member runs and anything in between is deeper) and the member is compiled as `local.Member`. The compiler
+  declares the local (`ExprParser::takeCallResultReference`, which probes one token); after each compile
+  `compileText` marks every local that begins with `$ref` as a reference local, so the runtime resolves it like
+  `ref x`. A name before a dot at the start of a statement that nothing known owns is a command candidate
+  (`findCandidates`); the skip parser (`DiscardParser`) stops at a dot that comes before any argument.
 - **Game pack glue (item 4):** `gamepackglue.*`. `ObScriptSaveChunk` is the pack's save chunk handler `script.obscript`
   (its bytes are the runtime's save blob and the chunk version is `Limits::kSaveFormatVersion`; a chunk over
   `Limits::kMaxSaveBlobBytes` is refused unread); `attachToGamePack` declares the language `obscript` through

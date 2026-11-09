@@ -55,6 +55,13 @@ namespace Compiler
         /// skipped. Off: an error, as in Morrowind.
         bool mUnknownMembersAreWarnings = false;
 
+        /// A typed call that is written right before "." or "->" gives its value as the reference of what follows:
+        /// "GetFoo.Bar 1" calls GetFoo, keeps the result in a hidden local variable named "$ref<depth>" (the depth is
+        /// the nesting of the parser that read the call) and calls Bar on it, as "ref.Bar" would. A skipped argument
+        /// never starts with a dot, so the skip parser also stops at one. The caller must mark the hidden locals as
+        /// reference locals. Off: the dot after a call is an error, as in Morrowind.
+        bool mCallResultReferences = false;
+
         /// The most typed calls that may stand inside the arguments of typed calls ("Set a to Foo Foo Foo 1" is
         /// three deep). A call chain parses recursively, so hostile input could otherwise overflow the stack. 0: no
         /// limit, as in Morrowind.

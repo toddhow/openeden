@@ -106,6 +106,15 @@ namespace Compiler
         ///< Generate code for parsed expression.
         /// \return Type ('l': integer, 'f': float)
 
+        /// Task 0092 (ParserOptions::mCallResultReferences): callCode is a finished call of type returnType and
+        /// the caller asks whether "." or "->" comes next. If the option is on, the type is 'l' and one of them is
+        /// the next token, the token is read, the result is stored in the hidden local "$ref<depth>" (the code goes
+        /// to out, with callCode inside it) and the name is returned in name. Otherwise nothing is read
+        /// and false is returned.
+        bool takeCallResultReference(Scanner& scanner, char returnType,
+            const std::vector<Interpreter::Type_Code>& callCode, std::vector<Interpreter::Type_Code>& out,
+            std::string& name, bool& arrow);
+
         int parseArguments(const std::string& arguments, Scanner& scanner, std::vector<Interpreter::Type_Code>& code,
             int ignoreKeyword = -1, bool expectNames = false);
         ///< Parse sequence of arguments specified by \a arguments.

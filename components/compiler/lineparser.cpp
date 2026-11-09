@@ -318,8 +318,25 @@ namespace Compiler
                     {
                         std::vector<Interpreter::Type_Code> code;
                         int optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
-                        mCode.insert(mCode.end(), code.begin(), code.end());
-                        extensions->generateFunctionCode(keyword, mCode, mLiterals, mExplicit, optionals);
+                        if (getContext().getOptions().mCallResultReferences && mExplicit.empty())
+                        {
+                            // "Call.Member ...": the result is the reference of the member (task 0092).
+                            extensions->generateFunctionCode(keyword, code, mLiterals, mExplicit, optionals);
+                            std::string name;
+                            bool arrow = false;
+                            if (mExprParser.takeCallResultReference(scanner, returnType, code, mCode, name, arrow))
+                            {
+                                mExplicit = std::move(name);
+                                mState = ExplicitState;
+                                return true;
+                            }
+                            mCode.insert(mCode.end(), code.begin(), code.end());
+                        }
+                        else
+                        {
+                            mCode.insert(mCode.end(), code.begin(), code.end());
+                            extensions->generateFunctionCode(keyword, mCode, mLiterals, mExplicit, optionals);
+                        }
 
                         SkipParser skip(getErrorHandler(), getContext(), true);
                         scanner.scan(skip);
