@@ -98,6 +98,9 @@ namespace MWWorld
         {
             index = static_cast<std::uint32_t>(t.mSlots.size());
             t.mSlots.emplace_back();
+            // Room for every slot to be free at once: free() runs in ~ItemHandleScope, which cannot throw.
+            if (t.mFree.capacity() < t.mSlots.size())
+                t.mFree.reserve(t.mSlots.capacity());
         }
         Slot& slot = t.mSlots[index];
         slot.mPtr = ptr;
@@ -130,5 +133,11 @@ namespace MWWorld
     std::size_t itemHandleSlotCount()
     {
         return table().mSlots.size();
+    }
+
+    bool itemHandleFreeListReserved()
+    {
+        const Table& t = table();
+        return t.mFree.capacity() >= t.mSlots.size();
     }
 }

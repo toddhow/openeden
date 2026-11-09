@@ -47,6 +47,8 @@ namespace MWWorld
     /// Handles alive now, and the table's slots (for tests: the table must not grow without bound).
     [[nodiscard]] std::size_t liveItemHandleCount();
     [[nodiscard]] std::size_t itemHandleSlotCount();
+    /// True if the free list has room for every slot, so that ending a scope never allocates.
+    [[nodiscard]] bool itemHandleFreeListReserved();
 }
 
 #endif

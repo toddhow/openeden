@@ -160,6 +160,44 @@ namespace MWWorld
             EXPECT_EQ(resolveItem(h2), item.ptr());
         }
 
+        // Review 2c, L1/L2: the slot of a freed handle is reused with a new generation; the old handle stays dead
+        // through many reuses, and freeing never throws (the free list is reserved when a slot is made).
+        TEST(MWWorldItemHandles, one_slot_reused_many_times_never_revives_any_earlier_handle)
+        {
+            Item a(1), b(2);
+            std::vector<ItemHandle> dead;
+            for (int round = 0; round < 50; ++round)
+            {
+                ItemHandleScope scope;
+                const ItemHandle handle = scope.make((round % 2 == 0 ? a : b).ptr());
+                for (const ItemHandle old : dead)
+                {
+                    EXPECT_NE(old, handle);
+                    EXPECT_TRUE(resolveItem(old).isEmpty());
+                }
+                EXPECT_EQ(resolveItem(handle), (round % 2 == 0 ? a : b).ptr());
+                dead.push_back(handle);
+            }
+            EXPECT_EQ(liveItemHandleCount(), 0u);
+        }
+
+        TEST(MWWorldItemHandles, the_free_list_has_room_for_every_slot_so_ending_a_scope_cannot_allocate)
+        {
+            std::vector<Item> items;
+            items.reserve(40);
+            for (std::uint32_t i = 0; i < 40; ++i)
+                items.emplace_back(i + 1);
+            {
+                ItemHandleScope scope;
+                for (Item& item : items)
+                    (void)scope.make(item.ptr());
+                EXPECT_GE(liveItemHandleCount(), 40u);
+            }
+            EXPECT_EQ(liveItemHandleCount(), 0u);
+            EXPECT_TRUE(itemHandleFreeListReserved())
+                << "~ItemHandleScope is noexcept: its push_back must not allocate";
+        }
+
         TEST(MWWorldItemHandles, the_table_does_not_grow_without_bound)
         {
             std::vector<Item> items;
