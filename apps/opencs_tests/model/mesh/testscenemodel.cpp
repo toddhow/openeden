@@ -7,6 +7,7 @@
 #include <apps/components_tests/nifscene/ssebuilder.hpp>
 
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -385,5 +386,214 @@ namespace
         EXPECT_EQ(model.shapes[0].mesh.positions[0], (std::array<float, 3>{ 1.f, 12.f, 3.f }));
         EXPECT_EQ(model.shapes[0].mesh.positions[1], (std::array<float, 3>{ 3.f, 12.f, 3.f }));
         EXPECT_EQ(model.nodes[model.shapes[0].node].triangleCount, 1u);
+    }
+
+    // ---- hostile input (review of 2026-11-08, round 5) ----
+    // A NIF from outside is untrusted: nothing a file says may put a NaN, an infinity or an enormous number into the
+    // model the viewer frames and draws, or an index outside an array. Rule: a shape with a bad vertex or index is left
+    // out with a warning; a node with an unusable transform is placed as if it had none, with a warning.
+
+    namespace
+    {
+        constexpr float sInf = std::numeric_limits<float>::infinity();
+        constexpr float sNan = std::numeric_limits<float>::quiet_NaN();
+        constexpr double sLimit = 1.0e7; // the model coordinate limit
+
+        bool allFinite(const SceneModel& model)
+        {
+            auto ok = [](float v) { return std::isfinite(v) && std::fabs(v) <= sLimit; };
+            for (const SceneModelShape& shape : model.shapes)
+            {
+                for (const auto& p : shape.mesh.positions)
+                    if (!ok(p[0]) || !ok(p[1]) || !ok(p[2]))
+                        return false;
+                for (const auto& n : shape.mesh.normals)
+                    if (!std::isfinite(n[0]) || !std::isfinite(n[1]) || !std::isfinite(n[2]))
+                        return false;
+            }
+            for (const SceneModelNode& node : model.nodes)
+                for (double v : node.world)
+                    if (!std::isfinite(v) || std::fabs(v) > sLimit)
+                        return false;
+            for (const auto& p : model.bonePoints)
+                if (!ok(p[0]) || !ok(p[1]) || !ok(p[2]))
+                    return false;
+            for (const auto& line : model.hierarchyLines)
+                for (const auto& p : line)
+                    if (!ok(p[0]) || !ok(p[1]) || !ok(p[2]))
+                        return false;
+            if (model.bounds.valid)
+                for (int i = 0; i < 3; ++i)
+                    if (!std::isfinite(model.bounds.min[i]) || !std::isfinite(model.bounds.max[i])
+                        || std::fabs(model.bounds.min[i]) > sLimit || std::fabs(model.bounds.max[i]) > sLimit)
+                        return false;
+            return true;
+        }
+    }
+
+    TEST(MeshSceneModelHostile, a_nan_or_infinite_vertex_leaves_the_shape_out_with_a_warning)
+    {
+        for (const float bad : { sNan, sInf, -sInf, 1.0e30f })
+        {
+            NifScene::Scene scene = quadScene();
+            scene.mGeometries[0].mPositions[2][1] = bad;
+            const SceneModel model = buildSceneModel(scene);
+            EXPECT_TRUE(model.shapes.empty()) << bad;
+            EXPECT_FALSE(model.warnings.empty()) << bad;
+            EXPECT_TRUE(allFinite(model)) << bad;
+            EXPECT_EQ(model.nodes.size(), 2u);
+        }
+    }
+
+    TEST(MeshSceneModelHostile, a_non_finite_normal_does_not_reach_the_model)
+    {
+        NifScene::Scene scene = quadScene();
+        scene.mGeometries[0].mNormals[1] = { sNan, sInf, 0.f };
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_TRUE(allFinite(model));
+    }
+
+    TEST(MeshSceneModelHostile, a_node_with_a_non_finite_transform_is_placed_as_if_it_had_none)
+    {
+        for (int what = 0; what < 4; ++what)
+        {
+            NifScene::Scene scene = quadScene();
+            NifScene::Transform& t = scene.mNodes[1].mTransform;
+            if (what == 0)
+                t.mTranslation[0] = sInf;
+            else if (what == 1)
+                t.mScale = sNan;
+            else if (what == 2)
+                t.mRotation[4] = sNan;
+            else
+                t.mScale = 1.0e30f;
+            const SceneModel model = buildSceneModel(scene);
+            EXPECT_TRUE(allFinite(model)) << what;
+            EXPECT_FALSE(model.warnings.empty()) << what;
+            ASSERT_EQ(model.shapes.size(), 1u) << what;
+            // As if the quad node had the identity: the root (10,0,0) with scale 2 only.
+            EXPECT_EQ(model.shapes[0].mesh.positions[1], (std::array<float, 3>{ 12.f, 0.f, 0.f })) << what;
+        }
+    }
+
+    TEST(MeshSceneModelHostile, a_chain_whose_scales_multiply_past_the_limit_stays_inside_it)
+    {
+        NifScene::Scene scene;
+        for (std::uint32_t i = 0; i < 40; ++i)
+            scene.mNodes.push_back(makeNode("N" + std::to_string(i), i == 0 ? NifScene::sNone : i - 1,
+                { 1.0e6f, 0.f, 0.f }, 1.0e5f, i == 39 ? 0u : NifScene::sNone));
+        scene.mGeometries.push_back(makeQuad("Q", 39));
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_TRUE(allFinite(model));
+        EXPECT_FALSE(model.warnings.empty());
+    }
+
+    TEST(MeshSceneModelHostile, a_node_that_is_its_own_parent_is_a_root)
+    {
+        NifScene::Scene scene;
+        scene.mNodes.push_back(makeNode("Self", 0));
+        const SceneModel model = buildSceneModel(scene);
+        ASSERT_EQ(model.nodes.size(), 1u);
+        EXPECT_EQ(model.nodes[0].parent, -1);
+    }
+
+    TEST(MeshSceneModelHostile, a_longer_parent_cycle_with_a_leaf_shows_every_node_once)
+    {
+        NifScene::Scene scene;
+        scene.mNodes.push_back(makeNode("A", 2));
+        scene.mNodes.push_back(makeNode("B", 0, { 1.f, 0.f, 0.f }));
+        scene.mNodes.push_back(makeNode("C", 1, { 1.f, 0.f, 0.f }));
+        scene.mNodes.push_back(makeNode("Leaf", 2, { 0.f, 1.f, 0.f }));
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_EQ(model.nodes.size(), 4u);
+        EXPECT_FALSE(model.warnings.empty());
+        EXPECT_TRUE(allFinite(model));
+    }
+
+    TEST(MeshSceneModelHostile, indices_outside_their_arrays_are_ignored)
+    {
+        NifScene::Scene scene = quadScene();
+        scene.mNodes[1].mParent = 999; // a root
+        scene.mNodes[0].mGeometry = 77; // a plain node
+        scene.mGeometries[0].mSkin = 5;
+        scene.mGeometries[0].mMaterial = 5;
+        const SceneModel model = buildSceneModel(scene);
+        ASSERT_EQ(model.nodes.size(), 2u);
+        EXPECT_EQ(model.nodes[0].type, "Transform");
+        EXPECT_TRUE(allFinite(model));
+        ASSERT_EQ(model.shapes.size(), 1u);
+        EXPECT_FALSE(model.shapes[0].skinned);
+    }
+
+    TEST(MeshSceneModelHostile, a_texture_set_index_outside_its_array_is_ignored)
+    {
+        NifScene::Scene scene = quadScene();
+        NifScene::ShaderMaterial material;
+        material.mTextureSet = 12;
+        scene.mMaterials.push_back(material);
+        scene.mGeometries[0].mMaterial = 0;
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_EQ(model.shapes.size(), 1u);
+        EXPECT_TRUE(model.textureNames.empty());
+    }
+
+    TEST(MeshSceneModelHostile, a_triangle_index_past_the_vertices_leaves_the_shape_out)
+    {
+        NifScene::Scene scene = quadScene();
+        scene.mGeometries[0].mTriangles = { 0, 1, 4 };
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_TRUE(model.shapes.empty());
+        EXPECT_FALSE(model.warnings.empty());
+    }
+
+    TEST(MeshSceneModelHostile, a_triangle_list_that_is_not_a_multiple_of_three_leaves_the_shape_out)
+    {
+        NifScene::Scene scene = quadScene();
+        scene.mGeometries[0].mTriangles = { 0, 1, 2, 3 };
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_TRUE(model.shapes.empty());
+        EXPECT_FALSE(model.warnings.empty());
+    }
+
+    TEST(MeshSceneModelHostile, a_very_deep_chain_is_walked_without_recursion)
+    {
+        NifScene::Scene scene;
+        constexpr std::uint32_t depth = 200000;
+        for (std::uint32_t i = 0; i < depth; ++i)
+            scene.mNodes.push_back(makeNode("n", i == 0 ? NifScene::sNone : i - 1, { 0.f, 0.f, 0.001f }));
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_EQ(model.nodes.size(), depth);
+        EXPECT_TRUE(allFinite(model));
+    }
+
+    TEST(MeshSceneModelHostile, a_bind_transform_that_is_not_a_number_gives_no_bone_point)
+    {
+        NifScene::Scene scene = quadScene();
+        NifScene::Skin skin;
+        NifScene::Transform good;
+        good.mTranslation = { 0.f, 0.f, -1.f };
+        NifScene::Transform nanScale;
+        nanScale.mScale = sNan;
+        NifScene::Transform infTranslation;
+        infTranslation.mTranslation = { sInf, 0.f, 0.f };
+        NifScene::Transform tinyScale;
+        tinyScale.mScale = 1.0e-30f;
+        tinyScale.mTranslation = { 1.f, 1.f, 1.f };
+        skin.mBindTransforms = { good, nanScale, infTranslation, tinyScale };
+        scene.mSkins.push_back(skin);
+        scene.mGeometries[0].mSkin = 0;
+        const SceneModel model = buildSceneModel(scene);
+        EXPECT_TRUE(allFinite(model));
+        EXPECT_EQ(model.bonePoints.size(), 1u) << "only the usable bind transform gives a point";
+    }
+
+    TEST(MeshSceneModelHostile, bindBonePosition_of_a_nan_scale_or_translation_is_the_origin)
+    {
+        NifScene::Transform t;
+        t.mScale = sNan;
+        EXPECT_EQ(bindBonePosition(t), (std::array<float, 3>{ 0.f, 0.f, 0.f }));
+        NifScene::Transform u;
+        u.mTranslation = { sNan, 1.f, 1.f };
+        EXPECT_EQ(bindBonePosition(u), (std::array<float, 3>{ 0.f, 0.f, 0.f }));
     }
 }
