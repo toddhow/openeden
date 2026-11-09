@@ -71,6 +71,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwmechanics/testcraftingalchemy.cpp
     mwmechanics/testcraftingenchanting.cpp
     mwmechanics/testcraftingcontract.cpp
+    mwmechanics/testcraftingreview.cpp
 
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp

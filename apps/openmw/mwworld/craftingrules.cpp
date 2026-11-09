@@ -119,8 +119,9 @@ namespace MWWorld
         if (charge == -1 || charge == maxCharge)
             return false;
 
-        openeden::sdk::game::CraftingRules* rules = craftingRules();
-        if (rules == nullptr)
+        // Nothing installed is decided here, once, from craftingRules(); activeCraftingRules() would answer with inert
+        // rules whose "recharged" charge is the old one, and the helper would then claim a change it did not make.
+        if (craftingRules() == nullptr)
         {
             // Main thread only (the per-frame item stores), so a plain flag is enough.
             static bool told = false;
@@ -131,6 +132,7 @@ namespace MWWorld
             }
             return false;
         }
+        openeden::sdk::game::CraftingRules* rules = &activeCraftingRules();
 
         item.getCellRef().setEnchantmentCharge(rules->rechargedCharge(charge, maxCharge, duration));
         return true;

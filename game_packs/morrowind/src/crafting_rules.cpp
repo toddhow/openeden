@@ -294,9 +294,14 @@ namespace game_morrowind
                 const MWWorld::Ptr gemPtr = MWWorld::resolveItem(gem);
                 if (gemPtr.isEmpty())
                     return 0;
-                const ESM::Creature* creature = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().find(
-                    gemPtr.getCellRef().getSoul());
-                return creature->mData.mSoul;
+                // A gem with no soul, or one whose creature is not in the loaded data, has no soul: the contract says
+                // nothing throws, and find() would.
+                const ESM::RefId soulId = gemPtr.getCellRef().getSoul();
+                if (soulId.empty())
+                    return 0;
+                const ESM::Creature* creature
+                    = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().search(soulId);
+                return creature != nullptr ? creature->mData.mSoul : 0;
             }
 
             float rechargedCharge(float charge, float maxCharge, float duration) override
