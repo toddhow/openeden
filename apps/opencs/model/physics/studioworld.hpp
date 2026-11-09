@@ -42,6 +42,9 @@ namespace CSMPhysics
         /// means the same in the game and here.
         static constexpr JPH::ObjectLayer sLayerWorld = 1 << 0;
         static constexpr JPH::ObjectLayer sLayerDynamicWorld = 1 << 8;
+        /// A pre-step hook that throws this many steps in a row is withdrawn (logged once), so a broken hook cannot write
+        /// an error line on every step.
+        static constexpr int sPreStepHookFailureLimit = 3;
 
         enum class Transport
         {
@@ -111,7 +114,9 @@ namespace CSMPhysics
         void setStepObserver(StepObserver* observer) { mObserver = observer; }
 
         /// Hooks run in registration order. Not owned: the owner removes its hook before it is destroyed. Adding one
-        /// twice, or removing one that is not there, does nothing. Not to be called from inside a hook.
+        /// twice, or removing one that is not there, does nothing. A hook may add or remove hooks
+        /// (itself included) while the hooks run: a hook removed before its turn does not run, one added runs from the
+        /// next step, and none is skipped. One that throws sPreStepHookFailureLimit steps in a row is withdrawn.
         void addPreStepHook(PreStepHook* hook);
         void removePreStepHook(PreStepHook* hook);
 
@@ -135,7 +140,16 @@ namespace CSMPhysics
         std::uint64_t mStepIndex = 0;
         std::uint64_t mRevision = 0;
         StepObserver* mObserver = nullptr;
-        std::vector<PreStepHook*> mPreStepHooks;
+        struct HookEntry
+        {
+            PreStepHook* hook = nullptr; // null: removed while the hooks were running, dropped when they are done
+            int failures = 0; // steps in a row in which it threw
+        };
+        std::vector<HookEntry> mPreStepHooks;
+
+        void runPreStepHooks();
+        bool mRunningHooks = false;
+        bool mHooksNeedCompacting = false;
     };
 }
 

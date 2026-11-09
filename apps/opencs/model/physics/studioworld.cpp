@@ -168,34 +168,90 @@ namespace CSMPhysics
 
     void StudioWorld::addPreStepHook(PreStepHook* hook)
     {
-        if (hook == nullptr || std::find(mPreStepHooks.begin(), mPreStepHooks.end(), hook) != mPreStepHooks.end())
+        if (hook == nullptr)
             return;
-        mPreStepHooks.push_back(hook);
+        for (const HookEntry& entry : mPreStepHooks)
+        {
+            if (entry.hook == hook)
+                return;
+        }
+        // While the hooks run this may reallocate the vector: the loop below indexes it and keeps no reference.
+        mPreStepHooks.push_back(HookEntry{ hook, 0 });
     }
 
     void StudioWorld::removePreStepHook(PreStepHook* hook)
     {
-        mPreStepHooks.erase(std::remove(mPreStepHooks.begin(), mPreStepHooks.end(), hook), mPreStepHooks.end());
+        for (HookEntry& entry : mPreStepHooks)
+        {
+            if (entry.hook != hook || hook == nullptr)
+                continue;
+            if (mRunningHooks)
+            {
+                // Erasing now would shift the hooks after it past the loop's index; the slot is dropped afterwards.
+                entry.hook = nullptr;
+                mHooksNeedCompacting = true;
+            }
+            else
+            {
+                mPreStepHooks.erase(mPreStepHooks.begin() + (&entry - mPreStepHooks.data()));
+            }
+            return;
+        }
+    }
+
+    void StudioWorld::runPreStepHooks()
+    {
+        // Indexed: hooks added by a hook land at the end and run in this same step; removed ones are nulled.
+        mRunningHooks = true;
+        for (std::size_t i = 0; i < mPreStepHooks.size(); ++i)
+        {
+            PreStepHook* const hook = mPreStepHooks[i].hook;
+            if (hook == nullptr)
+                continue;
+            bool failed = false;
+            try
+            {
+                hook->beforeStep();
+            }
+            catch (const std::exception& e)
+            {
+                failed = true;
+                if (mPreStepHooks[i].hook == hook && mPreStepHooks[i].failures == 0)
+                    Log(Debug::Error) << "Physics pre-step hook failed: " << e.what();
+            }
+            catch (...)
+            {
+                failed = true;
+                if (mPreStepHooks[i].hook == hook && mPreStepHooks[i].failures == 0)
+                    Log(Debug::Error) << "Physics pre-step hook failed";
+            }
+            // The hook may have removed itself or others: look the entry up again by index and by pointer.
+            if (i < mPreStepHooks.size() && mPreStepHooks[i].hook == hook)
+            {
+                if (!failed)
+                    mPreStepHooks[i].failures = 0;
+                else if (++mPreStepHooks[i].failures >= sPreStepHookFailureLimit)
+                {
+                    Log(Debug::Error) << "Physics pre-step hook withdrawn after " << sPreStepHookFailureLimit
+                                      << " failed steps in a row";
+                    mPreStepHooks[i].hook = nullptr;
+                    mHooksNeedCompacting = true;
+                }
+            }
+        }
+        mRunningHooks = false;
+        if (mHooksNeedCompacting)
+        {
+            mPreStepHooks.erase(std::remove_if(mPreStepHooks.begin(), mPreStepHooks.end(),
+                                    [](const HookEntry& entry) { return entry.hook == nullptr; }),
+                mPreStepHooks.end());
+            mHooksNeedCompacting = false;
+        }
     }
 
     void StudioWorld::stepOnce()
     {
-        // Indexed, not a range loop: a hook must not add or remove hooks, but a bad one cannot invalidate the loop.
-        for (std::size_t i = 0; i < mPreStepHooks.size(); ++i)
-        {
-            try
-            {
-                mPreStepHooks[i]->beforeStep();
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "Physics pre-step hook failed: " << e.what();
-            }
-            catch (...)
-            {
-                Log(Debug::Error) << "Physics pre-step hook failed";
-            }
-        }
+        runPreStepHooks();
 
         if (mObserver != nullptr)
         {
