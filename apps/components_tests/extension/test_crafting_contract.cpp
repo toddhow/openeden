@@ -67,9 +67,9 @@ namespace
         EXPECT_FALSE(line.known);
     }
 
-    TEST(CraftingContract, the_version_is_one_point_zero)
+    TEST(CraftingContract, the_version_is_two_point_zero)
     {
-        EXPECT_EQ(kCraftingRulesVersion.major, 1u);
+        EXPECT_EQ(kCraftingRulesVersion.major, 2u);
         EXPECT_EQ(kCraftingRulesVersion.minor, 0u);
     }
 

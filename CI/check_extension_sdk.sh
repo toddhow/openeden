@@ -69,3 +69,9 @@ elif [ "$status" -ne 1 ]; then
     echo "git grep failed with status $status"
     exit "$status"
 fi
+
+# Task 0085 move 2 (review 2c, M2): the crafting contract states its version policy and its id tokens as opaque text.
+if ! grep -q 'Version policy' sdk/include/openeden/game/crafting.hpp || ! grep -q 'OPAQUE TEXT' sdk/include/openeden/game/crafting.hpp; then
+    echo 'sdk/include/openeden/game/crafting.hpp must keep its version policy and the note that id tokens are opaque text'
+    exit 1
+fi

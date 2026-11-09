@@ -10,7 +10,7 @@ namespace MWMechanics
     {
     public:
         void setTool(const MWWorld::Ptr& tool) { mTool = tool; }
-        MWWorld::Ptr getTool() { return mTool; }
+        MWWorld::Ptr getTool() const { return mTool; }
 
         void repair(const MWWorld::Ptr& itemToRepair);
 

@@ -20,9 +20,16 @@
 
 namespace openeden::sdk::game
 {
-    /// This header's own version; the SDK as a whole is versioned by kSdkVersion (openeden/version.hpp). Additive changes
-    /// (a new virtual function at the END of a class, with a default) raise the minor number.
-    inline constexpr Version kCraftingRulesVersion{ 1, 0 };
+    /// This header's own version; the SDK as a whole is versioned by kSdkVersion (openeden/version.hpp).
+    ///
+    /// Version policy. An additive change (a new virtual function at the END of a class, with a default; a new type)
+    /// raises the minor number. A change to the layout or meaning of anything that exists (a member's type, a removed
+    /// or reordered virtual function, a number's meaning) raises the major number. This header was first committed
+    /// as 1.0 with integer effect ids and has not been released; its ids became text (see below) before any pack
+    /// shipped, which is an incompatible layout change, so the header is 2.0. From the first release on, the rules
+    /// above hold without exception, and CI (CI/check_extension_sdk.sh) keeps this paragraph and a test of the number
+    /// in place.
+    inline constexpr Version kCraftingRulesVersion{ 2, 0 };
 
     /**
      * @brief An item as the contract sees it. Made by the core, valid until the scope that made it ends (a session's end,
@@ -39,8 +46,13 @@ namespace openeden::sdk::game
 
     inline constexpr ItemHandle kNoItem{};
 
-    /// One magic effect of a list, the plain form of an effect entry. The ids are the game's identifiers as text (a
-    /// game's ids compare without regard to case); an empty `skill` or `attribute` means "not applicable".
+    /// One magic effect of a list, the plain form of an effect entry.
+    ///
+    /// Id tokens (`effectId`, `skill`, `attribute`, here and in AlchemyEffectLine) are OPAQUE TEXT: the core makes them
+    /// from its own identifiers (today ESM::RefId::serializeText, components/esm/refid.hpp) and the pack reads them
+    /// back; a consumer other than the pack that produced a list must treat a token as a name to display or compare,
+    /// never parse it, and a token a pack cannot read counts as no id (an empty one). An empty token means "not
+    /// applicable".
     struct EffectLine
     {
         std::string effectId;

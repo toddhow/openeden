@@ -1,5 +1,6 @@
 #include <game_morrowind/crafting_rules.hpp>
 
+#include <exception>
 #include <iterator>
 #include <string>
 #include <utility>
@@ -56,9 +57,20 @@ namespace game_morrowind
             return id.serializeText();
         }
 
+        // Ids cross the contract as opaque text tokens (crafting.hpp). The core writes them with
+        // ESM::RefId::serializeText (components/esm/refid.hpp, used by mwgui/enchantingdialog.cpp and
+        // alchemywindow.cpp) and this pack reads them back with deserializeText. deserializeText throws on a malformed
+        // token; no exception may cross the contract, so a token that cannot be read is no id (the empty RefId).
         ESM::RefId idFromText(const std::string& text)
         {
-            return ESM::RefId::deserializeText(text);
+            try
+            {
+                return ESM::RefId::deserializeText(text);
+            }
+            catch (const std::exception&)
+            {
+                return ESM::RefId();
+            }
         }
 
         class MorrowindAlchemySession final : public sdk::AlchemySession
@@ -224,19 +236,19 @@ namespace game_morrowind
 
             int toolUses() const override
             {
-                const MWWorld::Ptr tool = const_cast<MWMechanics::Repair&>(mRepair).getTool();
+                const MWWorld::Ptr tool = mRepair.getTool();
                 return tool.getClass().getItemHealth(tool);
             }
 
             float toolQuality() const override
             {
-                const MWWorld::Ptr tool = const_cast<MWMechanics::Repair&>(mRepair).getTool();
+                const MWWorld::Ptr tool = mRepair.getTool();
                 return tool.get<ESM::Repair>()->mBase->mData.mQuality;
             }
 
             int toolCount() const override
             {
-                const MWWorld::Ptr tool = const_cast<MWMechanics::Repair&>(mRepair).getTool();
+                const MWWorld::Ptr tool = mRepair.getTool();
                 return tool.getCellRef().getCount();
             }
 
