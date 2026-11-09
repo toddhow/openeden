@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -846,6 +847,222 @@ namespace
             const std::vector<std::int32_t> actual = simulate(true);
             EXPECT_EQ(model, actual) << "seed " << seed;
             EXPECT_EQ(actual, simulate(true)) << "seed " << seed << ": a second run differs";
+        }
+    }
+
+    // ---- review of 2026-11-08 (round 5): growth, tokens, host waits, option checks ------------------------------------
+    // In plain words: the lists of parked stacks grow by doubling (not by one slot per park), every park hands out a
+    // token of its own (a token kept from an earlier wait must not wake a later one), completing many waits is not
+    // quadratic, a host wait can be given an expiry, bad option values are replaced, and with latent natives off the
+    // time given to tick() is not looked at.
+
+    TEST(PapyrusSchedReview5, parking_many_stacks_grows_the_lists_geometrically)
+    {
+        Rig rig;
+        const InstanceId a = rig.make();
+        for (int i = 0; i < 3000; ++i)
+        {
+            rig.send(a, "OnGo", { F(100.0f), I(i) });
+        }
+        rig.mVm.tick(0.0);
+        ASSERT_EQ(rig.mVm.rt().suspendedStacks(), 3000u);
+        // Doubling needs about log2(3000) = 12 growths of the waiting list and a few of the due list; one slot per
+        // park needs 3000.
+        EXPECT_LE(rig.mVm.rt().stats().schedulerGrowths, 40u);
+        rig.mVm.tick(100.0);
+        EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 0u);
+        EXPECT_LE(rig.mVm.rt().stats().schedulerGrowths, 60u);
+    }
+
+    TEST(PapyrusSchedReview5, a_token_kept_from_an_earlier_wait_does_not_wake_a_later_one)
+    {
+        Rig rig;
+        const InstanceId a = rig.make();
+        rig.send(a, "OnChain", { F(1.0f), F(5.0f), F(5.0f), I(10) });
+        rig.mVm.tick(0.0);
+        ASSERT_EQ(rig.mHost.mWaitTokens.size(), 1u);
+        const std::uint64_t first = rig.mHost.mWaitTokens[0];
+        rig.mVm.tick(1.0); // the timer woke it; it is parked on its second wait
+        ASSERT_EQ(rig.mHost.mWaitTokens.size(), 2u);
+        const std::uint64_t second = rig.mHost.mWaitTokens[1];
+        EXPECT_NE(first, second) << "every park has a token of its own";
+        EXPECT_FALSE(rig.mVm.rt().completeLatent(first)) << "the first wait is over";
+        EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 1u);
+        const TickResult early = rig.mVm.tick(2.0);
+        EXPECT_EQ(early.stacksRun, 0u) << "the stale token woke the second wait";
+        EXPECT_TRUE(rig.mVm.rt().completeLatent(second));
+        EXPECT_EQ(rig.mVm.tick(2.0).stacksRun, 1u);
+    }
+
+    TEST(PapyrusSchedReview5, completing_tens_of_thousands_of_waits_is_not_quadratic)
+    {
+        Rig rig;
+        const InstanceId a = rig.make();
+        constexpr int kCount = 50000;
+        for (int i = 0; i < kCount; ++i)
+        {
+            rig.send(a, "OnPark", {});
+        }
+        rig.mVm.tick(0.0);
+        ASSERT_EQ(rig.mHost.mTokens.size(), static_cast<std::size_t>(kCount));
+        ASSERT_EQ(rig.mVm.rt().suspendedStacks(), static_cast<std::uint32_t>(kCount));
+        const auto begin = std::chrono::steady_clock::now();
+        for (int i = kCount - 1; i >= 0; --i)
+        {
+            ASSERT_TRUE(rig.mVm.rt().completeLatent(rig.mHost.mTokens[static_cast<std::size_t>(i)])) << i;
+        }
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        // A scan and a rebuild of the heap per completion take many seconds here; a token index and one sift take
+        // milliseconds. The bound is loose on purpose (a slow or shared machine): this is a complexity check.
+        EXPECT_LT(seconds, 3.0);
+        const TickResult tick = rig.mVm.tick(0.0);
+        EXPECT_EQ(tick.stacksFinished, static_cast<std::uint32_t>(kCount));
+        EXPECT_EQ(rig.mVm.varInt(a, "counter"), kCount);
+    }
+
+    TEST(PapyrusSchedReview5, a_host_wait_has_no_expiry_by_default)
+    {
+        EXPECT_TRUE(std::isinf(ScriptPapyrus::RuntimeOptions{}.maxHostWaitSeconds));
+        Rig rig;
+        const InstanceId a = rig.make();
+        rig.send(a, "OnPark", {});
+        rig.mVm.tick(0.0);
+        rig.mVm.tick(1.0e12);
+        EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 1u);
+        EXPECT_EQ(rig.mVm.rt().stats().hostWaitsExpired, 0u);
+    }
+
+    TEST(PapyrusSchedReview5, a_host_wait_that_is_never_completed_expires_when_the_option_says_so)
+    {
+        ScriptPapyrus::RuntimeOptions options = latentOptions();
+        options.maxHostWaitSeconds = 10.0;
+        options.maxSuspendedStacks = 3;
+        Rig rig(Target::SkyrimSE, UnknownFunctionPolicy::Tolerant, options);
+        const InstanceId a = rig.make();
+        rig.send(a, "OnPark", {});
+        rig.send(a, "OnPark", {});
+        rig.send(a, "OnPark", {});
+        rig.mVm.tick(0.0);
+        ASSERT_EQ(rig.mVm.rt().suspendedStacks(), 3u);
+        ASSERT_EQ(rig.mHost.mTokens.size(), 3u);
+        EXPECT_TRUE(rig.mVm.rt().completeLatent(rig.mHost.mTokens[0])) << "completed in time: not an expiry";
+        rig.mVm.tick(9.9);
+        EXPECT_EQ(rig.mVm.varInt(a, "counter"), 1);
+        EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 2u);
+        const TickResult tick = rig.mVm.tick(10.0);
+        EXPECT_EQ(tick.stacksFinished, 2u) << "the two forgotten waits time out";
+        EXPECT_EQ(rig.mVm.varInt(a, "counter"), 3);
+        EXPECT_EQ(rig.mVm.rt().stats().hostWaitsExpired, 2u);
+        EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 0u) << "the room is free again";
+        EXPECT_FALSE(rig.mVm.rt().completeLatent(rig.mHost.mTokens[1])) << "a late completion is refused";
+    }
+
+    TEST(PapyrusSchedReview5, an_expiry_is_counted_from_the_time_the_stack_parked)
+    {
+        ScriptPapyrus::RuntimeOptions options = latentOptions();
+        options.maxHostWaitSeconds = 10.0;
+        Rig rig(Target::SkyrimSE, UnknownFunctionPolicy::Tolerant, options);
+        const InstanceId a = rig.make();
+        rig.mVm.tick(100.0);
+        rig.send(a, "OnPark", {});
+        rig.mVm.tick(100.0);
+        rig.mVm.tick(109.0);
+        EXPECT_EQ(rig.mVm.varInt(a, "counter"), 0);
+        rig.mVm.tick(110.0);
+        EXPECT_EQ(rig.mVm.varInt(a, "counter"), 1);
+    }
+
+    TEST(PapyrusSchedReview5, a_max_wait_that_is_not_a_usable_number_is_replaced_by_the_default)
+    {
+        for (const double bad : { std::numeric_limits<double>::quiet_NaN(), -5.0, 0.0,
+                 std::numeric_limits<double>::infinity() })
+        {
+            ScriptPapyrus::RuntimeOptions options = latentOptions();
+            options.maxWaitSeconds = bad;
+            Rig rig(Target::SkyrimSE, UnknownFunctionPolicy::Tolerant, options);
+            const InstanceId a = rig.make();
+            rig.send(a, "OnGo", { F(3.0f), I(10) });
+            rig.mVm.tick(0.0);
+            rig.mVm.tick(2.9);
+            EXPECT_EQ(rig.mHost.mMarks.size(), 1u) << "max wait " << bad << ": woke early";
+            rig.mVm.tick(3.0);
+            EXPECT_EQ(rig.mHost.mMarks.size(), 2u) << "max wait " << bad << ": did not wake at its time";
+            // A very long wait is cut to the default longest wait, not left as it was.
+            rig.mHost.mNextWait = 1.0e9;
+            rig.send(a, "OnGo", { F(1.0f), I(20) });
+            rig.mVm.tick(3.0);
+            rig.mVm.tick(3.0 + ScriptPapyrus::RuntimeOptions{}.maxWaitSeconds);
+            EXPECT_EQ(rig.mHost.mMarks.size(), 4u) << "max wait " << bad << ": a long wait was not cut";
+            EXPECT_TRUE(rig.mVm.mWorld.logged("maxWaitSeconds")) << "one warning names the option";
+        }
+    }
+
+    TEST(PapyrusSchedReview5, a_host_wait_limit_that_is_not_a_usable_number_is_replaced_by_the_default)
+    {
+        for (const double bad : { std::numeric_limits<double>::quiet_NaN(), -1.0, 0.0 })
+        {
+            ScriptPapyrus::RuntimeOptions options = latentOptions();
+            options.maxHostWaitSeconds = bad;
+            Rig rig(Target::SkyrimSE, UnknownFunctionPolicy::Tolerant, options);
+            const InstanceId a = rig.make();
+            rig.send(a, "OnPark", {});
+            rig.mVm.tick(0.0);
+            rig.mVm.tick(1.0e6);
+            EXPECT_EQ(rig.mVm.rt().suspendedStacks(), 1u) << "limit " << bad << ": expired at once";
+            EXPECT_TRUE(rig.mVm.mWorld.logged("maxHostWaitSeconds"));
+        }
+    }
+
+    TEST(PapyrusSchedReview5, with_latent_natives_off_the_time_given_to_tick_is_not_looked_at)
+    {
+        ScriptPapyrus::RuntimeOptions options; // runLatentNatives false
+        Rig rig(Target::SkyrimSE, UnknownFunctionPolicy::Tolerant, options);
+        const std::size_t logsBefore = rig.mVm.mWorld.mLogs.size();
+        rig.mVm.tick(5.0);
+        rig.mVm.tick(1.0);
+        rig.mVm.tick(std::numeric_limits<double>::quiet_NaN());
+        EXPECT_EQ(rig.mVm.rt().stats().timeMovedBackwards, 0u);
+        EXPECT_EQ(rig.mVm.mWorld.mLogs.size(), logsBefore) << "nothing is logged for a time nobody uses";
+    }
+
+    TEST(PapyrusSchedReview5, call_parks_relative_to_the_time_of_the_last_tick)
+    {
+        // Documented limit (components/script_papyrus/CLAUDE.md): call() has no time of its own, so a wait started by
+        // call() is due at the last tick's time plus the wait.
+        Rig rig;
+        const InstanceId a = rig.make();
+        rig.mVm.tick(100.0);
+        const CallResult result = rig.mVm.call(a, "Loop");
+        ASSERT_TRUE(result.suspended);
+        EXPECT_EQ(rig.mVm.tick(100.5).stacksRun, 0u);
+        EXPECT_EQ(rig.mVm.tick(101.0).stacksFinished, 1u);
+    }
+
+    TEST(PapyrusSchedReview5, cancelling_with_many_parked_stacks_keeps_the_others_in_order)
+    {
+        Rig rig;
+        const InstanceId a = rig.make();
+        const InstanceId b = rig.make();
+        for (int i = 0; i < 200; ++i)
+        {
+            rig.send((i % 2) ? a : b, "OnGo", { F(1.0f + static_cast<float>(i % 7)), I(1000 * (i + 1)) });
+        }
+        rig.mVm.tick(0.0);
+        rig.mHost.mMarks.clear();
+        EXPECT_EQ(rig.mVm.rt().cancelWaiting(a), 100u);
+        rig.mVm.tick(100.0);
+        ASSERT_EQ(rig.mHost.mMarks.size(), 100u);
+        // Every survivor belongs to b (even i), and they wake by wait time then creation order.
+        std::vector<std::pair<int, int>> expected;
+        for (int i = 0; i < 200; i += 2)
+        {
+            expected.push_back({ 1 + i % 7, i });
+        }
+        std::stable_sort(
+            expected.begin(), expected.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+        for (std::size_t k = 0; k < expected.size(); ++k)
+        {
+            EXPECT_EQ(rig.mHost.mMarks[k], 1000 * (expected[k].second + 1) + 1) << k;
         }
     }
 }

@@ -36,7 +36,12 @@ namespace ScriptPapyrus::Vm
     void Runtime::reserveForPark()
     {
         // The due entries a tick took out go back if the tick stops early, so the room is for them as well.
-        mWaiting.reserve(mWaiting.size() + (mDue.size() - mDueHead) + 1);
+        const std::size_t need = mWaiting.size() + (mDue.size() - mDueHead) + 1;
+        if (mWaiting.capacity() < need)
+        {
+            ++mStats.schedulerGrowths;
+        }
+        mWaiting.reserve(need);
     }
 
     void Runtime::parkStack(Stack& stack)
@@ -171,6 +176,10 @@ namespace ScriptPapyrus::Vm
         // back, whatever way the tick ends.
         mDue.clear();
         mDueHead = 0;
+        if (mDue.capacity() < mWaiting.size())
+        {
+            ++mStats.schedulerGrowths;
+        }
         mDue.reserve(mWaiting.size());
         while (!mWaiting.empty() && mWaiting.front().wake <= mNow)
         {
