@@ -38,6 +38,11 @@ jobs:
         CI/check_tests_registered.sh
         CI/test_tests_registered.sh
 
+    - name: Test doubles of the MWBase interfaces are up to date
+      run: |
+        CI/check_mwbase_fakes.sh
+        CI/test_mwbase_fakes.sh
+
     - name: Game conventions stay in the pack
       run: CI/check_game_conventions.sh
 

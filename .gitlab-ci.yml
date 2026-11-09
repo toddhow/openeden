@@ -210,6 +210,8 @@ Clang_Format:
     - CI/test_layer_rules.sh
     - CI/check_tests_registered.sh
     - CI/test_tests_registered.sh
+    - CI/check_mwbase_fakes.sh
+    - CI/test_mwbase_fakes.sh
     - CI/check_game_conventions.sh
     - CI/check_clang_format.sh
     - CI/check_extension_sdk.sh
