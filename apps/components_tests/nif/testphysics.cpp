@@ -51,6 +51,10 @@ namespace Nif
 
         struct NifBhkRagdollTemplateTest : Test
         {
+            // The default read options are process-wide: put them back so that no later test runs with Any (review of
+            // 2026-11-08, approved by toddhow).
+            Nif::ReadOptions mSavedOptions = Nif::Reader::getDefaultReadOptions();
+
             NifBhkRagdollTemplateTest()
             {
                 Nif::ReadOptions options;
@@ -58,6 +62,8 @@ namespace Nif
                 Nif::Reader::setDefaultReadOptions(options);
                 Nif::Reader::setWriteNifDebugLog(true);
             }
+
+            ~NifBhkRagdollTemplateTest() override { Nif::Reader::setDefaultReadOptions(mSavedOptions); }
         };
 
         TEST_F(NifBhkRagdollTemplateTest, shouldParseRecord)
