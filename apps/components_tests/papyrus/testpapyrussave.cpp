@@ -1445,7 +1445,7 @@ namespace
         std::uint32_t mParkCounter = 0;
         std::string mState;
         std::string mFormClass; ///< Not empty: `who` holds a Form of this class.
-        int mArrayElem = -1; ///< At least 0: `lst` is an array of this element kind (TypeKind numbers) holding [3].
+        int mArrayElem = -1; ///< At least 0: `lst` is an array of this element kind (TypeKind numbers) holding [3] (Int) or nothing.
         bool mOnInit = false; ///< A queued OnInit before the event, as attach() leaves one.
         bool mQueued = true;
         std::int32_t mQueuedArg = 9;
@@ -1529,7 +1529,15 @@ namespace
             {
                 heapCount = 1;
                 heapTypes.u8(1);
-                heap.u8(static_cast<std::uint8_t>(mArrayElem)).u32(1).intVal(3);
+                heap.u8(static_cast<std::uint8_t>(mArrayElem));
+                if (mArrayElem == 1)
+                {
+                    heap.u32(1).intVal(3);
+                }
+                else
+                {
+                    heap.u32(0); // an empty array of another kind: consistent in itself, wrong for `lst`
+                }
             }
             Raw scripts;
             std::uint32_t scriptCount = 1;
@@ -1648,6 +1656,7 @@ namespace
     TEST(PapyrusSave, a_refused_blob_leaves_the_name_and_string_tables_as_they_were)
     {
         TinyRt rt;
+        ASSERT_TRUE(rt.mRuntime->restore(blobOf(TinyBlob{}.build())).ok); // the scripts are prepared by now
         const std::uint64_t names = rt.mRuntime->stats().names;
         const std::uint64_t strings = rt.mRuntime->stats().internedStrings;
         TinyBlob spec;
@@ -1768,15 +1777,32 @@ namespace
             }
         }
         ASSERT_GT(at, Save::kHeaderBytes) << "the timed stack's wake time (6.0)";
-        for (const double bad : { std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity() })
         {
             Bytes bytes = good;
-            std::memcpy(bytes.data() + at, &bad, 8);
+            const double infinite = std::numeric_limits<double>::infinity();
+            std::memcpy(bytes.data() + at, &infinite, 8);
             Node b;
-            const RestoreResult result = b.mRuntime->restore(blobOf(fixHeader(bytes)));
-            EXPECT_FALSE(result.ok) << "a timed wait cannot be infinite or already completed by the host: " << bad;
+            EXPECT_FALSE(b.mRuntime->restore(blobOf(fixHeader(bytes))).ok) << "a timed wait is never infinite";
+            const double nan = std::numeric_limits<double>::quiet_NaN();
+            std::memcpy(bytes.data() + at, &nan, 8);
+            EXPECT_FALSE(b.mRuntime->restore(blobOf(fixHeader(bytes))).ok);
+            // -infinity is how a stack the host completed waits: legitimate for a stack that is not waiting for the host.
+            const double completed = -std::numeric_limits<double>::infinity();
+            std::memcpy(bytes.data() + at, &completed, 8);
+            EXPECT_TRUE(b.mRuntime->restore(blobOf(fixHeader(bytes))).ok);
         }
-        // The two legitimate infinite waits (the host's, and the host's completion) are in the good blob.
+        // A wait for the host that is flagged as such cannot be already completed (-infinity).
+        TinyBlob spec;
+        spec.mQueued = false;
+        spec.mParked = true;
+        spec.mParkedFunc = 0;
+        spec.mHostWait = true;
+        spec.mParkedWake = -std::numeric_limits<double>::infinity();
+        TinyRt rt;
+        const RestoreResult hostResult = rt.mRuntime->restore(blobOf(spec.build()));
+        EXPECT_FALSE(hostResult.ok);
+        EXPECT_NE(hostResult.error.message.find("wake time"), std::string::npos) << hostResult.error.message;
+        // The legitimate infinite waits (the host's, and the host's completion) are in the good blob.
         Node c;
         EXPECT_TRUE(c.mRuntime->restore(blobOf(good)).ok);
     }

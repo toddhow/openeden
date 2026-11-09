@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -254,6 +255,8 @@ namespace ScriptPapyrus::Vm
             std::size_t mMaxArrayLength = 0;
             std::size_t mMaxInstances = 0;
             std::size_t mMaxStacks = 0;
+            std::uint64_t mMaxHeapBytes = 0;
+            std::size_t mMaxFrames = 0;
         };
 
         Plain parse(const SaveBlob& blob, const ParseLimits& limits)
@@ -300,9 +303,9 @@ namespace ScriptPapyrus::Vm
             Reader in(blob.bytes.data(), blob.bytes.size(), Save::kHeaderBytes);
             Plain plain;
             plain.mNow = std::bit_cast<double>(in.u64("the script time"));
-            if (std::isnan(plain.mNow))
+            if (!std::isfinite(plain.mNow) || plain.mNow < 0.0)
             {
-                in.fail("the script time is not a number");
+                in.fail("the script time is not a finite number of seconds at or above zero");
             }
             plain.mNextSeq = in.u64("the next sequence");
             plain.mParkCounter = in.u32("the park counter");
@@ -369,7 +372,15 @@ namespace ScriptPapyrus::Vm
             };
 
             // heap: the types first, so that a value can be checked against the object it names
-            const std::uint32_t heapCount = in.count(1 + 6, Save::kMaxTotalValues, "the heap object count");
+            const std::uint32_t heapCount = in.count(1 + 5, Save::kMaxTotalValues, "the heap object count");
+            // Every object takes at least kObjectOverhead bytes of the VM heap: refuse a count the heap cap cannot hold
+            // before one entry is reserved for it.
+            if (static_cast<std::uint64_t>(heapCount) * kObjectOverhead > limits.mMaxHeapBytes)
+            {
+                in.fail("the heap object count " + std::to_string(heapCount) + " needs at least "
+                    + std::to_string(static_cast<std::uint64_t>(heapCount) * kObjectOverhead)
+                    + " bytes of VM heap; this runtime's heap is capped at " + std::to_string(limits.mMaxHeapBytes));
+            }
             plain.mHeapTypes.reserve(heapCount);
             for (std::uint32_t i = 0; i < heapCount; ++i)
             {
@@ -550,9 +561,14 @@ namespace ScriptPapyrus::Vm
                 if (stack.mParked)
                 {
                     stack.mWake = std::bit_cast<double>(in.u64("a wake time"));
-                    if (std::isnan(stack.mWake))
+                    // A wait for the host may be unbounded (+infinity); a stack the host has completed is due before
+                    // every timer (-infinity); a timed wait is neither.
+                    const bool badWake = std::isnan(stack.mWake)
+                        || (stack.mHostWait ? stack.mWake == -std::numeric_limits<double>::infinity()
+                                            : stack.mWake == std::numeric_limits<double>::infinity());
+                    if (badWake)
                     {
-                        in.fail("a wake time is not a number");
+                        in.fail("a wake time does not fit the kind of wait the stack is in");
                     }
                     stack.mToken = in.u64("a latent token");
                     stack.mPool = in.u32("a pool index");
@@ -576,7 +592,7 @@ namespace ScriptPapyrus::Vm
                     ++plain.mReadyCount;
                 }
                 const std::uint32_t frames
-                    = in.count(1 + 4 + 4 + 4 + 1 + 1 + 4, Save::kMaxFrames, "a stack's frame count");
+                    = in.count(1 + 4 + 4 + 4 + 1 + 1 + 4, std::min(Save::kMaxFrames, limits.mMaxFrames), "a stack's frame count");
                 stack.mFrames.reserve(frames);
                 for (std::uint32_t f = 0; f < frames; ++f)
                 {
@@ -618,6 +634,7 @@ namespace ScriptPapyrus::Vm
         {
             std::uint32_t mName = 0; ///< Lower-cased name id.
             std::uint8_t mKind = 0; ///< TypeKind.
+            std::uint8_t mElem = 0; ///< An array's element TypeKind.
         };
 
         /// The slots of an instance of \a scriptIndex, in the order of Instance::vars: parents first.
@@ -636,34 +653,45 @@ namespace ScriptPapyrus::Vm
                 for (std::size_t i = 0; i < chainScript.mVars.size(); ++i)
                 {
                     layout[chainScript.mVarBase + i]
-                        = Slot{ chainScript.mVars[i].name, static_cast<std::uint8_t>(chainScript.mVars[i].type.kind) };
+                        = Slot{ chainScript.mVars[i].name, static_cast<std::uint8_t>(chainScript.mVars[i].type.kind),
+                              static_cast<std::uint8_t>(chainScript.mVars[i].type.elem) };
                 }
             }
             return layout;
         }
 
-        /// Whether a value may sit where the declared type \a kind is. None fits everywhere (a variable nothing was
-        /// stored in yet); a number fits any number type, as the interpreter converts between them.
-        bool fits(std::uint8_t kind, const Val& value)
+        /// Whether a value of the blob may sit where the declared type is. None fits everywhere (a variable nothing was
+        /// stored in yet); a number fits any number type, as the interpreter converts between them; an array fits an
+        /// array variable of the same element kind (a Var[] takes any).
+        bool fitsPlain(std::uint8_t kind, std::uint8_t elem, const PVal& value, const Plain& plain)
         {
-            if (value.kind == Kind::None)
+            if (static_cast<Kind>(value.mKind) == Kind::None)
             {
                 return true;
             }
+            const Kind valueKind = static_cast<Kind>(value.mKind);
             switch (static_cast<TypeKind>(kind))
             {
                 case TypeKind::Int:
                 case TypeKind::Float:
                 case TypeKind::Bool:
-                    return value.kind == Kind::Int || value.kind == Kind::Float || value.kind == Kind::Bool;
+                    return valueKind == Kind::Int || valueKind == Kind::Float || valueKind == Kind::Bool;
                 case TypeKind::String:
-                    return value.kind == Kind::String;
+                    return valueKind == Kind::String;
                 case TypeKind::Object:
-                    return value.kind == Kind::Form || value.kind == Kind::Instance;
+                    return valueKind == Kind::Form || valueKind == Kind::Instance;
                 case TypeKind::Array:
-                    return value.kind == Kind::Array;
+                {
+                    if (valueKind != Kind::Array)
+                    {
+                        return false;
+                    }
+                    const TypeKind declared = static_cast<TypeKind>(elem);
+                    return declared == TypeKind::Var || declared == TypeKind::None
+                        || static_cast<TypeKind>(plain.mHeap[value.mA].mElem) == declared;
+                }
                 case TypeKind::Struct:
-                    return value.kind == Kind::Struct;
+                    return valueKind == Kind::Struct;
                 case TypeKind::Var:
                 case TypeKind::None:
                     break;
@@ -677,18 +705,22 @@ namespace ScriptPapyrus::Vm
 
     std::uint64_t Runtime::chainDigest(std::uint32_t scriptIndex) const
     {
-        const Script& script = mScripts[scriptIndex];
-        std::uint64_t hash = Save::fnvMix(Save::kFnvBasis, script.mDigest);
-        const bool ready = script.mPrepared && !script.mPrepareFailed;
-        hash = Save::fnvMix(hash, ready ? 1 : 0);
-        if (ready)
+        // The script's own bytes, then its parents' in order (by name, through the scripts that are loaded). It does
+        // not look at the prepare state, so a script written before it was prepared and restored after gives the same
+        // number (review 7, finding M5). A parent that is not loaded ends the chain with a marker.
+        const Script* script = &mScripts[scriptIndex];
+        std::uint64_t hash = Save::fnvMix(Save::kFnvBasis, script->mDigest);
+        for (std::size_t depth = 0; !script->mParent.empty() && depth < 256; ++depth)
         {
-            hash = Save::fnvMix(hash, script.mChain.size());
-            for (const std::uint32_t owner : script.mChain)
+            const std::uint32_t id = findNameId(script->mParent);
+            const std::uint32_t parent = id == kNoScript ? kNoScript : scriptByClassId(id);
+            if (parent == kNoScript)
             {
-                hash = Save::fnvMix(hash, mScripts[owner].mDigest);
+                hash = Save::fnvMix(hash, 0);
+                break;
             }
-            hash = Save::fnvMix(hash, script.mMissingParentId != 0 ? 1 : 0);
+            script = &mScripts[parent];
+            hash = Save::fnvMix(hash, script->mDigest);
         }
         return hash;
     }
@@ -756,6 +788,7 @@ namespace ScriptPapyrus::Vm
             heapIndex.emplace(id, index);
             return index;
         };
+        std::uint64_t invalidReferences = 0; // references to an instance or heap object that does not exist
         auto writeVal = [&](Out& out, const Val& v) {
             switch (v.kind)
             {
@@ -781,6 +814,7 @@ namespace ScriptPapyrus::Vm
                         out.u32(v.a);
                         return;
                     }
+                    ++invalidReferences;
                     break;
                 case Kind::Array:
                 case Kind::Struct:
@@ -791,6 +825,7 @@ namespace ScriptPapyrus::Vm
                         out.u32(heapRef(v.a));
                         return;
                     }
+                    ++invalidReferences;
                     break;
                 case Kind::None:
                     break;
@@ -802,6 +837,10 @@ namespace ScriptPapyrus::Vm
         Out instances;
         for (const Instance& instance : mInstances)
         {
+            if (instance.vars.size() != layoutOf(mScripts, instance.script).size())
+            {
+                return blob; // an instance that does not fit its script would write a blob that refuses itself
+            }
             instances.u8(static_cast<std::uint8_t>(instance.key.kind));
             instances.u32(instance.key.formId);
             instances.u32(instance.key.aliasIndex);
@@ -952,6 +991,19 @@ namespace ScriptPapyrus::Vm
         }
         blob.formatVersion = Save::kFormatVersion;
         blob.bytes = std::move(whole.mBytes);
+        if (invalidReferences != 0)
+        {
+            // serialise() is const for the caller's sake; the log is the world's, not this object's state.
+            try
+            {
+                const_cast<Runtime*>(this)->worldLog(Severity::Warning,
+                    "serialise: " + std::to_string(invalidReferences)
+                        + " reference(s) to an instance or heap object that no longer exists were written as None");
+            }
+            catch (...)
+            {
+            }
+        }
         return blob;
     }
 
@@ -1006,9 +1058,31 @@ namespace ScriptPapyrus::Vm
             Runtime& mRuntime;
             std::uint64_t mHeapBefore;
             bool mCommitted = false;
+            // The permanent name table as it was before the blob added anything: a refused blob takes its names back
+            // (review 7, finding M2). Set once the scripts are found and prepared, whose names stay.
+            bool mNamesSaved = false;
+            std::size_t mNamesBefore = 0;
+            std::uint64_t mPermanentBefore = 0;
+            void saveNames()
+            {
+                mNamesSaved = true;
+                mNamesBefore = mRuntime.mNames.mShown.size();
+                mPermanentBefore = mRuntime.mPermanentBytes;
+            }
             ~Guard()
             {
                 mRuntime.mRestoring = false;
+                if (!mCommitted && mNamesSaved)
+                {
+                    while (mRuntime.mNames.mShown.size() > mNamesBefore)
+                    {
+                        mRuntime.mNames.mIds.erase(lowerCopy(mRuntime.mNames.mShown.back()));
+                        mRuntime.mNames.mShown.pop_back();
+                        mRuntime.mNames.mIsEvent.pop_back();
+                    }
+                    mRuntime.mPermanentBytes = mPermanentBefore;
+                    mRuntime.mStats.names = mRuntime.mNames.mShown.size();
+                }
                 if (!mCommitted && mRuntime.mHeapBytes != mHeapBefore)
                 {
                     // What was built beside the old state is garbage now.
@@ -1030,6 +1104,8 @@ namespace ScriptPapyrus::Vm
             limits.mMaxArrayLength = mOptions.maxArrayLength;
             limits.mMaxInstances = mOptions.maxInstances;
             limits.mMaxStacks = static_cast<std::size_t>(mOptions.maxSuspendedStacks) + Save::kMaxQueuedStacks;
+            limits.mMaxHeapBytes = mOptions.maxHeapBytes;
+            limits.mMaxFrames = mOptions.defaultBudget.maxCallDepth;
             Plain plain = parse(blob, limits);
             const std::vector<std::string>& texts = plain.mTexts;
 
@@ -1058,7 +1134,18 @@ namespace ScriptPapyrus::Vm
                 found[i].mChanged = index != kNoScript && chainDigest(index) != plain.mScripts[i].mChain;
             }
 
+            guard.saveNames();
+
             // ---- the keys, and the instances' scripts
+            const openeden::script::PapyrusAttachKeyCheck* keyCheck
+                = dynamic_cast<const openeden::script::PapyrusAttachKeyCheck*>(&mWorld);
+            result.attachKeysChecked = keyCheck != nullptr || plain.mInstances.empty();
+            if (keyCheck == nullptr && !plain.mInstances.empty() && mLoggedOnce.insert("restore-attach-keys").second)
+            {
+                worldLog(Severity::Warning,
+                    "restore: the game pack's world offers no PapyrusAttachKeyCheck, so the attach keys of the blob were "
+                    "NOT validated against the game");
+            }
             {
                 std::set<AttachKey> keys;
                 for (std::size_t i = 0; i < plain.mInstances.size(); ++i)
@@ -1081,11 +1168,12 @@ namespace ScriptPapyrus::Vm
                         throw Refusal{ label + ": its attach key is used by an earlier instance" };
                     }
                     bool exists = true;
+                    if (keyCheck != nullptr)
                     {
                         WorldScope scope(*this);
                         try
                         {
-                            exists = true; // STUB (tests-first): attach keys are not asked yet
+                            exists = keyCheck->attachKeyExists(instance.mKey);
                         }
                         catch (...)
                         {
@@ -1183,6 +1271,7 @@ namespace ScriptPapyrus::Vm
             // The objects first (empty), so that a value can name any of them; then their contents.
             std::vector<std::uint8_t> heapLive(plain.mHeap.size(), 0);
             std::set<std::string> changedStructs;
+            std::uint32_t changedStructObjects = 0;
             for (std::size_t i = 0; i < plain.mHeap.size(); ++i)
             {
                 const PHeap& object = plain.mHeap[i];
@@ -1200,6 +1289,7 @@ namespace ScriptPapyrus::Vm
                 if (owner.mIndex == kNoScript || owner.mChanged)
                 {
                     changedStructs.insert(className);
+                    ++changedStructObjects;
                     continue; // the handle becomes None
                 }
                 const std::uint32_t structName = findNameId(texts[object.mName]);
@@ -1209,6 +1299,7 @@ namespace ScriptPapyrus::Vm
                     || info->second.memberTypes.size() != object.mItems.size())
                 {
                     changedStructs.insert(className);
+                    ++changedStructObjects;
                     continue;
                 }
                 if (!newStruct(owner.mIndex, structName, heapVals[i]))
@@ -1227,8 +1318,8 @@ namespace ScriptPapyrus::Vm
                 std::vector<Val> items(object.mItems.size());
                 for (std::size_t k = 0; k < items.size(); ++k)
                 {
-                    items[k] = convert(object.mItems[k]);
                     std::uint8_t declared = static_cast<std::uint8_t>(TypeKind::Var);
+                    std::uint8_t declaredElem = static_cast<std::uint8_t>(TypeKind::Var);
                     if (object.mType == kHeapArray)
                     {
                         declared = object.mElem;
@@ -1238,12 +1329,14 @@ namespace ScriptPapyrus::Vm
                         const std::uint32_t structName = findNameId(texts[object.mName]);
                         const auto& info = mScripts[found[object.mScript].mIndex].mStructs.find(structName)->second;
                         declared = static_cast<std::uint8_t>(info.memberTypes[k].kind);
+                        declaredElem = static_cast<std::uint8_t>(info.memberTypes[k].elem);
                     }
-                    if (!fits(declared, items[k]))
+                    if (!fitsPlain(declared, declaredElem, object.mItems[k], plain))
                     {
                         throw Refusal{ "heap object " + std::to_string(i) + ", item " + std::to_string(k)
                             + ": the value does not fit the declared type" };
                     }
+                    items[k] = convert(object.mItems[k]);
                 }
                 mHeap[heapVals[i].a].items = std::move(items);
             }
@@ -1262,8 +1355,9 @@ namespace ScriptPapyrus::Vm
                 Instance instance;
                 instance.key = saved.mKey;
                 instance.script = owner.mIndex;
-                instance.stateName = internString(texts[saved.mState]);
-                instance.stateId = nameId(texts[saved.mState]);
+                // The state's name is interned after every check has passed (see "the last things that can fail").
+                instance.stateName = 0;
+                instance.stateId = 0;
                 const std::vector<Slot> layout = layoutOf(mScripts, owner.mIndex);
                 instance.vars.resize(layout.size());
                 for (const std::uint32_t chainOwner : script.mChain)
@@ -1284,14 +1378,13 @@ namespace ScriptPapyrus::Vm
                     }
                     for (std::size_t v = 0; v < layout.size(); ++v)
                     {
-                        const Val value = convert(saved.mVars[v]);
-                        if (!fits(layout[v].mKind, value))
+                        if (!fitsPlain(layout[v].mKind, layout[v].mElem, saved.mVars[v], plain))
                         {
                             throw Refusal{ "instance " + std::to_string(i + 1) + ", variable '"
                                 + std::string(nameText(layout[v].mName))
                                 + "': the value does not fit its declared type" };
                         }
-                        instance.vars[v] = value;
+                        instance.vars[v] = convert(saved.mVars[v]);
                     }
                 }
                 else
@@ -1310,10 +1403,9 @@ namespace ScriptPapyrus::Vm
                             {
                                 continue;
                             }
-                            const Val value = convert(saved.mVars[s]);
-                            if (fits(layout[v].mKind, value))
+                            if (fitsPlain(layout[v].mKind, layout[v].mElem, saved.mVars[s], plain))
                             {
-                                instance.vars[v] = value;
+                                instance.vars[v] = convert(saved.mVars[s]);
                                 taken[s] = 1;
                             }
                             break;
@@ -1334,6 +1426,7 @@ namespace ScriptPapyrus::Vm
             std::vector<Built> built;
             built.reserve(plain.mStacks.size());
             std::uint32_t droppedStacks = 0;
+            std::uint32_t droppedHostWaits = 0;
             std::uint32_t parkedKept = 0;
             std::uint32_t readyKept = 0;
             for (std::size_t n = 0; n < plain.mStacks.size(); ++n)
@@ -1369,6 +1462,7 @@ namespace ScriptPapyrus::Vm
                 if (!usable)
                 {
                     ++droppedStacks;
+                    droppedHostWaits += saved.mHostWait ? 1 : 0;
                     continue;
                 }
                 std::uint32_t base = 0;
@@ -1389,6 +1483,23 @@ namespace ScriptPapyrus::Vm
                     {
                         throw Refusal{ where + ": the position " + std::to_string(frame.mPc) + " is past the end of "
                             + owner.mClass + "." + std::string(nameText(function.name)) };
+                    }
+                    if (f == 0)
+                    {
+                        const std::uint32_t instanceScript = found[plain.mInstances[saved.mInstance - 1].mScript].mIndex;
+                        const std::vector<std::uint32_t>& chain = mScripts[instanceScript].mChain;
+                        if (std::find(chain.begin(), chain.end(), found[frame.mScript].mIndex) == chain.end())
+                        {
+                            throw Refusal{ where + ": the first frame of the stack runs " + owner.mClass
+                                + ", which is neither the script of instance " + std::to_string(saved.mInstance)
+                                + " nor one of its parents" };
+                        }
+                        if (!function.global
+                            && (frame.mSelf.mKind != static_cast<std::uint8_t>(Kind::Instance)
+                                || frame.mSelf.mA != saved.mInstance))
+                        {
+                            throw Refusal{ where + ": self of the first frame is not the instance of the stack" };
+                        }
                     }
                     Frame made;
                     made.script = found[frame.mScript].mIndex;
@@ -1435,14 +1546,15 @@ namespace ScriptPapyrus::Vm
                     const CFunc& function = mScripts[stack.frames[f].script].mFuncs[stack.frames[f].func];
                     for (std::size_t slot = 0; slot < function.frameSize; ++slot)
                     {
-                        const Val value = convert(saved.mValues[stack.frames[f].base + slot]);
+                        const PVal& plainValue = saved.mValues[stack.frames[f].base + slot];
                         if (slot < function.slotTypes.size()
-                            && !fits(static_cast<std::uint8_t>(function.slotTypes[slot].kind), value))
+                            && !fitsPlain(static_cast<std::uint8_t>(function.slotTypes[slot].kind),
+                                static_cast<std::uint8_t>(function.slotTypes[slot].elem), plainValue, plain))
                         {
                             throw Refusal{ label + ", frame " + std::to_string(f) + ", slot " + std::to_string(slot)
                                 + ": the value does not fit the declared type" };
                         }
-                        stack.values.push_back(value);
+                        stack.values.push_back(convert(plainValue));
                     }
                 }
                 stack.wake = saved.mWake;
@@ -1501,6 +1613,30 @@ namespace ScriptPapyrus::Vm
             newReady.reserve(readyKept);
             mWaiting.reserve(parkedKept);
 
+            // ---- the last things that can fail: the state names of the instances (permanent strings, past every
+            // check above) and the text of the warnings. After this point nothing allocates a name or a string.
+            for (std::size_t i = 0; i < newInstances.size(); ++i)
+            {
+                const std::string& stateText = texts[plain.mInstances[i].mState];
+                newInstances[i].stateName = internString(stateText);
+                newInstances[i].stateId = nameId(stateText);
+            }
+            for (const std::string& name : changedStructs)
+            {
+                warnings.push_back("restore: structs of the changed script '" + name + "' were not restored");
+            }
+            for (const std::string& name : changedScripts)
+            {
+                warnings.push_back("restore: the script '" + name
+                    + "' has changed since the save: its variables were matched by name and type, and its parked "
+                      "stacks were dropped");
+            }
+            if (droppedStacks > 0)
+            {
+                warnings.push_back("restore: " + std::to_string(droppedStacks)
+                    + " parked stack(s) were dropped because their scripts changed or are not loaded");
+            }
+
             // ---- switch: nothing below can fail
             mWaiting.clear();
             mDue.clear();
@@ -1557,7 +1693,8 @@ namespace ScriptPapyrus::Vm
             mByKey.swap(newByKey);
             mNow = plain.mNow;
             mNextSeq = plain.mNextSeq;
-            mParkCounter = plain.mParkCounter;
+            // Never lower: a host may still hold a token made by a park before this restore (review 7, finding M3).
+            mParkCounter = std::max(mParkCounter, plain.mParkCounter);
             guard.mCommitted = true;
 
             // The old state's strings, arrays and structs are garbage now.
@@ -1569,26 +1706,15 @@ namespace ScriptPapyrus::Vm
             {
             }
 
-            for (const std::string& name : changedStructs)
-            {
-                warnings.push_back("restore: structs of the changed script '" + name + "' were not restored");
-            }
-            for (const std::string& name : changedScripts)
-            {
-                warnings.push_back("restore: the script '" + name
-                    + "' has changed since the save: its variables were matched by name and type, and its parked "
-                      "stacks were dropped");
-            }
-            if (droppedStacks > 0)
-            {
-                warnings.push_back("restore: " + std::to_string(droppedStacks)
-                    + " parked stack(s) were dropped because their scripts changed or are not loaded");
-            }
+            result.droppedParkedStacks = droppedStacks;
+            result.droppedHostWaits = droppedHostWaits;
+            result.changedStructObjects = changedStructObjects;
+            result.changedScripts = static_cast<std::uint32_t>(changedScripts.size());
             result.ok = true;
         }
         catch (const Refusal& refusal)
         {
-            result.ok = false;
+            result = RestoreResult{};
             result.error.message = "restore refused: " + refusal.mMessage;
             return result;
         }

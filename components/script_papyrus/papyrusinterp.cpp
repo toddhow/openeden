@@ -828,7 +828,10 @@ namespace ScriptPapyrus::Vm
                 {
                     // A token for this park alone; 0 in the low half is skipped so no token is ever 0 or repeats
                     // at once.
-                    ++mParkCounter;
+                    if (++mParkCounter == 0)
+                    {
+                        ++mParkCounter; // the low half wraps; 0 is skipped
+                    }
                     mLatentToken = ((static_cast<std::uint64_t>(stack.poolIndex) + 1) << 32) | mParkCounter;
                     stack.parkToken = mLatentToken;
                 }

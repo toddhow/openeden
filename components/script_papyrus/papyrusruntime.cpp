@@ -71,7 +71,7 @@ namespace ScriptPapyrus
     {
         namespace
         {
-            constexpr std::size_t kMaxQueuedStacks = 1u << 16;
+            constexpr std::size_t kMaxQueuedStacks = Save::kMaxQueuedStacks; // one number for the runtime and restore()
             constexpr std::uint32_t kHardArrayCeiling = 65536;
             constexpr std::uint64_t kFallbackInstructions = 1'000'000;
             constexpr std::uint32_t kFallbackDepth = 64;
