@@ -732,20 +732,41 @@ namespace ScriptPapyrus::Vm
     {
         try
         {
-            return serialiseImpl();
+            std::string why;
+            SaveBlob blob = serialiseImpl(why);
+            if (blob.bytes.empty())
+            {
+                logEmptyBlob(why);
+            }
+            return blob;
         }
         catch (...)
         {
+            logEmptyBlob("an exception was thrown while writing");
             return {};
         }
     }
 
-    SaveBlob Runtime::serialiseImpl() const
+    void Runtime::logEmptyBlob(std::string_view why) const noexcept
+    {
+        // serialise() is const for the caller's sake; the log is the world's, not this object's state.
+        try
+        {
+            const_cast<Runtime*>(this)->worldLog(
+                Severity::Warning, "serialise: no blob written (" + std::string(why) + "); do not save this state");
+        }
+        catch (...)
+        {
+        }
+    }
+
+    SaveBlob Runtime::serialiseImpl(std::string& why) const
     {
         SaveBlob blob;
         // A stack that is running, or a tick that is half-way, has state nobody can name: there is no blob then.
         if (mInNative || !mRunning.empty() || mDueHead < mDue.size())
         {
+            why = "a stack is running, a native or world callback is active, or a tick is half-way";
             return blob;
         }
 
@@ -839,6 +860,7 @@ namespace ScriptPapyrus::Vm
         {
             if (instance.vars.size() != layoutOf(mScripts, instance.script).size())
             {
+                why = "an instance's variable count does not match its script's layout";
                 return blob; // an instance that does not fit its script would write a blob that refuses itself
             }
             instances.u8(static_cast<std::uint8_t>(instance.key.kind));
@@ -987,6 +1009,7 @@ namespace ScriptPapyrus::Vm
         whole.append(body);
         if (whole.mBytes.size() > Save::kMaxBlobBytes)
         {
+            why = "the state is over the blob size cap of " + std::to_string(Save::kMaxBlobBytes) + " bytes";
             return blob;
         }
         blob.formatVersion = Save::kFormatVersion;

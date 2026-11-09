@@ -517,7 +517,8 @@ namespace ScriptPapyrus::Vm
         std::uint32_t effectiveDepth(const openeden::script::Budget& budget) const;
         void gatherRoots(std::vector<std::uint32_t>& pending);
         // papyrussave.cpp
-        openeden::script::SaveBlob serialiseImpl() const;
+        openeden::script::SaveBlob serialiseImpl(std::string& why) const;
+        void logEmptyBlob(std::string_view why) const noexcept;
         openeden::script::RestoreResult restoreImpl(const openeden::script::SaveBlob& blob);
         /// The digest of a script and of every script it inherits from: what a saved instance was written against.
         std::uint64_t chainDigest(std::uint32_t scriptIndex) const;

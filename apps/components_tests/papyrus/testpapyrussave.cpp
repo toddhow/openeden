@@ -1197,6 +1197,20 @@ namespace
         EXPECT_FALSE(a.mRuntime->serialise().bytes.empty());
     }
 
+    TEST(PapyrusSave, an_empty_blob_is_explained_in_the_log)
+    {
+        Node a;
+        const InstanceId id = a.make(1);
+        a.mHost.mInMark = [&] { a.mRuntime->serialise(); };
+        a.send(id, "OnMark", { I(1) });
+        a.tick(0.0);
+        EXPECT_TRUE(a.mWorld.logged("serialise: no blob written")) << "the reason must reach the world's log";
+        a.mHost.mInMark = nullptr;
+        a.mWorld.mLogs.clear();
+        EXPECT_FALSE(a.mRuntime->serialise().bytes.empty());
+        EXPECT_FALSE(a.mWorld.logged("serialise: no blob written")) << "a good blob logs nothing";
+    }
+
     // ---- a script that changed since the save
     // ------------------------------------------------------------------------
 

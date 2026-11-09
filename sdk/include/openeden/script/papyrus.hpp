@@ -282,7 +282,9 @@ namespace openeden::script
         /// Every instance, queued event and parked stack as versioned bytes (the game pack keeps them in its own save
         /// chunk). Call it between ticks, never from a native or a world callback: while a stack is running, or from
         /// inside a callback, there is no state anyone can name, and the answer is an EMPTY blob (formatVersion 0, no
-        /// bytes), which must not be saved. The same empty blob comes back for a state over the blob size cap.
+        /// bytes), which must not be saved. The same empty blob comes back for a state over the blob size cap, for an
+        /// instance whose variable count does not match its script's layout, and when writing threw. Every empty
+        /// blob logs one Warning "serialise: no blob written (reason)" through PapyrusWorld::log.
         virtual SaveBlob serialise() const noexcept = 0;
 
         /// Replace the state of the runtime from \a blob: every instance, queued event and parked stack it held is
