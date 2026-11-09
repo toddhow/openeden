@@ -65,6 +65,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwmechanics/testcraftingrecharge.cpp
     mwmechanics/testcraftingalchemy.cpp
     mwmechanics/testcraftingenchanting.cpp
+    mwmechanics/testcraftingcontract.cpp
 
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
@@ -116,6 +117,7 @@ target_link_libraries(openmw-tests
     GTest::GTest
     GMock::GMock
     openmw-lib
+    game_morrowind
     eden_body
 )
 

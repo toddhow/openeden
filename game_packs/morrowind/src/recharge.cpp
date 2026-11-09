@@ -1,24 +1,35 @@
-#include "recharge.hpp"
+#include <game_morrowind/recharge.hpp>
 
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
-#include "actorutil.hpp"
-#include "creaturestats.hpp"
-#include "spellutil.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 
 namespace MWMechanics
 {
+
+    float rechargedCharge(float charge, float maxCharge, float duration)
+    {
+        static const float fMagicItemRechargePerSecond = MWBase::Environment::get()
+                                                             .getESMStore()
+                                                             ->get<ESM::GameSetting>()
+                                                             .find("fMagicItemRechargePerSecond")
+                                                             ->mValue.getFloat();
+
+        return std::min(charge + fMagicItemRechargePerSecond * duration, maxCharge);
+    }
 
     bool rechargeItem(const MWWorld::Ptr& item, const float maxCharge, const float duration)
     {
@@ -26,13 +37,7 @@ namespace MWMechanics
         if (charge == -1 || charge == maxCharge)
             return false;
 
-        static const float fMagicItemRechargePerSecond = MWBase::Environment::get()
-                                                             .getESMStore()
-                                                             ->get<ESM::GameSetting>()
-                                                             .find("fMagicItemRechargePerSecond")
-                                                             ->mValue.getFloat();
-
-        item.getCellRef().setEnchantmentCharge(std::min(charge + fMagicItemRechargePerSecond * duration, maxCharge));
+        item.getCellRef().setEnchantmentCharge(rechargedCharge(charge, maxCharge, duration));
         return true;
     }
 

@@ -1,4 +1,4 @@
-#include "alchemy.hpp"
+#include <game_morrowind/alchemy.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -15,15 +15,15 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
-#include "creaturestats.hpp"
-#include "magiceffects.hpp"
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
 
 namespace
 {

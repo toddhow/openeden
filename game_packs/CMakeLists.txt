@@ -7,3 +7,8 @@ if(NOT TARGET openeden_sdk)
 endif()
 
 add_subdirectory(skyrimse)
+
+# The Morrowind game pack is a static library that calls into the game (openmw-lib), so it exists only where the game does.
+if(TARGET openmw-lib)
+    add_subdirectory(morrowind)
+endif()

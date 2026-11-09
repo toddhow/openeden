@@ -1,62 +1,10 @@
-#ifndef GAME_MWMECHANICS_ENCHANTING_H
-#define GAME_MWMECHANICS_ENCHANTING_H
+#ifndef OPENMW_MWMECHANICS_ENCHANTING_FORWARD_H
+#define OPENMW_MWMECHANICS_ENCHANTING_FORWARD_H
 
-#include <string>
-#include <vector>
+// Moved to game_packs/morrowind (task 0085 move 2): the Morrowind game pack owns the crafting rules. This header only
+// keeps the old include path alive for the characterization tests in apps/openmw_tests/mwmechanics, which pin the rules
+// and are not edited by the move. The game's own code reaches the rules through the crafting contract
+// (sdk/include/openeden/game/crafting.hpp, MWWorld::craftingRules()), never through this header.
+#include "game_packs/morrowind/include/game_morrowind/enchanting.hpp"
 
-#include <components/esm3/effectlist.hpp>
-#include <components/esm3/loadench.hpp>
-
-#include "../mwworld/ptr.hpp"
-
-namespace MWMechanics
-{
-    class Enchanting
-    {
-        MWWorld::Ptr mOldItemPtr;
-        MWWorld::Ptr mSoulGemPtr;
-        MWWorld::Ptr mEnchanter;
-
-        int mCastStyle;
-
-        bool mSelfEnchanting;
-
-        ESM::EffectList mEffectList;
-
-        std::string mNewItemName;
-        unsigned int mObjectType;
-        int mWeaponType;
-
-        const ESM::Enchantment* getRecord(const ESM::Enchantment& newEnchantment) const;
-        int getBaseCastCost() const; // To be saved in the enchantment's record
-        int getEnchantItemsCount() const;
-        float getTypeMultiplier() const;
-        void payForEnchantment(int count) const;
-        int getEnchantPrice(int count) const;
-        std::vector<float> getEffectCosts() const;
-
-    public:
-        Enchanting();
-        void setEnchanter(const MWWorld::Ptr& enchanter);
-        void setSelfEnchanting(bool selfEnchanting);
-        void setOldItem(const MWWorld::Ptr& oldItem);
-        MWWorld::Ptr getOldItem() { return mOldItemPtr; }
-        MWWorld::Ptr getGem() { return mSoulGemPtr; }
-        void setNewItemName(const std::string& s);
-        void setEffect(const ESM::EffectList& effectList);
-        void setSoulGem(const MWWorld::Ptr& soulGem);
-        bool create(); // Return true if created, false if failed.
-        void nextCastStyle(); // Set enchant type to next possible type (for mOldItemPtr object)
-        int getCastStyle() const;
-        float getEnchantPoints(bool precise = true) const;
-        int getEffectiveCastCost()
-            const; // Effective cost taking player Enchant skill into account, used for preview purposes in the UI
-        int getEnchantPrice() const { return getEnchantPrice(getEnchantItemsCount()); }
-        int getMaxEnchantValue() const;
-        int getGemCharge() const;
-        int getEnchantChance() const;
-        bool soulEmpty() const; // Return true if empty
-        bool itemEmpty() const; // Return true if empty
-    };
-}
 #endif

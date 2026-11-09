@@ -100,7 +100,7 @@ add_openmw_dir (mwworld
     actionequip timestamp actionalchemy cellstore actionapply actioneat
     store esmstore fallback actionrepair actionsoulgem livecellref actiondoor
     contentloader esmloader actiontrap cellreflist cellref weather projectilemanager
-    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles
+    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles craftingrules
     )
 
 add_openmw_dir (mwphysics
@@ -118,8 +118,8 @@ add_openmw_dir (mwclass
 
 add_openmw_dir (mwmechanics
     mechanicsmanagerimp stat creaturestats magiceffects movement actorutil spelllist
-    drawstate spells activespells npcstats aipackage aisequence aipursue alchemy aiwander aitravel aifollow aiavoiddoor aibreathe
-    aicast aiescort aiface aiactivate aicombat recharge repair enchanting pathfinding pathgrid security spellcasting spellresistance
+    drawstate spells activespells npcstats aipackage aisequence aipursue aiwander aitravel aifollow aiavoiddoor aibreathe
+    aicast aiescort aiface aiactivate aicombat pathfinding pathgrid security spellcasting spellresistance
     disease pickpocket levelledlist combat steering obstacle autocalcspell difficultyscaling aicombataction summoning
     character actors objects aistate weaponpriority spellpriority weapontype spellutil
     spelleffects
@@ -168,7 +168,9 @@ if(BUILD_OPENMW)
         )
     endif()
 
-    target_link_libraries(openmw openmw-lib)
+    # game_morrowind (game_packs/morrowind) is the Morrowind game pack: its rules call into openmw-lib, and the executable
+    # installs them (task 0085 move 2). openmw-lib itself never names the pack.
+    target_link_libraries(openmw openmw-lib game_morrowind)
 
     # openeden-vsg: a Vulkan-enabled SDL2.dll replaces the dependency set's one next to openmw.exe (extern/CMakeLists.txt).
     if (OPENEDEN_SDL2_VULKAN_DLL)

@@ -39,31 +39,32 @@ namespace openeden::sdk::game
 
     inline constexpr ItemHandle kNoItem{};
 
-    /// One magic effect of a list, the plain form of an effect entry: all numbers as the game's data stores them.
-    /// An id of -1 in `skill` or `attribute` means "not applicable".
+    /// One magic effect of a list, the plain form of an effect entry. The ids are the game's identifiers as text (a
+    /// game's ids compare without regard to case); an empty `skill` or `attribute` means "not applicable".
     struct EffectLine
     {
-        std::int32_t effectId = 0;
-        std::int32_t skill = -1;
-        std::int32_t attribute = -1;
+        std::string effectId;
+        std::string skill;
+        std::string attribute;
         std::int32_t range = 0;
         std::int32_t area = 0;
         std::int32_t duration = 0;
         std::int32_t magnitudeMin = 0;
         std::int32_t magnitudeMax = 0;
 
-        friend constexpr bool operator==(const EffectLine&, const EffectLine&) noexcept = default;
+        friend bool operator==(const EffectLine&, const EffectLine&) = default;
     };
 
     /// One effect shown by the alchemy window: which effect, what it targets, and whether the alchemist knows it.
+    /// The ids are as in EffectLine; an empty `skill` or `attribute` means the effect has no such target.
     struct AlchemyEffectLine
     {
-        std::int32_t effectId = 0;
-        std::int32_t skill = -1; ///< the targeted skill, or -1
-        std::int32_t attribute = -1; ///< the targeted attribute, or -1
+        std::string effectId;
+        std::string skill;
+        std::string attribute;
         bool known = false;
 
-        friend constexpr bool operator==(const AlchemyEffectLine&, const AlchemyEffectLine&) noexcept = default;
+        friend bool operator==(const AlchemyEffectLine&, const AlchemyEffectLine&) = default;
     };
 
     /// The outcome of an alchemy attempt. The numbers are the game's.

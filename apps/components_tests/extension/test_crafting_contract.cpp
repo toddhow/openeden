@@ -50,20 +50,20 @@ namespace
 
     TEST(CraftingContract, the_value_types_are_plain_and_comparable)
     {
-        static_assert(std::is_trivially_copyable_v<EffectLine>);
-        static_assert(std::is_trivially_copyable_v<AlchemyEffectLine>);
+        static_assert(std::is_copy_constructible_v<EffectLine> && std::is_nothrow_move_constructible_v<EffectLine>);
         const EffectLine defaults;
-        EXPECT_EQ(defaults.skill, -1);
-        EXPECT_EQ(defaults.attribute, -1);
+        EXPECT_TRUE(defaults.effectId.empty());
+        EXPECT_TRUE(defaults.skill.empty());
+        EXPECT_TRUE(defaults.attribute.empty());
         EffectLine a;
-        a.effectId = 14;
+        a.effectId = "restorehealth";
         a.duration = 30;
         EffectLine b = a;
         EXPECT_EQ(a, b);
         b.magnitudeMax = 5;
         EXPECT_NE(a, b);
         const AlchemyEffectLine line;
-        EXPECT_EQ(line.skill, -1);
+        EXPECT_TRUE(line.skill.empty());
         EXPECT_FALSE(line.known);
     }
 
@@ -88,7 +88,7 @@ namespace
         void removeApparatus(std::size_t) override {}
         ItemHandle ingredientSlot(std::size_t) override { return kNoItem; }
         ItemHandle apparatusSlot(std::size_t) override { return kNoItem; }
-        std::vector<AlchemyEffectLine> effects() const override { return { AlchemyEffectLine{ 1, -1, 2, true } }; }
+        std::vector<AlchemyEffectLine> effects() const override { return { AlchemyEffectLine{ "restorehealth", "", "strength", true } }; }
         std::string suggestPotionName() override { return "x"; }
         AlchemyResult create(std::string_view, int& count) override
         {
