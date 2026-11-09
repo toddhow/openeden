@@ -3,7 +3,7 @@
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 
 namespace ESM
 {

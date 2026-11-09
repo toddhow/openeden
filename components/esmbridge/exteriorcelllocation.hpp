@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_ESM_EXTERIORCELLLOCATION_H
 #define OPENMW_COMPONENTS_ESM_EXTERIORCELLLOCATION_H
 
-#include "refid.hpp"
+#include "components/esm/refid.hpp"
 
 #include <components/esm3/loadcell.hpp>
 

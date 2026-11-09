@@ -19,7 +19,7 @@
 #include "../mwworld/actionteleport.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/scene.hpp"
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 
 #include "../mwmechanics/actorutil.hpp"
 

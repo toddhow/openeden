@@ -3,7 +3,7 @@
 
 #include "loadskil.hpp"
 #include "statstate.hpp"
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 
 #include <array>

@@ -2,7 +2,7 @@
 
 #include "scripttracker.hpp"
 
-#include <components/esm/luascripts.hpp>
+#include <components/esmbridge/luascripts.hpp>
 
 namespace
 {

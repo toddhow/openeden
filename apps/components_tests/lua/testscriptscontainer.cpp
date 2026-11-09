@@ -1,7 +1,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <components/esm/luascripts.hpp>
+#include <components/esmbridge/luascripts.hpp>
 
 #include <components/lua/asyncpackage.hpp>
 #include <components/lua/luastate.hpp>

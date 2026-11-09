@@ -1,7 +1,7 @@
 #ifndef MWGUI_LEVELUPDIALOG_H
 #define MWGUI_LEVELUPDIALOG_H
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "windowbase.hpp"
 

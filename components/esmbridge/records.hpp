@@ -84,5 +84,5 @@
 #include <components/esm4/loadwrld.hpp>
 
 // Special records which are not loaded from ESM
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #endif

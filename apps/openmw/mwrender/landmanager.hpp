@@ -1,7 +1,7 @@
 #ifndef OPENMW_MWRENDER_LANDMANAGER_H
 #define OPENMW_MWRENDER_LANDMANAGER_H
 
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/esm3terrain/storage.hpp>
 #include <components/vsgutil/cache.hpp>
 

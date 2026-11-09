@@ -32,7 +32,7 @@
 #include <vector>
 
 #include <components/esm/defs.hpp>
-#include <components/esm/exteriorcelllocation.hpp>
+#include <components/esmbridge/exteriorcelllocation.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm4/reader.hpp>
 #include <components/misc/constants.hpp>

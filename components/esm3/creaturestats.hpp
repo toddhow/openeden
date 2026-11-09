@@ -12,7 +12,7 @@
 
 #include "activespells.hpp"
 #include "aisequence.hpp"
-#include "components/esm/attr.hpp"
+#include "components/esmbridge/attr.hpp"
 #include "components/esm/refid.hpp"
 #include "magiceffects.hpp"
 #include "spellstate.hpp"

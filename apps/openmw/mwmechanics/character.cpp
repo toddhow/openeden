@@ -10,7 +10,7 @@
 #include <sstream>
 
 #include <components/animation/transform.hpp>
-#include <components/esm/records.hpp>
+#include <components/esmbridge/records.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/misc/mathutil.hpp>

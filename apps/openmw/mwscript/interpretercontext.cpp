@@ -5,7 +5,7 @@
 
 #include <components/compiler/locals.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/esm/records.hpp>
+#include <components/esmbridge/records.hpp>
 
 #include "../mwworld/esmstore.hpp"
 

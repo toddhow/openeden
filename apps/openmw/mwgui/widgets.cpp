@@ -8,7 +8,7 @@
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_UString.h>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/misc/resourcehelpers.hpp>

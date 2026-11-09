@@ -4,8 +4,8 @@
 #include <string>
 #include <string_view>
 
-#include "defs.hpp"
-#include "refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {

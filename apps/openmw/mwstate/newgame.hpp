@@ -12,7 +12,7 @@
 #include "../mwscript/globalscripts.hpp"
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/vsgmath.hpp>
 

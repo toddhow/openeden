@@ -9,7 +9,7 @@
 #include "components/misc/constants.hpp"
 
 #include "exteriorcelllocation.hpp"
-#include "refid.hpp"
+#include "components/esm/refid.hpp"
 
 namespace ESM
 {

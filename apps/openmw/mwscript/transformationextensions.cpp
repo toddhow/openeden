@@ -4,7 +4,7 @@
 
 #include <components/esm3/loadcell.hpp>
 
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 
 #include <components/compiler/opcodes.hpp>
 

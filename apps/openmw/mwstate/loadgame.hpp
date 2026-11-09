@@ -24,7 +24,7 @@
 #include "../mwworld/worldmodel.hpp"
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadcell.hpp>

@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>

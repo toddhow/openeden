@@ -290,7 +290,9 @@ add_component_dir (toutf8
     toutf8
     )
 
-add_component_dir(esm attr common defs esmcommon records util luascripts format refid esmbridge esmterrain
+# The shared id and value types. defs.hpp stays here because RefId holds an IndexRefId, which holds a RecNameInts, and
+# the REC_*4 values come from esm4/common.hpp (the one esm -> esm4 exception left; task 0083 stage 4).
+add_component_dir(esm common defs esmcommon format refid
     formid
     fourcc
     stringrefid
@@ -300,6 +302,10 @@ add_component_dir(esm attr common defs esmcommon records util luascripts format 
     esm3exteriorcellrefid
     quaternion
     vector3
+    )
+
+# The bridge: what needs the typed esm3 and esm4 records as well as the shared types (task 0083 stage 4).
+add_component_dir(esmbridge attr records util luascripts esmbridge esmterrain
     exteriorcelllocation
     )
 

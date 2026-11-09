@@ -3,7 +3,7 @@
 #include <cmath>
 #include <stdexcept>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>

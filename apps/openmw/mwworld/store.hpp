@@ -9,9 +9,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
-#include <components/esm/util.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadglob.hpp>

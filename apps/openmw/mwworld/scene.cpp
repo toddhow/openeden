@@ -18,7 +18,7 @@
 #include <components/detournavigator/heightfieldshape.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/updateguard.hpp>
-#include <components/esm/records.hpp>
+#include <components/esmbridge/records.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/convert.hpp>

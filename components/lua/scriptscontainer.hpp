@@ -7,7 +7,7 @@
 #include <variant>
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm/luascripts.hpp>
+#include <components/esmbridge/luascripts.hpp>
 
 #include "luastate.hpp"
 #include "serialization.hpp"

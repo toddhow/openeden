@@ -4,7 +4,7 @@
 #include <map>
 #include <optional>
 
-#include <components/esm/luascripts.hpp>
+#include <components/esmbridge/luascripts.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/vfs/pathutil.hpp>
 

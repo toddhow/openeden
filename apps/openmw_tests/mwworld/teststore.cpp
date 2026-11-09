@@ -10,7 +10,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <components/esm/defs.hpp>
-#include <components/esm/records.hpp>
+#include <components/esmbridge/records.hpp>
 #include <components/esm/typetraits.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>

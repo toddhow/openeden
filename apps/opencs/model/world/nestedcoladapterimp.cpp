@@ -11,7 +11,7 @@
 #include <apps/opencs/model/world/nestedtablewrapper.hpp>
 #include <apps/opencs/model/world/record.hpp>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadinfo.hpp>

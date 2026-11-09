@@ -9,7 +9,7 @@
 #include "spelllist.hpp"
 #include "transport.hpp"
 
-#include "components/esm/attr.hpp"
+#include "components/esmbridge/attr.hpp"
 #include "components/esm/defs.hpp"
 #include "components/esm/refid.hpp"
 

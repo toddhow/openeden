@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/position.hpp>
 
 #include "loadskil.hpp"

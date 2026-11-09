@@ -6,7 +6,7 @@
 
 #include <MyGUI_EditBox.h>
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadclas.hpp>
 

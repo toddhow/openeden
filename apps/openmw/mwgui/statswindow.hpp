@@ -3,7 +3,7 @@
 
 #include "statswatcher.hpp"
 #include "windowpinnablebase.hpp"
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 
 namespace MWGui

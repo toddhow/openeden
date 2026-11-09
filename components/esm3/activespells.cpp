@@ -5,7 +5,7 @@
 #include "loadmgef.hpp"
 #include "loadskil.hpp"
 
-#include <components/esm/attr.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include <cstdint>
 

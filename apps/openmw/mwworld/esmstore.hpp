@@ -7,7 +7,7 @@
 #include <tuple>
 #include <unordered_map>
 
-#include <components/esm/luascripts.hpp>
+#include <components/esmbridge/luascripts.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/tuplemeta.hpp>

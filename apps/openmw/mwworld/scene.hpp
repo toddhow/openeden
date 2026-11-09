@@ -16,7 +16,7 @@
 #include <set>
 #include <vector>
 
-#include <components/esm/exteriorcelllocation.hpp>
+#include <components/esmbridge/exteriorcelllocation.hpp>
 #include <components/misc/constants.hpp>
 
 namespace Terrain
