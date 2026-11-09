@@ -78,7 +78,7 @@ opencs_units (model/lod
     )
 
 opencs_units (model/physics
-    joltruntime studioworld debuglinedrawer pushscene sandboxservice
+    joltruntime studioworld debuglinedrawer pushscene sandboxservice ownedsandbox
     )
 
 opencs_units (model/filter

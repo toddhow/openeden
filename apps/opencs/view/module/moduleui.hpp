@@ -23,6 +23,7 @@
 #include <apps/opencs/model/module/overlaypick.hpp>
 #include <apps/opencs/model/module/taskrunner.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
+#include <apps/opencs/model/physics/ownedsandbox.hpp>
 
 class QWidget;
 
@@ -95,8 +96,10 @@ namespace CSVModule
 
         /// API 1.3 (task 0065): the simulation sandbox modules reach through EditorContext::simulationSandbox(), owned
         /// by the editor, which must outlive this object's use of it; null (the default) means the host has none.
-        void setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox) { mSandbox = sandbox; }
-        openeden::editor::SimulationSandbox* simulationSandbox() override { return mSandbox; }
+        /// Modules get it through a wrapper that notes which module built what is in it (CSMPhysics::OwnedSandbox), so that
+        /// a module being withdrawn (a callback threw, or it was unloaded) releases its ragdoll and ground.
+        void setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox);
+        openeden::editor::SimulationSandbox* simulationSandbox() override { return mOwnedSandbox.get(); }
 
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
@@ -211,6 +214,7 @@ namespace CSVModule
         std::vector<std::filesystem::path> mAssetRoots;
         std::filesystem::path mUserDataPath;
         openeden::editor::SimulationSandbox* mSandbox = nullptr;
+        std::unique_ptr<CSMPhysics::OwnedSandbox> mOwnedSandbox; // over mSandbox; owner = the active asset's module
         std::set<std::string> mDirtyAssets;
         std::vector<QPointer<QUndoStack>> mStacks;
         std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used

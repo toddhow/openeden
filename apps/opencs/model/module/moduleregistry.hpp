@@ -63,6 +63,14 @@ namespace CSMModule
             mOnFailure = std::move(handler);
         }
 
+        /// Called whenever a module's registrations are withdrawn: it failed, or removeModule() was called (unload).
+        /// The id is passed even if the module registered nothing. Used to give back what a module left outside the
+        /// registry (the sandbox ragdoll).
+        void setWithdrawnHandler(std::function<void(const std::string& moduleId)> handler)
+        {
+            mOnWithdrawn = std::move(handler);
+        }
+
         // EditorRegistrar
         openeden::editor::Registration registerWorkspace(const openeden::editor::WorkspaceDesc& desc) override;
         openeden::editor::Registration registerPanel(const openeden::editor::PanelDesc& desc) override;
@@ -148,6 +156,7 @@ namespace CSMModule
         openeden::editor::EditorContext* mContext = nullptr;
         std::unique_ptr<NullContext> mNullContext;
         std::function<void(const std::string&, const std::string&)> mOnFailure;
+        std::function<void(const std::string&)> mOnWithdrawn;
     };
 }
 

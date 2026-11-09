@@ -95,6 +95,8 @@ namespace CSMModule
         eraseModule(mTrackProviders, moduleId);
         mBus.removeOwner(moduleId);
         mSettings.removeModule(moduleId);
+        if (mOnWithdrawn)
+            mOnWithdrawn(moduleId);
     }
 
     void ModuleRegistry::fail(const std::string& moduleId, const std::string& message)

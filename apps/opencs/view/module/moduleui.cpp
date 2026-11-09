@@ -303,7 +303,25 @@ namespace CSVModule
 
     ModuleUi::~ModuleUi()
     {
+        mRegistry.setWithdrawnHandler({});
         sInstance = nullptr;
+    }
+
+    void ModuleUi::setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox)
+    {
+        mSandbox = sandbox;
+        if (sandbox == nullptr)
+        {
+            mOwnedSandbox.reset();
+            mRegistry.setWithdrawnHandler({});
+            return;
+        }
+        mOwnedSandbox = std::make_unique<CSMPhysics::OwnedSandbox>(*sandbox, [this] { return mActiveOwner; });
+        // A module that is withdrawn (a callback threw, or it was unloaded) must not leave its ragdoll in the world.
+        mRegistry.setWithdrawnHandler([this](const std::string& moduleId) {
+            if (mOwnedSandbox != nullptr)
+                mOwnedSandbox->releaseIfOwnedBy(moduleId);
+        });
     }
 
     void ModuleUi::pushCommand(std::unique_ptr<Command> command)
@@ -461,8 +479,8 @@ namespace CSVModule
     void ModuleUi::releaseModuleObjects()
     {
         // The sandbox's bodies belong to a module that is about to go.
-        if (mSandbox != nullptr)
-            mSandbox->release();
+        if (mOwnedSandbox != nullptr)
+            mOwnedSandbox->release();
         mTasks.cancelAll(); // their code is in the libraries that are about to go
         cancelHandle();
         mHighlightId.clear();
