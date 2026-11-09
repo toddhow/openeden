@@ -1028,7 +1028,17 @@ namespace ScriptObscript
                 }
                 catch (...)
                 {
+                    // Version 0 and no bytes is "failed": restore refuses it and the game pack's chunk refuses to
+                    // be written, so a failure never looks like a runtime with nothing to save.
                     blob.bytes.clear();
+                    blob.formatVersion = 0;
+                    try
+                    {
+                        mWorld.report("serialise: the script state could not be written");
+                    }
+                    catch (...)
+                    {
+                    }
                 }
                 return blob;
             }

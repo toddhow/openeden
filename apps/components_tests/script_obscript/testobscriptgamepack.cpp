@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -307,5 +308,51 @@ End
         const auto collected = host.mSaveChunks.collect();
         ASSERT_TRUE(collected.ok);
         EXPECT_TRUE(collected.chunks.empty());
+    }
+    // Review A2: a runtime that could not write its state must not look like one with nothing to save.
+    class FailingRuntime final : public openeden::script::ObScriptContract
+    {
+    public:
+        bool registerFunction(const openeden::script::FunctionDescriptor&, openeden::script::FunctionHandler,
+            openeden::script::ErrorReport&) noexcept override
+        {
+            return false;
+        }
+        openeden::script::CompileResult compile(const openeden::script::ScriptSource&) noexcept override { return {}; }
+        InstanceId createInstance(ScriptId, openeden::script::FormId) noexcept override { return 0; }
+        openeden::script::RunResult run(
+            InstanceId, std::string_view, const openeden::script::Budget&) noexcept override
+        {
+            return {};
+        }
+        Value getLocal(InstanceId, std::string_view) const noexcept override { return {}; }
+        bool setLocal(InstanceId, std::string_view, Value) noexcept override { return false; }
+        openeden::script::SaveBlob serialise() const noexcept override { return {}; } // version 0, no bytes: failed
+        openeden::script::RestoreResult restore(const openeden::script::SaveBlob&) noexcept override { return {}; }
+    };
+
+    class NullWriter final : public openeden::sdk::ChunkWriter
+    {
+    public:
+        void write(const void*, std::size_t size) override { mWritten += size; }
+        std::size_t mWritten = 0;
+    };
+
+    TEST(ObScriptGamePack, a_failed_serialise_makes_the_chunk_write_throw_so_the_save_is_refused)
+    {
+        FailingRuntime runtime;
+        ScriptObscript::ObScriptSaveChunk chunk(runtime);
+        NullWriter writer;
+        EXPECT_THROW(chunk.write(writer), std::runtime_error);
+        EXPECT_EQ(writer.mWritten, 0u);
+    }
+
+    TEST(ObScriptGamePack, the_real_runtime_writes_a_non_empty_chunk_even_with_no_instances)
+    {
+        Host host;
+        StubGamePack pack(&host);
+        NullWriter writer;
+        pack.mChunk->write(writer);
+        EXPECT_GT(writer.mWritten, 0u);
     }
 }

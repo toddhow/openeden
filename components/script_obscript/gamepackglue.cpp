@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <format>
+#include <stdexcept>
 #include <vector>
 
 #include "obscriptlimits.hpp"
@@ -22,10 +23,13 @@ namespace ScriptObscript
     void ObScriptSaveChunk::write(openeden::sdk::ChunkWriter& writer)
     {
         const openeden::script::SaveBlob blob = mRuntime.serialise();
-        if (!blob.bytes.empty())
+        if (blob.formatVersion == 0 || blob.bytes.empty())
         {
-            writer.write(blob.bytes.data(), blob.bytes.size());
+            // The runtime could not write its state. Writing nothing would save the game as if it had no scripts;
+            // an exception makes the host refuse the whole save with this message (SaveChunkServiceImpl::collect).
+            throw std::runtime_error("the ObScript runtime could not write its state");
         }
+        writer.write(blob.bytes.data(), blob.bytes.size());
     }
 
     bool ObScriptSaveChunk::read(openeden::sdk::ChunkReader& reader, std::uint32_t version)
