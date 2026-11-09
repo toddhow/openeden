@@ -94,3 +94,26 @@ TEST(TerrainChunkInstanceDecode, the_cpu_copy_of_the_vertex_stage_ignores_the_fa
         }
     }
 }
+
+// A batch is up to 16 cells (Paging::mMaxBatchSize) and its finest chunk is Bounds::minSize (1/8 cell) wide, so a chunk's
+// grid x reaches 127 (7 bits, bits 16 to 22; bit 23 is the "inverted" flag). The task 0088 decode read four bits and
+// drew every finest chunk with x of 16 or more in the wrong place: a hole next to the player that moved with him.
+TEST(TerrainChunkInstanceDecode, a_grid_x_up_to_127_survives_every_fade_and_the_inverted_flag)
+{
+    for (std::uint32_t x : { 0u, 15u, 16u, 17u, 31u, 32u, 64u, 100u, 127u })
+    {
+        const std::uint32_t base = pack(2, 4, x, 90);
+        const Terrain::ChunkGeometry plain = Terrain::decodeChunkGeometry(base);
+        ASSERT_EQ(plain.gridX, x);
+        for (float fade : { 0.f, 0.3f, 0.77f, 1.f })
+        {
+            for (bool inverted : { false, true })
+            {
+                const std::uint32_t instance = Terrain::encodeChunkShare(base, Terrain::ChunkShare{ fade, inverted });
+                const Terrain::ChunkGeometry g = Terrain::decodeChunkGeometry(instance);
+                ASSERT_EQ(g.gridX, x) << "fade " << fade << " inverted " << inverted;
+                ASSERT_EQ(g.gridY, 90u);
+            }
+        }
+    }
+}

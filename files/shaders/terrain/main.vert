@@ -33,9 +33,9 @@ void main()
     int numVerts = int(batch.numVerts-1) / (1 << (shiftSize + lod)) + 1;
     ivec2 vert = ivec2(gl_VertexIndex / numVerts, gl_VertexIndex % numVerts);
     // Bit 23 says the share is INVERTED (task 0088, the complementary dither): the chunk keeps the pixels that the
-    // incoming chunk, with the fade in the nibbles, drops. The grid x never passes 15, so bits 20 to 23 are free.
+    // incoming chunk, with the fade in the nibbles, drops. The grid x is at most 127 (a batch of 16 cells over 1/8 cell chunks), bits 16 to 22.
     bool inverted = ((gl_InstanceIndex >> 23) & 1) != 0;
-    vec2 gridPos = vec2((gl_InstanceIndex >> 16)&0xf, (gl_InstanceIndex >> 24)&0xff);
+    vec2 gridPos = vec2((gl_InstanceIndex >> 16) & 0x7f, (gl_InstanceIndex >> 24) & 0xff);
     float scale = 1.0 / (1 << shiftSize);
     vec2 uv = scale * (gridPos + vert / float(numVerts-1));
     ivec2 texSize = textureSize(heightMap, 0);

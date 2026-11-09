@@ -93,7 +93,7 @@ namespace Terrain
         return instance | ((dropped & 0xfu) << 4) | (((dropped >> 4) & 0xfu) << 12);
     }
 
-    /// With the complementary dither: bit 23 of the instance (above the four bits of the grid x, which never pass 15)
+    /// With the complementary dither: bit 23 of the instance (above the seven bits of the grid x, which never pass 127)
     /// says "inverted"; the fade nibbles then hold the incoming chunk's fade. A solid, normal share is the old value.
     inline std::uint32_t encodeChunkShare(std::uint32_t instance, ChunkShare share)
     {
@@ -126,8 +126,8 @@ namespace Terrain
     inline ChunkGeometry decodeChunkGeometry(std::uint32_t instance)
     {
         // The masks are the vertex stage's (terrain/main.vert, terrain.vert.slang): the high nibbles of bytes 0 and 1
-        // and bit 23 hold the fade, the grid x is the low nibble of byte 2.
-        return ChunkGeometry{ instance & 0xfu, (instance >> 8) & 0xfu, (instance >> 16) & 0xfu,
+        // and bit 23 hold the fade, the grid x is bits 16 to 22 (up to 127: a 16-cell batch of 1/8-cell chunks).
+        return ChunkGeometry{ instance & 0xfu, (instance >> 8) & 0xfu, (instance >> 16) & 0x7fu,
             (instance >> 24) & 0xffu };
     }
 

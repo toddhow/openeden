@@ -39,7 +39,7 @@ VertexOutput vertMain(uint vertexIndexU : SV_VulkanVertexID, uint instanceIndexU
     int numVerts = int(data.batch.numVerts - 1) / (1 << (shiftSize + lod)) + 1;
     int2 vert = int2(vertexIndex / numVerts, vertexIndex % numVerts);
     bool inverted = ((instanceIndex >> 23) & 1) != 0;
-    float2 gridPos = float2((instanceIndex >> 16) & 0xf, (instanceIndex >> 24) & 0xff);
+    float2 gridPos = float2((instanceIndex >> 16) & 0x7f, (instanceIndex >> 24) & 0xff);
     float scale = 1.0 / float(1 << shiftSize);
     float2 uv = scale * (gridPos + float2(vert) / float(numVerts - 1));
     uint texWidth, texHeight;
