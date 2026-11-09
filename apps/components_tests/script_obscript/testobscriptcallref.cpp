@@ -331,6 +331,27 @@ namespace
         EXPECT_EQ(second.mRuntime->getLocal(1, "b").integer, 8);
     }
 
+    TEST(ObScriptCallRef, restoring_a_version_1_save_warns_that_variables_are_matched_by_position)
+    {
+        RuntimeFixture f;
+        SaveBlob blob;
+        blob.formatVersion = 1;
+        putU32(blob.bytes, 0); // instances
+        putU32(blob.bytes, 1); // next id
+        ASSERT_TRUE(f.mRuntime->restore(blob).ok);
+        bool warned = false;
+        for (const std::string& message : f.mWorld.mMessages)
+        {
+            warned = warned || message.find("position") != std::string::npos;
+        }
+        EXPECT_TRUE(warned) << "a version 1 save is read positionally; an edited script can get the wrong values";
+        // A current save does not warn.
+        RuntimeFixture g;
+        SaveBlob current = g.mRuntime->serialise();
+        ASSERT_TRUE(g.mRuntime->restore(current).ok);
+        EXPECT_TRUE(g.mWorld.mMessages.empty());
+    }
+
     TEST(ObScriptCallRef, a_version_1_save_with_positional_variables_is_still_restored)
     {
         // The layout this runtime wrote before: counts, then the values by position.
