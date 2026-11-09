@@ -660,6 +660,7 @@ namespace ScriptPapyrus
                 mStackPool.push_back(std::make_unique<Stack>());
                 stack = mStackPool.back().get();
                 stack->poolIndex = static_cast<std::uint32_t>(mStackPool.size() - 1);
+                mStats.stackPoolSlots = mStackPool.size();
                 // releaseStack must never allocate: it runs when an exception is already on its way.
                 mFreeStacks.reserve(mStackPool.size());
             }

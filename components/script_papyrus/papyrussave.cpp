@@ -1591,6 +1591,31 @@ namespace ScriptPapyrus::Vm
                 built.push_back(std::move(item));
             }
 
+            // ---- the last checks that can fail: the state names of the instances (permanent strings, past every
+            // check above) and the text of the warnings. They come BEFORE the stack pool grows, so a refusal here
+            // leaves the pool as it was (review A4). After this point nothing allocates a name or a string.
+            for (std::size_t i = 0; i < newInstances.size(); ++i)
+            {
+                const std::string& stateText = texts[plain.mInstances[i].mState];
+                newInstances[i].stateName = internString(stateText);
+                newInstances[i].stateId = nameId(stateText);
+            }
+            for (const std::string& name : changedStructs)
+            {
+                warnings.push_back("restore: structs of the changed script '" + name + "' were not restored");
+            }
+            for (const std::string& name : changedScripts)
+            {
+                warnings.push_back("restore: the script '" + name
+                    + "' has changed since the save: its variables were matched by name and type, and its parked "
+                      "stacks were dropped");
+            }
+            if (droppedStacks > 0)
+            {
+                warnings.push_back("restore: " + std::to_string(droppedStacks)
+                    + " parked stack(s) were dropped because their scripts changed or are not loaded");
+            }
+
             // ---- room: the pool slots the parked stacks sit in (their tokens name them), the lists
             std::size_t poolSize = std::max<std::size_t>(mStackPool.size(), parkedKept + readyKept);
             for (const Built& item : built)
@@ -1607,6 +1632,7 @@ namespace ScriptPapyrus::Vm
                 fresh->poolIndex = static_cast<std::uint32_t>(mStackPool.size());
                 mStackPool.push_back(std::move(fresh));
                 mFreeStacks.push_back(mStackPool.back().get());
+                mStats.stackPoolSlots = mStackPool.size();
             }
             std::vector<std::uint8_t> used(poolSize, 0);
             for (const Built& item : built)
@@ -1637,30 +1663,6 @@ namespace ScriptPapyrus::Vm
             std::vector<Stack*> newReady;
             newReady.reserve(readyKept);
             mWaiting.reserve(parkedKept);
-
-            // ---- the last things that can fail: the state names of the instances (permanent strings, past every
-            // check above) and the text of the warnings. After this point nothing allocates a name or a string.
-            for (std::size_t i = 0; i < newInstances.size(); ++i)
-            {
-                const std::string& stateText = texts[plain.mInstances[i].mState];
-                newInstances[i].stateName = internString(stateText);
-                newInstances[i].stateId = nameId(stateText);
-            }
-            for (const std::string& name : changedStructs)
-            {
-                warnings.push_back("restore: structs of the changed script '" + name + "' were not restored");
-            }
-            for (const std::string& name : changedScripts)
-            {
-                warnings.push_back("restore: the script '" + name
-                    + "' has changed since the save: its variables were matched by name and type, and its parked "
-                      "stacks were dropped");
-            }
-            if (droppedStacks > 0)
-            {
-                warnings.push_back("restore: " + std::to_string(droppedStacks)
-                    + " parked stack(s) were dropped because their scripts changed or are not loaded");
-            }
 
             // ---- switch: nothing below can fail
             mWaiting.clear();

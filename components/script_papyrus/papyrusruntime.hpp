@@ -109,6 +109,7 @@ namespace ScriptPapyrus
         std::uint64_t timeMovedBackwards = 0; ///< tick() calls whose time was below the last one (clamped to it).
         std::uint64_t names = 0; ///< Entries of the permanent name table (RuntimeOptions::maxNames bounds it).
         std::uint64_t internedStrings = 0; ///< Entries of the permanent string table.
+        std::uint64_t stackPoolSlots = 0; ///< Stacks the pool holds (grows to the most that were ever in use at once).
         std::array<std::uint64_t, static_cast<std::size_t>(ErrorKind::Count)> errors{};
     };
 

@@ -1690,6 +1690,54 @@ namespace
         EXPECT_GT(rt.mRuntime->stats().names, names);
     }
 
+    TEST(PapyrusSave, repeated_refusals_do_not_grow_the_name_and_string_tables)
+    {
+        TinyRt rt;
+        ASSERT_TRUE(rt.mRuntime->restore(blobOf(TinyBlob{}.build())).ok);
+        const std::uint64_t names = rt.mRuntime->stats().names;
+        const std::uint64_t strings = rt.mRuntime->stats().internedStrings;
+        for (int round = 0; round < 5; ++round)
+        {
+            TinyBlob spec;
+            spec.mState = "RefusedStateZzz" + std::to_string(round);
+            spec.mFormClass = "RefusedFormClassZzz" + std::to_string(round);
+            spec.mParked = true; // refused: the function does not exist
+            ASSERT_FALSE(rt.mRuntime->restore(blobOf(spec.build())).ok);
+            EXPECT_EQ(rt.mRuntime->stats().names, names);
+            EXPECT_EQ(rt.mRuntime->stats().internedStrings, strings);
+        }
+        // The same text, accepted later, is interned once and costs the same as in a runtime that never refused it.
+        TinyBlob good;
+        good.mState = "RefusedStateZzz0";
+        good.mFormClass = "RefusedFormClassZzz0";
+        ASSERT_TRUE(rt.mRuntime->restore(blobOf(good.build())).ok);
+        TinyRt control;
+        ASSERT_TRUE(control.mRuntime->restore(blobOf(TinyBlob{}.build())).ok);
+        ASSERT_TRUE(control.mRuntime->restore(blobOf(good.build())).ok);
+        EXPECT_EQ(rt.mRuntime->stats().names, control.mRuntime->stats().names);
+        EXPECT_EQ(rt.mRuntime->stats().internedStrings, control.mRuntime->stats().internedStrings);
+    }
+
+    TEST(PapyrusSave, a_blob_refused_at_the_last_step_does_not_grow_the_stack_pool)
+    {
+        // The state names are the last thing that can fail; make the string table too small for a new one.
+        ScriptPapyrus::RuntimeOptions options = latentOptions();
+        {
+            TinyRt probe(options);
+            ASSERT_TRUE(probe.mRuntime->restore(blobOf(TinyBlob{}.build())).ok);
+            options.maxInternedStrings = static_cast<std::uint32_t>(probe.mRuntime->stats().internedStrings);
+        }
+        TinyRt rt(options);
+        ASSERT_TRUE(rt.mRuntime->restore(blobOf(TinyBlob{}.build())).ok);
+        const std::uint64_t slots = rt.mRuntime->stats().stackPoolSlots;
+        TinyBlob spec;
+        spec.mState = "ANovelStateTheTableCannotHoldZzz";
+        spec.mOnInit = true; // three queued stacks need three pool slots
+        const RestoreResult result = rt.mRuntime->restore(blobOf(spec.build()));
+        ASSERT_FALSE(result.ok) << "the string table is full";
+        EXPECT_EQ(rt.mRuntime->stats().stackPoolSlots, slots) << result.error.message;
+    }
+
     TEST(PapyrusSave, a_state_the_script_never_declared_is_kept_as_written)
     {
         // GotoState does not check its argument in Papyrus, so a save can hold such a state.
