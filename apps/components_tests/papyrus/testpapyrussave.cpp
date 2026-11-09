@@ -1464,6 +1464,7 @@ namespace
         bool mOnInit = false; ///< A queued OnInit before the event, as attach() leaves one.
         bool mQueued = true;
         std::int32_t mQueuedArg = 9;
+        std::uint8_t mQueuedArgKind = 1; ///< Val kind of the queued argument (1 Int, 2 Float, 3 Bool, 6 Instance)
         std::string mQueuedEvent = "onmark";
         bool mParked = false;
         std::uint32_t mParkedScript = 0; ///< 0 Tiny, 1 Other.
@@ -1519,7 +1520,7 @@ namespace
             if (mQueued)
             {
                 ++stackCount;
-                stacks.u8(0).u64(mQueuedSeq).u32(1).u32(text(mQueuedEvent)).u32(1).u32(0).u32(1).intVal(mQueuedArg);
+                stacks.u8(0).u64(mQueuedSeq).u32(1).u32(text(mQueuedEvent)).u32(1).u32(0).u32(1).u8(mQueuedArgKind).u32(static_cast<std::uint32_t>(mQueuedArg));
             }
             if (mParked)
             {
@@ -1736,6 +1737,37 @@ namespace
         const RestoreResult result = rt.mRuntime->restore(blobOf(spec.build()));
         ASSERT_FALSE(result.ok) << "the string table is full";
         EXPECT_EQ(rt.mRuntime->stats().stackPoolSlots, slots) << result.error.message;
+    }
+
+    // Review A9: a queued stack's argument kind is not checked against the event's parameter type at restore, as a
+    // live send() does not check it either. The interpreter must tolerate the mismatch: no crash, the runtime stays
+    // usable, and the event runs or fails with a located error.
+    TEST(PapyrusSave, a_queued_argument_of_the_wrong_kind_is_tolerated_like_a_live_send)
+    {
+        for (const std::uint8_t kind : { std::uint8_t{ 2 }, std::uint8_t{ 3 }, std::uint8_t{ 6 } })
+        {
+            TinyRt rt;
+            TinyBlob spec;
+            spec.mQueuedArgKind = kind;
+            spec.mQueuedArg = kind == 2 ? 0x3F800000 : 1; // a float 1.0; true; instance 1 (exists)
+            const RestoreResult result = rt.mRuntime->restore(blobOf(spec.build()));
+            ASSERT_TRUE(result.ok) << "kind " << int(kind) << ": " << result.error.format();
+            rt.mRuntime->tick(0.0);
+            // The same mismatch through a live send, for comparison.
+            AttachKey second;
+            second.kind = AttachKind::Form;
+            second.formId = 0x10002;
+            ASSERT_NE(rt.mRuntime->attach(second, "Tiny"), 0u);
+            rt.mRuntime->tick(0.0);
+            // The runtime is usable afterwards: a well-formed event still runs and a blob still round-trips.
+            const SaveBlob again = rt.mRuntime->serialise();
+            EXPECT_FALSE(again.bytes.empty()) << "kind " << int(kind);
+            TinyRt other;
+            {
+                const RestoreResult back = other.mRuntime->restore(again);
+                EXPECT_TRUE(back.ok) << "kind " << int(kind) << ": " << back.error.format();
+            }
+        }
     }
 
     TEST(PapyrusSave, a_state_the_script_never_declared_is_kept_as_written)

@@ -820,9 +820,46 @@ namespace ScriptPapyrus
                         + " were given");
                 return 2;
             }
+            bool replaced = false;
             for (std::uint32_t i = 0; i < stack.argCount; ++i)
             {
                 mArgScratch[i] = stack.values[i];
+                // An event's arguments come from outside (a game pack's send, a restored save). One of a kind the
+                // parameter cannot hold would be stored in a typed variable and make the next save refuse itself
+                // (review A9), so it becomes the parameter's zero.
+                const TypeRef& type = function.slotTypes[i];
+                const Kind kind = mArgScratch[i].kind;
+                const bool numeric = kind == Kind::Int || kind == Kind::Float || kind == Kind::Bool;
+                const bool objectLike = kind == Kind::Form || kind == Kind::Instance;
+                bool fits = kind == Kind::None;
+                switch (type.kind)
+                {
+                    case TypeKind::Int:
+                    case TypeKind::Float:
+                    case TypeKind::Bool:
+                        fits = fits || numeric;
+                        break;
+                    case TypeKind::String:
+                        fits = fits || kind == Kind::String;
+                        break;
+                    case TypeKind::Object:
+                        fits = fits || objectLike;
+                        break;
+                    default:
+                        fits = true; // arrays, structs and Var: left to the interpreter as before
+                        break;
+                }
+                if (!fits)
+                {
+                    mArgScratch[i] = zeroOf(type);
+                    replaced = true;
+                }
+            }
+            if (replaced && mLoggedOnce.insert("event-arg-kind").second)
+            {
+                worldLog(Severity::Warning,
+                    "event '" + std::string(nameText(stack.eventName))
+                        + "': an argument of a kind its parameter cannot hold was replaced by the parameter's zero");
             }
             stack.values.clear();
             const Val self = function.global ? Val{} : Val::makeInstance(stack.instance);
