@@ -19,11 +19,14 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/crafting_rules.hpp
 )
 
+# The repository root is for the pack's own sources, which include <apps/openmw/...> by path; it is not exported, so a
+# target that only links this pack does not get the whole repository on its include path.
 target_include_directories(game_morrowind
     PUBLIC
         include
-        ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/sdk/include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}
 )
 
 target_link_libraries(game_morrowind PUBLIC openmw-lib)
