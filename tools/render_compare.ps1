@@ -101,9 +101,10 @@ function Invoke-Capture {
 
         $targetArgs = @()
         if ($sceneType -eq "start") {
-            $targetArgs = @("--skip-menu", "--start", $sceneTarget)
+            # Start-Process joins the list without quoting, so a cell name with a space ("Sadrith Mora") must carry its own quotes.
+            $targetArgs = @("--skip-menu", "--start", "`"$sceneTarget`"")
         } elseif ($sceneType -eq "save") {
-            $targetArgs = @("--skip-menu", "--load-savegame", $sceneTarget)
+            $targetArgs = @("--skip-menu", "--load-savegame", "`"$sceneTarget`"")
         }
 
         $allArgs = @(
