@@ -83,6 +83,19 @@ namespace
         EXPECT_EQ(options.mRootRuleExemptName, "bip01");
     }
 
+    // Task 0083 review 1, finding 5: the engine does not call the pack for its read options (the core may not depend
+    // on an extension), it relies on ReadOptions' own member defaults being Morrowind's. This pins every member of
+    // the pack's value against a default-constructed ReadOptions, so a changed default or a changed pack value fails.
+    TEST(CompatMorrowindScene, the_pack_read_options_equal_the_read_options_member_defaults_field_by_field)
+    {
+        const Nif::ReadOptions pack = compat_morrowind::morrowindReadOptions();
+        const Nif::ReadOptions core;
+        EXPECT_EQ(pack.mAllowedVersions, core.mAllowedVersions);
+        EXPECT_EQ(pack.mStrict, core.mStrict);
+        EXPECT_EQ(pack.mMorrowindRootRule, core.mMorrowindRootRule);
+        EXPECT_EQ(pack.mRootRuleExemptName, core.mRootRuleExemptName);
+    }
+
     TEST(CompatMorrowindScene, the_scene_options_carry_the_read_options)
     {
         const NifScene::SceneOptions options = compat_morrowind::morrowindSceneOptions();

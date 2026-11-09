@@ -1,5 +1,6 @@
 #include "archivefactory.hpp"
 
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -13,7 +14,15 @@ namespace VFS
 {
     namespace
     {
-        // Written at start-up only, read while archives are registered, also at start-up (see addArchiveFactory).
+        // Guards the list and the keys below. A lookup copies the list under the lock and runs the factories outside
+        // it, so a factory may itself register or ask for the count, and a slow file read never blocks registration.
+        std::mutex& listMutex()
+        {
+            static std::mutex mutex;
+            return mutex;
+        }
+
+        // Always accessed with listMutex() held.
         std::vector<ArchiveFactory>& factories()
         {
             static std::vector<ArchiveFactory> list;
@@ -30,11 +39,13 @@ namespace VFS
 
     void addArchiveFactory(ArchiveFactory factory)
     {
+        const std::lock_guard<std::mutex> lock(listMutex());
         factories().push_back(std::move(factory));
     }
 
     bool addArchiveFactoryOnce(const std::string& key, ArchiveFactory factory)
     {
+        const std::lock_guard<std::mutex> lock(listMutex());
         if (!keys().insert(key).second)
             return false;
         factories().push_back(std::move(factory));
@@ -43,18 +54,25 @@ namespace VFS
 
     std::size_t archiveFactoryCount()
     {
+        const std::lock_guard<std::mutex> lock(listMutex());
         return factories().size();
     }
 
     void clearArchiveFactories()
     {
+        const std::lock_guard<std::mutex> lock(listMutex());
         factories().clear();
         keys().clear();
     }
 
     std::unique_ptr<Archive> makeArchive(const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder)
     {
-        for (const ArchiveFactory& factory : factories())
+        std::vector<ArchiveFactory> snapshot;
+        {
+            const std::lock_guard<std::mutex> lock(listMutex());
+            snapshot = factories();
+        }
+        for (const ArchiveFactory& factory : snapshot)
         {
             if (std::unique_ptr<Archive> archive = factory(path, encoder))
                 return archive;

@@ -127,6 +127,7 @@ file(GLOB UNITTEST_SRC_FILES
     vfs/testedenarchive.cpp
     vfs/testvfsthreads.cpp
     vfs/testvfsarchivekinds.cpp
+    vfs/testvfsfactorythreads.cpp
     vfs/testvfsentryname.cpp
     vfs/testvfsservicetraversal.cpp
     vfs/testvfspackplacement.cpp

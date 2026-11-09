@@ -22,8 +22,9 @@ namespace VFS
     using ArchiveFactory = std::function<std::unique_ptr<Archive>(
         const std::filesystem::path& path, const ToUTF8::StatelessUtf8Encoder* encoder)>;
 
-    /// Appends a factory to the process-wide list. Not thread-safe: call it while the program starts, before
-    /// registerArchives(). Archive kinds other than the Eden pack are added this way.
+    /// Appends a factory to the process-wide list. Thread-safe (a mutex guards the list); still call it while the
+    /// program starts, before registerArchives(), because a lookup sees the factories added before it copied the
+    /// list. Archive kinds other than the Eden pack are added this way.
     void addArchiveFactory(ArchiveFactory factory);
 
     /// Adds a factory under a key unless a factory with that key is already in the list; returns whether it was
