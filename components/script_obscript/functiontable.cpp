@@ -459,6 +459,7 @@ namespace ScriptObscript
         std::size_t lineNumber = 0;
         std::size_t start = 0;
         std::set<std::string> seen;
+        std::size_t skippedFull = 0; // entries left out because the table holds its maximum
         if (seedText.size() > TableLimits::kMaxBytes)
         {
             errors.push_back(makeError(fileName, 1,
@@ -515,15 +516,28 @@ namespace ScriptObscript
                     makeError(fileName, lineNumber, std::format("duplicate function '{}' in the seed", entry.mName)));
                 continue;
             }
-            if (table.find(entry.mName) != nullptr || table.mEntries.size() >= TableLimits::kMaxEntries)
+            if (table.find(entry.mName) != nullptr)
             {
                 continue; // a derived entry wins
+            }
+            if (table.mEntries.size() >= TableLimits::kMaxEntries)
+            {
+                ++skippedFull;
+                continue;
             }
             // keep the entries sorted, so that find() stays valid while the seed is read
             const auto where = std::lower_bound(table.mEntries.begin(), table.mEntries.end(), entry.mName,
                 [](const TableEntry& existing, const std::string& name) { return existing.mName < name; });
             table.mEntries.insert(where, std::move(entry));
             ++added;
+        }
+        if (skippedFull > 0)
+        {
+            ErrorReport warning = makeError(fileName, 0,
+                std::format("the function table is full ({} entries): {} seed entries were not added",
+                    TableLimits::kMaxEntries, skippedFull));
+            warning.severity = openeden::script::Severity::Warning;
+            errors.push_back(std::move(warning));
         }
         table.normalise();
         return added;

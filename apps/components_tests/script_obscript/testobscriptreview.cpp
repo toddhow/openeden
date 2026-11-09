@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -243,5 +244,27 @@ namespace
         EXPECT_EQ(ScriptObscript::mergeSeed(table, seed, "seed.txt", errors), 0u);
         EXPECT_LE(errors.size(), ScriptObscript::TableLimits::kMaxSeedErrors + 1);
         EXPECT_GE(errors.size(), 2u);
+    }
+    // Review A6: entries the seed could not add because the table is full are reported (once, as a warning).
+    TEST(ObScriptReview, seed_entries_skipped_because_the_table_is_full_are_reported_once)
+    {
+        ScriptObscript::FunctionTable table;
+        for (std::size_t i = 0; i < ScriptObscript::TableLimits::kMaxEntries; ++i)
+        {
+            ScriptObscript::TableEntry entry;
+            char name[16];
+            std::snprintf(name, sizeof(name), "f%07zu", i);
+            entry.mName = name;
+            entry.mSignature = "/";
+            table.mEntries.push_back(std::move(entry));
+        }
+        std::vector<ErrorReport> errors;
+        const std::string seed = "function zzone 0 / l 0 0 0 0 seed READ a page\n"
+                                 "function zztwo 0 / l 0 0 0 0 seed READ a page\n";
+        EXPECT_EQ(ScriptObscript::mergeSeed(table, seed, "seed.txt", errors), 0u);
+        ASSERT_EQ(errors.size(), 1u) << "one summary, not one line per entry";
+        EXPECT_EQ(errors[0].severity, openeden::script::Severity::Warning);
+        EXPECT_NE(errors[0].message.find("full"), std::string::npos) << errors[0].message;
+        EXPECT_NE(errors[0].message.find("2"), std::string::npos) << "the number skipped";
     }
 }

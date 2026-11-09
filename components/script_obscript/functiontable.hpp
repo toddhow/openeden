@@ -93,7 +93,8 @@ namespace ScriptObscript
 
     /// Read hand-written entries (the same "function" records, each of which must be "seed" and must carry source words
     /// that start with READ or RECALLED-VERIFY) and add those whose name the table does not have. Returns the number
-    /// added; problems are located errors.
+    /// added; problems are located errors. Entries the table has no room for are counted in one Warning at the end
+    /// (a name the table already has is not reported: the derived entry wins by design).
     std::size_t mergeSeed(FunctionTable& table, std::string_view seedText, std::string_view fileName,
         std::vector<openeden::script::ErrorReport>& errors);
 
