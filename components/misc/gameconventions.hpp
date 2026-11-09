@@ -19,7 +19,8 @@
 // built before then keeps the bones it resolved (documented in task 0085's stage log).
 //
 // Threads: the values are published as an immutable snapshot (`setGameConventions`, called once on the main thread
-// when the pack starts and again, reset, when it stops); every reader takes one atomic pointer load and may hold the
+// when the pack starts, and reset at the start of the next session by `ExtensionHost::start()`; `stop()` does not
+// reset them, see above); every reader takes one atomic pointer load and may hold the
 // returned reference for ever, because a snapshot is never freed. A reader that started before the pack did sees the
 // defaults, which are Morrowind's: with another game, values needed before `ExtensionHost::start()` (the first
 // loading screen) are Morrowind's until then (task 0085 stage log, open decision).
