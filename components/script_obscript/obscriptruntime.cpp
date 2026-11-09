@@ -774,6 +774,29 @@ namespace ScriptObscript
                     result.reports = std::move(output.mReports);
                     if (output.mOk)
                     {
+                        // Compiling a name again replaces its script when no instance depends on the old one (their
+                        // variables are laid out by it); otherwise the new code gets a slot of its own as before.
+                        ScriptId reuse = 0;
+                        if (const auto known = mScriptByName.find(lowerText(source.name)); known != mScriptByName.end())
+                        {
+                            reuse = known->second;
+                            for (const auto& entry : mInstances)
+                            {
+                                if (entry.second.mScript == reuse)
+                                {
+                                    reuse = 0;
+                                    break;
+                                }
+                            }
+                        }
+                        if (reuse != 0)
+                        {
+                            mScripts[reuse - 1] = std::make_unique<CompiledScript>(std::move(output.mScript));
+                            transaction.commit();
+                            result.script = reuse;
+                            result.ok = true;
+                            return result;
+                        }
                         if (mScripts.size() >= Limits::kMaxScripts)
                         {
                             ErrorReport report;

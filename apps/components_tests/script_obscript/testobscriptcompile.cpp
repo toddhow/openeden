@@ -364,4 +364,33 @@ End
         EXPECT_TRUE(firstAccepted);
         EXPECT_GT(refused, 0u);
     }
+    // Review A5: compiling a script again under the same name (a mod reload, an editor) replaces it. With no instance
+    // of the old one the slot is reused, so reloading does not use up the 65,536 scripts a runtime can hold.
+    TEST(ObScriptRecompile, the_same_name_reuses_its_slot_and_never_exhausts_the_script_cap)
+    {
+        RuntimeFixture f;
+        const std::string text = "ScriptName Again\nshort n\nBegin GameMode\n Set n to n + 1\nEnd\n";
+        const ScriptId first = f.compileOk("Again", text);
+        ASSERT_NE(first, 0u);
+        for (std::size_t i = 0; i < ScriptObscript::Limits::kMaxScripts + 100; ++i)
+        {
+            ASSERT_EQ(f.compileOk("Again", text), first) << "recompile " << i;
+        }
+        // Another name still gets a script of its own.
+        EXPECT_NE(f.compileOk("Other", "ScriptName Other\nBegin GameMode\nEnd\n"), first);
+    }
+
+    TEST(ObScriptRecompile, a_script_that_has_instances_keeps_its_old_code_and_the_new_one_gets_a_new_id)
+    {
+        RuntimeFixture f;
+        const ScriptId first = f.compileOk("Again", "ScriptName Again\nshort n\nBegin GameMode\n Set n to n + 1\nEnd\n");
+        const InstanceId instance = f.mRuntime->createInstance(first, 0x10);
+        ASSERT_NE(instance, 0u);
+        const ScriptId second = f.compileOk(
+            "Again", "ScriptName Again\nshort n\nshort m\nBegin GameMode\n Set n to n + 2\nEnd\n");
+        ASSERT_NE(second, 0u);
+        EXPECT_NE(second, first) << "the instance still depends on the old layout";
+        EXPECT_TRUE(f.mRuntime->run(instance, "GameMode").ok);
+        EXPECT_EQ(f.mRuntime->getLocal(instance, "n").integer, 1) << "the old code ran";
+    }
 }
