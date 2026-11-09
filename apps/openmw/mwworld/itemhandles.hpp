@@ -29,8 +29,8 @@ namespace MWWorld
         ItemHandleScope(const ItemHandleScope&) = delete;
         ItemHandleScope& operator=(const ItemHandleScope&) = delete;
 
-        /// An empty Ptr gives kNoItem. The same Ptr (the same LiveCellRef) made twice in one scope gives the same
-        /// handle; a different Ptr gives a different one, so an item that was replaced by another stack is a new
+        /// An empty Ptr gives kNoItem. The same Ptr (the same LiveCellRef in the same cell or container store) made twice
+        /// in one scope gives the same handle; a different Ptr gives a different one, so an item that was replaced by another stack is a new
         /// handle.
         [[nodiscard]] openeden::sdk::game::ItemHandle make(const Ptr& ptr);
 

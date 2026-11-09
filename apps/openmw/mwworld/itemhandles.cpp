@@ -55,6 +55,19 @@ namespace MWWorld
             return &slot;
         }
 
+        // Ptr's own == compares the LiveCellRef address only, and an address can be recycled by another object. A
+        // handle is reused only for the same address in the same place (the same cell or the same container store).
+        bool sameItemAndPlace(const Ptr& a, const Ptr& b)
+        {
+            if (!(a == b))
+                return false;
+            if (a.isInCell() != b.isInCell())
+                return false;
+            if (a.isInCell())
+                return a.getCell() == b.getCell();
+            return a.getContainerStore() == b.getContainerStore();
+        }
+
         void free(ItemHandle handle)
         {
             Slot* slot = find(handle);
@@ -84,7 +97,7 @@ namespace MWWorld
         for (const ItemHandle existing : mHandles)
         {
             const Slot* slot = find(existing);
-            if (slot != nullptr && slot->mPtr == ptr)
+            if (slot != nullptr && sameItemAndPlace(slot->mPtr, ptr))
                 return existing;
         }
 

@@ -11,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <vector>
 
 namespace MWWorld
@@ -212,6 +213,32 @@ namespace MWWorld
             }
             EXPECT_EQ(liveItemHandleCount(), 0u);
             EXPECT_LE(itemHandleSlotCount(), 64u);
+        }
+
+        // Review F1: a Ptr compares equal by its LiveCellRef address alone, and an address can be recycled by another
+        // object elsewhere. A handle made for the same address in another place (another cell) must not be reused.
+        TEST(MWWorldItemHandles, the_same_address_in_another_cell_is_a_new_handle)
+        {
+            Item item(1);
+            CellStore* cellA = reinterpret_cast<CellStore*>(std::uintptr_t{ 0x10 });
+            CellStore* cellB = reinterpret_cast<CellStore*>(std::uintptr_t{ 0x20 });
+            ItemHandleScope scope;
+            const ItemHandle inA = scope.make(Ptr(&item.mRef, cellA));
+            const ItemHandle inB = scope.make(Ptr(&item.mRef, cellB));
+            EXPECT_NE(inA, inB);
+            EXPECT_EQ(resolveItem(inA).getCell(), cellA);
+            EXPECT_EQ(resolveItem(inB).getCell(), cellB);
+            EXPECT_EQ(scope.make(Ptr(&item.mRef, cellA)), inA) << "the same place still reuses";
+        }
+
+        TEST(MWWorldItemHandles, the_same_address_in_a_cell_and_loose_is_a_new_handle)
+        {
+            Item item(1);
+            CellStore* cell = reinterpret_cast<CellStore*>(std::uintptr_t{ 0x10 });
+            ItemHandleScope scope;
+            const ItemHandle inCell = scope.make(Ptr(&item.mRef, cell));
+            const ItemHandle loose = scope.make(item.ptr());
+            EXPECT_NE(inCell, loose);
         }
     }
 }
