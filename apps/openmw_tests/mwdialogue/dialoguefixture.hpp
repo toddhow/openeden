@@ -183,10 +183,15 @@ namespace DialogueTest
 
     struct InfoSpec
     {
-        std::string mId;
-        std::string mResponse;
-        std::string mResultScript;
-        std::string mActor, mRace, mClass, mFaction, mPcFaction, mCell;
+        std::string mId{};
+        std::string mResponse{};
+        std::string mResultScript{};
+        std::string mActor{};
+        std::string mRace{};
+        std::string mClass{};
+        std::string mFaction{};
+        std::string mPcFaction{};
+        std::string mCell{};
         bool mFactionLess = false;
         int mDisposition = 0;
         int mRank = -1;
@@ -194,7 +199,7 @@ namespace DialogueTest
         int mGender = -1; // DialInfo::Gender
         int mJournalIndex = -1;
         ESM::DialInfo::QuestStatus mQuestStatus = ESM::DialInfo::QS_None;
-        std::vector<ESM::DialogueCondition> mSelects;
+        std::vector<ESM::DialogueCondition> mSelects{};
     };
 
     /// Dialogue records for the store are made by writing a TES3 file in memory and loading it, the way the game
