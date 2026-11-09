@@ -328,7 +328,7 @@ namespace ScriptPapyrus::Vm
     // ---- the runtime
     // -------------------------------------------------------------------------------------------------
 
-    class Runtime final : public PapyrusRuntime
+    class Runtime final : public PapyrusRuntime, public openeden::script::RestoreDetailsSource
     {
     public:
         Runtime(openeden::script::PapyrusWorld& world, openeden::script::UnknownFunctionPolicy policy,
@@ -351,6 +351,8 @@ namespace ScriptPapyrus::Vm
         /// Script state (papyrussave.cpp). The blob's layout is in papyrussave.hpp.
         openeden::script::SaveBlob serialise() const noexcept override;
         openeden::script::RestoreResult restore(const openeden::script::SaveBlob& blob) noexcept override;
+        /// What the last restore() dropped or could not check (RestoreResult keeps its 1.0 layout; H0, 2026-11-09).
+        const openeden::script::RestoreDetails& lastRestoreDetails() const noexcept override { return mLastRestoreDetails; }
 
         // The additions of PapyrusRuntime.
         const Stats& stats() const noexcept override { return mStats; }
@@ -538,6 +540,7 @@ namespace ScriptPapyrus::Vm
         openeden::script::UnknownFunctionPolicy mPolicy;
         RuntimeOptions mOptions;
         Stats mStats;
+        openeden::script::RestoreDetails mLastRestoreDetails; ///< Reset at the start of every restore().
 
         std::vector<Script> mScripts; ///< In load order.
         std::map<std::string, std::size_t> mByName; ///< Lower-cased class name to index in mScripts.

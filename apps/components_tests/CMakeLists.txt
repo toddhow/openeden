@@ -161,6 +161,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptrealdata.cpp
     script_obscript/testobscriptreview.cpp
     script_obscript/testobscriptcallref.cpp
+    script_obscript/testobscriptrestoredetails.cpp
 
     # Task 0093: the Papyrus runtime of the common compatibility pack (generated .pex files from the test assembler).
     papyrus/testpapyruscontract.cpp
@@ -178,6 +179,8 @@ file(GLOB UNITTEST_SRC_FILES
     papyrus/testpapyrusreview2.cpp
     papyrus/testpapyrussched.cpp
     papyrus/testpapyrussave.cpp
+    papyrus/testrestoreresultabi.cpp
+    papyrus/testpapyrusgamepack.cpp
 
     nif/node.hpp
     nif/testphysics.cpp

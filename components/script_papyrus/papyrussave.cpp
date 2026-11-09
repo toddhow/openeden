@@ -1035,12 +1035,19 @@ namespace ScriptPapyrus::Vm
 
     RestoreResult Runtime::restore(const SaveBlob& blob) noexcept
     {
+        mLastRestoreDetails = RestoreDetails{};
         try
         {
-            return restoreImpl(blob);
+            RestoreResult done = restoreImpl(blob);
+            if (!done.ok)
+            {
+                mLastRestoreDetails = RestoreDetails{}; // a refused blob reports nothing
+            }
+            return done;
         }
         catch (const std::length_error& error)
         {
+            mLastRestoreDetails = RestoreDetails{};
             RestoreResult result;
             try
             {
@@ -1053,6 +1060,7 @@ namespace ScriptPapyrus::Vm
         }
         catch (...)
         {
+            mLastRestoreDetails = RestoreDetails{};
             RestoreResult result;
             try
             {
@@ -1162,7 +1170,7 @@ namespace ScriptPapyrus::Vm
             // ---- the keys, and the instances' scripts
             const openeden::script::PapyrusAttachKeyCheck* keyCheck
                 = dynamic_cast<const openeden::script::PapyrusAttachKeyCheck*>(&mWorld);
-            result.attachKeysChecked = keyCheck != nullptr || plain.mInstances.empty();
+            mLastRestoreDetails.attachKeysChecked = keyCheck != nullptr || plain.mInstances.empty();
             if (keyCheck == nullptr && !plain.mInstances.empty() && mLoggedOnce.insert("restore-attach-keys").second)
             {
                 worldLog(Severity::Warning,
@@ -1733,10 +1741,10 @@ namespace ScriptPapyrus::Vm
             {
             }
 
-            result.droppedParkedStacks = droppedStacks;
-            result.droppedHostWaits = droppedHostWaits;
-            result.changedStructObjects = changedStructObjects;
-            result.changedScripts = static_cast<std::uint32_t>(changedScripts.size());
+            mLastRestoreDetails.droppedParkedStacks = droppedStacks;
+            mLastRestoreDetails.droppedHostWaits = droppedHostWaits;
+            mLastRestoreDetails.changedStructObjects = changedStructObjects;
+            mLastRestoreDetails.changedScripts = static_cast<std::uint32_t>(changedScripts.size());
             result.ok = true;
         }
         catch (const Refusal& refusal)

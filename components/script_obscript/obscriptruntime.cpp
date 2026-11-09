@@ -531,7 +531,7 @@ namespace ScriptObscript
 
         // ---- the runtime -------------------------------------------------------------------------------------
 
-        class RuntimeImpl final : public ObScriptContract
+        class RuntimeImpl final : public ObScriptContract, public RestoreDetailsSource
         {
         public:
             RuntimeImpl(ObScriptWorld& world, UnknownFunctionPolicy policy)
@@ -1068,6 +1068,19 @@ namespace ScriptObscript
 
             RestoreResult restore(const SaveBlob& blob) noexcept override
             {
+                RestoreResult done = restoreCore(blob);
+                // ObScript has no attach keys, parked stacks or structs: nothing is dropped and there is nothing to
+                // check, so a restored blob reports "keys checked" and zero counts (H0, 2026-11-09). A refused
+                // blob reports the start values.
+                mLastRestoreDetails = RestoreDetails{};
+                mLastRestoreDetails.attachKeysChecked = done.ok;
+                return done;
+            }
+
+            const RestoreDetails& lastRestoreDetails() const noexcept override { return mLastRestoreDetails; }
+
+            RestoreResult restoreCore(const SaveBlob& blob) noexcept
+            {
                 RestoreResult result;
                 try
                 {
@@ -1389,6 +1402,7 @@ namespace ScriptObscript
             std::size_t mDotUnknownCount = 0; ///< Unknown names that stood before a dot (their own bucket).
             std::size_t mDeclaredCount = 0;
             std::uint32_t mRunDepth = 0;
+            RestoreDetails mLastRestoreDetails; ///< Set by every restore().
         };
     }
 

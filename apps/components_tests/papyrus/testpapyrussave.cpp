@@ -29,6 +29,16 @@ namespace
     using namespace PapyrusTest;
     using namespace PexAsm;
     using namespace openeden::script;
+
+    // H0 (2026-11-09): what a restore left out is not in RestoreResult (its layout is the 1.0 one, returned by value
+    // across the contract) but in the optional RestoreDetailsSource of the concrete runtime.
+    const RestoreDetails& detailsOf(const ScriptPapyrus::PapyrusRuntime& runtime)
+    {
+        static const RestoreDetails none;
+        const RestoreDetailsSource* source = dynamic_cast<const RestoreDetailsSource*>(&runtime);
+        EXPECT_NE(source, nullptr) << "the Papyrus runtime offers RestoreDetailsSource";
+        return source != nullptr ? source->lastRestoreDetails() : none;
+    }
     namespace Save = ScriptPapyrus::Save;
 
     PapyrusValue F(float v)
@@ -1612,8 +1622,8 @@ namespace
         TinyRt rt;
         const RestoreResult result = rt.mRuntime->restore(blobOf(TinyBlob{}.build()));
         ASSERT_TRUE(result.ok) << result.error.format();
-        EXPECT_EQ(result.changedScripts, 0u);
-        EXPECT_EQ(result.droppedParkedStacks, 0u);
+        EXPECT_EQ(detailsOf(*rt.mRuntime).changedScripts, 0u);
+        EXPECT_EQ(detailsOf(*rt.mRuntime).droppedParkedStacks, 0u);
         EXPECT_FALSE(rt.mOwned->logged("changed since the save"));
     }
 
@@ -1640,11 +1650,11 @@ namespace
         TinyRt rt(latentOptions(), false);
         const RestoreResult first = rt.mRuntime->restore(blobOf(TinyBlob{}.build()));
         ASSERT_TRUE(first.ok) << first.error.format();
-        EXPECT_FALSE(first.attachKeysChecked) << "nothing validated the keys";
+        EXPECT_FALSE(detailsOf(*rt.mRuntime).attachKeysChecked) << "nothing validated the keys";
         EXPECT_EQ(rt.mOwned->countLogged("attach key"), 1u);
         const RestoreResult second = rt.mRuntime->restore(blobOf(TinyBlob{}.build()));
         ASSERT_TRUE(second.ok);
-        EXPECT_FALSE(second.attachKeysChecked);
+        EXPECT_FALSE(detailsOf(*rt.mRuntime).attachKeysChecked);
         EXPECT_EQ(rt.mOwned->countLogged("attach key"), 1u) << "said once";
     }
 
@@ -1658,7 +1668,7 @@ namespace
         };
         const RestoreResult result = rt.mRuntime->restore(blobOf(TinyBlob{}.build()));
         ASSERT_TRUE(result.ok) << result.error.format();
-        EXPECT_TRUE(result.attachKeysChecked);
+        EXPECT_TRUE(detailsOf(*rt.mRuntime).attachKeysChecked);
         EXPECT_EQ(asked, (std::vector<std::uint32_t>{ 0x10001u }));
         EXPECT_EQ(rt.mOwned->countLogged("attach key"), 0u);
         rt.mOwned->mKeyCheck = [](const AttachKey&) { return false; };
@@ -1827,17 +1837,38 @@ namespace
         Node b(Target::SkyrimSE, latentOptions(), 1);
         const RestoreResult result = b.mRuntime->restore(a.mRuntime->serialise());
         ASSERT_TRUE(result.ok) << result.error.format();
-        EXPECT_EQ(result.changedScripts, 1u);
-        EXPECT_EQ(result.droppedParkedStacks, 4u) << "long, nested, host and the one the host completed";
-        EXPECT_EQ(result.droppedHostWaits, 1u) << "only the one still waiting for the host";
-        EXPECT_EQ(result.changedStructObjects, 0u);
-        EXPECT_TRUE(result.attachKeysChecked);
+        const RestoreDetails& details = detailsOf(*b.mRuntime);
+        EXPECT_EQ(details.changedScripts, 1u);
+        EXPECT_EQ(details.droppedParkedStacks, 4u) << "long, nested, host and the one the host completed";
+        EXPECT_EQ(details.droppedHostWaits, 1u) << "only the one still waiting for the host";
+        EXPECT_EQ(details.changedStructObjects, 0u);
+        EXPECT_TRUE(details.attachKeysChecked);
         Node same;
         const RestoreResult plain = same.mRuntime->restore(a.mRuntime->serialise());
         ASSERT_TRUE(plain.ok);
-        EXPECT_EQ(plain.changedScripts, 0u);
-        EXPECT_EQ(plain.droppedParkedStacks, 0u);
-        EXPECT_EQ(plain.droppedHostWaits, 0u);
+        const RestoreDetails& plainDetails = detailsOf(*same.mRuntime);
+        EXPECT_EQ(plainDetails.changedScripts, 0u);
+        EXPECT_EQ(plainDetails.droppedParkedStacks, 0u);
+        EXPECT_EQ(plainDetails.droppedHostWaits, 0u);
+    }
+
+    TEST(PapyrusSave, a_refused_blob_clears_the_details_of_the_restore_before_it)
+    {
+        Node a;
+        populate(a);
+        Node b(Target::SkyrimSE, latentOptions(), 1);
+        ASSERT_TRUE(b.mRuntime->restore(a.mRuntime->serialise()).ok);
+        ASSERT_EQ(detailsOf(*b.mRuntime).changedScripts, 1u);
+        SaveBlob garbage;
+        garbage.formatVersion = a.mRuntime->serialise().formatVersion;
+        garbage.bytes = { 1, 2, 3 };
+        EXPECT_FALSE(b.mRuntime->restore(garbage).ok);
+        const RestoreDetails& details = detailsOf(*b.mRuntime);
+        EXPECT_EQ(details.changedScripts, 0u);
+        EXPECT_EQ(details.droppedParkedStacks, 0u);
+        EXPECT_EQ(details.droppedHostWaits, 0u);
+        EXPECT_EQ(details.changedStructObjects, 0u);
+        EXPECT_FALSE(details.attachKeysChecked);
     }
 
     // ---- finding M6: times ----

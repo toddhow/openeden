@@ -227,7 +227,7 @@ namespace openeden::script
     /// since 1.0, so a game pack built against any earlier header keeps its layout. A game pack that can tell whether
     /// the form, alias or effect an attach key names still exists derives its world from this class as well; the
     /// runtime asks `dynamic_cast<const PapyrusAttachKeyCheck*>(&world)` when it restores. Without it restore() does
-    /// NOT validate attach keys: it says so once in the log and RestoreResult::attachKeysChecked is false.
+    /// NOT validate attach keys: it says so once in the log and RestoreDetails::attachKeysChecked is false.
     class PapyrusAttachKeyCheck
     {
     public:
@@ -243,9 +243,11 @@ namespace openeden::script
     public:
         static constexpr std::string_view kId = "openeden.script.papyrus";
         /// 1.0 (2026-11-08): first version.
-        /// 1.1 (2026-11-09, toddhow): stage e added serialise/restore semantics, the optional PapyrusAttachKeyCheck
-        /// and the trailing fields of RestoreResult (a pack built against an earlier header sees a larger
-        /// RestoreResult), so the minor is bumped.
+        /// 1.1 (2026-11-09, toddhow): stage e added serialise/restore semantics and the optional
+        /// PapyrusAttachKeyCheck. The bump also covered five trailing fields that RestoreResult briefly had; H0
+        /// (2026-11-09) took them out again (RestoreResult has its 1.0 layout) and put them in RestoreDetails,
+        /// reachable through the optional RestoreDetailsSource of the runtime, which supersedes them. The number stays
+        /// 1.1: a 1.0 consumer is now ABI-safe, and a 1.1 consumer reads the details the new way.
         static constexpr sdk::Version kVersion{ 1, 1 };
 
         virtual ~PapyrusContract() = default;
@@ -291,9 +293,9 @@ namespace openeden::script
         /// gone. Scripts and natives must be loaded and registered again first. The blob is checked whole before
         /// anything changes; a refused blob changes nothing and the error says where in the blob it went wrong. A
         /// script that changed since the save keeps its variables that still match by name and type and loses its
-        /// parked stacks (a warning is logged and RestoreResult counts them); a script that is not loaded refuses the
+        /// parked stacks (a warning is logged and RestoreDetails counts them); a script that is not loaded refuses the
         /// blob, and so does a key that the world's optional PapyrusAttachKeyCheck says is gone (without one, keys are
-        /// not validated: RestoreResult::attachKeysChecked is false). Refused from inside a native or a world callback,
+        /// not validated: RestoreDetails::attachKeysChecked is false). Refused from inside a native or a world callback,
         /// like call() and tick().
         virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
     };

@@ -104,17 +104,42 @@ namespace openeden::script
     };
 
     /// Result of a restore: success, or the reason the blob was refused.
+    ///
+    /// ABI (H0, 2026-11-09): this struct is returned BY VALUE from the virtual restore() of both script contracts, so
+    /// its layout is part of the binary interface. It is exactly the layout of the first release (a flag and the
+    /// error). The 2026-11-08 review had added five trailing fields here; a consumer built against the older header
+    /// allocates a smaller return slot, so the provider's larger write would overrun it. Those fields moved to
+    /// RestoreDetails below, which supersedes them. A test pins the size and offsets.
     struct RestoreResult
     {
         bool ok = false;
         ErrorReport error;
-        // Added at the end (review of 2026-11-08): what a successful restore() left out or could not check.
-        /// True when the host's world checked every attach key of the blob (or the blob has no instance). False when
-        /// the world offers no such check: the keys were then NOT validated.
+    };
+
+    /// What the last restore() left out or could not check. Replaces the trailing fields RestoreResult briefly had.
+    /// All zero and attachKeysChecked false after a refused blob.
+    struct RestoreDetails
+    {
+        /// True when the host's world checked every attach key of the blob (or the blob has no instance, or the
+        /// language has no attach keys). False when the world offers no such check: the keys were then NOT validated.
         bool attachKeysChecked = false;
         std::uint32_t droppedParkedStacks = 0; ///< Parked stacks dropped because their scripts changed.
         std::uint32_t droppedHostWaits = 0; ///< Of those, stacks that were waiting for the host (they never wake).
         std::uint32_t changedStructObjects = 0; ///< Structs that became None because their script changed.
         std::uint32_t changedScripts = 0; ///< Scripts whose variables were matched by name and type.
+    };
+
+    /// An OPTIONAL interface of a runtime. The contracts do not derive from it (that would change their layout for
+    /// consumers built earlier); a caller that wants the details asks the contract pointer
+    /// `dynamic_cast<const RestoreDetailsSource*>(contract)`, as it does for PapyrusAttachKeyCheck on the world's side.
+    /// The runtimes of this repository (Papyrus and ObScript) implement it.
+    class RestoreDetailsSource
+    {
+    public:
+        virtual ~RestoreDetailsSource() = default;
+
+        /// The details of the most recent restore() of this runtime (default values before the first one). Valid until
+        /// the next restore(). Call it on the thread that restored.
+        virtual const RestoreDetails& lastRestoreDetails() const noexcept = 0;
     };
 }

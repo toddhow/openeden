@@ -117,8 +117,10 @@ namespace openeden::script
         /// 1.2 (2026-11-06): additive. declareFunction (a function with a shape and no behaviour yet, from a table).
         /// It is the LAST virtual function of the class, so that a consumer built against 1.0 or 1.1 keeps the table
         /// slot of every call it makes (new virtual functions go at the end).
-        /// 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields. RestoreResult is declared in host.hpp and
-        /// is SHARED with the Papyrus contract, so the same fields serve both.
+        /// 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields. H0 (2026-11-09) took them out again:
+        /// RestoreResult is declared in host.hpp, is SHARED with the Papyrus contract and is returned by value, so it
+        /// keeps its 1.0 layout; the same data is in RestoreDetails, reachable through the optional
+        /// RestoreDetailsSource of the runtime, which supersedes the trailing fields. The number stays 1.3.
         static constexpr sdk::Version kVersion{ 1, 3 };
 
         virtual ~ObScriptContract() = default;
