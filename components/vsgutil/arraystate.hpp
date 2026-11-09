@@ -35,6 +35,8 @@ namespace vsgUtil
 
         /*
          * Provides proxy_vertices persisting across clones.
+         * Not thread safe: the proxy is scratch shared by every intersection of the same parent (and the parent's
+         * userObjects map is unlocked). All intersections run on the main thread today (docs/research/0047).
          */
         vsg::vec3Array* getOrCreateProxyVertices(vsg::Object* parent, size_t minSize)
         {
