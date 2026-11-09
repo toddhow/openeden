@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fails when a C or C++ file under components/ or apps/ includes a header its layer may not include
+# Fails when a C or C++ file under components/, apps/ or game_packs/ includes a header its layer may not include
 # (task 0081; docs/design/game-packs.md section 2). The layers, the directories in each, who may include whom and the
 # list of violations that exist today are all in CI/layer_rules.txt. The exceptions list may shrink and never grow: a
 # violation that is not listed fails, and so does a listed pair that no longer occurs (a stale exception).
@@ -61,10 +61,10 @@ git ls-files | LAYER_RULES="$rules" perl -e '
     };
     for my $file (@files) {
         next unless $file =~ m{\.(c|cc|cpp|cxx|c\+\+|h|hh|hpp|hxx|h\+\+|inl|inc|ipp|tpp|txx|mm|m)(\.in|\.cmake)?$};
-        next unless $file =~ m{^(components|apps)/};
+        next unless $file =~ m{^(components|apps|game_packs)/};
         my $from = layerOf($file);
         if (!defined $from) {
-            my ($top) = $file =~ m{^((?:components|apps)/[^/]+)};
+            my ($top) = $file =~ m{^((?:components|apps|game_packs)/[^/]+)};
             $unclassified{$top} = 1;
             next;
         }
@@ -93,7 +93,7 @@ git ls-files | LAYER_RULES="$rules" perl -e '
             # Resolve the include to a repository path. The include roots are the repository root, the including
             # directory (quotes only) and the including application (apps/openmw, apps/opencs, ...).
             my @candidates;
-            push @candidates, $name if $name =~ m{^(components|apps)/};
+            push @candidates, $name if $name =~ m{^(components|apps|game_packs)/};
             push @candidates, "$dirOfFile/$name" if $open eq "\"";
             push @candidates, "$1/$name" if $file =~ m{^(apps/[^/]+)/};
             my $target;
@@ -102,11 +102,11 @@ git ls-files | LAYER_RULES="$rules" perl -e '
                 if (defined $p && $tracked{$p}) { $target = $p; last; }
             }
             # A generated or untracked header under components/ or apps/ is classified by its written path.
-            $target //= $name if $name =~ m{^(components|apps)/};
-            next unless defined $target && $target =~ m{^(components|apps)/};
+            $target //= $name if $name =~ m{^(components|apps|game_packs)/};
+            next unless defined $target && $target =~ m{^(components|apps|game_packs)/};
             my $to = layerOf($target);
             if (!defined $to) {
-                my ($top) = $target =~ m{^((?:components|apps)/[^/]+)};
+                my ($top) = $target =~ m{^((?:components|apps|game_packs)/[^/]+)};
                 $unclassified{$top} = 1;
                 next;
             }

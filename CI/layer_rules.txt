@@ -99,6 +99,11 @@ dir apps/openmw/mwdialogue rules
 dir apps/openmw/mwscript rules
 dir apps/openmw/mwstate rules
 
+# Game packs (task 0085): one game's rules, built from the Morrowind rules directories above and from nothing else, so they
+# are `rules`. game_packs/morrowind holds what moved out of apps/openmw/mwmechanics (the crafting rules); it may include the
+# game's own headers, and `deny` below keeps the core's libraries from including it.
+dir game_packs rules
+
 # ui
 dir apps/openmw/mwgui ui
 dir components/widgets ui
@@ -146,6 +151,7 @@ allow tools base formats engine rules ui host tools
 
 # The core's libraries never include the game or the tools.
 deny components/ apps/
+deny components/ game_packs/
 deny components/esm/ components/esm3/
 deny components/esm/ components/esm4/
 

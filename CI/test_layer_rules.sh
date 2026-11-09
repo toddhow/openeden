@@ -52,9 +52,29 @@ git add -A
 expect "a relative include is resolved (formats including vfs)" nonzero \
     "components/nif/relative.hpp:2: layer formats may not include layer engine: components/vfs/pathutil.hpp" "$checker"
 
+mkdir -p game_packs/morrowind/include/game_morrowind
+printf '#pragma once
+' > game_packs/morrowind/include/game_morrowind/rule.hpp
+printf '#pragma once
+#include <game_packs/morrowind/include/game_morrowind/rule.hpp>
+' > components/nif/packs.hpp
+git add -A
+expect "a components file including a game pack fails (task 0085: game_packs/ is checked)" nonzero     "components/nif/packs.hpp:2: deny components/ -> game_packs/: game_packs/morrowind/include/game_morrowind/rule.hpp" "$checker"
+git rm -q -f --cached components/nif/packs.hpp
+rm components/nif/packs.hpp
+
 git rm -q -f --cached components/misc/bad.hpp components/nif/bad.hpp components/nif/relative.hpp
 rm components/misc/bad.hpp components/nif/bad.hpp components/nif/relative.hpp
 expect "removing the violations passes" 0 "" "$checker"
+
+printf '#pragma once
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/esm3/loadnpc.hpp>
+' > game_packs/morrowind/include/game_morrowind/uses.hpp
+git add -A
+expect "a game pack (layer rules) may include the game's headers and the formats" 0 "" "$checker"
+git rm -q -f --cached game_packs/morrowind/include/game_morrowind/uses.hpp game_packs/morrowind/include/game_morrowind/rule.hpp
+rm game_packs/morrowind/include/game_morrowind/uses.hpp game_packs/morrowind/include/game_morrowind/rule.hpp
 
 printf '#pragma once\n// #include <components/esm3/loadnpc.hpp>\n/* #include <components/esm3/loadnpc.hpp> */\nconst char* s = "#include <components/esm3/loadnpc.hpp>";\n' > components/misc/commented.hpp
 git add -A
