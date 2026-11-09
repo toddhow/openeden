@@ -21,13 +21,22 @@ if [ -z "$python" ]; then
     exit 2
 fi
 
-# header (under apps/openmw/mwbase), class, generated base class, committed output
-doubles="
-world.hpp World GeneratedWorldBase world.inc
-windowmanager.hpp WindowManager GeneratedWindowManagerBase windowmanager.inc
-mechanicsmanager.hpp MechanicsManager GeneratedMechanicsManagerBase mechanicsmanager.inc
-luamanager.hpp LuaManager GeneratedLuaManagerBase luamanager.inc
-"
+# One line per committed double, derived from the committed files themselves so that a fifth double is checked without
+# editing this list: the first line of each .inc names its header ("from openmw/mwbase/<header>"), the second its class
+# ("of MWBase::<Class>") and the class line its generated base. A file that does not follow that shape fails the check.
+doubles=""
+for inc in apps/openmw_tests/mwmechanics/fakes/*.inc; do
+    [ -e "$inc" ] || continue
+    header="$(sed -n '1s#^.*from openmw/mwbase/\([A-Za-z0-9_]*\.hpp\).*$#\1#p' "$inc" | tr -d '\r')"
+    class="$(sed -n '2s#^.*of MWBase::\([A-Za-z0-9_]*\)[:.,].*$#\1#p' "$inc" | tr -d '\r')"
+    base="$(grep -m1 -o 'class Generated[A-Za-z0-9_]*Base' "$inc" | sed 's/^class //' | tr -d '\r')"
+    if [ -z "$header" ] || [ -z "$class" ] || [ -z "$base" ]; then
+        echo "check_mwbase_fakes: $inc does not start with gen.py's header lines (header, class and base not found)"
+        exit 1
+    fi
+    doubles="$doubles
+$header $class $base $(basename "$inc")"
+done
 status=0
 while read -r header class base out; do
     [ -n "$header" ] || continue
@@ -49,5 +58,5 @@ while read -r header class base out; do
         status=1
     fi
 done <<<"$doubles"
-[ "$status" = 0 ] && echo "check_mwbase_fakes: the four doubles match their interfaces"
+[ "$status" = 0 ] && echo "check_mwbase_fakes: every double matches its interface"
 exit "$status"
