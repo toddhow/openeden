@@ -1,6 +1,7 @@
 #include "papyrusruntime.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <new>
 #include <stdexcept>
@@ -133,6 +134,20 @@ namespace ScriptPapyrus
             if (mOptions.defaultBudget.maxCallDepth == 0)
             {
                 mOptions.defaultBudget.maxCallDepth = kFallbackDepth;
+            }
+            // The waits are numbers the scheduler adds to the time: a NaN, a negative, zero or infinite longest wait
+            // would wake stacks at once or never (std::min with NaN keeps the other value), so they are replaced.
+            if (!std::isfinite(mOptions.maxWaitSeconds) || mOptions.maxWaitSeconds <= 0.0)
+            {
+                worldLog(openeden::script::Severity::Warning,
+                    "RuntimeOptions::maxWaitSeconds must be a finite number above zero; the default is used");
+                mOptions.maxWaitSeconds = ScriptPapyrus::RuntimeOptions{}.maxWaitSeconds;
+            }
+            if (std::isnan(mOptions.maxHostWaitSeconds) || mOptions.maxHostWaitSeconds <= 0.0)
+            {
+                worldLog(openeden::script::Severity::Warning,
+                    "RuntimeOptions::maxHostWaitSeconds must be a number above zero (or infinity); the default is used");
+                mOptions.maxHostWaitSeconds = ScriptPapyrus::RuntimeOptions{}.maxHostWaitSeconds;
             }
             // Name 0 and string 0 are the empty ones: the empty state, the empty string.
             nameId("");
@@ -641,10 +656,13 @@ namespace ScriptPapyrus
             {
                 mStackPool.push_back(std::make_unique<Stack>());
                 stack = mStackPool.back().get();
+                stack->poolIndex = static_cast<std::uint32_t>(mStackPool.size() - 1);
                 // releaseStack must never allocate: it runs when an exception is already on its way.
                 mFreeStacks.reserve(mStackPool.size());
             }
             stack->seq = mNextSeq++;
+            stack->heapPos = Stack::kNotInHeap;
+            stack->hostWait = false;
             stack->instance = 0;
             stack->eventName = 0;
             stack->argCount = 0;

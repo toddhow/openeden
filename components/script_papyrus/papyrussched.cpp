@@ -22,34 +22,127 @@ namespace ScriptPapyrus::Vm
     {
         constexpr std::size_t kMaxStacksPerTick = 1u << 20; ///< Stacks one tick starts, whatever the budget.
 
-        // A "later" comparison, so that std::push_heap and friends keep the earliest (wake, seq) at the front.
-        bool later(const WaitEntry& a, const WaitEntry& b)
+        // The heap of parked stacks is a binary min-heap on (wake, seq). It is written by hand, and not with
+        // std::push_heap and friends, because every entry's position is kept in its stack (Stack::heapPos): a
+        // completion then finds its entry from the token in one step and moves it up in O(log n).
+        bool earlier(const WaitEntry& a, const WaitEntry& b)
         {
             if (a.wake != b.wake)
             {
-                return a.wake > b.wake;
+                return a.wake < b.wake;
             }
-            return a.seq > b.seq;
+            return a.seq < b.seq;
+        }
+
+        void place(std::vector<WaitEntry>& heap, std::size_t index)
+        {
+            heap[index].stack->heapPos = static_cast<std::uint32_t>(index);
+        }
+
+        void siftUp(std::vector<WaitEntry>& heap, std::size_t index)
+        {
+            while (index > 0)
+            {
+                const std::size_t parent = (index - 1) / 2;
+                if (!earlier(heap[index], heap[parent]))
+                {
+                    break;
+                }
+                std::swap(heap[index], heap[parent]);
+                place(heap, index);
+                index = parent;
+            }
+            place(heap, index);
+        }
+
+        void siftDown(std::vector<WaitEntry>& heap, std::size_t index)
+        {
+            const std::size_t size = heap.size();
+            for (;;)
+            {
+                std::size_t best = index;
+                const std::size_t left = 2 * index + 1;
+                const std::size_t right = left + 1;
+                if (left < size && earlier(heap[left], heap[best]))
+                {
+                    best = left;
+                }
+                if (right < size && earlier(heap[right], heap[best]))
+                {
+                    best = right;
+                }
+                if (best == index)
+                {
+                    break;
+                }
+                std::swap(heap[index], heap[best]);
+                place(heap, index);
+                index = best;
+            }
+            place(heap, index);
+        }
+
+        /// The new last entry takes its place. Never allocates (the room was made before).
+        void pushHeap(std::vector<WaitEntry>& heap)
+        {
+            siftUp(heap, heap.size() - 1);
+        }
+
+        /// Takes the earliest entry out of the heap and returns it; its stack is no longer in the heap.
+        WaitEntry popHeap(std::vector<WaitEntry>& heap)
+        {
+            const WaitEntry first = heap.front();
+            first.stack->heapPos = Stack::kNotInHeap;
+            heap.front() = heap.back();
+            heap.pop_back();
+            if (!heap.empty())
+            {
+                siftDown(heap, 0);
+            }
+            return first;
+        }
+
+        void rebuildHeap(std::vector<WaitEntry>& heap)
+        {
+            for (std::size_t i = 0; i < heap.size(); ++i)
+            {
+                place(heap, i);
+            }
+            for (std::size_t i = heap.size() / 2; i-- > 0;)
+            {
+                siftDown(heap, i);
+            }
+        }
+
+        /// Room for `need` entries by doubling, so that a long series of parks copies the list O(log n) times.
+        /// Returns true when it had to grow.
+        bool growTo(std::vector<WaitEntry>& list, std::size_t need)
+        {
+            if (list.capacity() >= need)
+            {
+                return false;
+            }
+            list.reserve(std::max(need, 2 * list.capacity()));
+            return true;
         }
     }
 
     void Runtime::reserveForPark()
     {
         // The due entries a tick took out go back if the tick stops early, so the room is for them as well.
-        const std::size_t need = mWaiting.size() + (mDue.size() - mDueHead) + 1;
-        if (mWaiting.capacity() < need)
+        if (growTo(mWaiting, mWaiting.size() + (mDue.size() - mDueHead) + 1))
         {
             ++mStats.schedulerGrowths;
         }
-        mWaiting.reserve(need);
     }
 
     void Runtime::parkStack(Stack& stack)
     {
         // The room was made by reserveForPark() before the latent handler ran: nothing here can throw.
         stack.wake = mSuspendWake;
+        stack.hostWait = mSuspendHost;
         mWaiting.push_back(WaitEntry{ mSuspendWake, stack.seq, &stack });
-        std::push_heap(mWaiting.begin(), mWaiting.end(), later);
+        pushHeap(mWaiting);
         ++mSuspendedCount;
         ++mStats.latentSuspended;
     }
@@ -88,30 +181,30 @@ namespace ScriptPapyrus::Vm
 
     bool Runtime::completeLatent(std::uint64_t token) noexcept
     {
-        try
-        {
-            if (mInNative || token == 0)
-            {
-                return false;
-            }
-            for (WaitEntry& entry : mWaiting)
-            {
-                if (entry.seq == token)
-                {
-                    // Before every timer: the host's completion is the oldest news. Among completed stacks the
-                    // creation order decides.
-                    entry.wake = -std::numeric_limits<double>::infinity();
-                    entry.stack->wake = entry.wake;
-                    std::make_heap(mWaiting.begin(), mWaiting.end(), later);
-                    return true;
-                }
-            }
-            return false;
-        }
-        catch (...)
+        if (mInNative || token == 0)
         {
             return false;
         }
+        // The token names the stack (pool index in the high half) and the park (the low half): a token from an
+        // earlier wait of the same stack does not match, and neither does one of a stack that is not in the heap.
+        const std::uint64_t slot = (token >> 32);
+        if (slot == 0 || slot > mStackPool.size())
+        {
+            return false;
+        }
+        Stack& stack = *mStackPool[static_cast<std::size_t>(slot - 1)];
+        if (stack.parkToken != token || stack.heapPos == Stack::kNotInHeap || stack.heapPos >= mWaiting.size()
+            || mWaiting[stack.heapPos].stack != &stack)
+        {
+            return false;
+        }
+        // Before every timer: the host's completion is the oldest news. Among completed stacks the creation order
+        // decides. The key only gets smaller, so the entry only moves up.
+        stack.wake = -std::numeric_limits<double>::infinity();
+        stack.hostWait = false;
+        mWaiting[stack.heapPos].wake = stack.wake;
+        siftUp(mWaiting, stack.heapPos);
+        return true;
     }
 
     std::uint32_t Runtime::cancelWaiting(openeden::script::InstanceId instance) noexcept
@@ -122,21 +215,22 @@ namespace ScriptPapyrus::Vm
             {
                 return 0;
             }
-            std::uint32_t dropped = 0;
             auto drops = [&](const WaitEntry& entry) {
                 return entry.stack != nullptr && (instance == 0 || entry.stack->instance == instance);
             };
-            // The stacks go back to the pool (releaseStack never allocates).
-            for (const WaitEntry& entry : mWaiting)
+            // The dropped entries are sorted out first; only then do their stacks go back to the pool (releaseStack
+            // never allocates), so nothing reads a stack that is already in the free list.
+            const auto keptEnd = std::stable_partition(
+                mWaiting.begin(), mWaiting.end(), [&](const WaitEntry& entry) { return !drops(entry); });
+            std::uint32_t dropped = 0;
+            for (auto it = keptEnd; it != mWaiting.end(); ++it)
             {
-                if (drops(entry))
-                {
-                    releaseStack(entry.stack);
-                    ++dropped;
-                }
+                it->stack->heapPos = Stack::kNotInHeap;
+                releaseStack(it->stack);
+                ++dropped;
             }
-            mWaiting.erase(std::remove_if(mWaiting.begin(), mWaiting.end(), drops), mWaiting.end());
-            std::make_heap(mWaiting.begin(), mWaiting.end(), later);
+            mWaiting.erase(keptEnd, mWaiting.end());
+            rebuildHeap(mWaiting);
             // The part of a tick's due list that has not run (empty unless a tick was left half-way by an exception).
             for (std::size_t i = mDueHead; i < mDue.size(); ++i)
             {
@@ -168,7 +262,11 @@ namespace ScriptPapyrus::Vm
             result.errors.push_back(apiError(ErrorKind::Internal, "tick() cannot be used from inside a native"));
             return result;
         }
-        mNow = acceptTime(scriptTime);
+        // With latent natives off nothing uses the time: it is not looked at, so no warning and no counter.
+        if (mOptions.runLatentNatives)
+        {
+            mNow = acceptTime(scriptTime);
+        }
         const std::uint64_t maxInstructions = effectiveInstructions(budget);
         const std::uint32_t maxDepth = effectiveDepth(budget);
 
@@ -176,16 +274,13 @@ namespace ScriptPapyrus::Vm
         // back, whatever way the tick ends.
         mDue.clear();
         mDueHead = 0;
-        if (mDue.capacity() < mWaiting.size())
+        if (growTo(mDue, mWaiting.size()))
         {
             ++mStats.schedulerGrowths;
         }
-        mDue.reserve(mWaiting.size());
         while (!mWaiting.empty() && mWaiting.front().wake <= mNow)
         {
-            std::pop_heap(mWaiting.begin(), mWaiting.end(), later);
-            mDue.push_back(mWaiting.back());
-            mWaiting.pop_back();
+            mDue.push_back(popHeap(mWaiting));
         }
         struct GiveBack
         {
@@ -198,7 +293,7 @@ namespace ScriptPapyrus::Vm
                     {
                         // Room was kept by reserveForPark(): this cannot allocate.
                         mRuntime.mWaiting.push_back(mRuntime.mDue[i]);
-                        std::push_heap(mRuntime.mWaiting.begin(), mRuntime.mWaiting.end(), later);
+                        pushHeap(mRuntime.mWaiting);
                     }
                 }
                 mRuntime.mDue.clear();
@@ -242,6 +337,11 @@ namespace ScriptPapyrus::Vm
             }
             --mSuspendedCount;
             ++mStats.stacksWoken;
+            if (stack->hostWait && stack->wake != -std::numeric_limits<double>::infinity())
+            {
+                ++mStats.hostWaitsExpired; // the host never completed it: it woke by timeout
+            }
+            stack->hostWait = false;
             runOne(stack, false);
         }
         while (mReadyHead < mReady.size() && room())

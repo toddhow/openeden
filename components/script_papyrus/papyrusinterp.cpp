@@ -765,6 +765,7 @@ namespace ScriptPapyrus::Vm
         Val result = zeroOf(function.ret);
         bool suspend = false;
         double suspendWake = 0.0;
+        bool suspendHost = false;
         const auto bound = mNativeByKey.find(key);
         if (bound == mNativeByKey.end())
         {
@@ -823,7 +824,18 @@ namespace ScriptPapyrus::Vm
                     Runtime& mRuntime;
                     ~TokenScope() { mRuntime.mLatentToken = 0; }
                 } tokenScope{ *this };
-                mLatentToken = latent ? stack.seq : 0;
+                if (latent)
+                {
+                    // A token for this park alone; 0 in the low half is skipped so no token is ever 0 or repeats
+                    // at once.
+                    ++mParkCounter;
+                    mLatentToken = ((static_cast<std::uint64_t>(stack.poolIndex) + 1) << 32) | mParkCounter;
+                    stack.parkToken = mLatentToken;
+                }
+                else
+                {
+                    mLatentToken = 0;
+                }
                 try
                 {
                     nativeResult = mNatives[bound->second].fn(call);
@@ -859,8 +871,9 @@ namespace ScriptPapyrus::Vm
                 {
                     return fail(ErrorKind::NativeFailed, "native '" + label() + "' returned a wait of NaN seconds");
                 }
-                suspendWake = wait < 0.0 ? std::numeric_limits<double>::infinity()
-                                         : mNow + std::min(wait, mOptions.maxWaitSeconds);
+                suspendHost = wait < 0.0;
+                suspendWake = suspendHost ? mNow + mOptions.maxHostWaitSeconds
+                                          : mNow + std::min(wait, mOptions.maxWaitSeconds);
                 suspend = true;
             }
         }
@@ -869,6 +882,7 @@ namespace ScriptPapyrus::Vm
         {
             mSuspendRequested = true;
             mSuspendWake = suspendWake;
+            mSuspendHost = suspendHost;
         }
         return mErrKind == ErrorKind::None;
     }

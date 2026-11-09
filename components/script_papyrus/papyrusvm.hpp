@@ -281,8 +281,15 @@ namespace ScriptPapyrus::Vm
         std::uint32_t eventName = 0; ///< Lower-cased name id of the function to start.
         std::uint32_t argCount = 0; ///< Arguments waiting in values[0, argCount) until the stack starts.
         bool started = false;
-        std::uint64_t seq = 0; ///< Creation sequence: the tie-break of equal wake times, and the latent token.
-        double wake = 0.0; ///< While parked: the script time it is due at (infinite: the host completes it).
+        std::uint64_t seq = 0; ///< Creation sequence: the tie-break of equal wake times.
+        double wake = 0.0; ///< While parked: the script time it is due at (-infinity: the host completed it).
+        /// The latent token of the park in progress or the last one (a new one for every park, so a token kept from an
+        /// earlier wait never matches a later one): pool index + 1 in the high half, a counter in the low half.
+        std::uint64_t parkToken = 0;
+        std::uint32_t poolIndex = 0; ///< Position in Runtime::mStackPool, part of the token.
+        static constexpr std::uint32_t kNotInHeap = 0xFFFFFFFFu;
+        std::uint32_t heapPos = kNotInHeap; ///< Index in Runtime::mWaiting while parked there (else kNotInHeap).
+        bool hostWait = false; ///< Parked for the host's completeLatent (it may still time out).
         std::vector<Frame> frames;
         std::vector<Val> values;
         Val result;
@@ -561,6 +568,8 @@ namespace ScriptPapyrus::Vm
         std::uint32_t mSuspendedCount = 0; ///< Parked stacks: mWaiting and the not yet run part of mDue.
         std::uint64_t mNextSeq = 1;
         std::uint64_t mLatentToken = 0;
+        std::uint32_t mParkCounter = 0; ///< Low half of the next latent token.
+        bool mSuspendHost = false; ///< The park being requested waits for the host.
         double mNow = 0.0; ///< The time of the last tick.
         bool mSuspendRequested = false; ///< A latent native asked for the running stack to be parked.
         double mSuspendWake = 0.0;

@@ -128,4 +128,72 @@ namespace
             EXPECT_GT(probe, 0u);
         }
     }
+
+    // Review of 2026-11-08: the parked list grows by doubling and completions go through the token index; a large
+    // population of parked stacks, completed by the host and woken again, allocates nothing once warm.
+    TEST(PapyrusSchedAllocation, thousands_of_parked_stacks_woken_by_timers_and_by_the_host_allocate_nothing_once_warm)
+    {
+        QuietWorld world;
+        ScriptPapyrus::RuntimeOptions options;
+        options.runLatentNatives = true;
+        std::unique_ptr<ScriptPapyrus::PapyrusRuntime> runtime
+            = ScriptPapyrus::createRuntime(world, UnknownFunctionPolicy::Strict, options);
+        ScriptBuilder game("Game");
+        game.function("Wait").global().native().param("seconds", "Float");
+        ASSERT_TRUE(load(*runtime, game, Target::SkyrimSE));
+        ASSERT_TRUE(load(*runtime, looper(), Target::SkyrimSE));
+        std::vector<std::uint64_t> tokens;
+        NativeDescriptor wait;
+        wait.className = "Game";
+        wait.functionName = "Wait";
+        wait.global = true;
+        wait.latent = true;
+        ErrorReport error;
+        ASSERT_TRUE(runtime->registerNative(
+            wait,
+            [&tokens, &runtime](const NativeCall& call) {
+                tokens.push_back(runtime->latentToken());
+                NativeResult result;
+                result.waitSeconds = call.arguments[0].number;
+                return result;
+            },
+            error))
+            << error.format();
+        constexpr std::uint32_t kStacks = 3000;
+        for (std::uint32_t i = 0; i < kStacks; ++i)
+        {
+            AttachKey key;
+            key.formId = 0x100 + i;
+            ASSERT_NE(runtime->attach(key, "Looper"), 0u);
+        }
+        double time = 0.0;
+        for (int i = 0; i < 20; ++i)
+        {
+            time += 0.25;
+            runtime->tick(time);
+            for (std::size_t k = 0; k < tokens.size(); k += 7)
+            {
+                runtime->completeLatent(tokens[k]);
+            }
+            tokens.clear();
+            tokens.reserve(kStacks * 2);
+        }
+        ASSERT_EQ(runtime->suspendedStacks(), kStacks);
+        std::size_t allocations = 0;
+        {
+            TestSupport::AllocationCounter counter;
+            for (int i = 0; i < 20; ++i)
+            {
+                time += 0.25;
+                runtime->tick(time);
+                for (std::size_t k = 0; k < tokens.size(); k += 7)
+                {
+                    runtime->completeLatent(tokens[k]);
+                }
+                tokens.clear();
+            }
+            allocations = counter.count();
+        }
+        EXPECT_EQ(allocations, 0u);
+    }
 }
