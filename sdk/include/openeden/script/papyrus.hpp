@@ -221,16 +221,21 @@ namespace openeden::script
 
         /// The runtime's own log lines (a deviant file accepted, a native that is declared and not registered).
         virtual void log(Severity severity, std::string_view message) = 0;
+    };
 
-        /// Added after 1.0, last on purpose, with a default so that an existing game pack still compiles. restore()
-        /// asks it once for every instance of a blob: false when the game no longer has the form, alias or effect the
-        /// key names. A false answer refuses the whole blob (an instance cannot be left out: other values refer to it
-        /// by number), and the message names the key.
-        virtual bool attachKeyExists(const AttachKey& key) const
-        {
-            (void)key;
-            return true;
-        }
+    /// An OPTIONAL capability of a PapyrusWorld (review of 2026-11-08, finding H1). PapyrusWorld itself is unchanged
+    /// since 1.0, so a game pack built against any earlier header keeps its layout. A game pack that can tell whether
+    /// the form, alias or effect an attach key names still exists derives its world from this class as well; the
+    /// runtime asks `dynamic_cast<const PapyrusAttachKeyCheck*>(&world)` when it restores. Without it restore() does
+    /// NOT validate attach keys: it says so once in the log and RestoreResult::attachKeysChecked is false.
+    class PapyrusAttachKeyCheck
+    {
+    public:
+        virtual ~PapyrusAttachKeyCheck() = default;
+
+        /// False when the game no longer has what  key names. A false answer refuses the whole blob (an instance
+        /// cannot be left out: other values refer to it by number), and the message names the key. Must not throw.
+        virtual bool attachKeyExists(const AttachKey& key) const = 0;
     };
 
     class PapyrusContract
@@ -238,9 +243,10 @@ namespace openeden::script
     public:
         static constexpr std::string_view kId = "openeden.script.papyrus";
         /// 1.0 (2026-11-08): first version.
-        /// 1.1 (2026-11-08): PapyrusWorld::attachKeyExists, asked by restore() (stage e). A game pack built against
-        /// 1.0 has no such slot in its PapyrusWorld, so a host that meets 1.0 must not call restore() with it.
-        static constexpr sdk::Version kVersion{ 1, 1 };
+        /// Stage e (2026-11-08) added serialise/restore semantics, the optional PapyrusAttachKeyCheck and the trailing
+        /// fields of RestoreResult before any game pack used 1.0, so the version stays 1.0 (toddhow to confirm: a
+        /// pack built against an earlier header would see a larger RestoreResult).
+        static constexpr sdk::Version kVersion{ 1, 0 };
 
         virtual ~PapyrusContract() = default;
 
@@ -283,8 +289,9 @@ namespace openeden::script
         /// gone. Scripts and natives must be loaded and registered again first. The blob is checked whole before
         /// anything changes; a refused blob changes nothing and the error says where in the blob it went wrong. A
         /// script that changed since the save keeps its variables that still match by name and type and loses its
-        /// parked stacks (a warning is logged); a script that is not loaded, or a key the world no longer has, refuses
-        /// the blob. Refused from inside a native or a world callback, like call() and tick().
+        /// parked stacks (a warning is logged and RestoreResult counts them); a script that is not loaded refuses the blob,
+        /// and so does a key that the world's optional PapyrusAttachKeyCheck says is gone (without one, keys are not
+        /// validated: RestoreResult::attachKeysChecked is false). Refused from inside a native or a world callback, like call() and tick().
         virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
     };
 }

@@ -123,6 +123,7 @@ namespace ScriptPapyrus::Vm
         mNames.mIds.emplace(mNameScratch, id);
         mNames.mShown.emplace_back(text);
         mNames.mIsEvent.push_back(mNameScratch.size() > 2 && mNameScratch[0] == 'o' && mNameScratch[1] == 'n' ? 1 : 0);
+        mStats.names = mNames.mShown.size();
         return id;
     }
 
@@ -162,6 +163,7 @@ namespace ScriptPapyrus::Vm
         entry.text.assign(text);
         mStrings.push_back(std::move(entry));
         mInterned.emplace(std::string(text), id);
+        mStats.internedStrings = mInterned.size();
         return id;
     }
 

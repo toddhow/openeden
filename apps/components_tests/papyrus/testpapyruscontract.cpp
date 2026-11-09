@@ -83,11 +83,11 @@ namespace
         EXPECT_EQ(text.find("namespace {"), std::string::npos);
     }
 
-    TEST(PapyrusContract, has_its_own_id_and_version_one_one)
+    TEST(PapyrusContract, has_its_own_id_and_version_one_zero)
     {
         EXPECT_EQ(PapyrusContract::kId, "openeden.script.papyrus");
         EXPECT_EQ(PapyrusContract::kVersion.major, 1);
-        EXPECT_EQ(PapyrusContract::kVersion.minor, 1);
+        EXPECT_EQ(PapyrusContract::kVersion.minor, 0);
     }
 
     TEST(PapyrusContract, every_operation_that_can_fail_is_noexcept)

@@ -108,5 +108,13 @@ namespace openeden::script
     {
         bool ok = false;
         ErrorReport error;
+        // Added at the end (review of 2026-11-08): what a successful restore() left out or could not check.
+        /// True when the host's world checked every attach key of the blob (or the blob has no instance). False when
+        /// the world offers no such check: the keys were then NOT validated.
+        bool attachKeysChecked = false;
+        std::uint32_t droppedParkedStacks = 0; ///< Parked stacks dropped because their scripts changed.
+        std::uint32_t droppedHostWaits = 0; ///< Of those, stacks that were waiting for the host (they never wake).
+        std::uint32_t changedStructObjects = 0; ///< Structs that became None because their script changed.
+        std::uint32_t changedScripts = 0; ///< Scripts whose variables were matched by name and type.
     };
 }

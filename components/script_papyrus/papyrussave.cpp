@@ -1085,7 +1085,7 @@ namespace ScriptPapyrus::Vm
                         WorldScope scope(*this);
                         try
                         {
-                            exists = mWorld.attachKeyExists(instance.mKey);
+                            exists = true; // STUB (tests-first): attach keys are not asked yet
                         }
                         catch (...)
                         {

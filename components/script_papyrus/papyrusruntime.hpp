@@ -107,6 +107,8 @@ namespace ScriptPapyrus
             = 0; ///< Stacks that waited for the host and woke by RuntimeOptions::maxHostWaitSeconds.
         std::uint64_t schedulerGrowths = 0; ///< Times the scheduler's lists had to get more room (geometric: few).
         std::uint64_t timeMovedBackwards = 0; ///< tick() calls whose time was below the last one (clamped to it).
+        std::uint64_t names = 0; ///< Entries of the permanent name table (RuntimeOptions::maxNames bounds it).
+        std::uint64_t internedStrings = 0; ///< Entries of the permanent string table.
         std::array<std::uint64_t, static_cast<std::size_t>(ErrorKind::Count)> errors{};
     };
 
