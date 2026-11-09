@@ -170,6 +170,7 @@ namespace ScriptPapyrus::Vm
         std::string mFileName; ///< As given to loadScript, for reports.
         std::string mClass; ///< The object's name.
         std::string mParent; ///< The parent's name, or empty.
+        std::uint64_t mDigest = 0; ///< FNV-1a of the bytes the script was loaded from (what a saved game checks).
         Pex::File mFile;
         /// Lower-cased function name to "is native", over every state and property accessor of the object.
         std::unordered_map<std::string, bool> mFunctions;
@@ -347,6 +348,7 @@ namespace ScriptPapyrus::Vm
         openeden::script::CallResult call(openeden::script::InstanceId instance, std::string_view functionName,
             std::span<const openeden::script::PapyrusValue> arguments) noexcept override;
         openeden::script::TickResult tick(double scriptTime, const openeden::script::Budget& budget) noexcept override;
+        /// Script state (papyrussave.cpp). The blob's layout is in papyrussave.hpp.
         openeden::script::SaveBlob serialise() const noexcept override;
         openeden::script::RestoreResult restore(const openeden::script::SaveBlob& blob) noexcept override;
 
@@ -514,7 +516,14 @@ namespace ScriptPapyrus::Vm
         std::uint64_t effectiveInstructions(const openeden::script::Budget& budget) const;
         std::uint32_t effectiveDepth(const openeden::script::Budget& budget) const;
         void gatherRoots(std::vector<std::uint32_t>& pending);
+        // papyrussave.cpp
+        openeden::script::SaveBlob serialiseImpl() const;
+        openeden::script::RestoreResult restoreImpl(const openeden::script::SaveBlob& blob);
+        /// The digest of a script and of every script it inherits from: what a saved instance was written against.
+        std::uint64_t chainDigest(std::uint32_t scriptIndex) const;
         // papyrussched.cpp
+        /// Puts mWaiting in heap order and each stack's position in its heapPos (restore fills mWaiting unordered).
+        void rebuildWaiting();
         /// Makes room for one more parked stack (and for the due ones that may go back): may throw, so it runs before
         /// the handler of a latent native, never after.
         void reserveForPark();
@@ -584,6 +593,7 @@ namespace ScriptPapyrus::Vm
         std::vector<Val> mMatchScratch;
         std::size_t mPrepareDepth = 0;
         bool mInNative = false; ///< A native handler is running: the contract refuses calls and ticks from it.
+        bool mRestoring = false; ///< restore() is building the new state: heap charges are counted, never collected.
 
         // The error of the instruction being executed (None when there is none).
         ErrorKind mErrKind = ErrorKind::None;

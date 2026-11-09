@@ -127,6 +127,11 @@ namespace ScriptPapyrus::Vm
         }
     }
 
+    void Runtime::rebuildWaiting()
+    {
+        rebuildHeap(mWaiting);
+    }
+
     void Runtime::reserveForPark()
     {
         // The due entries a tick took out go back if the tick stops early, so the room is for them as well.

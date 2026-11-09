@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "papyruslimits.hpp"
+#include "papyrussave.hpp"
 #include "papyrusvm.hpp"
 #include "pexfile.hpp"
 
@@ -264,6 +265,7 @@ namespace ScriptPapyrus
 
             Script script;
             script.mFileName = std::string(name);
+            script.mDigest = Save::fnv1a(bytes.data(), bytes.size());
             script.mClass = className;
             script.mParent = std::string(file.str(object.mParent));
             for (const Pex::State& state : object.mStates)
@@ -1056,21 +1058,6 @@ namespace ScriptPapyrus
                 mErrKind = ErrorKind::None;
                 return {};
             }
-        }
-
-        // ---- save and restore (stage e)
-        // ------------------------------------------------------------------------------
-
-        SaveBlob Runtime::serialise() const noexcept
-        {
-            return {};
-        }
-
-        RestoreResult Runtime::restore(const SaveBlob&) noexcept
-        {
-            RestoreResult result;
-            result.error.message = "restore is not implemented yet (task 0093 stage e)";
-            return result;
         }
 
         // ---- reading and setting variables

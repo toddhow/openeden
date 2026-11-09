@@ -8,13 +8,16 @@
 // Layout (all numbers little-endian, the same bytes on every machine; version 1):
 //
 //   header     u32 magic ("PAPS"), u32 format version, u64 body length, u64 FNV-1a checksum of the body
-//   body       u64 script time of the last tick (an IEEE double), u64 next stack sequence, u32 next park counter
+//   body       u64 script time of the last tick (an IEEE double), u64 next stack sequence, u32 next park counter,
+//              u32 instance count
 //              texts     u32 count; each: u32 length, bytes
 //              scripts   u32 count; each: u32 name text, u64 chain digest, u32 variable count,
 //                        each variable: u32 name text, u8 declared type kind
-//              heap      u32 count; each: u8 type (1 array, 2 struct), array: u8 element kind, u32 count, values;
-//                        struct: u32 script, u32 name text, u32 count, values
-//              instances u32 count; each: u8 attach kind, u32 form id, u32 alias index, u32 effect key, u32 script,
+//              heap      u32 count; then one u8 type per object (1 array, 2 struct); then each object, array: u8
+//              element
+//                        kind, u32 count, values; struct: u32 script, u32 name text, u32 count, values
+//              instances (as many as counted above) each: u8 attach kind, u32 form id, u32 alias index, u32 effect key,
+//              u32 script,
 //                        u32 state text, u32 count, values
 //              stacks    u32 count, in creation order (strictly increasing sequence); each: u8 flags (1 parked,
 //                        2 started, 4 waiting for the host), u64 sequence, u32 instance, u32 event name text,

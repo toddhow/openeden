@@ -175,6 +175,13 @@ namespace ScriptPapyrus::Vm
     {
         if (mHeapBytes + bytes > mOptions.maxHeapBytes)
         {
+            if (mRestoring)
+            {
+                // restore() has checked the total against the cap and builds the new state beside the old one, which
+                // a collection after the switch frees; a collection now could free what is being built.
+                mHeapBytes += bytes;
+                return true;
+            }
             collect();
             if (mHeapBytes + bytes > mOptions.maxHeapBytes)
             {

@@ -500,4 +500,178 @@ namespace
         EXPECT_GT(all.mRun, 0u);
         EXPECT_GT(all.mComplete, 0u);
     }
+
+    // Task 0093 stage e: the real scripts' state saved in the middle of a run and restored into a second runtime that
+    // has the same scripts and natives. The restored runtime must write the blob it was given, and from there must
+    // behave like the runtime that was not interrupted.
+    TEST(PapyrusRealRun, the_state_of_a_sample_of_the_games_scripts_survives_a_save_and_restore)
+    {
+        const char* dataName = std::getenv("OPENEDEN_PAPYRUS_DATA");
+        if (dataName == nullptr || !fs::is_directory(dataName))
+        {
+            GTEST_SKIP() << "OPENEDEN_PAPYRUS_DATA does not name a Skyrim SE or Fallout 4 Data folder";
+        }
+        const auto scripts = readGameScripts(dataName);
+        ASSERT_FALSE(scripts.empty());
+        std::vector<Native> natives;
+        std::vector<Sampled> eventful;
+        std::vector<std::pair<std::uint64_t, std::string>> order;
+        std::map<std::string, Sampled> facts;
+        for (const auto& [name, bytes] : scripts)
+        {
+            const Pex::ParseResult parsed = Pex::parse(bytes, name);
+            if (!parsed.mOk)
+            {
+                continue;
+            }
+            const Pex::File& file = parsed.mFile;
+            const Pex::Object& object = file.mObjects[0];
+            Sampled item;
+            item.mFile = name;
+            for (const Pex::State& state : object.mStates)
+            {
+                for (const Pex::Function& function : state.mFunctions)
+                {
+                    const std::string fn = Pex::lowered(file.str(function.mName));
+                    if (function.isNative())
+                    {
+                        natives.push_back({ std::string(file.str(object.mName)), std::string(file.str(function.mName)),
+                            function.isGlobal() });
+                    }
+                    if (!function.isGlobal() && fn.size() > 2 && fn[0] == 'o' && fn[1] == 'n')
+                    {
+                        std::vector<std::string> types;
+                        for (const Pex::Parameter& p : function.mParameters)
+                        {
+                            types.push_back(Pex::lowered(file.str(p.mType)));
+                        }
+                        item.mEvents.emplace_back(std::string(file.str(function.mName)), std::move(types));
+                    }
+                }
+            }
+            order.emplace_back(stableHash(name), name);
+            facts.emplace(name, std::move(item));
+        }
+        std::sort(order.begin(), order.end());
+        std::size_t wanted = 200;
+        if (const char* override_ = std::getenv("OPENEDEN_PAPYRUS_SAMPLE"); override_ != nullptr)
+        {
+            wanted = static_cast<std::size_t>(std::strtoull(override_, nullptr, 10));
+        }
+        for (const auto& [hash, name] : order)
+        {
+            const Sampled& item = facts[name];
+            if (!item.mEvents.empty() && eventful.size() < wanted)
+            {
+                eventful.push_back(item);
+            }
+        }
+
+        // Every native is a recorder; the three waits are latent and wait a second of script time.
+        struct Side
+        {
+            QuietWorld mWorld;
+            std::unique_ptr<ScriptPapyrus::PapyrusRuntime> mRuntime;
+        };
+        auto build = [&](Side& side) {
+            ScriptPapyrus::RuntimeOptions options;
+            options.runLatentNatives = true;
+            side.mRuntime = ScriptPapyrus::createRuntime(side.mWorld, UnknownFunctionPolicy::Tolerant, options);
+            for (const auto& [name, bytes] : scripts)
+            {
+                side.mRuntime->loadScript(bytes, name);
+            }
+            static const std::set<std::string> latent
+                = { "utility.wait", "utility.waitmenumode", "utility.waitgametime" };
+            for (const Native& native : natives)
+            {
+                NativeDescriptor descriptor;
+                descriptor.className = native.mClass;
+                descriptor.functionName = native.mFunction;
+                descriptor.global = native.mGlobal;
+                const bool isLatent = latent.contains(lowerText(native.mClass) + "." + lowerText(native.mFunction));
+                descriptor.latent = isLatent;
+                ErrorReport error;
+                side.mRuntime->registerNative(
+                    descriptor,
+                    [isLatent](const NativeCall&) {
+                        NativeResult result;
+                        result.waitSeconds = isLatent ? 1.0 : 0.0;
+                        return result;
+                    },
+                    error);
+            }
+        };
+        Side a;
+        build(a);
+        std::uint32_t form = 0x1000;
+        std::size_t attached = 0;
+        for (const Sampled& item : eventful)
+        {
+            const std::string className
+                = item.mFile.substr(item.mFile.find('/') + 1, item.mFile.size() - item.mFile.find('/') - 5);
+            AttachKey key;
+            key.formId = ++form;
+            const InstanceId id = a.mRuntime->attach(key, className);
+            if (id == 0)
+            {
+                continue;
+            }
+            ++attached;
+            std::size_t sent = 0;
+            for (const auto& [eventName, types] : item.mEvents)
+            {
+                if (eventName == "OnInit" || sent >= 8)
+                {
+                    continue;
+                }
+                std::vector<PapyrusValue> arguments;
+                for (const std::string& type : types)
+                {
+                    arguments.push_back(zeroArgument(type));
+                }
+                a.mRuntime->send(id, eventName, arguments);
+                ++sent;
+            }
+        }
+        // Run part of it: some stacks have finished, some are parked on a wait, some have not started (the per-tick
+        // instruction budget is small on purpose).
+        a.mRuntime->tick(0.0, Budget{ 2000, 0 });
+        const std::uint32_t parkedAtSave = a.mRuntime->suspendedStacks();
+        const SaveBlob blob = a.mRuntime->serialise();
+        ASSERT_FALSE(blob.bytes.empty());
+        Side b;
+        build(b);
+        const RestoreResult restored = b.mRuntime->restore(blob);
+        ASSERT_TRUE(restored.ok) << restored.error.format();
+        EXPECT_EQ(b.mRuntime->serialise().bytes, blob.bytes) << "restore then serialise is the same bytes";
+        EXPECT_EQ(b.mRuntime->suspendedStacks(), a.mRuntime->suspendedStacks());
+        std::uint64_t runA = 0;
+        std::uint64_t runB = 0;
+        std::size_t errorsA = 0;
+        std::size_t errorsB = 0;
+        for (const double time : { 0.5, 1.0, 1.5, 3.0, 10.0, 100.0 })
+        {
+            const TickResult ta = a.mRuntime->tick(time);
+            const TickResult tb = b.mRuntime->tick(time);
+            EXPECT_EQ(ta.stacksRun, tb.stacksRun) << "time " << time;
+            EXPECT_EQ(ta.stacksFinished, tb.stacksFinished) << "time " << time;
+            EXPECT_EQ(ta.instructionsExecuted, tb.instructionsExecuted) << "time " << time;
+            EXPECT_EQ(ta.errors.size(), tb.errors.size()) << "time " << time;
+            runA += ta.instructionsExecuted;
+            runB += tb.instructionsExecuted;
+            errorsA += ta.errors.size();
+            errorsB += tb.errors.size();
+        }
+        EXPECT_EQ(runA, runB);
+        EXPECT_EQ(errorsA, errorsB);
+        EXPECT_EQ(a.mRuntime->suspendedStacks(), b.mRuntime->suspendedStacks());
+        std::cout << "PAPYRUS-SAVE attached " << attached << ", blob " << blob.bytes.size()
+                  << " bytes, parked at the save " << parkedAtSave << ", instructions after the save " << runA
+                  << ", errors " << errorsA << ", parked at the end " << a.mRuntime->suspendedStacks() << "\n";
+        if (a.mRuntime->suspendedStacks() == 0)
+        {
+            EXPECT_EQ(a.mRuntime->serialise().bytes, b.mRuntime->serialise().bytes);
+        }
+    }
 }

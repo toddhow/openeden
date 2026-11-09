@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <limits>
@@ -178,20 +179,14 @@ namespace
             .op(Op::ArraySetElement, { Id("list"), Int(0), Id("p") })
             .op(Op::ArraySetElement, { Id("list"), Int(2), Id("p") })
             .ret(Nil());
-        s.function("Y", "Float")
-            .local("v", "Float")
-            .op(Op::StructGet, { Id("v"), Id("keep"), Str("y") })
-            .ret(Id("v"));
+        s.function("Y", "Float").local("v", "Float").op(Op::StructGet, { Id("v"), Id("keep"), Str("y") }).ret(Id("v"));
         s.function("YOfListTwo", "Float")
             .local("p", "Shapes#Point")
             .local("v", "Float")
             .op(Op::ArrayGetElement, { Id("p"), Id("list"), Int(2) })
             .op(Op::StructGet, { Id("v"), Id("p"), Str("y") })
             .ret(Id("v"));
-        s.function("SetY", "None")
-            .param("v", "Float")
-            .op(Op::StructSet, { Id("keep"), Str("y"), Id("v") })
-            .ret(Nil());
+        s.function("SetY", "None").param("v", "Float").op(Op::StructSet, { Id("keep"), Str("y"), Id("v") }).ret(Nil());
         return s;
     }
 
@@ -227,10 +222,7 @@ namespace
                 once();
             }
         }
-        bool attachKeyExists(const AttachKey& key) const override
-        {
-            return !mKeyCheck || mKeyCheck(key);
-        }
+        bool attachKeyExists(const AttachKey& key) const override { return !mKeyCheck || mKeyCheck(key); }
         bool logged(std::string_view part) const
         {
             for (const std::string& line : mLogs)
@@ -480,7 +472,8 @@ namespace
         return blob;
     }
 
-    // ---- the format --------------------------------------------------------------------------------------------------
+    // ---- the format
+    // --------------------------------------------------------------------------------------------------
 
     TEST(PapyrusSave, an_empty_runtime_writes_a_header_and_restores)
     {
@@ -809,7 +802,8 @@ namespace
         EXPECT_EQ(b.varText(p.mLong, "sv"), "loc-str!");
     }
 
-    // ---- replace, not merge ------------------------------------------------------------------------------------------
+    // ---- replace, not merge
+    // ------------------------------------------------------------------------------------------
 
     TEST(PapyrusSave, restore_replaces_what_the_runtime_held)
     {
@@ -938,7 +932,8 @@ namespace
         }
     }
 
-    // ---- refusals ----------------------------------------------------------------------------------------------------
+    // ---- refusals
+    // ----------------------------------------------------------------------------------------------------
 
     /// A runtime with state, to see that a refused blob leaves it as it was.
     struct Witness
@@ -1046,7 +1041,7 @@ namespace
         const Bytes good = a.mRuntime->serialise().bytes;
         Witness w;
         // The first u32 after the three scalars is the text count; the one after the texts is the script count.
-        const std::size_t textCountAt = Save::kHeaderBytes + 8 + 8 + 4;
+        const std::size_t textCountAt = Save::kHeaderBytes + 8 + 8 + 4 + 4;
         for (const std::uint32_t huge : { 0xFFFFFFFFu, 0x7FFFFFFFu, 0x10000000u, 0x01000000u })
         {
             Bytes bytes = good;
@@ -1069,7 +1064,8 @@ namespace
         const Bytes before = b.mRuntime->serialise().bytes;
         const RestoreResult result = b.mRuntime->restore(a.mRuntime->serialise());
         ASSERT_FALSE(result.ok);
-        EXPECT_NE(result.error.message.find("Saver"), std::string::npos) << result.error.message;
+        EXPECT_NE(result.error.message.find("saver"), std::string::npos)
+            << "the blob holds names in lower case: " << result.error.message;
         EXPECT_EQ(b.mRuntime->serialise().bytes, before);
     }
 
@@ -1110,19 +1106,19 @@ namespace
         const SaveBlob blob = a.mRuntime->serialise();
         Node b;
         const InstanceId id = b.make(1);
-        const Bytes before = b.mRuntime->serialise().bytes;
         bool nativeOk = true;
         b.mHost.mInMark = [&] { nativeOk = b.mRuntime->restore(blob).ok; };
         b.send(id, "OnMark", { I(1) });
         b.tick(0.0);
         EXPECT_FALSE(nativeOk);
         b.mHost.mInMark = nullptr;
-        EXPECT_EQ(b.mRuntime->serialise().bytes, before) << "nothing changed by the attempt";
+        EXPECT_EQ(b.mRuntime->stateOf(id), "") << "the instance is still the one b had";
+        EXPECT_EQ(b.mRuntime->attach(b.keyFor(2), "Saver"), 2u) << "b still has exactly one instance";
+        const Bytes before = b.mRuntime->serialise().bytes;
         // A world callback: the log of a runtime message.
         bool worldOk = true;
         b.mWorld.mOnLog = [&] { worldOk = b.mRuntime->restore(blob).ok; };
-        b.mRuntime->attach(b.keyFor(1), "Saver"); // already attached: no log; use a missing script to force one
-        b.mRuntime->attach(b.keyFor(2), "NoSuchScript");
+        b.mRuntime->attach(b.keyFor(3), "NoSuchScript");
         EXPECT_FALSE(worldOk);
         EXPECT_EQ(b.mRuntime->serialise().bytes, before);
     }
@@ -1142,7 +1138,8 @@ namespace
         EXPECT_FALSE(a.mRuntime->serialise().bytes.empty());
     }
 
-    // ---- a script that changed since the save ------------------------------------------------------------------------
+    // ---- a script that changed since the save
+    // ------------------------------------------------------------------------
 
     TEST(PapyrusSave, a_changed_script_drops_its_started_stacks_keeps_matching_variables_and_warns)
     {
@@ -1166,7 +1163,8 @@ namespace
         EXPECT_EQ(b.mHost.mMarks, (std::vector<std::int32_t>{ 33 })) << "an event that had not started is kept";
     }
 
-    // ---- the fuzz ----------------------------------------------------------------------------------------------------
+    // ---- the fuzz
+    // ----------------------------------------------------------------------------------------------------
 
     TEST(PapyrusSave, a_hundred_thousand_mutated_blobs_never_crash_and_what_is_accepted_is_sound)
     {
@@ -1179,8 +1177,8 @@ namespace
         std::mt19937_64 rng(0x5AFE5AFEull);
         std::size_t accepted = 0;
         std::size_t refused = 0;
-        const std::uint32_t interesting[] = { 0u, 1u, 2u, 3u, 0xFFu, 0x100u, 0xFFFFu, 0x10000u, 0x7FFFFFFFu, 0x80000000u,
-            0xFFFFFFFFu };
+        const std::uint32_t interesting[]
+            = { 0u, 1u, 2u, 3u, 0xFFu, 0x100u, 0xFFFFu, 0x10000u, 0x7FFFFFFFu, 0x80000000u, 0xFFFFFFFFu };
         for (int iteration = 0; iteration < 100000; ++iteration)
         {
             Bytes bytes = good;
@@ -1225,7 +1223,8 @@ namespace
                     const std::size_t pos = at();
                     for (std::size_t i = 0; i < 1 + rng() % 8; ++i)
                     {
-                        bytes.insert(bytes.begin() + static_cast<std::ptrdiff_t>(pos), static_cast<std::uint8_t>(rng()));
+                        bytes.insert(
+                            bytes.begin() + static_cast<std::ptrdiff_t>(pos), static_cast<std::uint8_t>(rng()));
                     }
                     break;
                 }
@@ -1262,6 +1261,7 @@ namespace
             ASSERT_TRUE(second.ok) << iteration << ": " << second.error.format();
             ASSERT_EQ(target.mRuntime->serialise().bytes, again.bytes) << iteration;
         }
+        std::printf("[ INFO ] save fuzz: %zu accepted, %zu refused\n", accepted, refused);
         EXPECT_GT(refused, 50000u);
         EXPECT_GT(accepted, 100u) << "mutations that keep the structure valid are accepted";
     }

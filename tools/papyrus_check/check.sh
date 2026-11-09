@@ -29,4 +29,4 @@ if [ ! -x "$TESTS" ]; then
     echo "papyrus_check: components-tests not found in $BUILD"
     exit 1
 fi
-OPENEDEN_PAPYRUS_DATA="$DATA" OPENEDEN_PAPYRUS_MODS="$MODS" "$TESTS" --gtest_filter='PapyrusRealData.*:PapyrusRealRun.*' | grep -E "PAPYRUS-CHECK|PAPYRUS-RUN|PASSED|FAILED|SKIPPED"
+OPENEDEN_PAPYRUS_DATA="$DATA" OPENEDEN_PAPYRUS_MODS="$MODS" "$TESTS" --gtest_filter='PapyrusRealData.*:PapyrusRealRun.*' | grep -E "PAPYRUS-CHECK|PAPYRUS-RUN|PAPYRUS-SAVE|PASSED|FAILED|SKIPPED"
