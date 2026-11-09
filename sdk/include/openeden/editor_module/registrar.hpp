@@ -67,6 +67,11 @@ namespace openeden::editor
     /// the module's UI state; it keeps its result in something it captured (a shared_ptr). `progress` and `done` run
     /// on the UI thread, in order, `done` last and exactly once, and never after the task's asset was replaced or
     /// closed, or after the module was unloaded (such a task is cancelled and joined first).
+    ///
+    /// Cancelling by asset WAITS: replacing or closing the task's asset, and unloading the module, block the UI thread
+    /// until `work` returns (cancelTask alone only sets the flag). `work` must therefore poll TaskControl::cancelled()
+    /// often and return promptly when it is set; a work function that never checks it freezes the editor at those
+    /// moments.
     struct TaskDesc
     {
         std::string label;
