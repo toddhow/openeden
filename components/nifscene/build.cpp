@@ -1,6 +1,7 @@
 #include "build.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <limits>
 #include <map>
@@ -482,6 +483,7 @@ namespace NifScene
 
                 if (!decoded.mWeights.empty())
                     buildInfluences(g, decoded, shape.mName, partitions, fromPartitions);
+                warnNonFiniteWeights(g, shape.mName);
                 if (fromPartitions)
                     describePartitions(g, partitions);
 
@@ -489,6 +491,21 @@ namespace NifScene
                 if (nodeIdx != sNone)
                     mScene.mNodes[nodeIdx].mGeometry = index;
                 mScene.mGeometries.push_back(std::move(g));
+            }
+
+            // A packed half with exponent 31 is Inf or NaN, and NiSkinData stores plain floats: the scene keeps the
+            // value (it is the file's), so a consumer must filter. This only makes the warning visible.
+            void warnNonFiniteWeights(const Geometry& g, const std::string& name)
+            {
+                std::size_t count = 0;
+                for (const Influence& influence : g.mInfluences)
+                {
+                    if (!std::isfinite(influence.mWeight))
+                        ++count;
+                }
+                if (count != 0)
+                    warn("shape '" + name + "': " + std::to_string(count)
+                        + " bone influences have a non-finite weight (kept as read; weights are not validated)");
             }
 
             void buildInfluences(Geometry& g, const DecodedVertices& decoded, const std::string& name,
@@ -659,6 +676,7 @@ namespace NifScene
                 g.mSkin = buildSkin(skinInstance, shape.mName);
                 if (g.mSkin != sNone && skinInstance != nullptr && !skinInstance->mData.empty())
                     buildBoneWeights(g, *skinInstance->mData.getPtr(), shape.mName);
+                    warnNonFiniteWeights(g, shape.mName);
                 linkMaterial(g, shape.mShaderProperty, shape.mAlphaProperty);
                 const auto index = static_cast<std::uint32_t>(mScene.mGeometries.size());
                 if (nodeIdx != sNone)

@@ -28,6 +28,13 @@ Rules and pitfalls:
   not read, with a warning. A shader property of another kind (water, sky, `BSShaderPPLightingProperty`) gives no material, with a warning.
 - **NiTriShape skins** (Morrowind, Oblivion, Skyrim LE shapes) come from `NiSkinData`'s per-bone weight lists, turned into per-vertex
   influences in bone order. Later games keep the weights in the skin partition (Skyrim LE's `NiSkinPartition` weights are not read yet).
+- **The scene is not sanitised.** Vertex data can hold Inf and NaN (a packed half with exponent 31 decodes to one) and bone
+  weights are neither range-checked, summed nor normalised: the builder only checks indices (triangles, bones) and warns
+  once per shape about non-finite influence weights (`Scene::mWarnings`). A consumer must filter non-finite values and
+  renormalise weights itself before it skins or hashes anything.
+- **The scene reader passes its own `Nif::ReadOptions`** (`SceneOptions::mRead`) to `Reader::parse`; it never uses the
+  process-wide default (`NifSceneReview.readScene_uses_its_own_options_whatever_the_process_default_is`). Eden Studio's
+  `MeshScene::loadScene` calls `readScene` with `SceneOptions{}`, so the same holds there.
 - No renderer work lives here. `vsgadapters/nif` still draws `NiGeometry` only.
 - Real files are read in place and only aggregates are written (`apps/components_tests/nifscene/testscenereal.cpp`,
   skipped unless `OPENEDEN_NIF_REPORT_DIRS` and `OPENEDEN_NIF_REPORT_OUT` are set). Never copy a game file into the repository.

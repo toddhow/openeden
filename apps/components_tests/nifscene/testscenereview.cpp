@@ -1,9 +1,12 @@
+#include <components/nif/niffile.hpp>
 #include <components/nif/exception.hpp>
 #include <components/nifscene/build.hpp>
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -165,5 +168,52 @@ namespace
         ASSERT_EQ(g.mPositions.size(), 3u);
         EXPECT_EQ(g.mPositions[2], (Vec3{ 3.f, 0.f, 0.f }));
         EXPECT_EQ(g.mUV0.size(), 3u);
+    }
+
+    // ---- Lane B review, B6: the scene keeps Inf/NaN weights (half exponent 31) and says so ----
+
+    TEST(NifSceneReview, a_non_finite_weight_is_kept_and_named_in_a_warning)
+    {
+        std::vector<Vertex> stream = threeSkinnedVertices();
+        stream[1].mWeights = { std::numeric_limits<float>::infinity(), 0.f, 0.f, 0.f };
+        const Scene scene = read(skinned(stream, 3, false));
+        const Geometry& g = scene.mGeometries[0];
+        bool anyNonFinite = false;
+        for (const Influence& influence : g.mInfluences)
+            anyNonFinite = anyNonFinite || !std::isfinite(influence.mWeight);
+        EXPECT_TRUE(anyNonFinite) << "the value itself is kept: consumers filter";
+        bool warned = false;
+        for (const std::string& warning : scene.mWarnings)
+            warned = warned || (warning.find("Body") != std::string::npos && warning.find("non-finite") != std::string::npos);
+        EXPECT_TRUE(warned);
+    }
+
+    TEST(NifSceneReview, finite_weights_give_no_non_finite_warning)
+    {
+        const Scene scene = read(skinned(threeSkinnedVertices(), 3, false));
+        for (const std::string& warning : scene.mWarnings)
+            EXPECT_EQ(warning.find("non-finite"), std::string::npos) << warning;
+    }
+
+    // ---- Lane B review, B7: the scene reader never uses the process-wide default read options ----
+
+    TEST(NifSceneReview, readScene_uses_its_own_options_whatever_the_process_default_is)
+    {
+        const Nif::ReadOptions saved = Nif::Reader::getDefaultReadOptions();
+        Nif::ReadOptions morrowindOnly;
+        morrowindOnly.mAllowedVersions = Nif::VersionSet::Morrowind;
+        Nif::Reader::setDefaultReadOptions(morrowindOnly);
+        std::string error;
+        try
+        {
+            const Scene scene = read(skinned(threeSkinnedVertices(), 3, false));
+            EXPECT_EQ(scene.mGeometries.size(), 1u);
+        }
+        catch (const std::exception& e)
+        {
+            error = e.what();
+        }
+        Nif::Reader::setDefaultReadOptions(saved);
+        EXPECT_EQ(error, "");
     }
 }
