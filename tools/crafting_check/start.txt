@@ -1,0 +1,9 @@
+Player->AddItem "apparatus_a_mortar_01" 1
+Player->AddItem "apparatus_a_alembic_01" 1
+Player->AddItem "apparatus_a_calcinator_01" 1
+Player->AddItem "apparatus_a_retort_01" 1
+Player->AddItem "ingred_heather_01" 3
+Player->AddItem "ingred_wickwheat_01" 3
+Player->AddItem "ingred_comberry_01" 3
+Player->AddItem "repair_prongs" 2
+Player->AddSoulGem "ogrim" "misc_soulgem_grand"
