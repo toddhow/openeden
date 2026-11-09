@@ -111,13 +111,14 @@ namespace openeden::script
     {
     public:
         static constexpr std::string_view kId = "openeden.script.obscript";
-        /// 1.2 (2026-11-06): additive. declareFunction (a function with a shape and no behaviour yet, from a table).
-        /// It is the LAST virtual function of the class, so that a consumer built against 1.0 or 1.1 keeps the table
-        /// slot of every call it makes (new virtual functions go at the end).
         /// 1.1 (2026-11-06): additive. A form used as a value in a script ("Set x to SomeRef", "If ( x == Player )")
         /// is looked up with ObScriptWorld::resolveForm at the moment the line runs; the name "Player" is not special
         /// to the runtime, the world resolves it like any other name.
-        /// 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields.
+        /// 1.2 (2026-11-06): additive. declareFunction (a function with a shape and no behaviour yet, from a table).
+        /// It is the LAST virtual function of the class, so that a consumer built against 1.0 or 1.1 keeps the table
+        /// slot of every call it makes (new virtual functions go at the end).
+        /// 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields. RestoreResult is declared in host.hpp and
+        /// is SHARED with the Papyrus contract, so the same fields serve both.
         static constexpr sdk::Version kVersion{ 1, 3 };
 
         virtual ~ObScriptContract() = default;
@@ -145,6 +146,9 @@ namespace openeden::script
         virtual bool setLocal(InstanceId instance, std::string_view name, Value value) noexcept = 0;
 
         /// The state of every instance (locals and the form each is attached to) as versioned bytes.
+        /// A blob with formatVersion 0 and no bytes means the state could not be written: do not save it (the game
+        /// pack's save chunk throws for it, which makes the host refuse the save). A runtime with nothing to save
+        /// still returns a small, non-empty blob.
         virtual SaveBlob serialise() const noexcept = 0;
 
         /// Replace the state of the instances from \a blob. Scripts must be compiled again first (the blob refers to

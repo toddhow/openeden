@@ -94,6 +94,12 @@ namespace
         EXPECT_EQ(openeden::script::ObScriptContract::kVersion.major, 1);
     }
 
+    TEST(ScriptContractHeaders, the_obscript_contract_is_version_1_3)
+    {
+        EXPECT_EQ(openeden::script::ObScriptContract::kVersion.major, 1);
+        EXPECT_EQ(openeden::script::ObScriptContract::kVersion.minor, 3);
+    }
+
     TEST(ScriptContractHeaders, an_error_report_formats_as_script_line_column_message)
     {
         openeden::script::ErrorReport report;
