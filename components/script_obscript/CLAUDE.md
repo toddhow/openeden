@@ -19,7 +19,8 @@ the save chunk (it stores what `serialise` returns).
 - **The instruction loop allocates nothing** (`apps/openmw_tests/script_obscript/testobscriptallocation.cpp`): do not add
   a `std::string` or `std::vector` to `InstanceContext`, `OpFunction::execute` or `RuntimeImpl::run`.
 - **Determinism:** instances live in an ordered map, functions get opcodes in registration order, unknown names in order
-  of first use; the save blob is byte-identical for the same state.
+  of first use; the save blob is byte-identical for the same state. The blob stores variables by name (version 2; a
+  change of the layout bumps `Limits::kSaveFormatVersion` and keeps reading the older ones).
 - **Unknown functions (the extender policy):** tolerant mode registers every name found in a call position as a function
   that skips its arguments, logs once per name and returns zero; strict mode (tests) makes it a located error. The
   places where a name can be a call are found by the line pass in `obscriptcompile.cpp` (`findCandidates`), not by the
@@ -53,11 +54,15 @@ the save chunk (it stores what `serialise` returns).
 - **A command's result as a reference (gap D, `GetFoo.Bar 1`):** `ParserOptions::mCallResultReferences` (on in
   `compileText`). A typed call of type `l` right before `.` or `->` stores its result in a hidden local `$ref<depth>`
   (depth = nesting of the `ExprParser` that read the call; one slot per depth is enough because the reference is read
-  when the member runs and anything in between is deeper) and the member is compiled as `local.Member`. The compiler
-  declares the local (`ExprParser::takeCallResultReference`, which probes one token); after each compile
-  `compileText` marks every local that begins with `$ref` as a reference local, so the runtime resolves it like
-  `ref x`. A name before a dot at the start of a statement that nothing known owns is a command candidate
-  (`findCandidates`); the skip parser (`DiscardParser`) stops at a dot that comes before any argument.
+  when the member runs and anything in between is deeper) and the member is compiled as `local.Member`; the member's own
+  result may be followed by a dot again (chains reuse the slot). The compiler declares the local
+  (`ExprParser::takeCallResultReference`, which reads the dot and one token after it; a dot with no member is a stray
+  dot: a warning in a statement, an error in an expression). Hidden names are recognised by `isHiddenReferenceName`
+  (no registration; `CompiledScript::isReference`), count against `kMaxLocals`, and are **not in the save blob**
+  (format 2 stores variables by name; format 1 is still read). A call whose explicit reference is 0 is not made
+  (`OpFunction`): handlers read 0 as "the script's own object". A name before a dot at the start of a statement is a
+  command candidate (`findCandidates`) only when the member is a command we have or arguments follow it; these
+  candidates have buckets of their own (`kMaxUnknownBeforeDot*`) and a strict-mode message that says "form".
 - **Game pack glue (item 4):** `gamepackglue.*`. `ObScriptSaveChunk` is the pack's save chunk handler `script.obscript`
   (its bytes are the runtime's save blob and the chunk version is `Limits::kSaveFormatVersion`; a chunk over
   `Limits::kMaxSaveBlobBytes` is refused unread); `attachToGamePack` declares the language `obscript` through
