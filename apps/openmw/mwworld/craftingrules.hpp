@@ -5,6 +5,8 @@
 
 #include <openeden/game/crafting.hpp>
 
+#include "ptr.hpp"
+
 namespace MWWorld
 {
     /// The crafting rules of the game in play (task 0085 move 2, stage 2c). The executable installs the game pack's rules
@@ -18,6 +20,12 @@ namespace MWWorld
 
     /// Throws std::runtime_error naming what is missing when nothing is installed.
     [[nodiscard]] openeden::sdk::game::CraftingRules& requireCraftingRules();
+
+    /// Recharges an enchanted item over time: the per-frame path of ContainerStore::rechargeItems and
+    /// CellStore::rechargeItems (task 0085 move 2: a non-virtual helper of the core). It returns false, and does not ask
+    /// the rules, when no change is due (the item has no charge, -1, or is already full), so the rules are called once
+    /// per item whose charge really changes and never for the rest. With no rules installed nothing recharges.
+    bool rechargeItemOverTime(const Ptr& item, float maxCharge, float duration);
 }
 
 #endif

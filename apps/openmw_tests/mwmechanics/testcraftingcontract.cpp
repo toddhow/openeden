@@ -666,6 +666,72 @@ namespace CraftingTest
             EXPECT_EQ(mWorld.mPrng, directGenerator);
         }
 
+        // ---- the per-frame path: a non-virtual helper of the core that asks the rules only when a change is due ----
+
+        // Rules that count what the core asks them, to show that the per-frame helper does not ask for nothing.
+        class CountingRules final : public sdk::CraftingRules
+        {
+        public:
+            int mRechargedChargeCalls = 0;
+
+            std::unique_ptr<sdk::AlchemySession> beginAlchemy() override { return nullptr; }
+            std::unique_ptr<sdk::EnchantingSession> beginEnchanting() override { return nullptr; }
+            std::unique_ptr<sdk::RepairSession> beginRepair() override { return nullptr; }
+            bool rechargeWithGem(ItemHandle, ItemHandle) override { return false; }
+            int gemSoul(ItemHandle) override { return 0; }
+            float rechargedCharge(float charge, float maxCharge, float duration) override
+            {
+                ++mRechargedChargeCalls;
+                return std::min(charge + 2.f * duration, maxCharge);
+            }
+            bool knownAlchemyEffect(std::size_t, ItemHandle) override { return false; }
+            std::vector<std::string> ingredientEffectNames(ItemHandle, float) override { return {}; }
+            int apparatusSlotOf(ItemHandle) override { return -1; }
+        };
+
+        TEST_F(CraftingContractTest, theFrameHelperAsksTheRulesOnlyWhenAChangeIsDue)
+        {
+            auto counting = std::make_unique<CountingRules>();
+            CountingRules* rules = counting.get();
+            MWWorld::installCraftingRules(std::move(counting));
+            const MWWorld::Ptr blade = give(rid("test_blade"), 1);
+
+            blade.getCellRef().setEnchantmentCharge(-1.f); // never charged: nothing to recharge
+            EXPECT_FALSE(MWWorld::rechargeItemOverTime(blade, 100.f, 1.f));
+            blade.getCellRef().setEnchantmentCharge(100.f); // full
+            EXPECT_FALSE(MWWorld::rechargeItemOverTime(blade, 100.f, 1.f));
+            EXPECT_EQ(rules->mRechargedChargeCalls, 0) << "no change due: no call into the pack";
+
+            blade.getCellRef().setEnchantmentCharge(10.f);
+            EXPECT_TRUE(MWWorld::rechargeItemOverTime(blade, 100.f, 3.f));
+            EXPECT_EQ(rules->mRechargedChargeCalls, 1);
+            EXPECT_FLOAT_EQ(blade.getCellRef().getEnchantmentCharge(), 16.f) << "the rules' answer is stored";
+        }
+
+        TEST_F(CraftingContractTest, theFrameHelperWithMorrowindsRulesIsRechargeItem)
+        {
+            MWWorld::installCraftingRules(std::move(mRules));
+            const MWWorld::Ptr blade = give(rid("test_blade"), 1);
+            const MWWorld::Ptr other = give(rid("test_sword"), 1);
+            for (const float start : { 0.f, 10.f, 99.9f })
+            {
+                blade.getCellRef().setEnchantmentCharge(start);
+                other.getCellRef().setEnchantmentCharge(start);
+                EXPECT_TRUE(MWWorld::rechargeItemOverTime(blade, 100.f, 20.f));
+                EXPECT_TRUE(MWMechanics::rechargeItem(other, 100.f, 20.f));
+                EXPECT_FLOAT_EQ(blade.getCellRef().getEnchantmentCharge(), other.getCellRef().getEnchantmentCharge());
+            }
+        }
+
+        TEST_F(CraftingContractTest, theFrameHelperDoesNothingWithoutRules)
+        {
+            MWWorld::installCraftingRules(nullptr);
+            const MWWorld::Ptr blade = give(rid("test_blade"), 1);
+            blade.getCellRef().setEnchantmentCharge(10.f);
+            EXPECT_FALSE(MWWorld::rechargeItemOverTime(blade, 100.f, 20.f));
+            EXPECT_FLOAT_EQ(blade.getCellRef().getEnchantmentCharge(), 10.f);
+        }
+
         TEST_F(CraftingContractTest, theSoulOfAGemIsTheCreaturesSoul)
         {
             const MWWorld::Ptr gem = give(rid("test_gem"), 1);

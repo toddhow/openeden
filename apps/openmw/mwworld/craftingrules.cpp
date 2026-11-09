@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+#include "cellref.hpp"
+
 namespace MWWorld
 {
     namespace
@@ -30,5 +32,19 @@ namespace MWWorld
         if (installed() == nullptr)
             throw std::runtime_error("No crafting rules are installed: the game pack of this session provides none");
         return *installed();
+    }
+
+    bool rechargeItemOverTime(const Ptr& item, float maxCharge, float duration)
+    {
+        const float charge = item.getCellRef().getEnchantmentCharge();
+        if (charge == -1 || charge == maxCharge)
+            return false;
+
+        openeden::sdk::game::CraftingRules* rules = craftingRules();
+        if (rules == nullptr)
+            return false;
+
+        item.getCellRef().setEnchantmentCharge(rules->rechargedCharge(charge, maxCharge, duration));
+        return true;
     }
 }
