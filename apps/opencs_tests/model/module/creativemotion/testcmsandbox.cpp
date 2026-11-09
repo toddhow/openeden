@@ -434,6 +434,18 @@ namespace CMTest
             EXPECT_EQ(std::get<std::string>(panel()->get(creativemotion_editor::kSandboxBoneId)), "LeftThigh");
         }
 
+        // Review of 2026-11-08: the ragdoll and the 40 m ground live in the editor's one world; when the module goes
+        // (unload, Extension Manager) nobody could reach them again, so the module hands them back.
+        TEST_F(CmSandboxTest, unloadingTheModuleReleasesTheHostsSandbox)
+        {
+            openBoth();
+            ASSERT_TRUE(run(creativemotion_editor::kSandboxPushCommandId));
+            ASSERT_TRUE(mSandbox.mBuilt);
+            mDocuments.clear();
+            mHost.reset();
+            EXPECT_FALSE(mSandbox.mBuilt) << "the sandbox was left in the world after the module went";
+        }
+
         class CmSandboxGizmoTest : public CmSandboxTest
         {
         protected:

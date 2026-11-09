@@ -20,6 +20,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <exception>
 #include <limits>
 #include <string>
 #include <vector>
@@ -350,6 +351,97 @@ namespace CSMPhysics
                 const SandboxBodyPose p = pose(service, bone);
                 EXPECT_NEAR(p.qx * p.qx + p.qy * p.qy + p.qz * p.qz + p.qw * p.qw, 1.0, 1.0e-6) << bone;
             }
+        }
+
+        // ---- review of 2026-11-08 (round 5) -------------------------------------------------------------------------
+
+        TEST_F(SandboxServiceTest, noPushIsReportedWaitingOnceTheWorldWasCleared)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            ASSERT_TRUE(service.push("Pelvis", Vec3{ 10.0, 0.0, 0.0 }, Vec3{}));
+            ASSERT_EQ(service.pendingPushes(), 1u);
+            world.clear();
+            EXPECT_EQ(service.pendingPushes(), 0u) << "the ragdoll is gone: nothing is waiting to push it";
+        }
+
+        TEST_F(SandboxServiceTest, aResetKeepsTheGroundBodyItHas)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            const JPH::BodyID ground = service.ground();
+            const std::size_t bodies = world.bodyCount();
+            std::string error;
+            ASSERT_TRUE(service.reset(error)) << error;
+            EXPECT_TRUE(service.ground() == ground) << "a ground that is still there is not taken away and made again";
+            EXPECT_EQ(world.bodyCount(), bodies);
+        }
+
+        TEST_F(SandboxServiceTest, aResetInAFullWorldStillWorks)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            for (int i = 0; i < 10000; ++i)
+            {
+                try
+                {
+                    world.addStaticBox(JPH::RVec3(1000.0 + i, 1000.0, 1000.0), JPH::Vec3(1.0f, 1.0f, 1.0f));
+                }
+                catch (const std::exception&)
+                {
+                    break; // no room: the world is full
+                }
+            }
+            std::string error;
+            EXPECT_TRUE(service.reset(error)) << error;
+            EXPECT_TRUE(service.built());
+        }
+
+        TEST_F(SandboxServiceTest, aResetThatCannotMakeTheGroundSaysSoAndKeepsWhatItHas)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            world.clear(); // the ground and the ragdoll are gone
+            for (int i = 0; i < 10000; ++i)
+            {
+                try
+                {
+                    world.addStaticBox(JPH::RVec3(1000.0 + i, 1000.0, 1000.0), JPH::Vec3(1.0f, 1.0f, 1.0f));
+                }
+                catch (const std::exception&)
+                {
+                    break;
+                }
+            }
+            std::string error;
+            EXPECT_FALSE(service.reset(error));
+            EXPECT_FALSE(error.empty());
+            EXPECT_FALSE(service.built());
+        }
+
+        // The ground is 20 m wide, the impulse cap 100000 N s: a push of the cap on a light body sends it far past the
+        // ground's edge (documented in sandboxservice.hpp). Nothing breaks: every pose stays a finite number.
+        TEST_F(SandboxServiceTest, aPushOfTheCapSendsABodyOffTheGroundWithoutAnyPoseTurningNonFinite)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            ASSERT_TRUE(service.push("Pelvis", Vec3{ 99999.0, 0.0, 0.0 }, Vec3{}));
+            steps(world, 240);
+            for (const std::string& bone : service.bodyNames())
+            {
+                const SandboxBodyPose p = pose(service, bone);
+                EXPECT_TRUE(std::isfinite(p.positionM.x) && std::isfinite(p.positionM.y) && std::isfinite(p.positionM.z))
+                    << bone;
+                EXPECT_TRUE(std::isfinite(p.qw)) << bone;
+            }
+            SandboxBodyPose pelvis = pose(service, "Pelvis");
+            EXPECT_GT(std::fabs(pelvis.positionM.x), SandboxService::sGroundHalfExtentM)
+                << "it left the 20 m ground; the documented limit";
         }
     }
 }

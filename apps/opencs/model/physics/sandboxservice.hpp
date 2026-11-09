@@ -50,6 +50,9 @@ namespace CSMPhysics
         /// The scene, for tests and the host's checks; null when nothing is built.
         const PushScene* scene() const { return mScene.get(); }
 
+        /// The ground body (invalid when nothing is built), for tests.
+        JPH::BodyID ground() const { return mGround; }
+
     private:
         bool addGround(std::string& error);
 
