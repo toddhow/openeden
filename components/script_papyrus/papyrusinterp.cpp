@@ -872,8 +872,8 @@ namespace ScriptPapyrus::Vm
                     return fail(ErrorKind::NativeFailed, "native '" + label() + "' returned a wait of NaN seconds");
                 }
                 suspendHost = wait < 0.0;
-                suspendWake = suspendHost ? mNow + mOptions.maxHostWaitSeconds
-                                          : mNow + std::min(wait, mOptions.maxWaitSeconds);
+                suspendWake
+                    = suspendHost ? mNow + mOptions.maxHostWaitSeconds : mNow + std::min(wait, mOptions.maxWaitSeconds);
                 suspend = true;
             }
         }

@@ -850,11 +850,11 @@ namespace
         }
     }
 
-    // ---- review of 2026-11-08 (round 5): growth, tokens, host waits, option checks ------------------------------------
-    // In plain words: the lists of parked stacks grow by doubling (not by one slot per park), every park hands out a
-    // token of its own (a token kept from an earlier wait must not wake a later one), completing many waits is not
-    // quadratic, a host wait can be given an expiry, bad option values are replaced, and with latent natives off the
-    // time given to tick() is not looked at.
+    // ---- review of 2026-11-08 (round 5): growth, tokens, host waits, option checks
+    // ------------------------------------ In plain words: the lists of parked stacks grow by doubling (not by one slot
+    // per park), every park hands out a token of its own (a token kept from an earlier wait must not wake a later one),
+    // completing many waits is not quadratic, a host wait can be given an expiry, bad option values are replaced, and
+    // with latent natives off the time given to tick() is not looked at.
 
     TEST(PapyrusSchedReview5, parking_many_stacks_grows_the_lists_geometrically)
     {
@@ -974,8 +974,8 @@ namespace
 
     TEST(PapyrusSchedReview5, a_max_wait_that_is_not_a_usable_number_is_replaced_by_the_default)
     {
-        for (const double bad : { std::numeric_limits<double>::quiet_NaN(), -5.0, 0.0,
-                 std::numeric_limits<double>::infinity() })
+        for (const double bad :
+            { std::numeric_limits<double>::quiet_NaN(), -5.0, 0.0, std::numeric_limits<double>::infinity() })
         {
             ScriptPapyrus::RuntimeOptions options = latentOptions();
             options.maxWaitSeconds = bad;

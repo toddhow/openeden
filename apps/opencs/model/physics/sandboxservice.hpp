@@ -28,9 +28,10 @@ namespace CSMPhysics
     /// press, so the same presses give bit-identical poses (tests and tools/pushsandbox_check use that). While Playing
     /// the world steps on wall-clock ticks, so the step a push lands on varies from run to run.
     ///
-    /// Limit: the ground is 20 m wide and PushScene accepts impulses up to 100000 N s, which sends a light body far past
-    /// the edge, where it falls for ever. Its pose stays finite (Jolt caps the speed); the cap is not scaled to the
-    /// body's mass because the sandbox is a tool for looking at reactions, and a refused large push would hide them.
+    /// Limit: the ground is 20 m wide and PushScene accepts impulses up to 100000 N s, which sends a light body far
+    /// past the edge, where it falls for ever. Its pose stays finite (Jolt caps the speed); the cap is not scaled to
+    /// the body's mass because the sandbox is a tool for looking at reactions, and a refused large push would hide
+    /// them.
     class SandboxService final : public openeden::editor::SimulationSandbox
     {
     public:

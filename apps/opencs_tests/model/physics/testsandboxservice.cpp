@@ -435,7 +435,8 @@ namespace CSMPhysics
             for (const std::string& bone : service.bodyNames())
             {
                 const SandboxBodyPose p = pose(service, bone);
-                EXPECT_TRUE(std::isfinite(p.positionM.x) && std::isfinite(p.positionM.y) && std::isfinite(p.positionM.z))
+                EXPECT_TRUE(
+                    std::isfinite(p.positionM.x) && std::isfinite(p.positionM.y) && std::isfinite(p.positionM.z))
                     << bone;
                 EXPECT_TRUE(std::isfinite(p.qw)) << bone;
             }

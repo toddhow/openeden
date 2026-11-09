@@ -37,7 +37,18 @@ def main():
     header, cls, base = sys.argv[1], sys.argv[2], sys.argv[3]
     text = strip_comments(open(header, encoding="utf-8").read())
     m = re.search(r"class\s+%s\b[^{;]*\{" % re.escape(cls), text)
-    body = text[m.end():]
+    # Only the named class: stop at the brace that closes it (a header may hold more classes after it).
+    depth = 1
+    end = len(text)
+    for i in range(m.end(), len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    body = text[m.end():end]
     out = []
     seen = set()
     text = re.sub(r"=\s*\{\}", "= X", body)  # a braced default argument

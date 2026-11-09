@@ -103,7 +103,8 @@ namespace ScriptPapyrus
         std::uint64_t readyQueueSlots = 0; ///< Slots the queue of waiting stacks holds after the last tick.
         std::uint64_t latentSuspended = 0; ///< Stacks parked by a latent native, counted at each park.
         std::uint64_t stacksWoken = 0; ///< Parked stacks resumed by tick() (a timer or completeLatent).
-        std::uint64_t hostWaitsExpired = 0; ///< Stacks that waited for the host and woke by RuntimeOptions::maxHostWaitSeconds.
+        std::uint64_t hostWaitsExpired
+            = 0; ///< Stacks that waited for the host and woke by RuntimeOptions::maxHostWaitSeconds.
         std::uint64_t schedulerGrowths = 0; ///< Times the scheduler's lists had to get more room (geometric: few).
         std::uint64_t timeMovedBackwards = 0; ///< tick() calls whose time was below the last one (clamped to it).
         std::array<std::uint64_t, static_cast<std::size_t>(ErrorKind::Count)> errors{};

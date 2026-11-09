@@ -139,6 +139,10 @@ namespace CraftingTest
                 Alchemy alchemy;
                 fill(alchemy, ingredients);
                 int count = 1;
+                // CROSS-PLATFORM ITEM (review of 2026-11-08): seed 1 is only safe because expertAlchemist() makes every
+                // roll succeed and potion() prints the name, value, weight and effects only (read: no model or icon,
+                // which the dice choose and which differ between std::uniform_int_distribution implementations).
+                // Confirm on the Linux gate.
                 seedWorld(1);
                 EXPECT_EQ(alchemy.create("brew", count), Alchemy::Result_Success);
                 EXPECT_EQ(count, 1);

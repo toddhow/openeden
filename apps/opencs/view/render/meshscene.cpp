@@ -358,6 +358,10 @@ namespace CSVRender
 
     bool MeshScene::load(const std::string& path, std::string& error)
     {
+        // A scene that is loaded again must not keep what the last file left (the scene path sets these).
+        mFromScene = false;
+        mSceneBones.clear();
+        mSceneHierarchy.clear();
         std::string name = path;
         std::replace(name.begin(), name.end(), '\\', '/');
         std::string lower = name;
@@ -454,11 +458,22 @@ namespace CSVRender
             error = e.what();
             return false;
         }
-        const CSMMesh::SceneModel model = CSMMesh::buildSceneModel(scene);
+        CSMMesh::SceneModel model;
+        try
+        {
+            model = CSMMesh::buildSceneModel(scene);
+        }
+        catch (const std::exception& e)
+        {
+            // bad_alloc or length_error on a damaged file: the viewer reports it like a reader error.
+            error = std::string("The scene could not be converted for the viewer: ") + e.what();
+            return false;
+        }
         for (const std::string& warning : model.warnings)
             Log(Debug::Warning) << "Mesh viewer: " << name << ": " << warning;
 
         mFromScene = true;
+        mObject.reset();
         mPath = "meshes/" + name;
         mTree = CSMMesh::MeshTree();
         mInfos.clear();

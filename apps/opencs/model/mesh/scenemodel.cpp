@@ -14,6 +14,12 @@ namespace CSMMesh
         constexpr std::uint32_t sHairTintType = 6;
         // The longest first line of a NIF file that is looked at.
         constexpr std::size_t sMaxHeaderLine = 80;
+        // The largest number a file may put into a coordinate, a translation, a scale or a matrix entry of the model.
+        // A Skyrim world is about 1e5 units across; anything past this is a damaged or hostile file, and a number that
+        // size would make the camera framing and the sizes derived from the bounds meaningless.
+        constexpr double sMaxCoordinate = 1.0e7;
+        // At most this many warnings are kept; a hostile file could make one per node.
+        constexpr std::size_t sMaxWarnings = 32;
 
         struct Pose
         {
@@ -81,6 +87,27 @@ namespace CSMMesh
         {
             return std::isfinite(v[0]) && std::isfinite(v[1]) && std::isfinite(v[2]);
         }
+
+        bool usable(double v)
+        {
+            return std::isfinite(v) && std::fabs(v) <= sMaxCoordinate;
+        }
+
+        bool usable(const Pose& pose)
+        {
+            return std::all_of(pose.r.begin(), pose.r.end(), [](double v) { return usable(v); })
+                && std::all_of(pose.t.begin(), pose.t.end(), [](double v) { return usable(v); }) && usable(pose.s);
+        }
+
+        bool usable(const std::array<double, 16>& matrix)
+        {
+            return std::all_of(matrix.begin(), matrix.end(), [](double v) { return usable(v); });
+        }
+
+        bool usable(const NifScene::Transform& t)
+        {
+            return usable(toPose(t));
+        }
     }
 
     NifReader chooseNifReader(std::string_view fileStart)
@@ -132,7 +159,7 @@ namespace CSMMesh
 
     std::array<float, 3> bindBonePosition(const NifScene::Transform& bind)
     {
-        if (bind.mScale == 0.f)
+        if (bind.mScale == 0.f || !std::isfinite(bind.mScale))
             return { 0.f, 0.f, 0.f };
         std::array<float, 3> out{};
         for (int column = 0; column < 3; ++column)
@@ -142,7 +169,8 @@ namespace CSMMesh
                 sum += static_cast<double>(bind.mRotation[row * 3 + column]) * bind.mTranslation[row];
             out[column] = static_cast<float>(-sum / bind.mScale);
         }
-        return out;
+        // A rotation or translation that is not a number gives no position.
+        return finite(out) ? out : std::array<float, 3>{ 0.f, 0.f, 0.f };
     }
 
     SceneModel buildSceneModel(const NifScene::Scene& scene)
@@ -150,6 +178,13 @@ namespace CSMMesh
         SceneModel model;
         model.warnings = scene.mWarnings;
         const std::size_t count = scene.mNodes.size();
+        std::size_t droppedWarnings = 0;
+        auto warn = [&](std::string text) {
+            if (model.warnings.size() < scene.mWarnings.size() + sMaxWarnings)
+                model.warnings.push_back(std::move(text));
+            else
+                ++droppedWarnings;
+        };
 
         // Children lists from the parent links; roots are the nodes with no valid parent.
         std::vector<std::vector<std::uint32_t>> children(count);
@@ -182,8 +217,21 @@ namespace CSMMesh
                     continue;
                 done[item.node] = 1;
                 const NifScene::Node& source = scene.mNodes[item.node];
-                const Pose local = toPose(source.mTransform);
-                worlds[item.node] = item.parent < 0 ? local : compose(worlds[source.mParent], local);
+                Pose local = toPose(source.mTransform);
+                if (!usable(local))
+                {
+                    warn("node \"" + source.mName
+                        + "\" has a transform that is not a usable number; it is placed as if it had none");
+                    local = Pose{};
+                }
+                Pose world = item.parent < 0 ? local : compose(worlds[source.mParent], local);
+                if (!usable(world) || !usable(columnMajor(world)))
+                {
+                    warn("node \"" + source.mName
+                        + "\" ends up outside the range of the viewer; it is placed with its parent");
+                    world = item.parent < 0 ? Pose{} : worlds[source.mParent];
+                }
+                worlds[item.node] = world;
                 SceneModelNode node;
                 node.name = source.mName;
                 node.parent = item.parent;
@@ -207,7 +255,7 @@ namespace CSMMesh
         for (std::size_t i = 0; i < count; ++i)
             if (!done[i])
             {
-                model.warnings.push_back("node \"" + scene.mNodes[i].mName + "\" is in a parent cycle");
+                warn("node \"" + scene.mNodes[i].mName + "\" is in a parent cycle");
                 walk(static_cast<std::uint32_t>(i));
             }
 
@@ -221,17 +269,41 @@ namespace CSMMesh
             SceneModelNode& node = model.nodes[modelIndex[i]];
             if (geometry.mNoVertexData || geometry.mPositions.empty())
             {
-                model.warnings.push_back("shape \"" + geometry.mName + "\" has no vertex data");
+                warn("shape \"" + geometry.mName + "\" has no vertex data");
+                continue;
+            }
+            // Triangles: three indices each, all inside the vertex arrays; the draw code trusts this.
+            const bool badTriangles = geometry.mTriangles.size() % 3 != 0
+                || std::any_of(geometry.mTriangles.begin(), geometry.mTriangles.end(),
+                    [&](std::uint32_t index) { return index >= geometry.mPositions.size(); });
+            if (badTriangles)
+            {
+                warn("shape \"" + geometry.mName
+                    + "\" has a triangle list that does not fit its vertices; it is left out");
                 continue;
             }
             SceneModelShape shape;
             shape.node = modelIndex[i];
             shape.skinned = geometry.mSkin < scene.mSkins.size();
             const Pose& pose = worlds[i];
-            // Skinned or not, the shape node's world transform places the vertices (the bind transforms are in the same
+            // Skinned or not, the shape node world transform places the vertices (the bind transforms are in the same
             // frame, see bindBonePosition).
+            bool badVertex = false;
             for (const auto& p : geometry.mPositions)
-                shape.mesh.positions.push_back(toFloat(apply(pose, { p[0], p[1], p[2] })));
+            {
+                const std::array<double, 3> placed = apply(pose, { p[0], p[1], p[2] });
+                if (!usable(placed[0]) || !usable(placed[1]) || !usable(placed[2]))
+                {
+                    badVertex = true;
+                    break;
+                }
+                shape.mesh.positions.push_back(toFloat(placed));
+            }
+            if (badVertex)
+            {
+                warn("shape \"" + geometry.mName + "\" has a vertex that is not a usable number; it is left out");
+                continue;
+            }
             if (geometry.mNormals.size() == geometry.mPositions.size())
                 for (const auto& n : geometry.mNormals)
                 {
@@ -246,6 +318,12 @@ namespace CSMMesh
                             v /= length;
                     shape.mesh.normals.push_back(r);
                 }
+            if (!std::all_of(
+                    shape.mesh.normals.begin(), shape.mesh.normals.end(), [](const auto& n) { return finite(n); }))
+            {
+                warn("shape \"" + geometry.mName + "\" has normals that are not numbers; they are not used");
+                shape.mesh.normals.clear();
+            }
             if (geometry.mColors.size() == geometry.mPositions.size())
                 shape.mesh.colours = geometry.mColors;
             shape.mesh.indices = geometry.mTriangles;
@@ -277,12 +355,23 @@ namespace CSMMesh
             if (shape.skinned)
                 for (const NifScene::Transform& bind : scene.mSkins[geometry.mSkin].mBindTransforms)
                 {
+                    if (!usable(bind))
+                    {
+                        warn(
+                            "a bind transform of \"" + geometry.mName + "\" is not a usable number; it gives no joint");
+                        continue;
+                    }
                     const auto local = bindBonePosition(bind);
-                    model.bonePoints.push_back(toFloat(apply(pose, { local[0], local[1], local[2] })));
+                    const std::array<double, 3> placed = apply(pose, { local[0], local[1], local[2] });
+                    if (!usable(placed[0]) || !usable(placed[1]) || !usable(placed[2]))
+                        continue;
+                    model.bonePoints.push_back(toFloat(placed));
                 }
             model.shapes.push_back(std::move(shape));
         }
         model.textureNames = std::move(textures);
+        if (droppedWarnings > 0)
+            model.warnings.push_back("and " + std::to_string(droppedWarnings) + " more warnings");
 
         for (const SceneModelNode& node : model.nodes)
         {

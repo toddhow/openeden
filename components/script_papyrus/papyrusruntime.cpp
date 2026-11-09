@@ -146,7 +146,8 @@ namespace ScriptPapyrus
             if (std::isnan(mOptions.maxHostWaitSeconds) || mOptions.maxHostWaitSeconds <= 0.0)
             {
                 worldLog(openeden::script::Severity::Warning,
-                    "RuntimeOptions::maxHostWaitSeconds must be a number above zero (or infinity); the default is used");
+                    "RuntimeOptions::maxHostWaitSeconds must be a number above zero (or infinity); the default is "
+                    "used");
                 mOptions.maxHostWaitSeconds = ScriptPapyrus::RuntimeOptions{}.maxHostWaitSeconds;
             }
             // Name 0 and string 0 are the empty ones: the empty state, the empty string.

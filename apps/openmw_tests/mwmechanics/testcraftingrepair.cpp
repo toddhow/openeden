@@ -134,6 +134,9 @@ namespace CraftingTest
         TEST_F(CraftingRepairTest, aRollEqualToTheThresholdSucceedsAndOneAboveFails)
         {
             // armorer 6: x = (5 + 5 + 6) * 1.25 = 20 exactly
+            // CROSS-PLATFORM ITEM (review of 2026-11-08): the boundary needs x to be exactly 20.0f in float arithmetic
+            // ((0.1f * 50 + 0.1f * 50 + 6) * 1.25f). It rounds to 20 with and without FMA by reading, but it is a
+            // one-ulp boundary: confirm on the Linux gate, and on aarch64 or clang if they are ever built.
             setArmorer(6.f);
             {
                 MWWorld::Ptr tool = give(rid("test_prong"), 1);
