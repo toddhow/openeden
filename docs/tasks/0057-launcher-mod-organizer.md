@@ -186,3 +186,15 @@ Out of scope: record-level (ESP/ESM) conflict analysis and patch building, built
 7. **Pack size on tiny-file mods** (stage d): measured numbers on a generated mod of many small files before the default warning threshold is set.
 8. **Long-path manifest** and the launcher's behaviour past 260 characters on Windows.
 9. **Licences** of any extraction library (D10) and, for Apache-2.0 library use inside the GPL launcher, the FSF compatibility note already recorded for task 0052.
+
+## Stage log (2026-11-09, library slice; Windows only, local commits, not pushed)
+
+Decisions taken as the spec's recommendations (toddhow: "take each spec's recommended answers"). Built, **no Qt page yet**: the `ModsPage`, the Data Files page profile combo (D3 adapter), `apps/launcher/CLAUDE.md`, translations and the child-process run of `edenpack` are NOT done.
+
+- a. `components/modorganizer/model.*` (mods.json and profile JSON, canonical, byte round trip, located errors, caps, newer version read-only), `scanner.*` (plugins, archives, packs, data-root detection, no links followed, limits), import of launcher content lists is only the pure shape (profile of mod ids); the Qt adapter is not written.
+- b. `layout.*` (data/content/fallback-archive/groundcover/extension lines, repacked mod = shim + pack `data=` lines at the old position), `configfile.*` (owned keys only, comments kept, CRLF kept, backup rotation keep 5, nothing changed = no write, global file refused, game-running refusal, hand-edit detection), `masters.*` (hints, explicit stable sort, header read through `Content::Plugin`), `processcheck.*`. Deviation: a pure text rewriter instead of `GameSettings::writeFileWithComments` (Qt, own comment policy). The launcher must still call `GameSettings::validatePaths` fix for `.edenpak` `data=` lines (not done).
+- c. `conflicts.*`: throw-away `VFS::Manager` in `registerArchives` order, labels per mod, counts, `differentWinners` (swap proof). Winners equal a manager built through the real `registerArchives` in a test. On-demand hashing of conflicting files is not built.
+- d. `repack.*`: dry run (padding estimate, free space, collisions, unsafe names), content fingerprint, cache key, edenpack arguments, hard-link stage and shim folders, read-back verification (size, BLAKE3, pack-side chunk check), cache panel data with guards. The child-process runner, progress and cancel are not built (QProcess, belongs to the page). Long-path manifest not checked.
+- e, f: not started (pack import check exists via `looksLikeEdenPack`).
+
+Evidence: tests first, run red as link failures against headers only (no stubs), then green; 100 tests (`ModOrganizer*`) pass in a private link; four mutations (cfg insert position, repack as fallback-archive, conflict labels, heartbeat edge) each failed named tests. Not run: the Linux gate, clang-format 14, clang-tidy, sanitizers, a fresh reviewer, the symlink and case-collision tests (skipped on this machine). Layer rules: `components/modorganizer` is `engine`; exceptions stay 104.

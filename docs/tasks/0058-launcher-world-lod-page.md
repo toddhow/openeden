@@ -140,3 +140,11 @@ Out of scope: the baker itself and its settings definitions, the tile format and
 3. A portable "on battery" and "game running" signal (design doc 4.3 marks battery as **verify**).
 4. Whether the fingerprint ignores a faithful repack (D9) and how the engine computes it at start (design doc 4.6 step 1).
 5. Size cap and heartbeat timeout values: starting proposals, to be set from the baker's measured behaviour.
+
+## Stage log (2026-11-09; Windows only, local commits, not pushed)
+
+Taken as recommended. Stage a done, b to d NOT built (no Qt page, no fake baker).
+
+- a. `components/worldlod/bakestatus.*`: status and command files (canonical JSON, v1, newer version flagged and not parsed, 256 KiB cap, field caps, at most 20 errors, duplicate keys and floats refused), `judge()` giving the page states (a stale or future heartbeat on building/paused is Failed, complete without a matching fingerprint is OutOfDate, the 30 s timeout is a parameter), `shownEtaSeconds`, atomic write and capped read, LOD cache guards (`isLodCacheFolder`, `listCacheFiles` leaving links and unknown names, `deleteCache` refusing while a baker or the game runs and anything outside the folder). The cache file naming list (json, tmp, lock, edenpak) is a placeholder until the baker task fixes it. The shared fingerprint function and a process-start token are not built (they need the baker).
+- Evidence: 30 tests written first (link-red), green; mutation on the heartbeat edge caught.
+- Not run: Linux gate, clang-format, sanitizers, fresh review.
