@@ -289,9 +289,10 @@ namespace openeden::script
         /// gone. Scripts and natives must be loaded and registered again first. The blob is checked whole before
         /// anything changes; a refused blob changes nothing and the error says where in the blob it went wrong. A
         /// script that changed since the save keeps its variables that still match by name and type and loses its
-        /// parked stacks (a warning is logged and RestoreResult counts them); a script that is not loaded refuses the blob,
-        /// and so does a key that the world's optional PapyrusAttachKeyCheck says is gone (without one, keys are not
-        /// validated: RestoreResult::attachKeysChecked is false). Refused from inside a native or a world callback, like call() and tick().
+        /// parked stacks (a warning is logged and RestoreResult counts them); a script that is not loaded refuses the
+        /// blob, and so does a key that the world's optional PapyrusAttachKeyCheck says is gone (without one, keys are
+        /// not validated: RestoreResult::attachKeysChecked is false). Refused from inside a native or a world callback,
+        /// like call() and tick().
         virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
     };
 }

@@ -591,8 +591,8 @@ namespace ScriptPapyrus::Vm
                 {
                     ++plain.mReadyCount;
                 }
-                const std::uint32_t frames
-                    = in.count(1 + 4 + 4 + 4 + 1 + 1 + 4, std::min(Save::kMaxFrames, limits.mMaxFrames), "a stack's frame count");
+                const std::uint32_t frames = in.count(
+                    1 + 4 + 4 + 4 + 1 + 1 + 4, std::min(Save::kMaxFrames, limits.mMaxFrames), "a stack's frame count");
                 stack.mFrames.reserve(frames);
                 for (std::uint32_t f = 0; f < frames; ++f)
                 {
@@ -1143,7 +1143,8 @@ namespace ScriptPapyrus::Vm
             if (keyCheck == nullptr && !plain.mInstances.empty() && mLoggedOnce.insert("restore-attach-keys").second)
             {
                 worldLog(Severity::Warning,
-                    "restore: the game pack's world offers no PapyrusAttachKeyCheck, so the attach keys of the blob were "
+                    "restore: the game pack's world offers no PapyrusAttachKeyCheck, so the attach keys of the blob "
+                    "were "
                     "NOT validated against the game");
             }
             {
@@ -1486,7 +1487,8 @@ namespace ScriptPapyrus::Vm
                     }
                     if (f == 0)
                     {
-                        const std::uint32_t instanceScript = found[plain.mInstances[saved.mInstance - 1].mScript].mIndex;
+                        const std::uint32_t instanceScript
+                            = found[plain.mInstances[saved.mInstance - 1].mScript].mIndex;
                         const std::vector<std::uint32_t>& chain = mScripts[instanceScript].mChain;
                         if (std::find(chain.begin(), chain.end(), found[frame.mScript].mIndex) == chain.end())
                         {

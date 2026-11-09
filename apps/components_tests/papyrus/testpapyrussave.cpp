@@ -1445,7 +1445,8 @@ namespace
         std::uint32_t mParkCounter = 0;
         std::string mState;
         std::string mFormClass; ///< Not empty: `who` holds a Form of this class.
-        int mArrayElem = -1; ///< At least 0: `lst` is an array of this element kind (TypeKind numbers) holding [3] (Int) or nothing.
+        int mArrayElem = -1; ///< At least 0: `lst` is an array of this element kind (TypeKind numbers) holding [3]
+                             ///< (Int) or nothing.
         bool mOnInit = false; ///< A queued OnInit before the event, as attach() leaves one.
         bool mQueued = true;
         std::int32_t mQueuedArg = 9;
@@ -1601,7 +1602,7 @@ namespace
         EXPECT_FALSE(rt.mOwned->logged("changed since the save"));
     }
 
-    // ---- finding H1: the attach key check is an optional capability ---------------------------------------------------
+    // ---- finding H1: the attach key check is an optional capability ----
 
     template <class T, class = void>
     struct HasAttachKeyExists : std::false_type
@@ -1651,7 +1652,7 @@ namespace
         EXPECT_NE(refused.error.message.find("10001"), std::string::npos) << refused.error.message;
     }
 
-    // ---- finding M2: a refused blob leaves the permanent tables alone ----------------------------------------------------
+    // ---- finding M2: a refused blob leaves the permanent tables alone ----
 
     TEST(PapyrusSave, a_refused_blob_leaves_the_name_and_string_tables_as_they_were)
     {
@@ -1687,7 +1688,7 @@ namespace
         EXPECT_EQ(b.callInt(id, "Describe"), 1) << "the empty state's function runs, as before the save";
     }
 
-    // ---- finding M3: the park counter never goes back ---------------------------------------------------------------------
+    // ---- finding M3: the park counter never goes back ----
 
     TEST(PapyrusSave, a_token_kept_from_before_a_restore_never_completes_a_later_wait)
     {
@@ -1723,7 +1724,7 @@ namespace
         EXPECT_NE(rt.mTokens[0] & 0xFFFFFFFFu, 0u);
     }
 
-    // ---- finding M4: what a restore left out is in the result -------------------------------------------------------------
+    // ---- finding M4: what a restore left out is in the result ----
 
     TEST(PapyrusSave, the_result_counts_what_a_changed_script_cost)
     {
@@ -1745,7 +1746,7 @@ namespace
         EXPECT_EQ(plain.droppedHostWaits, 0u);
     }
 
-    // ---- finding M6: times -----------------------------------------------------------------------------------------------
+    // ---- finding M6: times ----
 
     TEST(PapyrusSave, a_script_time_that_is_infinite_or_negative_is_refused)
     {
@@ -1786,7 +1787,8 @@ namespace
             const double nan = std::numeric_limits<double>::quiet_NaN();
             std::memcpy(bytes.data() + at, &nan, 8);
             EXPECT_FALSE(b.mRuntime->restore(blobOf(fixHeader(bytes))).ok);
-            // -infinity is how a stack the host completed waits: legitimate for a stack that is not waiting for the host.
+            // -infinity is how a stack the host completed waits: legitimate for a stack that is not waiting for the
+            // host.
             const double completed = -std::numeric_limits<double>::infinity();
             std::memcpy(bytes.data() + at, &completed, 8);
             EXPECT_TRUE(b.mRuntime->restore(blobOf(fixHeader(bytes))).ok);
@@ -1807,7 +1809,7 @@ namespace
         EXPECT_TRUE(c.mRuntime->restore(blobOf(good)).ok);
     }
 
-    // ---- findings L1, L2, L5: limits and types ------------------------------------------------------------------------------
+    // ---- findings L1, L2, L5: limits and types ----
 
     TEST(PapyrusSave, a_huge_heap_count_is_refused_by_the_heap_cap_before_anything_is_reserved)
     {
@@ -1875,7 +1877,7 @@ namespace
         EXPECT_NE(result.error.message.find("self"), std::string::npos) << result.error.message;
     }
 
-    // ---- finding L6: the order of events and wakes survives -----------------------------------------------------------------
+    // ---- finding L6: the order of events and wakes survives ----
 
     TEST(PapyrusSave, interleaved_events_and_a_completed_wait_run_in_the_same_order_after_a_restore)
     {
