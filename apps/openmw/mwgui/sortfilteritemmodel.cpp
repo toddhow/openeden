@@ -258,7 +258,7 @@ namespace MWGui
 
                 MWWorld::ItemHandleScope handles;
                 const auto effects
-                    = MWWorld::requireCraftingRules().ingredientEffectNames(handles.make(base), alchemySkill);
+                    = MWWorld::activeCraftingRules().ingredientEffectNames(handles.make(base), alchemySkill);
 
                 for (const auto& effect : effects)
                 {

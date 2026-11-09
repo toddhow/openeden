@@ -157,11 +157,89 @@ namespace CraftingTest
 
         // ---- the installed rules ----
 
-        TEST_F(CraftingContractTest, nothingInstalledMeansNoRulesAndRequiringThemThrows)
+        // Review 2c, M1: a host that installs nothing (a test fixture, a tool) must not throw from a potion tooltip, an
+        // item filter or a window constructor. activeCraftingRules() is then an inert set of rules with documented
+        // answers.
+        TEST_F(CraftingContractTest, nothingInstalledMeansNoRulesAndTheActiveRulesAreInertNotAThrow)
         {
             MWWorld::installCraftingRules(nullptr);
             EXPECT_EQ(MWWorld::craftingRules(), nullptr);
-            EXPECT_THROW((void)MWWorld::requireCraftingRules(), std::runtime_error);
+            sdk::CraftingRules* inert = nullptr;
+            ASSERT_NO_THROW(inert = &MWWorld::activeCraftingRules());
+            ASSERT_NE(inert, nullptr);
+            EXPECT_EQ(&MWWorld::activeCraftingRules(), inert) << "one inert object, not a new one per call";
+        }
+
+        TEST_F(CraftingContractTest, theInertRulesKnowNothingAndDoNothing)
+        {
+            MWWorld::installCraftingRules(nullptr);
+            sdk::CraftingRules& rules = MWWorld::activeCraftingRules();
+            const ItemHandle gem = mScope.make(give(rid("test_gem"), 1));
+
+            EXPECT_FALSE(rules.knownAlchemyEffect(0, mScope.make(mPlayer)));
+            EXPECT_TRUE(rules.ingredientEffectNames(gem, 100.f).empty());
+            EXPECT_EQ(rules.apparatusSlotOf(gem), -1);
+            EXPECT_EQ(rules.gemSoul(gem), 0);
+            EXPECT_FALSE(rules.rechargeWithGem(gem, gem));
+            EXPECT_FLOAT_EQ(rules.rechargedCharge(10.f, 100.f, 5.f), 10.f);
+
+            auto alchemy = rules.beginAlchemy();
+            ASSERT_NE(alchemy, nullptr);
+            alchemy->setAlchemist(mScope.make(mPlayer));
+            EXPECT_EQ(alchemy->addIngredient(gem), -1);
+            EXPECT_EQ(alchemy->countPotionsToBrew(), 0);
+            EXPECT_TRUE(alchemy->effects().empty());
+            EXPECT_EQ(alchemy->ingredientSlot(0), kNoItem);
+            EXPECT_EQ(alchemy->apparatusSlot(0), kNoItem);
+            int count = 3;
+            EXPECT_EQ(alchemy->create("x", count), sdk::AlchemyResult::NoMortarAndPestle);
+            EXPECT_EQ(count, 0);
+            alchemy->clear();
+
+            auto enchanting = rules.beginEnchanting();
+            ASSERT_NE(enchanting, nullptr);
+            enchanting->setOldItem(gem);
+            EXPECT_TRUE(enchanting->itemEmpty());
+            EXPECT_TRUE(enchanting->soulEmpty());
+            EXPECT_FALSE(enchanting->create());
+            EXPECT_EQ(enchanting->oldItem(), kNoItem);
+            EXPECT_EQ(enchanting->castStyle(), sdk::CastStyle::CastOnce);
+            EXPECT_EQ(enchanting->enchantChance(), 0);
+
+            auto repair = rules.beginRepair();
+            ASSERT_NE(repair, nullptr);
+            repair->setTool(gem);
+            EXPECT_EQ(repair->tool(), kNoItem);
+            EXPECT_EQ(repair->toolCount(), 0);
+            EXPECT_EQ(repair->toolUses(), 0);
+            EXPECT_NO_THROW(repair->repair(gem));
+        }
+
+        TEST_F(CraftingContractTest, installedRulesWinOverTheInertOnes)
+        {
+            sdk::CraftingRules* raw = mRules.get();
+            MWWorld::installCraftingRules(std::move(mRules));
+            EXPECT_EQ(&MWWorld::activeCraftingRules(), raw);
+        }
+
+        // The pack reads ids the core wrote (opaque tokens, crafting.hpp). A token it cannot read is no id, not a throw
+        // out of the pack (the contract has no exception across it).
+        TEST_F(CraftingContractTest, anIdTokenThePackCannotReadIsNoIdAndDoesNotThrow)
+        {
+            const MWWorld::Ptr sword = give(rid("test_sword"), 1);
+            auto enchanting = mRules->beginEnchanting();
+            ASSERT_NE(enchanting, nullptr);
+            enchanting->setEnchanter(mScope.make(mPlayer));
+            enchanting->setOldItem(mScope.make(sword));
+            sdk::EffectLine line;
+            line.effectId = "FormId:not-hex";
+            line.skill = "Generated:zz";
+            line.attribute = "Index:";
+            line.duration = 1;
+            line.magnitudeMin = 1;
+            line.magnitudeMax = 1;
+            const std::vector<sdk::EffectLine> lines{ line };
+            EXPECT_NO_THROW(enchanting->setEffects(lines));
         }
 
         TEST_F(CraftingContractTest, installedRulesAreHandedBack)
@@ -169,7 +247,7 @@ namespace CraftingTest
             sdk::CraftingRules* raw = mRules.get();
             MWWorld::installCraftingRules(std::move(mRules));
             EXPECT_EQ(MWWorld::craftingRules(), raw);
-            EXPECT_EQ(&MWWorld::requireCraftingRules(), raw);
+            EXPECT_EQ(&MWWorld::activeCraftingRules(), raw);
         }
 
         // ---- alchemy ----
@@ -723,12 +801,15 @@ namespace CraftingTest
             }
         }
 
+        // Review 2c, L3: with no rules the helper stops recharging, says so once in the log, and leaves the charge
+        // alone.
         TEST_F(CraftingContractTest, theFrameHelperDoesNothingWithoutRules)
         {
             MWWorld::installCraftingRules(nullptr);
             const MWWorld::Ptr blade = give(rid("test_blade"), 1);
             blade.getCellRef().setEnchantmentCharge(10.f);
             EXPECT_FALSE(MWWorld::rechargeItemOverTime(blade, 100.f, 20.f));
+            EXPECT_FALSE(MWWorld::rechargeItemOverTime(blade, 100.f, 20.f)) << "a second call is as quiet and as inert";
             EXPECT_FLOAT_EQ(blade.getCellRef().getEnchantmentCharge(), 10.f);
         }
 

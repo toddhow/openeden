@@ -27,7 +27,7 @@ namespace MWGui
 
     Repair::Repair()
         : WindowBase("openmw_repair.layout")
-        , mRepair(MWWorld::requireCraftingRules().beginRepair())
+        , mRepair(MWWorld::activeCraftingRules().beginRepair())
     {
         getWidget(mRepairBox, "RepairBox");
         getWidget(mToolBox, "ToolBox");

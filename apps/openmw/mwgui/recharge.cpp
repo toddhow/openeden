@@ -77,7 +77,7 @@ namespace MWGui
         MWWorld::Ptr gem = *mGemIcon->getUserData<MWWorld::Ptr>();
 
         MWWorld::ItemHandleScope handles;
-        const int soul = MWWorld::requireCraftingRules().gemSoul(handles.make(gem));
+        const int soul = MWWorld::activeCraftingRules().gemSoul(handles.make(gem));
 
         mChargeLabel->setCaptionWithReplacing("#{sCharges} " + MyGUI::utility::toString(soul));
 
@@ -137,7 +137,7 @@ namespace MWGui
     {
         MWWorld::Ptr gem = *mGemIcon->getUserData<MWWorld::Ptr>();
         MWWorld::ItemHandleScope handles;
-        if (!MWWorld::requireCraftingRules().rechargeWithGem(handles.make(item), handles.make(gem)))
+        if (!MWWorld::activeCraftingRules().rechargeWithGem(handles.make(item), handles.make(gem)))
             return;
 
         updateView();

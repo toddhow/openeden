@@ -39,7 +39,7 @@ namespace MWGui
         , mCurrentFilter(FilterType::ByName)
         , mModel(nullptr)
         , mSortModel(nullptr)
-        , mAlchemy(MWWorld::requireCraftingRules().beginAlchemy())
+        , mAlchemy(MWWorld::activeCraftingRules().beginAlchemy())
         , mApparatus(4)
         , mIngredients(4)
     {
@@ -230,7 +230,7 @@ namespace MWGui
             auto const alchemySkill = player.getClass().getSkill(player, ESM::Skill::Alchemy);
 
             auto const effects
-                = MWWorld::requireCraftingRules().ingredientEffectNames(handles.make(item), alchemySkill);
+                = MWWorld::activeCraftingRules().ingredientEffectNames(handles.make(item), alchemySkill);
             itemEffects.insert(effects.begin(), effects.end());
         }
 
@@ -330,7 +330,7 @@ namespace MWGui
         mItemSelectionDialog->setVisible(false);
 
         MWWorld::ItemHandleScope handles;
-        const int32_t index = MWWorld::requireCraftingRules().apparatusSlotOf(handles.make(item));
+        const int32_t index = MWWorld::activeCraftingRules().apparatusSlotOf(handles.make(item));
         if (index < 0 || static_cast<size_t>(index) >= mApparatus.size())
             throw std::runtime_error("Invalid argument in AlchemyWindow::onItemSelected: not an alchemy apparatus");
         const auto& widget = mApparatus[index];

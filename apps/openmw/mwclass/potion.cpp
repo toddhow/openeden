@@ -105,7 +105,7 @@ namespace MWClass
 
         // hide effects the player doesn't know about
         MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        openeden::sdk::game::CraftingRules& crafting = MWWorld::requireCraftingRules();
+        openeden::sdk::game::CraftingRules& crafting = MWWorld::activeCraftingRules();
         MWWorld::ItemHandleScope handles;
         const openeden::sdk::game::ItemHandle playerHandle = handles.make(player);
         for (size_t i = 0; i < info.effects.size(); ++i)

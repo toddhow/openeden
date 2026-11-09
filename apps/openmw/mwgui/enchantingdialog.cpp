@@ -61,7 +61,7 @@ namespace MWGui
     EnchantingDialog::EnchantingDialog()
         : WindowBase("openmw_enchanting_dialog.layout")
         , EffectEditorBase(EffectEditorBase::Enchanting)
-        , mEnchanting(MWWorld::requireCraftingRules().beginEnchanting())
+        , mEnchanting(MWWorld::activeCraftingRules().beginEnchanting())
     {
         getWidget(mName, "NameEdit");
         getWidget(mCancelButton, "CancelButton");
