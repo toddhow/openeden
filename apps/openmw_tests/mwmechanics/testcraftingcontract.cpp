@@ -282,6 +282,7 @@ namespace CraftingTest
             alchemy->setAlchemist(mScope.make(mPlayer));
             alchemy->addIngredient(mScope.make(give(rid("ing_a"), 5)));
             alchemy->addIngredient(mScope.make(give(rid("ing_c"), 5)));
+            alchemy->setPotionName("brew"); // without a name the session is not ready and brews none
             EXPECT_EQ(alchemy->countPotionsToBrew(), 5);
             seedWorld(1);
             int count = 2;
@@ -616,7 +617,7 @@ namespace CraftingTest
             EXPECT_NE(after, first) << "the tool is another stack now: a new handle";
             EXPECT_NE(after, kNoItem);
             EXPECT_EQ(repair->toolCount(), 1);
-            EXPECT_EQ(repair->toolUses(), 3);
+            EXPECT_EQ(repair->toolUses(), 1) << "the other copy of the stack had the same one use left";
         }
 
         // ---- recharge and the rest ----
