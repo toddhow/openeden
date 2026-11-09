@@ -218,6 +218,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_game_pack_manifest.cpp
     extension/test_game_pack_lifecycle.cpp
     extension/test_game_pack_save.cpp
+    extension/test_crafting_contract.cpp
     inertialmotion/test_locomotion_state.cpp
     inertialmotion/testleansmoother.cpp
     inertialmotion/testmovementrequest.cpp
