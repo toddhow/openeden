@@ -77,7 +77,7 @@ namespace
 
 TEST(EditorModuleApi12, theVersionIsOneDotTwo)
 {
-    EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 2 }));
+    EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 3 }));
 }
 
 TEST(EditorModuleApi12, aSelectionIsAKindAndAnIdAndEmptyWithoutAKind)
@@ -146,7 +146,7 @@ TEST(EditorModuleApi12, aModuleThatDeclaresOneTwoIsRefusedByAHostThatProvidesOne
     const auto modules = host.modules();
     ASSERT_EQ(modules.size(), 1u);
     EXPECT_EQ(modules[0].mState, CSMModule::ModuleInfo::State::Failed);
-    EXPECT_NE(modules[0].mMessage.find("1.2"), std::string::npos) << modules[0].mMessage;
+    EXPECT_NE(modules[0].mMessage.find("1.3"), std::string::npos) << modules[0].mMessage;
     EXPECT_NE(modules[0].mMessage.find("1.1"), std::string::npos) << modules[0].mMessage;
 }
 
@@ -162,7 +162,7 @@ TEST(EditorModuleApi12, aModuleThatDeclaresOneTwoIsRefusedByAHostThatProvidesOne
     const auto modules = host.modules();
     ASSERT_EQ(modules.size(), 1u);
     EXPECT_EQ(modules[0].mState, CSMModule::ModuleInfo::State::Failed);
-    EXPECT_NE(modules[0].mMessage.find("1.2"), std::string::npos) << modules[0].mMessage;
+    EXPECT_NE(modules[0].mMessage.find("1.3"), std::string::npos) << modules[0].mMessage;
     EXPECT_NE(modules[0].mMessage.find("1.0"), std::string::npos) << modules[0].mMessage;
 }
 

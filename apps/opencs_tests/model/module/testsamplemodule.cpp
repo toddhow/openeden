@@ -134,7 +134,7 @@ namespace CSMModule
             ASSERT_EQ(mRegistry.panels().size(), 1u);
             EXPECT_EQ(mRegistry.panels().front().mDesc.id, "sample.panel");
             EXPECT_EQ(mRegistry.panels().front().mDesc.workspaceId, "sample.workspace");
-            ASSERT_EQ(mRegistry.commands().size(), 1u);
+            ASSERT_EQ(mRegistry.commands().size(), 2u);
             EXPECT_EQ(mRegistry.commands().front().mDesc.id, "sample.command");
             ASSERT_EQ(mRegistry.gizmoProviders().size(), 1u);
             EXPECT_EQ(mRegistry.gizmoProviders().front().mDesc.id, "sample.gizmos");

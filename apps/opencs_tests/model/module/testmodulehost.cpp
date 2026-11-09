@@ -172,7 +172,7 @@ namespace CSMModule
 
         TEST(CSMModuleApiVersionTest, isOneDotTwo)
         {
-            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 2 }));
+            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 3 }));
         }
 
         TEST(CSMModuleApiVersionTest, sameMajorAndHostMinorAtLeastTheModulesIsCompatible)
@@ -328,7 +328,7 @@ namespace CSMModule
             ASSERT_NE(major, nullptr);
             EXPECT_EQ(major->mState, ModuleInfo::State::Failed);
             EXPECT_NE(major->mMessage.find("2.0"), std::string::npos) << major->mMessage;
-            EXPECT_NE(major->mMessage.find("1.2"), std::string::npos) << major->mMessage;
+            EXPECT_NE(major->mMessage.find("1.3"), std::string::npos) << major->mMessage;
 
             const ModuleInfo* minor = find(host, "m1");
             ASSERT_NE(minor, nullptr);
@@ -498,7 +498,7 @@ namespace CSMModule
 
                 EXPECT_EQ(mRegistry.workspaces().size(), 1u);
                 EXPECT_EQ(mRegistry.panels().size(), 1u);
-                EXPECT_EQ(mRegistry.commands().size(), 1u);
+                EXPECT_EQ(mRegistry.commands().size(), 2u);
                 EXPECT_EQ(mRegistry.gizmoProviders().size(), 1u);
                 EXPECT_EQ(mRegistry.assetTypes().size(), 1u);
                 EXPECT_EQ(mRegistry.sections().size(), 1u);

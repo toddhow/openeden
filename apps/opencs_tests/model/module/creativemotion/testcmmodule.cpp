@@ -135,14 +135,14 @@ namespace CMTest
             EXPECT_TRUE(hasModulePrefix(workspace.id)) << workspace.id;
 
             // The panel.
-            ASSERT_EQ(mRegistry.panels().size(), 1u);
+            ASSERT_EQ(mRegistry.panels().size(), 2u);
             const PanelDesc& panel = mRegistry.panels().front().mDesc;
             EXPECT_EQ(panel.id, "creativemotion.panel");
             EXPECT_EQ(panel.workspaceId, workspace.id);
             EXPECT_EQ(panel.dock, DockArea::Right);
 
             // The gizmo provider.
-            ASSERT_EQ(mRegistry.gizmoProviders().size(), 1u);
+            ASSERT_EQ(mRegistry.gizmoProviders().size(), 2u);
             EXPECT_EQ(mRegistry.gizmoProviders().front().mDesc.id, "creativemotion.gizmos");
 
             // The two asset types.
@@ -291,8 +291,8 @@ namespace CMTest
             EXPECT_EQ(modules[0].mState, ModuleInfo::State::Loaded) << modules[0].mMessage;
 
             EXPECT_EQ(mRegistry.workspaces().size(), 1u);
-            EXPECT_EQ(mRegistry.panels().size(), 1u);
-            EXPECT_EQ(mRegistry.gizmoProviders().size(), 1u);
+            EXPECT_EQ(mRegistry.panels().size(), 2u);
+            EXPECT_EQ(mRegistry.gizmoProviders().size(), 2u);
             EXPECT_EQ(mRegistry.assetTypes().size(), 2u);
             EXPECT_EQ(mRegistry.sections().size(), 2u);
             EXPECT_NE(mRegistry.findAssetType("a.rig.json"), nullptr);
