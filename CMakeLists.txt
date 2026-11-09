@@ -664,6 +664,8 @@ endif()
 
 # AdvancedBodies (task 0063): the body contract library and its command-line validator.
 add_subdirectory(components/body)
+# Task 0071: facial speech animation curves (format, importers, sampler); no engine or NVIDIA code.
+add_subdirectory(components/face)
 add_subdirectory(apps/edenbodyvalidate)
 # Task 0070 stage a: the read-only measurement of extended skeletons (components and eden_body).
 add_subdirectory(apps/edenskelstat)

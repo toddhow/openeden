@@ -452,6 +452,12 @@ list(APPEND UNITTEST_SRC_FILES
     body/testmergedregions.cpp
 )
 
+# Task 0071 (facial speech animation): opas.facecurves, importers and the sampler (eden_face, no dependencies).
+list(APPEND UNITTEST_SRC_FILES
+    face/testfacecurves.cpp
+    face/testfacesample.cpp
+)
+
 # Task 0067 stage 0: the maths and the parser of the CreativeMotion transition measurement.
 list(APPEND UNITTEST_SRC_FILES
     animtrace/testtracechanges.cpp
@@ -502,6 +508,7 @@ target_link_libraries(components-tests
     opas_math
     opas_motor
     eden_body
+    eden_face
     eden_animtrace
 )
 
