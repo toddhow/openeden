@@ -116,6 +116,9 @@ namespace Nif
 
         void skip(size_t size) { mStream->ignore(size); }
 
+        /// The read position in the stream (task 0046: record byte ranges for the NIF editor).
+        std::streamoff tell() { return mStream->tellg(); }
+
         /// Read into a single instance of type
         template <class T>
         void read(T& data)

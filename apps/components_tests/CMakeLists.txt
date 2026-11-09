@@ -201,6 +201,13 @@ file(GLOB UNITTEST_SRC_FILES
     modorganizer/testrepack.cpp
     worldlod/testbakestatus.cpp
 
+    nifedit/nifeditbuilder.hpp
+    nifedit/nifeditsupport.hpp
+    nifedit/testnifindex.cpp
+    nifedit/testnifpatch.cpp
+    nifedit/testnifdocument.cpp
+    nifedit/testnifeditreal.cpp
+
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

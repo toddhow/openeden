@@ -579,6 +579,11 @@ namespace Nif
 
     void Reader::parse(Files::IStreamPtr&& stream, const ReadOptions& options)
     {
+        parse(std::move(stream), options, nullptr);
+    }
+
+    void Reader::parse(Files::IStreamPtr&& stream, const ReadOptions& options, FileLayout* layout)
+    {
         mOptions = options;
         const bool writeDebug = sWriteNifDebugLog;
         if (writeDebug)
@@ -734,9 +739,18 @@ namespace Nif
             nif.readVector(groups, nif.get<std::uint32_t>());
         }
 
+        if (layout != nullptr)
+        {
+            layout->mHeaderEnd = static_cast<std::uint64_t>(nif.tell());
+            layout->mRecords.reserve(recordsCount);
+        }
+
         for (std::size_t i = 0; i < recordsCount; i++)
         {
             std::unique_ptr<Record> r;
+            RecordSpan span;
+            if (layout != nullptr)
+                span.mBegin = static_cast<std::uint64_t>(nif.tell());
 
             std::string rec = hasRecTypeListings ? recTypes.at(recTypeIndices[i]) : nif.get<std::string>();
             if (rec.empty())
@@ -764,9 +778,20 @@ namespace Nif
             assert(r->mRecordType != RC_MISSING);
             r->mRecordName = std::move(rec);
             r->mRecordIndex = static_cast<unsigned>(i);
+            if (layout != nullptr)
+                span.mBodyBegin = static_cast<std::uint64_t>(nif.tell());
             r->read(&nif);
+            if (layout != nullptr)
+            {
+                span.mIndex = static_cast<std::uint32_t>(i);
+                span.mEnd = static_cast<std::uint64_t>(nif.tell());
+                layout->mRecords.push_back(span);
+            }
             mRecords.push_back(std::move(r));
         }
+
+        if (layout != nullptr)
+            layout->mFooterBegin = static_cast<std::uint64_t>(nif.tell());
 
         // Determine which records are roots
         const std::uint32_t rootsCount = nif.get<uint32_t>();

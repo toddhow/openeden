@@ -292,6 +292,11 @@ add_component_dir (nifscene
     build vertexdecode
     )
 
+# Task 0046: edits a Morrowind NIF as patches to named fields of the original bytes. Depends on nif.
+add_component_dir (nifedit
+    nifindex nifpatch nifdocument
+    )
+
 add_component_dir (nifjolt
     joltnifloader
     )

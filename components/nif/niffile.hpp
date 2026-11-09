@@ -143,6 +143,26 @@ namespace Nif
         const NIFFile* mFile;
     };
 
+    /// Where one record lies in the file's bytes (task 0046, stage a). For the versions that name each record's type
+    /// in front of its data (before 5.0.0.1) the type string is part of the range; mBodyBegin is where the record's
+    /// own data starts.
+    struct RecordSpan
+    {
+        std::uint32_t mIndex = 0;
+        std::uint64_t mBegin = 0;
+        std::uint64_t mBodyBegin = 0;
+        std::uint64_t mEnd = 0;
+    };
+
+    /// The byte layout of a parsed file: the bytes before the first record, each record's span and where the root
+    /// table starts. Filled by Reader::parse(stream, options, &layout); the parse without it records nothing.
+    struct FileLayout
+    {
+        std::uint64_t mHeaderEnd = 0;
+        std::uint64_t mFooterBegin = 0;
+        std::vector<RecordSpan> mRecords;
+    };
+
     class Reader
     {
         /// File version, user version, Bethesda version
@@ -184,6 +204,10 @@ namespace Nif
         /// Parse the file with explicit options. Errors name the file, the version and, for a record, its index and
         /// type.
         void parse(Files::IStreamPtr&& stream, const ReadOptions& options);
+
+        /// As above, and when layout is not null, report where each record lies. The stream must start at the
+        /// file's first byte and support tellg().
+        void parse(Files::IStreamPtr&& stream, const ReadOptions& options, FileLayout* layout);
 
         /// The options of the parse in progress or the last one.
         const ReadOptions& getOptions() const { return mOptions; }
