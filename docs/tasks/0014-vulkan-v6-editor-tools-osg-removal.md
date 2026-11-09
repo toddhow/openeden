@@ -356,14 +356,14 @@ Not verified:
 
 Start `openmw-cs`, choose Edit a content file, open `Morrowind.esm`. There is no World > Scene entry, and there never was in the OSG editor: a scene opens from a table. In World > Cells, right-click a cell and choose View (Ctrl and a double click does the same). Corrected 2026-10-31 after toddhow could not find the entry.
 
-1. **Scene opens.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. A dock appears with toolbar, 3D view and status bar, and the interior is drawn in the view.
+1. [x] **Scene opens.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. A dock appears with toolbar, 3D view and status bar, and the interior is drawn in the view.
 2. **Choose a cell.** In World > Cells, right-click "Seyda Neen, Arrille's Tradehouse" and choose View. The interior appears. In the Cells table again, drag an exterior such as `#-2 -9` onto a new Scene subview: it appears there. This checks drag and drop into the Vulkan window.
-3. **Resize larger.** Drag the main window's corner to make it about twice as wide. The view fills its dock with no black strip and no stale pixels.
-4. **Resize smaller.** Drag it as small as it goes. The view stays correct and the editor does not hang. Drag it back.
-5. **Splitter.** Open a References table beside the view (dock them side by side). Drag the divider until the view is as narrow as it goes, then back. Nothing crashes, and the view redraws.
-6. **Docking.** Drag the Scene dock's title out of the main window so that it floats, then back. Dock it as a tab with a table and switch tabs both ways. The view shows the same cell each time, and no window flashes up on its own.
-7. **Two views.** Open a second Scene, of another cell. Both draw. Close the first: the second keeps drawing. Close the second and open a new one: it draws.
-8. **Toolbar over the view.** Click the lighting button in the scene toolbar and choose night, then bright, then day. The pop-up must appear in front of the view, not behind it, and the view must change. Hover over a toolbar button: the tooltip must appear in front of the view.
+3. [x] **Resize larger.** Drag the main window's corner to make it about twice as wide. The view fills its dock with no black strip and no stale pixels.
+4. [x] **Resize smaller.** Drag it as small as it goes. The view stays correct and the editor does not hang. Drag it back.
+5. [x] **Splitter.** Open a References table beside the view (dock them side by side). Drag the divider until the view is as narrow as it goes, then back. Nothing crashes, and the view redraws.
+6. [x] **Docking.** Drag the Scene dock's title out of the main window so that it floats, then back. Dock it as a tab with a table and switch tabs both ways. The view shows the same cell each time, and no window flashes up on its own.
+7. [x] **Two views.** Open a second Scene, of another cell. Both draw. Close the first: the second keeps drawing. Close the second and open a new one: it draws.
+8. [x] **Toolbar over the view.** Click the lighting button in the scene toolbar and choose night, then bright, then day. The pop-up must appear in front of the view, not behind it, and the view must change. Hover over a toolbar button: the tooltip must appear in front of the view.
 9. **Focus by clicking.** Click in a table and type in its filter box. Click the 3D view, then press `Tab` (`scene-cam-cycle`, or whatever Preferences > Key Bindings shows; report it if Tab moves the focus instead). The camera mode button on the toolbar changes, so the key reached the view. Click the filter box again and type: the letters go in the box, and no scene shortcut fires.
 10. **Shortcut held across a focus change.** In the view, hold the `scene-speed-modifier` key, Alt-Tab away, release it, and return. Then press `scene-cam-cycle`: it must act once, with nothing stuck.
 11. **Shortcuts over the view.** With the mouse over a paged view of `#-2 -9`, focus it by clicking and press `scene-load-cam-eastcell` (Preferences > Key Bindings names the keys): one more cell loads to the east. Global menu shortcuts such as Ctrl+S's dialog and Ctrl+Z still work with the view focused.

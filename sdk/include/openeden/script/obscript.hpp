@@ -117,7 +117,8 @@ namespace openeden::script
         /// 1.1 (2026-11-06): additive. A form used as a value in a script ("Set x to SomeRef", "If ( x == Player )")
         /// is looked up with ObScriptWorld::resolveForm at the moment the line runs; the name "Player" is not special
         /// to the runtime, the world resolves it like any other name.
-        static constexpr sdk::Version kVersion{ 1, 3 }; // 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields
+        /// 1.3 (2026-11-09, toddhow): RestoreResult gained trailing fields.
+        static constexpr sdk::Version kVersion{ 1, 3 };
 
         virtual ~ObScriptContract() = default;
 
