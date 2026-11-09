@@ -723,6 +723,43 @@ namespace
         EXPECT_EQ(b.mHost.mMarks, (std::vector<std::int32_t>{ 1 }));
     }
 
+    TEST(PapyrusSave, a_stack_in_the_highest_allowed_pool_slot_is_restored_with_its_token_in_well_under_a_second)
+    {
+        Node a;
+        const InstanceId id = a.make(1);
+        a.send(id, "OnPark");
+        a.tick(0.0);
+        ASSERT_EQ(a.mHost.mTokens.size(), 1u);
+        Bytes bytes = a.mRuntime->serialise().bytes;
+        const std::uint64_t token = a.mHost.mTokens[0];
+        // The last place the token's eight bytes appear is the stack's own (the scalars before the texts may look the
+        // same by chance).
+        std::size_t at = bytes.size() - 12;
+        for (; at > Save::kHeaderBytes; --at)
+        {
+            std::uint64_t seen = 0;
+            std::memcpy(&seen, bytes.data() + at, 8);
+            if (seen == token)
+            {
+                break;
+            }
+        }
+        ASSERT_GT(at, Save::kHeaderBytes + 100);
+        const std::uint32_t slot = static_cast<std::uint32_t>(Save::kMaxPoolSlots - 1);
+        const std::uint64_t moved = ((static_cast<std::uint64_t>(slot) + 1) << 32) | (token & 0xFFFFFFFFu);
+        std::memcpy(bytes.data() + at, &moved, 8);
+        std::memcpy(bytes.data() + at + 8, &slot, 4);
+        Node b;
+        const auto start = std::chrono::steady_clock::now();
+        const RestoreResult result = b.mRuntime->restore(blobOf(fixHeader(bytes)));
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        ASSERT_TRUE(result.ok) << result.error.format();
+        EXPECT_LT(seconds, 1.0) << "the pool grows to the slot: about 2^18 stacks at the most";
+        EXPECT_TRUE(b.mRuntime->completeLatent(moved));
+        b.tick(1.0);
+        EXPECT_EQ(b.varInt(id, "iv"), 1);
+    }
+
     TEST(PapyrusSave, a_completed_wait_that_had_not_woken_yet_wakes_first_after_restore)
     {
         Node a;

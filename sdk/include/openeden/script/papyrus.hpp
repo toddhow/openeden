@@ -238,7 +238,9 @@ namespace openeden::script
     public:
         static constexpr std::string_view kId = "openeden.script.papyrus";
         /// 1.0 (2026-11-08): first version.
-        static constexpr sdk::Version kVersion{ 1, 0 };
+        /// 1.1 (2026-11-08): PapyrusWorld::attachKeyExists, asked by restore() (stage e). A game pack built against
+        /// 1.0 has no such slot in its PapyrusWorld, so a host that meets 1.0 must not call restore() with it.
+        static constexpr sdk::Version kVersion{ 1, 1 };
 
         virtual ~PapyrusContract() = default;
 
@@ -271,11 +273,18 @@ namespace openeden::script
         /// Run the ready stacks and wake the ones whose time has come. \a scriptTime must not go backwards.
         virtual TickResult tick(double scriptTime, const Budget& budget = {}) noexcept = 0;
 
-        /// Every instance and suspended stack as versioned bytes.
+        /// Every instance, queued event and parked stack as versioned bytes (the game pack keeps them in its own save
+        /// chunk). Call it between ticks, never from a native or a world callback: while a stack is running, or from
+        /// inside a callback, there is no state anyone can name, and the answer is an EMPTY blob (formatVersion 0, no
+        /// bytes), which must not be saved. The same empty blob comes back for a state over the blob size cap.
         virtual SaveBlob serialise() const noexcept = 0;
 
-        /// Replace the state of the runtime from \a blob. Scripts must be loaded again first. A refused blob changes
-        /// nothing.
+        /// Replace the state of the runtime from \a blob: every instance, queued event and parked stack it held is
+        /// gone. Scripts and natives must be loaded and registered again first. The blob is checked whole before
+        /// anything changes; a refused blob changes nothing and the error says where in the blob it went wrong. A
+        /// script that changed since the save keeps its variables that still match by name and type and loses its
+        /// parked stacks (a warning is logged); a script that is not loaded, or a key the world no longer has, refuses
+        /// the blob. Refused from inside a native or a world callback, like call() and tick().
         virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
     };
 }
