@@ -94,7 +94,7 @@ namespace ScriptObscript
                     heap = lowerText(name);
                     lowered = heap;
                 }
-                if (mScript.mRefLocals.contains(lowered))
+                if (mScript.isReference(lowered))
                 {
                     const int index = mScript.mLocals.searchIndex('l', lowered);
                     if (index >= 0 && static_cast<std::size_t>(index) < mInstance.mLongs.size())
@@ -337,6 +337,20 @@ namespace ScriptObscript
                     runtime.pop();
                 }
 
+                if (mExplicit && reference == 0)
+                {
+                    // "Thing.Function" where Thing is none (a command that found nothing, a reference variable never
+                    // set, a form that does not resolve): a handler reads a zero reference as "the script's own
+                    // object", so the call is not made.
+                    if (mEntry.mNullReferenceSkips++ == 0)
+                    {
+                        context.world().report(std::format(
+                            "function '{}' was not called: the object it is called on is none", mEntry.mSpelling));
+                    }
+                    pushZero(runtime);
+                    return;
+                }
+
                 CallArgs call;
                 call.self = context.self();
                 call.reference = reference;
@@ -462,6 +476,45 @@ namespace ScriptObscript
             const std::vector<std::uint8_t>& mBytes;
             std::size_t mPosition = 0;
             bool mOk = true;
+        };
+
+        /// The variables a save stores by name: all but the compiler's hidden locals.
+        std::size_t visibleCount(const CompiledScript& script, char type)
+        {
+            const std::vector<std::string>& names = script.mLocals.get(type);
+            if (type != 'l')
+            {
+                return names.size();
+            }
+            return static_cast<std::size_t>(std::count_if(
+                names.begin(), names.end(), [](const std::string& name) { return !isHiddenReferenceName(name); }));
+        }
+
+        /// Position of each stored variable of a script by name (hidden locals are not in it).
+        struct LocalIndices
+        {
+            explicit LocalIndices(const CompiledScript& script)
+            {
+                fill(mShorts, script.mLocals.get('s'));
+                fill(mLongs, script.mLocals.get('l'));
+                fill(mFloats, script.mLocals.get('f'));
+            }
+
+            std::unordered_map<std::string, std::size_t> mShorts;
+            std::unordered_map<std::string, std::size_t> mLongs;
+            std::unordered_map<std::string, std::size_t> mFloats;
+
+        private:
+            static void fill(std::unordered_map<std::string, std::size_t>& out, const std::vector<std::string>& names)
+            {
+                for (std::size_t i = 0; i < names.size(); ++i)
+                {
+                    if (!isHiddenReferenceName(names[i]))
+                    {
+                        out.emplace(names[i], i);
+                    }
+                }
+            }
         };
 
         constexpr std::size_t kMaxScriptNameBytes = 256;
@@ -680,8 +733,23 @@ namespace ScriptObscript
                     // their codes now (the bytecode needs them) but get their opcodes, and keep their place in the
                     // table, only when the script is stored. A script that fails leaves nothing behind.
                     UnknownTransaction transaction(*this);
-                    services.mAddUnknown = [this, &transaction](const std::string& name,
-                                               const std::string& spelling) -> const FunctionEntry* {
+                    services.mAddUnknown = [this, &transaction](const std::string& name, const std::string& spelling,
+                                               bool beforeDot) -> const FunctionEntry* {
+                        if (beforeDot)
+                        {
+                            if (mDotUnknownCount >= Limits::kMaxUnknownBeforeDot
+                                || mDotUnknownCount - transaction.mDotBefore >= Limits::kMaxUnknownBeforeDotPerScript
+                                || !hasCodes())
+                            {
+                                return nullptr;
+                            }
+                            FunctionEntry& entry = addEntry(name, spelling, false);
+                            entry.mUnknown = true;
+                            entry.mSignature = "/";
+                            entry.mCompilerSignature = "/zzzzzzzzzzzz";
+                            ++mDotUnknownCount;
+                            return &entry;
+                        }
                         if (mUnknownCount >= Limits::kMaxUnknownFunctions
                             || mUnknownCount - transaction.mUnknownBefore >= Limits::kMaxUnknownFunctionsPerScript
                             || !hasCodes())
@@ -852,8 +920,8 @@ namespace ScriptObscript
                     if (index >= 0)
                     {
                         const std::int32_t value = state.mLongs[static_cast<std::size_t>(index)];
-                        return script.mRefLocals.contains(lowered) ? Value::makeForm(static_cast<FormId>(value))
-                                                                   : Value::makeInteger(value);
+                        return script.isReference(lowered) ? Value::makeForm(static_cast<FormId>(value))
+                                                           : Value::makeInteger(value);
                     }
                     index = script.mLocals.searchIndex('f', lowered);
                     if (index >= 0)
@@ -923,21 +991,37 @@ namespace ScriptObscript
                         putU32(blob.bytes, instance.mSelf);
                         putU16(blob.bytes, static_cast<std::uint16_t>(script.mName.size()));
                         blob.bytes.insert(blob.bytes.end(), script.mName.begin(), script.mName.end());
-                        putU16(blob.bytes, static_cast<std::uint16_t>(instance.mShorts.size()));
-                        putU16(blob.bytes, static_cast<std::uint16_t>(instance.mLongs.size()));
-                        putU16(blob.bytes, static_cast<std::uint16_t>(instance.mFloats.size()));
-                        for (const std::int16_t value : instance.mShorts)
+                        // Version 2: the variables by name, without the compiler's hidden locals (they are written
+                        // before every use), so an edited script cannot read a value into another variable.
+                        const auto putName = [&blob](const std::string& name) {
+                            putU16(blob.bytes, static_cast<std::uint16_t>(name.size()));
+                            blob.bytes.insert(blob.bytes.end(), name.begin(), name.end());
+                        };
+                        const std::vector<std::string>& shortNames = script.mLocals.get('s');
+                        const std::vector<std::string>& longNames = script.mLocals.get('l');
+                        const std::vector<std::string>& floatNames = script.mLocals.get('f');
+                        putU16(blob.bytes, static_cast<std::uint16_t>(visibleCount(script, 's')));
+                        putU16(blob.bytes, static_cast<std::uint16_t>(visibleCount(script, 'l')));
+                        putU16(blob.bytes, static_cast<std::uint16_t>(visibleCount(script, 'f')));
+                        for (std::size_t i = 0; i < shortNames.size(); ++i)
                         {
-                            putU16(blob.bytes, static_cast<std::uint16_t>(value));
+                            putName(shortNames[i]);
+                            putU16(blob.bytes, static_cast<std::uint16_t>(instance.mShorts[i]));
                         }
-                        for (const std::int32_t value : instance.mLongs)
+                        for (std::size_t i = 0; i < longNames.size(); ++i)
                         {
-                            putU32(blob.bytes, static_cast<std::uint32_t>(value));
+                            if (isHiddenReferenceName(longNames[i]))
+                            {
+                                continue;
+                            }
+                            putName(longNames[i]);
+                            putU32(blob.bytes, static_cast<std::uint32_t>(instance.mLongs[i]));
                         }
-                        for (const float value : instance.mFloats)
+                        for (std::size_t i = 0; i < floatNames.size(); ++i)
                         {
+                            putName(floatNames[i]);
                             std::uint32_t bits = 0;
-                            std::memcpy(&bits, &value, sizeof(bits));
+                            std::memcpy(&bits, &instance.mFloats[i], sizeof(bits));
                             putU32(blob.bytes, bits);
                         }
                     }
@@ -960,7 +1044,8 @@ namespace ScriptObscript
                         result.error = saveError("restore cannot be used from inside a running script function");
                         return result;
                     }
-                    if (blob.formatVersion != Limits::kSaveFormatVersion)
+                    if (blob.formatVersion != Limits::kSaveFormatVersion
+                        && blob.formatVersion != Limits::kPositionalSaveFormatVersion)
                     {
                         result.error = saveError(
                             std::format("unsupported script save version {} (this runtime reads version {})",
@@ -990,6 +1075,7 @@ namespace ScriptObscript
                     }
 
                     std::map<InstanceId, Instance> parsed;
+                    std::map<ScriptId, LocalIndices> indices; // names to positions, once per script
                     for (std::uint32_t i = 0; i < count; ++i)
                     {
                         const InstanceId id = reader.u32();
@@ -1010,9 +1096,11 @@ namespace ScriptObscript
                             result.error = saveError("the script save is truncated");
                             return result;
                         }
-                        if (static_cast<std::size_t>(shorts) * 2 + static_cast<std::size_t>(longs) * 4
-                                + static_cast<std::size_t>(floats) * 4
-                            > reader.remaining())
+                        const bool byName = blob.formatVersion >= Limits::kSaveFormatVersion;
+                        if (!byName
+                            && static_cast<std::size_t>(shorts) * 2 + static_cast<std::size_t>(longs) * 4
+                                    + static_cast<std::size_t>(floats) * 4
+                                > reader.remaining())
                         {
                             result.error = saveError("the script save is truncated");
                             return result;
@@ -1030,6 +1118,85 @@ namespace ScriptObscript
                             return result;
                         }
                         const CompiledScript& compiled = *mScripts[script->second - 1];
+                        if (byName)
+                        {
+                            if (visibleCount(compiled, 's') != shorts || visibleCount(compiled, 'l') != longs
+                                || visibleCount(compiled, 'f') != floats)
+                            {
+                                result.error = saveError(
+                                    std::format("the variables of script '{}' differ from the ones in the save", name));
+                                return result;
+                            }
+                            instance.mScript = script->second;
+                            instance.mShorts.assign(compiled.mLocals.get('s').size(), 0);
+                            instance.mLongs.assign(compiled.mLocals.get('l').size(), 0);
+                            instance.mFloats.assign(compiled.mLocals.get('f').size(), 0.0f);
+                            auto indexed = indices.find(script->second);
+                            if (indexed == indices.end())
+                            {
+                                indexed = indices.emplace(script->second, LocalIndices(compiled)).first;
+                            }
+                            const LocalIndices& index = indexed->second;
+                            std::vector<bool> shortSeen(shorts, false);
+                            std::vector<bool> longSeen(instance.mLongs.size(), false);
+                            std::vector<bool> floatSeen(instance.mFloats.size(), false);
+                            const auto readIndex = [&](const std::unordered_map<std::string, std::size_t>& names,
+                                                       std::vector<bool>& seen, std::size_t& position) {
+                                const std::uint16_t length = reader.u16();
+                                if (length > Limits::kMaxIdentifierLength)
+                                {
+                                    return false;
+                                }
+                                const std::string variable = reader.text(length);
+                                const auto found = names.find(variable);
+                                if (!reader.ok() || found == names.end() || seen[found->second])
+                                {
+                                    return false;
+                                }
+                                seen[found->second] = true;
+                                position = found->second;
+                                return true;
+                            };
+                            bool good = true;
+                            for (std::uint16_t entry = 0; good && entry < shorts; ++entry)
+                            {
+                                std::size_t at = 0;
+                                good = readIndex(index.mShorts, shortSeen, at);
+                                const std::uint16_t value = reader.u16();
+                                if (good && reader.ok())
+                                {
+                                    instance.mShorts[at] = static_cast<std::int16_t>(value);
+                                }
+                            }
+                            for (std::uint16_t entry = 0; good && entry < longs; ++entry)
+                            {
+                                std::size_t at = 0;
+                                good = readIndex(index.mLongs, longSeen, at);
+                                const std::uint32_t value = reader.u32();
+                                if (good && reader.ok())
+                                {
+                                    instance.mLongs[at] = static_cast<std::int32_t>(value);
+                                }
+                            }
+                            for (std::uint16_t entry = 0; good && entry < floats; ++entry)
+                            {
+                                std::size_t at = 0;
+                                good = readIndex(index.mFloats, floatSeen, at);
+                                const std::uint32_t bits = reader.u32();
+                                if (good && reader.ok())
+                                {
+                                    std::memcpy(&instance.mFloats[at], &bits, sizeof(bits));
+                                }
+                            }
+                            if (!good || !reader.ok())
+                            {
+                                result.error = saveError(
+                                    std::format("the variables of script '{}' differ from the ones in the save", name));
+                                return result;
+                            }
+                            parsed.emplace(id, std::move(instance));
+                            continue;
+                        }
                         if (compiled.mLocals.get('s').size() != shorts || compiled.mLocals.get('l').size() != longs
                             || compiled.mLocals.get('f').size() != floats)
                         {
@@ -1117,6 +1284,7 @@ namespace ScriptObscript
             public:
                 explicit UnknownTransaction(RuntimeImpl& runtime)
                     : mUnknownBefore(runtime.mUnknownCount)
+                    , mDotBefore(runtime.mDotUnknownCount)
                     , mRuntime(runtime)
                     , mFunctionsBefore(runtime.mFunctions.size())
                     , mCodeBefore(runtime.mNextCode)
@@ -1140,6 +1308,7 @@ namespace ScriptObscript
                         }
                         mRuntime.mNextCode = mCodeBefore;
                         mRuntime.mUnknownCount = mUnknownBefore;
+                        mRuntime.mDotUnknownCount = mDotBefore;
                     }
                     catch (...)
                     {
@@ -1156,6 +1325,7 @@ namespace ScriptObscript
                 }
 
                 std::size_t mUnknownBefore;
+                std::size_t mDotBefore;
 
             private:
                 RuntimeImpl& mRuntime;
@@ -1176,6 +1346,7 @@ namespace ScriptObscript
             int mNextCode = kFirstFunctionCode;
             std::size_t mRegisteredCount = 0;
             std::size_t mUnknownCount = 0;
+            std::size_t mDotUnknownCount = 0; ///< Unknown names that stood before a dot (their own bucket).
             std::size_t mDeclaredCount = 0;
             std::uint32_t mRunDepth = 0;
         };

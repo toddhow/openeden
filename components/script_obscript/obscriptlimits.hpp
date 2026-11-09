@@ -19,6 +19,11 @@ namespace ScriptObscript::Limits
     inline constexpr std::size_t kMaxBlocks = 256; ///< Begin ... End blocks in one script.
     inline constexpr std::size_t kMaxUnknownFunctions = 4096; ///< Distinct unknown function names in one runtime.
     inline constexpr std::size_t kMaxUnknownFunctionsPerScript = 512; ///< Distinct unknown names in ONE script.
+    /// Names that stand before a dot and nothing known owns ("Gone.Probe 1": maybe a command whose result is the
+    /// reference, maybe a form from a master that is not loaded). They have a bucket of their own so that they
+    /// cannot use up the room for unknown functions.
+    inline constexpr std::size_t kMaxUnknownBeforeDot = 1024; ///< In one runtime.
+    inline constexpr std::size_t kMaxUnknownBeforeDotPerScript = 64; ///< In ONE script.
     inline constexpr std::size_t kMaxFunctions = 4096; ///< Registered functions in one runtime.
     inline constexpr std::size_t kMaxFunctionArguments = 16; ///< Arguments of one function.
     inline constexpr std::size_t kMaxScripts = 1u << 16; ///< Compiled scripts in one runtime.
@@ -27,7 +32,10 @@ namespace ScriptObscript::Limits
     inline constexpr std::uint64_t kDefaultMaxInstructions = 1000000; ///< Per run call, when the caller sets none.
     inline constexpr std::uint32_t kDefaultMaxCallDepth = 16; ///< Nested runs, when the caller sets none.
 
-    inline constexpr std::uint32_t kSaveFormatVersion = 1; ///< The save blob layout this runtime writes and reads.
+    /// The save blob layout this runtime writes. Version 1 (the variables by position, hidden ones included) is still
+    /// read; version 2 stores the variables by name and leaves the compiler's hidden locals out.
+    inline constexpr std::uint32_t kSaveFormatVersion = 2;
+    inline constexpr std::uint32_t kPositionalSaveFormatVersion = 1;
     inline constexpr std::size_t kMaxSaveBlobBytes = 16u << 20; ///< A save chunk larger than this is refused unread.
 }
 

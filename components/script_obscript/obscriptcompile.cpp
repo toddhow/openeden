@@ -321,6 +321,12 @@ namespace ScriptObscript
             }
             const Token& name = line.mTokens[1];
             const std::string lowerName = lower(name.mText);
+            if (isHiddenReferenceName(lowerName))
+            {
+                reporter.error(line.mNumber, name.mColumn,
+                    std::format("'{}' is a name the compiler keeps for itself", name.mText));
+                return;
+            }
             if (script.mLocals.getType(lowerName) != ' ')
             {
                 reporter.warning(line.mNumber, name.mColumn, "Local variable re-declaration");
@@ -470,6 +476,7 @@ namespace ScriptObscript
             std::string mSpelling;
             std::uint32_t mLine = 0;
             std::uint32_t mColumn = 0;
+            bool mBeforeDot = false; ///< The first word of a statement, followed by "." and the name of a command.
         };
 
         bool isOperatorToken(const Token& token)
@@ -553,11 +560,23 @@ namespace ScriptObscript
                 const std::string name = lower(token.mText);
                 bool position = false;
                 bool afterDot = false;
+                bool beforeDot = false;
                 if (i == 0)
                 {
-                    // A name before a dot is a command whose result is the reference of what follows ("GetFoo.Bar")
-                    // when nothing known has that name (task 0092, gap D); a form or variable is filtered below.
+                    // A name before a dot is a command whose result is the reference of what follows ("GetFoo.Bar",
+                    // task 0092 gap D) when nothing known has that name. Only when the word after the dot is a command
+                    // we have, or arguments follow it (the shape of a call; the New Vegas masters have two scripts of
+                    // that second kind): a bare "Name.Word" is a form or variable that is missing, and making a
+                    // function of every such name would let junk into the function table. An arrow keeps the
+                    // rule it always had.
                     position = true;
+                    if (tokens.size() > 1 && tokens[1].mKind == Token::Kind::Punct && tokens[1].mText == ".")
+                    {
+                        position = tokens.size() > 2 && tokens[2].mKind == Token::Kind::Word
+                            && !kLanguageWords.contains(lower(tokens[2].mText))
+                            && (tokens.size() > 3 || services.mFind(lower(tokens[2].mText)) != nullptr);
+                        beforeDot = position;
+                    }
                 }
                 else
                 {
@@ -620,6 +639,7 @@ namespace ScriptObscript
                 candidate.mSpelling = token.mText;
                 candidate.mLine = line.mNumber;
                 candidate.mColumn = token.mColumn;
+                candidate.mBeforeDot = beforeDot;
                 candidates.push_back(std::move(candidate));
             }
         }
@@ -668,9 +688,9 @@ namespace ScriptObscript
             bool isId(const ESM::RefId& name) const override
             {
                 const std::string text = lower(name.getRefIdString());
-                if (mScript.mLocals.getType(text) != ' ')
+                if (mScript.mLocals.getType(text) != ' ' || isHiddenReferenceName(text))
                 {
-                    return mScript.mRefLocals.contains(text);
+                    return mScript.isReference(text);
                 }
                 openeden::script::FormId form = 0;
                 return mServices.mWorld->resolveForm(text, form);
@@ -777,18 +797,32 @@ namespace ScriptObscript
             {
                 failed = true;
             }
-            // A command's result used as a reference lives in a hidden local, "$ref<depth>" (the compiler declares
-            // it): the runtime must read it as a reference like any "ref" variable.
+            // The compiler's hidden locals ("$ref<depth>", a command's result used as a reference) count against the
+            // limit on variables like any other.
             const Compiler::Locals& declared = script.mLocals;
-            for (const std::string& name : declared.get('l'))
+            if (!script.mVariableLimitReported
+                && declared.get('s').size() + declared.get('l').size() + declared.get('f').size() > Limits::kMaxLocals)
             {
-                if (name.starts_with("$ref"))
-                {
-                    script.mRefLocals.insert(name);
-                    script.mFormLocals.insert(name);
-                }
+                script.mVariableLimitReported = true;
+                failed = true;
+                reporter.error(lineOffset + 1, 0,
+                    std::format("the script has too many variables (the limit is {})", Limits::kMaxLocals));
             }
         }
+    }
+
+    bool isHiddenReferenceName(std::string_view name)
+    {
+        if (!name.starts_with("$ref") || name.size() < 5 || name.size() > 6)
+        {
+            return false;
+        }
+        return std::all_of(name.begin() + 4, name.end(), [](char c) { return c >= '0' && c <= '9'; });
+    }
+
+    bool CompiledScript::isReference(std::string_view lowered) const
+    {
+        return mRefLocals.contains(lowered) || isHiddenReferenceName(lowered);
     }
 
     bool isValidFunctionName(std::string_view name)
@@ -1034,10 +1068,27 @@ namespace ScriptObscript
                 }
             }
             std::set<std::string> seen;
+            std::size_t beforeDotCount = 0;
             for (const Candidate& candidate : candidates)
             {
                 if (!seen.insert(candidate.mLower).second || services.mFind(candidate.mLower) != nullptr)
                 {
+                    continue;
+                }
+                if (candidate.mBeforeDot)
+                {
+                    if (strict)
+                    {
+                        reporter.error(candidate.mLine, candidate.mColumn,
+                            std::format("'{}' is not a known form, variable or command (it stands before a dot)",
+                                candidate.mSpelling));
+                    }
+                    else if (++beforeDotCount <= Limits::kMaxUnknownBeforeDotPerScript)
+                    {
+                        // A refusal (the buckets are full) is not an error here: the name stays unknown and the
+                        // compiler reports the line, as it did before names before a dot were considered.
+                        services.mAddUnknown(candidate.mLower, candidate.mSpelling, true);
+                    }
                     continue;
                 }
                 if (strict)
@@ -1045,7 +1096,7 @@ namespace ScriptObscript
                     reporter.error(
                         candidate.mLine, candidate.mColumn, std::format("unknown function '{}'", candidate.mSpelling));
                 }
-                else if (services.mAddUnknown(candidate.mLower, candidate.mSpelling) == nullptr)
+                else if (services.mAddUnknown(candidate.mLower, candidate.mSpelling, false) == nullptr)
                 {
                     reporter.error(candidate.mLine, candidate.mColumn,
                         std::format(

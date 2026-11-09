@@ -37,6 +37,7 @@ namespace ScriptObscript
         bool mAllowsExplicit = true;
         bool mUnknown = false; ///< An unknown name accepted by the tolerant policy.
         bool mNoticeGiven = false; ///< An unknown name has been reported once.
+        std::uint32_t mNullReferenceSkips = 0; ///< Calls skipped because the explicit reference was none.
         bool mDeclared = false; ///< Declared from a table: a shape and no handler yet (registerFunction may add one).
         bool mSkipArguments = false; ///< Declared with the "*" shape: the compiler skips its arguments.
         int mSkipCode
@@ -59,7 +60,16 @@ namespace ScriptObscript
         Compiler::Locals mLocals; ///< Names and types; ints and refs are longs.
         std::set<std::string, std::less<>> mRefLocals; ///< Lower-case names of the locals declared as ref.
         std::set<std::string, std::less<>> mFormLocals; ///< Same as mRefLocals; kept apart for readers of the layout.
+        bool mVariableLimitReported = false; ///< The compile-time check on the number of variables has spoken.
+
+        /// A reference variable: declared as "ref", or one of the compiler's hidden locals for a command's result
+        /// used as a reference. A hidden local needs no registration, so it is known from the first block on.
+        bool isReference(std::string_view lowered) const;
     };
+
+    /// Is \a name one of the compiler's hidden locals ("$ref" and the nesting depth)? A script cannot write a
+    /// name that starts with "$" (the scanner does not read one as a name), so no declaration can collide.
+    bool isHiddenReferenceName(std::string_view name);
 
     struct CompileOutput
     {
@@ -76,7 +86,9 @@ namespace ScriptObscript
         /// Look up a registered or already accepted function (lower-case name); null when there is none.
         std::function<const FunctionEntry*(const std::string&)> mFind;
         /// Accept an unknown name (tolerant mode): returns its entry, or null when the table is full.
-        std::function<const FunctionEntry*(const std::string& lowerName, const std::string& spelling)> mAddUnknown;
+        /// \a beforeDot: the name stands before a dot and nothing known owns it (it has its own, smaller buckets).
+        std::function<const FunctionEntry*(const std::string& lowerName, const std::string& spelling, bool beforeDot)>
+            mAddUnknown;
         /// Tolerant mode only: compile every function that is declared but has no handler with its arguments skipped,
         /// whatever its declared shape (the fallback for a script the declared shapes do not fit).
         bool mDeclaredAsSkip = false;
