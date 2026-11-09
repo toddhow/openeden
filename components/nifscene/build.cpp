@@ -676,7 +676,7 @@ namespace NifScene
                 g.mSkin = buildSkin(skinInstance, shape.mName);
                 if (g.mSkin != sNone && skinInstance != nullptr && !skinInstance->mData.empty())
                     buildBoneWeights(g, *skinInstance->mData.getPtr(), shape.mName);
-                    warnNonFiniteWeights(g, shape.mName);
+                warnNonFiniteWeights(g, shape.mName);
                 linkMaterial(g, shape.mShaderProperty, shape.mAlphaProperty);
                 const auto index = static_cast<std::uint32_t>(mScene.mGeometries.size());
                 if (nodeIdx != sNone)

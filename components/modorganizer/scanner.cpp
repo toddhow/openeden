@@ -33,9 +33,9 @@ namespace ModOrganizer
 
         bool isDataFolderName(const std::string& lower)
         {
-            static const std::array<const char*, 18> names = { "meshes", "textures", "icons", "sound", "music",
-                "video", "bookart", "splash", "fonts", "scripts", "shaders", "lua", "l10n", "animations", "mygui",
-                "distantland", "trees", "grass" };
+            static const std::array<const char*, 18> names
+                = { "meshes", "textures", "icons", "sound", "music", "video", "bookart", "splash", "fonts", "scripts",
+                      "shaders", "lua", "l10n", "animations", "mygui", "distantland", "trees", "grass" };
             return std::any_of(names.begin(), names.end(), [&](const char* n) { return lower == n; });
         }
 
@@ -82,8 +82,9 @@ namespace ModOrganizer
                 if (!it->is_symlink(e2) && it->is_directory(e2))
                     names.push_back(nameOf(it->path()));
             }
-            std::sort(names.begin(), names.end(),
-                [](const std::string& a, const std::string& b) { return lowerAscii(a) < lowerAscii(b) || (lowerAscii(a) == lowerAscii(b) && a < b); });
+            std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
+                return lowerAscii(a) < lowerAscii(b) || (lowerAscii(a) == lowerAscii(b) && a < b);
+            });
             return names;
         }
 
@@ -109,8 +110,10 @@ namespace ModOrganizer
                     entries.push_back(*it);
                 if (ec)
                     problem(relative, "cannot read the folder: " + ec.message());
-                std::sort(entries.begin(), entries.end(),
-                    [](const fs::directory_entry& a, const fs::directory_entry& b) { return nameOf(a.path()) < nameOf(b.path()); });
+                std::sort(
+                    entries.begin(), entries.end(), [](const fs::directory_entry& a, const fs::directory_entry& b) {
+                        return nameOf(a.path()) < nameOf(b.path());
+                    });
                 for (const fs::directory_entry& entry : entries)
                 {
                     if (mResult.mTruncated)

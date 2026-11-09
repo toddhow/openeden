@@ -1102,8 +1102,9 @@ namespace ScriptObscript
                     {
                         // Version 1 stores variables by position, not by name: a script edited since the save can
                         // get a value in another variable. The next save is written by name.
-                        mWorld.report("restore: this script save is version 1, which matches variables by position; "
-                                      "a script that changed since may read values into other variables");
+                        mWorld.report(
+                            "restore: this script save is version 1, which matches variables by position; "
+                            "a script that changed since may read values into other variables");
                     }
                     ByteReader reader(blob.bytes);
                     const std::uint32_t count = reader.u32();

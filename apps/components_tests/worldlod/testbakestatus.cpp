@@ -45,8 +45,8 @@ namespace
 
 TEST(WorldLodStatus, round_trips_byte_for_byte_for_every_state)
 {
-    for (BakerState state : { BakerState::Idle, BakerState::Building, BakerState::Paused, BakerState::Complete,
-             BakerState::Failed })
+    for (BakerState state :
+        { BakerState::Idle, BakerState::Building, BakerState::Paused, BakerState::Complete, BakerState::Failed })
     {
         BakeStatus s = sample();
         s.mState = state;
@@ -95,9 +95,11 @@ TEST(WorldLodStatus, hostile_files_are_refused_with_a_located_error)
     EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400", "\"unitsDone\": \"5400\""), "s", error));
     EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400", "\"unitsDone\": 54.5"), "s", error));
     EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400", "\"unitsDone\": -1"), "s", error));
-    EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400", "\"unitsDone\": 99999999999999999999"), "s", error));
+    EXPECT_FALSE(
+        readStatus(replaceFirst(good, "\"unitsDone\": 5400", "\"unitsDone\": 99999999999999999999"), "s", error));
     EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400,", ""), "s", error)) << "missing field";
-    EXPECT_FALSE(readStatus(replaceFirst(good, "\"unitsDone\": 5400,", "\"unitsDone\": 5400, \"unitsDone\": 1,"), "s", error))
+    EXPECT_FALSE(
+        readStatus(replaceFirst(good, "\"unitsDone\": 5400,", "\"unitsDone\": 5400, \"unitsDone\": 1,"), "s", error))
         << "duplicate key";
     EXPECT_FALSE(readStatus(replaceFirst(good, "\"pid\": 4242,", "\"pid\": 4242, \"extra\": 1,"), "s", error));
 }
@@ -139,10 +141,13 @@ TEST(WorldLodCommand, round_trip_and_errors)
         EXPECT_EQ(writeCommand(*read), writeCommand(c));
     }
     StatusError error;
-    EXPECT_FALSE(readCommand("{\"command\":\"explode\",\"format\":\"openeden.lod.command\",\"id\":1,\"version\":1}", "c", error));
-    EXPECT_FALSE(readCommand("{\"command\":\"stop\",\"format\":\"openeden.lod.command\",\"id\":-1,\"version\":1}", "c", error));
+    EXPECT_FALSE(readCommand(
+        "{\"command\":\"explode\",\"format\":\"openeden.lod.command\",\"id\":1,\"version\":1}", "c", error));
+    EXPECT_FALSE(
+        readCommand("{\"command\":\"stop\",\"format\":\"openeden.lod.command\",\"id\":-1,\"version\":1}", "c", error));
     EXPECT_FALSE(readCommand("nope", "c", error));
-    EXPECT_FALSE(readCommand("{\"command\":\"stop\",\"format\":\"openeden.lod.command\",\"id\":1,\"version\":3}", "c", error));
+    EXPECT_FALSE(
+        readCommand("{\"command\":\"stop\",\"format\":\"openeden.lod.command\",\"id\":1,\"version\":3}", "c", error));
     EXPECT_TRUE(error.mNewerVersion);
 }
 

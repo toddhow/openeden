@@ -260,9 +260,10 @@ TEST(FaceCurvesJsonRefusals, semantic_rules_with_located_errors)
 
 TEST(FaceCurvesJsonRefusals, no_channels_is_refused)
 {
-    expectRefused(edited("  \"channels\": [\n    {\"name\": \"jawopen\", \"kind\": \"weight\", \"values\": [0, 128, 255]},\n"
-                         "    {\"name\": \"gazex\", \"kind\": \"signed\", \"values\": [-255, 0, 255]}\n  ]\n",
-                      "  \"channels\": []\n"),
+    expectRefused(
+        edited("  \"channels\": [\n    {\"name\": \"jawopen\", \"kind\": \"weight\", \"values\": [0, 128, 255]},\n"
+               "    {\"name\": \"gazex\", \"kind\": \"signed\", \"values\": [-255, 0, 255]}\n  ]\n",
+            "  \"channels\": []\n"),
         "/channels");
 }
 

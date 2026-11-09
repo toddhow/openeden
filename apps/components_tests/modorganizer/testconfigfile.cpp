@@ -26,14 +26,15 @@ TEST(ModOrganizerConfig, owned_lines_are_the_five_keys_only)
 
 TEST(ModOrganizerConfig, other_lines_and_comments_stay_and_the_new_lines_take_the_first_old_place)
 {
-    const std::string before = "# my config\n"
-                               "encoding=win1252\n"
-                               "# the data\n"
-                               "data=\"C:/old\"\n"
-                               "fallback=Foo,1\n"
-                               "content=old.esp\n"
-                               "data-local=\"C:/local\"\n"
-                               "# trailing comment\n";
+    const std::string before
+        = "# my config\n"
+          "encoding=win1252\n"
+          "# the data\n"
+          "data=\"C:/old\"\n"
+          "fallback=Foo,1\n"
+          "content=old.esp\n"
+          "data-local=\"C:/local\"\n"
+          "# trailing comment\n";
     const std::vector<std::string> wanted = { "data=\"C:/new\"", "content=new.esp" };
     const RewriteResult r = rewriteOwnedLines(before, wanted);
     EXPECT_TRUE(r.mChanged);

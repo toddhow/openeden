@@ -1,5 +1,5 @@
-#include <components/nif/niffile.hpp>
 #include <components/nif/exception.hpp>
+#include <components/nif/niffile.hpp>
 #include <components/nifscene/build.hpp>
 
 #include <gtest/gtest.h>
@@ -184,7 +184,8 @@ namespace
         EXPECT_TRUE(anyNonFinite) << "the value itself is kept: consumers filter";
         bool warned = false;
         for (const std::string& warning : scene.mWarnings)
-            warned = warned || (warning.find("Body") != std::string::npos && warning.find("non-finite") != std::string::npos);
+            warned = warned
+                || (warning.find("Body") != std::string::npos && warning.find("non-finite") != std::string::npos);
         EXPECT_TRUE(warned);
     }
 

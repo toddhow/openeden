@@ -168,8 +168,8 @@ namespace ModOrganizer
         for (const char c : name)
         {
             const char lower = (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
-            const bool keep = (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9') || lower == '.'
-                || lower == '_';
+            const bool keep
+                = (lower >= 'a' && lower <= 'z') || (lower >= '0' && lower <= '9') || lower == '.' || lower == '_';
             if (keep)
                 slug.push_back(lower);
             else if (!slug.empty() && slug.back() != '-' && (lower == ' ' || lower == '-'))
@@ -185,7 +185,8 @@ namespace ModOrganizer
             slug.pop_back();
         if (slug.empty())
             slug = "mod";
-        const auto isTaken = [&](const std::string& id) { return std::find(taken.begin(), taken.end(), id) != taken.end(); };
+        const auto isTaken
+            = [&](const std::string& id) { return std::find(taken.begin(), taken.end(), id) != taken.end(); };
         std::string candidate = slug;
         for (int n = 2; isTaken(candidate); ++n)
             candidate = slug + "-" + std::to_string(n);
@@ -215,7 +216,8 @@ namespace ModOrganizer
                     Mod mod;
                     mod.mId = m.str("id", 64);
                     if (!isValidModId(mod.mId))
-                        throw Json::FormatError{ m.pointer("id"), "not a valid id (lower case letters, digits, . _ -)" };
+                        throw Json::FormatError{ m.pointer("id"),
+                            "not a valid id (lower case letters, digits, . _ -)" };
                     if (!ids.insert(mod.mId).second)
                         throw Json::FormatError{ m.pointer("id"), "used by an earlier mod" };
                     mod.mName = m.str("name", Limits::sMaxNameBytes);

@@ -63,9 +63,9 @@ TEST(ModOrganizerMasters, missing_inactive_and_misordered_masters)
     const std::vector<PluginInfo> list = { plugin("late.esp", { "Z.ESM", "gone.esm", "off.esm", "base.esm" }),
         plugin("z.esm"), plugin("off.esm", {}, false) };
     const std::vector<Hint> hints = masterHints(list, { "Base.esm" });
-    const std::vector<Hint> expected = { { HintKind::MasterAfter, "late.esp", "Z.ESM" },
-        { HintKind::MissingMaster, "late.esp", "gone.esm" }, { HintKind::MasterAfter, "late.esp", "off.esm" },
-        { HintKind::InactiveMaster, "late.esp", "off.esm" } };
+    const std::vector<Hint> expected
+        = { { HintKind::MasterAfter, "late.esp", "Z.ESM" }, { HintKind::MissingMaster, "late.esp", "gone.esm" },
+              { HintKind::MasterAfter, "late.esp", "off.esm" }, { HintKind::InactiveMaster, "late.esp", "off.esm" } };
     EXPECT_EQ(hints, expected);
 }
 

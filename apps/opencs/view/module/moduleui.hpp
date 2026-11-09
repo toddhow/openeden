@@ -96,8 +96,8 @@ namespace CSVModule
 
         /// API 1.3 (task 0065): the simulation sandbox modules reach through EditorContext::simulationSandbox(), owned
         /// by the editor, which must outlive this object's use of it; null (the default) means the host has none.
-        /// Modules get it through a wrapper that notes which module built what is in it (CSMPhysics::OwnedSandbox), so that
-        /// a module being withdrawn (a callback threw, or it was unloaded) releases its ragdoll and ground.
+        /// Modules get it through a wrapper that notes which module built what is in it (CSMPhysics::OwnedSandbox), so
+        /// that a module being withdrawn (a callback threw, or it was unloaded) releases its ragdoll and ground.
         void setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox);
         openeden::editor::SimulationSandbox* simulationSandbox() override { return mOwnedSandbox.get(); }
 

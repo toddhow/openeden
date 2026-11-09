@@ -78,9 +78,9 @@ namespace Face
             return valueAt(c, channel, index, fraction);
         };
         Reduction r;
-        r.mTalk = std::clamp(at(mJaw) * mTuning.mJawOpen + at(mFunnel) * mTuning.mMouthFunnel
-                + at(mPucker) * mTuning.mMouthPucker,
-            0.f, 1.f);
+        r.mTalk = std::clamp(
+            at(mJaw) * mTuning.mJawOpen + at(mFunnel) * mTuning.mMouthFunnel + at(mPucker) * mTuning.mMouthPucker, 0.f,
+            1.f);
         r.mBlink = std::clamp(std::max(at(mBlinkLeft), at(mBlinkRight)), 0.f, 1.f);
         return r;
     }

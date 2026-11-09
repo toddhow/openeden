@@ -46,8 +46,8 @@ namespace NifEdit
         const std::set<std::string, std::less<>>& flagsPropertyTypes()
         {
             static const std::set<std::string, std::less<>> types{ "NiAlphaProperty", "NiVertexColorProperty",
-                "NiZBufferProperty", "NiSpecularProperty", "NiWireframeProperty", "NiDitherProperty",
-                "NiShadeProperty", "NiMaterialProperty" };
+                "NiZBufferProperty", "NiSpecularProperty", "NiWireframeProperty", "NiDitherProperty", "NiShadeProperty",
+                "NiMaterialProperty" };
             return types;
         }
 
@@ -244,8 +244,7 @@ namespace NifEdit
             return cursor.fixed(4, Kind::Float); // alpha
         }
 
-        PatchValue decode(
-            std::string_view bytes, const IndexedRecord& record, std::string_view field, const Site& site)
+        PatchValue decode(std::string_view bytes, const IndexedRecord& record, std::string_view field, const Site& site)
         {
             const char* data = bytes.data() + site.mBegin;
             const std::uint64_t size = site.mEnd - site.mBegin;

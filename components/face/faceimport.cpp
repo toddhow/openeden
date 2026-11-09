@@ -104,7 +104,8 @@ namespace Face
             for (std::size_t begin = 0;;)
             {
                 const std::size_t comma = t.find(',', begin);
-                cells.push_back(trim(t.substr(begin, comma == std::string_view::npos ? std::string_view::npos : comma - begin)));
+                cells.push_back(
+                    trim(t.substr(begin, comma == std::string_view::npos ? std::string_view::npos : comma - begin)));
                 if (comma == std::string_view::npos)
                     break;
                 begin = comma + 1;
@@ -113,7 +114,8 @@ namespace Face
             {
                 if (cells.size() > Limits::sMaxChannels)
                 {
-                    error = located(fileName, line.mNumber, "more than " + std::to_string(Limits::sMaxChannels) + " channels");
+                    error = located(
+                        fileName, line.mNumber, "more than " + std::to_string(Limits::sMaxChannels) + " channels");
                     return std::nullopt;
                 }
                 for (const std::string_view name : cells)
@@ -122,13 +124,15 @@ namespace Face
                     for (std::size_t i = 0; i + 1 < c.mChannels.size(); ++i)
                         if (c.mChannels[i].mName == c.mChannels.back().mName)
                         {
-                            error = located(fileName, line.mNumber, "the channel \"" + std::string(name) + "\" appears twice");
+                            error = located(
+                                fileName, line.mNumber, "the channel \"" + std::string(name) + "\" appears twice");
                             return std::nullopt;
                         }
                     if (!isValidChannelName(name))
                     {
                         error = located(fileName, line.mNumber,
-                            "\"" + std::string(name) + "\" is not a valid channel name (a-z, 0-9, '_' and '.', 1 to 64)");
+                            "\"" + std::string(name)
+                                + "\" is not a valid channel name (a-z, 0-9, '_' and '.', 1 to 64)");
                         return std::nullopt;
                     }
                 }
@@ -143,7 +147,8 @@ namespace Face
                         }
                     if (!found)
                     {
-                        error = located(fileName, line.mNumber, "the signed channel \"" + s + "\" is not in the header");
+                        error
+                            = located(fileName, line.mNumber, "the signed channel \"" + s + "\" is not in the header");
                         return std::nullopt;
                     }
                 }
@@ -159,7 +164,8 @@ namespace Face
             }
             if (++frames > Limits::sMaxFrameCount)
             {
-                error = located(fileName, line.mNumber, "more than " + std::to_string(Limits::sMaxFrameCount) + " frames");
+                error = located(
+                    fileName, line.mNumber, "more than " + std::to_string(Limits::sMaxFrameCount) + " frames");
                 return std::nullopt;
             }
             for (std::size_t i = 0; i < cells.size(); ++i)
@@ -182,7 +188,8 @@ namespace Face
         }
         if (!haveHeader || frames == 0)
         {
-            error = located(fileName, 1, haveHeader ? "the file has a header but no rows" : "the file has no header row");
+            error
+                = located(fileName, 1, haveHeader ? "the file has a header but no rows" : "the file has no header row");
             return std::nullopt;
         }
         fillMeta(c, meta, static_cast<std::uint32_t>(frames));
@@ -202,7 +209,8 @@ namespace Face
             || frameCountReal < 1.0 || frameCountReal > static_cast<double>(Limits::sMaxFrameCount))
         {
             error = located(fileName, 1,
-                "the audio duration and frame rate give a frame count outside 1 to " + std::to_string(Limits::sMaxFrameCount));
+                "the audio duration and frame rate give a frame count outside 1 to "
+                    + std::to_string(Limits::sMaxFrameCount));
             return std::nullopt;
         }
         const std::uint32_t frames = static_cast<std::uint32_t>(frameCountReal);
@@ -251,11 +259,14 @@ namespace Face
                         shapeIndex = i;
             if (shapeIndex == sShapeCount)
             {
-                error = located(fileName, line.mNumber, "\"" + std::string(shape) + "\" is not a Rhubarb shape (A to H or X)");
+                error = located(
+                    fileName, line.mNumber, "\"" + std::string(shape) + "\" is not a Rhubarb shape (A to H or X)");
                 return std::nullopt;
             }
             const double startReal = std::ceil(seconds * rate - sFrameEdgeSlack);
-            const std::uint32_t start = startReal >= static_cast<double>(frames) ? frames : static_cast<std::uint32_t>(std::max(0.0, startReal));
+            const std::uint32_t start = startReal >= static_cast<double>(frames)
+                ? frames
+                : static_cast<std::uint32_t>(std::max(0.0, startReal));
             cues.push_back({ start, shapeIndex });
         }
         if (cues.empty())

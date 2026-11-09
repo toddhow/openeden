@@ -60,8 +60,8 @@ namespace
     {
 #ifdef _WIN32
         PROCESS_MEMORY_COUNTERS_EX counters{};
-        if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
-                sizeof(counters)))
+        if (GetProcessMemoryInfo(
+                GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)))
             return counters.PrivateUsage;
         return 0;
 #else
@@ -168,8 +168,8 @@ namespace
 
     /// Replaces the stored data of the only file of a generated version 104 archive with a zlib stream of
     /// `actual` that promises `promised` bytes, and fixes the file record's size.
-    std::string withZlibEntry(const std::string& original, const std::string& content, const std::string& actual,
-        std::uint32_t promised)
+    std::string withZlibEntry(
+        const std::string& original, const std::string& content, const std::string& actual, std::uint32_t promised)
     {
         const std::string frame = lz4Frame(content);
         const std::size_t storedSize = 4 + frame.size();

@@ -43,14 +43,16 @@ namespace ModOrganizer
             const Mod* mod = library.find(entry.mId);
             if (mod == nullptr)
             {
-                layout.mProblems.push_back("The profile names the mod \"" + entry.mId + "\", which is not in the library");
+                layout.mProblems.push_back(
+                    "The profile names the mod \"" + entry.mId + "\", which is not in the library");
                 continue;
             }
             if (!entry.mEnabled)
                 continue;
             if (hasLineBreak(mod->mRoot) || hasLineBreak(mod->mDataPath))
             {
-                layout.mProblems.push_back("The mod \"" + mod->mId + "\" has a path with a line break and was left out");
+                layout.mProblems.push_back(
+                    "The mod \"" + mod->mId + "\" has a path with a line break and was left out");
                 continue;
             }
             if (entry.mUseRepack)

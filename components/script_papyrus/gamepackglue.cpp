@@ -32,9 +32,9 @@ namespace ScriptPapyrus
         if (blob.formatVersion != Save::kFormatVersion)
         {
             // A chunk is read back by the version it is filed under; a blob of another version would be unreadable.
-            throw std::runtime_error(std::format(
-                "the Papyrus runtime wrote state version {}, this pack files version {}", blob.formatVersion,
-                Save::kFormatVersion));
+            throw std::runtime_error(
+                std::format("the Papyrus runtime wrote state version {}, this pack files version {}",
+                    blob.formatVersion, Save::kFormatVersion));
         }
         writer.write(blob.bytes.data(), blob.bytes.size());
     }
@@ -92,8 +92,9 @@ namespace ScriptPapyrus
         {
             if (scriptHost == nullptr || saveChunks == nullptr)
             {
-                result.error = "the Papyrus runtime needs the script host service and the save chunk service, which "
-                               "only a game pack receives";
+                result.error
+                    = "the Papyrus runtime needs the script host service and the save chunk service, which "
+                      "only a game pack receives";
                 return result;
             }
             if (!scriptHost->declareLanguage(kLanguageName))

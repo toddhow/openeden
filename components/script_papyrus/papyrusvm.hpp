@@ -352,7 +352,10 @@ namespace ScriptPapyrus::Vm
         openeden::script::SaveBlob serialise() const noexcept override;
         openeden::script::RestoreResult restore(const openeden::script::SaveBlob& blob) noexcept override;
         /// What the last restore() dropped or could not check (RestoreResult keeps its 1.0 layout; H0, 2026-11-09).
-        const openeden::script::RestoreDetails& lastRestoreDetails() const noexcept override { return mLastRestoreDetails; }
+        const openeden::script::RestoreDetails& lastRestoreDetails() const noexcept override
+        {
+            return mLastRestoreDetails;
+        }
 
         // The additions of PapyrusRuntime.
         const Stats& stats() const noexcept override { return mStats; }

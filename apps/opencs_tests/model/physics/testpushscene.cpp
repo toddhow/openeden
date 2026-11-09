@@ -550,7 +550,8 @@ namespace CSMPhysics
         TEST(CSMPhysicsPushScene, aClearForgetsTheLastAppliedPushAtTheNextStep)
         {
             StudioWorld world;
-            const std::unique_ptr<PushScene> scene = makeScene(world, makeSingleBodyRig(), makeSingleProfile(), highUp());
+            const std::unique_ptr<PushScene> scene
+                = makeScene(world, makeSingleBodyRig(), makeSingleProfile(), highUp());
             ASSERT_NE(scene, nullptr);
             ASSERT_TRUE(scene->push("Pelvis", math::Vec3{ 10.0, 0.0, 0.0 }, math::Vec3{ 0.0, 0.0, 50.0 }));
             world.stepOnce();

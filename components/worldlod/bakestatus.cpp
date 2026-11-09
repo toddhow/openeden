@@ -23,19 +23,25 @@ namespace WorldLod
         {
             switch (s)
             {
-                case BakerState::Idle: return "idle";
-                case BakerState::Building: return "building";
-                case BakerState::Paused: return "paused";
-                case BakerState::Complete: return "complete";
-                case BakerState::Failed: return "failed";
+                case BakerState::Idle:
+                    return "idle";
+                case BakerState::Building:
+                    return "building";
+                case BakerState::Paused:
+                    return "paused";
+                case BakerState::Complete:
+                    return "complete";
+                case BakerState::Failed:
+                    return "failed";
             }
             return "idle";
         }
 
         bool isHex64(const std::string& text)
         {
-            return text.size() == 64
-                && std::all_of(text.begin(), text.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+            return text.size() == 64 && std::all_of(text.begin(), text.end(), [](char c) {
+                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+            });
         }
 
         template <class Body>
@@ -144,7 +150,8 @@ namespace WorldLod
             const json& errors = v.array("errors", sMaxErrors, false);
             for (std::size_t i = 0; i < errors.size(); ++i)
             {
-                const Json::ObjectView e(errors[i], v.pointer("errors") + "/" + std::to_string(i), { "unit", "message" });
+                const Json::ObjectView e(
+                    errors[i], v.pointer("errors") + "/" + std::to_string(i), { "unit", "message" });
                 s.mErrors.push_back({ e.str("unit", sMaxTextBytes), e.str("message", sMaxTextBytes) });
             }
             s.mErrorsTotal = v.integerOr("errorsTotal", 0, sMaxInt, static_cast<std::int64_t>(s.mErrors.size()));
@@ -165,7 +172,8 @@ namespace WorldLod
             { "profile", s.mProfile }, { "fingerprint", s.mFingerprint }, { "generation", s.mGeneration },
             { "unitsTotal", s.mUnitsTotal }, { "unitsDone", s.mUnitsDone }, { "unitsFailed", s.mUnitsFailed },
             { "level", s.mLevel }, { "levelsTotal", s.mLevelsTotal }, { "activity", s.mActivity },
-            { "lastCell", { { "worldspace", s.mLastCell.mWorldspace }, { "x", s.mLastCell.mX }, { "y", s.mLastCell.mY } } },
+            { "lastCell",
+                { { "worldspace", s.mLastCell.mWorldspace }, { "x", s.mLastCell.mX }, { "y", s.mLastCell.mY } } },
             { "etaSeconds", s.mEtaSeconds }, { "cacheBytes", s.mCacheBytes }, { "errors", std::move(errors) },
             { "errorsTotal", s.mErrorsTotal }, { "lastCommandId", s.mLastCommandId }, { "logPath", s.mLogPath } };
         return Json::canonicalText(root);

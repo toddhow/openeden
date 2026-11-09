@@ -106,8 +106,7 @@ namespace NifEdit
                             {
                                 if (field == "name")
                                     edited.set(record.mIndex, field,
-                                        std::get<std::string>(edited.originalValue(record.mIndex, field))
-                                            + "_edited");
+                                        std::get<std::string>(edited.originalValue(record.mIndex, field)) + "_edited");
                                 else if (field == "flags")
                                     edited.set(record.mIndex, field, std::int64_t(0));
                             }

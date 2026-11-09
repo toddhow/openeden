@@ -194,8 +194,8 @@ namespace ModOrganizer
         {
             ++run.mPackFileCount;
             run.mPackSourceBytes += file.mSize;
-            run.mEstimatedPackBytes += (file.mSize + sPackBlockBytes - 1) / sPackBlockBytes * sPackBlockBytes
-                + sPerFileOverheadBytes;
+            run.mEstimatedPackBytes
+                += (file.mSize + sPackBlockBytes - 1) / sPackBlockBytes * sPackBlockBytes + sPerFileOverheadBytes;
             byName[lowerAscii(file.mRelative)].push_back(file.mRelative);
         }
         run.mEstimatedPackBytes += sIndexOverheadBytes;
@@ -369,7 +369,8 @@ namespace ModOrganizer
             const EdenArchive::Error verified = archive->verifyEntry(i);
             if (!verified.ok())
             {
-                result.mError = "The packed data of " + source->second->mRelative + " is damaged: " + verified.describe();
+                result.mError
+                    = "The packed data of " + source->second->mRelative + " is damaged: " + verified.describe();
                 return result;
             }
             ++result.mEntries;

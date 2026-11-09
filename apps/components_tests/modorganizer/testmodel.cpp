@@ -33,27 +33,28 @@ TEST(ModOrganizerModel, golden_text_of_a_small_profile)
     p.mName = "Main";
     p.mMods = { { "a", true, false } };
     p.mPlugins = { { "foo.esp", true } };
-    const char* expected = "{\n"
-                           "  \"archives\": [],\n"
-                           "  \"extensions\": [],\n"
-                           "  \"format\": \"openeden.profile\",\n"
-                           "  \"groundcover\": [],\n"
-                           "  \"mods\": [\n"
-                           "    {\n"
-                           "      \"enabled\": true,\n"
-                           "      \"id\": \"a\",\n"
-                           "      \"useRepack\": false\n"
-                           "    }\n"
-                           "  ],\n"
-                           "  \"name\": \"Main\",\n"
-                           "  \"plugins\": [\n"
-                           "    {\n"
-                           "      \"active\": true,\n"
-                           "      \"name\": \"foo.esp\"\n"
-                           "    }\n"
-                           "  ],\n"
-                           "  \"version\": 1\n"
-                           "}\n";
+    const char* expected
+        = "{\n"
+          "  \"archives\": [],\n"
+          "  \"extensions\": [],\n"
+          "  \"format\": \"openeden.profile\",\n"
+          "  \"groundcover\": [],\n"
+          "  \"mods\": [\n"
+          "    {\n"
+          "      \"enabled\": true,\n"
+          "      \"id\": \"a\",\n"
+          "      \"useRepack\": false\n"
+          "    }\n"
+          "  ],\n"
+          "  \"name\": \"Main\",\n"
+          "  \"plugins\": [\n"
+          "    {\n"
+          "      \"active\": true,\n"
+          "      \"name\": \"foo.esp\"\n"
+          "    }\n"
+          "  ],\n"
+          "  \"version\": 1\n"
+          "}\n";
     EXPECT_EQ(writeProfile(p), expected);
 }
 
@@ -118,10 +119,10 @@ TEST(ModOrganizerModel, hostile_text_is_refused_without_throwing)
 TEST(ModOrganizerModel, duplicate_keys_unknown_keys_and_floats_are_refused)
 {
     LoadError error;
-    EXPECT_FALSE(readModLibrary(
-        "{\"format\":\"openeden.mods\",\"version\":1,\"mods\":[],\"mods\":[]}", "m", error).has_value());
-    EXPECT_FALSE(readModLibrary(
-        "{\"format\":\"openeden.mods\",\"version\":1,\"mods\":[],\"extra\":1}", "m", error).has_value());
+    EXPECT_FALSE(
+        readModLibrary("{\"format\":\"openeden.mods\",\"version\":1,\"mods\":[],\"mods\":[]}", "m", error).has_value());
+    EXPECT_FALSE(
+        readModLibrary("{\"format\":\"openeden.mods\",\"version\":1,\"mods\":[],\"extra\":1}", "m", error).has_value());
     EXPECT_EQ(error.mPointer, "/extra");
     EXPECT_FALSE(readModLibrary("{\"format\":\"openeden.mods\",\"version\":1.5,\"mods\":[]}", "m", error).has_value());
 }

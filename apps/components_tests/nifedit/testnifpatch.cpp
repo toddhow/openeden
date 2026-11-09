@@ -30,7 +30,8 @@ namespace NifEdit
         }
 
         // The file after replacing [begin, end) of the original with the given bytes.
-        std::string spliced(const Built& built, const std::pair<std::size_t, std::size_t>& range, const std::string& with)
+        std::string spliced(
+            const Built& built, const std::pair<std::size_t, std::size_t>& range, const std::string& with)
         {
             return built.mBytes.substr(0, range.first) + with + built.mBytes.substr(range.second);
         }
@@ -50,8 +51,7 @@ namespace NifEdit
                 { 2, "name", std::string("x"), sized("x") },
                 { 2, "name", std::string(""), sized("") },
                 { 1, "flags", std::int64_t(0x0A0B), raw(std::uint16_t(0x0A0B)) },
-                { 2, "translation", std::array<float, 3>{ 4.f, -5.5f, 6.25f },
-                    raw(4.f) + raw(-5.5f) + raw(6.25f) },
+                { 2, "translation", std::array<float, 3>{ 4.f, -5.5f, 6.25f }, raw(4.f) + raw(-5.5f) + raw(6.25f) },
                 { 2, "rotation", std::array<float, 9>{ 1, 0, 0, 0, 1, 0, 0, 0, 1 },
                     raw(1.f) + raw(0.f) + raw(0.f) + raw(0.f) + raw(1.f) + raw(0.f) + raw(0.f) + raw(0.f) + raw(1.f) },
                 { 2, "scale", 2.25, raw(2.25f) },
@@ -285,7 +285,8 @@ namespace NifEdit
                 {
                     EXPECT_NE(std::string(e.what()).find(item.mWhy), std::string::npos) << e.what();
                     if (item.mRecord != 99)
-                        EXPECT_NE(std::string(e.what()).find("record " + std::to_string(item.mRecord)), std::string::npos)
+                        EXPECT_NE(
+                            std::string(e.what()).find("record " + std::to_string(item.mRecord)), std::string::npos)
                             << e.what();
                 }
             }

@@ -42,7 +42,8 @@ namespace
         c.mFrameRate = 30;
         c.mFrameCount = 3;
         for (const auto& [name, v] : values)
-            c.mChannels.push_back({ name, ChannelKind::Weight, { static_cast<std::int16_t>(v), static_cast<std::int16_t>(v), static_cast<std::int16_t>(v) } });
+            c.mChannels.push_back({ name, ChannelKind::Weight,
+                { static_cast<std::int16_t>(v), static_cast<std::int16_t>(v), static_cast<std::int16_t>(v) } });
         return c;
     }
 

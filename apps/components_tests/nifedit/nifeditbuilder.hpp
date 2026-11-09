@@ -6,12 +6,12 @@
 // source of truth that does not depend on the library under test.
 
 #include <array>
-#include <initializer_list>
-#include <tuple>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <map>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 

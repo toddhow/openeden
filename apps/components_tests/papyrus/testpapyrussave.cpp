@@ -1530,7 +1530,15 @@ namespace
             if (mQueued)
             {
                 ++stackCount;
-                stacks.u8(0).u64(mQueuedSeq).u32(1).u32(text(mQueuedEvent)).u32(1).u32(0).u32(1).u8(mQueuedArgKind).u32(static_cast<std::uint32_t>(mQueuedArg));
+                stacks.u8(0)
+                    .u64(mQueuedSeq)
+                    .u32(1)
+                    .u32(text(mQueuedEvent))
+                    .u32(1)
+                    .u32(0)
+                    .u32(1)
+                    .u8(mQueuedArgKind)
+                    .u32(static_cast<std::uint32_t>(mQueuedArg));
             }
             if (mParked)
             {

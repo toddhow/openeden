@@ -259,8 +259,9 @@ namespace
             table.mEntries.push_back(std::move(entry));
         }
         std::vector<ErrorReport> errors;
-        const std::string seed = "function zzone 0 / l 0 0 0 0 seed READ a page\n"
-                                 "function zztwo 0 / l 0 0 0 0 seed READ a page\n";
+        const std::string seed
+            = "function zzone 0 / l 0 0 0 0 seed READ a page\n"
+              "function zztwo 0 / l 0 0 0 0 seed READ a page\n";
         EXPECT_EQ(ScriptObscript::mergeSeed(table, seed, "seed.txt", errors), 0u);
         ASSERT_EQ(errors.size(), 1u) << "one summary, not one line per entry";
         EXPECT_EQ(errors[0].severity, openeden::script::Severity::Warning);

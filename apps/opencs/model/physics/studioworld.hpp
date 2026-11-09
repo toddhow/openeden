@@ -42,8 +42,8 @@ namespace CSMPhysics
         /// means the same in the game and here.
         static constexpr JPH::ObjectLayer sLayerWorld = 1 << 0;
         static constexpr JPH::ObjectLayer sLayerDynamicWorld = 1 << 8;
-        /// A pre-step hook that throws this many steps in a row is withdrawn (logged once), so a broken hook cannot write
-        /// an error line on every step.
+        /// A pre-step hook that throws this many steps in a row is withdrawn (logged once), so a broken hook cannot
+        /// write an error line on every step.
         static constexpr int sPreStepHookFailureLimit = 3;
 
         enum class Transport

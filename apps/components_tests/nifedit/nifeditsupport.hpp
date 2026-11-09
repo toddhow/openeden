@@ -40,8 +40,8 @@ namespace NifEdit::Testing
         if (const auto* av = dynamic_cast<const Nif::NiAVObject*>(record))
         {
             out << " flags=" << av->mFlags << " t=" << av->mTransform.mTranslation.x << ","
-                << av->mTransform.mTranslation.y << "," << av->mTransform.mTranslation.z << " s=" << av->mTransform.mScale
-                << " r=";
+                << av->mTransform.mTranslation.y << "," << av->mTransform.mTranslation.z
+                << " s=" << av->mTransform.mScale << " r=";
             for (const auto& row : av->mTransform.mRotation.mValues)
                 for (float value : row)
                     out << value << ",";
@@ -49,7 +49,8 @@ namespace NifEdit::Testing
         if (const auto* material = dynamic_cast<const Nif::NiMaterialProperty*>(record))
         {
             out << " flags=" << material->mFlags;
-            for (const vsg::vec3& colour : { material->mAmbient, material->mDiffuse, material->mSpecular, material->mEmissive })
+            for (const vsg::vec3& colour :
+                { material->mAmbient, material->mDiffuse, material->mSpecular, material->mEmissive })
                 out << " c=" << colour.x << "," << colour.y << "," << colour.z;
             out << " gloss=" << material->mGlossiness << " alpha=" << material->mAlpha;
         }

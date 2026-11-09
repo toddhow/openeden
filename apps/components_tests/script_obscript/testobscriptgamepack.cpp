@@ -320,8 +320,7 @@ End
         }
         openeden::script::CompileResult compile(const openeden::script::ScriptSource&) noexcept override { return {}; }
         InstanceId createInstance(ScriptId, openeden::script::FormId) noexcept override { return 0; }
-        openeden::script::RunResult run(
-            InstanceId, std::string_view, const openeden::script::Budget&) noexcept override
+        openeden::script::RunResult run(InstanceId, std::string_view, const openeden::script::Budget&) noexcept override
         {
             return {};
         }

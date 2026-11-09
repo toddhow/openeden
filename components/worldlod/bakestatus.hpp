@@ -141,7 +141,8 @@ namespace WorldLod
     std::optional<std::int64_t> shownEtaSeconds(const BakeStatus& status, std::int64_t minUnits = 50);
 
     /// Reads a file with the size cap. Returns nullopt with `error` filled when it cannot be read.
-    std::optional<std::string> readSmallFile(const std::filesystem::path& path, std::size_t maxBytes, std::string& error);
+    std::optional<std::string> readSmallFile(
+        const std::filesystem::path& path, std::size_t maxBytes, std::string& error);
     /// Writes through "<path>.tmp" and a rename, so that a reader sees the old or the new file, never half.
     bool writeFileAtomically(const std::filesystem::path& path, std::string_view text, std::string& error);
 
@@ -158,7 +159,8 @@ namespace WorldLod
     /// "manifest*", "*.tmp", "*.edenpak", "*.json" and "*.lock" are left out. Links are never followed.
     CacheListing listCacheFiles(const std::filesystem::path& folder);
     /// Refuses unless isLodCacheFolder, a baker is not alive and the game is not running.
-    std::string deleteCache(const std::filesystem::path& folder, const CacheListing& listing, bool bakerAlive, bool gameRunning);
+    std::string deleteCache(
+        const std::filesystem::path& folder, const CacheListing& listing, bool bakerAlive, bool gameRunning);
 }
 
 #endif

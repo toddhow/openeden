@@ -93,7 +93,8 @@ namespace Face
                         return false;
                     cp = (cp << 6) | (cc & 0x3Fu);
                 }
-                if ((n == 2 && cp < 0x800) || (n == 3 && cp < 0x10000) || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+                if ((n == 2 && cp < 0x800) || (n == 3 && cp < 0x10000) || cp > 0x10FFFF
+                    || (cp >= 0xD800 && cp <= 0xDFFF))
                     return false;
                 i += n + 1;
             }
@@ -515,7 +516,8 @@ namespace Face
             }
         };
 
-        // ---- DOM -> model ---------------------------------------------------------------------------------------------
+        // ---- DOM -> model
+        // ---------------------------------------------------------------------------------------------
         const Node* findMember(const Node& obj, std::string_view key)
         {
             for (const auto& m : obj.mMembers)
@@ -570,8 +572,8 @@ namespace Face
             {
                 if (mRoot.mType != Node::Type::Obj)
                     fail("", "the document must be an object", mRoot);
-                static const char* const sKeys[] = { "format", "version", "audio", "generator", "frameRate",
-                    "frameCount", "channels" };
+                static const char* const sKeys[]
+                    = { "format", "version", "audio", "generator", "frameRate", "frameCount", "channels" };
                 checkKeys(mRoot, "", sKeys, 7, 7);
 
                 const Node& format = *findMember(mRoot, "format");
@@ -642,7 +644,8 @@ namespace Face
                     for (std::size_t k = 0; k < values.mInts.size(); ++k)
                     {
                         const std::int32_t v = values.mInts[k];
-                        if (v < std::numeric_limits<std::int16_t>::min() || v > std::numeric_limits<std::int16_t>::max())
+                        if (v < std::numeric_limits<std::int16_t>::min()
+                            || v > std::numeric_limits<std::int16_t>::max())
                             fail(at + "/values/" + std::to_string(k), "the value is out of range", values);
                         ch.mValues.push_back(static_cast<std::int16_t>(v));
                     }
@@ -799,7 +802,10 @@ namespace Face
             out.insert(out.end(), s.begin(), s.end());
         }
 
-        int hexValue(char c) { return c <= '9' ? c - '0' : c - 'a' + 10; }
+        int hexValue(char c)
+        {
+            return c <= '9' ? c - '0' : c - 'a' + 10;
+        }
 
         class ByteReader
         {
@@ -934,7 +940,8 @@ namespace Face
                 add(at + "/name", "the channel name \"" + ch.mName + "\" is used twice");
             if (countOk && ch.mValues.size() != c.mFrameCount)
             {
-                add(at + "/values", "holds " + std::to_string(ch.mValues.size()) + " values, frameCount is "
+                add(at + "/values",
+                    "holds " + std::to_string(ch.mValues.size()) + " values, frameCount is "
                         + std::to_string(c.mFrameCount));
                 continue;
             }
@@ -1000,8 +1007,8 @@ namespace Face
             out += ", \"emotion\": ";
             appendJsonString(out, c.mEmotion);
         }
-        out += "},\n  \"frameRate\": " + std::to_string(c.mFrameRate) + ",\n  \"frameCount\": "
-            + std::to_string(c.mFrameCount) + ",\n  \"channels\": [\n";
+        out += "},\n  \"frameRate\": " + std::to_string(c.mFrameRate)
+            + ",\n  \"frameCount\": " + std::to_string(c.mFrameCount) + ",\n  \"channels\": [\n";
         for (std::size_t i = 0; i < c.mChannels.size(); ++i)
         {
             const Channel& ch = c.mChannels[i];
@@ -1059,7 +1066,8 @@ namespace Face
         return out;
     }
 
-    std::optional<Curves> readBinary(const std::vector<std::uint8_t>& bytes, std::string_view fileName, LoadError& error)
+    std::optional<Curves> readBinary(
+        const std::vector<std::uint8_t>& bytes, std::string_view fileName, LoadError& error)
     {
         try
         {
@@ -1114,8 +1122,8 @@ namespace Face
                 for (std::uint32_t k = 0; k < c.mFrameCount; ++k)
                 {
                     const std::uint32_t raw = in.get(width);
-                    ch.mValues.push_back(
-                        kind == 0 ? static_cast<std::int16_t>(raw) : static_cast<std::int16_t>(static_cast<std::uint16_t>(raw)));
+                    ch.mValues.push_back(kind == 0 ? static_cast<std::int16_t>(raw)
+                                                   : static_cast<std::int16_t>(static_cast<std::uint16_t>(raw)));
                 }
                 c.mChannels.push_back(std::move(ch));
             }
@@ -1123,7 +1131,8 @@ namespace Face
                 in.fail("unexpected bytes after the last channel");
             const auto issues = validate(c);
             if (!issues.empty())
-                throw Failure{ LoadError{ std::string(fileName), 1, issues.front().mPointer, issues.front().mMessage } };
+                throw Failure{ LoadError{
+                    std::string(fileName), 1, issues.front().mPointer, issues.front().mMessage } };
             return c;
         }
         catch (const Failure& f)
@@ -1141,6 +1150,7 @@ namespace Face
     {
         if (c.mAudioSha256.empty() || c.mAudioSha256 != sha256 || !std::isfinite(durationSeconds) || c.mFrameRate == 0)
             return false;
-        return std::fabs(durationSeconds - c.mAudioDurationSeconds) <= 1.0 / static_cast<double>(c.mFrameRate) + sFrameSlack;
+        return std::fabs(durationSeconds - c.mAudioDurationSeconds)
+            <= 1.0 / static_cast<double>(c.mFrameRate) + sFrameSlack;
     }
 }

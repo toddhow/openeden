@@ -89,8 +89,8 @@ namespace ModOrganizer
 
     bool isOwnedLine(std::string_view line)
     {
-        static const std::array<std::string_view, 5> keys = { "data", "content", "groundcover", "fallback-archive",
-            "extension" };
+        static const std::array<std::string_view, 5> keys
+            = { "data", "content", "groundcover", "fallback-archive", "extension" };
         line = trim(line);
         for (const std::string_view key : keys)
         {
@@ -163,7 +163,8 @@ namespace ModOrganizer
         return result;
     }
 
-    ApplyResult applyToConfigFile(const fs::path& path, const std::vector<std::string>& wanted, const ApplyOptions& options)
+    ApplyResult applyToConfigFile(
+        const fs::path& path, const std::vector<std::string>& wanted, const ApplyOptions& options)
     {
         ApplyResult result;
         if (options.mGameRunning && options.mGameRunning())

@@ -68,8 +68,8 @@ namespace NifEdit
     class SetFieldCommand
     {
     public:
-        SetFieldCommand(Document& document, std::uint32_t record, std::string field, PatchValue value,
-            bool mergeable = false);
+        SetFieldCommand(
+            Document& document, std::uint32_t record, std::string field, PatchValue value, bool mergeable = false);
 
         std::string label() const;
         void redo();
@@ -105,7 +105,11 @@ namespace NifEdit
         void undo();
         void redo();
         std::size_t size() const { return mCommands.size(); }
-        void setClean() { mClean = mIndex; mCleanValid = true; }
+        void setClean()
+        {
+            mClean = mIndex;
+            mCleanValid = true;
+        }
         bool isClean() const { return mCleanValid && mClean == mIndex; }
 
     private:

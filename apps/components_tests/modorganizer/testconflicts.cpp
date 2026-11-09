@@ -203,7 +203,8 @@ TEST(ModOrganizerConflicts, a_pack_of_a_mod_replacing_its_folder_changes_no_winn
     tex.mData = { 'A' };
     EdenArchive::WriteOptions options;
     options.mStoreOnly = true;
-    ASSERT_EQ(EdenArchive::writePack({ nif, tex }, cache.path() / "a.edenpak", options).mClass, EdenArchive::ErrorClass::None);
+    ASSERT_EQ(EdenArchive::writePack({ nif, tex }, cache.path() / "a.edenpak", options).mClass,
+        EdenArchive::ErrorClass::None);
     f.mProfile.mMods[0].mUseRepack = true;
     LayoutOptions lo;
     lo.mBaseData = { pathOf(f.mBase, "") };

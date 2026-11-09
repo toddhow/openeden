@@ -83,7 +83,8 @@ namespace ModOrganizer
                     const fs::path path = findArchive(layout, name);
                     if (path.empty())
                         throw std::runtime_error("not found in any data folder");
-                    vfs->addArchive(std::make_unique<LabeledArchive>(VFS::makeArchive(path, nullptr), "archive:" + name));
+                    vfs->addArchive(
+                        std::make_unique<LabeledArchive>(VFS::makeArchive(path, nullptr), "archive:" + name));
                 }
                 catch (const std::exception& e)
                 {

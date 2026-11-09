@@ -12,8 +12,8 @@ namespace NifEdit
         using Testing::Built;
         using Testing::MwBuilder;
 
-        std::unique_ptr<SetFieldCommand> set(Document& document, std::uint32_t record, const char* field,
-            PatchValue value, bool mergeable = false)
+        std::unique_ptr<SetFieldCommand> set(
+            Document& document, std::uint32_t record, const char* field, PatchValue value, bool mergeable = false)
         {
             return std::make_unique<SetFieldCommand>(document, record, field, std::move(value), mergeable);
         }
@@ -60,7 +60,8 @@ namespace NifEdit
             Document document = Document::open(MwBuilder::make().mBytes);
             document.set(4, "alpha", 0.1); // not exact in a float
             const std::string saved = document.buildChecked();
-            const auto* material = dynamic_cast<const Nif::NiMaterialProperty*>(Testing::parseFile(saved)->mRecords[4].get());
+            const auto* material
+                = dynamic_cast<const Nif::NiMaterialProperty*>(Testing::parseFile(saved)->mRecords[4].get());
             EXPECT_EQ(material->mAlpha, 0.1f);
         }
 

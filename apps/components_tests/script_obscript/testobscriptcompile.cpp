@@ -383,11 +383,12 @@ End
     TEST(ObScriptRecompile, a_script_that_has_instances_keeps_its_old_code_and_the_new_one_gets_a_new_id)
     {
         RuntimeFixture f;
-        const ScriptId first = f.compileOk("Again", "ScriptName Again\nshort n\nBegin GameMode\n Set n to n + 1\nEnd\n");
+        const ScriptId first
+            = f.compileOk("Again", "ScriptName Again\nshort n\nBegin GameMode\n Set n to n + 1\nEnd\n");
         const InstanceId instance = f.mRuntime->createInstance(first, 0x10);
         ASSERT_NE(instance, 0u);
-        const ScriptId second = f.compileOk(
-            "Again", "ScriptName Again\nshort n\nshort m\nBegin GameMode\n Set n to n + 2\nEnd\n");
+        const ScriptId second
+            = f.compileOk("Again", "ScriptName Again\nshort n\nshort m\nBegin GameMode\n Set n to n + 2\nEnd\n");
         ASSERT_NE(second, 0u);
         EXPECT_NE(second, first) << "the instance still depends on the old layout";
         EXPECT_TRUE(f.mRuntime->run(instance, "GameMode").ok);
