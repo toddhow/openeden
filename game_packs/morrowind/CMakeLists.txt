@@ -3,6 +3,9 @@
 # next to openmw-lib, which it links PUBLIC. openmw-lib never names this target; the executable installs the pack's rules
 # (MWWorld::installCraftingRules) and the windows reach them through the contract (sdk/include/openeden/game/crafting.hpp).
 #
+# Move 3 put the journal and the dialogue manager (with the filter) here, behind the engine's MWBase interfaces; the
+# executable installs them through MWDialogue::installFactories.
+#
 # Move 2 put the crafting rules here: alchemy, enchanting, recharge and repair, moved from apps/openmw/mwmechanics.
 
 openeden_add_game_pack(game_morrowind STATIC
@@ -12,11 +15,23 @@ openeden_add_game_pack(game_morrowind STATIC
         src/recharge.cpp
         src/repair.cpp
         src/crafting_rules.cpp
+        src/dialogue_rules.cpp
+        src/dialoguemanagerimp.cpp
+        src/journalimp.cpp
+        src/filter.cpp
+        src/selectwrapper.cpp
+        src/scripttest.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp
         include/game_morrowind/recharge.hpp
         include/game_morrowind/repair.hpp
         include/game_morrowind/crafting_rules.hpp
+        include/game_morrowind/dialogue_rules.hpp
+        include/game_morrowind/dialoguemanagerimp.hpp
+        include/game_morrowind/journalimp.hpp
+        include/game_morrowind/filter.hpp
+        include/game_morrowind/selectwrapper.hpp
+        include/game_morrowind/scripttest.hpp
 )
 
 # The repository root is for the pack's own sources, which include <apps/openmw/...> by path; it is not exported, so a

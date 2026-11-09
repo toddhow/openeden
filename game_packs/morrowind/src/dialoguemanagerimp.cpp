@@ -1,4 +1,4 @@
-#include "dialoguemanagerimp.hpp"
+#include <game_morrowind/dialoguemanagerimp.hpp>
 
 #include <algorithm>
 #include <list>
@@ -28,29 +28,29 @@
 
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
-#include "../mwscript/compilercontext.hpp"
-#include "../mwscript/extensions.hpp"
-#include "../mwscript/interpretercontext.hpp"
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwscript/extensions.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
 
-#include "filter.hpp"
-#include "keywordsearch.hpp"
+#include <apps/openmw/mwdialogue/keywordsearch.hpp>
+#include <game_morrowind/filter.hpp>
 
 namespace MWDialogue
 {

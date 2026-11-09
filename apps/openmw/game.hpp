@@ -10,14 +10,13 @@
 #include <components/vsgutil/updatethreads.hpp>
 
 #include "mwclass/classes.hpp"
-#include "mwdialogue/dialoguemanagerimp.hpp"
-#include "mwdialogue/journalimp.hpp"
-#include "mwdialogue/scripttest.hpp"
+#include "mwdialogue/dialoguefactory.hpp"
 #include "mwgui/windowmanagerimp.hpp"
 #include "mwlua/luamanagerimp.hpp"
 #include "mwmechanics/creaturestats.hpp"
 #include "mwmechanics/mechanicsmanagerimp.hpp"
 #include "mwrender/rendermanager.hpp"
+#include "mwscript/compilercontext.hpp"
 #include "mwscript/interpretercontext.hpp"
 #include "mwscript/scriptmanagerimp.hpp"
 #include "mwstate/gamestate.hpp"
@@ -61,8 +60,8 @@ namespace OMW
         std::unique_ptr<Compiler::Context> mScriptContext;
         std::unique_ptr<MWWorld::World> mWorld;
         std::unique_ptr<MWScript::ScriptManager> mScriptManager;
-        std::unique_ptr<MWDialogue::Journal> mJournal;
-        std::unique_ptr<MWDialogue::DialogueManager> mDialogueManager;
+        std::unique_ptr<MWBase::Journal> mJournal;
+        std::unique_ptr<MWBase::DialogueManager> mDialogueManager;
         std::unique_ptr<MWMechanics::MechanicsManager> mMechanicsManager;
         MWLua::LuaManager* mLuaManager{}; // owned by Engine::mLuaManager
 
@@ -87,11 +86,10 @@ namespace OMW
             mMechanicsManager->setUpdateThreads(mEngine.mRenderManager->getUpdateThreads());
             mEnvironment.setMechanicsManager(*mMechanicsManager);
 
-            mJournal = std::make_unique<MWDialogue::Journal>();
+            mJournal = MWDialogue::makeJournal();
             mEnvironment.setJournal(*mJournal);
 
-            mDialogueManager
-                = std::make_unique<MWDialogue::DialogueManager>(mExtensions, mEngine.mTranslationDataStorage);
+            mDialogueManager = MWDialogue::makeDialogueManager(mExtensions, mEngine.mTranslationDataStorage);
             mEnvironment.setDialogueManager(*mDialogueManager);
 
             // As in OpenMW 0.51, the player is set up before Lua is initialised, so its local scripts start with a new
@@ -119,7 +117,7 @@ namespace OMW
             }
             if (args.compileAllDialogue)
             {
-                std::pair<int, int> result = MWDialogue::ScriptTest::compileAll(&mExtensions, args.warningsMode);
+                std::pair<int, int> result = MWDialogue::compileAllDialogueScripts(&mExtensions, args.warningsMode);
                 if (result.first)
                     std::cout << "compiled " << result.second << " of " << result.first
                               << " dialogue script/actor combinations ("

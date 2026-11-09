@@ -9,7 +9,9 @@
 #include <components/version/version.hpp>
 
 #include <game_morrowind/crafting_rules.hpp>
+#include <game_morrowind/dialogue_rules.hpp>
 
+#include "mwdialogue/dialoguefactory.hpp"
 #include "mwrender/lodbakemode.hpp"
 #include "mwworld/craftingrules.hpp"
 #include "options.hpp"
@@ -160,6 +162,9 @@ int runApplication(int argc, char* argv[])
     // The Morrowind game pack's crafting rules: installed before the engine makes its first window (task 0085 move 2).
     // openmw-lib reaches them only through the contract; this executable is the one place that names the pack.
     MWWorld::installCraftingRules(game_morrowind::makeCraftingRules());
+    // and its journal and dialogue manager (task 0085 move 3), made later by the Game state through this hook.
+    MWDialogue::installFactories({ &game_morrowind::makeJournal, &game_morrowind::makeDialogueManager,
+        &game_morrowind::compileAllDialogueScripts });
 
     Files::ConfigurationManager cfgMgr;
     OMW::Engine engine(cfgMgr);

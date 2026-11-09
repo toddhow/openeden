@@ -1,4 +1,4 @@
-#include "journalimp.hpp"
+#include <game_morrowind/journalimp.hpp>
 
 #include <iterator>
 
@@ -9,12 +9,12 @@
 
 #include <components/misc/strings/algorithm.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
 namespace MWDialogue
 {

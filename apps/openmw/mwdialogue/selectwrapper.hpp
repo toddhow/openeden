@@ -1,46 +1,11 @@
-#ifndef GAME_MWDIALOGUE_SELECTWRAPPER_H
-#define GAME_MWDIALOGUE_SELECTWRAPPER_H
+#ifndef OPENMW_MWDIALOGUE_SELECTWRAPPER_FORWARD_H
+#define OPENMW_MWDIALOGUE_SELECTWRAPPER_FORWARD_H
 
-#include <components/esm3/loadinfo.hpp>
-
-namespace MWDialogue
-{
-    class SelectWrapper
-    {
-        const ESM::DialogueCondition& mSelect;
-
-    public:
-        enum Type
-        {
-            Type_None,
-            Type_Integer,
-            Type_Numeric,
-            Type_Boolean,
-            Type_Inverted
-        };
-
-    public:
-        SelectWrapper(const ESM::DialogueCondition& select);
-
-        ESM::DialogueCondition::Function getFunction() const;
-
-        int getArgument() const;
-
-        Type getType() const;
-
-        bool selectCompare(int value) const;
-
-        bool selectCompare(float value) const;
-
-        bool selectCompare(bool value) const;
-
-        std::string getName() const;
-        ///< Return case-smashed name.
-
-        std::string_view getCellName() const;
-
-        ESM::RefId getId() const;
-    };
-}
+// Moved to game_packs/morrowind (task 0085 move 3): the Morrowind game pack owns this class. This header only keeps the
+// old include path alive for the characterization tests in apps/openmw_tests/mwdialogue, which pin the behaviour and
+// are not edited by the move. Only targets that link game_morrowind (which exports its include folder) may include it.
+// The game's own code reaches the journal and the dialogue manager through the MWBase interfaces and
+// MWDialogue::makeJournal() / makeDialogueManager().
+#include <game_morrowind/selectwrapper.hpp>
 
 #endif

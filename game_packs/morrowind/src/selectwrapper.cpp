@@ -1,4 +1,4 @@
-#include "selectwrapper.hpp"
+#include <game_morrowind/selectwrapper.hpp>
 
 #include <iterator>
 #include <sstream>

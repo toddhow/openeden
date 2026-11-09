@@ -1,64 +1,11 @@
-#ifndef GAME_MWDIALOG_JOURNAL_H
-#define GAME_MWDIALOG_JOURNAL_H
+#ifndef OPENMW_MWDIALOGUE_JOURNALIMP_FORWARD_H
+#define OPENMW_MWDIALOGUE_JOURNALIMP_FORWARD_H
 
-#include "../mwbase/journal.hpp"
-
-#include "quest.hpp"
-
-namespace MWDialogue
-{
-    /// \brief The player's journal
-    class Journal : public MWBase::Journal
-    {
-        TEntryContainer mJournal;
-        TQuestContainer mQuests;
-        TTopicContainer mTopics;
-
-    private:
-        Topic& getTopic(const ESM::RefId& id);
-
-        bool isThere(const ESM::RefId& topicId, const ESM::RefId& infoId = ESM::RefId()) const;
-
-    public:
-        Journal();
-
-        void clear() override;
-
-        Quest* getQuestOrNull(const ESM::RefId& id) override;
-        ///< Gets a pointer to the requested quest. Will return nullptr if the quest has not been started.
-
-        Quest& getOrStartQuest(const ESM::RefId& id) override;
-        ///< Gets the quest requested. Attempts to create it and inserts it in quests if it is not yet started.
-
-        void addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor) override;
-        ///< Add a journal entry.
-        /// @param actor Used as context for replacing of escape sequences (%name, etc).
-
-        void setJournalIndex(const ESM::RefId& id, int index) override;
-        ///< Set the journal index without adding an entry.
-
-        int getJournalIndex(const ESM::RefId& id) const override;
-        ///< Get the journal index.
-
-        void addTopic(const ESM::RefId& topicId, const ESM::RefId& infoId, const MWWorld::Ptr& actor) override;
-        /// \note topicId must be lowercase
-
-        void removeLastAddedTopicResponse(const ESM::RefId& topicId, std::string_view actorName) override;
-        ///< Removes the last topic response added for the given topicId and actor name.
-        /// \note topicId must be lowercase
-
-        const TEntryContainer& getEntries() const override { return mJournal; }
-
-        const TTopicContainer& getTopics() const override { return mTopics; }
-
-        const TQuestContainer& getQuests() const override { return mQuests; }
-
-        size_t countSavedGameRecords() const override;
-
-        void write(ESM::ESMWriter& writer, Loading::Listener& progress) const override;
-
-        void readRecord(ESM::ESMReader& reader, uint32_t type) override;
-    };
-}
+// Moved to game_packs/morrowind (task 0085 move 3): the Morrowind game pack owns this class. This header only keeps the
+// old include path alive for the characterization tests in apps/openmw_tests/mwdialogue, which pin the behaviour and
+// are not edited by the move. Only targets that link game_morrowind (which exports its include folder) may include it.
+// The game's own code reaches the journal and the dialogue manager through the MWBase interfaces and
+// MWDialogue::makeJournal() / makeDialogueManager().
+#include <game_morrowind/journalimp.hpp>
 
 #endif
