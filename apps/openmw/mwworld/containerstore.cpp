@@ -16,8 +16,8 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/levelledlist.hpp"
-#include "craftingrules.hpp"
 #include "../mwmechanics/spellutil.hpp"
+#include "craftingrules.hpp"
 
 #include "class.hpp"
 #include "esmstore.hpp"

@@ -77,8 +77,8 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/creaturestats.hpp"
-#include "craftingrules.hpp"
 #include "../mwmechanics/spellutil.hpp"
+#include "craftingrules.hpp"
 
 #include "class.hpp"
 #include "containerstore.hpp"

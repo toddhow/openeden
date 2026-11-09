@@ -229,8 +229,7 @@ namespace MWGui
             MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
             auto const alchemySkill = player.getClass().getSkill(player, ESM::Skill::Alchemy);
 
-            auto const effects
-                = MWWorld::activeCraftingRules().ingredientEffectNames(handles.make(item), alchemySkill);
+            auto const effects = MWWorld::activeCraftingRules().ingredientEffectNames(handles.make(item), alchemySkill);
             itemEffects.insert(effects.begin(), effects.end());
         }
 

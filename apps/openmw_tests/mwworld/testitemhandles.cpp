@@ -92,8 +92,8 @@ namespace MWWorld
             EXPECT_EQ(scope.size(), 2u);
         }
 
-        // The Repair case: a tool that is used up is replaced by another stack of the same kind. The new stack is another
-        // LiveCellRef, so it must get a NEW handle, and the old handle must keep naming the old stack.
+        // The Repair case: a tool that is used up is replaced by another stack of the same kind. The new stack is
+        // another LiveCellRef, so it must get a NEW handle, and the old handle must keep naming the old stack.
         TEST(MWWorldItemHandles, a_replaced_stack_gets_a_new_handle_and_the_old_one_keeps_its_item)
         {
             Item oldTool(1), newTool(2);

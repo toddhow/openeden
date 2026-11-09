@@ -88,7 +88,10 @@ namespace
         void removeApparatus(std::size_t) override {}
         ItemHandle ingredientSlot(std::size_t) override { return kNoItem; }
         ItemHandle apparatusSlot(std::size_t) override { return kNoItem; }
-        std::vector<AlchemyEffectLine> effects() const override { return { AlchemyEffectLine{ "restorehealth", "", "strength", true } }; }
+        std::vector<AlchemyEffectLine> effects() const override
+        {
+            return { AlchemyEffectLine{ "restorehealth", "", "strength", true } };
+        }
         std::string suggestPotionName() override { return "x"; }
         AlchemyResult create(std::string_view, int& count) override
         {

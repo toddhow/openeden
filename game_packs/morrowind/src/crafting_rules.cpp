@@ -202,7 +202,10 @@ namespace game_morrowind
 
             void nextCastStyle() override { mEnchanting.nextCastStyle(); }
 
-            sdk::CastStyle castStyle() const override { return static_cast<sdk::CastStyle>(mEnchanting.getCastStyle()); }
+            sdk::CastStyle castStyle() const override
+            {
+                return static_cast<sdk::CastStyle>(mEnchanting.getCastStyle());
+            }
 
             float enchantPoints(bool precise) const override { return mEnchanting.getEnchantPoints(precise); }
 
@@ -252,10 +255,7 @@ namespace game_morrowind
                 return tool.getCellRef().getCount();
             }
 
-            void repair(sdk::ItemHandle itemToRepair) override
-            {
-                mRepair.repair(MWWorld::resolveItem(itemToRepair));
-            }
+            void repair(sdk::ItemHandle itemToRepair) override { mRepair.repair(MWWorld::resolveItem(itemToRepair)); }
 
         private:
             MWMechanics::Repair mRepair;
@@ -294,8 +294,8 @@ namespace game_morrowind
                 const MWWorld::Ptr gemPtr = MWWorld::resolveItem(gem);
                 if (gemPtr.isEmpty())
                     return 0;
-                const ESM::Creature* creature
-                    = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().find(gemPtr.getCellRef().getSoul());
+                const ESM::Creature* creature = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().find(
+                    gemPtr.getCellRef().getSoul());
                 return creature->mData.mSoul;
             }
 

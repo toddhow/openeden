@@ -9,8 +9,8 @@ namespace MWWorld
 
     namespace
     {
-        // A handle is (generation << 32) | (slot index + 1); zero is "no item". A slot's generation changes whenever it is
-        // freed, so a handle from before the change no longer matches.
+        // A handle is (generation << 32) | (slot index + 1); zero is "no item". A slot's generation changes whenever it
+        // is freed, so a handle from before the change no longer matches.
         constexpr std::uint64_t kIndexMask = 0xFFFFFFFFull;
 
         struct Slot
@@ -36,7 +36,8 @@ namespace MWWorld
 
         ItemHandle encode(std::uint32_t index, std::uint32_t generation)
         {
-            return ItemHandle{ (static_cast<std::uint64_t>(generation) << 32) | (static_cast<std::uint64_t>(index) + 1) };
+            return ItemHandle{ (static_cast<std::uint64_t>(generation) << 32)
+                | (static_cast<std::uint64_t>(index) + 1) };
         }
 
         Slot* find(ItemHandle handle)

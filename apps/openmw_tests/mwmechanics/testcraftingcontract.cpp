@@ -1,8 +1,8 @@
 // Task 0085, move 2, stage 2c: Morrowind's crafting rules through the game-pack contract
 // (sdk/include/openeden/game/crafting.hpp, game_morrowind::makeCraftingRules). Written from the decisions of 2026-11-08
 // before the adapter: items cross as opaque handles, values are plain, and the rules, numbers and random draws are the
-// ones the 81 characterization tests pin on the classes themselves. Every "same as direct" test runs the unchanged class
-// and the contract on the same inputs and the same seed and compares results and the state of the generator.
+// ones the 81 characterization tests pin on the classes themselves. Every "same as direct" test runs the unchanged
+// class and the contract on the same inputs and the same seed and compares results and the state of the generator.
 #include <sstream>
 
 #include <components/esm3/loadalch.hpp>
@@ -297,7 +297,8 @@ namespace CraftingTest
                 int mIngredients;
                 const char* mName;
             };
-            for (const Case& c : { Case{ true, 2, "" }, Case{ false, 2, "x" }, Case{ true, 1, "x" }, Case{ true, 2, "x" } })
+            for (const Case& c :
+                { Case{ true, 2, "" }, Case{ false, 2, "x" }, Case{ true, 1, "x" }, Case{ true, 2, "x" } })
             {
                 clearInventory();
                 if (c.mMortar)

@@ -13,8 +13,8 @@
 // The crafting rules of a game: alchemy, enchanting, repair and recharge (task 0085 move 2, stage 2c;
 // docs/design/game-packs.md section 5.5). Game packs only, main thread only.
 //
-// The contract takes and returns plain values. An item (a stack in an inventory, or an object in the world) crosses it as
-// an opaque ItemHandle that the core made and can map back to its own object; the contract has no record view and no
+// The contract takes and returns plain values. An item (a stack in an inventory, or an object in the world) crosses it
+// as an opaque ItemHandle that the core made and can map back to its own object; the contract has no record view and no
 // engine, renderer or third-party type. Everything that has game-specific meaning (which effect is a skill effect, what
 // a number means) is decided by the pack and handed back as a number or a string.
 
@@ -32,8 +32,8 @@ namespace openeden::sdk::game
     inline constexpr Version kCraftingRulesVersion{ 2, 0 };
 
     /**
-     * @brief An item as the contract sees it. Made by the core, valid until the scope that made it ends (a session's end,
-     * or the end of the call it was made for); a handle never names another item after that. Zero is "no item".
+     * @brief An item as the contract sees it. Made by the core, valid until the scope that made it ends (a session's
+     * end, or the end of the call it was made for); a handle never names another item after that. Zero is "no item".
      * The pack never looks inside.
      */
     struct ItemHandle
@@ -114,7 +114,8 @@ namespace openeden::sdk::game
 
     /**
      * @brief One alchemy session: a setup of an alchemist, apparatus and ingredients. Owned by the caller of
-     * CraftingRules::beginAlchemy(). The handles it returns are valid until the session is destroyed or clear() is called.
+     * CraftingRules::beginAlchemy(). The handles it returns are valid until the session is destroyed or clear() is
+     * called.
      */
     class AlchemySession
     {
@@ -145,8 +146,8 @@ namespace openeden::sdk::game
     };
 
     /**
-     * @brief One enchanting session (an enchanter's table, or a self-enchantment with a soul gem). Owned by the caller of
-     * CraftingRules::beginEnchanting(). Handles it returns are valid until the session is destroyed.
+     * @brief One enchanting session (an enchanter's table, or a self-enchantment with a soul gem). Owned by the caller
+     * of CraftingRules::beginEnchanting(). Handles it returns are valid until the session is destroyed.
      */
     class EnchantingSession
     {
