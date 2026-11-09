@@ -1,10 +1,10 @@
 #ifndef OPENMW_COMPONENTS_MISC_COORDINATECONVERTER_H
 #define OPENMW_COMPONENTS_MISC_COORDINATECONVERTER_H
 
-#include <components/esmbridge/esmbridge.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/esm4/loadcell.hpp>
+#include <components/esmbridge/esmbridge.hpp>
 #include <components/misc/constants.hpp>
 
 #include <vsg/maths/vec3.h>

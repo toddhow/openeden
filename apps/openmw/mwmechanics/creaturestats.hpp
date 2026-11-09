@@ -14,9 +14,9 @@
 #include "spells.hpp"
 #include "stat.hpp"
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/magiceffects.hpp>
+#include <components/esmbridge/attr.hpp>
 
 namespace ESM
 {

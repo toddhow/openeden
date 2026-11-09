@@ -9,9 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
-#include <components/esmbridge/util.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadglob.hpp>
@@ -24,6 +22,8 @@
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadland.hpp>
 #include <components/esm4/loadrefr.hpp>
+#include <components/esmbridge/attr.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
 

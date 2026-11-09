@@ -8,8 +8,8 @@
 #include "components/esm3/loadcell.hpp"
 #include "components/misc/constants.hpp"
 
-#include "exteriorcelllocation.hpp"
 #include "components/esm/refid.hpp"
+#include "exteriorcelllocation.hpp"
 
 namespace ESM
 {

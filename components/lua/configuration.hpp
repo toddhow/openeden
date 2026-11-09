@@ -4,8 +4,8 @@
 #include <map>
 #include <optional>
 
-#include <components/esmbridge/luascripts.hpp>
 #include <components/esm3/refnum.hpp>
+#include <components/esmbridge/luascripts.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace ESM

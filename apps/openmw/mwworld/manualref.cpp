@@ -1,6 +1,6 @@
 #include "manualref.hpp"
-#include <components/esmbridge/records.hpp>
 #include <components/esm4/loadstat.hpp>
+#include <components/esmbridge/records.hpp>
 
 #include "esmstore.hpp"
 

@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm/position.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "loadskil.hpp"
 #include "npcstate.hpp"

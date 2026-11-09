@@ -1,8 +1,8 @@
 #include "aiescort.hpp"
 
-#include <components/esmbridge/util.hpp>
 #include <components/esm3/aisequence.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/misc/algorithm.hpp>
 
 #include "../mwbase/environment.hpp"

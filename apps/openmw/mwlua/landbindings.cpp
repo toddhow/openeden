@@ -8,8 +8,8 @@
 #include <sol/variadic_results.hpp>
 
 #include <components/esm/refid.hpp>
-#include <components/esmbridge/util.hpp>
 #include <components/esm3terrain/storage.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/vsgmath.hpp>
 

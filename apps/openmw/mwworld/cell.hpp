@@ -5,9 +5,9 @@
 
 #include <vsg/maths/vec2.h>
 
+#include <components/esm/refid.hpp>
 #include <components/esmbridge/esmbridge.hpp>
 #include <components/esmbridge/exteriorcelllocation.hpp>
-#include <components/esm/refid.hpp>
 
 #include <components/esm3/loadcell.hpp>
 

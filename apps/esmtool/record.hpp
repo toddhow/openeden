@@ -4,9 +4,9 @@
 #include <memory>
 #include <string>
 
-#include <components/esmbridge/records.hpp>
 #include <components/esm3/cellstate.hpp>
 #include <components/esm3/fogstate.hpp>
+#include <components/esmbridge/records.hpp>
 
 namespace ESM
 {

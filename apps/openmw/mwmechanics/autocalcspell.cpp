@@ -2,11 +2,11 @@
 
 #include <limits>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadspel.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "../mwworld/esmstore.hpp"
 

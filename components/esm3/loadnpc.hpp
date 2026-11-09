@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "aipackage.hpp"
-#include "components/esmbridge/attr.hpp"
 #include "components/esm/defs.hpp"
 #include "components/esm/refid.hpp"
+#include "components/esmbridge/attr.hpp"
 #include "loadcont.hpp"
 #include "loadskil.hpp"
 #include "spelllist.hpp"

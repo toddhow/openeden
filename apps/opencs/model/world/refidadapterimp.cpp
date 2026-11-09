@@ -8,10 +8,10 @@
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "idcollection.hpp"
 #include "nestedtablewrapper.hpp"

@@ -3,9 +3,9 @@
 
 #include <string_view>
 
-#include <components/esmbridge/esmbridge.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm4/loadrefr.hpp>
+#include <components/esmbridge/esmbridge.hpp>
 
 namespace ESM
 {

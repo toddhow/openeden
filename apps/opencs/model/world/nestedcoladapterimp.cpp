@@ -11,7 +11,6 @@
 #include <apps/opencs/model/world/nestedtablewrapper.hpp>
 #include <apps/opencs/model/world/record.hpp>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadinfo.hpp>
@@ -19,6 +18,7 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/variant.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "info.hpp"
 #include "infoselectwrapper.hpp"

@@ -5,9 +5,9 @@
 
 #include <format>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/misc/concepts.hpp>
 
 namespace ESM

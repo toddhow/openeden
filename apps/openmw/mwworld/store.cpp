@@ -6,9 +6,9 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/esmbridge/records.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
+#include <components/esmbridge/records.hpp>
 
 #include <components/fallback/fallback.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>

@@ -11,9 +11,9 @@
 #include <components/debug/debuglog.hpp>
 #include <components/mwanimation/groups.hpp>
 
-#include <components/esmbridge/luascripts.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
+#include <components/esmbridge/luascripts.hpp>
 
 #include <components/settings/values.hpp>
 

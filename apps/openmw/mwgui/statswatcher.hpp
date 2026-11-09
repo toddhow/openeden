@@ -4,8 +4,8 @@
 #include <map>
 #include <set>
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include "../mwmechanics/stat.hpp"
 

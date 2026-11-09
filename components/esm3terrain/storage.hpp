@@ -3,9 +3,9 @@
 
 #include <components/terrain/storage.hpp>
 
-#include <components/esmbridge/util.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
+#include <components/esmbridge/util.hpp>
 
 namespace ESMTerrain
 {

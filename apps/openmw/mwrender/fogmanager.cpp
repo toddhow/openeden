@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
-#include <components/esmbridge/esmbridge.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm4/loadcell.hpp>
+#include <components/esmbridge/esmbridge.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/mwanimation/color.hpp>
 #include <components/settings/values.hpp>

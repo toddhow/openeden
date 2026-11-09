@@ -1,10 +1,10 @@
 #include "effectlistcheck.hpp"
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/esmbridge/attr.hpp>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/world/universalid.hpp>

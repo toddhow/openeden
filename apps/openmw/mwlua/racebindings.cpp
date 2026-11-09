@@ -1,7 +1,7 @@
 #include "racebindings.hpp"
 
-#include <components/esmbridge/attr.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/esmbridge/attr.hpp>
 #include <components/lua/luastate.hpp>
 
 #include "../mwbase/environment.hpp"

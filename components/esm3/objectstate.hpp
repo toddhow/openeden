@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include <components/esmbridge/luascripts.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm3/formatversion.hpp>
+#include <components/esmbridge/luascripts.hpp>
 
 #include "animationstate.hpp"
 #include "cellref.hpp"
