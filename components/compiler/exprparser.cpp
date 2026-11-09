@@ -264,7 +264,10 @@ namespace Compiler
 
     namespace
     {
-        /// Reads one token to see whether "." or "->" comes next. Any other token is put back untouched.
+        /// Reads the tokens after a call to see whether ".Member" or "->Member" comes next. A dot that no member
+        /// follows ("GetFoo." or "GetFoo ..." at the end of a line) is a stray one: it is read and reported by the
+        /// caller. Any token that is not a dot is put back untouched, and so is the one after a dot (the scanner
+        /// holds one token), so at most one token of the line is consumed beyond what the call needs.
         class MemberProbe final : public Parser
         {
         public:
@@ -275,6 +278,8 @@ namespace Compiler
 
             bool found() const { return mFound; }
             bool arrow() const { return mArrow; }
+            bool strayDot() const { return mSawDot && !mFound; }
+            const TokenLoc& dotLoc() const { return mDotLoc; }
 
             bool parseInt(int value, const TokenLoc& loc, Scanner& scanner) override
             {
@@ -291,26 +296,27 @@ namespace Compiler
             bool parseName(const std::string& name, const TokenLoc& loc, Scanner& scanner) override
             {
                 scanner.putbackName(name, loc);
+                mFound = mSawDot;
                 return false;
             }
 
             bool parseKeyword(int keyword, const TokenLoc& loc, Scanner& scanner) override
             {
                 scanner.putbackKeyword(keyword, loc);
+                mFound = mSawDot;
                 return false;
             }
 
             bool parseSpecial(int code, const TokenLoc& loc, Scanner& scanner) override
             {
-                if (code == Scanner::S_member || code == Scanner::S_ref)
+                if (!mSawDot && (code == Scanner::S_member || code == Scanner::S_ref))
                 {
-                    mFound = true;
+                    mSawDot = true;
                     mArrow = code == Scanner::S_ref;
+                    mDotLoc = loc;
+                    return true; // the member's name must follow
                 }
-                else
-                {
-                    scanner.putbackSpecial(code, loc);
-                }
+                scanner.putbackSpecial(code, loc);
                 return false;
             }
 
@@ -319,18 +325,29 @@ namespace Compiler
         private:
             bool mFound = false;
             bool mArrow = false;
+            bool mSawDot = false;
+            TokenLoc mDotLoc;
         };
     }
 
     bool ExprParser::takeCallResultReference(Scanner& scanner, char returnType,
         const std::vector<Interpreter::Type_Code>& callCode, std::vector<Interpreter::Type_Code>& out,
-        std::string& name, bool& arrow)
+        std::string& name, bool& arrow, bool strayDotIsError)
     {
         if (!getContext().getOptions().mCallResultReferences || returnType != 'l')
             return false;
 
         MemberProbe probe(getErrorHandler(), getContext());
         scanner.scan(probe);
+        if (probe.strayDot())
+        {
+            // "GetFoo." with no member after it: as before the option, a statement skips the dot with a warning and
+            // an expression does not accept it.
+            if (strayDotIsError)
+                reportSeriousError("Unexpected special token", probe.dotLoc());
+            getErrorHandler().warning("Extra argument", probe.dotLoc());
+            return false;
+        }
         if (!probe.found())
             return false;
 
@@ -555,6 +572,33 @@ namespace Compiler
                         start();
 
                         mTokenLoc = loc;
+
+                        if (getContext().getOptions().mCallResultReferences)
+                        {
+                            // The member's own result may be the reference of one more call (task 0092).
+                            std::vector<Interpreter::Type_Code> callCode;
+                            int optionals = parseArguments(argumentType, scanner, callCode);
+                            extensions->generateFunctionCode(keyword, callCode, mLiterals, mExplicit, optionals);
+
+                            std::string name;
+                            bool arrow = false;
+                            if (takeCallResultReference(scanner, returnType, callCode, mCode, name, arrow, true))
+                            {
+                                mExplicit = std::move(name);
+                                mRefOp = arrow;
+                                mMemberOp = !arrow;
+                                mNextOperand = true;
+                                return true;
+                            }
+                            mCode.insert(mCode.end(), callCode.begin(), callCode.end());
+                            mOperands.push_back(returnType);
+                            mExplicit.clear();
+                            mRefOp = false;
+                            mMemberOp = false;
+                            mNextOperand = false;
+                            return true;
+                        }
+
                         int optionals = parseArguments(argumentType, scanner);
 
                         extensions->generateFunctionCode(keyword, mCode, mLiterals, mExplicit, optionals);
@@ -598,7 +642,7 @@ namespace Compiler
 
                         std::string name;
                         bool arrow = false;
-                        if (takeCallResultReference(scanner, returnType, callCode, mCode, name, arrow))
+                        if (takeCallResultReference(scanner, returnType, callCode, mCode, name, arrow, true))
                         {
                             mExplicit = std::move(name);
                             mRefOp = arrow;

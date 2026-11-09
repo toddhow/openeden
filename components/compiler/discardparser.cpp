@@ -130,14 +130,6 @@ namespace Compiler
             return false;
         }
 
-        // Task 0092: a dot or an arrow before any argument belongs to the command before it ("GetFoo.Bar").
-        if ((code == Scanner::S_member || code == Scanner::S_ref) && mState == StartState && isEmpty()
-            && getContext().getOptions().mCallResultReferences)
-        {
-            scanner.putbackSpecial(code, loc);
-            return false;
-        }
-
         if (code == Scanner::S_minus && mState == StartState)
         {
             if (isEmpty())

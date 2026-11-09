@@ -110,10 +110,11 @@ namespace Compiler
         /// the caller asks whether "." or "->" comes next. If the option is on, the type is 'l' and one of them is
         /// the next token, the token is read, the result is stored in the hidden local "$ref<depth>" (the code goes
         /// to out, with callCode inside it) and the name is returned in name. Otherwise nothing is read
-        /// and false is returned.
+        /// and false is returned. A dot with no member after it is read: it is an error when \a strayDotIsError, else a
+        /// warning ("Extra argument", as the skip parser reports it) and false is returned.
         bool takeCallResultReference(Scanner& scanner, char returnType,
             const std::vector<Interpreter::Type_Code>& callCode, std::vector<Interpreter::Type_Code>& out,
-            std::string& name, bool& arrow);
+            std::string& name, bool& arrow, bool strayDotIsError);
 
         int parseArguments(const std::string& arguments, Scanner& scanner, std::vector<Interpreter::Type_Code>& code,
             int ignoreKeyword = -1, bool expectNames = false);

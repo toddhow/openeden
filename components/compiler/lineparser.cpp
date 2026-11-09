@@ -318,13 +318,15 @@ namespace Compiler
                     {
                         std::vector<Interpreter::Type_Code> code;
                         int optionals = mExprParser.parseArguments(argumentType, scanner, code, keyword);
-                        if (getContext().getOptions().mCallResultReferences && mExplicit.empty())
+                        if (getContext().getOptions().mCallResultReferences)
                         {
-                            // "Call.Member ...": the result is the reference of the member (task 0092).
+                            // "Call.Member ...": the result is the reference of the member (task 0092); the member
+                            // may itself be followed by a dot.
                             extensions->generateFunctionCode(keyword, code, mLiterals, mExplicit, optionals);
                             std::string name;
                             bool arrow = false;
-                            if (mExprParser.takeCallResultReference(scanner, returnType, code, mCode, name, arrow))
+                            if (mExprParser.takeCallResultReference(
+                                    scanner, returnType, code, mCode, name, arrow, false))
                             {
                                 mExplicit = std::move(name);
                                 mState = ExplicitState;
