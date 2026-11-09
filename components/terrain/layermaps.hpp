@@ -113,6 +113,16 @@ namespace Terrain
             && a.heightMapPattern == b.heightMapPattern;
     }
 
+    /// Task 0080 follow-up: whether the LOD terrain may adopt its tiles on this update. Adopting with layer sharing
+    /// calls `Builder::waitForLayers` on the live builder, which blocks the calling (main) thread until the live
+    /// terrain's asynchronous layer build (task 0089) is done, seconds with a texture mod. So when sharing is wanted
+    /// the adoption waits until the live layers are ready and is retried on a later update; the tiles are not needed
+    /// before then. Without sharing nothing waits on the live builder.
+    inline bool mayAdoptTiles(bool tilesLoaded, bool sharingWanted, bool sourceLayersReady)
+    {
+        return tilesLoaded && (!sharingWanted || sourceLayersReady);
+    }
+
     struct TerrainLayerMaps
     {
         std::vector<TerrainLayer> layers;

@@ -23,6 +23,7 @@
 #include <components/misc/loadtrace.hpp>
 #include <components/render/processmemory.hpp>
 #include <components/terrain/builder.hpp>
+#include <components/terrain/layermaps.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compileop.hpp>
@@ -667,6 +668,7 @@ namespace MWRender
                 mSetup.mImageOptions, mSetup.mShaderOptions, mSetup.mSampler, mSetup.mMapSettings);
             // Task 0080: the same layers and settings make the same arrays as the live terrain's, so use those (a
             // texture mod's arrays are about 1.7 GiB, and a mip swap then covers the tiles with the live terrain).
+            // update() only calls adopt once the source's layers are ready, so waitForLayers inside returns at once.
             if (mSetup.mShareLayersFrom)
                 mSharesLayers = mBuilder->setStorageSharingLayers(mStorage.get(), *mSetup.mShareLayersFrom);
             else
@@ -1196,6 +1198,11 @@ namespace MWRender
         if (!state.mReady)
         {
             if (!state.mFuture.valid() || state.mFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                return nullptr;
+            // Sharing the live layer arrays would block this thread on the live terrain's layer build: wait for it
+            // to finish and adopt on a later update instead (the live terrain draws meanwhile).
+            const Terrain::Builder* shareFrom = state.mSetup.mShareLayersFrom;
+            if (!Terrain::mayAdoptTiles(true, shareFrom != nullptr, shareFrom == nullptr || shareFrom->layersReady()))
                 return nullptr;
             state.adopt();
             state.mStats.mReady = true;

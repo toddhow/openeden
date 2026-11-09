@@ -106,4 +106,22 @@ namespace
         EXPECT_EQ(Terrain::layerArraysShareable(layers, mapsOn(), layers, other),
             Terrain::layerArraysShareable(layers, other, layers, mapsOn()));
     }
+
+    TEST(TerrainLayerShare, adoption_never_waits_for_a_source_that_is_still_building)
+    {
+        EXPECT_FALSE(Terrain::mayAdoptTiles(true, true, false));
+        EXPECT_TRUE(Terrain::mayAdoptTiles(true, true, true));
+    }
+
+    TEST(TerrainLayerShare, adoption_without_sharing_ignores_the_source)
+    {
+        EXPECT_TRUE(Terrain::mayAdoptTiles(true, false, false));
+        EXPECT_TRUE(Terrain::mayAdoptTiles(true, false, true));
+    }
+
+    TEST(TerrainLayerShare, adoption_needs_the_tiles)
+    {
+        EXPECT_FALSE(Terrain::mayAdoptTiles(false, false, true));
+        EXPECT_FALSE(Terrain::mayAdoptTiles(false, true, true));
+    }
 }

@@ -149,6 +149,9 @@ namespace MWRender
             /// Task 0080: the live terrain's builder. When its layer arrays equal the ones this tile builder would
             /// make, they are used instead of a second set. Only read when the tiles are adopted (main thread); the
             /// builder outlives it (RenderManager's terrain is made first and destroyed last). May be null.
+            /// Lifetime order: RenderManager declares mTerrain before mLodTerrain, so members destroy the LodTerrain
+            /// first; whoever resets or replaces mTerrain must reset mLodTerrain first. Adoption is deferred
+            /// (Terrain::mayAdoptTiles) until this builder's layers are ready, so it never blocks the main thread.
             const Terrain::Builder* mShareLayersFrom = nullptr;
             const VFS::Manager* mVfs = nullptr;
             /// Task 0087: seconds a tile takes to dither in or out when it appears, is replaced or is handed to the
