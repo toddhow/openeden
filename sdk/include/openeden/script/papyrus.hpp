@@ -243,10 +243,10 @@ namespace openeden::script
     public:
         static constexpr std::string_view kId = "openeden.script.papyrus";
         /// 1.0 (2026-11-08): first version.
-        /// Stage e (2026-11-08) added serialise/restore semantics, the optional PapyrusAttachKeyCheck and the trailing
-        /// fields of RestoreResult before any game pack used 1.0, so the version stays 1.0 (toddhow to confirm: a
-        /// pack built against an earlier header would see a larger RestoreResult).
-        static constexpr sdk::Version kVersion{ 1, 0 };
+        /// 1.1 (2026-11-09, toddhow): stage e added serialise/restore semantics, the optional PapyrusAttachKeyCheck
+        /// and the trailing fields of RestoreResult (a pack built against an earlier header sees a larger
+        /// RestoreResult), so the minor is bumped.
+        static constexpr sdk::Version kVersion{ 1, 1 };
 
         virtual ~PapyrusContract() = default;
 

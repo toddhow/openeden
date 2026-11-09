@@ -87,7 +87,7 @@ namespace
     {
         EXPECT_EQ(PapyrusContract::kId, "openeden.script.papyrus");
         EXPECT_EQ(PapyrusContract::kVersion.major, 1);
-        EXPECT_EQ(PapyrusContract::kVersion.minor, 0);
+        EXPECT_EQ(PapyrusContract::kVersion.minor, 1);
     }
 
     TEST(PapyrusContract, every_operation_that_can_fail_is_noexcept)
