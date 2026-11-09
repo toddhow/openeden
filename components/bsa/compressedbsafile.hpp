@@ -107,6 +107,7 @@ namespace Bsa
     private:
         Header mHeader;
         std::map<std::uint64_t, FolderRecord> mFolders;
+        std::size_t mDuplicateHashes = 0;
 
         FileRecord getFileRecord(std::string_view str) const;
 
@@ -119,6 +120,10 @@ namespace Bsa
         using BSAFile::getList;
         using BSAFile::getPath;
         using BSAFile::open;
+
+        /// How many folder or file records of the opened archive shared a hash with an earlier one and were replaced by
+        /// it (a damaged or hostile archive; the later record wins, as before).
+        std::size_t duplicateHashCount() const { return mDuplicateHashes; }
 
         CompressedBSAFile() = default;
         virtual ~CompressedBSAFile() = default;

@@ -30,11 +30,13 @@
 #include <filesystem>
 #include <format>
 #include <istream>
+#include <memory>
 #include <system_error>
 
 #include <lz4frame.h>
 #include <zlib.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/utils.hpp>
@@ -76,6 +78,13 @@ namespace Bsa
             std::uint32_t mCount;
             std::int64_t mOffset;
         };
+
+        // The folder records are 16 bytes (24 in Skyrim SE): a count the file cannot hold would otherwise reserve
+        // gigabytes before the first read fails.
+        const std::uint64_t folderRecordSize = mHeader.mVersion == Version_SSE ? 24 : 16;
+        if (static_cast<std::uint64_t>(mHeader.mFolderCount) * folderRecordSize > static_cast<std::uint64_t>(fsize))
+            fail("Compressed BSA claims " + std::to_string(mHeader.mFolderCount)
+                + " folders, more than the archive can hold");
 
         std::vector<std::pair<FlatFolderRecord, std::vector<FileRecord>>> folders;
         folders.reserve(mHeader.mFolderCount);
@@ -193,8 +202,25 @@ namespace Bsa
             std::map<std::uint64_t, FileRecord> fileMap;
 
             for (auto& file : filelist)
-                fileMap[file.mHash] = std::move(file);
+            {
+                const std::uint64_t fileHash = file.mHash;
+                if (fileMap.find(fileHash) != fileMap.end())
+                {
+                    ++mDuplicateHashes;
+                    Log(Debug::Warning) << "Compressed BSA " << Files::pathToUnicodeString(mFilepath)
+                                        << ": two files of folder '" << folder.mName << "' share the hash " << fileHash
+                                        << "; the later record replaces the earlier";
+                }
+                fileMap[fileHash] = std::move(file);
+            }
 
+            if (mFolders.find(folder.mHash) != mFolders.end())
+            {
+                ++mDuplicateHashes;
+                Log(Debug::Warning) << "Compressed BSA " << Files::pathToUnicodeString(mFilepath)
+                                    << ": two folders share the hash " << folder.mHash << " ('" << folder.mName
+                                    << "' replaces an earlier one)";
+            }
             mFolders[folder.mHash] = FolderRecord{ folder.mCount, folder.mOffset, folder.mName, std::move(fileMap) };
         }
 
@@ -271,12 +297,18 @@ namespace Bsa
     Files::IStreamPtr CompressedBSAFile::getFile(const FileRecord& fileRecord)
     {
         // The archive is untrusted input (a mod's): every size read from it is checked before it sizes a buffer.
-        // zlib cannot expand data more than 1032 to 1 and LZ4 more than about 255 to 1; no entry of a real archive is
-        // anywhere near the absolute cap.
-        constexpr std::uint64_t maxExpansionRatio = 1032;
+        // zlib cannot expand data more than 1032 to 1 and LZ4 more than about 255 to 1 (a block of zeros: 4 token
+        // bytes per 255 repeated); no entry of a real archive is anywhere near the absolute cap.
+        constexpr std::uint64_t maxZlibExpansionRatio = 1032;
+        constexpr std::uint64_t maxLz4ExpansionRatio = 255;
+        const std::uint64_t maxExpansionRatio
+            = mHeader.mVersion == Version_SSE ? maxLz4ExpansionRatio : maxZlibExpansionRatio;
         constexpr std::uint64_t maxEntrySize = 1ull << 30;
 
-        const std::string entryName(fileRecord.mName.begin(), fileRecord.mName.end());
+        // The stored name ends in a NUL: left in, it would cut every message below short at that point.
+        std::string entryName(fileRecord.mName.begin(), fileRecord.mName.end());
+        while (!entryName.empty() && entryName.back() == '\0')
+            entryName.pop_back();
         const auto failEntry
             = [&](const std::string& what) { fail("Bad compressed BSA entry '" + entryName + "': " + what); };
 
@@ -331,16 +363,31 @@ namespace Bsa
                 if (ec != Z_OK)
                 {
                     std::string message = "zlib uncompress failed for file ";
-                    message.append(fileRecord.mName.begin(), fileRecord.mName.end());
+                    message += entryName;
                     message += ": ";
                     message += ::zError(ec);
                     fail(message);
                 }
+                // The size field is a promise: the buffer is handed out whole, so a shorter stream would leave its
+                // tail unwritten.
+                if (destSize != resultSize)
+                    failEntry("its zlib stream inflates to " + std::to_string(destSize) + " bytes, not the "
+                        + std::to_string(resultSize) + " its size field promises");
             }
             else
             {
-                LZ4F_decompressionContext_t context = nullptr;
-                LZ4F_createDecompressionContext(&context, LZ4F_VERSION);
+                // Freed on every way out, the throws included.
+                struct ContextDeleter
+                {
+                    void operator()(LZ4F_dctx* context) const { LZ4F_freeDecompressionContext(context); }
+                };
+                LZ4F_dctx* rawContext = nullptr;
+                const LZ4F_errorCode_t createCode = LZ4F_createDecompressionContext(&rawContext, LZ4F_VERSION);
+                std::unique_ptr<LZ4F_dctx, ContextDeleter> contextOwner(rawContext);
+                if (LZ4F_isError(createCode))
+                    fail("LZ4 decompression error (file " + Files::pathToUnicodeString(mFilepath)
+                        + "): " + LZ4F_getErrorName(createCode));
+                LZ4F_decompressionContext_t context = contextOwner.get();
                 LZ4F_decompressOptions_t options = {};
                 const size_t expected = resultSize;
                 LZ4F_errorCode_t errorCode = LZ4F_decompress(
@@ -348,10 +395,6 @@ namespace Bsa
                 // Zero is the hint of a finished frame; anything else means the frame wants more input than the entry
                 // holds, or output room that it was not promised.
                 const bool unfinished = !LZ4F_isError(errorCode) && errorCode != 0;
-                if (LZ4F_isError(errorCode))
-                    fail("LZ4 decompression error (file " + Files::pathToUnicodeString(mFilepath)
-                        + "): " + LZ4F_getErrorName(errorCode));
-                errorCode = LZ4F_freeDecompressionContext(context);
                 if (LZ4F_isError(errorCode))
                     fail("LZ4 decompression error (file " + Files::pathToUnicodeString(mFilepath)
                         + "): " + LZ4F_getErrorName(errorCode));

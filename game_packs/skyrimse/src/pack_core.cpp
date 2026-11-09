@@ -355,9 +355,14 @@ namespace game_skyrimse
                 if (lowerSlashes(file.name()) != wanted)
                     continue;
                 const Files::IStreamPtr stream = archive.getFile(&file);
-                std::ostringstream all;
-                all << stream->rdbuf();
-                bytes = all.str();
+                // Straight into the result in blocks: an ostringstream and its str() would hold the entry three times.
+                bytes.clear();
+                std::array<char, 65536> block;
+                while (*stream)
+                {
+                    stream->read(block.data(), static_cast<std::streamsize>(block.size()));
+                    bytes.append(block.data(), static_cast<std::size_t>(stream->gcount()));
+                }
                 return true;
             }
             error = baseName(path) + ": no file '" + std::string(name) + "' in the archive";

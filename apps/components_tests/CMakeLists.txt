@@ -407,6 +407,7 @@ list(APPEND UNITTEST_SRC_FILES
 # left out because a test executable has one openeden_extension_entry already.
 list(APPEND UNITTEST_SRC_FILES
     skyrimse/bsabuilder.hpp
+    skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimsepack.cpp
     skyrimse/testskyrimseplugins.cpp
