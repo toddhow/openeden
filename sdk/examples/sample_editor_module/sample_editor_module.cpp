@@ -368,6 +368,14 @@ namespace
             command.handler = [this](EditorContext& context) { sayHello(context); };
             registrar.registerCommand(command);
 
+            // The simulation sandbox (API 1.3): a command that looks at it and changes nothing.
+            CommandDesc probe;
+            probe.id = "sample.sandboxProbe";
+            probe.label = "Probe Sandbox";
+            probe.menuPath = "Sample/Probe Sandbox";
+            probe.handler = [](EditorContext& context) { probeSandbox(context); };
+            registrar.registerCommand(probe);
+
             // Settings (API 1.2): shown in the preferences window and kept in eden-studio.cfg under [module.sample].
             SettingDesc greeting;
             greeting.property.id = sGreetingSetting;
@@ -444,6 +452,22 @@ namespace
                 note->data().mHandleSelected = event.subject == "handle" && event.detail == sHandleId;
                 mContext->requestRedraw();
             }
+        }
+
+        /// API 1.3: Studio's simulation sandbox is null on a host that has none, so a module checks before it asks. A
+        /// real module builds it from a rig and a profile file and pushes (see creativemotion_editor); this one only
+        /// reports what is there.
+        static void probeSandbox(EditorContext& context)
+        {
+            SimulationSandbox* sandbox = context.simulationSandbox();
+            if (sandbox == nullptr)
+                context.log(LogLevel::Info, "Sandbox: this host has none");
+            else if (!sandbox->built())
+                context.log(LogLevel::Info, "Sandbox: nothing built");
+            else
+                context.log(LogLevel::Info,
+                    "Sandbox: " + std::to_string(sandbox->bodyNames().size()) + " bodies, "
+                        + std::to_string(sandbox->pendingPushes()) + " pushes waiting");
         }
 
         void sayHello(EditorContext& context)

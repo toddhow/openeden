@@ -78,7 +78,7 @@ opencs_units (model/lod
     )
 
 opencs_units (model/physics
-    joltruntime studioworld debuglinedrawer pushscene
+    joltruntime studioworld debuglinedrawer pushscene sandboxservice
     )
 
 opencs_units (model/filter
@@ -387,7 +387,7 @@ endforeach()
 # its own that only Eden Studio loads. The sources without the entry point are a static library the tests link as well.
 set(CM_EDITOR_DIR ${CMAKE_SOURCE_DIR}/editor_modules/creativemotion_editor)
 add_library(creativemotion_editor_objects OBJECT
-    ${CM_EDITOR_DIR}/rig_document.cpp ${CM_EDITOR_DIR}/profile_document.cpp
+    ${CM_EDITOR_DIR}/rig_document.cpp ${CM_EDITOR_DIR}/profile_document.cpp ${CM_EDITOR_DIR}/sandbox.cpp
     ${CM_EDITOR_DIR}/creativemotion_editor_module.cpp)
 target_compile_features(creativemotion_editor_objects PRIVATE cxx_std_20)
 target_link_libraries(creativemotion_editor_objects PUBLIC opas::rig)

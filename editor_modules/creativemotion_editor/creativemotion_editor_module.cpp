@@ -2,6 +2,7 @@
 // a separate library that Eden Studio loads from its fixed list of core systems (decision 0007); the game never does.
 
 #include "documents.hpp"
+#include "sandbox.hpp"
 
 #include <openeden/editor_module/module.hpp>
 
@@ -80,14 +81,24 @@ namespace creativemotion_editor
                 rig.formatId = kRigFormat;
                 rig.fileExtension = ".rig.json";
                 rig.label = "CreativeMotion rig";
-                rig.open = &openRig;
+                rig.open = [this](const std::filesystem::path& path, std::string& error) {
+                    std::unique_ptr<AssetDocument> document = openRig(path, error);
+                    if (document != nullptr && mSandbox)
+                        mSandbox->noteRigOpened(path);
+                    return document;
+                };
                 registrar.registerAssetType(rig);
 
                 AssetTypeDesc profile;
                 profile.formatId = kProfileFormat;
                 profile.fileExtension = ".profile.json";
                 profile.label = "CreativeMotion profile";
-                profile.open = &openProfile;
+                profile.open = [this](const std::filesystem::path& path, std::string& error) {
+                    std::unique_ptr<AssetDocument> document = openProfile(path, error);
+                    if (document != nullptr && mSandbox)
+                        mSandbox->noteProfileOpened(path);
+                    return document;
+                };
                 registrar.registerAssetType(profile);
 
                 for (const char* format : { kRigFormat, kProfileFormat })
@@ -99,9 +110,50 @@ namespace creativemotion_editor
                     section.create = [](AssetDocument& document) -> PropertySource* { return &document.properties(); };
                     registrar.registerInspectorSection(section);
                 }
+
+                // The push sandbox (API 1.3, task 0065): a panel, two commands and a gizmo over the host's simulation
+                // sandbox.
+                mSandbox = std::make_unique<SandboxController>(*mContext);
+                PanelDesc sandboxPanel;
+                sandboxPanel.id = kSandboxPanelId;
+                sandboxPanel.title = "Push Sandbox";
+                sandboxPanel.workspaceId = "creativemotion";
+                sandboxPanel.dock = DockArea::Right;
+                sandboxPanel.source
+                    = [this]() -> PropertySource* { return mSandbox ? mSandbox->properties() : nullptr; };
+                registrar.registerPanel(sandboxPanel);
+
+                CommandDesc sandboxPush;
+                sandboxPush.id = kSandboxPushCommandId;
+                sandboxPush.label = "Push";
+                sandboxPush.menuPath = "Sandbox/Push";
+                sandboxPush.defaultShortcut = "Ctrl+Alt+P";
+                sandboxPush.enabledWhen = [this] { return mSandbox && mSandbox->available(); };
+                sandboxPush.handler = [this](EditorContext&) { mSandbox->push(); };
+                registrar.registerCommand(sandboxPush);
+
+                CommandDesc sandboxReset;
+                sandboxReset.id = kSandboxResetCommandId;
+                sandboxReset.label = "Reset";
+                sandboxReset.menuPath = "Sandbox/Reset";
+                sandboxReset.defaultShortcut = "Ctrl+Alt+R";
+                sandboxReset.enabledWhen = [this] { return mSandbox && mSandbox->available(); };
+                sandboxReset.handler = [this](EditorContext&) { mSandbox->reset(); };
+                registrar.registerCommand(sandboxReset);
+
+                GizmoProviderDesc sandboxGizmos;
+                sandboxGizmos.id = kSandboxGizmoProviderId;
+                sandboxGizmos.gizmos = [this]() -> std::vector<Gizmo*> {
+                    return mSandbox ? std::vector<Gizmo*>{ mSandbox->gizmo() } : std::vector<Gizmo*>();
+                };
+                registrar.registerGizmoProvider(sandboxGizmos);
             }
 
-            void shutdown() override { mContext = nullptr; }
+            void shutdown() override
+            {
+                mSandbox.reset();
+                mContext = nullptr;
+            }
 
         private:
             JointSelectable* activeRig() const
@@ -130,8 +182,12 @@ namespace creativemotion_editor
 
             void onEvent(const EditorEvent& event)
             {
+                if (event.type == EditorEventType::SimulationStepped && mSandbox)
+                    mSandbox->noteStepped();
                 if (event.type != EditorEventType::SelectionChanged || mContext == nullptr)
                     return;
+                if (event.subject == kJointKind && mSandbox)
+                    mSandbox->noteJointSelected(event.detail);
                 JointSelectable* rig = activeRig();
                 if (rig == nullptr)
                     return;
@@ -146,6 +202,7 @@ namespace creativemotion_editor
             }
 
             EditorContext* mContext = nullptr;
+            std::unique_ptr<SandboxController> mSandbox;
         };
 
         EditorModule* createModule()

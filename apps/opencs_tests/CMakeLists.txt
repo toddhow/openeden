@@ -14,9 +14,11 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/creativemotion/testcmmodule.cpp
     model/module/creativemotion/testcmselection.cpp
     model/module/creativemotion/testcmhandles.cpp
+    model/module/creativemotion/testcmsandbox.cpp
     model/module/testheader_module.cpp
     model/module/testheader_registrar.cpp
     model/module/testapi12.cpp
+    model/module/testapi13.cpp
     model/module/testeventbus.cpp
     model/module/testoverlaypick.cpp
     model/module/testoverlaylabels.cpp
@@ -33,6 +35,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testoverlaytriangles.cpp
     model/module/testsamplemodule.cpp
     model/module/testsamplemodule12.cpp
+    model/module/testsamplemodule13.cpp
     model/mesh/testanimationkeys.cpp
     model/mesh/testframemath.cpp
     model/mesh/testimagesize.cpp
@@ -50,6 +53,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/physics/teststudioworld.cpp
     model/physics/teststudioworldcm.cpp
     model/physics/testpushscene.cpp
+    model/physics/testsandboxservice.cpp
     model/physics/teststudioworldhooks.cpp
     model/prefs/testconfigmigration.cpp
     model/prefs/testcommandline.cpp
@@ -86,9 +90,9 @@ target_compile_definitions(eden-studio-tests PRIVATE
 target_compile_definitions(eden-studio-tests PRIVATE
     "SAMPLE_EDITOR_MODULE_PATH=\"$<TARGET_FILE:sample_editor_module>\"")
 
-# Modules built against the FROZEN headers of API 1.0 and 1.1 (task 0091): each is a library of its own, so that two
+# Modules built against the FROZEN headers of API 1.0, 1.1 and 1.2 (task 0091, 0065): each is a library of its own, so that two
 # definitions of openeden::editor::Gizmo never meet in one executable. The tests load them by path.
-foreach(old_api 1_0 1_1)
+foreach(old_api 1_0 1_1 1_2)
     set(old_target sample_editor_module_api${old_api})
     add_library(${old_target} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/samplenotemoduleold.cpp)
     target_compile_features(${old_target} PRIVATE cxx_std_20)

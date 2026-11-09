@@ -5,7 +5,9 @@
 
 #include <openeden/version.hpp>
 
+#include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <string>
@@ -30,7 +32,14 @@ namespace openeden::editor
     /// AssetDocument, PropertySource, Command) and no struct that crosses the boundary has changed, so a 1.0 or 1.1
     /// module's vtables and layouts are read exactly as before. A module built with these headers declares 1.2, so a
     /// 1.0 or 1.1 host refuses it.
-    inline constexpr openeden::sdk::Version kApiVersion{ 1, 2 };
+    ///
+    /// 1.3 (task 0065, toddhow 2026-11-08) adds the simulation sandbox: SimulationSandbox and SandboxBodyPose (new
+    /// types) and EditorContext::simulationSandbox() (a new virtual function at the END of EditorContext, default
+    /// null). A module builds one ragdoll from a rig and a profile file, queues pushes on a named bone and reads the
+    /// bodies' poses; Studio runs the simulation (Play, Pause, Step). Nothing a module implements and no struct that
+    /// crossed the boundary before has changed, so 1.0 to 1.2 modules load as they did; a module built with these
+    /// headers declares 1.3, so an older host refuses it.
+    inline constexpr openeden::sdk::Version kApiVersion{ 1, 3 };
 
     /// Meters, Z up (CreativeMotion's convention). Studio converts to the world's unit at its overlay boundary.
     struct Vec3
@@ -126,7 +135,8 @@ namespace openeden::editor
     {
         SelectionChanged, ///< subject: the selection's kind, detail: its id (both empty when it was cleared).
         AssetOpened, ///< subject: the asset's id.
-        SimulationStepped, ///< step: the physics world's step index. Published once per fixed step while Playing.
+        SimulationStepped, ///< step: the physics world's step index. Published once per fixed step, while Playing and
+                           ///< for each Step press.
         ParameterChanged ///< subject: the property's id, detail: the asset's id.
     };
 
@@ -137,6 +147,54 @@ namespace openeden::editor
         std::string subject;
         std::string detail;
         std::uint64_t step = 0;
+    };
+
+    /// API 1.3. The pose of one sandbox body: centre of mass in meters (Z up, the sandbox's own frame, the ground is
+    /// the plane z = 0) and its rotation as a unit quaternion.
+    struct SandboxBodyPose
+    {
+        Vec3 positionM;
+        double qx = 0;
+        double qy = 0;
+        double qz = 0;
+        double qw = 1;
+    };
+
+    /// API 1.3 (task 0065). Studio's simulation sandbox: one ragdoll in the editor's one physics world, over a ground
+    /// plane at z = 0, that a module builds from a rig and a profile, pushes and reads back. Studio implements it; a
+    /// module only calls it (main thread only). It carries no CreativeMotion, Jolt or Qt type: a rig and a profile are
+    /// handed over as file paths, bones are names, lengths are meters, impulses newton seconds.
+    ///
+    /// The simulation itself is Studio's: it runs with Play, Pause and Step. A push is queued and applied once, just
+    /// before the next step, so while Paused it waits for the next Step press and while Playing for the next tick; it
+    /// is never applied from inside a step. A push is not project data: it never goes on the undo stack, and reset() is
+    /// its undo.
+    class SimulationSandbox
+    {
+    public:
+        virtual ~SimulationSandbox() = default;
+
+        /// Replaces the current ragdoll with one built from these files. It stands with its rig's rest pose moved by
+        ///  offsetM, turned by  yawRadians about Z, and limp (no motors). False with  error set when a file
+        /// cannot be read or is invalid, or the world refuses the bodies; nothing is left in the world then.
+        virtual bool build(const std::filesystem::path& rigPath, const std::filesystem::path& profilePath,
+            const Vec3& offsetM, double yawRadians, std::string& error)
+            = 0;
+        virtual bool built() const = 0;
+        /// The bones that carry a body, in the rig's body order (empty while nothing is built).
+        virtual std::vector<std::string> bodyNames() const = 0;
+        /// Queues an impulse (newton seconds, world space) at a world point (meters) of the body on  bone. False,
+        /// and nothing queued, for an unknown bone, a non-finite value, a very large impulse, nothing built or a full
+        /// queue.
+        virtual bool push(std::string_view bone, const Vec3& impulseNs, const Vec3& worldPointM) = 0;
+        /// Pushes waiting for the next step.
+        virtual std::size_t pendingPushes() const = 0;
+        /// The body's pose now. False for an unknown bone or nothing built.
+        virtual bool bodyPose(std::string_view bone, SandboxBodyPose& out) const = 0;
+        /// Builds the ragdoll again where it started; drops queued pushes. False with  error set if that fails.
+        virtual bool reset(std::string& error) = 0;
+        /// Removes the ragdoll and the ground. Safe when nothing is built.
+        virtual void release() = 0;
     };
 
     /// Overlay data submitted each time it is drawn; Studio draws it (plan section 3.5).

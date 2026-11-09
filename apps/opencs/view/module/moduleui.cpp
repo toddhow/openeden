@@ -196,11 +196,15 @@ namespace CSVModule
                                 spin->setRange(-cSpinLimit, cSpinLimit);
                                 spin->setSingleStep(desc.step > 0 ? desc.step : cDefaultSpinStep);
                                 row->addWidget(spin);
+                            }
+                            // Connected after all three exist: a lambda that copied the array inside the loop above
+                            // held null pointers for the spin boxes not made yet, and the first value shown crashed
+                            // in QDoubleSpinBox::value (task 0065: the first Vec3 property any module described).
+                            for (QDoubleSpinBox* spin : spins)
                                 connect(spin, &QDoubleSpinBox::valueChanged, this, [this, id, spins](double) {
                                     edit(id,
                                         PropertyValue(Vec3{ spins[0]->value(), spins[1]->value(), spins[2]->value() }));
                                 });
-                            }
                             show = [spins](const PropertyValue& v) {
                                 if (const Vec3* p = std::get_if<Vec3>(&v))
                                 {

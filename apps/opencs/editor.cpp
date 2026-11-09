@@ -42,6 +42,7 @@
 #include <exception>
 #include <filesystem>
 #include <memory>
+#include <sstream>
 #include <variant>
 
 #include <apps/opencs/model/doc/document.hpp>
@@ -209,6 +210,7 @@ void CS::Editor::startModules(const Files::PathContainer& dataDirs)
         roots.push_back(std::filesystem::path(folder));
     mModuleUi.setAssetRoots(std::move(roots));
     mModuleUi.setUserDataPath(mCfgMgr.getUserDataPath());
+    mModuleUi.setSimulationSandbox(&mSandbox);
 }
 
 CS::Editor::~Editor()
@@ -1235,6 +1237,161 @@ namespace
         QTimer::singleShot(11 * step, qApp, [=] { frame("after"); });
     }
 
+    /// The push sandbox check (task 0065 stage C): OPENEDEN_CS_PUSHCHECK=<prefix>;<rig file>;<profile file>[;<bone>].
+    /// Opens the profile and the rig as module assets in a model-less Mesh view, builds the sandbox with the module's
+    /// Reset command, sets a push through the panel's fields and runs the module's Push command, then steps the
+    /// editor's physics world the way the Step command does (PhysicsHub::step): the push is pending until the first
+    /// step, the ragdoll moves, settles on the ground, and Reset puts it back. Frames <prefix>_before.png,
+    /// _pending.png, _flight.png, _settled.png, _reset.png. Logged as "UI check: push ...", poses with 9 digits so that
+    /// two runs can be compared.
+    void runPushCheck(const std::string& spec, int milliseconds)
+    {
+        std::vector<std::string> parts;
+        for (std::size_t from = 0;;)
+        {
+            const std::size_t semicolon = spec.find(';', from);
+            parts.push_back(spec.substr(from, semicolon == std::string::npos ? std::string::npos : semicolon - from));
+            if (semicolon == std::string::npos)
+                break;
+            from = semicolon + 1;
+        }
+        if (parts.size() < 3)
+        {
+            Log(Debug::Error) << "UI check: push: OPENEDEN_CS_PUSHCHECK needs <prefix>;<rig file>;<profile file>";
+            return;
+        }
+        const std::string prefix = parts[0];
+        const std::filesystem::path rigPath = parts[1];
+        const std::filesystem::path profilePath = parts[2];
+        const std::string requestedBone = parts.size() > 3 ? parts[3] : std::string();
+        const int step = std::max(700, milliseconds / 14);
+
+        auto meshView = []() -> CSVRender::MeshViewWidget* {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+                for (auto* view : widget->findChildren<CSVRender::MeshViewWidget*>())
+                    if (view->showsModuleAsset())
+                        return view;
+            return nullptr;
+        };
+        auto frame = [=](const std::string& name) {
+            if (CSVRender::MeshViewWidget* view = meshView())
+            {
+                view->flagAsModified();
+                QTimer::singleShot(step / 3, qApp, [=] {
+                    if (CSVRender::MeshViewWidget* again = meshView())
+                    {
+                        const std::filesystem::path file = prefix + "_" + name + ".png";
+                        Log(Debug::Info) << "UI check: push frame " << file.string() << ": "
+                                         << (again->saveScreenshot(file) ? "written" : "no frame");
+                    }
+                });
+            }
+        };
+        auto report = [](const char* what) {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            openeden::editor::SimulationSandbox* sandbox = ui->simulationSandbox();
+            std::ostringstream text;
+            text.precision(9);
+            text << "UI check: push " << what << ": step " << CSVRender::PhysicsHub::get()->world().stepIndex()
+                 << ", built " << (sandbox->built() ? "yes" : "no") << ", pending " << sandbox->pendingPushes();
+            for (const std::string& name : sandbox->bodyNames())
+            {
+                openeden::editor::SandboxBodyPose pose;
+                if (sandbox->bodyPose(name, pose))
+                    text << ", " << name << " (" << pose.positionM.x << " " << pose.positionM.y << " "
+                         << pose.positionM.z << ")";
+            }
+            Log(Debug::Info) << text.str();
+        };
+        auto setField = [](const char* id, const openeden::editor::PropertyValue& value) {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            openeden::editor::PropertySource* panel = ui->registry().panelSource("creativemotion.sandbox");
+            if (panel == nullptr)
+            {
+                Log(Debug::Error) << "UI check: push: the sandbox panel has no source";
+                return;
+            }
+            if (std::unique_ptr<openeden::editor::Command> command = panel->makeSetCommand(id, value))
+                ui->pushCommand(std::move(command));
+            else
+                Log(Debug::Error) << "UI check: push: the panel refused " << id;
+        };
+
+        QTimer::singleShot(step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            ui->openAsset(profilePath);
+            ui->openAsset(rigPath);
+            Log(Debug::Info) << "UI check: push opened " << (ui->activeAsset() ? "yes" : "no") << " " << ui->openError()
+                             << ", sandbox " << (ui->simulationSandbox() != nullptr ? "yes" : "no");
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                    for (int i = 0; i < tabs->count(); ++i)
+                        if (tabs->tabText(i) == "CreativeMotion")
+                            tabs->setCurrentIndex(i);
+            if (meshView() == nullptr)
+                for (QWidget* top : QApplication::topLevelWidgets())
+                    if (auto* window = qobject_cast<QMainWindow*>(top); window && window->isVisible())
+                        for (QAction* action : window->findChildren<QAction*>("showModuleAssetInMeshViewer"))
+                        {
+                            action->trigger();
+                            break;
+                        }
+        });
+        QTimer::singleShot(step * 3, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            Log(Debug::Info) << "UI check: push commands enabled: push "
+                             << ui->registry().isCommandEnabled("creativemotion.sandbox.push") << ", reset "
+                             << ui->registry().isCommandEnabled("creativemotion.sandbox.reset");
+            const bool ran = ui->registry().runCommand("creativemotion.sandbox.reset");
+            Log(Debug::Info) << "UI check: push reset command ran " << ran;
+            report("built");
+            if (openeden::editor::PropertySource* panel = ui->registry().panelSource("creativemotion.sandbox"))
+                Log(Debug::Info) << "UI check: push panel status: "
+                                 << std::get<std::string>(panel->get("sandbox.status"));
+        });
+        QTimer::singleShot(step * 4, qApp, [=] {
+            report("before");
+            frame("before");
+        });
+        QTimer::singleShot(step * 5, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            const openeden::editor::PropertySource* panel = ui->registry().panelSource("creativemotion.sandbox");
+            std::string bone = requestedBone;
+            if (bone.empty() && panel != nullptr)
+                for (const openeden::editor::PropertyDesc& desc : panel->describe())
+                    if (desc.id == "sandbox.bone" && !desc.choices.empty())
+                        bone = desc.choices.front();
+            setField("sandbox.bone", bone);
+            setField("sandbox.direction", openeden::editor::Vec3{ 1.0, 0.4, 0.1 });
+            setField("sandbox.magnitudeNs", 300.0);
+            const bool ran = ui->registry().runCommand("creativemotion.sandbox.push");
+            Log(Debug::Info) << "UI check: push command ran " << ran << " on bone " << bone;
+            report("pushed, before any step");
+            frame("pending");
+        });
+        QTimer::singleShot(step * 6, qApp, [=] {
+            CSVRender::PhysicsHub::get()->step();
+            report("after one step");
+            for (int i = 0; i < 11; ++i)
+                CSVRender::PhysicsHub::get()->step();
+            report("after 12 steps");
+            frame("flight");
+        });
+        QTimer::singleShot(step * 8, qApp, [=] {
+            for (int i = 0; i < 400; ++i)
+                CSVRender::PhysicsHub::get()->step();
+            report("after 412 steps");
+            frame("settled");
+        });
+        QTimer::singleShot(step * 10, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            const bool ran = ui->registry().runCommand("creativemotion.sandbox.reset");
+            Log(Debug::Info) << "UI check: push reset again ran " << ran;
+            report("after reset");
+            frame("reset");
+        });
+    }
+
     /// The body package panel check (task 0069 stage f): OPENEDEN_CS_BODYCHECK=<prefix>;<source>[;<source>...], each
     /// source a module asset path (a body.json, a .edenpak or a merged cache's current), optionally followed by
     /// "|<race> <sex> <view>" to choose that body of a merged cache afterwards. For each source: opens it as a module
@@ -1573,6 +1730,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_HANDLECHECK=<prefix>;<rig>: selection, labels and handle dragging, see runHandleCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_HANDLECHECK"))
                 runHandleCheck(document, spec, milliseconds);
+            // OPENEDEN_CS_PUSHCHECK=<prefix>;<rig>;<profile>[;<bone>]: the push sandbox check, see runPushCheck.
+            if (const char* spec = std::getenv("OPENEDEN_CS_PUSHCHECK"))
+                runPushCheck(spec, milliseconds);
             // OPENEDEN_CS_BODYCHECK=<prefix>;<source>[|<body>]...: the body package panel check, see runBodyCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_BODYCHECK"))
                 runBodyCheck(document, spec, milliseconds);

@@ -114,6 +114,10 @@ namespace openeden::editor
         virtual TaskId startTask(TaskDesc /*task*/) { return 0; }
         /// API 1.2. Asks a task to stop. Safe for an id that is done or unknown.
         virtual void cancelTask(TaskId /*id*/) {}
+
+        /// API 1.3. Studio's simulation sandbox (see SimulationSandbox), or null when the host has none (a host older
+        /// than 1.3 never has one: its tables do not contain this function, and it refuses a module built for 1.3).
+        virtual SimulationSandbox* simulationSandbox() { return nullptr; }
     };
 
     struct WorkspaceDesc

@@ -63,6 +63,10 @@ namespace CSVRender
     void PhysicsHub::step()
     {
         mWorld.stepOnce();
+        // Editor modules hear of every fixed step, a Step press as well as a tick (API 1.2/1.3: the push sandbox
+        // redraws its ragdoll on it).
+        if (CSVModule::ModuleUi* modules = CSVModule::ModuleUi::get())
+            modules->publishSimulationStep(mWorld.stepIndex());
         refresh();
         emit stateChanged();
     }

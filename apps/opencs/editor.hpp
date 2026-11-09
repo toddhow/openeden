@@ -25,6 +25,7 @@
 #include "model/module/managersettingsstore.hpp"
 #include "model/module/modulehost.hpp"
 #include "model/module/moduleregistry.hpp"
+#include "model/physics/sandboxservice.hpp"
 #include "model/physics/studioworld.hpp"
 #include "model/prefs/commandline.hpp"
 #include "model/prefs/state.hpp"
@@ -75,6 +76,9 @@ namespace CS
         // the hub; before the extension host, which reads the world and so must go first.
         CSMPhysics::StudioWorld mPhysicsWorld;
         CSVRender::PhysicsHub mPhysicsHub{ mPhysicsWorld };
+        // The modules' simulation sandbox (Editor Module API 1.3, task 0065): a ragdoll and its ground in the world
+        // above. Declared after the world so that it is destroyed before it; modules reach it through ModuleUi.
+        CSMPhysics::SandboxService mSandbox{ mPhysicsWorld };
         std::unique_ptr<CSMExtension::EditorExtensionHost> mExtensionHost; // after the views: they point at it
         // The editor modules (task 0031): the registry and the UI they talk to come first, the host that owns the
         // modules last, so that the modules go before the extensions whose manifests named some of them.

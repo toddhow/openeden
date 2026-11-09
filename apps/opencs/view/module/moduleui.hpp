@@ -93,6 +93,11 @@ namespace CSVModule
         /// Studio's user data folder (the configuration's `user-data`), which modules may ask for (API 1.1).
         void setUserDataPath(std::filesystem::path path) { mUserDataPath = std::move(path); }
 
+        /// API 1.3 (task 0065): the simulation sandbox modules reach through EditorContext::simulationSandbox(), owned
+        /// by the editor, which must outlive this object's use of it; null (the default) means the host has none.
+        void setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox) { mSandbox = sandbox; }
+        openeden::editor::SimulationSandbox* simulationSandbox() override { return mSandbox; }
+
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
         /// The module that owns the active asset (the one whose asset type opened it), or empty with none open. A
@@ -205,6 +210,7 @@ namespace CSVModule
         std::string mOpenError;
         std::vector<std::filesystem::path> mAssetRoots;
         std::filesystem::path mUserDataPath;
+        openeden::editor::SimulationSandbox* mSandbox = nullptr;
         std::set<std::string> mDirtyAssets;
         std::vector<QPointer<QUndoStack>> mStacks;
         std::vector<QPointer<CSMDoc::UndoRouting>> mRoutings; // the documents' module stacks that were used
