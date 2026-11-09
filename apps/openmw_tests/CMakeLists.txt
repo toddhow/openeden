@@ -18,6 +18,11 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testesmstoredispatch.cpp
 
     mwdialogue/testkeywordsearch.cpp
+    mwdialogue/dialoguefixture.cpp
+    mwdialogue/testdialoguejournal.cpp
+    mwdialogue/testdialoguesave.cpp
+    mwdialogue/testdialoguefilter.cpp
+    mwdialogue/testdialoguemanager.cpp
 
     mwgui/tooltips.cpp
     mwgui/weightedsearch.cpp
