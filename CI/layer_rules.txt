@@ -64,6 +64,8 @@ dir components/fx engine
 dir components/inertialmotion engine
 dir components/l10n engine
 dir components/lod engine
+dir components/modorganizer engine
+dir components/worldlod engine
 dir components/loadinglistener engine
 dir components/lua engine
 dir components/lua_ui engine

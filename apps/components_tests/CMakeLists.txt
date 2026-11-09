@@ -191,6 +191,16 @@ file(GLOB UNITTEST_SRC_FILES
     contentsource/testprobefamily.cpp
     contentsource/testdecoderregistry.cpp
 
+    modorganizer/tempfolder.hpp
+    modorganizer/testmodel.cpp
+    modorganizer/testscanner.cpp
+    modorganizer/testlayout.cpp
+    modorganizer/testconfigfile.cpp
+    modorganizer/testconflicts.cpp
+    modorganizer/testmasters.cpp
+    modorganizer/testrepack.cpp
+    worldlod/testbakestatus.cpp
+
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

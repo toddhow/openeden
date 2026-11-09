@@ -104,6 +104,17 @@ add_component_dir (bgsm
     stream file
     )
 
+# The launcher's mod organizer (task 0057): mod library and profiles, scanner, layout, openmw.cfg rewrite, conflicts,
+# master hints, repack planning. No Qt. Depends on vfs, contentsource and edenarchive.
+add_component_dir (modorganizer
+    model scanner layout configfile conflicts masters repack processcheck
+    )
+
+# The launcher's World LOD page (task 0058): the baker's status and command file contract. No Qt.
+add_component_dir (worldlod
+    bakestatus
+    )
+
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
 # DRAFT layouts, kept behind this one folder. Depends on edenarchive.
 add_component_dir (lod
@@ -437,7 +448,7 @@ add_component_dir (esm4
 add_component_dir (misc
     barrier budgetmeasurement buildqueue color compression constants convert coordinateconverter display endianness float16 frameratelimiter
     guarded loadtrace math mathutil messageformatparser notnullptr objectpool progressreporter quietwindow resourcehelpers
-    rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream vsgmath weakcache windows
+    rng strictjson strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream vsgmath weakcache windows
     )
 
 add_component_dir (misc/strings
