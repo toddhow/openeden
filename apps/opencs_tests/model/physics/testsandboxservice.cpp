@@ -444,5 +444,43 @@ namespace CSMPhysics
             EXPECT_GT(std::fabs(pelvis.positionM.x), SandboxService::sGroundHalfExtentM)
                 << "it left the 20 m ground; the documented limit";
         }
+
+        // ---- review of 2026-11-09 (lane C: C2) ----------------------------------------------------------------------
+
+        TEST_F(SandboxServiceTest, aBodyAddedAfterClearIsNeverTakenForTheStaleGroundByResetOrRelease)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            const JPH::BodyID staleGround = service.ground();
+            world.clear();
+            // Jolt may hand the first new body the freed index; whatever it hands out must belong to the bystander.
+            const JPH::BodyID bystander
+                = world.addStaticBox(JPH::RVec3(500.0, 500.0, 0.0), JPH::Vec3(1.0f, 1.0f, 1.0f));
+            ASSERT_TRUE(world.hasBody(bystander));
+            std::string error;
+            ASSERT_TRUE(service.reset(error)) << error;
+            EXPECT_TRUE(world.hasBody(bystander)) << "a reset must not remove a body it does not own";
+            EXPECT_FALSE(service.ground() == bystander);
+            EXPECT_TRUE(world.hasBody(service.ground()));
+            EXPECT_FALSE(staleGround == bystander) << "Jolt's sequence number keeps a recycled slot's id apart";
+            service.release();
+            EXPECT_TRUE(world.hasBody(bystander)) << "release must not remove a body it does not own";
+            EXPECT_EQ(world.bodyCount(), 1u);
+        }
+
+        TEST_F(SandboxServiceTest, releaseAfterClearRemovesNothingThatIsNotTheServices)
+        {
+            StudioWorld world;
+            SandboxService service(world);
+            ASSERT_TRUE(build(service));
+            world.clear();
+            const JPH::BodyID bystander
+                = world.addStaticBox(JPH::RVec3(500.0, 500.0, 0.0), JPH::Vec3(1.0f, 1.0f, 1.0f));
+            service.release();
+            EXPECT_TRUE(world.hasBody(bystander));
+            EXPECT_EQ(world.bodyCount(), 1u);
+            EXPECT_TRUE(service.ground() == JPH::BodyID());
+        }
     }
 }

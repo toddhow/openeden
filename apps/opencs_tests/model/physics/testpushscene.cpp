@@ -526,5 +526,38 @@ namespace CSMPhysics
             EXPECT_GT(stateOf(*a, "Pelvis").linearVelocityMps.x, 0.9);
             EXPECT_LT(std::abs(stateOf(*b, "Pelvis").linearVelocityMps.x), 0.01);
         }
+
+        // ---- review of 2026-11-09 (lane C: C3) ----------------------------------------------------------------------
+
+        TEST(CSMPhysicsPushScene, pushesQueuedBeforeAClearNeverReachAnotherScenesBodiesBuiltAfterIt)
+        {
+            StudioWorld world;
+            const std::unique_ptr<PushScene> a = makeScene(world, makeSingleBodyRig(), makeSingleProfile(), highUp());
+            ASSERT_NE(a, nullptr);
+            ASSERT_TRUE(a->push("Pelvis", math::Vec3{ 10.0, 0.0, 0.0 }, math::Vec3{ 0.0, 0.0, 50.0 }));
+            world.clear();
+            EXPECT_EQ(a->pending(), 0u) << "the ragdoll is gone";
+            const std::unique_ptr<PushScene> b = makeScene(world, makeSingleBodyRig(), makeSingleProfile(), highUp());
+            ASSERT_NE(b, nullptr);
+            EXPECT_EQ(a->pending(), 0u) << "a new scene in the same world must not revive the old scene's queue";
+            EXPECT_FALSE(a->present());
+            world.stepOnce();
+            EXPECT_LT(std::abs(stateOf(*b, "Pelvis").linearVelocityMps.x), 0.01)
+                << "a push queued for a scene whose bodies were cleared was applied to another scene's body";
+            EXPECT_FALSE(a->lastApplied().has_value());
+        }
+
+        TEST(CSMPhysicsPushScene, aClearForgetsTheLastAppliedPushAtTheNextStep)
+        {
+            StudioWorld world;
+            const std::unique_ptr<PushScene> scene = makeScene(world, makeSingleBodyRig(), makeSingleProfile(), highUp());
+            ASSERT_NE(scene, nullptr);
+            ASSERT_TRUE(scene->push("Pelvis", math::Vec3{ 10.0, 0.0, 0.0 }, math::Vec3{ 0.0, 0.0, 50.0 }));
+            world.stepOnce();
+            ASSERT_TRUE(scene->lastApplied().has_value());
+            world.clear();
+            world.stepOnce();
+            EXPECT_FALSE(scene->lastApplied().has_value()) << "an arrow for a ragdoll that no longer exists";
+        }
     }
 }

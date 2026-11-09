@@ -116,8 +116,12 @@ namespace CSMPhysics
     {
         const std::size_t count = mPendingCount;
         mPendingCount = 0;
-        if (!mRagdoll.has_value())
+        // StudioWorld::clear() removed the ragdoll behind our back: the arrow for its last push goes with it.
+        if (!present())
+        {
+            mLastApplied.reset();
             return;
+        }
         opas::physics::PhysicsWorld& cm = mWorld.cmWorld();
         for (std::size_t i = 0; i < count; ++i)
         {
