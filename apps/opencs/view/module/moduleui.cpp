@@ -460,6 +460,9 @@ namespace CSVModule
 
     void ModuleUi::releaseModuleObjects()
     {
+        // The sandbox's bodies belong to a module that is about to go.
+        if (mSandbox != nullptr)
+            mSandbox->release();
         mTasks.cancelAll(); // their code is in the libraries that are about to go
         cancelHandle();
         mHighlightId.clear();

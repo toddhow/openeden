@@ -89,6 +89,8 @@ namespace CSMPhysics
         /// Unknown or already removed IDs do nothing.
         void removeBody(JPH::BodyID id);
         std::size_t bodyCount() const { return mBodies.size(); }
+        /// True while  id is a body this world added and has not removed (clear() removes them all).
+        bool hasBody(JPH::BodyID id) const { return mBodies.find(id) != mBodies.end(); }
         /// The body's centre of mass; zero for an unknown ID.
         JPH::RVec3 position(JPH::BodyID id) const;
         /// Removes every body and sets stepIndex() to 0.

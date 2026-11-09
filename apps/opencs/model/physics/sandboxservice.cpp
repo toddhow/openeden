@@ -129,12 +129,15 @@ namespace CSMPhysics
             error = "nothing is built in the sandbox";
             return false;
         }
-        // StudioWorld::clear() removes the ground behind our back: make it again (removing a stale id does nothing).
-        if (mGround != JPH::BodyID())
-            mWorld.removeBody(mGround);
-        mGround = JPH::BodyID();
-        if (!addGround(error))
-            return false;
+        // StudioWorld::clear() removes the ground behind our back. A ground that is still there is kept (taking it
+        // away first and failing to make it again would leave the ragdoll with nothing to stand on); a stale one is
+        // made again, and if that fails nothing else was touched.
+        if (!mWorld.hasBody(mGround))
+        {
+            mGround = JPH::BodyID();
+            if (!addGround(error))
+                return false;
+        }
         return mScene->reset(&error);
     }
 

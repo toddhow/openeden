@@ -406,7 +406,13 @@ namespace creativemotion_editor
     {
     }
 
-    SandboxController::~SandboxController() = default;
+    SandboxController::~SandboxController()
+    {
+        // The ragdoll and the ground live in the host's one world: hand them back when the module goes (the host calls
+        // shutdown() with the context still alive).
+        if (SimulationSandbox* sandbox = mImpl->sandbox())
+            sandbox->release();
+    }
 
     void SandboxController::noteRigOpened(const std::filesystem::path& path)
     {

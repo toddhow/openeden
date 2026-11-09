@@ -79,7 +79,9 @@ namespace CSMPhysics
         /// and nothing queued, for an unknown bone, a non-finite value, an impulse above sMaxImpulseNs, no ragdoll in
         /// the world or a full queue.
         bool push(std::string_view bone, const opas::math::Vec3& impulseNs, const opas::math::Vec3& worldPointM);
-        std::size_t pending() const { return mPendingCount; }
+        /// Pushes waiting for the next step; 0 once the ragdoll is gone (StudioWorld::clear() removes it behind our
+        /// back), whatever is still in the queue.
+        std::size_t pending() const { return present() ? mPendingCount : 0; }
         const std::optional<AppliedPush>& lastApplied() const { return mLastApplied; }
 
         /// Applies the queued pushes now, in order. Called by the world before each step; public for a host that
