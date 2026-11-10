@@ -1,6 +1,6 @@
 # The neutral world model (decision 0016, task 0099)
 
-Status: DRAFT design for stages N1 and later; stage N0 is built (task 0099). Everything marked **RECALLED-VERIFY** was not checked in the source at this commit. Numbers called estimates are mine.
+Status: DRAFT design for stages N1 and later; stage N0 is built (task 0099). Everything marked **RECALLED-VERIFY** was not checked in the source at this commit. Numbers called estimates are mine. Section 7 open questions: confirmed by toddhow 2026-11-10 (go with recommendations); `Ptr` stays the runtime handle.
 
 Companions: `docs/design/game-packs.md` (the tier this feeds from), `docs/tasks/0086-skyrim-se-game-pack-skeleton.md` (the Skyrim store and the world-model options), `docs/tasks/0098-moves-morrowind-rules-second-set.md` (what is moving out of the core), `sdk/include/openeden/game/world_view.hpp` and `world_model.hpp`.
 

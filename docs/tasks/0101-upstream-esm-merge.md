@@ -1,5 +1,5 @@
 # Task: Merge upstream OpenMW master (ESM focus), target 97722d48f9
-Status: DRAFT, awaiting toddhow's approval. Not started. Nothing has been merged.
+Status: DRAFT, awaiting toddhow's approval. Not started. Nothing has been merged. **2026-11-10: NOT NEEDED - reference only (toddhow: go with recommendations). Upstream OpenMW is read for ideas; no merge will be done under this task.**
 Design doc section: CLAUDE.md "Upstream merges and the Jolt branch"; research note `docs/research/0051-upstream-esm-audit.md`.
 Goal: bring OpenMW master at commit `97722d48f9` (2026-11-09) into `main` without losing an upstream fix and without taking our old version of any file wholesale.
 Inherited code touched: everything upstream changed since the merge base `a035bcad2a` (2026-03-14): 1,291 non-merge commits, 1,172 files. The ESM area is `components/esm*`, `components/esmbridge`, `components/esm3`, `components/esm4`, `apps/esmtool`, `apps/essimporter`, `apps/openmw/mwworld/esmstore.*`, `esmloader.*`. Our side: `components/contentsource`, `components/esmloader`, record-source dispatch, `game_packs/skyrimse`.

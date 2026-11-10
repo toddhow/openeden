@@ -419,7 +419,7 @@ In the `openeden-linux-noosg` image (GCC 13.3.0, CMake 3.28, Ninja; run with `--
 
 The bitmap path on the real Vulkan renderer (the font texture goes through the same `GenerateTexture` as the TrueType atlas that U0 drew, so the risk is low, but it was drawn by the harness's software rasteriser here); nearest against linear sampling of a scaled bitmap font; the code page tables other than CP437 and the Polish swaps; fonts read through the VFS and inside the Morrowind BSAs (these four are loose files in this install; whether `.tex` files in an archive read the same is not checked); the `Fonts_Font_*` ini lookup; the clip mask, layers, filters and shaders (sized only); GPU timing; RmlUi's own warnings under GCC; an OS IME; a pad; and everything on the U0 list that U0b did not touch (section 13.9).
 
-### 14.9 Decisions for toddhow
+### 14.9 Decisions for toddhow (answered 2026-11-10, toddhow: go with recommendations: clip masks and layers forbidden in first themes; RmlUi and schedule stand; Lua UI option A; Czech `a-acute` limitation recorded, per-language font maps later)
 
 1. **Confirm the correction:** `.omwfont` is TrueType-only; the bitmap case is `.fnt`/`.tex`. The first UI backend must support both, through one dispatching font engine that, because the default one cannot be reused supportably (14.3), **owns its FreeType path** (a copy of RmlUi's, MIT). OK to plan U1 that way?
 2. **Mono look:** keep `Antialias=false` (it lives in the owned FreeType path of decision 1, small) or accept anti-aliased fallback and mono fonts?
