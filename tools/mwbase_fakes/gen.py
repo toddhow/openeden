@@ -49,6 +49,22 @@ def main():
                 end = i
                 break
     body = text[m.end():end]
+    # A nested class or struct (for example a callback interface) is not part of the interface: cut its body out.
+    while True:
+        nested = re.search(r"\b(class|struct)\s+\w+[^{;]*\{", body)
+        if not nested:
+            break
+        depth = 1
+        stop = len(body)
+        for i in range(nested.end(), len(body)):
+            if body[i] == "{":
+                depth += 1
+            elif body[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    stop = i + 1
+                    break
+        body = body[:nested.start()] + body[stop:]
     out = []
     seen = set()
     text = re.sub(r"=\s*\{\}", "= X", body)  # a braced default argument
