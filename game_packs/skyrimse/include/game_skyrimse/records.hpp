@@ -190,6 +190,40 @@ namespace game_skyrimse
                                  ///< components/esm4/reference.hpp EnableParent at 97722d48f9, itself from UESP)
     };
 
+    /// XOWN and XRNK: who owns a placed reference. XOWN is one form id (an NPC_ or a FACT); XRNK is the faction rank
+    /// that is needed to use it freely and only follows an XOWN of a faction. VERIFIED on the installed plugins
+    /// (tools/skyrimse_records_check): XOWN is always 4 bytes, XRNK always 4 bytes (an int32) and only after an XOWN.
+    /// XGLB (an owner's global) does not occur on Skyrim SE references and is not decoded.
+    struct RefOwner
+    {
+        FormId mOwner = kNullFormId; ///< resolved; kUnresolvedFormId when the owner's plugin is not in the load order
+        std::optional<std::int32_t> mRank; ///< XRNK, if present
+    };
+
+    /// XLOC: the lock of a door or container reference. VERIFIED size 20 on the installed plugins (535 plugins): level
+    /// (u8) at 0, three padding bytes (they hold garbage and are NOT read), the key (a form id) at 4, flags (u8) at 8
+    /// (0 or 4 in the installed data; 4 is "leveled lock" in the UESP documentation, RECALLED-VERIFY), three padding
+    /// bytes (garbage, not read) and eight bytes at 12 that are zero in every installed record (not read). Upstream's
+    /// ESM4 reader agrees on the level and key positions and does not establish the flag bytes
+    /// (docs/research/0051-upstream-esm-audit.md).
+    struct RefLock
+    {
+        std::uint8_t mLevel = 0; ///< 1, 25, 50, 75, 100 or 255 ("requires key") in the installed data; also 0
+        FormId mKey = kNullFormId; ///< resolved, 0 for none
+        std::uint8_t mFlags = 0;
+    };
+
+    /// XTEL: where a door leads. VERIFIED size 32: the destination door reference (a form id of a REFR in the other
+    /// cell), the arrival position and rotation (six f32, radians for the rotation) and a flags word (0 or 1 in the
+    /// installed data; bit 0 is "no alarm" in the UESP documentation and upstream's reader, RECALLED-VERIFY).
+    struct RefTeleport
+    {
+        FormId mDoor = kNullFormId; ///< resolved; kUnresolvedFormId when its plugin is not in the load order
+        Vec3 mPosition;
+        Vec3 mRotation;
+        std::uint32_t mFlags = 0;
+    };
+
     struct PlacedRef
     {
         RefKind mKind = RefKind::Placed;
@@ -201,6 +235,9 @@ namespace game_skyrimse
         Vec3 mRotation; ///< radians, as stored
         float mScale = 1.0f; ///< XSCL
         std::optional<EnableParent> mEnableParent; ///< XESP
+        std::optional<RefOwner> mOwner; ///< XOWN (+ XRNK)
+        std::optional<RefLock> mLock; ///< XLOC
+        std::optional<RefTeleport> mTeleport; ///< XTEL
 
         [[nodiscard]] bool persistent() const { return (mCommon.mFlags & RecordFlags::Persistent) != 0; }
         [[nodiscard]] bool initiallyDisabled() const { return (mCommon.mFlags & RecordFlags::InitiallyDisabled) != 0; }
@@ -414,6 +451,10 @@ namespace game_skyrimse
         std::uint64_t mRefsOutsideCells = 0;
         /// Form ids that pointed into a plugin the load order does not hold (stored as kUnresolvedFormId).
         std::uint64_t mUnresolvedFormIds = 0;
+        /// Teleport doors (references with an XTEL) and the cell each one stands in, as (reference id, cell id), in
+        /// file order. Filled in the index pass (mSkipReferences) too, where references are not decoded otherwise, so
+        /// that a store can name a door's destination cell without reading every cell.
+        std::vector<std::pair<FormId, FormId>> mTeleportRefCells;
         /// Subrecords the model decodes whose size or content did not fit the layout (the record is still kept).
         std::uint64_t mOddSubrecords = 0;
         /// An odd subrecord by "TYPE.SUB" for the tools.

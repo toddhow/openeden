@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,12 @@ namespace
         std::uint64_t loaded = 0, failed = 0, objects = 0, dropped = 0, contractObjects = 0, notUnit = 0,
                       notAscending = 0, unresolved = 0, boxes = 0, fromModel = 0, noCollision = 0, payloadMismatch = 0;
         std::map<int, std::uint64_t> kinds;
+        // Task 0099 N4: the components the store now fills.
+        std::set<sdkgame::WorldId> knownCells;
+        for (const sdkgame::WorldCellInfo& c : cells)
+            knownCells.insert(c.id);
+        std::uint64_t owners = 0, locks = 0, teleports = 0, teleportsWithCell = 0, teleportCellUnknown = 0,
+                      teleportNoDoor = 0;
         const auto t0 = Clock::now();
         for (const sdkgame::WorldId id : chosen)
         {
@@ -97,6 +104,18 @@ namespace
                     ++noCollision;
                 if (o.payload.handle != o.base)
                     ++payloadMismatch;
+                owners += o.owner ? 1 : 0;
+                locks += o.lock ? 1 : 0;
+                if (o.teleport)
+                {
+                    ++teleports;
+                    teleportNoDoor += o.teleport->destinationDoor == sdkgame::kNoWorldId ? 1 : 0;
+                    if (o.teleport->destinationCell != sdkgame::kNoWorldId)
+                    {
+                        ++teleportsWithCell;
+                        teleportCellUnknown += knownCells.count(o.teleport->destinationCell) == 0 ? 1 : 0;
+                    }
+                }
             }
         }
         const double seconds = std::chrono::duration<double>(Clock::now() - t0).count();
@@ -105,6 +124,15 @@ namespace
                   << unresolved << " not unit quaternions " << notUnit << " out of order " << notAscending
                   << " payload differs " << payloadMismatch << " collision: from model " << fromModel << " box "
                   << boxes << " none " << noCollision << " time " << seconds << " s\n";
+        std::cout << "SKYRIMSE-NEUTRAL masters components: owners " << owners << " locks " << locks << " teleports "
+                  << teleports << " with a destination cell " << teleportsWithCell
+                  << " destination cell not in the cell "
+                     "list "
+                  << teleportCellUnknown << " without a destination door " << teleportNoDoor << " store stats: dropped "
+                  << view.stats().mComponents.mTeleportsDropped << " cells unknown "
+                  << view.stats().mComponents.mTeleportCellsUnknown << " owners dropped "
+                  << view.stats().mComponents.mOwnersDropped << " keys unresolved "
+                  << view.stats().mComponents.mKeysUnresolved << '\n';
         std::cout << "SKYRIMSE-NEUTRAL masters kinds:";
         for (const auto& [kind, count] : kinds)
             std::cout << " " << kind << "=" << count;
@@ -116,5 +144,8 @@ namespace
         EXPECT_EQ(notAscending, 0u);
         EXPECT_EQ(payloadMismatch, 0u);
         EXPECT_GT(objects, 0u);
+        EXPECT_GT(teleports, 0u);
+        EXPECT_EQ(teleportNoDoor, 0u);
+        EXPECT_EQ(teleportCellUnknown, 0u);
     }
 }

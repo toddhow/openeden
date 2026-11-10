@@ -76,8 +76,69 @@ namespace game_skyrimse
         return q;
     }
 
+    PlacementComponents makeComponents(
+        const PlacedRef& ref, const RefCellIndex& refCells, ComponentStats& stats, const NeutralLimits& limits)
+    {
+        PlacementComponents c;
+        const auto usableId = [](FormId id) { return id != kNullFormId && id != kUnresolvedFormId; };
+
+        if (ref.mOwner)
+        {
+            if (usableId(ref.mOwner->mOwner))
+            {
+                sdkgame::OwnerComponent o;
+                o.owner = ref.mOwner->mOwner;
+                o.requiredRank = ref.mOwner->mRank.value_or(-1);
+                c.owner = o;
+            }
+            else
+                ++stats.mOwnersDropped;
+        }
+
+        if (ref.mLock)
+        {
+            // The 20 byte XLOC has no separate "locked" state (its flag byte is 0 or 4, "leveled lock"), so a lock
+            // that is present is locked: RECALLED-VERIFY, the level is kept raw so the core can decide otherwise.
+            sdkgame::LockComponent l;
+            l.locked = true;
+            l.level = ref.mLock->mLevel;
+            if (usableId(ref.mLock->mKey))
+                l.key = ref.mLock->mKey;
+            else if (ref.mLock->mKey == kUnresolvedFormId)
+                ++stats.mKeysUnresolved;
+            c.lock = l;
+        }
+
+        if (ref.mTeleport)
+        {
+            const RefTeleport& t = ref.mTeleport.value();
+            const bool finiteNumbers = usable(t.mPosition.x, limits.mMaxCoordinate)
+                && usable(t.mPosition.y, limits.mMaxCoordinate) && usable(t.mPosition.z, limits.mMaxCoordinate)
+                && finite(t.mRotation.x) && finite(t.mRotation.y) && finite(t.mRotation.z);
+            if (!usableId(t.mDoor) || !finiteNumbers)
+                ++stats.mTeleportsDropped;
+            else
+            {
+                sdkgame::TeleportComponent tp;
+                tp.destinationDoor = t.mDoor;
+                const auto cell = refCells.find(t.mDoor);
+                if (cell != refCells.end())
+                    tp.destinationCell = cell->second;
+                else
+                    ++stats.mTeleportCellsUnknown;
+                tp.destination.position = { static_cast<double>(t.mPosition.x), static_cast<double>(t.mPosition.y),
+                    static_cast<double>(t.mPosition.z) };
+                tp.destination.rotation = eulerToQuat({ t.mRotation.x, t.mRotation.y, t.mRotation.z });
+                tp.destination.scale = 1.0;
+                tp.flags = t.mFlags;
+                c.teleport = tp;
+            }
+        }
+        return c;
+    }
+
     bool toNeutral(const sdkgame::PlacedObject& placed, sdkgame::WorldObject& out, std::string& problem,
-        const NeutralLimits& limits)
+        const NeutralLimits& limits, const PlacementComponents* components)
     {
         if (!usable(placed.position, limits.mMaxCoordinate))
         {
@@ -112,8 +173,12 @@ namespace game_skyrimse
         o.transform.scale = static_cast<double>(placed.scale);
         o.persistent = placed.persistent;
         o.initiallyDisabled = placed.initiallyDisabled;
-        // The store decodes no owner, lock or teleport yet (XOWN, XLOC and XTEL are not read): the components stay
-        // empty.
+        if (components != nullptr)
+        {
+            o.owner = components->owner;
+            o.lock = components->lock;
+            o.teleport = components->teleport;
+        }
         o.payload.handle = placed.base;
 
         if (!placed.modelPath.empty())
@@ -133,7 +198,7 @@ namespace game_skyrimse
     }
 
     bool loadNeutralCell(sdkgame::WorldView& view, sdkgame::WorldId cell, sdkgame::WorldCell& out, std::string& error,
-        const NeutralLimits& limits)
+        const NeutralLimits& limits, const ComponentSource* components)
     {
         out = {};
         if (cell == sdkgame::kNoWorldId)
@@ -160,11 +225,16 @@ namespace game_skyrimse
         result.world = content.cell.world;
         result.unresolvedBases = content.unresolvedBases;
         result.objects.reserve(content.objects.size());
+        // A view that is its own component source (SkyrimWorldView) is asked without the caller naming it.
+        if (components == nullptr)
+            components = dynamic_cast<const ComponentSource*>(&view);
         for (const sdkgame::PlacedObject& placed : content.objects)
         {
             sdkgame::WorldObject object;
             std::string problem;
-            if (toNeutral(placed, object, problem, limits))
+            const PlacementComponents* extra
+                = components != nullptr ? components->find(content.cell.id, placed.id) : nullptr;
+            if (toNeutral(placed, object, problem, limits, extra))
                 result.objects.push_back(std::move(object));
             else
                 ++result.droppedObjects;

@@ -397,7 +397,11 @@ namespace game_skyrimse
                     ++count.mDeleted;
                 if (mLimits.mSkipReferences
                     && (record.mType == Content::fourCC("REFR") || record.mType == Content::fourCC("ACHR")))
+                {
+                    if (record.mType == Content::fourCC("REFR"))
+                        indexTeleportDoor(record);
                     return true;
+                }
                 if (count.mParsed >= mLimits.mMaxRecordsPerType)
                 {
                     fail(record, "more than " + std::to_string(mLimits.mMaxRecordsPerType) + " records of one type");
@@ -769,6 +773,10 @@ namespace game_skyrimse
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
                 int status = 0;
+                bool haveOwner = false;
+                bool haveRank = false;
+                FormId owner = kNullFormId;
+                std::int32_t rank = 0;
                 while ((status = reader.next(type, data)) == 1)
                 {
                     bool ok = true;
@@ -797,6 +805,58 @@ namespace game_skyrimse
                         case Content::fourCC("XSCL"):
                             ok = floatField(type, data, r.mScale);
                             break;
+                        // XOWN, XRNK, XLOC and XTEL (task 0099 N4). Sizes VERIFIED on the installed plugins
+                        // (tools/skyrimse_records_check) and corroborated by upstream's ESM4 reader (cc9cii, from UESP,
+                        // components/esm4/loadrefr.cpp: XOWN 4 bytes in Skyrim, XTEL 32, XLOC level + key positions;
+                        // docs/research/0051-upstream-esm-audit.md), which is a second reading of the same source, not
+                        // independent proof. Any other size is counted and decodes to nothing (never guessed); a
+                        // repeated subrecord keeps the first and is counted.
+                        case Content::fourCC("XOWN"):
+                            if (data.size() != 4 || haveOwner)
+                                odd("XOWN");
+                            else
+                            {
+                                haveOwner = true;
+                                owner = resolved(readLe<std::uint32_t>(data.data()));
+                            }
+                            break;
+                        case Content::fourCC("XRNK"):
+                            if (data.size() != 4 || haveRank)
+                                odd("XRNK");
+                            else
+                            {
+                                haveRank = true;
+                                rank = static_cast<std::int32_t>(readLe<std::uint32_t>(data.data()));
+                            }
+                            break;
+                        case Content::fourCC("XLOC"):
+                            // level u8 @0, 3 padding bytes (garbage in the data, not read), key @4, flags u8 @8, 3
+                            // padding, 8 zero bytes (not read)
+                            if (data.size() != 20 || r.mLock)
+                                odd("XLOC");
+                            else
+                            {
+                                RefLock lock;
+                                lock.mLevel = std::to_integer<std::uint8_t>(data[0]);
+                                lock.mKey = resolved(readLe<std::uint32_t>(data.data() + 4));
+                                lock.mFlags = std::to_integer<std::uint8_t>(data[8]);
+                                r.mLock = lock;
+                            }
+                            break;
+                        case Content::fourCC("XTEL"):
+                            if (data.size() != 32 || r.mTeleport)
+                                odd("XTEL");
+                            else
+                            {
+                                const std::byte* q = data.data();
+                                RefTeleport t;
+                                t.mDoor = resolved(readLe<std::uint32_t>(q));
+                                t.mPosition = { readLe<float>(q + 4), readLe<float>(q + 8), readLe<float>(q + 12) };
+                                t.mRotation = { readLe<float>(q + 16), readLe<float>(q + 20), readLe<float>(q + 24) };
+                                t.mFlags = readLe<std::uint32_t>(q + 28);
+                                r.mTeleport = t;
+                            }
+                            break;
                         case Content::fourCC(
                             "XESP"): // parent form, flags, 3 unused; VERIFIED size 8 (tool), flag bits CONFIRMED by
                                      // upstream components/esm4/reference.hpp EnableParent (Flag_Inversed 0x1,
@@ -821,6 +881,17 @@ namespace game_skyrimse
                 }
                 if (status < 0)
                     return damaged(reader);
+                // The order of the subrecords is not part of the layout, so the owner and its rank are joined here.
+                if (haveOwner)
+                {
+                    RefOwner o;
+                    o.mOwner = owner;
+                    if (haveRank)
+                        o.mRank = rank;
+                    r.mOwner = o;
+                }
+                else if (haveRank)
+                    odd("XRNK"); // a rank with no owner to apply to
 
                 // Which cell and which child group: the innermost cell-children group (type 6) names the cell.
                 std::vector<PlacedRef>* target = nullptr;
@@ -880,8 +951,57 @@ namespace game_skyrimse
                     ++mOut.mRefsOutsideCells;
                     return true;
                 }
+                if (r.mTeleport && cellGroup != nullptr)
+                {
+                    const auto cellIt = mCellByStoredId.find(cellGroup->mLabel);
+                    mOut.mTeleportRefCells.emplace_back(r.mCommon.mId, mOut.mCells[cellIt->second].mCommon.mId);
+                }
                 target->push_back(std::move(r));
                 return true;
+            }
+
+            // The index pass (mSkipReferences) does not decode references, but the store needs the cell of every
+            // teleport door to name a destination cell: a light scan of the subrecords for an XTEL of the right size.
+            void indexTeleportDoor(const Content::RawRecord& record)
+            {
+                const Content::GroupInfo* cellGroup = nullptr;
+                for (auto it = mGroups.rbegin(); it != mGroups.rend(); ++it)
+                {
+                    if (it->mType == 6)
+                    {
+                        cellGroup = &*it;
+                        break;
+                    }
+                }
+                if (cellGroup == nullptr)
+                    return;
+                const auto cellIt = mCellByStoredId.find(cellGroup->mLabel);
+                if (cellIt == mCellByStoredId.end())
+                    return;
+                std::span<const std::byte> bytes = record.mData;
+                if (record.isCompressed())
+                {
+                    Content::Error ignored;
+                    if (record.mUncompressedSize > mLimits.mMaxRecordBytes
+                        || !inflateRecord(record, mPlugin.name(), mInflated, ignored))
+                        return; // the full parse reports a damaged record; the index just has no door for it
+                    bytes = mInflated;
+                }
+                else if (record.mDataSize > mLimits.mMaxRecordBytes)
+                    return;
+                SubReader reader(bytes);
+                std::uint32_t type = 0;
+                std::span<const std::byte> data;
+                while (reader.next(type, data) == 1)
+                {
+                    if (type == Content::fourCC("XTEL") && data.size() == 32)
+                    {
+                        const std::optional<FormId> id = mResolver.resolve(record.mFormId);
+                        if (id)
+                            mOut.mTeleportRefCells.emplace_back(*id, mOut.mCells[cellIt->second].mCommon.mId);
+                        return;
+                    }
+                }
             }
 
             // STAT, and the other placed types with a model (ModelRecord): the same three subrecords.

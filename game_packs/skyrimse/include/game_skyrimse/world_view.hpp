@@ -17,6 +17,7 @@
 // Main thread only, deterministic (the same plugins give the same lists and the same objects), and nothing throws out
 // of it: failures are located Content::Error values or the `error` text of loadCell.
 
+#include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/world_view.hpp>
@@ -60,7 +61,7 @@ namespace game_skyrimse
         std::filesystem::path mData;
     };
 
-    class SkyrimWorldView final : public openeden::sdk::game::WorldView
+    class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource
     {
     public:
         struct Options
@@ -94,6 +95,9 @@ namespace game_skyrimse
             std::size_t mStringTablesMissing = 0;
             std::uint64_t mUnresolvedFormIds = 0;
             std::uint64_t mRecordErrors = 0;
+            /// Teleport doors the index pass found, and what makeComponents could not use (task 0099, N4).
+            std::uint64_t mTeleportDoorsIndexed = 0;
+            ComponentStats mComponents;
         };
 
         SkyrimWorldView();
@@ -121,6 +125,14 @@ namespace game_skyrimse
         [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
 
         // ---- openeden::sdk::game::WorldView ----
+        /// The door-to-cell index (reference id to the id of the cell it stands in), for teleport doors only.
+        [[nodiscard]] const RefCellIndex& teleportDoorCells() const { return mRefCells; }
+
+        /// The owner, lock and teleport of a placement of the cell the LAST loadCell returned (own placements and the
+        /// world's persistent ones it borrowed). Null for any other cell or placement. Main thread only.
+        [[nodiscard]] const PlacementComponents* find(
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const override;
+
         [[nodiscard]] std::string_view gameId() const override { return "skyrimse"; }
         [[nodiscard]] std::size_t cellCount() const override { return mCellOrder.size(); }
         [[nodiscard]] std::size_t worldCount() const override { return mWorldOrder.size(); }
@@ -183,6 +195,7 @@ namespace game_skyrimse
         {
             std::vector<openeden::sdk::game::PlacedObject> mObjects;
             std::uint32_t mUnresolvedBases = 0;
+            std::map<FormId, PlacementComponents> mComponents; ///< by placement id; only placements that have any
         };
 
         void noteError(Content::Error error);
@@ -206,6 +219,9 @@ namespace game_skyrimse
         std::map<std::tuple<FormId, std::int32_t, std::int32_t>, FormId> mCellByGrid;
         std::map<std::string, FormId> mWorldByEditorId;
         std::deque<std::pair<FormId, std::shared_ptr<const Materialised>>> mCache;
+        RefCellIndex mRefCells; ///< teleport doors: reference id to cell id (later plugins win)
+        FormId mLastCell = kNullFormId; ///< the cell of the last successful loadCell
+        std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;

@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <vector>
@@ -165,7 +166,9 @@ namespace
         EXPECT_TRUE(out.persistent);
         EXPECT_TRUE(out.initiallyDisabled);
         EXPECT_EQ(out.payload.handle, 0x00000801u);
-        // Skyrim SE's store decodes no owner, lock or teleport yet: the components stay empty.
+        // Without a component source (toNeutral called with no PlacementComponents) the components stay empty. Edited
+        // in task 0099 N4: this used to say the store decodes no owner, lock or teleport yet; it does now and the store
+        // path is tested in SkyrimNeutralDoors.
         EXPECT_FALSE(out.owner.has_value());
         EXPECT_FALSE(out.lock.has_value());
         EXPECT_FALSE(out.teleport.has_value());
@@ -568,5 +571,397 @@ namespace
         EXPECT_EQ(second->kind, sdkgame::ObjectKind::Furniture);
         EXPECT_EQ(store.cell("skyrimse", info->id, error), kept);
         EXPECT_EQ(store.stats().mHits, 1u);
+    }
+
+    // ---- owner, lock and teleport (task 0099 stage N4, the record-decoding half) -----------------------------------
+
+    constexpr FormId kOwnerNpc = 0x00013BB8, kKeyForm = 0x0001D4A1, kDoorB = 0x00032BDB, kCellOther = 0x00000931;
+
+    PlacedRef doorRef()
+    {
+        PlacedRef r;
+        r.mCommon.mId = 0x00000B01;
+        r.mBase = 0x00000801;
+        r.mOwner = RefOwner{ kOwnerNpc, 6 };
+        r.mLock = RefLock{ 75, kKeyForm, 4 };
+        r.mTeleport = RefTeleport{ kDoorB, { 11.5f, -22.25f, 33.75f }, { 0.5f, 0.25f, 0.125f }, 1 };
+        return r;
+    }
+
+    TEST(SkyrimNeutralComponents, anOwnerWithARankAndWithoutOne)
+    {
+        ComponentStats stats;
+        PlacedRef r = doorRef();
+        PlacementComponents c = makeComponents(r, {}, stats, NeutralLimits{});
+        ASSERT_TRUE(c.owner.has_value());
+        EXPECT_EQ(c.owner->owner, kOwnerNpc);
+        EXPECT_EQ(c.owner->requiredRank, 6);
+        r.mOwner->mRank.reset();
+        c = makeComponents(r, {}, stats, NeutralLimits{});
+        ASSERT_TRUE(c.owner.has_value());
+        EXPECT_EQ(c.owner->requiredRank, -1);
+        EXPECT_EQ(stats.mOwnersDropped, 0u);
+    }
+
+    TEST(SkyrimNeutralComponents, anOwnerOutsideTheLoadOrderGivesNoOwnerAndIsCounted)
+    {
+        ComponentStats stats;
+        PlacedRef r = doorRef();
+        r.mOwner->mOwner = kUnresolvedFormId;
+        const PlacementComponents c = makeComponents(r, {}, stats, NeutralLimits{});
+        EXPECT_FALSE(c.owner.has_value());
+        EXPECT_EQ(stats.mOwnersDropped, 1u);
+        EXPECT_TRUE(c.lock.has_value()); // the rest of the placement is unaffected
+        PlacedRef zero = doorRef();
+        zero.mOwner->mOwner = kNullFormId;
+        EXPECT_FALSE(makeComponents(zero, {}, stats, NeutralLimits{}).owner.has_value());
+    }
+
+    TEST(SkyrimNeutralComponents, aLockHasLevelKeyAndIsLocked)
+    {
+        ComponentStats stats;
+        PlacedRef r = doorRef();
+        PlacementComponents c = makeComponents(r, {}, stats, NeutralLimits{});
+        ASSERT_TRUE(c.lock.has_value());
+        EXPECT_TRUE(c.lock->locked);
+        EXPECT_EQ(c.lock->level, 75);
+        EXPECT_EQ(c.lock->key, kKeyForm);
+        r.mLock->mKey = kNullFormId;
+        r.mLock->mLevel = 255;
+        c = makeComponents(r, {}, stats, NeutralLimits{});
+        EXPECT_EQ(c.lock->level, 255);
+        EXPECT_EQ(c.lock->key, sdkgame::kNoWorldId);
+        EXPECT_EQ(stats.mKeysUnresolved, 0u);
+    }
+
+    TEST(SkyrimNeutralComponents, aKeyOutsideTheLoadOrderIsDroppedButTheLockStays)
+    {
+        ComponentStats stats;
+        PlacedRef r = doorRef();
+        r.mLock->mKey = kUnresolvedFormId;
+        const PlacementComponents c = makeComponents(r, {}, stats, NeutralLimits{});
+        ASSERT_TRUE(c.lock.has_value());
+        EXPECT_EQ(c.lock->key, sdkgame::kNoWorldId);
+        EXPECT_EQ(c.lock->level, 75);
+        EXPECT_EQ(stats.mKeysUnresolved, 1u);
+    }
+
+    TEST(SkyrimNeutralComponents, aTeleportCarriesDoorCellTransformAndFlags)
+    {
+        ComponentStats stats;
+        const PlacedRef r = doorRef();
+        const RefCellIndex cells{ { kDoorB, kCellOther } };
+        const PlacementComponents c = makeComponents(r, cells, stats, NeutralLimits{});
+        ASSERT_TRUE(c.teleport.has_value());
+        EXPECT_EQ(c.teleport->destinationDoor, kDoorB);
+        EXPECT_EQ(c.teleport->destinationCell, kCellOther);
+        EXPECT_EQ(c.teleport->destination.position, (sdkgame::Vec3d{ 11.5, -22.25, 33.75 }));
+        EXPECT_EQ(c.teleport->destination.rotation, eulerToQuat({ 0.5f, 0.25f, 0.125f }));
+        EXPECT_EQ(c.teleport->destination.scale, 1.0);
+        EXPECT_EQ(c.teleport->flags, 1u);
+        EXPECT_EQ(stats.mTeleportCellsUnknown, 0u);
+        EXPECT_EQ(stats.mTeleportsDropped, 0u);
+    }
+
+    TEST(SkyrimNeutralComponents, aDoorInNoKnownCellKeepsTheTeleportWithNoCellAndCountsIt)
+    {
+        ComponentStats stats;
+        const PlacementComponents c = makeComponents(doorRef(), {}, stats, NeutralLimits{});
+        ASSERT_TRUE(c.teleport.has_value());
+        EXPECT_EQ(c.teleport->destinationDoor, kDoorB);
+        EXPECT_EQ(c.teleport->destinationCell, sdkgame::kNoWorldId);
+        EXPECT_EQ(stats.mTeleportCellsUnknown, 1u);
+    }
+
+    TEST(SkyrimNeutralComponents, aTeleportWithoutAUsableDoorIsDropped)
+    {
+        ComponentStats stats;
+        PlacedRef r = doorRef();
+        r.mTeleport->mDoor = kUnresolvedFormId;
+        EXPECT_FALSE(makeComponents(r, {}, stats, NeutralLimits{}).teleport.has_value());
+        r.mTeleport->mDoor = kNullFormId;
+        EXPECT_FALSE(makeComponents(r, {}, stats, NeutralLimits{}).teleport.has_value());
+        EXPECT_EQ(stats.mTeleportsDropped, 2u);
+    }
+
+    TEST(SkyrimNeutralComponents, hostileTeleportNumbersDropTheTeleportNotTheRest)
+    {
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float inf = std::numeric_limits<float>::infinity();
+        struct Case
+        {
+            Vec3 position;
+            Vec3 rotation;
+        };
+        const Case cases[]
+            = { { { nan, 0, 0 }, { 0, 0, 0 } }, { { 0, inf, 0 }, { 0, 0, 0 } }, { { 0, 0, 1e8f }, { 0, 0, 0 } },
+                  { { 0, 0, -1e8f }, { 0, 0, 0 } }, { { 0, 0, 0 }, { nan, 0, 0 } }, { { 0, 0, 0 }, { 0, -inf, 0 } } };
+        ComponentStats stats;
+        for (const Case& c : cases)
+        {
+            PlacedRef r = doorRef();
+            r.mTeleport->mPosition = c.position;
+            r.mTeleport->mRotation = c.rotation;
+            const PlacementComponents out = makeComponents(r, { { kDoorB, kCellOther } }, stats, NeutralLimits{});
+            EXPECT_FALSE(out.teleport.has_value());
+            EXPECT_TRUE(out.owner.has_value());
+            EXPECT_TRUE(out.lock.has_value());
+        }
+        EXPECT_EQ(stats.mTeleportsDropped, std::size(cases));
+    }
+
+    TEST(SkyrimNeutralComponents, aReferenceWithNothingHasNoComponents)
+    {
+        ComponentStats stats;
+        PlacedRef r;
+        r.mBase = 0x801;
+        EXPECT_TRUE(makeComponents(r, {}, stats, NeutralLimits{}).empty());
+    }
+
+    TEST(SkyrimNeutralObject, componentsFromASourceAreCopiedAndWithoutOneTheObjectHasNone)
+    {
+        ComponentStats stats;
+        const PlacementComponents c = makeComponents(doorRef(), { { kDoorB, kCellOther } }, stats, NeutralLimits{});
+        sdkgame::WorldObject out;
+        std::string problem;
+        ASSERT_TRUE(toNeutral(placed(), out, problem, NeutralLimits{}, &c)) << problem;
+        EXPECT_EQ(out.owner, c.owner);
+        EXPECT_EQ(out.lock, c.lock);
+        EXPECT_EQ(out.teleport, c.teleport);
+        EXPECT_TRUE(out.owner && out.lock && out.teleport);
+        sdkgame::WorldObject plain;
+        ASSERT_TRUE(toNeutral(placed(), plain, problem)) << problem;
+        EXPECT_FALSE(plain.owner || plain.lock || plain.teleport);
+    }
+
+    class ScriptedSource final : public ComponentSource
+    {
+    public:
+        mutable std::vector<std::pair<sdkgame::WorldId, sdkgame::WorldId>> mAsked;
+        PlacementComponents mFor0x20;
+        [[nodiscard]] const PlacementComponents* find(sdkgame::WorldId cell, sdkgame::WorldId placement) const override
+        {
+            mAsked.emplace_back(cell, placement);
+            return placement == 0x20 ? &mFor0x20 : nullptr;
+        }
+    };
+
+    void fillScripted(ScriptedView& view)
+    {
+        view.mContent.cell.id = 0x77;
+        for (const sdkgame::WorldId id : { 0x10u, 0x20u })
+        {
+            sdkgame::PlacedObject o = placed();
+            o.id = id;
+            view.mContent.objects.push_back(o);
+        }
+    }
+
+    TEST(SkyrimNeutralCell, anExplicitSourceIsAskedForEachPlacementOfTheCellJustLoaded)
+    {
+        ScriptedView view;
+        fillScripted(view);
+        ScriptedSource source;
+        ComponentStats stats;
+        source.mFor0x20 = makeComponents(doorRef(), {}, stats, NeutralLimits{});
+        sdkgame::WorldCell cell;
+        std::string error;
+        ASSERT_TRUE(loadNeutralCell(view, 0x77, cell, error, NeutralLimits{}, &source)) << error;
+        ASSERT_EQ(cell.objects.size(), 2u);
+        EXPECT_FALSE(cell.objects[0].owner || cell.objects[0].lock || cell.objects[0].teleport);
+        EXPECT_TRUE(cell.objects[1].owner && cell.objects[1].lock && cell.objects[1].teleport);
+        ASSERT_EQ(source.mAsked.size(), 2u);
+        EXPECT_EQ(source.mAsked[0], (std::pair<sdkgame::WorldId, sdkgame::WorldId>{ 0x77, 0x10 }));
+        EXPECT_EQ(source.mAsked[1], (std::pair<sdkgame::WorldId, sdkgame::WorldId>{ 0x77, 0x20 }));
+    }
+
+    TEST(SkyrimNeutralCell, aViewThatIsNoSourceGivesEmptyComponents)
+    {
+        ScriptedView view;
+        fillScripted(view);
+        sdkgame::WorldCell cell;
+        std::string error;
+        ASSERT_TRUE(loadNeutralCell(view, 0x77, cell, error)) << error;
+        ASSERT_EQ(cell.objects.size(), 2u);
+        for (const sdkgame::WorldObject& o : cell.objects)
+            EXPECT_FALSE(o.owner || o.lock || o.teleport);
+    }
+
+    // ---- over the real store: a pair of doors between two cells -------------------------------------------------
+
+    constexpr std::uint32_t kHallDoor = 0x00000B11, kCellyard = 0x00000910, kYardDoor = 0x00000B21, kChest = 0x00000B12;
+
+    Bytes doorRefr(std::uint32_t id, std::uint32_t base, const Bytes& extra, std::uint32_t flags = 0)
+    {
+        Bytes subs;
+        subs.append(sub4("NAME", Bytes().u32(base)));
+        subs.append(sub4("DATA", Bytes().f32(1).f32(2).f32(3).f32(0).f32(0).f32(0)));
+        subs.append(extra);
+        return record4("REFR", flags, id, subs);
+    }
+
+    Bytes xtelSub(std::uint32_t door, float x, float y, float z, std::uint32_t flags)
+    {
+        return sub4("XTEL", Bytes().u32(door).f32(x).f32(y).f32(z).f32(0).f32(0).f32(1.5f).u32(flags));
+    }
+
+    Bytes xlocSub(std::uint8_t level, std::uint32_t key)
+    {
+        return sub4("XLOC", Bytes().u8(level).u8(9).u8(9).u8(9).u32(key).u8(0).u8(9).u8(9).u8(9).u64(0));
+    }
+
+    Bytes interiorCell(std::uint32_t id, const std::string& name, const Bytes& persistent, const Bytes& temporary)
+    {
+        Bytes cellSubs;
+        cellSubs.append(edid(name));
+        cellSubs.append(sub4("FULL", Bytes().zstring(name)));
+        cellSubs.append(sub4("DATA", Bytes().u16(CellFlags::Interior)));
+        Bytes cellRec = record4("CELL", 0, id, cellSubs);
+        Bytes children;
+        if (persistent.size() > 0)
+            children.append(group4(id, kGrupPersistent, persistent));
+        if (temporary.size() > 0)
+            children.append(group4(id, kGrupTemporary, temporary));
+        Bytes sub = cellRec;
+        sub.append(group4(id, kGrupCellChildren, children));
+        return group4(id % 10, kGrupInteriorBlock, group4((id / 10) % 10, kGrupInteriorSub, sub));
+    }
+
+    // Two interiors with a door each that lead to one another, a locked chest and an owned base in the first.
+    Bytes doorsEsm()
+    {
+        Bytes bytes = tes4Header(1.7f, Content::sRecMaster, "A", "B", 1, {}, 24, 44);
+        bytes.append(topGroup("STAT", modelRecord("STAT", kStatA, "StoneWall", "architecture\\wall.nif")));
+        const Bytes hall = doorRefr(kHallDoor, kStatA,
+            Bytes()
+                .append(sub4("XOWN", Bytes().u32(0x00013BB8)))
+                .append(sub4("XRNK", Bytes().u32(3)))
+                .append(xlocSub(50, 0x0001D4A1))
+                .append(xtelSub(kYardDoor, 10, 20, 30, 1)));
+        const Bytes chest = doorRefr(kChest, kStatA, xlocSub(255, 0));
+        const Bytes yard = doorRefr(kYardDoor, kStatA, xtelSub(kHallDoor, 40, 50, 60, 0));
+        Bytes cells = interiorCell(kCellInterior, "TestHall", Bytes(), Bytes().append(hall).append(chest));
+        cells.append(interiorCell(kCellyard, "TestYard", yard, Bytes()));
+        bytes.append(topGroup("CELL", cells));
+        return bytes;
+    }
+
+    struct DoorsPlugin
+    {
+        fs::path mDir;
+        fs::path mFile;
+        DoorsPlugin()
+        {
+            mDir = fs::temp_directory_path()
+                / ("oe_skyrim_doors_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+            fs::create_directories(mDir);
+            mFile = mDir / "doors.esm";
+            std::ofstream out(mFile, std::ios::binary);
+            const std::string s = doorsEsm().str();
+            out.write(s.data(), static_cast<std::streamsize>(s.size()));
+        }
+        ~DoorsPlugin()
+        {
+            std::error_code ec;
+            fs::remove_all(mDir, ec);
+        }
+    };
+
+    const sdkgame::WorldObject* objectById(const sdkgame::WorldCell& c, sdkgame::WorldId id)
+    {
+        for (const sdkgame::WorldObject& o : c.objects)
+            if (o.id == id)
+                return &o;
+        return nullptr;
+    }
+
+    TEST(SkyrimNeutralDoors, aStoreCellCarriesOwnerLockAndTeleportAndTheDestinationNamesTheOtherCell)
+    {
+        DoorsPlugin plugin;
+        SkyrimWorldView view;
+        std::vector<std::string> problems;
+        view.load({ plugin.mFile }, problems);
+        ASSERT_TRUE(problems.empty());
+        const auto hallInfo = view.findCellByEditorId("TestHall");
+        const auto yardInfo = view.findCellByEditorId("TestYard");
+        ASSERT_TRUE(hallInfo && yardInfo);
+
+        sdkgame::WorldCell hall, yard;
+        std::string error;
+        ASSERT_TRUE(loadNeutralCell(view, hallInfo->id, hall, error)) << error;
+        ASSERT_TRUE(loadNeutralCell(view, yardInfo->id, yard, error)) << error;
+
+        const sdkgame::WorldObject* door = objectById(hall, kHallDoor);
+        ASSERT_NE(door, nullptr);
+        ASSERT_TRUE(door->owner.has_value());
+        EXPECT_EQ(door->owner->owner, 0x00013BB8u);
+        EXPECT_EQ(door->owner->requiredRank, 3);
+        ASSERT_TRUE(door->lock.has_value());
+        EXPECT_TRUE(door->lock->locked);
+        EXPECT_EQ(door->lock->level, 50);
+        EXPECT_EQ(door->lock->key, 0x0001D4A1u);
+        ASSERT_TRUE(door->teleport.has_value());
+        EXPECT_EQ(door->teleport->destinationDoor, kYardDoor);
+        EXPECT_EQ(door->teleport->destinationCell, yardInfo->id); // the door's own cell, from the index pass
+        EXPECT_EQ(door->teleport->destination.position, (sdkgame::Vec3d{ 10, 20, 30 }));
+        EXPECT_EQ(door->teleport->destination.rotation, eulerToQuat({ 0, 0, 1.5f }));
+        EXPECT_EQ(door->teleport->flags, 1u);
+
+        // The other way: the yard door has a teleport only, and its destination is the hall.
+        const sdkgame::WorldObject* back = objectById(yard, kYardDoor);
+        ASSERT_NE(back, nullptr);
+        EXPECT_FALSE(back->owner || back->lock);
+        ASSERT_TRUE(back->teleport.has_value());
+        EXPECT_EQ(back->teleport->destinationDoor, kHallDoor);
+        EXPECT_EQ(back->teleport->destinationCell, hallInfo->id);
+
+        // A chest with a lock and a requires-key level and no key.
+        const sdkgame::WorldObject* chest = objectById(hall, kChest);
+        ASSERT_TRUE(chest != nullptr && chest->lock.has_value());
+        EXPECT_EQ(chest->lock->level, 255);
+        EXPECT_EQ(chest->lock->key, sdkgame::kNoWorldId);
+        EXPECT_FALSE(chest->teleport.has_value());
+
+        EXPECT_EQ(view.stats().mTeleportDoorsIndexed, 2u);
+        EXPECT_EQ(view.stats().mComponents.mTeleportCellsUnknown, 0u);
+        EXPECT_EQ(view.stats().mComponents.mTeleportsDropped, 0u);
+    }
+
+    TEST(SkyrimNeutralDoors, theSourceKnowsOnlyTheCellLastLoaded)
+    {
+        DoorsPlugin plugin;
+        SkyrimWorldView view;
+        std::vector<std::string> problems;
+        view.load({ plugin.mFile }, problems);
+        const auto hallInfo = view.findCellByEditorId("TestHall");
+        const auto yardInfo = view.findCellByEditorId("TestYard");
+        ASSERT_TRUE(hallInfo && yardInfo);
+        sdkgame::WorldCellContent content;
+        std::string error;
+        ASSERT_TRUE(view.loadCell(hallInfo->id, content, error)) << error;
+        EXPECT_NE(view.find(hallInfo->id, kHallDoor), nullptr);
+        EXPECT_EQ(view.find(yardInfo->id, kYardDoor), nullptr); // another cell
+        EXPECT_EQ(view.find(hallInfo->id, 0x00000DEAD), nullptr); // an unknown placement
+        ASSERT_TRUE(view.loadCell(yardInfo->id, content, error)) << error;
+        EXPECT_EQ(view.find(hallInfo->id, kHallDoor), nullptr); // replaced by the later load
+        EXPECT_NE(view.find(yardInfo->id, kYardDoor), nullptr);
+        EXPECT_FALSE(view.loadCell(0x00DEAD00, content, error));
+        EXPECT_EQ(view.find(yardInfo->id, kYardDoor), nullptr); // a failed load clears it
+    }
+
+    TEST(SkyrimNeutralDoors, twoLoadsGiveEqualCellsWithComponents)
+    {
+        DoorsPlugin plugin;
+        SkyrimWorldView view;
+        std::vector<std::string> problems;
+        view.load({ plugin.mFile }, problems);
+        const auto hallInfo = view.findCellByEditorId("TestHall");
+        ASSERT_TRUE(hallInfo.has_value());
+        sdkgame::WorldCell first, second;
+        std::string error;
+        ASSERT_TRUE(loadNeutralCell(view, hallInfo->id, first, error)) << error;
+        ASSERT_TRUE(loadNeutralCell(view, hallInfo->id, second, error)) << error;
+        EXPECT_EQ(first, second);
+        EXPECT_TRUE(objectById(first, kHallDoor)->teleport.has_value());
     }
 }

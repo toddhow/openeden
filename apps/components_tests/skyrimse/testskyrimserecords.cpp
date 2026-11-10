@@ -754,11 +754,360 @@ namespace
         EXPECT_EQ(refused.mPlugin.mErrors.size(), 1u);
     }
 
+    // ---- XOWN, XRNK, XLOC and XTEL (task 0099 stage N4, the record-decoding half) --------------------------------
+    // The sizes and value ranges are the ones VERIFIED on the installed plugins (tools/skyrimse_records_check):
+    // XOWN 4, XRNK 4, XLOC 20, XTEL 32. The padding bytes of XLOC hold garbage in the real data and must not be read.
+
+    Bytes xown(std::uint32_t owner)
+    {
+        return sub4("XOWN", Bytes().u32(owner));
+    }
+
+    Bytes xrnk(std::int32_t rank)
+    {
+        return sub4("XRNK", Bytes().u32(static_cast<std::uint32_t>(rank)));
+    }
+
+    // level, 3 padding bytes (garbage), key, flags, 3 padding bytes (garbage), 8 bytes zero.
+    Bytes xlocData(std::uint8_t level, std::uint32_t key, std::uint8_t flags)
+    {
+        return Bytes().u8(level).u8(0xAA).u8(0xBB).u8(0xCC).u32(key).u8(flags).u8(0xDD).u8(0xEE).u8(0xFF).u64(0);
+    }
+
+    Bytes xloc(std::uint8_t level, std::uint32_t key, std::uint8_t flags = 0)
+    {
+        return sub4("XLOC", xlocData(level, key, flags));
+    }
+
+    Bytes xtel(std::uint32_t door, float px, float py, float pz, float rx, float ry, float rz, std::uint32_t flags)
+    {
+        return sub4("XTEL", Bytes().u32(door).f32(px).f32(py).f32(pz).f32(rx).f32(ry).f32(rz).u32(flags));
+    }
+
+    // A reference record with its usual NAME and DATA plus whatever else the test adds.
+    Bytes refrPlus(std::uint32_t id, std::uint32_t base, const Bytes& extra, const char (&type)[5] = "REFR",
+        std::uint32_t flags = 0)
+    {
+        Bytes subs;
+        subs.append(sub4("NAME", Bytes().u32(base)));
+        subs.append(refrData(1, 2, 3, 0.5f, 0.25f, 0.125f));
+        subs.append(extra);
+        return record4(type, flags, id, subs);
+    }
+
+    constexpr std::uint32_t kRoomId = 0x01000D2A;
+
+    // A one-room plugin whose temporary group holds the given reference records.
+    Bytes roomWith(const Bytes& temporary, const Bytes& persistent = Bytes())
+    {
+        return interiorPlugin(cell(kRoomId, "Room", CellFlags::Interior), kRoomId, persistent, temporary);
+    }
+
+    const PlacedRef* findRef(const ParsedPlugin& p, std::uint32_t id)
+    {
+        for (const CellRecord& c : p.mCells)
+            for (const auto* list : { &c.mPersistent, &c.mTemporary, &c.mVisibleDistant, &c.mOther })
+                for (const PlacedRef& r : *list)
+                    if (r.mCommon.mId == id)
+                        return &r;
+        return nullptr;
+    }
+
+    TEST(SkyrimRecordsOwner, anOwnerAndItsRankAreRead)
+    {
+        const Parsed p
+            = parse(roomWith(refrPlus(0x01000901, 0x0001234, Bytes().append(xown(0x00013BB8)).append(xrnk(6)))),
+                defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mOwner.has_value());
+        EXPECT_EQ(r->mOwner->mOwner, 0x00013BB8u); // Skyrim.esm's id, resolved through the master list
+        ASSERT_TRUE(r->mOwner->mRank.has_value());
+        EXPECT_EQ(*r->mOwner->mRank, 6);
+        EXPECT_EQ(p.mPlugin.mOddSubrecords, 0u);
+    }
+
+    TEST(SkyrimRecordsOwner, aNegativeRankIsKeptAsStored)
+    {
+        const Parsed p
+            = parse(roomWith(refrPlus(0x01000901, 0x0001234, Bytes().append(xown(0x00013BB8)).append(xrnk(-3)))),
+                defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mOwner && r->mOwner->mRank);
+        EXPECT_EQ(*r->mOwner->mRank, -3);
+    }
+
+    TEST(SkyrimRecordsOwner, anOwnerWithoutARankHasNone)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, xown(0x01000555))), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mOwner.has_value());
+        EXPECT_EQ(r->mOwner->mOwner, 0x01000555u); // the plugin's own id
+        EXPECT_FALSE(r->mOwner->mRank.has_value());
+    }
+
+    TEST(SkyrimRecordsOwner, aRankWithoutAnOwnerIsOddNotAnOwner)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, xrnk(2))), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        EXPECT_FALSE(r->mOwner.has_value());
+        EXPECT_EQ(p.mPlugin.mOddBy.count("REFR.XRNK"), 1u);
+    }
+
+    TEST(SkyrimRecordsOwner, aRankBeforeItsOwnerStillPairsWithIt)
+    {
+        // The order of subrecords is not part of the layout; the data always has XOWN first, but a reader that needs
+        // that order would drop the rank silently.
+        const Parsed p
+            = parse(roomWith(refrPlus(0x01000901, 0x0001234, Bytes().append(xrnk(4)).append(xown(0x00013BB8)))),
+                defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mOwner && r->mOwner->mRank);
+        EXPECT_EQ(*r->mOwner->mRank, 4);
+    }
+
+    TEST(SkyrimRecordsOwner, aWrongSizeIsCountedAndGivesNoOwner)
+    {
+        for (const Bytes& data : { Bytes().u16(7), Bytes().u32(0x00013BB8).u32(1), Bytes() })
+        {
+            const Parsed p = parse(roomWith(refrPlus(0x01000901, 0x0001234, sub4("XOWN", data))), defaultOrder());
+            const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+            ASSERT_NE(r, nullptr);
+            EXPECT_FALSE(r->mOwner.has_value()) << data.size();
+            EXPECT_EQ(p.mPlugin.mOddBy.count("REFR.XOWN"), 1u) << data.size();
+        }
+        const Parsed bad = parse(roomWith(refrPlus(0x01000901, 0x0001234,
+                                     Bytes().append(xown(0x00013BB8)).append(sub4("XRNK", Bytes().u8(1))))),
+            defaultOrder());
+        const PlacedRef* r = findRef(bad.mPlugin, 0x01000901);
+        ASSERT_TRUE(r != nullptr && r->mOwner.has_value());
+        EXPECT_FALSE(r->mOwner->mRank.has_value());
+        EXPECT_EQ(bad.mPlugin.mOddBy.count("REFR.XRNK"), 1u);
+    }
+
+    TEST(SkyrimRecordsOwner, anOwnerInAPluginTheLoadOrderLacksIsUnresolvedAndCounted)
+    {
+        // Missing.esm is master 1 and not in the load order; the plugin's own records are 0x02......
+        const Bytes h = header(0, { { "Skyrim.esm", 0 }, { "Missing.esm", 0 } });
+        const std::uint32_t cellId = 0x02000D2A;
+        Bytes cellSub = cell(cellId, "Room", CellFlags::Interior);
+        cellSub.append(group4(cellId, kGrupCellChildren,
+            group4(cellId, kGrupTemporary, refrPlus(0x02000901, 0x00001234, xown(0x01000777)))));
+        Bytes bytes = h;
+        bytes.append(group4(
+            Content::fourCC("CELL"), kGrupTop, group4(0, kGrupInteriorBlock, group4(0, kGrupInteriorSub, cellSub))));
+        const Parsed p = parse(bytes, defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000901);
+        ASSERT_NE(r, nullptr) << "the reference was not placed in its cell";
+        ASSERT_TRUE(r->mOwner.has_value());
+        EXPECT_EQ(r->mOwner->mOwner, kUnresolvedFormId);
+        EXPECT_GE(p.mPlugin.mUnresolvedFormIds, 1u);
+    }
+
+    TEST(SkyrimRecordsOwner, anActorReferenceCanHaveAnOwnerToo)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000902, 0x00001234, xown(0x00013BB8), "ACHR")), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000902);
+        ASSERT_NE(r, nullptr);
+        EXPECT_EQ(r->mKind, RefKind::Actor);
+        ASSERT_TRUE(r->mOwner.has_value());
+        EXPECT_EQ(r->mOwner->mOwner, 0x00013BB8u);
+    }
+
+    TEST(SkyrimRecordsLock, levelKeyAndFlagsComeFromTheirOffsetsAndPaddingIsIgnored)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000903, 0x00001234, xloc(75, 0x0001D4A1, 0x04))), defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000903);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mLock.has_value());
+        EXPECT_EQ(r->mLock->mLevel, 75);
+        EXPECT_EQ(r->mLock->mKey, 0x0001D4A1u);
+        EXPECT_EQ(r->mLock->mFlags, 0x04);
+        EXPECT_EQ(p.mPlugin.mOddSubrecords, 0u);
+    }
+
+    TEST(SkyrimRecordsLock, noKeyIsZeroAndTheKeyResolvesThroughTheMasterList)
+    {
+        const Parsed p = parse(roomWith(refrPlus(0x01000903, 0x00001234, xloc(255, 0))), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000903);
+        ASSERT_TRUE(r != nullptr && r->mLock.has_value());
+        EXPECT_EQ(r->mLock->mLevel, 255);
+        EXPECT_EQ(r->mLock->mKey, kNullFormId);
+        const Parsed q = parse(roomWith(refrPlus(0x01000903, 0x00001234, xloc(1, 0x01000321))), defaultOrder());
+        const PlacedRef* k = findRef(q.mPlugin, 0x01000903);
+        ASSERT_TRUE(k != nullptr && k->mLock.has_value());
+        EXPECT_EQ(k->mLock->mKey, 0x01000321u);
+    }
+
+    TEST(SkyrimRecordsLock, otherSizesAreCountedAndGiveNoLock)
+    {
+        // 12 is the Oblivion size and does not occur in the installed Skyrim data: counted, not guessed.
+        for (const std::size_t size :
+            { std::size_t(0), std::size_t(12), std::size_t(19), std::size_t(21), std::size_t(40) })
+        {
+            Bytes data;
+            for (std::size_t i = 0; i < size; ++i)
+                data.u8(static_cast<std::uint8_t>(i + 1));
+            const Parsed p = parse(roomWith(refrPlus(0x01000903, 0x00001234, sub4("XLOC", data))), defaultOrder());
+            const PlacedRef* r = findRef(p.mPlugin, 0x01000903);
+            ASSERT_NE(r, nullptr);
+            EXPECT_FALSE(r->mLock.has_value()) << size;
+            EXPECT_EQ(p.mPlugin.mOddBy.count("REFR.XLOC"), 1u) << size;
+        }
+    }
+
+    TEST(SkyrimRecordsTeleport, everyFieldComesFromItsOffset)
+    {
+        const Parsed p = parse(
+            roomWith(refrPlus(0x01000904, 0x00001234, xtel(0x00032BDA, 11.5f, -22.25f, 33.75f, 0.1f, 0.2f, 0.3f, 1))),
+            defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000904);
+        ASSERT_TRUE(r != nullptr && r->mTeleport.has_value());
+        EXPECT_EQ(r->mTeleport->mDoor, 0x00032BDAu);
+        EXPECT_EQ(r->mTeleport->mPosition.x, 11.5f);
+        EXPECT_EQ(r->mTeleport->mPosition.y, -22.25f);
+        EXPECT_EQ(r->mTeleport->mPosition.z, 33.75f);
+        EXPECT_EQ(r->mTeleport->mRotation.x, 0.1f);
+        EXPECT_EQ(r->mTeleport->mRotation.y, 0.2f);
+        EXPECT_EQ(r->mTeleport->mRotation.z, 0.3f);
+        EXPECT_EQ(r->mTeleport->mFlags, 1u);
+        EXPECT_EQ(p.mPlugin.mOddSubrecords, 0u);
+    }
+
+    TEST(SkyrimRecordsTeleport, otherSizesAreCountedAndGiveNoTeleport)
+    {
+        for (const std::size_t size :
+            { std::size_t(0), std::size_t(4), std::size_t(28), std::size_t(31), std::size_t(33) })
+        {
+            Bytes data;
+            for (std::size_t i = 0; i < size; ++i)
+                data.u8(0x11);
+            const Parsed p = parse(roomWith(refrPlus(0x01000904, 0x00001234, sub4("XTEL", data))), defaultOrder());
+            const PlacedRef* r = findRef(p.mPlugin, 0x01000904);
+            ASSERT_NE(r, nullptr);
+            EXPECT_FALSE(r->mTeleport.has_value()) << size;
+            EXPECT_EQ(p.mPlugin.mOddBy.count("REFR.XTEL"), 1u) << size;
+            EXPECT_TRUE(p.mPlugin.mTeleportRefCells.empty()) << size;
+        }
+    }
+
+    TEST(SkyrimRecordsTeleport, aDoorIsIndexedWithTheCellItStandsIn)
+    {
+        const Bytes tel = xtel(0x00032BDA, 1, 2, 3, 0, 0, 0, 0);
+        const Parsed p = parse(
+            roomWith(refrPlus(0x01000904, 0x00001234, tel), refrPlus(0x01000905, 0x00001234, tel)), defaultOrder());
+        ASSERT_TRUE(p.mOk) << p.mError.describe();
+        ASSERT_EQ(p.mPlugin.mTeleportRefCells.size(), 2u);
+        // File order: the persistent group comes first.
+        EXPECT_EQ(p.mPlugin.mTeleportRefCells[0], (std::pair<FormId, FormId>{ 0x01000905, kRoomId }));
+        EXPECT_EQ(p.mPlugin.mTeleportRefCells[1], (std::pair<FormId, FormId>{ 0x01000904, kRoomId }));
+    }
+
+    TEST(SkyrimRecordsTeleport, theIndexPassSeesDoorsWithoutDecodingReferences)
+    {
+        const Bytes tel = xtel(0x00032BDA, 1, 2, 3, 0, 0, 0, 0);
+        const Bytes plugin = roomWith(
+            Bytes().append(refrPlus(0x01000904, 0x00001234, tel)).append(refrPlus(0x01000906, 0x00001234, Bytes())),
+            refrPlus(0x01000905, 0x00001234, xown(0x00013BB8)));
+        ParseLimits skip;
+        skip.mSkipReferences = true;
+        const Parsed a = parse(plugin, defaultOrder(), skip);
+        const Parsed b = parse(plugin, defaultOrder());
+        ASSERT_TRUE(a.mOk && b.mOk);
+        EXPECT_EQ(a.mPlugin.mCells[0].refCount(), 0u); // not decoded
+        EXPECT_EQ(a.mPlugin.mTeleportRefCells, b.mPlugin.mTeleportRefCells);
+        ASSERT_EQ(a.mPlugin.mTeleportRefCells.size(), 1u);
+        EXPECT_EQ(a.mPlugin.mTeleportRefCells[0], (std::pair<FormId, FormId>{ 0x01000904, kRoomId }));
+    }
+
+    TEST(SkyrimRecordsTeleport, aCompressedReferenceIsScannedInTheIndexPassToo)
+    {
+        Bytes inner;
+        inner.append(sub4("NAME", Bytes().u32(0x1234)));
+        inner.append(xtel(0x00032BDA, 1, 2, 3, 0, 0, 0, 0));
+        uLongf size = compressBound(static_cast<uLong>(inner.size()));
+        std::string z(size, '\0');
+        ASSERT_EQ(compress2(reinterpret_cast<Bytef*>(z.data()), &size,
+                      reinterpret_cast<const Bytef*>(inner.str().data()), static_cast<uLong>(inner.size()), 6),
+            Z_OK);
+        z.resize(size);
+        Bytes body;
+        body.u32(static_cast<std::uint32_t>(inner.size())).text(z);
+        const Bytes plugin = roomWith(record4("REFR", Content::sRecCompressed, 0x01000904, body));
+        ParseLimits skip;
+        skip.mSkipReferences = true;
+        const Parsed a = parse(plugin, defaultOrder(), skip);
+        const Parsed b = parse(plugin, defaultOrder());
+        ASSERT_TRUE(a.mOk && b.mOk);
+        ASSERT_EQ(a.mPlugin.mTeleportRefCells.size(), 1u);
+        EXPECT_EQ(a.mPlugin.mTeleportRefCells, b.mPlugin.mTeleportRefCells);
+    }
+
+    TEST(SkyrimRecordsTeleport, aReferenceOutsideAnyCellIsNotIndexed)
+    {
+        // A door outside any cell group has no cell to name.
+        Bytes bytes = header();
+        bytes.append(group4(
+            Content::fourCC("REFR"), kGrupTop, refrPlus(0x01000904, 0x1234, xtel(0x00032BDA, 1, 2, 3, 0, 0, 0, 0))));
+        const Parsed p = parse(bytes, defaultOrder());
+        EXPECT_TRUE(p.mPlugin.mTeleportRefCells.empty());
+    }
+
+    TEST(SkyrimRecordsDuplicates, theFirstOfARepeatedSubrecordWinsAndTheRepeatIsCounted)
+    {
+        const Bytes extra = Bytes()
+                                .append(xown(0x00013BB8))
+                                .append(xown(0x00099999))
+                                .append(xloc(25, 0x111))
+                                .append(xloc(100, 0x222))
+                                .append(xtel(0x00032BDA, 1, 2, 3, 0, 0, 0, 0))
+                                .append(xtel(0x00032BDB, 4, 5, 6, 0, 0, 0, 0));
+        const Parsed p = parse(roomWith(refrPlus(0x01000907, 0x1234, extra)), defaultOrder());
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000907);
+        ASSERT_NE(r, nullptr);
+        ASSERT_TRUE(r->mOwner && r->mLock && r->mTeleport);
+        EXPECT_EQ(r->mOwner->mOwner, 0x00013BB8u);
+        EXPECT_EQ(r->mLock->mLevel, 25);
+        EXPECT_EQ(r->mTeleport->mDoor, 0x00032BDAu);
+        EXPECT_EQ(p.mPlugin.mOddBy.at("REFR.XOWN"), 1u);
+        EXPECT_EQ(p.mPlugin.mOddBy.at("REFR.XLOC"), 1u);
+        EXPECT_EQ(p.mPlugin.mOddBy.at("REFR.XTEL"), 1u);
+    }
+
+    TEST(SkyrimRecordsComponents, otherSubrecordsOfAReferenceAreSkippedWithoutComment)
+    {
+        // XMRK (map marker, size 0), XPRM (primitive, 32 bytes) and XTNM (4 bytes) are not decoded and not odd.
+        const Bytes extra = Bytes()
+                                .append(sub4("XMRK", Bytes()))
+                                .append(sub4("XPRM", Bytes().u64(0).u64(0).u64(0).u64(0)))
+                                .append(sub4("XTNM", Bytes().u32(1)));
+        const Parsed p = parse(roomWith(refrPlus(0x01000908, 0x1234, extra)), defaultOrder());
+        ASSERT_TRUE(p.mOk);
+        const PlacedRef* r = findRef(p.mPlugin, 0x01000908);
+        ASSERT_NE(r, nullptr);
+        EXPECT_FALSE(r->mOwner || r->mLock || r->mTeleport);
+        EXPECT_EQ(p.mPlugin.mOddSubrecords, 0u);
+    }
+
     Bytes variedPlugin()
     {
         const std::uint32_t cellId = 0x01000D2A;
-        Bytes bytes = interiorPlugin(cell(cellId, "TestRoom", CellFlags::Interior), cellId,
-            refr(0x01000900, 0x00001234, 0x400), refr(0x01000901, 0x01000555, 0, 10.0f, 2.0f));
+        Bytes bytes
+            = interiorPlugin(cell(cellId, "TestRoom", CellFlags::Interior), cellId, refr(0x01000900, 0x00001234, 0x400),
+                refrPlus(0x01000901, 0x01000555,
+                    Bytes()
+                        .append(xown(0x00013BB8))
+                        .append(xrnk(2))
+                        .append(xloc(50, 0x00000321))
+                        .append(xtel(0x00032BDA, 1, 2, 3, 0.5f, 0.25f, 0.125f, 1))));
         Bytes weap;
         weap.append(edid("W")).append(sub4("DATA", Bytes().u32(25).f32(9.0f).u16(7)));
         weap.append(sub4("KWDA", Bytes().u32(1).u32(2)));
@@ -777,7 +1126,17 @@ namespace
         {
             out += c.mCommon.mEditorId + std::to_string(c.refCount());
             for (const PlacedRef& r : c.mTemporary)
+            {
                 out += std::to_string(r.mBase) + "," + std::to_string(r.mPosition.x);
+                if (r.mOwner)
+                    out += "O" + std::to_string(r.mOwner->mOwner) + ":" + std::to_string(r.mOwner->mRank.value_or(-99));
+                if (r.mLock)
+                    out += "L" + std::to_string(r.mLock->mLevel) + ":" + std::to_string(r.mLock->mKey) + ":"
+                        + std::to_string(r.mLock->mFlags);
+                if (r.mTeleport)
+                    out += "T" + std::to_string(r.mTeleport->mDoor) + ":" + std::to_string(r.mTeleport->mPosition.z)
+                        + ":" + std::to_string(r.mTeleport->mRotation.x) + ":" + std::to_string(r.mTeleport->mFlags);
+            }
         }
         for (const ItemRecord& i : p.mItems)
             out += i.mCommon.mEditorId + std::to_string(i.mValue) + std::to_string(i.mKeywords.size());
@@ -795,6 +1154,9 @@ namespace
         ASSERT_TRUE(a.mOk);
         EXPECT_EQ(digest(a.mPlugin), digest(b.mPlugin));
         EXPECT_NE(digest(a.mPlugin).find("TestRoom2"), std::string::npos);
+        // The components are part of the digest: the seed carries all four subrecords.
+        EXPECT_NE(digest(a.mPlugin).find("O80824:2L50:801:0T207834:3.000000:0.500000:1"), std::string::npos)
+            << digest(a.mPlugin);
     }
 
     TEST(SkyrimRecordsFuzz, mutatedPluginsNeverCrashAndStayDeterministic)

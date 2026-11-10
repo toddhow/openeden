@@ -12,11 +12,14 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -45,9 +48,22 @@ namespace
         return e == ".esm" || e == ".esp" || e == ".esl";
     }
 
+    // Owner, lock and teleport numbers (task 0099 stage N4): what the references say, and which ids they point at.
+    struct Links
+    {
+        std::uint64_t mOwners = 0, mOwnersUnresolved = 0, mRanks = 0;
+        std::uint64_t mLocks = 0, mKeys = 0, mKeysUnresolved = 0;
+        std::uint64_t mTeleports = 0, mTeleportsNonFinite = 0, mTeleportsHuge = 0, mTeleportDoorsUnresolved = 0;
+        std::map<std::string, std::uint64_t> mHistogram; // "lock level 25", "lock flags 4", "teleport flags 1", ...
+        std::set<FormId> mOwnerIds, mKeyIds, mTargetIds;
+        std::map<FormId, FormId> mTeleportOf; // door reference -> its destination door (later plugins win)
+        std::uint64_t mIndexed = 0, mIndexMismatch = 0; // teleport doors in the index pass against the full parse
+    };
+
     // Numbers kept across plugins.
     struct Totals
     {
+        Links mLinks;
         std::uint64_t mPlugins = 0;
         std::uint64_t mRefused = 0;
         std::map<std::string, std::uint64_t> mRefusedWhy;
@@ -160,8 +176,58 @@ namespace
                 if (r.persistent())
                     ++t.mRefsTemporaryFlagged;
             const auto refStats = [&](const std::vector<PlacedRef>& v) {
+                Links& k = t.mLinks;
+                const auto usable = [](FormId id) { return id != kNullFormId && id != kUnresolvedFormId; };
                 for (const PlacedRef& r : v)
                 {
+                    if (r.mOwner)
+                    {
+                        ++k.mOwners;
+                        if (r.mOwner->mRank)
+                            ++k.mRanks;
+                        if (usable(r.mOwner->mOwner))
+                            k.mOwnerIds.insert(r.mOwner->mOwner);
+                        else
+                            ++k.mOwnersUnresolved;
+                    }
+                    if (r.mLock)
+                    {
+                        ++k.mLocks;
+                        ++k.mHistogram["lock level " + std::to_string(r.mLock->mLevel)];
+                        ++k.mHistogram["lock flags " + std::to_string(r.mLock->mFlags)];
+                        if (usable(r.mLock->mKey))
+                        {
+                            ++k.mKeys;
+                            k.mKeyIds.insert(r.mLock->mKey);
+                        }
+                        else if (r.mLock->mKey == kUnresolvedFormId)
+                            ++k.mKeysUnresolved;
+                    }
+                    if (r.mTeleport)
+                    {
+                        const RefTeleport& tp = *r.mTeleport;
+                        ++k.mTeleports;
+                        ++k.mHistogram["teleport flags " + std::to_string(tp.mFlags)];
+                        const float all[] = { tp.mPosition.x, tp.mPosition.y, tp.mPosition.z, tp.mRotation.x,
+                            tp.mRotation.y, tp.mRotation.z };
+                        bool finite = true, huge = false;
+                        for (float f : all)
+                        {
+                            finite = finite && std::isfinite(f);
+                            huge = huge || (std::isfinite(f) && std::abs(f) > 1.0e7f);
+                        }
+                        if (!finite)
+                            ++k.mTeleportsNonFinite;
+                        if (huge)
+                            ++k.mTeleportsHuge;
+                        if (usable(tp.mDoor))
+                        {
+                            k.mTargetIds.insert(tp.mDoor);
+                            k.mTeleportOf[r.mCommon.mId] = tp.mDoor;
+                        }
+                        else
+                            ++k.mTeleportDoorsUnresolved;
+                    }
                     if (r.initiallyDisabled())
                         ++t.mRefsDisabled;
                     if (r.mEnableParent)
@@ -270,6 +336,114 @@ namespace
         std::map<std::string, fs::path> mMods;
     };
 
+    // Walks the record headers of every plugin once more and says what the ids that owners, keys and teleports point
+    // at really are (aggregates only). Needs the whole load order, which is why it runs after the parse.
+    void crossCheck(
+        const char* label, const std::vector<std::pair<std::string, fs::path>>& files, const LoadOrder& order, Links& k)
+    {
+        struct Walker final : Content::Visitor
+        {
+            const FormIdResolver* mResolver = nullptr;
+            Links* mLinks = nullptr;
+            std::map<FormId, std::uint32_t> mOwnerType, mKeyType, mTargetType;
+            bool onRecord(const Content::RawRecord& r) override
+            {
+                const std::optional<FormId> id = mResolver->resolve(r.mFormId);
+                if (!id)
+                    return true;
+                if (mLinks->mOwnerIds.count(*id))
+                    mOwnerType[*id] = r.mType;
+                if (mLinks->mKeyIds.count(*id))
+                    mKeyType[*id] = r.mType;
+                if (mLinks->mTargetIds.count(*id))
+                    mTargetType[*id] = r.mType;
+                return true;
+            }
+        } walker;
+        walker.mLinks = &k;
+        for (const auto& [name, path] : files)
+        {
+            Content::Error error;
+            const auto plugin = Content::Plugin::openFile(path, error);
+            if (plugin == nullptr)
+                continue;
+            const FormIdResolver resolver(plugin->header(), name, order);
+            walker.mResolver = &resolver;
+            Content::WalkOptions options;
+            options.mReadData = false;
+            (void)plugin->walk(walker, options);
+        }
+        const auto line
+            = [&](const std::string& what) { std::cout << "SKYRIMSE-RECORDS " << label << ' ' << what << '\n'; };
+        const auto count = [&](const std::set<FormId>& ids, const std::map<FormId, std::uint32_t>& types,
+                               std::initializer_list<std::uint32_t> good, std::uint64_t& missing,
+                               std::map<std::string, std::uint64_t>& other) {
+            std::uint64_t ok = 0;
+            missing = 0;
+            for (const FormId id : ids)
+            {
+                const auto it = types.find(id);
+                if (it == types.end())
+                {
+                    ++missing;
+                    continue;
+                }
+                bool isGood = false;
+                for (const std::uint32_t g : good)
+                    isGood = isGood || it->second == g;
+                if (isGood)
+                    ++ok;
+                else
+                    ++other[Content::fourCCToString(it->second)];
+            }
+            return ok;
+        };
+        std::uint64_t missing = 0;
+        std::map<std::string, std::uint64_t> other;
+        const std::uint64_t ownersOk = count(
+            k.mOwnerIds, walker.mOwnerType, { Content::fourCC("NPC_"), Content::fourCC("FACT") }, missing, other);
+        line("owners: " + std::to_string(k.mOwners) + " with rank " + std::to_string(k.mRanks) + " unresolved "
+            + std::to_string(k.mOwnersUnresolved) + "; distinct owner forms " + std::to_string(k.mOwnerIds.size())
+            + " NPC_ or FACT " + std::to_string(ownersOk) + " missing " + std::to_string(missing));
+        for (const auto& [t, n] : other)
+            line("owner form of type " + t + " x" + std::to_string(n));
+        other.clear();
+        const std::uint64_t keysOk = count(k.mKeyIds, walker.mKeyType, { Content::fourCC("KEYM") }, missing, other);
+        line("locks: " + std::to_string(k.mLocks) + " with a key " + std::to_string(k.mKeys) + " key unresolved "
+            + std::to_string(k.mKeysUnresolved) + "; distinct keys " + std::to_string(k.mKeyIds.size()) + " KEYM "
+            + std::to_string(keysOk) + " missing " + std::to_string(missing));
+        for (const auto& [t, n] : other)
+            line("key form of type " + t + " x" + std::to_string(n));
+        other.clear();
+        const std::uint64_t targetsOk
+            = count(k.mTargetIds, walker.mTargetType, { Content::fourCC("REFR") }, missing, other);
+        line("teleports: " + std::to_string(k.mTeleports) + " non-finite " + std::to_string(k.mTeleportsNonFinite)
+            + " past 1e7 " + std::to_string(k.mTeleportsHuge) + " door unresolved "
+            + std::to_string(k.mTeleportDoorsUnresolved) + "; distinct destination doors "
+            + std::to_string(k.mTargetIds.size()) + " REFR " + std::to_string(targetsOk) + " missing "
+            + std::to_string(missing));
+        for (const auto& [t, n] : other)
+            line("destination of type " + t + " x" + std::to_string(n));
+        // Does the destination door lead back? (Both ends of a pair carry an XTEL.)
+        std::uint64_t reciprocal = 0, oneWay = 0, noXtel = 0;
+        for (const auto& [door, target] : k.mTeleportOf)
+        {
+            const auto back = k.mTeleportOf.find(target);
+            if (back == k.mTeleportOf.end())
+                ++noXtel;
+            else if (back->second == door)
+                ++reciprocal;
+            else
+                ++oneWay;
+        }
+        line("teleport pairs: leads back " + std::to_string(reciprocal) + " leads elsewhere " + std::to_string(oneWay)
+            + " destination has no XTEL " + std::to_string(noXtel) + " of " + std::to_string(k.mTeleportOf.size()));
+        line("index pass: teleport doors found " + std::to_string(k.mIndexed) + " plugins where the index differs from the "
+            "full parse " + std::to_string(k.mIndexMismatch));
+        for (const auto& [h, n] : k.mHistogram)
+            line(h + " x" + std::to_string(n));
+    }
+
     // Parses `names` in order as one load order.
     void runLoadOrder(const char* label, const std::vector<std::string>& names, const PluginFinder& finder, Totals& t,
         bool resolveStrings, const fs::path& data)
@@ -329,6 +503,17 @@ namespace
                 ++t.mWalkWhy[errorKind(parsed.mWalkError->mMessage)];
             }
             accumulate(parsed, order.isLight(name), t);
+            {
+                // The index pass (references skipped) must find the same teleport doors in the same cells.
+                ParsedPlugin indexed;
+                Content::Error indexError;
+                ParseLimits skip;
+                skip.mSkipReferences = true;
+                (void)parseRecordsFile(path, order, skip, indexed, indexError);
+                t.mLinks.mIndexed += indexed.mTeleportRefCells.size();
+                if (indexed.mTeleportRefCells != parsed.mTeleportRefCells)
+                    ++t.mLinks.mIndexMismatch;
+            }
 
             if (resolveStrings && parsed.mHeader.isLocalized())
             {
@@ -376,6 +561,22 @@ namespace
             std::cout << "SKYRIMSE-RECORDS " << label << " strings: table entries " << stringsFound << " names checked "
                       << stringsChecked << " id not in the table " << stringsMissingId << " plugins without a table "
                       << tablesMissing << '\n';
+        crossCheck(label, files, order, t.mLinks);
+    }
+
+    // The sizes and ranges the decoders rely on, as measured on the installed plugins (task 0099 N4). A plugin outside
+    // them is not an error of the data, but the decoders were written for these.
+    void expectLinks(const Totals& t)
+    {
+        for (const char* key : { "REFR.XOWN", "REFR.XRNK", "REFR.XLOC", "REFR.XTEL", "ACHR.XOWN", "ACHR.XRNK" })
+        {
+            const auto it = t.mOdd.find(key);
+            EXPECT_TRUE(it == t.mOdd.end()) << key << " odd x" << (it == t.mOdd.end() ? 0 : it->second);
+        }
+        EXPECT_EQ(t.mLinks.mTeleportsNonFinite, 0u);
+        EXPECT_EQ(t.mLinks.mTeleportsHuge, 0u);
+        EXPECT_EQ(t.mLinks.mIndexMismatch, 0u);
+        EXPECT_GT(t.mLinks.mTeleports, 0u);
     }
 
     TEST(SkyrimSeRecordsRealData, theGamesOwnMasters)
@@ -393,6 +594,7 @@ namespace
         EXPECT_EQ(t.mWalkErrors, 0u);
         for (const auto& [type, c] : t.mCounts)
             EXPECT_EQ(c.mFailed, 0u) << Content::fourCCToString(type);
+        expectLinks(t);
     }
 
     TEST(SkyrimSeRecordsRealData, theModList)
@@ -423,5 +625,6 @@ namespace
         runLoadOrder("mods", names, finder, t, false, dataEnv);
         print("mods", t);
         EXPECT_GT(t.mPlugins, 0u);
+        expectLinks(t);
     }
 }

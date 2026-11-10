@@ -11,11 +11,16 @@
 // view and cell give equal results, on one platform; floating point results are not claimed to be bit-identical across
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
+#include <game_skyrimse/records.hpp>
+
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
 #include <openeden/game/world_view.hpp>
 
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <unordered_map>
 
 namespace game_skyrimse
 {
@@ -26,6 +31,48 @@ namespace game_skyrimse
         double mMaxScale = 1.0e3;
     };
 
+    /// The neutral components of one placement (task 0099 stage N4, the record-decoding half): who owns it, how it is
+    /// locked and where it leads. Built from the decoded references by makeComponents; the SDK's WorldView 1.0 has
+    /// nowhere to carry them, so they travel beside the placed objects through a pack-internal ComponentSource.
+    struct PlacementComponents
+    {
+        std::optional<openeden::sdk::game::OwnerComponent> owner;
+        std::optional<openeden::sdk::game::LockComponent> lock;
+        std::optional<openeden::sdk::game::TeleportComponent> teleport;
+
+        [[nodiscard]] bool empty() const { return !owner && !lock && !teleport; }
+        friend bool operator==(const PlacementComponents&, const PlacementComponents&) = default;
+    };
+
+    /// What makeComponents could not use, counted (never listed).
+    struct ComponentStats
+    {
+        std::uint64_t mOwnersDropped = 0; ///< XOWN whose owner is not in the load order: no owner component
+        std::uint64_t mKeysUnresolved = 0; ///< XLOC whose key is not in the load order: the lock has no key
+        std::uint64_t mTeleportsDropped = 0; ///< XTEL with no usable door, or a position or rotation that is hostile
+        std::uint64_t mTeleportCellsUnknown = 0; ///< XTEL kept, but its door is in no cell the store knows
+    };
+
+    /// Maps a door reference's id to the cell it stands in (the store's index of teleport doors).
+    using RefCellIndex = std::unordered_map<FormId, FormId>;
+
+    /// Owner, lock and teleport of one decoded reference as neutral components. An owner or teleport that cannot be
+    /// used is left out and counted; the object itself is never dropped for it. `refCells` names the destination
+    /// door's cell (none: the cell stays kNoWorldId and is counted). Hostile numbers: a non-finite or past-the-limit
+    /// arrival position or rotation drops the teleport.
+    [[nodiscard]] PlacementComponents makeComponents(
+        const PlacedRef& ref, const RefCellIndex& refCells, ComponentStats& stats, const NeutralLimits& limits);
+
+    /// Gives the components of a placement of a cell the view has just loaded. The pointer is valid until the next
+    /// loadCell on the same view.
+    class ComponentSource
+    {
+    public:
+        virtual ~ComponentSource() = default;
+        [[nodiscard]] virtual const PlacementComponents* find(
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const = 0;
+    };
+
     /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rz * Ry * Rx with every angle
     /// negated (clockwise for a positive angle), the convention Eden Studio's cell viewer uses (apps/opencs/model/mesh/
     /// cellscene.cpp, kAngleSign). Z was settled by frame in task 0086; X and Y are RECALLED-VERIFY. A non-finite angle
@@ -34,13 +81,17 @@ namespace game_skyrimse
 
     /// One placed object as a neutral object. False with `problem` when a value is not usable (not finite, a coordinate
     /// or bound past the limits, a scale that is not positive or too large); `out` is then untouched.
+    /// `components`, if given, supplies the owner, lock and teleport.
     [[nodiscard]] bool toNeutral(const openeden::sdk::game::PlacedObject& placed, openeden::sdk::game::WorldObject& out,
-        std::string& problem, const NeutralLimits& limits = {});
+        std::string& problem, const NeutralLimits& limits = {}, const PlacementComponents* components = nullptr);
 
     /// Loads a cell through `view` and fills `out`; objects that toNeutral refuses are counted in `droppedObjects`.
-    /// False with `error` when the view cannot load the cell (`out` is then empty).
+    /// False with `error` when the view cannot load the cell (`out` is then empty). `components`, if given, is asked
+    /// for each placement after the view has loaded the cell (a SkyrimWorldView is its own source); without it the
+    /// owner, lock and teleport stay empty.
     [[nodiscard]] bool loadNeutralCell(openeden::sdk::game::WorldView& view, openeden::sdk::game::WorldId cell,
-        openeden::sdk::game::WorldCell& out, std::string& error, const NeutralLimits& limits = {});
+        openeden::sdk::game::WorldCell& out, std::string& error, const NeutralLimits& limits = {},
+        const ComponentSource* components = nullptr);
 
     /// The Skyrim SE side of the core's neutral world store (task 0100 stage N1): a WorldCellSource over any WorldView.
     /// Cell ids are the view's own ids (the load-order form ids), which are already stable for the session. It keeps a

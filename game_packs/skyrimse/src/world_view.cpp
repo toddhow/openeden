@@ -283,6 +283,13 @@ namespace game_skyrimse
                 continue;
             mCells[c.mCommon.mId].mSources.push_back({ pluginIndex, i });
         }
+        for (const auto& [ref, cell] : p.mTeleportRefCells)
+        {
+            if (ref == kNullFormId || ref == kUnresolvedFormId || cell == kNullFormId || cell == kUnresolvedFormId)
+                continue;
+            mRefCells[ref] = cell; // later plugins win
+            ++mStats.mTeleportDoorsIndexed;
+        }
         for (std::uint32_t i = 0; i < p.mStatics.size(); ++i)
             mBases[p.mStatics[i].mCommon.mId] = { pluginIndex, BaseTable::Static, i };
         for (std::uint32_t i = 0; i < p.mModels.size(); ++i)
@@ -650,6 +657,9 @@ namespace game_skyrimse
             }
             bool missing = false;
             result->mObjects.push_back(makeObject(ref, missing));
+            PlacementComponents components = makeComponents(ref, mRefCells, mStats.mComponents, NeutralLimits{});
+            if (!components.empty())
+                result->mComponents.emplace(id, std::move(components));
             if (missing)
                 ++result->mUnresolvedBases;
         }
@@ -660,10 +670,20 @@ namespace game_skyrimse
         return result;
     }
 
+    const PlacementComponents* SkyrimWorldView::find(sdkgame::WorldId cell, sdkgame::WorldId placement) const
+    {
+        if (cell == kNullFormId || cell != mLastCell)
+            return nullptr;
+        const auto it = mLastComponents.find(placement);
+        return it != mLastComponents.end() ? &it->second : nullptr;
+    }
+
     bool SkyrimWorldView::loadCell(sdkgame::WorldId cell, sdkgame::WorldCellContent& out, std::string& error)
     {
         out = sdkgame::WorldCellContent{};
         error.clear();
+        mLastCell = kNullFormId;
+        mLastComponents.clear();
         try
         {
             const auto entryIt = mCells.find(cell);
@@ -681,6 +701,7 @@ namespace game_skyrimse
             content.cell = entry.mInfo;
             content.objects = own->mObjects;
             content.unresolvedBases = own->mUnresolvedBases;
+            std::map<FormId, PlacementComponents> components = own->mComponents;
 
             // The world's persistent placements that stand in this exterior square.
             if (!entry.mInfo.interior && entry.mInfo.hasGrid && !entry.mWorldPersistent)
@@ -705,6 +726,8 @@ namespace game_skyrimse
                             && static_cast<std::int32_t>(std::floor(o.position.y / kCellSize)) == entry.mInfo.gridY)
                         {
                             content.objects.push_back(o);
+                            if (const auto c = persistent->mComponents.find(o.id); c != persistent->mComponents.end())
+                                components.emplace(o.id, c->second);
                             if (o.baseKind == sdkgame::BaseKind::Unknown)
                                 ++content.unresolvedBases;
                         }
@@ -715,6 +738,8 @@ namespace game_skyrimse
             }
             content.cell.objectCount = static_cast<std::uint32_t>(content.objects.size());
             out = std::move(content);
+            mLastCell = cell;
+            mLastComponents = std::move(components);
             return true;
         }
         catch (const std::exception& e)

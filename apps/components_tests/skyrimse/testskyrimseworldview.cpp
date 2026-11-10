@@ -1,6 +1,7 @@
 // Task 0086, world model option 1: the Skyrim SE world store behind the pack (SkyrimWorldView) and the SDK's WorldView
 // contract. Generated plugins only, written to a scratch folder; no game data. The store must keep no reference in its
 // index, read a cell on demand from every plugin that touches it, and follow the load order for overrides.
+#include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
 #ifndef OPENEDEN_WORLDVIEW_RIG
@@ -429,6 +430,89 @@ namespace
         sdkgame::WorldCellContent p;
         ASSERT_TRUE(l.view.loadCell(list[0].id, p, error)) << error;
         EXPECT_EQ(p.objects.size(), 3u);
+    }
+
+    // ---- owner, lock and teleport through the store (task 0099 stage N4)
+    // -----------------------------------------------
+
+    Bytes refrWithComponents(
+        std::uint32_t id, std::uint32_t base, std::uint32_t flags, float x, float y, const Bytes& extra)
+    {
+        Bytes subs;
+        subs.append(sub4("NAME", Bytes().u32(base)));
+        subs.append(sub4("DATA", Bytes().f32(x).f32(y).f32(3).f32(0).f32(0).f32(0)));
+        subs.append(extra);
+        return record4("REFR", flags, id, subs);
+    }
+
+    Bytes xtelBytes(std::uint32_t door)
+    {
+        return sub4("XTEL", Bytes().u32(door).f32(1).f32(2).f32(3).f32(0).f32(0).f32(0).u32(0));
+    }
+
+    TEST(SkyrimWorldViewComponents, aPersistentExteriorDoorCarriesItsComponentsIntoTheSquareItStandsIn)
+    {
+        constexpr std::uint32_t world = 0x00000C00, pcell = 0x00000C01, g00 = 0x00000C10, g10 = 0x00000C11;
+        const Bytes extra = Bytes().append(sub4("XOWN", Bytes().u32(0x00013BB8))).append(xtelBytes(0x00000B99));
+        Bytes persistent;
+        persistent.append(refrWithComponents(0x00000D02, kStatA, 0x400, 5000, 100, extra)); // grid (1, 0)
+        Bytes bytes = header(Content::sRecMaster);
+        bytes.append(topGroup("STAT", modelRecord("STAT", kStatA, "StoneWall", "architecture\\wall.nif")));
+        bytes.append(worldGroup(world, "TestWorld", pcell, persistent,
+            { { g00, 0, 0, "TestWorldX0Y0", refr(0x00000D10, kStatA, 0, 10, 10) },
+                { g10, 1, 0, "TestWorldX1Y0", refr(0x00000D11, kStatA, 0, 4100, 10) } }));
+        Loaded l({ { "world.esm", bytes } });
+        ASSERT_TRUE(l.problems.empty());
+        const auto c10 = l.view.findCellByGrid(world, 1, 0);
+        const auto c00 = l.view.findCellByGrid(world, 0, 0);
+        ASSERT_TRUE(c10 && c00);
+        sdkgame::WorldCell cell;
+        std::string error;
+        ASSERT_TRUE(loadNeutralCell(l.view, c10->id, cell, error)) << error;
+        const sdkgame::WorldObject* door = nullptr;
+        for (const sdkgame::WorldObject& o : cell.objects)
+            if (o.id == 0x00000D02)
+                door = &o;
+        ASSERT_NE(door, nullptr); // borrowed from the world's persistent cell
+        ASSERT_TRUE(door->owner.has_value());
+        EXPECT_EQ(door->owner->owner, 0x00013BB8u);
+        ASSERT_TRUE(door->teleport.has_value());
+        EXPECT_EQ(door->teleport->destinationDoor, 0x00000B99u);
+        EXPECT_EQ(door->teleport->destinationCell, sdkgame::kNoWorldId); // the destination door is in no loaded cell
+        EXPECT_EQ(l.view.stats().mComponents.mTeleportCellsUnknown, 1u);
+        // The square next door does not see it.
+        ASSERT_TRUE(loadNeutralCell(l.view, c00->id, cell, error)) << error;
+        for (const sdkgame::WorldObject& o : cell.objects)
+            EXPECT_NE(o.id, 0x00000D02u);
+    }
+
+    TEST(SkyrimWorldViewComponents, theIndexFindsTeleportDoorsWithoutReadingAnyCellAndALaterPluginWins)
+    {
+        constexpr std::uint32_t kHall = 0x00000900, kYard = 0x00000910, kDoorHall = 0x00000B01, kDoorYard = 0x00000B99;
+        Bytes bytes = header(Content::sRecMaster);
+        bytes.append(topGroup("STAT", modelRecord("STAT", kStatA, "StoneWall", "architecture\\wall.nif")));
+        Bytes both = bytes;
+        both.append(interiorCellGroup(kHall, cellRecord(kHall, "TestHall", "", CellFlags::Interior), Bytes(),
+            refrWithComponents(kDoorHall, kStatA, 0, 1, 1, xtelBytes(kDoorYard))));
+        both.append(interiorCellGroup(kYard, cellRecord(kYard, "TestYard", "", CellFlags::Interior), Bytes(),
+            refrWithComponents(kDoorYard, kStatA, 0, 1, 1, xtelBytes(kDoorHall))));
+        // over.esp moves the yard door into a third cell of its own.
+        Bytes over = header(0, { { "base.esm", 0 } });
+        constexpr std::uint32_t kAnnex = 0x01000900;
+        over.append(interiorCellGroup(kAnnex, cellRecord(kAnnex, "TestAnnex", "", CellFlags::Interior), Bytes(),
+            refrWithComponents(kDoorYard, kStatA, 0, 1, 1, xtelBytes(kDoorHall))));
+        Loaded one({ { "base.esm", both } });
+        ASSERT_TRUE(one.problems.empty());
+        EXPECT_EQ(one.view.stats().mCellReads, 0u); // the index pass read no cell
+        EXPECT_EQ(one.view.stats().mTeleportDoorsIndexed, 2u);
+        EXPECT_EQ(one.view.teleportDoorCells().at(kDoorHall), kHall);
+        EXPECT_EQ(one.view.teleportDoorCells().at(kDoorYard), kYard);
+
+        Loaded two({ { "base.esm", both }, { "over.esp", over } });
+        ASSERT_TRUE(two.problems.empty());
+        EXPECT_EQ(two.view.stats().mTeleportDoorsIndexed, 3u);
+        EXPECT_EQ(two.view.teleportDoorCells().at(kDoorYard), kAnnex); // the later plugin wins
+        EXPECT_EQ(two.view.teleportDoorCells().at(kDoorHall), kHall);
     }
 
     // ---- lists, names and lookups ----------------------------------------------------------------------------------

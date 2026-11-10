@@ -34,7 +34,7 @@ namespace openeden::sdk::game
     /// Version policy. An additive change (a new member at the END of a struct that a consumer only reads, a new
     /// enumerator at the END of an enumeration, a new type) raises the minor number. A change to the layout or meaning
     /// of anything that exists raises the major number. CI (CI/check_extension_sdk.sh) keeps this paragraph in place.
-    inline constexpr Version kWorldModelVersion{ 0, 1 };
+    inline constexpr Version kWorldModelVersion{ 0, 2 };
 
     /// What kind of thing an object is, as far as the engine's generic paths need to tell. The same set as BaseKind
     /// (a pack maps its record types onto it exactly as it does for WorldView); new kinds are added at the end.
@@ -113,6 +113,9 @@ namespace openeden::sdk::game
         WorldId destinationCell = kNoWorldId;
         WorldId destinationDoor = kNoWorldId;
         WorldTransform destination;
+        /// The game's own flag word for the portal (Skyrim SE: XTEL flags; bit 0 is "no alarm" in the CK
+        /// documentation). Opaque to the core; added in 0.2.
+        std::uint32_t flags = 0;
 
         friend bool operator==(const TeleportComponent&, const TeleportComponent&) = default;
     };
