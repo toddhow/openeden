@@ -289,7 +289,7 @@ void Launcher::WorldLodPage::buildSettingsRows(QWidget* parent)
             {
                 auto* spin = new QDoubleSpinBox(parent);
                 spin->setLocale(QLocale::c());
-                spin->setDecimals(spec.mMax <= 1 ? 3 : (spec.mMax <= 100 ? 2 : 1));
+                spin->setDecimals(spec.mMax <= 1 ? 3 : 2);
                 spin->setRange(spec.mMin, spec.mMax);
                 spin->setSingleStep(spec.mMax <= 1 ? 0.01 : (spec.mMax <= 100 ? 0.1 : 1.0));
                 spin->setKeyboardTracking(false);
@@ -412,8 +412,10 @@ bool Launcher::WorldLodPage::featureEnabled() const
 void Launcher::WorldLodPage::loadSettings()
 {
     mLoading = true;
-    for (const Row& row : mRows)
+    mLoadedText.assign(mRows.size(), QString());
+    for (std::size_t i = 0; i < mRows.size(); ++i)
     {
+        const Row& row = mRows[i];
         std::string value(row.mSpec->mDefault);
         try
         {
@@ -424,6 +426,9 @@ void Launcher::WorldLodPage::loadSettings()
             // A build whose defaults file lacks the key: show the default of the table
         }
         setControl(row, q(value));
+        // What the control shows now: a value the control cannot show exactly (8.125 in a box of two decimals) must
+        // not be written back unless the player changes the row
+        mLoadedText[i] = currentText(row);
     }
     mLoading = false;
     updateNeeds();
@@ -433,8 +438,11 @@ void Launcher::WorldLodPage::loadSettings()
 
 void Launcher::WorldLodPage::saveSettings()
 {
-    for (const Row& row : mRows)
+    for (std::size_t i = 0; i < mRows.size(); ++i)
     {
+        const Row& row = mRows[i];
+        if (i < mLoadedText.size() && currentText(row) == mLoadedText[i])
+            continue; // not changed since the page was loaded
         const WL::Normalized wanted = WL::normalizeSetting(*row.mSpec, s(currentText(row)));
         if (!wanted.mOk)
             continue;
@@ -450,6 +458,8 @@ void Launcher::WorldLodPage::saveSettings()
         if (old.mOk && old.mText == wanted.mText)
             continue; // the player did not change this row: the file keeps what it has
         Settings::Manager::setString(row.mSpec->mKey, categoryName(), wanted.mText);
+        if (i < mLoadedText.size())
+            mLoadedText[i] = currentText(row);
     }
 }
 

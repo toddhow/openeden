@@ -91,6 +91,7 @@ namespace Launcher
         void refreshRepackChoices();
         void startPluginReport();
         void changed(); // saves the store and refreshes what depends on it
+        bool saveNow();
         void setBusy(bool busy, const QString& what = QString());
         void showResult(const QString& text, bool problem);
         void updateNotice();
@@ -144,6 +145,7 @@ namespace Launcher
         bool mRefreshing = false;
         bool mResultIsBusy = false; // mResult says what a running job does
         bool mLoaded = false;
+        bool mSaveFailed = false; // the last save failed: saveSettings tries again
         int mBusy = 0;
         QList<QThread*> mThreads;
         std::function<bool()> mGameRunning;

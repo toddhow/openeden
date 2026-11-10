@@ -53,6 +53,9 @@ namespace Launcher
         FirstRunDialogResult showFirstRunDialog();
 
         bool reloadSettings();
+        /// After the Mods page rewrote openmw.cfg: reads the game settings again and refreshes the Data Files and
+        /// Extensions pages. Graphics and other pending changes are left alone (reloadSettings would drop them).
+        bool reloadGameSettings();
         bool writeSettings();
 
     public slots:

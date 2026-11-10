@@ -94,6 +94,7 @@ namespace Launcher
         const Files::ConfigurationManager& mCfgMgr;
         std::vector<Row> mRows;
         std::map<std::string, Row*> mRowByKey;
+        std::vector<QString> mLoadedText; // each row's control text right after loadSettings
         bool mLoading = false;
 
         QLabel* mState = nullptr;

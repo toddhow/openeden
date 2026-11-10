@@ -324,9 +324,9 @@ void Launcher::ModsPage::loadSettings()
         const std::filesystem::path globalCfg = mCfgMgr.getGlobalPath() / Files::openmwCfgFile;
         if (fileExists(globalCfg))
             snapshot.mFirstDataIsBase = MO::snapshotFromConfigText(readText(globalCfg)).mData.empty();
+        // Not written yet: opening the launcher must not create files. The import is saved with the first edit or
+        // when the profile is applied.
         MO::importIfEmpty(mStore, snapshot);
-        for (const std::string& error : MO::saveStore(mPaths, mStore))
-            mStore.mProblems.push_back(error);
     }
     mLoaded = true;
     refreshAll();
@@ -335,19 +335,26 @@ void Launcher::ModsPage::loadSettings()
 
 void Launcher::ModsPage::saveSettings()
 {
-    if (!mLoaded)
+    // Edits are saved as they are made (changed()); this only retries a save that failed, so that opening and
+    // closing the launcher writes nothing
+    if (!mLoaded || !mSaveFailed)
         return;
+    saveNow();
+}
+
+bool Launcher::ModsPage::saveNow()
+{
     const auto errors = MO::saveStore(mPaths, mStore);
-    if (!errors.empty())
+    mSaveFailed = !errors.empty();
+    if (mSaveFailed)
         showResult(q(errors.front()), true);
+    return !mSaveFailed;
 }
 
 void Launcher::ModsPage::changed()
 {
-    const auto errors = MO::saveStore(mPaths, mStore);
+    saveNow();
     refreshAll();
-    if (!errors.empty())
-        showResult(q(errors.front()), true);
 }
 
 // ---- refresh --------------------------------------------------------------------------------------------------------
@@ -1212,7 +1219,8 @@ void Launcher::ModsPage::applyProfile()
         if (answer != QMessageBox::Yes)
             return;
     }
-    saveSettings();
+    if (!saveNow())
+        return;
     if (doApply(false))
     {
         refreshApplyState();

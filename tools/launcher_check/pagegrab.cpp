@@ -12,12 +12,14 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/modorganizer/profilestore.hpp>
+#include <components/settings/settings.hpp>
 
 #include <boost/program_options.hpp>
 
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
+#include <QDoubleSpinBox>
 #include <QEventLoop>
 #include <QFile>
 #include <QImage>
@@ -259,6 +261,61 @@ int main(int argc, char** argv)
                     ++backups;
             std::printf("backups: %d\n", backups);
         }
+    }
+
+    // The launcher's own save path (Play or close) rewrites openmw.cfg from Config::GameSettings. If that changes the
+    // owned lines the profile wrote, every later Apply would ask about a "hand edit" that nobody made.
+    {
+        const fs::path copy = cfg / "openmw.cfg.playcopy";
+        fs::copy_file(cfg / "openmw.cfg", copy, fs::copy_options::overwrite_existing);
+        Config::GameSettings settings(manager);
+        auto readInto = [&](bool user) {
+            QFile file(q(cfg / "openmw.cfg"));
+            file.open(QIODevice::ReadOnly | QIODevice::Text);
+            QTextStream stream(&file);
+            if (user)
+                settings.readUserFile(stream, q(cfg));
+            else
+                settings.readFile(stream, q(cfg));
+        };
+        readInto(true);
+        readInto(false);
+        {
+            QFile out(q(copy));
+            out.open(QIODevice::ReadWrite | QIODevice::Text);
+            settings.writeFileWithComments(out);
+        }
+        std::ifstream in(copy, std::ios::binary);
+        std::string played((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        std::ifstream appliedIn(ModOrganizer::storePaths(cfg).appliedFile("Default"), std::ios::binary);
+        std::string appliedText((std::istreambuf_iterator<char>(appliedIn)), std::istreambuf_iterator<char>());
+        std::vector<std::string> wanted;
+        for (const std::string& line : ModOrganizer::ownedLines(appliedText))
+            wanted.push_back(line);
+        const bool differs = ModOrganizer::differsFromProfile(played, wanted);
+        std::printf("play path rewrites the owned lines: %s\n", differs ? "YES" : "no");
+        if (differs)
+            std::printf("after GameSettings::writeFileWithComments:\n%s\n", played.c_str());
+    }
+
+    // The World LOD page must not rewrite a setting the player did not touch, also when the box shows it rounded
+    {
+        write(cfg / "settings.cfg", "[WorldLod]\nterrain tile threshold = 8.125\n");
+        Settings::Manager::clear();
+        Settings::Manager::load(manager);
+        Launcher::WorldLodPage page(manager);
+        page.setGameRunningCheck([] { return false; });
+        page.loadSettings();
+        page.saveSettings();
+        std::printf("pending settings after load and save, nothing touched: %zu\n",
+            Settings::Manager::getPendingChanges().size());
+        for (QDoubleSpinBox* spin : page.findChildren<QDoubleSpinBox*>())
+            if (spin->accessibleName() == "Terrain tile error (pixels)")
+                spin->setValue(9.0);
+        page.saveSettings();
+        std::printf("pending settings after changing one row: %zu (value now %s)\n",
+            Settings::Manager::getPendingChanges().size(),
+            Settings::Manager::getString("terrain tile threshold", "WorldLod").c_str());
     }
     {
         Launcher::WorldLodPage page(manager);

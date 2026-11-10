@@ -141,10 +141,10 @@ void Launcher::MainDialog::createPages()
     pagesWidget->addWidget(mModsPage);
     pagesWidget->addWidget(mWorldLodPage);
 
-    // The organizer rewrote openmw.cfg: read it again so every page shows the same thing. Queued, because
-    // the reload rebuilds the page that sent the signal.
-    connect(
-        mModsPage, &ModsPage::profileApplied, this, [this] { reloadSettings(); }, Qt::QueuedConnection);
+    // The organizer rewrote openmw.cfg: read the game settings again so the Data Files and Extensions pages show the
+    // same lines. Not reloadSettings(): that also reloads settings.cfg and would drop unsaved Graphics, Settings and
+    // World LOD changes.
+    connect(mModsPage, &ModsPage::profileApplied, this, [this] { reloadGameSettings(); });
     // A bake reads settings.cfg and openmw.cfg from disk: write what the pages hold first
     connect(mWorldLodPage, &WorldLodPage::settingsNeedSaving, this, [this] { writeSettings(); });
 
@@ -258,6 +258,20 @@ bool Launcher::MainDialog::setup()
 
     loadSettings();
 
+    return true;
+}
+
+bool Launcher::MainDialog::reloadGameSettings()
+{
+    if (!setupGameSettings())
+        return false;
+
+    mLauncherSettings.setContentList(mGameSettings);
+
+    if (!mDataFilesPage->loadSettings())
+        return false;
+
+    mExtensionsPage->loadSettings();
     return true;
 }
 
