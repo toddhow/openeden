@@ -7,6 +7,7 @@
 
 namespace MWMechanics
 {
+    class JusticeRules;
     class ProgressionRules;
     class SocialRules;
     class ThiefRules;
@@ -28,6 +29,9 @@ namespace game_morrowind
 
     /// Morrowind's social rules (task 0098 move 6): derived disposition, barter price, persuasion.
     [[nodiscard]] std::shared_ptr<MWMechanics::SocialRules> makeSocialRules();
+
+    /// Morrowind's justice rules (task 0098 move 7): crime and witnesses, bounty, stolen items, confiscation.
+    [[nodiscard]] std::shared_ptr<MWMechanics::JusticeRules> makeJusticeRules();
 }
 
 #endif

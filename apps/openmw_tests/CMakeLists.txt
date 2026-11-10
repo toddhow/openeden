@@ -84,6 +84,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwmechanics/testrulessocial.cpp
     mwmechanics/testrulessocialregistry.cpp
     mwmechanics/testrulesjustice.cpp
+    mwmechanics/testrulesjusticeregistry.cpp
 
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp

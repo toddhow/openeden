@@ -12,6 +12,9 @@
 # scaling, levelled lists) here, and rules.cpp, the one function (game_morrowind::installRules) through which the
 # executable hands every rule of this pack to the core's MWBase::RulesRegistry.
 
+# Move 7 (task 0098) put the justice rules (crime and witnesses, bounty, stolen items; justice.cpp) here, reached through
+# MWBase::RulesRegistry::justice().
+
 # Move 6 (task 0098) put the social rules (derived disposition, barter price, persuasion; social.cpp) here, reached
 # through MWBase::RulesRegistry::social().
 
@@ -62,6 +65,7 @@ openeden_add_game_pack(game_morrowind STATIC
         src/levelledlist.cpp
         src/autocalcspell.cpp
         src/social.cpp
+        src/justice.cpp
         src/rules.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp

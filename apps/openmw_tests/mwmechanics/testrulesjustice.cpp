@@ -246,7 +246,8 @@ namespace CraftingTest
                 cellRef.blank();
                 cellRef.mRefID = record->mId;
                 cellRef.mGlobalVariable = global;
-                cellRef.mRefNum = ESM::RefNum{ .mIndex = static_cast<uint32_t>(300 + mItems.size()), .mContentFile = 0 };
+                cellRef.mRefNum
+                    = ESM::RefNum{ .mIndex = static_cast<uint32_t>(300 + mItems.size()), .mContentFile = 0 };
                 mItems.push_back(std::make_unique<MWWorld::LiveCellRef<ESM::Miscellaneous>>(cellRef, record));
                 MWWorld::Ptr ptr(mItems.back().get());
                 if (owner[0])
@@ -311,7 +312,8 @@ namespace CraftingTest
             MWWorld::Ptr victim = makeVictim("victim_a", 100);
             EXPECT_TRUE(mManager.commitCrime(mPlayer, victim, OT::OT_Trespassing));
             EXPECT_EQ(bounty(), 30);
-            // a plain witness that only complains gets no crime id (that needs a guard, a disposition change or a fight)
+            // a plain witness that only complains gets no crime id (that needs a guard, a disposition change or a
+            // fight)
             EXPECT_EQ(statsOf(victim).getCrimeId(), -1);
             ASSERT_EQ(mDialogue.mSaid.size(), 1u);
             EXPECT_EQ(mDialogue.mSaid[0], "victim_a:intruder");

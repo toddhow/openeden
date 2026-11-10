@@ -1,0 +1,2 @@
+GLOBAL: scripts/crimecheck_global.lua
+PLAYER: scripts/crimecheck_player.lua

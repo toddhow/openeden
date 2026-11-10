@@ -8,6 +8,7 @@
 #include "../mwworld/ptr.hpp"
 
 #include "actors.hpp"
+#include "justicerules.hpp"
 #include "npcstats.hpp"
 #include "objects.hpp"
 
@@ -33,10 +34,7 @@ namespace MWMechanics
         Objects mObjects;
         Actors mActors;
 
-        typedef std::pair<ESM::RefId, bool> Owner; // < Owner id, bool isFaction >
-        typedef std::map<Owner, int> OwnerMap; // < Owner, number of stolen items with this id from this owner >
-        typedef std::map<ESM::RefId, OwnerMap> StolenItemsMap;
-        StolenItemsMap mStolenItems;
+        StolenItemsMap mStolenItems; // written as ESM::REC_STLN by write(), read by readRecord()
 
     public:
         void setUpdateThreads(vsg::ref_ptr<vsgUtil::UpdateThreads> threads);
@@ -245,14 +243,6 @@ namespace MWMechanics
         float getAngleToPlayer(const MWWorld::Ptr& ptr) const override;
         GreetingState getGreetingState(const MWWorld::Ptr& ptr) const override;
         void fastForwardAi() const override;
-
-    private:
-        bool canCommitCrimeAgainst(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker);
-        bool canReportCrime(
-            const MWWorld::Ptr& actor, const MWWorld::Ptr& victim, std::set<MWWorld::Ptr>& playerFollowers);
-
-        bool reportCrime(const MWWorld::Ptr& ptr, const MWWorld::Ptr& victim, OffenseType type,
-            const ESM::RefId& factionId, int arg = 0);
     };
 }
 

@@ -100,6 +100,7 @@ namespace game_morrowind
         rules.mThief = makeThiefRules();
         rules.mProgression = makeProgressionRules();
         rules.mSocial = makeSocialRules();
+        rules.mJustice = makeJusticeRules();
         MWBase::RulesRegistry::install(std::move(rules));
     }
 }

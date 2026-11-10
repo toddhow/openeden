@@ -14,6 +14,7 @@ namespace openeden::sdk::game
 
 namespace MWMechanics
 {
+    class JusticeRules;
     class ProgressionRules;
     class SocialRules;
     class ThiefRules;
@@ -35,6 +36,7 @@ namespace MWBase
         std::shared_ptr<MWMechanics::ThiefRules> mThief;
         std::shared_ptr<MWMechanics::ProgressionRules> mProgression;
         std::shared_ptr<MWMechanics::SocialRules> mSocial;
+        std::shared_ptr<MWMechanics::JusticeRules> mJustice;
     };
 
     /// Who supplies the game's rules. openmw-lib never names a game pack: the executable installs the pack's rule sets
@@ -45,14 +47,15 @@ namespace MWBase
         /// Installs the non-empty parts of \a rules.
         static void install(RuleSets rules);
 
-        /// Forgets the thief, progression and social rules (the other hooks keep what they hold). For tests that check
-        /// the missing-rules error.
+        /// Forgets the thief, progression, social and justice rules (the other hooks keep what they hold). For tests
+        /// that check the missing-rules error.
         static void clearForTests();
 
         /// \throws std::runtime_error naming the missing piece when no game pack installed it.
         static MWMechanics::ThiefRules& thief();
         static MWMechanics::ProgressionRules& progression();
         static MWMechanics::SocialRules& social();
+        static MWMechanics::JusticeRules& justice();
     };
 }
 
