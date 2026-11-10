@@ -3,13 +3,23 @@ name: Checks
 # The gates from the guide's table that need no build: formatting, naming, no OpenSceneGraph left, the extension SDK
 # version rule, and the Qt translation files. They mirror the GitLab jobs Clang_Format and Lupdate (task 0022).
 
+# Push runs are limited to the two working branches ('vulkan' is the old name of 'main', kept until 2026-11-13, and each
+# gated push goes to both); every other branch is covered by its pull request. A newer run of the same ref cancels the
+# older one.
 on:
-- push
-- pull_request
+  push:
+    branches: [main, vulkan]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   Format-and-lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       CLANG_FORMAT: clang-format-14
 
@@ -46,6 +56,18 @@ jobs:
     - name: Game conventions stay in the pack
       run: CI/check_game_conventions.sh
 
+    # Scripts and the Lua test data must stay LF in the repository (.gitattributes pins them for Windows checkouts).
+    - name: Scripts and test data are stored with LF
+      run: |
+        if git ls-files --eol -- '*.sh' 'CI' 'scripts' 'tools' | grep -E '^i/(crlf|mixed)'; then
+          echo "::error::the files above are stored with CRLF or mixed line endings"; exit 1
+        fi
+
+    # The living test profile lists every feature setting (guide, "Agent workflow"). Reads only repository files.
+    - name: Test profile covers every feature setting
+      run: bash tools/testprofile/coverage.sh
+
+    # The whole-tree check with clang-format 14 is stricter than a changed-lines check, and the tree passes it.
     - name: clang-format
       run: CI/check_clang_format.sh
 
@@ -54,6 +76,7 @@ jobs:
 
   Translations:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       LUPDATE: /usr/lib/qt6/bin/lupdate
 

@@ -1,0 +1,11 @@
+# Line endings (task 0022). The repository stores LF everywhere and the tree is NOT renormalised: this file only pins
+# the paths that broke when a Windows checkout (core.autocrlf=true) was copied into a Linux container or runner.
+# Shell scripts with CRLF fail with "bad interpreter", and the Lua integration tests compare file contents
+# (test_vfs_dir/lines.txt must read "1\n", not "1\r\n").
+# A Windows developer's existing CRLF working files stay as they are until git next rewrites them; "git status" stays
+# clean because git normalises these paths on comparison.
+*.sh text eol=lf
+CI/*.txt text eol=lf
+CI/github.env text eol=lf
+tools/**/*.awk text eol=lf
+scripts/data/integration_tests/** text eol=lf

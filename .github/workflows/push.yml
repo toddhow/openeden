@@ -1,8 +1,15 @@
 name: Build and test
 
+# Triggers: see checks.yml (push to main and vulkan only, every pull request, a newer run cancels the older one).
 on:
-- push
-- pull_request
+  push:
+    branches: [main, vulkan]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   BUILD_TYPE: RelWithDebInfo
@@ -10,6 +17,8 @@ env:
 jobs:
   Ubuntu:
     runs-on: ubuntu-latest
+    # Cold ccache: a local container build and test run took about 35 minutes (task 0022); the runner has 4 cores.
+    timeout-minutes: 150
 
     steps:
     - uses: actions/checkout@v4
@@ -23,8 +32,8 @@ jobs:
     - name: Prime ccache
       uses: hendrikmuhs/ccache-action@v1
       with:
-        key: ${{ matrix.os }}-${{ env.BUILD_TYPE }}
-        max-size: 1000M
+        key: ubuntu-24.04-gcc-${{ env.BUILD_TYPE }}
+        max-size: 2000M
 
     - name: Configure
       run: >
@@ -36,6 +45,8 @@ jobs:
         -D BUILD_OPENMW_TESTS=ON
         -D BUILD_OPENCS_TESTS=ON
         -D "OPENMW_CXX_FLAGS=-Werror -Werror=implicit-fallthrough"
+        -D CMAKE_C_COMPILER_LAUNCHER=ccache
+        -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
         -D CMAKE_INSTALL_PREFIX=install
 
     - name: Build
@@ -52,7 +63,7 @@ jobs:
         exit $rc
 
     - name: Run components tests
-      run: ./components-tests
+      run: ./components-tests --gtest_output=xml:test-results/components-tests.xml
 
     - name: Run Eden Archive tests (library, corpus, deterministic fuzz run)
       run: ./edenarchive-tests
@@ -61,10 +72,10 @@ jobs:
       run: bash edenarchive/tests/tools/check.sh ./edenpack ./edenunpack ./edenlist ./edenvalidate "${RUNNER_TEMP}/edenarchive-tools"
 
     - name: Run OpenMW tests
-      run: ./openmw-tests
+      run: ./openmw-tests --gtest_output=xml:test-results/openmw-tests.xml
 
     - name: Run Eden Studio tests
-      run: ./eden-studio-tests
+      run: ./eden-studio-tests --gtest_output=xml:test-results/eden-studio-tests.xml
 
     # The Lua API tests, against OpenMW's example suite at the revision pinned here (the same as .gitlab-ci.yml). The game
     # needs a Vulkan device, so a software one (lavapipe) runs under a virtual X server. Task 0022.

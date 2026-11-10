@@ -30,11 +30,20 @@ jobs:
     name: windows-${{ inputs.image }}
 
     runs-on: windows-${{ inputs.image }}
+    # A full MSVC build of the engine, the editor and the tests from a cold start is NOT known to fit comfortably: the
+    # hosted runner has 4 cores, 16 GB of RAM and a limited disk, and the job limit is 6 hours. Measure the first run
+    # (task 0022) before relying on it. The limit below only stops a runaway job a little before GitHub does.
+    timeout-minutes: 340
 
     env:
       archive: FAILEDTODOWNLOAD
 
     steps:
+    # Keep the checkout's line endings as stored (LF): the runner's git defaults to core.autocrlf=true, which would turn
+    # shell scripts and the Lua test data into CRLF (.gitattributes pins the known paths; this covers the rest).
+    - name: Do not convert line endings
+      run: git config --global core.autocrlf false
+
     - name: Install NSIS
       if: ${{ inputs.package }}
       run: choco install nsis
@@ -110,11 +119,13 @@ jobs:
         -D BUILD_OPENCS_TESTS=${{ ! inputs.package }}
         -D OPENMW_USE_SYSTEM_SQLITE3=OFF
         -D OPENMW_USE_SYSTEM_YAML_CPP=OFF
-        -D OPENMW_LTO_BUILD=ON
+        -D OPENMW_LTO_BUILD=${{ inputs.package }}
         ${{ inputs.package && '-D "VCREDIST64=$env:VCToolsRedistDir/vc_redist.x64.exe"' || '' }}
 
+    # -j 4: MSVC with precompiled headers runs out of heap at the default parallelism (guide, Pitfalls). The test build
+    # leaves link-time optimisation off (only the packaged release uses it) to keep the time down.
     - name: Build OpenMW
-      run: cmake --build ${{ github.workspace }}/build
+      run: cmake --build ${{ github.workspace }}/build -- -j 4
 
     - name: Copy missing DLLs
       run: |

@@ -11,8 +11,12 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/tools/mwbase_fakes" "$scratch/apps/openmw/mwbase" "$scratch/apps/openmw_tests/mwmechanics/fakes"
 cp "$repo/tools/mwbase_fakes/gen.py" "$scratch/tools/mwbase_fakes/"
-for h in world windowmanager mechanicsmanager luamanager; do cp "$repo/apps/openmw/mwbase/$h.hpp" "$scratch/apps/openmw/mwbase/"; done
 cp "$repo"/apps/openmw_tests/mwmechanics/fakes/*.inc "$scratch/apps/openmw_tests/mwmechanics/fakes/"
+# One header per committed double (the list grows with the doubles: dialoguemanager and soundmanager were added later).
+for inc in "$repo"/apps/openmw_tests/mwmechanics/fakes/*.inc; do
+    h="$(basename "$inc" .inc)"
+    cp "$repo/apps/openmw/mwbase/$h.hpp" "$scratch/apps/openmw/mwbase/"
+done
 
 failures=0
 expect() { # expect <description> <exit status wanted: 0 or nonzero> <command...>

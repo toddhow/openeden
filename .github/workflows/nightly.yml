@@ -1,0 +1,146 @@
+name: Nightly sanitizers and Clang
+
+# The slow gates from the guide's table (Sanitizers, and the Clang build the GitLab pipeline had as Ubuntu_Clang). They
+# mirror the GitLab jobs Ubuntu_GCC_tests_asan, Ubuntu_GCC_tests_ubsan, .Ubuntu_GCC_tests_tsan and Ubuntu_Clang by
+# reusing CI/before_script.linux.sh with the same variables (task 0022). They run every night on 'main' (a scheduled
+# workflow always runs on the default branch, which toddhow must set to 'main' on GitHub) and on request; a pull request
+# does not wait for them. Run one by hand for a pull request with: Actions > Nightly > Run workflow > pick the branch.
+
+on:
+  schedule:
+  - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      tsan:
+        description: Also run the ThreadSanitizer build (slow; the GitLab job was manual only)
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Sanitizers:
+    name: ${{ matrix.sanitizer }}
+    runs-on: ubuntu-latest
+    # A cold Debug+sanitizer build of the three test programs: estimated 1.5 to 3 hours (not measured).
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.tsan && '["asan","ubsan","tsan"]' || '["asan","ubsan"]') }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add OpenMW PPA Dependencies
+      run: sudo add-apt-repository ppa:openmw/openmw; sudo apt-get update
+
+    - name: Install Building Dependencies
+      run: sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
+
+    - name: Prime ccache
+      uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: ubuntu-24.04-gcc-${{ matrix.sanitizer }}
+        max-size: 1500M
+
+    # The same variables as the GitLab jobs. -Werror is off for ASan because of GCC bug 105562 (as in .gitlab-ci.yml).
+    - name: Sanitizer settings
+      run: |
+        {
+          echo "CC=gcc"
+          echo "CXX=g++"
+          echo "BUILD_TESTS_ONLY=1"
+          echo "CMAKE_BUILD_TYPE=Debug"
+        } >> "$GITHUB_ENV"
+        case "${{ matrix.sanitizer }}" in
+          asan)
+            {
+              echo "CMAKE_CXX_FLAGS_DEBUG=-g -O1 -fno-omit-frame-pointer -fsanitize=address -fsanitize=pointer-subtract -fsanitize=leak"
+              echo "CMAKE_EXE_LINKER_FLAGS=-fsanitize=address -fsanitize=pointer-subtract -fsanitize=leak -fuse-ld=mold"
+              echo "ASAN_OPTIONS=halt_on_error=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1"
+              echo "OPENMW_CXX_FLAGS="
+            } >> "$GITHUB_ENV" ;;
+          ubsan)
+            {
+              echo "CMAKE_CXX_FLAGS_DEBUG=-g -O0 -fsanitize=undefined"
+              echo "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1"
+              echo "OPENMW_CXX_FLAGS=-Werror -Werror=implicit-fallthrough"
+              echo "CMAKE_EXE_LINKER_FLAGS=-fuse-ld=mold"
+            } >> "$GITHUB_ENV" ;;
+          tsan)
+            {
+              echo "CMAKE_CXX_FLAGS_DEBUG=-g -O2 -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=thread -fPIE"
+              echo "CMAKE_EXE_LINKER_FLAGS=-pthread -pie -fsanitize=thread -fuse-ld=mold"
+              echo "TSAN_OPTIONS=second_deadlock_stack=1:halt_on_error=1"
+              echo "OPENMW_CXX_FLAGS=-Werror -Werror=implicit-fallthrough"
+            } >> "$GITHUB_ENV" ;;
+        esac
+
+    - name: Configure
+      run: CI/before_script.linux.sh
+
+    - name: Build
+      working-directory: build
+      run: cmake --build . -- -j $(nproc)
+
+    # The unit test programs of the guide's "Unit tests" gate. A program missing from this tests-only configuration is
+    # skipped with a notice instead of failing, so a build-layout change cannot hide behind a green run.
+    - name: Run the unit tests
+      working-directory: build
+      run: |
+        rc=0
+        for t in components-tests openmw-tests eden-studio-tests edenarchive-tests; do
+          if [ -x "./$t" ]; then
+            echo "::group::$t"
+            ./$t --gtest_output="xml:$t.xml" || rc=1
+            echo "::endgroup::"
+          else
+            echo "::warning::$t was not built in the tests-only configuration"
+          fi
+        done
+        exit $rc
+
+    - name: Upload test results
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.sanitizer }}-test-results-${{ github.sha }}
+        path: build/*-tests.xml
+        if-no-files-found: ignore
+        retention-days: 7
+
+  Clang:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Add OpenMW PPA Dependencies
+      run: sudo add-apt-repository ppa:openmw/openmw; sudo apt-get update
+
+    - name: Install Building Dependencies
+      run: sudo CI/install_debian_deps.sh clang openmw-deps openmw-deps-dynamic
+
+    - name: Prime ccache
+      uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: ubuntu-24.04-clang
+        max-size: 1500M
+
+    # Ubuntu_Clang in .gitlab-ci.yml: the whole tree (no tests) built with Clang and -Werror. The unit tests are built by
+    # the Ubuntu job in push.yml with GCC and by the sanitizer jobs above.
+    - name: Configure
+      env:
+        CC: clang
+        CXX: clang++
+        OPENMW_CXX_FLAGS: -Werror -Werror=implicit-fallthrough
+        CMAKE_EXE_LINKER_FLAGS: -fuse-ld=mold
+        CMAKE_BUILD_TYPE: RelWithDebInfo
+      run: CI/before_script.linux.sh
+
+    - name: Build
+      working-directory: build
+      run: cmake --build . -- -j $(nproc)
