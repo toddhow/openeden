@@ -4,6 +4,7 @@
 #include <openeden/game/records.hpp>
 #include <openeden/game/script_host.hpp>
 #include <openeden/game/ui.hpp>
+#include <openeden/game/world_view.hpp>
 
 #include <cstdint>
 #include <map>
@@ -82,5 +83,22 @@ namespace openeden::extension
 
     private:
         std::map<std::string, std::string, std::less<>> mWindows;
+    };
+
+    /// The slot a game pack puts its read-only world view in (openeden/game/world_view.hpp). Holds a pointer; the pack
+    /// withdraws it before it is destroyed. Main thread only.
+    class WorldViewServiceImpl final : public openeden::sdk::game::WorldViewService
+    {
+    public:
+        void registerWorldView(openeden::sdk::game::WorldView& view) override { mView = &view; }
+        void withdrawWorldView(openeden::sdk::game::WorldView& view) override
+        {
+            if (mView == &view)
+                mView = nullptr;
+        }
+        [[nodiscard]] openeden::sdk::game::WorldView* worldView() override { return mView; }
+
+    private:
+        openeden::sdk::game::WorldView* mView = nullptr;
     };
 } // namespace openeden::extension

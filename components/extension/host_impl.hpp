@@ -104,6 +104,7 @@ namespace openeden::extension
         [[nodiscard]] ContentServiceImpl& content() noexcept { return mContent; }
         [[nodiscard]] ScriptHostServiceImpl& scriptHost() noexcept { return mScriptHost; }
         [[nodiscard]] UiServiceImpl& ui() noexcept { return mUi; }
+        [[nodiscard]] WorldViewServiceImpl& worldView() noexcept { return mWorldView; }
         [[nodiscard]] BindingsStore& bindings() noexcept { return mBindings; }
         [[nodiscard]] const BindingsStore& bindings() const noexcept { return mBindings; }
 
@@ -127,5 +128,6 @@ namespace openeden::extension
         ScriptHostServiceImpl mScriptHost;
         UiServiceImpl mUi;
         BindingsStore mBindings;
+        WorldViewServiceImpl mWorldView;
     };
 } // namespace openeden::extension

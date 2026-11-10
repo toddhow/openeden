@@ -176,4 +176,11 @@ namespace openeden::extension
             return nullptr;
         return mBindings ? mBindings.get() : mBase.getBindingsService();
     }
+    openeden::sdk::game::WorldViewService* PackScopedHost::getWorldViewService()
+    {
+        if (!allowed("world view service"))
+            return nullptr;
+        return mImpl != nullptr ? static_cast<openeden::sdk::game::WorldViewService*>(&mImpl->worldView())
+                                : mBase.getWorldViewService();
+    }
 } // namespace openeden::extension

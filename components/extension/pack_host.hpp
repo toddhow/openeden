@@ -73,6 +73,7 @@ namespace openeden::extension
         [[nodiscard]] openeden::sdk::ScriptHostService* getScriptHostService() override;
         [[nodiscard]] openeden::sdk::UiService* getUiService() override;
         [[nodiscard]] openeden::sdk::BindingsService* getBindingsService() override;
+        [[nodiscard]] openeden::sdk::game::WorldViewService* getWorldViewService() override;
 
     private:
         bool allowed(std::string_view what);

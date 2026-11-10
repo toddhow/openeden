@@ -88,3 +88,9 @@ if ! grep -q 'Version policy' sdk/include/openeden/game/game_rules.hpp || ! grep
     echo 'sdk/include/openeden/game/game_rules.hpp must keep its version policy and the contract id openeden.game.rules'
     exit 1
 fi
+
+# Task 0086 (world model option 1): the world view header states its version policy and its main-thread rule.
+if ! grep -q 'Version policy' sdk/include/openeden/game/world_view.hpp || ! grep -q 'kWorldViewVersion' sdk/include/openeden/game/world_view.hpp; then
+    echo 'sdk/include/openeden/game/world_view.hpp must keep its version policy and kWorldViewVersion'
+    exit 1
+fi
