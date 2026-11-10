@@ -10,6 +10,7 @@
 
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/vsgmath.hpp>
@@ -297,6 +298,33 @@ namespace MWWorld
             ++appended;
         }
         return appended;
+    }
+
+    WorldId MorrowindCellSource::findCellByEditorId(std::string_view editorId) const
+    {
+        const ESM::Cell* cell = mStore.get<ESM::Cell>().search(editorId);
+        if (cell == nullptr || cell->isExterior())
+            return kNoWorldId;
+        const WorldId id = cellId(mIds, cell->mId);
+        if (id != kNoWorldId)
+            mCells.emplace(id, cell->mId);
+        return id;
+    }
+
+    WorldId MorrowindCellSource::findCellByGrid(WorldId /*world*/, std::int32_t x, std::int32_t y) const
+    {
+        const ESM::Cell* cell = mStore.get<ESM::Cell>().search(x, y);
+        if (cell == nullptr)
+            return kNoWorldId;
+        const WorldId id = cellId(mIds, cell->mId);
+        if (id != kNoWorldId)
+            mCells.emplace(id, cell->mId);
+        return id;
+    }
+
+    double MorrowindCellSource::unitsPerMetre() const
+    {
+        return static_cast<double>(Constants::UnitsPerMeter);
     }
 
     bool MorrowindCellSource::buildCell(WorldId cell, WorldCell& out, std::string& error)

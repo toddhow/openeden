@@ -75,8 +75,9 @@ namespace game_skyrimse
 
     /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rz * Ry * Rx with every angle
     /// negated (clockwise for a positive angle), the convention Eden Studio's cell viewer uses (apps/opencs/model/mesh/
-    /// cellscene.cpp, kAngleSign). Z was settled by frame in task 0086; X and Y are RECALLED-VERIFY. A non-finite angle
-    /// gives the identity (toNeutral refuses such an object before it gets here).
+    /// cellscene.cpp, kAngleSign). Z was settled by frame and X and Y by terrain normals in task 0086 (stage log,
+    /// rotation convention). A non-finite angle gives the identity (toNeutral refuses such an object before it gets
+    /// here).
     [[nodiscard]] openeden::sdk::game::Quatd eulerToQuat(const openeden::sdk::game::WorldVec3& storedAngles);
 
     /// One placed object as a neutral object. False with `problem` when a value is not usable (not finite, a coordinate
@@ -111,6 +112,16 @@ namespace game_skyrimse
             std::size_t first, std::size_t maxCount, std::vector<openeden::sdk::game::WorldId>& out) const override;
         bool buildCell(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error) override;
+
+        // The lookups of world_source.hpp 1.0, through the view (all case-insensitive, as the view's are).
+        openeden::sdk::game::WorldId findCellByEditorId(std::string_view editorId) const override;
+        openeden::sdk::game::WorldId findCellByGrid(
+            openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y) const override;
+        openeden::sdk::game::WorldId findWorldByEditorId(std::string_view editorId) const override;
+        /// Both games use a unit of about 1.43 cm; the value is compat_skyrimse's
+        /// SkyrimGameContract::getUnitsPerMeter() (Morrowind's Constants::UnitsPerMeter), NOT measured for Skyrim:
+        /// RECALLED-VERIFY.
+        double unitsPerMetre() const override { return 69.99125109; }
 
     private:
         openeden::sdk::game::WorldView& mView;

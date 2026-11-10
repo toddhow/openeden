@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <fstream>
 
+#include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
 namespace CSMMesh
@@ -11,6 +12,9 @@ namespace CSMMesh
     {
         std::unique_ptr<game_skyrimse::DataFolderFiles> files;
         std::unique_ptr<game_skyrimse::SkyrimWorldView> view;
+        // Declared after the view and the source so that the store, which holds the source by reference, goes first.
+        std::unique_ptr<game_skyrimse::SkyrimCellSource> source;
+        std::unique_ptr<NeutralWorld::NeutralWorldStore> store;
     };
 
     SkyrimCellSource& SkyrimCellSource::instance()
@@ -41,9 +45,19 @@ namespace CSMMesh
         mSummary = std::to_string(taken) + " plugins, " + std::to_string(stats.mCells) + " cells, "
             + std::to_string(stats.mWorlds) + " worlds, " + std::to_string(stats.mBaseForms) + " base forms"
             + (problems.empty() ? "" : ", " + std::to_string(problems.size()) + " plugins refused");
+        impl->source = std::make_unique<game_skyrimse::SkyrimCellSource>(*impl->view);
+        impl->store = std::make_unique<NeutralWorld::NeutralWorldStore>();
+        std::string sourceError;
+        if (!impl->store->addSource(*impl->source, sourceError))
+        {
+            error = sourceError;
+            return false;
+        }
         mView = nullptr;
+        mStore = nullptr;
         mImpl = std::move(impl);
         mView = mImpl->view.get();
+        mStore = mImpl->store.get();
         return true;
     }
 

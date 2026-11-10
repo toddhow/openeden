@@ -76,6 +76,19 @@ namespace MWWorld
         bool buildCell(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error) override;
 
+        // The lookups of world_source.hpp 1.0. A cell found here is registered like a listed one, so buildCell accepts
+        // it without a listing. An interior is found by its name, an exterior by its grid square (the world argument is
+        // ignored: Morrowind has one exterior world); Morrowind has no worlds to name.
+        openeden::sdk::game::WorldId findCellByEditorId(std::string_view editorId) const override;
+        openeden::sdk::game::WorldId findCellByGrid(
+            openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y) const override;
+        openeden::sdk::game::WorldId findWorldByEditorId(std::string_view) const override
+        {
+            return openeden::sdk::game::kNoWorldId;
+        }
+        /// Constants::UnitsPerMeter, the value Misc::GameConventions carries by default.
+        double unitsPerMetre() const override;
+
         const ProjectionStats& stats() const { return mStats; }
 
     private:

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -20,8 +21,10 @@
 
 namespace openeden::sdk::game
 {
-    /// DRAFT until stage N2 freezes it together with world_model.hpp. Same version policy as world_model.hpp.
-    inline constexpr Version kWorldSourceVersion{ 0, 1 };
+    /// FROZEN at 1.0 by stage N2 (task 0102), together with world_model.hpp. Same version policy as world_model.hpp: a
+    /// new virtual function goes at the END of WorldCellSource with a default that means "not supported" and raises the
+    /// minor number; anything else is a major change.
+    inline constexpr Version kWorldSourceVersion{ 1, 0 };
 
     class WorldCellSource
     {
@@ -41,5 +44,27 @@ namespace openeden::sdk::game
         /// Builds one cell. False with `error` (a located message) when it cannot; `out` is then left empty. Never
         /// throws.
         [[nodiscard]] virtual bool buildCell(WorldId cell, WorldCell& out, std::string& error) = 0;
+
+        // Lookups (added to the draft in stage N2: the engine and the editor find a cell by name or position without
+        // building every cell). Each is const, never throws, and the default means "this source cannot say". The id
+        // returned is one listCells would list and buildCell accepts, whether or not listCells has run.
+
+        /// An interior or named cell by its editor id (Morrowind: the cell's name), compared without case. kNoWorldId
+        /// when there is none.
+        [[nodiscard]] virtual WorldId findCellByEditorId(std::string_view /*editorId*/) const { return kNoWorldId; }
+
+        /// An exterior cell by its grid square in `world`. A game with a single exterior world (Morrowind) passes
+        /// kNoWorldId. kNoWorldId when there is none.
+        [[nodiscard]] virtual WorldId findCellByGrid(WorldId /*world*/, std::int32_t /*x*/, std::int32_t /*y*/) const
+        {
+            return kNoWorldId;
+        }
+
+        /// A world (a named exterior space, Skyrim SE) by its editor id. A game without worlds answers kNoWorldId.
+        [[nodiscard]] virtual WorldId findWorldByEditorId(std::string_view /*editorId*/) const { return kNoWorldId; }
+
+        /// How many of the game's length units make a metre (adopted answer 9: per game). 0 when the source does not
+        /// say; a consumer that needs metres must then refuse, not guess.
+        [[nodiscard]] virtual double unitsPerMetre() const { return 0.0; }
     };
 }

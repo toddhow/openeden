@@ -585,8 +585,11 @@ namespace CSVRender
         CSMMesh::SkyrimCellSource& source = CSMMesh::SkyrimCellSource::instance();
         if (!source.ready() && !source.configureFromEnvironment(error))
             return false;
-        openeden::sdk::game::WorldView& world = *source.view();
-        openeden::sdk::game::WorldCellContent content;
+        // The viewer reads the NEUTRAL world model (task 0102, stage N2): the core's store with the Skyrim pack's
+        // source registered, never the pack's WorldView directly.
+        NeutralWorld::NeutralWorldStore& store = *source.store();
+        const char* const game = CSMMesh::SkyrimCellSource::kGameId;
+        openeden::sdk::game::WorldCell content;
         if (!editorId.empty() && editorId[0] == '@')
         {
             // "@<world editor id>,<x>,<y>[,<radius>]": the exterior cells around a grid square, merged into one scene.
@@ -608,8 +611,8 @@ namespace CSVRender
                 error = "A cell spec is \"@<world editor id>,<x>,<y>[,<radius>]\" (radius 0 to 4)";
                 return false;
             }
-            const auto worldInfo = world.findWorldByEditorId(parts[0]);
-            if (!worldInfo)
+            const openeden::sdk::game::WorldId worldId = store.findWorldByEditorId(game, parts[0]);
+            if (worldId == openeden::sdk::game::kNoWorldId)
             {
                 error = "There is no world with the editor id \"" + parts[0] + "\" (" + source.summary() + ")";
                 return false;
@@ -618,38 +621,41 @@ namespace CSVRender
             for (int cy = y - radius; cy <= y + radius; ++cy)
                 for (int cx = x - radius; cx <= x + radius; ++cx)
                 {
-                    const auto cell = world.findCellByGrid(worldInfo->id, cx, cy);
-                    if (!cell)
+                    const openeden::sdk::game::WorldId cellId = store.findCellByGrid(game, worldId, cx, cy);
+                    if (cellId == openeden::sdk::game::kNoWorldId)
                         continue;
-                    openeden::sdk::game::WorldCellContent one;
-                    if (!world.loadCell(cell->id, one, error))
+                    // The store may drop a resident cell to make room for the next one: copy what is needed now.
+                    const openeden::sdk::game::WorldCell* one = store.cell(game, cellId, error);
+                    if (one == nullptr)
                         return false;
                     ++found;
-                    if (content.cell.id == openeden::sdk::game::kNoWorldId)
-                        content.cell = one.cell;
-                    content.objects.insert(content.objects.end(), one.objects.begin(), one.objects.end());
-                    content.unresolvedBases += one.unresolvedBases;
+                    if (content.id == openeden::sdk::game::kNoWorldId)
+                        content.id = one->id;
+                    content.objects.insert(content.objects.end(), one->objects.begin(), one->objects.end());
+                    content.unresolvedBases += one->unresolvedBases;
+                    content.droppedObjects += one->droppedObjects;
                 }
             if (found == 0)
             {
                 error = "The world has no cell at " + std::to_string(x) + ", " + std::to_string(y);
                 return false;
             }
-            content.cell.editorId
+            content.editorId
                 = parts[0] + " " + std::to_string(x) + "," + std::to_string(y) + " +" + std::to_string(radius);
-            content.cell.objectCount = static_cast<std::uint32_t>(content.objects.size());
         }
         else
         {
-            const auto info = world.findCellByEditorId(editorId);
-            if (!info)
+            const openeden::sdk::game::WorldId cellId = store.findCellByEditorId(game, editorId);
+            if (cellId == openeden::sdk::game::kNoWorldId)
             {
                 error = "There is no cell with the editor id \"" + editorId + "\" in the Skyrim load order ("
                     + source.summary() + ")";
                 return false;
             }
-            if (!world.loadCell(info->id, content, error))
+            const openeden::sdk::game::WorldCell* one = store.cell(game, cellId, error);
+            if (one == nullptr)
                 return false;
+            content = *one;
         }
 
         // Meshes come through the VFS, converted once per path; a path that fails is remembered as missing.

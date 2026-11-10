@@ -72,6 +72,17 @@ namespace NeutralWorld
 
         [[nodiscard]] bool isResident(std::string_view gameId, openeden::sdk::game::WorldId id) const;
 
+        // The lookups of the source interface (world_source.hpp 1.0), forwarded to the game's source. They build no
+        // cell. A game the store does not know, a source that cannot say, or one that throws answers none (kNoWorldId;
+        // 0.0 for the unit).
+        [[nodiscard]] openeden::sdk::game::WorldId findCellByEditorId(
+            std::string_view gameId, std::string_view editorId) const;
+        [[nodiscard]] openeden::sdk::game::WorldId findCellByGrid(
+            std::string_view gameId, openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y) const;
+        [[nodiscard]] openeden::sdk::game::WorldId findWorldByEditorId(
+            std::string_view gameId, std::string_view editorId) const;
+        [[nodiscard]] double unitsPerMetre(std::string_view gameId) const;
+
         void clear();
 
         [[nodiscard]] const StoreStats& stats() const { return mStats; }

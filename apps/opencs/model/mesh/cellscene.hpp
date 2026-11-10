@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 
+#include <openeden/game/world_model.hpp>
 #include <openeden/game/world_view.hpp>
 
 #include "scenemodel.hpp"
@@ -60,10 +61,21 @@ namespace CSMMesh
     std::array<double, 16> placementMatrix(
         const openeden::sdk::game::WorldVec3& position, const openeden::sdk::game::WorldVec3& rotation, double scale);
 
+    /// The same matrix from a neutral transform (a unit quaternion, a uniform scale): the rotation that
+    /// placementMatrix builds from the game's Euler angles is what the pack's adapter turned into the quaternion, so
+    /// for the same object both give the same matrix to rounding.
+    std::array<double, 16> placementMatrix(const openeden::sdk::game::WorldTransform& transform);
+
     /// A flat colour for a box or tint for a mesh of this base kind.
     std::array<float, 4> kindColour(openeden::sdk::game::BaseKind kind);
 
     CellScene buildCellScene(const openeden::sdk::game::WorldCellContent& cell, const MeshProvider& provider,
+        const CellSceneLimits& limits = CellSceneLimits());
+
+    /// The same for a cell of the NEUTRAL world model (stage N2: this is what the viewer reads). The adapter's refused
+    /// objects (`droppedObjects`) count as objects and as invalid, so the counts equal the WorldView overload's for the
+    /// same cell.
+    CellScene buildCellScene(const openeden::sdk::game::WorldCell& cell, const MeshProvider& provider,
         const CellSceneLimits& limits = CellSceneLimits());
 }
 

@@ -23,18 +23,19 @@
 // ids and kinds (this header reuses WorldId, BaseKind and WorldVec3), but with a canonical double precision transform,
 // optional components and the payload slot. A pack that implements WorldView can fill a WorldCell from it.
 //
-// Main thread only unless a stage of the design document says otherwise (N2 decides who builds cells). Plain values:
+// Main thread only (decided in stage N2: cells are built on the main thread, just ahead of use). Plain values:
 // copyable, comparable, and equal when built twice from the same data.
 
 namespace openeden::sdk::game
 {
-    /// This header's own version. 0.x means DRAFT: the types may change until stage N2 of the design document freezes
-    /// them (toddhow's call); the policy below applies from 1.0 on.
+    /// This header's own version. FROZEN at 1.0 by stage N2 of the design document (task 0102): the policy below
+    /// applies from here on, and CI (CI/check_extension_sdk.sh and the layout pins in worldmodel/testfrozen.cpp)
+    /// keeps it. 0.1 and 0.2 were drafts.
     ///
     /// Version policy. An additive change (a new member at the END of a struct that a consumer only reads, a new
     /// enumerator at the END of an enumeration, a new type) raises the minor number. A change to the layout or meaning
     /// of anything that exists raises the major number. CI (CI/check_extension_sdk.sh) keeps this paragraph in place.
-    inline constexpr Version kWorldModelVersion{ 0, 2 };
+    inline constexpr Version kWorldModelVersion{ 1, 0 };
 
     /// What kind of thing an object is, as far as the engine's generic paths need to tell. The same set as BaseKind
     /// (a pack maps its record types onto it exactly as it does for WorldView); new kinds are added at the end.
@@ -50,7 +51,11 @@ namespace openeden::sdk::game
     };
 
     /// A rotation as a unit quaternion (x, y, z, w), the active rotation of the object's own frame into the cell's
-    /// frame. The identity is (0, 0, 0, 1). The pack converts its game's stored angles to this at ONE named place.
+    /// frame: the rotated vector is q v q^-1, so a quarter turn about +Z takes +X to +Y when the quaternion is
+    /// (0, 0, sin 45, cos 45). The identity is (0, 0, 0, 1). The pack converts its game's stored angles to this at ONE
+    /// named place, because the games combine their Euler angles in different orders (Morrowind: Rx * Ry * Rz with
+    /// every angle negated, Z first; Skyrim SE: Rz * Ry * Rx with every angle negated, X first); the quaternion is the
+    /// only shared form and no consumer sees the angles.
     struct Quatd
     {
         double x = 0.0;
@@ -61,7 +66,8 @@ namespace openeden::sdk::game
         friend bool operator==(const Quatd&, const Quatd&) = default;
     };
 
-    /// Position in the game's own units (right-handed, Z up), a rotation and a uniform scale.
+    /// Position in the game's own units (right-handed, Z up), a rotation and a uniform scale. The length of a unit in
+    /// metres is a property of the game, not of the object: WorldCellSource::unitsPerMetre.
     struct WorldTransform
     {
         Vec3d position;
@@ -82,6 +88,8 @@ namespace openeden::sdk::game
     struct CollisionHint
     {
         CollisionSource source = CollisionSource::None;
+        /// The base's axis-aligned bounding box in the object's OWN frame (before the transform is applied), when the
+        /// game stores one; it may accompany any source (Skyrim SE gives it to model objects too). Required for Box.
         Vec3d boundsMin; ///< Only meaningful when `hasBounds`
         Vec3d boundsMax;
         bool hasBounds = false;
@@ -121,7 +129,9 @@ namespace openeden::sdk::game
     };
 
     /// Something only the pack understands, kept with the object and given back to the pack. The core never reads it.
-    /// `handle` is the pack's own number (Skyrim SE: the base form id); zero means none. It is not a pointer.
+    /// `handle` is the pack's own number; zero means none. It is not a pointer. What it means is the pack's business
+    /// and differs per game (Skyrim SE: the base form id; the Morrowind projection: the reference number, content
+    /// file in the high half), so a consumer may only hand it back to the pack that wrote it.
     struct PackPayload
     {
         std::uint64_t handle = 0;

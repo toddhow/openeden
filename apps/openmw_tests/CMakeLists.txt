@@ -20,6 +20,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0100 stage N1: the read-only Morrowind projection into the neutral world model.
     mwworld/testneutralprojection.cpp
     mwworld/testneutralprojectionreal.cpp
+    mwworld/testneutralprojectionlookups.cpp
 
     mwdialogue/testkeywordsearch.cpp
     mwdialogue/dialoguefixture.cpp

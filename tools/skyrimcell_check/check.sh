@@ -9,6 +9,7 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 # Usage: tools/skyrimcell_check/check.sh <build dir> <empty work dir> <cell spec> [<cell spec> ...]
 #   a cell spec is an interior cell's editor id, or "@<world editor id>,<x>,<y>[,<radius>]" for the exterior cells
 #   around a grid square (radius 0 to 4). Pass editor ids on the command line only; none is kept in the repository.
+# EXE=<file name in the build dir> runs another editor executable (default eden-studio.exe), for before/after runs.
 # Needs OPENEDEN_SKYRIMSE_DATA (the game's Data folder) and OPENEDEN_SKYRIMSE_PLUGINS (a text file with one plugin path
 # per line, in load order; the game's masters are enough). Optional: MESH_CAMERA="ex,ey,ez,cx,cy,cz" for every cell.
 # Reads only; the work folder must be under I:/Projects/OpenEden-work and holds a scratch config and the frames.
@@ -54,12 +55,12 @@ for spec in "$@"; do
     mkdir -p "$WORK/user-$i"
     extra=()
     [ -n "${MESH_CAMERA:-}" ] && extra=(--mesh-camera "$MESH_CAMERA")
-    (cd "$BUILD" && timeout 300 ./eden-studio.exe --replace=config --config "$W/config" --user-data "$W/user-$i" \
+    (cd "$BUILD" && timeout 300 ./${EXE:-eden-studio.exe} --replace=config --config "$W/config" --user-data "$W/user-$i" \
         --open-mesh "skyrimcell:$spec" --auto-screenshot 30 --auto-quit 60 "${extra[@]}" > "$WORK/$i.out" 2>&1)
     code=$?
     # The first run after a cold disk can be ended by the freeze monitor (exit 57005): run again.
     if [ "$code" -eq 57005 ]; then
-        (cd "$BUILD" && timeout 300 ./eden-studio.exe --replace=config --config "$W/config" --user-data "$W/user-$i" \
+        (cd "$BUILD" && timeout 300 ./${EXE:-eden-studio.exe} --replace=config --config "$W/config" --user-data "$W/user-$i" \
             --open-mesh "skyrimcell:$spec" --auto-screenshot 30 --auto-quit 60 "${extra[@]}" > "$WORK/$i.out" 2>&1)
         code=$?
     fi

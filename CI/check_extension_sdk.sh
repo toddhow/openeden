@@ -107,3 +107,15 @@ if ! grep -q 'kWorldSourceVersion' sdk/include/openeden/game/world_source.hpp ||
     echo 'sdk/include/openeden/game/world_source.hpp must keep kWorldSourceVersion and its version policy line'
     exit 1
 fi
+
+# Task 0102 (stage N2): world_model.hpp and world_source.hpp are FROZEN at major version 1. A change to the layout or
+# meaning of anything in them is a major version change (decision for toddhow); an additive change raises the minor
+# number only. components_tests worldmodel/testfrozen.cpp pins the layout itself.
+for header in world_model world_source; do
+    name=kWorldModelVersion
+    [ "$header" = world_source ] && name=kWorldSourceVersion
+    if ! grep -Eq "$name\{ 1, [0-9]+ \}" "sdk/include/openeden/game/$header.hpp"; then
+        echo "sdk/include/openeden/game/$header.hpp must stay at major version 1 ($name{ 1, N }): it is frozen (task 0102)"
+        exit 1
+    fi
+done

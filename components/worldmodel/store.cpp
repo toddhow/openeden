@@ -1,6 +1,9 @@
 #include "store.hpp"
 
 #include <exception>
+#include <functional>
+#include <map>
+#include <utility>
 
 namespace NeutralWorld
 {
@@ -153,6 +156,51 @@ namespace NeutralWorld
     bool NeutralWorldStore::isResident(std::string_view gameId, WorldId id) const
     {
         return mCells.contains(Key(std::string(gameId), id));
+    }
+
+    namespace
+    {
+        // A lookup of a source that may throw: none on any exception.
+        template <class Fn>
+        auto askSource(const std::map<std::string, WorldCellSource*, std::less<>>& sources, std::string_view gameId,
+            decltype(std::declval<Fn>()(std::declval<const WorldCellSource&>())) none, Fn&& fn)
+        {
+            const auto source = sources.find(gameId);
+            if (source == sources.end())
+                return none;
+            try
+            {
+                return fn(static_cast<const WorldCellSource&>(*source->second));
+            }
+            catch (...)
+            {
+                return none;
+            }
+        }
+    }
+
+    WorldId NeutralWorldStore::findCellByEditorId(std::string_view gameId, std::string_view editorId) const
+    {
+        return askSource(mSources, gameId, kNoWorldId,
+            [&](const WorldCellSource& source) { return source.findCellByEditorId(editorId); });
+    }
+
+    WorldId NeutralWorldStore::findCellByGrid(
+        std::string_view gameId, WorldId world, std::int32_t x, std::int32_t y) const
+    {
+        return askSource(mSources, gameId, kNoWorldId,
+            [&](const WorldCellSource& source) { return source.findCellByGrid(world, x, y); });
+    }
+
+    WorldId NeutralWorldStore::findWorldByEditorId(std::string_view gameId, std::string_view editorId) const
+    {
+        return askSource(mSources, gameId, kNoWorldId,
+            [&](const WorldCellSource& source) { return source.findWorldByEditorId(editorId); });
+    }
+
+    double NeutralWorldStore::unitsPerMetre(std::string_view gameId) const
+    {
+        return askSource(mSources, gameId, 0.0, [&](const WorldCellSource& source) { return source.unitsPerMetre(); });
     }
 
     void NeutralWorldStore::clear()

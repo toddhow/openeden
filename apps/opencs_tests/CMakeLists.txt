@@ -44,6 +44,8 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/mesh/testmeshtree.cpp
     model/mesh/testmeshviewstate.cpp
     model/mesh/testcellscene.cpp
+    model/mesh/testcellsceneneutral.cpp
+    model/mesh/testcellsceneneutralreal.cpp
     model/mesh/testscenemodel.cpp
     model/mesh/testtexturereport.cpp
     model/mesh/testtexturecolour.cpp

@@ -254,6 +254,25 @@ namespace game_skyrimse
         return appended;
     }
 
+    openeden::sdk::game::WorldId SkyrimCellSource::findCellByEditorId(std::string_view editorId) const
+    {
+        const auto info = mView.findCellByEditorId(editorId);
+        return info ? info->id : openeden::sdk::game::kNoWorldId;
+    }
+
+    openeden::sdk::game::WorldId SkyrimCellSource::findCellByGrid(
+        openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y) const
+    {
+        const auto info = mView.findCellByGrid(world, x, y);
+        return info ? info->id : openeden::sdk::game::kNoWorldId;
+    }
+
+    openeden::sdk::game::WorldId SkyrimCellSource::findWorldByEditorId(std::string_view editorId) const
+    {
+        const auto info = mView.findWorldByEditorId(editorId);
+        return info ? info->id : openeden::sdk::game::kNoWorldId;
+    }
+
     bool SkyrimCellSource::buildCell(
         openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error)
     {
