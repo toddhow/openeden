@@ -164,3 +164,7 @@ Out of scope: the deferred rows of section 5; Lua descriptors (task 0097); renam
 
 ## Stage log
 (Empty: nothing is built by this spec.)
+
+## Approval (toddhow's blanket approval of 2026-11-09)
+
+Task 0098 is APPROVED with the recommended answers to its ten open questions (Shape A and records in the engine stream for moves 4 to 8; one rules registry; order 4 to 9; the residue metric script and a tightened `allow` for game_packs; the actor loop stays in the core; move 4 leaves the compiler and interpreter where they are; Eden Studio may link game_morrowind; the `CustomData::as<T>()` edit is allowed; combat and magic each get their own survey task; the one registration-line edit to `testmorrowindprogramgolden.cpp` is allowed). It runs after the earlier items of the master run order in `scratch/review-queue.md`.
