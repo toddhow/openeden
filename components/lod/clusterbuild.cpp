@@ -36,6 +36,7 @@ namespace Lod
             std::string mTexture;
             std::uint32_t mFlags = 0;
             float mAlphaCutoff = 0;
+            ClusterEffect mEffect;
             std::vector<ClusterVertex> mVertices; // cell slot not yet set
             std::vector<std::uint32_t> mIndices; // into mVertices
         };
@@ -46,7 +47,13 @@ namespace Lod
             std::vector<BuiltPiece> mPieces;
         };
 
-        using GroupKey = std::tuple<std::string, std::uint32_t, float>;
+        using GroupKey = std::tuple<std::string, std::uint32_t, float, std::uint32_t, float, float>;
+
+        GroupKey groupKeyOf(const BuiltPiece& piece)
+        {
+            return GroupKey{ piece.mTexture, piece.mFlags, piece.mAlphaCutoff, piece.mEffect.mKind,
+                piece.mEffect.mUvVelocity[0], piece.mEffect.mUvVelocity[1] };
+        }
 
         bool allFinite(const std::array<double, 12>& m)
         {
@@ -99,8 +106,10 @@ namespace Lod
             while (!built.mTexture.empty() && built.mTexture.front() == '/')
                 built.mTexture.erase(built.mTexture.begin());
             if (!isValidClusterTexturePath(built.mTexture)
-                || (piece.mFlags & ~(clusterFlagAlphaTest | clusterFlagTwoSided)) != 0)
+                || (piece.mFlags & ~(clusterFlagAlphaTest | clusterFlagTwoSided)) != 0
+                || !isValidClusterEffect(piece.mEffect))
                 return false;
+            built.mEffect = piece.mEffect;
             const std::size_t vertexCount = piece.mVertices.size();
 
             std::vector<ClusterVertex> vertices(vertexCount);
@@ -411,7 +420,7 @@ namespace Lod
         std::map<GroupKey, std::size_t> groupIndex;
         for (const BuiltObject& object : built)
             for (const BuiltPiece& piece : object.mPieces)
-                groupIndex.emplace(GroupKey{ piece.mTexture, piece.mFlags, piece.mAlphaCutoff }, 0);
+                groupIndex.emplace(groupKeyOf(piece), 0);
         std::size_t next = 0;
         for (auto& [key, index] : groupIndex)
         {
@@ -420,13 +429,17 @@ namespace Lod
             group.mTexture = std::get<0>(key);
             group.mFlags = std::get<1>(key);
             group.mAlphaCutoff = std::get<2>(key);
+            group.mEffect.mKind = std::get<3>(key);
+            group.mEffect.mUvVelocity[0] = std::get<4>(key);
+            group.mEffect.mUvVelocity[1] = std::get<5>(key);
             c.mGroups.push_back(std::move(group));
         }
 
         // Group by group, cell by cell, object by object.
         for (std::size_t g = 0; g < c.mGroups.size(); ++g)
         {
-            const GroupKey key{ c.mGroups[g].mTexture, c.mGroups[g].mFlags, c.mGroups[g].mAlphaCutoff };
+            const GroupKey key{ c.mGroups[g].mTexture, c.mGroups[g].mFlags, c.mGroups[g].mAlphaCutoff,
+                c.mGroups[g].mEffect.mKind, c.mGroups[g].mEffect.mUvVelocity[0], c.mGroups[g].mEffect.mUvVelocity[1] };
             c.mGroups[g].mFirstIndex = static_cast<std::uint32_t>(c.mIndices.size());
             std::size_t rangeFirst = c.mIndices.size();
             std::size_t rangeSlot = 0;
@@ -442,7 +455,7 @@ namespace Lod
             {
                 for (const BuiltPiece& piece : built[o].mPieces)
                 {
-                    if (GroupKey{ piece.mTexture, piece.mFlags, piece.mAlphaCutoff } != key)
+                    if (groupKeyOf(piece) != key)
                         continue;
                     if (!inRange || rangeSlot != slotOfBuilt[o])
                     {

@@ -23,6 +23,7 @@
 #include <string_view>
 #include <vector>
 
+#include "clustereffect.hpp"
 #include "loderror.hpp"
 #include "tilekey.hpp"
 
@@ -33,6 +34,12 @@ namespace Lod
     /// the terrain tile key of the same tile.
     inline constexpr std::uint8_t tagObjectCluster = 0x11;
     inline constexpr std::uint16_t objectClusterPayloadVersion = 1; // frozen 2026-11-03
+    /// Layout version 2 (task 0096 stage b; toddhow approved the succession 2026-11-09): version 1 plus one effect
+    /// record per group (clusterEffectRecordSize bytes, after the string table). The writer uses it only when a
+    /// group carries an effect, so a cluster without effects is still written as version 1, byte for byte as before;
+    /// the reader accepts both, and version 1 means "no effects".
+    inline constexpr std::uint16_t objectClusterEffectsVersion = 2;
+    inline constexpr std::size_t clusterEffectRecordSize = 16;
     inline constexpr std::size_t objectClusterHeaderSize = 104;
     inline constexpr std::size_t clusterGroupSize = 32;
     inline constexpr std::size_t clusterRangeSize = 16;
@@ -75,6 +82,7 @@ namespace Lod
         float mAlphaCutoff = 0; // 0 unless clusterFlagAlphaTest
         std::uint32_t mFirstIndex = 0;
         std::uint32_t mIndexCount = 0;
+        ClusterEffect mEffect; // layout version 2; none in version 1 (last, so older aggregate initialisers still work)
         bool operator==(const ClusterGroup&) const = default;
     };
 
@@ -120,7 +128,7 @@ namespace Lod
         float mGeometricError = 0; // world units
         float mOverhang = 0; // largest distance any vertex lies outside the tile square in x or y
         std::uint32_t mSourceTriangles = 0; // before simplification (a statistic)
-        std::vector<ClusterGroup> mGroups; // sorted by (texture, flags, cutoff)
+        std::vector<ClusterGroup> mGroups; // sorted by (texture, flags, cutoff, effect kind, velocity)
         std::vector<ClusterRange> mRanges;
         std::vector<ClusterCell> mCells;
         std::vector<ClusterRef> mRefs;

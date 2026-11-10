@@ -537,7 +537,7 @@ namespace
 
     TEST(LodObjectCluster, RefusesOtherVersions)
     {
-        for (const std::uint16_t version : { std::uint16_t{ 0 }, std::uint16_t{ 2 }, std::uint16_t{ 0xFFFF } })
+        for (const std::uint16_t version : { std::uint16_t{ 0 }, std::uint16_t{ 3 }, std::uint16_t{ 0xFFFF } })
         {
             std::vector<std::uint8_t> bytes = makeBaseBytes();
             putU16(bytes, offVersion, version);

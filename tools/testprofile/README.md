@@ -155,6 +155,11 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   to the horizon with a blue haze, no draw edge. Wrong: holes in the land, a pop when you rise, or clusters that
   stay when you land. `view distance = auto` takes the reach of the loaded land. `variants/lowtier.cfg` shows the weakest
   tier.
+- *Far lava, waterfalls and the Ghostgate fence move* (0096 stage b): from a hill over Vivec or at the Ghostgate, look at
+  the far lava planes, Vivec's waterfalls and the barrier: the texture scrolls as it does when you stand next to it
+  (`object cluster effects` and `object cluster scenery`, both in the profile; switch `effects` off to see them still).
+  Wrong: a scroll that jumps, runs at another speed than near, or stops; a hole where a plane was; an activator you can
+  no longer use near the player (clusters never draw in the active grid).
 - *Terrain tile fade* (0087): fly (`tcl`, `tgm`) up and down over Balmora, or along the ground toward Vivec: far tiles
   dither in and out over 0.4 s (a fine stipple, softened by `taa`) instead of popping, with no hole in the land. Set
   `[WorldLod] terrain fade time = 0` for the old instant swap to compare. Wrong: a flash, a hole, or a tile that stays

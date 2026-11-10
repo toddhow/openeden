@@ -85,6 +85,8 @@ namespace Lod
         std::string mTexture;
         std::uint32_t mFlags = 0; // clusterFlagAlphaTest, clusterFlagTwoSided
         float mAlphaCutoff = 0;
+        /// A time-driven effect of this piece (task 0096 stage b). Pieces with different effects never share a group.
+        ClusterEffect mEffect;
         std::vector<SourceVertex> mVertices;
         std::vector<std::uint32_t> mIndices; // triangle list
     };

@@ -24,6 +24,13 @@ namespace Settings
             makeClampSanitizerFloat(0, 60.f) };
         // Task 0059: baked object clusters (DRAFT layout), off by default; they need `enabled` too.
         SettingValue<bool> mObjectClusters{ mIndex, "WorldLod", "object clusters" };
+        // Task 0096 stage b (layout version 2 of the cluster pack): bake a constant texture scroll of lava planes,
+        // waterfalls and the Ghostgate fence into the clusters (`openmw --bake-lod-objects`) and play it on the far
+        // draws. Off by default; a pack baked with it on holds version 2 payloads, which this setting off draws still.
+        SettingValue<bool> mObjectClusterEffects{ mIndex, "WorldLod", "object cluster effects" };
+        // Task 0096 stage b: let the bake take activators that have no name and no script (lava planes, waterfalls,
+        // fences) into the clusters as statics are. Off by default; read only by the bake.
+        SettingValue<bool> mObjectClusterScenery{ mIndex, "WorldLod", "object cluster scenery" };
         SettingValue<float> mObjectClusterThreshold{ mIndex, "WorldLod", "object cluster threshold",
             makeClampSanitizerFloat(0.01f, 1000000.f) };
         SettingValue<float> mObjectClusterFadeTime{ mIndex, "WorldLod", "object cluster fade time",

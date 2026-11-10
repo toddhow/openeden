@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <components/misc/strings/algorithm.hpp>
+#include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
 #include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
@@ -86,11 +87,62 @@ namespace Lod
             return static_cast<std::uint8_t>(std::lround(std::clamp(value, 0.f, 1.f) * 255.f));
         }
 
+        // Whether the keys of one UV offset axis are a straight line over time: the speed of the line (offset units per
+        // key time unit) is written to `slope`. An axis without keys does not move (slope 0).
+        bool lineOfKeys(const Nif::FloatKeyMapPtr& map, float& slope)
+        {
+            slope = 0;
+            if (map == nullptr || map->mKeys.empty())
+                return true;
+            // Morrowind's UV keys are "quadratic" (Hermite) keys with two keys per axis; with each segment's tangents
+            // equal to the segment's change in value the curve is a straight line, which is what vanilla's lava,
+            // waterfalls and fences have. Linear keys are a line by definition.
+            const bool quadratic = map->mInterpolationType == Nif::InterpolationType_Quadratic;
+            if ((map->mInterpolationType != Nif::InterpolationType_Linear && !quadratic) || map->mKeys.size() < 2)
+                return false;
+            if (quadratic)
+            {
+                for (std::size_t i = 0; i + 1 < map->mKeys.size(); ++i)
+                {
+                    const double step
+                        = static_cast<double>(map->mKeys[i + 1].second.mValue) - map->mKeys[i].second.mValue;
+                    const double allowedTangent = 1e-4 + 1e-3 * std::fabs(step);
+                    if (!(std::fabs(map->mKeys[i].second.mOutTan - step) <= allowedTangent)
+                        || !(std::fabs(map->mKeys[i + 1].second.mInTan - step) <= allowedTangent))
+                        return false;
+                }
+            }
+            const auto& first = map->mKeys.front();
+            const auto& last = map->mKeys.back();
+            const double span = static_cast<double>(last.first) - static_cast<double>(first.first);
+            if (!(span > 0) || !std::isfinite(span))
+                return false;
+            const double change = static_cast<double>(last.second.mValue) - static_cast<double>(first.second.mValue);
+            if (!std::isfinite(change))
+                return false;
+            const double line = change / span;
+            // Every key lies on the line through the first and the last, within a thousandth of the total change.
+            const double allowed = 1e-4 + 1e-3 * std::fabs(change);
+            double previous = first.first;
+            for (const auto& key : map->mKeys)
+            {
+                if (!(key.first >= previous))
+                    return false;
+                previous = key.first;
+                const double expected = first.second.mValue + line * (static_cast<double>(key.first) - first.first);
+                if (!(std::fabs(static_cast<double>(key.second.mValue) - expected) <= allowed))
+                    return false;
+            }
+            slope = static_cast<float>(line);
+            return std::isfinite(slope);
+        }
+
         class Flattener
         {
         public:
-            explicit Flattener(bool blendAsCutout)
+            Flattener(bool blendAsCutout, bool uvEffects)
                 : mBlendAsCutout(blendAsCutout)
+                , mUvEffects(uvEffects)
             {
             }
 
@@ -131,6 +183,59 @@ namespace Lod
                     inherited.mSourceBlend = alpha.sourceBlendMode();
                     inherited.mDestinationBlend = alpha.destinationBlendMode();
                 }
+                // A controller on a property (alpha, material colour, texture flipping) changes how the shape looks
+                // over time, which a baked rest pose cannot show (task 0096 stage a2).
+                if (!property.mController.empty())
+                    mModel.mTraits.mAnimated = true;
+            }
+
+            // The effect of a NiUVController that is a constant scroll: a cycling, active controller on the first UV
+            // set whose offset keys are straight lines and whose tiling is not animated. The speed is in texture
+            // repeats per second (the keys' slope times the controller's frequency). A jump at the end of the cycle
+            // (when the keys do not add up to a whole number of repeats) is not reproduced: the scroll is smooth.
+            bool uvScroll(const Nif::NiUVController& controller, Lod::ClusterEffect& effect) const
+            {
+                if (!controller.isActive() || controller.mData.empty() || controller.mUvSet != 0
+                    || controller.extrapolationMode() != Nif::NiTimeController::Cycle)
+                    return false;
+                const auto& keys = controller.mData->mKeyList;
+                for (const std::size_t tiling : { std::size_t{ 2 }, std::size_t{ 3 } })
+                    if (keys[tiling] != nullptr && !keys[tiling]->mKeys.empty())
+                        return false;
+                float slope[2] = { 0, 0 };
+                for (std::size_t axis = 0; axis < 2; ++axis)
+                    if (!lineOfKeys(keys[axis], slope[axis]))
+                        return false;
+                effect = Lod::ClusterEffect{};
+                effect.mKind = Lod::clusterEffectUvScroll;
+                for (std::size_t axis = 0; axis < 2; ++axis)
+                    effect.mUvVelocity[axis] = slope[axis] * controller.mFrequency;
+                return Lod::isValidClusterEffect(effect);
+            }
+
+            // Looks at the controllers of a node. A UV scroll on a shape becomes an effect of its pieces when effects
+            // are on; any other controller makes the model animated.
+            void visitControllers(const Nif::NiAVObject& node, bool isShape, Lod::ClusterEffect& effect)
+            {
+                const Nif::NiTimeController* controller
+                    = node.mController.empty() ? nullptr : node.mController.getPtr();
+                int depth = 0;
+                while (controller != nullptr)
+                {
+                    if (++depth > 64)
+                    {
+                        mModel.mTraits.mAnimated = true;
+                        return;
+                    }
+                    if (mUvEffects && isShape && controller->mRecordType == Nif::RC_NiUVController && effect.none()
+                        && uvScroll(static_cast<const Nif::NiUVController&>(*controller), effect))
+                    {
+                        // handled: the scroll is an effect, not an animation
+                    }
+                    else
+                        mModel.mTraits.mAnimated = true;
+                    controller = controller->mNext.empty() ? nullptr : controller->mNext.getPtr();
+                }
             }
 
             void visit(const Nif::NiAVObject& node, const Matrix& parent, Inherited inherited, int depth)
@@ -138,9 +243,13 @@ namespace Lod
                 if (depth > sMaxDepth || node.isHidden() || node.mRecordType == Nif::RC_RootCollisionNode
                     || node.mRecordType == Nif::RC_AvoidNode || Misc::StringUtils::ciEqual(node.mName, "Bounding Box"))
                     return;
-                if (!node.mController.empty())
-                    mModel.mTraits.mAnimated = true;
-                if (node.mRecordType == Nif::RC_NiBSAnimationNode)
+                const bool isShape = node.mRecordType == Nif::RC_NiTriShape || node.mRecordType == Nif::RC_NiTriStrips
+                    || node.mRecordType == Nif::RC_BSLODTriShape;
+                Lod::ClusterEffect effect;
+                visitControllers(node, isShape, effect);
+                // An animation node with no controller of its own has nothing to play in a placed model; with effects
+                // off it still marks the model animated, as before (vanilla scenery wraps its UV shapes in one).
+                if (node.mRecordType == Nif::RC_NiBSAnimationNode && !mUvEffects)
                     mModel.mTraits.mAnimated = true;
                 const Matrix world = multiply(parent, fromTransform(node.mTransform));
                 for (const auto& property : node.mProperties)
@@ -152,7 +261,7 @@ namespace Lod
                     case Nif::RC_NiTriShape:
                     case Nif::RC_NiTriStrips:
                     case Nif::RC_BSLODTriShape:
-                        addGeometry(static_cast<const Nif::NiGeometry&>(node), world, inherited);
+                        addGeometry(static_cast<const Nif::NiGeometry&>(node), world, inherited, effect);
                         return;
                     case Nif::RC_NiParticles:
                     case Nif::RC_NiParticleSystem:
@@ -189,7 +298,8 @@ namespace Lod
                 }
             }
 
-            void addGeometry(const Nif::NiGeometry& geometry, const Matrix& world, const Inherited& inherited)
+            void addGeometry(const Nif::NiGeometry& geometry, const Matrix& world, const Inherited& inherited,
+                const Lod::ClusterEffect& effect)
             {
                 if (geometry.mData.empty())
                     return;
@@ -252,6 +362,7 @@ namespace Lod
                 piece.mTexture = state.mTexture;
                 piece.mFlags = state.mTest ? clusterFlagAlphaTest : 0;
                 piece.mAlphaCutoff = state.mTest ? static_cast<float>(state.mThreshold) / 255.f : 0.f;
+                piece.mEffect = effect;
                 const bool mirrored = determinant(world) < 0;
                 piece.mVertices.resize(data.mVertices.size());
                 for (std::size_t i = 0; i < data.mVertices.size(); ++i)
@@ -337,6 +448,7 @@ namespace Lod
 
             FlattenedModel mModel;
             bool mBlendAsCutout;
+            bool mUvEffects;
         };
     }
 
@@ -382,8 +494,8 @@ namespace Lod
         return matches(word);
     }
 
-    FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout)
+    FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout, bool uvEffects)
     {
-        return Flattener(blendAsCutout).run(root);
+        return Flattener(blendAsCutout, uvEffects).run(root);
     }
 }

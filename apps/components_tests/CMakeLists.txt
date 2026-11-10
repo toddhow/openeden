@@ -354,6 +354,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testclusterplan.cpp
     lod/testclusterfoliage.cpp
     lod/testnifflatten.cpp
+    lod/testclustereffects.cpp
     lod/testclusterpack.cpp
     lod/testtiletree.cpp
     lod/testtilelivefallback.cpp

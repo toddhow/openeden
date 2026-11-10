@@ -1447,6 +1447,7 @@ namespace MWRender
             // Task 0060, option b: the minimal and low tiers may give up far clusters for the budget.
             setup.mEvictFar = mFarTierActive && mFarTier.mEvictFarClusters;
             setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
+            setup.mPlayEffects = Settings::worldLod().mObjectClusterEffects;
             setup.mCellSize = ESM::Land::REAL_SIZE;
             setup.mBuilder = mResourceSystem->builder.get();
             setup.mImageOptions = mResourceSystem->textureOptions;
@@ -2560,7 +2561,8 @@ namespace MWRender
     bool RenderManager::pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled)
     {
         // Task 0059: a static a script disabled is drawn by the live objects again for its cell.
-        if (mLodClusters && !enabled && type == ESM::REC_STAT && ptr.isInCell() && ptr.getCell()->isExterior())
+        if (mLodClusters && !enabled && (type == ESM::REC_STAT || type == ESM::REC_ACTI) && ptr.isInCell()
+            && ptr.getCell()->isExterior())
             mLodClusters->overrideReference(ptr.getCellRef().getRefNum());
         if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
             return false;
@@ -2569,7 +2571,8 @@ namespace MWRender
 
     void RenderManager::pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr)
     {
-        if (mLodClusters && type == ESM::REC_STAT && ptr.isInCell() && ptr.getCell()->isExterior())
+        if (mLodClusters && (type == ESM::REC_STAT || type == ESM::REC_ACTI) && ptr.isInCell()
+            && ptr.getCell()->isExterior())
             mLodClusters->overrideReference(ptr.getCellRef().getRefNum());
         if (!mDistantObjects || !ptr.isInCell() || !ptr.getCell()->isExterior() || !isDistantObjectType(type))
             return;

@@ -213,15 +213,24 @@ namespace Lod
             return static_cast<std::int64_t>(number);
         }
 
+        bool hasEffects(const ObjectCluster& c) noexcept
+        {
+            for (const ClusterGroup& g : c.mGroups)
+                if (!g.mEffect.none())
+                    return true;
+            return false;
+        }
+
         struct Layout
         {
             std::uint64_t mGroups = 0, mRanges = 0, mCells = 0, mRefs = 0, mVertices = 0, mIndices = 0, mStrings = 0;
             std::uint64_t mStringBytes = 0;
+            std::uint64_t mEffects = 0; // layout version 2 only: one record per group after the strings
             std::uint64_t mTotal = 0;
         };
 
         Layout computeLayout(std::uint64_t groups, std::uint64_t ranges, std::uint64_t cells, std::uint64_t refs,
-            std::uint64_t vertices, std::uint64_t indices, std::uint64_t stringBytes)
+            std::uint64_t vertices, std::uint64_t indices, std::uint64_t stringBytes, bool effects = false)
         {
             Layout layout;
             layout.mGroups = objectClusterHeaderSize;
@@ -233,6 +242,11 @@ namespace Lod
             layout.mStrings = align8(layout.mIndices + indices * 4);
             layout.mStringBytes = stringBytes;
             layout.mTotal = align8(layout.mStrings + stringBytes);
+            if (effects)
+            {
+                layout.mEffects = layout.mTotal;
+                layout.mTotal = align8(layout.mEffects + groups * clusterEffectRecordSize);
+            }
             return layout;
         }
 
@@ -288,12 +302,17 @@ namespace Lod
                 if (!finite(g.mAlphaCutoff) || g.mAlphaCutoff < 0
                     || ((g.mFlags & clusterFlagAlphaTest) == 0 && g.mAlphaCutoff != 0))
                     return fail(at + ".alphaCutoff", 0, "must be finite, not negative, and 0 without alpha test");
+                if (!isValidClusterEffect(g.mEffect))
+                    return fail(at + ".effect", 0,
+                        "an unknown kind, a velocity beyond the cap, or a field the kind does not use");
                 if (i > 0)
                 {
                     const ClusterGroup& p = c.mGroups[i - 1];
-                    const auto previous = std::tie(p.mTexture, p.mFlags);
-                    const auto current = std::tie(g.mTexture, g.mFlags);
-                    if (!(previous < current || (previous == current && p.mAlphaCutoff < g.mAlphaCutoff)))
+                    const auto previous = std::tie(p.mTexture, p.mFlags, p.mAlphaCutoff, p.mEffect.mKind,
+                        p.mEffect.mUvVelocity[0], p.mEffect.mUvVelocity[1]);
+                    const auto current = std::tie(g.mTexture, g.mFlags, g.mAlphaCutoff, g.mEffect.mKind,
+                        g.mEffect.mUvVelocity[0], g.mEffect.mUvVelocity[1]);
+                    if (!(previous < current))
                         return fail(at + ".texture", 0, "groups must be sorted and distinct");
                 }
                 if (g.mFirstIndex != expectedFirst || g.mIndexCount == 0 || g.mIndexCount % 3 != 0)
@@ -527,13 +546,14 @@ namespace Lod
         std::uint64_t stringBytes = 0;
         for (const ClusterGroup& g : c.mGroups)
             stringBytes += g.mTexture.size();
+        const bool effects = hasEffects(c);
         const Layout layout = computeLayout(c.mGroups.size(), c.mRanges.size(), c.mCells.size(), c.mRefs.size(),
-            c.mVertices.size(), c.mIndices.size(), stringBytes);
+            c.mVertices.size(), c.mIndices.size(), stringBytes, effects);
 
         std::vector<std::uint8_t> bytes(layout.mTotal, 0);
         Writer w(bytes);
         std::memcpy(bytes.data() + offMagic, magic, 4);
-        w.u16(offVersion, objectClusterPayloadVersion);
+        w.u16(offVersion, effects ? objectClusterEffectsVersion : objectClusterPayloadVersion);
         w.u16(offFlags, 0);
         w.u32(offLevel, c.mLevel);
         w.f32(offSide, c.mSide);
@@ -572,6 +592,13 @@ namespace Lod
             w.u32(at + 20, g.mIndexCount);
             std::memcpy(bytes.data() + layout.mStrings + pathOffset, g.mTexture.data(), g.mTexture.size());
             pathOffset += static_cast<std::uint32_t>(g.mTexture.size());
+            if (effects)
+            {
+                const std::size_t effectAt = layout.mEffects + i * clusterEffectRecordSize;
+                w.u32(effectAt + 0, g.mEffect.mKind);
+                w.f32(effectAt + 4, g.mEffect.mUvVelocity[0]);
+                w.f32(effectAt + 8, g.mEffect.mUvVelocity[1]);
+            }
         }
         for (std::size_t i = 0; i < c.mRanges.size(); ++i)
         {
@@ -628,9 +655,9 @@ namespace Lod
             return fail("magic", offMagic, "not an object cluster");
         const std::uint32_t version
             = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
-        if (version != objectClusterPayloadVersion)
-            return fail(
-                "version", offVersion, "only layout version 1 is understood (a version 0 pack must be baked again)");
+        if (version != objectClusterPayloadVersion && version != objectClusterEffectsVersion)
+            return fail("version", offVersion,
+                "only layout versions 1 and 2 are understood (a version 0 pack must be baked again)");
         ClusterHeaderInfo parsed;
         parsed.mLevel = getU32(b, offLevel);
         parsed.mSide = getF32(b, offSide);
@@ -660,9 +687,10 @@ namespace Lod
             return fail("magic", offMagic, "not an object cluster");
         const std::uint32_t version
             = static_cast<std::uint32_t>(b[offVersion]) | (static_cast<std::uint32_t>(b[offVersion + 1]) << 8);
-        if (version != objectClusterPayloadVersion)
-            return fail(
-                "version", offVersion, "only layout version 1 is understood (a version 0 pack must be baked again)");
+        if (version != objectClusterPayloadVersion && version != objectClusterEffectsVersion)
+            return fail("version", offVersion,
+                "only layout versions 1 and 2 are understood (a version 0 pack must be baked again)");
+        const bool effects = version == objectClusterEffectsVersion;
         if (b[offFlags] != 0 || b[offFlags + 1] != 0)
             return fail("flags", offFlags, "flags must be 0 in version 0");
 
@@ -725,7 +753,7 @@ namespace Lod
             return fail("indexCount", offIndexCount, "not a multiple of 3");
 
         const Layout layout = computeLayout(counts[0].mValue, counts[1].mValue, counts[2].mValue, counts[3].mValue,
-            counts[4].mValue, counts[5].mValue, stringBytes);
+            counts[4].mValue, counts[5].mValue, stringBytes, effects);
         const std::uint64_t expectedOffsets[7] = { layout.mGroups, layout.mRanges, layout.mCells, layout.mRefs,
             layout.mVertices, layout.mIndices, layout.mStrings };
         for (std::size_t i = 0; i < 7; ++i)
@@ -761,6 +789,27 @@ namespace Lod
         }
         if (pathOffset != stringBytes)
             return fail("stringBytes", offStringBytes, "the paths do not fill the string table");
+
+        if (effects)
+        {
+            bool any = false;
+            for (std::size_t i = 0; i < c.mGroups.size(); ++i)
+            {
+                const std::size_t at = layout.mEffects + i * clusterEffectRecordSize;
+                ClusterEffect& effect = c.mGroups[i].mEffect;
+                effect.mKind = getU32(b, at + 0);
+                effect.mUvVelocity[0] = getF32(b, at + 4);
+                effect.mUvVelocity[1] = getF32(b, at + 8);
+                for (std::size_t k = 12; k < clusterEffectRecordSize; ++k)
+                    if (b[at + k] != 0)
+                        return fail("effects.reserved", at + k, "must be zero");
+                if (!isValidClusterEffect(effect))
+                    return fail("effects.record", at, "an unknown kind, a velocity beyond the cap, or an unused field");
+                any = any || !effect.none();
+            }
+            if (!any)
+                return fail("effects", layout.mEffects, "a version 2 cluster must carry at least one effect");
+        }
 
         c.mRanges.resize(counts[1].mValue);
         for (std::size_t i = 0; i < c.mRanges.size(); ++i)
@@ -814,9 +863,14 @@ namespace Lod
             layout.mRefs + c.mRefs.size() * clusterRefSize, layout.mVertices + c.mVertices.size() * clusterVertexSize,
             layout.mIndices + c.mIndices.size() * 4, layout.mStrings + stringBytes };
         const std::uint64_t nextStarts[7] = { layout.mRanges, layout.mCells, layout.mRefs, layout.mVertices,
-            layout.mIndices, layout.mStrings, layout.mTotal };
+            layout.mIndices, layout.mStrings, effects ? layout.mEffects : layout.mTotal };
         for (std::size_t i = 0; i < 7; ++i)
             for (std::uint64_t at = sectionEnds[i]; at < nextStarts[i]; ++at)
+                if (b[at] != 0)
+                    return fail("padding", at, "padding must be zero");
+        if (effects)
+            for (std::uint64_t at = layout.mEffects + c.mGroups.size() * clusterEffectRecordSize; at < layout.mTotal;
+                 ++at)
                 if (b[at] != 0)
                     return fail("padding", at, "padding must be zero");
         // The header bytes between the known fields are all covered above (flags, reserved); the reserved group bytes

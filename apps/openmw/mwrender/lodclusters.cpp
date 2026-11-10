@@ -25,6 +25,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/lod/clustereffect.hpp>
 #include <components/lod/clusterfade.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/clusterplan.hpp>
@@ -109,6 +110,14 @@ namespace MWRender
             vsg::ref_ptr<vsg::Node> mNode;
             std::vector<std::unique_ptr<Pipeline::Material>> mMaterials;
             float mFade = 0; // the fade the materials hold (mirrors the cover tile's)
+            // Task 0096 stage b: the texture matrix of each group that plays an effect, written every frame from the
+            // effect clock. Built with the draws (buildNode), main thread only.
+            struct EffectMatrix
+            {
+                vsg::ref_ptr<vsg::mat4Value> mMatrix;
+                Lod::ClusterEffect mEffect;
+            };
+            std::vector<EffectMatrix> mEffectMatrices;
             // Frames before a tile whose read or compile failed is tried again (the failure back-off).
             int mFailureCooldown = 0;
             // Frames before a tile the planner freed while it was wanted may be asked for again (the eviction cooldown:
@@ -159,6 +168,9 @@ namespace MWRender
         }
 
         Setup mSetup;
+        // The effect clock of the scrolling groups (task 0096): the sum of the frame times given to update(), so it
+        // runs on the renderer's own time and starts at 0 with each LodClusters.
+        double mEffectSeconds = 0;
         vsg::ref_ptr<vsg::Group> mRoot = vsg::Group::create();
         std::future<OpenResult> mOpen;
         bool mOpened = false;
@@ -414,6 +426,7 @@ namespace MWRender
         {
             const Lod::ObjectCluster& cluster = tile.mData->mCluster;
             tile.mMaterials.clear();
+            tile.mEffectMatrices.clear();
             tile.mDraws = 0;
             tile.mTriangles = 0;
 
@@ -453,6 +466,26 @@ namespace MWRender
                     material->value().alphaTestCutoff = source.mAlphaCutoff;
                 material->value().specular.a = tile.mFade;
                 vsg::Descriptors descriptors{ material->descriptor() };
+
+                // A scrolling group takes the live objects' texture matrix (Pipeline::Mode::TEXMAT, the descriptor the
+                // NIF loader makes for a NiUVController); a still group or a build with the effects off has none, so
+                // its pipeline and draws are those of a version 1 cluster.
+                if (setup.mPlayEffects && !source.mEffect.none())
+                {
+                    auto matrix = vsg::mat4Value::create();
+                    matrix->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+                    options.shader.addMode(Pipeline::Mode::TEXMAT);
+                    descriptors.push_back(vsg::DescriptorBuffer::create(
+                        matrix, Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
+                    tile.mEffectMatrices.push_back({ matrix, source.mEffect });
+                    static bool logged = false; // once per process: the first scrolling group built
+                    if (!logged)
+                    {
+                        logged = true;
+                        Log(Debug::Info) << "LOD clusters: the first scrolling group, " << source.mEffect.mUvVelocity[0]
+                                         << ", " << source.mEffect.mUvVelocity[1] << " texture repeats a second.";
+                    }
+                }
 
                 if (g < tile.mData->mImages.size() && tile.mData->mImages[g])
                 {
@@ -593,6 +626,7 @@ namespace MWRender
     {
         State& state = *mState;
         const Setup& setup = state.mSetup;
+        state.mEffectSeconds += seconds;
 
         if (!state.mOpened)
         {
@@ -1043,6 +1077,21 @@ namespace MWRender
                 for (auto& material : tile.mMaterials)
                     material->update(material->value().specular.a, tile.mFade);
             }
+            // The scrolling groups: the matrix is a translation of the effect's offset at the effect clock (the
+            // translation column of Anim::TexMat with a scale of 1). Only the tiles that are drawn are written.
+            if (tile.mWanted || cover.mFade.mPhase != Lod::FadePhase::Hidden)
+                for (Tile::EffectMatrix& effect : tile.mEffectMatrices)
+                {
+                    float offset[2];
+                    Lod::clusterUvOffset(effect.mEffect, state.mEffectSeconds, offset);
+                    auto& matrix = effect.mMatrix->value();
+                    if (matrix(3, 0) != offset[0] || matrix(3, 1) != offset[1])
+                    {
+                        matrix(3, 0) = offset[0];
+                        matrix(3, 1) = offset[1];
+                        effect.mMatrix->dirty();
+                    }
+                }
             if (tile.mWanted)
             {
                 ++shown;

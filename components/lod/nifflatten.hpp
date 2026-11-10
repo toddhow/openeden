@@ -15,6 +15,7 @@
 #include <components/nif/node.hpp>
 
 #include "clusterbuild.hpp"
+#include "clustereffect.hpp"
 
 namespace Lod
 {
@@ -53,7 +54,13 @@ namespace Lod
     /// instead of being left out, unless its texture looks translucent, its material alpha is below 0.99 or it has no
     /// texture (then it is left out, and the model is marked alpha blended, as without the option). A merged mesh
     /// cannot be sorted for blending, and leaving the blended models out made most trees vanish from the far field.
-    FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout = false);
+    ///
+    /// Controllers (task 0096): any controller on a node, a geometry or a property marks the model animated (a2: the
+    /// property controllers used to be missed and such a model was baked as a rest pose). With `uvEffects`, a
+    /// NiUVController on a shape that is a constant scroll (see Flattener::uvScroll) is instead turned into the
+    /// ClusterEffect of that shape's pieces and does not mark the model animated, and a NiBSAnimationNode with no
+    /// controller of its own no longer marks it either; every other controller still does.
+    FlattenedModel flattenNifModel(const Nif::NiAVObject& root, bool blendAsCutout = false, bool uvEffects = false);
 }
 
 #endif

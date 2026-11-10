@@ -159,7 +159,7 @@ namespace MWRender
                     continue;
                 const int type = store.findStatic(ref.mRefID);
                 // A baked object cluster draws this static (task 0059): the cluster lists it for this cell.
-                if (clusterRefs != nullptr && type == ESM::REC_STAT
+                if (clusterRefs != nullptr && (type == ESM::REC_STAT || type == ESM::REC_ACTI)
                     && Lod::clusterDrawsReference(*clusterRefs,
                         Lod::ClusterRef{ refNum.mIndex, static_cast<std::uint32_t>(refNum.mContentFile) }))
                     continue;

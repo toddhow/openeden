@@ -17,15 +17,19 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/cellref.hpp>
+#include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/esm3/loadscpt.hpp>
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/nifflatten.hpp>
+#include <components/lod/sceneryscript.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
 #include "mwbase/environment.hpp"
@@ -41,7 +45,8 @@ namespace OMW
         // Time spent baking between two frames; the window keeps drawing in between.
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         constexpr const char* worldspaceName = "Morrowind";
-        constexpr std::uint32_t bakerVersion = 13; // 13: levels 3 and 4, layout version 1
+        constexpr std::uint32_t bakerVersion
+            = 14; // 14: property controllers keep a model out (task 0096 a2); effects and scenery words in the digest
         // The largest simplification error of a level in world units (Lod::clusterLevelError: task 0059's values for
         // levels 1 to 3, level 4 from the same growth, task 0066 stage d).
         std::uint32_t levelError(std::uint32_t level)
@@ -92,6 +97,8 @@ namespace OMW
             std::size_t mVertices = 0;
             float mMaxError = 0;
             std::vector<std::size_t> mGroups;
+            std::size_t mEffectGroups = 0; // groups that carry an effect (task 0096 stage b)
+            std::size_t mEffectTriangles = 0; // their triangles
         };
 
         template <class T>
@@ -138,6 +145,10 @@ namespace OMW
         std::vector<ModelEntry> mModels;
         std::map<std::string, std::size_t> mModelIndex;
         std::size_t mReferencesSeen = 0, mNotStatic = 0, mNoModel = 0;
+        // Task 0096 stage b: [WorldLod] object cluster effects / object cluster scenery, read when the bake starts.
+        bool mUvEffects = false;
+        bool mScenery = false;
+        std::size_t mSceneryObjects = 0, mSceneryNamed = 0, mSceneryScripted = 0;
 
         // Models
         std::size_t mNextModel = 0;
@@ -172,7 +183,7 @@ namespace OMW
     namespace
     {
         // Reads one model and flattens it. The texture names become VFS paths.
-        void loadModel(const VFS::Manager& vfs, ModelEntry& entry)
+        void loadModel(const VFS::Manager& vfs, ModelEntry& entry, bool uvEffects)
         {
             const VFS::Path::Normalized path(entry.mPath);
             {
@@ -190,7 +201,7 @@ namespace OMW
                 const auto* node = dynamic_cast<const Nif::NiAVObject*>(root);
                 if (node == nullptr)
                     continue;
-                Lod::FlattenedModel part = Lod::flattenNifModel(*node, true);
+                Lod::FlattenedModel part = Lod::flattenNifModel(*node, true, uvEffects);
                 for (Lod::SourcePiece& piece : part.mPieces)
                     entry.mFlat.mPieces.push_back(std::move(piece));
                 Lod::ObjectTraits& traits = entry.mFlat.mTraits;
@@ -213,14 +224,39 @@ namespace OMW
             entry.mOk = true;
         }
 
-        std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize)
+        // An activator whose model may stand in a far cluster (task 0096 stage b): scenery nobody can use and nothing
+        // changes. It has no name (the game offers no activation without one, and the tooltip needs it), and no script,
+        // or a script that never enables, disables, moves, turns, scales or removes it or starts another script
+        // (Lod::scriptChangesItsObject: vanilla's lava, waterfalls and steam have sound loops and the lava's damage;
+        // the Ghostgate fence disables itself and stays live). Its references can still be disabled or moved by other
+        // scripts, which the cluster's override rule (LodClusters::overrideReference) already covers once the cell is
+        // loaded.
+        bool isInertActivator(const MWWorld::ESMStore& store, const ESM::RefId& id, bool& named, bool& scripted)
+        {
+            const ESM::Activator* activator = store.get<ESM::Activator>().search(id);
+            if (activator == nullptr)
+                return false;
+            named = !activator->mName.empty();
+            scripted = false;
+            if (!activator->mScript.empty())
+            {
+                const ESM::Script* script = store.get<ESM::Script>().search(activator->mScript);
+                // A script that cannot be read is treated as one that may change anything.
+                scripted = script == nullptr || Lod::scriptChangesItsObject(script->mScriptText);
+            }
+            return !named && !scripted;
+        }
+
+        std::vector<std::uint8_t> parameterBytes(
+            std::uint32_t level, std::uint32_t error, std::uint32_t cellSize, bool uvEffects, bool scenery)
         {
             std::vector<std::uint8_t> bytes;
             // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to,
             // so its version and constants are part of the digest: an older pack goes stale.
             for (const std::uint32_t word :
                 { bakerVersion, level, error, static_cast<std::uint32_t>(std::lround(dropFactor * 1000.f)), cellSize,
-                    Lod::foliageRuleVersion, static_cast<std::uint32_t>(Lod::blendCutoutThreshold) })
+                    Lod::foliageRuleVersion, static_cast<std::uint32_t>(Lod::blendCutoutThreshold),
+                    uvEffects ? static_cast<std::uint32_t>(Lod::objectClusterEffectsVersion) : 0u, scenery ? 1u : 0u })
                 for (int shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
             return bytes;
@@ -248,6 +284,8 @@ namespace OMW
         {
             state.mStarted = true;
             state.mStart = std::chrono::steady_clock::now();
+            state.mUvEffects = Settings::worldLod().mObjectClusterEffects;
+            state.mScenery = Settings::worldLod().mObjectClusterScenery;
             // The bake runs inside a new game, where the player starts in a fight and dies after about ten seconds; a
             // death stops the game's update and with it the bake. A bake is no play: switch god mode on.
             if (MWBase::World* world = MWBase::Environment::get().getWorld();
@@ -281,11 +319,24 @@ namespace OMW
                 {
                     ++state.mReferencesSeen;
                     const int type = store->findStatic(ref.mRefID);
-                    if (type != ESM::REC_STAT)
+                    bool scenery = false;
+                    if (type == ESM::REC_ACTI && state.mScenery)
+                    {
+                        bool named = false, scripted = false;
+                        scenery = isInertActivator(*store, ref.mRefID, named, scripted);
+                        if (!scenery)
+                        {
+                            state.mSceneryNamed += named ? 1 : 0;
+                            state.mSceneryScripted += scripted ? 1 : 0;
+                        }
+                    }
+                    if (type != ESM::REC_STAT && !scenery)
                     {
                         ++state.mNotStatic;
                         continue;
                     }
+                    if (scenery)
+                        ++state.mSceneryObjects;
                     if (Misc::ResourceHelpers::isHiddenMarker(ref.mRefID))
                         continue;
                     const std::string_view model = MWRender::distantObjectModel(type, ref.mRefID, *store);
@@ -334,7 +385,9 @@ namespace OMW
                 return false;
             state.mPhase = Phase::Models;
             Log(Debug::Info) << "LOD object bake: " << state.mReferencesSeen << " references, " << state.mObjects.size()
-                             << " statics with a model (" << state.mNotStatic << " activators and doors stay live), "
+                             << " statics with a model (" << state.mNotStatic << " activators and doors stay live; "
+                             << state.mSceneryObjects << " inert activators taken, " << state.mSceneryNamed
+                             << " named and " << state.mSceneryScripted << " with a script that may change them left), "
                              << state.mModels.size() << " distinct models.";
             return false;
         }
@@ -346,7 +399,7 @@ namespace OMW
                 ModelEntry& entry = state.mModels[state.mNextModel++];
                 try
                 {
-                    loadModel(*vfs, entry);
+                    loadModel(*vfs, entry, state.mUvEffects);
                 }
                 catch (const std::exception& e)
                 {
@@ -441,7 +494,8 @@ namespace OMW
             hashValue(hasher, id.mLevel);
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
-            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize);
+            const std::vector<std::uint8_t> parameters
+                = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize, state.mUvEffects, state.mScenery);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)
@@ -515,6 +569,12 @@ namespace OMW
                 continue;
             ++totals.mTiles;
             totals.mVertices += cluster.mVertices.size();
+            for (const Lod::ClusterGroup& group : cluster.mGroups)
+                if (!group.mEffect.none())
+                {
+                    ++totals.mEffectGroups;
+                    totals.mEffectTriangles += group.mIndexCount / 3;
+                }
             totals.mGroups.push_back(cluster.mGroups.size());
             Lod::BakedCluster baked;
             baked.mId = id;
@@ -549,7 +609,8 @@ namespace OMW
                              << ", vertices " << totals.mVertices << ", groups per tile median "
                              << (totals.mGroups.empty() ? 0 : totals.mGroups[totals.mGroups.size() / 2]) << " max "
                              << (totals.mGroups.empty() ? 0 : totals.mGroups.back()) << ", largest error "
-                             << totals.mMaxError;
+                             << totals.mMaxError << ", groups with an effect " << totals.mEffectGroups << " ("
+                             << totals.mEffectTriangles << " triangles)";
         }
         if (state.mBadReferences > 0)
             Log(Debug::Warning)
