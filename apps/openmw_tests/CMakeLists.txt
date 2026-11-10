@@ -83,6 +83,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0098 move 6, stage 2: characterization tests of the social rules (disposition, barter, persuasion).
     mwmechanics/testrulessocial.cpp
     mwmechanics/testrulessocialregistry.cpp
+    mwmechanics/testrulesjustice.cpp
 
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
