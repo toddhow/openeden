@@ -4,7 +4,9 @@ openeden_add_game_pack(skyrimse
     SOURCES
         src/skyrimse_game_pack.cpp
         src/pack_core.cpp
+        src/records.cpp
         include/game_skyrimse/pack_core.hpp
+        include/game_skyrimse/records.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
         extension.json

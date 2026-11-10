@@ -439,12 +439,15 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimsepack.cpp
+    skyrimse/testskyrimserecords.cpp
+    skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseplugins.cpp
     skyrimse/testskyrimsearchives.cpp
     skyrimse/testskyrimserealdata.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/records.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
 )
 set_source_files_properties(

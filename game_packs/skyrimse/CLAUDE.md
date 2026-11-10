@@ -7,6 +7,7 @@ It identifies Skyrim SE content and runs none of Skyrim's rules. Its only visibl
 ## Layout
 
 - `pack_core.*`: all the logic, with no plug-in glue, so the tests link it directly. Nothing in it throws; failures are `Content::Error` values or a message that starts with the file name.
+- `records.*`: the record model (task 0086 record loading): `LoadOrder`, `FormIdResolver`, `StringTable`, and `parseRecords*` building plain structs (`ParsedPlugin`) for WRLD, CELL (+ group structure), REFR, ACHR, STAT, NPC_, ARMO, WEAP, MISC, LVLI, LVLN. Not wired into the engine. A subrecord of an unexpected size is counted (`mOddBy`), never guessed at; each layout detail is marked VERIFIED or RECALLED-VERIFY in `records.cpp`. `tools/skyrimse_records_check/check.sh` is the real-data check.
 - `skyrimse_game_pack.cpp`: the glue and the `openeden_extension_entry`. `OPENEDEN_SKYRIMSE_NO_ENTRY` (defined only by the test executable, which has an entry point already) leaves the entry out.
 
 ## Rules and pitfalls
