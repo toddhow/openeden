@@ -15,6 +15,11 @@ bool giReflectionEnabled()
     return reflData[0].w > 0.5;
 }
 
+bool giReflectionIsSkyEnvironment()
+{
+    return reflData[2].x > 0.5;
+}
+
 int reflLevelOffset(int res, int level)
 {
     int offset = 0;

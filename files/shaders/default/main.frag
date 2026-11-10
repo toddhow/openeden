@@ -330,7 +330,10 @@ void main()
     ambientLight = giAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
  #ifdef GI_SKY
     // Task 0036: the exterior sky-visibility field (it leaves the flat ambient alone where no cell has a file).
-    ambientLight = skyVisAmbient((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight);
+    float skyReflVisibility;
+    float skyDataWeight;
+    ambientLight = skyVisAmbientKeep((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal, ambientLight,
+        mat3(scene.invView) * reflect(normalize(frag_in.viewPos), viewNormal), skyReflVisibility, skyDataWeight);
  #endif
 #endif
  #ifdef PER_PIXEL_LIGHTING
@@ -443,6 +446,13 @@ void main()
             float reflScale = pbrSpecularScale * pbrLit.occlusion;
    #else
             float reflScale = pbrSpecularScale;
+   #endif
+   #ifdef GI_SKY
+            // The sky image is one picture of the whole sky: it lights a surface only as far as that surface sees the
+            // sky in the mirror direction, and a rough dielectric gets little of it (skyReflectionFactor). Interior
+            // probes are baked at a room and are unchanged.
+            if (giReflectionIsSkyEnvironment())
+                reflScale *= skyReflectionFactor(skyReflVisibility, skyDataWeight, pbrLit.roughness, pbrLit.metalness);
    #endif
             outColor.xyz += reflLight * (pbrF0 * reflAB.x + vec3(reflAB.y)) * reflScale;
         }

@@ -96,3 +96,55 @@ TEST(SkyEnv, ChangeIsNoticedOnlyBeyondTheTolerance)
     EXPECT_TRUE(skyEnvironmentChanged(zenith, horizon, zenith + vsg::vec3(0.f, 0.f, 0.005f), horizon, 0.004f));
     EXPECT_TRUE(skyEnvironmentChanged(zenith, horizon, zenith, horizon + vsg::vec3(0.f, -0.01f, 0.f), 0.004f));
 }
+
+// The glaze fix: the sky environment image is a one-probe picture of the whole sky, so it must only light a surface that
+// can see the sky in the mirror direction, and a rough dielectric must get little of it. The GLSL and Slang twins are
+// skyReflectionFactor in lib/view/skyvis.{glsl,slang}.
+TEST(SkyReflection, RoughnessWeightKeepsSmoothAndMetalAndDropsRoughDielectrics)
+{
+    EXPECT_FLOAT_EQ(skyReflectionRoughnessWeight(0.f, 0.f), 1.f);
+    EXPECT_NEAR(skyReflectionRoughnessWeight(0.5f, 0.f), 0.25f, 1e-6f);
+    EXPECT_NEAR(skyReflectionRoughnessWeight(1.f, 0.f), 0.f, 1e-6f);
+    EXPECT_NEAR(skyReflectionRoughnessWeight(0.9f, 0.f), 0.01f, 1e-5f);
+    // A metal keeps its reflection at any roughness; half a metal is half way.
+    EXPECT_FLOAT_EQ(skyReflectionRoughnessWeight(0.9f, 1.f), 1.f);
+    EXPECT_NEAR(skyReflectionRoughnessWeight(1.f, 0.5f), 0.5f, 1e-6f);
+    // Out of range inputs are clamped.
+    EXPECT_FLOAT_EQ(skyReflectionRoughnessWeight(-1.f, 0.f), 1.f);
+    EXPECT_FLOAT_EQ(skyReflectionRoughnessWeight(2.f, 2.f), 1.f);
+}
+
+TEST(SkyReflection, DirectionVisibilityIsOpenGroundOneAndBlockedZero)
+{
+    const VisSh open = hemisphereVisibility();
+    EXPECT_NEAR(skyDirectionVisibility(open, vsg::vec3(0.f, 0.f, 1.f)), 1.f, 1e-4f);
+    EXPECT_NEAR(skyDirectionVisibility(open, vsg::vec3(1.f, 0.f, 0.f)), 1.f, 1e-3f);
+    EXPECT_NEAR(skyDirectionVisibility(blockedVisibility(), vsg::vec3(0.f, 0.f, 1.f)), 0.f, 1e-6f);
+    EXPECT_NEAR(skyDirectionVisibility(blockedVisibility(), vsg::vec3(1.f, 0.f, 0.f)), 0.f, 1e-6f);
+    // A zero direction falls back to the omnidirectional share.
+    EXPECT_NEAR(skyDirectionVisibility(open, vsg::vec3(0.f, 0.f, 0.f)), 1.f, 1e-4f);
+}
+
+TEST(SkyReflection, SheltersFromTheRoofAbove)
+{
+    // Sees the sky only below the horizon plane tilt: V = 1 for z < 0 (a roof over the point): looking up gives ~0.
+    VisSh roofed{};
+    roofed[0] = 1.7724539f;
+    roofed[2] = -0.488603f * 3.14159265f;
+    EXPECT_LT(skyDirectionVisibility(roofed, vsg::vec3(0.f, 0.f, 1.f)), 0.05f);
+}
+
+TEST(SkyReflection, FactorCombinesVisibilityDefaultAndRoughness)
+{
+    // Baked data fully present: visibility times the roughness weight.
+    EXPECT_NEAR(skyReflectionFactor(0.8f, 1.f, 0.f, 0.f), 0.8f, 1e-6f);
+    EXPECT_NEAR(skyReflectionFactor(0.8f, 1.f, 0.5f, 0.f), 0.2f, 1e-6f);
+    EXPECT_NEAR(skyReflectionFactor(0.8f, 1.f, 1.f, 1.f), 0.8f, 1e-6f);
+    // No baked data at all: the conservative default, not the old behaviour of 1.
+    EXPECT_NEAR(skyReflectionFactor(1.f, 0.f, 0.f, 0.f), skyReflectionUnbakedVisibility, 1e-6f);
+    EXPECT_LT(skyReflectionUnbakedVisibility, 0.5f);
+    // Half the data: half way between the default and the sampled value.
+    EXPECT_NEAR(skyReflectionFactor(1.f, 0.5f, 0.f, 0.f), 0.5f * (1.f + skyReflectionUnbakedVisibility), 1e-6f);
+    // A rough dark stone wall in an overcast open yard keeps almost none of the sky image.
+    EXPECT_LT(skyReflectionFactor(1.f, 1.f, 0.85f, 0.f), 0.03f);
+}

@@ -18,6 +18,13 @@ bool giReflectionEnabled()
     return reflData[0].w > 0.5;
 }
 
+// True when the buffer holds the exterior's sky environment image (reflData[2].x = 1, set by updateSkyEnvironment) and
+// not an interior's baked probes.
+bool giReflectionIsSkyEnvironment()
+{
+    return reflData[2].x > 0.5;
+}
+
 // The texels before copy `level` in a chain whose full-size map is `res` wide.
 int reflLevelOffset(int res, int level)
 {

@@ -5,7 +5,8 @@
 // lib/view/reflection.glsl reads (binding 11 of the view set, std430, an array of vec4). Change both together.
 //   [0] = (probe count, resolution, levels per chain, enabled)
 //   [1] = (strength, bakedAmbient.xyz)
-//   [2] = (0, 0, 0, 0), kept for later
+//   [2] = (sky environment flag, 0, 0, 0): 1 when the buffer holds the exterior sky image (rendermanager.cpp
+//         updateSkyEnvironment sets it after packing), 0 for an interior's baked probes; the rest kept for later
 //   [3 + p] = (position.xyz, 0) of probe p, for p below maxReflectionProbes
 //   [reflectionTexelsBase + p * chainTexels + i] = (r, g, b, 0): texel i of probe p's chain (reflectionmath.hpp)
 

@@ -166,3 +166,59 @@ vec2 skyVisUp(vec3 worldPos)
         return vec2(1.0, 0.0);
     return vec2(skyVisCosine(sum, vec3(0.0, 0.0, 1.0)), weightSum);
 }
+
+// OpenEden (the glaze fix): the factor the exterior's sky environment image is multiplied by on an object. Twins:
+// skyReflectionRoughnessWeight, skyDirectionVisibility and skyReflectionFactor in components/render/skyvismath.hpp.
+const float SKY_REFLECTION_UNBAKED = 0.25; // skyReflectionUnbakedVisibility: a point with no baked data
+
+float skyReflectionRoughnessWeight(float roughness, float metalness)
+{
+    float smoothness = 1.0 - clamp(roughness, 0.0, 1.0);
+    float m = clamp(metalness, 0.0, 1.0);
+    return smoothness * smoothness * (1.0 - m) + m;
+}
+
+// The geometric part of skyOcclusion for the mirror direction `dir`, without the colour shift.
+float skyDirectionVisibility(float v[9], vec3 dir)
+{
+    float omni = clamp(v[0] / SKY_OPEN_GROUND, 0.0, 1.0);
+    float length2 = dot(dir, dir);
+    if (!(length2 > 1e-20))
+        return omni;
+    vec3 n = dir * inversesqrt(length2);
+    float groundShare = 0.5 + 0.5 * n.z;
+    float s = clamp(groundShare / 0.2, 0.0, 1.0);
+    float weight = s * s * (3.0 - 2.0 * s);
+    float facing = clamp(skyVisCosine(v, n) / max(groundShare, 1e-3), 0.0, 1.0);
+    return mix(omni, facing, weight);
+}
+
+// skyVisAmbient, also working out how much sky the point sees in the mirror direction `reflDir` (skyDirectionVisibility)
+// from the same sample, so the object shader does not sample the field twice. `reflVisibility` is 1 and `dataWeight` 0
+// where there is no data.
+vec3 skyVisAmbientKeep(vec3 worldPos, vec3 worldNormal, vec3 flatAmbient, vec3 reflDir, out float reflVisibility, out float dataWeight)
+{
+    reflVisibility = 1.0;
+    dataWeight = 0.0;
+    if (skyHeader[0].x < 0.5)
+        return flatAmbient;
+    float sum[9];
+    float weightSum = skyVisSample(worldPos, worldNormal, sum);
+    if (weightSum <= 1e-4)
+        return flatAmbient;
+    dataWeight = weightSum;
+    reflVisibility = skyDirectionVisibility(sum, reflDir);
+    vec3 occlusion = skyOcclusion(sum, worldNormal);
+    float strength = skyHeader[0].y;
+    vec3 kept = max(vec3(1.0) - strength * (vec3(1.0) - occlusion), vec3(0.0));
+    return flatAmbient * mix(vec3(1.0), kept, weightSum);
+}
+
+// The factor the sky image's reflection is multiplied by (skyReflectionFactor in skyvismath.hpp), from what
+// skyVisAmbientKeep handed out: the sky seen in the mirror direction, a fixed fraction where there is no data.
+float skyReflectionFactor(float reflVisibility, float dataWeight, float roughness, float metalness)
+{
+    float w = clamp(dataWeight, 0.0, 1.0);
+    float vis = SKY_REFLECTION_UNBAKED * (1.0 - w) + clamp(reflVisibility, 0.0, 1.0) * w;
+    return vis * skyReflectionRoughnessWeight(roughness, metalness);
+}

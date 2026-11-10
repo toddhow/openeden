@@ -353,8 +353,11 @@ FragmentOutput fragMain(FragmentInput input)
         mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz, mul((float3x3)scene.invView, viewNormal), ambientLight);
 #ifdef GI_SKY
     // Task 0036: the exterior sky-visibility field.
-    ambientLight = skyVisAmbient(
-        mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz, mul((float3x3)scene.invView, viewNormal), ambientLight);
+    float skyReflVisibility;
+    float skyDataWeight;
+    ambientLight = skyVisAmbientKeep(mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz,
+        mul((float3x3)scene.invView, viewNormal), ambientLight,
+        mul((float3x3)scene.invView, reflect(normalize(input.io.viewPos), viewNormal)), skyReflVisibility, skyDataWeight);
 #endif
 #endif
 #ifdef PER_PIXEL_LIGHTING
@@ -466,6 +469,12 @@ FragmentOutput fragMain(FragmentInput input)
             float reflScale = pbrSpecularScale * pbrLit.occlusion;
 #else
             float reflScale = pbrSpecularScale;
+#endif
+#ifdef GI_SKY
+            // The sky image lights a surface only as far as it sees the sky in the mirror direction, and a rough
+            // dielectric gets little of it (skyReflectionFactor); interior probes are unchanged.
+            if (giReflectionIsSkyEnvironment())
+                reflScale *= skyReflectionFactor(skyReflVisibility, skyDataWeight, pbrLit.roughness, pbrLit.metalness);
 #endif
             outColor.xyz += reflLight * (pbrF0 * reflAB.x + float3(reflAB.y)) * reflScale;
         }

@@ -2273,6 +2273,9 @@ namespace MWRender
         if (packed.size() > mReflectionData->size())
             return;
         std::copy(packed.begin(), packed.end(), mReflectionData->begin());
+        // Marks the buffer as the sky image, so the object shader can scale its reflection by sky visibility and
+        // roughness (reflectiongpu.hpp, skyReflectionFactor); an interior's own probes leave this at 0.
+        (*mReflectionData)[2].x = 1.f;
         mReflectionData->dirty();
         mSkyEnvOwns = true;
     }
