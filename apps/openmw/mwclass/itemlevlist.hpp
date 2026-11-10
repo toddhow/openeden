@@ -1,23 +1,3 @@
-#ifndef GAME_MWCLASS_ITEMLEVLIST_H
-#define GAME_MWCLASS_ITEMLEVLIST_H
-
-#include "../mwworld/registeredclass.hpp"
-
-namespace MWClass
-{
-    class ItemLevList : public MWWorld::RegisteredClass<ItemLevList>
-    {
-        friend MWWorld::RegisteredClass<ItemLevList>;
-
-        ItemLevList();
-
-    public:
-        std::string_view getName(const MWWorld::ConstPtr& ptr) const override;
-        ///< \return name or ID; can return an empty string.
-
-        bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
-        ///< @return true if this object has a tooltip when focused (default implementation: true)
-    };
-}
-
-#endif
+// Task 0098 move 8, stage 8c: this class moved into the Morrowind game pack. The header stays so that the include
+// path of the tests and tools does not change. openmw-lib must NOT include it (it cannot see the pack).
+#include <game_morrowind/class_itemlevlist.hpp>

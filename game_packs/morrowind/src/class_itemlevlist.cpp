@@ -1,4 +1,4 @@
-#include "itemlevlist.hpp"
+#include <game_morrowind/class_itemlevlist.hpp>
 
 #include <components/esm3/loadlevlist.hpp>
 

@@ -25,11 +25,6 @@
 #include <components/esm4/loadtree.hpp>
 #include <components/esm4/loadweap.hpp>
 
-#include "creature.hpp"
-#include "creaturelevlist.hpp"
-#include "itemlevlist.hpp"
-#include "npc.hpp"
-
 #include "esm4base.hpp"
 #include "esm4npc.hpp"
 #include "light4.hpp"
@@ -52,18 +47,13 @@ namespace MWClass
 
     void registerClasses()
     {
-        // The classes of the game pack (task 0098 move 8): the world objects of the installed game.
+        // The classes of the game pack (task 0098 move 8): the world objects, items and actors of the installed game.
         if (registrar() == nullptr)
             throw std::runtime_error(
-                "No game pack provides the world-object classes (door, container, activator, "
-                "static, body part): the executable did not install them "
+                "No game pack provides the game's classes (world objects, items, actors): the "
+                "executable did not install them "
                 "(MWBase::RulesRegistry::install)");
         registrar()();
-
-        Creature::registerSelf();
-        Npc::registerSelf();
-        CreatureLevList::registerSelf();
-        ItemLevList::registerSelf();
 
         ESM4Named<ESM4::Activator>::registerSelf();
         ESM4Named<ESM4::Ammunition>::registerSelf();

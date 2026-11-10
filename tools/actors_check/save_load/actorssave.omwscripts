@@ -1,0 +1,2 @@
+MENU: scripts/actorssave_menu.lua
+GLOBAL: scripts/actorssave_global.lua

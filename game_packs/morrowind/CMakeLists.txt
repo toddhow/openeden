@@ -26,6 +26,10 @@
 # light, lockpick, probe, repair and apparatus (class_*.cpp, moved from apps/openmw/mwclass); registered by
 # game_morrowind::registerItemClasses, which game_morrowind::registerMorrowindClasses calls after the world objects.
 
+# Move 8, stage 8c (task 0098) put the actor classes here too: npc, creature, their common base actor, the creature and
+# item levelled lists (class_*.cpp, moved from apps/openmw/mwclass); registered by game_morrowind::registerActorClasses,
+# which game_morrowind::registerMorrowindClasses calls last. The ESM4 classes (esm4base, esm4npc, light4) stay in the core.
+
 # Move 4 (task 0098) put Morrowind's script command set here: the handlers of the commands (the *extensions files, moved
 # from apps/openmw/mwscript) and the compile table (script_table.cpp, with the opcode numbers in compiler_opcodes.hpp,
 # moved from components/compiler). The table is its own small library because the editor and the components tests need
@@ -91,6 +95,11 @@ openeden_add_game_pack(game_morrowind STATIC
         src/class_probe.cpp
         src/class_repair.cpp
         src/class_apparatus.cpp
+        src/class_actor.cpp
+        src/class_creature.cpp
+        src/class_npc.cpp
+        src/class_creaturelevlist.cpp
+        src/class_itemlevlist.cpp
         src/rules.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp
@@ -142,6 +151,11 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/class_probe.hpp
         include/game_morrowind/class_repair.hpp
         include/game_morrowind/class_apparatus.hpp
+        include/game_morrowind/class_actor.hpp
+        include/game_morrowind/class_creature.hpp
+        include/game_morrowind/class_npc.hpp
+        include/game_morrowind/class_creaturelevlist.hpp
+        include/game_morrowind/class_itemlevlist.hpp
         include/game_morrowind/rules.hpp
 )
 

@@ -108,8 +108,7 @@ add_openmw_dir (mwphysics
     )
 
 add_openmw_dir (mwclass
-    classes creature npc
-    creaturelevlist itemlevlist actor
+    classes
     esm4base esm4npc light4
     )
 

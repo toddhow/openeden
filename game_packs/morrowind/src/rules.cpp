@@ -10,11 +10,15 @@
 #include <game_morrowind/class_book.hpp>
 #include <game_morrowind/class_clothing.hpp>
 #include <game_morrowind/class_container.hpp>
+#include <game_morrowind/class_creature.hpp>
+#include <game_morrowind/class_creaturelevlist.hpp>
 #include <game_morrowind/class_door.hpp>
 #include <game_morrowind/class_ingredient.hpp>
+#include <game_morrowind/class_itemlevlist.hpp>
 #include <game_morrowind/class_light.hpp>
 #include <game_morrowind/class_lockpick.hpp>
 #include <game_morrowind/class_misc.hpp>
+#include <game_morrowind/class_npc.hpp>
 #include <game_morrowind/class_potion.hpp>
 #include <game_morrowind/class_probe.hpp>
 #include <game_morrowind/class_repair.hpp>
@@ -132,10 +136,19 @@ namespace game_morrowind
         MWClass::Repair::registerSelf();
     }
 
+    void registerActorClasses()
+    {
+        MWClass::Creature::registerSelf();
+        MWClass::Npc::registerSelf();
+        MWClass::CreatureLevList::registerSelf();
+        MWClass::ItemLevList::registerSelf();
+    }
+
     void registerMorrowindClasses()
     {
         registerWorldObjectClasses();
         registerItemClasses();
+        registerActorClasses();
     }
 
     void installRules(openeden::sdk::game::GameRules& gameRules)

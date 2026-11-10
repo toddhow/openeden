@@ -40,8 +40,13 @@ namespace game_morrowind
     /// registerWorldObjectClasses.
     void registerItemClasses();
 
-    /// What the executable installs as MWBase::RuleSets::mClasses: every class the pack provides (the world objects and
-    /// the items).
+    /// Registers the pack's actor classes (NPC, creature, the creature and item levelled lists) with MWWorld::Class
+    /// (task 0098 move 8, stage 8c). Same thread and timing as registerWorldObjectClasses. The ESM4 actor classes stay
+    /// in the core.
+    void registerActorClasses();
+
+    /// What the executable installs as MWBase::RuleSets::mClasses: every class the pack provides (the world objects,
+    /// the items and the actors).
     void registerMorrowindClasses();
 
     /// Morrowind's justice rules (task 0098 move 7): crime and witnesses, bounty, stolen items, confiscation.
