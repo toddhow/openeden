@@ -10,6 +10,7 @@
 #include <openeden/profiling.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <components/debug/debuglog.hpp>
 
 namespace openeden::extension
@@ -338,6 +339,63 @@ namespace openeden::extension
         }
     }
 
+    namespace
+    {
+        // Runs one callback and records how long it took as the extension's scope for the phase (setPhaseTiming). The
+        // time is recorded also when the callback throws, so a failing extension still shows what it cost.
+        void timeCallback(
+            openeden::sdk::Host& host, const FrameCallbackEntry& entry, openeden::sdk::Phase phase, float dt)
+        {
+            openeden::sdk::ProfilerService* profiler = host.getProfilerService();
+            if (profiler == nullptr)
+            {
+                entry.callback(dt);
+                return;
+            }
+            // A host-level callback has no extension ID
+            const std::string_view id
+                = entry.extensionId.empty() ? std::string_view("(host)") : std::string_view(entry.extensionId);
+            const auto start = std::chrono::steady_clock::now();
+            struct Record
+            {
+                openeden::sdk::ProfilerService& profiler;
+                std::string_view id;
+                const char* scope;
+                std::chrono::steady_clock::time_point start;
+                ~Record()
+                {
+                    profiler.recordSample(id, scope,
+                        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+                }
+            } record{ *profiler, id, LifecycleManager::phaseScopeName(phase), start };
+            entry.callback(dt);
+        }
+    }
+
+    const char* LifecycleManager::phaseScopeName(openeden::sdk::Phase phase) noexcept
+    {
+        switch (phase)
+        {
+            case openeden::sdk::Phase::Input:
+                return "phase.Input";
+            case openeden::sdk::Phase::PreSimulation:
+                return "phase.PreSimulation";
+            case openeden::sdk::Phase::PostSimulation:
+                return "phase.PostSimulation";
+            case openeden::sdk::Phase::Animation:
+                return "phase.Animation";
+            case openeden::sdk::Phase::PreRender:
+                return "phase.PreRender";
+            case openeden::sdk::Phase::Ui:
+                return "phase.Ui";
+            case openeden::sdk::Phase::GameSimulation:
+                return "phase.GameSimulation";
+            case openeden::sdk::Phase::GameUpdateUi:
+                return "phase.GameUpdateUi";
+        }
+        return "phase.Unknown";
+    }
+
     void LifecycleManager::runPhase(openeden::sdk::Phase phase, float dt)
     {
         // Process deferred events targeted for this phase at phase boundary
@@ -369,7 +427,10 @@ namespace openeden::extension
                 {
                     if (entry.callback)
                     {
-                        entry.callback(dt);
+                        if (mPhaseTiming)
+                            timeCallback(mHost, entry, phase, dt);
+                        else
+                            entry.callback(dt);
                     }
                 }
                 catch (const std::exception& e)
@@ -394,6 +455,9 @@ namespace openeden::extension
         // End-of-frame maintenance at final phase (Ui)
         if (phase == openeden::sdk::Phase::Ui)
         {
+            // Before the reset: the engine copies this frame's debug draw and profiler scopes (task 0017 stage 5)
+            if (mFrameEndHook != nullptr)
+                mFrameEndHook(mFrameEndContext, dt);
             if (auto* mem = mHost.getScratchMemoryService())
             {
                 mem->reset();

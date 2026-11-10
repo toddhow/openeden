@@ -53,6 +53,11 @@ namespace Resource
 {
     class ResourceSystem;
 }
+namespace openeden::extension
+{
+    class DebugDrawFrame;
+}
+
 namespace Render
 {
     class Bloom;
@@ -349,6 +354,11 @@ namespace MWRender
 
         void setNavMeshNumber(const std::size_t value);
 
+        /// The extensions' debug draw of this frame (task 0017 stage 5), drawn by the core as lines: null switches it
+        /// off. The engine passes the host's frame each frame, between the Ui phase and the render update; the object
+        /// stays owned by the extension host and must outlive the render manager's use of it. Main thread.
+        void setExtensionDebugDraw(const openeden::extension::DebugDrawFrame* frame) { mExtensionDebugFrame = frame; }
+
         bool pagingEnableObject(int type, const MWWorld::ConstPtr& ptr, bool enabled);
         void pagingBlacklistObject(int type, const MWWorld::ConstPtr& ptr);
         bool pagingUnlockCache();
@@ -568,6 +578,13 @@ namespace MWRender
         std::unique_ptr<Sky> mSky;
         std::unique_ptr<Render::DebugGeometry> mDebugGeometry;
         std::unique_ptr<Render::DebugGeometry> mNavMeshGeometry;
+        // The extensions' debug draw (task 0017 stage 5): depth tested lines, and lines drawn over everything. No
+        // storage is made until the first enabled frame.
+        std::unique_ptr<Render::DebugGeometry> mExtensionDebugTested;
+        std::unique_ptr<Render::DebugGeometry> mExtensionDebugOnTop;
+        const openeden::extension::DebugDrawFrame* mExtensionDebugFrame = nullptr;
+        bool mExtensionDebugActive = false;
+        void updateExtensionDebug();
         std::unique_ptr<FogManager> mFog;
         std::unique_ptr<Effects> mEffects;
         std::unique_ptr<WeatherEffects> mWeatherEffects;

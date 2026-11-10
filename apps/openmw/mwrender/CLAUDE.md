@@ -36,6 +36,7 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
   - Everything else is in Morrowind units.
 - **Debug geometry is data:**
   - Producers add lines and triangles to a `DebugGeometry` between `begin()` and `end()`. The renderer draws it unlit, with no fog, alpha-blended and depth-tested, using colour mode 3 of the default shader.
+  - The extensions' debug draw (task 0017) has two: `mExtensionDebugTested` and `mExtensionDebugOnTop` (the depth test is a property of a whole geometry), 1 << 18 line vertices each, refilled in `updateExtensionDebug` only while `setExtensionDebugDraw` was given a frame. They are made in the constructor but hold no storage until first enabled.
   - Each producer has its own `DebugGeometry` sized for it: the Jolt draw refills every frame; the navmesh draw refills only when a tile changes. Capacity is fixed, so a full buffer drops primitives and logs once.
 - **Threading:**
   - `DebugGeometry::addLine` and `addTriangle` may be called from physics threads.

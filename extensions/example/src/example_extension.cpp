@@ -188,6 +188,21 @@ namespace
                 player.positionM.z + kDebugLineHeightM };
             mDebugDraw->drawLine(kExtensionId, from, to, openeden::sdk::Color4f{});
 
+            // Shapes about 4 m in front of a player facing north (+y), one of each kind: a box standing on the ground
+            // (depth tested), a sphere and a point drawn over everything, and a label (the game marks it with a small
+            // cross). These are the shapes the game draws since task 0017's remaining work.
+            const openeden::sdk::Vector3 p{ player.positionM.x, player.positionM.y, player.positionM.z };
+            mDebugDraw->drawBox(kExtensionId, { p.x - 0.5f, p.y + 3.5f, p.z }, { p.x + 0.5f, p.y + 4.5f, p.z + 1.8f },
+                openeden::sdk::Color4f{ 0.2f, 1.0f, 0.2f, 1.0f });
+            mDebugDraw->drawSphere(kExtensionId, { p.x + 2.5f, p.y + 4.0f, p.z + 1.5f }, 1.2f,
+                openeden::sdk::Color4f{ 1.0f, 0.5f, 0.1f, 1.0f }, false);
+            mDebugDraw->drawPoint(kExtensionId, { p.x - 2.5f, p.y + 4.0f, p.z + 1.5f },
+                openeden::sdk::Color4f{ 1.0f, 0.1f, 0.1f, 1.0f }, 4.0f, false);
+            mDebugDraw->drawText(kExtensionId, { p.x, p.y + 4.0f, p.z + 2.2f }, "example",
+                openeden::sdk::Color4f{ 0.3f, 0.6f, 1.0f, 1.0f }, 1.0f, false);
+            mDebugDraw->drawLine(kExtensionId, { p.x, p.y + 1.0f, p.z + 1.0f }, { p.x, p.y + 4.0f, p.z + 1.0f },
+                openeden::sdk::Color4f{ 1.0f, 1.0f, 0.2f, 1.0f }, 1.0f, false);
+
             if (!mReportedFrame)
             {
                 mReportedFrame = true;

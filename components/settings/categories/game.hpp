@@ -88,6 +88,8 @@ namespace Settings
         SettingValue<bool> mCreativeMotionStyleLayer{ mIndex, "Game", "creativemotion style layer" };
         SettingValue<bool> mCreativeMotionTransitionRules{ mIndex, "Game", "creativemotion transition rules" };
         SettingValue<std::string> mCreativeMotionDefaultStyle{ mIndex, "Game", "creativemotion default style" };
+        SettingValue<bool> mExtensionDebugDraw{ mIndex, "Game", "extension debug draw" };
+        SettingValue<bool> mExtensionProfiler{ mIndex, "Game", "extension profiler" };
     };
 }
 

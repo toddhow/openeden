@@ -707,6 +707,8 @@ add_component_dir(extension
     profiler_service
     scratch_memory
     debug_draw_service
+    debug_draw_frame
+    profiler_report
     physics_service
     game_services
     bindings_store

@@ -153,6 +153,28 @@ namespace openeden::extension
         return {};
     }
 
+    void ProfilerServiceImpl::snapshot(ProfilerSnapshot& out) const
+    {
+        out.count = 0;
+        out.dropped = 0;
+        std::lock_guard<std::mutex> lock(mMutex);
+        for (const ScopeStatsEntry& entry : mStats)
+        {
+            if (entry.stats.callCount == 0)
+                continue;
+            if (out.count >= ProfilerSnapshot::MaxRows)
+            {
+                ++out.dropped;
+                continue;
+            }
+            static_assert(ProfilerSnapshot::NameLen == MaxNameLen);
+            ProfilerSnapshot::Row& row = out.rows[out.count++];
+            std::memcpy(row.extensionId, entry.extensionId, sizeof(row.extensionId));
+            std::memcpy(row.scopeName, entry.scopeName, sizeof(row.scopeName));
+            row.stats = entry.stats;
+        }
+    }
+
     void ProfilerServiceImpl::resetFrame()
     {
         std::lock_guard<std::mutex> lock(mMutex);

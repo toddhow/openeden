@@ -185,6 +185,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *CreativeMotion `natural`* (0067, with the style layer 0053): changes of animation blend (the stop from a run is soft,
   idle has a little breathing and sway). `cmStyle` names the style; `cmStyle cm_heavy_test` exaggerates it.
 - *Weapon and shield sheathing*: needs modded assets; with plain Morrowind nothing changes.
+- *Extension debug draw and profiler* (task 0017): `extension debug draw` draws what enabled extensions submit as lines in the world (the example extension draws a line over the player and a box, sphere, point, label and line ahead of him; labels show as small crosses), `extension profiler` fills the Extensions tab of the debug window (F10) with each extension's timings per phase. Nothing shows until an extension is enabled (`extension=example` in `openmw.cfg`).
 - *Ragdoll* (0035): `cmRagdoll` on the target.
 
 ## Video memory scale-back (task 0080)

@@ -13,6 +13,7 @@
 #include <components/extension/game_conventions.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
+#include <components/settings/values.hpp>
 
 #include "extensionworld.hpp"
 #include "mwbase/environment.hpp"
@@ -559,8 +560,58 @@ namespace OMW
             bridge->mService = nullptr;
         });
 
+        // The debug draw display and the profiler overlay (task 0017 stage 5), both off by default. Their storage is
+        // made here, once; with both off no hook is installed and the frame is exactly as before.
+        mDebugDrawShown = Settings::game().mExtensionDebugDraw;
+        mProfilerShown = Settings::game().mExtensionProfiler;
+        if (mDebugDrawShown)
+            mDebugFrame = std::make_unique<openeden::extension::DebugDrawFrame>();
+        if (mProfilerShown)
+        {
+            mProfilerSnapshot = std::make_unique<openeden::extension::ProfilerSnapshot>();
+            mLifecycle.setPhaseTiming(true);
+        }
+        if (mDebugDrawShown || mProfilerShown)
+            mLifecycle.setFrameEndHook(&ExtensionHost::frameEndHook, this);
+
         mRunning = true;
         Misc::resetGameConventions(); // a session without a pack plays with the defaults
+    }
+
+    // Main thread, inside runPhase(Phase::Ui): after the extensions' Ui callbacks and before the manager resets debug
+    // draw and the profiler. The renderer draws mDebugFrame later in the same frame; the debug window formats
+    // mProfilerSnapshot when it updates.
+    void ExtensionHost::frameEndHook(void* host, float)
+    {
+        static_cast<ExtensionHost*>(host)->collectFrameEnd();
+    }
+
+    void ExtensionHost::collectFrameEnd()
+    {
+        if (mDebugDrawShown)
+        {
+            mDebugFrame->collect(mHost.debugDrawService());
+            if (mDebugFrame->dropped().total() > 0 && !mReportedDebugOverflow)
+            {
+                mReportedDebugOverflow = true;
+                const auto& dropped = mDebugFrame->dropped();
+                Log(Debug::Warning) << "Extension debug draw over its caps; dropped this frame: " << dropped.points
+                                    << " points, " << dropped.lines << " lines, " << dropped.boxes << " boxes, "
+                                    << dropped.spheres << " spheres, " << dropped.labels << " labels (reported once)";
+            }
+        }
+        if (mProfilerShown)
+            mHost.profilerService().snapshot(*mProfilerSnapshot);
+    }
+
+    std::string ExtensionHost::profilerReport()
+    {
+        if (!mProfilerShown)
+            return {};
+        // 16 KiB holds a full snapshot (ProfilerSnapshot::MaxRows rows); the window asks a few times a second
+        std::string text(16384, '\0');
+        text.resize(openeden::extension::formatProfilerReport(*mProfilerSnapshot, text, true));
+        return text;
     }
 
     void ExtensionHost::finishStart()
@@ -594,6 +645,11 @@ namespace OMW
 
         Log(Debug::Info) << "Stopping extensions";
         mLifecycle.shutdown();
+        // Nothing of this session is drawn or shown after it ends (task 0017 stage 5): the renderer asks debugDrawFrame()
+        // each frame and gets null, and no hook points at this object any more
+        mLifecycle.setFrameEndHook(nullptr, nullptr);
+        mDebugDrawShown = false;
+        mProfilerShown = false;
         // The conventions are not reset here: workers may still be reading them while the session ends, the values are
         // copies (nothing refers to the unloaded pack), and the next session sets them again at start().
 

@@ -189,6 +189,8 @@ namespace OMW
         mWindowManager->onFrame(dt);
         traceGui.end();
         mExtensionHost->runPhase(openeden::sdk::Phase::Ui, dt);
+        // The extensions' debug draw of this frame, collected at the end of the Ui phase; null when it is off
+        mRenderManager->setExtensionDebugDraw(mExtensionHost->debugDrawFrame());
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         mRenderManager->syncExtents();
         Misc::LoadTrace::Scope traceRender("frame.render.onframe");
@@ -640,6 +642,11 @@ namespace OMW
                           mStateManager->requestQuit();
                           autoQuitFired = true;
                       }
+                      // Test aid (task 0017): opens the debug window at running frame 20, so that a
+                      // --auto-screenshot shows its Extensions tab (OPENEDEN_DEBUG_WINDOW_TAB=extensions, see
+                      // docs/debug-environment-variables.md)
+                      if (runningFrame == 20 && std::getenv("OPENEDEN_OPEN_DEBUG_WINDOW") != nullptr)
+                          mInputManager->executeAction(MWInput::A_ToggleDebug);
                       if (args.autoScreenshotFrame && !autoScreenshotFired && runningFrame >= args.autoScreenshotFrame)
                       {
                           Log(Debug::Info) << "Auto-screenshot at running frame " << runningFrame;

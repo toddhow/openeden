@@ -48,6 +48,12 @@ namespace MWBase
             return none;
         }
 
+        /// The extension profiler overlay (task 0017 stage 5): whether it is switched on (`[Game] extension profiler`),
+        /// and its text, the scopes of the last frame as a report for the debug window's Extensions tab (empty when
+        /// off). The text escapes MyGUI markup. Main thread only.
+        virtual bool profilerOverlayEnabled() const { return false; }
+        virtual std::string profilerReport() { return {}; }
+
         /// Non-empty once the game pack has failed: saving is refused. Main thread only.
         virtual const std::string& sessionError() const
         {

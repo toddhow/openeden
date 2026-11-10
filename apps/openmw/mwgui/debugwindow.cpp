@@ -8,11 +8,14 @@
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/luamanager.hpp"
 #include <Jolt/Jolt.h>
 
+#include <cstdlib>
 #include <filesystem>
 #include <mutex>
+#include <string_view>
 
 namespace MWGui
 {
@@ -48,6 +51,19 @@ namespace MWGui
 #else
         mPhysicsProfilerEdit = nullptr;
 #endif
+
+        // The extensions' per-phase timings and scopes (task 0017 stage 5), last in the tab list so the indices of the
+        // others stay. It is always there; its text says how to switch the profiler on.
+        MyGUI::TabItem* itemExtensions = mTabControl->addItem("Extensions");
+        itemExtensions->setCaptionWithReplacing(" #{OMWEngine:ExtensionsProfiler} ");
+        mExtensionProfiler = itemExtensions->createWidgetReal<MyGUI::EditBox>(
+            "LogEdit", MyGUI::FloatCoord(0, 0, 1, 1), MyGUI::Align::Stretch);
+        mExtensionProfiler->setEditReadOnly(true);
+        mExtensionsTabIndex = mTabControl->getItemCount() - 1;
+        // Test aid (task 0017): start on the Extensions tab, for a screenshot
+        if (const char* tab = std::getenv("OPENEDEN_DEBUG_WINDOW_TAB");
+            tab != nullptr && std::string_view(tab) == "extensions")
+            mTabControl->setIndexSelected(mExtensionsTabIndex);
     }
 
     static std::vector<char> sLogCircularBuffer;
@@ -171,6 +187,23 @@ namespace MWGui
 #endif
     }
 
+    void DebugWindow::updateExtensionProfile()
+    {
+        if (mExtensionProfiler->isTextSelection())
+            return;
+
+        MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+        std::string text = extensions->profilerOverlayEnabled() ? extensions->profilerReport() : std::string();
+        if (!extensions->profilerOverlayEnabled())
+            text
+                = "The extension profiler is off. Set \"extension profiler = true\" under [Game] in settings.cfg and "
+                  "restart the game.";
+        size_t previousPos = mExtensionProfiler->getVScrollPosition();
+        mExtensionProfiler->setCaption(text);
+        if (mExtensionProfiler->getVScrollRange() > 0)
+            mExtensionProfiler->setVScrollPosition(std::min(previousPos, mExtensionProfiler->getVScrollRange() - 1));
+    }
+
     void DebugWindow::onFrame(float dt)
     {
         static float timer = 0;
@@ -182,6 +215,12 @@ namespace MWGui
         const std::size_t selected = mTabControl->getIndexSelected();
         if (selected != 2)
             mPhysicsProfileDumped = false;
+
+        if (selected == mExtensionsTabIndex)
+        {
+            updateExtensionProfile();
+            return;
+        }
 
         switch (selected)
         {

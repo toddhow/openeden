@@ -12,3 +12,10 @@ These variables come from vsgopenmw (see `docs/credits-vsgopenmw.md`) and the re
 | `VSGOPENMW_DECOMPRESS_BC` | `1` forces software conversion of block-compressed textures; `0` forces hardware block-compressed textures even if the hardware does not advertise support. |
 
 Source: vsgopenmw's `vsgopenmw-debug.doc`. Checked against the code on 2026-11-03: each name appears in `apps/` or `components/` (found with `git grep`); what each one does here was not re-tested.
+
+OpenEden test aids (task 0017, for screenshots; not from vsgopenmw):
+
+| Variable | Effect |
+| --- | --- |
+| `OPENEDEN_OPEN_DEBUG_WINDOW` | Any value: the debug window (F10) opens by itself at running frame 20. |
+| `OPENEDEN_DEBUG_WINDOW_TAB` | `extensions`: the debug window starts on its Extensions tab (the extension profiler). |

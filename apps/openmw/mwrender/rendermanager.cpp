@@ -143,6 +143,9 @@
 #include "weather.hpp"
 #include "weathereffects.hpp"
 #include "worldmap.hpp"
+#include <components/extension/debug_draw_frame.hpp>
+#include <components/extension/debug_draw_geometry.hpp>
+#include <components/misc/constants.hpp>
 #include <components/render/debuggeometry.hpp>
 #include <components/render/gputiming.hpp>
 #include <components/render/processmemory.hpp>
@@ -833,6 +836,14 @@ namespace MWRender
             *mResourceSystem->builder, mCompileContext, navMeshLineVertices, navMeshTriangleVertices);
         mNavMesh = std::make_unique<NavMesh>(
             *mNavMeshGeometry, Settings::navigator().mEnableNavMeshRender, Settings::navigator().mNavMeshRenderMode);
+        // The extensions' debug draw: lines only, refilled every frame it is on. Two geometries, because the depth test
+        // is a property of a whole geometry here. Capacity: the worst case of DebugDrawFrame (about 103,000 lines) fits
+        // either one. They hold no storage until they are enabled.
+        constexpr std::size_t extensionDebugLineVertices = std::size_t(1) << 18;
+        mExtensionDebugTested = std::make_unique<Render::DebugGeometry>(
+            *mResourceSystem->builder, mCompileContext, extensionDebugLineVertices, 0, true);
+        mExtensionDebugOnTop = std::make_unique<Render::DebugGeometry>(
+            *mResourceSystem->builder, mCompileContext, extensionDebugLineVertices, 0, false);
         if ((mGiEnabled || mGiSkyEnabled) && Settings::rendering().mGiDebug)
         {
             // The probe debug view (`gi debug`): one octahedron per light probe and per reflection probe.
@@ -1823,6 +1834,8 @@ namespace MWRender
         }
         mSceneRoot->addChild(mDebugGeometry->node());
         mSceneRoot->addChild(mNavMeshGeometry->node());
+        mSceneRoot->addChild(mExtensionDebugTested->node());
+        mSceneRoot->addChild(mExtensionDebugOnTop->node());
         if (mProbeGeometry)
             mSceneRoot->addChild(mProbeGeometry->node());
     }
@@ -3371,6 +3384,7 @@ namespace MWRender
         mScene->update(dt);
         traceSceneUpdate.end();
         updateNavMesh();
+        updateExtensionDebug();
         /*
         updateRecastMesh();
         */
@@ -3378,6 +3392,33 @@ namespace MWRender
         mCamera->updateCamera(*mViewMatrix);
         // After the camera moves: the particle shader centres the box on this frame's view.
         updateOccluder(vsg::vec3(mViewMatrix->eye));
+    }
+
+    // Task 0017 stage 5: the extensions' debug draw. With no frame (the setting is off) nothing is built, filled or
+    // drawn: the two geometries stay disabled and hold no storage. The scale from the SDK's meters to the game's units
+    // is applied once, in expandDebugDrawFrame.
+    void RenderManager::updateExtensionDebug()
+    {
+        const bool active = mExtensionDebugFrame != nullptr;
+        if (active != mExtensionDebugActive)
+        {
+            mExtensionDebugActive = active;
+            mExtensionDebugTested->setEnabled(active);
+            mExtensionDebugOnTop->setEnabled(active);
+        }
+        if (!active)
+            return;
+        for (const bool depthTest : { true, false })
+        {
+            Render::DebugGeometry& geometry = depthTest ? *mExtensionDebugTested : *mExtensionDebugOnTop;
+            geometry.begin();
+            openeden::extension::expandDebugDrawFrame(*mExtensionDebugFrame, depthTest, Constants::UnitsPerMeter,
+                [&geometry](
+                    const openeden::sdk::Vector3& a, const openeden::sdk::Vector3& b, const openeden::sdk::Color4f& c) {
+                    geometry.addLine(vsg::vec3(a.x, a.y, a.z), vsg::vec3(b.x, b.y, b.z), vsg::vec4(c.r, c.g, c.b, c.a));
+                });
+            geometry.end();
+        }
     }
 
     void RenderManager::setNavMeshNumber(const std::size_t value)

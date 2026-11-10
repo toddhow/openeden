@@ -15,6 +15,7 @@ ConsoleWindow: "Console"
 DebugWindow: "Debug"
 LogViewer: "Log Viewer"
 LuaProfiler: "Lua Profiler"
+ExtensionsProfiler: "Extensions"
 PhysicsProfiler: "Physics Profiler"
 
 

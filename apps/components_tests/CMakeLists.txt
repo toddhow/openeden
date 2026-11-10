@@ -243,6 +243,9 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_profiler_service.cpp
     extension/test_scratch_memory.cpp
     extension/test_debug_draw.cpp
+    extension/test_debug_draw_frame.cpp
+    extension/test_profiler_report.cpp
+    extension/test_frame_end_hook.cpp
     extension/test_physics_service.cpp
     extension/test_game_pack_manifest.cpp
     extension/test_game_pack_lifecycle.cpp

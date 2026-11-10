@@ -1,9 +1,11 @@
 #ifndef OPENEDEN_APPS_OPENMW_EXTENSIONHOST_H
 #define OPENEDEN_APPS_OPENMW_EXTENSIONHOST_H
 
+#include <components/extension/debug_draw_frame.hpp>
 #include <components/extension/host_impl.hpp>
 #include <components/extension/lifecycle_manager.hpp>
 #include <components/extension/manifest.hpp>
+#include <components/extension/profiler_snapshot.hpp>
 #include <components/extension/vfs_service.hpp>
 
 #include "builtinpack.hpp"
@@ -96,6 +98,17 @@ namespace OMW
         /// Non-empty once the game pack has failed: the session cannot go on and saving is refused.
         [[nodiscard]] const std::string& sessionError() const noexcept override { return mLifecycle.getSessionError(); }
 
+        /// The extensions' debug draw of this frame for the renderer (task 0017 stage 5), copied at the end of the Ui
+        /// phase; null when `[Game] extension debug draw` is off. Valid until the next Ui phase. Main thread.
+        [[nodiscard]] const openeden::extension::DebugDrawFrame* debugDrawFrame() const noexcept
+        {
+            return mDebugDrawShown ? mDebugFrame.get() : nullptr;
+        }
+
+        // MWBase::ExtensionManager: the profiler overlay (task 0017 stage 5)
+        bool profilerOverlayEnabled() const override { return mProfilerShown; }
+        std::string profilerReport() override;
+
         // MWBase::ExtensionManager: the game pack's save chunks (stage I4)
         bool collectGamePackSave(std::vector<std::byte>& bytes, std::string& error) override;
         bool restoreGamePackSave(std::span<const std::byte> bytes, std::string& error) override;
@@ -164,6 +177,9 @@ namespace OMW
         MWPhysics::PhysicsSystem* mPhysics = nullptr;
 
         void sendPendingLuaEventsNow();
+        // Runs at the end of Phase::Ui, before the end-of-frame reset (LifecycleManager::setFrameEndHook)
+        static void frameEndHook(void* host, float dt);
+        void collectFrameEnd();
         void beginRunning();
         void finishStart();
         void installPackRules();
@@ -189,6 +205,14 @@ namespace OMW
         bool mLoaded = false;
         bool mRunning = false;
         bool mSessionFaultTaken = false;
+
+        // Task 0017 stage 5. Both are made once, in beginRunning(), and only when their setting is on; the hook then
+        // fills them on the main thread without allocating.
+        std::unique_ptr<openeden::extension::DebugDrawFrame> mDebugFrame;
+        std::unique_ptr<openeden::extension::ProfilerSnapshot> mProfilerSnapshot;
+        bool mDebugDrawShown = false;
+        bool mProfilerShown = false;
+        bool mReportedDebugOverflow = false;
     };
 }
 

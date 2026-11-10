@@ -110,6 +110,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
 
+    extension/testdiagnosticsallocation.cpp
     extension/testextensionfailures.cpp
     extension/testextensionhost.cpp
     extension/testextensionworld.cpp

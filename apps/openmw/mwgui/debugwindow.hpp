@@ -19,12 +19,15 @@ namespace MWGui
         void updateLogView();
         void updateLuaProfile();
         void updatePhysicsProfile();
+        void updateExtensionProfile();
 
         MyGUI::TabControl* mTabControl;
         MyGUI::EditBox* mLogView;
         MyGUI::EditBox* mLuaProfiler;
         MyGUI::EditBox* mPhysicsProfilerEdit;
         bool mPhysicsProfileDumped = false;
+        MyGUI::EditBox* mExtensionProfiler;
+        std::size_t mExtensionsTabIndex = 0;
     };
 
 }

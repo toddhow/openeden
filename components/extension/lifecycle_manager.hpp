@@ -74,6 +74,26 @@ namespace openeden::extension
          */
         void setBeforeUnload(std::function<void()> callback) { mBeforeUnload = std::move(callback); }
 
+        /// A plain function the manager calls at the end of Phase::Ui, after the phase's callbacks and BEFORE the
+        /// end-of-frame reset of debug draw and the profiler, so the engine can copy what extensions submitted this
+        /// frame (task 0017 stage 5). A function pointer and a context, not a std::function: it is called every frame
+        /// and must not allocate. Pass nullptr to remove it. Main thread.
+        using FrameEndHook = void (*)(void* context, float dt);
+        void setFrameEndHook(FrameEndHook hook, void* context) noexcept
+        {
+            mFrameEndHook = hook;
+            mFrameEndContext = context;
+        }
+
+        /// Off by default. When on, runPhase times every extension callback and records it in the profiler service as
+        /// the scope phaseScopeName(phase) under the extension's ID (two clock reads and one profiler sample per
+        /// callback). The profiler overlay turns it on.
+        void setPhaseTiming(bool enabled) noexcept { mPhaseTiming = enabled; }
+        [[nodiscard]] bool phaseTiming() const noexcept { return mPhaseTiming; }
+
+        /// The profiler scope name of a phase's callbacks: "phase.Input", "phase.PreSimulation", ...
+        [[nodiscard]] static const char* phaseScopeName(openeden::sdk::Phase phase) noexcept;
+
         /**
          * @brief Checks if an extension is currently running and active.
          */
@@ -148,6 +168,9 @@ namespace openeden::extension
         openeden::sdk::Host& mHost;
         ServiceRegistry mRegistry;
         std::function<void()> mBeforeUnload;
+        FrameEndHook mFrameEndHook = nullptr;
+        void* mFrameEndContext = nullptr;
+        bool mPhaseTiming = false;
         std::vector<Failure> mFailures;
 
         struct ExtensionRecord

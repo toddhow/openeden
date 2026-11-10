@@ -54,6 +54,16 @@ namespace openeden::extension
 
         void clearExtension(std::string_view extensionId) override;
 
+        /// Calls `visitor(points, lines, boxes, spheres, texts)` with the stored primitives while the service is
+        /// locked, without copying them (the engine's per-frame collection, DebugDrawFrame). The visitor must not call
+        /// back into the service.
+        template <typename Visitor>
+        void withPrimitives(Visitor&& visitor) const
+        {
+            std::lock_guard<std::mutex> lock(mMutex);
+            visitor(mPoints, mLines, mBoxes, mSpheres, mTexts);
+        }
+
     private:
         template <typename T>
         void advancePrimitives(std::vector<T>& primitives, float dt);

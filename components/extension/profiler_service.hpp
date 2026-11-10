@@ -1,5 +1,7 @@
 #pragma once
 
+#include "profiler_snapshot.hpp"
+
 #include <openeden/profiling.hpp>
 
 #include <array>
@@ -46,6 +48,10 @@ namespace openeden::extension
             std::string_view extensionId, std::string_view scopeName) const override;
 
         void resetFrame() override;
+
+        /// Copies the scopes that were called since the last resetFrame() into `out` (replacing its contents), in the
+        /// order they were first used. Allocates nothing.
+        void snapshot(ProfilerSnapshot& out) const;
 
     private:
         struct ActiveScopeEntry
