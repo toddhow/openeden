@@ -6,6 +6,7 @@
 #include <format>
 #include <sstream>
 
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -48,9 +49,73 @@ namespace LuaUtil
         {
             return std::isspace(static_cast<unsigned char>(c));
         }
+
+        constexpr std::string_view requiresPrefix = "REQUIRES=";
+
+        bool isDigits(std::string_view text)
+        {
+            if (text.empty() || text.size() > 6)
+                return false;
+            for (char c : text)
+            {
+                if (c < '0' || c > '9')
+                    return false;
+            }
+            return true;
+        }
+
+        // "REQUIRES=core.<game>.<area>>=<major>.<minor>"
+        ESM::LuaScriptCfg::Requirement parseRequirement(std::string_view tag, std::string_view line)
+        {
+            const std::string_view value = tag.substr(requiresPrefix.size());
+            const size_t geq = value.find(">=");
+            bool ok = geq != std::string_view::npos;
+            ESM::LuaScriptCfg::Requirement result;
+            if (ok)
+            {
+                const std::string_view name = value.substr(0, geq);
+                const std::string_view version = value.substr(geq + 2);
+                const size_t dot = version.find('.');
+                ok = !name.empty() && name.front() >= 'a' && name.front() <= 'z' && dot != std::string_view::npos;
+                for (char c : name)
+                    ok = ok && ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.');
+                if (ok)
+                {
+                    const std::string_view major = version.substr(0, dot);
+                    const std::string_view minor = version.substr(dot + 1);
+                    ok = isDigits(major) && isDigits(minor);
+                    if (ok)
+                    {
+                        result.mPackage = std::string(name);
+                        result.mMajor = static_cast<uint32_t>(std::stoul(std::string(major)));
+                        result.mMinor = static_cast<uint32_t>(std::stoul(std::string(minor)));
+                    }
+                }
+            }
+            if (!ok)
+                throw std::runtime_error(
+                    std::format("Bad REQUIRES tag '{}' (expected REQUIRES=core.<game>.<area>>=<major>.<minor>) in: {}",
+                        tag, line.substr(0, 300)));
+            return result;
+        }
+
+        // Empty if every requirement of the script is met, else the first reason (already logged).
+        bool requirementsUnmet(const ESM::LuaScriptCfg& script, const ScriptsConfiguration::RequirementCheck& check)
+        {
+            for (const ESM::LuaScriptCfg::Requirement& r : script.mRequires)
+            {
+                const std::string why = check ? check(r) : std::string("no game pack is loaded in this session");
+                if (why.empty())
+                    continue;
+                Log(Debug::Warning) << "Lua script " << script.mScriptPath << " was not started: it requires "
+                                    << r.mPackage << ">=" << r.mMajor << "." << r.mMinor << ", and " << why;
+                return true;
+            }
+            return false;
+        }
     }
 
-    void ScriptsConfiguration::init(ESM::LuaScriptsCfg cfg, bool remap)
+    void ScriptsConfiguration::init(ESM::LuaScriptsCfg cfg, bool remap, const RequirementCheck& check)
     {
         std::vector<VFS::Path::Normalized> oldPaths;
         if (remap)
@@ -88,17 +153,27 @@ namespace LuaUtil
                 oldScript.mTypes.insert(oldScript.mTypes.end(), script.mTypes.begin(), script.mTypes.end());
                 oldScript.mRecords.insert(oldScript.mRecords.end(), script.mRecords.begin(), script.mRecords.end());
                 oldScript.mRefs.insert(oldScript.mRefs.end(), script.mRefs.begin(), script.mRefs.end());
+                for (const ESM::LuaScriptCfg::Requirement& r : script.mRequires)
+                {
+                    if (std::find(oldScript.mRequires.begin(), oldScript.mRequires.end(), r)
+                        == oldScript.mRequires.end())
+                        oldScript.mRequires.push_back(r);
+                }
                 skip[i] = true;
             }
             else
                 skip[it->second] = true;
         }
 
-        // Filter duplicates
+        // Filter duplicates, and scripts that need a game pack namespace this session does not have (as if their mod
+        // were absent: nothing starts them, `findId` does not know them and a saved script of them finds no mapping)
         for (size_t i = 0; i < cfg.mScripts.size(); ++i)
         {
-            if (!skip[i])
-                mScripts.push_back(std::move(cfg.mScripts[i]));
+            if (skip[i])
+                continue;
+            if (!cfg.mScripts[i].mRequires.empty() && requirementsUnmet(cfg.mScripts[i], check))
+                continue;
+            mScripts.push_back(std::move(cfg.mScripts[i]));
         }
 
         // Initialize mappings
@@ -271,6 +346,11 @@ namespace LuaUtil
                 if (startPos == tagsPos)
                     break;
                 std::string_view tagName = tagsStr.substr(startPos, tagsPos - startPos);
+                if (tagName.starts_with(requiresPrefix))
+                {
+                    script.mRequires.push_back(parseRequirement(tagName, line));
+                    continue;
+                }
                 auto it = flagsByName.find(tagName);
                 auto typesIt = typeTagsByName.find(tagName);
                 if (it != flagsByName.end())
@@ -301,6 +381,8 @@ namespace LuaUtil
                     ss << tagName << " ";
             }
         }
+        for (const ESM::LuaScriptCfg::Requirement& r : script.mRequires)
+            ss << requiresPrefix << r.mPackage << ">=" << r.mMajor << "." << r.mMinor << " ";
         ss << ": " << script.mScriptPath;
         if (!script.mInitializationData.empty())
             ss << " ; data " << script.mInitializationData.size() << " bytes";

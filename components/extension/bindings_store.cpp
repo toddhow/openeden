@@ -5,6 +5,7 @@
 namespace openeden::extension
 {
     using openeden::sdk::BindingResult;
+    using openeden::sdk::BindingShape;
     using openeden::sdk::BindingStatus;
     using openeden::sdk::BindingType;
     using openeden::sdk::DeclareResult;
@@ -36,7 +37,41 @@ namespace openeden::extension
         bool validType(BindingType type) noexcept
         {
             return type == BindingType::Bool || type == BindingType::Int32 || type == BindingType::Double
-                || type == BindingType::String;
+                || type == BindingType::String || type == BindingType::Handle;
+        }
+
+        bool validShape(BindingShape shape) noexcept
+        {
+            return shape == BindingShape::Single || shape == BindingShape::Optional || shape == BindingShape::Array;
+        }
+
+        // The result a function declared has to match; nothing else may come out of a handler.
+        bool resultMatches(const BoundFunction& function, const openeden::sdk::BindingValue& value)
+        {
+            const auto scalarOk = [&](const openeden::sdk::BindingValue& v) {
+                if (v.type != function.result)
+                    return false;
+                return function.result != BindingType::String || v.text.size() <= openeden::sdk::kMaxBindingStringBytes;
+            };
+            switch (function.resultShape)
+            {
+                case BindingShape::Single:
+                    return scalarOk(value);
+                case BindingShape::Optional:
+                    return !value.present || scalarOk(value);
+                case BindingShape::Array:
+                    if (value.count > openeden::sdk::kMaxBindingArrayElements)
+                        return false;
+                    if (value.count > 0 && value.elements == nullptr)
+                        return false;
+                    for (std::size_t i = 0; i < value.count; ++i)
+                    {
+                        if (!scalarOk(value.elements[i]))
+                            return false;
+                    }
+                    return true;
+            }
+            return false;
         }
     }
 
@@ -79,6 +114,8 @@ namespace openeden::extension
         bound->name = std::string(name);
         bound->packId = std::string(packId);
         bound->version = descriptor.version;
+        bound->menuSafe = descriptor.menuSafe;
+        bool declaresMutate = false;
         bound->functions.reserve(descriptor.functions.size());
 
         for (const openeden::sdk::FunctionDescriptor& fn : descriptor.functions)
@@ -102,8 +139,19 @@ namespace openeden::extension
             }
             if (fn.hasResult && !validType(fn.result))
                 return refuse(packId, name, where + " has a result of an unknown type");
-            if (fn.access != openeden::sdk::BindingAccess::Read)
-                return refuse(packId, name, where + " has an access this version does not support");
+            if (fn.access != openeden::sdk::BindingAccess::Read && fn.access != openeden::sdk::BindingAccess::Mutate)
+                return refuse(packId, name, where + " has an unknown access");
+            if (fn.access == openeden::sdk::BindingAccess::Mutate && fn.hasResult)
+                return refuse(packId, name, where + " is a Mutate function and cannot declare a result");
+            if (!fn.paramShapes.empty() && fn.paramShapes.size() != fn.params.size())
+                return refuse(packId, name, where + " has a different number of parameter shapes and parameters");
+            for (const BindingShape shape : fn.paramShapes)
+            {
+                if (!validShape(shape))
+                    return refuse(packId, name, where + " has a parameter of an unknown shape");
+            }
+            if (fn.hasResult && !validShape(fn.resultShape))
+                return refuse(packId, name, where + " has a result of an unknown shape");
 
             BoundFunction entry;
             entry.name = std::string(fn.name);
@@ -112,15 +160,53 @@ namespace openeden::extension
             entry.hasResult = fn.hasResult;
             entry.result = fn.result;
             entry.access = fn.access;
+            entry.shapes.assign(fn.params.size(), BindingShape::Single);
+            for (std::size_t i = 0; i < fn.paramShapes.size(); ++i)
+                entry.shapes[i] = fn.paramShapes[i];
+            entry.resultShape = fn.hasResult ? fn.resultShape : BindingShape::Single;
+            declaresMutate = declaresMutate || fn.access == openeden::sdk::BindingAccess::Mutate;
             entry.handler = fn.handler;
             entry.maxCostMicroseconds = fn.maxCostMicroseconds;
             bound->functions.push_back(std::move(entry));
         }
 
         mNamespaces.push_back(std::move(bound));
+        if (declaresMutate)
+            mQueue.reserve();
         DeclareResult ok;
         ok.ok = true;
         return ok;
+    }
+
+    std::string BindingsStore::unmetRequirement(
+        std::string_view package, std::uint32_t major, std::uint32_t minor) const
+    {
+        constexpr std::string_view prefix = "core.";
+        if (mNamespaces.empty())
+            return "no game pack provides script bindings in this session";
+        if (package.substr(0, prefix.size()) != prefix || package.size() == prefix.size())
+            return "'" + std::string(package) + "' is not a game pack package (its name starts with 'core.')";
+        const std::string_view name = package.substr(prefix.size());
+        for (const auto& ns : mNamespaces)
+        {
+            if (ns->name != name)
+                continue;
+            const std::string have = std::to_string(ns->version.major) + "." + std::to_string(ns->version.minor);
+            if (ns->version.major != major)
+                return "the session's game pack has " + std::string(package) + " " + have
+                    + ", a different major version";
+            if (ns->version.minor < minor)
+                return "the session's game pack has " + std::string(package) + " " + have + ", older than asked";
+            return {};
+        }
+        std::string provided;
+        for (const auto& ns : mNamespaces)
+        {
+            if (!provided.empty())
+                provided += ", ";
+            provided += "core." + ns->name;
+        }
+        return "the session's game pack does not provide " + std::string(package) + " (it provides " + provided + ")";
     }
 
     void BindingsStore::retirePack(std::string_view packId) noexcept
@@ -175,15 +261,13 @@ namespace openeden::extension
 
         if (invoked.result.status == BindingStatus::Ok && function.hasResult)
         {
-            const bool wrongType = invoked.result.value.type != function.result;
-            const bool tooLong = function.result == BindingType::String
-                && invoked.result.value.text.size() > openeden::sdk::kMaxBindingStringBytes;
-            if (wrongType || tooLong)
+            if (!resultMatches(function, invoked.result.value))
             {
                 invoked.result = BindingResult{};
                 invoked.result.status = BindingStatus::Internal;
-                invoked.result.message = wrongType ? "the handler returned a value of the wrong type"
-                                                   : "the handler returned a string over 64 KiB";
+                invoked.result.message
+                    = "the handler returned a value that does not match its declaration (wrong "
+                      "type, a string over 64 KiB or an array over 256 elements)";
             }
         }
         return invoked;

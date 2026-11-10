@@ -10,6 +10,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     lua/testasync.cpp
     lua/testconfiguration.cpp
+    lua/testconfigrequires.cpp
     lua/testinputactions.cpp
     lua/testl10n.cpp
     lua/testlua.cpp

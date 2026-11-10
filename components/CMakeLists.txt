@@ -710,6 +710,7 @@ add_component_dir(extension
     physics_service
     game_services
     bindings_store
+    mutate_queue
     save_chunk_store
     pack_host
 )

@@ -9,6 +9,7 @@
 #include <sol/types.hpp>
 
 #include <components/debug/debuglog.hpp>
+#include <components/extension/bindings_store.hpp>
 #include <components/mwanimation/groups.hpp>
 
 #include <components/esm3/esmreader.hpp>
@@ -37,6 +38,7 @@
 
 #include "luabindings.hpp"
 #include "packbindings.hpp"
+
 #include "playerscripts.hpp"
 #include "types/types.hpp"
 #include "userdataserializer.hpp"
@@ -89,7 +91,8 @@ namespace MWLua
 
     void LuaManager::initConfiguration(bool reload)
     {
-        mConfiguration.init(MWBase::Environment::get().getESMStore()->getLuaScriptsCfg(), reload);
+        mConfiguration.init(MWBase::Environment::get().getESMStore()->getLuaScriptsCfg(), reload,
+            makePackRequirementCheck(mPackBindings));
         Log(Debug::Verbose) << "Lua scripts configuration (" << mConfiguration.size() << " scripts):";
         for (size_t i = 0; i < mConfiguration.size(); ++i)
             Log(Debug::Verbose) << "#" << i << " " << LuaUtil::scriptCfgToString(mConfiguration[i]);
@@ -180,16 +183,20 @@ namespace MWLua
             mPlayerPackages["openmw.storage"]
                 = LuaUtil::LuaStorage::initPlayerPackage(view, &mGlobalStorage, &mPlayerStorage);
 
-            // The game pack's script namespaces (task 0097): global, local and player scripts, never menu or load.
-            // With no namespace declared the map is empty and nothing is added.
+            // The game pack's script namespaces (task 0097). Global scripts get the functions that read and the ones
+            // that change the game, local and player scripts only the readers, the menu only namespaces the pack
+            // marked menuSafe; load scripts get none. With no namespace declared every map is empty.
             if (mPackBindings != nullptr)
             {
-                for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings))
-                {
+                for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings, PackContext::Global))
                     mGlobalScripts.addPackage(name, package);
+                for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings, PackContext::Local))
+                {
                     mLocalPackages[name] = package;
                     mPlayerPackages[name] = package;
                 }
+                for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings, PackContext::Menu))
+                    mMenuScripts.addPackage(name, package);
             }
 
             mPlayerStorage.setActive(true);
@@ -373,6 +380,10 @@ namespace MWLua
         mInGameConsoleMessages.clear();
 
         applyDelayedActions();
+
+        // The calls scripts made to functions of the game pack that change the game, in call order (task 0097)
+        if (mPackBindings != nullptr)
+            mPackBindings->mutateQueue().drain();
 
         if (mReloadAllScriptsRequested)
         {

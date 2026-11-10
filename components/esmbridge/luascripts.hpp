@@ -56,6 +56,18 @@ namespace ESM
             std::string mInitializationData;
         };
         std::vector<PerRefCfg> mRefs;
+
+        // A game pack's script namespace this script needs, "REQUIRES=core.<game>.<area>>=<major>.<minor>" in a
+        // .omwscripts tag list (task 0097, stage C). Not stored in content files: only .omwscripts carry it. Kept at
+        // the end of the struct.
+        struct Requirement
+        {
+            std::string mPackage; // as scripts name it: "core.<game>.<area>"
+            uint32_t mMajor = 0;
+            uint32_t mMinor = 0;
+            bool operator==(const Requirement&) const = default;
+        };
+        std::vector<Requirement> mRequires;
     };
 
     struct LuaScriptsCfg

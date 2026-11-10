@@ -1,8 +1,10 @@
 #ifndef COMPONENTS_LUA_CONFIGURATION_H
 #define COMPONENTS_LUA_CONFIGURATION_H
 
+#include <functional>
 #include <map>
 #include <optional>
+#include <string>
 
 #include <components/esm3/refnum.hpp>
 #include <components/esmbridge/luascripts.hpp>
@@ -21,7 +23,13 @@ namespace LuaUtil
     class ScriptsConfiguration
     {
     public:
-        void init(ESM::LuaScriptsCfg, bool);
+        // Answers a script's requirement: an empty string if it is met, else why not (what the session has). Added in
+        // task 0097 stage C. With no function given every script that has a requirement is refused.
+        using RequirementCheck = std::function<std::string(const ESM::LuaScriptCfg::Requirement&)>;
+
+        // A script whose requirement is not met is dropped here, after duplicates and merges are settled, as if its mod
+        // were absent: it starts nowhere, `findId` does not know it and a saved script of it finds no mapping.
+        void init(ESM::LuaScriptsCfg, bool, const RequirementCheck& check = {});
 
         size_t size() const { return mScripts.size(); }
         const ESM::LuaScriptCfg& operator[](size_t id) const { return mScripts[id]; }

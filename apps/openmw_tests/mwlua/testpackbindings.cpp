@@ -409,7 +409,7 @@ namespace
         sol::table script = s.load();
         sol::protected_function_result result = callRun(script);
         ASSERT_TRUE(result.valid());
-        EXPECT_EQ(result.get<std::string>(), "add,half,is_big,shout");
+        EXPECT_EQ(result.get<std::string>(), "API_VERSION,add,half,is_big,shout");
         const auto& fns = s.session.host.bindings().namespaces()[0]->functions;
         EXPECT_EQ(fns[0].name, "add");
         EXPECT_EQ(fns[1].name, "is_big");

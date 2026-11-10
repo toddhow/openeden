@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 
+#include <components/lua/configuration.hpp>
+
 #include <sol/sol.hpp>
 
 namespace openeden::extension
@@ -25,7 +27,24 @@ namespace MWLua
     //
     // Must be called from inside the Lua state's protected call (LuaManager::initPostLoad). The store must outlive the
     // Lua state (it belongs to the extension host, which the engine destroys last).
-    std::map<std::string, sol::object> initPackPackages(sol::state_view lua, openeden::extension::BindingsStore& store);
+    //
+    // Stage B: what a package holds depends on the script type that gets it. Global: Read and Mutate functions. Local
+    // (also used for player scripts): Read functions only. Menu: Read functions of namespaces declared menuSafe, and no
+    // other namespace. A function that is not given is absent from the strict table: "Key not found".
+    enum class PackContext
+    {
+        Global,
+        Local,
+        Menu,
+    };
+
+    // The check `ScriptsConfiguration::init` uses for a script's `REQUIRES=` tags (stage C): met if the store's game
+    // pack declared that package in that major version with a minor version not lower. With a null store (no game pack)
+    // every requirement is unmet. The store must outlive the returned function.
+    LuaUtil::ScriptsConfiguration::RequirementCheck makePackRequirementCheck(openeden::extension::BindingsStore* store);
+
+    std::map<std::string, sol::object> initPackPackages(
+        sol::state_view lua, openeden::extension::BindingsStore& store, PackContext context = PackContext::Global);
 }
 
 #endif
