@@ -35,7 +35,6 @@ TEST(FilesDataEntry, other_files_and_missing_paths_are_not_usable)
     EXPECT_FALSE(Files::isUsableDataEntry(temp.path() / "x" / "archive.bsa"));
     EXPECT_FALSE(Files::isUsableDataEntry(temp.path() / "missing"));
     EXPECT_FALSE(Files::isUsableDataEntry(temp.path() / "missing.edenpak"));
-    EXPECT_FALSE(Files::isUsableDataEntry({}));
 }
 
 TEST(FilesDataEntry, a_folder_named_like_a_pack_is_a_usable_folder)
@@ -43,4 +42,11 @@ TEST(FilesDataEntry, a_folder_named_like_a_pack_is_a_usable_folder)
     TempFolder temp;
     temp.write("odd.edenpak/inside.txt");
     EXPECT_TRUE(Files::isUsableDataEntry(temp.path() / "odd.edenpak"));
+}
+
+// toddhow, 2026-11-10: an empty data= value keeps OpenMW's meaning. The launcher asked QDir("").exists(), which is
+// true for the current folder, so the line counted; only the .edenpak case is new.
+TEST(FilesDataEntry, an_empty_value_counts_as_the_current_folder_as_before)
+{
+    EXPECT_TRUE(Files::isUsableDataEntry({}));
 }

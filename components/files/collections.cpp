@@ -17,8 +17,9 @@ namespace Files
 
     bool isUsableDataEntry(const std::filesystem::path& path)
     {
+        // An empty value counts, as it did when the launcher asked QDir("").exists() (the current folder)
         if (path.empty())
-            return false;
+            return true;
         std::error_code error;
         return std::filesystem::is_directory(path, error) || isDataPackFile(path);
     }

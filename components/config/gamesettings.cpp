@@ -41,9 +41,15 @@ void Config::GameSettings::validatePaths()
 
     for (const auto& dataDir : paths)
     {
-        // A data= line names a folder, or an Eden Archive pack in its place (task 0064; packs were dropped here before)
-        if (Files::isUsableDataEntry(Files::pathFromQString(dataDir.value)))
+        if (QDir(dataDir.value).exists())
         {
+            SettingValue copy = dataDir;
+            copy.value = QDir(dataDir.value).canonicalPath();
+            mDataDirs.append(copy);
+        }
+        else if (Files::isDataPackFile(Files::pathFromQString(dataDir.value)))
+        {
+            // A data= line may name an Eden Archive pack in place of a folder (task 0064); it was dropped here before
             SettingValue copy = dataDir;
             copy.value = QFileInfo(dataDir.value).canonicalFilePath();
             mDataDirs.append(copy);
