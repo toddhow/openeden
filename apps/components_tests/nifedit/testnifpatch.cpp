@@ -144,7 +144,9 @@ namespace NifEdit
                 for (std::size_t i = 0; i < before.size(); ++i)
                 {
                     if (static_cast<int>(i) != item.mRecord)
+                    {
                         EXPECT_EQ(after[i], before[i]) << "record " << i;
+                    }
                 }
                 // The edited file indexes again, with the same records and roots.
                 const FileIndex again = indexFile(out);
@@ -285,9 +287,11 @@ namespace NifEdit
                 {
                     EXPECT_NE(std::string(e.what()).find(item.mWhy), std::string::npos) << e.what();
                     if (item.mRecord != 99)
+                    {
                         EXPECT_NE(
                             std::string(e.what()).find("record " + std::to_string(item.mRecord)), std::string::npos)
                             << e.what();
+                    }
                 }
             }
         }

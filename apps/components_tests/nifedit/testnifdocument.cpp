@@ -195,7 +195,9 @@ namespace NifEdit
             for (std::size_t i = 0; i < before.size(); ++i)
             {
                 if (i != 0 && i != 6 && i != 8)
+                {
                     EXPECT_EQ(after[i], before[i]) << "record " << i;
+                }
             }
         }
 

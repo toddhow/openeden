@@ -1,4 +1,5 @@
 #include "configfile.hpp"
+#include <components/files/conversion.hpp>
 
 #include <algorithm>
 #include <array>
@@ -207,7 +208,8 @@ namespace ModOrganizer
         {
             const auto backups = numberedBackups(path);
             const long next = backups.empty() ? 1 : backups.back().first + 1;
-            const fs::path backup = path.parent_path() / fs::u8path(backupPrefix(path) + std::to_string(next));
+            const fs::path backup
+                = path.parent_path() / Files::pathFromUnicodeString(backupPrefix(path) + std::to_string(next));
             fs::copy_file(path, backup, fs::copy_options::none, ec);
             if (ec)
             {

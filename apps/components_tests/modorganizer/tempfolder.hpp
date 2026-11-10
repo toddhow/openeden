@@ -2,6 +2,7 @@
 #define OPENEDEN_TESTS_MODORGANIZER_TEMPFOLDER_H
 
 #include <atomic>
+#include <components/files/conversion.hpp>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -33,7 +34,7 @@ namespace ModOrganizerTest
         /// Writes a file (parent folders are made) and returns its path.
         std::filesystem::path write(const std::string& relative, const std::string& content = "x") const
         {
-            const std::filesystem::path file = mPath / std::filesystem::u8path(relative);
+            const std::filesystem::path file = mPath / Files::pathFromUnicodeString(relative);
             std::filesystem::create_directories(file.parent_path());
             std::ofstream out(file, std::ios::binary);
             out << content;

@@ -1,4 +1,5 @@
 #include "repack.hpp"
+#include <components/files/conversion.hpp>
 
 #include <components/vfs/entryname.hpp>
 
@@ -135,7 +136,7 @@ namespace ModOrganizer
             }
             for (const SourceFile& file : wantStay ? listing.mStay : listing.mPack)
             {
-                const fs::path target = folder / fs::u8path(file.mRelative);
+                const fs::path target = folder / Files::pathFromUnicodeString(file.mRelative);
                 fs::create_directories(target.parent_path(), ec);
                 fs::create_hard_link(file.mPath, target, ec);
                 if (ec)

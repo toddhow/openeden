@@ -1,4 +1,5 @@
 #include "conflicts.hpp"
+#include <components/files/conversion.hpp>
 
 #include <components/vfs/archive.hpp>
 #include <components/vfs/archivefactory.hpp>
@@ -52,7 +53,7 @@ namespace ModOrganizer
             for (auto it = layout.mData.rbegin(); it != layout.mData.rend(); ++it)
             {
                 std::error_code ec;
-                const fs::path folder = fs::u8path(it->mPath);
+                const fs::path folder = Files::pathFromUnicodeString(it->mPath);
                 if (!fs::is_directory(folder, ec))
                     continue;
                 for (fs::directory_iterator dir(folder, ec), end; !ec && dir != end; dir.increment(ec))
@@ -95,7 +96,7 @@ namespace ModOrganizer
             {
                 try
                 {
-                    const fs::path path = fs::u8path(entry.mPath);
+                    const fs::path path = Files::pathFromUnicodeString(entry.mPath);
                     std::error_code ec;
                     std::unique_ptr<VFS::Archive> archive;
                     if (entry.mIsPack || fs::is_regular_file(path, ec))

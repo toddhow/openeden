@@ -217,10 +217,16 @@ TEST(FaceRhubarb, a_late_first_line_leaves_the_start_at_rest_shape_x)
     const auto c = importRhubarbTsv("0.10\tB\n", "t.tsv", meta(0.2), e);
     ASSERT_TRUE(c.has_value()) << e.format();
     for (const auto& ch : c->mChannels)
+    {
         if (ch.mName == "viseme_x")
+        {
             EXPECT_EQ(ch.mValues, (std::vector<std::int16_t>{ 255, 255, 255, 0, 0, 0 }));
+        }
         else if (ch.mName == "viseme_b")
+        {
             EXPECT_EQ(ch.mValues, (std::vector<std::int16_t>{ 0, 0, 0, 255, 255, 255 }));
+        }
+    }
 }
 
 TEST(FaceRhubarb, malformed_input_gets_a_located_error)

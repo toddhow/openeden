@@ -1,3 +1,4 @@
+#include <components/files/conversion.hpp>
 #include <components/modorganizer/conflicts.hpp>
 #include <components/modorganizer/repack.hpp>
 
@@ -296,7 +297,7 @@ TEST(ModOrganizerRepack, the_swap_proof_with_a_real_pack_and_shim_changes_no_win
     ASSERT_TRUE(repacked.mProblems.empty());
 
     // Plugins are still found on disk through the shim, and the assets are served from the pack.
-    EXPECT_TRUE(std::filesystem::exists(std::filesystem::u8path(repacked.mData[2].mPath) / "mod.esp"));
+    EXPECT_TRUE(std::filesystem::exists(Files::pathFromUnicodeString(repacked.mData[2].mPath) / "mod.esp"));
     const ConflictReport report = computeConflicts(repacked);
     EXPECT_TRUE(report.mErrors.empty());
 }

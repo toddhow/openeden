@@ -1,4 +1,5 @@
 #include "scanner.hpp"
+#include <components/files/conversion.hpp>
 
 #include <components/vfs/entryname.hpp>
 
@@ -193,14 +194,15 @@ namespace ModOrganizer
             return {};
         for (const std::string& first : sortedSubfolders(folder))
         {
-            if (looksLikeDataRoot(folder / fs::u8path(first)))
+            if (looksLikeDataRoot(folder / Files::pathFromUnicodeString(first)))
                 return first;
         }
         for (const std::string& first : sortedSubfolders(folder))
         {
-            for (const std::string& second : sortedSubfolders(folder / fs::u8path(first)))
+            for (const std::string& second : sortedSubfolders(folder / Files::pathFromUnicodeString(first)))
             {
-                if (looksLikeDataRoot(folder / fs::u8path(first) / fs::u8path(second)))
+                if (looksLikeDataRoot(
+                        folder / Files::pathFromUnicodeString(first) / Files::pathFromUnicodeString(second)))
                     return first + "/" + second;
             }
         }

@@ -1,3 +1,4 @@
+#include <components/files/conversion.hpp>
 #include <components/modorganizer/conflicts.hpp>
 
 #include "tempfolder.hpp"
@@ -137,7 +138,7 @@ TEST(ModOrganizerConflicts, the_winner_equals_what_the_real_registration_gives)
     // The real call sequence of the engine, from the same data lines.
     Files::PathContainer dirs;
     for (const DataEntry& entry : layout.mData)
-        dirs.emplace_back(std::filesystem::u8path(entry.mPath));
+        dirs.emplace_back(Files::pathFromUnicodeString(entry.mPath));
     Files::Collections collections(dirs);
     VFS::Manager vfs;
     VFS::registerArchives(&vfs, collections, layout.mArchives, true, nullptr);
@@ -148,7 +149,7 @@ TEST(ModOrganizerConflicts, the_winner_equals_what_the_real_registration_gives)
         EXPECT_EQ(overrides[i].mPath.value(), report.mFiles[i].mPath);
         const std::string winnerDir = vfs.getArchiveDescription(overrides[i].mWinner.mArchive);
         const DataEntry& entry = layout.mData[overrides[i].mWinner.mArchive];
-        EXPECT_NE(winnerDir.find(std::filesystem::u8path(entry.mPath).filename().string()), std::string::npos);
+        EXPECT_NE(winnerDir.find(Files::pathFromUnicodeString(entry.mPath).filename().string()), std::string::npos);
         EXPECT_EQ(report.mFiles[i].mWinner, entry.mModId.empty() ? std::string("base") : "mod:" + entry.mModId);
         EXPECT_EQ(report.mFiles[i].mLosers.size(), overrides[i].mLosers.size());
     }
