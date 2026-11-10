@@ -69,3 +69,7 @@ Settings added to `tools/testprofile/profile.cfg` with `# task 0096:` comments a
 5. Approval of cluster layout 2 and the migration (version 1 packs keep working with no effects; a re-bake gives effects)?
 6. Should the animation range default to the active grid's reach (about 12,000) or a smaller number when enabled?
 7. Is a bake-time change (stage a2) acceptable on its own, since it silently moves some models from clusters to the live path?
+
+## Answers from toddhow (2026-11-09)
+
+- **Which effects matter most:** "the most obvious ones" (the effects a player notices first at distance: for example the Ald-ruhn wall panels, banners and flags, fires, water wheels, sway of large foliage, and creatures that stand still). Stage a (the survey) should therefore rank the controller kinds by how many far-cluster pieces and how large on screen they are, so the obvious ones go first.
