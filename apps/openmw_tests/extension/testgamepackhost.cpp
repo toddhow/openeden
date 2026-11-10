@@ -185,4 +185,58 @@ namespace
         EXPECT_THAT(host.takeFailureReport(), HasSubstr(kPack));
         host.stop();
     }
+
+    // Task 0084 leftovers, lane I stage I2: a game pack that fails while the game runs ends the session. The engine
+    // asks the host once per frame; the answer is the located message exactly once, so the game shows one error and
+    // returns to the main menu (apps/openmw/game.hpp, MWState::StateManager::error).
+    TEST_F(GamePackHostTest, aHealthyGamePackHasNoSessionFault)
+    {
+        OMW::ExtensionHost host(config(kPack));
+        host.start();
+        host.runPhase(Phase::GameSimulation, 0.016f);
+        EXPECT_TRUE(host.takeSessionFault().empty());
+        host.stop();
+    }
+
+    TEST_F(GamePackHostTest, aFailedGamePackReportsItsSessionFaultOnceWithItsIdAndTheSavingRefusal)
+    {
+        setEnvironment("OPENEDEN_TEST_EXTENSION_THROW", kPack + ":phase");
+        OMW::ExtensionHost host(config(kPack));
+        host.start();
+        EXPECT_TRUE(host.takeSessionFault().empty()) << "nothing has failed yet";
+        host.runPhase(Phase::GameSimulation, 0.016f);
+
+        const std::string fault = host.takeSessionFault();
+        EXPECT_THAT(fault, HasSubstr(kPack));
+        EXPECT_THAT(fault, HasSubstr("saving is refused"));
+        EXPECT_EQ(fault, host.sessionError()) << "the message is the one that refuses saving";
+        EXPECT_TRUE(host.takeSessionFault().empty()) << "reported once";
+        EXPECT_FALSE(host.sessionError().empty()) << "saving stays refused after the report";
+        host.stop();
+    }
+
+    TEST_F(GamePackHostTest, aFaultInAnotherFrameStillEndsOnlyOnce)
+    {
+        setEnvironment("OPENEDEN_TEST_EXTENSION_THROW", kPack + ":phase");
+        OMW::ExtensionHost host(config(kPack));
+        host.start();
+        host.runPhase(Phase::GameSimulation, 0.016f);
+        EXPECT_FALSE(host.takeSessionFault().empty());
+        for (int frame = 0; frame < 3; ++frame)
+        {
+            host.runPhase(Phase::GameSimulation, 0.016f);
+            host.runPhase(Phase::GameUpdateUi, 0.016f);
+            EXPECT_TRUE(host.takeSessionFault().empty()) << "frame " << frame;
+        }
+        host.stop();
+    }
+
+    TEST_F(GamePackHostTest, aSessionWithNoGamePackNeverEndsForAPackFault)
+    {
+        OMW::ExtensionHost host(config(""));
+        host.start();
+        host.runPhase(Phase::GameSimulation, 0.016f);
+        EXPECT_TRUE(host.takeSessionFault().empty());
+        host.stop();
+    }
 }

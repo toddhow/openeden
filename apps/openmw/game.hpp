@@ -156,6 +156,16 @@ namespace OMW
             if (mEngine.mStateManager->hasQuitRequest())
                 return false;
 
+            // The game pack failed (task 0084, design doc 7: it is the game): the session ends. The state manager
+            // clears the running game and shows the message at the main menu; saving was refused when the pack
+            // failed, so nothing it left is written. Once, and the rest of this frame does not run.
+            if (const std::string fault = mEngine.mExtensionHost->takeSessionFault(); !fault.empty())
+            {
+                Log(Debug::Error) << "Ending the session: " << fault;
+                mEngine.mStateManager->error(fault);
+                return true;
+            }
+
             try
             {
                 // openeden-vsg: pausing and simulation time follow OpenMW 0.51's Engine::frame and Engine::go: the

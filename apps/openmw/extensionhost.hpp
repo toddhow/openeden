@@ -78,6 +78,12 @@ namespace OMW
         /// Non-empty once the game pack has failed: the session cannot go on and saving is refused.
         [[nodiscard]] const std::string& sessionError() const noexcept override { return mLifecycle.getSessionError(); }
 
+        /// The game pack's failure for the engine to act on, once: the first call after the pack has failed returns the
+        /// located message (the one sessionError() holds, which also keeps saving refused); every other call returns an
+        /// empty string. The engine asks once per frame (apps/openmw/game.hpp) and, on a message, ends the session
+        /// through MWState::StateManager::error (task 0084 leftovers, stage I2). Main thread only.
+        [[nodiscard]] std::string takeSessionFault();
+
         /// The loaded extensions' data folders that exist, in load order, for the game's VFS.
         [[nodiscard]] const std::vector<openeden::extension::ExtensionDataDir>& dataDirs() const noexcept
         {
@@ -153,6 +159,7 @@ namespace OMW
         bool mPendingLuaEventsOverflowed = false;
         bool mLoaded = false;
         bool mRunning = false;
+        bool mSessionFaultTaken = false;
     };
 }
 

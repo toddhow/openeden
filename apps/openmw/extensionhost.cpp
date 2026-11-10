@@ -277,6 +277,14 @@ namespace OMW
         return report;
     }
 
+    std::string ExtensionHost::takeSessionFault()
+    {
+        if (mSessionFaultTaken || mLifecycle.getSessionError().empty())
+            return {};
+        mSessionFaultTaken = true;
+        return mLifecycle.getSessionError();
+    }
+
     void ExtensionHost::attachWorld(MWPhysics::PhysicsSystem& physics)
     {
         if (!mLoaded)
