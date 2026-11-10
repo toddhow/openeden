@@ -4,7 +4,6 @@
 #include <sstream>
 
 #include <components/nif/niffile.hpp>
-#include <components/vfs/pathutil.hpp>
 
 namespace NifEdit
 {
