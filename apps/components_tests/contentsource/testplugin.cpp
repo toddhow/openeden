@@ -512,6 +512,88 @@ namespace
         EXPECT_TRUE(recorder.mEvents.empty());
     }
 
+    // zlib cannot expand data more than 1032 to 1 (task 0083, review of the upstream ESM audit, note 0051 section 4):
+    // a claim beyond that is false and is refused before anything is sized from it.
+    TEST(ContentPluginTes4, a_compressed_record_claiming_more_than_zlib_can_produce_is_refused)
+    {
+        // 2 bytes of compressed data: at most 2064 bytes can come out.
+        Bytes file = tes4Header(1.7f, 1, "", "", 1, {});
+        file.append(record4("STAT", Content::sRecCompressed, 0x20, Bytes().u32(2065).text("zz")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        Recorder recorder;
+        const std::optional<Content::Error> error = plugin->walk(recorder);
+        ASSERT_TRUE(error.has_value());
+        EXPECT_EQ(error->mRecordType, Content::fourCC("STAT"));
+        EXPECT_NE(error->mMessage.find("1032"), std::string::npos);
+        EXPECT_TRUE(recorder.mEvents.empty());
+    }
+
+    TEST(ContentPluginTes4, a_compressed_record_at_exactly_the_zlib_ratio_is_accepted)
+    {
+        Bytes file = tes4Header(1.7f, 1, "", "", 1, {});
+        file.append(record4("STAT", Content::sRecCompressed, 0x20, Bytes().u32(2064).text("zz")));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        Recorder recorder;
+        EXPECT_FALSE(plugin->walk(recorder).has_value());
+        ASSERT_EQ(recorder.mEvents.size(), 1u);
+        EXPECT_EQ(recorder.mEvents[0].mUncompressed, 2064u);
+    }
+
+    TEST(ContentPluginTes4, a_zip_bomb_record_within_the_absolute_limit_is_refused_by_the_ratio)
+    {
+        // 400 MiB claimed from 100 bytes: under the 512 MiB absolute cap, far over what zlib can make of 100 bytes.
+        Bytes file = tes4Header(1.7f, 1, "", "", 1, {});
+        file.append(record4(
+            "STAT", Content::sRecCompressed, 0x20, Bytes().u32(400u * 1024u * 1024u).text(std::string(100, 'q'))));
+        const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+        ASSERT_NE(plugin, nullptr);
+        Recorder recorder;
+        const std::optional<Content::Error> error = plugin->walk(recorder);
+        ASSERT_TRUE(error.has_value());
+        EXPECT_NE(error->mMessage.find("1032"), std::string::npos);
+        EXPECT_TRUE(recorder.mEvents.empty());
+    }
+
+    TEST(ContentPluginTes4, a_compressed_record_with_no_data_after_the_prefix_can_only_claim_nothing)
+    {
+        {
+            Bytes file = tes4Header(1.7f, 1, "", "", 1, {});
+            file.append(record4("STAT", Content::sRecCompressed, 0x20, Bytes().u32(1)));
+            const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+            ASSERT_NE(plugin, nullptr);
+            Recorder recorder;
+            EXPECT_TRUE(plugin->walk(recorder).has_value());
+        }
+        {
+            Bytes file = tes4Header(1.7f, 1, "", "", 1, {});
+            file.append(record4("STAT", Content::sRecCompressed, 0x20, Bytes().u32(0)));
+            const std::unique_ptr<Content::Plugin> plugin = openOk(file);
+            ASSERT_NE(plugin, nullptr);
+            Recorder recorder;
+            EXPECT_FALSE(plugin->walk(recorder).has_value());
+        }
+    }
+
+    // The header version to game rule against upstream's getGameFormat (note 0051 section 4): 1.70 and 1.71 are
+    // Skyrim SE; 0.94 is ambiguous between Fallout 3 and Skyrim LE upstream and neither is named here, so it is never
+    // Skyrim SE whatever the form version says.
+    TEST(ContentPluginTes4, the_ambiguous_header_version_0_94_is_never_taken_for_skyrim_se)
+    {
+        const auto guess = [](float version, std::uint32_t headerSize, std::uint16_t formVersion) {
+            const std::unique_ptr<Content::Plugin> plugin
+                = openOk(tes4Header(version, 1, "", "", 0, {}, headerSize, formVersion));
+            return plugin != nullptr ? plugin->header().mGame : Content::GameGuess::Unknown;
+        };
+        EXPECT_EQ(guess(0.94f, 24, 43), Content::GameGuess::Unknown);
+        EXPECT_EQ(guess(0.94f, 24, 40), Content::GameGuess::Unknown);
+        EXPECT_EQ(guess(0.94f, 24, 15), Content::GameGuess::Unknown);
+        EXPECT_EQ(guess(0.94f, 20, 0), Content::GameGuess::Unknown);
+        EXPECT_EQ(guess(1.7f, 24, 43), Content::GameGuess::SkyrimSE);
+        EXPECT_EQ(guess(1.71f, 24, 44), Content::GameGuess::SkyrimSE);
+    }
+
     TEST(ContentPluginTes4, a_compressed_record_too_short_for_its_size_prefix_is_an_error)
     {
         Bytes file = tes4Header(1.7f, 1, "", "", 1, {});

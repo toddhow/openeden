@@ -28,6 +28,7 @@ namespace Content
         constexpr std::uint32_t sTes4LongHeaderSize = 24;
         constexpr std::uint32_t sGrup = fourCC("GRUP");
         constexpr std::uint32_t sCompressedPrefixSize = 4;
+        constexpr std::uint64_t sMaxZlibRatio = 1032; // the most zlib can expand any input (RFC 1951, deflate)
         constexpr std::uint32_t sRecDeleted = 0x00000020; // ESM::FLAG_Deleted and ESM4::Rec_Deleted
 
         std::string hex(std::uint64_t value)
@@ -673,6 +674,17 @@ namespace Content
                     return makeError(mName, pos, type,
                         "the record claims " + std::to_string(inflated) + " bytes when inflated, over the limit of "
                             + std::to_string(mLimits.mMaxUncompressed));
+                }
+                // zlib cannot expand data more than 1032 to 1, so a larger claim is false: refuse it here, before any
+                // consumer sizes a buffer from it. OpenMW upstream's ESM4 reader makes the same check (97722d48f9,
+                // components/esm4/reader.cpp, commit 03a4501197; research note 0051 section 4).
+                if (static_cast<std::uint64_t>(inflated)
+                    > static_cast<std::uint64_t>(dataSize - sCompressedPrefixSize) * sMaxZlibRatio)
+                {
+                    return makeError(mName, pos, type,
+                        "the record claims " + std::to_string(inflated) + " bytes when inflated from "
+                            + std::to_string(dataSize - sCompressedPrefixSize)
+                            + " compressed bytes, more than the 1032 to 1 that zlib can produce");
                 }
                 record.mUncompressedSize = inflated;
             }

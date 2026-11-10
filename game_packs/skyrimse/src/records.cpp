@@ -12,7 +12,10 @@
 // Layout status of every subrecord read here (see records.hpp). VERIFIED means the installed Skyrim SE plugins were
 // checked by tools/skyrimse_records_check (aggregates, no game text kept); the results are in the task 0086 stage log.
 // Everything not marked is RECALLED-VERIFY: UESP / TES5Edit documentation from memory, cross-read with the cc9cii
-// readers in components/esm4 where one exists.
+// readers in components/esm4 where one exists. CONFIRMED means a second reader agrees, OpenMW upstream's ESM4 code at
+// 97722d48f9 (itself written from UESP / TES5Edit, so corroboration and not independent proof; research note 0051
+// section 4); it does not retire a marker for a value no tool of ours measured, and where upstream skips a field it
+// says nothing (NPC_ DNAM, light masters stay RECALLED-VERIFY).
 
 namespace game_skyrimse
 {
@@ -777,7 +780,8 @@ namespace game_skyrimse
                         case Content::fourCC("NAME"):
                             ok = formField(type, data, r.mBase);
                             break;
-                        case Content::fourCC("DATA"): // position xyz, rotation xyz (f32); VERIFIED size 24 (tool)
+                        case Content::fourCC("DATA"): // position xyz, rotation xyz (f32); VERIFIED size 24 (tool),
+                                                      // CONFIRMED by upstream components/esm4/loadrefr.cpp case DATA
                             if (data.size() >= 24)
                             {
                                 const std::byte* p = data.data();
@@ -794,7 +798,9 @@ namespace game_skyrimse
                             ok = floatField(type, data, r.mScale);
                             break;
                         case Content::fourCC(
-                            "XESP"): // parent form, flags, 3 unused; VERIFIED size 8 (tool), flag bits RECALLED-VERIFY
+                            "XESP"): // parent form, flags, 3 unused; VERIFIED size 8 (tool), flag bits CONFIRMED by
+                                     // upstream components/esm4/reference.hpp EnableParent (Flag_Inversed 0x1,
+                                     // Flag_PopIn 0x2) and loadrefr.cpp case XESP (upstream reads the flags as a u32)
                             if (data.size() >= 5)
                             {
                                 EnableParent e;
@@ -951,7 +957,10 @@ namespace game_skyrimse
                             ok = formField(type, data, n.mClass);
                             break;
                         case Content::fourCC("ACBS"): // flags u32 @0, level u16 @8, calc min @10, calc max @12; size 24
-                                                      // VERIFIED (tool), offsets RECALLED-VERIFY
+                                                      // VERIFIED size (tool); offsets CONFIRMED by upstream
+                                                      // components/esm4/actor.hpp ACBS_TES5 (flags, magicka u16,
+                                                      // stamina u16, levelOrMult @8, calcMin @10, calcMax @12) and
+                                                      // loadnpc.cpp case ACBS (24 bytes)
                             if (data.size() >= 14)
                             {
                                 n.mHasConfig = true;

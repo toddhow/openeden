@@ -139,8 +139,9 @@ namespace game_skyrimse
 
     namespace RecordFlags
     {
-        /// Header flags of a record (UESP): RECALLED-VERIFY except 0x20, 0x400 and 0x800, which are consistent with
-        /// the data (see the check tool).
+        /// Header flags of a record (UESP). 0x20, 0x400 and 0x800 are consistent with the data (see the check tool);
+        /// all five values are confirmed by upstream components/esm4/common.hpp RecordFlag (Rec_Deleted,
+        /// Rec_Persistent, Rec_Disabled, Rec_Ignored, Rec_VisDistant) at 97722d48f9, itself from UESP.
         inline constexpr std::uint32_t Deleted = 0x20;
         inline constexpr std::uint32_t Persistent = 0x400;
         inline constexpr std::uint32_t InitiallyDisabled = 0x800;
@@ -185,7 +186,8 @@ namespace game_skyrimse
     struct EnableParent
     {
         FormId mParent = kNullFormId;
-        std::uint8_t mFlags = 0; ///< bit 0: opposite of the parent's state; bit 1: pop in (RECALLED-VERIFY)
+        std::uint8_t mFlags = 0; ///< bit 0: opposite of the parent's state; bit 1: pop in (confirmed by upstream
+                                 ///< components/esm4/reference.hpp EnableParent at 97722d48f9, itself from UESP)
     };
 
     struct PlacedRef
@@ -280,7 +282,8 @@ namespace game_skyrimse
 
     namespace NpcFlags
     {
-        /// ACBS flags (UESP, RECALLED-VERIFY).
+        /// ACBS flags (UESP). Confirmed, names and values, by upstream components/esm4/loadnpc.hpp ActorBaseFlagsTes5
+        /// at 97722d48f9 (itself from UESP): a second reader, not a measurement of the installed plugins.
         inline constexpr std::uint32_t Female = 0x00000001;
         inline constexpr std::uint32_t Essential = 0x00000002;
         inline constexpr std::uint32_t Respawn = 0x00000008;
