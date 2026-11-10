@@ -269,3 +269,47 @@ TEST(LodClusterSwayShader, the_reach_bounds_every_displacement)
     EXPECT_LE(worst, maxSwayReach);
     EXPECT_GT(worst, 0.5f * maxSwayReach);
 }
+
+TEST(LodClusterSwayBoost, grows_with_distance_between_one_and_the_maximum)
+{
+    EXPECT_FLOAT_EQ(swayDistanceBoost(0.f, swayBoostReference), 1.f);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(4000.f, swayBoostReference), 1.f);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(8000.f, swayBoostReference), 1.f);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(16000.f, swayBoostReference), 2.f);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(40000.f, swayBoostReference), 5.f);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(48000.f, swayBoostReference), swayBoostMax);
+    EXPECT_FLOAT_EQ(swayDistanceBoost(1e9f, swayBoostReference), swayBoostMax);
+}
+
+TEST(LodClusterSwayBoost, is_monotonic)
+{
+    float previous = 0;
+    for (float d = 0; d < 100000.f; d += 500.f)
+    {
+        const float b = swayDistanceBoost(d, swayBoostReference);
+        EXPECT_GE(b, previous);
+        previous = b;
+    }
+}
+
+TEST(LodClusterSwayBoost, a_reference_of_zero_or_less_or_bad_numbers_give_no_boost)
+{
+    EXPECT_EQ(swayDistanceBoost(40000.f, 0.f), 1.f);
+    EXPECT_EQ(swayDistanceBoost(40000.f, -5.f), 1.f);
+    EXPECT_EQ(swayDistanceBoost(kNan, swayBoostReference), 1.f);
+    EXPECT_EQ(swayDistanceBoost(40000.f, kNan), 1.f);
+    EXPECT_EQ(swayDistanceBoost(kInf, swayBoostReference), swayBoostMax);
+    EXPECT_EQ(swayDistanceBoost(-100.f, swayBoostReference), 1.f);
+}
+
+TEST(LodClusterSwayBoost, the_boosted_reach_stays_inside_the_bound_the_renderer_uses)
+{
+    float worst = 0;
+    for (float d : { 1000.f, 8000.f, 20000.f, 60000.f })
+        for (double t = 0; t < 6; t += 0.1)
+        {
+            const Out o = sway(maxSwayLean, 1.f, swayWeightScale, swayWeightScale, 0.3f, t);
+            worst = std::max(worst, swayDistanceBoost(d, swayBoostReference) * std::sqrt(o.v[0] * o.v[0] + o.v[1] * o.v[1]));
+        }
+    EXPECT_LE(worst, swayBoostMax * maxSwayReach);
+}

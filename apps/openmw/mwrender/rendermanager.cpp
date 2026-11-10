@@ -1455,6 +1455,7 @@ namespace MWRender
             setup.mPlayEffects = Settings::worldLod().mObjectClusterEffects;
             setup.mPlaySway = Settings::worldLod().mObjectClusterSway;
             setup.mSwayWindScale = Settings::worldLod().mObjectClusterSwayWind;
+            setup.mSwayBoost = Settings::worldLod().mObjectClusterSwayBoost;
             setup.mCellSize = ESM::Land::REAL_SIZE;
             setup.mBuilder = mResourceSystem->builder.get();
             setup.mImageOptions = mResourceSystem->textureOptions;

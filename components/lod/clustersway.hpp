@@ -101,6 +101,18 @@ namespace Lod
     /// tile's cull sphere.
     inline constexpr float maxSwayReach = 1.1f * maxSwayLean * swayWeightScale;
 
+    /// Task 0096 stage c, distance boost (`[WorldLod] object cluster sway distance boost`): far trees look still
+    /// because a pixel covers more world units the farther they are, so the displacement is multiplied by
+    /// clamp(distance / reference, 1, swayBoostMax) (reference 0 or less: no boost). The vertex shader repeats this.
+    inline constexpr float swayBoostReference = 8000.f;
+    inline constexpr float swayBoostMax = 6.f;
+    inline float swayDistanceBoost(float distance, float reference) noexcept
+    {
+        if (!(reference > 0.f) || !(distance > 0.f)) // also a NaN of either
+            return 1.f;
+        return std::clamp(distance / reference, 1.f, swayBoostMax);
+    }
+
     /// The angle the vertex shader's wave takes at a world position: the clock's angle plus the spatial phase (the two
     /// per-unit constants above). `swayDisplacement`'s `phase` argument is the spatial part, so
     /// swayDisplacement(..., swayVertexPhase(x, y), seconds, ...) is what the shader draws at that place and time.

@@ -98,6 +98,8 @@ namespace MWRender
             bool mPlaySway = false;
             /// `[WorldLod] object cluster sway wind`: the share of the weather's wind that drives the sway (0 to 1).
             float mSwayWindScale = 1.f;
+            /// `[WorldLod] object cluster sway distance boost`: the sway grows with the distance (Lod::swayDistanceBoost).
+            bool mSwayBoost = false;
             double mCellSize = 8192;
             const Pipeline::Builder* mBuilder = nullptr;
             vsg::ref_ptr<const vsg::Options> mImageOptions;

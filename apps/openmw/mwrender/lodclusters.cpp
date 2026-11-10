@@ -597,7 +597,9 @@ namespace MWRender
                 cluster.mOriginX + side * 0.5, cluster.mOriginY + side * 0.5, (cluster.mMinZ + cluster.mMaxZ) * 0.5);
             const double radius = std::sqrt(side * side * 0.5
                                       + 0.25 * (cluster.mMaxZ - cluster.mMinZ) * (cluster.mMaxZ - cluster.mMinZ))
-                + cluster.mOverhang + (tile.mSwayMatrices.empty() ? 0.0 : static_cast<double>(Lod::maxSwayReach));
+                + cluster.mOverhang + (tile.mSwayMatrices.empty()
+                        ? 0.0
+                        : static_cast<double>(Lod::maxSwayReach) * (setup.mSwayBoost ? Lod::swayBoostMax : 1.f));
             return vsg::CullNode::create(vsg::dsphere(centre, radius), transform);
         }
     }
@@ -1142,11 +1144,13 @@ namespace MWRender
                 {
                     const float push = std::clamp(sway.mLean, 0.f, Lod::maxSwayLean) * wind * Lod::swayWeightScale;
                     auto& matrix = sway.mMatrix->value();
-                    if (matrix(0, 0) != directionX * push || matrix(0, 1) != directionY * push || matrix(0, 2) != angle)
+                    if (matrix(0, 0) != directionX * push || matrix(0, 1) != directionY * push || matrix(0, 2) != angle
+                        || matrix(0, 3) != (setup.mSwayBoost ? Lod::swayBoostReference : 0.f))
                     {
                         matrix(0, 0) = directionX * push;
                         matrix(0, 1) = directionY * push;
                         matrix(0, 2) = angle;
+                        matrix(0, 3) = setup.mSwayBoost ? Lod::swayBoostReference : 0.f;
                         sway.mMatrix->dirty();
                     }
                 }

@@ -38,6 +38,9 @@ namespace Settings
         SettingValue<std::string> mObjectClusterSwayModels{ mIndex, "WorldLod", "object cluster sway models" };
         // The top's lean at full wind as a share of the object's height (0 to 0.1), and a wind strength used when the
         // weather gives none; `sway wind` (0 to 4) multiplies the weather's wind, and the result is at most 1.
+        // The displacement grows with the distance, 1 to 6 times (`Lod::swayDistanceBoost`), so far trees visibly
+        // move; not physical. Off by default; read by the renderer only.
+        SettingValue<bool> mObjectClusterSwayBoost{ mIndex, "WorldLod", "object cluster sway distance boost" };
         SettingValue<float> mObjectClusterSwayLean{ mIndex, "WorldLod", "object cluster sway lean",
             makeClampSanitizerFloat(0.f, 0.1f) };
         SettingValue<float> mObjectClusterSwayWind{ mIndex, "WorldLod", "object cluster sway wind",

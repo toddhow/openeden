@@ -140,11 +140,15 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
     {
         // See the GLSL (needs COLOR). The GLSL's texmat[0] (first column) is texmat[r][0] for r = 0..2 here.
         float3 swayWorld = mul(scene.invView, viewPos).xyz;
-        float4 swayParams = float4(texMat.texmat[0][0], texMat.texmat[1][0], texMat.texmat[2][0], 0.0);
+        float4 swayParams = float4(texMat.texmat[0][0], texMat.texmat[1][0], texMat.texmat[2][0], texMat.texmat[3][0]);
         float swayAngle = swayParams.z + 0.00041 * swayWorld.x + 0.00033 * swayWorld.y;
         float swayWave = 0.5 + 0.35 * sin(swayAngle) + 0.15 * sin(3.0 * swayAngle + 1.3);
         float2 swayWind = swayParams.xy;
         float2 swayPush = swayWind * swayWave + float2(-swayWind.y, swayWind.x) * (0.25 * cos(swayAngle));
+        // texmat[0].w is the distance boost's reference (0: none); see the GLSL.
+        float swayBoostReference = texMat.texmat[3][0];
+        if (swayBoostReference > 0.0)
+            swayPush *= clamp(length(viewPos.xyz) / swayBoostReference, 1.0, 6.0);
         viewPos.xyz += mul(transpose((float3x3)scene.invView), float3(swayPush * (input.inColor.a * input.inColor.a), 0.0));
     }
 #endif

@@ -142,6 +142,9 @@ void main()
         float swayWave = 0.5 + 0.35 * sin(swayAngle) + 0.15 * sin(3.0 * swayAngle + 1.3);
         vec2 swayWind = texmat[0].xy;
         vec2 swayPush = swayWind * swayWave + vec2(-swayWind.y, swayWind.x) * (0.25 * cos(swayAngle));
+        // texmat[0].w is the distance boost's reference (0: none): the push grows with the distance, 1 to 6 times.
+        if (texmat[0].w > 0.0)
+            swayPush *= clamp(length(viewPos.xyz) / texmat[0].w, 1.0, 6.0);
         viewPos.xyz += transpose(mat3(scene.invView)) * vec3(swayPush * (inColor.a * inColor.a), 0.0);
     }
 #endif
