@@ -358,6 +358,7 @@ file(GLOB UNITTEST_SRC_FILES
     lod/testclusterpack.cpp
     lod/testtiletree.cpp
     lod/testtilelivefallback.cpp
+    lod/testtileoffview.cpp
     lod/testtilebakelevels.cpp
     lod/testviewlimits.cpp
     lod/testfartier.cpp

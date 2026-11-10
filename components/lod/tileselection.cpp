@@ -62,16 +62,29 @@ namespace Lod
             SelectionResult& result) noexcept
         {
             const double distance = distanceToTile(camera, state.mBounds);
-            if (distance > camera.mViewDistance || !inViewCone(camera, state.mBounds))
+            const bool inRange = distance <= camera.mViewDistance;
+            const bool inCone = inRange && inViewCone(camera, state.mBounds);
+            // A tile out of the view cone is still chosen when the caller asks for it (mOffViewScale): with a scaled-up
+            // threshold, so that what is held for the unseen ground is coarse.
+            // Only a tile with no choice yet (or one just uncovered): a choice made in view stays when the camera looks
+            // away, so turning back and forth does not build coarse tiles over fine ones and back.
+            const bool heldOffView = inRange && !inCone && camera.mOffViewScale > 0
+                && (state.mChoice == TileChoice::Unset || state.mChoice == TileChoice::Covered);
+            if (!inCone && !heldOffView)
             {
                 state.mVisible = false;
                 state.mPixels = 0;
                 ++result.mSkipped;
                 return;
             }
-            state.mVisible = true;
+            state.mVisible = inCone;
             const double pixels = pixelError(camera, state.mBounds);
-            state.mPixels = static_cast<float>(pixels);
+            state.mPixels = inCone ? static_cast<float>(pixels) : 0.f;
+            if (heldOffView)
+            {
+                threshold = static_cast<float>(threshold * camera.mOffViewScale);
+                returnBelow *= camera.mOffViewScale;
+            }
             const TileChoice before = state.mChoice;
             // Nothing else draws a finest tile's square past the live terrain's reach: it is drawn whatever the error.
             const bool forced = camera.mLiveRange > 0 && !state.mHasChildren
@@ -94,7 +107,9 @@ namespace Lod
             }
             if (before != TileChoice::Unset && before != TileChoice::Covered && before != state.mChoice)
                 ++result.mChanged;
-            if (state.mChoice == TileChoice::Tile)
+            if (heldOffView)
+                ++result.mSkipped; // chosen, but not in view: counted as not visible
+            else if (state.mChoice == TileChoice::Tile)
                 ++result.mTiles;
             else
                 ++result.mLive;

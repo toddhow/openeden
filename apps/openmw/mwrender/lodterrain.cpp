@@ -891,8 +891,8 @@ namespace MWRender
             {
                 Lod::RefinedChild kind = Lod::RefinedChild::Drawn;
                 if (mStates[child].mChoice == Lod::TileChoice::Tile)
-                    kind = Lod::classifyRefinedChild(
-                        drawnInFull(child), liveDrawsSquare(child, camera), mFailed[child], mStates[child].mVisible);
+                    kind = Lod::classifyRefinedChild(drawnInFull(child), liveDrawsSquare(child, camera), mFailed[child],
+                        mStates[child].mVisible || (mHoldOffView && !liveDrawsSquare(child, camera)));
                 else if (!drawnInFull(child))
                 {
                     bool childStays = false;
@@ -1096,6 +1096,8 @@ namespace MWRender
         std::vector<char> mFreed;
         std::vector<char> mCoversBefore; // per frame: whether each tile covered its square before the step
         float mDeltaSeconds = 0; // the frame time of this update() call
+        // Tiles past the live range are held out of view too (set by update() from the selection camera).
+        bool mHoldOffView = false;
         // The residency planner (task 0060): its input and output are reused every frame.
         std::uint64_t mFrame = 0; // calls of update() with tiles in use, for the swap log lines (task 0087)
         std::vector<int> mCooldown; // frames before a tile the planner freed may be drawn again
@@ -1229,7 +1231,14 @@ namespace MWRender
         // With map view the tiles reach past the live terrain, which leaves a finest tile's square past its range with
         // nothing to draw it: such a tile is drawn whatever its error (Lod::SelectionCamera::mLiveRange).
         if (camera.mViewDistance > camera.mPagingRange)
+        {
             selection.mLiveRange = camera.mPagingRange;
+            // And so does the ground out of view: a tile past the live range is chosen, coarse, whether or not it is in
+            // view, so that turning the camera shows a coarse tile where nothing was drawn, and finer tiles then
+            // replace it (the far-terrain turn gap, 2026-11-10).
+            selection.mOffViewScale = Lod::offViewThresholdScale;
+        }
+        state.mHoldOffView = selection.mOffViewScale > 0;
         const Lod::SelectionResult result
             = Lod::selectTileTree(state.mStates, state.mParents, selection, state.mSetup.mThreshold);
 
@@ -1279,7 +1288,10 @@ namespace MWRender
             // A drawn tile stays wanted while the selection chooses it, seen or not; one that is not drawn is wanted
             // only when it is in view. The eviction cooldown is the planner's to apply: it holds back a replaceable
             // tile only, never one past the live range (third review, finding 1).
-            item.mWanted = chosen && (held || tile.mVisible);
+            // A tile past the live range has nothing else to draw its square (it is not replaceable): it is wanted
+            // seen or not, so that it is already there when the camera turns (selection.mOffViewScale).
+            const bool noFallback = selection.mOffViewScale > 0 && !state.liveDrawsSquare(i, camera);
+            item.mWanted = chosen && (held || tile.mVisible || noFallback);
             item.mPinned = held && !item.mWanted;
             // A freed tile still dithering out (task 0087): its bytes are held but already counted as gone.
             item.mLeaving = held && state.mFreed[i] != 0;

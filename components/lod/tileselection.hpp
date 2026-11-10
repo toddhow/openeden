@@ -21,6 +21,9 @@ namespace Lod
     inline constexpr float thresholdLow = 8.f;
     /// A tile replaced by the live terrain returns only when its error is below this share of the threshold.
     inline constexpr float hysteresisShare = 0.7f;
+    /// The factor the threshold is multiplied by for a tile that is out of the view cone but held for when the camera
+    /// turns (SelectionCamera::mOffViewScale): 8 times the pixels of error, so what is held unseen is coarse.
+    inline constexpr double offViewThresholdScale = 8.0;
 
     /// A tile's size and error in world units. Z is up. (originX, originY) is the south-west corner.
     struct TileBounds
@@ -48,6 +51,11 @@ namespace Lod
         /// whatever its pixel error says (the far-terrain gap of 2026-11-09: a rough tile's error keeps it Live out
         /// to several times the live range, and nothing drew it there).
         double mLiveRange = 0;
+        /// Above 0: a tile inside the view distance but outside the view cone is chosen too (it stays not visible and
+        /// keeps no pixels), with the threshold multiplied by this, so that a coarser, cheaper tile is already drawn
+        /// when it comes into view and finer tiles then replace it (the far-terrain turn gap of 2026-11-10: tiles were
+        /// chosen only when seen, so turning showed the ground appearing from nothing). 0: off, as before.
+        double mOffViewScale = 0;
     };
 
     /// Distance from the camera to the nearest point of the tile's bounding box (0 inside it).
@@ -86,7 +94,8 @@ namespace Lod
     /// Updates every state. A visible tile with no choice yet takes Tile when pixels <= threshold, else Live. A tile
     /// that is Tile becomes Live when pixels > threshold; a tile that is Live becomes Tile only when pixels <
     /// hysteresisShare * threshold. A tile that is not visible keeps its choice (so hysteresis survives looking away)
-    /// and counts as skipped. Deterministic: the result depends only on the arguments.
+    /// and counts as skipped (with SelectionCamera::mOffViewScale, a tile with no choice yet is chosen coarse instead,
+    /// still counted as skipped). Deterministic: the result depends only on the arguments.
     SelectionResult selectTiles(std::span<TileState> states, const SelectionCamera& camera, float threshold) noexcept;
 
     /// The tiles ordered for selectTileTree: level descending (the biggest first), then key ascending. A parent is

@@ -184,3 +184,15 @@ LOD clusters already are such a copy); (3) let the clusters do it: bake or start
 3. Cell objects and actors on a load (rows 6, 7): the incremental build already spreads them; a fade needs the same per-draw value as (2).
 4. Groundcover chunks (row 7): not read; probably a per-instance array, a fade needs a per-chunk uniform.
 5. The ash fog (Finding 1): a one-constant change in `weatherBeta` (or `haze weather gain`), the biggest visible effect of the four.
+
+## Stage log: far tiles appearing from nothing on a turn (2026-11-10)
+
+toddhow: at distance around a mountain no far terrain is drawn, it dithers in as he gets closer, while the rocks (object clusters) in the same area are drawn. Not the haze (clear weather too).
+
+Method: a copy of the test profile (`I:/Projects/OpenEden-work/lodtile/`), a Lua pose and flight script, and two temporary diagnostics in `LodTerrain::update` (removed again): every leaf square in front of the camera checked against held nodes (itself or an ancestor) and the live range, and a line per tile build saying whether anything already drew its square.
+
+Results: the pack has tiles of levels 1 to 6 for every land cell around Red Mountain and the Ashlands (a map of the keys); a still camera and two straight flights at 1,500 and 12,000 units a second give 0 uncovered leaves; so the pack, its digest, the budget and the hand-over are not the cause. The yaw sweep (360 degrees in 8 s at 3,500 units) built 45 tiles with nothing beneath (4 covered): `evaluateTile` skipped every tile outside the view cone and the planner wanted a tile only when seen, so the ground that turned into view was built from nothing, 4 a frame, each dithering in over the sky.
+
+Fix and test: see the CLAUDE.md changelog row of 2026-11-10 and `apps/components_tests/lod/testtileoffview.cpp`. After: 3 empty builds in the sweep (was 45), 37 new tiles (was 49), no empty build in the flight; 8 to 12 MiB of drawn tiles as before.
+
+Open: the Linux gate, the Lua tests, toddhow's own check by turning on the spot at a ridge line, and `Builder::getBatchData`'s height ranges for levels 3 and up (only the south-west corner is read; no frame shows it).
