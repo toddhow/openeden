@@ -107,6 +107,7 @@ namespace
         std::string mMeshAnim;
         // Where to pick in the view, "x,y" from 0 to 1, logging the tree node found.
         std::string mMeshPick;
+        std::string mMeshCamera; // ex,ey,ez,cx,cy,cz
     };
 
     std::array<double, 9> parseCamera(const std::string& text)
@@ -402,6 +403,7 @@ int CS::runCapture(int argc, char** argv)
     addOption("mesh-hide", bpo::value<std::string>()->default_value(""));
     addOption("mesh-anim", bpo::value<std::string>()->default_value(""));
     addOption("mesh-pick", bpo::value<std::string>()->default_value(""));
+    addOption("mesh-camera", bpo::value<std::string>()->default_value(""));
     addOption("auto-screenshot", bpo::value<std::uint64_t>()->default_value(0));
     addOption("auto-quit", bpo::value<std::uint64_t>()->required());
     addOption("camera", bpo::value<std::string>());
@@ -456,6 +458,7 @@ int CS::runCapture(int argc, char** argv)
     request.mMeshHide = variables["mesh-hide"].as<std::string>();
     request.mMeshAnim = variables["mesh-anim"].as<std::string>();
     request.mMeshPick = variables["mesh-pick"].as<std::string>();
+    request.mMeshCamera = variables["mesh-camera"].as<std::string>();
     request.mScreenshotFrame = variables["auto-screenshot"].as<std::uint64_t>();
     request.mQuitFrame = variables["auto-quit"].as<std::uint64_t>();
     request.mViews = variables["capture-views"].as<int>();
@@ -603,6 +606,23 @@ int CS::runCapture(int argc, char** argv)
                         }
                         const auto& tree = scene->tree();
                         Log(Debug::Info) << "Mesh " << scene->path() << ": " << tree.size() << " tree nodes";
+                        if (!request.mMeshCamera.empty())
+                        {
+                            double v[6] = {};
+                            std::istringstream numbers(request.mMeshCamera);
+                            bool ok = true;
+                            for (int i = 0; i < 6 && ok; ++i)
+                            {
+                                std::string item;
+                                ok = static_cast<bool>(std::getline(numbers, item, ',')) && !item.empty();
+                                if (ok)
+                                    v[i] = std::stod(item);
+                            }
+                            if (ok)
+                                meshView->lookFrom(v, v + 3);
+                            else
+                                Log(Debug::Error) << "--mesh-camera wants ex,ey,ez,cx,cy,cz";
+                        }
                         if (!request.mMeshHide.empty())
                             for (CSMMesh::NodeId node : tree.findByName(request.mMeshHide))
                                 scene->setNodeVisible(node, false);

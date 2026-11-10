@@ -191,6 +191,8 @@ namespace CSVDoc
         void newView();
 
         void openMeshFile();
+
+        void openSkyrimCell();
         void openLodPack();
 
         void save();

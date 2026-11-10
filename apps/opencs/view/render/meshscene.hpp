@@ -15,6 +15,7 @@
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
 #include <apps/opencs/model/mesh/meshtree.hpp>
 #include <apps/opencs/model/mesh/meshviewstate.hpp>
+#include <apps/opencs/model/mesh/scenemodel.hpp>
 #include <apps/opencs/model/mesh/texturereport.hpp>
 
 namespace MWAnim
@@ -124,6 +125,12 @@ namespace CSVRender
         /// The scene path (task 0086 stage e): a Skyrim SE file is read as a Nif::Scene and drawn from the solid and
         /// line overlays only, at the bind pose; the engine's renderer has no BSTriShape path.
         bool loadScene(const std::string& name, std::string& error);
+        /// Shows a converted scene model: the tree, shapes, bounds and overlays of the scene path (a Skyrim file, or a
+        /// whole cell, task 0086).
+        void applySceneModel(const CSMMesh::SceneModel& model, const std::string& path);
+        /// A Skyrim SE cell by editor id (path "skyrimcell:<editor id>"), from the cell source (skyrimcellsource.hpp):
+        /// real meshes where they load through the VFS, boxes of the bounds where not.
+        bool loadSkyrimCell(const std::string& editorId, std::string& error);
         /// The part of loading both paths share: the scene graph root, the overlay and the state.
         void finishLoad();
 

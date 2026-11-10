@@ -37,6 +37,8 @@ namespace CSVRender
         /// \param path a VFS path with or without "meshes/". Loads at once if the view exists, else when it does. An
         /// empty path: no model, the view shows the active editor module asset's gizmos.
         void openMesh(const std::string& path);
+        /// Puts the camera at `eye` looking at `centre`, Z up (a capture's --mesh-camera).
+        void lookFrom(const double eye[3], const double centre[3]);
 
         /// True when the view has no model and shows the module asset's gizmos.
         bool showsModuleAsset() const { return mModuleAsset; }

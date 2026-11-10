@@ -59,6 +59,17 @@ namespace CSVRender
             load();
     }
 
+    void MeshViewWidget::lookFrom(const double eye[3], const double centre[3])
+    {
+        if (!getHost())
+            return;
+        const vsg::dvec3 c(centre[0], centre[1], centre[2]);
+        setCameraPose(vsg::dvec3(eye[0], eye[1], eye[2]), c, vsg::dvec3(0, 0, 1));
+        if (mCurrentCamControl == mOrbitCamControl)
+            mOrbitCamControl->setCenter(c);
+        flagAsModified();
+    }
+
     void MeshViewWidget::hostReady()
     {
         SceneWidget::hostReady();

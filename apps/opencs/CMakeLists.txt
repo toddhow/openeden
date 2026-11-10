@@ -70,7 +70,7 @@ opencs_units (model/module
     )
 
 opencs_units (model/mesh
-    meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay scenemodel
+    meshviewstate meshtree framemath meshgeometry texturereport animationkeys meshoverlay scenemodel cellscene skyrimcellsource
     )
 
 opencs_units (model/lod
@@ -106,6 +106,8 @@ target_link_libraries(csmodel
     components_qt
     # Morrowind's script compile table (task 0098 move 4): the editor checks and colours Morrowind scripts with it
     game_morrowind_script_table
+    # Skyrim SE world store behind the pack, for the read-only cell viewer (task 0086)
+    game_skyrimse_world
     Qt::Widgets Qt::Core Qt::Network Qt::Svg
 )
 

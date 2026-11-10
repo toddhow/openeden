@@ -43,6 +43,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/mesh/testmeshoverlay.cpp
     model/mesh/testmeshtree.cpp
     model/mesh/testmeshviewstate.cpp
+    model/mesh/testcellscene.cpp
     model/mesh/testscenemodel.cpp
     model/mesh/testtexturereport.cpp
     model/lod/testtilemodel.cpp

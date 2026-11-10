@@ -12,7 +12,10 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <map>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
 
 #include <vsg/core/Visitor.h>
 #include <vsg/nodes/StateGroup.h>
@@ -44,8 +47,10 @@
 #include <components/vsgutil/name.hpp>
 #include <components/vsgutil/setbin.hpp>
 
+#include <apps/opencs/model/mesh/cellscene.hpp>
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
 #include <apps/opencs/model/mesh/scenemodel.hpp>
+#include <apps/opencs/model/mesh/skyrimcellsource.hpp>
 #include <apps/opencs/model/physics/joltruntime.hpp>
 
 #include "picking.hpp"
@@ -362,6 +367,10 @@ namespace CSVRender
         mFromScene = false;
         mSceneBones.clear();
         mSceneHierarchy.clear();
+        // A Skyrim SE cell (task 0086): "skyrimcell:<editor id>" draws the cell's placed objects.
+        static constexpr std::string_view sCellPrefix = "skyrimcell:";
+        if (path.compare(0, sCellPrefix.size(), sCellPrefix) == 0)
+            return loadSkyrimCell(path.substr(sCellPrefix.size()), error);
         std::string name = path;
         std::replace(name.begin(), name.end(), '\\', '/');
         std::string lower = name;
@@ -472,9 +481,15 @@ namespace CSVRender
         for (const std::string& warning : model.warnings)
             Log(Debug::Warning) << "Mesh viewer: " << name << ": " << warning;
 
+        applySceneModel(model, "meshes/" + name);
+        return true;
+    }
+
+    void MeshScene::applySceneModel(const CSMMesh::SceneModel& model, const std::string& path)
+    {
         mFromScene = true;
         mObject.reset();
-        mPath = "meshes/" + name;
+        mPath = path;
         mTree = CSMMesh::MeshTree();
         mInfos.clear();
         mShapes.clear();
@@ -513,6 +528,118 @@ namespace CSVRender
                          << mSceneHierarchy.size() << " skeleton lines";
         finishLoad();
         setState(mState);
+    }
+
+    bool MeshScene::loadSkyrimCell(const std::string& editorId, std::string& error)
+    {
+        CSMMesh::SkyrimCellSource& source = CSMMesh::SkyrimCellSource::instance();
+        if (!source.ready() && !source.configureFromEnvironment(error))
+            return false;
+        openeden::sdk::game::WorldView& world = *source.view();
+        openeden::sdk::game::WorldCellContent content;
+        if (!editorId.empty() && editorId[0] == '@')
+        {
+            // "@<world editor id>,<x>,<y>[,<radius>]": the exterior cells around a grid square, merged into one scene.
+            std::vector<std::string> parts;
+            std::istringstream spec(editorId.substr(1));
+            for (std::string item; std::getline(spec, item, ',');)
+                parts.push_back(item);
+            int x = 0, y = 0, radius = 0;
+            try
+            {
+                if (parts.size() < 3 || parts.size() > 4)
+                    throw std::invalid_argument("count");
+                x = std::stoi(parts[1]);
+                y = std::stoi(parts[2]);
+                radius = parts.size() == 4 ? std::clamp(std::stoi(parts[3]), 0, 4) : 0;
+            }
+            catch (const std::exception&)
+            {
+                error = "A cell spec is \"@<world editor id>,<x>,<y>[,<radius>]\" (radius 0 to 4)";
+                return false;
+            }
+            const auto worldInfo = world.findWorldByEditorId(parts[0]);
+            if (!worldInfo)
+            {
+                error = "There is no world with the editor id \"" + parts[0] + "\" (" + source.summary() + ")";
+                return false;
+            }
+            std::size_t found = 0;
+            for (int cy = y - radius; cy <= y + radius; ++cy)
+                for (int cx = x - radius; cx <= x + radius; ++cx)
+                {
+                    const auto cell = world.findCellByGrid(worldInfo->id, cx, cy);
+                    if (!cell)
+                        continue;
+                    openeden::sdk::game::WorldCellContent one;
+                    if (!world.loadCell(cell->id, one, error))
+                        return false;
+                    ++found;
+                    if (content.cell.id == openeden::sdk::game::kNoWorldId)
+                        content.cell = one.cell;
+                    content.objects.insert(content.objects.end(), one.objects.begin(), one.objects.end());
+                    content.unresolvedBases += one.unresolvedBases;
+                }
+            if (found == 0)
+            {
+                error = "The world has no cell at " + std::to_string(x) + ", " + std::to_string(y);
+                return false;
+            }
+            content.cell.editorId
+                = parts[0] + " " + std::to_string(x) + "," + std::to_string(y) + " +" + std::to_string(radius);
+            content.cell.objectCount = static_cast<std::uint32_t>(content.objects.size());
+        }
+        else
+        {
+            const auto info = world.findCellByEditorId(editorId);
+            if (!info)
+            {
+                error = "There is no cell with the editor id \"" + editorId + "\" in the Skyrim load order ("
+                    + source.summary() + ")";
+                return false;
+            }
+            if (!world.loadCell(info->id, content, error))
+                return false;
+        }
+
+        // Meshes come through the VFS, converted once per path; a path that fails is remembered as missing.
+        const VFS::Manager* vfs = mHost.resources().getVFS();
+        std::map<std::string, std::unique_ptr<CSMMesh::SceneModel>> cache;
+        const CSMMesh::MeshProvider provider = [&](const std::string& modelPath) -> const CSMMesh::SceneModel* {
+            std::string key = modelPath;
+            std::replace(key.begin(), key.end(), '\\', '/');
+            std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+            const auto it = cache.find(key);
+            if (it != cache.end())
+                return it->second.get();
+            std::unique_ptr<CSMMesh::SceneModel> converted;
+            try
+            {
+                const VFS::Path::Normalized path("meshes/" + key);
+                if (vfs->exists(path))
+                {
+                    const NifScene::Scene scene = NifScene::readScene(vfs->get(path), path, NifScene::SceneOptions{});
+                    converted = std::make_unique<CSMMesh::SceneModel>(CSMMesh::buildSceneModel(scene));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Verbose) << "Cell viewer: " << key << ": " << e.what();
+            }
+            return cache.emplace(key, std::move(converted)).first->second.get();
+        };
+        CSMMesh::CellScene cell = CSMMesh::buildCellScene(content, provider);
+        const CSMMesh::CellSceneStats& st = cell.stats;
+        Log(Debug::Info) << "Cell viewer: " << editorId << ": " << st.objects << " objects, " << st.drawnAsMesh
+                         << " drawn as meshes, " << st.drawnAsBox << " as boxes, " << st.skippedDisabled
+                         << " disabled, " << st.skippedNoGeometry << " without geometry, " << st.skippedInvalid
+                         << " invalid, " << st.skippedByBudget << " over budget, " << st.meshMisses
+                         << " models not found, " << st.triangles << " triangles, " << cache.size()
+                         << " distinct models asked for, bounds (" << cell.model.bounds.min[0] << ", "
+                         << cell.model.bounds.min[1] << ", " << cell.model.bounds.min[2] << ") to ("
+                         << cell.model.bounds.max[0] << ", " << cell.model.bounds.max[1] << ", "
+                         << cell.model.bounds.max[2] << ")";
+        applySceneModel(cell.model, "skyrimcell:" + editorId);
         return true;
     }
 

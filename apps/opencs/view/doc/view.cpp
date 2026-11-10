@@ -9,6 +9,7 @@
 #include <QCloseEvent>
 #include <QDockWidget>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QScreen>
@@ -125,6 +126,11 @@ void CSVDoc::View::setupFileMenu()
     QAction* openMesh = file->addAction(tr("Open Mesh..."));
     openMesh->setObjectName("document-file-openmesh");
     connect(openMesh, &QAction::triggered, this, &View::openMeshFile);
+
+    // The read-only Skyrim SE cell viewer (task 0086, world model option 1).
+    QAction* openSkyrimCell = file->addAction(tr("Open Skyrim Cell..."));
+    openSkyrimCell->setObjectName("document-file-openskyrimcell");
+    connect(openSkyrimCell, &QAction::triggered, this, &View::openSkyrimCell);
 
     // The LOD tile viewer (task 0055, stage S1e).
     QAction* openLod = file->addAction(tr("Open LOD Tile Pack..."));
@@ -1169,6 +1175,18 @@ void CSVDoc::View::openMeshFile()
         return;
     }
     addSubView(CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, file.mid(at + 8).toStdString()));
+}
+
+void CSVDoc::View::openSkyrimCell()
+{
+    bool accepted = false;
+    const QString editorId = QInputDialog::getText(this, tr("Open Skyrim Cell"),
+        tr("Editor id of the cell (the load order is read from OPENEDEN_SKYRIMSE_PLUGINS):"), QLineEdit::Normal,
+        QString(), &accepted);
+    if (!accepted || editorId.trimmed().isEmpty())
+        return;
+    addSubView(
+        CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, "skyrimcell:" + editorId.trimmed().toStdString()));
 }
 
 void CSVDoc::View::openLodPack()
