@@ -161,7 +161,7 @@ namespace
         const Basins b = labelBasins(f, g.heights);
         ASSERT_EQ(b.basins.size(), 1u);
         const float basinMax = b.basins[0].maxCapacity;
-        const float kappa = catchmentRatio(b, f, accumulateFlow(f))[0];
+        const float kappa = catchmentRatio(b, f, accumulateFlow(f)).ratio[0];
         // The slopes outside the circle that lead toward it drain into the bowl, so it takes more than its own rain.
         EXPECT_GE(kappa, 1.f);
         EXPECT_LT(kappa, 2.f);
@@ -264,23 +264,101 @@ namespace
 
     TEST(PuddleLevel, the_catchment_ratio_survives_its_eight_bit_round_trip)
     {
+        // A catchment ratio is at least 1 by construction, so the 256 codes span log2 from 0 to 17 (a ratio of 1 to
+        // 131,072; real Morrowind land has basins near 99,000): 15 codes an octave, 2.3 per cent at worst.
         for (int q = 0; q < 256; ++q)
+        {
             ASSERT_EQ(quantiseKappa(dequantiseKappa(static_cast<std::uint8_t>(q))), q);
-        for (float kappa = 0.25f; kappa <= 8.f; kappa *= 1.01f)
+        }
+        for (float kappa = 1.f; kappa <= 131072.f; kappa *= 1.01f)
         {
             const float back = dequantiseKappa(quantiseKappa(kappa));
-            // Half a step of 1/51 octave: 0.7 per cent.
-            ASSERT_LE(std::abs(std::log2(back) - std::log2(kappa)), 1.f / 102.f + 1e-5f) << kappa;
+            ASSERT_LE(std::abs(std::log2(back) - std::log2(kappa)), 1.f / 30.f + 1e-4f) << kappa;
         }
-        EXPECT_FLOAT_EQ(dequantiseKappa(quantiseKappa(0.01f)), 0.25f); // clamped at log2 = -2
-        EXPECT_FLOAT_EQ(dequantiseKappa(quantiseKappa(100.f)), 8.f); // clamped at log2 = 3
-        EXPECT_EQ(quantiseKappa(0.25f), 0);
-        EXPECT_EQ(quantiseKappa(8.f), 255);
-        EXPECT_EQ(quantiseKappa(1.f), 102);
-        EXPECT_EQ(quantiseKappa(nan), 102); // an invalid ratio counts as neutral
-        EXPECT_EQ(quantiseKappa(-1.f), 102);
-        EXPECT_EQ(quantiseKappa(0.f), 102);
+        EXPECT_FLOAT_EQ(dequantiseKappa(quantiseKappa(0.01f)), 1.f); // clamped at log2 = 0
+        EXPECT_FLOAT_EQ(dequantiseKappa(quantiseKappa(1e9f)), 131072.f); // clamped at log2 = 17
+        EXPECT_EQ(quantiseKappa(1.f), 0);
+        EXPECT_EQ(quantiseKappa(2.f), 15);
+        EXPECT_EQ(quantiseKappa(8.f), 45);
+        EXPECT_EQ(quantiseKappa(131072.f), 255);
+        EXPECT_GT(dequantiseKappa(quantiseKappa(99000.f)), 90000.f); // the real maximum is not clipped
+        EXPECT_EQ(quantiseKappa(nan), 0); // an invalid ratio counts as neutral
+        EXPECT_EQ(quantiseKappa(-1.f), 0);
+        EXPECT_EQ(quantiseKappa(0.f), 0);
         EXPECT_EQ(quantiseKappa(infinity), 255);
+        EXPECT_EQ(quantiseKappa(-infinity), 0);
+    }
+
+    TEST(PuddleLevel, every_quantiser_is_monotonic_and_idempotent_over_all_its_codes)
+    {
+        for (int q = 1; q < 256; ++q)
+        {
+            ASSERT_GT(
+                dequantiseCapacity(static_cast<std::uint8_t>(q)), dequantiseCapacity(static_cast<std::uint8_t>(q - 1)));
+            ASSERT_GT(dequantiseKappa(static_cast<std::uint8_t>(q)), dequantiseKappa(static_cast<std::uint8_t>(q - 1)));
+        }
+        for (int q = 1; q < 65536; ++q)
+        {
+            ASSERT_GT(dequantiseHeight(static_cast<std::uint16_t>(q), 10.f),
+                dequantiseHeight(static_cast<std::uint16_t>(q - 1), 10.f));
+        }
+        int previousCapacity = 0;
+        int previousKappa = 0;
+        int previousHeight = 0;
+        for (int i = 0; i <= 100000; ++i)
+        {
+            const float x = static_cast<float>(i) * 0.0002f - 1.f; // -1 to 19
+            const int c = quantiseCapacity(x);
+            const int k = quantiseKappa(std::exp2(x));
+            const int h = quantiseHeight(x * 500.f, -100.f);
+            ASSERT_GE(c, previousCapacity);
+            ASSERT_GE(k, previousKappa);
+            ASSERT_GE(h, previousHeight);
+            previousCapacity = c;
+            previousKappa = k;
+            previousHeight = h;
+            ASSERT_EQ(quantiseCapacity(dequantiseCapacity(static_cast<std::uint8_t>(c))), c);
+            ASSERT_EQ(quantiseKappa(dequantiseKappa(static_cast<std::uint8_t>(k))), k);
+            ASSERT_EQ(quantiseHeight(dequantiseHeight(static_cast<std::uint16_t>(h), -100.f), -100.f), h);
+        }
+    }
+
+    TEST(PuddleLevel, not_a_number_or_infinity_in_any_argument_never_means_wet)
+    {
+        const float values[] = { nan, infinity, -infinity };
+        for (const float v : values)
+        {
+            EXPECT_FALSE(std::isnan(freeWater(v, 1.f)));
+            EXPECT_FALSE(std::isnan(freeWater(2.f, v)));
+            EXPECT_FALSE(std::isnan(levelOf(v, 1.f, 5.f)));
+            EXPECT_FALSE(std::isnan(levelOf(2.f, v, 5.f)));
+            EXPECT_FALSE(std::isnan(levelOf(2.f, 1.f, v)));
+            EXPECT_FALSE(std::isnan(depthAt(v, 5.f, 3.f)));
+            EXPECT_FALSE(std::isnan(depthAt(2.f, v, 3.f)));
+            EXPECT_FALSE(std::isnan(depthAt(2.f, 5.f, v)));
+            EXPECT_FALSE(std::isnan(coverage(v, 0.3f)));
+            EXPECT_FALSE(std::isnan(coverage(0.5f, v)));
+            EXPECT_FALSE(std::isnan(damp(v, 5.f, 3.f, 4.f)));
+            EXPECT_FALSE(std::isnan(damp(1.f, v, 3.f, 4.f)));
+            EXPECT_FALSE(std::isnan(damp(1.f, 5.f, v, 4.f)));
+            EXPECT_FALSE(std::isnan(damp(1.f, 5.f, 3.f, v)));
+        }
+        // A pit whose maximum or capacity is not a finite number is never wet.
+        EXPECT_FLOAT_EQ(depthAt(2.f, nan, 3.f), 0.f);
+        EXPECT_FLOAT_EQ(depthAt(2.f, infinity, 3.f), 0.f);
+        EXPECT_FLOAT_EQ(depthAt(2.f, 5.f, infinity), 0.f);
+        EXPECT_FLOAT_EQ(damp(1.f, nan, 3.f, 4.f), 0.f);
+        EXPECT_FLOAT_EQ(damp(1.f, infinity, 3.f, 4.f), 0.f);
+        EXPECT_FLOAT_EQ(damp(1.f, 5.f, infinity, 4.f), 0.f);
+        EXPECT_FLOAT_EQ(damp(1.f, 5.f, 3.f, infinity), 0.f); // an infinite range is no ring
+        // Infinite water is full water.
+        EXPECT_FLOAT_EQ(coverage(infinity, 0.3f), 1.f);
+        EXPECT_FLOAT_EQ(coverage(infinity, infinity), 1.f);
+        EXPECT_FLOAT_EQ(coverage(0.5f, infinity), 1.f); // an infinite edge is a hard step
+        EXPECT_FLOAT_EQ(coverage(-infinity, 0.3f), 0.f);
+        EXPECT_FLOAT_EQ(damp(infinity, 5.f, 3.f, 4.f), 1.f);
+        EXPECT_FLOAT_EQ(depthAt(infinity, 5.f, 3.f), 3.f);
+        EXPECT_FLOAT_EQ(levelOf(2.f, 1.f, infinity), 0.f);
     }
 
     TEST(PuddleLevel, height_survives_its_sixteen_bit_round_trip_and_clamps_outside_the_range)

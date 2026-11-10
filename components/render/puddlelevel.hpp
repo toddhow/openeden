@@ -31,9 +31,17 @@ namespace Render::Puddle
 
     // The level of the water in a pit above its floor. A catchment ratio that is not a positive number counts as 0
     // (nothing drains in), an infinite product as full.
+    //
+    // This is a flat-tank model: the volume is spread over the pit's whole area at its spill height, L = Wf * kappa.
+    // For a bowl whose area grows with height the true level for the same volume is higher at first: a paraboloid of
+    // depth Cmax holds V = A L^2 / (2 Cmax) up to level L (A is its area at the spill height), so the water of
+    // Wf * kappa * A reaches L = sqrt(2 Cmax Wf kappa), not Wf * kappa (with Wf = 1, Cmax = 12 and kappa = 1: 4.9
+    // against 1.0; the review quoted 3.5, from a slightly different bowl). Early filling of a bowl is therefore
+    // under-predicted and its contour starts too small. The formula is the spec's and is not changed here; judge it
+    // in the stage W-d frames and consider a hypsometric curve then.
     inline float levelOf(float freeWaterDepth, float kappa, float basinMax)
     {
-        if (!(basinMax > 0.f) || !(freeWaterDepth > 0.f) || !(kappa > 0.f))
+        if (!(basinMax > 0.f) || !std::isfinite(basinMax) || !(freeWaterDepth > 0.f) || !(kappa > 0.f))
             return 0.f;
         // Compared as a division so that a huge supply times a huge ratio cannot overflow.
         if (freeWaterDepth >= basinMax / kappa)
@@ -44,7 +52,7 @@ namespace Render::Puddle
     // The depth of the water over a texel with capacity `capacity` in a pit of capacity `basinMax` holding `level`.
     inline float depthAt(float level, float basinMax, float capacity)
     {
-        if (!(capacity > 0.f) || !(level > 0.f))
+        if (!(capacity > 0.f) || !(level > 0.f) || !std::isfinite(capacity) || !std::isfinite(basinMax))
             return 0.f;
         const float floorAbove = basinMax - capacity;
         return std::clamp(level - floorAbove, 0.f, capacity);
@@ -56,7 +64,7 @@ namespace Render::Puddle
     {
         if (!(depth > 0.f))
             return 0.f;
-        if (!(edge > 0.f))
+        if (!(edge > 0.f) || !std::isfinite(edge) || !std::isfinite(depth))
             return 1.f;
         const float t = std::min(depth / edge, 1.f);
         return t * t * (3.f - 2.f * t);
@@ -66,12 +74,12 @@ namespace Render::Puddle
     // level below it. A texel under water is 1; a texel with no capacity is 0 (it is not part of a pit).
     inline float damp(float level, float basinMax, float capacity, float range)
     {
-        if (!(capacity > 0.f) || std::isnan(level))
+        if (!(capacity > 0.f) || !std::isfinite(capacity) || !std::isfinite(basinMax) || std::isnan(level))
             return 0.f;
         const float below = (basinMax - capacity) - level;
         if (!(below > 0.f))
             return 1.f;
-        if (!(range > 0.f))
+        if (!(range > 0.f) || !std::isfinite(range))
             return 0.f;
         return std::max(1.f - below / range, 0.f);
     }
@@ -97,11 +105,12 @@ namespace Render::Puddle
         return static_cast<float>(value) / capacityStepsPerUnit;
     }
 
-    // Catchment ratio: log2(kappa) clamped to [-2, 3], 8 bits (51 steps per power of two). Error at most 1/102 in
-    // log2, about 0.7 per cent of kappa.
-    constexpr float minLogKappa = -2.f;
-    constexpr float maxLogKappa = 3.f;
-    constexpr float logKappaStepsPerOctave = 51.f;
+    // Catchment ratio: log2(kappa) clamped to [0, 17], 8 bits (15 steps per power of two). A ratio is at least 1 (a pit
+    // takes at least its own rain), and real Morrowind land has pits near 99,000 (review F2, the stage W-a log). Error
+    // at most 1/30 in log2, about 2.3 per cent of kappa.
+    constexpr float minLogKappa = 0.f;
+    constexpr float maxLogKappa = 17.f;
+    constexpr float logKappaStepsPerOctave = 15.f;
 
     inline std::uint8_t quantiseKappa(float kappa)
     {

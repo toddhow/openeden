@@ -10,7 +10,7 @@
 // and the sink texels), flood inward lowest first, and give each new texel the larger of its own height and the height
 // of the texel it was reached from (Barnes, Lehman and Mulla 2014, "Priority-Flood", Computers & Geosciences; the
 // algorithm is recalled, the proof of the minimax property in the comments below is ours). The capacity of a texel is
-// the filled height minus its own height, clamped to a cap. The pits are the 4-connected components of capacity above
+// the filled height minus its own height, clamped to a cap. The pits are the 8-connected components of capacity above
 // zero (`labelBasins`); water drains along the flood tree (`accumulateFlow`), which gives each pit its catchment
 // (`catchmentRatio`).
 //
@@ -54,6 +54,10 @@ namespace Render::Puddle
     constexpr int maxGridSide = 4096;
     constexpr std::size_t maxGridTexels = std::size_t{ 4 } << 20;
 
+    // The largest height the maths accepts, in either direction (Morrowind's land spans about -2,200 to 19,000 units).
+    // It keeps every filled height minus a height finite, so no capacity can overflow to infinity (review F6).
+    constexpr float maxAbsHeight = 1.0e7f;
+
     // The default cap on a capacity, in game units (about 17 cm): a deeper hollow is a pond, which the water shader's
     // water level covers or which stays partly filled (research 0049 section 4.2, risk R3).
     constexpr float defaultCapacityCap = 12.f;
@@ -81,6 +85,8 @@ namespace Render::Puddle
         std::string error;
         int width = 0;
         int height = 0;
+        // The cap `fillDepressions` was called with (infinity for none). `capacityFromFloor` needs an infinite one.
+        float capacityCap = 0.f;
         // The filled height of each texel (row major, index = y * width + x).
         std::vector<float> filled;
         // The filled height minus the ground height, clamped to the cap; never negative; zero on sinks.
@@ -149,14 +155,15 @@ namespace Render::Puddle
             return Detail::failure("fillDepressions: the capacity cap must be above zero");
         for (std::size_t i = 0; i < count; ++i)
         {
-            if (!std::isfinite(heights[i]))
+            if (!std::isfinite(heights[i]) || std::abs(heights[i]) > maxAbsHeight)
                 return Detail::failure("fillDepressions: height at texel (" + std::to_string(i % width) + ", "
-                    + std::to_string(i / width) + ") is not finite");
+                    + std::to_string(i / width) + ") is not finite or beyond +-" + std::to_string(maxAbsHeight));
         }
 
         FillResult result;
         result.width = width;
         result.height = height;
+        result.capacityCap = capacityCap;
         result.filled.assign(count, 0.f);
         result.capacity.assign(count, 0.f);
         result.parent.assign(count, -1);
@@ -215,6 +222,8 @@ namespace Render::Puddle
     // The direction a texel's water leaves in: an index into `neighbours`, or `flowNone` for a sink or edge texel.
     inline std::uint8_t flowDirection(const FillResult& fill, std::size_t index)
     {
+        if (index >= fill.parent.size() || fill.width < 1)
+            return flowNone;
         const std::int32_t parent = fill.parent[index];
         if (parent < 0)
             return flowNone;
@@ -244,7 +253,7 @@ namespace Render::Puddle
         return area;
     }
 
-    // One pit: a 4-connected component of texels with capacity above zero.
+    // One pit: a connected component (8 neighbours, like the flood) of texels with capacity above zero.
     struct Basin
     {
         // The number of texels.
@@ -255,8 +264,8 @@ namespace Render::Puddle
         std::uint32_t deepest = 0;
         // The height the pit fills to before it spills (the filled height of its texels).
         float spillHeight = 0.f;
-        // The lowest-index texel outside the pit, next to it, whose ground is at the spill height: where the water
-        // leaves. -1 when the pit only touches its pass diagonally through another pit (rare).
+        // The lowest-index texel outside the pit, next to it, whose ground is at the spill height and whose water
+        // drains away from the pit (its flood parent is not in the pit): where the water leaves. -1 when there is none.
         std::int32_t outlet = -1;
     };
 
@@ -265,14 +274,42 @@ namespace Render::Puddle
         // The pit of each texel, or -1. Pits are numbered in the order of their lowest-index texel.
         std::vector<std::int32_t> id;
         std::vector<Basin> basins;
+        // A digest of the fill these basins were made from (size, cap and capacities); `capacityFromFloor` and
+        // `catchmentRatio` refuse basins that do not match the fill they are given.
+        std::uint64_t source = 0;
     };
 
-    // Labels the pits. `heights` is the grid `fill` was made from.
+    namespace Detail
+    {
+        inline std::uint64_t sourceDigest(const FillResult& fill)
+        {
+            std::uint64_t hash = 1469598103934665603ull;
+            auto mix = [&hash](const void* data, std::size_t bytes) {
+                const auto* p = static_cast<const unsigned char*>(data);
+                for (std::size_t i = 0; i < bytes; ++i)
+                {
+                    hash ^= p[i];
+                    hash *= 1099511628211ull;
+                }
+            };
+            mix(&fill.width, sizeof(fill.width));
+            mix(&fill.height, sizeof(fill.height));
+            mix(&fill.capacityCap, sizeof(fill.capacityCap));
+            if (!fill.capacity.empty())
+                mix(fill.capacity.data(), fill.capacity.size() * sizeof(float));
+            return hash;
+        }
+    }
+
+    // Labels the pits. `heights` is the grid `fill` was made from. Two wet texels that touch, also at a corner, are in
+    // the same pit: the flood is 8-connected and neighbouring wet texels have the same filled height, so they are one
+    // body of water (a diagonal ditch is one pit, not one per texel).
     inline Basins labelBasins(const FillResult& fill, std::span<const float> heights)
     {
         Basins out;
         if (!fill.ok() || heights.size() != fill.filled.size())
             return out;
+        out.source = Detail::sourceDigest(fill);
         const int width = fill.width;
         const int height = fill.height;
         const std::size_t count = fill.filled.size();
@@ -302,10 +339,7 @@ namespace Render::Puddle
                 }
                 const int cx = static_cast<int>(current % static_cast<std::uint32_t>(width));
                 const int cy = static_cast<int>(current / static_cast<std::uint32_t>(width));
-                // 4-connected: the first four entries of the table are not the 4-neighbours, so spell them out.
-                static constexpr std::array<std::array<int, 2>, 4> four
-                    = { { { -1, 0 }, { 0, -1 }, { 1, 0 }, { 0, 1 } } };
-                for (const auto& offset : four)
+                for (const auto& offset : neighbours)
                 {
                     const int nx = cx + offset[0];
                     const int ny = cy + offset[1];
@@ -323,12 +357,16 @@ namespace Render::Puddle
         }
 
         // The outlet of each pit: scan the dry texels in index order, so the first one found is the lowest index.
+        // It must drain away: a bump at the spill height that the pit's water reaches (its flood parent is in the
+        // pit) is a dead end, not a pass.
         for (std::size_t t = 0; t < count; ++t)
         {
             if (out.id[t] >= 0)
                 continue;
             const int tx = static_cast<int>(t % static_cast<std::size_t>(width));
             const int ty = static_cast<int>(t / static_cast<std::size_t>(width));
+            const std::int32_t parent = fill.parent[t];
+            const std::int32_t parentBasin = parent < 0 ? -1 : out.id[static_cast<std::size_t>(parent)];
             for (const auto& offset : neighbours)
             {
                 const int nx = tx + offset[0];
@@ -339,7 +377,7 @@ namespace Render::Puddle
                 if (label < 0)
                     continue;
                 Basin& basin = out.basins[static_cast<std::size_t>(label)];
-                if (basin.outlet < 0 && heights[t] == basin.spillHeight)
+                if (basin.outlet < 0 && heights[t] == basin.spillHeight && parentBasin != label)
                     basin.outlet = static_cast<std::int32_t>(t);
             }
         }
@@ -351,50 +389,134 @@ namespace Render::Puddle
     // that: see the stage log). A deep pit is a pond, and a pond only fills from the bottom: this keeps the lowest
     // `cap` units of it. Each texel's capacity becomes max(0, C - (Cmax - cap)), at most `cap`, and the pit's maximum
     // becomes min(Cmax, cap); in the run-time formula that gives exactly the depth the uncapped pit has while its level
-    // is at most `cap`. `uncapped` must come from `fillDepressions` with an infinite cap (the capped one has lost the
-    // depth), and `basins` from `labelBasins` of it. Pits that are not deeper than `cap` are unchanged.
-    inline std::vector<float> capacityFromFloor(const FillResult& uncapped, const Basins& basins, float cap)
+    // is at most `cap`. Pits that are not deeper than `cap` are unchanged.
+    //
+    // `uncapped` must come from `fillDepressions` with an infinite cap (the capped one has lost the depth) and `basins`
+    // from `labelBasins` of that same fill; anything else is refused with an error, not guessed at. `cap` must be a
+    // finite number above zero.
+    struct FloorCapacity
     {
-        std::vector<float> out(uncapped.capacity.size(), 0.f);
-        if (!uncapped.ok() || basins.id.size() != out.size() || !(cap > 0.f))
+        std::string error;
+        std::vector<float> capacity;
+
+        bool ok() const { return error.empty(); }
+    };
+
+    inline FloorCapacity capacityFromFloor(const FillResult& uncapped, const Basins& basins, float cap)
+    {
+        FloorCapacity out;
+        if (!uncapped.ok())
+        {
+            out.error = "capacityFromFloor: the fill failed: " + uncapped.error;
             return out;
-        for (std::size_t i = 0; i < out.size(); ++i)
+        }
+        if (!(cap > 0.f) || !std::isfinite(cap))
+        {
+            out.error = "capacityFromFloor: the cap must be a finite number above zero";
+            return out;
+        }
+        if (uncapped.capacityCap != std::numeric_limits<float>::infinity())
+        {
+            out.error = "capacityFromFloor: the fill was made with a finite cap ("
+                + std::to_string(uncapped.capacityCap) + "), which has lost the depth; fill with an infinite cap";
+            return out;
+        }
+        if (basins.id.size() != uncapped.capacity.size() || basins.source != Detail::sourceDigest(uncapped))
+        {
+            out.error = "capacityFromFloor: the basins were not made from this fill";
+            return out;
+        }
+        out.capacity.assign(uncapped.capacity.size(), 0.f);
+        for (std::size_t i = 0; i < out.capacity.size(); ++i)
         {
             const std::int32_t label = basins.id[i];
             if (label < 0)
                 continue;
             const float depth = basins.basins[static_cast<std::size_t>(label)].maxCapacity;
-            out[i] = std::min(std::max(uncapped.capacity[i] - std::max(depth - cap, 0.f), 0.f), cap);
+            out.capacity[i] = std::min(std::max(uncapped.capacity[i] - std::max(depth - cap, 0.f), 0.f), cap);
         }
         return out;
     }
 
     // The catchment ratio kappa of each pit: (its own area plus the area that drains into it from outside it) over its
     // own area. 1 means only the rain that falls on the pit; 4 means three more pit-areas of ground drain into it.
-    // `area` is `accumulateFlow(fill)`.
-    inline std::vector<float> catchmentRatio(
-        const Basins& basins, const FillResult& fill, std::span<const std::uint32_t> area)
+    // `area` is `accumulateFlow(fill)`. Refused (with an error) when the basins or the area do not match the fill.
+    struct Catchment
     {
-        std::vector<float> ratio(basins.basins.size(), 1.f);
-        if (!fill.ok() || area.size() != fill.filled.size() || basins.id.size() != fill.filled.size())
-            return ratio;
-        std::vector<double> inflow(basins.basins.size(), 0.0);
-        for (std::size_t t = 0; t < fill.parent.size(); ++t)
+        std::string error;
+        std::vector<float> ratio;
+
+        bool ok() const { return error.empty(); }
+    };
+
+    namespace Detail
+    {
+        inline Catchment catchmentOf(const Basins& basins, const FillResult& fill, std::span<const std::uint32_t> area,
+            std::span<const float> pond)
         {
-            const std::int32_t parent = fill.parent[t];
-            if (parent < 0)
-                continue;
-            const std::int32_t into = basins.id[static_cast<std::size_t>(parent)];
-            if (into >= 0 && basins.id[t] != into)
-                inflow[static_cast<std::size_t>(into)] += area[t];
+            Catchment out;
+            if (!fill.ok())
+            {
+                out.error = "catchmentRatio: the fill failed: " + fill.error;
+                return out;
+            }
+            if (area.size() != fill.filled.size() || basins.id.size() != fill.filled.size()
+                || basins.source != sourceDigest(fill))
+            {
+                out.error = "catchmentRatio: the basins or the flow areas were not made from this fill";
+                return out;
+            }
+            if (!pond.empty() && pond.size() != fill.filled.size())
+            {
+                out.error = "catchmentRatio: the pond capacities do not match the fill";
+                return out;
+            }
+            std::vector<double> inflow(basins.basins.size(), 0.0);
+            std::vector<double> footprint(basins.basins.size(), 0.0);
+            for (std::size_t t = 0; t < fill.parent.size(); ++t)
+            {
+                if (!pond.empty() && basins.id[t] >= 0 && pond[t] > 0.f)
+                    footprint[static_cast<std::size_t>(basins.id[t])] += 1.0;
+                const std::int32_t parent = fill.parent[t];
+                if (parent < 0)
+                    continue;
+                const std::int32_t into = basins.id[static_cast<std::size_t>(parent)];
+                if (into >= 0 && basins.id[t] != into)
+                    inflow[static_cast<std::size_t>(into)] += area[t];
+            }
+            const double total = static_cast<double>(fill.filled.size());
+            out.ratio.assign(basins.basins.size(), 1.f);
+            for (std::size_t b = 0; b < out.ratio.size(); ++b)
+            {
+                const double own = basins.basins[b].area;
+                const double water = pond.empty() ? own : footprint[b];
+                if (!(water > 0.0))
+                    continue;
+                out.ratio[b] = static_cast<float>(std::min(own + inflow[b], total) / water);
+            }
+            return out;
         }
-        const double total = static_cast<double>(fill.filled.size());
-        for (std::size_t b = 0; b < ratio.size(); ++b)
+    }
+
+    inline Catchment catchmentRatio(const Basins& basins, const FillResult& fill, std::span<const std::uint32_t> area)
+    {
+        return Detail::catchmentOf(basins, fill, area, {});
+    }
+
+    // The same for a pond measured from the floor (`capacityFromFloor`): all the area that drains into the pit
+    // (its own texels included, the slopes above the pond too) still brings water, but it collects in the pond, so the
+    // divisor is the pond's footprint (the texels of the pit with a pond capacity above zero), not the whole pit's area
+    // (review F4). For a pit not deeper than the cap the two are the same.
+    inline Catchment catchmentRatio(const Basins& basins, const FillResult& fill, std::span<const std::uint32_t> area,
+        std::span<const float> pondCapacity)
+    {
+        if (pondCapacity.empty())
         {
-            const double own = basins.basins[b].area;
-            ratio[b] = static_cast<float>(std::min(own + inflow[b], total) / own);
+            Catchment out;
+            out.error = "catchmentRatio: no pond capacities given";
+            return out;
         }
-        return ratio;
+        return Detail::catchmentOf(basins, fill, area, pondCapacity);
     }
 }
 

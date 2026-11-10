@@ -22,9 +22,12 @@ namespace
     using namespace PuddleTest;
     using Render::Puddle::accumulateFlow;
     using Render::Puddle::Basins;
+    using Render::Puddle::capacityFromFloor;
+    using Render::Puddle::Catchment;
     using Render::Puddle::catchmentRatio;
     using Render::Puddle::fillDepressions;
     using Render::Puddle::FillResult;
+    using Render::Puddle::FloorCapacity;
     using Render::Puddle::flowDirection;
     using Render::Puddle::flowNone;
     using Render::Puddle::labelBasins;
@@ -211,27 +214,191 @@ namespace
         EXPECT_EQ(f.capacity[g.index(5, 2)], 2.f);
     }
 
-    TEST(PuddleFill, pits_that_touch_only_at_a_corner_are_two_basins)
+    TEST(PuddleFill, pits_that_touch_at_a_corner_are_one_basin_because_the_flood_is_eight_connected)
     {
-        // Basins are 4-connected: two pits on a diagonal, each with ground of the spill height beside it, are two.
+        // Two pits on a diagonal with ground of the spill height beside them hold one body of water: the flood is
+        // 8-connected and both have the same filled height, so they are one basin (review F1).
         Grid g(7, 7, 5.f);
         for (int i = 0; i < 7; ++i)
+        {
             g.at(i, 0) = g.at(i, 6) = g.at(0, i) = g.at(6, i) = 0.f;
+        }
         g.at(2, 2) = 0.f;
         g.at(3, 3) = 0.f;
         const FillResult f = fill(g);
         ASSERT_TRUE(f.ok());
         const Basins b = labelBasins(f, g.heights);
-        ASSERT_EQ(b.basins.size(), 2u);
-        EXPECT_EQ(b.basins[0].area, 1u);
-        EXPECT_EQ(b.basins[1].area, 1u);
+        ASSERT_EQ(b.basins.size(), 1u);
+        EXPECT_EQ(b.basins[0].area, 2u);
         EXPECT_EQ(b.basins[0].spillHeight, 5.f);
         EXPECT_EQ(b.basins[0].deepest, g.index(2, 2));
-        EXPECT_EQ(b.basins[1].deepest, g.index(3, 3));
-        // Their outlets are the lowest-index texels beside each at the spill height: (1,1) for the first, (2,2)'s
-        // neighbour (3,2) is lower in index than (4,2) for the second.
         EXPECT_EQ(b.basins[0].outlet, static_cast<std::int32_t>(g.index(1, 1)));
-        EXPECT_EQ(b.basins[1].outlet, static_cast<std::int32_t>(g.index(3, 2)));
+    }
+
+    TEST(PuddleFill, a_one_texel_wide_diagonal_pit_is_one_basin_with_one_catchment)
+    {
+        // The reviewer's case: a 9 x 9 grid of 10 with (2,2) to (6,6) at 0. It was five basins of one texel with
+        // ratios 3, 2, 1, 1, 1; it is one basin of five texels and takes only its own rain.
+        Grid g(9, 9, 10.f);
+        for (int i = 2; i <= 6; ++i)
+        {
+            g.at(i, i) = 0.f;
+        }
+        const FillResult f = fill(g);
+        ASSERT_TRUE(f.ok());
+        const Basins b = labelBasins(f, g.heights);
+        ASSERT_EQ(b.basins.size(), 1u);
+        EXPECT_EQ(b.basins[0].area, 5u);
+        EXPECT_EQ(b.basins[0].maxCapacity, 10.f);
+        EXPECT_EQ(b.basins[0].deepest, g.index(2, 2));
+        const auto kappa = catchmentRatio(b, f, accumulateFlow(f)).ratio;
+        ASSERT_EQ(kappa.size(), 1u);
+        EXPECT_FLOAT_EQ(kappa[0], 1.f);
+    }
+
+    TEST(PuddleFill, no_two_neighbouring_wet_texels_are_in_different_basins)
+    {
+        for (std::uint64_t seed = 900; seed < 925; ++seed)
+        {
+            const Grid g = randomGrid(31, 29, seed, 10, 10);
+            const FillResult f = fill(g);
+            ASSERT_TRUE(f.ok());
+            const Basins b = labelBasins(f, g.heights);
+            for (int y = 0; y < g.height; ++y)
+            {
+                for (int x = 0; x < g.width; ++x)
+                {
+                    ASSERT_EQ(b.id[g.index(x, y)] >= 0, f.capacity[g.index(x, y)] > 0.f);
+                    for (const auto& offset : Render::Puddle::neighbours)
+                    {
+                        const int nx = x + offset[0];
+                        const int ny = y + offset[1];
+                        if (nx < 0 || ny < 0 || nx >= g.width || ny >= g.height)
+                        {
+                            continue;
+                        }
+                        if (b.id[g.index(x, y)] >= 0 && b.id[g.index(nx, ny)] >= 0)
+                        {
+                            ASSERT_EQ(b.id[g.index(x, y)], b.id[g.index(nx, ny)]) << "seed " << seed;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    TEST(PuddleFill, the_outlet_is_a_texel_the_water_really_leaves_by_not_a_dead_end_bump)
+    {
+        // A 3 x 3 pit at (5..7, 5..7) in ground of 20 with the real pass at (8,6) (height 5, draining down a channel
+        // to the border) and a bump at (4,5) (height 5, surrounded by 20) that is reached from the pit (review F3).
+        Grid g(13, 13, 20.f);
+        for (int y = 5; y <= 7; ++y)
+        {
+            for (int x = 5; x <= 7; ++x)
+            {
+                g.at(x, y) = 0.f;
+            }
+        }
+        g.at(8, 6) = 5.f;
+        g.at(9, 6) = 2.f;
+        g.at(10, 6) = 1.f;
+        g.at(11, 6) = 0.f;
+        g.at(12, 6) = 0.f;
+        g.at(4, 5) = 5.f;
+        const FillResult f = fill(g);
+        ASSERT_TRUE(f.ok());
+        const Basins b = labelBasins(f, g.heights);
+        ASSERT_EQ(b.basins.size(), 1u);
+        EXPECT_EQ(b.basins[0].spillHeight, 5.f);
+        EXPECT_EQ(b.basins[0].outlet, static_cast<std::int32_t>(g.index(8, 6)));
+    }
+
+    TEST(PuddleFill, every_outlet_drains_out_of_its_basin)
+    {
+        for (std::uint64_t seed = 930; seed < 950; ++seed)
+        {
+            const Grid g = randomGrid(33, 27, seed, 12, 10);
+            const FillResult f = fill(g);
+            const Basins b = labelBasins(f, g.heights);
+            for (std::size_t k = 0; k < b.basins.size(); ++k)
+            {
+                const std::int32_t o = b.basins[k].outlet;
+                if (o < 0)
+                {
+                    continue;
+                }
+                ASSERT_EQ(b.id[o], -1);
+                ASSERT_EQ(g.heights[o], b.basins[k].spillHeight);
+                const std::int32_t parent = f.parent[o];
+                ASSERT_TRUE(parent < 0 || b.id[parent] != static_cast<std::int32_t>(k)) << "seed " << seed;
+            }
+        }
+    }
+
+    TEST(PuddleFill, flow_direction_outside_the_grid_is_none)
+    {
+        const Grid g(4, 4, 1.f);
+        const FillResult f = fill(g);
+        EXPECT_EQ(flowDirection(f, g.heights.size()), flowNone);
+        EXPECT_EQ(flowDirection(f, g.heights.size() + 1000), flowNone);
+        EXPECT_EQ(flowDirection(FillResult{}, 0), flowNone);
+    }
+
+    TEST(PuddleFill, heights_beyond_a_sane_bound_are_refused)
+    {
+        Grid g(6, 6, 1.f);
+        g.at(2, 3) = 3e38f;
+        FillResult f = fill(g);
+        EXPECT_FALSE(f.ok());
+        EXPECT_NE(f.error.find("(2, 3)"), std::string::npos) << f.error;
+        g.at(2, 3) = -2e7f;
+        EXPECT_FALSE(fill(g).ok());
+        g.at(2, 3) = 9.9e6f;
+        EXPECT_TRUE(fill(g).ok());
+        g.at(2, 3) = -9.9e6f;
+        EXPECT_TRUE(fill(g).ok());
+    }
+
+    TEST(PuddleFill, the_catchment_of_the_hand_calculated_pit_is_the_same_mirrored_and_turned)
+    {
+        const Grid g = trench({ 3, 5, 4, 3, 1, 0, 0, 0, 2, 0 });
+        for (int kind = 0; kind < 8; ++kind)
+        {
+            const Symmetry s = symmetry(g.width, g.height, kind);
+            Grid t(s.width, s.height);
+            t.heights = permute(g.heights, s);
+            t.sinks = permute(g.sinks, s);
+            const FillResult f = fill(t);
+            ASSERT_TRUE(f.ok());
+            const Basins b = labelBasins(f, t.heights);
+            ASSERT_EQ(b.basins.size(), 1u) << kind;
+            EXPECT_FLOAT_EQ(catchmentRatio(b, f, accumulateFlow(f)).ratio[0], 1.5f) << "kind " << kind;
+        }
+    }
+
+    TEST(PuddleFill, a_pit_that_receives_the_spill_of_another_counts_it_in_its_catchment)
+    {
+        // The left pit (columns 2, 3; 6 texels) spills over the saddle at 4 into the right pit (5, 6; 6 texels),
+        // which spills over 3. The left one's catchment is its own 6 plus the 3 texels of column 1 that drain into it;
+        // the right one's is its own 6 plus the saddle (3) with everything that reaches it: 3 + 6 + 3.
+        const Grid g = trench({ 9, 6, 0, 0, 4, 0, 0, 3, 0 });
+        const FillResult f = fill(g);
+        ASSERT_TRUE(f.ok());
+        const Basins b = labelBasins(f, g.heights);
+        ASSERT_EQ(b.basins.size(), 2u);
+        const auto kappa = catchmentRatio(b, f, accumulateFlow(f)).ratio;
+        EXPECT_FLOAT_EQ(kappa[b.id[g.index(2, 1)]], 1.5f);
+        EXPECT_FLOAT_EQ(kappa[b.id[g.index(5, 1)]], 3.f);
+    }
+
+    TEST(PuddleFill, a_symmetric_pit_between_two_rims_takes_only_its_own_rain)
+    {
+        const Grid g = trench({ 0, 5, 0, 0, 0, 5, 0 }, 5, 20.f);
+        const FillResult f = fill(g);
+        const Basins b = labelBasins(f, g.heights);
+        ASSERT_EQ(b.basins.size(), 1u);
+        EXPECT_EQ(b.basins[0].area, 9u);
+        EXPECT_FLOAT_EQ(catchmentRatio(b, f, accumulateFlow(f)).ratio[0], 1.f);
     }
 
     TEST(PuddleFill, sink_texels_have_no_capacity_and_drain_their_neighbours)
@@ -323,7 +490,7 @@ namespace
         EXPECT_EQ(b.basins[0].deepest, g.index(5, 1));
         EXPECT_EQ(b.basins[0].outlet, static_cast<std::int32_t>(g.index(8, 1)));
         const auto area = accumulateFlow(f);
-        const auto kappa = catchmentRatio(b, f, area);
+        const auto kappa = catchmentRatio(b, f, area).ratio;
         ASSERT_EQ(kappa.size(), 1u);
         EXPECT_FLOAT_EQ(kappa[0], 1.5f);
         // A lone bowl in a walled grid takes only its own rain.
@@ -332,7 +499,7 @@ namespace
             lone.at(i, 0) = lone.at(i, 8) = lone.at(0, i) = lone.at(8, i) = 4.f;
         const FillResult lf = fill(lone);
         const Basins lb = labelBasins(lf, lone.heights);
-        EXPECT_FLOAT_EQ(catchmentRatio(lb, lf, accumulateFlow(lf))[0], 1.f);
+        EXPECT_FLOAT_EQ(catchmentRatio(lb, lf, accumulateFlow(lf)).ratio[0], 1.f);
     }
 
     TEST(PuddleFill, a_deep_pit_keeps_only_its_bottom_when_the_cap_is_measured_from_the_floor)
@@ -345,19 +512,22 @@ namespace
         const Basins b = labelBasins(f, g.heights);
         ASSERT_EQ(b.basins.size(), 1u);
         EXPECT_EQ(b.basins[0].maxCapacity, 20.f);
-        const std::vector<float> fromFloor = capacityFromFloor(f, b, 8.f);
+        const std::vector<float> fromFloor = capacityFromFloor(f, b, 8.f).capacity;
         const float expected[] = { 0.f, 0.f, 0.f, 5.f, 8.f, 5.f, 0.f, 0.f, 0.f };
         for (int x = 0; x < 9; ++x)
             EXPECT_EQ(fromFloor[g.index(x, 2)], expected[x]) << x;
         const FillResult clamped = fill(g, 8.f);
         EXPECT_EQ(clamped.capacity[g.index(2, 2)], 8.f);
         // A pit that is not deeper than the cap is unchanged.
-        const std::vector<float> roomy = capacityFromFloor(f, b, 30.f);
+        const std::vector<float> roomy = capacityFromFloor(f, b, 30.f).capacity;
         for (std::size_t i = 0; i < roomy.size(); ++i)
             EXPECT_EQ(roomy[i], f.capacity[i]);
-        // Bad input gives zeros, not a crash.
-        EXPECT_EQ(capacityFromFloor(f, b, 0.f), std::vector<float>(f.capacity.size(), 0.f));
-        EXPECT_EQ(capacityFromFloor(FillResult{}, Basins{}, 8.f).size(), 0u);
+        // Bad input is refused with an error, not guessed at.
+        EXPECT_FALSE(capacityFromFloor(f, b, 0.f).ok());
+        EXPECT_FALSE(capacityFromFloor(f, b, -3.f).ok());
+        EXPECT_FALSE(capacityFromFloor(f, b, infinity).ok());
+        EXPECT_FALSE(capacityFromFloor(f, b, std::numeric_limits<float>::quiet_NaN()).ok());
+        EXPECT_FALSE(capacityFromFloor(FillResult{}, Basins{}, 8.f).ok());
     }
 
     TEST(PuddleFill, a_cap_measured_from_the_floor_gives_the_depth_of_the_uncapped_pit_while_the_level_is_within_it)
@@ -369,7 +539,7 @@ namespace
             ASSERT_TRUE(f.ok());
             const Basins b = labelBasins(f, g.heights);
             const float cap = 5.f;
-            const std::vector<float> fromFloor = capacityFromFloor(f, b, cap);
+            const std::vector<float> fromFloor = capacityFromFloor(f, b, cap).capacity;
             for (std::size_t i = 0; i < fromFloor.size(); ++i)
             {
                 ASSERT_GE(fromFloor[i], 0.f);
@@ -388,6 +558,88 @@ namespace
                 }
             }
         }
+    }
+
+    TEST(PuddleFill, the_catchment_of_a_capped_pond_is_measured_on_its_footprint_not_the_whole_pit)
+    {
+        // The deep pit again (capacities 12, 17, 20, 17, 12 over 15 texels). Capped to 8 from the floor the pond is
+        // the middle three columns, 9 texels; no ground outside drains in, so the pit's own 15 texels of rain collect
+        // in 9 texels of water: 15 / 9. Measured on the whole pit it would be 1 (review F4).
+        const Grid g = trench({ 0, 20, 8, 3, 0, 3, 8, 20, 0 }, 5, 40.f);
+        const FillResult f = fill(g);
+        const Basins b = labelBasins(f, g.heights);
+        const auto area = accumulateFlow(f);
+        ASSERT_EQ(b.basins.size(), 1u);
+        EXPECT_FLOAT_EQ(catchmentRatio(b, f, area).ratio[0], 1.f);
+        const FloorCapacity pond = capacityFromFloor(f, b, 8.f);
+        ASSERT_TRUE(pond.ok()) << pond.error;
+        const Catchment capped = catchmentRatio(b, f, area, pond.capacity);
+        ASSERT_TRUE(capped.ok()) << capped.error;
+        EXPECT_FLOAT_EQ(capped.ratio[0], 15.f / 9.f);
+        // A pit that is not deeper than the cap has its whole area as footprint: nothing changes.
+        const Grid hand = trench({ 3, 5, 4, 3, 1, 0, 0, 0, 2, 0 });
+        const FillResult hf = fill(hand);
+        const Basins hb = labelBasins(hf, hand.heights);
+        const FloorCapacity roomy = capacityFromFloor(hf, hb, 12.f);
+        ASSERT_TRUE(roomy.ok());
+        EXPECT_FLOAT_EQ(catchmentRatio(hb, hf, accumulateFlow(hf), roomy.capacity).ratio[0], 1.5f);
+    }
+
+    TEST(PuddleFill, a_fill_with_a_finite_cap_or_basins_of_another_fill_are_refused)
+    {
+        const Grid g = trench({ 0, 20, 8, 3, 0, 3, 8, 20, 0 }, 5, 40.f);
+        const FillResult capped = fill(g, 12.f);
+        const Basins cappedBasins = labelBasins(capped, g.heights);
+        const FloorCapacity refused = capacityFromFloor(capped, cappedBasins, 8.f);
+        EXPECT_FALSE(refused.ok());
+        EXPECT_NE(refused.error.find("finite cap"), std::string::npos) << refused.error;
+        EXPECT_TRUE(refused.capacity.empty());
+
+        const FillResult f = fill(g);
+        const Basins b = labelBasins(f, g.heights);
+        Grid other = g;
+        other.at(4, 2) = 1.f; // the same size, another surface
+        const FillResult otherFill = fill(other);
+        const Basins otherBasins = labelBasins(otherFill, other.heights);
+        const FloorCapacity mismatched = capacityFromFloor(f, otherBasins, 8.f);
+        EXPECT_FALSE(mismatched.ok());
+        EXPECT_NE(mismatched.error.find("not made from this fill"), std::string::npos) << mismatched.error;
+        EXPECT_FALSE(catchmentRatio(otherBasins, f, accumulateFlow(f)).ok());
+        EXPECT_FALSE(catchmentRatio(b, otherFill, accumulateFlow(otherFill)).ok());
+        // A flow area of the wrong size, a pond of the wrong size and no pond are refused too.
+        EXPECT_FALSE(catchmentRatio(b, f, std::vector<std::uint32_t>(3, 1)).ok());
+        const FloorCapacity pond = capacityFromFloor(f, b, 8.f);
+        ASSERT_TRUE(pond.ok());
+        EXPECT_FALSE(catchmentRatio(b, f, accumulateFlow(f), std::vector<float>(5, 1.f)).ok());
+        EXPECT_FALSE(catchmentRatio(b, f, accumulateFlow(f), std::span<const float>{}).ok());
+        EXPECT_TRUE(catchmentRatio(b, f, accumulateFlow(f), pond.capacity).ok());
+        EXPECT_FALSE(catchmentRatio(Basins{}, FillResult{}, std::vector<std::uint32_t>{}).ok());
+    }
+
+    TEST(PuddleFill, the_cap_measured_from_the_floor_stays_finite_for_extreme_heights)
+    {
+        // Heights at the bounds give a capacity of 2e7 in a pit; nothing overflows or becomes not a number.
+        Grid g(9, 9, 9.9e6f);
+        for (int y = 3; y <= 5; ++y)
+        {
+            for (int x = 3; x <= 5; ++x)
+            {
+                g.at(x, y) = -9.9e6f;
+            }
+        }
+        const FillResult f = fill(g);
+        ASSERT_TRUE(f.ok());
+        const Basins b = labelBasins(f, g.heights);
+        ASSERT_EQ(b.basins.size(), 1u);
+        const FloorCapacity pond = capacityFromFloor(f, b, 12.f);
+        ASSERT_TRUE(pond.ok()) << pond.error;
+        for (const float c : pond.capacity)
+        {
+            ASSERT_TRUE(std::isfinite(c));
+            ASSERT_GE(c, 0.f);
+            ASSERT_LE(c, 12.f);
+        }
+        EXPECT_EQ(pond.capacity[g.index(4, 4)], 12.f);
     }
 
     TEST(PuddleFill, flow_accumulation_counts_every_texel_once)
@@ -543,7 +795,7 @@ namespace
             const FillResult f = fill(g, 6.f);
             ASSERT_TRUE(f.ok());
             const Basins b = labelBasins(f, g.heights);
-            const auto kappa = catchmentRatio(b, f, accumulateFlow(f));
+            const auto kappa = catchmentRatio(b, f, accumulateFlow(f)).ratio;
             ASSERT_EQ(kappa.size(), b.basins.size());
             std::vector<std::uint32_t> counted(b.basins.size(), 0);
             std::uint64_t wet = 0;
@@ -756,7 +1008,7 @@ namespace
         const auto start = std::chrono::steady_clock::now();
         const FillResult f = fill(g, 12.f);
         const Basins b = labelBasins(f, g.heights);
-        const auto kappa = catchmentRatio(b, f, accumulateFlow(f));
+        const auto kappa = catchmentRatio(b, f, accumulateFlow(f)).ratio;
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         ASSERT_TRUE(f.ok());
         RecordProperty("milliseconds_384x384", static_cast<int>(ms));
