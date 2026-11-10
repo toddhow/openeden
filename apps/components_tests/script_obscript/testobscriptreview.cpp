@@ -18,6 +18,32 @@
 
 #include "stubworld.hpp"
 
+// The contract as 1.1 declared it. A consumer built against it calls through these slots.
+//
+// It is OUTSIDE the anonymous namespace on purpose: in an anonymous namespace a class with no derived class has no
+// possible call target, and GCC (-O2, devirtualization) turns a call through it into a call of the pure virtual
+// function ("pure virtual method called"), whatever the real object is. With external linkage the compiler must keep
+// the call virtual. (Found by the Linux gate, 2026-11-09; the test relied on the call surviving by luck before.)
+namespace ObScriptLegacyMirror
+{
+    using namespace openeden::script;
+
+    class LegacyContract
+    {
+    public:
+        virtual ~LegacyContract() = default;
+        virtual bool registerFunction(
+            const FunctionDescriptor& descriptor, FunctionHandler handler, ErrorReport& error) noexcept = 0;
+        virtual CompileResult compile(const ScriptSource& source) noexcept = 0;
+        virtual InstanceId createInstance(ScriptId script, FormId self) noexcept = 0;
+        virtual RunResult run(InstanceId instance, std::string_view event, const Budget& budget = {}) noexcept = 0;
+        virtual Value getLocal(InstanceId instance, std::string_view name) const noexcept = 0;
+        virtual bool setLocal(InstanceId instance, std::string_view name, Value value) noexcept = 0;
+        virtual SaveBlob serialise() const noexcept = 0;
+        virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
+    };
+}
+
 namespace
 {
     using namespace ObScriptTest;
@@ -141,27 +167,14 @@ namespace
 
     // ---- item 5: the old calls keep their places in the table of virtual functions
 
-    // The contract as 1.1 declared it. A consumer built against it calls through these slots.
-    class LegacyContract
-    {
-    public:
-        virtual ~LegacyContract() = default;
-        virtual bool registerFunction(
-            const FunctionDescriptor& descriptor, FunctionHandler handler, ErrorReport& error) noexcept = 0;
-        virtual CompileResult compile(const ScriptSource& source) noexcept = 0;
-        virtual InstanceId createInstance(ScriptId script, FormId self) noexcept = 0;
-        virtual RunResult run(InstanceId instance, std::string_view event, const Budget& budget = {}) noexcept = 0;
-        virtual Value getLocal(InstanceId instance, std::string_view name) const noexcept = 0;
-        virtual bool setLocal(InstanceId instance, std::string_view name, Value value) noexcept = 0;
-        virtual SaveBlob serialise() const noexcept = 0;
-        virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
-    };
+    // LegacyContract (the contract as 1.1 declared it) is in ObScriptLegacyMirror, above, with external linkage.
 
     TEST(ObScriptReview, a_consumer_built_against_contract_1_1_still_reaches_the_right_functions)
     {
         RuntimeFixture fixture(UnknownFunctionPolicy::Tolerant);
         ObScriptContract* current = fixture.mRuntime.get();
-        LegacyContract* legacy = reinterpret_cast<LegacyContract*>(current);
+        ObScriptLegacyMirror::LegacyContract* legacy
+            = reinterpret_cast<ObScriptLegacyMirror::LegacyContract*>(current);
         ScriptSource source;
         source.name = "Old";
         source.text = "ScriptName Old\nshort x\nBegin GameMode\nSet x to 5\nEnd\n";
