@@ -1130,8 +1130,8 @@ namespace MWRender
                         effect.mMatrix->dirty();
                     }
                 }
-            // The swaying groups: column 0 is the wind push (lean * wind * weight scale along a fixed direction, in world
-            // units at the full weight) and the clock's angle, reduced in double precision.
+            // The swaying groups: column 0 is the wind push (lean * wind * weight scale along a fixed direction, in
+            // world units at the full weight) and the clock's angle, reduced in double precision.
             if (!tile.mSwayMatrices.empty() && (tile.mWanted || cover.mFade.mPhase != Lod::FadePhase::Hidden))
             {
                 const float wind = std::min(

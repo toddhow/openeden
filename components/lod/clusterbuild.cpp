@@ -405,7 +405,8 @@ namespace Lod
             for (const SourcePiece& piece : object.mPieces)
             {
                 BuiltPiece builtPiece;
-                if (buildPiece(object, piece, input, normalMatrix, swayBaseZ, swayHeight, builtPiece, maxSimplifyError, s.mErrorOutliers))
+                if (buildPiece(object, piece, input, normalMatrix, swayBaseZ, swayHeight, builtPiece, maxSimplifyError,
+                        s.mErrorOutliers))
                 {
                     sourceTriangles += static_cast<std::uint32_t>(piece.mIndices.size() / 3);
                     result.mPieces.push_back(std::move(builtPiece));

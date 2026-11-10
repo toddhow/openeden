@@ -1,10 +1,10 @@
 #include "lodobjectbaker.hpp"
 
-#include <cstring>
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <future>
 #include <iterator>
 #include <map>
@@ -25,8 +25,8 @@
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clusterpack.hpp>
-#include <components/lod/nifflatten.hpp>
 #include <components/lod/clustersway.hpp>
+#include <components/lod/nifflatten.hpp>
 #include <components/lod/sceneryscript.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/nif/niffile.hpp>
@@ -253,9 +253,8 @@ namespace OMW
             return !named && !scripted;
         }
 
-        std::vector<std::uint8_t> parameterBytes(
-            std::uint32_t level, std::uint32_t error, std::uint32_t cellSize, bool uvEffects, bool scenery,
-            bool sway = false, std::string_view swayModels = {}, float swayLean = 0.f)
+        std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize,
+            bool uvEffects, bool scenery, bool sway = false, std::string_view swayModels = {}, float swayLean = 0.f)
         {
             std::vector<std::uint8_t> bytes;
             // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to,
@@ -516,9 +515,8 @@ namespace OMW
             hashValue(hasher, id.mLevel);
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
-            const std::vector<std::uint8_t> parameters
-                = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize, state.mUvEffects, state.mScenery,
-                state.mSway, state.mSwayModels, state.mSwayLean);
+            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize,
+                state.mUvEffects, state.mScenery, state.mSway, state.mSwayModels, state.mSwayLean);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)

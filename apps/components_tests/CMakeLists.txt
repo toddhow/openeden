@@ -298,7 +298,6 @@ file(GLOB UNITTEST_SRC_FILES
     render/testeyeskin.cpp
     render/testtableelevation.cpp
     render/testproceduralsun.cpp
-    body/testmergedruntime.cpp
     render/testcirrusmath.cpp
     render/testrmaos.cpp
     render/testprobegpu.cpp

@@ -70,8 +70,8 @@ namespace openeden::sdk
         [[nodiscard]] virtual UiService* getUiService() { return nullptr; }
         /// Script bindings (task 0097): game packs only, like the services above. Added at the end of the interface.
         [[nodiscard]] virtual BindingsService* getBindingsService() { return nullptr; }
-        /// The slot for a read-only view of the game's world (task 0086; openeden/game/world_view.hpp). Game packs only.
-        /// Added at the end of the interface.
+        /// The slot for a read-only view of the game's world (task 0086; openeden/game/world_view.hpp). Game packs
+        /// only. Added at the end of the interface.
         [[nodiscard]] virtual game::WorldViewService* getWorldViewService() { return nullptr; }
     };
 } // namespace openeden::sdk

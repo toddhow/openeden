@@ -90,8 +90,8 @@ namespace Pipeline
         // OpenEden (task 0077): the nearest point lights cast shadows (lib/light/pointshadow.glsl); added by
         // Pipeline::Graphics.
         POINT_SHADOW,
-        // OpenEden (task 0096 stage c): far cluster foliage sways in the wind (default/main.vert). The vertex stage reads
-        // the wind and the clock from the TEXMAT_BINDING uniform and each vertex's weight from its colour alpha.
+        // OpenEden (task 0096 stage c): far cluster foliage sways in the wind (default/main.vert). The vertex stage
+        // reads the wind and the clock from the TEXMAT_BINDING uniform and each vertex's weight from its colour alpha.
         LOD_SWAY
     };
 

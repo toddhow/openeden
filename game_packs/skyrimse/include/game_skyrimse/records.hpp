@@ -267,9 +267,9 @@ namespace game_skyrimse
         std::string mModel; ///< MODL
     };
 
-    /// A base form that is placed in the world: ACTI, CONT, DOOR, FLOR, FURN, LIGH, MSTT, TREE, TACT; the carried things
-    /// ALCH, AMMO, APPA, BOOK, INGR, KEYM, SCRL, SLGM; and the markers IDLM, SOUN, ASPC, SPEL, TXST (no model). The same
-    /// fields as StaticRecord, plus the type.
+    /// A base form that is placed in the world: ACTI, CONT, DOOR, FLOR, FURN, LIGH, MSTT, TREE, TACT; the carried
+    /// things ALCH, AMMO, APPA, BOOK, INGR, KEYM, SCRL, SLGM; and the markers IDLM, SOUN, ASPC, SPEL, TXST (no model).
+    /// The same fields as StaticRecord, plus the type.
     struct ModelRecord
     {
         std::uint32_t mType = 0; ///< The record's FourCC

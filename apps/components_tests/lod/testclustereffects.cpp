@@ -477,8 +477,7 @@ namespace
         // A NiUVController on `target` with the given offset keys (u, v) and optional tiling keys.
         Nif::NiUVController& uvController(Nif::NiObjectNET& target, const Keys& u,
             const std::optional<Keys>& v = std::nullopt, float frequency = 1.f,
-            std::uint16_t flags = Nif::NiTimeController::Flag_Active,
-            const std::optional<Keys>& tilingU = std::nullopt)
+            std::uint16_t flags = Nif::NiTimeController::Flag_Active, const std::optional<Keys>& tilingU = std::nullopt)
         {
             Nif::NiUVController& controller = create<Nif::NiUVController>(Nif::RC_NiUVController);
             Nif::NiUVData& data = create<Nif::NiUVData>(Nif::RC_NiUVData);
@@ -700,7 +699,7 @@ namespace
     {
         for (const std::uint16_t flags :
             { static_cast<std::uint16_t>(static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active)
-                    | static_cast<std::uint16_t>(Nif::NiTimeController::Constant)),
+                  | static_cast<std::uint16_t>(Nif::NiTimeController::Constant)),
                 static_cast<std::uint16_t>(static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active)
                     | static_cast<std::uint16_t>(Nif::NiTimeController::Reverse)),
                 static_cast<std::uint16_t>(0) })
