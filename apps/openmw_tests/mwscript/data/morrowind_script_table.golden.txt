@@ -515,7 +515,7 @@ F xbox l  implicit-only 0xca00000c
 [handlers consoleOnly=false]
 table code words: 834
 table code words without a handler: 0
-handlers the table does not name: 60
+handlers the table does not name: 61
   0xc0000000
   0xc8000000
   0xc8000001
@@ -576,6 +576,7 @@ handlers the table does not name: 60
   0xc8000047
   0xc8000048
   0xc8000049
+  0xc800004a
 [compile table consoleOnly=true]
 I activate - x explicit 0xca000075 0xca000244
 I additem - clX explicit 0xca000076 0xca000077
@@ -1096,7 +1097,7 @@ F xbox l  implicit-only 0xca00000c
 [handlers consoleOnly=true]
 table code words: 838
 table code words without a handler: 0
-handlers the table does not name: 62
+handlers the table does not name: 63
   0xc0000000
   0xc8000000
   0xc8000001
@@ -1157,5 +1158,6 @@ handlers the table does not name: 62
   0xc8000047
   0xc8000048
   0xc8000049
+  0xc800004a
   0xca00016f
   0xca000171
