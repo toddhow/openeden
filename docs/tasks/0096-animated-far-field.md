@@ -138,3 +138,20 @@ Settings added to `tools/testprofile/profile.cfg` with `# task 0096:` comments a
 **Decisions for toddhow**
 1. The script rule (`Lod::scriptChangesItsObject`): is a text scan acceptable for letting scripted-but-inert activators in? The fence stays live; the lava and waterfalls move far away. A script that other scripts disable by reference id (not by its own text) is not detected; the override rule covers it only when the cell is loaded. The strict alternative (no script at all) takes none of the moving scenery.
 2. The effect record has no periodic alpha or flip; say if a mod case needs them.
+
+
+## Follow-up 2026-11-10: the lava "fine/coarse" flip is TAA jitter, not the far field
+
+Experiment (own build `farfield2uild`, quiet window, camera fixed over the Red Mountain lava, 8 screenshots 3 s apart per run, sheets in `I:\Projects\OpenEden-workarfield2\out*\sheet.png`; the weather was not pinned, which is why brightness differs between runs):
+
+| run | change from the profile | flips? |
+| --- | --- | --- |
+| r1 | none (clusters, scenery, TAA on) | yes (3 of 8 frames smooth and bright) |
+| r2 | `[VideoMemory] enabled = false` | yes |
+| r3 | `object clusters = false` | yes |
+| r5 | no teleport script (pure static camera) | yes |
+| r6 | `taa history = 0` | yes |
+| r4 | `taa = false` | no, 8 equal frames |
+| r7 | `taa jitter scale = 0` | no, 8 equal frames |
+
+So the far-field path (clusters, cluster effects, scenery, hand-over, texture mip swaps) is excluded; the flip needs TAA's jitter. The terrain texture on the hill changes with it too, so it is not lava specific. The reading that fits: a jittered, converged result averages the minified lava texture (smooth, brighter), while a frame whose history is rejected or clipped to the current 3 by 3 box shows the aliased pattern. Not proven (no `taa debug` view taken, no trace of the reset or reject state per frame), and `taa history = 0` still flipping is not explained. No code changed; whether to tune TAA's clipping for high-contrast minified textures is toddhow's call (task 0075).
