@@ -545,6 +545,14 @@ namespace Pipeline
             rasterState->depthBiasConstantFactor = 10000;
             rasterState->depthBiasSlopeFactor = 10000;
         }
+        else if (usesOverlayDepthBias(key, overlayDepthBiasSlope))
+        {
+            // Task 0075: slope only (no constant factor), reverse-Z: a positive bias moves the surface nearer.
+            rasterState->depthBiasEnable = true;
+            rasterState->depthBiasConstantFactor = 0.f;
+            rasterState->depthBiasClamp = 0.f;
+            rasterState->depthBiasSlopeFactor = overlayDepthBiasSlope;
+        }
 
         vsg::GraphicsPipelineStates pipelineStates{ vsg::VertexInputState::create(
                                                         vertexBindingsDescriptions, vertexAttributeDescriptions),

@@ -14,6 +14,13 @@ namespace Pipeline
     /// are not particles or debug geometry (colour mode 3). The terrain always does and does not use this.
     bool writesGBuffer(const Options& key);
 
+    /// Task 0075 (the lava flip): whether a pipeline gets the slope-scaled depth bias of the TAA overlay pass
+    /// (`Render::Taa::overlayDepthBiasSlope`, set on `Graphics::overlayDepthBiasSlope`): the default shader's blended,
+    /// depth-tested draws, with or without depth writes (the depth-sorted bin, drawn after the resolve with the
+    /// unjittered camera against the jittered depth; the Red Mountain lava is blended with depth writes, found in
+    /// the game), with a positive slope and no bias of their own already.
+    bool usesOverlayDepthBias(const Options& key, float slope);
+
     /// Entry 0 is `first`; entries 1..count-1 are the G-buffer's: no blending, all channels when `key` writes the
     /// G-buffer, none otherwise (the pass's attachments are then left as the opaque scene made them).
     std::vector<VkPipelineColorBlendAttachmentState> gbufferBlendAttachments(

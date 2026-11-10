@@ -64,6 +64,10 @@ namespace Pipeline
         // openeden (task 0026, F3): how many colour outputs the main pass has beyond the scene's own; 0 (the default)
         // leaves every pipeline as it was. Set by MWRender::RenderManager before the first pipeline is created.
         unsigned int gbufferOutputs = 0;
+        // Task 0075: with TAA on, the slope factor of the depth bias that blended, depth-tested pipelines get (see
+        // Render::Taa::overlayDepthBiasSlope); 0 leaves every pipeline as it was. Set before the first pipeline is
+        // made.
+        float overlayDepthBiasSlope = 0.f;
         // openeden (task 0027): 0 leaves the lighting as it was, 1 the vanilla look of physically based lighting, 2 the
         // physical look. With gbufferOutputs of 4 the draws that write the G-buffer also write the material. Set before
         // the first pipeline is created.

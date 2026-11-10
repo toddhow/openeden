@@ -12,6 +12,11 @@ namespace Pipeline
             && !key.shader.hasMode(Mode::PARTICLE) && key.colorMode != 3;
     }
 
+    bool usesOverlayDepthBias(const Options& key, float slope)
+    {
+        return slope > 0.f && key.blend && key.depthTest && key.shader.path.empty() && !key.depthBias;
+    }
+
     std::vector<VkPipelineColorBlendAttachmentState> gbufferBlendAttachments(
         const VkPipelineColorBlendAttachmentState& first, const Options& key, std::size_t colorAttachmentCount)
     {

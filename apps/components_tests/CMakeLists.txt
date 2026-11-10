@@ -376,6 +376,7 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testcoveragemodes.cpp
     pipeline/testgbufferblend.cpp
     pipeline/testgbufferstates.cpp
+    pipeline/testoverlaydepthbias.cpp
     pipeline/testterraindefines.cpp
 
     mwanimation/testclonematerials.cpp

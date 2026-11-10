@@ -1032,6 +1032,11 @@ namespace MWRender
                     Log(Debug::Warning) << "[Rendering] taa debug: unknown '" << debug << "', using none";
                 taa.debug = parsedDebug.value_or(Render::Taa::DebugView::None);
                 taa.overlay = true;
+                // The overlay draws the blended things with the unjittered camera against the jittered depth: their
+                // pipelines get a slope-scaled depth bias of the jitter's size (the lava flip; before the first
+                // pipeline is made).
+                resourceSystem->builder->graphics->overlayDepthBiasSlope
+                    = Render::Taa::overlayDepthBiasSlope(taa.jitterScale);
                 mTaa = std::make_unique<Render::TaaPass>(
                     mCompileContext->clone(~vsg::Mask(0)), shaderOptions, taa, mTaaJitter);
                 Log(Debug::Info) << "TAA: temporal anti-aliasing, " << Render::Taa::jitterPeriod

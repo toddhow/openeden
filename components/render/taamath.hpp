@@ -74,6 +74,19 @@ namespace Render::Taa
         return { h.x * s, h.y * s };
     }
 
+    // Task 0075 (the lava flip): the overlay pass draws the blended things with the UNJITTERED camera against the depth
+    // the scene wrote with the JITTERED one, so a blended surface lying on another (a lava sheet on the ground, a
+    // decal) fails or passes the depth test by the sub-pixel shift, differently from frame to frame. The pipelines of
+    // blended, depth-tested draws get a slope-scaled depth bias (Vulkan: m * factor, m the primitive's largest depth
+    // change per pixel) of at least the jitter's size in pixels: the two jitter axes together shift a position by at
+    // most `scale` pixels along the steepest axis, so factor = scale plus a quarter of margin. 0 (no bias) without
+    // jitter.
+    inline float overlayDepthBiasSlope(float jitterScale)
+    {
+        const float s = std::clamp(jitterScale, 0.f, 1.f);
+        return s > 0.f ? s * 1.25f : 0.f;
+    }
+
     inline vsg::dvec2 jitterNdc(const vsg::dvec2& pixels, std::uint32_t width, std::uint32_t height)
     {
         if (width == 0 || height == 0)

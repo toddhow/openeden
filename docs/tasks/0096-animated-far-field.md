@@ -156,7 +156,7 @@ Experiment (own build `farfield2uild`, quiet window, camera fixed over the Red 
 
 So the far-field path (clusters, cluster effects, scenery, hand-over, texture mip swaps) is excluded; the flip needs TAA's jitter. The terrain texture on the hill changes with it too, so it is not lava specific. The reading that fits: a jittered, converged result averages the minified lava texture (smooth, brighter), while a frame whose history is rejected or clipped to the current 3 by 3 box shows the aliased pattern. Not proven (no `taa debug` view taken, no trace of the reset or reject state per frame), and `taa history = 0` still flipping is not explained. No code changed; whether to tune TAA's clipping for high-contrast minified textures is toddhow's call (task 0075).
 
-**Correction 2026-11-10:** the reading above (TAA history rejected or clipped) is closer than it looked but incomplete: `taa history = 0` ran at 0.5 (the setting is clamped to 0.5 to 0.98), and the flip needs `[Rendering] ao temporal` on as well. See the stage log in `docs/tasks/0075-temporal-anti-aliasing.md`.
+**Correction 2026-11-10:** the reading above (TAA history rejected or clipped) was wrong: `taa history = 0` ran at 0.5 (the setting is clamped to 0.5 to 0.98), and the flip is the TAA overlay pass depth-testing the blended lava sheet against the jittered depth; fixed with a slope-scaled depth bias on blended pipelines when TAA is on. See the resolution in `docs/tasks/0075-temporal-anti-aliasing.md`.
 
 ## Stage c log, 2026-11-10: sway, first slice (maths only; local commit, not pushed)
 
