@@ -6,9 +6,11 @@ openeden_add_game_pack(skyrimse
         src/pack_core.cpp
         src/records.cpp
         src/world_view.cpp
+        src/neutral_world.cpp
         include/game_skyrimse/pack_core.hpp
         include/game_skyrimse/records.hpp
         include/game_skyrimse/world_view.hpp
+        include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
         extension.json
@@ -35,6 +37,7 @@ add_library(game_skyrimse_world STATIC
     src/pack_core.cpp
     src/records.cpp
     src/world_view.cpp
+    src/neutral_world.cpp
 )
 set_target_properties(game_skyrimse_world PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(game_skyrimse_world

@@ -445,6 +445,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseworldview.cpp
     skyrimse/testskyrimseworldviewreal.cpp
+    skyrimse/testskyrimseneutralworld.cpp
+    skyrimse/testskyrimseneutralworldreal.cpp
     skyrimse/testskyrimseplugins.cpp
     skyrimse/testskyrimsearchives.cpp
     skyrimse/testskyrimserealdata.cpp
@@ -453,6 +455,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/records.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
 )
 set_source_files_properties(

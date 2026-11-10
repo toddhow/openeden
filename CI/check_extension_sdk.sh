@@ -94,3 +94,9 @@ if ! grep -q 'Version policy' sdk/include/openeden/game/world_view.hpp || ! grep
     echo 'sdk/include/openeden/game/world_view.hpp must keep its version policy and kWorldViewVersion'
     exit 1
 fi
+
+# Decision 0016 (neutral world model, task 0099 N0): the value types header states its version policy and is types only.
+if ! grep -q 'Version policy' sdk/include/openeden/game/world_model.hpp || ! grep -q 'kWorldModelVersion' sdk/include/openeden/game/world_model.hpp; then
+    echo 'sdk/include/openeden/game/world_model.hpp must keep its version policy and kWorldModelVersion'
+    exit 1
+fi
