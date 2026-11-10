@@ -321,6 +321,21 @@ namespace game_skyrimse
             bool onGroupBegin(const Content::GroupInfo& group) override
             {
                 mGroups.push_back(group);
+                // The cell-children group follows its cell record: remember where it is (lazy cells).
+                if (group.mType == 6)
+                {
+                    const auto it = mCellByStoredId.find(group.mLabel);
+                    if (it != mCellByStoredId.end())
+                    {
+                        CellRecord& cell = mOut.mCells[it->second];
+                        if (!cell.mHasChildren)
+                        {
+                            cell.mHasChildren = true;
+                            cell.mChildrenOffset = group.mOffset;
+                            cell.mChildrenSize = group.mSize;
+                        }
+                    }
+                }
                 return true;
             }
 
@@ -347,6 +362,28 @@ namespace game_skyrimse
                     case Content::fourCC("MISC"):
                     case Content::fourCC("LVLI"):
                     case Content::fourCC("LVLN"):
+                    case Content::fourCC("ACTI"):
+                    case Content::fourCC("CONT"):
+                    case Content::fourCC("DOOR"):
+                    case Content::fourCC("FLOR"):
+                    case Content::fourCC("FURN"):
+                    case Content::fourCC("LIGH"):
+                    case Content::fourCC("MSTT"):
+                    case Content::fourCC("TREE"):
+                    case Content::fourCC("ALCH"):
+                    case Content::fourCC("AMMO"):
+                    case Content::fourCC("APPA"):
+                    case Content::fourCC("BOOK"):
+                    case Content::fourCC("INGR"):
+                    case Content::fourCC("KEYM"):
+                    case Content::fourCC("SCRL"):
+                    case Content::fourCC("SLGM"):
+                    case Content::fourCC("TACT"):
+                    case Content::fourCC("IDLM"):
+                    case Content::fourCC("SOUN"):
+                    case Content::fourCC("ASPC"):
+                    case Content::fourCC("SPEL"):
+                    case Content::fourCC("TXST"):
                         break;
                     default:
                         return true;
@@ -355,6 +392,9 @@ namespace game_skyrimse
                 ++count.mSeen;
                 if ((record.mFlags & RecordFlags::Deleted) != 0)
                     ++count.mDeleted;
+                if (mLimits.mSkipReferences
+                    && (record.mType == Content::fourCC("REFR") || record.mType == Content::fourCC("ACHR")))
+                    return true;
                 if (count.mParsed >= mLimits.mMaxRecordsPerType)
                 {
                     fail(record, "more than " + std::to_string(mLimits.mMaxRecordsPerType) + " records of one type");
@@ -403,6 +443,30 @@ namespace game_skyrimse
                         ok = readRef(record, bytes);
                         break;
                     case Content::fourCC("STAT"):
+                        ok = readStatic(record, bytes);
+                        break;
+                    case Content::fourCC("ACTI"):
+                    case Content::fourCC("CONT"):
+                    case Content::fourCC("DOOR"):
+                    case Content::fourCC("FLOR"):
+                    case Content::fourCC("FURN"):
+                    case Content::fourCC("LIGH"):
+                    case Content::fourCC("MSTT"):
+                    case Content::fourCC("TREE"):
+                    case Content::fourCC("ALCH"):
+                    case Content::fourCC("AMMO"):
+                    case Content::fourCC("APPA"):
+                    case Content::fourCC("BOOK"):
+                    case Content::fourCC("INGR"):
+                    case Content::fourCC("KEYM"):
+                    case Content::fourCC("SCRL"):
+                    case Content::fourCC("SLGM"):
+                    case Content::fourCC("TACT"):
+                    case Content::fourCC("IDLM"):
+                    case Content::fourCC("SOUN"):
+                    case Content::fourCC("ASPC"):
+                    case Content::fourCC("SPEL"):
+                    case Content::fourCC("TXST"):
                         ok = readStatic(record, bytes);
                         break;
                     case Content::fourCC("NPC_"):
@@ -599,6 +663,7 @@ namespace game_skyrimse
             {
                 CellRecord c;
                 c.mCommon = common(record);
+                c.mRecordSize = mPlugin.header().mRecordHeaderSize + record.mDataSize;
                 SubReader reader(bytes);
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
@@ -813,6 +878,7 @@ namespace game_skyrimse
                 return true;
             }
 
+            // STAT, and the other placed types with a model (ModelRecord): the same three subrecords.
             bool readStatic(const Content::RawRecord& record, std::span<const std::byte> bytes)
             {
                 StaticRecord s;
@@ -851,7 +917,11 @@ namespace game_skyrimse
                 }
                 if (status < 0)
                     return damaged(reader);
-                mOut.mStatics.push_back(std::move(s));
+                if (record.mType == Content::fourCC("STAT"))
+                    mOut.mStatics.push_back(std::move(s));
+                else
+                    mOut.mModels.push_back(
+                        ModelRecord{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel) });
                 return true;
             }
 

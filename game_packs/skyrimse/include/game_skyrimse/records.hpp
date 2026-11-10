@@ -245,6 +245,13 @@ namespace game_skyrimse
         std::vector<PlacedRef> mTemporary;
         std::vector<PlacedRef> mVisibleDistant;
         std::vector<PlacedRef> mOther;
+        /// Where the cell sits in its file, so that its references can be read later without walking the whole plugin
+        /// (world store, lazy cells): the cell record's offset is mCommon.mOffset; this is the record's size with its
+        /// header, and the offset and size (header included) of the cell-children group (type 6) that follows it.
+        std::uint64_t mRecordSize = 0;
+        bool mHasChildren = false;
+        std::uint64_t mChildrenOffset = 0;
+        std::uint64_t mChildrenSize = 0;
 
         [[nodiscard]] bool interior() const { return (mFlags & CellFlags::Interior) != 0; }
         [[nodiscard]] std::size_t refCount() const
@@ -257,6 +264,17 @@ namespace game_skyrimse
     {
         RecordCommon mCommon;
         std::optional<std::array<std::int16_t, 6>> mBounds; ///< OBND: x1 y1 z1 x2 y2 z2
+        std::string mModel; ///< MODL
+    };
+
+    /// A base form that is placed in the world: ACTI, CONT, DOOR, FLOR, FURN, LIGH, MSTT, TREE, TACT; the carried things
+    /// ALCH, AMMO, APPA, BOOK, INGR, KEYM, SCRL, SLGM; and the markers IDLM, SOUN, ASPC, SPEL, TXST (no model). The same
+    /// fields as StaticRecord, plus the type.
+    struct ModelRecord
+    {
+        std::uint32_t mType = 0; ///< The record's FourCC
+        RecordCommon mCommon;
+        std::optional<std::array<std::int16_t, 6>> mBounds; ///< OBND
         std::string mModel; ///< MODL
     };
 
@@ -361,6 +379,9 @@ namespace game_skyrimse
         std::uint32_t mMaxErrors = 256;
         /// Records kept per type. A plugin has 2^24 form ids at most, but a hostile one can repeat records.
         std::uint64_t mMaxRecordsPerType = 4ull * 1024 * 1024;
+        /// Walk the groups and count REFR and ACHR but do not decode them (the world store's index pass; cells are
+        /// still decoded, with their children group's place in the file).
+        bool mSkipReferences = false;
     };
 
     /// Per record type: what the walk saw and what became a struct.
@@ -379,6 +400,7 @@ namespace game_skyrimse
         std::vector<WorldRecord> mWorlds;
         std::vector<CellRecord> mCells;
         std::vector<StaticRecord> mStatics;
+        std::vector<ModelRecord> mModels;
         std::vector<NpcRecord> mNpcs;
         std::vector<ItemRecord> mItems;
         std::vector<LeveledList> mLeveledLists;

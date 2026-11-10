@@ -1,9 +1,11 @@
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/world_view.hpp"
 
 #include <openeden/extension.hpp>
 #include <openeden/game/content.hpp>
+#include <openeden/game/world_view.hpp>
 #include <openeden/host.hpp>
 #include <openeden/logging.hpp>
 
@@ -14,7 +16,7 @@ namespace game_skyrimse
 {
     namespace
     {
-        // Owns the content loader it registers (the host keeps a reference until stop()).
+        // Owns the content loader it registers (the host keeps a reference until stop()) and the world view.
         class SkyrimGamePack final : public openeden::sdk::Extension
         {
         public:
@@ -31,6 +33,14 @@ namespace game_skyrimse
                 if (content == nullptr)
                     throw std::runtime_error("the content service is missing");
                 content->registerLoader(mLoader);
+                // The read-only world view (openeden/game/world_view.hpp). It starts empty: the plugins that fill it
+                // come from the game's content list, which no host hands to a pack yet (task 0086 stage log); a host
+                // that knows the load order calls addPlugin / load on it.
+                if (openeden::sdk::game::WorldViewService* const worldViews = host.getWorldViewService())
+                {
+                    worldViews->registerWorldView(mWorldView);
+                    mWorldViews = worldViews;
+                }
                 if (openeden::sdk::LoggingService* const logging = host.getLoggingService())
                 {
                     if (openeden::sdk::Logger* const logger = logging->getLogger(kPackId))
@@ -39,10 +49,21 @@ namespace game_skyrimse
                 throw std::runtime_error(std::string(kRulesNotImplementedMessage));
             }
 
-            void stop() override {}
+            void stop() override { withdrawWorldView(); }
+
+            ~SkyrimGamePack() override { withdrawWorldView(); }
 
         private:
+            void withdrawWorldView()
+            {
+                if (mWorldViews != nullptr)
+                    mWorldViews->withdrawWorldView(mWorldView);
+                mWorldViews = nullptr;
+            }
+
             SkyrimContentLoader mLoader;
+            SkyrimWorldView mWorldView;
+            openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
         };
     }
 
