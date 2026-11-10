@@ -10,7 +10,6 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
-#include <components/nif/property.hpp>
 #include <components/nif/texture.hpp>
 
 namespace Lod

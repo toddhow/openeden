@@ -196,7 +196,7 @@ except components/esmloader/load.cpp -> components/loadinglistener/loadinglisten
 except components/fontloader/fontloader.cpp -> components/myguiplatform/scalinglayer.hpp  # engine code includes a widget header (found by this checker)
 except components/fx/widgets.cpp -> components/widgets/box.hpp  # engine code includes a widget header (found by this checker)
 except components/lod/nifflatten.cpp -> components/nif/data.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
-except components/lod/nifflatten.cpp -> components/nif/property.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
+except components/lod/nifflatten.cpp -> components/nif/controller.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene); controller.hpp brings property.hpp in, so the direct property.hpp include is gone (task 0096 stage a2/b)
 except components/lod/nifflatten.cpp -> components/nif/texture.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
 except components/lod/nifflatten.hpp -> components/nif/node.hpp  # engine reads NIF node data directly (task 0082, Nif::Scene)
 except components/lua/configuration.cpp -> components/esm3/esmreader.hpp  # engine reads a record or id type of a format (note 0043 1.2; task 0083)
