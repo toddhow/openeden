@@ -44,9 +44,9 @@ namespace CraftingTest
 #pragma GCC diagnostic pop
 #endif
 
-// installSocialRulesForTest(): on the old code the rules are part of the MechanicsManager and the function does nothing;
-// with the move it installs the pack's social rules (the only difference between the two runs; the tests below are
-// unedited).
+// installSocialRulesForTest(): on the old code the rules are part of the MechanicsManager and the function does
+// nothing; with the move it installs the pack's social rules (the only difference between the two runs; the tests below
+// are unedited).
 #include "socialinstall.hpp"
 
 namespace CraftingTest
@@ -201,7 +201,10 @@ namespace CraftingTest
                 stats().clearExpelled(rid(faction));
             }
 
-            int disposition(const MWWorld::Ptr& npc, bool clamp = true) { return mManager.getDerivedDisposition(npc, clamp); }
+            int disposition(const MWWorld::Ptr& npc, bool clamp = true)
+            {
+                return mManager.getDerivedDisposition(npc, clamp);
+            }
 
             SocialDialogue mDialogue;
             MWMechanics::MechanicsManager mManager;
@@ -307,7 +310,8 @@ namespace CraftingTest
                                     for (int bounty : { 0, 100 })
                                         for (int extras = 0; extras < 4; ++extras)
                                         {
-                                            MWWorld::Ptr npc = makeSpeaker("grid_" + std::to_string(mOtherNpcs.size()), race, faction);
+                                            MWWorld::Ptr npc = makeSpeaker(
+                                                "grid_" + std::to_string(mOtherNpcs.size()), race, faction);
                                             statsOf(npc).setBaseDisposition(base);
                                             statsOf(npc).setCrimeDispositionModifier(crime);
                                             stats().setAttribute(ESM::Attribute::Personality, personality);
@@ -317,8 +321,12 @@ namespace CraftingTest
                                                 leave(f);
                                             switch (playerFaction)
                                             {
-                                                case 1: joinAt("faction_a", 4); break;
-                                                case 2: joinAt("faction_b", 1); break;
+                                                case 1:
+                                                    joinAt("faction_a", 4);
+                                                    break;
+                                                case 2:
+                                                    joinAt("faction_b", 1);
+                                                    break;
                                                 case 3:
                                                     joinAt("faction_a", 0);
                                                     joinAt("faction_c", 6);
@@ -328,14 +336,16 @@ namespace CraftingTest
                                                     joinAt("faction_c", 3);
                                                     stats().expell(rid("faction_b"), false);
                                                     break;
-                                                default: break;
+                                                default:
+                                                    break;
                                             }
-                                            stats().setDrawState(
-                                                (extras & 1) ? MWMechanics::DrawState::Weapon : MWMechanics::DrawState::Nothing);
-                                            out << race << ' ' << (faction[0] ? faction : "-") << " base " << base << " crime "
-                                                << crime << " pers " << personality << " pf " << playerFaction << " bounty "
-                                                << bounty << " extras " << extras << " -> " << disposition(npc, false) << ' '
-                                                << disposition(npc, true) << '\n';
+                                            stats().setDrawState((extras & 1) ? MWMechanics::DrawState::Weapon
+                                                                              : MWMechanics::DrawState::Nothing);
+                                            out << race << ' ' << (faction[0] ? faction : "-") << " base " << base
+                                                << " crime " << crime << " pers " << personality << " pf "
+                                                << playerFaction << " bounty " << bounty << " extras " << extras
+                                                << " -> " << disposition(npc, false) << ' ' << disposition(npc, true)
+                                                << '\n';
                                         }
             expectRecording("rules_social_disposition.golden.txt", out.str());
         }
@@ -386,7 +396,8 @@ namespace CraftingTest
                                 for (float luck : { 30.f, 100.f })
                                     for (float fatigue : { 20.f, 200.f })
                                     {
-                                        MWWorld::Ptr npc = makeSpeaker("barter_" + std::to_string(mOtherNpcs.size()), "otherrace", "");
+                                        MWWorld::Ptr npc = makeSpeaker(
+                                            "barter_" + std::to_string(mOtherNpcs.size()), "otherrace", "");
                                         statsOf(npc).setBaseDisposition(base);
                                         statsOf(npc).getSkill(ESM::Skill::Mercantile).setBase(sellerMercantile);
                                         statsOf(npc).setAttribute(ESM::Attribute::Luck, luck + 10.f);
@@ -396,8 +407,8 @@ namespace CraftingTest
                                         stats().setAttribute(ESM::Attribute::Luck, luck);
                                         stats().setAttribute(ESM::Attribute::Personality, 40.f + luck / 10.f);
                                         setFatigue(mPlayer, fatigue);
-                                        out << basePrice << (buying ? " buy " : " sell ") << base << ' ' << mercantile << ' '
-                                            << sellerMercantile << ' ' << luck << ' ' << fatigue << " -> "
+                                        out << basePrice << (buying ? " buy " : " sell ") << base << ' ' << mercantile
+                                            << ' ' << sellerMercantile << ' ' << luck << ' ' << fatigue << " -> "
                                             << mManager.getBarterOffer(npc, basePrice, buying) << '\n';
                                     }
             expectRecording("rules_social_barter.golden.txt", out.str());
@@ -439,8 +450,8 @@ namespace CraftingTest
             MWWorld::Ptr npc = makeSpeaker("npc_a", "otherrace", "");
             statsOf(npc).setBaseDisposition(50);
             using PT = MWBase::MechanicsManager;
-            for (auto type : { PT::PT_Admire, PT::PT_Intimidate, PT::PT_Taunt, PT::PT_Bribe10, PT::PT_Bribe100,
-                     PT::PT_Bribe1000 })
+            for (auto type :
+                { PT::PT_Admire, PT::PT_Intimidate, PT::PT_Taunt, PT::PT_Bribe10, PT::PT_Bribe100, PT::PT_Bribe1000 })
                 EXPECT_EQ(persuade(npc, type, 30).mDraws, 1) << int(type);
         }
 
@@ -503,15 +514,16 @@ namespace CraftingTest
             using PT = MWBase::MechanicsManager;
             const char* const names[] = { "admire", "intimidate", "taunt", "bribe10", "bribe100", "bribe1000" };
             int typeIndex = 0;
-            for (auto type : { PT::PT_Admire, PT::PT_Intimidate, PT::PT_Taunt, PT::PT_Bribe10, PT::PT_Bribe100,
-                     PT::PT_Bribe1000 })
+            for (auto type :
+                { PT::PT_Admire, PT::PT_Intimidate, PT::PT_Taunt, PT::PT_Bribe10, PT::PT_Bribe100, PT::PT_Bribe1000 })
             {
                 for (int base : { 5, 50, 95 })
                     for (float speech : { 10.f, 40.f, 90.f })
                         for (int reputation : { 0, 30 })
                             for (int roll : { 0, 1, 4, 5, 20, 35, 49, 50, 51, 70, 98, 99 })
                             {
-                                MWWorld::Ptr npc = makeSpeaker("persuade_" + std::to_string(mOtherNpcs.size()), "otherrace", "");
+                                MWWorld::Ptr npc
+                                    = makeSpeaker("persuade_" + std::to_string(mOtherNpcs.size()), "otherrace", "");
                                 statsOf(npc).setBaseDisposition(base);
                                 statsOf(npc).setAiSetting(MWMechanics::AiSetting::Flee, 30);
                                 statsOf(npc).setAiSetting(MWMechanics::AiSetting::Fight, 70);
@@ -521,9 +533,10 @@ namespace CraftingTest
                                 stats().setReputation(reputation);
                                 stats().setLevel(1 + reputation / 10);
                                 const Persuasion r = persuade(npc, type, roll);
-                                out << names[typeIndex] << " base " << base << " speech " << speech << " rep " << reputation
-                                    << " roll " << roll << " -> " << (r.mSuccess ? "ok" : "no") << ' ' << r.mTemp << ' '
-                                    << r.mPerm << " flee " << r.mFlee << " fight " << r.mFight << " draws " << r.mDraws << '\n';
+                                out << names[typeIndex] << " base " << base << " speech " << speech << " rep "
+                                    << reputation << " roll " << roll << " -> " << (r.mSuccess ? "ok" : "no") << ' '
+                                    << r.mTemp << ' ' << r.mPerm << " flee " << r.mFlee << " fight " << r.mFight
+                                    << " draws " << r.mDraws << '\n';
                             }
                 ++typeIndex;
             }

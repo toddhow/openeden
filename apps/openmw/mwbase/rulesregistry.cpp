@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include "../mwmechanics/progressionrules.hpp"
+#include "../mwmechanics/socialrules.hpp"
 #include "../mwmechanics/thiefrules.hpp"
 #include "../mwworld/gamerules.hpp"
 
@@ -14,6 +15,7 @@ namespace MWBase
         {
             std::shared_ptr<MWMechanics::ThiefRules> mThief;
             std::shared_ptr<MWMechanics::ProgressionRules> mProgression;
+            std::shared_ptr<MWMechanics::SocialRules> mSocial;
         };
 
         Installed& installed()
@@ -35,6 +37,8 @@ namespace MWBase
             installed().mThief = std::move(rules.mThief);
         if (rules.mProgression)
             installed().mProgression = std::move(rules.mProgression);
+        if (rules.mSocial)
+            installed().mSocial = std::move(rules.mSocial);
     }
 
     void RulesRegistry::clearForTests()
@@ -58,5 +62,14 @@ namespace MWBase
                 "No game pack provides the progression rules (spell autocalc, difficulty scaling, levelled lists): "
                 "the executable did not install them (MWBase::RulesRegistry::install)");
         return *installed().mProgression;
+    }
+
+    MWMechanics::SocialRules& RulesRegistry::social()
+    {
+        if (!installed().mSocial)
+            throw std::runtime_error(
+                "No game pack provides the social rules (derived disposition, barter prices, persuasion): the "
+                "executable did not install them (MWBase::RulesRegistry::install)");
+        return *installed().mSocial;
     }
 }

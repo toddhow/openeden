@@ -99,6 +99,7 @@ namespace game_morrowind
         rules.mScripts = MWScript::CommandSet{ &Compiler::registerExtensions, &MWScript::installOpcodes };
         rules.mThief = makeThiefRules();
         rules.mProgression = makeProgressionRules();
+        rules.mSocial = makeSocialRules();
         MWBase::RulesRegistry::install(std::move(rules));
     }
 }

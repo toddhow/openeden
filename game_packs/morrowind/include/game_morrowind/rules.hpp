@@ -8,6 +8,7 @@
 namespace MWMechanics
 {
     class ProgressionRules;
+    class SocialRules;
     class ThiefRules;
 }
 
@@ -24,6 +25,9 @@ namespace game_morrowind
     /// tests install them so that code which makes an NPC finds its spell autocalc).
     [[nodiscard]] std::shared_ptr<MWMechanics::ThiefRules> makeThiefRules();
     [[nodiscard]] std::shared_ptr<MWMechanics::ProgressionRules> makeProgressionRules();
+
+    /// Morrowind's social rules (task 0098 move 6): derived disposition, barter price, persuasion.
+    [[nodiscard]] std::shared_ptr<MWMechanics::SocialRules> makeSocialRules();
 }
 
 #endif
