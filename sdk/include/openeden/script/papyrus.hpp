@@ -248,7 +248,9 @@ namespace openeden::script
         /// (2026-11-09) took them out again (RestoreResult has its 1.0 layout) and put them in RestoreDetails,
         /// reachable through the optional RestoreDetailsSource of the runtime, which supersedes them. The number stays
         /// 1.1: a 1.0 consumer is now ABI-safe, and a 1.1 consumer reads the details the new way.
-        static constexpr sdk::Version kVersion{ 1, 1 };
+        /// 1.2 (2026-11-10, toddhow's blanket approval of the task's recommendation): setProperty, ADDED AT THE END of
+        /// the interface with a default body, so a consumer or an implementer built against 1.1 keeps its layout.
+        static constexpr sdk::Version kVersion{ 1, 2 };
 
         virtual ~PapyrusContract() = default;
 
@@ -298,5 +300,19 @@ namespace openeden::script
         /// not validated: RestoreDetails::attachKeysChecked is false). Refused from inside a native or a world
         /// callback, like call() and tick().
         virtual RestoreResult restore(const SaveBlob& blob) noexcept = 0;
+
+        /// Set a variable or an auto property of an instance by name, as a game pack does for the values an editor
+        /// stored (properties, filled aliases). The value must fit the declared type (an Int may fill a Float, as
+        /// for natives). False when the instance or the name does not exist, the property is not an auto property
+        /// (a full property has code: call its setter), or the value cannot be stored. Same rules as
+        /// PapyrusRuntime::setVariable, which it calls. Added in 1.2 at the end of the interface; the default refuses
+        /// (a provider that predates it).
+        virtual bool setProperty(InstanceId instance, std::string_view name, const PapyrusValue& value) noexcept
+        {
+            (void)instance;
+            (void)name;
+            (void)value;
+            return false;
+        }
     };
 }

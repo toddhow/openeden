@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/papyrusruntime.hpp>
 
 #include "apps/components_tests/papyrus/pexassembler.hpp"
@@ -217,6 +218,72 @@ namespace
             TestSupport::AllocationCounter counter;
             setup.mRuntime->call(setup.mInstance, "Make", {});
             EXPECT_GT(counter.count(), 0u) << "array creation takes memory from the VM heap";
+        }
+    }
+
+    // Task 0093, native support: the pure natives (Math, Utility.Random*, Debug.Trace and relatives) allocate nothing
+    // once warm: the report buffer and the generator are reused, and no handler builds a string or a container.
+    TEST(PapyrusAllocation, the_pure_natives_allocate_nothing_once_warm)
+    {
+        for (const Target target : { Target::SkyrimSE, Target::Fallout4 })
+        {
+            QuietWorld world;
+            auto runtime = ScriptPapyrus::createRuntime(world, UnknownFunctionPolicy::Strict);
+            ScriptBuilder math("Math");
+            for (const char* name : { "Sin", "Sqrt", "Abs" })
+            {
+                math.function(name, "Float").global().native().param("afValue", "Float");
+            }
+            math.function("Floor", "Int").global().native().param("afValue", "Float");
+            math.function("Pow", "Float").global().native().param("x", "Float").param("y", "Float");
+            ScriptBuilder utility("Utility");
+            utility.function("RandomInt", "Int").global().native().param("aiMin", "Int").param("aiMax", "Int");
+            utility.function("RandomFloat", "Float").global().native().param("afMin", "Float").param("afMax", "Float");
+            ScriptBuilder debug("Debug");
+            debug.function("Trace").global().native().param("asTextToPrint", "String").param("aiSeverity", "Int");
+            debug.function("Notification").global().native().param("asNotificationText", "String");
+            ScriptBuilder work("PureWork");
+            work.function("Run", "Int")
+                .local("f", "Float")
+                .local("i", "Int")
+                .local("n", "None")
+                .callStatic("Math", "Sin", Id("f"), { Flt(30.0f) })
+                .callStatic("Math", "Sqrt", Id("f"), { Flt(2.0f) })
+                .callStatic("Math", "Abs", Id("f"), { Flt(-2.0f) })
+                .callStatic("Math", "Floor", Id("i"), { Flt(2.5f) })
+                .callStatic("Math", "Pow", Id("f"), { Flt(2.0f), Flt(3.0f) })
+                .callStatic("Utility", "RandomInt", Id("i"), { Int(1), Int(6) })
+                .callStatic("Utility", "RandomFloat", Id("f"), { Flt(0.0f), Flt(1.0f) })
+                .callStatic("Debug", "Trace", Id("n"), { Str("a line"), Int(0) })
+                .callStatic("Debug", "Notification", Id("n"), { Str("a note") })
+                .ret(Id("i"));
+            for (const ScriptBuilder* script : { &math, &utility, &debug, &work })
+            {
+                ASSERT_TRUE(load(*runtime, *script, target));
+            }
+            ScriptPapyrus::PureNatives natives(world);
+            const auto report = natives.registerAll(*runtime);
+            ASSERT_TRUE(report.ok());
+            AttachKey key;
+            key.formId = 0x77;
+            const InstanceId id = runtime->attach(key, "PureWork");
+            ASSERT_NE(id, 0u);
+            runtime->tick(0.0);
+            for (int i = 0; i < 5; ++i)
+            {
+                ASSERT_TRUE(runtime->call(id, "Run", {}).ok);
+            }
+            std::size_t allocations = 0;
+            {
+                TestSupport::AllocationCounter counter;
+                for (int i = 0; i < 200; ++i)
+                {
+                    EXPECT_TRUE(runtime->call(id, "Run", {}).ok);
+                }
+                allocations = counter.count();
+            }
+            EXPECT_EQ(allocations, 0u);
+            EXPECT_GE(runtime->stats().nativeCalls, 1000u);
         }
     }
 }

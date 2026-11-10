@@ -181,6 +181,7 @@ file(GLOB UNITTEST_SRC_FILES
     papyrus/testpapyrusreview2.cpp
     papyrus/testpapyrussched.cpp
     papyrus/testpapyrussave.cpp
+    papyrus/testpapyrusnatives.cpp
     papyrus/testrestoreresultabi.cpp
     papyrus/testpapyrusgamepack.cpp
 

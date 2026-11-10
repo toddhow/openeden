@@ -30,6 +30,7 @@
 #include <components/bsa/ba2gnrlfile.hpp>
 #include <components/bsa/bsafile.hpp>
 #include <components/bsa/compressedbsafile.hpp>
+#include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/papyrusruntime.hpp>
 #include <components/script_papyrus/pexfile.hpp>
 
@@ -210,7 +211,7 @@ namespace
 
     Outcome runSample(const std::map<std::string, std::vector<std::uint8_t>>& scripts,
         const std::vector<Native>& natives, const std::set<std::string>& registered, bool registerAll,
-        const std::vector<Sampled>& sample, bool allEvents)
+        const std::vector<Sampled>& sample, bool allEvents, bool pure = false)
     {
         QuietWorld world;
         auto runtime = ScriptPapyrus::createRuntime(world, UnknownFunctionPolicy::Tolerant);
@@ -219,10 +220,19 @@ namespace
             runtime->loadScript(bytes, name);
         }
         std::uint64_t recorded = 0;
+        std::set<std::string> pureNames;
+        for (const std::string_view name : ScriptPapyrus::PureNatives::names())
+        {
+            pureNames.insert(std::string(name));
+        }
         static const std::set<std::string> latent = { "utility.wait", "utility.waitmenumode", "utility.waitgametime" };
         for (const Native& native : natives)
         {
             const std::string key = lowerText(native.mClass) + "." + lowerText(native.mFunction);
+            if (pure && pureNames.contains(key))
+            {
+                continue; // the library answers it
+            }
             if (!registerAll && !registered.contains(key))
             {
                 continue;
@@ -240,6 +250,14 @@ namespace
                     return NativeResult{};
                 },
                 error);
+        }
+
+        // The pure natives are registered AFTER the recorders (which skip their names), so only the library answers
+        // them.
+        ScriptPapyrus::PureNatives pureNatives(world);
+        if (pure)
+        {
+            pureNatives.registerAll(*runtime);
         }
 
         Outcome outcome;
@@ -496,6 +514,65 @@ namespace
         print("sample A, recorder for the 106 most called natives", yardstick);
         const Outcome yardstickEvents = runSample(scripts, natives, top, false, eventful, true);
         print("sample B (events), recorder for the 106 most called natives", yardstickEvents);
+
+        // 4. Native support (task 0093): the library's pure natives against the sites link() resolves.
+        {
+            std::set<std::string> pureSet;
+            for (const std::string_view name : ScriptPapyrus::PureNatives::names())
+            {
+                pureSet.insert(std::string(name));
+            }
+            QuietWorld world;
+            auto runtime = ScriptPapyrus::createRuntime(world);
+            for (const auto& [name, bytes] : scripts)
+            {
+                runtime->loadScript(bytes, name);
+            }
+            std::uint64_t sitesAll = 0;
+            std::uint64_t sitesPure = 0;
+            std::uint64_t sitesTop = 0;
+            std::size_t distinctPure = 0;
+            std::size_t rank = 0;
+            std::size_t topPure = 0;
+            for (const auto& [key, count] : runtime->nativeCallSites())
+            {
+                sitesAll += count;
+                const bool isPure = pureSet.contains(key);
+                if (isPure)
+                {
+                    sitesPure += count;
+                    ++distinctPure;
+                }
+                if (rank < 106)
+                {
+                    sitesTop += isPure ? count : 0;
+                    topPure += isPure ? 1 : 0;
+                }
+                ++rank;
+            }
+            std::cout << "PAPYRUS-NATIVES pure natives " << pureSet.size() << " in the library, " << distinctPure
+                      << " of them called by the game's scripts; they cover " << sitesPure << " of " << sitesAll
+                      << " native call sites ("
+                      << (sitesAll == 0 ? 0.0 : 100.0 * static_cast<double>(sitesPure) / static_cast<double>(sitesAll))
+                      << " percent), " << topPure << " of the top 106 natives and " << sitesTop << " of their "
+                      << topCalls << " call sites\n";
+            if (std::getenv("OPENEDEN_PAPYRUS_VERBOSE") != nullptr)
+            {
+                for (const auto& [key, count] : runtime->nativeCallSites())
+                {
+                    if (pureSet.contains(key))
+                    {
+                        std::cout << "PAPYRUS-NATIVES   " << key << " " << count << "\n";
+                    }
+                }
+            }
+        }
+        const Outcome pureA = runSample(scripts, natives, {}, true, sample, false, true);
+        print("sample A, pure natives real and a recorder for every other native", pureA);
+        const Outcome pureB = runSample(scripts, natives, {}, true, eventful, true, true);
+        print("sample B (events), pure natives real and a recorder for every other native", pureB);
+        EXPECT_EQ(pureA.mComplete, all.mComplete) << "real pure natives must not make a script fail that ran before";
+        EXPECT_EQ(pureB.mComplete, allEvents.mComplete);
 
         EXPECT_GT(all.mRun, 0u);
         EXPECT_GT(all.mComplete, 0u);
