@@ -204,7 +204,9 @@ namespace
             "morrowind_script_table.golden.txt";
         std::ifstream file(path, std::ios::binary);
         ASSERT_TRUE(file.good()) << "cannot open " << path;
-        const std::string expected((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        std::string expected((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        // a Windows checkout may have turned the line ends into CR LF
+        expected.erase(std::remove(expected.begin(), expected.end(), ''), expected.end());
 
         const std::vector<std::string> a = lines(actual);
         const std::vector<std::string> e = lines(expected);
