@@ -426,3 +426,205 @@ The bitmap path on the real Vulkan renderer (the font texture goes through the s
 3. **Clip mask and layers:** with the Vulkan backend having none of it and the estimate at 7 to 11 days (12 to 19 with filters and shaders), **forbid `box-shadow`, `filter`, `backdrop-filter`, `mask-image`, gradients and rounded-corner clipping in themes for now** and revisit after U1? (Recommended; this is decision 3 of 13.11 with the sizing attached.)
 4. **Is U0b enough to remove the "conditional"** from the GO? Recommended: yes for fonts, Linux, IME and `nav`; the open conditions are now only the real-renderer font draw (small), effects (a decision), and the schedule.
 5. **Schedule:** unchanged (U1 onward after Track V and game-pack stage d).
+
+## 16. Lua UI compatibility layer: can `openmw.ui` survive the move to RmlUi? (survey, 2026-11-10)
+
+Docs only, read-only survey; nothing was built, run or measured. Asked for by toddhow's answer of 2026-11-06 ("keep existing OpenMW Lua UI mods working during the Morrowind stage, by re-implementing `lua_ui` over the new system") and decision 0015 point 6. Every code claim cites a file and function at the working tree of 2026-11-10 (**READ**); anything recalled from memory of MyGUI, RmlUi or OpenMW is marked **RECALLED-VERIFY**. All effort figures are **my estimates, plus or minus 50 percent**, not measurements.
+
+### 16.0 Verdict
+
+**The hypothesis is true in its weak form and refuted in its strong form.**
+
+- **True:** the geometry maths, the layout-table diffing, templates and slots, property parsing and the upward event bubbling are in OpenEden's own C++ (`components/lua_ui/`, 2,347 lines in 31 files) and not in MyGUI. Flex, Container, relative/absolute/anchor placement and Window dragging are plain integer arithmetic (`flex.cpp` `LuaFlex::updateChildren`, `widget.cpp` `WidgetExtension::calculateSize/calculatePosition`, `container.cpp` `LuaContainer::updateSizeToFit`, `window.cpp` `LuaWindow::notifyMouseDrag`).
+- **Refuted:** MyGUI is not "only the leaf drawing and input layer". **Every Lua widget class inherits from a MyGUI class** (`widget.hpp` `LuaWidget : MyGUI::Widget`; `text.hpp` `LuaText : MyGUI::EditBox`; `image.hpp` `LuaImage : MyGUI::ImageBox` and `LuaTileRect : MyGUI::TileRect`; `flex.hpp`, `window.hpp`, `container.hpp` `: MyGUI::Widget`; `adapter.hpp` `LuaAdapter` is a MyGUI widget too). MyGUI owns the objects' memory (`element.cpp` `destroyWidget` calls `MyGUI::Gui::destroyWidget`; `createWidget` uses `MyGUI::Gui::createWidgetT` through the factories registered in `util.cpp` `registerAllWidgets`), type identity is MyGUI's `getTypeName()` (`element.cpp` lines 134 and 284), and the following are **all MyGUI's**: text extents (`getTextSize`, `getFontHeight` in `LuaText::calculateSize` and `LuaTextEdit::calculateSize`), word wrap and alignment, hit testing, mouse and key focus, capture, drag and double-click detection, clipping to the parent, alpha inheritance (`widget.cpp` `updateProperties`: `setAlpha`, `setInheritsAlpha`), visibility inheritance (with a bug workaround in `updateVisible`), layers (`layers.cpp` creates `MyGUI::OverlappedLayer`), the pointer (`setPointer("arrow")`), the texture size lookup (`image.cpp` line 52, `MyGUI::RenderManager::getTexture`), the special `"white"` texture (`windowmanagerimp.cpp` line 2295) and the font and skin (`files/data/mygui/openmw_lua.xml`, skins `LuaText`, `LuaTextEdit`, `LuaImage`, font "Default").
+- **Another part of the hypothesis is refuted:** there are **no tooltips** in the Lua UI. `grep -i tooltip` over `components/lua_ui`, `files/lua_api/openmw/ui.lua` and `docs/source/reference/lua-scripting/widgets` finds nothing. Focus is MyGUI's key focus and mouse focus, surfaced as `focusGain`/`focusLoss` events only; there is no focus traversal.
+- **Count of the leak (READ, `grep -c MyGUI`):** 235 lines in 22 of the 31 files of `components/lua_ui/` (`widget.cpp` 55, `widget.hpp` 39, `window.cpp` 13, `util.cpp` 10, `layers.hpp` 10, `image.cpp` 10, `flex.hpp` 10, `flex.cpp` 9, `container.cpp` 8, then 7 or fewer in the rest). Outside the component: `windowmanagerimp.cpp` `onKeyFocusChanged` does `dynamic_cast<LuaUi::WidgetExtension*>` to start SDL text input; `LuaManager::inputEvent` calls `MyGUI::InputManager::isModalAny()` (`luamanagerimp.cpp` line 695); `SettingsWindow` embeds Lua elements through `LuaAdapter` (see 16.5).
+
+**Can OpenEden keep `openmw.ui` working over RmlUi?** Yes, with Option A below (keep the layout and bubbling code, replace the MyGUI inheritance by a leaf interface backed by the element protocol), and only if the text-measurement and clipping/alpha/z-order semantics are rebuilt on purpose. Option C (let RmlUi do the layout) cannot reproduce today's rectangles and should not be the compatibility strategy. The one thing that gates the switch is not the API but **the MyGUI windows that host Lua elements** (16.5).
+
+### 16.1 Inventory of the API surface
+
+Sources: `apps/openmw/mwlua/uibindings.cpp` (`registerUiApi`, `initUserInterfacePackage`), `files/lua_api/openmw/ui.lua`, `docs/source/reference/lua-scripting/widgets/*.rst`, `components/lua_ui/*`, `files/data/scripts/omw/ui.lua`, `files/data/scripts/omw/mwui/*`. "MyGUI" in the last column means the call reaches a MyGUI-based Morrowind window or a MyGUI widget today.
+
+**Functions of `require('openmw.ui')`** (context: menu and player scripts, `ui.lua` header)
+
+| Name | Behaviour (READ) | MyGUI-dependent? |
+| --- | --- | --- |
+| `ui.create(layout)` | `Element::make` at once, `Element::create` queued with `LuaManager::addAction` (applied in `applyDelayedActions`, main thread) | leaf yes (widget creation) |
+| `element:update()` | queued; only when `mState == Created`; layout of child Elements is not refreshed | leaf yes |
+| `element:destroy()` | queued; `layout` reset to nil | leaf yes |
+| `element.layout` (get/set) | property of the `Element` usertype | no |
+| `ui.updateAll()` | marks all Created elements and queues `update()` on each; documented "potentially extremely slow" | leaf yes |
+| `ui.content(table)` | `loadContentConstructor`, `components/lua_ui/content.lua`; `insert`, `add`, `indexOf`, index by position or name | no |
+| `ui.texture{path, offset, size}` | `LuaUi::ResourceManager::registerTexture`, stores path and atlas rectangle only | no (the load happens in the widget) |
+| `ui.screenSize()` | `Settings::video().mResolutionX/Y`, **not** the window or layer size | no |
+| `ui.layers` (`indexOf`, `insertAfter`, `insertBefore`, `#`, index, `pairs`) and `Layer.name`, `Layer.size` | `layers.hpp/cpp`: `MyGUI::LayerManager::createLayerAt(name, "OverlappedLayer", index)`, `setPick(interactive)`, `ILayer::getSize()` | **yes** |
+| `ui.TYPE`, `ui.ALIGNMENT` | `widgetTypeToName()` (`util.cpp`), `Alignment` enum | no |
+| `ui.showMessage(msg, {showInDialogue})` | `LuaManager::addUIMessage` into the message box or the dialogue window | **yes** (Morrowind windows) |
+| `ui.setConsoleMode(mode)`, `getConsoleMode()` (bound, not in `ui.lua`'s docs), `printToConsole(msg, color)`, `setConsoleSelectedObject(obj)`, `ui.CONSOLE_COLOR` | `WindowManager::setConsoleMode` etc. | **yes** (console window) |
+| `ui.registerSettingsPage(page)`, `removeSettingsPage(page)` | `scriptsettings.cpp`; pages hold an Element shown in the Settings window | **yes** (see 16.5) |
+| Private: `_setHudVisibility`, `_isHudVisible`, `_getDefaultFontSize`, `_getMenuTransparency`, `_showInteractiveMessage`, `_getAllUiModes`, `_getUiModeStack`, `_setUiModeStack`, `_getAllWindowIds`, `_getAllowedWindows`, `_setWindowDisabled`, `_isWindowVisible` | used by `omw/ui.lua`, `omw/mwui`, `omw/settings`, `omw/console` | **yes** (all go to `WindowManager`/`Settings`) |
+
+**Types.** `Element` (`layout`, `update`, `destroy`, `tostring`), `Layer`, `Layers`, `Content`, `Layout` (keys `type`, `layer`, `name`, `props`, `events`, `content`, `template`, `external`, `userData`; `element.cpp` `LayoutKeys`), `Template` (`props`, `content`, `type`), `MouseEvent` (`position`, `offset`, `button`; `widget.cpp` `mouseEvent`), `KeyboardEvent` (an `SDL_Keysym` built in `keyEvent`), `TextureResource`, `SettingsPageOptions` (`name`, `searchHints`, `element`).
+
+**Widget types and properties** (docs `widgets/*.rst` plus `*::updateProperties`)
+
+| Type | Properties | External | Events beyond the base ones |
+| --- | --- | --- | --- |
+| Widget (base) | `position`, `size`, `relativePosition`, `relativeSize`, `anchor`, `visible`, `propagateEvents`, `alpha`, `inheritAlpha`, undocumented `pointer` (default "arrow") | `slot` (templates) | base events: `keyPress`, `keyRelease`, `mouseMove`, `mouseClick`, `mouseDoubleClick`, `mousePress`, `mouseRelease`, `focusGain`, `focusLoss`, `textInput` |
+| Text | `autoSize` (true), `text`, `textSize` (10), `textColor`, `multiline`, `wordWrap`, `textAlignH`, `textAlignV`, `textShadow`, `textShadowColor` | none | none |
+| TextEdit | `text`, `textSize`, `textColor`, `multiline`, `wordWrap`, `textAlignH`, `textAlignV`, `readOnly`, `autoSize` (false; only for single-line or read-only) | none | `textChanged` |
+| Image | `resource` (a `ui.texture`), `tileH`, `tileV`, `color` | none | none |
+| Flex | `horizontal`, `autoSize` (true), `align`, `arrange` | on children: `grow`, `stretch` | none |
+| Container | none (sizes to its content) | none | none |
+| Window | `caption` | on children: `caption`, `move`, `resize`, `action` | `windowDrag` |
+
+**Lua-side interfaces that sit on this API** (`files/data/scripts/omw/`): `I.UI` (`setMode`, `addMode`, `removeMode`, `registerWindow`, `isWindowVisible`, ...; `UiModeChanged` event) in `ui.lua`; `I.MWUI` (templates `padding`, `interval`, `borders`, `box`, `boxTransparent`, text and edit templates; override then `ui.updateAll()`) in `mwui/`; `I.Settings` (`omw/settings/*`, builds its pages with `ui.create`); console scripts (`omw/console/*`); `openmw_aux.ui` (`deepLayoutCopy`, `deepUpdate`, `deepDestroy`: Lua only). There is no `MainMenu` interface in the tree (`grep interfaceName` over `files/data/scripts`).
+
+**Things the API cannot see:** no call returns a widget's computed rectangle, size, font metrics or the cursor position. The only layout results scripts can observe are `MouseEvent.position/offset`, the `windowDrag` table (`position`, `size`) and `Layer.size`. This matters for the test plan: layout fidelity is **visual and event-offset fidelity**, not a readable property.
+
+**Quirks worth preserving on purpose:** (a) `screenSize` is the video setting while `Layer.size` is MyGUI's possibly scaled layer size (they differ when `[GUI] scaling factor` is not 1; `windowmanagerimp.cpp` line 211); (b) borders are eight separate `Image` widgets (`mwui/borders.lua`), there is **no nine-patch** in the Lua API, so a texture "resource" is a sub-rectangle plus two tile flags; (c) every position and size is an `int` (truncation toward zero, `widget.cpp` lines 338-339 and 355-356; caps of 10,000,000 at lines 10-13); (d) `update()` re-applies a whole layout tree by diffing (`element.cpp` `updateContent`).
+
+### 16.2 Where MyGUI types and calls leak (READ)
+
+| Concern | Where | What MyGUI does today |
+| --- | --- | --- |
+| Class hierarchy and ownership | `widget.hpp` `WidgetExtension`/`LuaWidget`; every widget class; `element.cpp` | widget objects are MyGUI-owned; `dynamic_cast<WidgetExtension*>` from the MyGUI widget; `getTypeName()` decides "same type, update in place" or "destroy and create" |
+| Coordinates | `widget.hpp` (`IntCoord`, `IntSize`, `IntPoint`, `FloatCoord`, `FloatSize`), `properties.hpp` (`isMyGuiVector`, `Colour`) | the integer coordinate types are used as the arithmetic types of the layout code; `widget->setCoord`, `getSize`, `getParentSize` (the layer size for a root) |
+| Text metrics | `text.cpp` `LuaText::calculateSize` (`getTextSize`), `textedit.cpp` `LuaTextEdit::calculateSize` (`getTextSize().height`, `getFontHeight`; **it mutates the edit box inside a const layout call**: `mEditBox->setSize(normalSize)`) | font glyph advances, line height, word wrap and multi-line breaking inside MyGUI's `EditBox`/`TextView` (RECALLED-VERIFY: rules not read this session); font "Default" built by `components/fontloader/fontloader.cpp` with the GUI scaling factor |
+| Text drawing | `text.cpp` (`setTextColour`, `setTextShadow`, `setTextAlign` via `alignment.hpp` `alignmentToMyGui`, `setFontHeight`, `setEditMultiLine`, `setEditWordWrap`) | MyGUI draws the glyph quads |
+| Text editing | `textedit.cpp` (`MyGUI::EditBox`, `eventEditTextChange`) | caret, selection, key handling, clipboard (`ClipboardManager` implemented in `windowmanagerimp.cpp`), max length; `isTextInput()` drives `SDL_StartTextInput` |
+| Images | `image.cpp` (`setImageTexture`, `setImageCoord`, `setImageTile`, `LuaTileRect::_setAlign` for tiling), `resources.hpp` | MyGUI loads the texture by VFS path through the platform data manager; the atlas rectangle is an image coordinate; tiling is MyGUI's `TileRect` |
+| Events | `widget.cpp` `registerEvents` (12 MyGUI delegates: key press/release, mouse click, double click, press, release, move, drag, mouse and key set/lost focus); `keyEvent` (`SDLUtil::myGuiKeyToSdl`), `mouseEvent` (`getAbsolutePosition`) | hit test, "needs mouse focus" pick, double-click timing, drag, capture on press, key focus, text input as `keyPress` with `KeyCode::None` and a character (`keyPress`) |
+| Bubbling | `widget.hpp` `propagateEvent` | **not MyGUI**: OpenEden's loop up `mParent` |
+| Layers and z-order | `layers.hpp/cpp`, `element.cpp` `setLayer` (`LayerManager::attachToLayerNode`, `isExist`), `files/data/mygui/openmw_layers.xml` (22 layers, some `overlapped`, some `pick="false"`) | draw order; `OverlappedLayer` brings a pressed top-level widget to the front (RECALLED-VERIFY) |
+| Clipping and alpha | implicit | MyGUI crops children to their parent (`mCroppedParent`, used in `image.cpp`-side `LuaTileRect::_setAlign`; the general rule is RECALLED-VERIFY); alpha multiplies down the tree (`setInheritsAlpha`) |
+| Visibility | `widget.cpp` `updateVisible` | works around "parent visibility doesn't affect added children" (a MyGUI bug) |
+| Pointer | `widget.cpp` `setPointer("arrow")` | pointer resource names from `openmw_pointer.xml` (`arrow`, `hresize`, `vresize`, `dresize`, `drop_ground`, ...) |
+| Textures | `image.cpp` line 52; `windowmanagerimp.cpp` line 2295 | `getTexture(path)` and the engine-created 1x1 `"white"` texture used by `I.MWUI.constants.whiteTexture` |
+| Script settings | `adapter.cpp` `LuaAdapter` (a MyGUI widget holding a `LuaContainer`; `eventChangeCoord`), `scriptsettings.cpp`, `settingswindow.cpp` lines 989-1024 | the Settings window is a MyGUI window; the Lua page lives inside it |
+| Application glue | `windowmanagerimp.cpp` (`registerAllWidgets`, `clearGameInterface`/`clearMenuInterface`, `onKeyFocusChanged`), `luamanagerimp.cpp` (`isModalAny`, `LuaUi::clearSettings`), `game.hpp` | lifetime and input gating |
+
+**Threading (READ unless marked).** `ui.create/update/destroy/updateAll` and the layer inserts only queue a lambda with `LuaManager::addAction` (`uibindings.cpp`); the queue is applied by `LuaManager::applyDelayedActions`, called from `synchronizedUpdateUnsafe` (`luamanagerimp.cpp` lines 338-410), the main thread. The script keeps mutating `element.layout` between the call and the application, and the application reads the table as it is then. `MyGUI::Gui` is touched only from that point, so the layout pass is single-threaded on the main thread. Event callbacks (`WidgetExtension::mouseMove` and the others) run inside MyGUI's input injection, which the `apps/openmw/mwinput/*` managers and `WindowManager::injectKey*` drive; that this is the main thread is RECALLED-VERIFY (the SDL polling was not traced). `MWLua::Worker` is unused in this tree (0097 stage log), so Lua `update` is on the main thread too. A backend that renders on another thread needs the draw list handed over once per frame; the layout pass itself stays on the main thread.
+
+### 16.3 Options
+
+A common premise first. The element protocol of section 6 (create, set property, parent, class/state, events, layout box query, focus) is an engine-independent handle API (section 13.7: measured 1 protocol call per changed value). The compatibility layer is a client of that protocol, like any other Lua code, plus whatever extra the legacy semantics need.
+
+#### 16.3.1 Option A: keep the `lua_ui` layout code, replace MyGUI by a leaf interface
+
+Change `WidgetExtension` from "is a MyGUI widget" to "owns a protocol handle". The layout maths, `Element` diffing, templates/slots, property parsing, `propagateEvent`, Flex/Container/Window logic and the `Content` library stay. Replace the 235 MyGUI lines by one **`Leaf` interface** with (a) `setCoord(IntCoord)`, `size()`, `parentSize()`; (b) `setVisible`, `setAlpha`, `setInheritAlpha`; (c) `attach(parent)`, `detach()`, `attachToLayer(name)`; (d) text: `setText`, `setFont(height)`, `setColour`, `setShadow`, `setAlign`, `setMultiline`, `setWordWrap`, **`measureText(width) -> IntSize`**; (e) image: `setTexture(path, atlasRect, tile)`, `textureSize(path)`; (f) edit: text change event, read-only, caret and selection are the backend's; (g) pointer; (h) events: the 12 notifications plus `setKeyFocus`. One adapter class per widget type maps these onto protocol calls. In effect A is "un-inherit": each class holds a handle instead of being a MyGUI widget, and everything in 16.0 listed as MyGUI's must be rebuilt or bound.
+
+- **The viable form** puts each Lua widget in RmlUi as `position: absolute` with the integer rectangle **`lua_ui` computed**, so RmlUi is renderer and hit-tester only and never lays anything out. This keeps today's exact arithmetic.
+- **What must be rebuilt, not just bound:** (1) a **synchronous text measure** callable inside the layout pass (`calculateSize` runs while the pass runs, repeatedly: `LuaFlex::updateChildren` calls `calculateSize` on every child twice). Doing that through an RmlUi layout would hit the finding of section 13 that the *document* is the layout unit (a text change re-lays out the whole document: 1.15 ms and 6,200 allocations for 200 rows, against 0.026 ms in a separate document); so measure with the font engine directly and **own the line breaking** (a pure function over glyph advances, unit-testable without a window; then draw already-broken lines so RmlUi's wrapper cannot disagree). (2) Clipping to the parent: `overflow: hidden` per element, which uses scissor (axis-aligned) and so does not need the clip mask that RmlUi's Vulkan backend lacks (section 14; masks are for rounded corners; scissor stacking in the render interface is RECALLED-VERIFY). (3) Alpha: MyGUI multiplies alpha into each widget's own geometry; RmlUi's `opacity` on a parent is group opacity and wants layers, which the Vulkan backend lacks (section 14.1). So compute the effective alpha in `lua_ui` and push it per leaf (colour alpha); this also keeps the semantics. (4) Z-order and "raise on press" for `overlapped` layers. (5) Hit testing that matches MyGUI's: a pick on any widget that "needs mouse focus" (RECALLED-VERIFY: MyGUI's default is true, so every Lua widget absorbs the mouse today, with or without handlers) and the layer `interactive = false` option. (6) A text-edit control (below). (7) The tile/atlas image primitive built from explicit UVs (a custom element with its own geometry, not a decorator).
+- **One document per root Element** (each `ui.create` root) is the natural unit, because of the document-as-layout-unit finding; with absolute positioning only, a document's layout cost should follow its element count and not text reflow (RECALLED-VERIFY: not measured for absolute-only documents).
+- **Effort (mine, +-50%):** L1 extract the `Leaf` interface behind MyGUI with goldens unchanged 8 to 12 days; L2 own text measure and line breaking 5 to 8 days; L3 RmlUi leaf adapters for Widget/Flex/Container/Window/Text/Image, events, layers, clip, alpha, z-order 15 to 25 days; L4 TextEdit 5 to 10 days on an RmlUi form control, 8 to 15 days if a text editor of our own is written instead; plus the test plan of 16.4 (6 to 10 days) and the Settings-window dependency (16.5). **Total about 40 to 65 working days.**
+- **Fidelity risks:** text (glyph advances, rounding, wrap rules, shadow offset, vertical alignment inside a line box, the GUI-scale font raster: `FontLoader` is given the scaling factor, `windowmanagerimp.cpp` line 226); integer rounding at tile edges and cropping; hit-test and focus quirks; edit-control behaviour (caret keys, selection, undo, max length: MyGUI's `EditBox` against RmlUi's form control, RECALLED-VERIFY); mouse capture during drag across widgets (the `Window` drag relies on `eventMouseDrag` being delivered to the pressed widget outside its bounds).
+- **What breaks for mods:** nothing by design if the corpus passes; the expected differences are sub-pixel anti-aliasing of glyphs, the font's exact outlines (if the backend font engine differs from MyGUI's), and pointer resource names (`pointer` prop) that need a registry on the new side.
+
+#### 16.3.2 Option B: reimplement the layout in the new component library
+
+Rewrite Flex/Container/Window/Text/Image as `openeden.ui` components in Lua (or C++) on RmlUi's own box model and map `ui.create` layout tables onto them. It buys one code path (the compatibility layer *is* the library) and lets legacy and new UI share features (style sheets, focus tree). It costs the most and reproduces the least: every legacy quirk of 16.1 and 16.3.3 must be re-created in the new semantics while the new library is itself still being designed (decision 0015 point 1), and the golden rectangles stop being a regression guard because there would be no unchanged code to compare against. **Effort 12 to 20 weeks (mine, +-50%)**; fidelity risk as in A plus the layout, and mods break wherever the emulation is imprecise. Not recommended before the library has shipped real UI.
+
+#### 16.3.3 Option C: translate layout tables to RmlUi documents and flex CSS
+
+Cheapest on paper (a mapping table, 4 to 6 weeks to "mostly works", **open-ended tail**), and the right idea for *new* UI. It cannot be the compatibility strategy because `LuaFlex` is not CSS flex. Concretely (all READ, `flex.cpp`, `widget.cpp`, `container.cpp`):
+
+1. `grow` is distributed as `static_cast<int>(growFactor * grow)` **per child** (truncated), so the children do not necessarily sum to the container size (`flex.cpp` line 70); CSS flex distributes remainders exactly.
+2. `stretch` is `max(secondary(size), int(stretch * secondary(flexSize)))`, a floor and not `align-self: stretch` (lines 71-72).
+3. `autoSize` defaults to **true** and means "at least the children's extent on both axes" (`calculateSize`, lines 91-99); and `childScalingSize` **zeroes the primary axis** when auto-sized (lines 82-89) to break the `relativeSize` feedback loop, so a child with `relativeSize` along the primary axis of an auto-sized Flex resolves to 0.
+4. `align`/`arrange` use integer division `(container - content) / 2`, which rounds toward zero for negative free space (line 26).
+5. `Container` reports `childScalingSize() == 0`, so `relativeSize`/`relativePosition` of its children resolve to 0 (`container.cpp` lines 173-176), and its size is the max of (position + size) of children *and* template children, negative offsets included.
+6. Every `position`/`size` is truncated to int (`widget.cpp` 338-339, 355-356) and `anchor` subtracts a fraction of the size *before* truncation.
+7. `Text` with `autoSize` takes MyGUI's text size (`text.cpp` line 156); `TextEdit` takes `max(size, text height)` only for single-line or read-only (`textedit.cpp` 202 and 231-241).
+
+These are the **discriminator between A and C**: the same layout table gives different rectangles. C is the way to *write new UI*, not to keep old UI.
+
+**Comparison**
+
+| | A: keep layout, new leaf | B: reimplement layout | C: tables to CSS |
+| --- | --- | --- | --- |
+| Reuses today's tested arithmetic | yes | no | no |
+| Golden rectangles can be matched | exactly (text aside) | only by emulation | no |
+| Effort (mine, +-50%) | 40 to 65 days | 12 to 20 weeks | 4 to 6 weeks, open tail |
+| Main risk | text measure, edit control, z-order and hit-test semantics | everything | visible layout drift in mods |
+| Layout cost per update | our pass (integers) | RmlUi document layout | RmlUi document layout |
+| Depends on the new library | no (only the protocol) | yes | no |
+
+#### 16.3.4 Threading and update cost under A
+
+Layout runs on the main thread inside `applyDelayedActions`; the protocol calls follow immediately on the same thread, so no synchronisation is needed. `Context::Update/Render` is also on the main thread (section 13: 0.04 ms to build the list for 212 elements). The draw list goes to the GUI command graph as MyGUI's vertex buffers do now. RmlUi events are delivered during `Context::Process*` on the main thread; the `Leaf` event callbacks call `WidgetExtension::mouseMove` and the others unchanged. Texture loads (`ui.texture` paths) are on-demand reads through the VFS in the render interface's `LoadTexture`; they must not block the frame (how MyGUI's data manager does it today was not read: RECALLED-VERIFY).
+
+### 16.4 Fidelity test plan
+
+**Principle:** record before changing. The corpus and its goldens are produced from the **current MyGUI-based** implementation, committed as golden data (never regenerated automatically; changes reviewed by toddhow, per the guide), then L1 (the `Leaf` extraction, still on MyGUI) must pass them unchanged, then L3 (RmlUi) must pass them within the stated tolerances.
+
+**1. What to record.** Lua cannot read rectangles (16.1), so the recorder is C++: walk the `WidgetExtension` tree (`children()`, `templateChildren()`, `widget()->getCoord()` or `getAbsoluteCoord()`) of an `Element::mRoot` and emit `path / type / name / left top width height / visible / alpha` as canonical JSON. The runner needs no Lua manager: `Element::make(layout, false)` and `Element::create()` are public (`element.hpp`) and take a `sol::table`; callbacks are not part of the geometry corpus. Add an `Element::update()` pass for every case (layout mutated, then `update`) because `updateContent` diffs.
+
+**2. Can the layout be computed without a window?** Partly.
+- **Text-free layouts: probably yes.** The installed MyGUI headers contain `MyGUI_DummyPlatform.h` and `MyGUI_DummyRenderManager.h` (**READ**: `deps/vcpkg-x64-windows-2022-2026-02-24/installed/x64-windows/include/MYGUI/`). A `components-tests` file would create a `MyGUI::Gui` on them, call `LuaUi::registerAllWidgets()`, load `openmw_lua.xml`, create a layer of fixed size, and run the recorder. Open (RECALLED-VERIFY, not tried): what size the dummy render manager's view reports (the root's `getParentSize()` depends on it), and whether skins load without textures. No existing test creates a `MyGUI::Gui` (`grep MyGUI` over the three test directories finds only mwbase fakes and unrelated contract tests), so this is new harness work, 3 to 5 days. The only existing `lua_ui` test is `apps/components_tests/lua/testuicontent.cpp` (Content only).
+- **Text layouts: only with a font.** `getTextSize` needs the "Default" font, which `FontLoader` builds from a TrueType or bitmap file through `RenderManager` textures; whether that works on the dummy render manager is **unverified**. Two escapes: inject a fixed-advance bitmap font generated by the test (then the corpus tests the *arithmetic*, which is the point of A), or record text cases in the real game in a quiet window (`OPENEDEN_QUIET_WINDOW=1`) with a debug dump hook.
+
+**3. Corpus content.** Tier 1, text-free, exact match (0 px): each property of Widget alone and combined (`position`, `size`, `relativePosition`, `relativeSize`, `anchor` including negative and above 1, `visible`, nested visibility); Flex in all combinations (`horizontal`, `align` and `arrange` 3 x 3, `autoSize`, `grow` with fractions that truncate, `stretch`, mixed `relativeSize` children, nesting 3 deep, empty); Container with template children, `slot` templates, templates overriding `props`; Window with `move`/`resize`/`action` and a scripted drag sequence; Image with atlas rectangles, tile flags and `size = 0` (texture size) cases; content mutation (insert, remove, replace type, reorder, a shared Element used as child) through `update()`; caps (1e7) and the depth limit (250). Tier 2, text, exact on an injected fixed-advance font and **tolerance-based (+-1 px, equal line count) on the real font**: autoSize text, multiline, `wordWrap` at narrow widths, alignment 3 x 3, `textSize`, TextEdit autoSize, newlines and long words, `textShadow`. Tier 3, events: injected pointer sequences (move, press, release, click, double click, drag) over nested widgets with `propagateEvents` on and off, checking the `MouseEvent.position/offset/button` values and the order of callbacks; focus gain and loss; key and text input to a TextEdit. These need the input path of the new backend and run against both.
+
+**4. Screenshots.** A menu-context gallery script (test data, no game text) lays the corpus out on a grid; capture with `--auto-screenshot` and `OPENEDEN_FIXED_FRAME_TIME` as the repository's other checks do. MyGUI against MyGUI is the repeat-noise baseline; RmlUi against MyGUI is judged per region: boxes and tiles exact except edges (tolerance 1 px), text by PSNR plus human viewing. Never claim a pixel match for text.
+
+**5. What the corpus cannot prove:** real mods (none available, 16.9), mouse capture feel, performance with thousands of elements, IME.
+
+### 16.5 What continues to need MyGUI until the 46 windows are ported
+
+| Lua surface | Needs MyGUI because | Until |
+| --- | --- | --- |
+| `ui.registerSettingsPage` / `removeSettingsPage`, `omw/settings/*` pages | `SettingsWindow` is a MyGUI window; it hosts the Lua page through `LuaAdapter` (`settingswindow.cpp` 294, 989-1024; the **only** user of `LuaAdapter`, verified by grep) | the Settings window is ported, or the adapter shows an RmlUi surface as a texture inside a MyGUI widget with input routed by UV (the render-to-texture path of section 8; section 13 measured the pick round trip at 0.0 px, analytic) |
+| `ui.showMessage`, `_showInteractiveMessage` | `MessageBoxManager`, dialogue window | those windows' port |
+| `ui.setConsoleMode`, `getConsoleMode`, `printToConsole`, `setConsoleSelectedObject`, `omw/console/*` | the console window | its port (or leave: a developer window) |
+| `I.UI` `setMode`/`addMode`/`removeMode`, `_setUiModeStack`, `_getAllowedWindows`, `_setWindowDisabled`, `_isWindowVisible`, `registerWindow` (a Lua element replaces a built-in window) | the `GuiMode` stack opens real MyGUI windows; "replace a window" hides the MyGUI one and shows a Lua element in its place | each window's port; the `_set*` calls stay MyGUI-backed until then. `registerWindow` is the one place where a **Lua element must appear in the same layer band as MyGUI windows** |
+| `_setHudVisibility`, `_isHudVisible` | HUD windows | HUD port |
+| `layer = 'HUD'` / `'Windows'` / `'Modal'` ... in a layout | layers are MyGUI's (`openmw_layers.xml`, 22 names); `ui.layers.insertAfter('HUD', ...)` indexes the same list; a Lua element in `Windows` interleaves with MyGUI windows (and raises on press) | both backends need one ordered layer list with the decision-0015 draw bands; Lua elements in a MyGUI layer must draw in that band |
+| `Layer.size` | MyGUI layer size, scaled by the scaling layer | the new system's per-layer logical size (resolution over GUI scale) |
+| `pointer` property | MyGUI pointer resources | a pointer registry on the new side; one cursor owner |
+| `ui.texture` of `'white'` | engine-created MyGUI texture | the new backend registers the same name |
+| `I.MWUI` templates | pure Lua over `ui.texture` of VFS paths (`textures/menu_*`) | nothing: they work over any backend |
+
+**Consequence:** the switch of `lua_ui`'s backend cannot happen before either (i) the Settings window and the layer/band design are solved, or (ii) coexistence is done for those two things. The plan below therefore does all backend-independent work first and keeps Lua UI on MyGUI until the Morrowind stage, as decision 0015 point 6 already says.
+
+### 16.6 Staged plan and recommendation
+
+**Recommendation: Option A, in the order below; Option C only for new UI; Option B not planned.**
+
+| Stage | Content | Effort (mine, +-50%) | Notes |
+| --- | --- | --- | --- |
+| L0 Corpus and recorder | the C++ recorder, headless MyGUI harness (or the in-game dump), Tier 1 and Tier 3 corpus, goldens recorded from today's code | 7 to 10 days | needs nothing else; **can start any time** (it also guards every other change to `lua_ui`); tests first per the guide |
+| L1 `Leaf` extraction on MyGUI | `WidgetExtension` stops inheriting MyGUI types; `MyGuiLeaf` implements the interface; goldens pass unchanged; `CI/check_layer_rules.sh` gets a rule that `lua_ui` outside the MyGUI leaf directory includes no MyGUI header | 8 to 12 days | full loop; touches `components/lua_ui` and `windowmanagerimp.cpp` glue; behaviour unchanged |
+| L2 Own text measure and wrap | pure line breaking over a `FontMetrics` interface; MyGUI implementation of the metrics; compare against `getTextSize` on the real font (Tier 2) | 5 to 8 days | shows how far MyGUI's rules are reproducible before RmlUi is involved |
+| L3 RmlUi leaf (after decision-0015 U1) | adapters on the element protocol; layers mapped to bands; clip, alpha, z-order, hit-test, key focus | 15 to 25 days | only after U1 (backend, bands, arbiter) exists |
+| L4 TextEdit | RmlUi form control or an own editor, behind `Leaf` | 5 to 10 days (8 to 15) | decide after a small spike |
+| L5 Settings page and `registerWindow` | context-as-texture in a MyGUI widget, or port the Settings window first | depends on the window plan | the gate for turning the backend on |
+| L6 Switch | a setting `[GUI] lua ui backend`, default MyGUI, flipped on toddhow's word after the corpus and a hands-on pass | 3 to 5 days | the MyGUI path stays until the last window is ported |
+
+Stages L0 to L2 are useful even if the UI project stops: they remove MyGUI from `lua_ui` behind an interface and give `lua_ui` its first geometry tests.
+
+### 16.7 Open questions for toddhow
+
+1. **Option A as the compatibility strategy** (recommended), and C only for new UI?
+2. **Start L0 now?** It needs no RmlUi and guards today's code (recommended yes; decision 0015 says no UI work before Track V and game-pack stage d, so this is an exception to ask for).
+3. **Exact fidelity or "good enough" for text?** Recommend exact rectangles for text-free layouts and +-1 px with equal line counts for text; glyph shapes follow the new font engine.
+4. **TextEdit:** an RmlUi form control first (cheaper), an own editor only if a mod-visible behaviour (undo, selection keys) regresses? (Recommended.)
+5. **GUI scale:** keep today's semantics (layout in unscaled layer units, fonts rasterised at the scaled size)? (Recommended; it needs metrics at the scaled size, which can change wrapping at fractional scales.)
+6. **Settings window first or the texture bridge first** (16.5)? The window port is more work but ends MyGUI sooner; the bridge unblocks the backend switch earlier.
+7. **`pointer` property:** keep the MyGUI names (`arrow`, `hresize`, ...) as a registry in the new system?
+8. **Accept that no real third-party mod corpus exists here** (16.9), and give me a few Lua UI mods for a hands-on check before the flip?
+
+### 16.8 What I could not verify
+
+- MyGUI's own rules, from memory only (RECALLED-VERIFY; `deps/` and the vcpkg install hold headers only, no `.cpp`): word-wrap and line-breaking rules of `EditBox`/`TextView`, the text shadow's offset, default "needs mouse focus", `OverlappedLayer` raise-on-press, child cropping, mouse capture on drag, whether `DummyRenderManager`/`DummyPlatform` can host skins and a TrueType font (headers exist; behaviour not tried), the dummy view size.
+- RmlUi: scissor stacking in the Vulkan render interface, opacity without layers, form-control behaviour, absolute-only document cost: not tested (only read in sections 13 and 14).
+- That input is injected on the main thread (the SDL polling was not traced).
+- Nothing was built or run; all estimates are mine; no frame, no timing.
+- Whether any real Lua UI mod depends on a behaviour outside the documented API (16.9).
+
+### 16.9 Corpus scan (aggregates only)
+
+- Built-in Lua scripts under `files/data` that use `openmw.ui`: **15 files** (`openmw_aux/ui.lua`, `omw/ui.lua`, `omw/mwui/*` (7), `omw/settings/{menu,renderers}.lua`, `omw/console/{menu,player}.lua`, `omw/input/{playercontrols,settings}.lua`, `omw/mechanics/playercontroller.lua`). Their widget use: `ui.TYPE.Flex` 14 uses, `Image` 10, `TextEdit` 4, `Container` 3, `Text` 3, `Widget` 1 (no `Window`). Functions they call include `ui.create`, `ui.texture`, `ui.setConsoleMode`, `ui.showMessage`, `ui.registerSettingsPage` and `ui.updateAll` (the last only in a comment); none inserts a layer.
+- `I:\Projects\example-suite`: 1,006 files, **no `.lua` file** (assets only: dds, wav, dae, blend and similar); `scripts/` of the repository: 13 Lua files, **none uses `openmw.ui`**; the test profile (`OpenEden-work/testprofile/main/config/openmw.cfg`) lists Morrowind, Tribunal and Bloodmoon only; the installed Morrowind `Data Files` hold no Lua and no `.omwscripts`. (The `.claude/worktrees/` copies of `files/data` were excluded from every count.)
+- So **no third-party Lua UI mod is available on this machine**: the only corpus is the engine's own 15 scripts. Every claim above about mod compatibility is therefore by design, not by test.
