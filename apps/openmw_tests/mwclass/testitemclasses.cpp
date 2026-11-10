@@ -58,6 +58,14 @@
 #include "apps/openmw/mwworld/nullaction.hpp"
 
 #include "apps/openmw_tests/mwmechanics/rulesfixture.hpp"
+#include "apps/openmw_tests/support/refidcasing.hpp"
+
+// items_misc.golden.txt names the gold stacks in lower case; Morrowind.esm (ContentFileTest) spells them Gold_001 and
+// so on: see support/refidcasing.hpp.
+namespace
+{
+    [[maybe_unused]] const bool sRefIdCasing = TestSupport::primeRefIdCasing({ "gold_001", "gold_025", "gold_100" });
+}
 
 namespace CraftingTest
 {

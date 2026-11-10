@@ -415,6 +415,10 @@ namespace CraftingTest
                 if (primed)
                     return;
                 primed = true;
+                // The objects made below use reference numbers of this fixture; only the process's first test
+                // primes, so without this its tests would start 1 higher than every other test's (the reference
+                // number inside actors_npc_state.golden.txt is the third object of a test, 702).
+                const uint32_t firstFreeIndex = mNextIndex;
                 static MWWorld::ESMStore* const longLived = new MWWorld::ESMStore; // intentionally never freed
                 for (const ActorGmst& gmst : kActorFloatGmsts)
                 {
@@ -440,6 +444,7 @@ namespace CraftingTest
                 mPlayer.getClass().getWalkSpeed(mPlayer);
                 creaturePtr.getClass().getWalkSpeed(creaturePtr);
                 mEnvironment->setESMStore(mStore);
+                mNextIndex = firstFreeIndex;
             }
 
             ESM::CellRef cellRefFor(const ESM::RefId& id)

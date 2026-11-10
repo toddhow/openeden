@@ -29,7 +29,16 @@
 #include "apps/openmw/mwworld/localscripts.hpp"
 #include "apps/openmw/mwworld/player.hpp"
 
+#include "apps/openmw_tests/support/refidcasing.hpp"
+
 #include "rulesfixture.hpp"
+
+// The topics the witnesses say (Intruder, Thief, Attack) keep the spelling Morrowind.esm gave them if ContentFileTest
+// ran first; the recordings below use lower case: see support/refidcasing.hpp.
+namespace
+{
+    [[maybe_unused]] const bool sRefIdCasing = TestSupport::primeRefIdCasing({ "intruder", "thief", "attack" });
+}
 
 #if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
@@ -464,7 +473,7 @@ namespace CraftingTest
 
         TEST_F(JusticeTest, taking_without_alarm_records_the_item_but_not_the_crime_and_counts_add_up)
         {
-            MWWorld::Ptr victim = makeVictim("owner_a", 100);
+            [[maybe_unused]] MWWorld::Ptr victim = makeVictim("owner_a", 100);
             MWWorld::Ptr item = makeItem("ring_a", 10, "owner_a");
             mManager.itemTaken(mPlayer, item, MWWorld::Ptr(), 2, false);
             EXPECT_EQ(bounty(), 0);

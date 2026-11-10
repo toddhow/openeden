@@ -3,6 +3,7 @@
 // identical, so these tests pin (1) what the REAL classes write for a state, against a stream built a second way with
 // the ESM structs and the writer directly, (2) a hex golden of one small state, taken from the code before the move,
 // (3) that reading and writing again gives the same bytes, and (4) what a load keeps and drops.
+#include "apps/openmw_tests/support/refidcasing.hpp"
 #include "dialoguefixture.hpp"
 
 #include <components/esm3/dialoguestate.hpp>
@@ -13,6 +14,14 @@
 
 #include <cstdio>
 #include <cstring>
+
+// Morrowind's own spelling of these ids (Hello, Fargoth, ...) must not decide what the golden bytes below contain:
+// see support/refidcasing.hpp.
+namespace
+{
+    [[maybe_unused]] const bool sRefIdCasing
+        = TestSupport::primeRefIdCasing({ "hello", "rumors", "gone", "fargoth", "q1", "h1", "h2", "f1", "f2" });
+}
 
 namespace DialogueTest
 {
