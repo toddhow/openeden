@@ -1,23 +1,23 @@
-#include "apparatus.hpp"
+#include <game_morrowind/class_apparatus.hpp>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/esm3/loadappa.hpp>
 #include <components/esm3/loadnpc.hpp>
 
-#include "../mwworld/actionalchemy.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/actionalchemy.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
 
-#include "../mwgui/tooltips.hpp"
+#include <apps/openmw/mwgui/tooltips.hpp>
 
-#include "classmodel.hpp"
-#include "nameorid.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
+#include <apps/openmw/mwclass/nameorid.hpp>
 
 namespace MWClass
 {

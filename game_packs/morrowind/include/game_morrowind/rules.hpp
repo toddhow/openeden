@@ -35,6 +35,15 @@ namespace game_morrowind
     /// MWClass::registerClasses on the loading thread, once per start-up.
     void registerWorldObjectClasses();
 
+    /// Registers the pack's item classes (armor, weapon, clothing, book, ingredient, potion, miscellaneous, light,
+    /// lockpick, probe, repair, apparatus) with MWWorld::Class (task 0098 move 8, stage 8b). Same thread and timing as
+    /// registerWorldObjectClasses.
+    void registerItemClasses();
+
+    /// What the executable installs as MWBase::RuleSets::mClasses: every class the pack provides (the world objects and
+    /// the items).
+    void registerMorrowindClasses();
+
     /// Morrowind's justice rules (task 0098 move 7): crime and witnesses, bounty, stolen items, confiscation.
     [[nodiscard]] std::shared_ptr<MWMechanics::JusticeRules> makeJusticeRules();
 }

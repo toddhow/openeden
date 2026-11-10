@@ -4,10 +4,22 @@
 
 #include <game_morrowind/autocalcspell.hpp>
 #include <game_morrowind/class_activator.hpp>
+#include <game_morrowind/class_apparatus.hpp>
+#include <game_morrowind/class_armor.hpp>
 #include <game_morrowind/class_bodypart.hpp>
+#include <game_morrowind/class_book.hpp>
+#include <game_morrowind/class_clothing.hpp>
 #include <game_morrowind/class_container.hpp>
 #include <game_morrowind/class_door.hpp>
+#include <game_morrowind/class_ingredient.hpp>
+#include <game_morrowind/class_light.hpp>
+#include <game_morrowind/class_lockpick.hpp>
+#include <game_morrowind/class_misc.hpp>
+#include <game_morrowind/class_potion.hpp>
+#include <game_morrowind/class_probe.hpp>
+#include <game_morrowind/class_repair.hpp>
 #include <game_morrowind/class_static.hpp>
+#include <game_morrowind/class_weapon.hpp>
 #include <game_morrowind/dialogue_rules.hpp>
 #include <game_morrowind/difficultyscaling.hpp>
 #include <game_morrowind/levelledlist.hpp>
@@ -104,6 +116,28 @@ namespace game_morrowind
         MWClass::BodyPart::registerSelf();
     }
 
+    void registerItemClasses()
+    {
+        MWClass::Weapon::registerSelf();
+        MWClass::Armor::registerSelf();
+        MWClass::Potion::registerSelf();
+        MWClass::Apparatus::registerSelf();
+        MWClass::Book::registerSelf();
+        MWClass::Clothing::registerSelf();
+        MWClass::Ingredient::registerSelf();
+        MWClass::Light::registerSelf();
+        MWClass::Lockpick::registerSelf();
+        MWClass::Miscellaneous::registerSelf();
+        MWClass::Probe::registerSelf();
+        MWClass::Repair::registerSelf();
+    }
+
+    void registerMorrowindClasses()
+    {
+        registerWorldObjectClasses();
+        registerItemClasses();
+    }
+
     void installRules(openeden::sdk::game::GameRules& gameRules)
     {
         MWBase::RuleSets rules;
@@ -115,7 +149,7 @@ namespace game_morrowind
         rules.mProgression = makeProgressionRules();
         rules.mSocial = makeSocialRules();
         rules.mJustice = makeJusticeRules();
-        rules.mClasses = &registerWorldObjectClasses;
+        rules.mClasses = &registerMorrowindClasses;
         MWBase::RulesRegistry::install(std::move(rules));
     }
 }

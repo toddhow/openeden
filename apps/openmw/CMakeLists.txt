@@ -108,8 +108,8 @@ add_openmw_dir (mwphysics
     )
 
 add_openmw_dir (mwclass
-    classes creature npc weapon armor potion apparatus book clothing
-    ingredient creaturelevlist itemlevlist light lockpick misc probe repair actor
+    classes creature npc
+    creaturelevlist itemlevlist actor
     esm4base esm4npc light4
     )
 

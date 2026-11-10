@@ -1,4 +1,4 @@
-#include "ingredient.hpp"
+#include <game_morrowind/class_ingredient.hpp>
 
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
@@ -6,22 +6,22 @@
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadnpc.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/actioneat.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/actioneat.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
-#include "../mwgui/tooltips.hpp"
+#include <apps/openmw/mwgui/tooltips.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
 
-#include "classmodel.hpp"
-#include "nameorid.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
+#include <apps/openmw/mwclass/nameorid.hpp>
 
 namespace MWClass
 {

@@ -25,22 +25,10 @@
 #include <components/esm4/loadtree.hpp>
 #include <components/esm4/loadweap.hpp>
 
-#include "apparatus.hpp"
-#include "armor.hpp"
-#include "book.hpp"
-#include "clothing.hpp"
 #include "creature.hpp"
 #include "creaturelevlist.hpp"
-#include "ingredient.hpp"
 #include "itemlevlist.hpp"
-#include "light.hpp"
-#include "lockpick.hpp"
-#include "misc.hpp"
 #include "npc.hpp"
-#include "potion.hpp"
-#include "probe.hpp"
-#include "repair.hpp"
-#include "weapon.hpp"
 
 #include "esm4base.hpp"
 #include "esm4npc.hpp"
@@ -74,20 +62,8 @@ namespace MWClass
 
         Creature::registerSelf();
         Npc::registerSelf();
-        Weapon::registerSelf();
-        Armor::registerSelf();
-        Potion::registerSelf();
-        Apparatus::registerSelf();
-        Book::registerSelf();
-        Clothing::registerSelf();
-        Ingredient::registerSelf();
         CreatureLevList::registerSelf();
         ItemLevList::registerSelf();
-        Light::registerSelf();
-        Lockpick::registerSelf();
-        Miscellaneous::registerSelf();
-        Probe::registerSelf();
-        Repair::registerSelf();
 
         ESM4Named<ESM4::Activator>::registerSelf();
         ESM4Named<ESM4::Ammunition>::registerSelf();

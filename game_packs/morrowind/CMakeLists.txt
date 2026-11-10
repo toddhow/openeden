@@ -22,6 +22,10 @@
 # (class_*.cpp, moved from apps/openmw/mwclass). The old headers there forward to the pack's; the executable registers
 # the classes through MWBase::RuleSets::mClasses (game_morrowind::registerWorldObjectClasses).
 
+# Move 8, stage 8b (task 0098) put the item classes here too: armor, weapon, clothing, book, ingredient, potion, misc,
+# light, lockpick, probe, repair and apparatus (class_*.cpp, moved from apps/openmw/mwclass); registered by
+# game_morrowind::registerItemClasses, which game_morrowind::registerMorrowindClasses calls after the world objects.
+
 # Move 4 (task 0098) put Morrowind's script command set here: the handlers of the commands (the *extensions files, moved
 # from apps/openmw/mwscript) and the compile table (script_table.cpp, with the opcode numbers in compiler_opcodes.hpp,
 # moved from components/compiler). The table is its own small library because the editor and the components tests need
@@ -75,6 +79,18 @@ openeden_add_game_pack(game_morrowind STATIC
         src/class_activator.cpp
         src/class_static.cpp
         src/class_bodypart.cpp
+        src/class_armor.cpp
+        src/class_weapon.cpp
+        src/class_clothing.cpp
+        src/class_book.cpp
+        src/class_ingredient.cpp
+        src/class_potion.cpp
+        src/class_misc.cpp
+        src/class_light.cpp
+        src/class_lockpick.cpp
+        src/class_probe.cpp
+        src/class_repair.cpp
+        src/class_apparatus.cpp
         src/rules.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp
@@ -114,6 +130,18 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/class_activator.hpp
         include/game_morrowind/class_static.hpp
         include/game_morrowind/class_bodypart.hpp
+        include/game_morrowind/class_armor.hpp
+        include/game_morrowind/class_weapon.hpp
+        include/game_morrowind/class_clothing.hpp
+        include/game_morrowind/class_book.hpp
+        include/game_morrowind/class_ingredient.hpp
+        include/game_morrowind/class_potion.hpp
+        include/game_morrowind/class_misc.hpp
+        include/game_morrowind/class_light.hpp
+        include/game_morrowind/class_lockpick.hpp
+        include/game_morrowind/class_probe.hpp
+        include/game_morrowind/class_repair.hpp
+        include/game_morrowind/class_apparatus.hpp
         include/game_morrowind/rules.hpp
 )
 
