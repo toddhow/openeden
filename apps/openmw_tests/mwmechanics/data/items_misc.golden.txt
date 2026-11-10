@@ -1,0 +1,252 @@
+[t_m_junk]
+  name=[Misc t_m_junk] model=[m/t_m_junk.nif] script=[t_m_junk_script] icon=[icons/t_m_junk.dds]
+  value=11 weight=2.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000100000 sellAll=1
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc t_m_junk] icon=[icons/t_m_junk.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 11]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc t_m_junk] icon=[icons/t_m_junk.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 11]
+    extra=[
+Script: t_m_junk_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc t_m_junk (3)] icon=[icons/t_m_junk.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 11]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc t_m_junk (3)] icon=[icons/t_m_junk.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 11]
+    extra=[
+Script: t_m_junk_script]
+    effects=
+[t_m_key]
+  name=[Misc t_m_key] model=[m/t_m_key.nif] script=[t_m_key_script] icon=[icons/t_m_key.dds]
+  value=5 weight=0.500000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=1 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000000 sellAll=0
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc t_m_key] icon=[icons/t_m_key.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc t_m_key] icon=[icons/t_m_key.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5]
+    extra=[
+Script: t_m_key_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc t_m_key (3)] icon=[icons/t_m_key.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc t_m_key (3)] icon=[icons/t_m_key.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5]
+    extra=[
+Script: t_m_key_script]
+    effects=
+[gold_001]
+  name=[Misc gold_001] model=[m/gold_001.nif] script=[gold_001_script] icon=[icons/gold_001.dds]
+  value=1 weight=0.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Gold Up] down=[Item Gold Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=1 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000000 sellAll=0
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc gold_001] icon=[icons/gold_001.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc gold_001] icon=[icons/gold_001.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_001_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc gold_001 (3)] icon=[icons/gold_001.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc gold_001 (3)] icon=[icons/gold_001.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_001_script]
+    effects=
+[gold_100]
+  name=[Misc gold_100] model=[m/gold_100.nif] script=[gold_100_script] icon=[icons/gold_100.dds]
+  value=100 weight=0.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Gold Up] down=[Item Gold Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=1 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000000 sellAll=0
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc gold_100 (100)] icon=[icons/gold_100.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc gold_100 (100)] icon=[icons/gold_100.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_100_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc gold_100 (300)] icon=[icons/gold_100.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc gold_100 (300)] icon=[icons/gold_100.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_100_script]
+    effects=
+[misc_soulgem_petty]
+  name=[Misc misc_soulgem_petty] model=[m/misc_soulgem_petty.nif] script=[misc_soulgem_petty_script] icon=[icons/misc_soulgem_petty.dds]
+  value=80 weight=0.200000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=1 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000100000 sellAll=1
+  equip=1: use=soulgem useForced=soulgem activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc misc_soulgem_petty] icon=[icons/misc_soulgem_petty.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc misc_soulgem_petty] icon=[icons/misc_soulgem_petty.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 80]
+    extra=[
+Script: misc_soulgem_petty_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc misc_soulgem_petty (3)] icon=[icons/misc_soulgem_petty.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc misc_soulgem_petty (3)] icon=[icons/misc_soulgem_petty.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 80]
+    extra=[
+Script: misc_soulgem_petty_script]
+    effects=
+[misc_soulgem_grand]
+  name=[Misc misc_soulgem_grand] model=[m/misc_soulgem_grand.nif] script=[misc_soulgem_grand_script] icon=[icons/misc_soulgem_grand.dds]
+  value=48000 weight=0.200000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=1 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000100000 sellAll=1
+  equip=1: use=soulgem useForced=soulgem activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc misc_soulgem_grand ("t_soul_creature")] icon=[icons/misc_soulgem_grand.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 48000]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc misc_soulgem_grand ("t_soul_creature")] icon=[icons/misc_soulgem_grand.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 48000]
+    extra=[
+Script: misc_soulgem_grand_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc misc_soulgem_grand (3) ("t_soul_creature")] icon=[icons/misc_soulgem_grand.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 48000]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc misc_soulgem_grand (3) ("t_soul_creature")] icon=[icons/misc_soulgem_grand.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 48000]
+    extra=[
+Script: misc_soulgem_grand_script]
+    effects=
+[t_m_stack]
+  name=[Misc t_m_stack] model=[m/t_m_stack.nif] script=[t_m_stack_script] icon=[icons/t_m_stack.dds]
+  value=4 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000100000 sellAll=1
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc t_m_stack] icon=[icons/t_m_stack.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 4]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc t_m_stack] icon=[icons/t_m_stack.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 4]
+    extra=[
+Script: t_m_stack_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc t_m_stack (3)] icon=[icons/t_m_stack.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 4]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc t_m_stack (3)] icon=[icons/t_m_stack.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 4]
+    extra=[
+Script: t_m_stack_script]
+    effects=
+[gold_025]
+  name=[Misc gold_025] model=[m/gold_025.nif] script=[gold_025_script] icon=[icons/gold_025.dds]
+  value=1 weight=0.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Gold Up] down=[Item Gold Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=1 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000000 sellAll=0
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Misc gold_025] icon=[icons/gold_025.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Misc gold_025] icon=[icons/gold_025.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_025_script]
+    effects=
+  tip(count=3,full=0) caption=[Misc gold_025 (3)] icon=[icons/gold_025.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Misc gold_025 (3)] icon=[icons/gold_025.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[]
+    extra=[
+Script: gold_025_script]
+    effects=

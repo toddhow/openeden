@@ -1,0 +1,422 @@
+[t_c_pants]
+  name=[Clothing t_c_pants] model=[c/t_c_pants.nif] script=[t_c_pants_script] icon=[icons/t_c_pants.dds]
+  value=20 weight=2.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=9,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_pants] icon=[icons/t_c_pants.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 20]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_pants] icon=[icons/t_c_pants.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 20]
+    extra=[
+Script: t_c_pants_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_pants (3)] icon=[icons/t_c_pants.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 20]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_pants (3)] icon=[icons/t_c_pants.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 20]
+    extra=[
+Script: t_c_pants_script]
+    effects=
+[t_c_shoes]
+  name=[Clothing t_c_shoes] model=[c/t_c_shoes.nif] script=[t_c_shoes_script] icon=[icons/t_c_shoes.dds]
+  value=25 weight=3.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=7,/0 skill=[Unarmored] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_shoes] icon=[icons/t_c_shoes.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 3
+#{sValue}: 25]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_shoes] icon=[icons/t_c_shoes.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 3
+#{sValue}: 25]
+    extra=[
+Script: t_c_shoes_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_shoes (3)] icon=[icons/t_c_shoes.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 3
+#{sValue}: 25]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_shoes (3)] icon=[icons/t_c_shoes.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 3
+#{sValue}: 25]
+    extra=[
+Script: t_c_shoes_script]
+    effects=
+[t_c_shirt]
+  name=[Clothing t_c_shirt] model=[c/t_c_shirt.nif] script=[t_c_shirt_script] icon=[icons/t_c_shirt.dds]
+  value=15 weight=1.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=8,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_shirt] icon=[icons/t_c_shirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 15]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_shirt] icon=[icons/t_c_shirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 15]
+    extra=[
+Script: t_c_shirt_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_shirt (3)] icon=[icons/t_c_shirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 15]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_shirt (3)] icon=[icons/t_c_shirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 15]
+    extra=[
+Script: t_c_shirt_script]
+    effects=
+[t_c_belt]
+  name=[Clothing t_c_belt] model=[c/t_c_belt.nif] script=[t_c_belt_script] icon=[icons/t_c_belt.dds]
+  value=10 weight=1.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=15,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_belt] icon=[icons/t_c_belt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_belt] icon=[icons/t_c_belt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_belt_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_belt (3)] icon=[icons/t_c_belt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_belt (3)] icon=[icons/t_c_belt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_belt_script]
+    effects=
+[t_c_robe]
+  name=[Clothing t_c_robe] model=[c/t_c_robe.nif] script=[t_c_robe_script] icon=[icons/t_c_robe.dds]
+  value=200 weight=4.000000 enchant=[t_ench_r] enchPoints=90
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=11,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_robe] icon=[icons/t_c_robe.dds] imageSize=32 enchant=[t_ench_r] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 4
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_robe] icon=[icons/t_c_robe.dds] imageSize=32 enchant=[t_ench_r] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 4
+#{sValue}: 200]
+    extra=[
+Script: t_c_robe_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_robe (3)] icon=[icons/t_c_robe.dds] imageSize=32 enchant=[t_ench_r] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 4
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_robe (3)] icon=[icons/t_c_robe.dds] imageSize=32 enchant=[t_ench_r] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 4
+#{sValue}: 200]
+    extra=[
+Script: t_c_robe_script]
+    effects=
+[t_c_rglove]
+  name=[Clothing t_c_rglove] model=[c/t_c_rglove.nif] script=[t_c_rglove_script] icon=[icons/t_c_rglove.dds]
+  value=10 weight=1.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=6,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_rglove] icon=[icons/t_c_rglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_rglove] icon=[icons/t_c_rglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_rglove_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_rglove (3)] icon=[icons/t_c_rglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_rglove (3)] icon=[icons/t_c_rglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_rglove_script]
+    effects=
+[t_c_lglove]
+  name=[Clothing t_c_lglove] model=[c/t_c_lglove.nif] script=[t_c_lglove_script] icon=[icons/t_c_lglove.dds]
+  value=10 weight=1.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=5,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_lglove] icon=[icons/t_c_lglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_lglove] icon=[icons/t_c_lglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_lglove_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_lglove (3)] icon=[icons/t_c_lglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_lglove (3)] icon=[icons/t_c_lglove.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_c_lglove_script]
+    effects=
+[t_c_skirt]
+  name=[Clothing t_c_skirt] model=[c/t_c_skirt.nif] script=[t_c_skirt_script] icon=[icons/t_c_skirt.dds]
+  value=12 weight=2.000000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=10,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_skirt] icon=[icons/t_c_skirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 12]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_skirt] icon=[icons/t_c_skirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 12]
+    extra=[
+Script: t_c_skirt_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_skirt (3)] icon=[icons/t_c_skirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 12]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_skirt (3)] icon=[icons/t_c_skirt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 12]
+    extra=[
+Script: t_c_skirt_script]
+    effects=
+[t_c_ring]
+  name=[Clothing t_c_ring] model=[c/t_c_ring.nif] script=[t_c_ring_script] icon=[icons/t_c_ring.dds]
+  value=400 weight=0.100000 enchant=[t_ench_ring] enchPoints=60
+  up=[Item Ring Up] down=[Item Ring Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=12,13,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_ring] icon=[icons/t_c_ring.dds] imageSize=32 enchant=[t_ench_ring] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_ring] icon=[icons/t_c_ring.dds] imageSize=32 enchant=[t_ench_ring] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[
+Script: t_c_ring_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_ring (3)] icon=[icons/t_c_ring.dds] imageSize=32 enchant=[t_ench_ring] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_ring (3)] icon=[icons/t_c_ring.dds] imageSize=32 enchant=[t_ench_ring] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[
+Script: t_c_ring_script]
+    effects=
+[t_c_amulet]
+  name=[Clothing t_c_amulet] model=[c/t_c_amulet.nif] script=[t_c_amulet_script] icon=[icons/t_c_amulet.dds]
+  value=800 weight=0.200000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=14,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_amulet] icon=[icons/t_c_amulet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 800]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_amulet] icon=[icons/t_c_amulet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 800]
+    extra=[
+Script: t_c_amulet_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_amulet (3)] icon=[icons/t_c_amulet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 800]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_amulet (3)] icon=[icons/t_c_amulet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 800]
+    extra=[
+Script: t_c_amulet_script]
+    effects=
+[t_c_unknown]
+  name=[Clothing t_c_unknown] model=[c/t_c_unknown.nif] script=[t_c_unknown_script] icon=[icons/t_c_unknown.dds]
+  value=8 weight=0.200000 enchant=[] enchPoints=0
+  up=[Item Clothes Up] down=[Item Clothes Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000000000 sellAll=1
+  equip=0: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_unknown] icon=[icons/t_c_unknown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 8]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_unknown] icon=[icons/t_c_unknown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 8]
+    extra=[
+Script: t_c_unknown_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_unknown (3)] icon=[icons/t_c_unknown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 8]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_unknown (3)] icon=[icons/t_c_unknown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.2
+#{sValue}: 8]
+    extra=[
+Script: t_c_unknown_script]
+    effects=
+[t_c_worn]
+  name=[Clothing t_c_worn] model=[c/t_c_worn.nif] script=[t_c_worn_script] icon=[icons/t_c_worn.dds]
+  value=400 weight=0.100000 enchant=[t_ench_ring2] enchPoints=60
+  up=[Item Ring Up] down=[Item Ring Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=12,13,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0010000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Clothing t_c_worn] icon=[icons/t_c_worn.dds] imageSize=32 enchant=[t_ench_ring2] remaining=44 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Clothing t_c_worn] icon=[icons/t_c_worn.dds] imageSize=32 enchant=[t_ench_ring2] remaining=44 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_c_worn_script]
+    effects=
+  tip(count=3,full=0) caption=[Clothing t_c_worn (3)] icon=[icons/t_c_worn.dds] imageSize=32 enchant=[t_ench_ring2] remaining=44 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Clothing t_c_worn (3)] icon=[icons/t_c_worn.dds] imageSize=32 enchant=[t_ench_ring2] remaining=44 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 400]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_c_worn_script]
+    effects=

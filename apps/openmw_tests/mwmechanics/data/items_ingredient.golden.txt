@@ -1,0 +1,105 @@
+[t_i_four]
+  name=[Ingredient t_i_four] model=[i/t_i_four.nif] script=[t_i_four_script] icon=[icons/t_i_four.dds]
+  value=7 weight=0.500000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Ingredient Up] down=[Item Ingredient Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000100000000000 sellAll=1
+  equip=1: use=eat useForced=eat activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Ingredient t_i_four] icon=[icons/t_i_four.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 7]
+    extra=[]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_c,,,known=0,mag=-1..-1,dur=-1,range=-1)(fx_d,,,known=0,mag=-1..-1,dur=-1,range=-1)
+  tip(count=1,full=1) caption=[Ingredient t_i_four] icon=[icons/t_i_four.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 7]
+    extra=[
+Script: t_i_four_script]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_c,,,known=0,mag=-1..-1,dur=-1,range=-1)(fx_d,,,known=0,mag=-1..-1,dur=-1,range=-1)
+  tip(count=3,full=0) caption=[Ingredient t_i_four (3)] icon=[icons/t_i_four.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 7]
+    extra=[]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_c,,,known=0,mag=-1..-1,dur=-1,range=-1)(fx_d,,,known=0,mag=-1..-1,dur=-1,range=-1)
+  tip(count=3,full=1) caption=[Ingredient t_i_four (3)] icon=[icons/t_i_four.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 7]
+    extra=[
+Script: t_i_four_script]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_c,,,known=0,mag=-1..-1,dur=-1,range=-1)(fx_d,,,known=0,mag=-1..-1,dur=-1,range=-1)
+[t_i_two]
+  name=[Ingredient t_i_two] model=[i/t_i_two.nif] script=[t_i_two_script] icon=[icons/t_i_two.dds]
+  value=3 weight=0.100000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Ingredient Up] down=[Item Ingredient Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000100000000000 sellAll=1
+  equip=1: use=eat useForced=eat activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Ingredient t_i_two] icon=[icons/t_i_two.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 3]
+    extra=[]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)
+  tip(count=1,full=1) caption=[Ingredient t_i_two] icon=[icons/t_i_two.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 3]
+    extra=[
+Script: t_i_two_script]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)
+  tip(count=3,full=0) caption=[Ingredient t_i_two (3)] icon=[icons/t_i_two.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 3]
+    extra=[]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)
+  tip(count=3,full=1) caption=[Ingredient t_i_two (3)] icon=[icons/t_i_two.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 3]
+    extra=[
+Script: t_i_two_script]
+    effects=(fx_a,,,known=1,mag=-1..-1,dur=-1,range=-1)(fx_b,,,known=1,mag=-1..-1,dur=-1,range=-1)
+[t_i_none]
+  name=[Ingredient t_i_none] model=[i/t_i_none.nif] script=[t_i_none_script] icon=[icons/t_i_none.dds]
+  value=1 weight=0.100000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Ingredient Up] down=[Item Ingredient Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000100000000000 sellAll=1
+  equip=1: use=null useForced=null activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Ingredient t_i_none] icon=[icons/t_i_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Ingredient t_i_none] icon=[icons/t_i_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_i_none_script]
+    effects=
+  tip(count=3,full=0) caption=[Ingredient t_i_none (3)] icon=[icons/t_i_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Ingredient t_i_none (3)] icon=[icons/t_i_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=1 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_i_none_script]
+    effects=

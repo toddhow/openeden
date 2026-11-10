@@ -1,0 +1,105 @@
+[t_p_one]
+  name=[Potion t_p_one] model=[p/t_p_one.nif] script=[t_p_one_script] icon=[icons/t_p_one.dds]
+  value=25 weight=0.500000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Potion Up] down=[Item Potion Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000100 sellAll=1
+  equip=1: use=apply useForced=apply activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Potion t_p_one] icon=[icons/t_p_one.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 25]
+    extra=[]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=1,full=1) caption=[Potion t_p_one] icon=[icons/t_p_one.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 25]
+    extra=[
+Script: t_p_one_script]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=3,full=0) caption=[Potion t_p_one (3)] icon=[icons/t_p_one.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 25]
+    extra=[]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=3,full=1) caption=[Potion t_p_one (3)] icon=[icons/t_p_one.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 25]
+    extra=[
+Script: t_p_one_script]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)
+[t_p_three]
+  name=[Potion t_p_three] model=[p/t_p_three.nif] script=[t_p_three_script] icon=[icons/t_p_three.dds]
+  value=541 weight=0.400000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Potion Up] down=[Item Potion Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000100 sellAll=1
+  equip=1: use=apply useForced=apply activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Potion t_p_three] icon=[icons/t_p_three.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.4
+#{sValue}: 541]
+    extra=[]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)(fx_b,,,known=0,mag=5..10,dur=30,range=0)(fx_c,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=1,full=1) caption=[Potion t_p_three] icon=[icons/t_p_three.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.4
+#{sValue}: 541]
+    extra=[
+Script: t_p_three_script]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)(fx_b,,,known=0,mag=5..10,dur=30,range=0)(fx_c,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=3,full=0) caption=[Potion t_p_three (3)] icon=[icons/t_p_three.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.4
+#{sValue}: 541]
+    extra=[]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)(fx_b,,,known=0,mag=5..10,dur=30,range=0)(fx_c,,,known=0,mag=5..10,dur=30,range=0)
+  tip(count=3,full=1) caption=[Potion t_p_three (3)] icon=[icons/t_p_three.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.4
+#{sValue}: 541]
+    extra=[
+Script: t_p_three_script]
+    effects=(fx_a,,,known=0,mag=5..10,dur=30,range=0)(fx_b,,,known=0,mag=5..10,dur=30,range=0)(fx_c,,,known=0,mag=5..10,dur=30,range=0)
+[t_p_none]
+  name=[Potion t_p_none] model=[p/t_p_none.nif] script=[t_p_none_script] icon=[icons/t_p_none.dds]
+  value=2 weight=0.500000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Potion Up] down=[Item Potion Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000000000100 sellAll=1
+  equip=1: use=apply useForced=apply activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Potion t_p_none] icon=[icons/t_p_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 2]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Potion t_p_none] icon=[icons/t_p_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 2]
+    extra=[
+Script: t_p_none_script]
+    effects=
+  tip(count=3,full=0) caption=[Potion t_p_none (3)] icon=[icons/t_p_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 2]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Potion t_p_none (3)] icon=[icons/t_p_none.dds] imageSize=32 enchant=[] remaining=-1 isPotion=1 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 2]
+    extra=[
+Script: t_p_none_script]
+    effects=

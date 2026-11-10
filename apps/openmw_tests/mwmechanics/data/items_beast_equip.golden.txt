@@ -1,0 +1,5 @@
+t_beast_helm -> 0 [#{sNotifyMessage13}]
+t_beast_boots -> 0 [#{sNotifyMessage14}]
+t_beast_cuirass -> 1 []
+t_beast_shoes -> 0 [#{sNotifyMessage15}]
+t_beast_robe -> 1 []

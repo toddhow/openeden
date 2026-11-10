@@ -1,0 +1,408 @@
+[t_t_lockpick]
+  name=[Lockpick t_t_lockpick] model=[t/t_t_lockpick.nif] script=[t_t_lockpick_script] icon=[icons/t_t_lockpick.dds]
+  value=80 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Lockpick Up] down=[Item Lockpick Down] sound=[]
+  hasHealth=1 maxHealth=25 health=25 usage=-1.000000
+  slots=16,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000010000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Lockpick t_t_lockpick] icon=[icons/t_t_lockpick.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 25
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Lockpick t_t_lockpick] icon=[icons/t_t_lockpick.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 25
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[
+Script: t_t_lockpick_script]
+    effects=
+  tip(count=3,full=0) caption=[Lockpick t_t_lockpick (3)] icon=[icons/t_t_lockpick.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 25
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Lockpick t_t_lockpick (3)] icon=[icons/t_t_lockpick.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 25
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[
+Script: t_t_lockpick_script]
+    effects=
+[t_t_lockpick_zero]
+  name=[Lockpick t_t_lockpick_zero] model=[t/t_t_lockpick_zero.nif] script=[t_t_lockpick_zero_script] icon=[icons/t_t_lockpick_zero.dds]
+  value=0 weight=0.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Lockpick Up] down=[Item Lockpick Down] sound=[]
+  hasHealth=1 maxHealth=0 health=0 usage=-1.000000
+  slots=16,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000010000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Lockpick t_t_lockpick_zero] icon=[icons/t_t_lockpick_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Lockpick t_t_lockpick_zero] icon=[icons/t_t_lockpick_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0]
+    extra=[
+Script: t_t_lockpick_zero_script]
+    effects=
+  tip(count=3,full=0) caption=[Lockpick t_t_lockpick_zero (3)] icon=[icons/t_t_lockpick_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Lockpick t_t_lockpick_zero (3)] icon=[icons/t_t_lockpick_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0]
+    extra=[
+Script: t_t_lockpick_zero_script]
+    effects=
+[t_t_probe]
+  name=[Probe t_t_probe] model=[t/t_t_probe.nif] script=[t_t_probe_script] icon=[icons/t_t_probe.dds]
+  value=70 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Probe Up] down=[Item Probe Down] sound=[]
+  hasHealth=1 maxHealth=20 health=20 usage=-1.000000
+  slots=16,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000001000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Probe t_t_probe] icon=[icons/t_t_probe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 20
+#{sQuality}: 0.75
+#{sWeight}: 1
+#{sValue}: 70]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Probe t_t_probe] icon=[icons/t_t_probe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 20
+#{sQuality}: 0.75
+#{sWeight}: 1
+#{sValue}: 70]
+    extra=[
+Script: t_t_probe_script]
+    effects=
+  tip(count=3,full=0) caption=[Probe t_t_probe (3)] icon=[icons/t_t_probe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 20
+#{sQuality}: 0.75
+#{sWeight}: 1
+#{sValue}: 70]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Probe t_t_probe (3)] icon=[icons/t_t_probe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 20
+#{sQuality}: 0.75
+#{sWeight}: 1
+#{sValue}: 70]
+    extra=[
+Script: t_t_probe_script]
+    effects=
+[t_t_hammer]
+  name=[Repair t_t_hammer] model=[t/t_t_hammer.nif] script=[t_t_hammer_script] icon=[icons/t_t_hammer.dds]
+  value=60 weight=2.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Repair Up] down=[Item Repair Down] sound=[]
+  hasHealth=1 maxHealth=30 health=30 usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000001000000 sellAll=1
+  equip=1: use=repair useForced=repair activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Repair t_t_hammer] icon=[icons/t_t_hammer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 30
+#{sQuality}: 1.5
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Repair t_t_hammer] icon=[icons/t_t_hammer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 30
+#{sQuality}: 1.5
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[
+Script: t_t_hammer_script]
+    effects=
+  tip(count=3,full=0) caption=[Repair t_t_hammer (3)] icon=[icons/t_t_hammer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 30
+#{sQuality}: 1.5
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Repair t_t_hammer (3)] icon=[icons/t_t_hammer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 30
+#{sQuality}: 1.5
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[
+Script: t_t_hammer_script]
+    effects=
+[t_t_hammer_zero]
+  name=[Repair t_t_hammer_zero] model=[t/t_t_hammer_zero.nif] script=[t_t_hammer_zero_script] icon=[icons/t_t_hammer_zero.dds]
+  value=60 weight=2.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Repair Up] down=[Item Repair Down] sound=[]
+  hasHealth=1 maxHealth=0 health=0 usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000001000000 sellAll=1
+  equip=1: use=repair useForced=repair activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Repair t_t_hammer_zero] icon=[icons/t_t_hammer_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Repair t_t_hammer_zero] icon=[icons/t_t_hammer_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[
+Script: t_t_hammer_zero_script]
+    effects=
+  tip(count=3,full=0) caption=[Repair t_t_hammer_zero (3)] icon=[icons/t_t_hammer_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Repair t_t_hammer_zero (3)] icon=[icons/t_t_hammer_zero.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 0
+#{sQuality}: 0
+#{sWeight}: 2
+#{sValue}: 60]
+    extra=[
+Script: t_t_hammer_zero_script]
+    effects=
+[t_t_lockpick_worn]
+  name=[Lockpick t_t_lockpick_worn] model=[t/t_t_lockpick_worn.nif] script=[t_t_lockpick_worn_script] icon=[icons/t_t_lockpick_worn.dds]
+  value=80 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Lockpick Up] down=[Item Lockpick Down] sound=[]
+  hasHealth=1 maxHealth=25 health=3 usage=-1.000000
+  slots=16,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000010000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Lockpick t_t_lockpick_worn] icon=[icons/t_t_lockpick_worn.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 3
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Lockpick t_t_lockpick_worn] icon=[icons/t_t_lockpick_worn.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 3
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_t_lockpick_worn_script]
+    effects=
+  tip(count=3,full=0) caption=[Lockpick t_t_lockpick_worn (3)] icon=[icons/t_t_lockpick_worn.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 3
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Lockpick t_t_lockpick_worn (3)] icon=[icons/t_t_lockpick_worn.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sUses}: 3
+#{sQuality}: 1.25
+#{sWeight}: 1
+#{sValue}: 80]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_t_lockpick_worn_script]
+    effects=
+[t_t_mortar]
+  name=[Apparatus t_t_mortar] model=[q/t_t_mortar.nif] script=[t_t_mortar_script] icon=[icons/t_t_mortar.dds]
+  value=100 weight=3.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Apparatus Up] down=[Item Apparatus Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000010000000 sellAll=1
+  equip=1: use=alchemy useForced=alchemy activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Apparatus t_t_mortar] icon=[icons/t_t_mortar.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Apparatus t_t_mortar] icon=[icons/t_t_mortar.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_mortar_script]
+    effects=
+  tip(count=3,full=0) caption=[Apparatus t_t_mortar (3)] icon=[icons/t_t_mortar.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Apparatus t_t_mortar (3)] icon=[icons/t_t_mortar.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_mortar_script]
+    effects=
+[t_t_alembic]
+  name=[Apparatus t_t_alembic] model=[q/t_t_alembic.nif] script=[t_t_alembic_script] icon=[icons/t_t_alembic.dds]
+  value=100 weight=3.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Apparatus Up] down=[Item Apparatus Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000010000000 sellAll=1
+  equip=1: use=alchemy useForced=alchemy activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Apparatus t_t_alembic] icon=[icons/t_t_alembic.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 2
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Apparatus t_t_alembic] icon=[icons/t_t_alembic.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 2
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_alembic_script]
+    effects=
+  tip(count=3,full=0) caption=[Apparatus t_t_alembic (3)] icon=[icons/t_t_alembic.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 2
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Apparatus t_t_alembic (3)] icon=[icons/t_t_alembic.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 2
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_alembic_script]
+    effects=
+[t_t_calcinator]
+  name=[Apparatus t_t_calcinator] model=[q/t_t_calcinator.nif] script=[t_t_calcinator_script] icon=[icons/t_t_calcinator.dds]
+  value=100 weight=3.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Apparatus Up] down=[Item Apparatus Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000010000000 sellAll=1
+  equip=1: use=alchemy useForced=alchemy activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Apparatus t_t_calcinator] icon=[icons/t_t_calcinator.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 0.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Apparatus t_t_calcinator] icon=[icons/t_t_calcinator.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 0.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_calcinator_script]
+    effects=
+  tip(count=3,full=0) caption=[Apparatus t_t_calcinator (3)] icon=[icons/t_t_calcinator.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 0.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Apparatus t_t_calcinator (3)] icon=[icons/t_t_calcinator.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 0.5
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_calcinator_script]
+    effects=
+[t_t_retort]
+  name=[Apparatus t_t_retort] model=[q/t_t_retort.nif] script=[t_t_retort_script] icon=[icons/t_t_retort.dds]
+  value=100 weight=3.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Apparatus Up] down=[Item Apparatus Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0000000010000000 sellAll=1
+  equip=1: use=alchemy useForced=alchemy activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Apparatus t_t_retort] icon=[icons/t_t_retort.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Apparatus t_t_retort] icon=[icons/t_t_retort.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_retort_script]
+    effects=
+  tip(count=3,full=0) caption=[Apparatus t_t_retort (3)] icon=[icons/t_t_retort.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Apparatus t_t_retort (3)] icon=[icons/t_t_retort.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sQuality}: 1
+#{sWeight}: 3
+#{sValue}: 100]
+    extra=[
+Script: t_t_retort_script]
+    effects=

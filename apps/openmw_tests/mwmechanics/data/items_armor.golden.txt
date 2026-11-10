@@ -1,0 +1,699 @@
+[t_a_cuirass_light]
+  name=[Armor t_a_cuirass_light] model=[a/t_a_cuirass_light.nif] script=[t_a_cuirass_light_script] icon=[icons/t_a_cuirass_light.dds]
+  value=120 weight=9.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=1,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=40.000000
+  tip(count=1,full=0) caption=[Armor t_a_cuirass_light] icon=[icons/t_a_cuirass_light.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 400/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_cuirass_light] icon=[icons/t_a_cuirass_light.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 400/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[
+Script: t_a_cuirass_light_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_cuirass_light (3)] icon=[icons/t_a_cuirass_light.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 400/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_cuirass_light (3)] icon=[icons/t_a_cuirass_light.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 400/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[
+Script: t_a_cuirass_light_script]
+    effects=
+[t_a_cuirass_medium]
+  name=[Armor t_a_cuirass_medium] model=[a/t_a_cuirass_medium.nif] script=[t_a_cuirass_medium_script] icon=[icons/t_a_cuirass_medium.dds]
+  value=480 weight=25.000000 enchant=[t_ench_a] enchPoints=150
+  up=[Item Armor Medium Up] down=[Item Armor Medium Down] sound=[]
+  hasHealth=1 maxHealth=800 health=800 usage=-1.000000
+  slots=1,/0 skill=[MediumArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=80.000000
+  tip(count=1,full=0) caption=[Armor t_a_cuirass_medium] icon=[icons/t_a_cuirass_medium.dds] imageSize=32 enchant=[t_ench_a] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 80
+#{sCondition}: 800/800
+#{sWeight}: 25 (#{sMedium})
+#{sValue}: 480]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_cuirass_medium] icon=[icons/t_a_cuirass_medium.dds] imageSize=32 enchant=[t_ench_a] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 80
+#{sCondition}: 800/800
+#{sWeight}: 25 (#{sMedium})
+#{sValue}: 480]
+    extra=[
+Script: t_a_cuirass_medium_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_cuirass_medium (3)] icon=[icons/t_a_cuirass_medium.dds] imageSize=32 enchant=[t_ench_a] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 80
+#{sCondition}: 800/800
+#{sWeight}: 25 (#{sMedium})
+#{sValue}: 480]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_cuirass_medium (3)] icon=[icons/t_a_cuirass_medium.dds] imageSize=32 enchant=[t_ench_a] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 80
+#{sCondition}: 800/800
+#{sWeight}: 25 (#{sMedium})
+#{sValue}: 480]
+    extra=[
+Script: t_a_cuirass_medium_script]
+    effects=
+[t_a_cuirass_heavy]
+  name=[Armor t_a_cuirass_heavy] model=[a/t_a_cuirass_heavy.nif] script=[t_a_cuirass_heavy_script] icon=[icons/t_a_cuirass_heavy.dds]
+  value=900 weight=31.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=1200 health=1200 usage=-1.000000
+  slots=1,/0 skill=[HeavyArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=120.000000
+  tip(count=1,full=0) caption=[Armor t_a_cuirass_heavy] icon=[icons/t_a_cuirass_heavy.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 120
+#{sCondition}: 1200/1200
+#{sWeight}: 31 (#{sHeavy})
+#{sValue}: 900]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_cuirass_heavy] icon=[icons/t_a_cuirass_heavy.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 120
+#{sCondition}: 1200/1200
+#{sWeight}: 31 (#{sHeavy})
+#{sValue}: 900]
+    extra=[
+Script: t_a_cuirass_heavy_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_cuirass_heavy (3)] icon=[icons/t_a_cuirass_heavy.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 120
+#{sCondition}: 1200/1200
+#{sWeight}: 31 (#{sHeavy})
+#{sValue}: 900]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_cuirass_heavy (3)] icon=[icons/t_a_cuirass_heavy.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 120
+#{sCondition}: 1200/1200
+#{sWeight}: 31 (#{sHeavy})
+#{sValue}: 900]
+    extra=[
+Script: t_a_cuirass_heavy_script]
+    effects=
+[t_a_helm]
+  name=[Armor t_a_helm] model=[a/t_a_helm.nif] script=[t_a_helm_script] icon=[icons/t_a_helm.dds]
+  value=30 weight=2.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=0,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_helm] icon=[icons/t_a_helm.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_helm] icon=[icons/t_a_helm.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_helm_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_helm (3)] icon=[icons/t_a_helm.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_helm (3)] icon=[icons/t_a_helm.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_helm_script]
+    effects=
+[t_a_lpauldron]
+  name=[Armor t_a_lpauldron] model=[a/t_a_lpauldron.nif] script=[t_a_lpauldron_script] icon=[icons/t_a_lpauldron.dds]
+  value=30 weight=4.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=3,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_lpauldron] icon=[icons/t_a_lpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 4 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_lpauldron] icon=[icons/t_a_lpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 4 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lpauldron_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_lpauldron (3)] icon=[icons/t_a_lpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 4 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_lpauldron (3)] icon=[icons/t_a_lpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 4 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lpauldron_script]
+    effects=
+[t_a_rpauldron]
+  name=[Armor t_a_rpauldron] model=[a/t_a_rpauldron.nif] script=[t_a_rpauldron_script] icon=[icons/t_a_rpauldron.dds]
+  value=30 weight=12.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=4,/0 skill=[HeavyArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_rpauldron] icon=[icons/t_a_rpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 12 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_rpauldron] icon=[icons/t_a_rpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 12 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rpauldron_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_rpauldron (3)] icon=[icons/t_a_rpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 12 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_rpauldron (3)] icon=[icons/t_a_rpauldron.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 12 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rpauldron_script]
+    effects=
+[t_a_greaves]
+  name=[Armor t_a_greaves] model=[a/t_a_greaves.nif] script=[t_a_greaves_script] icon=[icons/t_a_greaves.dds]
+  value=30 weight=8.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=2,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_greaves] icon=[icons/t_a_greaves.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 8 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_greaves] icon=[icons/t_a_greaves.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 8 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_greaves_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_greaves (3)] icon=[icons/t_a_greaves.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 8 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_greaves (3)] icon=[icons/t_a_greaves.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 8 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_greaves_script]
+    effects=
+[t_a_boots]
+  name=[Armor t_a_boots] model=[a/t_a_boots.nif] script=[t_a_boots_script] icon=[icons/t_a_boots.dds]
+  value=30 weight=30.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=7,/0 skill=[HeavyArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_boots] icon=[icons/t_a_boots.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 30 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_boots] icon=[icons/t_a_boots.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 30 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_boots_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_boots (3)] icon=[icons/t_a_boots.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 30 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_boots (3)] icon=[icons/t_a_boots.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 30 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_boots_script]
+    effects=
+[t_a_lgauntlet]
+  name=[Armor t_a_lgauntlet] model=[a/t_a_lgauntlet.nif] script=[t_a_lgauntlet_script] icon=[icons/t_a_lgauntlet.dds]
+  value=30 weight=1.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=5,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_lgauntlet] icon=[icons/t_a_lgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 1 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_lgauntlet] icon=[icons/t_a_lgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 1 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lgauntlet_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_lgauntlet (3)] icon=[icons/t_a_lgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 1 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_lgauntlet (3)] icon=[icons/t_a_lgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 1 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lgauntlet_script]
+    effects=
+[t_a_rgauntlet]
+  name=[Armor t_a_rgauntlet] model=[a/t_a_rgauntlet.nif] script=[t_a_rgauntlet_script] icon=[icons/t_a_rgauntlet.dds]
+  value=30 weight=6.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=6,/0 skill=[HeavyArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_rgauntlet] icon=[icons/t_a_rgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_rgauntlet] icon=[icons/t_a_rgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rgauntlet_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_rgauntlet (3)] icon=[icons/t_a_rgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_rgauntlet (3)] icon=[icons/t_a_rgauntlet.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rgauntlet_script]
+    effects=
+[t_a_shield]
+  name=[Armor t_a_shield] model=[a/t_a_shield.nif] script=[t_a_shield_script] icon=[icons/t_a_shield.dds]
+  value=30 weight=13.000000 enchant=[] enchPoints=0
+  up=[Item Armor Medium Up] down=[Item Armor Medium Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=17,/0 skill=[MediumArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_shield] icon=[icons/t_a_shield.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 13 (#{sMedium})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_shield] icon=[icons/t_a_shield.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 13 (#{sMedium})
+#{sValue}: 30]
+    extra=[
+Script: t_a_shield_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_shield (3)] icon=[icons/t_a_shield.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 13 (#{sMedium})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_shield (3)] icon=[icons/t_a_shield.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 13 (#{sMedium})
+#{sValue}: 30]
+    extra=[
+Script: t_a_shield_script]
+    effects=
+[t_a_lbracer]
+  name=[Armor t_a_lbracer] model=[a/t_a_lbracer.nif] script=[t_a_lbracer_script] icon=[icons/t_a_lbracer.dds]
+  value=30 weight=3.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=5,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_lbracer] icon=[icons/t_a_lbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 3 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_lbracer] icon=[icons/t_a_lbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 3 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lbracer_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_lbracer (3)] icon=[icons/t_a_lbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 3 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_lbracer (3)] icon=[icons/t_a_lbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 3 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Script: t_a_lbracer_script]
+    effects=
+[t_a_rbracer]
+  name=[Armor t_a_rbracer] model=[a/t_a_rbracer.nif] script=[t_a_rbracer_script] icon=[icons/t_a_rbracer.dds]
+  value=30 weight=6.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=6,/0 skill=[HeavyArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_rbracer] icon=[icons/t_a_rbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_rbracer] icon=[icons/t_a_rbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rbracer_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_rbracer (3)] icon=[icons/t_a_rbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_rbracer (3)] icon=[icons/t_a_rbracer.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 100/100
+#{sWeight}: 6 (#{sHeavy})
+#{sValue}: 30]
+    extra=[
+Script: t_a_rbracer_script]
+    effects=
+[t_a_weightless]
+  name=[Armor t_a_weightless] model=[a/t_a_weightless.nif] script=[t_a_weightless_script] icon=[icons/t_a_weightless.dds]
+  value=10 weight=0.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=1,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=17.000000
+  tip(count=1,full=0) caption=[Armor t_a_weightless] icon=[icons/t_a_weightless.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 17
+#{sCondition}: 100/100
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_weightless] icon=[icons/t_a_weightless.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 17
+#{sCondition}: 100/100
+#{sValue}: 10]
+    extra=[
+Script: t_a_weightless_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_weightless (3)] icon=[icons/t_a_weightless.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 17
+#{sCondition}: 100/100
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_weightless (3)] icon=[icons/t_a_weightless.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 17
+#{sCondition}: 100/100
+#{sValue}: 10]
+    extra=[
+Script: t_a_weightless_script]
+    effects=
+[t_a_unknown_type]
+  name=[Armor t_a_unknown_type] model=[a/t_a_unknown_type.nif] script=[t_a_unknown_type_script] icon=[icons/t_a_unknown_type.dds]
+  value=10 weight=5.000000 enchant=[] enchPoints=0
+  up=[Item Armor Heavy Up] down=[Item Armor Heavy Down] sound=[]
+  hasHealth=1 maxHealth=100 health=100 usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=0: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(skill not found)
+  tip(count=1,full=0) throws(skill not found)
+  tip(count=1,full=1) throws(skill not found)
+  tip(count=3,full=0) throws(skill not found)
+  tip(count=3,full=1) throws(skill not found)
+[t_a_broken]
+  name=[Armor t_a_broken] model=[a/t_a_broken.nif] script=[t_a_broken_script] icon=[icons/t_a_broken.dds]
+  value=120 weight=9.000000 enchant=[] enchPoints=0
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=400 health=0 usage=-1.000000
+  slots=1,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000000000 sellAll=1
+  equip=0:#{sInventoryMessage1} use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=40.000000
+  tip(count=1,full=0) caption=[Armor t_a_broken] icon=[icons/t_a_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 0/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_broken] icon=[icons/t_a_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 0/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[
+Script: t_a_broken_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_broken (3)] icon=[icons/t_a_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 0/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_broken (3)] icon=[icons/t_a_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 40
+#{sCondition}: 0/400
+#{sWeight}: 9 (#{sLight})
+#{sValue}: 120]
+    extra=[
+Script: t_a_broken_script]
+    effects=
+[t_a_worn]
+  name=[Armor t_a_worn] model=[a/t_a_worn.nif] script=[t_a_worn_script] icon=[icons/t_a_worn.dds]
+  value=30 weight=2.000000 enchant=[t_ench_b] enchPoints=40
+  up=[Item Armor Light Up] down=[Item Armor Light Down] sound=[]
+  hasHealth=1 maxHealth=100 health=37 usage=-1.000000
+  slots=0,/0 skill=[LightArmor] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0100000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=10.000000
+  tip(count=1,full=0) caption=[Armor t_a_worn] icon=[icons/t_a_worn.dds] imageSize=32 enchant=[t_ench_b] remaining=12 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 37/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Armor t_a_worn] icon=[icons/t_a_worn.dds] imageSize=32 enchant=[t_ench_b] remaining=12 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 37/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_a_worn_script]
+    effects=
+  tip(count=3,full=0) caption=[Armor t_a_worn (3)] icon=[icons/t_a_worn.dds] imageSize=32 enchant=[t_ench_b] remaining=12 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 37/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Armor t_a_worn (3)] icon=[icons/t_a_worn.dds] imageSize=32 enchant=[t_ench_b] remaining=12 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sArmorRating}: 10
+#{sCondition}: 37/100
+#{sWeight}: 2 (#{sLight})
+#{sValue}: 30]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_a_worn_script]
+    effects=

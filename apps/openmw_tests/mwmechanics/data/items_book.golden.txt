@@ -1,0 +1,140 @@
+[t_b_book]
+  name=[Book t_b_book] model=[b/t_b_book.nif] script=[t_b_book_script] icon=[icons/t_b_book.dds]
+  value=40 weight=1.500000 enchant=[] enchPoints=0
+  up=[Item Book Up] down=[Item Book Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0001000000000000 sellAll=1
+  equip=1: use=read useForced=read activate=read activateBlocked=read
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Book t_b_book] icon=[icons/t_b_book.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 40]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Book t_b_book] icon=[icons/t_b_book.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 40]
+    extra=[
+Script: t_b_book_script]
+    effects=
+  tip(count=3,full=0) caption=[Book t_b_book (3)] icon=[icons/t_b_book.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 40]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Book t_b_book (3)] icon=[icons/t_b_book.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 40]
+    extra=[
+Script: t_b_book_script]
+    effects=
+[t_b_skillbook]
+  name=[Book t_b_skillbook] model=[b/t_b_skillbook.nif] script=[t_b_skillbook_script] icon=[icons/t_b_skillbook.dds]
+  value=150 weight=1.500000 enchant=[] enchPoints=0
+  up=[Item Book Up] down=[Item Book Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0001000000000000 sellAll=1
+  equip=1: use=read useForced=read activate=read activateBlocked=read
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Book t_b_skillbook] icon=[icons/t_b_skillbook.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 150]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Book t_b_skillbook] icon=[icons/t_b_skillbook.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 150]
+    extra=[
+Script: t_b_skillbook_script]
+    effects=
+  tip(count=3,full=0) caption=[Book t_b_skillbook (3)] icon=[icons/t_b_skillbook.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 150]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Book t_b_skillbook (3)] icon=[icons/t_b_skillbook.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1.5
+#{sValue}: 150]
+    extra=[
+Script: t_b_skillbook_script]
+    effects=
+[t_b_scroll]
+  name=[Book t_b_scroll] model=[b/t_b_scroll.nif] script=[t_b_scroll_script] icon=[icons/t_b_scroll.dds]
+  value=60 weight=0.500000 enchant=[t_ench_s] enchPoints=30
+  up=[Item Book Up] down=[Item Book Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0001000000001000 sellAll=1
+  equip=1: use=read useForced=read activate=read activateBlocked=read
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Book t_b_scroll] icon=[icons/t_b_scroll.dds] imageSize=32 enchant=[t_ench_s] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Book t_b_scroll] icon=[icons/t_b_scroll.dds] imageSize=32 enchant=[t_ench_s] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[
+Script: t_b_scroll_script]
+    effects=
+  tip(count=3,full=0) caption=[Book t_b_scroll (3)] icon=[icons/t_b_scroll.dds] imageSize=32 enchant=[t_ench_s] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Book t_b_scroll (3)] icon=[icons/t_b_scroll.dds] imageSize=32 enchant=[t_ench_s] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[
+Script: t_b_scroll_script]
+    effects=
+[t_b_scroll_charged]
+  name=[Book t_b_scroll_charged] model=[b/t_b_scroll_charged.nif] script=[t_b_scroll_charged_script] icon=[icons/t_b_scroll_charged.dds]
+  value=60 weight=0.500000 enchant=[t_ench_s2] enchPoints=30
+  up=[Item Book Up] down=[Item Book Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=-1.000000
+  slots=/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=0001000000001000 sellAll=1
+  equip=1: use=read useForced=read activate=read activateBlocked=read
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Book t_b_scroll_charged] icon=[icons/t_b_scroll_charged.dds] imageSize=32 enchant=[t_ench_s2] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Book t_b_scroll_charged] icon=[icons/t_b_scroll_charged.dds] imageSize=32 enchant=[t_ench_s2] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[
+Script: t_b_scroll_charged_script]
+    effects=
+  tip(count=3,full=0) caption=[Book t_b_scroll_charged (3)] icon=[icons/t_b_scroll_charged.dds] imageSize=32 enchant=[t_ench_s2] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Book t_b_scroll_charged (3)] icon=[icons/t_b_scroll_charged.dds] imageSize=32 enchant=[t_ench_s2] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.5
+#{sValue}: 60]
+    extra=[
+Script: t_b_scroll_charged_script]
+    effects=

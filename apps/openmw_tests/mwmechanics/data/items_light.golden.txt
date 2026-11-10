@@ -1,0 +1,175 @@
+[t_l_torch]
+  name=[Light t_l_torch] model=[l/torch.nif] script=[t_l_torch_script] icon=[icons/t_l_torch.dds]
+  value=10 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[t_torch_sound]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=300.000000
+  slots=17,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=1 telekinesis=1
+  sell=0000000100000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Light t_l_torch] icon=[icons/t_l_torch.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Light t_l_torch] icon=[icons/t_l_torch.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_l_torch_script]
+    effects=
+  tip(count=3,full=0) caption=[Light t_l_torch (3)] icon=[icons/t_l_torch.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Light t_l_torch (3)] icon=[icons/t_l_torch.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_l_torch_script]
+    effects=
+[t_l_lantern_off]
+  name=[Light t_l_lantern_off] model=[l/lamp.nif] script=[t_l_lantern_off_script] icon=[icons/t_l_lantern_off.dds]
+  value=40 weight=2.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=600.000000
+  slots=17,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=1 telekinesis=1
+  sell=0000000100000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Light t_l_lantern_off] icon=[icons/t_l_lantern_off.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 40]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Light t_l_lantern_off] icon=[icons/t_l_lantern_off.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 40]
+    extra=[
+Script: t_l_lantern_off_script]
+    effects=
+  tip(count=3,full=0) caption=[Light t_l_lantern_off (3)] icon=[icons/t_l_lantern_off.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 40]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Light t_l_lantern_off (3)] icon=[icons/t_l_lantern_off.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 2
+#{sValue}: 40]
+    extra=[
+Script: t_l_lantern_off_script]
+    effects=
+[t_l_fixed]
+  name=[Light t_l_fixed] model=[l/lamp.nif] script=[t_l_fixed_script] icon=[icons/t_l_fixed.dds]
+  value=3 weight=5.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=100.000000
+  slots=/0 skill=[] isItem=0 key=0 gold=0 soulgem=0 tooltip=0 inInventory=0 anim=1 telekinesis=1
+  sell=0000000100000000 sellAll=1
+  equip=0: use=equip useForced=equip activate=failed activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Light t_l_fixed] icon=[icons/t_l_fixed.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Light t_l_fixed] icon=[icons/t_l_fixed.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[
+Script: t_l_fixed_script]
+    effects=
+  tip(count=3,full=0) caption=[Light t_l_fixed (3)] icon=[icons/t_l_fixed.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Light t_l_fixed (3)] icon=[icons/t_l_fixed.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[
+Script: t_l_fixed_script]
+    effects=
+[t_l_nomodel]
+  name=[] model=[] script=[t_l_nomodel_script] icon=[icons/t_l_nomodel.dds]
+  value=3 weight=5.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=throws(class does not have item health) usage=100.000000
+  slots=17,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=1 telekinesis=1
+  sell=0000000100000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[] icon=[icons/t_l_nomodel.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[] icon=[icons/t_l_nomodel.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[
+Script: t_l_nomodel_script]
+    effects=
+  tip(count=3,full=0) caption=[ (3)] icon=[icons/t_l_nomodel.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[ (3)] icon=[icons/t_l_nomodel.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 5
+#{sValue}: 3]
+    extra=[
+Script: t_l_nomodel_script]
+    effects=
+[t_l_burnt]
+  name=[Light t_l_burnt] model=[l/lamp.nif] script=[t_l_burnt_script] icon=[icons/t_l_burnt.dds]
+  value=10 weight=1.000000 enchant=[] enchPoints=throws(class does not support enchanting)
+  up=[Item Misc Up] down=[Item Misc Down] sound=[]
+  hasHealth=0 maxHealth=throws(class does not have item health) health=1109786624 usage=41.500000
+  slots=17,/0 skill=[] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=1 telekinesis=1
+  sell=0000000100000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Light t_l_burnt] icon=[icons/t_l_burnt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Light t_l_burnt] icon=[icons/t_l_burnt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_l_burnt_script]
+    effects=
+  tip(count=3,full=0) caption=[Light t_l_burnt (3)] icon=[icons/t_l_burnt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Light t_l_burnt (3)] icon=[icons/t_l_burnt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 1
+#{sValue}: 10]
+    extra=[
+Script: t_l_burnt_script]
+    effects=

@@ -90,6 +90,10 @@ file(GLOB UNITTEST_SRC_FILES
     # static, body part).
     mwclass/testworldobjectclasses.cpp
 
+    # Task 0098 move 8, stage 8b: characterization tests of the item classes (armor, weapon, clothing, book, ingredient,
+    # potion, misc, light, lockpick, probe, repair, apparatus).
+    mwclass/testitemclasses.cpp
+
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
     script_obscript/testobscriptformallocation.cpp

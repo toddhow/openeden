@@ -1,0 +1,814 @@
+[t_w_shortblade]
+  name=[Weapon t_w_shortblade] model=[w/t_w_shortblade.nif] script=[t_w_shortblade_script] icon=[icons/t_w_shortblade.dds]
+  value=50 weight=3.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Shortblade Up] down=[Item Weapon Shortblade Down] sound=[]
+  hasHealth=1 maxHealth=300 health=300 usage=-1.000000
+  slots=16,/0 skill=[ShortBlade] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_shortblade] icon=[icons/t_w_shortblade.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} ShortBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 300/300
+#{sWeight}: 3
+#{sValue}: 50]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_shortblade] icon=[icons/t_w_shortblade.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} ShortBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 300/300
+#{sWeight}: 3
+#{sValue}: 50]
+    extra=[
+Script: t_w_shortblade_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_shortblade (3)] icon=[icons/t_w_shortblade.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} ShortBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 300/300
+#{sWeight}: 3
+#{sValue}: 50]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_shortblade (3)] icon=[icons/t_w_shortblade.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} ShortBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 300/300
+#{sWeight}: 3
+#{sValue}: 50]
+    extra=[
+Script: t_w_shortblade_script]
+    effects=
+[t_w_longblade]
+  name=[Weapon t_w_longblade] model=[w/t_w_longblade.nif] script=[t_w_longblade_script] icon=[icons/t_w_longblade.dds]
+  value=200 weight=8.000000 enchant=[t_ench_w] enchPoints=220
+  up=[Item Weapon Longblade Up] down=[Item Weapon Longblade Down] sound=[]
+  hasHealth=1 maxHealth=500 health=500 usage=-1.000000
+  slots=16,/0 skill=[LongBlade] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_longblade] icon=[icons/t_w_longblade.dds] imageSize=32 enchant=[t_ench_w] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 500/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_longblade] icon=[icons/t_w_longblade.dds] imageSize=32 enchant=[t_ench_w] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 500/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[
+Script: t_w_longblade_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_longblade (3)] icon=[icons/t_w_longblade.dds] imageSize=32 enchant=[t_ench_w] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 500/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_longblade (3)] icon=[icons/t_w_longblade.dds] imageSize=32 enchant=[t_ench_w] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 500/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[
+Script: t_w_longblade_script]
+    effects=
+[t_w_longblade2h]
+  name=[Weapon t_w_longblade2h] model=[w/t_w_longblade2h.nif] script=[t_w_longblade2h_script] icon=[icons/t_w_longblade2h.dds]
+  value=400 weight=14.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Longblade Up] down=[Item Weapon Longblade Down] sound=[]
+  hasHealth=1 maxHealth=700 health=700 usage=-1.000000
+  slots=16,/0 skill=[LongBlade] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_longblade2h] icon=[icons/t_w_longblade2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 700/700
+#{sWeight}: 14
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_longblade2h] icon=[icons/t_w_longblade2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 700/700
+#{sWeight}: 14
+#{sValue}: 400]
+    extra=[
+Script: t_w_longblade2h_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_longblade2h (3)] icon=[icons/t_w_longblade2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 700/700
+#{sWeight}: 14
+#{sValue}: 400]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_longblade2h (3)] icon=[icons/t_w_longblade2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 700/700
+#{sWeight}: 14
+#{sValue}: 400]
+    extra=[
+Script: t_w_longblade2h_script]
+    effects=
+[t_w_blunt]
+  name=[Weapon t_w_blunt] model=[w/t_w_blunt.nif] script=[t_w_blunt_script] icon=[icons/t_w_blunt.dds]
+  value=90 weight=6.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[BluntWeapon] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_blunt] icon=[icons/t_w_blunt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 6
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_blunt] icon=[icons/t_w_blunt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 6
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_blunt (3)] icon=[icons/t_w_blunt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 6
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_blunt (3)] icon=[icons/t_w_blunt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 6
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt_script]
+    effects=
+[t_w_blunt2c]
+  name=[Weapon t_w_blunt2c] model=[w/t_w_blunt2c.nif] script=[t_w_blunt2c_script] icon=[icons/t_w_blunt2c.dds]
+  value=90 weight=18.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[BluntWeapon] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_blunt2c] icon=[icons/t_w_blunt2c.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 18
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_blunt2c] icon=[icons/t_w_blunt2c.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 18
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt2c_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_blunt2c (3)] icon=[icons/t_w_blunt2c.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 18
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_blunt2c (3)] icon=[icons/t_w_blunt2c.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 18
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt2c_script]
+    effects=
+[t_w_blunt2w]
+  name=[Weapon t_w_blunt2w] model=[w/t_w_blunt2w.nif] script=[t_w_blunt2w_script] icon=[icons/t_w_blunt2w.dds]
+  value=90 weight=12.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[BluntWeapon] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_blunt2w] icon=[icons/t_w_blunt2w.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 12
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_blunt2w] icon=[icons/t_w_blunt2w.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 12
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt2w_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_blunt2w (3)] icon=[icons/t_w_blunt2w.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 12
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_blunt2w (3)] icon=[icons/t_w_blunt2w.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} BluntWeapon, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 12
+#{sValue}: 90]
+    extra=[
+Script: t_w_blunt2w_script]
+    effects=
+[t_w_spear]
+  name=[Weapon t_w_spear] model=[w/t_w_spear.nif] script=[t_w_spear_script] icon=[icons/t_w_spear.dds]
+  value=90 weight=7.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Spear Up] down=[Item Weapon Spear Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[Spear] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_spear] icon=[icons/t_w_spear.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Spear, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 7
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_spear] icon=[icons/t_w_spear.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Spear, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 7
+#{sValue}: 90]
+    extra=[
+Script: t_w_spear_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_spear (3)] icon=[icons/t_w_spear.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Spear, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 7
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_spear (3)] icon=[icons/t_w_spear.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Spear, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 7
+#{sValue}: 90]
+    extra=[
+Script: t_w_spear_script]
+    effects=
+[t_w_axe]
+  name=[Weapon t_w_axe] model=[w/t_w_axe.nif] script=[t_w_axe_script] icon=[icons/t_w_axe.dds]
+  value=90 weight=9.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[Axe] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_axe] icon=[icons/t_w_axe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_axe] icon=[icons/t_w_axe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[
+Script: t_w_axe_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_axe (3)] icon=[icons/t_w_axe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_axe (3)] icon=[icons/t_w_axe.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[
+Script: t_w_axe_script]
+    effects=
+[t_w_axe2h]
+  name=[Weapon t_w_axe2h] model=[w/t_w_axe2h.nif] script=[t_w_axe2h_script] icon=[icons/t_w_axe2h.dds]
+  value=90 weight=19.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[Axe] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_axe2h] icon=[icons/t_w_axe2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 19
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_axe2h] icon=[icons/t_w_axe2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 19
+#{sValue}: 90]
+    extra=[
+Script: t_w_axe2h_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_axe2h (3)] icon=[icons/t_w_axe2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 19
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_axe2h (3)] icon=[icons/t_w_axe2h.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, Two Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 400/400
+#{sWeight}: 19
+#{sValue}: 90]
+    extra=[
+Script: t_w_axe2h_script]
+    effects=
+[t_w_bow]
+  name=[Weapon t_w_bow] model=[w/t_w_bow.nif] script=[t_w_bow_script] icon=[icons/t_w_bow.dds]
+  value=90 weight=5.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Bow Up] down=[Item Weapon Bow Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[Marksman] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_bow] icon=[icons/t_w_bow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 5
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_bow] icon=[icons/t_w_bow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 5
+#{sValue}: 90]
+    extra=[
+Script: t_w_bow_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_bow (3)] icon=[icons/t_w_bow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 5
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_bow (3)] icon=[icons/t_w_bow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 5
+#{sValue}: 90]
+    extra=[
+Script: t_w_bow_script]
+    effects=
+[t_w_crossbow]
+  name=[Weapon t_w_crossbow] model=[w/t_w_crossbow.nif] script=[t_w_crossbow_script] icon=[icons/t_w_crossbow.dds]
+  value=90 weight=10.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Crossbow Up] down=[Item Weapon Crossbow Down] sound=[]
+  hasHealth=1 maxHealth=400 health=400 usage=-1.000000
+  slots=16,/0 skill=[Marksman] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=2: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_crossbow] icon=[icons/t_w_crossbow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 10
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_crossbow] icon=[icons/t_w_crossbow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 10
+#{sValue}: 90]
+    extra=[
+Script: t_w_crossbow_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_crossbow (3)] icon=[icons/t_w_crossbow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 10
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_crossbow (3)] icon=[icons/t_w_crossbow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 2 - 9
+#{sCondition}: 400/400
+#{sWeight}: 10
+#{sValue}: 90]
+    extra=[
+Script: t_w_crossbow_script]
+    effects=
+[t_w_thrown]
+  name=[Weapon t_w_thrown] model=[w/t_w_thrown.nif] script=[t_w_thrown_script] icon=[icons/t_w_thrown.dds]
+  value=5 weight=0.200000 enchant=[] enchPoints=0
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=0 maxHealth=0 health=0 usage=-1.000000
+  slots=16,/1 skill=[Marksman] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_thrown] icon=[icons/t_w_thrown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 4 - 18
+#{sWeight}: 0.2
+#{sValue}: 5]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_thrown] icon=[icons/t_w_thrown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 4 - 18
+#{sWeight}: 0.2
+#{sValue}: 5]
+    extra=[
+Script: t_w_thrown_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_thrown (3)] icon=[icons/t_w_thrown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 4 - 18
+#{sWeight}: 0.2
+#{sValue}: 5]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_thrown (3)] icon=[icons/t_w_thrown.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Marksman
+#{sAttack}: 4 - 18
+#{sWeight}: 0.2
+#{sValue}: 5]
+    extra=[
+Script: t_w_thrown_script]
+    effects=
+[t_w_arrow]
+  name=[Weapon t_w_arrow] model=[w/t_w_arrow.nif] script=[t_w_arrow_script] icon=[icons/t_w_arrow.dds]
+  value=1 weight=0.100000 enchant=[] enchPoints=0
+  up=[Item Ammo Up] down=[Item Ammo Down] sound=[]
+  hasHealth=0 maxHealth=0 health=0 usage=-1.000000
+  slots=18,/1 skill=[Marksman] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_arrow] icon=[icons/t_w_arrow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_arrow] icon=[icons/t_w_arrow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_w_arrow_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_arrow (3)] icon=[icons/t_w_arrow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_arrow (3)] icon=[icons/t_w_arrow.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_w_arrow_script]
+    effects=
+[t_w_bolt]
+  name=[Weapon t_w_bolt] model=[w/t_w_bolt.nif] script=[t_w_bolt_script] icon=[icons/t_w_bolt.dds]
+  value=1 weight=0.100000 enchant=[] enchPoints=0
+  up=[Item Ammo Up] down=[Item Ammo Down] sound=[]
+  hasHealth=0 maxHealth=0 health=0 usage=-1.000000
+  slots=18,/1 skill=[Marksman] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_bolt] icon=[icons/t_w_bolt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_bolt] icon=[icons/t_w_bolt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_w_bolt_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_bolt (3)] icon=[icons/t_w_bolt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_bolt (3)] icon=[icons/t_w_bolt.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sWeight}: 0.1
+#{sValue}: 1]
+    extra=[
+Script: t_w_bolt_script]
+    effects=
+[t_w_broken]
+  name=[Weapon t_w_broken] model=[w/t_w_broken.nif] script=[t_w_broken_script] icon=[icons/t_w_broken.dds]
+  value=200 weight=8.000000 enchant=[] enchPoints=0
+  up=[Item Weapon Longblade Up] down=[Item Weapon Longblade Down] sound=[]
+  hasHealth=1 maxHealth=500 health=0 usage=-1.000000
+  slots=16,/0 skill=[LongBlade] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000000000 sellAll=1
+  equip=0:#{sInventoryMessage1} use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_broken] icon=[icons/t_w_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 0/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_broken] icon=[icons/t_w_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 0/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[
+Script: t_w_broken_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_broken (3)] icon=[icons/t_w_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 0/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_broken (3)] icon=[icons/t_w_broken.dds] imageSize=32 enchant=[] remaining=-1 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} LongBlade, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 0/500
+#{sWeight}: 8
+#{sValue}: 200]
+    extra=[
+Script: t_w_broken_script]
+    effects=
+[t_w_worn]
+  name=[Weapon t_w_worn] model=[w/t_w_worn.nif] script=[t_w_worn_script] icon=[icons/t_w_worn.dds]
+  value=90 weight=9.000000 enchant=[t_ench_x] enchPoints=80
+  up=[Item Weapon Blunt Up] down=[Item Weapon Blunt Down] sound=[]
+  hasHealth=1 maxHealth=400 health=111 usage=-1.000000
+  slots=16,/0 skill=[Axe] isItem=1 key=0 gold=0 soulgem=0 tooltip=1 inInventory=1 anim=0 telekinesis=1
+  sell=1000000000001000 sellAll=1
+  equip=1: use=equip useForced=equip activate=take activateBlocked=null
+  armorRating=throws(class does not support armor ratings)
+  tip(count=1,full=0) caption=[Weapon t_w_worn] icon=[icons/t_w_worn.dds] imageSize=32 enchant=[t_ench_x] remaining=31 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 111/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=1,full=1) caption=[Weapon t_w_worn] icon=[icons/t_w_worn.dds] imageSize=32 enchant=[t_ench_x] remaining=31 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 111/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_w_worn_script]
+    effects=
+  tip(count=3,full=0) caption=[Weapon t_w_worn (3)] icon=[icons/t_w_worn.dds] imageSize=32 enchant=[t_ench_x] remaining=31 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 111/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[]
+    effects=
+  tip(count=3,full=1) caption=[Weapon t_w_worn (3)] icon=[icons/t_w_worn.dds] imageSize=32 enchant=[t_ench_x] remaining=31 isPotion=0 isIngredient=0 wordWrap=1
+    text=[
+#{sType} Axe, One Handed
+#{sChop}: 2 - 9
+#{sSlash}: 3 - 11
+#{sThrust}: 1 - 7
+#{sCondition}: 111/400
+#{sWeight}: 9
+#{sValue}: 90]
+    extra=[
+Stolen 2 from "t_owner"
+Script: t_w_worn_script]
+    effects=
