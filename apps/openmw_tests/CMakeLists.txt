@@ -63,6 +63,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp
+    mwscript/testmorrowindcommandtable.cpp
+    mwscript/testmorrowindcommandruns.cpp
 
     # Task 0085 move 2, stage 2b: characterization tests of the crafting rules (alchemy, enchanting, recharge, repair).
     mwmechanics/craftingfixture.cpp

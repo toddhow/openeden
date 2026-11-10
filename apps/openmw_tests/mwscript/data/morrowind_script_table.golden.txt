@@ -1,0 +1,1161 @@
+# Morrowind script command set, compile table and installed handlers (task 0098 move 4)
+[compile table consoleOnly=false]
+I activate - x explicit 0xca000075 0xca000244
+I additem - clX explicit 0xca000076 0xca000077
+I addsoulgem - ccX explicit 0xca0001f3 0xca0001f4
+I addspell - cz explicit 0xca000147 0xca000148
+I addtolevcreature - ccl implicit-only 0xca0002fb
+I addtolevitem - ccl implicit-only 0xca0002fd
+I addtopic - S implicit-only 0xca00013a
+I aiactivate - c/l explicit 0xc2001e00 0xc2001f00
+I aiescort - cffff/l explicit 0xc2000200 0xc2000300
+I aiescortcell - ccffff/l explicit 0xc2002000 0xc2002100
+I aifollow - cffff/llllllll explicit 0xc2002200 0xc2002300
+I aifollowcell - ccffff/l explicit 0xc2002400 0xc2002500
+I aitravel - fff/lx explicit 0xc2000000 0xc2000100
+I aiwander - fff/llllllllll explicit 0xc2001000 0xc2001100
+I bc - /S explicit 0xc2002d00 0xc2002e00
+I becomewerewolf -  explicit 0xca000217 0xca000218
+I betacomment - /S explicit 0xc2002d00 0xc2002e00
+I bodycheck -  explicit 0xca00032a 0xca00032b
+I cast - SS explicit 0xca000227 0xca000228
+F cellchanged l  implicit-only 0xca000000
+I centeroncell - S implicit-only 0xca000026
+I centeronexterior - ll implicit-only 0xca000226
+I changeweather - Sl implicit-only 0xca000140
+I choice - j/SlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSl implicit-only 0xc2000a00
+I clearforcejump -  explicit 0xca000258 0xca000259
+I clearforcemovejump -  explicit 0xca00025c 0xca00025d
+I clearforcerun -  explicit 0xca000154 0xca000155
+I clearforcesneak -  explicit 0xca000158 0xca000159
+I clearinfoactor -  explicit 0xca000245 0xca000246
+I cmragdoll -  explicit 0xca000327 0xca000328
+I cmragdolloff -  implicit-only 0xca000329
+I cmstyle - /S explicit 0xc2003100 0xc2003200
+I coc - S implicit-only 0xca000026
+I coe - ll implicit-only 0xca000226
+I disable - x explicit 0xca000318 0xca00031b
+I disablelevitation -  implicit-only 0xca000220
+I disableplayercontrols -  implicit-only 0xca000085
+I disableplayerfighting -  implicit-only 0xca000086
+I disableplayerjumping -  implicit-only 0xca000087
+I disableplayerlooking -  implicit-only 0xca000088
+I disableplayermagic -  implicit-only 0xca000089
+I disableplayerviewswitch -  implicit-only 0xca00008a
+I disableteleporting -  implicit-only 0xca000215
+I disablevanitymode -  implicit-only 0xca00008b
+I dontsaveobject -  implicit-only 0xca000153
+I drop - cl explicit 0xca0001f8 0xca0001f9
+I dropsoulgem - c explicit 0xca0001fa 0xca0001fb
+I enable - x explicit 0xca000317 0xca00031a
+I enablebirthmenu -  implicit-only 0xca00000e
+I enableclassmenu -  implicit-only 0xca00000f
+I enableinventorymenu -  implicit-only 0xca000013
+I enablelevelupmenu -  implicit-only 0xca000300
+I enablelevitation -  implicit-only 0xca000221
+I enablemagicmenu -  implicit-only 0xca000014
+I enablemapmenu -  implicit-only 0xca000015
+I enablenamemenu -  implicit-only 0xca000010
+I enableplayercontrols -  implicit-only 0xca00007e
+I enableplayerfighting -  implicit-only 0xca00007f
+I enableplayerjumping -  implicit-only 0xca000080
+I enableplayerlooking -  implicit-only 0xca000081
+I enableplayermagic -  implicit-only 0xca000082
+I enableplayerviewswitch -  implicit-only 0xca000083
+I enableracemenu -  implicit-only 0xca000011
+I enablerest -  implicit-only 0xca000017
+I enablestatreviewmenu -  implicit-only 0xca000012
+I enablestatsmenu -  implicit-only 0xca000016
+I enableteleporting -  implicit-only 0xca000216
+I enablevanitymode -  implicit-only 0xca000084
+I equip - cX explicit 0xca0001b3 0xca0001b4
+I explodespell - S explicit 0xca000229 0xca00022a
+I face - ffX explicit 0xca00024c 0xca00024d
+I fadein - f implicit-only 0xca00013c
+I fadeout - f implicit-only 0xca00013d
+I fadeto - ff implicit-only 0xca00013e
+I fall -  explicit 0xca00020a 0xca00020b
+I filljournal -  implicit-only 0xca000326
+I fillmap -  implicit-only 0xca0001a1
+I fixme -  implicit-only 0xca000302
+I forcegreeting - z explicit 0xca00014f 0xca000150
+I forcejump -  explicit 0xca00025a 0xca00025b
+I forcemovejump -  explicit 0xca00025e 0xca00025f
+I forcerun -  explicit 0xca000156 0xca000157
+I forcesneak -  explicit 0xca00015a 0xca00015b
+F getacrobatics f  explicit 0xca0000a2 0xca0000bd
+F getagility f  explicit 0xca00002a 0xca000032
+F getaipackagedone l  explicit 0xca00007c 0xca00007d
+F getalarm l  explicit 0xca0001c5 0xca0001c6
+F getalchemy f  explicit 0xca00009e 0xca0000b9
+F getalteration f  explicit 0xca000099 0xca0000b4
+F getangle f c explicit 0xca00016a 0xca00016b
+F getarmorbonus l  explicit 0xca000274 0xca00028c
+F getarmorer f  explicit 0xca00008f 0xca0000aa
+F getarmortype l l explicit 0xca0001d1 0xca0001d2
+F getathletics f  explicit 0xca000096 0xca0000b1
+F getattackbonus l  explicit 0xca00027a 0xca000292
+F getattacked l  explicit 0xca0001d3 0xca0001d4
+F getaxe f  explicit 0xca000094 0xca0000af
+F getblightdisease l  explicit 0xca0001aa 0xca0001ab
+F getblindness l  explicit 0xca000277 0xca00028f
+F getblock f  explicit 0xca00008e 0xca0000a9
+F getbluntweapon f  explicit 0xca000092 0xca0000ad
+F getbuttonpressed l  implicit-only 0xca000137
+F getcastpenalty l  explicit 0xca000275 0xca00028d
+F getchameleon l  explicit 0xca00026f 0xca000287
+F getcollidingactor l  explicit 0xca000252 0xca000253
+F getcollidingpc l  explicit 0xca000250 0xca000251
+F getcommondisease l  explicit 0xca0001a8 0xca0001a9
+F getconjuration f  explicit 0xca00009b 0xca0000b6
+F getcurrentaipackage l  explicit 0xca0001ef 0xca0001f0
+F getcurrenttime f  implicit-only 0xca0001dd
+F getcurrentweather l  implicit-only 0xca00013f
+F getdeadcount l c implicit-only 0xca0001a3
+F getdefendbonus l  explicit 0xca00027b 0xca000293
+F getdestruction f  explicit 0xca000098 0xca0000b3
+F getdetected l c explicit 0xca0001f1 0xca0001f2
+F getdisabled l x explicit 0xca000319 0xca00031c
+F getdisposition l  explicit 0xca0001a6 0xca0001a7
+F getdistance f c explicit 0xca00031e 0xca00031f
+F geteffect l S explicit 0xca0001cf 0xca0001d0
+F getenchant f  explicit 0xca000097 0xca0000b2
+F getendurance f  explicit 0xca00002c 0xca000034
+F getfactionreaction l ccX implicit-only 0xca000243
+F getfatigue f x explicit 0xca000059 0xca00005c
+F getfatiguegetratio f  explicit 0xca000071 0xca000074
+F getfight l  explicit 0xca0001c1 0xca0001c2
+F getflee l  explicit 0xca0001c3 0xca0001c4
+F getflying l  explicit 0xca000273 0xca00028b
+F getforcejump l  explicit 0xca000260 0xca000261
+F getforcemovejump l  explicit 0xca000262 0xca000263
+F getforcerun l  explicit 0xca0001cb 0xca0001cd
+F getforcesneak l  explicit 0xca0001cc 0xca0001ce
+F gethandtohand f  explicit 0xca0000a8 0xca0000c3
+F gethealth f x explicit 0xca000057 0xca00005a
+F gethealthgetratio f  explicit 0xca00006f 0xca000072
+F getheavyarmor f  explicit 0xca000091 0xca0000ac
+F gethello l  explicit 0xca0001bf 0xca0001c0
+F getillusion f  explicit 0xca00009a 0xca0000b5
+F getintelligence f  explicit 0xca000028 0xca000030
+F getinterior l  implicit-only 0xca000131
+F getinvisible l  explicit 0xca000279 0xca000291
+F getitemcount l cX explicit 0xca000078 0xca000079
+F getjournalindex l c implicit-only 0xca000135
+F getlevel l  explicit 0xca00018c 0xca00018d
+F getlightarmor f  explicit 0xca0000a3 0xca0000be
+F getlineofsight l c explicit 0xca000222 0xca000223
+F getlocked l  explicit 0xca0001c7 0xca0001c8
+F getlongblade f  explicit 0xca000093 0xca0000ae
+F getlos l c explicit 0xca000222 0xca000223
+F getluck f  explicit 0xca00002e 0xca000036
+F getmagicka f x explicit 0xca000058 0xca00005b
+F getmagickagetratio f  explicit 0xca000070 0xca000073
+F getmarksman f  explicit 0xca0000a5 0xca0000c0
+F getmasserphase l  implicit-only 0xca000024
+F getmediumarmor f  explicit 0xca000090 0xca0000ab
+F getmercantile f  explicit 0xca0000a6 0xca0000c1
+F getmysticism f  explicit 0xca00009c 0xca0000b7
+F getparalysis l  explicit 0xca000278 0xca000290
+F getpccell l c implicit-only 0xca000136
+F getpccrimelevel f  implicit-only 0xca0001ec
+F getpcfacrep l /c explicit 0xc2001200 0xc2001300
+F getpcinjail l  implicit-only 0xca00023e
+F getpcjumping l  implicit-only 0xca000233
+F getpcrank l /S explicit 0xc2000e00 0xc2000f00
+F getpcrunning l  implicit-only 0xca0001c9
+F getpcsleep l  implicit-only 0xca00019f
+F getpcsneaking l  implicit-only 0xca0001ca
+F getpctraveling l  implicit-only 0xca00023f
+F getpcvisionbonus f  implicit-only 0xca000322
+F getpersonality f  explicit 0xca00002d 0xca000035
+F getplayercontrolsdisabled l  implicit-only 0xca000175
+F getplayerfightingdisabled l  implicit-only 0xca000176
+F getplayerjumpingdisabled l  implicit-only 0xca000177
+F getplayerlookingdisabled l  implicit-only 0xca000178
+F getplayermagicdisabled l  implicit-only 0xca000179
+F getplayerviewswitchdisabled l  implicit-only 0xca00017a
+F getpos f c explicit 0xca000190 0xca000191
+F getrace l c explicit 0xca0001d9 0xca0001da
+F getreputation l  explicit 0xca0001b1 0xca0001b2
+F getresistblight l  explicit 0xca000269 0xca000281
+F getresistcorprus l  explicit 0xca00026a 0xca000282
+F getresistdisease l  explicit 0xca000268 0xca000280
+F getresistfire l  explicit 0xca000265 0xca00027d
+F getresistfrost l  explicit 0xca000266 0xca00027e
+F getresistmagicka l  explicit 0xca000264 0xca00027c
+F getresistnormalweapons l  explicit 0xca00026d 0xca000285
+F getresistparalysis l  explicit 0xca00026c 0xca000284
+F getresistpoison l  explicit 0xca00026b 0xca000283
+F getresistshock l  explicit 0xca000267 0xca00027f
+F getrestoration f  explicit 0xca00009d 0xca0000b8
+F getscale f  explicit 0xca000168 0xca000169
+F getsecondspassed f  implicit-only 0xca000316
+F getsecundaphase l  implicit-only 0xca000025
+F getsecurity f  explicit 0xca0000a0 0xca0000bb
+F getshortblade f  explicit 0xca0000a4 0xca0000bf
+F getsilence l  explicit 0xca000276 0xca00028e
+F getsneak f  explicit 0xca0000a1 0xca0000bc
+F getsoundplaying l c explicit 0xca00000b 0xca000020
+F getspear f  explicit 0xca000095 0xca0000b0
+F getspeechcraft f  explicit 0xca0000a7 0xca0000c2
+F getspeed f  explicit 0xca00002b 0xca000033
+F getspell l c explicit 0xca00014b 0xca00014c
+F getspelleffects l c explicit 0xca0001db 0xca0001dc
+F getspellreadied l  explicit 0xca000231 0xca000232
+F getsquareroot f f implicit-only 0xca0001e7
+F getstandingactor l  explicit 0xca00020e 0xca00020f
+F getstandingpc l  explicit 0xca00020c 0xca00020d
+F getstartingangle f c explicit 0xca000210 0xca000211
+F getstartingpos f c explicit 0xca000194 0xca000195
+F getstat l c explicit 0xca00024e 0xca00024f
+F getstrength f  explicit 0xca000027 0xca00002f
+F getsuperjump l  explicit 0xca000272 0xca00028a
+F getswimspeed l  explicit 0xca000271 0xca000289
+F gettarget l c explicit 0xca000238 0xca000239
+F getunarmored f  explicit 0xca00009f 0xca0000ba
+F getvanitymodedisabled l  implicit-only 0xca00017b
+F getwaterbreathing l  explicit 0xca00026e 0xca000286
+F getwaterlevel f  implicit-only 0xca000141
+F getwaterwalking l  explicit 0xca000270 0xca000288
+F getweapondrawn l  explicit 0xca0001d7 0xca0001d8
+F getweapontype l  explicit 0xca0001e0 0xca0001e1
+F getwerewolfkills l  implicit-only 0xca0001e2
+F getwillpower f  explicit 0xca000029 0xca000031
+F getwindspeed f  implicit-only 0xca000212
+I goodbye -  implicit-only 0xca000152
+I gotojail -  implicit-only 0xca000235
+F hasitemequipped l c explicit 0xca0001d5 0xca0001d6
+F hassoulgem l c explicit 0xca0001de 0xca0001df
+I help -  implicit-only 0xca000320
+F hitattemptonme l S explicit 0xca0002f9 0xca0002fa
+F hitonme l S explicit 0xca000213 0xca000214
+I hurtcollidingactor - f explicit 0xca000256 0xca000257
+I hurtstandingactor - f explicit 0xca000254 0xca000255
+F iswerewolf l  explicit 0xca0001fd 0xca0001fe
+I journal - cl explicit 0xca000133 0xca00030b
+I lock - /l explicit 0xc2000400 0xc2000500
+I loopgroup - cl/l explicit 0xc2000800 0xc2000900
+I lowerrank - x explicit 0xca0001ea 0xca0001eb
+F menumode l  implicit-only 0xca000311
+I menutest - /l implicit-only 0xc2002c00
+I modacrobatics - f explicit 0xca00010e 0xca000129
+I modagility - f explicit 0xca00004a 0xca000052
+I modalarm - l explicit 0xca0001bd 0xca0001be
+I modalchemy - f explicit 0xca00010a 0xca000125
+I modalteration - f explicit 0xca000105 0xca000120
+I modarmorbonus - l explicit 0xca0002d4 0xca0002ec
+I modarmorer - f explicit 0xca0000fb 0xca000116
+I modathletics - f explicit 0xca000102 0xca00011d
+I modattackbonus - l explicit 0xca0002da 0xca0002f2
+I modaxe - f explicit 0xca000100 0xca00011b
+I modblindness - l explicit 0xca0002d7 0xca0002ef
+I modblock - f explicit 0xca0000fa 0xca000115
+I modbluntweapon - f explicit 0xca0000fe 0xca000119
+I modcastpenalty - l explicit 0xca0002d5 0xca0002ed
+I modchameleon - l explicit 0xca0002cf 0xca0002e7
+I modconjuration - f explicit 0xca000107 0xca000122
+I modcurrentfatigue - f explicit 0xca00006b 0xca00006e
+I modcurrenthealth - f explicit 0xca000069 0xca00006c
+I modcurrentmagicka - f explicit 0xca00006a 0xca00006d
+I moddefendbonus - l explicit 0xca0002db 0xca0002f3
+I moddestruction - f explicit 0xca000104 0xca00011f
+I moddisposition - l explicit 0xca00014d 0xca00014e
+I modenchant - f explicit 0xca000103 0xca00011e
+I modendurance - f explicit 0xca00004c 0xca000054
+I modfactionreaction - ccl implicit-only 0xca000242
+I modfatigue - f explicit 0xca000065 0xca000068
+I modfight - l explicit 0xca0001b9 0xca0001ba
+I modflee - l explicit 0xca0001bb 0xca0001bc
+I modflying - l explicit 0xca0002d3 0xca0002eb
+I modhandtohand - f explicit 0xca000114 0xca00012f
+I modhealth - f explicit 0xca000063 0xca000066
+I modheavyarmor - f explicit 0xca0000fd 0xca000118
+I modhello - l explicit 0xca0001b7 0xca0001b8
+I modillusion - f explicit 0xca000106 0xca000121
+I modintelligence - f explicit 0xca000048 0xca000050
+I modinvisible - l explicit 0xca0002d9 0xca0002f1
+I modlightarmor - f explicit 0xca00010f 0xca00012a
+I modlongblade - f explicit 0xca0000ff 0xca00011a
+I modluck - f explicit 0xca00004e 0xca000056
+I modmagicka - f explicit 0xca000064 0xca000067
+I modmarksman - f explicit 0xca000111 0xca00012c
+I modmediumarmor - f explicit 0xca0000fc 0xca000117
+I modmercantile - f explicit 0xca000112 0xca00012d
+I modmysticism - f explicit 0xca000108 0xca000123
+I modparalysis - l explicit 0xca0002d8 0xca0002f0
+I modpccrimelevel - f implicit-only 0xca0001ee
+I modpcfacrep - l/c explicit 0xc2001600 0xc2001700
+I modpcvisionbonus - f implicit-only 0xca000324
+I modpersonality - f explicit 0xca00004d 0xca000055
+I modregion - S/llllllllllX implicit-only 0xc2002600
+I modreputation - l explicit 0xca0001ae 0xca0001b0
+I modresistblight - l explicit 0xca0002c9 0xca0002e1
+I modresistcorprus - l explicit 0xca0002ca 0xca0002e2
+I modresistdisease - l explicit 0xca0002c8 0xca0002e0
+I modresistfire - l explicit 0xca0002c5 0xca0002dd
+I modresistfrost - l explicit 0xca0002c6 0xca0002de
+I modresistmagicka - l explicit 0xca0002c4 0xca0002dc
+I modresistnormalweapons - l explicit 0xca0002cd 0xca0002e5
+I modresistparalysis - l explicit 0xca0002cc 0xca0002e4
+I modresistpoison - l explicit 0xca0002cb 0xca0002e3
+I modresistshock - l explicit 0xca0002c7 0xca0002df
+I modrestoration - f explicit 0xca000109 0xca000124
+I modscale - f explicit 0xca0001e3 0xca0001e4
+I modsecurity - f explicit 0xca00010c 0xca000127
+I modshortblade - f explicit 0xca000110 0xca00012b
+I modsilence - l explicit 0xca0002d6 0xca0002ee
+I modsneak - f explicit 0xca00010d 0xca000128
+I modspear - f explicit 0xca000101 0xca00011c
+I modspeechcraft - f explicit 0xca000113 0xca00012e
+I modspeed - f explicit 0xca00004b 0xca000053
+I modstrength - f explicit 0xca000047 0xca00004f
+I modsuperjump - l explicit 0xca0002d2 0xca0002ea
+I modswimspeed - l explicit 0xca0002d1 0xca0002e9
+I modunarmored - f explicit 0xca00010b 0xca000126
+I modwaterbreathing - l explicit 0xca0002ce 0xca0002e6
+I modwaterlevel - f implicit-only 0xca000143
+I modwaterwalking - l explicit 0xca0002d0 0xca0002e8
+I modwillpower - f explicit 0xca000049 0xca000051
+I move - cf explicit 0xca000206 0xca000207
+I moveworld - cf explicit 0xca000208 0xca000209
+F onactivate l  explicit 0xca00000d 0xca000306
+F ondeath l  explicit 0xca0001fc 0xca000205
+F onknockout l  explicit 0xca000240 0xca000241
+F onmurder l  explicit 0xca000249 0xca00024a
+I ori - /S explicit 0xc2002d00 0xc2002e00
+I outputrefinfo - /S explicit 0xc2002d00 0xc2002e00
+I payfine -  implicit-only 0xca000236
+I payfinethief -  implicit-only 0xca000237
+I pcclearexpelled - /S explicit 0xc2001c00 0xc2001d00
+I pcexpell - /S explicit 0xc2001a00 0xc2001b00
+F pcexpelled l /S explicit 0xc2001800 0xc2001900
+I pcforce1stperson -  implicit-only 0xca0002f6
+I pcforce3rdperson -  implicit-only 0xca0002f7
+F pcget3rdperson l  implicit-only 0xca0002f8
+I pcjoinfaction - /S explicit 0xc2000d00 0xc2002b00
+I pclowerrank - /S explicit 0xc2000c00 0xc2002a00
+I pcraiserank - /S explicit 0xc2000b00 0xc2002900
+I placeatme - clflX explicit 0xca00019d 0xca00019e
+I placeatpc - clflX implicit-only 0xca00019c
+I placeitem - cffffX implicit-only 0xca00019b
+I placeitemcell - ccffffX implicit-only 0xca00019a
+I playbink - Sl implicit-only 0xca0001f7
+I playgroup - c/l explicit 0xc2000600 0xc2000700
+I playloopsound3d - cXX explicit 0xca000008 0xca00001d
+I playloopsound3dvp - cff explicit 0xca000009 0xca00001e
+I playsound - cXX implicit-only 0xca000004
+I playsound3d - cXX explicit 0xca000006 0xca00001b
+I playsound3dvp - cff explicit 0xca000007 0xca00001c
+I playsoundvp - cff implicit-only 0xca000005
+I position - ffffz explicit 0xca000196 0xca000197
+I positioncell - ffffczz explicit 0xca000198 0xca000199
+I ra -  implicit-only 0xca0002f4
+I raiserank - x explicit 0xca0001e8 0xca0001e9
+F random f l implicit-only 0xca000312
+I reloadlua -  implicit-only 0xca000321
+I removeeffects - l explicit 0xca00022d 0xca00022e
+I removefromlevcreature - ccl implicit-only 0xca0002fc
+I removefromlevitem - ccl implicit-only 0xca0002fe
+I removeitem - clX explicit 0xca00007a 0xca00007b
+I removesoulgem - c/l explicit 0xc2002700 0xc2002800
+I removespell - cz explicit 0xca000149 0xca00014a
+I removespelleffects - c explicit 0xca00022b 0xca00022c
+F repairedonme l S explicit 0xca00030c 0xca00030d
+I resetactors -  implicit-only 0xca0002f4
+I resurrect -  explicit 0xca00022f 0xca000230
+I rotate - cf explicit 0xca0001ff 0xca000200
+I rotateworld - cf explicit 0xca000201 0xca000202
+F samefaction l  explicit 0xca0001b5 0xca0001b6
+I say - SS explicit 0xca000001 0xca000019
+F saydone l  explicit 0xca000002 0xca00001a
+F scriptrunning l c implicit-only 0xca000313
+I setacrobatics - f explicit 0xca0000d8 0xca0000f3
+I setagility - f explicit 0xca00003a 0xca000042
+I setalarm - l explicit 0xca000162 0xca000163
+I setalchemy - f explicit 0xca0000d4 0xca0000ef
+I setalteration - f explicit 0xca0000cf 0xca0000ea
+I setangle - cf explicit 0xca000166 0xca000167
+I setarmorbonus - l explicit 0xca0002a4 0xca0002bc
+I setarmorer - f explicit 0xca0000c5 0xca0000e0
+I setathletics - f explicit 0xca0000cc 0xca0000e7
+I setatstart -  explicit 0xca000203 0xca000204
+I setattackbonus - l explicit 0xca0002aa 0xca0002c2
+I setaxe - f explicit 0xca0000ca 0xca0000e5
+I setblindness - l explicit 0xca0002a7 0xca0002bf
+I setblock - f explicit 0xca0000c4 0xca0000df
+I setbluntweapon - f explicit 0xca0000c8 0xca0000e3
+I setcastpenalty - l explicit 0xca0002a5 0xca0002bd
+I setchameleon - l explicit 0xca00029f 0xca0002b7
+I setconjuration - f explicit 0xca0000d1 0xca0000ec
+I setdefendbonus - l explicit 0xca0002ab 0xca0002c3
+I setdelete - l explicit 0xca0001e5 0xca0001e6
+I setdestruction - f explicit 0xca0000ce 0xca0000e9
+I setdisposition - l explicit 0xca0001a4 0xca0001a5
+I setenchant - f explicit 0xca0000cd 0xca0000e8
+I setendurance - f explicit 0xca00003c 0xca000044
+I setfactionreaction - ccl implicit-only 0xca0002ff
+I setfatigue - f explicit 0xca00005f 0xca000062
+I setfight - l explicit 0xca00015e 0xca00015f
+I setflee - l explicit 0xca000160 0xca000161
+I setflying - l explicit 0xca0002a3 0xca0002bb
+I sethandtohand - f explicit 0xca0000de 0xca0000f9
+I sethealth - f explicit 0xca00005d 0xca000060
+I setheavyarmor - f explicit 0xca0000c7 0xca0000e2
+I sethello - l explicit 0xca00015c 0xca00015d
+I setillusion - f explicit 0xca0000d0 0xca0000eb
+I setintelligence - f explicit 0xca000038 0xca000040
+I setinvisible - l explicit 0xca0002a9 0xca0002c1
+I setjournalindex - cl implicit-only 0xca000134
+I setlevel - l explicit 0xca00018e 0xca00018f
+I setlightarmor - f explicit 0xca0000d9 0xca0000f4
+I setlongblade - f explicit 0xca0000c9 0xca0000e4
+I setluck - f explicit 0xca00003e 0xca000046
+I setmagicka - f explicit 0xca00005e 0xca000061
+I setmarksman - f explicit 0xca0000db 0xca0000f6
+I setmediumarmor - f explicit 0xca0000c6 0xca0000e1
+I setmercantile - f explicit 0xca0000dc 0xca0000f7
+I setmysticism - f explicit 0xca0000d2 0xca0000ed
+I setnavmeshnumber - l implicit-only 0xca00030a
+I setparalysis - l explicit 0xca0002a8 0xca0002c0
+I setpccrimelevel - f implicit-only 0xca0001ed
+I setpcfacrep - l/c explicit 0xc2001400 0xc2001500
+I setpcvisionbonus - f implicit-only 0xca000323
+I setpersonality - f explicit 0xca00003d 0xca000045
+I setpos - cf explicit 0xca000192 0xca000193
+I setreputation - l explicit 0xca0001ad 0xca0001af
+I setresistblight - l explicit 0xca000299 0xca0002b1
+I setresistcorprus - l explicit 0xca00029a 0xca0002b2
+I setresistdisease - l explicit 0xca000298 0xca0002b0
+I setresistfire - l explicit 0xca000295 0xca0002ad
+I setresistfrost - l explicit 0xca000296 0xca0002ae
+I setresistmagicka - l explicit 0xca000294 0xca0002ac
+I setresistnormalweapons - l explicit 0xca00029d 0xca0002b5
+I setresistparalysis - l explicit 0xca00029c 0xca0002b4
+I setresistpoison - l explicit 0xca00029b 0xca0002b3
+I setresistshock - l explicit 0xca000297 0xca0002af
+I setrestoration - f explicit 0xca0000d3 0xca0000ee
+I setscale - f explicit 0xca000164 0xca000165
+I setsecurity - f explicit 0xca0000d6 0xca0000f1
+I setshortblade - f explicit 0xca0000da 0xca0000f5
+I setsilence - l explicit 0xca0002a6 0xca0002be
+I setsneak - f explicit 0xca0000d7 0xca0000f2
+I setspear - f explicit 0xca0000cb 0xca0000e6
+I setspeechcraft - f explicit 0xca0000dd 0xca0000f8
+I setspeed - f explicit 0xca00003b 0xca000043
+I setstrength - f explicit 0xca000037 0xca00003f
+I setsuperjump - l explicit 0xca0002a2 0xca0002ba
+I setswimspeed - l explicit 0xca0002a1 0xca0002b9
+I setunarmored - f explicit 0xca0000d5 0xca0000f0
+I setwaterbreathing - l explicit 0xca00029e 0xca0002b6
+I setwaterlevel - f implicit-only 0xca000142
+I setwaterwalking - l explicit 0xca0002a0 0xca0002b8
+I setwerewolfacrobatics -  explicit 0xca00021b 0xca00021c
+I setwillpower - f explicit 0xca000039 0xca000041
+I show - c explicit 0xca000304 0xca000305
+I showmap - Sxxxx implicit-only 0xca0001a0
+I showrestmenu -  explicit 0xca000018 0xca000234
+I showscenegraph - /l explicit 0xc2002f00 0xc2003000
+I showvars -  explicit 0xca00021d 0xca00021e
+I skipanim -  explicit 0xca000138 0xca000139
+I ssg - /l explicit 0xc2002f00 0xc2003000
+I startcombat - c explicit 0xca00023a 0xca00023b
+I startscript - c explicit 0xca000314 0xca00031d
+I stopcombat - x explicit 0xca00023c 0xca00023d
+I stopscript - c implicit-only 0xca000315
+I stopsound - cXX explicit 0xca00000a 0xca00001f
+I streammusic - S implicit-only 0xca000003
+I sv -  explicit 0xca00021d 0xca00021e
+I t3d -  implicit-only 0xca000325
+I tai -  implicit-only 0xca000224
+I tap -  implicit-only 0xca000309
+I tb -  implicit-only 0xca000307
+I tcb -  implicit-only 0xca0001ac
+I tcg -  implicit-only 0xca000132
+I tcl -  implicit-only 0xca000130
+I testcells -  implicit-only 0xca00030e
+I testinteriorcells -  implicit-only 0xca00030f
+I testmodels -  implicit-only 0xca000325
+I texturemips - /S implicit-only 0xc2003300
+I tfh -  implicit-only 0xca000151
+I tfow -  implicit-only 0xca000145
+I tgm -  implicit-only 0xca00021f
+I tm -  implicit-only 0xca00024b
+I toggleactorspaths -  implicit-only 0xca000309
+I toggleai -  implicit-only 0xca000224
+I toggleborders -  implicit-only 0xca000307
+I togglecollision -  implicit-only 0xca000130
+I togglecollisionboxes -  implicit-only 0xca0001ac
+I togglecollisiongrid -  implicit-only 0xca000132
+I togglefogofwar -  implicit-only 0xca000145
+I togglefullhelp -  implicit-only 0xca000151
+I togglegodmode -  implicit-only 0xca00021f
+I togglemenus -  implicit-only 0xca00024b
+I togglenavmesh -  implicit-only 0xca000308
+I togglepathgrid -  implicit-only 0xca000146
+I togglerecastmesh -  implicit-only 0xca000310
+I togglescripts -  implicit-only 0xca000301
+I togglesky -  implicit-only 0xca000021
+I togglevanitymode -  implicit-only 0xca000174
+I togglewater -  implicit-only 0xca000144
+I togglewireframe -  implicit-only 0xca00013b
+I toggleworld -  implicit-only 0xca0002f5
+I tpg -  implicit-only 0xca000146
+I ts -  implicit-only 0xca000021
+I turnmoonred -  implicit-only 0xca000023
+I turnmoonwhite -  implicit-only 0xca000022
+I tvm -  implicit-only 0xca000174
+I tw -  implicit-only 0xca0002f5
+I twa -  implicit-only 0xca000144
+I twf -  implicit-only 0xca00013b
+I undowerewolf -  explicit 0xca000219 0xca00021a
+I unlock -  explicit 0xca00008c 0xca00008d
+I wakeuppc -  implicit-only 0xca0001a2
+F xbox l  implicit-only 0xca00000c
+[handlers consoleOnly=false]
+table code words: 834
+table code words without a handler: 0
+handlers the table does not name: 60
+  0xc0000000
+  0xc8000000
+  0xc8000001
+  0xc8000002
+  0xc8000003
+  0xc8000004
+  0xc8000005
+  0xc8000006
+  0xc8000007
+  0xc8000008
+  0xc8000009
+  0xc800000a
+  0xc800000b
+  0xc800000c
+  0xc800000d
+  0xc800000e
+  0xc800000f
+  0xc8000010
+  0xc8000011
+  0xc8000012
+  0xc8000014
+  0xc8000015
+  0xc8000016
+  0xc8000017
+  0xc8000018
+  0xc8000019
+  0xc800001a
+  0xc800001b
+  0xc800001c
+  0xc800001d
+  0xc800001e
+  0xc800001f
+  0xc8000020
+  0xc8000021
+  0xc8000022
+  0xc8000023
+  0xc8000024
+  0xc8000025
+  0xc8000027
+  0xc8000028
+  0xc8000029
+  0xc800002a
+  0xc800002b
+  0xc800002c
+  0xc800003a
+  0xc800003b
+  0xc800003c
+  0xc800003d
+  0xc800003e
+  0xc800003f
+  0xc8000040
+  0xc8000041
+  0xc8000042
+  0xc8000043
+  0xc8000044
+  0xc8000045
+  0xc8000046
+  0xc8000047
+  0xc8000048
+  0xc8000049
+[compile table consoleOnly=true]
+I activate - x explicit 0xca000075 0xca000244
+I additem - clX explicit 0xca000076 0xca000077
+I addsoulgem - ccX explicit 0xca0001f3 0xca0001f4
+I addspell - cz explicit 0xca000147 0xca000148
+I addtolevcreature - ccl implicit-only 0xca0002fb
+I addtolevitem - ccl implicit-only 0xca0002fd
+I addtopic - S implicit-only 0xca00013a
+I aiactivate - c/l explicit 0xc2001e00 0xc2001f00
+I aiescort - cffff/l explicit 0xc2000200 0xc2000300
+I aiescortcell - ccffff/l explicit 0xc2002000 0xc2002100
+I aifollow - cffff/llllllll explicit 0xc2002200 0xc2002300
+I aifollowcell - ccffff/l explicit 0xc2002400 0xc2002500
+I aitravel - fff/lx explicit 0xc2000000 0xc2000100
+I aiwander - fff/llllllllll explicit 0xc2001000 0xc2001100
+I bc - /S explicit 0xc2002d00 0xc2002e00
+I becomewerewolf -  explicit 0xca000217 0xca000218
+I betacomment - /S explicit 0xc2002d00 0xc2002e00
+I bodycheck -  explicit 0xca00032a 0xca00032b
+I cast - SS explicit 0xca000227 0xca000228
+F cellchanged l  implicit-only 0xca000000
+I centeroncell - S implicit-only 0xca000026
+I centeronexterior - ll implicit-only 0xca000226
+I changeweather - Sl implicit-only 0xca000140
+I choice - j/SlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSlSl implicit-only 0xc2000a00
+I clearforcejump -  explicit 0xca000258 0xca000259
+I clearforcemovejump -  explicit 0xca00025c 0xca00025d
+I clearforcerun -  explicit 0xca000154 0xca000155
+I clearforcesneak -  explicit 0xca000158 0xca000159
+I clearinfoactor -  explicit 0xca000245 0xca000246
+I cmragdoll -  explicit 0xca000327 0xca000328
+I cmragdolloff -  implicit-only 0xca000329
+I cmstyle - /S explicit 0xc2003100 0xc2003200
+I coc - S implicit-only 0xca000026
+I coe - ll implicit-only 0xca000226
+I disable - x explicit 0xca000318 0xca00031b
+I disablelevitation -  implicit-only 0xca000220
+I disableplayercontrols -  implicit-only 0xca000085
+I disableplayerfighting -  implicit-only 0xca000086
+I disableplayerjumping -  implicit-only 0xca000087
+I disableplayerlooking -  implicit-only 0xca000088
+I disableplayermagic -  implicit-only 0xca000089
+I disableplayerviewswitch -  implicit-only 0xca00008a
+I disableteleporting -  implicit-only 0xca000215
+I disablevanitymode -  implicit-only 0xca00008b
+I dontsaveobject -  implicit-only 0xca000153
+I drop - cl explicit 0xca0001f8 0xca0001f9
+I dropsoulgem - c explicit 0xca0001fa 0xca0001fb
+I enable - x explicit 0xca000317 0xca00031a
+I enablebirthmenu -  implicit-only 0xca00000e
+I enableclassmenu -  implicit-only 0xca00000f
+I enableinventorymenu -  implicit-only 0xca000013
+I enablelevelupmenu -  implicit-only 0xca000300
+I enablelevitation -  implicit-only 0xca000221
+I enablemagicmenu -  implicit-only 0xca000014
+I enablemapmenu -  implicit-only 0xca000015
+I enablenamemenu -  implicit-only 0xca000010
+I enableplayercontrols -  implicit-only 0xca00007e
+I enableplayerfighting -  implicit-only 0xca00007f
+I enableplayerjumping -  implicit-only 0xca000080
+I enableplayerlooking -  implicit-only 0xca000081
+I enableplayermagic -  implicit-only 0xca000082
+I enableplayerviewswitch -  implicit-only 0xca000083
+I enableracemenu -  implicit-only 0xca000011
+I enablerest -  implicit-only 0xca000017
+I enablestatreviewmenu -  implicit-only 0xca000012
+I enablestatsmenu -  implicit-only 0xca000016
+I enableteleporting -  implicit-only 0xca000216
+I enablevanitymode -  implicit-only 0xca000084
+I equip - cX explicit 0xca0001b3 0xca0001b4
+I explodespell - S explicit 0xca000229 0xca00022a
+I face - ffX explicit 0xca00024c 0xca00024d
+I fadein - f implicit-only 0xca00013c
+I fadeout - f implicit-only 0xca00013d
+I fadeto - ff implicit-only 0xca00013e
+I fall -  explicit 0xca00020a 0xca00020b
+I filljournal -  implicit-only 0xca000326
+I fillmap -  implicit-only 0xca0001a1
+I fixme -  implicit-only 0xca000302
+I forcegreeting - z explicit 0xca00014f 0xca000150
+I forcejump -  explicit 0xca00025a 0xca00025b
+I forcemovejump -  explicit 0xca00025e 0xca00025f
+I forcerun -  explicit 0xca000156 0xca000157
+I forcesneak -  explicit 0xca00015a 0xca00015b
+F getacrobatics f  explicit 0xca0000a2 0xca0000bd
+F getagility f  explicit 0xca00002a 0xca000032
+F getaipackagedone l  explicit 0xca00007c 0xca00007d
+F getalarm l  explicit 0xca0001c5 0xca0001c6
+F getalchemy f  explicit 0xca00009e 0xca0000b9
+F getalteration f  explicit 0xca000099 0xca0000b4
+F getangle f c explicit 0xca00016a 0xca00016b
+F getarmorbonus l  explicit 0xca000274 0xca00028c
+F getarmorer f  explicit 0xca00008f 0xca0000aa
+F getarmortype l l explicit 0xca0001d1 0xca0001d2
+F getathletics f  explicit 0xca000096 0xca0000b1
+F getattackbonus l  explicit 0xca00027a 0xca000292
+F getattacked l  explicit 0xca0001d3 0xca0001d4
+F getaxe f  explicit 0xca000094 0xca0000af
+F getblightdisease l  explicit 0xca0001aa 0xca0001ab
+F getblindness l  explicit 0xca000277 0xca00028f
+F getblock f  explicit 0xca00008e 0xca0000a9
+F getbluntweapon f  explicit 0xca000092 0xca0000ad
+F getbuttonpressed l  implicit-only 0xca000137
+F getcastpenalty l  explicit 0xca000275 0xca00028d
+F getchameleon l  explicit 0xca00026f 0xca000287
+F getcollidingactor l  explicit 0xca000252 0xca000253
+F getcollidingpc l  explicit 0xca000250 0xca000251
+F getcommondisease l  explicit 0xca0001a8 0xca0001a9
+F getconjuration f  explicit 0xca00009b 0xca0000b6
+F getcurrentaipackage l  explicit 0xca0001ef 0xca0001f0
+F getcurrenttime f  implicit-only 0xca0001dd
+F getcurrentweather l  implicit-only 0xca00013f
+F getdeadcount l c implicit-only 0xca0001a3
+F getdefendbonus l  explicit 0xca00027b 0xca000293
+F getdestruction f  explicit 0xca000098 0xca0000b3
+F getdetected l c explicit 0xca0001f1 0xca0001f2
+F getdisabled l x explicit 0xca000319 0xca00031c
+F getdisposition l  explicit 0xca0001a6 0xca0001a7
+F getdistance f c explicit 0xca00031e 0xca00031f
+F geteffect l S explicit 0xca0001cf 0xca0001d0
+F getenchant f  explicit 0xca000097 0xca0000b2
+F getendurance f  explicit 0xca00002c 0xca000034
+F getfactionreaction l ccX implicit-only 0xca000243
+F getfatigue f x explicit 0xca000059 0xca00005c
+F getfatiguegetratio f  explicit 0xca000071 0xca000074
+F getfight l  explicit 0xca0001c1 0xca0001c2
+F getflee l  explicit 0xca0001c3 0xca0001c4
+F getflying l  explicit 0xca000273 0xca00028b
+F getforcejump l  explicit 0xca000260 0xca000261
+F getforcemovejump l  explicit 0xca000262 0xca000263
+F getforcerun l  explicit 0xca0001cb 0xca0001cd
+F getforcesneak l  explicit 0xca0001cc 0xca0001ce
+F gethandtohand f  explicit 0xca0000a8 0xca0000c3
+F gethealth f x explicit 0xca000057 0xca00005a
+F gethealthgetratio f  explicit 0xca00006f 0xca000072
+F getheavyarmor f  explicit 0xca000091 0xca0000ac
+F gethello l  explicit 0xca0001bf 0xca0001c0
+F getillusion f  explicit 0xca00009a 0xca0000b5
+F getintelligence f  explicit 0xca000028 0xca000030
+F getinterior l  implicit-only 0xca000131
+F getinvisible l  explicit 0xca000279 0xca000291
+F getitemcount l cX explicit 0xca000078 0xca000079
+F getjournalindex l c implicit-only 0xca000135
+F getlevel l  explicit 0xca00018c 0xca00018d
+F getlightarmor f  explicit 0xca0000a3 0xca0000be
+F getlineofsight l c explicit 0xca000222 0xca000223
+F getlocked l  explicit 0xca0001c7 0xca0001c8
+F getlongblade f  explicit 0xca000093 0xca0000ae
+F getlos l c explicit 0xca000222 0xca000223
+F getluck f  explicit 0xca00002e 0xca000036
+F getmagicka f x explicit 0xca000058 0xca00005b
+F getmagickagetratio f  explicit 0xca000070 0xca000073
+F getmarksman f  explicit 0xca0000a5 0xca0000c0
+F getmasserphase l  implicit-only 0xca000024
+F getmediumarmor f  explicit 0xca000090 0xca0000ab
+F getmercantile f  explicit 0xca0000a6 0xca0000c1
+F getmysticism f  explicit 0xca00009c 0xca0000b7
+F getparalysis l  explicit 0xca000278 0xca000290
+F getpccell l c implicit-only 0xca000136
+F getpccrimelevel f  implicit-only 0xca0001ec
+F getpcfacrep l /c explicit 0xc2001200 0xc2001300
+F getpcinjail l  implicit-only 0xca00023e
+F getpcjumping l  implicit-only 0xca000233
+F getpcrank l /S explicit 0xc2000e00 0xc2000f00
+F getpcrunning l  implicit-only 0xca0001c9
+F getpcsleep l  implicit-only 0xca00019f
+F getpcsneaking l  implicit-only 0xca0001ca
+F getpctraveling l  implicit-only 0xca00023f
+F getpcvisionbonus f  implicit-only 0xca000322
+F getpersonality f  explicit 0xca00002d 0xca000035
+F getplayercontrolsdisabled l  implicit-only 0xca000175
+F getplayerfightingdisabled l  implicit-only 0xca000176
+F getplayerjumpingdisabled l  implicit-only 0xca000177
+F getplayerlookingdisabled l  implicit-only 0xca000178
+F getplayermagicdisabled l  implicit-only 0xca000179
+F getplayerviewswitchdisabled l  implicit-only 0xca00017a
+F getpos f c explicit 0xca000190 0xca000191
+F getrace l c explicit 0xca0001d9 0xca0001da
+F getreputation l  explicit 0xca0001b1 0xca0001b2
+F getresistblight l  explicit 0xca000269 0xca000281
+F getresistcorprus l  explicit 0xca00026a 0xca000282
+F getresistdisease l  explicit 0xca000268 0xca000280
+F getresistfire l  explicit 0xca000265 0xca00027d
+F getresistfrost l  explicit 0xca000266 0xca00027e
+F getresistmagicka l  explicit 0xca000264 0xca00027c
+F getresistnormalweapons l  explicit 0xca00026d 0xca000285
+F getresistparalysis l  explicit 0xca00026c 0xca000284
+F getresistpoison l  explicit 0xca00026b 0xca000283
+F getresistshock l  explicit 0xca000267 0xca00027f
+F getrestoration f  explicit 0xca00009d 0xca0000b8
+F getscale f  explicit 0xca000168 0xca000169
+F getsecondspassed f  implicit-only 0xca000316
+F getsecundaphase l  implicit-only 0xca000025
+F getsecurity f  explicit 0xca0000a0 0xca0000bb
+F getshortblade f  explicit 0xca0000a4 0xca0000bf
+F getsilence l  explicit 0xca000276 0xca00028e
+F getsneak f  explicit 0xca0000a1 0xca0000bc
+F getsoundplaying l c explicit 0xca00000b 0xca000020
+F getspear f  explicit 0xca000095 0xca0000b0
+F getspeechcraft f  explicit 0xca0000a7 0xca0000c2
+F getspeed f  explicit 0xca00002b 0xca000033
+F getspell l c explicit 0xca00014b 0xca00014c
+F getspelleffects l c explicit 0xca0001db 0xca0001dc
+F getspellreadied l  explicit 0xca000231 0xca000232
+F getsquareroot f f implicit-only 0xca0001e7
+F getstandingactor l  explicit 0xca00020e 0xca00020f
+F getstandingpc l  explicit 0xca00020c 0xca00020d
+F getstartingangle f c explicit 0xca000210 0xca000211
+F getstartingpos f c explicit 0xca000194 0xca000195
+F getstat l c explicit 0xca00024e 0xca00024f
+F getstrength f  explicit 0xca000027 0xca00002f
+F getsuperjump l  explicit 0xca000272 0xca00028a
+F getswimspeed l  explicit 0xca000271 0xca000289
+F gettarget l c explicit 0xca000238 0xca000239
+F getunarmored f  explicit 0xca00009f 0xca0000ba
+F getvanitymodedisabled l  implicit-only 0xca00017b
+F getwaterbreathing l  explicit 0xca00026e 0xca000286
+F getwaterlevel f  implicit-only 0xca000141
+F getwaterwalking l  explicit 0xca000270 0xca000288
+F getweapondrawn l  explicit 0xca0001d7 0xca0001d8
+F getweapontype l  explicit 0xca0001e0 0xca0001e1
+F getwerewolfkills l  implicit-only 0xca0001e2
+F getwillpower f  explicit 0xca000029 0xca000031
+F getwindspeed f  implicit-only 0xca000212
+I goodbye -  implicit-only 0xca000152
+I gotojail -  implicit-only 0xca000235
+F hasitemequipped l c explicit 0xca0001d5 0xca0001d6
+F hassoulgem l c explicit 0xca0001de 0xca0001df
+I help -  implicit-only 0xca000320
+F hitattemptonme l S explicit 0xca0002f9 0xca0002fa
+F hitonme l S explicit 0xca000213 0xca000214
+I hurtcollidingactor - f explicit 0xca000256 0xca000257
+I hurtstandingactor - f explicit 0xca000254 0xca000255
+F iswerewolf l  explicit 0xca0001fd 0xca0001fe
+I journal - cl explicit 0xca000133 0xca00030b
+I lock - /l explicit 0xc2000400 0xc2000500
+I loopgroup - cl/l explicit 0xc2000800 0xc2000900
+I lowerrank - x explicit 0xca0001ea 0xca0001eb
+F menumode l  implicit-only 0xca000311
+I menutest - /l implicit-only 0xc2002c00
+I modacrobatics - f explicit 0xca00010e 0xca000129
+I modagility - f explicit 0xca00004a 0xca000052
+I modalarm - l explicit 0xca0001bd 0xca0001be
+I modalchemy - f explicit 0xca00010a 0xca000125
+I modalteration - f explicit 0xca000105 0xca000120
+I modarmorbonus - l explicit 0xca0002d4 0xca0002ec
+I modarmorer - f explicit 0xca0000fb 0xca000116
+I modathletics - f explicit 0xca000102 0xca00011d
+I modattackbonus - l explicit 0xca0002da 0xca0002f2
+I modaxe - f explicit 0xca000100 0xca00011b
+I modblindness - l explicit 0xca0002d7 0xca0002ef
+I modblock - f explicit 0xca0000fa 0xca000115
+I modbluntweapon - f explicit 0xca0000fe 0xca000119
+I modcastpenalty - l explicit 0xca0002d5 0xca0002ed
+I modchameleon - l explicit 0xca0002cf 0xca0002e7
+I modconjuration - f explicit 0xca000107 0xca000122
+I modcurrentfatigue - f explicit 0xca00006b 0xca00006e
+I modcurrenthealth - f explicit 0xca000069 0xca00006c
+I modcurrentmagicka - f explicit 0xca00006a 0xca00006d
+I moddefendbonus - l explicit 0xca0002db 0xca0002f3
+I moddestruction - f explicit 0xca000104 0xca00011f
+I moddisposition - l explicit 0xca00014d 0xca00014e
+I modenchant - f explicit 0xca000103 0xca00011e
+I modendurance - f explicit 0xca00004c 0xca000054
+I modfactionreaction - ccl implicit-only 0xca000242
+I modfatigue - f explicit 0xca000065 0xca000068
+I modfight - l explicit 0xca0001b9 0xca0001ba
+I modflee - l explicit 0xca0001bb 0xca0001bc
+I modflying - l explicit 0xca0002d3 0xca0002eb
+I modhandtohand - f explicit 0xca000114 0xca00012f
+I modhealth - f explicit 0xca000063 0xca000066
+I modheavyarmor - f explicit 0xca0000fd 0xca000118
+I modhello - l explicit 0xca0001b7 0xca0001b8
+I modillusion - f explicit 0xca000106 0xca000121
+I modintelligence - f explicit 0xca000048 0xca000050
+I modinvisible - l explicit 0xca0002d9 0xca0002f1
+I modlightarmor - f explicit 0xca00010f 0xca00012a
+I modlongblade - f explicit 0xca0000ff 0xca00011a
+I modluck - f explicit 0xca00004e 0xca000056
+I modmagicka - f explicit 0xca000064 0xca000067
+I modmarksman - f explicit 0xca000111 0xca00012c
+I modmediumarmor - f explicit 0xca0000fc 0xca000117
+I modmercantile - f explicit 0xca000112 0xca00012d
+I modmysticism - f explicit 0xca000108 0xca000123
+I modparalysis - l explicit 0xca0002d8 0xca0002f0
+I modpccrimelevel - f implicit-only 0xca0001ee
+I modpcfacrep - l/c explicit 0xc2001600 0xc2001700
+I modpcvisionbonus - f implicit-only 0xca000324
+I modpersonality - f explicit 0xca00004d 0xca000055
+I modregion - S/llllllllllX implicit-only 0xc2002600
+I modreputation - l explicit 0xca0001ae 0xca0001b0
+I modresistblight - l explicit 0xca0002c9 0xca0002e1
+I modresistcorprus - l explicit 0xca0002ca 0xca0002e2
+I modresistdisease - l explicit 0xca0002c8 0xca0002e0
+I modresistfire - l explicit 0xca0002c5 0xca0002dd
+I modresistfrost - l explicit 0xca0002c6 0xca0002de
+I modresistmagicka - l explicit 0xca0002c4 0xca0002dc
+I modresistnormalweapons - l explicit 0xca0002cd 0xca0002e5
+I modresistparalysis - l explicit 0xca0002cc 0xca0002e4
+I modresistpoison - l explicit 0xca0002cb 0xca0002e3
+I modresistshock - l explicit 0xca0002c7 0xca0002df
+I modrestoration - f explicit 0xca000109 0xca000124
+I modscale - f explicit 0xca0001e3 0xca0001e4
+I modsecurity - f explicit 0xca00010c 0xca000127
+I modshortblade - f explicit 0xca000110 0xca00012b
+I modsilence - l explicit 0xca0002d6 0xca0002ee
+I modsneak - f explicit 0xca00010d 0xca000128
+I modspear - f explicit 0xca000101 0xca00011c
+I modspeechcraft - f explicit 0xca000113 0xca00012e
+I modspeed - f explicit 0xca00004b 0xca000053
+I modstrength - f explicit 0xca000047 0xca00004f
+I modsuperjump - l explicit 0xca0002d2 0xca0002ea
+I modswimspeed - l explicit 0xca0002d1 0xca0002e9
+I modunarmored - f explicit 0xca00010b 0xca000126
+I modwaterbreathing - l explicit 0xca0002ce 0xca0002e6
+I modwaterlevel - f implicit-only 0xca000143
+I modwaterwalking - l explicit 0xca0002d0 0xca0002e8
+I modwillpower - f explicit 0xca000049 0xca000051
+I move - cf explicit 0xca000206 0xca000207
+I moveworld - cf explicit 0xca000208 0xca000209
+F onactivate l  explicit 0xca00000d 0xca000306
+F ondeath l  explicit 0xca0001fc 0xca000205
+F onknockout l  explicit 0xca000240 0xca000241
+F onmurder l  explicit 0xca000249 0xca00024a
+I ori - /S explicit 0xc2002d00 0xc2002e00
+I outputrefinfo - /S explicit 0xc2002d00 0xc2002e00
+I payfine -  implicit-only 0xca000236
+I payfinethief -  implicit-only 0xca000237
+I pcclearexpelled - /S explicit 0xc2001c00 0xc2001d00
+I pcexpell - /S explicit 0xc2001a00 0xc2001b00
+F pcexpelled l /S explicit 0xc2001800 0xc2001900
+I pcforce1stperson -  implicit-only 0xca0002f6
+I pcforce3rdperson -  implicit-only 0xca0002f7
+F pcget3rdperson l  implicit-only 0xca0002f8
+I pcjoinfaction - /S explicit 0xc2000d00 0xc2002b00
+I pclowerrank - /S explicit 0xc2000c00 0xc2002a00
+I pcraiserank - /S explicit 0xc2000b00 0xc2002900
+I placeatme - clflX explicit 0xca00019d 0xca00019e
+I placeatpc - clflX implicit-only 0xca00019c
+I placeitem - cffffX implicit-only 0xca00019b
+I placeitemcell - ccffffX implicit-only 0xca00019a
+I playbink - Sl implicit-only 0xca0001f7
+I playgroup - c/l explicit 0xc2000600 0xc2000700
+I playloopsound3d - cXX explicit 0xca000008 0xca00001d
+I playloopsound3dvp - cff explicit 0xca000009 0xca00001e
+I playsound - cXX implicit-only 0xca000004
+I playsound3d - cXX explicit 0xca000006 0xca00001b
+I playsound3dvp - cff explicit 0xca000007 0xca00001c
+I playsoundvp - cff implicit-only 0xca000005
+I position - ffffz explicit 0xca000196 0xca000197
+I positioncell - ffffczz explicit 0xca000198 0xca000199
+I ra -  implicit-only 0xca0002f4
+I raiserank - x explicit 0xca0001e8 0xca0001e9
+F random f l implicit-only 0xca000312
+I reloadlua -  implicit-only 0xca000321
+I removeeffects - l explicit 0xca00022d 0xca00022e
+I removefromlevcreature - ccl implicit-only 0xca0002fc
+I removefromlevitem - ccl implicit-only 0xca0002fe
+I removeitem - clX explicit 0xca00007a 0xca00007b
+I removesoulgem - c/l explicit 0xc2002700 0xc2002800
+I removespell - cz explicit 0xca000149 0xca00014a
+I removespelleffects - c explicit 0xca00022b 0xca00022c
+F repairedonme l S explicit 0xca00030c 0xca00030d
+I resetactors -  implicit-only 0xca0002f4
+I resurrect -  explicit 0xca00022f 0xca000230
+I rotate - cf explicit 0xca0001ff 0xca000200
+I rotateworld - cf explicit 0xca000201 0xca000202
+F samefaction l  explicit 0xca0001b5 0xca0001b6
+I say - SS explicit 0xca000001 0xca000019
+F saydone l  explicit 0xca000002 0xca00001a
+F scriptrunning l c implicit-only 0xca000313
+I setacrobatics - f explicit 0xca0000d8 0xca0000f3
+I setagility - f explicit 0xca00003a 0xca000042
+I setalarm - l explicit 0xca000162 0xca000163
+I setalchemy - f explicit 0xca0000d4 0xca0000ef
+I setalteration - f explicit 0xca0000cf 0xca0000ea
+I setangle - cf explicit 0xca000166 0xca000167
+I setarmorbonus - l explicit 0xca0002a4 0xca0002bc
+I setarmorer - f explicit 0xca0000c5 0xca0000e0
+I setathletics - f explicit 0xca0000cc 0xca0000e7
+I setatstart -  explicit 0xca000203 0xca000204
+I setattackbonus - l explicit 0xca0002aa 0xca0002c2
+I setaxe - f explicit 0xca0000ca 0xca0000e5
+I setblindness - l explicit 0xca0002a7 0xca0002bf
+I setblock - f explicit 0xca0000c4 0xca0000df
+I setbluntweapon - f explicit 0xca0000c8 0xca0000e3
+I setcastpenalty - l explicit 0xca0002a5 0xca0002bd
+I setchameleon - l explicit 0xca00029f 0xca0002b7
+I setconjuration - f explicit 0xca0000d1 0xca0000ec
+I setdefendbonus - l explicit 0xca0002ab 0xca0002c3
+I setdelete - l explicit 0xca0001e5 0xca0001e6
+I setdestruction - f explicit 0xca0000ce 0xca0000e9
+I setdisposition - l explicit 0xca0001a4 0xca0001a5
+I setenchant - f explicit 0xca0000cd 0xca0000e8
+I setendurance - f explicit 0xca00003c 0xca000044
+I setfactionreaction - ccl implicit-only 0xca0002ff
+I setfatigue - f explicit 0xca00005f 0xca000062
+I setfight - l explicit 0xca00015e 0xca00015f
+I setflee - l explicit 0xca000160 0xca000161
+I setflying - l explicit 0xca0002a3 0xca0002bb
+I sethandtohand - f explicit 0xca0000de 0xca0000f9
+I sethealth - f explicit 0xca00005d 0xca000060
+I setheavyarmor - f explicit 0xca0000c7 0xca0000e2
+I sethello - l explicit 0xca00015c 0xca00015d
+I setillusion - f explicit 0xca0000d0 0xca0000eb
+I setintelligence - f explicit 0xca000038 0xca000040
+I setinvisible - l explicit 0xca0002a9 0xca0002c1
+I setjournalindex - cl implicit-only 0xca000134
+I setlevel - l explicit 0xca00018e 0xca00018f
+I setlightarmor - f explicit 0xca0000d9 0xca0000f4
+I setlongblade - f explicit 0xca0000c9 0xca0000e4
+I setluck - f explicit 0xca00003e 0xca000046
+I setmagicka - f explicit 0xca00005e 0xca000061
+I setmarksman - f explicit 0xca0000db 0xca0000f6
+I setmediumarmor - f explicit 0xca0000c6 0xca0000e1
+I setmercantile - f explicit 0xca0000dc 0xca0000f7
+I setmysticism - f explicit 0xca0000d2 0xca0000ed
+I setnavmeshnumber - l implicit-only 0xca00030a
+I setparalysis - l explicit 0xca0002a8 0xca0002c0
+I setpccrimelevel - f implicit-only 0xca0001ed
+I setpcfacrep - l/c explicit 0xc2001400 0xc2001500
+I setpcvisionbonus - f implicit-only 0xca000323
+I setpersonality - f explicit 0xca00003d 0xca000045
+I setpos - cf explicit 0xca000192 0xca000193
+I setreputation - l explicit 0xca0001ad 0xca0001af
+I setresistblight - l explicit 0xca000299 0xca0002b1
+I setresistcorprus - l explicit 0xca00029a 0xca0002b2
+I setresistdisease - l explicit 0xca000298 0xca0002b0
+I setresistfire - l explicit 0xca000295 0xca0002ad
+I setresistfrost - l explicit 0xca000296 0xca0002ae
+I setresistmagicka - l explicit 0xca000294 0xca0002ac
+I setresistnormalweapons - l explicit 0xca00029d 0xca0002b5
+I setresistparalysis - l explicit 0xca00029c 0xca0002b4
+I setresistpoison - l explicit 0xca00029b 0xca0002b3
+I setresistshock - l explicit 0xca000297 0xca0002af
+I setrestoration - f explicit 0xca0000d3 0xca0000ee
+I setscale - f explicit 0xca000164 0xca000165
+I setsecurity - f explicit 0xca0000d6 0xca0000f1
+I setshortblade - f explicit 0xca0000da 0xca0000f5
+I setsilence - l explicit 0xca0002a6 0xca0002be
+I setsneak - f explicit 0xca0000d7 0xca0000f2
+I setspear - f explicit 0xca0000cb 0xca0000e6
+I setspeechcraft - f explicit 0xca0000dd 0xca0000f8
+I setspeed - f explicit 0xca00003b 0xca000043
+I setstrength - f explicit 0xca000037 0xca00003f
+I setsuperjump - l explicit 0xca0002a2 0xca0002ba
+I setswimspeed - l explicit 0xca0002a1 0xca0002b9
+I setunarmored - f explicit 0xca0000d5 0xca0000f0
+I setwaterbreathing - l explicit 0xca00029e 0xca0002b6
+I setwaterlevel - f implicit-only 0xca000142
+I setwaterwalking - l explicit 0xca0002a0 0xca0002b8
+I setwerewolfacrobatics -  explicit 0xca00021b 0xca00021c
+I setwillpower - f explicit 0xca000039 0xca000041
+I show - c explicit 0xca000304 0xca000305
+I showmap - Sxxxx implicit-only 0xca0001a0
+I showrestmenu -  explicit 0xca000018 0xca000234
+I showscenegraph - /l explicit 0xc2002f00 0xc2003000
+I showvars -  explicit 0xca00021d 0xca00021e
+I skipanim -  explicit 0xca000138 0xca000139
+I ssg - /l explicit 0xc2002f00 0xc2003000
+I startcombat - c explicit 0xca00023a 0xca00023b
+I startscript - c explicit 0xca000314 0xca00031d
+I stopcombat - x explicit 0xca00023c 0xca00023d
+I stopscript - c implicit-only 0xca000315
+I stopsound - cXX explicit 0xca00000a 0xca00001f
+I streammusic - S implicit-only 0xca000003
+I sv -  explicit 0xca00021d 0xca00021e
+I t3d -  implicit-only 0xca000325
+I tai -  implicit-only 0xca000224
+I tap -  implicit-only 0xca000309
+I tb -  implicit-only 0xca000307
+I tcb -  implicit-only 0xca0001ac
+I tcg -  implicit-only 0xca000132
+I tcl -  implicit-only 0xca000130
+I testcells -  implicit-only 0xca00030e
+I testinteriorcells -  implicit-only 0xca00030f
+I testmodels -  implicit-only 0xca000325
+I texturemips - /S implicit-only 0xc2003300
+I tfh -  implicit-only 0xca000151
+I tfow -  implicit-only 0xca000145
+I tgm -  implicit-only 0xca00021f
+I tm -  implicit-only 0xca00024b
+I toggleactorspaths -  implicit-only 0xca000309
+I toggleai -  implicit-only 0xca000224
+I toggleborders -  implicit-only 0xca000307
+I togglecollision -  implicit-only 0xca000130
+I togglecollisionboxes -  implicit-only 0xca0001ac
+I togglecollisiongrid -  implicit-only 0xca000132
+I togglefogofwar -  implicit-only 0xca000145
+I togglefullhelp -  implicit-only 0xca000151
+I togglegodmode -  implicit-only 0xca00021f
+I togglemenus -  implicit-only 0xca00024b
+I togglenavmesh -  implicit-only 0xca000308
+I togglepathgrid -  implicit-only 0xca000146
+I togglerecastmesh -  implicit-only 0xca000310
+I togglescripts -  implicit-only 0xca000301
+I togglesky -  implicit-only 0xca000021
+I togglevanitymode -  implicit-only 0xca000174
+I togglewater -  implicit-only 0xca000144
+I togglewireframe -  implicit-only 0xca00013b
+I toggleworld -  implicit-only 0xca0002f5
+I tpg -  implicit-only 0xca000146
+I ts -  implicit-only 0xca000021
+I turnmoonred -  implicit-only 0xca000023
+I turnmoonwhite -  implicit-only 0xca000022
+I tvm -  implicit-only 0xca000174
+I tw -  implicit-only 0xca0002f5
+I twa -  implicit-only 0xca000144
+I twf -  implicit-only 0xca00013b
+I undowerewolf -  explicit 0xca000219 0xca00021a
+I unlock -  explicit 0xca00008c 0xca00008d
+I user1 -  implicit-only 0xca00016c
+I user2 -  implicit-only 0xca00016d
+I user3 -  explicit 0xca00016e 0xca00016e
+I user4 -  explicit 0xca000170 0xca000170
+I wakeuppc -  implicit-only 0xca0001a2
+F xbox l  implicit-only 0xca00000c
+[handlers consoleOnly=true]
+table code words: 838
+table code words without a handler: 0
+handlers the table does not name: 62
+  0xc0000000
+  0xc8000000
+  0xc8000001
+  0xc8000002
+  0xc8000003
+  0xc8000004
+  0xc8000005
+  0xc8000006
+  0xc8000007
+  0xc8000008
+  0xc8000009
+  0xc800000a
+  0xc800000b
+  0xc800000c
+  0xc800000d
+  0xc800000e
+  0xc800000f
+  0xc8000010
+  0xc8000011
+  0xc8000012
+  0xc8000014
+  0xc8000015
+  0xc8000016
+  0xc8000017
+  0xc8000018
+  0xc8000019
+  0xc800001a
+  0xc800001b
+  0xc800001c
+  0xc800001d
+  0xc800001e
+  0xc800001f
+  0xc8000020
+  0xc8000021
+  0xc8000022
+  0xc8000023
+  0xc8000024
+  0xc8000025
+  0xc8000027
+  0xc8000028
+  0xc8000029
+  0xc800002a
+  0xc800002b
+  0xc800002c
+  0xc800003a
+  0xc800003b
+  0xc800003c
+  0xc800003d
+  0xc800003e
+  0xc800003f
+  0xc8000040
+  0xc8000041
+  0xc8000042
+  0xc8000043
+  0xc8000044
+  0xc8000045
+  0xc8000046
+  0xc8000047
+  0xc8000048
+  0xc8000049
+  0xca00016f
+  0xca000171
