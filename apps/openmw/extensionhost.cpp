@@ -277,6 +277,38 @@ namespace OMW
         return report;
     }
 
+    bool ExtensionHost::collectGamePackSave(std::vector<std::byte>& bytes, std::string& error)
+    {
+        bytes.clear();
+        error.clear();
+        // Only a game pack has chunks (decision 0005 still holds for every other kind)
+        if (!mLoaded || mLifecycle.getGamePackId().empty())
+            return true;
+        const openeden::extension::ChunkCollectResult collected = mHost.saveChunks().collect();
+        if (!collected.ok)
+        {
+            error = collected.error;
+            return false;
+        }
+        if (!collected.chunks.empty())
+            bytes = openeden::extension::encodeChunks(collected.chunks);
+        return true;
+    }
+
+    bool ExtensionHost::restoreGamePackSave(std::span<const std::byte> bytes, std::string& error)
+    {
+        error.clear();
+        if (bytes.empty() || !mLoaded || mLifecycle.getGamePackId().empty())
+            return true;
+        std::vector<openeden::extension::SavedChunk> chunks;
+        if (!openeden::extension::decodeChunks(bytes, chunks, error))
+            return false;
+        const openeden::extension::ChunkRestoreResult restored = mHost.saveChunks().restore(chunks);
+        if (!restored.ok)
+            error = restored.error;
+        return restored.ok;
+    }
+
     std::string ExtensionHost::takeSessionFault()
     {
         if (mSessionFaultTaken || mLifecycle.getSessionError().empty())

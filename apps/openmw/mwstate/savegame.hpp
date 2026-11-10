@@ -33,6 +33,7 @@
 #include <components/vsgutil/imageio.hpp>
 
 #include "character.hpp"
+#include "gamepackchunks.hpp"
 #include "loading.hpp"
 #include "statemanagerimp.hpp"
 
@@ -49,6 +50,10 @@ namespace MWState
         // The game pack of the session, copied on the main thread; empty with none (task 0084)
         std::string gamePackId;
         std::string gamePackVersion;
+        // The game pack's save chunks, collected on the main thread just before the worker starts (task 0084, I4);
+        // empty when there are none, and then nothing is written for them.
+        std::vector<std::byte> gamePackChunks;
+        bool gamePackChunksCollected{};
 
         struct ScreenshotState
         {
@@ -130,7 +135,8 @@ namespace MWState
                 + MWBase::Environment::get().getDialogueManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getMechanicsManager()->countSavedGameRecords()
                 + MWBase::Environment::get().getInputManager()->countSavedGameRecords()
-                + MWBase::Environment::get().getWindowManager()->countSavedGameRecords();
+                + MWBase::Environment::get().getWindowManager()->countSavedGameRecords()
+                + countGamePackChunkRecords(gamePackChunks);
             writer.setRecordCount(static_cast<int>(recordCount));
 
             writer.save(stream);
@@ -153,6 +159,7 @@ namespace MWState
             MWBase::Environment::get().getMechanicsManager()->write(writer, listener);
             MWBase::Environment::get().getInputManager()->write(writer, listener);
             MWBase::Environment::get().getWindowManager()->write(writer, listener);
+            writeGamePackChunkRecord(writer, gamePackChunks);
 
             // Ensure we have written the number of records that was estimated
             if (static_cast<size_t>(writer.getRecordCount()) != recordCount + 1) // 1 extra for TES3 record
@@ -207,6 +214,13 @@ namespace MWState
 
             try
             {
+                if (!gamePackChunksCollected)
+                {
+                    std::string reason;
+                    if (!MWBase::Environment::get().getExtensionManager()->collectGamePackSave(gamePackChunks, reason))
+                        throw std::runtime_error(reason);
+                    gamePackChunksCollected = true;
+                }
                 return ThreadLoading::run(dt);
             }
             catch (const std::exception& e)

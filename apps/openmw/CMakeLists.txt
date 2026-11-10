@@ -126,7 +126,7 @@ add_openmw_dir (mwmechanics
     )
 
 add_openmw_dir (mwstate
-    statemanagerimp charactermanager character quicksavemanager
+    statemanagerimp charactermanager character quicksavemanager gamepackchunks
     gamestate operation preloadcell changecell testcells loading gui menu video choice loadingscreen error loadgame savegame newgame executescript askloadrecent
     )
 

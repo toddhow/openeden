@@ -5,6 +5,8 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 
+#include <components/extension/save_chunk_store.hpp>
+
 #include <openeden/phases.hpp>
 
 #include <gmock/gmock.h>
@@ -237,6 +239,68 @@ namespace
         host.start();
         host.runPhase(Phase::GameSimulation, 0.016f);
         EXPECT_TRUE(host.takeSessionFault().empty());
+        host.stop();
+    }
+
+    // Task 0084 leftovers, lane I stage I4: the host's side of the pack's chunks in the save. The engine calls these
+    // on the main thread (collect just before the save's worker starts, restore when a load has finished reading).
+    TEST_F(GamePackHostTest, theSavedChunksOfAGamePackComeOutAsOneBlobAndGoBackIn)
+    {
+        std::vector<std::byte> blob;
+        {
+            OMW::ExtensionHost host(config(kPack));
+            host.start();
+            std::string error;
+            ASSERT_TRUE(host.collectGamePackSave(blob, error)) << error;
+            EXPECT_FALSE(blob.empty());
+            std::vector<openeden::extension::SavedChunk> chunks;
+            ASSERT_TRUE(openeden::extension::decodeChunks(blob, chunks, error)) << error;
+            ASSERT_EQ(chunks.size(), 1u);
+            EXPECT_EQ(chunks[0].packId, kPack);
+            EXPECT_EQ(chunks[0].name, "counter");
+            host.stop();
+        }
+        OMW::ExtensionHost second(config(kPack));
+        second.start();
+        std::string error;
+        EXPECT_TRUE(second.restoreGamePackSave(blob, error)) << error;
+        second.stop();
+    }
+
+    TEST_F(GamePackHostTest, aBlobThatIsNotChunksIsRefusedWithAMessage)
+    {
+        OMW::ExtensionHost host(config(kPack));
+        host.start();
+        const std::vector<std::byte> garbage(7, std::byte{ 0xAB });
+        std::string error;
+        EXPECT_FALSE(host.restoreGamePackSave(garbage, error));
+        EXPECT_FALSE(error.empty());
+        host.stop();
+    }
+
+    TEST_F(GamePackHostTest, aSessionWithNoGamePackCollectsNothingAndRestoresNothing)
+    {
+        OMW::ExtensionHost host(config(""));
+        host.start();
+        std::vector<std::byte> blob{ std::byte{ 1 } };
+        std::string error;
+        EXPECT_TRUE(host.collectGamePackSave(blob, error));
+        EXPECT_TRUE(blob.empty()) << "no record is written, so a Morrowind save has the bytes it always had";
+        EXPECT_TRUE(host.restoreGamePackSave({}, error));
+        host.stop();
+    }
+
+    TEST_F(GamePackHostTest, aFailedGamePackWritesNoChunks)
+    {
+        setEnvironment("OPENEDEN_TEST_EXTENSION_THROW", kPack + ":phase");
+        OMW::ExtensionHost host(config(kPack));
+        host.start();
+        host.runPhase(Phase::GameSimulation, 0.016f);
+        std::vector<std::byte> blob;
+        std::string error;
+        EXPECT_FALSE(host.collectGamePackSave(blob, error));
+        EXPECT_THAT(error, HasSubstr(kPack));
+        EXPECT_TRUE(blob.empty());
         host.stop();
     }
 }

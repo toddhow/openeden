@@ -1,8 +1,11 @@
 #ifndef OPENEDEN_APPS_OPENMW_MWBASE_EXTENSIONMANAGER_H
 #define OPENEDEN_APPS_OPENMW_MWBASE_EXTENSIONMANAGER_H
 
+#include <cstddef>
+#include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace MWWorld
 {
@@ -50,6 +53,26 @@ namespace MWBase
         {
             static const std::string none;
             return none;
+        }
+
+        /// The game pack's save chunks as one blob for the save (task 0084 leftovers, stage I4). Empty with no game
+        /// pack or when the pack writes no chunk: the save then has no record for them and is byte for byte what it
+        /// always was. False, with the reason, when the chunks cannot be written (the pack has failed, a handler
+        /// refused). Main thread only: the engine calls it just before the save's worker starts, so that no pack code
+        /// runs on the worker.
+        virtual bool collectGamePackSave(std::vector<std::byte>& bytes, std::string& error)
+        {
+            bytes.clear();
+            error.clear();
+            return true;
+        }
+
+        /// Hands a loaded save's blob to the game pack. Main thread only: the engine calls it when a load has finished
+        /// reading. False, with the reason, when the blob is malformed or a handler refuses it.
+        virtual bool restoreGamePackSave(std::span<const std::byte> bytes, std::string& error)
+        {
+            error.clear();
+            return true;
         }
     };
 }

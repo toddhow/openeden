@@ -36,6 +36,7 @@
 #include <components/settings/values.hpp>
 
 #include "choice.hpp"
+#include "gamepackchunks.hpp"
 #include "loading.hpp"
 #include "statemanagerimp.hpp"
 
@@ -60,6 +61,8 @@ namespace MWState
         std::vector<std::string> missingFiles;
         std::shared_ptr<Choice> choice;
         bool firstPersonCam = false;
+        // The game pack's save chunks read from the save, for postLoad (empty when the save has none)
+        std::vector<std::byte> gamePackChunks;
 
         // Kept for postLoad: World::saveLoaded reads the content file mapping from the reader.
         ESM::ESMReader reader;
@@ -267,6 +270,11 @@ namespace MWState
                         MWBase::Environment::get().getLuaManager()->readRecord(reader, n.toInt());
                         break;
 
+                    case ESM::REC_GPCH:
+                        // Kept here on the worker; the game pack gets it on the main thread, in postLoad
+                        gamePackChunks = readGamePackChunkRecord(reader);
+                        break;
+
                     default:
                         // ignore invalid records
                         Log(Debug::Warning) << "Warning: Ignoring unknown record: " << n.toStringView();
@@ -332,6 +340,16 @@ namespace MWState
             // Since we passed "changeEvent=false" to changeCell, we shouldn't have triggered the cell change flag.
             // But make sure the flag is cleared anyway in case it was set from an earlier game.
             MWBase::Environment::get().getWorldScene()->markCellAsUnchanged();
+
+            // The game pack's chunks (task 0084, I4): main thread, after the world is in place. A refusal fails the
+            // load.
+            if (!gamePackChunks.empty())
+            {
+                std::string reason;
+                if (!MWBase::Environment::get().getExtensionManager()->restoreGamePackSave(gamePackChunks, reason))
+                    throw std::runtime_error(reason);
+                gamePackChunks.clear();
+            }
 
             state = StateManager::State_Running;
             MWBase::Environment::get().getLuaManager()->gameLoaded();

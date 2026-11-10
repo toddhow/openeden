@@ -142,6 +142,9 @@ namespace ESM
         // format 16 - Lua scripts in saved games
         REC_LUAM = esm3Recname("LUAM"), // LuaManager data
 
+        // OpenEden (task 0084): a game pack's save chunks, written only when a game pack has any
+        REC_GPCH = esm3Recname("GPCH"),
+
         // format 21 - Random state in saved games.
         REC_RAND = esm3Recname("RAND"), // Random state.
 
