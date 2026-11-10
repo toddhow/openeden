@@ -20,6 +20,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -260,8 +261,12 @@ namespace
         ASSERT_EQ(v2.size(), v1.size() + clusterEffectRecordSize);
         // Everything before the effect table is the same but the version.
         for (std::size_t i = 0; i < v1.size(); ++i)
+        {
             if (i != offVersion)
+            {
                 EXPECT_EQ(v2[i], v1[i]) << "byte " << i;
+            }
+        }
     }
 
     // The table of effect records starts at the 8-aligned end of the string table. Two groups of "a.dds" (5 bytes
@@ -469,14 +474,16 @@ namespace
         }
 
         // A NiUVController on `target` with the given offset keys (u, v) and optional tiling keys.
-        Nif::NiUVController& uvController(Nif::NiObjectNET& target, const Keys& u, const Keys& v = {},
-            float frequency = 1.f, std::uint16_t flags = Nif::NiTimeController::Flag_Active, const Keys& tilingU = {})
+        Nif::NiUVController& uvController(Nif::NiObjectNET& target, const Keys& u,
+            const std::optional<Keys>& v = std::nullopt, float frequency = 1.f,
+            std::uint16_t flags = Nif::NiTimeController::Flag_Active,
+            const std::optional<Keys>& tilingU = std::nullopt)
         {
             Nif::NiUVController& controller = create<Nif::NiUVController>(Nif::RC_NiUVController);
             Nif::NiUVData& data = create<Nif::NiUVData>(Nif::RC_NiUVData);
             data.mKeyList[0] = keyMap(u);
-            data.mKeyList[1] = keyMap(v);
-            data.mKeyList[2] = keyMap(tilingU);
+            data.mKeyList[1] = keyMap(v.value_or(Keys{}));
+            data.mKeyList[2] = keyMap(tilingU.value_or(Keys{}));
             data.mKeyList[3] = keyMap({});
             controller.mData = Nif::NiUVDataPtr(&data);
             controller.mUvSet = 0;
@@ -691,8 +698,10 @@ namespace
     TEST(LodNifEffects, a_controller_that_does_not_cycle_or_is_not_active_is_not_a_scroll)
     {
         for (const std::uint16_t flags :
-            { static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active | Nif::NiTimeController::Constant),
-                static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active | Nif::NiTimeController::Reverse),
+            { static_cast<std::uint16_t>(static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active)
+                    | static_cast<std::uint16_t>(Nif::NiTimeController::Constant)),
+                static_cast<std::uint16_t>(static_cast<std::uint16_t>(Nif::NiTimeController::Flag_Active)
+                    | static_cast<std::uint16_t>(Nif::NiTimeController::Reverse)),
                 static_cast<std::uint16_t>(0) })
         {
             Model model;

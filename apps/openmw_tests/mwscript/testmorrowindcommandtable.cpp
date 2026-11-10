@@ -206,7 +206,7 @@ namespace
         ASSERT_TRUE(file.good()) << "cannot open " << path;
         std::string expected((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         // a Windows checkout may have turned the line ends into CR LF
-        expected.erase(std::remove(expected.begin(), expected.end(), ''), expected.end());
+        expected.erase(std::remove(expected.begin(), expected.end(), '\r'), expected.end());
 
         const std::vector<std::string> a = lines(actual);
         const std::vector<std::string> e = lines(expected);
