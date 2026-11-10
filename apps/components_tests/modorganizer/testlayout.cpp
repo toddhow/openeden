@@ -85,7 +85,9 @@ TEST(ModOrganizerLayout, a_repacked_mod_is_a_shim_and_a_pack_at_the_old_position
     EXPECT_EQ(layout.mData[3].mModId, "p");
     const auto lines = renderConfigLines(layout);
     for (const std::string& line : lines)
+    {
         EXPECT_NE(line.rfind("fallback-archive", 0), 0u) << "a pack never goes to fallback-archive";
+    }
 }
 
 TEST(ModOrganizerLayout, use_repack_without_a_repack_falls_back_to_the_original_and_says_so)
@@ -116,6 +118,8 @@ TEST(ModOrganizerLayout, a_value_with_a_newline_cannot_inject_a_line)
     p.mExtensions = { "a\r\nb" };
     const Layout layout = buildLayout(library(), p, LayoutOptions());
     for (const std::string& line : renderConfigLines(layout))
+    {
         EXPECT_EQ(line.find_first_of("\r\n"), std::string::npos);
+    }
     EXPECT_FALSE(layout.mProblems.empty());
 }

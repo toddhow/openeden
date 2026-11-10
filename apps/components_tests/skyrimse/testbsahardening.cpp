@@ -139,7 +139,9 @@ namespace
     TEST_F(BsaHardeningTest, anLz4ErrorDoesNotLeakTheDecompressionContext)
     {
         if (privateBytes() == 0)
+        {
             GTEST_SKIP() << "no process memory counter on this platform";
+        }
         const fs::path path = write("leak.bsa", withFarMatchOffset(buildArchive(oneFile())));
         Bsa::CompressedBSAFile archive;
         archive.open(path);

@@ -92,7 +92,9 @@ TEST(ModOrganizerRepack, names_that_collide_after_lower_casing_block_the_repack)
     mod.write("meshes/a.nif", "2");
     std::error_code ec;
     if (std::filesystem::equivalent(mod.path() / "meshes" / "A.nif", mod.path() / "meshes" / "a.nif", ec))
+    {
         GTEST_SKIP() << "case-insensitive file system cannot hold both";
+    }
     const DryRun d = planRepack(mod.path(), target.path());
     ASSERT_EQ(d.mCollisions.size(), 1u);
     EXPECT_EQ(d.mCollisions[0].mNormalized, "meshes/a.nif");

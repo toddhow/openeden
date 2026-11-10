@@ -141,7 +141,9 @@ namespace CSMPhysics
             ASSERT_TRUE(build(service, 0.3));
             steps(world, 600);
             for (const std::string& bone : service.bodyNames())
+            {
                 EXPECT_GT(pose(service, bone).positionM.z, 0.0) << bone;
+            }
             // It came down: the pelvis started above 1.2 m.
             EXPECT_LT(pose(service, "Pelvis").positionM.z, 1.0);
         }
@@ -337,7 +339,9 @@ namespace CSMPhysics
             const std::vector<double> second = run();
             ASSERT_EQ(first.size(), second.size());
             for (std::size_t i = 0; i < first.size(); ++i)
+            {
                 EXPECT_TRUE(bitIdentical(first[i], second[i])) << i;
+            }
         }
 
         TEST_F(SandboxServiceTest, aRotationIsAUnitQuaternion)

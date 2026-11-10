@@ -29,7 +29,9 @@ TEST(ModOrganizerScanner, finds_plugins_archives_and_packs_at_the_top_level_only
     EXPECT_EQ(r.mTotalBytes, 14u);
     EXPECT_FALSE(r.mTruncated);
     for (const ScanProblem& p : r.mProblems)
+    {
         ADD_FAILURE() << p.mPath << ": " << p.mMessage;
+    }
 }
 
 TEST(ModOrganizerScanner, a_missing_root_is_reported)
@@ -47,7 +49,9 @@ TEST(ModOrganizerScanner, names_that_are_not_safe_to_extract_are_problems_not_cr
     std::filesystem::create_directories(t.path() / "meshes");
     std::ofstream(t.path() / "meshes" / "aux.nif") << "x";
     if (!std::filesystem::exists(t.path() / "meshes" / "aux.nif"))
+    {
         GTEST_SKIP() << "this file system cannot hold a Windows device name";
+    }
     const ScanResult r = scanDataRoot(t.path());
     bool sawAux = false;
     for (const ScanProblem& p : r.mProblems)
@@ -98,7 +102,9 @@ TEST(ModOrganizerScanner, a_symbolic_link_is_not_followed)
     std::error_code ec;
     std::filesystem::create_directory_symlink(outside.path(), t.path() / "link", ec);
     if (ec)
+    {
         GTEST_SKIP() << "symlinks not available: " << ec.message();
+    }
     t.write("real.esp");
     const ScanResult r = scanDataRoot(t.path());
     EXPECT_EQ(r.mPlugins, (std::vector<std::string>{ "real.esp" }));

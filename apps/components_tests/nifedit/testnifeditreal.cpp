@@ -24,7 +24,9 @@ namespace NifEdit
         {
             const char* dir = std::getenv("OPENEDEN_NIF_MORROWIND_DIR");
             if (dir == nullptr)
+            {
                 GTEST_SKIP() << "OPENEDEN_NIF_MORROWIND_DIR is not set";
+            }
             std::vector<std::filesystem::path> files;
             for (const auto& entry : std::filesystem::recursive_directory_iterator(dir))
             {

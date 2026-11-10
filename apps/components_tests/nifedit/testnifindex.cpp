@@ -67,7 +67,9 @@ namespace NifEdit
 
             ASSERT_EQ(other.mRecords.size(), plain->mRecords.size());
             for (std::size_t i = 0; i < plain->mRecords.size(); ++i)
+            {
                 EXPECT_EQ(Testing::dumpRecord(other, i), Testing::dumpRecord(*plain, i));
+            }
             EXPECT_EQ(layout.mRecords.size(), plain->mRecords.size());
         }
 

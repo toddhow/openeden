@@ -193,7 +193,9 @@ namespace
     {
         const Scene scene = read(skinned(threeSkinnedVertices(), 3, false));
         for (const std::string& warning : scene.mWarnings)
+        {
             EXPECT_EQ(warning.find("non-finite"), std::string::npos) << warning;
+        }
     }
 
     // ---- Lane B review, B7: the scene reader never uses the process-wide default read options ----

@@ -90,7 +90,9 @@ TEST(TerrainChunkInstanceDecode, the_cpu_copy_of_the_vertex_stage_ignores_the_fa
             const std::vector<vsg::vec3> faded = proxyOf(state, instance);
             ASSERT_EQ(faded.size(), plain.size()) << "fade " << fade << " inverted " << inverted;
             for (size_t i = 0; i < plain.size(); ++i)
+            {
                 ASSERT_EQ(faded[i], plain[i]) << "vertex " << i << " fade " << fade << " inverted " << inverted;
+            }
         }
     }
 }

@@ -87,9 +87,13 @@ namespace
         EXPECT_EQ(e.mFile, "test.facecurves.json");
         EXPECT_FALSE(e.mMessage.empty());
         if (!pointer.empty())
+        {
             EXPECT_EQ(e.mPointer, pointer) << e.format();
+        }
         if (line != 0)
+        {
             EXPECT_EQ(e.mLine, line) << e.format();
+        }
     }
 
     struct Lcg
