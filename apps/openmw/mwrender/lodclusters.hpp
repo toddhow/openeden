@@ -93,6 +93,11 @@ namespace MWRender
             /// Task 0096 stage b (`[WorldLod] object cluster effects`): play the effects (a texture scroll) of the
             /// groups of a version 2 pack. False: those groups are drawn as still as a version 1 group.
             bool mPlayEffects = false;
+            /// Task 0096 stage c (`[WorldLod] object cluster sway`): bend the groups with a sway effect in the wind.
+            /// False: those groups are drawn upright, as a version 1 group.
+            bool mPlaySway = false;
+            /// `[WorldLod] object cluster sway wind`: the share of the weather's wind that drives the sway (0 to 1).
+            float mSwayWindScale = 1.f;
             double mCellSize = 8192;
             const Pipeline::Builder* mBuilder = nullptr;
             vsg::ref_ptr<const vsg::Options> mImageOptions;
@@ -112,6 +117,10 @@ namespace MWRender
         /// Task 0080: the memory budget the planner works to, changed while running (main thread, between updates);
         /// 0: no budget. The planner frees the farthest replaceable clusters at its next run when it is lowered.
         void setResidentBudget(std::uint64_t bytes);
+
+        /// Task 0096 stage c: the weather's base wind speed (Sky::getBaseWindSpeed, about 0 to 1), once a frame on the
+        /// main thread before update(). The sway's strength is Setup::mSwayWindScale * (0.3 + 0.7 * speed), at most 1.
+        void setWindSpeed(float speed);
         std::uint64_t residentBudget() const;
 
         /// The cells inside the active grid are masked (the live objects keep them).

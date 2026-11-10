@@ -88,6 +88,55 @@ namespace Lod
         return static_cast<float>(h >> 8) / 16777216.f * twoPi * 0.999999f;
     }
 
+    /// The height share a vertex's weight byte can express: weight w = objectHeight * t * t / swayWeightScale with
+    /// t = min(height / objectHeight, 1), clamped to 1, so objects up to this tall (in world units) are exact.
+    inline constexpr float swayWeightScale = 2048.f;
+    /// The spatial phase of the wave per world unit in x and y (about 2,400 and 3,000 units a radian): neighbouring
+    /// trees move almost together and a wave rolls across the land. The vertex shader repeats these two numbers.
+    inline constexpr float swayPhasePerUnitX = 0.00041f;
+    inline constexpr float swayPhasePerUnitY = 0.00033f;
+
+    /// The colour-alpha byte that carries a far vertex's sway weight: the square root of the share above, in 0..255
+    /// (the root gives the small shares more steps). A height or object height that is not finite, or an object
+    /// height of 0 or less, gives 0; a point at or below the base gives 0.
+    inline std::uint8_t swayEncodeWeight(float height, float objectHeight) noexcept
+    {
+        if (!std::isfinite(height) || !std::isfinite(objectHeight) || objectHeight <= 0.f || height <= 0.f)
+            return 0;
+        const float t = std::min(height / objectHeight, 1.f);
+        const float share = std::clamp(objectHeight * t * t / swayWeightScale, 0.f, 1.f);
+        return static_cast<std::uint8_t>(std::lround(std::sqrt(share) * 255.f));
+    }
+
+    /// What the vertex shader computes from a weight byte: the displacement (along the wind) per unit of
+    /// lean * wind * wave, in world units. Equal to objectHeight * t * t to within the byte's step.
+    inline float swayDecodeWeight(std::uint8_t byte) noexcept
+    {
+        const float s = static_cast<float>(byte) / 255.f;
+        return s * s * swayWeightScale;
+    }
+
+    /// The wave of the sway at an angle (radians): the downwind lean plus a swing and a gust, in [0, 1].
+    inline float swayWave(double angle) noexcept
+    {
+        return 0.5f + 0.35f * static_cast<float>(std::sin(angle))
+            + 0.15f * static_cast<float>(std::sin(3.0 * angle + 1.3));
+    }
+
+    /// The clock's angle for the renderer: game time reduced to one period in double precision, in [0, 2 pi). A time
+    /// that is not finite gives 0.
+    inline float swayClockAngle(double seconds) noexcept
+    {
+        if (!std::isfinite(seconds))
+            return 0.f;
+        const double cycles = seconds / swayPeriodSeconds;
+        double fraction = cycles - std::floor(cycles);
+        if (!(fraction >= 0.0 && fraction < 1.0))
+            fraction = 0.0;
+        const float angle = static_cast<float>(fraction * 6.283185307179586);
+        return angle >= 6.2831855f ? 0.f : angle;
+    }
+
     /// The displacement of a point `height` units above an object's base, for an object `objectHeight` units tall:
     /// out[0] along the wind, out[1] across it, in world units. The base is fixed and the bend grows with the square
     /// of the height (a bending stalk), so pieces joined at the base stay joined. `lean` (clamped to 0..maxSwayLean)
@@ -109,10 +158,8 @@ namespace Lod
         const float amplitude = lean * wind * objectHeight * t * t;
         const double cycles = seconds / swayPeriodSeconds;
         const double angle = (cycles - std::floor(cycles)) * 6.283185307179586 + static_cast<double>(phase);
-        const float main = static_cast<float>(std::sin(angle));
-        const float gust = static_cast<float>(std::sin(3.0 * angle + 1.3));
         // |wave| <= 1: the downwind lean plus a swing of the same size, and a smaller gust.
-        const float wave = 0.5f + 0.35f * main + 0.15f * gust;
+        const float wave = swayWave(angle);
         out[0] = amplitude * wave;
         out[1] = amplitude * swayCrossShare * static_cast<float>(std::sin(angle + 1.5707963267948966));
     }

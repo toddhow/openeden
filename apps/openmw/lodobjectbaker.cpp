@@ -1,5 +1,6 @@
 #include "lodobjectbaker.hpp"
 
+#include <cstring>
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -25,6 +26,7 @@
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/nifflatten.hpp>
+#include <components/lod/clustersway.hpp>
 #include <components/lod/sceneryscript.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/nif/niffile.hpp>
@@ -148,6 +150,10 @@ namespace OMW
         // Task 0096 stage b: [WorldLod] object cluster effects / object cluster scenery, read when the bake starts.
         bool mUvEffects = false;
         bool mScenery = false;
+        // Task 0096 stage c: [WorldLod] object cluster sway (and its word list and lean), read when the bake starts.
+        bool mSway = false;
+        std::string mSwayModels;
+        float mSwayLean = 0;
         std::size_t mSceneryObjects = 0, mSceneryNamed = 0, mSceneryScripted = 0;
 
         // Models
@@ -248,7 +254,8 @@ namespace OMW
         }
 
         std::vector<std::uint8_t> parameterBytes(
-            std::uint32_t level, std::uint32_t error, std::uint32_t cellSize, bool uvEffects, bool scenery)
+            std::uint32_t level, std::uint32_t error, std::uint32_t cellSize, bool uvEffects, bool scenery,
+            bool sway = false, std::string_view swayModels = {}, float swayLean = 0.f)
         {
             std::vector<std::uint8_t> bytes;
             // The foliage rule (blend as cutout, the cutoff, the translucent names) changes what a model flattens to,
@@ -259,6 +266,16 @@ namespace OMW
                     uvEffects ? static_cast<std::uint32_t>(Lod::objectClusterEffectsVersion) : 0u, scenery ? 1u : 0u })
                 for (int shift = 0; shift < 32; shift += 8)
                     bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
+            // Sway joins the digest only when it is on, so a pack baked with it off keeps its digest.
+            if (sway)
+            {
+                std::uint32_t leanBits = 0;
+                std::memcpy(&leanBits, &swayLean, sizeof(leanBits));
+                for (const std::uint32_t word : { 0x53574159u, leanBits })
+                    for (int shift = 0; shift < 32; shift += 8)
+                        bytes.push_back(static_cast<std::uint8_t>((word >> shift) & 0xFF));
+                bytes.insert(bytes.end(), swayModels.begin(), swayModels.end());
+            }
             return bytes;
         }
     }
@@ -286,6 +303,11 @@ namespace OMW
             state.mStart = std::chrono::steady_clock::now();
             state.mUvEffects = Settings::worldLod().mObjectClusterEffects;
             state.mScenery = Settings::worldLod().mObjectClusterScenery;
+            state.mSway = Settings::worldLod().mObjectClusterSway;
+            state.mSwayModels = Settings::worldLod().mObjectClusterSwayModels;
+            state.mSwayLean = std::clamp(Settings::worldLod().mObjectClusterSwayLean.get(), 0.f, Lod::maxSwayLean);
+            if (state.mSwayLean <= 0.f || state.mSwayModels.empty())
+                state.mSway = false;
             // The bake runs inside a new game, where the player starts in a fight and dies after about ten seconds; a
             // death stops the game's update and with it the bake. A bake is no play: switch god mode on.
             if (MWBase::World* world = MWBase::Environment::get().getWorld();
@@ -495,7 +517,8 @@ namespace OMW
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
             const std::vector<std::uint8_t> parameters
-                = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize, state.mUvEffects, state.mScenery);
+                = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize, state.mUvEffects, state.mScenery,
+                state.mSway, state.mSwayModels, state.mSwayLean);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)
@@ -518,6 +541,8 @@ namespace OMW
                     = rowMajor(MWRender::distantObjectMatrix(vsg::vec3(object.mPos[0], object.mPos[1], object.mPos[2]),
                         vsg::vec3(object.mRot[0], object.mRot[1], object.mRot[2]), object.mScale));
                 source.mPieces = model.mFlat.mPieces;
+                if (state.mSway && Lod::swayCapableModel(model.mPath, state.mSwayModels))
+                    source.mSwayLean = state.mSwayLean;
                 input.mObjects.push_back(std::move(source));
 
                 hashValue(hasher, object.mRef.mIndex);

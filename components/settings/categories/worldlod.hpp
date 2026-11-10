@@ -31,6 +31,17 @@ namespace Settings
         // Task 0096 stage b: let the bake take activators that have no name and no script (lava planes, waterfalls,
         // fences) into the clusters as statics are. Off by default; read only by the bake.
         SettingValue<bool> mObjectClusterScenery{ mIndex, "WorldLod", "object cluster scenery" };
+        // Task 0096 stage c: far foliage sways in the wind. The bake marks the models whose path holds a word of
+        // `object cluster sway models` (comma separated) and the renderer moves them in the vertex shader. Off by
+        // default; both are read by the bake, the renderer plays any sway group of a pack only when `sway` is true.
+        SettingValue<bool> mObjectClusterSway{ mIndex, "WorldLod", "object cluster sway" };
+        SettingValue<std::string> mObjectClusterSwayModels{ mIndex, "WorldLod", "object cluster sway models" };
+        // The top's lean at full wind as a share of the object's height (0 to 0.1), and a wind strength used when the
+        // weather gives none (0 to 1); `sway wind` multiplies the weather's wind.
+        SettingValue<float> mObjectClusterSwayLean{ mIndex, "WorldLod", "object cluster sway lean",
+            makeClampSanitizerFloat(0.f, 0.1f) };
+        SettingValue<float> mObjectClusterSwayWind{ mIndex, "WorldLod", "object cluster sway wind",
+            makeClampSanitizerFloat(0.f, 1.f) };
         SettingValue<float> mObjectClusterThreshold{ mIndex, "WorldLod", "object cluster threshold",
             makeClampSanitizerFloat(0.01f, 1000000.f) };
         SettingValue<float> mObjectClusterFadeTime{ mIndex, "WorldLod", "object cluster fade time",

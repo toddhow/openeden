@@ -124,6 +124,8 @@ namespace Pipeline
                 return "LOD_FADE";
             case Mode::POINT_SHADOW:
                 return "POINT_SHADOW";
+            case Mode::LOD_SWAY:
+                return "LOD_SWAY";
         }
         return "";
     }

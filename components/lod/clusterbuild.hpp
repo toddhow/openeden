@@ -100,6 +100,11 @@ namespace Lod
         /// matrix; a negative determinant flips the winding.
         std::array<double, 12> mTransform = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 };
         std::vector<SourcePiece> mPieces;
+        /// Task 0096 stage c: above 0 (at most maxClusterSwayLean) the object's pieces without an effect sway: they
+        /// get the sway effect with this lean, and each vertex's colour alpha byte becomes its sway weight
+        /// (swayEncodeWeight; the object's z range after the transform gives the base and the height). The model's
+        /// own vertex alpha is lost.
+        float mSwayLean = 0;
     };
 
     struct ClusterBuildInput

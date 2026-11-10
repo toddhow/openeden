@@ -89,12 +89,15 @@ namespace Pipeline
         LOD_FADE,
         // OpenEden (task 0077): the nearest point lights cast shadows (lib/light/pointshadow.glsl); added by
         // Pipeline::Graphics.
-        POINT_SHADOW
+        POINT_SHADOW,
+        // OpenEden (task 0096 stage c): far cluster foliage sways in the wind (default/main.vert). The vertex stage reads
+        // the wind and the clock from the TEXMAT_BINDING uniform and each vertex's weight from its colour alpha.
+        LOD_SWAY
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
         Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP,
-        Mode::SOFT_PARTICLE };
+        Mode::SOFT_PARTICLE, Mode::LOD_SWAY };
     const std::vector<Mode> fragmentModes{ Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE /*_TEXCOORD*/,
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,

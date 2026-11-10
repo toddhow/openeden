@@ -5,6 +5,7 @@
 
 #include <components/lod/clustersway.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -177,4 +178,63 @@ TEST(LodClusterSway, a_point_above_the_top_sways_no_further_than_the_top)
 {
     for (double t = 0; t < 6; t += 0.3)
         EXPECT_EQ(sway(0.05f, 1.f, 900.f, 500.f, 0.4f, t).v[0], sway(0.05f, 1.f, 500.f, 500.f, 0.4f, t).v[0]);
+}
+
+TEST(LodClusterSwayWeight, the_byte_round_trips_the_height_share_within_a_step)
+{
+    for (const float objectHeight : { 100.f, 500.f, 1000.f, 2048.f })
+        for (float h = 0; h <= objectHeight; h += objectHeight / 16.f)
+        {
+            const float t = std::min(h / objectHeight, 1.f);
+            const float exact = objectHeight * t * t;
+            const float decoded = swayDecodeWeight(swayEncodeWeight(h, objectHeight));
+            EXPECT_NEAR(decoded, exact, std::max(1.5f, exact * 0.02f)) << h << " of " << objectHeight;
+        }
+}
+
+TEST(LodClusterSwayWeight, the_base_is_zero_and_nothing_exceeds_255)
+{
+    EXPECT_EQ(swayEncodeWeight(0.f, 500.f), 0u);
+    EXPECT_EQ(swayEncodeWeight(-3.f, 500.f), 0u);
+    EXPECT_EQ(swayEncodeWeight(5000.f, 5000.f), 255u) << "a taller object than the scale clamps";
+    EXPECT_EQ(swayEncodeWeight(kNan, 500.f), 0u);
+    EXPECT_EQ(swayEncodeWeight(10.f, kInf), 0u);
+    EXPECT_EQ(swayEncodeWeight(10.f, 0.f), 0u);
+    EXPECT_EQ(swayDecodeWeight(255), swayWeightScale);
+}
+
+TEST(LodClusterSwayWeight, weight_with_the_wave_equals_the_displacement_of_the_maths)
+{
+    // What the vertex shader computes: lean * wind * swayDecodeWeight(byte) * wave, along the wind.
+    const float lean = 0.05f, wind = 0.8f, objectHeight = 1500.f, height = 900.f;
+    const std::uint8_t byte = swayEncodeWeight(height, objectHeight);
+    for (double seconds = 0; seconds < 9; seconds += 0.7)
+    {
+        const float angle = swayClockAngle(seconds);
+        const float viaShader = lean * wind * swayDecodeWeight(byte) * swayWave(angle);
+        EXPECT_NEAR(viaShader, sway(lean, wind, height, objectHeight, 0.f, seconds).v[0], 1.5f) << seconds;
+    }
+}
+
+TEST(LodClusterSwayClock, the_angle_is_one_period_in_double_precision)
+{
+    EXPECT_EQ(swayClockAngle(0.0), 0.f);
+    EXPECT_NEAR(swayClockAngle(swayPeriodSeconds * 0.25), 6.2831853f * 0.25f, 1e-6f);
+    EXPECT_NEAR(swayClockAngle(swayPeriodSeconds * 100000.0 + swayPeriodSeconds * 0.5), 3.14159265f, 1e-3f);
+    EXPECT_EQ(swayClockAngle(std::numeric_limits<double>::quiet_NaN()), 0.f);
+    EXPECT_EQ(swayClockAngle(-std::numeric_limits<double>::infinity()), 0.f);
+    for (const double t : { -7.3, 0.0, 1e-9, 2.999999999, 3.0, 1e9 })
+    {
+        EXPECT_GE(swayClockAngle(t), 0.f);
+        EXPECT_LT(swayClockAngle(t), 6.2831855f);
+    }
+}
+
+TEST(LodClusterSwayWave, the_wave_stays_in_zero_to_one)
+{
+    for (double a = -20; a < 20; a += 0.01)
+    {
+        EXPECT_GE(swayWave(a), -1e-6f);
+        EXPECT_LE(swayWave(a), 1.f + 1e-6f);
+    }
 }

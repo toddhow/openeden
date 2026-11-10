@@ -29,6 +29,7 @@
 #include <components/lod/clusterfade.hpp>
 #include <components/lod/clusterpack.hpp>
 #include <components/lod/clusterplan.hpp>
+#include <components/lod/clustersway.hpp>
 #include <components/lod/fartier.hpp>
 #include <components/lod/residency.hpp>
 #include <components/lod/tileselection.hpp>
@@ -118,6 +119,14 @@ namespace MWRender
                 Lod::ClusterEffect mEffect;
             };
             std::vector<EffectMatrix> mEffectMatrices;
+            // Task 0096 stage c: the same for the groups that sway: the matrix's first column holds the wind push and
+            // the clock's angle for default/main.vert's LOD_SWAY (not a texture matrix).
+            struct SwayMatrix
+            {
+                vsg::ref_ptr<vsg::mat4Value> mMatrix;
+                float mLean = 0;
+            };
+            std::vector<SwayMatrix> mSwayMatrices;
             // Frames before a tile whose read or compile failed is tried again (the failure back-off).
             int mFailureCooldown = 0;
             // Frames before a tile the planner freed while it was wanted may be asked for again (the eviction cooldown:
@@ -171,6 +180,8 @@ namespace MWRender
         // The effect clock of the scrolling groups (task 0096): the sum of the frame times given to update(), so it
         // runs on the renderer's own time and starts at 0 with each LodClusters.
         double mEffectSeconds = 0;
+        // Task 0096 stage c: the weather's wind speed, given each frame by setWindSpeed.
+        float mWindSpeed = 0;
         vsg::ref_ptr<vsg::Group> mRoot = vsg::Group::create();
         std::future<OpenResult> mOpen;
         bool mOpened = false;
@@ -427,6 +438,7 @@ namespace MWRender
             const Lod::ObjectCluster& cluster = tile.mData->mCluster;
             tile.mMaterials.clear();
             tile.mEffectMatrices.clear();
+            tile.mSwayMatrices.clear();
             tile.mDraws = 0;
             tile.mTriangles = 0;
 
@@ -470,7 +482,7 @@ namespace MWRender
                 // A scrolling group takes the live objects' texture matrix (Pipeline::Mode::TEXMAT, the descriptor the
                 // NIF loader makes for a NiUVController); a still group or a build with the effects off has none, so
                 // its pipeline and draws are those of a version 1 cluster.
-                if (setup.mPlayEffects && !source.mEffect.none())
+                if (setup.mPlayEffects && (source.mEffect.mKind & Lod::clusterEffectUvScroll) != 0)
                 {
                     auto matrix = vsg::mat4Value::create();
                     matrix->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
@@ -484,6 +496,24 @@ namespace MWRender
                         logged = true;
                         Log(Debug::Info) << "LOD clusters: the first scrolling group, " << source.mEffect.mUvVelocity[0]
                                          << ", " << source.mEffect.mUvVelocity[1] << " texture repeats a second.";
+                    }
+                }
+
+                // A swaying group takes the same uniform (its own pipeline mode, LOD_SWAY: a group never has both).
+                if (setup.mPlaySway && (source.mEffect.mKind & Lod::clusterEffectSway) != 0)
+                {
+                    auto matrix = vsg::mat4Value::create();
+                    matrix->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+                    options.shader.addMode(Pipeline::Mode::LOD_SWAY);
+                    descriptors.push_back(vsg::DescriptorBuffer::create(
+                        matrix, Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
+                    tile.mSwayMatrices.push_back({ matrix, source.mEffect.mSwayLean });
+                    static bool swayLogged = false; // once per process: the first swaying group built
+                    if (!swayLogged)
+                    {
+                        swayLogged = true;
+                        Log(Debug::Info) << "LOD clusters: the first swaying group, lean " << source.mEffect.mSwayLean
+                                         << ".";
                     }
                 }
 
@@ -508,6 +538,7 @@ namespace MWRender
 
                 // Only the vertices this group's triangles use, in their own arrays (one buffer per array for each
                 // draw; arrays shared between draws made the vertices of later draws come out wrong).
+                const bool weightInAlpha = setup.mPlaySway && (source.mEffect.mKind & Lod::clusterEffectSway) != 0;
                 std::vector<std::uint32_t> used;
                 for (std::uint32_t& index : indices)
                 {
@@ -530,8 +561,10 @@ namespace MWRender
                     const vsg::vec3 n(v.mNormal[0] / 127.f, v.mNormal[1] / 127.f, v.mNormal[2] / 127.f);
                     const float length = vsg::length(n);
                     (*normals)[k] = length > 1e-4f ? n / length : vsg::vec3(0, 0, 1);
-                    (*colours)[k]
-                        = vsg::vec4(v.mColor[0] / 255.f, v.mColor[1] / 255.f, v.mColor[2] / 255.f, v.mColor[3] / 255.f);
+                    // A sway group's alpha byte holds the sway weight, not an alpha: without LOD_SWAY it must not reach
+                    // the fragment stage (it would alpha-test the trunks away), so the group draws as a version 1 one.
+                    (*colours)[k] = vsg::vec4(v.mColor[0] / 255.f, v.mColor[1] / 255.f, v.mColor[2] / 255.f,
+                        weightInAlpha ? v.mColor[3] / 255.f : 1.f);
                     (*uvs)[k] = vsg::vec2(v.mUv[0], v.mUv[1]);
                 }
                 for (const std::uint32_t old : used)
@@ -620,6 +653,11 @@ namespace MWRender
             tile.mPhase = Tile::Phase::Idle;
             cover = {};
         }
+    }
+
+    void LodClusters::setWindSpeed(float speed)
+    {
+        mState->mWindSpeed = std::isfinite(speed) ? speed : 0.f;
     }
 
     void LodClusters::update(const Camera& camera, double seconds, const CellPredicate& liveReady)
@@ -1092,6 +1130,27 @@ namespace MWRender
                         effect.mMatrix->dirty();
                     }
                 }
+            // The swaying groups: column 0 is the wind push (lean * wind * weight scale along a fixed direction, in world
+            // units at the full weight) and the clock's angle, reduced in double precision.
+            if (!tile.mSwayMatrices.empty() && (tile.mWanted || cover.mFade.mPhase != Lod::FadePhase::Hidden))
+            {
+                const float wind = std::min(
+                    1.f, std::max(0.f, setup.mSwayWindScale) * (0.3f + 0.7f * std::clamp(state.mWindSpeed, 0.f, 1.f)));
+                const float angle = Lod::swayClockAngle(state.mEffectSeconds);
+                constexpr float directionX = 0.70710678f, directionY = 0.70710678f; // the groundcover's (1, 1)
+                for (Tile::SwayMatrix& sway : tile.mSwayMatrices)
+                {
+                    const float push = std::clamp(sway.mLean, 0.f, Lod::maxSwayLean) * wind * Lod::swayWeightScale;
+                    auto& matrix = sway.mMatrix->value();
+                    if (matrix(0, 0) != directionX * push || matrix(0, 1) != directionY * push || matrix(0, 2) != angle)
+                    {
+                        matrix(0, 0) = directionX * push;
+                        matrix(0, 1) = directionY * push;
+                        matrix(0, 2) = angle;
+                        sway.mMatrix->dirty();
+                    }
+                }
+            }
             if (tile.mWanted)
             {
                 ++shown;

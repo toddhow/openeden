@@ -6,7 +6,7 @@
 #include "lib/material/bindings.slang"
 #include "lib/sets.slang"
 
-#ifdef TEXMAT
+#if defined(TEXMAT) || defined(LOD_SWAY)
 struct TexMat
 {
     float4x4 texmat;

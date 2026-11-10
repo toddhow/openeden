@@ -1453,6 +1453,8 @@ namespace MWRender
             setup.mEvictFar = mFarTierActive && mFarTier.mEvictFarClusters;
             setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
             setup.mPlayEffects = Settings::worldLod().mObjectClusterEffects;
+            setup.mPlaySway = Settings::worldLod().mObjectClusterSway;
+            setup.mSwayWindScale = Settings::worldLod().mObjectClusterSwayWind;
             setup.mCellSize = ESM::Land::REAL_SIZE;
             setup.mBuilder = mResourceSystem->builder.get();
             setup.mImageOptions = mResourceSystem->textureOptions;
@@ -2514,6 +2516,7 @@ namespace MWRender
         // Outside the exterior the live objects are not drawn at all (DistantObjects is hidden and does not rebuild),
         // so waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
         const bool exterior = camera.mEnabled;
+        mLodClusters->setWindSpeed(mSky ? mSky->getBaseWindSpeed() : 0.f);
         mLodClusters->update(camera, dt, [this, exterior](const std::pair<int, int>& cell) {
             return !exterior || !mDistantObjects || mDistantObjects->staticsReady(cell);
         });

@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE, GBUFFER_MOTION)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE, GBUFFER_MOTION, LOD_SWAY)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -132,6 +132,20 @@ void main()
     viewPos.xyz += transpose(mat3(scene.invView)) * vec3(displacement, 0.0);
 #endif
 
+#if defined(LOD_SWAY) && defined(COLOR)
+    {
+        // OpenEden (task 0096, stage c): far foliage bends in the wind. texmat[0] holds the wind push in world units at
+        // the full weight (xy) and the clock's angle (z), written every frame by MWRender::LodClusters; the vertex's
+        // weight is the square root of its share, in the colour alpha (Lod::swayEncodeWeight). Twin: Lod::swayWave.
+        vec3 swayWorld = (scene.invView * viewPos).xyz;
+        float swayAngle = texmat[0].z + 0.00041 * swayWorld.x + 0.00033 * swayWorld.y;
+        float swayWave = 0.5 + 0.35 * sin(swayAngle) + 0.15 * sin(3.0 * swayAngle + 1.3);
+        vec2 swayWind = texmat[0].xy;
+        vec2 swayPush = swayWind * swayWave + vec2(-swayWind.y, swayWind.x) * (0.25 * cos(swayAngle));
+        viewPos.xyz += transpose(mat3(scene.invView)) * vec3(swayPush * (inColor.a * inColor.a), 0.0);
+    }
+#endif
+
     vert_out.viewPos = viewPos.xyz;
     gl_Position = pc.projection * viewPos;
 #ifdef GBUFFER_MOTION
@@ -173,6 +187,10 @@ void main()
     vert_out.pointLightDiffuse = pointLightDiffuse(clipPosToScreenCoord(gl_Position), normalize(viewNormal), viewPos.xyz);
 #endif
 #ifdef COLOR
+ #if defined(LOD_SWAY)
+    vert_out.color = vec4(inColor.rgb, 1.0); // the alpha byte carried the sway weight
+ #else
     vert_out.color = inColor;
+ #endif
 #endif
 }

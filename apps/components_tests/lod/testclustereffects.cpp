@@ -6,6 +6,7 @@
 
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clustereffect.hpp>
+#include <components/lod/clustersway.hpp>
 #include <components/lod/nifflatten.hpp>
 #include <components/lod/objectcluster.hpp>
 #include <components/lod/sceneryscript.hpp>
@@ -873,5 +874,180 @@ namespace
             scriptChangesItsObject("begin s\nif ( GetDisabled == 1 )\nendif\nset moved to 1\nset enabled to 1\nend"));
         EXPECT_FALSE(scriptChangesItsObject("begin s\nset movement to 1\nset positions to 1\nend"));
         EXPECT_TRUE(scriptChangesItsObject("begin s\n; comment\nDisable ; comment\nend"));
+    }
+
+    // ---- task 0096 stage c: the sway effect ------------------------------------------------------------------------
+
+    ClusterEffect swayEffect(float lean)
+    {
+        ClusterEffect effect;
+        effect.mKind = clusterEffectSway;
+        effect.mSwayLean = lean;
+        return effect;
+    }
+
+    TEST(LodClusterSwayEffect, a_sway_with_a_lean_in_range_is_valid)
+    {
+        EXPECT_TRUE(isValidClusterEffect(swayEffect(0.04f)));
+        EXPECT_TRUE(isValidClusterEffect(swayEffect(maxClusterSwayLean)));
+        EXPECT_FALSE(swayEffect(0.04f).none());
+    }
+
+    TEST(LodClusterSwayEffect, a_bad_lean_or_a_lean_without_the_kind_is_refused)
+    {
+        EXPECT_FALSE(isValidClusterEffect(swayEffect(0.f)));
+        EXPECT_FALSE(isValidClusterEffect(swayEffect(-0.01f)));
+        EXPECT_FALSE(isValidClusterEffect(swayEffect(maxClusterSwayLean * 1.01f)));
+        EXPECT_FALSE(isValidClusterEffect(swayEffect(std::numeric_limits<float>::quiet_NaN())));
+        ClusterEffect unused;
+        unused.mSwayLean = 0.05f; // a lean with no sway kind
+        EXPECT_FALSE(isValidClusterEffect(unused));
+    }
+
+    TEST(LodClusterSwayEffect, sway_and_scroll_never_share_a_group)
+    {
+        ClusterEffect both = scroll(0.5f, 0);
+        both.mKind |= clusterEffectSway;
+        both.mSwayLean = 0.05f;
+        EXPECT_FALSE(isValidClusterEffect(both));
+    }
+
+    TEST(LodClusterSwayEffect, the_cap_equals_the_maths_cap)
+    {
+        EXPECT_EQ(maxClusterSwayLean, maxSwayLean);
+    }
+
+    ClusterBuildInput swayTile(float lean, bool alphaVertexColours)
+    {
+        // One tall object (a triangle standing up to 1000 units) with an effect-free piece.
+        SourcePiece piece = trianglePiece("tree.dds", ClusterEffect{});
+        piece.mVertices[2].mPosition[1] = 0;
+        piece.mVertices[2].mPosition[2] = 1000; // the top
+        if (alphaVertexColours)
+            for (SourceVertex& v : piece.mVertices)
+                v.mColor[3] = 7;
+        ClusterBuildInput input = tileOf({ piece });
+        input.mObjects[0].mSwayLean = lean;
+        input.mObjects[0].mTransform[11] = 50; // stands at z = 50
+        return input;
+    }
+
+    TEST(LodClusterSwayBuild, a_swaying_object_gets_the_effect_and_weights_in_the_alpha_byte)
+    {
+        ObjectCluster cluster;
+        const LodError error = buildObjectCluster(swayTile(0.04f, true), cluster);
+        ASSERT_TRUE(error.ok()) << error.describe();
+        ASSERT_EQ(cluster.mGroups.size(), 1u);
+        EXPECT_EQ(cluster.mGroups[0].mEffect, swayEffect(0.04f));
+        ASSERT_EQ(cluster.mVertices.size(), 3u);
+        int base = 0, top = 0;
+        for (const ClusterVertex& v : cluster.mVertices)
+        {
+            if (v.mPosition[2] < 500.f)
+            {
+                EXPECT_EQ(v.mColor[3], 0u) << "the base does not move";
+                ++base;
+            }
+            else
+            {
+                EXPECT_EQ(v.mColor[3], swayEncodeWeight(1000.f, 1000.f));
+                EXPECT_NEAR(swayDecodeWeight(v.mColor[3]), 1000.f, 12.f);
+                ++top;
+            }
+        }
+        EXPECT_EQ(base, 2);
+        EXPECT_EQ(top, 1);
+    }
+
+    TEST(LodClusterSwayBuild, an_object_without_a_lean_is_built_exactly_as_before)
+    {
+        ObjectCluster plain;
+        ASSERT_TRUE(buildObjectCluster(swayTile(0.f, true), plain).ok());
+        ASSERT_EQ(plain.mGroups.size(), 1u);
+        EXPECT_TRUE(plain.mGroups[0].mEffect.none());
+        for (const ClusterVertex& v : plain.mVertices)
+            EXPECT_EQ(v.mColor[3], 7u) << "the model's vertex alpha is kept";
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(writeObjectCluster(plain, bytes).ok());
+        EXPECT_EQ(bytes[offVersion], 1u) << "sway off writes the version 1 layout";
+    }
+
+    TEST(LodClusterSwayBuild, a_scrolling_piece_of_a_swaying_object_keeps_its_scroll_and_does_not_sway)
+    {
+        ClusterBuildInput input = swayTile(0.04f, false);
+        input.mObjects[0].mPieces[0].mEffect = scroll(0.5f, 0);
+        ObjectCluster cluster;
+        ASSERT_TRUE(buildObjectCluster(input, cluster).ok());
+        ASSERT_EQ(cluster.mGroups.size(), 1u);
+        EXPECT_EQ(cluster.mGroups[0].mEffect, scroll(0.5f, 0));
+    }
+
+    TEST(LodClusterSwayBuild, different_leans_are_different_groups)
+    {
+        ClusterBuildInput input = swayTile(0.04f, false);
+        SourceObject second = input.mObjects[0];
+        second.mRef = { 99, 0 };
+        second.mSwayLean = 0.08f;
+        input.mObjects.push_back(second);
+        ObjectCluster cluster;
+        ASSERT_TRUE(buildObjectCluster(input, cluster).ok());
+        ASSERT_EQ(cluster.mGroups.size(), 2u);
+        EXPECT_EQ(cluster.mGroups[0].mEffect, swayEffect(0.04f));
+        EXPECT_EQ(cluster.mGroups[1].mEffect, swayEffect(0.08f));
+    }
+
+    TEST(LodClusterSwayBuild, a_flat_object_has_no_height_and_does_not_sway)
+    {
+        ClusterBuildInput input = swayTile(0.04f, false);
+        for (SourceVertex& v : input.mObjects[0].mPieces[0].mVertices)
+            v.mPosition[2] = 0;
+        ObjectCluster cluster;
+        ASSERT_TRUE(buildObjectCluster(input, cluster).ok());
+        ASSERT_EQ(cluster.mGroups.size(), 1u);
+        EXPECT_TRUE(cluster.mGroups[0].mEffect.none());
+    }
+
+    TEST(LodClusterSwayLayout, a_sway_record_is_version_two_and_round_trips_with_its_lean)
+    {
+        ObjectCluster cluster;
+        ASSERT_TRUE(buildObjectCluster(swayTile(0.0625f, false), cluster).ok());
+        const std::vector<std::uint8_t> bytes = bytesOf(cluster);
+        EXPECT_EQ(bytes[offVersion], 2u);
+        const std::size_t record = effectTableOffset(bytes, 1);
+        std::uint32_t lean = 0;
+        std::memcpy(&lean, &bytes[record + 12], 4);
+        EXPECT_EQ(lean, floatBits(0.0625f)) << "the lean sits in the record's last four bytes";
+        ObjectCluster read;
+        const LodError error = readObjectCluster(bytes, read);
+        ASSERT_TRUE(error.ok()) << error.describe();
+        EXPECT_EQ(read, cluster);
+        std::vector<std::uint8_t> again;
+        ASSERT_TRUE(writeObjectCluster(read, again).ok());
+        EXPECT_EQ(again, bytes);
+    }
+
+    TEST(LodClusterSwayLayout, a_hostile_sway_record_is_refused_at_its_offset)
+    {
+        ObjectCluster cluster;
+        ASSERT_TRUE(buildObjectCluster(swayTile(0.05f, false), cluster).ok());
+        const std::vector<std::uint8_t> good = bytesOf(cluster);
+        const std::size_t record = effectTableOffset(good, 1);
+        for (const float lean : { 0.f, -0.05f, 1.f, std::numeric_limits<float>::quiet_NaN() })
+        {
+            std::vector<std::uint8_t> bytes = good;
+            putU32(bytes, record + 12, floatBits(lean));
+            expectRefusedAt(bytes, record, "a lean outside (0, max]");
+        }
+        {
+            std::vector<std::uint8_t> bytes = good;
+            putU32(bytes, record, clusterEffectSway | clusterEffectUvScroll);
+            putU32(bytes, record + 4, floatBits(0.5f));
+            expectRefusedAt(bytes, record, "sway with a scroll");
+        }
+        {
+            std::vector<std::uint8_t> bytes = good;
+            putU32(bytes, record, 0);
+            expectRefusedAt(bytes, record + 12, "a lean without the kind is reserved bytes");
+        }
     }
 }

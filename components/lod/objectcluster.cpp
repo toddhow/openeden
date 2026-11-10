@@ -309,9 +309,9 @@ namespace Lod
                 {
                     const ClusterGroup& p = c.mGroups[i - 1];
                     const auto previous = std::tie(p.mTexture, p.mFlags, p.mAlphaCutoff, p.mEffect.mKind,
-                        p.mEffect.mUvVelocity[0], p.mEffect.mUvVelocity[1]);
+                        p.mEffect.mUvVelocity[0], p.mEffect.mUvVelocity[1], p.mEffect.mSwayLean);
                     const auto current = std::tie(g.mTexture, g.mFlags, g.mAlphaCutoff, g.mEffect.mKind,
-                        g.mEffect.mUvVelocity[0], g.mEffect.mUvVelocity[1]);
+                        g.mEffect.mUvVelocity[0], g.mEffect.mUvVelocity[1], g.mEffect.mSwayLean);
                     if (!(previous < current))
                         return fail(at + ".texture", 0, "groups must be sorted and distinct");
                 }
@@ -598,6 +598,7 @@ namespace Lod
                 w.u32(effectAt + 0, g.mEffect.mKind);
                 w.f32(effectAt + 4, g.mEffect.mUvVelocity[0]);
                 w.f32(effectAt + 8, g.mEffect.mUvVelocity[1]);
+                w.f32(effectAt + 12, g.mEffect.mSwayLean);
             }
         }
         for (std::size_t i = 0; i < c.mRanges.size(); ++i)
@@ -800,9 +801,13 @@ namespace Lod
                 effect.mKind = getU32(b, at + 0);
                 effect.mUvVelocity[0] = getF32(b, at + 4);
                 effect.mUvVelocity[1] = getF32(b, at + 8);
-                for (std::size_t k = 12; k < clusterEffectRecordSize; ++k)
-                    if (b[at + k] != 0)
-                        return fail("effects.reserved", at + k, "must be zero");
+                // The last four bytes are the sway lean while the kind has the sway bit, and reserved (zero) otherwise.
+                if ((effect.mKind & clusterEffectSway) != 0)
+                    effect.mSwayLean = getF32(b, at + 12);
+                else
+                    for (std::size_t k = 12; k < clusterEffectRecordSize; ++k)
+                        if (b[at + k] != 0)
+                            return fail("effects.reserved", at + k, "must be zero");
                 if (!isValidClusterEffect(effect))
                     return fail("effects.record", at, "an unknown kind, a velocity beyond the cap, or an unused field");
                 any = any || !effect.none();

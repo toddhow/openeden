@@ -160,6 +160,11 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   (`object cluster effects` and `object cluster scenery`, both in the profile; switch `effects` off to see them still).
   Wrong: a scroll that jumps, runs at another speed than near, or stops; a hole where a plane was; an activator you can
   no longer use near the player (clusters never draw in the active grid).
+- *Far trees sway* (0096 stage c): from a hill in the Bitter Coast or the Ascadian Isles look at the far trees (they are
+  far clusters beyond the live objects): they lean and swing slowly with the wind, more on a stormy day, the trunk's foot
+  fixed to the ground (`object cluster sway`, in the profile; it needs the objects re-baked, `prepare.sh` does it).
+  Wrong: a tree that detaches from the ground, shimmering or jumping, the whole forest moving exactly in step, leaves
+  that turn transparent or opaque black (the model's vertex alpha is replaced), or trees that swing with no wind.
 - *Terrain tile fade* (0087): fly (`tcl`, `tgm`) up and down over Balmora, or along the ground toward Vivec: far tiles
   dither in and out over 0.4 s (a fine stipple, softened by `taa`) instead of popping, with no hole in the land. Set
   `[WorldLod] terrain fade time = 0` for the old instant swap to compare. Wrong: a flash, a hole, or a tile that stays

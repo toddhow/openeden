@@ -91,6 +91,9 @@ WorldLod|haze visibility|tuning of haze
 WorldLod|haze weather gain|tuning of haze
 WorldLod|max view distance|cap of view distance = auto; the tier sets its own
 WorldLod|object cluster fade time|tuning of object clusters
+WorldLod|object cluster sway models|tuning of the sway (the name list the bake uses)
+WorldLod|object cluster sway lean|tuning of the sway (read by the bake)
+WorldLod|object cluster sway wind|tuning of the sway (how much of the weather wind drives it)
 WorldLod|object cluster threshold|tuning of object clusters
 WorldLod|terrain tile level|only 1 is accepted for now
 WorldLod|terrain tile threshold|tuning of the terrain tiles (calibrated default)

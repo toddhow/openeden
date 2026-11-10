@@ -16,10 +16,18 @@ namespace Lod
 {
     /// The kinds of effect a group can carry (bits of ClusterEffect::mKind; any other bit is refused).
     inline constexpr std::uint32_t clusterEffectUvScroll = 1u << 0;
-    inline constexpr std::uint32_t clusterEffectKnownKinds = clusterEffectUvScroll;
+    /// Task 0096 stage c: wind sway of the group's vertices (Lod::swayDisplacement; the vertex shader's LOD_SWAY).
+    /// The lean (mSwayLean, a share of the object's height at full wind) is stored in the record's last four bytes,
+    /// which a record without this bit keeps zero, so layout version 2 is unchanged and an older reader refuses a
+    /// sway record by its non-zero reserved bytes. Each vertex of a sway group carries its own weight in its colour
+    /// alpha byte (Lod::swayEncodeWeight); the shader replaces the alpha by 1.
+    inline constexpr std::uint32_t clusterEffectSway = 1u << 1;
+    inline constexpr std::uint32_t clusterEffectKnownKinds = clusterEffectUvScroll | clusterEffectSway;
     /// The fastest scroll the payload may hold, in texture repeats per second. Vanilla's lava and waterfalls are far
     /// below 1; a mod's NIF is untrusted, so the baker and the reader refuse anything beyond this.
     inline constexpr float maxClusterUvVelocity = 64.f;
+    /// The largest lean a sway record may hold (equal to Lod::maxSwayLean in clustersway.hpp, which a test pins).
+    inline constexpr float maxClusterSwayLean = 0.1f;
 
     struct ClusterEffect
     {
@@ -27,6 +35,9 @@ namespace Lod
         /// Texture repeats per second added to the u and v coordinates, while the kind has clusterEffectUvScroll;
         /// 0 otherwise.
         float mUvVelocity[2] = { 0, 0 };
+        /// The top's lean as a share of the object's height at full wind, in (0, maxSwayLean] while the kind has
+        /// clusterEffectSway; 0 otherwise.
+        float mSwayLean = 0;
         bool operator==(const ClusterEffect&) const = default;
         bool none() const noexcept { return mKind == 0; }
     };
@@ -40,8 +51,18 @@ namespace Lod
         for (const float v : effect.mUvVelocity)
             if (!std::isfinite(v) || std::fabs(v) > maxClusterUvVelocity)
                 return false;
+        if ((effect.mKind & clusterEffectSway) != 0)
+        {
+            // Both effects would need the group's one TEXMAT uniform (the renderer's carrier of the sway parameters).
+            if ((effect.mKind & clusterEffectUvScroll) != 0)
+                return false;
+            if (!(effect.mSwayLean > 0.f && effect.mSwayLean <= maxClusterSwayLean))
+                return false;
+        }
+        else if (effect.mSwayLean != 0.f)
+            return false;
         if ((effect.mKind & clusterEffectUvScroll) == 0)
-            return effect.mUvVelocity[0] == 0 && effect.mUvVelocity[1] == 0 && effect.mKind == 0;
+            return effect.mUvVelocity[0] == 0 && effect.mUvVelocity[1] == 0;
         // A scroll that does not move is not an effect.
         return effect.mUvVelocity[0] != 0 || effect.mUvVelocity[1] != 0;
     }

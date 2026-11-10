@@ -8,6 +8,8 @@
 
 #include <meshoptimizer.h>
 
+#include "clustersway.hpp"
+
 namespace Lod
 {
     float clusterLevelError(std::uint32_t level) noexcept
@@ -47,12 +49,12 @@ namespace Lod
             std::vector<BuiltPiece> mPieces;
         };
 
-        using GroupKey = std::tuple<std::string, std::uint32_t, float, std::uint32_t, float, float>;
+        using GroupKey = std::tuple<std::string, std::uint32_t, float, std::uint32_t, float, float, float>;
 
         GroupKey groupKeyOf(const BuiltPiece& piece)
         {
             return GroupKey{ piece.mTexture, piece.mFlags, piece.mAlphaCutoff, piece.mEffect.mKind,
-                piece.mEffect.mUvVelocity[0], piece.mEffect.mUvVelocity[1] };
+                piece.mEffect.mUvVelocity[0], piece.mEffect.mUvVelocity[1], piece.mEffect.mSwayLean };
         }
 
         bool allFinite(const std::array<double, 12>& m)
@@ -93,7 +95,8 @@ namespace Lod
         // Transforms, simplifies and compacts one piece. Returns false when nothing is left. `error` is absolute, in
         // world units, and every vertex is already in tile space, so the simplifier's error is in world units too.
         bool buildPiece(const SourceObject& object, const SourcePiece& piece, const ClusterBuildInput& input,
-            const NormalMatrix& normalMatrix, BuiltPiece& built, float& maxError, std::uint32_t& outliers)
+            const NormalMatrix& normalMatrix, double swayBaseZ, double swayHeight, BuiltPiece& built, float& maxError,
+            std::uint32_t& outliers)
         {
             if (piece.mIndices.empty() || piece.mVertices.empty())
                 return false;
@@ -110,6 +113,12 @@ namespace Lod
                 || !isValidClusterEffect(piece.mEffect))
                 return false;
             built.mEffect = piece.mEffect;
+            const bool sways = object.mSwayLean > 0.f && piece.mEffect.none() && swayHeight > 0;
+            if (sways)
+            {
+                built.mEffect.mKind = clusterEffectSway;
+                built.mEffect.mSwayLean = std::min(object.mSwayLean, maxClusterSwayLean);
+            }
             const std::size_t vertexCount = piece.mVertices.size();
 
             std::vector<ClusterVertex> vertices(vertexCount);
@@ -152,6 +161,8 @@ namespace Lod
                 }
                 for (std::size_t k = 0; k < 4; ++k)
                     v.mColor[k] = s.mColor[k];
+                if (sways)
+                    v.mColor[3] = swayEncodeWeight(static_cast<float>(wz - swayBaseZ), static_cast<float>(swayHeight));
                 v.mUv[0] = s.mUv[0];
                 v.mUv[1] = s.mUv[1];
             }
@@ -372,10 +383,29 @@ namespace Lod
             BuiltObject result;
             result.mSource = index;
             std::uint32_t sourceTriangles = 0;
+            // The z range of the whole object in world space (the sway's base and height), only for a swaying object.
+            double swayBaseZ = 0, swayHeight = 0;
+            if (object.mSwayLean > 0.f)
+            {
+                double low = std::numeric_limits<double>::infinity(), high = -low;
+                for (const SourcePiece& piece : object.mPieces)
+                    for (const SourceVertex& v : piece.mVertices)
+                    {
+                        const double wz = object.mTransform[8] * v.mPosition[0] + object.mTransform[9] * v.mPosition[1]
+                            + object.mTransform[10] * v.mPosition[2] + object.mTransform[11];
+                        low = std::min(low, wz);
+                        high = std::max(high, wz);
+                    }
+                if (high > low)
+                {
+                    swayBaseZ = low;
+                    swayHeight = high - low;
+                }
+            }
             for (const SourcePiece& piece : object.mPieces)
             {
                 BuiltPiece builtPiece;
-                if (buildPiece(object, piece, input, normalMatrix, builtPiece, maxSimplifyError, s.mErrorOutliers))
+                if (buildPiece(object, piece, input, normalMatrix, swayBaseZ, swayHeight, builtPiece, maxSimplifyError, s.mErrorOutliers))
                 {
                     sourceTriangles += static_cast<std::uint32_t>(piece.mIndices.size() / 3);
                     result.mPieces.push_back(std::move(builtPiece));
@@ -432,6 +462,7 @@ namespace Lod
             group.mEffect.mKind = std::get<3>(key);
             group.mEffect.mUvVelocity[0] = std::get<4>(key);
             group.mEffect.mUvVelocity[1] = std::get<5>(key);
+            group.mEffect.mSwayLean = std::get<6>(key);
             c.mGroups.push_back(std::move(group));
         }
 
@@ -439,7 +470,8 @@ namespace Lod
         for (std::size_t g = 0; g < c.mGroups.size(); ++g)
         {
             const GroupKey key{ c.mGroups[g].mTexture, c.mGroups[g].mFlags, c.mGroups[g].mAlphaCutoff,
-                c.mGroups[g].mEffect.mKind, c.mGroups[g].mEffect.mUvVelocity[0], c.mGroups[g].mEffect.mUvVelocity[1] };
+                c.mGroups[g].mEffect.mKind, c.mGroups[g].mEffect.mUvVelocity[0], c.mGroups[g].mEffect.mUvVelocity[1],
+                c.mGroups[g].mEffect.mSwayLean };
             c.mGroups[g].mFirstIndex = static_cast<std::uint32_t>(c.mIndices.size());
             std::size_t rangeFirst = c.mIndices.size();
             std::size_t rangeSlot = 0;
