@@ -86,6 +86,10 @@ file(GLOB UNITTEST_SRC_FILES
     mwmechanics/testrulesjustice.cpp
     mwmechanics/testrulesjusticeregistry.cpp
 
+    # Task 0098 move 8, stage 8a: characterization tests of the world-object classes (door, container, activator,
+    # static, body part).
+    mwclass/testworldobjectclasses.cpp
+
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
     script_obscript/testobscriptformallocation.cpp
