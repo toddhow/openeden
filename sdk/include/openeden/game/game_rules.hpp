@@ -12,7 +12,7 @@
 // A pack provides one GameRules object through the registry (Registrar::provide<GameRules>), found by its id and
 // version like any contract. The core asks it for each group of rules once, when it installs them, and owns what it is
 // given. The interface carries plain values and the other game-pack contracts of this folder; it has no engine,
-// renderer, physics, Qt or Lua type, and the core never learns the pack's name.
+// renderer, physics or Qt type, and the core never learns the pack's name.
 //
 // What it holds today is crafting. Further groups (mechanics hooks derived from MWBase::MechanicsManager, the journal
 // and dialogue) join as their contracts exist; each is one more virtual function at the END with a default, so a pack
