@@ -75,3 +75,9 @@ if ! grep -q 'Version policy' sdk/include/openeden/game/crafting.hpp || ! grep -
     echo 'sdk/include/openeden/game/crafting.hpp must keep its version policy and the note that id tokens are opaque text'
     exit 1
 fi
+
+# Task 0084 leftovers (lane I, I1): the GameRules header states its version policy and carries the contract id.
+if ! grep -q 'Version policy' sdk/include/openeden/game/game_rules.hpp || ! grep -q 'openeden.game.rules' sdk/include/openeden/game/game_rules.hpp; then
+    echo 'sdk/include/openeden/game/game_rules.hpp must keep its version policy and the contract id openeden.game.rules'
+    exit 1
+fi

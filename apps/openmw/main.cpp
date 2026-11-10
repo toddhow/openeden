@@ -8,12 +8,12 @@
 #include <components/settings/settings.hpp>
 #include <components/version/version.hpp>
 
-#include <game_morrowind/crafting_rules.hpp>
 #include <game_morrowind/dialogue_rules.hpp>
+#include <game_morrowind/game_rules.hpp>
 
 #include "mwdialogue/dialoguefactory.hpp"
 #include "mwrender/lodbakemode.hpp"
-#include "mwworld/craftingrules.hpp"
+#include "mwworld/gamerules.hpp"
 #include "options.hpp"
 #include "vsgengine.hpp"
 
@@ -28,6 +28,7 @@ extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 #endif
 
 #include <filesystem>
+#include <memory>
 
 /**
  * \brief Parses application command line and calls \ref Cfg::ConfigurationManager
@@ -159,9 +160,13 @@ int runApplication(int argc, char* argv[])
 {
     Platform::init();
 
-    // The Morrowind game pack's crafting rules: installed before the engine makes its first window (task 0085 move 2).
-    // openmw-lib reaches them only through the contract; this executable is the one place that names the pack.
-    MWWorld::installCraftingRules(game_morrowind::makeCraftingRules());
+    // The Morrowind game pack's rules, handed over through GameRules (task 0084 leftovers, stage I1) before the engine
+    // makes its first window (the crafting windows begin their sessions when they are built). openmw-lib reaches them
+    // only through the contract; this executable is the one place that names the pack. They are installed whatever
+    // game= says, so a default session plays Morrowind exactly as before; the lifecycle does not carry them yet (see
+    // the stage log of task 0084).
+    const std::unique_ptr<openeden::sdk::game::GameRules> morrowindRules = game_morrowind::makeGameRules();
+    MWWorld::installGameRules(*morrowindRules);
     // and its journal and dialogue manager (task 0085 move 3), made later by the Game state through this hook.
     MWDialogue::installFactories({ &game_morrowind::makeJournal, &game_morrowind::makeDialogueManager,
         &game_morrowind::compileAllDialogueScripts });

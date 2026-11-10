@@ -94,6 +94,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testextensionworld.cpp
     extension/testgamepackallocation.cpp
     extension/testgamepackhost.cpp
+    extension/testgamerules.cpp
 )
 
 # Task 0063 (AdvancedBodies B1): the legacy adapter's tests need the game's store, bodyparts.cpp and bodylegacy.cpp
