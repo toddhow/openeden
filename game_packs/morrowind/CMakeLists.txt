@@ -8,6 +8,10 @@
 #
 # Move 2 put the crafting rules here: alchemy, enchanting, recharge and repair, moved from apps/openmw/mwmechanics.
 
+# Move 5 (task 0098) put the thief rules (security, pickpocket) and the progression rules (spell autocalc, difficulty
+# scaling, levelled lists) here, and rules.cpp, the one function (game_morrowind::installRules) through which the
+# executable hands every rule of this pack to the core's MWBase::RulesRegistry.
+
 # Move 4 (task 0098) put Morrowind's script command set here: the handlers of the commands (the *extensions files, moved
 # from apps/openmw/mwscript) and the compile table (script_table.cpp, with the opcode numbers in compiler_opcodes.hpp,
 # moved from components/compiler). The table is its own small library because the editor and the components tests need
@@ -49,6 +53,12 @@ openeden_add_game_pack(game_morrowind STATIC
         src/transformationextensions.cpp
         src/userextensions.cpp
         src/script_commands.cpp
+        src/security.cpp
+        src/pickpocket.cpp
+        src/difficultyscaling.cpp
+        src/levelledlist.cpp
+        src/autocalcspell.cpp
+        src/rules.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp
         include/game_morrowind/recharge.hpp
@@ -77,6 +87,12 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/userextensions.hpp
         include/game_morrowind/consoleextensions.hpp
         include/game_morrowind/script_commands.hpp
+        include/game_morrowind/security.hpp
+        include/game_morrowind/pickpocket.hpp
+        include/game_morrowind/difficultyscaling.hpp
+        include/game_morrowind/levelledlist.hpp
+        include/game_morrowind/autocalcspell.hpp
+        include/game_morrowind/rules.hpp
 )
 
 # The repository root is for the pack's own sources, which include <apps/openmw/...> by path; it is not exported, so a

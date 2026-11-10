@@ -5,7 +5,8 @@
 
 namespace MWMechanics
 {
-
+    /// The pickpocketing of one thief against one victim. The rules are the game pack's (task 0098 move 5): this class
+    /// only carries the two actors and forwards to MWBase::RulesRegistry::thief().
     class Pickpocket
     {
     public:
@@ -19,12 +20,9 @@ namespace MWMechanics
         bool finish();
 
     private:
-        bool getDetected(float valueTerm);
-        float getChanceModifier(const MWWorld::Ptr& ptr, float add = 0);
         MWWorld::Ptr mThief;
         MWWorld::Ptr mVictim;
     };
-
 }
 
 #endif

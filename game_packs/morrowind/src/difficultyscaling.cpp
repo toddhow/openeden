@@ -1,0 +1,44 @@
+#include <game_morrowind/difficultyscaling.hpp>
+
+#include <components/settings/values.hpp>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+
+namespace MWMechanics::Morrowind
+{
+    float scaleDamage(float damage, const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim)
+    {
+        const MWWorld::Ptr& player = MWMechanics::getPlayer();
+
+        static const float fDifficultyMult = MWBase::Environment::get()
+                                                 .getESMStore()
+                                                 ->get<ESM::GameSetting>()
+                                                 .find("fDifficultyMult")
+                                                 ->mValue.getFloat();
+
+        const float difficultyTerm = 0.01f * Settings::game().mDifficulty;
+
+        float x = 0;
+        if (victim == player)
+        {
+            if (difficultyTerm > 0)
+                x = fDifficultyMult * difficultyTerm;
+            else
+                x = difficultyTerm / fDifficultyMult;
+        }
+        else if (attacker == player)
+        {
+            if (difficultyTerm > 0)
+                x = -difficultyTerm / fDifficultyMult;
+            else
+                x = fDifficultyMult * (-difficultyTerm);
+        }
+
+        damage *= 1 + x;
+        return damage;
+    }
+}

@@ -313,8 +313,8 @@ namespace CraftingTest
             EXPECT_TRUE(finishWithRoll(5));
         }
 
-        // The item raises the victim's side by 10 * fPickPocketMod * value * count: 20 for one gem (value 4), 40 for two.
-        // One gem: y = (20 + 10 + 5 + 15) * 1.25 = 62.5, t = 25.
+        // The item raises the victim's side by 10 * fPickPocketMod * value * count: 20 for one gem (value 4), 40 for
+        // two. One gem: y = (20 + 10 + 5 + 15) * 1.25 = 62.5, t = 25.
         TEST_F(RulesPickpocketTest, pick_adds_the_value_of_the_stack_to_the_victims_side)
         {
             setVictimSneak(15.f);

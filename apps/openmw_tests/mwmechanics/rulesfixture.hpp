@@ -167,10 +167,7 @@ namespace CraftingTest
         }
 
         /// Count of the item with that id in the player's inventory.
-        int countOf(const ESM::RefId& id)
-        {
-            return mPlayer.getClass().getContainerStore(mPlayer).count(id);
-        }
+        int countOf(const ESM::RefId& id) { return mPlayer.getClass().getContainerStore(mPlayer).count(id); }
 
         /// How many roll0to99-sized draws the world generator has made since \a seed, found by comparing it with a
         /// sibling that made 0, 1, 2 ... draws. This does not depend on how a standard library maps the generator's
@@ -197,9 +194,9 @@ namespace CraftingTest
         std::vector<std::unique_ptr<MWWorld::LiveCellRef<ESM::Container>>> mLocks;
     };
 
-    /// Compares \a actual with the recording in apps/openmw_tests/mwmechanics/data/<name>. With the environment variable
-    /// OPENEDEN_WRITE_RULES_GOLDEN set to a folder, the recording is written there instead (and the test fails, so
-    /// that nobody mistakes writing for checking).
+    /// Compares \a actual with the recording in apps/openmw_tests/mwmechanics/data/<name>. With the environment
+    /// variable OPENEDEN_WRITE_RULES_GOLDEN set to a folder, the recording is written there instead (and the test
+    /// fails, so that nobody mistakes writing for checking).
     inline void expectRecording(const std::string& name, const std::string& actual)
     {
         if (const char* folder = std::getenv("OPENEDEN_WRITE_RULES_GOLDEN"))
@@ -207,8 +204,8 @@ namespace CraftingTest
             std::ofstream(std::string(folder) + "/" + name, std::ios::binary) << actual;
             FAIL() << "wrote the recording " << name << " to " << folder;
         }
-        const std::string path
-            = std::string(reinterpret_cast<const char*>(OPENMW_PROJECT_SOURCE_DIR)) + "/apps/openmw_tests/mwmechanics/data/" + name;
+        const std::string path = std::string(reinterpret_cast<const char*>(OPENMW_PROJECT_SOURCE_DIR))
+            + "/apps/openmw_tests/mwmechanics/data/" + name;
         std::ifstream file(path, std::ios::binary);
         ASSERT_TRUE(file.good()) << "cannot open " << path;
         std::string expected((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());

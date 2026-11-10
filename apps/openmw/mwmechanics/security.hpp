@@ -1,12 +1,14 @@
 #ifndef MWMECHANICS_SECURITY_H
 #define MWMECHANICS_SECURITY_H
 
+#include <string_view>
+
 #include "../mwworld/ptr.hpp"
 
 namespace MWMechanics
 {
-
-    /// @brief implementation of Security skill
+    /// @brief the Security skill's actions for one actor. The rules are the game pack's (task 0098 move 5): this class
+    /// only carries the actor and forwards to MWBase::RulesRegistry::thief().
     class Security
     {
     public:
@@ -18,10 +20,8 @@ namespace MWMechanics
             std::string_view& resultSound);
 
     private:
-        float mAgility, mLuck, mSecuritySkill, mFatigueTerm;
         MWWorld::Ptr mActor;
     };
-
 }
 
 #endif

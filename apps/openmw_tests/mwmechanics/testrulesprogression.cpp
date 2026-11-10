@@ -134,15 +134,18 @@ namespace CraftingTest
                 }
             }
 
-            const ESM::ItemLevList& itemList(const std::string& id) { return *mStore.get<ESM::ItemLevList>().find(rid(id)); }
+            const ESM::ItemLevList& itemList(const std::string& id)
+            {
+                return *mStore.get<ESM::ItemLevList>().find(rid(id));
+            }
             const ESM::CreatureLevList& creatureList(const std::string& id)
             {
                 return *mStore.get<ESM::CreatureLevList>().find(rid(id));
             }
 
             /// Every result over many seeds.
-            std::set<std::string> results(const ESM::LevelledListBase& list, bool creature, std::optional<int> level = {},
-                int seeds = 300)
+            std::set<std::string> results(
+                const ESM::LevelledListBase& list, bool creature, std::optional<int> level = {}, int seeds = 300)
             {
                 std::set<std::string> found;
                 for (int i = 1; i <= seeds; ++i)
@@ -229,7 +232,8 @@ namespace CraftingTest
             for (unsigned seed : { 1u, 2u, 3u, 77u })
             {
                 Misc::Rng::Generator prng(seed);
-                const std::string got = MWMechanics::getLevelledItem(&itemList("list_two"), false, prng).getRefIdString();
+                const std::string got
+                    = MWMechanics::getLevelledItem(&itemList("list_two"), false, prng).getRefIdString();
                 Misc::Rng::Generator sibling(seed);
                 Misc::Rng::roll0to99(sibling);
                 const int pick = Misc::Rng::rollDice(2, sibling);
@@ -318,9 +322,9 @@ namespace CraftingTest
                 RulesTest::SetUp();
 
                 // schools: Destruction holds 2 spells, the rest 1
-                const std::pair<ESM::RefId, int> schools[] = { { ESM::Skill::Alteration, 1 },
-                    { ESM::Skill::Conjuration, 1 }, { ESM::Skill::Destruction, 2 }, { ESM::Skill::Illusion, 1 },
-                    { ESM::Skill::Mysticism, 1 }, { ESM::Skill::Restoration, 1 } };
+                const std::pair<ESM::RefId, int> schools[]
+                    = { { ESM::Skill::Alteration, 1 }, { ESM::Skill::Conjuration, 1 }, { ESM::Skill::Destruction, 2 },
+                          { ESM::Skill::Illusion, 1 }, { ESM::Skill::Mysticism, 1 }, { ESM::Skill::Restoration, 1 } };
                 for (const auto& [id, limit] : schools)
                 {
                     ESM::Skill skill;
@@ -462,12 +466,15 @@ namespace CraftingTest
             for (const Case& c : cases)
             {
                 const Actor actor = makeActor(c.mSkill, c.mAttribute, c.mIntelligence);
-                out << c.mName << " npc: " << join(MWMechanics::autoCalcNpcSpells(actor.mSkills, actor.mAttributes, nullptr))
+                out << c.mName
+                    << " npc: " << join(MWMechanics::autoCalcNpcSpells(actor.mSkills, actor.mAttributes, nullptr))
                     << '\n';
-                out << c.mName << " npc+race: "
-                    << join(MWMechanics::autoCalcNpcSpells(actor.mSkills, actor.mAttributes, race)) << '\n';
-                out << c.mName << " player: "
-                    << join(MWMechanics::autoCalcPlayerSpells(actor.mSkills, actor.mAttributes, nullptr)) << '\n';
+                out << c.mName
+                    << " npc+race: " << join(MWMechanics::autoCalcNpcSpells(actor.mSkills, actor.mAttributes, race))
+                    << '\n';
+                out << c.mName
+                    << " player: " << join(MWMechanics::autoCalcPlayerSpells(actor.mSkills, actor.mAttributes, nullptr))
+                    << '\n';
                 out << c.mName << " player+race: "
                     << join(MWMechanics::autoCalcPlayerSpells(actor.mSkills, actor.mAttributes, race)) << '\n';
             }
@@ -479,7 +486,8 @@ namespace CraftingTest
         TEST_F(RulesAutocalcTest, the_magicka_edge_matches_the_recording)
         {
             std::ostringstream out;
-            for (const char* name : { "sp_fire_small", "sp_fire_med", "sp_heal", "sp_skill", "sp_pc_cheap", "sp_pc_mid" })
+            for (const char* name :
+                { "sp_fire_small", "sp_fire_med", "sp_heal", "sp_skill", "sp_pc_cheap", "sp_pc_mid" })
             {
                 const ESM::Spell* spell = mStore.get<ESM::Spell>().find(rid(name));
                 const int cost = MWMechanics::calcSpellCost(*spell);

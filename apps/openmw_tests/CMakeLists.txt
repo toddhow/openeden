@@ -78,6 +78,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0098 move 5, stage 2: characterization tests of the thief and progression rules.
     mwmechanics/testrulesthief.cpp
     mwmechanics/testrulesprogression.cpp
+    mwmechanics/testrulesregistry.cpp
 
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
