@@ -36,6 +36,7 @@
 #include "../mwworld/worldmodel.hpp"
 
 #include "luabindings.hpp"
+#include "packbindings.hpp"
 #include "playerscripts.hpp"
 #include "types/types.hpp"
 #include "userdataserializer.hpp"
@@ -178,6 +179,18 @@ namespace MWLua
             mLocalPackages["openmw.storage"] = LuaUtil::LuaStorage::initLocalPackage(view, &mGlobalStorage);
             mPlayerPackages["openmw.storage"]
                 = LuaUtil::LuaStorage::initPlayerPackage(view, &mGlobalStorage, &mPlayerStorage);
+
+            // The game pack's script namespaces (task 0097): global, local and player scripts, never menu or load.
+            // With no namespace declared the map is empty and nothing is added.
+            if (mPackBindings != nullptr)
+            {
+                for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings))
+                {
+                    mGlobalScripts.addPackage(name, package);
+                    mLocalPackages[name] = package;
+                    mPlayerPackages[name] = package;
+                }
+            }
 
             mPlayerStorage.setActive(true);
             mGlobalStorage.setActive(false);

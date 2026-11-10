@@ -109,6 +109,8 @@ namespace OMW
 
             // As in OpenMW 0.51, permanent storage is loaded before the load scripts run (LuaManager::init).
             mLuaManager->loadPermanentStorage(mEngine.mCfgMgr.getUserConfigPath());
+            // The game pack started above, so its script namespaces are declared (task 0097, stage A)
+            mLuaManager->setPackBindings(&mEngine.mExtensionHost->host().bindings());
             mLuaManager->init(mEngine.mRenderManager.get());
             mEngine.mExtensionHost->setLuaManager(mLuaManager);
 

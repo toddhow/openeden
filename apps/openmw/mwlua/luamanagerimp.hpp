@@ -29,6 +29,10 @@ namespace MWRender
 {
     class RenderManager;
 }
+namespace openeden::extension
+{
+    class BindingsStore;
+}
 namespace MWLua
 {
     // \brief LuaManager is the central interface through which the engine invokes lua scripts.
@@ -43,6 +47,10 @@ namespace MWLua
         LuaManager(const LuaManager&) = delete;
         LuaManager(LuaManager&&) = delete;
         ~LuaManager();
+
+        /// The namespaces the game pack declared (task 0097). Call before init(); the packages are built in
+        /// initPostLoad. Null (the default) adds none. The store must outlive this manager.
+        void setPackBindings(openeden::extension::BindingsStore* store) { mPackBindings = store; }
 
         void init(MWRender::RenderManager* renderManager);
         void initPreLoad();
@@ -260,6 +268,8 @@ namespace MWLua
         LuaUtil::InputTrigger::Registry mInputTriggers;
 
         LuaUtil::ScriptTracker mScriptTracker;
+
+        openeden::extension::BindingsStore* mPackBindings = nullptr; // not owned (task 0097)
     };
 
 }
