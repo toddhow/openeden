@@ -1,0 +1,12 @@
+sp_fire_small cost=2 int=1 npc: sp_always player: -
+sp_fire_small cost=2 int=2 npc: sp_fire_small,sp_always player: sp_fire_small
+sp_fire_med cost=38 int=37 npc: sp_fire_small,sp_heal,sp_always player: sp_heal,sp_pc_dear
+sp_fire_med cost=38 int=38 npc: sp_fire_small,sp_fire_med,sp_heal player: sp_fire_med,sp_heal
+sp_heal cost=30 int=29 npc: sp_fire_small,sp_always player: sp_pc_mid,sp_pc_dear
+sp_heal cost=30 int=30 npc: sp_fire_small,sp_heal,sp_always player: sp_heal,sp_pc_dear
+sp_skill cost=45 int=44 npc: sp_fire_small,sp_fire_med,sp_heal player: sp_fire_med,sp_heal
+sp_skill cost=45 int=45 npc: sp_fire_small,sp_fire_med,sp_heal,sp_skill player: sp_fire_med,sp_skill
+sp_pc_cheap cost=3 int=2 npc: sp_fire_small,sp_always player: sp_fire_small
+sp_pc_cheap cost=3 int=3 npc: sp_fire_small,sp_always player: sp_fire_small,sp_pc_cheap
+sp_pc_mid cost=8 int=7 npc: sp_fire_small,sp_always player: sp_fire_small,sp_pc_cheap
+sp_pc_mid cost=8 int=8 npc: sp_fire_small,sp_always player: sp_pc_cheap,sp_pc_mid
