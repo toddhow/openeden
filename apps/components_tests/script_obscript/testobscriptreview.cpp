@@ -173,8 +173,7 @@ namespace
     {
         RuntimeFixture fixture(UnknownFunctionPolicy::Tolerant);
         ObScriptContract* current = fixture.mRuntime.get();
-        ObScriptLegacyMirror::LegacyContract* legacy
-            = reinterpret_cast<ObScriptLegacyMirror::LegacyContract*>(current);
+        ObScriptLegacyMirror::LegacyContract* legacy = reinterpret_cast<ObScriptLegacyMirror::LegacyContract*>(current);
         ScriptSource source;
         source.name = "Old";
         source.text = "ScriptName Old\nshort x\nBegin GameMode\nSet x to 5\nEnd\n";
