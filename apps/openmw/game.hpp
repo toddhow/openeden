@@ -75,6 +75,12 @@ namespace OMW
             // manager.
             mLuaManager = mEngine.mLuaManager.get();
 
+            // The game pack chosen by game= starts first, before anything below is built: the crafting windows begin
+            // their sessions in their constructors (initUI) and take the pack's rules from the core, and the
+            // dialogue manager is made next. With no game pack this does nothing, and the other extensions start at
+            // the end of this constructor as they always did.
+            mEngine.mExtensionHost->startGamePack(mWorld->getPhysicsSystem());
+
             Compiler::registerExtensions(mExtensions);
             mScriptContext.reset(new MWScript::CompilerContext(MWScript::CompilerContext::Type_Full));
             mScriptContext->setExtensions(&mExtensions);

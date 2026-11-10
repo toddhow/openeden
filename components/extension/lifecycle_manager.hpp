@@ -46,6 +46,18 @@ namespace openeden::extension
         bool initialize();
 
         /**
+         * @brief The first of two start phases, for a session with a game pack (task 0084 leftovers, stage I1b):
+         * registers and resolves every extension, then starts only the game pack and the extensions that provide a
+         * contract it requires, in load order. A later initialize() starts the rest and does not start these again.
+         * Returns false and does nothing when no game pack was added, or when initialize() or this call has already
+         * run; then initialize() behaves exactly as it always did.
+         */
+        bool initializeGamePack();
+
+        /// True if a game pack (manifest kind "game") was added. Valid before and after initialize().
+        bool hasGamePack() const;
+
+        /**
          * @brief Runs a frame phase, calling registered callbacks in load order.
          * Exceptions thrown by extensions are caught at the boundary and isolate the failing extension.
          */
@@ -127,6 +139,8 @@ namespace openeden::extension
         bool isSavingAllowed() const { return mSessionError.empty(); }
 
     private:
+        void prepare();
+        void startPending(const std::set<std::string>* only);
         void markExtensionFaulted(const std::string& extensionId, const char* stage, const char* reason = nullptr);
         void processDeferredFaults();
         void noteGamePackFailure(const std::string& extensionId, std::string_view stage, std::string_view reason);
@@ -159,5 +173,6 @@ namespace openeden::extension
         std::string mGamePackVersion;
         std::string mSessionError;
         bool mInitialized = false;
+        bool mPrepared = false;
     };
 } // namespace openeden::extension

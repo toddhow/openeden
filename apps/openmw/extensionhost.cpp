@@ -19,9 +19,12 @@
 #include "mwbase/statemanager.hpp"
 #include "mwbase/world.hpp"
 #include "mwphysics/physicssystem.hpp"
+#include "mwworld/craftingrules.hpp"
+#include "mwworld/gamerules.hpp"
 #include "mwworld/ptr.hpp"
 #include <components/extension/extension_loader.hpp>
 
+#include <openeden/game/game_rules.hpp>
 #include <openeden/logging.hpp>
 #include <openeden/pack_kind.hpp>
 
@@ -193,6 +196,36 @@ namespace OMW
             mLoaded = true;
         }
 
+        // A game pack linked into the executable stands in for one that is not installed (stage I1b)
+        if (!config.gamePackId.empty() && seen.find(config.gamePackId) == seen.end())
+        {
+            for (const StaticPack& pack : config.staticPacks)
+            {
+                if (pack.manifest.id != config.gamePackId || !pack.create)
+                    continue;
+                Log(Debug::Info) << "Loading game pack '" << pack.manifest.id << "' (built in)";
+                std::unique_ptr<openeden::sdk::Extension> instance;
+                try
+                {
+                    instance = pack.create();
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Error) << "Game pack '" << pack.manifest.id << "' failed at create: " << e.what();
+                    mLoadFailures.push_back(pack.manifest.id + ": " + e.what());
+                    break;
+                }
+                if (!instance)
+                    break;
+                seen.insert(pack.manifest.id);
+                mGamePackBuiltIn = true;
+                loadedManifests.push_back(pack.manifest);
+                mLifecycle.addExtension(pack.manifest, std::move(instance), nullptr);
+                mLoaded = true;
+                break;
+            }
+        }
+
         for (const std::string& id : config.enabled)
         {
             if (seen.find(id) == seen.end())
@@ -319,9 +352,14 @@ namespace OMW
 
     void ExtensionHost::attachWorld(MWPhysics::PhysicsSystem& physics)
     {
-        if (!mLoaded)
+        // A game pack may have been started first, with the world already attached (startGamePack)
+        if (!mLoaded || mWorld)
             return;
+        attachWorldNow(physics);
+    }
 
+    void ExtensionHost::attachWorldNow(MWPhysics::PhysicsSystem& physics)
+    {
         mPhysics = &physics;
         mWorld = std::make_unique<ExtensionWorld>(mHost, &physics);
         mHost.attachPhysicsWorld(physics.getJoltWorld(), Constants::UnitsPerMeter);
@@ -423,9 +461,51 @@ namespace OMW
         stop();
     }
 
+    bool ExtensionHost::startGamePack(MWPhysics::PhysicsSystem* physics)
+    {
+        // No game pack: nothing at all happens here, and start() is the single start it always was
+        if (!mLoaded || mRunning || !mLifecycle.hasGamePack())
+            return false;
+
+        // The log bridge and the world must exist first, as they do for the single start
+        beginRunning();
+        if (physics != nullptr && !mWorld)
+            attachWorldNow(*physics);
+        if (!mLifecycle.initializeGamePack())
+            return false;
+        Log(Debug::Info) << "Game pack '" << mLifecycle.getGamePackId() << "' started before the game's managers";
+        installPackRules();
+        return true;
+    }
+
+    void ExtensionHost::installPackRules()
+    {
+        // A pack that failed to start installs nothing: its objects may be half set up
+        if (!mLifecycle.getSessionError().empty())
+            return;
+        if (openeden::sdk::game::GameRules* rules = mLifecycle.serviceLocator().find<openeden::sdk::game::GameRules>())
+        {
+            MWWorld::installGameRules(*rules);
+            // The core owns what the pack made. A pack from a library must not leave its objects behind when the
+            // library unloads; a built-in pack's code stays for the whole run.
+            mRulesFromPack = !mGamePackBuiltIn;
+            Log(Debug::Info) << "Game rules of '" << rules->gameId() << "' installed";
+        }
+    }
+
     void ExtensionHost::start()
     {
-        if (!mLoaded || mRunning)
+        if (!mLoaded || mStarted)
+            return;
+        mStarted = true;
+        beginRunning();
+        mLifecycle.initialize();
+        finishStart();
+    }
+
+    void ExtensionHost::beginRunning()
+    {
+        if (mRunning)
             return;
 
         mLogBridge = std::make_shared<LogBridge>();
@@ -466,6 +546,13 @@ namespace OMW
             // Stops physics threads queueing before anything they could reach goes
             if (mPhysics != nullptr)
                 mPhysics->setContactObserver(nullptr);
+            // Rules made by a pack in a library must not outlive it: the core owns them, but their code is the
+            // library's
+            if (mRulesFromPack)
+            {
+                MWWorld::installCraftingRules(nullptr);
+                mRulesFromPack = false;
+            }
             mHost.eventBus().setForwardSink(nullptr);
             mHost.vfsService().setEngineVfs(nullptr);
             const std::lock_guard lock(bridge->mMutex);
@@ -474,8 +561,10 @@ namespace OMW
 
         mRunning = true;
         Misc::resetGameConventions(); // a session without a pack plays with the defaults
-        mLifecycle.initialize();
+    }
 
+    void ExtensionHost::finishStart()
+    {
         // The pack's data conventions go to the generic engine (task 0085, move 1). With no pack, or one that provides
         // the contract below version 1.1, the engine keeps its defaults, which are Morrowind's.
         // A pack that failed to start (session error) installs nothing: its contract may be half set up.

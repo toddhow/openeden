@@ -38,16 +38,15 @@ namespace openeden::extension
         mExtensions[id] = std::move(record);
     }
 
-    bool LifecycleManager::initialize()
+    void LifecycleManager::prepare()
     {
-        if (mInitialized)
-            return true;
-
-        mInitialized = true;
+        if (mPrepared)
+            return;
+        mPrepared = true;
 
         if (mExtensions.empty())
         {
-            return true;
+            return;
         }
 
         // One game pack per session: the first by ID is the one of this session, any other is refused before it is
@@ -230,15 +229,92 @@ namespace openeden::extension
                 }
             }
         }
+    }
 
+    bool LifecycleManager::initialize()
+    {
+        if (mInitialized)
+            return true;
+
+        mInitialized = true;
+
+        if (mExtensions.empty())
+        {
+            return true;
+        }
+
+        // Registers and resolves everything, unless initializeGamePack() has done so already
+        prepare();
+        startPending(nullptr);
+        mDisabledExtensionsList.assign(mDisabledExtensions.begin(), mDisabledExtensions.end());
+        return true;
+    }
+
+    bool LifecycleManager::hasGamePack() const
+    {
+        return std::any_of(mExtensions.begin(), mExtensions.end(),
+            [](const auto& entry) { return entry.second.kind == openeden::sdk::PackKind::Game; });
+    }
+
+    bool LifecycleManager::initializeGamePack()
+    {
+        if (mPrepared || mInitialized)
+            return false;
+        if (!hasGamePack())
+            return false;
+
+        prepare();
+
+        // The game pack and, transitively, whatever provides a contract it requires (a pack cannot start before its
+        // providers). Optional contracts do not pull their providers in: they were registered above, and start in the
+        // second phase.
+        std::set<std::string> closure;
+        std::vector<std::string> pending;
+        if (!mGamePackId.empty() && mActiveExtensions.count(mGamePackId) != 0)
+        {
+            closure.insert(mGamePackId);
+            pending.push_back(mGamePackId);
+        }
+        while (!pending.empty())
+        {
+            const std::string id = pending.back();
+            pending.pop_back();
+            for (const auto& req : mExtensions[id].manifest.requiredContracts)
+            {
+                for (const auto& [otherId, other] : mExtensions)
+                {
+                    if (closure.count(otherId) != 0 || mActiveExtensions.count(otherId) == 0)
+                        continue;
+                    const bool provides = std::any_of(other.manifest.providedContracts.begin(),
+                        other.manifest.providedContracts.end(), [&](const ContractRequirement& offer) {
+                            return offer.contract == req.contract && offer.version.major == req.version.major;
+                        });
+                    if (provides)
+                    {
+                        closure.insert(otherId);
+                        pending.push_back(otherId);
+                    }
+                }
+            }
+        }
+
+        startPending(&closure);
+        mDisabledExtensionsList.assign(mDisabledExtensions.begin(), mDisabledExtensions.end());
+        return true;
+    }
+
+    void LifecycleManager::startPending(const std::set<std::string>* only)
+    {
         // Phase 6.6: start in load order
         for (const auto& id : mLoadOrder)
         {
             if (mActiveExtensions.find(id) == mActiveExtensions.end())
                 continue;
+            if (only != nullptr && only->count(id) == 0)
+                continue;
 
             auto it = mExtensions.find(id);
-            if (it != mExtensions.end() && it->second.instance)
+            if (it != mExtensions.end() && it->second.instance && !it->second.started)
             {
                 try
                 {
@@ -260,9 +336,6 @@ namespace openeden::extension
                 processDeferredFaults();
             }
         }
-
-        mDisabledExtensionsList.assign(mDisabledExtensions.begin(), mDisabledExtensions.end());
-        return true;
     }
 
     void LifecycleManager::runPhase(openeden::sdk::Phase phase, float dt)

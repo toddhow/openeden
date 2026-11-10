@@ -16,6 +16,7 @@ openeden_add_game_pack(game_morrowind STATIC
         src/repair.cpp
         src/crafting_rules.cpp
         src/game_rules.cpp
+        src/pack.cpp
         src/dialogue_rules.cpp
         src/dialoguemanagerimp.cpp
         src/journalimp.cpp
@@ -28,6 +29,7 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/repair.hpp
         include/game_morrowind/crafting_rules.hpp
         include/game_morrowind/game_rules.hpp
+        include/game_morrowind/pack.hpp
         include/game_morrowind/dialogue_rules.hpp
         include/game_morrowind/dialoguemanagerimp.hpp
         include/game_morrowind/journalimp.hpp

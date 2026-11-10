@@ -3,14 +3,19 @@
 
 #include <components/extension/host_impl.hpp>
 #include <components/extension/lifecycle_manager.hpp>
+#include <components/extension/manifest.hpp>
 #include <components/extension/vfs_service.hpp>
 
+#include "builtinpack.hpp"
 #include "mwbase/extensionmanager.hpp"
 #include "mwbase/luamanager.hpp"
 
 #include <openeden/phases.hpp>
 
+#include <openeden/extension.hpp>
+
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,6 +40,8 @@ namespace OMW
     class ExtensionHost final : public MWBase::ExtensionManager
     {
     public:
+        using StaticPack = BuiltInGamePack;
+
         struct Config
         {
             /// Searched in this order; an extension found in an earlier directory wins over a later one with the same
@@ -45,6 +52,10 @@ namespace OMW
             /// The game pack of this session (game=), empty for none. It is loaded without being in `enabled`; any
             /// other pack of kind "game" is refused, and with this empty so is every one (task 0084).
             std::string gamePackId = {};
+            /// Game packs linked into the executable (task 0084 leftovers, stage I1b). One is used only when it is the
+            /// game= pack and no pack of that id is installed on disk. It goes through the same lifecycle as a loaded
+            /// pack, with no library.
+            std::vector<StaticPack> staticPacks = {};
         };
 
         explicit ExtensionHost(const Config& config);
@@ -52,6 +63,13 @@ namespace OMW
 
         ExtensionHost(const ExtensionHost&) = delete;
         ExtensionHost& operator=(const ExtensionHost&) = delete;
+
+        /// The first start phase (task 0084 leftovers, stage I1b): starts the game pack chosen by game= and the
+        /// extensions it needs, and installs the pack's GameRules into the core. The Game state calls it before it
+        /// builds the managers and windows that depend on the rules; start() later starts everything else and skips
+        /// these. Does nothing, and returns false, when no game pack is loaded: then start() is the old single start.
+        /// `physics`, if given, is attached first so that the pack gets the world's services at its start. Main thread.
+        bool startGamePack(MWPhysics::PhysicsSystem* physics = nullptr);
 
         void start();
 
@@ -146,6 +164,13 @@ namespace OMW
         MWPhysics::PhysicsSystem* mPhysics = nullptr;
 
         void sendPendingLuaEventsNow();
+        void beginRunning();
+        void finishStart();
+        void installPackRules();
+        void attachWorldNow(MWPhysics::PhysicsSystem& physics);
+        bool mRulesFromPack = false;
+        bool mStarted = false;
+        bool mGamePackBuiltIn = false;
 
         openeden::extension::HostImpl mHost;
         openeden::extension::LifecycleManager mLifecycle;

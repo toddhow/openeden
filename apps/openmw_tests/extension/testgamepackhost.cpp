@@ -303,4 +303,30 @@ namespace
         EXPECT_TRUE(blob.empty());
         host.stop();
     }
+
+    // Task 0084 leftovers, lane I part 2, stage I1b: the first start phase with a pack loaded from a library.
+    TEST_F(GamePackHostTest, theGamePackStartsInTheFirstPhaseAndStartDoesNotStartItAgain)
+    {
+        OMW::ExtensionHost host(config(kPack));
+        EXPECT_TRUE(host.startGamePack());
+        EXPECT_EQ(events(), (std::vector<std::string>{ "resolve", "start with every game service" }));
+        EXPECT_EQ(host.gamePackId(), kPack);
+
+        host.start();
+        EXPECT_EQ(events(), (std::vector<std::string>{ "resolve", "start with every game service" }))
+            << "the second phase does not start the pack again";
+        host.runPhase(Phase::GameSimulation, 0.016f);
+        EXPECT_EQ(events().back(), "phase GameSimulation");
+        host.stop();
+        EXPECT_EQ(events().back(), "stop");
+    }
+
+    TEST_F(GamePackHostTest, withoutAGamePackTheFirstPhaseIsNotTaken)
+    {
+        OMW::ExtensionHost host(config(""));
+        EXPECT_FALSE(host.startGamePack());
+        EXPECT_TRUE(events().empty());
+        host.start();
+        EXPECT_TRUE(events().empty());
+    }
 }

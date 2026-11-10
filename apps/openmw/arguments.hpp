@@ -5,6 +5,8 @@
 #include <components/files/multidircollection.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "builtinpack.hpp"
+
 namespace OMW
 {
     /*
@@ -21,6 +23,8 @@ namespace OMW
         std::vector<std::string> extensions;
         /// The ID of the game pack of this session (game= or --game), empty for none (task 0084)
         std::string gamePack;
+        /// Game packs linked into the executable, usable by game= when none of that id is installed (stage I1b)
+        std::vector<BuiltInGamePack> builtInGamePacks;
         std::filesystem::path resourceDir;
         ToUTF8::FromType encoding = ToUTF8::WINDOWS_1252;
 

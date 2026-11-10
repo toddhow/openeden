@@ -692,6 +692,8 @@ namespace MWRender
             }
             mReplaceable.assign(count, false);
             mStates.resize(count);
+            for (std::size_t i = 0; i < count; ++i)
+                mStates[i].mHasChildren = !mChildren[i].empty();
             mNodes.resize(count);
             mBatches.resize(count);
             mFlags.assign(count, 0);
@@ -1224,6 +1226,10 @@ namespace MWRender
         selection.mFovY = camera.mFovYDegrees * (3.14159265358979323846 / 180.0);
         selection.mAspect = camera.mAspect;
         selection.mViewDistance = camera.mViewDistance;
+        // With map view the tiles reach past the live terrain, which leaves a finest tile's square past its range with
+        // nothing to draw it: such a tile is drawn whatever its error (Lod::SelectionCamera::mLiveRange).
+        if (camera.mViewDistance > camera.mPagingRange)
+            selection.mLiveRange = camera.mPagingRange;
         const Lod::SelectionResult result
             = Lod::selectTileTree(state.mStates, state.mParents, selection, state.mSetup.mThreshold);
 

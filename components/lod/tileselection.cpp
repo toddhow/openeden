@@ -5,6 +5,8 @@
 #include <map>
 #include <optional>
 
+#include "residency.hpp"
+
 namespace Lod
 {
     namespace
@@ -71,18 +73,22 @@ namespace Lod
             const double pixels = pixelError(camera, state.mBounds);
             state.mPixels = static_cast<float>(pixels);
             const TileChoice before = state.mChoice;
+            // Nothing else draws a finest tile's square past the live terrain's reach: it is drawn whatever the error.
+            const bool forced = camera.mLiveRange > 0 && !state.mHasChildren
+                && !squareWithinRange(camera.mX, camera.mY, state.mBounds.mOriginX, state.mBounds.mOriginY,
+                    state.mBounds.mSide, camera.mLiveRange);
             switch (before)
             {
                 case TileChoice::Unset:
                 case TileChoice::Covered:
-                    state.mChoice = pixels <= threshold ? TileChoice::Tile : TileChoice::Live;
+                    state.mChoice = forced || pixels <= threshold ? TileChoice::Tile : TileChoice::Live;
                     break;
                 case TileChoice::Tile:
-                    if (pixels > threshold)
+                    if (!forced && pixels > threshold)
                         state.mChoice = TileChoice::Live;
                     break;
                 case TileChoice::Live:
-                    if (pixels < returnBelow)
+                    if (forced || pixels < returnBelow)
                         state.mChoice = TileChoice::Tile;
                     break;
             }

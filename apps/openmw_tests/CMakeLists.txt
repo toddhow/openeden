@@ -94,6 +94,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testextensionworld.cpp
     extension/testgamepackallocation.cpp
     extension/testgamepackhost.cpp
+    extension/testgamepackphases.cpp
     extension/testgamerules.cpp
     mwstate/testgamepackchunks.cpp
 )

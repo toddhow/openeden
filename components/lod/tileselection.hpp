@@ -42,6 +42,12 @@ namespace Lod
         double mFovY = 1.0; // radians, vertical
         double mAspect = 16.0 / 9.0; // width / height
         double mViewDistance = 30000; // tiles whose nearest point is farther than this are skipped
+        /// How far the live terrain draws, in world units on the ground plane (0 or less: not known, off). A tile
+        /// that has no finer tile under it (TileState::mHasChildren false) and whose square is not wholly inside
+        /// this range cannot be left to the live terrain, which does not draw all of it: it is chosen as Tile
+        /// whatever its pixel error says (the far-terrain gap of 2026-11-09: a rough tile's error keeps it Live out
+        /// to several times the live range, and nothing drew it there).
+        double mLiveRange = 0;
     };
 
     /// Distance from the camera to the nearest point of the tile's bounding box (0 inside it).
@@ -64,6 +70,7 @@ namespace Lod
         TileBounds mBounds;
         TileChoice mChoice = TileChoice::Unset;
         bool mVisible = false; // inside view distance and the view cone this frame
+        bool mHasChildren = false; // a finer baked tile lies under this one (read with SelectionCamera::mLiveRange)
         float mPixels = 0; // the error on screen this frame (0 when not visible)
     };
 

@@ -10,6 +10,7 @@
 
 #include <game_morrowind/dialogue_rules.hpp>
 #include <game_morrowind/game_rules.hpp>
+#include <game_morrowind/pack.hpp>
 
 #include "mwdialogue/dialoguefactory.hpp"
 #include "mwrender/lodbakemode.hpp"
@@ -150,6 +151,9 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
         args.extensions = variables["extension"].as<StringsVector>();
         args.gamePack = variables["game"].as<std::string>();
     }
+    // The Morrowind pack, usable by game=morrowind: the host starts it before the managers and windows are built and
+    // takes the game rules from it (stage I1b). Without game= the lines in runApplication install the same rules.
+    args.builtInGamePacks.push_back({ game_morrowind::packManifest(), &game_morrowind::makePackExtension });
     args.activationDistanceOverride = variables["activate-dist"].as<int>();
     args.randomSeed = variables["random-seed"].as<unsigned int>();
     args.grabMouse = !variables["no-grab"].as<bool>();
