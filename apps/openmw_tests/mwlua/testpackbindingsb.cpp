@@ -1262,7 +1262,9 @@ namespace
             const std::string why = session.host.bindings().unmetRequirement(c.package, c.major, c.minor);
             EXPECT_EQ(why.empty(), c.met) << c.package << ">=" << c.major << "." << c.minor << ": " << why;
             if (!c.met)
+            {
                 EXPECT_NE(why.find(c.mustMention), std::string::npos) << why;
+            }
         }
     }
 
