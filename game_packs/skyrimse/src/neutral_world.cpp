@@ -173,4 +173,20 @@ namespace game_skyrimse
         error.clear();
         return true;
     }
+
+    std::size_t SkyrimCellSource::listCells(
+        std::size_t first, std::size_t maxCount, std::vector<openeden::sdk::game::WorldId>& out) const
+    {
+        std::vector<openeden::sdk::game::WorldCellInfo> infos;
+        const std::size_t appended = mView.listCells(first, maxCount, infos);
+        for (const auto& info : infos)
+            out.push_back(info.id);
+        return appended;
+    }
+
+    bool SkyrimCellSource::buildCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error)
+    {
+        return loadNeutralCell(mView, cell, out, error, mLimits);
+    }
 }

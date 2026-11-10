@@ -115,6 +115,11 @@ add_component_dir (worldlod
     bakestatus
     )
 
+# The core's neutral world store and its identity table (decision 0016, task 0100 stage N1). Layer: engine.
+add_component_dir (worldmodel
+    idtable validate store
+    )
+
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
 # DRAFT layouts, kept behind this one folder. Depends on edenarchive.
 add_component_dir (lod

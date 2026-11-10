@@ -100,3 +100,10 @@ if ! grep -q 'Version policy' sdk/include/openeden/game/world_model.hpp || ! gre
     echo 'sdk/include/openeden/game/world_model.hpp must keep its version policy and kWorldModelVersion'
     exit 1
 fi
+
+# Task 0100 (stage N1): the source interface a pack implements to feed the core's neutral world store states its version.
+# (it is an interface only; that is by review, not by this check).
+if ! grep -q 'kWorldSourceVersion' sdk/include/openeden/game/world_source.hpp || ! grep -q 'Same version policy' sdk/include/openeden/game/world_source.hpp; then
+    echo 'sdk/include/openeden/game/world_source.hpp must keep kWorldSourceVersion and its version policy line'
+    exit 1
+fi

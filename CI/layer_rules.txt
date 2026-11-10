@@ -68,6 +68,7 @@ dir components/l10n engine
 dir components/lod engine
 dir components/modorganizer host
 dir components/worldlod engine
+dir components/worldmodel engine
 dir components/loadinglistener engine
 dir components/lua engine
 dir components/lua_ui engine

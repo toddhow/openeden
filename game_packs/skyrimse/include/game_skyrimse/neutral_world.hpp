@@ -12,6 +12,7 @@
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
 #include <openeden/game/world_model.hpp>
+#include <openeden/game/world_source.hpp>
 #include <openeden/game/world_view.hpp>
 
 #include <string>
@@ -40,6 +41,30 @@ namespace game_skyrimse
     /// False with `error` when the view cannot load the cell (`out` is then empty).
     [[nodiscard]] bool loadNeutralCell(openeden::sdk::game::WorldView& view, openeden::sdk::game::WorldId cell,
         openeden::sdk::game::WorldCell& out, std::string& error, const NeutralLimits& limits = {});
+
+    /// The Skyrim SE side of the core's neutral world store (task 0100 stage N1): a WorldCellSource over any WorldView.
+    /// Cell ids are the view's own ids (the load-order form ids), which are already stable for the session. It keeps a
+    /// reference to the view, which must outlive it. Main thread only, like the view.
+    class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource
+    {
+    public:
+        explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
+            : mView(view)
+            , mLimits(limits)
+        {
+        }
+
+        std::string_view gameId() const override { return "skyrimse"; }
+        std::size_t cellCount() const override { return mView.cellCount(); }
+        std::size_t listCells(
+            std::size_t first, std::size_t maxCount, std::vector<openeden::sdk::game::WorldId>& out) const override;
+        bool buildCell(
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error) override;
+
+    private:
+        openeden::sdk::game::WorldView& mView;
+        NeutralLimits mLimits;
+    };
 }
 
 #endif

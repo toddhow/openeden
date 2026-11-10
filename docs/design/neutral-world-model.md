@@ -1,6 +1,6 @@
 # The neutral world model (decision 0016, task 0099)
 
-Status: DRAFT design for stages N1 and later; stage N0 is built (task 0099). Everything marked **RECALLED-VERIFY** was not checked in the source at this commit. Numbers called estimates are mine. Section 7 open questions: confirmed by toddhow 2026-11-10 (go with recommendations); `Ptr` stays the runtime handle.
+Status: DRAFT design for stages N2 and later; stages N0 (task 0099) and N1 (task 0100) are built. Everything marked **RECALLED-VERIFY** was not checked in the source at this commit. Numbers called estimates are mine. Section 7 open questions: confirmed by toddhow 2026-11-10 (go with recommendations); `Ptr` stays the runtime handle.
 
 Companions: `docs/design/game-packs.md` (the tier this feeds from), `docs/tasks/0086-skyrim-se-game-pack-skeleton.md` (the Skyrim store and the world-model options), `docs/tasks/0098-moves-morrowind-rules-second-set.md` (what is moving out of the core), `sdk/include/openeden/game/world_view.hpp` and `world_model.hpp`.
 
@@ -131,3 +131,24 @@ Recommendation: leave it untouched until N3a works for one Skyrim interior, mark
 7. When do the types freeze to 1.0 (recommended: at N2, after the Studio viewer and N1 consume them)?
 8. Should `ObjectKind` stay an alias of `BaseKind` (cheap, couples the two enums) or become its own enum?
 9. Units: does the model carry a units-per-metre value per game (recommended: per game, in the pack's `GameContract`, as `Misc::GameConventions` does for Morrowind)?
+
+### Adopted answers (blanket approval, 2026-11-10)
+
+The nine questions above were answered with the recommendations, **adopted by blanket approval 2026-11-10, not individually reviewed by toddhow**: (1) the value types stay in the SDK; (2) `Ptr` stays the runtime handle (N3a); (3) the ESM4 path is retired after N3a works for one Skyrim interior (N7); (4) save identity is a session table; (5) cells are built on the main thread only, just ahead through the incremental queue; (6) Morrowind is a read-only projection only, it never reads its world through the neutral model at run time; (7) the types freeze to 1.0 at N2; (8) `ObjectKind` stays an alias of `BaseKind`; (9) units per metre are carried per game in the pack's game contract. Anything that follows from them is open to his review.
+
+## 8. Stage N1 as built (task 0100)
+
+What exists, and where (layers checked by `CI/check_layer_rules.sh`):
+
+| Piece | Where | Layer |
+| --- | --- | --- |
+| `WorldCellSource` (pull interface a pack implements: `gameId`, `cellCount`, `listCells`, `buildCell`), DRAFT 0.1 | `sdk/include/openeden/game/world_source.hpp` | outside the checked tree |
+| `NeutralWorld::IdTable` (the session identity table: namespace tag + bytes to a `WorldId`, numbers from 1 in order of first request, capped) | `components/worldmodel/idtable.*` | engine |
+| `NeutralWorld::validateCell` / `validateObject` / `findObject` (the core re-validates every snapshot: finite values, limits, unit quaternion, ascending unique ids, enums, strings, components) | `components/worldmodel/validate.*` | engine |
+| `NeutralWorld::NeutralWorldStore` (sources by game id; cells built lazily on request; validated; a cell and an object cap with least-recently-requested eviction by a counter; refusals and failures counted; no exception crosses) | `components/worldmodel/store.*` | engine |
+| The Skyrim SE source (`SkyrimCellSource`, over any `WorldView`) | `game_packs/skyrimse/.../neutral_world.*` | pack |
+| The read-only Morrowind projection (`MWWorld::projectCell`, `kindOfRecordType`, `MorrowindCellSource`) | `apps/openmw/mwworld/neutralprojection.*` | rules |
+
+Choices made here: the store takes sources by reference and does not own them; the pointer `cell()` returns is valid until the next call (a later request may evict). Morrowind identity: a placement id is minted from the reference number (content file in the high half, index in the low) in ascending reference-number order, so the same cell gives the same ids whatever order the `CellStore` lists its references in; base, owner, faction, key and destination-cell ids are minted in the same sorted pass, from separate namespaces (`MorrowindIdSpace`). The payload handle is the reference number, so the engine object is found again without a table. Rotation is the engine's own (`Misc::Convert::makeOsgQuat`, Z only for actors) as a quaternion. **Finding:** Morrowind and the Skyrim adapter combine their Euler angles in different orders (Morrowind: R = Rx*Ry*Rz with negated angles, Z applied first, because OSG's quaternion product is the Hamilton product with the operands swapped; Skyrim SE adapter: Rz*Ry*Rx, X first), so each pack converts at its own named place and the neutral quaternion is the only shared form; the first version of the projection test assumed Skyrim's order and failed against the engine. Owner: the owner, else the faction with its rank. Lock: level and key (a negative level is an unlocked door, `locked` false, `level` the magnitude). Teleport: only for doors that teleport, the destination cell (the engine names an exterior destination's cell from its position, `MWWorld::CellRef::getDestCell`, and so does the projection) and the destination transform. Model: `Class::getModel` (a hidden marker has none), collision hint `FromModel` when the model is not empty, else `None`. Persistent is always false (Morrowind has no per-reference flag), the world is none. Objects the projection cannot represent (no reference number, a second object with the same number, a non-finite value, an id table that is full) are counted in `droppedObjects` and in `ProjectionStats`.
+
+Nothing in `apps/openmw` calls the projection or the store: the engine is unchanged when they are unused.

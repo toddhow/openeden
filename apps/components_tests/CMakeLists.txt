@@ -209,6 +209,11 @@ file(GLOB UNITTEST_SRC_FILES
     modorganizer/testrepack.cpp
     worldlod/testbakestatus.cpp
 
+    # Task 0100 stage N1: the neutral world store, its identity table and the validation of snapshots.
+    worldmodel/testidtable.cpp
+    worldmodel/testvalidate.cpp
+    worldmodel/teststore.cpp
+
     nifedit/nifeditbuilder.hpp
     nifedit/nifeditsupport.hpp
     nifedit/testnifindex.cpp

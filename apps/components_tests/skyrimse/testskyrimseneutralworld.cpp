@@ -4,6 +4,8 @@
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>
 
+#include <components/worldmodel/store.hpp>
+
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_view.hpp>
 
@@ -508,5 +510,63 @@ namespace
         EXPECT_FALSE(loadNeutralCell(view, 0x00DEAD00, cell, error));
         EXPECT_FALSE(error.empty());
         EXPECT_EQ(cell, sdkgame::WorldCell{});
+    }
+
+    // ---- Task 0100 stage N1: the Skyrim side of the neutral world store ----
+
+    TEST(SkyrimCellSource, listsTheViewsCellsAndBuildsWhatLoadNeutralCellBuilds)
+    {
+        TempPlugin plugin;
+        SkyrimWorldView view;
+        std::vector<std::string> problems;
+        view.load({ plugin.mFile }, problems);
+        ASSERT_TRUE(problems.empty());
+        SkyrimCellSource source(view);
+        EXPECT_EQ(source.gameId(), "skyrimse");
+        EXPECT_EQ(source.cellCount(), view.cellCount());
+
+        std::vector<sdkgame::WorldId> ids;
+        EXPECT_EQ(source.listCells(0, 100, ids), source.cellCount());
+        const auto info = view.findCellByEditorId("TestHall");
+        ASSERT_TRUE(info.has_value());
+        ASSERT_EQ(ids.size(), 1u);
+        EXPECT_EQ(ids[0], info->id);
+
+        sdkgame::WorldCell viaSource;
+        sdkgame::WorldCell direct;
+        std::string error;
+        ASSERT_TRUE(source.buildCell(info->id, viaSource, error)) << error;
+        ASSERT_TRUE(loadNeutralCell(view, info->id, direct, error)) << error;
+        EXPECT_EQ(viaSource, direct);
+        EXPECT_FALSE(source.buildCell(0x00DEAD00, viaSource, error));
+        EXPECT_EQ(viaSource, sdkgame::WorldCell{});
+    }
+
+    TEST(SkyrimCellSource, theCoreStoreBuildsTheCellLazilyAndKeepsAnEqualSnapshot)
+    {
+        TempPlugin plugin;
+        SkyrimWorldView view;
+        std::vector<std::string> problems;
+        view.load({ plugin.mFile }, problems);
+        SkyrimCellSource source(view);
+        NeutralWorld::NeutralWorldStore store;
+        std::string error;
+        ASSERT_TRUE(store.addSource(source, error)) << error;
+        EXPECT_EQ(store.stats().mResidentCells, 0u) << "nothing is built before a request";
+
+        const auto info = view.findCellByEditorId("TestHall");
+        ASSERT_TRUE(info.has_value());
+        const sdkgame::WorldCell* kept = store.cell("skyrimse", info->id, error);
+        ASSERT_NE(kept, nullptr) << error;
+        sdkgame::WorldCell direct;
+        ASSERT_TRUE(loadNeutralCell(view, info->id, direct, error)) << error;
+        EXPECT_EQ(*kept, direct);
+        EXPECT_EQ(store.stats().mBuilds, 1u);
+        EXPECT_EQ(kept->objects.size(), 3u);
+        const sdkgame::WorldObject* second = NeutralWorld::findObject(*kept, kept->objects[1].id);
+        ASSERT_NE(second, nullptr);
+        EXPECT_EQ(second->kind, sdkgame::ObjectKind::Furniture);
+        EXPECT_EQ(store.cell("skyrimse", info->id, error), kept);
+        EXPECT_EQ(store.stats().mHits, 1u);
     }
 }
