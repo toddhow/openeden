@@ -27,6 +27,7 @@
 
 #include "askloadrecent.hpp"
 #include "cleanup.hpp"
+#include "gamepackchunks.hpp"
 #include "loadgame.hpp"
 #include "loadingscreen.hpp"
 #include "newgame.hpp"
@@ -105,13 +106,28 @@ namespace MWState
         pushGameState(cleanup);
     }
 
+    bool MWState::StateManager::refuseWhileGamePackFailed()
+    {
+        const std::string refusal = gamePackSessionRefusal(*MWBase::Environment::get().getExtensionManager());
+        if (refusal.empty())
+            return false;
+        Log(Debug::Error) << refusal;
+        // Back to the main menu with the located message, as a failed load goes
+        error(refusal);
+        return true;
+    }
+
     void MWState::StateManager::newGame(bool bypass)
     {
+        if (refuseWhileGamePackFailed())
+            return;
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, std::nullopt));
     }
 
     void MWState::StateManager::bypassNewGame(const std::string& startCell)
     {
+        if (refuseWhileGamePackFailed())
+            return;
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, startCell));
     }
 
@@ -218,6 +234,8 @@ namespace MWState
 
     void MWState::StateManager::loadGame(const Character* character, const std::filesystem::path& filepath)
     {
+        if (refuseWhileGamePackFailed())
+            return;
         auto gameState = std::make_shared<LoadGame>(mTimePlayed, mCharacterManager, mState, *this);
         gameState->character = character;
         gameState->filepath = filepath;

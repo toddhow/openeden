@@ -6,8 +6,18 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 
+#include "../mwbase/extensionmanager.hpp"
+
 namespace MWState
 {
+    std::string gamePackSessionRefusal(const MWBase::ExtensionManager& extensions)
+    {
+        const std::string& error = extensions.sessionError();
+        if (error.empty())
+            return {};
+        return "A new game or a load is not possible: " + error;
+    }
+
     std::size_t countGamePackChunkRecords(std::span<const std::byte> bytes) noexcept
     {
         return bytes.empty() ? 0 : 1;

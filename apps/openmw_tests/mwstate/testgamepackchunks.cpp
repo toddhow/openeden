@@ -1,5 +1,6 @@
 // Task 0084 leftovers, lane I stage I4: a game pack's save chunks in the .omwsave record stream. The rule that matters
 // most: a session that writes no chunk produces the same save bytes as before (nothing is written, nothing counted).
+#include <apps/openmw/mwbase/extensionmanager.hpp>
 #include <apps/openmw/mwstate/gamepackchunks.hpp>
 
 #include <components/esm3/esmreader.hpp>
@@ -170,5 +171,42 @@ namespace
         const ext::ChunkRestoreResult restored = loadingSide.restore(decoded);
         ASSERT_TRUE(restored.ok) << restored.error;
         EXPECT_EQ(loader.mValue, 12345);
+    }
+
+    // Task 0084 leftovers, lane I part 2, stage I2b: a failed game pack refuses a new game and a load.
+    class FakeExtensions final : public MWBase::ExtensionManager
+    {
+    public:
+        void objectAddedToScene(const MWWorld::Ptr&) override {}
+        void objectRemovedFromScene(const MWWorld::Ptr&) override {}
+        void cellLoaded(std::string_view) override {}
+        void cellUnloaded(std::string_view) override {}
+        void cellChanged(std::string_view) override {}
+        void actorDied(const MWWorld::Ptr&) override {}
+        void actorRevived(const MWWorld::Ptr&) override {}
+        void actorHit(const MWWorld::Ptr&, const MWWorld::Ptr&, float, bool) override {}
+        void gameLoaded() override {}
+        void playerRebuilt(const MWWorld::Ptr&) override {}
+        void gameSaved() override {}
+
+        const std::string& sessionError() const override { return mError; }
+
+        std::string mError;
+    };
+
+    TEST(GamePackSessionRefusal, aSessionWithoutAFailedPackRefusesNothing)
+    {
+        const FakeExtensions extensions;
+        EXPECT_TRUE(MWState::gamePackSessionRefusal(extensions).empty());
+    }
+
+    TEST(GamePackSessionRefusal, aFailedPackRefusesWithItsLocatedMessage)
+    {
+        FakeExtensions extensions;
+        extensions.mError = "Game pack 'x' failed at start: boom. The game cannot go on and saving is refused.";
+        const std::string refusal = MWState::gamePackSessionRefusal(extensions);
+        EXPECT_THAT(refusal, testing::HasSubstr("Game pack 'x' failed at start: boom"));
+        EXPECT_THAT(refusal, testing::HasSubstr("new game"));
+        EXPECT_THAT(refusal, testing::HasSubstr("load"));
     }
 }

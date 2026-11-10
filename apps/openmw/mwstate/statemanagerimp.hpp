@@ -92,6 +92,10 @@ namespace MWState
 
         void error(const std::string& what);
 
+        /// Refuses a new game or a load while the session's game pack has failed (task 0084 leftovers, stage I2b): logs
+        /// the located reason, returns to the main menu with it, and returns true. False when nothing is wrong.
+        bool refuseWhileGamePackFailed();
+
         void mainMenu();
 
         Character* getCurrentCharacter() override;
