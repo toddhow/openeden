@@ -102,6 +102,10 @@ namespace OMW
         /// Non-empty once the game pack has failed: the session cannot go on and saving is refused.
         [[nodiscard]] const std::string& sessionError() const noexcept override { return mLifecycle.getSessionError(); }
 
+        /// MWBase::ExtensionManager: the session error, else (task 0103) a refusal while a game pack's neutral world
+        /// source is registered, because the world model has no save support until stage N6.
+        [[nodiscard]] std::string savingRefusal() const override;
+
         /// The extensions' debug draw of this frame for the renderer (task 0017 stage 5), copied at the end of the Ui
         /// phase; null when `[Game] extension debug draw` is off. Valid until the next Ui phase. Main thread.
         [[nodiscard]] const openeden::extension::DebugDrawFrame* debugDrawFrame() const noexcept

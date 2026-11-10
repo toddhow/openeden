@@ -61,6 +61,11 @@ namespace MWBase
             return none;
         }
 
+        /// Why saving is refused for this session, or empty when it is allowed: the game pack's failure
+        /// (sessionError) or, for a game pack that registered a neutral world source, the missing save support until
+        /// stage N6 (task 0103). Main thread only.
+        virtual std::string savingRefusal() const { return {}; }
+
         /// The game pack's save chunks as one blob for the save (task 0084 leftovers, stage I4). Empty with no game
         /// pack or when the pack writes no chunk: the save then has no record for them and is byte for byte what it
         /// always was. False, with the reason, when the chunks cannot be written (the pack has failed, a handler

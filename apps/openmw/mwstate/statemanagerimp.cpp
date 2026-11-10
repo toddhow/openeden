@@ -149,10 +149,10 @@ namespace MWState
             return;
         // A game pack that failed is the game that failed: never write a save from it (task 0084)
         const MWBase::ExtensionManager& extensions = *MWBase::Environment::get().getExtensionManager();
-        if (!extensions.sessionError().empty())
+        if (const std::string refusal = extensions.savingRefusal(); !refusal.empty())
         {
-            Log(Debug::Error) << "Saving refused: " << extensions.sessionError();
-            MWBase::Environment::get().getWindowManager()->messageBox(extensions.sessionError());
+            Log(Debug::Error) << "Saving refused: " << refusal;
+            MWBase::Environment::get().getWindowManager()->messageBox(refusal);
             return;
         }
         MWBase::Environment::get().getWindowManager()->asyncPrepareSaveMap();

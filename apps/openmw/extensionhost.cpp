@@ -340,6 +340,15 @@ namespace OMW
         return report;
     }
 
+    std::string ExtensionHost::savingRefusal() const
+    {
+        if (!mLifecycle.getSessionError().empty())
+            return mLifecycle.getSessionError();
+        if (mHost.worldSources().sourceCount() > 0)
+            return "Saving is refused: the game pack's world has no save support yet";
+        return {};
+    }
+
     bool ExtensionHost::collectGamePackSave(std::vector<std::byte>& bytes, std::string& error)
     {
         bytes.clear();

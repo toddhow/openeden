@@ -128,6 +128,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testgamepackphases.cpp
     extension/testgamerules.cpp
     extension/testneutralworldhost.cpp
+    extension/testneutralworldsaving.cpp
     mwstate/testgamepackchunks.cpp
 
     mwlua/testpackbindings.cpp
