@@ -1,6 +1,7 @@
 #ifndef VSGOPENMW_RENDER_ENGINE_H
 #define VSGOPENMW_RENDER_ENGINE_H
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "devicereport.hpp"
 #include "framecapture.hpp"
 #include "framecounters.hpp"
+#include "pipelinecache.hpp"
 #include "vramsource.hpp"
 
 namespace vsg
@@ -142,6 +144,14 @@ namespace Render
         GpuTimer* enableGpuTiming();
         GpuTimer* gpuTimer() const { return mGpuTimer.get(); }
 
+        // OpenEden, 2026-11-09: a persistent VkPipelineCache for every pipeline VSG creates on this engine's device
+        // (see pipelinecache.hpp). Reads <directory>/pipelinecache-<device>-<driver>.bin, hands it to the driver, and
+        // starts a background thread that saves it when it has grown; the last save is made when the engine ends.
+        // Call once, right after construction, before any pipeline is compiled. Returns false (and logs why) when it
+        // is not in use: VSG without the pipeline cache patch (extern/patches/vsg_pipeline_cache.cmake), or the driver
+        // refused the cache. Everything then works as before, with no cache.
+        bool enablePipelineCache(const std::filesystem::path& directory);
+
         // What the machine's Vulkan supports (task 0023, F0c): asks the device, so it takes a moment; call it once, at
         // start.
         DeviceReport deviceReport();
@@ -198,6 +208,8 @@ namespace Render
         FrameCapture* mScreenshotCapture = nullptr;
         // Declared last, so it is destroyed first; it holds a reference to the device.
         std::unique_ptr<GpuTimer> mGpuTimer;
+        // Declared after the window (which owns the device), so it is destroyed first; stopped in ~Engine as well.
+        std::unique_ptr<PipelineCache::Saver> mPipelineCacheSaver;
         FrameCounters mFrameCounters;
         bool mGpuTimingTried = false;
     };

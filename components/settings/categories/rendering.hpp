@@ -17,6 +17,8 @@ namespace Settings
         SettingValue<bool> mGpuTiming{ mIndex, "Rendering", "gpu timing" };
         SettingValue<bool> mSlangShaders{ mIndex, "Rendering", "slang shaders" };
         SettingValue<bool> mDeviceReport{ mIndex, "Rendering", "device report" };
+        // 2026-11-09: a persistent VkPipelineCache under <user data>/openeden/shadercache.
+        SettingValue<bool> mPipelineCache{ mIndex, "Rendering", "pipeline cache" };
         // Task 0054 (S0): extra columns in the frame stats file (memory, loaded cells, scene census).
         SettingValue<bool> mFrameCounters{ mIndex, "Rendering", "frame counters" };
 

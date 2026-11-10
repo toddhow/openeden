@@ -332,6 +332,7 @@ file(GLOB UNITTEST_SRC_FILES
     view/testcollectlights.cpp
     view/testshadowview.cpp
     render/testdevicereport.cpp
+    render/testpipelinecache.cpp
     render/testlodmeasure.cpp
     render/testscreenshotnames.cpp
     render/testframecapture.cpp

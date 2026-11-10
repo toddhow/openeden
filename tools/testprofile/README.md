@@ -72,6 +72,7 @@ In the profile folder (`I:\Projects\OpenEden-work\testprofile\main`):
 
 Screenshots (F12) go to `user\screenshots`; the log is `config\openmw.log`; at exit it also holds the GPU time of each
 render pass (`gpu timing`).
+- *Pipeline cache* (2026-11-09): `pipeline cache = true` keeps the driver's compiled pipelines in `<user data>/openeden/shadercache/pipelinecache-*.bin`. The first run on a new driver still stalls for seconds while the driver compiles; the second run should show no `compile.vsg` scope over 100 ms on the main thread.
 
 ## Console commands that help
 

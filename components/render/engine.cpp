@@ -127,6 +127,8 @@ namespace Render
 
     Engine::~Engine()
     {
+        // Last save of the pipeline cache while the device is alive.
+        mPipelineCacheSaver.reset();
         // The timer's query pool, and the images of screenshot copies in flight, may still be used by frames in flight
         // (loop() waits at its end, a game that aborts or a hosted engine does not).
         if (mGpuTimer || !mFrameCaptures.empty())
@@ -531,6 +533,117 @@ namespace Render
         if (!mGpuTimer)
             Log(Debug::Warning) << "GPU timing is on in the settings but is not available: " << whyNot;
         return mGpuTimer.get();
+    }
+
+    bool Engine::enablePipelineCache(const std::filesystem::path& directory)
+    {
+        if (mPipelineCacheSaver)
+            return true;
+        const vsg::ref_ptr<vsg::Device> device = getOrCreateDevice();
+        const auto physicalDevice = getOrCreatePhysicalDevice();
+        if (!device || !physicalDevice)
+            return false;
+
+        // VSG v1.1.16 has no pipeline cache of its own; extern/patches/vsg_pipeline_cache.cmake adds the member. A
+        // generic lambda makes the check part of overload resolution instead of a compile error.
+        bool supported = false;
+        VkPipelineCache cache = VK_NULL_HANDLE;
+        const auto& properties = physicalDevice->getProperties();
+        PipelineCache::DeviceKey key;
+        key.mVendorId = properties.vendorID;
+        key.mDeviceId = properties.deviceID;
+        std::copy(std::begin(properties.pipelineCacheUUID), std::end(properties.pipelineCacheUUID),
+            key.mCacheUuid.begin());
+        const std::filesystem::path path = directory / PipelineCache::fileName(key);
+
+        std::vector<std::uint8_t> blob;
+        std::size_t loadedSize = 0;
+        const auto create = [&](auto& dev) {
+            if constexpr (requires { dev.pipelineCache; })
+            {
+                supported = true;
+                if (dev.pipelineCache != VK_NULL_HANDLE)
+                    return;
+                PipelineCache::removeStaleSiblings(directory, key);
+                const PipelineCache::LoadStatus status = PipelineCache::readFile(path, key, blob);
+                if (status != PipelineCache::LoadStatus::Missing && status != PipelineCache::LoadStatus::Ok)
+                    Log(Debug::Warning) << "Pipeline cache " << path.string() << " ignored: "
+                                        << PipelineCache::describe(status);
+                VkPipelineCacheCreateInfo info{};
+                info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+                info.initialDataSize = blob.size();
+                info.pInitialData = blob.empty() ? nullptr : blob.data();
+                VkResult result = vkCreatePipelineCache(dev, &info, dev.getAllocationCallbacks(), &cache);
+                if (result != VK_SUCCESS && !blob.empty())
+                {
+                    // A blob the driver refuses: start empty.
+                    Log(Debug::Warning) << "The driver refused the saved pipeline cache (VkResult " << result
+                                        << "); starting empty";
+                    blob.clear();
+                    info.initialDataSize = 0;
+                    info.pInitialData = nullptr;
+                    result = vkCreatePipelineCache(dev, &info, dev.getAllocationCallbacks(), &cache);
+                }
+                if (result != VK_SUCCESS)
+                    cache = VK_NULL_HANDLE;
+                else
+                {
+                    loadedSize = blob.size();
+                    dev.pipelineCache = cache;
+                }
+            }
+        };
+        create(*device);
+        if (!supported)
+        {
+            Log(Debug::Warning) << "The pipeline cache is on, but this VSG build has no pipeline cache support "
+                                   "(extern/patches/vsg_pipeline_cache.cmake): pipelines are compiled afresh every run";
+            return false;
+        }
+        if (cache == VK_NULL_HANDLE)
+            return false;
+
+        Log(Debug::Info) << "Pipeline cache: " << path.string() << ", "
+                         << (loadedSize ? std::to_string(loadedSize / 1024) + " KiB loaded" : "starting empty");
+
+        // The saver's callbacks use the raw handles only; the device outlives the saver (it is destroyed in
+        // ~Engine before the window, and the window owns the device).
+        const VkDevice rawDevice = device->vk();
+        auto size = [rawDevice, cache]() -> std::size_t {
+            std::size_t bytes = 0;
+            if (vkGetPipelineCacheData(rawDevice, cache, &bytes, nullptr) != VK_SUCCESS)
+                return 0;
+            return bytes;
+        };
+        auto fetch = [rawDevice, cache](std::vector<std::uint8_t>& out) {
+            for (int attempt = 0; attempt < 3; ++attempt)
+            {
+                std::size_t bytes = 0;
+                if (vkGetPipelineCacheData(rawDevice, cache, &bytes, nullptr) != VK_SUCCESS || bytes == 0
+                    || bytes > PipelineCache::maxFileBytes)
+                    return false;
+                out.resize(bytes);
+                const VkResult result = vkGetPipelineCacheData(rawDevice, cache, &bytes, out.data());
+                if (result == VK_SUCCESS)
+                {
+                    out.resize(bytes);
+                    return true;
+                }
+                if (result != VK_INCOMPLETE)
+                    return false;
+                // VK_INCOMPLETE: more pipelines arrived between the two calls; ask again.
+            }
+            return false;
+        };
+        auto log = [](const std::string& message) {
+            Log(Debug::Warning) << "Pipeline cache could not be saved: " << message;
+        };
+        const std::size_t initialSize = loadedSize ? size() : 0;
+        constexpr auto saveInterval = std::chrono::seconds(10);
+        mPipelineCacheSaver = std::make_unique<PipelineCache::Saver>(path, key, std::move(size), std::move(fetch),
+            std::move(log), std::chrono::duration_cast<std::chrono::milliseconds>(saveInterval));
+        mPipelineCacheSaver->setKnownSize(initialSize);
+        return true;
     }
 
     void Engine::endFrame()

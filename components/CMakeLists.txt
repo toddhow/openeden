@@ -162,7 +162,7 @@ add_component_dir (pipeline
 add_component_dir (render
     engine download screenshot framecapture headless limitframerate rendertexture cascade computeimage
     screen depth attachmentformat renderpass multisample debuggeometry simplewater intersect defaultsampler
-    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal vramaccount vramsource vramcontroller vramorder vramtexturemips vramscaler materialoverrides probes probebake skyvisbake ambientocclusion
+    gputiming devicereport processmemory framecounters scenecensus hdrmath hdrtarget tonemap bloom gbuffermath velocity taamath taa aotemporalmath aotemporal vramaccount vramsource vramcontroller vramorder vramtexturemips vramscaler materialoverrides probes probebake skyvisbake ambientocclusion pipelinecache
     )
 # Renders pipelines.
 # Depends on pipeline, render.

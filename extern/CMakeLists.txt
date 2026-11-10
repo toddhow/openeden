@@ -335,6 +335,10 @@ FetchContent_Declare(vsg
     URL https://github.com/vsg-dev/VulkanSceneGraph/archive/refs/tags/v1.1.16.zip
     URL_HASH SHA512=0b23ace8d665f9b94d5b8058cbf9072b659dcbfe10168348584bf5e72adfb2e16bdf75e12bc47cf83d6f1afc72603fa97ebc9b90ba8084873628a2bd48234730
     SOURCE_DIR fetched/vsg
+    # openeden-vsg: one small patch gives vsg::Device an optional VkPipelineCache that its graphics and compute pipeline
+    # creation passes to the driver (upstream passes VK_NULL_HANDLE, so the driver recompiled every pipeline each run).
+    # Runs only when the source is first fetched; code that uses the member checks for it, so an older fetch still builds.
+    PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/patches/vsg_pipeline_cache.cmake
     # VSG's headers are system headers for OpenEden's code (Linux builds with -Werror).
     SYSTEM
 )
