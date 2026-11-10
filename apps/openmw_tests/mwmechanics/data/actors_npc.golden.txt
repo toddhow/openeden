@@ -1,0 +1,84 @@
+[t_t_plain]
+  name=[Npc t_t_plain] model=[base_anim.nif] corrected=[meshes/base_anim.nif] script=[t_t_plain_script]
+  essential=0 persistent=0 services=2050 baseGold=100 baseFight=20 faction=[] rank=-1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=1 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=7 goldPool=100
+  attributes: 50.000000 40.000000 40.000000 40.000000 50.000000 40.000000 40.000000 40.000000
+  skills: 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000
+  capacity=250.000000 encumbrance=0.000000 armor=5.850000
+  walk=150.000000 run=270.000000 swimSpeed=79.499992 max=150.000000 jump=264.040527
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_plain] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_plain] extra=[
+Script: t_t_plain_script]
+[t_t_female_tall]
+  name=[Npc t_t_female_tall] model=[base_anim.nif] corrected=[meshes/base_anim.nif] script=[t_t_female_tall_script]
+  essential=0 persistent=0 services=2050 baseGold=100 baseFight=20 faction=[] rank=-1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=1 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=7 goldPool=100
+  attributes: 50.000000 40.000000 40.000000 40.000000 50.000000 40.000000 40.000000 40.000000
+  skills: 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000
+  capacity=250.000000 encumbrance=0.000000 armor=5.850000
+  walk=150.000000 run=270.000000 swimSpeed=79.499992 max=150.000000 jump=264.040527
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=0.500000,0.500000,1.500000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_female_tall] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_female_tall] extra=[
+Script: t_t_female_tall_script]
+[t_t_male_tall]
+  name=[Npc t_t_male_tall] model=[base_anim.nif] corrected=[meshes/base_anim.nif] script=[t_t_male_tall_script]
+  essential=0 persistent=0 services=2050 baseGold=100 baseFight=20 faction=[] rank=-1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=1 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=7 goldPool=100
+  attributes: 50.000000 40.000000 40.000000 40.000000 50.000000 40.000000 40.000000 40.000000
+  skills: 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000
+  capacity=250.000000 encumbrance=0.000000 armor=5.850000
+  walk=150.000000 run=270.000000 swimSpeed=79.499992 max=150.000000 jump=264.040527
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=0.750000,0.750000,1.250000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_male_tall] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_male_tall] extra=[
+Script: t_t_male_tall_script]
+[t_t_beast]
+  name=[Npc t_t_beast] model=[base_animkna.nif] corrected=[meshes/base_animkna.nif] script=[t_t_beast_script]
+  essential=0 persistent=1 services=2050 baseGold=100 baseFight=20 faction=[] rank=-1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=1 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=7 goldPool=100
+  attributes: 50.000000 40.000000 40.000000 40.000000 50.000000 40.000000 40.000000 40.000000
+  skills: 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000
+  capacity=250.000000 encumbrance=0.000000 armor=5.850000
+  walk=150.000000 run=270.000000 swimSpeed=79.499992 max=150.000000 jump=264.040527
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_beast] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_beast] extra=[
+Script: t_t_beast_script]
+[t_t_faction]
+  name=[Npc t_t_faction] model=[base_anim.nif] corrected=[meshes/base_anim.nif] script=[t_t_faction_script]
+  essential=0 persistent=0 services=0 baseGold=100 baseFight=20 faction=[t_faction] rank=1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=3 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=4 goldPool=100
+  attributes: 50.000000 40.000000 40.000000 40.000000 50.000000 40.000000 40.000000 40.000000
+  skills: 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000 30.000000
+  capacity=250.000000 encumbrance=0.000000 armor=5.850000
+  walk=150.000000 run=270.000000 swimSpeed=79.499992 max=150.000000 jump=264.040527
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_faction] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_faction] extra=[
+Script: t_t_faction_script]
+[t_t_weak]
+  name=[Npc t_t_weak] model=[base_anim.nif] corrected=[meshes/base_anim.nif] script=[t_t_weak_script]
+  essential=0 persistent=0 services=2050 baseGold=0 baseFight=20 faction=[] rank=-1
+  swim=1 walk=1 biped=1 hasInv=1 npc=1 actor=1 anim=1 tele=0
+  level=1 health=120.000000 magicka=60.000000 fatigue=200.000000 disposition=40 reputation=7 goldPool=0
+  attributes: 5.000000 5.000000 5.000000 5.000000 5.000000 5.000000 5.000000 5.000000
+  skills: 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000 100.000000
+  capacity=25.000000 encumbrance=0.000000 armor=65.000000
+  walk=105.000000 run=262.500000 swimSpeed=63.000004 max=105.000000 jump=392.003510
+  scale(rendering=0)=1.000000,1.000000,1.000000
+  scale(rendering=1)=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Npc t_t_weak] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Npc t_t_weak] extra=[
+Script: t_t_weak_script]

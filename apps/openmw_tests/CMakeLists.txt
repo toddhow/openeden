@@ -100,6 +100,9 @@ file(GLOB UNITTEST_SRC_FILES
     # potion, misc, light, lockpick, probe, repair, apparatus).
     mwclass/testitemclasses.cpp
 
+    # Task 0098 move 8, stage 8c: characterization tests of the actor classes (npc, creature, levelled lists).
+    mwclass/testactorclasses.cpp
+
     # Task 0092: the ObScript runtime allocates nothing per instruction (the counter lives in this binary).
     script_obscript/testobscriptallocation.cpp
     script_obscript/testobscriptformallocation.cpp

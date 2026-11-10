@@ -1,0 +1,60 @@
+[t_ct_walker]
+  name=[Creature t_ct_walker] model=[c/t_ct_walker.nif] script=[t_ct_walker_script] essential=0 persistent=0 services=16384 baseGold=25 baseFight=80
+  biped=0 fly=0 swim=0 walk=1 hasInv=0
+  level=4 health=90.000000 magicka=30.000000 fatigue=150.000000 goldPool=25
+  attributes: 70.000000 30.000000 30.000000 30.000000 60.000000 30.000000 30.000000 30.000000
+  skills: combat=40.000000
+  capacity=350.000000 encumbrance=0.000000 armor=0.000000
+  walk=110.000000 run=110.000000 swimSpeed=59.400002 max=110.000000
+  scale=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Creature t_ct_walker] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Creature t_ct_walker] extra=[
+Script: t_ct_walker_script]
+[t_ct_bird]
+  name=[Creature t_ct_bird] model=[c/t_ct_bird.nif] script=[t_ct_bird_script] essential=0 persistent=0 services=16384 baseGold=25 baseFight=80
+  biped=0 fly=1 swim=0 walk=0 hasInv=0
+  level=4 health=90.000000 magicka=30.000000 fatigue=150.000000 goldPool=25
+  attributes: 70.000000 30.000000 30.000000 30.000000 60.000000 30.000000 30.000000 30.000000
+  skills: combat=40.000000
+  capacity=350.000000 encumbrance=0.000000 armor=0.000000
+  walk=110.000000 run=110.000000 swimSpeed=59.400002 max=8.000000
+  scale=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Creature t_ct_bird] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Creature t_ct_bird] extra=[
+Script: t_ct_bird_script]
+[t_ct_swimmer]
+  name=[Creature t_ct_swimmer] model=[c/t_ct_swimmer.nif] script=[t_ct_swimmer_script] essential=0 persistent=0 services=16384 baseGold=25 baseFight=80
+  biped=0 fly=0 swim=1 walk=0 hasInv=0
+  level=4 health=90.000000 magicka=30.000000 fatigue=150.000000 goldPool=25
+  attributes: 70.000000 30.000000 30.000000 30.000000 60.000000 30.000000 30.000000 30.000000
+  skills: combat=40.000000
+  capacity=350.000000 encumbrance=0.000000 armor=0.000000
+  walk=110.000000 run=110.000000 swimSpeed=59.400002 max=110.000000
+  scale=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Creature t_ct_swimmer] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Creature t_ct_swimmer] extra=[
+Script: t_ct_swimmer_script]
+[t_ct_biped]
+  name=[Creature t_ct_biped] model=[c/t_ct_biped.nif] script=[t_ct_biped_script] essential=0 persistent=1 services=16384 baseGold=25 baseFight=80
+  biped=1 fly=0 swim=1 walk=1 hasInv=1
+  level=4 health=90.000000 magicka=30.000000 fatigue=150.000000 goldPool=25
+  attributes: 70.000000 30.000000 30.000000 30.000000 60.000000 30.000000 30.000000 30.000000
+  skills: combat=40.000000
+  capacity=350.000000 encumbrance=0.000000 armor=0.000000
+  walk=110.000000 run=110.000000 swimSpeed=59.400002 max=110.000000
+  scale=0.500000,0.500000,0.500000
+  tooltip(full=0) hasToolTip=1 caption=[Creature t_ct_biped] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Creature t_ct_biped] extra=[
+Script: t_ct_biped_script]
+[t_ct_weak]
+  name=[Creature t_ct_weak] model=[c/t_ct_weak.nif] script=[t_ct_weak_script] essential=0 persistent=0 services=16384 baseGold=0 baseFight=80
+  biped=0 fly=0 swim=0 walk=1 hasInv=0
+  level=4 health=1.000000 magicka=30.000000 fatigue=150.000000 goldPool=0
+  attributes: 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000 1.000000
+  skills: combat=40.000000
+  capacity=5.000000 encumbrance=0.000000 armor=0.000000
+  walk=51.000000 run=51.000000 swimSpeed=27.540001 max=51.000000
+  scale=1.000000,1.000000,1.000000
+  tooltip(full=0) hasToolTip=1 caption=[Creature t_ct_weak] extra=[]
+  tooltip(full=1) hasToolTip=1 caption=[Creature t_ct_weak] extra=[
+Script: t_ct_weak_script]
