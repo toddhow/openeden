@@ -113,3 +113,5 @@ Out of scope: new weather types or a weather simulation (regional climate), chan
 
 ## Stage log
 (empty: not started)
+
+**Confirmed by toddhow (2026-11-09): "yes thats what i meant"** for the readings of answers 1 (preset `enhanced`, shipped default stays `vanilla`), 9 (ash, blight and blizzard move to volumetric clouds earlier) and 11 (preset plus settings.cfg, launcher page later). With his blanket approval and these answers the spec is APPROVED; it is last in the queue (answer 12).
