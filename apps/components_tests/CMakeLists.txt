@@ -261,6 +261,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_game_pack_manifest.cpp
     extension/test_game_pack_lifecycle.cpp
     extension/test_game_pack_save.cpp
+    extension/test_world_source_service.cpp
     extension/test_crafting_contract.cpp
     inertialmotion/test_locomotion_state.cpp
     inertialmotion/testleansmoother.cpp
@@ -457,6 +458,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimsepack.cpp
+    skyrimse/testskyrimsepackworldsource.cpp
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseworldview.cpp

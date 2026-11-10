@@ -7,6 +7,7 @@
 #include <components/extension/manifest.hpp>
 #include <components/extension/profiler_snapshot.hpp>
 #include <components/extension/vfs_service.hpp>
+#include <components/worldmodel/store.hpp>
 
 #include "builtinpack.hpp"
 #include "mwbase/extensionmanager.hpp"
@@ -58,6 +59,9 @@ namespace OMW
             /// game= pack and no pack of that id is installed on disk. It goes through the same lifecycle as a loaded
             /// pack, with no library.
             std::vector<StaticPack> staticPacks = {};
+            /// [Game] neutral world (task 0103): build the neutral world store and let the game pack register its world
+            /// source in it. False builds nothing and the pack is told that nothing reads its source.
+            bool neutralWorld = false;
         };
 
         explicit ExtensionHost(const Config& config);
@@ -170,8 +174,13 @@ namespace OMW
         [[nodiscard]] openeden::extension::HostImpl& host() noexcept { return mHost; }
         [[nodiscard]] openeden::extension::LifecycleManager& lifecycle() noexcept { return mLifecycle; }
 
+        /// The neutral world store (decision 0016; N3a-1: nothing reads it yet). Null unless Config::neutralWorld. It
+        /// outlives the game pack: the pack's source leaves it when the pack stops. Main thread only.
+        [[nodiscard]] NeutralWorld::NeutralWorldStore* neutralWorldStore() noexcept { return mNeutralWorldStore.get(); }
+
     private:
         struct LogBridge;
+        struct StoreListener;
 
         std::unique_ptr<ExtensionWorld> mWorld;
         MWPhysics::PhysicsSystem* mPhysics = nullptr;
@@ -187,6 +196,12 @@ namespace OMW
         bool mRulesFromPack = false;
         bool mStarted = false;
         bool mGamePackBuiltIn = false;
+
+        // Task 0103 (N3a-1): both are made in the constructor when Config::neutralWorld is set, and are declared before
+        // mHost and mLifecycle so that they are destroyed after them: a pack withdraws its source (through the
+        // listener, into the store) while the lifecycle destroys it.
+        std::unique_ptr<NeutralWorld::NeutralWorldStore> mNeutralWorldStore;
+        std::unique_ptr<StoreListener> mStoreListener;
 
         openeden::extension::HostImpl mHost;
         openeden::extension::LifecycleManager mLifecycle;

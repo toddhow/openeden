@@ -183,4 +183,12 @@ namespace openeden::extension
         return mImpl != nullptr ? static_cast<openeden::sdk::game::WorldViewService*>(&mImpl->worldView())
                                 : mBase.getWorldViewService();
     }
+
+    openeden::sdk::game::WorldSourceService* PackScopedHost::getWorldSourceService()
+    {
+        if (!allowed("world source service"))
+            return nullptr;
+        return mImpl != nullptr ? static_cast<openeden::sdk::game::WorldSourceService*>(&mImpl->worldSources())
+                                : mBase.getWorldSourceService();
+    }
 } // namespace openeden::extension

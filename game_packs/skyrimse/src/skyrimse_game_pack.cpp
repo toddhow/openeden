@@ -1,10 +1,12 @@
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 
+#include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/world_view.hpp"
 
 #include <openeden/extension.hpp>
 #include <openeden/game/content.hpp>
+#include <openeden/game/world_source_service.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/host.hpp>
 #include <openeden/logging.hpp>
@@ -16,7 +18,8 @@ namespace game_skyrimse
 {
     namespace
     {
-        // Owns the content loader it registers (the host keeps a reference until stop()) and the world view.
+        // Owns the content loader it registers (the host keeps a reference until stop()), the world view and the
+        // neutral world source over it (the source is declared after the view it refers to).
         class SkyrimGamePack final : public openeden::sdk::Extension
         {
         public:
@@ -41,19 +44,50 @@ namespace game_skyrimse
                     worldViews->registerWorldView(mWorldView);
                     mWorldViews = worldViews;
                 }
-                if (openeden::sdk::LoggingService* const logging = host.getLoggingService())
+                // The neutral world source (task 0103, stage N3a-1): when the host reads sources (the engine with
+                // [Game] neutral world), the pack hands it the source over its world view and the session goes on,
+                // with no rules; the world view is still empty until a host loads plugins into it (the plugin list
+                // reaches no pack yet). A host that does not read sources gets the old behaviour below.
+                openeden::sdk::LoggingService* const logging = host.getLoggingService();
+                openeden::sdk::Logger* const logger = logging != nullptr ? logging->getLogger(kPackId) : nullptr;
+                openeden::sdk::game::WorldSourceService* const sources = host.getWorldSourceService();
+                if (sources != nullptr && sources->consumerEnabled())
                 {
-                    if (openeden::sdk::Logger* const logger = logging->getLogger(kPackId))
-                        logger->log(openeden::sdk::LogLevel::Warning, kRulesNotImplementedMessage);
+                    std::string error;
+                    if (!sources->registerSource(mCellSource, error))
+                        throw std::runtime_error("the world source was refused: " + error);
+                    mWorldSources = sources;
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "Skyrim SE world source registered; the rules are not implemented, so only the world is "
+                            "available");
+                    return;
                 }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Warning, kRulesNotImplementedMessage);
                 throw std::runtime_error(std::string(kRulesNotImplementedMessage));
             }
 
-            void stop() override { withdrawWorldView(); }
+            void stop() override
+            {
+                withdrawWorldSource();
+                withdrawWorldView();
+            }
 
-            ~SkyrimGamePack() override { withdrawWorldView(); }
+            ~SkyrimGamePack() override
+            {
+                withdrawWorldSource();
+                withdrawWorldView();
+            }
 
         private:
+            void withdrawWorldSource()
+            {
+                if (mWorldSources != nullptr)
+                    mWorldSources->withdrawSource(mCellSource);
+                mWorldSources = nullptr;
+            }
+
             void withdrawWorldView()
             {
                 if (mWorldViews != nullptr)
@@ -63,7 +97,9 @@ namespace game_skyrimse
 
             SkyrimContentLoader mLoader;
             SkyrimWorldView mWorldView;
+            SkyrimCellSource mCellSource{ mWorldView };
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
+            openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
         };
     }
 

@@ -25,6 +25,7 @@ namespace openeden::sdk
     namespace game
     {
         class WorldViewService;
+        class WorldSourceService;
     }
 
     /**
@@ -73,5 +74,8 @@ namespace openeden::sdk
         /// The slot for a read-only view of the game's world (task 0086; openeden/game/world_view.hpp). Game packs
         /// only. Added at the end of the interface.
         [[nodiscard]] virtual game::WorldViewService* getWorldViewService() { return nullptr; }
+        /// The slot through which a pack hands the host a source of neutral world cells (task 0103;
+        /// openeden/game/world_source_service.hpp). Game packs only. Added at the end of the interface.
+        [[nodiscard]] virtual game::WorldSourceService* getWorldSourceService() { return nullptr; }
     };
 } // namespace openeden::sdk

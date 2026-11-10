@@ -27,7 +27,7 @@ awk -F'\t' -v exclude="$HERE/exclude.txt" '
             return key ~ /creativemotion|inertial|sheath/ || key == "foot planting" || key == "look at" \
                 || key == "smoother turns" || key == "procedural lean" || key == "lean scale" \
                 || key == "actor collision shape type" || key == "enable authored transitions" \
-                || key ~ /^extension (debug draw|profiler)$/
+                || key ~ /^extension (debug draw|profiler)$/ || key == "neutral world"
         if (sec == "Cells") return key ~ /incremental/
         if (sec == "Physics") return key ~ /creativemotion/
         return 0

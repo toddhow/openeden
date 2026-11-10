@@ -4,12 +4,15 @@
 #include <openeden/game/records.hpp>
 #include <openeden/game/script_host.hpp>
 #include <openeden/game/ui.hpp>
+#include <openeden/game/world_source_service.hpp>
 #include <openeden/game/world_view.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace openeden::extension
@@ -100,5 +103,48 @@ namespace openeden::extension
 
     private:
         openeden::sdk::game::WorldView* mView = nullptr;
+    };
+
+    /// Where game packs put their neutral world sources (openeden/game/world_source_service.hpp, task 0103). Holds
+    /// pointers to the sources, which the packs own and withdraw; the game id of each is copied when it is registered,
+    /// so that the listener can be told about a source that is gone. The listener is the host's side (the engine's
+    /// neutral world store); with none set, sources are only recorded. Main thread only. Owned by HostImpl.
+    class WorldSourceServiceImpl final : public openeden::sdk::game::WorldSourceService
+    {
+    public:
+        /// The host's side of the service. The listener must outlive the service's use of it (set it to nullptr, or
+        /// let the service go, before it is destroyed).
+        class Listener
+        {
+        public:
+            virtual ~Listener() = default;
+            /// False with `error` to refuse the source; it is then not registered.
+            virtual bool sourceRegistered(openeden::sdk::game::WorldCellSource& source, std::string& error) = 0;
+            /// The game id the source was registered under. The source object may already be gone.
+            virtual void sourceWithdrawn(std::string_view gameId) = 0;
+        };
+
+        [[nodiscard]] bool registerSource(openeden::sdk::game::WorldCellSource& source, std::string& error) override;
+        void withdrawSource(openeden::sdk::game::WorldCellSource& source) override;
+        [[nodiscard]] bool consumerEnabled() const override { return mConsumerEnabled; }
+
+        void setConsumerEnabled(bool enabled) noexcept { mConsumerEnabled = enabled; }
+        void setListener(Listener* listener) noexcept { mListener = listener; }
+        [[nodiscard]] std::size_t sourceCount() const noexcept { return mSources.size(); }
+
+        /// Withdraws every source still registered (a pack that went without withdrawing), telling the listener by the
+        /// game ids it copied. The host calls it before the packs' libraries are unloaded.
+        void releaseAll();
+
+    private:
+        struct Entry
+        {
+            openeden::sdk::game::WorldCellSource* mSource = nullptr;
+            std::string mGameId;
+        };
+
+        std::vector<Entry> mSources;
+        Listener* mListener = nullptr;
+        bool mConsumerEnabled = false;
     };
 } // namespace openeden::extension

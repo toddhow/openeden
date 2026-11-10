@@ -69,4 +69,55 @@ namespace openeden::extension
     {
         return mWindows.find(id) != mWindows.end();
     }
+
+    bool WorldSourceServiceImpl::registerSource(openeden::sdk::game::WorldCellSource& source, std::string& error)
+    {
+        const std::string gameId(source.gameId());
+        for (const Entry& entry : mSources)
+        {
+            if (entry.mSource == &source)
+            {
+                error = "the world source of game '" + gameId + "' is already registered";
+                return false;
+            }
+            if (entry.mGameId == gameId)
+            {
+                error = "another world source is already registered for game '" + gameId + "'";
+                return false;
+            }
+        }
+        if (mListener != nullptr && !mListener->sourceRegistered(source, error))
+        {
+            if (error.empty())
+                error = "the host refused the world source of game '" + gameId + "'";
+            return false;
+        }
+        mSources.push_back({ &source, gameId });
+        return true;
+    }
+
+    void WorldSourceServiceImpl::withdrawSource(openeden::sdk::game::WorldCellSource& source)
+    {
+        for (auto it = mSources.begin(); it != mSources.end(); ++it)
+        {
+            if (it->mSource != &source)
+                continue;
+            const std::string gameId = std::move(it->mGameId);
+            mSources.erase(it);
+            if (mListener != nullptr)
+                mListener->sourceWithdrawn(gameId);
+            return;
+        }
+    }
+
+    void WorldSourceServiceImpl::releaseAll()
+    {
+        while (!mSources.empty())
+        {
+            const std::string gameId = std::move(mSources.back().mGameId);
+            mSources.pop_back();
+            if (mListener != nullptr)
+                mListener->sourceWithdrawn(gameId);
+        }
+    }
 } // namespace openeden::extension

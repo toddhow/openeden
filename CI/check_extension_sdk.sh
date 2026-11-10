@@ -119,3 +119,16 @@ for header in world_model world_source; do
         exit 1
     fi
 done
+
+# Task 0103 (stage N3a-1): the world source service a game pack registers its source through states its version policy,
+# and Host::getWorldSourceService() stays the LAST virtual function of Host (an additive change: a function anywhere
+# else would move the slots a pack built before it calls).
+if ! grep -q 'Version policy' sdk/include/openeden/game/world_source_service.hpp || ! grep -Eq 'kWorldSourceServiceVersion\{ 1, [0-9]+ \}' sdk/include/openeden/game/world_source_service.hpp; then
+    echo 'sdk/include/openeden/game/world_source_service.hpp must keep its version policy and kWorldSourceServiceVersion at major version 1'
+    exit 1
+fi
+last_host_virtual=$(grep -E '^\s+\[\[nodiscard\]\] virtual .*get[A-Za-z]*Service\(\)|^\s+\[\[nodiscard\]\] virtual .*getHostInfo' sdk/include/openeden/host.hpp | tail -1)
+case "$last_host_virtual" in
+    *getWorldSourceService*) ;;
+    *) echo 'Host::getWorldSourceService() must stay the last virtual function of sdk/include/openeden/host.hpp (add new ones after it, with their own task)'; exit 1 ;;
+esac

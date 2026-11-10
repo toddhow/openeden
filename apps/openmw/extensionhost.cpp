@@ -124,12 +124,41 @@ namespace OMW
         }
     };
 
+    /// The engine's side of the world source service: sources go into the neutral world store and leave it when the
+    /// pack withdraws them (by game id; the source object may be gone).
+    struct ExtensionHost::StoreListener final : openeden::extension::WorldSourceServiceImpl::Listener
+    {
+        explicit StoreListener(NeutralWorld::NeutralWorldStore& store)
+            : mStore(store)
+        {
+        }
+
+        bool sourceRegistered(openeden::sdk::game::WorldCellSource& source, std::string& error) override
+        {
+            return mStore.addSource(source, error);
+        }
+
+        void sourceWithdrawn(std::string_view gameId) override { mStore.removeSource(gameId); }
+
+        NeutralWorld::NeutralWorldStore& mStore;
+    };
+
     ExtensionHost::ExtensionHost(const Config& config)
         : mLifecycle(mHost)
     {
         namespace extension = openeden::extension;
 
         mHost.settingsService().useEngineSettings();
+
+        // The neutral world store (task 0103, stage N3a-1). Built only when [Game] neutral world asks for it; with it
+        // off the service is told nobody reads sources, a pack does not register, and nothing else is made.
+        if (config.neutralWorld)
+        {
+            mNeutralWorldStore = std::make_unique<NeutralWorld::NeutralWorldStore>();
+            mStoreListener = std::make_unique<StoreListener>(*mNeutralWorldStore);
+            mHost.worldSources().setListener(mStoreListener.get());
+            mHost.worldSources().setConsumerEnabled(true);
+        }
 
         std::vector<extension::ExtensionLoadError> errors;
         const std::vector<extension::DiscoveredExtension> discovered

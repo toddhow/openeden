@@ -74,6 +74,7 @@ namespace openeden::extension
         [[nodiscard]] openeden::sdk::UiService* getUiService() override;
         [[nodiscard]] openeden::sdk::BindingsService* getBindingsService() override;
         [[nodiscard]] openeden::sdk::game::WorldViewService* getWorldViewService() override;
+        [[nodiscard]] openeden::sdk::game::WorldSourceService* getWorldSourceService() override;
 
     private:
         bool allowed(std::string_view what);

@@ -30,6 +30,7 @@ namespace openeden::extension
         mScriptHost.clear();
         mUi.clear();
         mBindings.retireAll(); // the namespaces stay as retired shells: a script still holding one gets an error
+        mWorldSources.releaseAll(); // by game id: the packs' source objects may be gone already
     }
 
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const

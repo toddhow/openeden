@@ -367,7 +367,7 @@ namespace OMW
         mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
             { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions",
                 mCfgMgr.getLocalPath() / "game_packs", mCfgMgr.getUserDataPath() / "game_packs" },
-            args.extensions, args.gamePack, args.builtInGamePacks });
+            args.extensions, args.gamePack, args.builtInGamePacks, Settings::game().mNeutralWorld.get() });
         mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();
