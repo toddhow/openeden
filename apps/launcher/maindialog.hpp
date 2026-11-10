@@ -27,6 +27,8 @@ namespace Launcher
     class UnshieldThread;
     class ImportPage;
     class ExtensionsPage;
+    class ModsPage;
+    class WorldLodPage;
     class SettingsPage;
 
     enum FirstRunDialogResult
@@ -59,6 +61,8 @@ namespace Launcher
         void enableSettingsPage();
         void enableImportPage();
         void enableExtensionsPage();
+        void enableModsPage();
+        void enableWorldLodPage();
         void play();
         void help();
 
@@ -98,6 +102,8 @@ namespace Launcher
         ImportPage* mImportPage;
         SettingsPage* mSettingsPage;
         ExtensionsPage* mExtensionsPage;
+        ModsPage* mModsPage;
+        WorldLodPage* mWorldLodPage;
 
         Process::ProcessInvoker* mGameInvoker;
         Process::ProcessInvoker* mWizardInvoker;

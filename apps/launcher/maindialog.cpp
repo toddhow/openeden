@@ -21,7 +21,9 @@
 #include "extensionspage.hpp"
 #include "graphicspage.hpp"
 #include "importpage.hpp"
+#include "modspage.hpp"
 #include "settingspage.hpp"
+#include "worldlodpage.hpp"
 
 namespace
 {
@@ -112,6 +114,8 @@ void Launcher::MainDialog::createIcons()
     connect(settingsAction, &QAction::triggered, this, &MainDialog::enableSettingsPage);
     connect(importAction, &QAction::triggered, this, &MainDialog::enableImportPage);
     connect(extensionsAction, &QAction::triggered, this, &MainDialog::enableExtensionsPage);
+    connect(modsAction, &QAction::triggered, this, &MainDialog::enableModsPage);
+    connect(worldLodAction, &QAction::triggered, this, &MainDialog::enableWorldLodPage);
 }
 
 void Launcher::MainDialog::createPages()
@@ -125,6 +129,8 @@ void Launcher::MainDialog::createPages()
     mImportPage = new ImportPage(mCfgMgr, mGameSettings, mLauncherSettings, this);
     mSettingsPage = new SettingsPage(mCfgMgr, mGameSettings, this);
     mExtensionsPage = new ExtensionsPage(mCfgMgr, mGameSettings, this);
+    mModsPage = new ModsPage(mCfgMgr, this);
+    mWorldLodPage = new WorldLodPage(mCfgMgr, this);
 
     // Add the pages to the stacked widget
     pagesWidget->addWidget(mDataFilesPage);
@@ -132,6 +138,15 @@ void Launcher::MainDialog::createPages()
     pagesWidget->addWidget(mSettingsPage);
     pagesWidget->addWidget(mImportPage);
     pagesWidget->addWidget(mExtensionsPage);
+    pagesWidget->addWidget(mModsPage);
+    pagesWidget->addWidget(mWorldLodPage);
+
+    // The organizer rewrote openmw.cfg: read it again so every page shows the same thing. Queued, because
+    // the reload rebuilds the page that sent the signal.
+    connect(
+        mModsPage, &ModsPage::profileApplied, this, [this] { reloadSettings(); }, Qt::QueuedConnection);
+    // A bake reads settings.cfg and openmw.cfg from disk: write what the pages hold first
+    connect(mWorldLodPage, &WorldLodPage::settingsNeedSaving, this, [this] { writeSettings(); });
 
     // Select the first page
     dataAction->setChecked(true);
@@ -269,6 +284,8 @@ bool Launcher::MainDialog::reloadSettings()
         return false;
 
     mExtensionsPage->loadSettings();
+    mModsPage->loadSettings();
+    mWorldLodPage->loadSettings();
 
     if (!mSettingsPage->loadSettings())
         return false;
@@ -285,6 +302,8 @@ void Launcher::MainDialog::enableDataPage()
     importAction->setChecked(false);
     settingsAction->setChecked(false);
     extensionsAction->setChecked(false);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(false);
 }
 
 void Launcher::MainDialog::enableGraphicsPage()
@@ -296,6 +315,8 @@ void Launcher::MainDialog::enableGraphicsPage()
     settingsAction->setChecked(false);
     importAction->setChecked(false);
     extensionsAction->setChecked(false);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(false);
 }
 
 void Launcher::MainDialog::enableSettingsPage()
@@ -307,6 +328,8 @@ void Launcher::MainDialog::enableSettingsPage()
     settingsAction->setChecked(true);
     importAction->setChecked(false);
     extensionsAction->setChecked(false);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(false);
 }
 
 void Launcher::MainDialog::enableExtensionsPage()
@@ -318,6 +341,34 @@ void Launcher::MainDialog::enableExtensionsPage()
     settingsAction->setChecked(false);
     importAction->setChecked(false);
     extensionsAction->setChecked(true);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(false);
+}
+
+void Launcher::MainDialog::enableModsPage()
+{
+    pagesWidget->setCurrentWidget(mModsPage);
+    mImportPage->resetProgressBar();
+    dataAction->setChecked(false);
+    graphicsAction->setChecked(false);
+    settingsAction->setChecked(false);
+    importAction->setChecked(false);
+    extensionsAction->setChecked(false);
+    modsAction->setChecked(true);
+    worldLodAction->setChecked(false);
+}
+
+void Launcher::MainDialog::enableWorldLodPage()
+{
+    pagesWidget->setCurrentWidget(mWorldLodPage);
+    mImportPage->resetProgressBar();
+    dataAction->setChecked(false);
+    graphicsAction->setChecked(false);
+    settingsAction->setChecked(false);
+    importAction->setChecked(false);
+    extensionsAction->setChecked(false);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(true);
 }
 
 void Launcher::MainDialog::enableImportPage()
@@ -329,6 +380,8 @@ void Launcher::MainDialog::enableImportPage()
     settingsAction->setChecked(false);
     importAction->setChecked(true);
     extensionsAction->setChecked(false);
+    modsAction->setChecked(false);
+    worldLodAction->setChecked(false);
 }
 
 bool Launcher::MainDialog::setupLauncherSettings()
@@ -501,6 +554,8 @@ bool Launcher::MainDialog::writeSettings()
     mImportPage->saveSettings();
     mSettingsPage->saveSettings();
     mExtensionsPage->saveSettings();
+    mModsPage->saveSettings();
+    mWorldLodPage->saveSettings();
 
     const auto& userPath = mCfgMgr.getUserConfigPath();
 

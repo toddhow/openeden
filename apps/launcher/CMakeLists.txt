@@ -8,6 +8,8 @@ set(LAUNCHER
     importpage.cpp
     settingspage.cpp
     extensionspage.cpp
+    modspage.cpp
+    worldlodpage.cpp
 
     utils/cellnameloader.cpp
     utils/profilescombobox.cpp
@@ -27,12 +29,15 @@ set(LAUNCHER_HEADER
     importpage.hpp
     settingspage.hpp
     extensionspage.hpp
+    modspage.hpp
+    worldlodpage.hpp
 
     utils/cellnameloader.hpp
     utils/profilescombobox.hpp
     utils/textinputdialog.hpp
     utils/lineedit.hpp
     utils/openalutil.hpp
+    utils/backgroundjob.hpp
 )
 
 source_group(launcher FILES ${LAUNCHER} ${LAUNCHER_HEADER})
@@ -107,4 +112,31 @@ option(OPENEDEN_BUILD_CONTENTLIST_CHECK "Build the content list model dump tool"
 if (OPENEDEN_BUILD_CONTENTLIST_CHECK)
     add_executable(openeden-contentlist-dump ${CMAKE_SOURCE_DIR}/tools/contentlist_check/contentlistdump.cpp)
     target_link_libraries(openeden-contentlist-dump components_qt Qt::Widgets Qt::Core Qt::Svg)
+endif()
+
+# Draws the Mods and World LOD pages off screen on generated data (tools/launcher_check): used to look at the pages
+# without touching a real configuration. Not installed.
+option(OPENEDEN_BUILD_LAUNCHER_PAGEGRAB "Build the launcher page grab tool" OFF)
+if (OPENEDEN_BUILD_LAUNCHER_PAGEGRAB)
+    add_executable(openeden-launcher-pagegrab
+        ${CMAKE_SOURCE_DIR}/tools/launcher_check/pagegrab.cpp
+        modspage.cpp
+        worldlodpage.cpp
+        utils/textinputdialog.cpp
+        utils/lineedit.cpp
+        modspage.hpp
+        worldlodpage.hpp
+        utils/textinputdialog.hpp
+        utils/lineedit.hpp
+        utils/backgroundjob.hpp)
+    target_include_directories(openeden-launcher-pagegrab PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(openeden-launcher-pagegrab components_qt Qt::Widgets Qt::Core Qt::Svg)
+    set_property(TARGET openeden-launcher-pagegrab PROPERTY AUTOMOC ON)
+
+    # A stand-in for the game's bake commands, named openmw and kept in its own folder beside the grab tool so that it
+    # can never replace the real openmw
+    add_executable(openeden-pagegrab-fakebake ${CMAKE_SOURCE_DIR}/tools/launcher_check/fakebake.cpp)
+    set_target_properties(openeden-pagegrab-fakebake PROPERTIES OUTPUT_NAME openmw
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/pagegrab)
+    set_target_properties(openeden-launcher-pagegrab PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/pagegrab)
 endif()

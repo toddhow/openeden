@@ -101,6 +101,8 @@
    <addaction name="settingsAction"/>
    <addaction name="importAction"/>
    <addaction name="extensionsAction"/>
+   <addaction name="modsAction"/>
+   <addaction name="worldLodAction"/>
   </widget>
   <action name="dataAction">
    <property name="checkable">
@@ -166,6 +168,36 @@
    </property>
    <property name="toolTip">
     <string>Enable or disable extensions, which add native code to the game.</string>
+   </property>
+  </action>
+  <action name="modsAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="folder">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Mods</string>
+   </property>
+   <property name="toolTip">
+    <string>Keep profiles of mods, set their order and see which mod's files win.</string>
+   </property>
+  </action>
+  <action name="worldLodAction">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset theme="applications-graphics">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>World LOD</string>
+   </property>
+   <property name="toolTip">
+    <string>Bake and tune the distant terrain and objects.</string>
    </property>
   </action>
   <action name="importAction">

@@ -598,6 +598,539 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
     </message>
 </context>
 <context>
+    <name>Launcher::ModsPage</name>
+    <message>
+        <source>Profile:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Active profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Удалить</translation>
+    </message>
+    <message>
+        <source>Mods</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conflicts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repack check</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply profile to openmw.cfg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes this profile&apos;s data folders, plugins, archives, groundcover and extensions into your openmw.cfg. A backup copy is made first. Your mods are never changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mods are listed in priority order: a later mod wins over an earlier one. Space switches a mod on or off, Alt+Up and Alt+Down move it. Mods stay where they are; removing one from the list never deletes files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mod</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mods in priority order, later wins</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add folder...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add pack...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove from list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load order of the plugins (.esm, .esp, .omwaddon). The order is yours: hints about masters never change it, and Sort by masters asks first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comes from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plugins in load order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add plugins from mods</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove missing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by masters...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Which mod&apos;s file the game would use when several mods contain the same file. The scan reads folder listings only and does not start the game.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scan for conflicts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not scanned yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overridden files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overriding files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Identical copies</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conflict counts per source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filter files by name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filter conflicting files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Used from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Conflicting files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A repack would put a mod&apos;s loose files into one Eden Archive pack, which loads faster. This check only measures: it reports sizes, free space and file names that cannot be packed. It writes nothing and your mod stays as it is. Building the pack itself needs the edenpack tool and is not started from here yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mod to check</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repack check result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mod:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Game data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked: always first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in the library</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Missing on disk</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ready, data in &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off. %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Missing: the file is in no enabled mod or the game data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs %1, which is not in the list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs %1, which is switched off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs %1, which is listed after it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is no profile yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>openmw.cfg does not exist yet; Apply creates it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This profile is not applied to openmw.cfg yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>openmw.cfg matches this profile.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Problem: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The mod library was written by a newer version of this program. It is shown but not changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The profile &quot;%1&quot; was written by a newer version and is not listed or changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This is not a usable profile name. Use plain text without slashes, up to 64 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name of the new, empty profile:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A profile with this name exists already.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name of the copy of &quot;%1&quot;:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> copy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New name of &quot;%1&quot;:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the profile &quot;%1&quot;? Your mods and your openmw.cfg are not changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a mod folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Looking at the folder...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added &quot;%1&quot;. Its plugins are in the Plugins tab, switched off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 file names could not be used; the first: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select an Eden Archive pack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Eden Archive (*.edenpak)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove mod</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove &quot;%1&quot; from the list? The mod&apos;s files are not deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Looking for plugins in the enabled mods...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n plugin(s) added, switched off.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>A mod folder is very large and was only partly scanned; nothing was removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n missing plugin(s) removed from the list.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The plugin details are still loading. Try again in a moment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by masters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The plugins name each other as masters in a circle, so no order can satisfy them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every plugin is already after its masters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Put every plugin after its masters? %n position(s) change; everything else keeps its order.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Scanning...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) exist in more than one place.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 (files kept on disk)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 files match; the first %2 are shown. Type in the filter to narrow the list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Measuring...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Measuring &quot;%1&quot;...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repack check for &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Files that would go into the pack: %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Estimated pack size: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The estimate is larger than the loose files: many small files cost a block each. A repack may not be worth it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free space on the target drive: %1. %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enough.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plugins and archives that stay on disk: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Names that differ only in case, so they cannot be packed together: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot be packed: %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The folder is very large; only part of it was measured.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Result: this mod can be repacked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Result: this mod cannot be repacked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>openmw.cfg was changed since this profile was last applied (by hand, or by the Data Files page). Applying replaces its data, content, archive, groundcover and extension lines with this profile&apos;s. A backup copy is made first.
+
+Apply anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>openmw.cfg was updated from the profile &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>openmw.cfg already matched the profile &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Backup: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n enabled mod(s) are missing on disk (a drive may be away). The game will not find their files. Apply anyway?</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>Launcher::SettingsPage</name>
     <message>
         <source>Text file (*.txt)</source>
@@ -646,6 +1179,461 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     <message>
         <source>User config directory used because %1 contains the line config=%2.</source>
         <translation>Эта пользовательская директория конфигурации используется, потому что в %1 содержится строка config=%2.</translation>
+    </message>
+</context>
+<context>
+    <name>Launcher::WorldLodPage</name>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>World LOD status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bake progress</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Baked data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Baked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Baked world LOD data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bake terrain tiles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bake object clusters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete baked data...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not available: the bake commands run once, report no progress and read no pause request.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output of the bake appears here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bake output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished">Настройки</translation>
+    </message>
+    <message>
+        <source>Reset all to defaults</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable world LOD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draws baked far terrain tiles. With this off none of the world LOD code runs and the game plays as before. Bake the terrain tiles below first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Terrain tile error (pixels)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Largest error of a baked terrain tile on screen before the live terrain is used. Smaller is finer and costs more.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Terrain tile fade (seconds)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How long a baked tile takes to dither in or out. 0 swaps in one frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>View distance (units, or auto)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far the world is drawn while the world LOD is on. A number of units, or auto (the reach of the loaded land, with Whole map view).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whole map view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draws the baked tiles and clusters out to the view distance, so from high up the whole map shows. Needs distant terrain.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Largest auto view distance (units)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A budget for weaker hardware: auto never goes beyond it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Distance haze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far land fades into the colour of the air.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Haze visibility (units)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far a ray along the ground keeps 10 percent of its light in clear weather.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Haze height (units)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The height over which the air thins out by a factor of e.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Haze weather gain</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How strongly fog and storms thicken the haze. 0 ignores the weather.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hardware tier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>auto picks from your graphics card and memory. Choose another to see what a weaker or stronger machine would get.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Highest tile level kept (0: the tier&apos;s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The highest baked terrain tile level kept in memory, 1 to 6.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far object picture size (0: the tier&apos;s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The longest side of the pictures of far object clusters, in pixels.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far object memory (MiB, 0: the tier&apos;s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What the far object clusters may hold in memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far object clusters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draws baked clusters of distant towers, rocks, trees and buildings. Bake the object clusters below first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cluster error (pixels)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Largest error of an object cluster on screen before finer objects are used.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cluster fade (seconds)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How long a cluster takes to dither in or out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Moving textures on far objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bakes the scrolling of lava, waterfalls and similar into the clusters. Needs a new bake.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Include plain scenery objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lets the bake take unnamed, unscripted activators such as lava planes into the clusters. Needs a new bake.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swaying far foliage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far trees and plants bend in the wind. Needs a new bake.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Words that mark swaying models</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comma separated words matched anywhere in a model&apos;s path. Needs a new bake.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sway lean</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far the top of an object leans at full wind, as a share of its height. Needs a new bake.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sway wind strength</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How strongly the weather&apos;s wind drives the sway.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>General</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Far objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(Setting: [WorldLod] %1, default %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Has no effect until &quot;%1&quot; is switched on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation type="unfinished">Отключено</translation>
+    </message>
+    <message>
+        <source>The world LOD is switched off, so nothing here is used by the game. Tick &quot;Enable world LOD&quot; below to use baked data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Building</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A bake started from this page is running. The bake commands report no progress, so the bar only shows that work is going on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not built</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paused</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Up to date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Out of date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Working on: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Level %1 of %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 units done</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>About %1 minute(s) left (an estimate)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cache: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Terrain tiles and object clusters are present. The bake commands write no status, so this page cannot tell whether they are out of date: bake again after changing your mods or the object settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Partly baked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only one of the two kinds of data exists. Bake the other one to use everything.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not baked yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use the buttons below to bake. A bake needs your game data and takes a few minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Terrain tiles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Object clusters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Present</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not baked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A bake is already running.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The game executable was not found next to the launcher.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The game is running; close it first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starts the game&apos;s bake command on your game data and settings. Your settings are saved first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Baked data folder: %1. %n file(s), %2.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The bake could not be started: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting: %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>terrain tiles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>object clusters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bake of the %1 was stopped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bake of the %1 failed (exit code %2). See the output above and openmw.log.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bake of the %1 finished.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop the bake</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop the running bake? Data written so far may be incomplete; bake again to replace it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete baked data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n baked file(s) (%1) in %2? They can be baked again; your game, mods and settings are not touched. This cannot be undone.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -700,6 +1688,22 @@ Logs and settings changed through the launcher and in-game will be saved here.</
     </message>
     <message>
         <source>Enable or disable extensions, which add native code to the game.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mods</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep profiles of mods, set their order and see which mod&apos;s files win.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>World LOD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bake and tune the distant terrain and objects.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
