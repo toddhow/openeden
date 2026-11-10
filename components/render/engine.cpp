@@ -552,8 +552,8 @@ namespace Render
         PipelineCache::DeviceKey key;
         key.mVendorId = properties.vendorID;
         key.mDeviceId = properties.deviceID;
-        std::copy(std::begin(properties.pipelineCacheUUID), std::end(properties.pipelineCacheUUID),
-            key.mCacheUuid.begin());
+        std::copy(
+            std::begin(properties.pipelineCacheUUID), std::end(properties.pipelineCacheUUID), key.mCacheUuid.begin());
         const std::filesystem::path path = directory / PipelineCache::fileName(key);
 
         std::vector<std::uint8_t> blob;
@@ -567,8 +567,8 @@ namespace Render
                 PipelineCache::removeStaleSiblings(directory, key);
                 const PipelineCache::LoadStatus status = PipelineCache::readFile(path, key, blob);
                 if (status != PipelineCache::LoadStatus::Missing && status != PipelineCache::LoadStatus::Ok)
-                    Log(Debug::Warning) << "Pipeline cache " << path.string() << " ignored: "
-                                        << PipelineCache::describe(status);
+                    Log(Debug::Warning) << "Pipeline cache " << path.string()
+                                        << " ignored: " << PipelineCache::describe(status);
                 VkPipelineCacheCreateInfo info{};
                 info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
                 info.initialDataSize = blob.size();

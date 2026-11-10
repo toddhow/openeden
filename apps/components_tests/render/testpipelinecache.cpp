@@ -258,7 +258,8 @@ namespace
         const auto dir = scratch("saver");
         const auto key = testKey();
         std::atomic<std::size_t> size{ 0 };
-        Saver saver(dir / fileName(key), key, [&] { return size.load(); },
+        Saver saver(
+            dir / fileName(key), key, [&] { return size.load(); },
             [&](std::vector<std::uint8_t>& out) {
                 out = makeBlob(key, size.load() - vulkanHeaderBytes);
                 return true;
@@ -280,7 +281,8 @@ namespace
     {
         const auto dir = scratch("known");
         const auto key = testKey();
-        Saver saver(dir / fileName(key), key, [] { return vulkanHeaderBytes + 50; },
+        Saver saver(
+            dir / fileName(key), key, [] { return vulkanHeaderBytes + 50; },
             [&](std::vector<std::uint8_t>& out) {
                 out = makeBlob(key, 50);
                 return true;
@@ -296,7 +298,8 @@ namespace
         const auto dir = scratch("thread");
         const auto key = testKey();
         std::atomic<std::size_t> size{ vulkanHeaderBytes + 20 };
-        Saver saver(dir / fileName(key), key, [&] { return size.load(); },
+        Saver saver(
+            dir / fileName(key), key, [&] { return size.load(); },
             [&](std::vector<std::uint8_t>& out) {
                 out = makeBlob(key, size.load() - vulkanHeaderBytes);
                 return true;
@@ -318,7 +321,8 @@ namespace
         const auto dir = scratch("failing");
         const auto key = testKey();
         int logs = 0;
-        Saver saver(dir / fileName(key), key, [] { return vulkanHeaderBytes + 50; },
+        Saver saver(
+            dir / fileName(key), key, [] { return vulkanHeaderBytes + 50; },
             [](std::vector<std::uint8_t>&) -> bool { throw 1; }, [&](const std::string&) { ++logs; },
             std::chrono::hours(1));
         EXPECT_FALSE(saver.saveIfChanged());
@@ -331,7 +335,8 @@ namespace
     {
         const auto dir = scratch("headeronly");
         const auto key = testKey();
-        Saver saver(dir / fileName(key), key, [] { return vulkanHeaderBytes + 10; },
+        Saver saver(
+            dir / fileName(key), key, [] { return vulkanHeaderBytes + 10; },
             [&](std::vector<std::uint8_t>& out) {
                 out = makeBlob(key, 0);
                 return true;

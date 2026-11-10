@@ -399,7 +399,8 @@ namespace OMW
         }
         mExtensionHost->setEngineVfs(mVFS.get());
 
-        // OpenEden, 2026-11-09: keep the driver's compiled pipelines between runs (components/render/pipelinecache.hpp).
+        // OpenEden, 2026-11-09: keep the driver's compiled pipelines between runs
+        // (components/render/pipelinecache.hpp).
         if (Settings::rendering().mPipelineCache)
             mRenderEngine->enablePipelineCache(mCfgMgr.getUserDataPath() / "openeden" / "shadercache");
 
