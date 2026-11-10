@@ -116,3 +116,4 @@ Each one was built and measured but never seen by you.
   13. Papyrus `maxHostWaitSeconds` stays infinite by default, as a documented option.
   14. `runLatentNatives` stays off by default.
   15. Neutral-world-model open questions adopted as recommended (`Ptr` stays the runtime handle).
+- Decided 2026-11-10: the puddles and wetness v2 spec (task 0095, research note 0049) is APPROVED by toddhow; stages W-a to W-f may proceed in order, each with its own tests, frames and fresh review. Open questions 1 to 10 of the spec keep their recommendations until he answers. Stage W-a (pure maths) is built; finding for W-b: the cap on a capacity must be measured from the pit's floor, not per texel (stage log).

@@ -315,3 +315,9 @@ Renderer pieces with no game types: `Render::Engine` (wraps `vsg::Viewer`), rend
 - **In a block compressed array `width` and `height` inside `convertToArrayTexture` count blocks;** use `levels[0].width` and `.height` for texels.
 - The BC7 decoder's partition tables were read from the D3D11 decoder, not copied from a source; `apps/components_tests/vsgutil/testbc7decode.cpp` holds the hashes. `I:\Projects\OpenEden-work\bc1\d3dbc7.cpp` is the oracle harness (outside the repository).
 - Still not covered: BC4 and BC5 layers (one height map in the mod profile), and an array whose reference is BC3 or BC7 (the old rules apply).
+
+## Puddle maths (task 0095, stage W-a)
+
+- `puddlefill.hpp` (where water collects on a height grid: Priority-Flood, basins, catchment) and `puddlelevel.hpp` (level, depth, coverage, quantisers) are header-only, pure, with no engine types, and not wired to anything yet. The shader twin comes in stage W-d.
+- **Bake the cap from the pit's floor (`capacityFromFloor`), not per texel:** clamping each texel's capacity turns a deep hollow into a flat 12-unit pond (measured on Morrowind's land in the stage log of task 0095).
+- The filled height is independent of the order equal texels are visited; only flow directions on flat ground depend on it (first in, first out). Never rely on a flow direction on a plateau being symmetric.

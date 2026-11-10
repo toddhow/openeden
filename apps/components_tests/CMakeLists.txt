@@ -326,6 +326,8 @@ file(GLOB UNITTEST_SRC_FILES
     render/testvolumecamera.cpp
     render/testatmosphere.cpp
     render/testsss.cpp
+    render/testpuddlefill.cpp
+    render/testpuddlelevel.cpp
     render/testwetnessmath.cpp
     render/testcloudmath.cpp
     render/testcloudvolumemath.cpp
