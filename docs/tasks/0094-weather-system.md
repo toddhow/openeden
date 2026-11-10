@@ -96,5 +96,20 @@ Out of scope: new weather types or a weather simulation (regional climate), chan
 11. **Presets and settings UI.** One `weather look` preset plus individual settings in `settings.cfg` only, or also a launcher page?
 12. **Order against other work.** Start after Track V's open items, or alongside game-pack stage d? (CLAUDE.md "Next" order applies.)
 
+## Answers from toddhow (2026-11-09)
+
+1. **Drama: "enhanced".** The `enhanced` preset is the look he wants. Per the guide's rule that every new feature is off by default and Morrowind plays unchanged, the shipped default of `weather look` stays `vanilla`, and `enhanced` is the preset of the living test profile and the recommended setting. *Reading to confirm:* if he meant `enhanced` as the shipped default, that is a deliberate change to the guide's default rule and needs his explicit word.
+2. **Extras order: the recommended one** (W0, W2 storm clouds, W3 lightning, W1 rain, then W4 to W6; rainbow and storm haze last).
+3. **Sound may be added, but it must not affect anything else** (no gameplay, AI, script, stealth or save effect; cosmetic only).
+4. **Budget: about 0.3 ms GPU extra in the worst storm** at medium tier, 1080p, RTX 4070 class; nothing in fair weather.
+5. **Photosensitivity: hard limits** (task 0040's cap and 1.5 s spacing stay hard).
+6. **Sound: yes** (thunder delay by distance, off by default; later rain-on-roof muffling), under rule 3.
+7. **Mods: as recommended** (required for records and NIF names; best effort for visual replacers).
+8. **Art: generate splash and mist textures procedurally.**
+9. **Ash, blight and blizzard: "yes"**, read as move them to volumetric clouds EARLIER than W5. *Reading to confirm if it matters.*
+10. **World-map haze: thicken in rain.**
+11. **Settings: "yes"**, read as the preset plus individual settings in `settings.cfg` (the launcher page stays a later option). *Reading to confirm if it matters.*
+12. **Order: put it LAST** (after the other queued work, including the puddle plan's early stages unless he says otherwise).
+
 ## Stage log
 (empty: not started)
