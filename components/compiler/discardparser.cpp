@@ -132,6 +132,13 @@ namespace Compiler
 
         if (code == Scanner::S_minus && mState == StartState)
         {
+            // Task 0092: "Cmd - x" is a subtraction, not a negative argument; the minus goes back for the caller
+            if (getContext().getOptions().mBinaryMinusAfterSkippedArguments && scanner.nameOrBracketFollows())
+            {
+                scanner.putbackSpecial(code, loc);
+                return false;
+            }
+
             if (isEmpty())
                 mTokenLoc = loc;
 

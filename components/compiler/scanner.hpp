@@ -209,6 +209,7 @@ namespace Compiler
         bool mIgnoreSpecial;
         bool mLogicalOperators = false;
         bool mDigitLeadingMembers = false;
+        bool mModuloOperator = false;
 
     public:
         enum Keyword
@@ -248,7 +249,8 @@ namespace Compiler
             S_ref,
             S_member,
             S_and, ///< "&&", only when Scanner::setLogicalOperators(true) (task 0092)
-            S_or ///< "||", likewise
+            S_or, ///< "||", likewise
+            S_mod ///< "%", only when Scanner::setModuloOperator(true) (task 0092)
         };
 
     private:
@@ -307,6 +309,14 @@ namespace Compiler
         /// Read ".2nd" after a name as the member operator and the name "2nd" (task 0092). Off: ".2" starts a
         /// floating point number, as in Morrowind.
         void setDigitLeadingMembers(bool enabled) { mDigitLeadingMembers = enabled; }
+
+        /// Read "%" as the token S_mod (task 0092). Off by default: Morrowind scripts have no such operator.
+        void setModuloOperator(bool enabled) { mModuloOperator = enabled; }
+
+        /// Right after a minus sign was delivered: does a name, an underscore or an opening bracket follow it, with
+        /// only spaces and tabs between? Then the minus was a subtraction and not the sign of a number. Looks ahead
+        /// without consuming anything (task 0092, ParserOptions::mBinaryMinusAfterSkippedArguments).
+        bool nameOrBracketFollows();
 
         void listKeywords(std::vector<std::string>& keywords);
         ///< Append all known keywords to \a keywords.

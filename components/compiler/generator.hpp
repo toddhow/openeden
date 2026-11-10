@@ -70,6 +70,10 @@ namespace Compiler
 
         void div(CodeContainer& code, char valueType1, char valueType2);
 
+        /// The remainder of the two values on the stack ("%", task 0092); a float is cut to an integer first. The
+        /// result is an integer.
+        void mod(CodeContainer& code, char valueType1, char valueType2);
+
         void convert(CodeContainer& code, char fromType, char toType);
 
         void exit(CodeContainer& code);

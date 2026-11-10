@@ -438,6 +438,15 @@ namespace Compiler::Generator
         }
     }
 
+    void mod(CodeContainer& code, char valueType1, char valueType2)
+    {
+        if (valueType1 == 'f')
+            opFloatToInt1(code);
+        if (valueType2 == 'f')
+            opFloatToInt(code);
+        code.push_back(segment5(74));
+    }
+
     void convert(CodeContainer& code, char fromType, char toType)
     {
         if (fromType != toType)

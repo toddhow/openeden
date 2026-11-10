@@ -66,6 +66,19 @@ namespace Compiler
         /// three deep). A call chain parses recursively, so hostile input could otherwise overflow the stack. 0: no
         /// limit, as in Morrowind.
         std::size_t mMaxCallDepth = 0;
+
+        /// "%" is a binary operator that gives the remainder of a division of whole numbers and binds as tightly as
+        /// "*" and "/" (task 0092; Fallout's expressions have it). Operands that are not whole numbers are truncated;
+        /// a remainder by zero stops the script, as a division by zero does. The caller must also call
+        /// Scanner::setModuloOperator(true), because the scanner does not see the context. Off: "%" is not read, as
+        /// in Morrowind.
+        bool mModuloOperator = false;
+
+        /// A minus sign that follows a command whose arguments are skipped (the 'z' argument kind) and is followed by
+        /// a name or an opening bracket ("Cmd - x") ends the skipped arguments: it is a subtraction. A minus followed
+        /// by a number ("Cmd - 1", "Cmd -1") is still a skipped argument, as it always was. Off: the minus starts a
+        /// skipped number and the name after it is an error, as in Morrowind.
+        bool mBinaryMinusAfterSkippedArguments = false;
     };
 
     class Context

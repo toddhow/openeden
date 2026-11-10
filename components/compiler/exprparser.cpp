@@ -54,6 +54,7 @@ namespace Compiler
 
             case '*':
             case '/':
+            case '%':
 
                 return 5;
 
@@ -149,6 +150,19 @@ namespace Compiler
                 }
                 Generator::negate(mCode, getOperandType());
                 popOperator();
+                break;
+
+            case '%':
+
+                if (getOperandType(1) == 'r' || getOperandType() == 'r')
+                    getErrorHandler().error("A reference cannot be used in arithmetic", mTokenLoc);
+
+                // the remainder of whole numbers: floats are cut first, and the result is an integer
+                Generator::mod(mCode, plainType(getOperandType(1)), plainType(getOperandType()));
+                popOperator();
+                popOperand();
+                popOperand();
+                mOperands.push_back('l');
                 break;
 
             case '+':
@@ -789,6 +803,9 @@ namespace Compiler
                     return true;
                 case Scanner::S_div:
                     pushBinaryOperator('/');
+                    return true;
+                case Scanner::S_mod:
+                    pushBinaryOperator('%');
                     return true;
                 case Scanner::S_cmpEQ:
                     c = 'e';

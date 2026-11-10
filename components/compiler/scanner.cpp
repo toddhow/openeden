@@ -544,6 +544,8 @@ namespace Compiler
             special = S_mult;
         else if (c == '/')
             special = S_div;
+        else if (mModuloOperator && c == '%')
+            special = S_mod;
         else if (mLogicalOperators && (c == '&' || c == '|'))
         {
             // Task 0092: "&&" and "||" (a single character stays an error)
@@ -592,6 +594,27 @@ namespace Compiler
             if (c.isDigit())
                 continue;
             result = c.isAlpha() || c == '_';
+            break;
+        }
+
+        mStream.clear();
+        mStream.seekg(original);
+        return result;
+    }
+
+    bool Scanner::nameOrBracketFollows()
+    {
+        const std::streampos original = mStream.tellg();
+        if (original == std::streampos(-1))
+            return false;
+
+        bool result = false;
+        MultiChar c;
+        while (c.getFrom(mStream))
+        {
+            if (c == ' ' || c == '	')
+                continue;
+            result = c.isAlpha() || c == '_' || c == '(';
             break;
         }
 

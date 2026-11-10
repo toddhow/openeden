@@ -38,6 +38,7 @@ namespace Interpreter
         interpreter.installSegment5<OpFetchGlobalLong>(43);
         interpreter.installSegment5<OpFetchGlobalFloat>(44);
         interpreter.installSegment5<OpFetchForm>(73);
+        interpreter.installSegment5<OpModInt>(74);
         interpreter.installSegment5<OpStoreMemberShort<false>>(59);
         interpreter.installSegment5<OpStoreMemberLong<false>>(60);
         interpreter.installSegment5<OpStoreMemberFloat<false>>(61);

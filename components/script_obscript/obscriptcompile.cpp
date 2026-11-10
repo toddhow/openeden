@@ -771,6 +771,8 @@ namespace ScriptObscript
             options.mDottedSkippedArguments = true;
             options.mUnknownMembersAreWarnings = true;
             options.mCallResultReferences = true;
+            options.mModuloOperator = true;
+            options.mBinaryMinusAfterSkippedArguments = true;
             context.setOptions(options);
 
             try
@@ -781,6 +783,7 @@ namespace ScriptObscript
                 Compiler::Scanner scanner(handler, input, &extensions);
                 scanner.setLogicalOperators(options.mLogicalOperators);
                 scanner.setDigitLeadingMembers(options.mDigitLeadingMembers);
+                scanner.setModuloOperator(options.mModuloOperator);
                 scanner.scan(parser);
                 block.mProgram = parser.getProgram();
             }

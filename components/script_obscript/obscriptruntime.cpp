@@ -1295,6 +1295,36 @@ namespace ScriptObscript
                 return result;
             }
 
+            bool digestScript(ScriptId script, std::uint64_t& digest) const
+            {
+                if (script == 0 || script > mScripts.size())
+                {
+                    return false;
+                }
+                std::uint64_t hash = 14695981039346656037ull;
+                const auto mix = [&hash](const void* data, std::size_t size) {
+                    const auto* bytes = static_cast<const unsigned char*>(data);
+                    for (std::size_t i = 0; i < size; ++i)
+                    {
+                        hash = (hash ^ bytes[i]) * 1099511628211ull;
+                    }
+                };
+                for (const CompiledBlock& block : mScripts[script - 1]->mBlocks)
+                {
+                    mix(block.mEvent.data(), block.mEvent.size());
+                    const Interpreter::Program& program = block.mProgram;
+                    mix(program.mInstructions.data(), program.mInstructions.size() * sizeof(program.mInstructions[0]));
+                    mix(program.mIntegers.data(), program.mIntegers.size() * sizeof(program.mIntegers[0]));
+                    mix(program.mFloats.data(), program.mFloats.size() * sizeof(program.mFloats[0]));
+                    for (const std::string& text : program.mStrings)
+                    {
+                        mix(text.data(), text.size());
+                    }
+                }
+                digest = hash;
+                return true;
+            }
+
             bool inspectScript(ScriptId script, std::size_t& blocks, std::size_t& unknownFunctions) const
             {
                 if (script == 0 || script > mScripts.size())
@@ -1420,5 +1450,11 @@ namespace ScriptObscript
             return false;
         }
         return impl->inspectScript(script, blocks, unknownFunctions);
+    }
+
+    bool programDigest(const ObScriptContract& runtime, ScriptId script, std::uint64_t& digest)
+    {
+        const RuntimeImpl* impl = dynamic_cast<const RuntimeImpl*>(&runtime);
+        return impl != nullptr && impl->digestScript(script, digest);
     }
 }

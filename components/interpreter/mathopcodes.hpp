@@ -70,6 +70,26 @@ namespace Interpreter
         }
     };
 
+    /// "%" (task 0092): the remainder of two integers, with the sign of the left one, as C++ gives it. The most
+    /// negative number modulo -1 is 0 (the C++ expression traps); a zero divisor stops the script as OpDivInt does.
+    class OpModInt : public Opcode0
+    {
+    public:
+        void execute(Runtime& runtime) override
+        {
+            const Type_Integer right = getData<Type_Integer>(runtime[0]);
+
+            if (right == 0)
+                throw std::runtime_error("division by zero");
+
+            const Type_Integer left = getData<Type_Integer>(runtime[1]);
+
+            runtime.pop();
+
+            getData<Type_Integer>(runtime[0]) = right == -1 ? 0 : left % right;
+        }
+    };
+
     /// "&&" and "||" (task 0092): both integers are on the stack, the result is 1 or 0.
     template <bool And>
     class OpLogical : public Opcode0

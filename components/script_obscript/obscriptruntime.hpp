@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_COMPONENTS_SCRIPT_OBSCRIPT_OBSCRIPTRUNTIME_H
 #define OPENEDEN_COMPONENTS_SCRIPT_OBSCRIPT_OBSCRIPTRUNTIME_H
 
+#include <cstdint>
 #include <memory>
 
 #include <openeden/script/obscript.hpp>
@@ -21,6 +22,12 @@ namespace ScriptObscript
     /// number of different unknown function names the runtime has accepted so far.
     bool inspect(const openeden::script::ObScriptContract& runtime, openeden::script::ScriptId script,
         std::size_t& blocks, std::size_t& unknownFunctions);
+
+    /// A 64-bit digest (FNV-1a) of the compiled programs of  script (event names, instructions and literal tables),
+    /// for tools and tests that want to know whether a compiler change altered what a script compiles to. Returns
+    /// false for a runtime not made by createRuntime or an unknown script.
+    bool programDigest(
+        const openeden::script::ObScriptContract& runtime, openeden::script::ScriptId script, std::uint64_t& digest);
 }
 
 #endif

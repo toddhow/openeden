@@ -140,6 +140,7 @@ file(GLOB UNITTEST_SRC_FILES
     bsa/testcompressedbsafile.cpp
     compiler/testmorrowindprogramgolden.cpp
     compiler/testparseroptions.cpp
+    compiler/testresiduelimits.cpp
     compiler/testlogicaloperators.cpp
     compiler/testformvalues.cpp
     compiler/testskippedarguments.cpp
@@ -154,6 +155,7 @@ file(GLOB UNITTEST_SRC_FILES
     script_obscript/testobscriptbudget.cpp
     script_obscript/testobscriptsave.cpp
     script_obscript/testobscriptlogic.cpp
+    script_obscript/testobscriptresidue.cpp
     script_obscript/testobscriptforms.cpp
     script_obscript/testobscriptderive.cpp
     script_obscript/testobscriptdeclare.cpp
