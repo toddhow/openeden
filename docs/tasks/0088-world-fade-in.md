@@ -195,4 +195,4 @@ Results: the pack has tiles of levels 1 to 6 for every land cell around Red Moun
 
 Fix and test: see the CLAUDE.md changelog row of 2026-11-10 and `apps/components_tests/lod/testtileoffview.cpp`. After: 3 empty builds in the sweep (was 45), 37 new tiles (was 49), no empty build in the flight; 8 to 12 MiB of drawn tiles as before.
 
-Open: the Linux gate, the Lua tests, toddhow's own check by turning on the spot at a ridge line, and `Builder::getBatchData`'s height ranges for levels 3 and up (only the south-west corner is read; no frame shows it).
+Open: the Linux gate, the Lua tests, toddhow's own check by turning on the spot at a ridge line, and the confirmation that the turn gap was toddhow's hole. `Builder::getBatchData`'s height ranges for levels 3 and up (only the south-west corner was read) were checked and fixed afterwards: not the cause, the sphere radius is the horizontal half diagonal, the miss is about 315 units at a tile corner (CLAUDE.md changelog).

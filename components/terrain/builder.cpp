@@ -32,6 +32,7 @@
 
 #include "batchdata.hpp"
 #include "heightarraystate.hpp"
+#include "heightranges.hpp"
 #include "indexbuffer.hpp"
 
 namespace Pipeline::Descriptors
@@ -713,25 +714,17 @@ namespace Terrain
         uint32_t gridSize = bounds.size / Bounds::minSize;
         auto ranges = vsg::vec2Array2D::create(gridSize, gridSize);
         {
-            for (uint32_t gridX = 0; gridX < gridSize; ++gridX)
+            // Each grid cell takes the heights of the vertices around it, also when the vertices are farther apart than
+            // the cells (a coarse LOD tile): numVerts() of a grid cell truncates to 1 there, and every cell then read
+            // the south-west vertex only (2026-11-10).
+            const auto heightRanges = computeHeightRanges(
+                static_cast<const float*>(data.heights->dataPointer()), data.heights->width(), gridSize);
+            for (uint32_t gridY = 0; gridY < gridSize && heightRanges.size() == size_t{ gridSize } * gridSize; ++gridY)
             {
-                for (uint32_t gridY = 0; gridY < gridSize; ++gridY)
+                for (uint32_t gridX = 0; gridX < gridSize; ++gridX)
                 {
-                    float minH = std::numeric_limits<float>::max();
-                    float maxH = -std::numeric_limits<float>::max();
-                    uint32_t verts0 = mStorage->numVerts(bounds.size / gridSize, lod);
-                    uint32_t startX = gridX * (verts0 - 1);
-                    uint32_t startY = gridY * (verts0 - 1);
-                    for (uint32_t x = startX; x < startX + verts0; ++x)
-                    {
-                        for (uint32_t y = startY; y < startY + verts0; ++y)
-                        {
-                            float h = data.heights->at(x, y);
-                            maxH = std::max(maxH, h);
-                            minH = std::min(minH, h);
-                        }
-                    }
-                    ranges->at(gridX, gridY) = { minH, maxH };
+                    const auto& range = heightRanges[gridX + size_t{ gridY } * gridSize];
+                    ranges->at(gridX, gridY) = { range.first, range.second };
                 }
             }
         }
