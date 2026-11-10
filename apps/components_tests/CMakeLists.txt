@@ -70,6 +70,7 @@ file(GLOB UNITTEST_SRC_FILES
     files/conversiontests.cpp
     files/hash.cpp
     files/testdatapack.cpp
+    files/testdataentry.cpp
 
     toutf8/toutf8.cpp
 
@@ -207,7 +208,9 @@ file(GLOB UNITTEST_SRC_FILES
     modorganizer/testconflicts.cpp
     modorganizer/testmasters.cpp
     modorganizer/testrepack.cpp
+    modorganizer/testprofilestore.cpp
     worldlod/testbakestatus.cpp
+    worldlod/testlodsettings.cpp
 
     # Task 0100 stage N1: the neutral world store, its identity table and the validation of snapshots.
     worldmodel/testidtable.cpp

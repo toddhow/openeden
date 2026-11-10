@@ -15,6 +15,14 @@ namespace Files
         return Misc::StringUtils::ciEndsWith(pathToUnicodeString(path.filename()), ".edenpak");
     }
 
+    bool isUsableDataEntry(const std::filesystem::path& path)
+    {
+        if (path.empty())
+            return false;
+        std::error_code error;
+        return std::filesystem::is_directory(path, error) || isDataPackFile(path);
+    }
+
     Collections::Collections()
         : mDirectories()
         , mCollections()

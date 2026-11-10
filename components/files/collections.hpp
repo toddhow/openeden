@@ -11,6 +11,10 @@ namespace Files
     /// may name in place of a folder (task 0064). Says nothing about the file's content; the VFS checks the magic.
     bool isDataPackFile(const std::filesystem::path& path);
 
+    /// True when a `data=` line can name `path`: an existing folder, or a pack file (isDataPackFile). The launcher
+    /// keeps exactly these lines when it validates the data paths (task 0057: it dropped pack lines before).
+    bool isUsableDataEntry(const std::filesystem::path& path);
+
     class Collections
     {
     public:

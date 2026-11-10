@@ -1,9 +1,11 @@
 #include "gamesettings.hpp"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QProgressDialog>
 #include <QRegularExpression>
 
+#include <components/files/collections.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/utf8qtextstream.hpp>
@@ -39,10 +41,11 @@ void Config::GameSettings::validatePaths()
 
     for (const auto& dataDir : paths)
     {
-        if (QDir(dataDir.value).exists())
+        // A data= line names a folder, or an Eden Archive pack in its place (task 0064; packs were dropped here before)
+        if (Files::isUsableDataEntry(Files::pathFromQString(dataDir.value)))
         {
             SettingValue copy = dataDir;
-            copy.value = QDir(dataDir.value).canonicalPath();
+            copy.value = QFileInfo(dataDir.value).canonicalFilePath();
             mDataDirs.append(copy);
         }
         progressBar.setValue(progressBar.value() + 1);

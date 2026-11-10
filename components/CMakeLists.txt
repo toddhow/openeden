@@ -107,12 +107,12 @@ add_component_dir (bgsm
 # The launcher's mod organizer (task 0057): mod library and profiles, scanner, layout, openmw.cfg rewrite, conflicts,
 # master hints, repack planning. No Qt. Depends on vfs, contentsource and edenarchive.
 add_component_dir (modorganizer
-    model scanner layout configfile conflicts masters repack processcheck
+    model scanner layout configfile conflicts masters repack processcheck profilestore
     )
 
 # The launcher's World LOD page (task 0058): the baker's status and command file contract. No Qt.
 add_component_dir (worldlod
-    bakestatus
+    bakestatus lodsettings
     )
 
 # The core's neutral world store and its identity table (decision 0016, task 0100 stage N1). Layer: engine.
