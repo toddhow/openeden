@@ -41,6 +41,7 @@ dir components/esm4 formats
 dir components/nif formats
 dir components/nifscene formats
 dir components/nifedit formats
+dir components/face formats
 dir components/bsa formats
 dir components/contentsource formats
 dir components/esmloader formats
