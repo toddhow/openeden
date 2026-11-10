@@ -44,9 +44,6 @@ namespace MWClass
     {
     public:
         MWWorld::DoorState mDoorState = MWWorld::DoorState::Idle;
-
-        DoorCustomData& asDoorCustomData() override { return *this; }
-        const DoorCustomData& asDoorCustomData() const override { return *this; }
     };
 
     Door::Door()
@@ -71,7 +68,7 @@ namespace MWClass
         // Resume the door's opening/closing animation if it wasn't finished
         if (ptr.getRefData().getCustomData())
         {
-            const DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
+            const DoorCustomData& customData = ptr.getRefData().getCustomData()->as<DoorCustomData>();
             if (customData.mDoorState != MWWorld::DoorState::Idle)
             {
                 MWBase::Environment::get().getWorld()->activateDoor(ptr, customData.mDoorState);
@@ -319,7 +316,7 @@ namespace MWClass
     {
         if (!ptr.getRefData().getCustomData())
             return MWWorld::DoorState::Idle;
-        const DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
+        const DoorCustomData& customData = ptr.getRefData().getCustomData()->as<DoorCustomData>();
         return customData.mDoorState;
     }
 
@@ -329,7 +326,7 @@ namespace MWClass
             throw std::runtime_error("load doors can't be moved");
 
         ensureCustomData(ptr);
-        DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
+        DoorCustomData& customData = ptr.getRefData().getCustomData()->as<DoorCustomData>();
         customData.mDoorState = state;
     }
 
@@ -339,7 +336,7 @@ namespace MWClass
             return;
 
         ensureCustomData(ptr);
-        DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
+        DoorCustomData& customData = ptr.getRefData().getCustomData()->as<DoorCustomData>();
         const ESM::DoorState& doorState = state.asDoorState();
         customData.mDoorState = MWWorld::DoorState(doorState.mDoorState);
     }
@@ -352,7 +349,7 @@ namespace MWClass
             return;
         }
 
-        const DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
+        const DoorCustomData& customData = ptr.getRefData().getCustomData()->as<DoorCustomData>();
         ESM::DoorState& doorState = state.asDoorState();
         doorState.mDoorState = int(customData.mDoorState);
     }

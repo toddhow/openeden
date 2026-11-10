@@ -68,9 +68,6 @@ namespace MWClass
         // TODO: Use InventoryStore instead (currently doesn't support ESM4 objects)
         std::vector<const ESM4::Armor*> mEquippedArmor;
         std::vector<const ESM4::Clothing*> mEquippedClothing;
-
-        ESM4NpcCustomData& asESM4NpcCustomData() override { return *this; }
-        const ESM4NpcCustomData& asESM4NpcCustomData() const override { return *this; }
     };
 
     ESM4NpcCustomData& ESM4Npc::getCustomData(const MWWorld::ConstPtr& ptr)
@@ -83,7 +80,7 @@ namespace MWClass
         MWWorld::RefData& refData = const_cast<MWWorld::RefData&>(ptr.getRefData());
 
         if (auto* data = refData.getCustomData())
-            return data->asESM4NpcCustomData();
+            return data->as<ESM4NpcCustomData>();
 
         auto data = std::make_unique<ESM4NpcCustomData>();
 

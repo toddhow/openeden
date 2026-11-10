@@ -73,9 +73,6 @@ namespace MWClass
         CreatureCustomData() = default;
         CreatureCustomData(const CreatureCustomData& other);
         CreatureCustomData(CreatureCustomData&& other) = default;
-
-        CreatureCustomData& asCreatureCustomData() override { return *this; }
-        const CreatureCustomData& asCreatureCustomData() const override { return *this; }
     };
 
     CreatureCustomData::CreatureCustomData(const CreatureCustomData& other)
@@ -196,7 +193,7 @@ namespace MWClass
         if (customData && hasInventoryStore(ptr))
         {
             const auto& invStore
-                = static_cast<const MWWorld::InventoryStore&>(*customData->asCreatureCustomData().mContainerStore);
+                = static_cast<const MWWorld::InventoryStore&>(*customData->as<CreatureCustomData>().mContainerStore);
             for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
@@ -219,7 +216,7 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        return ptr.getRefData().getCustomData()->asCreatureCustomData().mCreatureStats;
+        return ptr.getRefData().getCustomData()->as<CreatureCustomData>().mCreatureStats;
     }
 
     bool Creature::evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, vsg::vec3& hitPosition) const
@@ -493,7 +490,7 @@ namespace MWClass
     MWWorld::ContainerStore& Creature::getContainerStore(const MWWorld::Ptr& ptr) const
     {
         ensureCustomData(ptr);
-        return *ptr.getRefData().getCustomData()->asCreatureCustomData().mContainerStore;
+        return *ptr.getRefData().getCustomData()->as<CreatureCustomData>().mContainerStore;
     }
 
     MWWorld::InventoryStore& Creature::getInventoryStore(const MWWorld::Ptr& ptr) const
@@ -562,7 +559,7 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        return ptr.getRefData().getCustomData()->asCreatureCustomData().mMovement;
+        return ptr.getRefData().getCustomData()->as<CreatureCustomData>().mMovement;
     }
 
     bool Creature::hasToolTip(const MWWorld::ConstPtr& ptr) const
@@ -570,7 +567,7 @@ namespace MWClass
         if (!ptr.getRefData().getCustomData() || MWBase::Environment::get().getWindowManager()->isGuiMode())
             return true;
 
-        const CreatureCustomData& customData = ptr.getRefData().getCustomData()->asCreatureCustomData();
+        const CreatureCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureCustomData>();
 
         if (customData.mCreatureStats.isDead() && customData.mCreatureStats.isDeathAnimationFinished())
             return true;
@@ -794,7 +791,7 @@ namespace MWClass
             }
         }
 
-        CreatureCustomData& customData = ptr.getRefData().getCustomData()->asCreatureCustomData();
+        CreatureCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureCustomData>();
 
         customData.mContainerStore->readState(creatureState.mInventory);
         bool spellsInitialised = customData.mCreatureStats.getSpells().setSpells(ptr.get<ESM::Creature>()->mBase->mId);
@@ -811,7 +808,7 @@ namespace MWClass
             return;
         }
 
-        const CreatureCustomData& customData = ptr.getRefData().getCustomData()->asCreatureCustomData();
+        const CreatureCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureCustomData>();
         if (ptr.getCellRef().getCount() <= 0
             && (!isFlagBitSet(ptr, ESM::Creature::Respawn) || !customData.mCreatureStats.isDead()))
         {

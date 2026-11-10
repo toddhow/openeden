@@ -2,16 +2,7 @@
 #define GAME_MWWORLD_CUSTOMDATA_H
 
 #include <memory>
-
-namespace MWClass
-{
-    class CreatureCustomData;
-    class ESM4NpcCustomData;
-    class NpcCustomData;
-    class ContainerCustomData;
-    class DoorCustomData;
-    class CreatureLevListCustomData;
-}
+#include <typeinfo>
 
 namespace MWWorld
 {
@@ -23,25 +14,32 @@ namespace MWWorld
 
         virtual std::unique_ptr<CustomData> clone() const = 0;
 
-        // Fast version of dynamic_cast<X&>. Needs to be overridden in the respective class.
+        /// The data as a T, for the class that owns it. Throws std::logic_error ("bad cast ...") when it is not
+        /// one. Task 0098 move 8: this replaces the twelve typed accessors (asNpcCustomData and so on), so the
+        /// core no longer names the data types of the classes in the game pack. An exact type match (the normal
+        /// case, the owning class's own data) is a type_info comparison; anything else falls back to dynamic_cast.
+        template <class T>
+        T& as()
+        {
+            if (typeid(*this) == typeid(T))
+                return static_cast<T&>(*this);
+            if (T* result = dynamic_cast<T*>(this))
+                return *result;
+            throwBadCast(typeid(*this), typeid(T));
+        }
 
-        virtual MWClass::CreatureCustomData& asCreatureCustomData();
-        virtual const MWClass::CreatureCustomData& asCreatureCustomData() const;
+        template <class T>
+        const T& as() const
+        {
+            if (typeid(*this) == typeid(T))
+                return static_cast<const T&>(*this);
+            if (const T* result = dynamic_cast<const T*>(this))
+                return *result;
+            throwBadCast(typeid(*this), typeid(T));
+        }
 
-        virtual MWClass::NpcCustomData& asNpcCustomData();
-        virtual const MWClass::NpcCustomData& asNpcCustomData() const;
-
-        virtual MWClass::ContainerCustomData& asContainerCustomData();
-        virtual const MWClass::ContainerCustomData& asContainerCustomData() const;
-
-        virtual MWClass::DoorCustomData& asDoorCustomData();
-        virtual const MWClass::DoorCustomData& asDoorCustomData() const;
-
-        virtual MWClass::CreatureLevListCustomData& asCreatureLevListCustomData();
-        virtual const MWClass::CreatureLevListCustomData& asCreatureLevListCustomData() const;
-
-        virtual MWClass::ESM4NpcCustomData& asESM4NpcCustomData();
-        virtual const MWClass::ESM4NpcCustomData& asESM4NpcCustomData() const;
+    private:
+        [[noreturn]] static void throwBadCast(const std::type_info& from, const std::type_info& to);
     };
 
     template <class T>

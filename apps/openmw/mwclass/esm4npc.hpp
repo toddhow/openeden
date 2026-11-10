@@ -15,6 +15,8 @@
 
 namespace MWClass
 {
+    class ESM4NpcCustomData;
+
     class ESM4Npc final : public MWWorld::RegisteredClass<ESM4Npc>
     {
     public:

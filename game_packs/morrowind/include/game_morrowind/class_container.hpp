@@ -21,9 +21,6 @@ namespace MWClass
         ContainerCustomData(const ESM::Container& container, MWWorld::CellStore* cell);
         ContainerCustomData(const ESM::InventoryState& inventory);
 
-        ContainerCustomData& asContainerCustomData() override;
-        const ContainerCustomData& asContainerCustomData() const override;
-
         friend class Container;
     };
 

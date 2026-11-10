@@ -273,9 +273,6 @@ namespace MWClass
         MWMechanics::NpcStats mNpcStats;
         MWMechanics::Movement mMovement;
         MWWorld::InventoryStore mInventoryStore;
-
-        NpcCustomData& asNpcCustomData() override { return *this; }
-        const NpcCustomData& asNpcCustomData() const override { return *this; }
     };
 
     const Npc::GMST& Npc::getGmst()
@@ -487,7 +484,7 @@ namespace MWClass
         const MWWorld::CustomData* customData = ptr.getRefData().getCustomData();
         if (customData)
         {
-            const MWWorld::InventoryStore& invStore = customData->asNpcCustomData().mInventoryStore;
+            const MWWorld::InventoryStore& invStore = customData->as<NpcCustomData>().mInventoryStore;
             for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
                 MWWorld::ConstContainerStoreIterator equipped = invStore.getSlot(slot);
@@ -542,7 +539,7 @@ namespace MWClass
     std::string_view Npc::getName(const MWWorld::ConstPtr& ptr) const
     {
         if (ptr.getRefData().getCustomData()
-            && ptr.getRefData().getCustomData()->asNpcCustomData().mNpcStats.isWerewolf())
+            && ptr.getRefData().getCustomData()->as<NpcCustomData>().mNpcStats.isWerewolf())
         {
             const MWWorld::Store<ESM::GameSetting>& store
                 = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
@@ -557,14 +554,14 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        return ptr.getRefData().getCustomData()->asNpcCustomData().mNpcStats;
+        return ptr.getRefData().getCustomData()->as<NpcCustomData>().mNpcStats;
     }
 
     MWMechanics::NpcStats& Npc::getNpcStats(const MWWorld::Ptr& ptr) const
     {
         ensureCustomData(ptr);
 
-        return ptr.getRefData().getCustomData()->asNpcCustomData().mNpcStats;
+        return ptr.getRefData().getCustomData()->as<NpcCustomData>().mNpcStats;
     }
 
     bool Npc::evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, vsg::vec3& hitPosition) const
@@ -904,7 +901,7 @@ namespace MWClass
     MWWorld::InventoryStore& Npc::getInventoryStore(const MWWorld::Ptr& ptr) const
     {
         ensureCustomData(ptr);
-        return ptr.getRefData().getCustomData()->asNpcCustomData().mInventoryStore;
+        return ptr.getRefData().getCustomData()->as<NpcCustomData>().mInventoryStore;
     }
 
     ESM::RefId Npc::getScript(const MWWorld::ConstPtr& ptr) const
@@ -999,7 +996,7 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        return ptr.getRefData().getCustomData()->asNpcCustomData().mMovement;
+        return ptr.getRefData().getCustomData()->as<NpcCustomData>().mMovement;
     }
 
     bool Npc::isEssential(const MWWorld::ConstPtr& ptr) const
@@ -1014,7 +1011,7 @@ namespace MWClass
         if (!ptr.getRefData().getCustomData() || MWBase::Environment::get().getWindowManager()->isGuiMode())
             return true;
 
-        const NpcCustomData& customData = ptr.getRefData().getCustomData()->asNpcCustomData();
+        const NpcCustomData& customData = ptr.getRefData().getCustomData()->as<NpcCustomData>();
 
         if (customData.mNpcStats.isDead() && customData.mNpcStats.isDeathAnimationFinished())
             return true;
@@ -1039,7 +1036,7 @@ namespace MWClass
         std::string_view name = getName(ptr);
         info.caption = MyGUI::TextIterator::toTagsString(MyGUI::UString(name));
         if (fullHelp && !ref->mBase->mName.empty() && ptr.getRefData().getCustomData()
-            && ptr.getRefData().getCustomData()->asNpcCustomData().mNpcStats.isWerewolf())
+            && ptr.getRefData().getCustomData()->as<NpcCustomData>().mNpcStats.isWerewolf())
         {
             info.caption += " (";
             info.caption += MyGUI::TextIterator::toTagsString(ref->mBase->mName);
@@ -1277,7 +1274,7 @@ namespace MWClass
             }
         }
 
-        NpcCustomData& customData = ptr.getRefData().getCustomData()->asNpcCustomData();
+        NpcCustomData& customData = ptr.getRefData().getCustomData()->as<NpcCustomData>();
 
         customData.mInventoryStore.readState(npcState.mInventory);
         customData.mNpcStats.readState(npcState.mNpcStats);
@@ -1295,7 +1292,7 @@ namespace MWClass
             return;
         }
 
-        const NpcCustomData& customData = ptr.getRefData().getCustomData()->asNpcCustomData();
+        const NpcCustomData& customData = ptr.getRefData().getCustomData()->as<NpcCustomData>();
         if (ptr.getCellRef().getCount() <= 0
             && (!(ptr.get<ESM::NPC>()->mBase->mFlags & ESM::NPC::Respawn) || !customData.mNpcStats.isDead()))
         {
@@ -1399,7 +1396,7 @@ namespace MWClass
         // Search in the NPC data first
         if (const MWWorld::CustomData* data = ptr.getRefData().getCustomData())
         {
-            int rank = data->asNpcCustomData().mNpcStats.getFactionRank(factionID);
+            int rank = data->as<NpcCustomData>().mNpcStats.getFactionRank(factionID);
             if (rank >= 0)
                 return rank;
         }

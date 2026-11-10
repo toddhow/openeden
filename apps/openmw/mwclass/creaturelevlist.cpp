@@ -31,9 +31,6 @@ namespace MWClass
                 return MWBase::Environment::get().getWorldModel()->getPtr(mSpawnedActor);
             return {};
         }
-
-        CreatureLevListCustomData& asCreatureLevListCustomData() override { return *this; }
-        const CreatureLevListCustomData& asCreatureLevListCustomData() const override { return *this; }
     };
 
     CreatureLevList::CreatureLevList()
@@ -53,7 +50,7 @@ namespace MWClass
         if (ptr.getRefData().getCustomData() == nullptr)
             return;
 
-        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
+        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureLevListCustomData>();
         MWWorld::Ptr creature = customData.getSpawnedPtr();
         if (!creature.isEmpty())
             MWBase::Environment::get().getWorld()->adjustPosition(creature, force);
@@ -73,7 +70,7 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
+        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureLevListCustomData>();
         if (customData.mSpawn)
             return;
 
@@ -104,7 +101,7 @@ namespace MWClass
     {
         ensureCustomData(ptr);
 
-        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
+        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureLevListCustomData>();
         if (!customData.mSpawn)
             return;
 
@@ -147,7 +144,7 @@ namespace MWClass
             return;
 
         ensureCustomData(ptr);
-        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
+        CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureLevListCustomData>();
         const ESM::CreatureLevListState& levListState = state.asCreatureLevListState();
         customData.mSpawnedActor = levListState.mSpawnedActor;
         customData.mSpawn = levListState.mSpawn;
@@ -163,7 +160,7 @@ namespace MWClass
             return;
         }
 
-        const CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
+        const CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->as<CreatureLevListCustomData>();
         ESM::CreatureLevListState& levListState = state.asCreatureLevListState();
         levListState.mSpawnedActor = customData.mSpawnedActor;
         levListState.mSpawn = customData.mSpawn;

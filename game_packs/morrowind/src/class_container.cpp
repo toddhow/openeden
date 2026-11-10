@@ -54,15 +54,6 @@ namespace MWClass
         mStore.readState(inventory);
     }
 
-    ContainerCustomData& ContainerCustomData::asContainerCustomData()
-    {
-        return *this;
-    }
-    const ContainerCustomData& ContainerCustomData::asContainerCustomData() const
-    {
-        return *this;
-    }
-
     Container::Container()
         : MWWorld::RegisteredClass<Container>(ESM::Container::sRecordId)
     {
@@ -229,7 +220,7 @@ namespace MWClass
     MWWorld::ContainerStore& Container::getContainerStore(const MWWorld::Ptr& ptr) const
     {
         ensureCustomData(ptr);
-        return ptr.getRefData().getCustomData()->asContainerCustomData().mStore;
+        return ptr.getRefData().getCustomData()->as<ContainerCustomData>().mStore;
     }
 
     ESM::RefId Container::getScript(const MWWorld::ConstPtr& ptr) const
@@ -245,7 +236,7 @@ namespace MWClass
         {
             if (!canBeHarvested(ptr))
                 return true;
-            const MWWorld::ContainerStore& store = data->asContainerCustomData().mStore;
+            const MWWorld::ContainerStore& store = data->as<ContainerCustomData>().mStore;
             return !store.isResolved() || store.hasVisibleItems();
         }
         return true;
@@ -339,7 +330,7 @@ namespace MWClass
             return;
         }
 
-        const ContainerCustomData& customData = ptr.getRefData().getCustomData()->asContainerCustomData();
+        const ContainerCustomData& customData = ptr.getRefData().getCustomData()->as<ContainerCustomData>();
         if (!customData.mStore.isResolved())
         {
             state.mHasCustomState = false;
