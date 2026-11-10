@@ -27,4 +27,4 @@ Background and measurements: `docs/research/0001-vulkan-renderer.md`.
 - **OpenMW upstream merges get harder.** OpenMW's rendering changes stop applying; merges of non-rendering fixes continue under the guide's merge rules, with the math change adding conversions at many call sites.
 - **Mods:** modders' post-processing shaders (`.omwfx`, OpenGL-style GLSL) no longer work as they are; how they are handled is decided in the Vulkan track.
 - **The OpenGL build is not kept alongside.** During the transition the OpenSceneGraph renderer stays only until the Vulkan renderer reaches the milestones in the guide's Track V; then OSG is removed.
-- **Other work waits.** CreativeMotion's in-game milestones from M10, Eden Studio and plugin phase P6 start after Track V, unless toddhow decides otherwise for a specific item.
+- **Other work waits.** CreativeMotion's in-game milestones from M10, Eden Studio and plugin phase P6 start after Track V, unless toddhow decides otherwise for a specific item. *(Update 2026-11-10: toddhow closed Track V; its unrun checks are follow-ups, not blockers, so this wait no longer applies. See the root `CLAUDE.md`, Track V.)*

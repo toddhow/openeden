@@ -1,6 +1,6 @@
 # Task 0008: Track V stage V0 — Groundwork for the Vulkan move
 
-**Status:** draft, awaiting toddhow's approval.
+**Status:** CLOSED 2026-11-10 by toddhow (remaining checks are follow-ups, not blockers; listed in `docs/toddhow-checks.md`, "Known open items from Track V"). Earlier status: draft, awaiting toddhow's approval.
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md`; background `docs/research/0001-vulkan-renderer.md`; guide `CLAUDE.md`, Track V.
 **Goal:** prepare everything the renderer import (task 0009) needs, without changing what OpenEden renders: the Track V branch, pinned VSG dependencies building on Windows and Linux, a known-good vsgopenmw baseline built against those versions, a screenshot comparison rig with reference images from today's OpenSceneGraph renderer, and a measured performance baseline.
 **Workflow:** full loop (guide, "Full loop required": every Track V stage).

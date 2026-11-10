@@ -205,7 +205,7 @@ Modder override: ship `ui/theme.rcss` later in load order to change tokens (`--p
 - **U5 Render to texture and input routing** to world surfaces.
 - **U6 Gamepad navigation.**
 - **U7 Morrowind migration** window by window, `lua_ui` compatibility, then MyGUI removal.
-Ordering constraints: U4 waits on the game pack tier (decision 0013 stages d to f); the root guide's current priority is Track V and the extension system, so U0 is a spare-time research stage, not an interruption.
+*(Update 2026-11-10: Track V is closed by toddhow; wherever this note says "after Track V", read "after game-pack stage d" only.)* Ordering constraints: U4 waits on the game pack tier (decision 0013 stages d to f); the root guide's current priority is Track V and the extension system, so U0 is a spare-time research stage, not an interruption.
 
 ## 11. Open questions for toddhow (with recommendation)
 1. **Approve a U0 spike on RmlUi before committing?** Recommend yes; it is cheap, throwaway and answers the unknowns.

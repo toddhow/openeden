@@ -1,6 +1,6 @@
 # 0008 — Modern rendering features: a proposal
 
-Date: 2026-10-31 · Asked by: toddhow · Status: **proposal, nothing decided.** Implementation waits for Track V (root `CLAUDE.md`, "Not yet": new renderer features beyond what the Vulkan move brings wait until Track V is done). Each stage below still needs a task spec that toddhow approves, and most need a decision (section 9).
+Date: 2026-10-31 · Asked by: toddhow · Status: **proposal, nothing decided.** *(Update 2026-11-10: toddhow closed Track V, so the wait below is lifted; the proposal is still undecided and each stage still needs an approved spec.)* Implementation waits for Track V (root `CLAUDE.md`, "Not yet": new renderer features beyond what the Vulkan move brings wait until Track V is done). Each stage below still needs a task spec that toddhow approves, and most need a decision (section 9).
 
 The ask: subsurface scattering, volumetric atmospherics, physically based rendering, reflections, ambient occlusion, dynamic weather and time of day, plus any other recommendations. Facts below cite a file at the current commit (`vulkan`, after `ca9f6283d8`). Technique names come from memory and no licence has been checked (section 7).
 
@@ -128,7 +128,7 @@ Stock skin textures are small and heads are low-poly, so the visible gain is mod
 
 ## 8. Sequencing against other work
 
-- The guide holds new renderer features until Track V is done. V2, V4 and V5 still have open items, and V6's hands-on checks are unrun.
+- The guide held new renderer features until Track V was done. V2, V4 and V5 still have open items, and V6's hands-on checks are unrun; toddhow closed Track V on 2026-11-10 anyway, so those are follow-ups, not blockers.
 - Three things are now marked "next": the Track W merge, Eden Studio (after the extension system) and this. They compete for the same attention and, for Eden Studio, the same renderer code.
 - **F0 can start any time:** it only measures, and it supplies the numbers the decisions below need.
 - **Suggested order:** finish V6, merge Track W, then F0 and F1 together with Eden Studio's first phase, then point-light shadows, then F2 to F4, then R1 to R7 by section 1.

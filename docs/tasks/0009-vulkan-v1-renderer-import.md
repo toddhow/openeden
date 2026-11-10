@@ -1,6 +1,6 @@
 # Task 0009: Track V stage V1 — Import vsgopenmw's renderer
 
-**Status:** draft, awaiting toddhow's approval. Depends on task 0008 (V0).
+**Status:** CLOSED 2026-11-10 by toddhow (remaining checks are follow-ups, not blockers; listed in `docs/toddhow-checks.md`, "Known open items from Track V"). Earlier status: draft, awaiting toddhow's approval. Depends on task 0008 (V0).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("Starting point", "vsgopenmw is a second upstream"); `docs/research/0001-vulkan-renderer.md`, "vsgopenmw".
 **Goal:** merge vsgopenmw's Vulkan renderer (branch `vsg-import` from task 0008) into the `vulkan` branch so that OpenEden builds on Windows and Linux with VulkanSceneGraph instead of OpenSceneGraph rendering, starts, shows the main menu and loads an exterior and an interior cell. Making the game fully playable is task 0010; OpenEden's own rendering features return in task 0011.
 **Workflow:** full loop. The merge itself is reviewed hunk by hunk by a fresh reviewing subagent before toddhow.

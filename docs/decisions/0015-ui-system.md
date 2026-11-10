@@ -45,5 +45,5 @@ See research note 0045 section 11: the spike approval (recommend yes), Lua table
 - **U0 spike on RmlUi before committing: yes.** A throwaway prototype of one window through a VSG render interface, with render-to-texture and cost measured; the backend choice (RmlUi, or the custom C++ fallback behind the same protocol) is made on its result.
 - **Components as Lua tables first, not a markup file: yes.** A markup layer can be added later without changing components.
 - **Keep existing OpenMW Lua UI mods working during the Morrowind stage, by re-implementing `lua_ui` over the new system: yes.**
-- **Schedule: after Track V and game-pack stage d.** No UI work starts before then.
+- **Schedule: after Track V and game-pack stage d.** No UI work starts before then. *(Update 2026-11-10: Track V is closed by toddhow, so the schedule is now after game-pack stage d only.)*
 - Not yet asked: the element protocol (question 3), core ownership of the component library (4), right-to-left and complex scripts (5), Dear ImGui for developer tools (6) and default art from the player's installed data (9); the note's recommendations stand for them until toddhow says otherwise.

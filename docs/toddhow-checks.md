@@ -10,9 +10,9 @@ One place for everything only you can check or decide, so nobody has to ask each
 - **When something looks wrong:** note the place, weather, hour and which profile (and variant); if it is a pop or a stall, run the `stats` variant and give me the time or the log; screenshots are enough otherwise (F12 saves one).
 - **The texture mod:** `bash tools/testprofile/texturemod.sh <profile folder> add [--lava]` adds Landscape Remastered (extracted at `I:\Projects\OpenEden-work\mods\landscape-remastered`) to a profile copy; `remove` takes it out. Run it after `prepare`, which writes a new `openmw.cfg`. Re-bake the terrain pack once after adding it.
 
-## 1. Verdicts that block closing Track V (task 0010, 0012, 0013, 0014)
+## 1. Known open items from Track V (not blocking)
 
-These are the open boxes of Track V in the guide.
+**Track V was closed by toddhow on 2026-11-10** ("mark it complete, I'm tired of it blocking; if we have issues we will tackle them when they come up"). Nothing here blocks any work and none of it was verified by closing; the items are kept so they can be done when they cause an issue. Also never run: the fixed-seed scenario, AI pathing and image comparison for V5 (Claude can run them if you say so), the Linux gate on recent work, and the V1-era Linux build and Lua tests on the final tree.
 
 - [x] **Reference scenes, image and performance verdicts (task 0010).** Run `tools/render_compare.sh` (it compares the scenes against the OSG reference images), look at each scene, and say for each: accepted, or a bug with what is wrong. Differences are expected: the Vulkan renderer lights, shadows and draws water differently. Performance: the exterior CPU cost versus the OSG build is the number to judge.
 - [x] **A short play-through on Vulkan (task 0010):** movement, combat, AI pathing with the navigator on, saving and loading. Report anything that is wrong.

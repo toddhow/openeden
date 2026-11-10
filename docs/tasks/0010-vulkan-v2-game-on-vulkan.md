@@ -1,6 +1,6 @@
 # Task 0010: Track V stage V2 — The whole game on Vulkan
 
-**Status:** approved by toddhow (2026-10-29). Depends on task 0009 (V1), done on Windows (commit 7a8e86c27d).
+**Status:** CLOSED 2026-11-10 by toddhow (remaining checks are follow-ups, not blockers; listed in `docs/toddhow-checks.md`, "Known open items from Track V"). Earlier status: approved by toddhow (2026-10-29). Depends on task 0009 (V1), done on Windows (commit 7a8e86c27d).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md`; guide `CLAUDE.md`, Track V.
 **Goal:** after the renderer import, make Morrowind fully playable on the Vulkan build: movement, combat, magic, AI pathing with the navigator on, saving and loading, maps, menus and the Lua API, with every existing test gate passing again and the image and performance comparisons against the OSG references judged. OpenEden's own rendering features stay excluded until task 0011.
 **Workflow:** full loop.

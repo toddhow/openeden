@@ -1,6 +1,6 @@
 # Task 0011: Track V stage V3 — OpenEden's rendering features on VSG
 
-**Status:** approved by toddhow (2026-10-29) with the answers below. Depends on task 0010 (V2).
+**Status:** CLOSED 2026-11-10 by toddhow (remaining checks are follow-ups, not blockers; listed in `docs/toddhow-checks.md`, "Known open items from Track V"). Earlier status: approved by toddhow (2026-10-29) with the answers below. Depends on task 0010 (V2).
 **Design doc section:** `docs/decisions/0002-vulkan-renderer-on-vulkanscenegraph.md` ("Consequences": the IK controller, pose driver and Jolt debug draw need porting); tasks 0006 (M9 IK), 0007 (M12 animation runtime); `docs/design/inertial-locomotion.md`; decision 0001 (CreativeMotion in the engine).
 **Goal:** rebuild every OpenEden feature that task 0009 compiled out (`OPENEDEN_VSG_PENDING_FEATURES`) on vsgopenmw's animation system, with the same behaviour, the same settings and the same "off by default, unchanged when off" guarantees as on the OSG build; then remove the option.
 **Workflow:** full loop. The test-writing subagent writes the tests from this spec and tasks 0006/0007's acceptance criteria, before implementation.
