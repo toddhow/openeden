@@ -92,6 +92,24 @@ namespace
         EXPECT_NEAR(m[2], 0.0, 1e-6);
     }
 
+    TEST(CellScenePlacement, positiveXAndYAnglesTipTheUpAxisTowardPlusYAndMinusX)
+    {
+        // Settled by terrain (task 0086 stage log, rotation convention): on sloped ground the placements that follow
+        // the slope are best explained when a positive X angle tips the object's up axis toward +Y and a positive Y
+        // angle tips it toward -X (every angle clockwise), applied X first, then Y, then Z. 79,340 placements in
+        // Skyrim.esm's Tamriel: mean angle to the terrain normal 0.203 rad with this convention, 0.357 rad untilted,
+        // 0.455 rad with both signs flipped. Column 2 of the matrix is where local +Z goes.
+        const float a = 0.5f;
+        const auto mx = placementMatrix({ 0, 0, 0 }, { a, 0, 0 }, 1.0);
+        EXPECT_NEAR(mx[8], 0.0, 1e-6);
+        EXPECT_NEAR(mx[9], std::sin(a), 1e-6); // up gains +Y
+        EXPECT_NEAR(mx[10], std::cos(a), 1e-6);
+        const auto my = placementMatrix({ 0, 0, 0 }, { 0, a, 0 }, 1.0);
+        EXPECT_NEAR(my[8], -std::sin(a), 1e-6); // up gains -X
+        EXPECT_NEAR(my[9], 0.0, 1e-6);
+        EXPECT_NEAR(my[10], std::cos(a), 1e-6);
+    }
+
     TEST(CellScene, aMeshIsPlacedByTheObjectsMatrix)
     {
         const SceneModel tri = triangleModel();
@@ -289,6 +307,31 @@ namespace
         ASSERT_EQ(scene.model.shapes.size(), 2u);
         EXPECT_NE(scene.model.shapes[0].colour, scene.model.shapes[1].colour);
         EXPECT_FLOAT_EQ(scene.model.shapes[0].colour[3], 1.f);
+    }
+
+    TEST(CellScene, aTexturedShapeKeepsMostOfItsTextureColour)
+    {
+        // Task 0086, textures: a shape coloured by its texture takes a trace of the kind's tint, a flat grey takes a
+        // lot.
+        SceneModel tri = triangleModel();
+        tri.shapes[0].colour = { 1.f, 0.f, 0.f, 1.f };
+        tri.shapes[0].textured = true;
+        tri.shapes[0].diffuse = "textures\a.dds";
+        SceneModel flat = triangleModel();
+        flat.shapes[0].colour = { 1.f, 0.f, 0.f, 1.f };
+        auto a = object(1, "a.nif");
+        auto b = object(2, "b.nif");
+        const CellScene scene
+            = buildCellScene(cellOf({ a, b }), [&](const std::string& path) { return path == "a.nif" ? &tri : &flat; });
+        ASSERT_EQ(scene.model.shapes.size(), 2u);
+        const auto& textured = scene.model.shapes[0];
+        const auto& grey = scene.model.shapes[1];
+        EXPECT_TRUE(textured.textured);
+        EXPECT_EQ(textured.diffuse, "textures\a.dds");
+        EXPECT_FALSE(grey.textured);
+        EXPECT_GT(textured.colour[0], grey.colour[0]);
+        EXPECT_GT(textured.colour[0], 0.85f);
+        EXPECT_LT(textured.colour[1], 0.2f);
     }
 
     TEST(CellScene, aLightWithNoModelHasNoBox)

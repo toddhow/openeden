@@ -332,11 +332,13 @@ namespace CSMMesh
             const NifScene::ShaderMaterial* material
                 = geometry.mMaterial < scene.mMaterials.size() ? &scene.mMaterials[geometry.mMaterial] : nullptr;
             shape.colour = materialColour(material);
+            shape.tinted = shape.colour != sNeutral;
             if (material && material->mTextureSet < scene.mTextureSets.size())
             {
                 const auto& set = scene.mTextureSets[material->mTextureSet].mTextures;
                 if (!set.empty() && !set[0].empty())
                 {
+                    shape.diffuse = set[0];
                     node.textures.push_back(set[0]);
                     if (std::find(textures.begin(), textures.end(), set[0]) == textures.end())
                         textures.push_back(set[0]);

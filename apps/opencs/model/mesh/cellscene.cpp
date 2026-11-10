@@ -12,7 +12,8 @@ namespace CSMMesh
         // The sign of each Euler angle (x, y, z) of a placement. Negative: the Gamebryo family turns objects clockwise
         // for a positive angle, as Eden Studio's own cell editor does for Morrowind (InstanceMath::eulerToQuat). Z was
         // checked by frame on a furnished interior (the shell's wall pieces close with -1 and open up with +1, task
-        // 0086 stage log); X and Y are taken from the same convention and not seen in a frame (RECALLED-VERIFY).
+        // 0086 stage log). X and Y were settled by terrain: placements on sloped Tamriel ground align with its normal
+        // best with all three negated and X applied first (stage log, rotation convention).
         constexpr double kAngleSign[3] = { -1.0, -1.0, -1.0 };
 
         // Beyond this a placement is not a Skyrim world (about 1e5 units across), so it is refused as hostile.
@@ -24,10 +25,16 @@ namespace CSMMesh
             return std::isfinite(v) && std::abs(v) <= kLimit;
         }
 
-        std::array<float, 4> shade(std::array<float, 4> colour, const std::array<float, 4>& tint)
+        // How much of the base kind's tint a shape keeps: a flat grey takes a good deal of it (it is how the kinds are
+        // told apart), a shape with its texture's own colour only a trace.
+        constexpr float kTintShare = 0.45f;
+        constexpr float kTintShareTextured = 0.12f;
+
+        std::array<float, 4> shade(std::array<float, 4> colour, const std::array<float, 4>& tint, bool textured)
         {
+            const float share = textured ? kTintShareTextured : kTintShare;
             for (int i = 0; i < 3; ++i)
-                colour[i] = colour[i] * 0.55f + tint[i] * 0.45f;
+                colour[i] = colour[i] * (1.f - share) + tint[i] * share;
             colour[3] = 1.f;
             return colour;
         }
@@ -90,7 +97,7 @@ namespace CSMMesh
             };
             SceneModelShape shape;
             shape.node = node;
-            shape.colour = shade({ 0.72f, 0.72f, 0.72f, 1.f }, kindColour(o.baseKind));
+            shape.colour = shade({ 0.72f, 0.72f, 0.72f, 1.f }, kindColour(o.baseKind), false);
             for (const Face& face : faces)
             {
                 const std::uint32_t first = static_cast<std::uint32_t>(shape.mesh.positions.size());
@@ -230,7 +237,9 @@ namespace CSMMesh
                 for (const SceneModelShape& source : mesh->shapes)
                 {
                     SceneModelShape shape;
-                    shape.colour = shade(source.colour, kindColour(o.baseKind));
+                    shape.colour = shade(source.colour, kindColour(o.baseKind), source.textured);
+                    shape.textured = source.textured;
+                    shape.diffuse = source.diffuse;
                     shape.skinned = source.skinned;
                     shape.mesh.topology = source.mesh.topology;
                     shape.mesh.indices = source.mesh.indices;

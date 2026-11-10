@@ -14,8 +14,10 @@
 #include <exception>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 #include <vsg/core/Visitor.h>
 #include <vsg/nodes/StateGroup.h>
@@ -51,6 +53,7 @@
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
 #include <apps/opencs/model/mesh/scenemodel.hpp>
 #include <apps/opencs/model/mesh/skyrimcellsource.hpp>
+#include <apps/opencs/model/mesh/texturecolour.hpp>
 #include <apps/opencs/model/physics/joltruntime.hpp>
 
 #include "picking.hpp"
@@ -73,6 +76,46 @@ namespace CSVRender
         const std::array<float, 4> sSelectionColour{ 1.f, 0.95f, 0.2f, 1.f };
         const std::array<float, 4> sSkeletonColour{ 0.95f, 0.35f, 0.95f, 1.f };
         const std::array<float, 4> sNoColourGrey{ 0.72f, 0.72f, 0.72f, 1.f };
+
+        // A texture file read through the virtual file system for the colour of a Skyrim shape (task 0086): at most
+        // maxBytes + 1 bytes, so that the cache can tell a file that is too long. Nothing when the file is not there or
+        // cannot be read.
+        std::optional<std::vector<unsigned char>> readTextureFile(
+            const VFS::Manager& vfs, const std::string& key, std::uint64_t maxBytes)
+        {
+            try
+            {
+                const VFS::Path::Normalized path(key);
+                if (!vfs.exists(path))
+                    return std::nullopt;
+                const auto stream = vfs.get(path);
+                if (!stream)
+                    return std::nullopt;
+                std::vector<unsigned char> bytes;
+                std::vector<char> chunk(1 << 16);
+                while (bytes.size() <= maxBytes && *stream)
+                {
+                    stream->read(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+                    const auto got = static_cast<std::size_t>(stream->gcount());
+                    if (got == 0)
+                        break;
+                    bytes.insert(bytes.end(), chunk.begin(), chunk.begin() + static_cast<std::ptrdiff_t>(got));
+                }
+                return bytes;
+            }
+            catch (const std::exception&)
+            {
+                return std::nullopt;
+            }
+        }
+
+        void logTextureStats(const std::string& what, const CSMMesh::TextureColourStats& t)
+        {
+            Log(Debug::Info) << "Cell viewer: " << what << ": textures " << t.requested << " asked for, " << t.loaded
+                             << " loaded, " << t.missing << " missing, " << t.unsupported << " unreadable, "
+                             << t.overBudget << " over budget, " << t.bytesRead << " bytes read; " << t.shapesTextured
+                             << " shapes coloured by texture, " << t.shapesFallback << " kept a flat colour";
+        }
 
         std::array<float, 3> transformPoint(const vsg::dmat4& m, const std::array<float, 3>& p)
         {
@@ -481,6 +524,13 @@ namespace CSVRender
         for (const std::string& warning : model.warnings)
             Log(Debug::Warning) << "Mesh viewer: " << name << ": " << warning;
 
+        {
+            const VFS::Manager* vfs = mHost.resources().getVFS();
+            CSMMesh::TextureColourCache textures(
+                [vfs](const std::string& key, std::uint64_t maxBytes) { return readTextureFile(*vfs, key, maxBytes); });
+            CSMMesh::applyTextureColours(model, textures);
+            logTextureStats(name, textures.stats());
+        }
         applySceneModel(model, "meshes/" + name);
         return true;
     }
@@ -605,6 +655,8 @@ namespace CSVRender
         // Meshes come through the VFS, converted once per path; a path that fails is remembered as missing.
         const VFS::Manager* vfs = mHost.resources().getVFS();
         std::map<std::string, std::unique_ptr<CSMMesh::SceneModel>> cache;
+        CSMMesh::TextureColourCache textures(
+            [vfs](const std::string& key, std::uint64_t maxBytes) { return readTextureFile(*vfs, key, maxBytes); });
         const CSMMesh::MeshProvider provider = [&](const std::string& modelPath) -> const CSMMesh::SceneModel* {
             std::string key = modelPath;
             std::replace(key.begin(), key.end(), '\\', '/');
@@ -620,6 +672,7 @@ namespace CSVRender
                 {
                     const NifScene::Scene scene = NifScene::readScene(vfs->get(path), path, NifScene::SceneOptions{});
                     converted = std::make_unique<CSMMesh::SceneModel>(CSMMesh::buildSceneModel(scene));
+                    CSMMesh::applyTextureColours(*converted, textures);
                 }
             }
             catch (const std::exception& e)
@@ -639,6 +692,7 @@ namespace CSVRender
                          << cell.model.bounds.min[1] << ", " << cell.model.bounds.min[2] << ") to ("
                          << cell.model.bounds.max[0] << ", " << cell.model.bounds.max[1] << ", "
                          << cell.model.bounds.max[2] << ")";
+        logTextureStats(editorId, textures.stats());
         applySceneModel(cell.model, "skyrimcell:" + editorId);
         return true;
     }

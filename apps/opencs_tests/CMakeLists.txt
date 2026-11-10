@@ -46,6 +46,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/mesh/testcellscene.cpp
     model/mesh/testscenemodel.cpp
     model/mesh/testtexturereport.cpp
+    model/mesh/testtexturecolour.cpp
     model/lod/testtilemodel.cpp
     model/lod/testtilemesh.cpp
     model/lod/testworldgrid.cpp

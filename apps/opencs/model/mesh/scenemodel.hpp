@@ -50,6 +50,12 @@ namespace CSMMesh
         IndexedMesh mesh;
         std::array<float, 4> colour{ 0.72f, 0.72f, 0.72f, 1.f }; // a flat colour standing in for the material
         bool skinned = false;
+        /// The diffuse texture path of the shape's texture set (slot 0), as the file says it; empty when it has none.
+        std::string diffuse;
+        /// A skin, hair or effect colour: the colour is the material's own and a texture does not replace it.
+        bool tinted = false;
+        /// `colour` is the mean colour of the diffuse texture (task 0086, texturecolour.hpp).
+        bool textured = false;
     };
 
     /// Plain data converted from a Nif::Scene. No Qt, no GPU.

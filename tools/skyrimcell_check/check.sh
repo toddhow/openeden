@@ -42,8 +42,10 @@ D=$(native "$DATA")
     echo "data=\"$D\""
     echo "data=\"$W/empty-data\""
     echo "content=empty.esp"
-    echo "fallback-archive=Skyrim - Meshes0.bsa"
-    echo "fallback-archive=Skyrim - Meshes1.bsa"
+    # Meshes and textures: every mesh and texture archive of the base game, then Update.bsa (it overrides).
+    for a in "$DATA"/"Skyrim - Meshes"*.bsa "$DATA"/"Skyrim - Textures"*.bsa "$DATA"/Update.bsa; do
+        [ -f "$a" ] && echo "fallback-archive=$(basename "$a")"
+    done
 } > "$WORK/config/openmw.cfg"
 
 i=0
