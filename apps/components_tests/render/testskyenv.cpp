@@ -97,9 +97,9 @@ TEST(SkyEnv, ChangeIsNoticedOnlyBeyondTheTolerance)
     EXPECT_TRUE(skyEnvironmentChanged(zenith, horizon, zenith, horizon + vsg::vec3(0.f, -0.01f, 0.f), 0.004f));
 }
 
-// The glaze fix: the sky environment image is a one-probe picture of the whole sky, so it must only light a surface that
-// can see the sky in the mirror direction, and a rough dielectric must get little of it. The GLSL and Slang twins are
-// skyReflectionFactor in lib/view/skyvis.{glsl,slang}.
+// The glaze fix: the sky environment image is a one-probe picture of the whole sky, so it must only light a surface
+// that can see the sky in the mirror direction, and a rough dielectric must get little of it. The GLSL and Slang twins
+// are skyReflectionFactor in lib/view/skyvis.{glsl,slang}.
 TEST(SkyReflection, RoughnessWeightKeepsSmoothAndMetalAndDropsRoughDielectrics)
 {
     EXPECT_FLOAT_EQ(skyReflectionRoughnessWeight(0.f, 0.f), 1.f);
