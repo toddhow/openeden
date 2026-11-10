@@ -83,3 +83,7 @@ The pack states, per function, `maxCost` (a number the core logs when a call exc
 4. `REQUIRES:` as a new `.omwscripts` keyword in an inherited file (recommended) or a separate manifest that only OpenEden reads?
 5. May `menuSafe` namespaces exist at all, or are menu scripts never given pack bindings?
 6. Is a per-function `maxCost` log-only (recommended) or enforced (the core cuts a handler off), which would need the pack to be cooperative?
+
+## Approval (toddhow, 2026-11-09)
+
+**"I approve it":** task 0097 is APPROVED with the recommendations of its four gaps and the recommended answers to its six open questions. Stage A starts after Lane I part 2 (the lifecycle split) lands, because both touch the extension host and the startup order; stage A begins with the survey step that settles the three RECALLED-VERIFY facts.
