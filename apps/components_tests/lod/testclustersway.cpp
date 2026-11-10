@@ -238,3 +238,34 @@ TEST(LodClusterSwayWave, the_wave_stays_in_zero_to_one)
         EXPECT_LE(swayWave(a), 1.f + 1e-6f);
     }
 }
+
+TEST(LodClusterSwayShader, the_angle_the_shader_takes_is_the_clock_angle_plus_the_spatial_phase)
+{
+    // The vertex shader computes wave(clockAngle + swayVertexPhase(x, y)); swayDisplacement does the same with the
+    // spatial part as its phase argument, so the two agree for any time and place.
+    const float lean = 0.06f, wind = 0.7f, objectHeight = 1200.f, height = 800.f;
+    const std::uint8_t byte = swayEncodeWeight(height, objectHeight);
+    for (const double seconds : { 0.0, 0.4, 1.5, 2.99, 3.0, 61.25, 36000.7 })
+        for (const float x : { -50000.f, 0.f, 1234.5f, 99999.f })
+            for (const float y : { -70000.f, 0.f, 777.f })
+            {
+                const double angle = static_cast<double>(swayClockAngle(seconds)) + swayVertexPhase(x, y);
+                const float shader = lean * wind * swayDecodeWeight(byte) * swayWave(angle);
+                const float maths = sway(lean, wind, height, objectHeight, swayVertexPhase(x, y), seconds).v[0];
+                EXPECT_NEAR(shader, maths, 2.0f) << seconds << " " << x << " " << y;
+            }
+}
+
+TEST(LodClusterSwayShader, the_reach_bounds_every_displacement)
+{
+    // (The reach is for objects up to swayWeightScale tall, the most the weight byte can express.)
+    float worst = 0;
+    for (double t = 0; t < 12; t += 0.05)
+        for (float phase = 0; phase < 6.3f; phase += 0.1f)
+        {
+            const Out o = sway(maxSwayLean, 1.f, swayWeightScale, swayWeightScale, phase, t);
+            worst = std::max(worst, std::sqrt(o.v[0] * o.v[0] + o.v[1] * o.v[1]));
+        }
+    EXPECT_LE(worst, maxSwayReach);
+    EXPECT_GT(worst, 0.5f * maxSwayReach);
+}

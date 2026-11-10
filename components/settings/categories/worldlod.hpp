@@ -37,11 +37,11 @@ namespace Settings
         SettingValue<bool> mObjectClusterSway{ mIndex, "WorldLod", "object cluster sway" };
         SettingValue<std::string> mObjectClusterSwayModels{ mIndex, "WorldLod", "object cluster sway models" };
         // The top's lean at full wind as a share of the object's height (0 to 0.1), and a wind strength used when the
-        // weather gives none (0 to 1); `sway wind` multiplies the weather's wind.
+        // weather gives none; `sway wind` (0 to 4) multiplies the weather's wind, and the result is at most 1.
         SettingValue<float> mObjectClusterSwayLean{ mIndex, "WorldLod", "object cluster sway lean",
             makeClampSanitizerFloat(0.f, 0.1f) };
         SettingValue<float> mObjectClusterSwayWind{ mIndex, "WorldLod", "object cluster sway wind",
-            makeClampSanitizerFloat(0.f, 1.f) };
+            makeClampSanitizerFloat(0.f, 4.f) };
         SettingValue<float> mObjectClusterThreshold{ mIndex, "WorldLod", "object cluster threshold",
             makeClampSanitizerFloat(0.01f, 1000000.f) };
         SettingValue<float> mObjectClusterFadeTime{ mIndex, "WorldLod", "object cluster fade time",

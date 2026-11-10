@@ -597,7 +597,7 @@ namespace MWRender
                 cluster.mOriginX + side * 0.5, cluster.mOriginY + side * 0.5, (cluster.mMinZ + cluster.mMaxZ) * 0.5);
             const double radius = std::sqrt(side * side * 0.5
                                       + 0.25 * (cluster.mMaxZ - cluster.mMinZ) * (cluster.mMaxZ - cluster.mMinZ))
-                + cluster.mOverhang;
+                + cluster.mOverhang + (tile.mSwayMatrices.empty() ? 0.0 : static_cast<double>(Lod::maxSwayReach));
             return vsg::CullNode::create(vsg::dsphere(centre, radius), transform);
         }
     }

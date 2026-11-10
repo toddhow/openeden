@@ -96,6 +96,21 @@ namespace Lod
     inline constexpr float swayPhasePerUnitX = 0.00041f;
     inline constexpr float swayPhasePerUnitY = 0.00033f;
 
+    /// The farthest a vertex can move from its rest position (world units): the largest lean at full wind and full
+    /// weight, along the wind and a quarter of it across it (the wave is at most 1). The renderer adds it to a sway
+    /// tile's cull sphere.
+    inline constexpr float maxSwayReach = 1.1f * maxSwayLean * swayWeightScale;
+
+    /// The angle the vertex shader's wave takes at a world position: the clock's angle plus the spatial phase (the two
+    /// per-unit constants above). `swayDisplacement`'s `phase` argument is the spatial part, so
+    /// swayDisplacement(..., swayVertexPhase(x, y), seconds, ...) is what the shader draws at that place and time.
+    inline float swayVertexPhase(float x, float y) noexcept
+    {
+        if (!std::isfinite(x) || !std::isfinite(y))
+            return 0.f;
+        return swayPhasePerUnitX * x + swayPhasePerUnitY * y;
+    }
+
     /// The colour-alpha byte that carries a far vertex's sway weight: the square root of the share above, in 0..255
     /// (the root gives the small shares more steps). A height or object height that is not finite, or an object
     /// height of 0 or less, gives 0; a point at or below the base gives 0.
