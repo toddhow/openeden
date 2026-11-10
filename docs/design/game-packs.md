@@ -167,7 +167,7 @@ pack** as contracts of one family, `openeden.script.*`: ObScript (Oblivion, Fall
 (Skyrim, Fallout 4, Starfield; after). The runtimes hold no authority; a game pack supplies the function table or
 natives and world access and writes the save chunk. ObScript reuses the game-neutral parts of `components/compiler`
 and `components/interpreter` through a seam (task 0092). **Until the Morrowind game pack takes it (task 0085) the
-Morrowind interpreter, compiler and mwscript command set stay where they are, in the core and `apps/openmw`.** The
+Morrowind interpreter and compiler stay where they are; the mwscript command set (the handlers and the compile table) moved into `game_morrowind` on 2026-11-10 (task 0098 move 4), reached by the core through the `MWScript::installCommandSet` hook.** The
 earlier text of this section (interpreter in the core, compiler and commands to `game_morrowind`, Papyrus out of
 scope) is superseded; see research note 0046 and task 0092 for the contract and the first slice.
 

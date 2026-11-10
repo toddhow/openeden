@@ -1,7 +1,84 @@
-#include "extensions0.hpp"
+#include <components/compiler/extensions.hpp>
+#include <components/compiler/extensions0.hpp>
 
-#include "extensions.hpp"
-#include "opcodes.hpp"
+#include <game_morrowind/compiler_opcodes.hpp>
+
+// Morrowind's compile table (task 0098 move 4): the names, argument shapes and opcode numbers of the script commands.
+// Compiler::registerExtensions is declared in components/compiler/extensions0.hpp but defined here, in the Morrowind
+// game pack; the executable hands it to the engine (MWScript::installCommandSet), and the editor and the tests link
+// this library for it. The per-area functions are only used below.
+namespace Compiler
+{
+    namespace Ai
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Animation
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Cell
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Console
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Container
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Control
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Dialogue
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Gui
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Misc
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Sky
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Sound
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Stats
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace Transformation
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+
+    namespace User
+    {
+        void registerExtensions(Extensions& extensions);
+    }
+}
 
 namespace Compiler
 {

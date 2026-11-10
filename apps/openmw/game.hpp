@@ -3,7 +3,6 @@
 #include <memory>
 
 #include <components/compiler/extensions.hpp>
-#include <components/compiler/extensions0.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/lua_ui/util.hpp>
 #include <components/misc/loadtrace.hpp>
@@ -18,6 +17,7 @@
 #include "mwrender/rendermanager.hpp"
 #include "mwscript/compilercontext.hpp"
 #include "mwscript/interpretercontext.hpp"
+#include "mwscript/scriptcommands.hpp"
 #include "mwscript/scriptmanagerimp.hpp"
 #include "mwstate/gamestate.hpp"
 #include "mwstate/statemanagerimp.hpp"
@@ -81,7 +81,7 @@ namespace OMW
             // the end of this constructor as they always did.
             mEngine.mExtensionHost->startGamePack(mWorld->getPhysicsSystem());
 
-            Compiler::registerExtensions(mExtensions);
+            MWScript::registerCommands(mExtensions);
             mScriptContext.reset(new MWScript::CompilerContext(MWScript::CompilerContext::Type_Full));
             mScriptContext->setExtensions(&mExtensions);
             mScriptManager = std::make_unique<MWScript::ScriptManager>(

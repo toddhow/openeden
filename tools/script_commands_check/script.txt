@@ -1,0 +1,6 @@
+player->AddItem "gold_001" 25
+player->RemoveItem "gold_001" 5
+player->SetStrength 77
+player->ModStrength 3
+player->SetLevel 9
+MessageBox "script commands check"

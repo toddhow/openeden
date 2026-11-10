@@ -1,21 +1,21 @@
-#include "guiextensions.hpp"
+#include <game_morrowind/guiextensions.hpp>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/esmstore.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
-#include "ref.hpp"
+#include <apps/openmw/mwscript/ref.hpp>
 
 namespace MWScript
 {

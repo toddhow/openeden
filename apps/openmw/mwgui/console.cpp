@@ -10,7 +10,6 @@
 #include <regex>
 
 #include <components/compiler/exception.hpp>
-#include <components/compiler/extensions0.hpp>
 #include <components/compiler/lineparser.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/scanner.hpp>
@@ -21,8 +20,8 @@
 
 #include "apps/openmw/mwgui/textcolours.hpp"
 
-#include "../mwscript/extensions.hpp"
 #include "../mwscript/interpretercontext.hpp"
+#include "../mwscript/scriptcommands.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -186,7 +185,7 @@ namespace MWGui
         mHistory->setOverflowToTheLeft(true);
 
         // compiler
-        Compiler::registerExtensions(mExtensions, mConsoleOnlyScripts);
+        MWScript::registerCommands(mExtensions, mConsoleOnlyScripts);
         mCompilerContext.setExtensions(&mExtensions);
 
         // command history file
@@ -251,7 +250,7 @@ namespace MWGui
             {
                 ConsoleInterpreterContext interpreterContext(*this, mPtr);
                 Interpreter::Interpreter interpreter;
-                MWScript::installOpcodes(interpreter, mConsoleOnlyScripts);
+                MWScript::installCommandOpcodes(interpreter, mConsoleOnlyScripts);
                 const Interpreter::Program program = output.getProgram();
                 interpreter.run(program, interpreterContext);
             }

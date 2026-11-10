@@ -104,6 +104,8 @@ target_link_libraries(csmodel
     Boost::program_options
     opas::motor opas::rig opas::math
     components_qt
+    # Morrowind's script compile table (task 0098 move 4): the editor checks and colours Morrowind scripts with it
+    game_morrowind_script_table
     Qt::Widgets Qt::Core Qt::Network Qt::Svg
 )
 

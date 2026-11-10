@@ -1,8 +1,8 @@
-#include "skyextensions.hpp"
+#include <game_morrowind/skyextensions.hpp>
 
 #include <algorithm>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/esm3/loadregn.hpp>
 #include <components/interpreter/context.hpp>
@@ -10,10 +10,10 @@
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwworld/esmstore.hpp>
 
 namespace MWScript
 {

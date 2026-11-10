@@ -1,4 +1,4 @@
-#include "miscextensions.hpp"
+#include <game_morrowind/miscextensions.hpp>
 
 #include <chrono>
 #include <cstdlib>
@@ -7,8 +7,8 @@
 
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/locals.hpp>
-#include <components/compiler/opcodes.hpp>
 #include <components/mwanimation/wielding.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/debug/debuglog.hpp>
 
@@ -51,31 +51,31 @@
 #include <components/misc/vsgmath.hpp>
 #include <components/vfs/manager.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/bodylegacy.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/bodylegacy.hpp>
 
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/player.hpp"
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aicast.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellcasting.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aicast.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
 
-#include "interpretercontext.hpp"
-#include "ref.hpp"
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwscript/ref.hpp>
 
 namespace
 {

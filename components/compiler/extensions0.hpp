@@ -5,77 +5,11 @@ namespace Compiler
 {
     class Extensions;
 
+    /// Registers the script commands of the game. DEFINED BY THE MORROWIND GAME PACK, not by this library
+    /// (game_packs/morrowind/src/script_table.cpp, task 0098 move 4): the components know the script compiler and not
+    /// the commands. A program that calls this links the pack's table library (game_morrowind_script_table); the game's
+    /// own code does not call it and reaches the table through MWScript::registerCommands.
     void registerExtensions(Extensions& extensions, bool consoleOnly = false);
-
-    namespace Ai
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Animation
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Cell
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Console
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Container
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Control
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Dialogue
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Gui
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Misc
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Sky
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Sound
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Stats
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace Transformation
-    {
-        void registerExtensions(Extensions& extensions);
-    }
-
-    namespace User
-    {
-        void registerExtensions(Extensions& extensions);
-    }
 }
 
 #endif

@@ -536,6 +536,8 @@ target_link_libraries(components-tests
     eden_body
     eden_face
     eden_animtrace
+    # the compile table of Morrowind's script commands (task 0098 move 4), for the golden compile recording
+    game_morrowind_script_table
 )
 
 # Task 0063: where the hand-written body.json fixtures live.

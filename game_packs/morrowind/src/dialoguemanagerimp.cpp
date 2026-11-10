@@ -42,8 +42,8 @@
 #include <apps/openmw/mwworld/esmstore.hpp>
 
 #include <apps/openmw/mwscript/compilercontext.hpp>
-#include <apps/openmw/mwscript/extensions.hpp>
 #include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <game_morrowind/script_commands.hpp>
 
 #include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>

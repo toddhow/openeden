@@ -1,8 +1,8 @@
-#include "cellextensions.hpp"
+#include <game_morrowind/cellextensions.hpp>
 
 #include <limits>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
@@ -11,17 +11,17 @@
 
 #include <components/misc/strings/algorithm.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwstate/testcells.hpp"
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/scene.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwstate/testcells.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
 #include <components/esmbridge/util.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
 namespace MWScript
 {

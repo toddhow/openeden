@@ -19,8 +19,8 @@
 
 #include "../mwworld/esmstore.hpp"
 
-#include "extensions.hpp"
 #include "interpretercontext.hpp"
+#include "scriptcommands.hpp"
 
 namespace MWScript
 {
@@ -31,7 +31,7 @@ namespace MWScript
         , mParser(mErrorHandler, mCompilerContext)
         , mGlobalScripts(store)
     {
-        installOpcodes(mInterpreter);
+        installCommandOpcodes(mInterpreter);
 
         mErrorHandler.setWarningsMode(warningsMode);
     }

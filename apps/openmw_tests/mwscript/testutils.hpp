@@ -12,8 +12,8 @@
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/fileparser.hpp>
-#include <components/compiler/opcodes.hpp>
 #include <components/compiler/scanner.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/installopcodes.hpp>

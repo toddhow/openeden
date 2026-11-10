@@ -1,13 +1,13 @@
-#include "userextensions.hpp"
+#include <game_morrowind/userextensions.hpp>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 
-#include "ref.hpp"
+#include <apps/openmw/mwscript/ref.hpp>
 
 namespace MWScript
 {

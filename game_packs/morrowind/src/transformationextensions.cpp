@@ -6,29 +6,29 @@
 
 #include <components/esmbridge/util.hpp>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 #include <components/misc/vsgmath.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
 
-#include "interpretercontext.hpp"
-#include "ref.hpp"
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwscript/ref.hpp>
 
 namespace MWScript
 {

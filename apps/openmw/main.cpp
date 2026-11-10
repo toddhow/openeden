@@ -11,6 +11,7 @@
 #include <game_morrowind/dialogue_rules.hpp>
 #include <game_morrowind/game_rules.hpp>
 #include <game_morrowind/pack.hpp>
+#include <game_morrowind/script_commands.hpp>
 
 #include "mwdialogue/dialoguefactory.hpp"
 #include "mwrender/lodbakemode.hpp"
@@ -174,6 +175,9 @@ int runApplication(int argc, char* argv[])
     // and its journal and dialogue manager (task 0085 move 3), made later by the Game state through this hook.
     MWDialogue::installFactories({ &game_morrowind::makeJournal, &game_morrowind::makeDialogueManager,
         &game_morrowind::compileAllDialogueScripts });
+    // and its script command set, compile table and handlers (task 0098 move 4), used by the script manager, the
+    // console and the dialogue code through this hook.
+    game_morrowind::installScriptCommands();
 
     Files::ConfigurationManager cfgMgr;
     OMW::Engine engine(cfgMgr);

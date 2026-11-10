@@ -1,4 +1,4 @@
-#include "containerextensions.hpp"
+#include <game_morrowind/containerextensions.hpp>
 
 #include <stdexcept>
 
@@ -6,7 +6,7 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/compiler/opcodes.hpp>
+#include <game_morrowind/compiler_opcodes.hpp>
 
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
@@ -17,22 +17,22 @@
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadskil.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/levelledlist.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
 
-#include "interpretercontext.hpp"
-#include "ref.hpp"
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwscript/ref.hpp>
 
 namespace
 {
