@@ -12,6 +12,7 @@ namespace openeden::extension
 {
     class HostImpl;
     class PackSaveChunks;
+    class PackBindings;
 
     /**
      * @brief A request an extension made for something its kind may not have (SDK 4.0, decision 0013).
@@ -71,6 +72,7 @@ namespace openeden::extension
         [[nodiscard]] openeden::sdk::ContentService* getContentService() override;
         [[nodiscard]] openeden::sdk::ScriptHostService* getScriptHostService() override;
         [[nodiscard]] openeden::sdk::UiService* getUiService() override;
+        [[nodiscard]] openeden::sdk::BindingsService* getBindingsService() override;
 
     private:
         bool allowed(std::string_view what);
@@ -81,5 +83,6 @@ namespace openeden::extension
         CapabilityLog& mLog;
         HostImpl* mImpl = nullptr; // the base host if it is a HostImpl: where the game services live
         std::unique_ptr<PackSaveChunks> mSaveChunks; // null unless a game pack with a HostImpl base
+        std::unique_ptr<PackBindings> mBindings; // same
     };
 } // namespace openeden::extension

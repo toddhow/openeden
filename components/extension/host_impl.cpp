@@ -15,6 +15,7 @@ namespace openeden::extension
         // A disabled game pack's handlers point into the pack; its record types, loaders, languages and windows go
         // with it (the pack is the only registrant, and there is one per session).
         mSaveChunks.unregisterPack(extensionId);
+        mBindings.retirePack(extensionId);
     }
 
     void HostImpl::releaseExtensionObjects()
@@ -28,6 +29,7 @@ namespace openeden::extension
         mContent.clear();
         mScriptHost.clear();
         mUi.clear();
+        mBindings.retireAll(); // the namespaces stay as retired shells: a script still holding one gets an error
     }
 
     const openeden::sdk::HostInfo& HostImpl::getHostInfo() const

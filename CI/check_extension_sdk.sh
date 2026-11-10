@@ -76,6 +76,13 @@ if ! grep -q 'Version policy' sdk/include/openeden/game/crafting.hpp || ! grep -
     exit 1
 fi
 
+# Task 0097 (stage A): the script bindings header states its version policy. It must not name the script language
+# (the general check above already fails on any "Lua" in the SDK); the core, not the SDK, knows the target.
+if ! grep -q 'Version policy' sdk/include/openeden/game/bindings.hpp; then
+    echo 'sdk/include/openeden/game/bindings.hpp must keep its version policy'
+    exit 1
+fi
+
 # Task 0084 leftovers (lane I, I1): the GameRules header states its version policy and carries the contract id.
 if ! grep -q 'Version policy' sdk/include/openeden/game/game_rules.hpp || ! grep -q 'openeden.game.rules' sdk/include/openeden/game/game_rules.hpp; then
     echo 'sdk/include/openeden/game/game_rules.hpp must keep its version policy and the contract id openeden.game.rules'

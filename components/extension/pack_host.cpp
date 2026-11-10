@@ -35,6 +35,28 @@ namespace openeden::extension
         std::string mPackId;
     };
 
+    /// The script bindings service as one game pack sees it: namespaces are checked against the pack's id, which is the
+    /// session's game id.
+    class PackBindings final : public openeden::sdk::BindingsService
+    {
+    public:
+        PackBindings(BindingsStore& store, std::string packId)
+            : mStore(store)
+            , mPackId(std::move(packId))
+        {
+        }
+
+        [[nodiscard]] openeden::sdk::DeclareResult declareNamespace(
+            const openeden::sdk::NamespaceDescriptor& descriptor) override
+        {
+            return mStore.declare(mPackId, mPackId, descriptor);
+        }
+
+    private:
+        BindingsStore& mStore;
+        std::string mPackId;
+    };
+
     PackScopedHost::PackScopedHost(
         openeden::sdk::Host& base, std::string packId, openeden::sdk::PackKind kind, CapabilityLog& log)
         : mBase(base)
@@ -44,7 +66,10 @@ namespace openeden::extension
         , mImpl(dynamic_cast<HostImpl*>(&base))
     {
         if (mImpl != nullptr && openeden::sdk::hasGameCapabilities(kind))
+        {
             mSaveChunks = std::make_unique<PackSaveChunks>(mImpl->saveChunks(), mPackId);
+            mBindings = std::make_unique<PackBindings>(mImpl->bindings(), mPackId);
+        }
     }
 
     PackScopedHost::~PackScopedHost() = default;
@@ -143,5 +168,12 @@ namespace openeden::extension
         if (!allowed("window (ui) service"))
             return nullptr;
         return mImpl != nullptr ? static_cast<openeden::sdk::UiService*>(&mImpl->ui()) : mBase.getUiService();
+    }
+
+    openeden::sdk::BindingsService* PackScopedHost::getBindingsService()
+    {
+        if (!allowed("script bindings service"))
+            return nullptr;
+        return mBindings ? mBindings.get() : mBase.getBindingsService();
     }
 } // namespace openeden::extension

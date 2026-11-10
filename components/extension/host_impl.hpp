@@ -1,5 +1,6 @@
 #pragma once
 
+#include <components/extension/bindings_store.hpp>
 #include <components/extension/debug_draw_service.hpp>
 #include <components/extension/entity_manager.hpp>
 #include <components/extension/event_bus.hpp>
@@ -103,6 +104,8 @@ namespace openeden::extension
         [[nodiscard]] ContentServiceImpl& content() noexcept { return mContent; }
         [[nodiscard]] ScriptHostServiceImpl& scriptHost() noexcept { return mScriptHost; }
         [[nodiscard]] UiServiceImpl& ui() noexcept { return mUi; }
+        [[nodiscard]] BindingsStore& bindings() noexcept { return mBindings; }
+        [[nodiscard]] const BindingsStore& bindings() const noexcept { return mBindings; }
 
         [[nodiscard]] DebugDrawServiceImpl& debugDrawService() noexcept { return mDebugDrawService; }
         [[nodiscard]] const DebugDrawServiceImpl& debugDrawService() const noexcept { return mDebugDrawService; }
@@ -123,5 +126,6 @@ namespace openeden::extension
         ContentServiceImpl mContent;
         ScriptHostServiceImpl mScriptHost;
         UiServiceImpl mUi;
+        BindingsStore mBindings;
     };
 } // namespace openeden::extension

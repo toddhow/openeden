@@ -709,6 +709,7 @@ add_component_dir(extension
     debug_draw_service
     physics_service
     game_services
+    bindings_store
     save_chunk_store
     pack_host
 )

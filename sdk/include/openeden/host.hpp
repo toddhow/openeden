@@ -21,6 +21,7 @@ namespace openeden::sdk
     class ContentService;
     class ScriptHostService;
     class UiService;
+    class BindingsService;
 
     /**
      * @brief Host metadata provided to extensions.
@@ -63,5 +64,7 @@ namespace openeden::sdk
         [[nodiscard]] virtual ContentService* getContentService() { return nullptr; }
         [[nodiscard]] virtual ScriptHostService* getScriptHostService() { return nullptr; }
         [[nodiscard]] virtual UiService* getUiService() { return nullptr; }
+        /// Script bindings (task 0097): game packs only, like the services above. Added at the end of the interface.
+        [[nodiscard]] virtual BindingsService* getBindingsService() { return nullptr; }
     };
 } // namespace openeden::sdk
