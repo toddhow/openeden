@@ -162,8 +162,8 @@ namespace Render::Gi
     // --- The sky image's reflection on objects (the "glaze" fix) ---------------------------------------------------
     // The sky environment (rendermanager.cpp updateSkyEnvironment) is one reflection probe holding the whole sky. Added
     // unmodified to every PBR pixel it lifted rough dark stone to milky grey, because nothing said the pixel could see
-    // that sky. The shader term is scaled by skyReflectionFactor. Twins: skyReflectionFactor, skyDirectionVisibility and
-    // skyReflectionRoughnessWeight in files/shaders/lib/view/skyvis.glsl and skyvis.slang; change them together.
+    // that sky. The shader term is scaled by skyReflectionFactor. Twins: skyReflectionFactor, skyDirectionVisibility
+    // and skyReflectionRoughnessWeight in files/shaders/lib/view/skyvis.glsl and skyvis.slang; change them together.
 
     // What a point with no baked sky-visibility data is assumed to see in the mirror direction. Unbaked cells must not
     // glaze either, so this is conservative (a quarter of the sky image) rather than the old 1.
