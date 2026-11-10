@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 
+#include "../mwclass/classes.hpp"
 #include "../mwdialogue/dialoguefactory.hpp"
 #include "../mwscript/scriptcommands.hpp"
 
@@ -37,6 +38,8 @@ namespace MWBase
         std::shared_ptr<MWMechanics::ProgressionRules> mProgression;
         std::shared_ptr<MWMechanics::SocialRules> mSocial;
         std::shared_ptr<MWMechanics::JusticeRules> mJustice;
+        /// Registers the game's world-object classes (task 0098 move 8, stage 8a); see MWClass::installClassRegistrar.
+        MWClass::ClassRegistrar mClasses = nullptr;
     };
 
     /// Who supplies the game's rules. openmw-lib never names a game pack: the executable installs the pack's rule sets

@@ -1,18 +1,18 @@
-#include "static.hpp"
 #include <components/misc/vsgmath.hpp>
+#include <game_morrowind/class_static.hpp>
 
 #include <vsg/maths/quat.h>
 
 #include <components/esm3/loadstat.hpp>
 
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 
-#include "classmodel.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
 
 namespace MWClass
 {

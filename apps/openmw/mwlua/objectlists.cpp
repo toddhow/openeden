@@ -4,7 +4,6 @@
 
 #include "../mwbase/environment.hpp"
 
-#include "../mwclass/container.hpp"
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/worldmodel.hpp"
@@ -43,7 +42,7 @@ namespace MWLua
             return &mActorsInScene;
         if (ptr.mRef->getType() == ESM::REC_DOOR || ptr.mRef->getType() == ESM::REC_DOOR4)
             return &mDoorsInScene;
-        if (typeid(cls) == typeid(MWClass::Container))
+        if (ptr.mRef->getType() == ESM::REC_CONT)
             return &mContainersInScene;
         if (cls.isItem(ptr) || ptr.mRef->getType() == ESM::REC_LIGH)
             return &mItemsInScene;

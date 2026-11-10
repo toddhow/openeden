@@ -1,5 +1,7 @@
 #include "classes.hpp"
 
+#include <stdexcept>
+
 #include <components/esm4/loadacti.hpp>
 #include <components/esm4/loadalch.hpp>
 #include <components/esm4/loadammo.hpp>
@@ -23,16 +25,12 @@
 #include <components/esm4/loadtree.hpp>
 #include <components/esm4/loadweap.hpp>
 
-#include "activator.hpp"
 #include "apparatus.hpp"
 #include "armor.hpp"
-#include "bodypart.hpp"
 #include "book.hpp"
 #include "clothing.hpp"
-#include "container.hpp"
 #include "creature.hpp"
 #include "creaturelevlist.hpp"
-#include "door.hpp"
 #include "ingredient.hpp"
 #include "itemlevlist.hpp"
 #include "light.hpp"
@@ -42,7 +40,6 @@
 #include "potion.hpp"
 #include "probe.hpp"
 #include "repair.hpp"
-#include "static.hpp"
 #include "weapon.hpp"
 
 #include "esm4base.hpp"
@@ -51,9 +48,30 @@
 
 namespace MWClass
 {
+    namespace
+    {
+        ClassRegistrar& registrar()
+        {
+            static ClassRegistrar fn = nullptr;
+            return fn;
+        }
+    }
+
+    void installClassRegistrar(ClassRegistrar fn)
+    {
+        registrar() = fn;
+    }
+
     void registerClasses()
     {
-        Activator::registerSelf();
+        // The classes of the game pack (task 0098 move 8): the world objects of the installed game.
+        if (registrar() == nullptr)
+            throw std::runtime_error(
+                "No game pack provides the world-object classes (door, container, activator, "
+                "static, body part): the executable did not install them "
+                "(MWBase::RulesRegistry::install)");
+        registrar()();
+
         Creature::registerSelf();
         Npc::registerSelf();
         Weapon::registerSelf();
@@ -62,8 +80,6 @@ namespace MWClass
         Apparatus::registerSelf();
         Book::registerSelf();
         Clothing::registerSelf();
-        Container::registerSelf();
-        Door::registerSelf();
         Ingredient::registerSelf();
         CreatureLevList::registerSelf();
         ItemLevList::registerSelf();
@@ -72,8 +88,6 @@ namespace MWClass
         Miscellaneous::registerSelf();
         Probe::registerSelf();
         Repair::registerSelf();
-        Static::registerSelf();
-        BodyPart::registerSelf();
 
         ESM4Named<ESM4::Activator>::registerSelf();
         ESM4Named<ESM4::Ammunition>::registerSelf();

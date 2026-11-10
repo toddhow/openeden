@@ -1,5 +1,5 @@
-#include "activator.hpp"
 #include <components/misc/vsgmath.hpp>
+#include <game_morrowind/class_activator.hpp>
 
 #include <vsg/maths/quat.h>
 
@@ -13,27 +13,27 @@
 #include <components/misc/rng.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwworld/action.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
-#include "../mwphysics/physicssystem.hpp"
+#include <apps/openmw/mwphysics/physicssystem.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 
-#include "../mwgui/tooltips.hpp"
+#include <apps/openmw/mwgui/tooltips.hpp>
 
-#include "../mwmechanics/npcstats.hpp"
+#include <apps/openmw/mwmechanics/npcstats.hpp>
 
-#include "classmodel.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
 
 namespace MWClass
 {

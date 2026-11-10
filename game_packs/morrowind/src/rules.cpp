@@ -3,6 +3,11 @@
 #include <memory>
 
 #include <game_morrowind/autocalcspell.hpp>
+#include <game_morrowind/class_activator.hpp>
+#include <game_morrowind/class_bodypart.hpp>
+#include <game_morrowind/class_container.hpp>
+#include <game_morrowind/class_door.hpp>
+#include <game_morrowind/class_static.hpp>
 #include <game_morrowind/dialogue_rules.hpp>
 #include <game_morrowind/difficultyscaling.hpp>
 #include <game_morrowind/levelledlist.hpp>
@@ -90,6 +95,15 @@ namespace game_morrowind
         return std::make_shared<MorrowindProgressionRules>();
     }
 
+    void registerWorldObjectClasses()
+    {
+        MWClass::Activator::registerSelf();
+        MWClass::Container::registerSelf();
+        MWClass::Door::registerSelf();
+        MWClass::Static::registerSelf();
+        MWClass::BodyPart::registerSelf();
+    }
+
     void installRules(openeden::sdk::game::GameRules& gameRules)
     {
         MWBase::RuleSets rules;
@@ -101,6 +115,7 @@ namespace game_morrowind
         rules.mProgression = makeProgressionRules();
         rules.mSocial = makeSocialRules();
         rules.mJustice = makeJusticeRules();
+        rules.mClasses = &registerWorldObjectClasses;
         MWBase::RulesRegistry::install(std::move(rules));
     }
 }

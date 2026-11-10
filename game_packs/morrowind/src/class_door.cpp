@@ -1,5 +1,5 @@
-#include "door.hpp"
 #include <components/misc/vsgmath.hpp>
+#include <game_morrowind/class_door.hpp>
 
 #include <vsg/maths/quat.h>
 
@@ -10,32 +10,33 @@
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadmgef.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/actiondoor.hpp"
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/actiontrap.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/worldmodel.hpp"
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwworld/actiondoor.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/actiontrap.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/doordestination.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 
-#include "../mwgui/tooltips.hpp"
+#include <apps/openmw/mwgui/tooltips.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/spellcastglow.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/spellcastglow.hpp>
 
-#include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
-#include "classmodel.hpp"
-#include "nameorid.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
+#include <apps/openmw/mwclass/nameorid.hpp>
 
 namespace MWClass
 {
@@ -296,10 +297,7 @@ namespace MWClass
 
     std::string Door::getDestination(const MWWorld::LiveCellRef<ESM::Door>& door)
     {
-        std::string_view dest = MWBase::Environment::get().getWorld()->getCellName(
-            &MWBase::Environment::get().getWorldModel()->getCell(door.mRef.getDestCell()));
-
-        return "#{sCell=" + std::string{ dest } + "}";
+        return MWWorld::getDoorDestination(door);
     }
 
     MWWorld::Ptr Door::copyToCellImpl(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell) const

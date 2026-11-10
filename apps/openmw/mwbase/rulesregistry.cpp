@@ -43,6 +43,8 @@ namespace MWBase
             installed().mSocial = std::move(rules.mSocial);
         if (rules.mJustice)
             installed().mJustice = std::move(rules.mJustice);
+        if (rules.mClasses)
+            MWClass::installClassRegistrar(rules.mClasses);
     }
 
     void RulesRegistry::clearForTests()

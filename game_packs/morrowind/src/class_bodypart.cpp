@@ -1,12 +1,12 @@
-#include "bodypart.hpp"
+#include <game_morrowind/class_bodypart.hpp>
 
 #include <components/esm3/loadbody.hpp>
 
-#include "../mwrender/renderinginterface.hpp"
+#include <apps/openmw/mwrender/renderinginterface.hpp>
 
-#include "../mwworld/cellstore.hpp"
+#include <apps/openmw/mwworld/cellstore.hpp>
 
-#include "classmodel.hpp"
+#include <apps/openmw/mwclass/classmodel.hpp>
 
 namespace MWClass
 {

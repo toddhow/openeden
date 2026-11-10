@@ -30,6 +30,11 @@ namespace game_morrowind
     /// Morrowind's social rules (task 0098 move 6): derived disposition, barter price, persuasion.
     [[nodiscard]] std::shared_ptr<MWMechanics::SocialRules> makeSocialRules();
 
+    /// Registers the pack's world-object classes (door, container, activator, static, body part) with MWWorld::Class
+    /// (task 0098 move 8, stage 8a). Installed through MWBase::RuleSets::mClasses; the engine calls it from
+    /// MWClass::registerClasses on the loading thread, once per start-up.
+    void registerWorldObjectClasses();
+
     /// Morrowind's justice rules (task 0098 move 7): crime and witnesses, bounty, stolen items, confiscation.
     [[nodiscard]] std::shared_ptr<MWMechanics::JusticeRules> makeJusticeRules();
 }

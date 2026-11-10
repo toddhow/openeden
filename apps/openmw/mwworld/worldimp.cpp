@@ -80,7 +80,6 @@
 
 #include "../mwscript/globalscripts.hpp"
 
-#include "../mwclass/door.hpp"
 
 #include "../mwphysics/actor.hpp"
 #include "../mwphysics/joltlayers.hpp"
@@ -93,6 +92,8 @@
 
 #include "actionteleport.hpp"
 #include "cellstore.hpp"
+#include "class.hpp"
+#include "doordestination.hpp"
 #include "containerstore.hpp"
 #include "datetimemanager.hpp"
 #include "inventorystore.hpp"
@@ -1895,7 +1896,7 @@ namespace MWWorld
             if (ref.mRef.getTeleport())
             {
                 World::DoorMarker newMarker;
-                newMarker.name = MWClass::Door::getDestination(ref);
+                newMarker.name = MWWorld::getDoorDestination(ref);
                 newMarker.dest = ref.mRef.getDestCell();
 
                 ESM::Position pos = ref.mData.getPosition();

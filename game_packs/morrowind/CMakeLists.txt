@@ -18,6 +18,10 @@
 # Move 6 (task 0098) put the social rules (derived disposition, barter price, persuasion; social.cpp) here, reached
 # through MWBase::RulesRegistry::social().
 
+# Move 8, stage 8a (task 0098) put the world-object classes here: door, container, activator, static and body part
+# (class_*.cpp, moved from apps/openmw/mwclass). The old headers there forward to the pack's; the executable registers
+# the classes through MWBase::RuleSets::mClasses (game_morrowind::registerWorldObjectClasses).
+
 # Move 4 (task 0098) put Morrowind's script command set here: the handlers of the commands (the *extensions files, moved
 # from apps/openmw/mwscript) and the compile table (script_table.cpp, with the opcode numbers in compiler_opcodes.hpp,
 # moved from components/compiler). The table is its own small library because the editor and the components tests need
@@ -66,6 +70,11 @@ openeden_add_game_pack(game_morrowind STATIC
         src/autocalcspell.cpp
         src/social.cpp
         src/justice.cpp
+        src/class_door.cpp
+        src/class_container.cpp
+        src/class_activator.cpp
+        src/class_static.cpp
+        src/class_bodypart.cpp
         src/rules.cpp
         include/game_morrowind/alchemy.hpp
         include/game_morrowind/enchanting.hpp
@@ -100,6 +109,11 @@ openeden_add_game_pack(game_morrowind STATIC
         include/game_morrowind/difficultyscaling.hpp
         include/game_morrowind/levelledlist.hpp
         include/game_morrowind/autocalcspell.hpp
+        include/game_morrowind/class_door.hpp
+        include/game_morrowind/class_container.hpp
+        include/game_morrowind/class_activator.hpp
+        include/game_morrowind/class_static.hpp
+        include/game_morrowind/class_bodypart.hpp
         include/game_morrowind/rules.hpp
 )
 
