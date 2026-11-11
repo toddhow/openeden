@@ -500,6 +500,20 @@ namespace vsgUtil
     }
 
     /*
+     * Task 0109: a session whose content defines no land textures (a game other than Morrowind in the neutral world)
+     * gives the terrain builder an empty layer list, which convertToArrayTexture refuses. The array's binding must
+     * still be valid, so an empty list gets one 1x1 grey layer that no terrain refers to. True when it added it.
+     */
+    inline bool ensureOneLayer(vsg::DataList& images)
+    {
+        if (!images.empty())
+            return false;
+        images.push_back(vsg::ubvec4Array2D::create(
+            1, 1, vsg::ubvec4(128, 128, 128, 255), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM }));
+        return true;
+    }
+
+    /*
      * Converts textures to array texture to circumvent resource limits and descriptor indexing limitations.
      * openeden-vsg: the array takes the most common layer size and format rather than the first layer's (Morrowind's
      * land textures are 256x256 RGBA while OpenMW's _land_default.dds, layer 0, is a 64x64 BC1, which left every

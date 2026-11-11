@@ -272,6 +272,7 @@ namespace Terrain
                 vsgUtil::setName(*layerImages[n], layerPaths[n]);
                 imageData.push_back(layerImages[n]);
             }
+            vsgUtil::ensureOneLayer(imageData); // no land textures: task 0109
             auto arrayData = vsgUtil::convertToArrayTexture(imageData, terrainConvertOptions());
             mLayerDescriptor
                 = vsg::DescriptorImage::create(mSamplerOptions, arrayData, Pipeline::Descriptors::LAYER_BINDING);
@@ -498,6 +499,7 @@ namespace Terrain
         }
         Misc::LoadTrace::Scope traceConvert("terrain.layers.arrays");
         const auto convertStart = std::chrono::steady_clock::now();
+        vsgUtil::ensureOneLayer(imageData); // no land textures: task 0109
         auto arrayData = vsgUtil::convertToArrayTexture(imageData, convertOptions, &diffuseStats);
         const auto diffuseEnd = std::chrono::steady_clock::now();
         mLayerDescriptor

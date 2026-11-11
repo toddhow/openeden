@@ -187,6 +187,29 @@ namespace
         EXPECT_THROW(static_cast<void>(vsgUtil::convertToArrayTexture(vsg::DataList{})), std::exception);
     }
 
+    // Task 0109: a session with no land textures (a neutral world of another game) reaches the terrain builder with an
+    // empty layer list; the builder gives the array one grey layer instead of throwing at shutdown.
+    TEST(VsgUtilArrayTextureTest, AnEmptyLayerListGetsOneGreyPlaceholderLayer)
+    {
+        vsg::DataList images;
+        EXPECT_TRUE(vsgUtil::ensureOneLayer(images));
+        ASSERT_EQ(images.size(), 1u);
+        auto result = vsgUtil::convertToArrayTexture(images);
+        ASSERT_TRUE(result);
+        EXPECT_EQ(result->depth(), 1u);
+        EXPECT_EQ(result->width(), 1u);
+        EXPECT_EQ(result->height(), 1u);
+    }
+
+    TEST(VsgUtilArrayTextureTest, ALayerListWithLayersIsLeftAlone)
+    {
+        vsg::DataList images{ makeBc1(8, 8, 4, 0) };
+        const vsg::Data* first = images[0].get();
+        EXPECT_FALSE(vsgUtil::ensureOneLayer(images));
+        ASSERT_EQ(images.size(), 1u);
+        EXPECT_EQ(images[0].get(), first);
+    }
+
     // --- Result description ---
 
     TEST(VsgUtilArrayTextureTest, ResultIs2DArrayWithDepthEqualToLayerCount)
