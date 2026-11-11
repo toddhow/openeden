@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -359,6 +360,7 @@ namespace MWPhysics
 
         // The ragdoll adapter's bodies go before anything else, while the system is still whole.
         mRagdollHost.reset();
+        mActorRagdolls.clear();
 
         mWaterInstance.reset();
         mTaskScheduler->releaseSharedStates();
@@ -441,6 +443,84 @@ namespace MWPhysics
             return;
         std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
         mRagdollHost->remove();
+    }
+
+    bool PhysicsSystem::startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message)
+    {
+        if (!Settings::physics().mCreativeMotionRagdolls)
+        {
+            message = "creativemotion ragdolls is off";
+            return false;
+        }
+        if (mActors.find(ptr.mRef) == mActors.end())
+        {
+            message = "the actor has no physics body";
+            return false;
+        }
+        if (mActorRagdolls.find(ptr.mRef) != mActorRagdolls.end())
+        {
+            message = "the actor already has a ragdoll";
+            return false;
+        }
+
+        // Bodies are added while the actor job may be querying: take the same lock stepSimulation takes.
+        std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+
+        if (mRagdollHost == nullptr)
+        {
+            mRagdollHost = RagdollHost::create(mPhysicsSystem, Constants::UnitsPerMeter, mPhysicsDt, &message);
+            if (mRagdollHost == nullptr)
+                return false;
+        }
+
+        const ESM::Position& position = ptr.getRefData().getPosition();
+        // The actor's own velocity (inertia, including a fall), game units per second.
+        const vsg::vec3& force = mActors.find(ptr.mRef)->second->getInertialForce();
+        const double velocity[3] = { force.x, force.y, force.z };
+        handle = mRagdollHost->spawnActor(
+            JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], velocity, &message);
+        if (!handle.isValid())
+            return false;
+        // Developer trace: where every actor ragdoll is, about every two seconds, in the log (task 0106).
+        if (std::getenv("OPENEDEN_RAGDOLL_TRACE") != nullptr)
+            mRagdollHost->setProgressLogging(true);
+        mActorRagdolls.emplace(ptr.mRef, handle);
+        return true;
+    }
+
+    bool PhysicsSystem::readActorRagdoll(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const
+    {
+        return mRagdollHost != nullptr && mRagdollHost->readActor(handle, out);
+    }
+
+    bool PhysicsSystem::hasActorRagdoll(ActorRagdollHandle handle) const
+    {
+        return mRagdollHost != nullptr && mRagdollHost->hasActor(handle);
+    }
+
+    void PhysicsSystem::stopActorRagdoll(const MWWorld::Ptr& ptr)
+    {
+        const auto found = mActorRagdolls.find(ptr.mRef);
+        if (found == mActorRagdolls.end())
+            return;
+        if (mRagdollHost != nullptr)
+        {
+            std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+            mRagdollHost->removeActor(found->second);
+        }
+        mActorRagdolls.erase(found);
+    }
+
+    std::span<const std::string> PhysicsSystem::actorRagdollBones() const
+    {
+        if (mRagdollHost == nullptr)
+            return {};
+        return mRagdollHost->actorBodyBones();
+    }
+
+    std::size_t PhysicsSystem::actorRagdollCount() const
+    {
+        return mRagdollHost == nullptr ? 0 : mRagdollHost->actorRagdollCount();
     }
 
     void PhysicsSystem::setDebugGeometry(Render::DebugGeometry& geometry)
@@ -852,6 +932,9 @@ namespace MWPhysics
         }
         else if (auto foundActor = mActors.find(ptr.mRef); foundActor != mActors.end())
         {
+            // The actor's ragdoll goes with it (task 0106). With the setting off the map is empty: one lookup.
+            if (!mActorRagdolls.empty())
+                stopActorRagdoll(ptr);
             mActors.erase(foundActor);
         }
     }

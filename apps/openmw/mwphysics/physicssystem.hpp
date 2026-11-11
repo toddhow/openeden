@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -25,6 +26,7 @@
 #include "../mwworld/ptr.hpp"
 
 #include "joltlisteners.hpp"
+#include "ragdolltypes.hpp"
 #include "raycasting.hpp"
 
 namespace JPH
@@ -191,6 +193,19 @@ namespace MWPhysics
         bool spawnDebugRagdoll(const MWWorld::ConstPtr& ptr, std::string& message);
         void removeDebugRagdoll();
 
+        /// Task 0106. A dead NPC becomes a CreativeMotion ragdoll in the one Jolt world. All main thread.
+        /// Builds one at the actor's position and yaw, moving as the actor was. False and a message when the setting
+        /// is off, the actor has no physics body, it already has one, or the host refuses (the table is full).
+        bool startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message);
+        /// The ragdoll's bones in game units, in actorRagdollBones() order; false for a stale handle.
+        bool readActorRagdoll(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const;
+        bool hasActorRagdoll(ActorRagdollHandle handle) const;
+        /// Removes the actor's ragdoll if it has one. Called when the actor leaves the physics system.
+        void stopActorRagdoll(const MWWorld::Ptr& ptr);
+        /// The rig bone each ragdoll body follows; empty until the first ragdoll was built.
+        std::span<const std::string> actorRagdollBones() const;
+        std::size_t actorRagdollCount() const;
+
         /// The box around every body of the Jolt world (task 0028: the light probe baker sizes its volume with it).
         void getWorldBounds(vsg::vec3& low, vsg::vec3& high) const;
 
@@ -339,6 +354,8 @@ namespace MWPhysics
         // Created by the first successful spawnDebugRagdoll, never when the setting is off. Declared after the system
         // and the job system so that it goes first; ~PhysicsSystem also resets it before anything else.
         std::unique_ptr<RagdollHost> mRagdollHost;
+        // Task 0106: the ragdoll each dead actor has, keyed like mActors.
+        std::unordered_map<const MWWorld::LiveCellRefBase*, ActorRagdollHandle> mActorRagdolls;
         // openeden-vsg: physics owns its NIF cache, since vsgopenmw's ResourceSystem has no NIF manager.
         std::unique_ptr<Resource::NifFileManager> mNifFileManager;
         std::unique_ptr<Resource::PhysicsShapeManager> mShapeManager;
