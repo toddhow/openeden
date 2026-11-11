@@ -12,6 +12,16 @@
 #include <opas/rig/Rig.hpp>
 #include <opas/rig/RigFile.hpp>
 
+// clang-format off
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+// clang-format on
+
 #include <algorithm>
 #include <cmath>
 #include <optional>
@@ -40,6 +50,28 @@ namespace MWPhysics
 
     namespace
     {
+        // The shape of a rig body in game units, for the placement queries only (the adapter makes its own for the
+        // bodies): Jolt capsules run along Y and the rig's along Z, boxes keep their convex radius below the smallest
+        // half extent.
+        JPH::RefConst<JPH::Shape> makeStartShape(const opas::rig::Shape& shape, float unitsPerMeter)
+        {
+            const float s = unitsPerMeter;
+            if (const auto* box = std::get_if<opas::rig::BoxShape>(&shape))
+            {
+                const JPH::Vec3 half(static_cast<float>(box->halfExtentsM.x) * s,
+                    static_cast<float>(box->halfExtentsM.y) * s, static_cast<float>(box->halfExtentsM.z) * s);
+                const float smallest = std::min({ half.GetX(), half.GetY(), half.GetZ() });
+                return new JPH::BoxShape(half, std::min(JPH::cDefaultConvexRadius, 0.5f * smallest));
+            }
+            if (const auto* sphere = std::get_if<opas::rig::SphereShape>(&shape))
+                return new JPH::SphereShape(static_cast<float>(sphere->radiusM) * s);
+            const auto& capsule = std::get<opas::rig::CapsuleShape>(shape);
+            const JPH::RefConst<JPH::Shape> inner = new JPH::CapsuleShape(
+                static_cast<float>(capsule.halfHeightM) * s, static_cast<float>(capsule.radiusM) * s);
+            return new JPH::RotatedTranslatedShape(
+                JPH::Vec3::sZero(), JPH::Quat::sRotation(JPH::Vec3::sAxisX(), 0.5f * JPH::JPH_PI), inner);
+        }
+
         // Task 0106, second slice: turns the rig's bones to the actor's pose and puts the rig's root where the
         // pelvis bone lands on the actor's pelvis. Each given rotation is the bone's WORLD rotation relative to the
         // rig's rest pose (identity rest rotations), so a bone's local rotation is the inverse of its parent's world
@@ -106,6 +138,16 @@ namespace MWPhysics
         }
     };
 
+    // The layers a ragdoll is placed against: the static world, never other ragdolls or actors.
+    class RagdollHost::StaticLayerFilter final : public JPH::ObjectLayerFilter
+    {
+    public:
+        bool ShouldCollide(JPH::ObjectLayer layer) const override
+        {
+            return layer == Layers::WORLD || layer == Layers::HEIGHTMAP || layer == Layers::DOOR;
+        }
+    };
+
     RagdollHost::RagdollHost(float unitsPerMeter)
         : mUnitsPerMeter(unitsPerMeter)
         , mRayObjectFilter(std::make_unique<LayerFilter>())
@@ -118,6 +160,7 @@ namespace MWPhysics
     {
         std::unique_ptr<RagdollHost> host(new RagdollHost(unitsPerMeter));
         host->mStepSeconds = stepSeconds;
+        host->mSystem = &system;
 
         CMPhysics::HostedWorldConfig config;
         config.unitsPerMeter = unitsPerMeter;
@@ -179,9 +222,85 @@ namespace MWPhysics
         mActorRig = *rig.value;
         mActorProfile = *profile.value;
         mActorBodyBones.clear();
+        mActorShapes.clear();
         for (const opas::rig::Body& body : mActorRig->bodies)
+        {
             mActorBodyBones.push_back(body.bone);
+            mActorShapes.push_back(makeStartShape(body.shape, mUnitsPerMeter));
+        }
         return true;
+    }
+
+    opas::math::Vec3 RagdollHost::findStartShift(
+        const opas::rig::Rig& rig, const opas::math::Transform& rootWorld) const
+    {
+        const opas::math::Vec3 none{};
+        if (mSystem == nullptr || mActorShapes.size() != rig.bodies.size())
+            return none;
+
+        // Every rig body's pose in the world (metres) for the ragdoll as built, before any shift.
+        std::vector<opas::math::Transform> bone(rig.skeleton.bones.size());
+        for (std::size_t i = 0; i < bone.size(); ++i)
+        {
+            const opas::rig::Bone& source = rig.skeleton.bones[i];
+            bone[i] = source.parent >= 0 ? bone[static_cast<std::size_t>(source.parent)] * source.localRest
+                                         : rootWorld * source.localRest;
+        }
+        std::vector<opas::math::Transform> body(rig.bodies.size());
+        for (std::size_t i = 0; i < body.size(); ++i)
+        {
+            const std::optional<std::size_t> index = opas::rig::findBone(rig.skeleton, rig.bodies[i].bone);
+            if (!index)
+                return none;
+            body[i] = bone[*index] * rig.bodies[i].local;
+        }
+
+        StaticLayerFilter layerFilter;
+        const double tolerance = 0.005 * mUnitsPerMeter; // 5 mm: resting contact, not a penetration
+        const double slack = 0.01 * mUnitsPerMeter; // moved a little past the surface, not onto it
+        const double cap = cMaxStartShiftMetres * mUnitsPerMeter;
+        JPH::CollideShapeSettings settings;
+        settings.mBackFaceMode = JPH::EBackFaceMode::IgnoreBackFaces;
+
+        JPH::Vec3 shift = JPH::Vec3::sZero(); // game units
+        JPH::Vec3 best = JPH::Vec3::sZero();
+        double bestDepth = -1.0;
+        for (unsigned pass = 0; pass <= cMaxStartPlacementPasses; ++pass)
+        {
+            double deepest = 0.0;
+            JPH::Vec3 deepestAxis = JPH::Vec3::sZero();
+            for (std::size_t i = 0; i < body.size(); ++i)
+            {
+                const opas::math::Transform& t = body[i];
+                const JPH::RVec3 position(fromMetres(t.translation.x) + shift.GetX(),
+                    fromMetres(t.translation.y) + shift.GetY(), fromMetres(t.translation.z) + shift.GetZ());
+                const JPH::Quat rotation(static_cast<float>(t.rotation.x), static_cast<float>(t.rotation.y),
+                    static_cast<float>(t.rotation.z), static_cast<float>(t.rotation.w));
+                JPH::ClosestHitCollisionCollector<JPH::CollideShapeCollector> collector;
+                mSystem->GetNarrowPhaseQuery().CollideShape(mActorShapes[i], JPH::Vec3::sReplicate(1.0f),
+                    JPH::RMat44::sRotationTranslation(rotation.Normalized(), position), settings, JPH::RVec3::sZero(),
+                    collector, *mRayBroadPhaseFilter, layerFilter);
+                if (collector.HadHit() && collector.mHit.mPenetrationDepth > deepest)
+                {
+                    deepest = collector.mHit.mPenetrationDepth;
+                    deepestAxis = collector.mHit.mPenetrationAxis;
+                }
+            }
+            // Remember the least bad place seen: a block the ragdoll is buried in gets no shift at all.
+            if (bestDepth < 0.0 || deepest < bestDepth)
+            {
+                bestDepth = deepest;
+                best = shift;
+            }
+            if (deepest <= tolerance || pass == cMaxStartPlacementPasses || deepestAxis.LengthSq() <= 0.0f)
+                break;
+            // Shape 1 is the ragdoll's body: it leaves along the reverse of the penetration axis.
+            const JPH::Vec3 next = shift - deepestAxis.Normalized() * static_cast<float>(deepest + slack);
+            if (next.Length() > cap)
+                break;
+            shift = next;
+        }
+        return opas::math::Vec3{ metres(best.GetX()), metres(best.GetY()), metres(best.GetZ()) };
     }
 
     ActorRagdollHandle RagdollHost::spawnActor(const JPH::RVec3& feetUnits, float yawRadians,
@@ -222,6 +341,8 @@ namespace MWPhysics
                 return fail("the start pose does not fit the rig");
             rig = &posedRig;
         }
+        // Out of walls and floors first (a hand in a wall, a foot below the floor), by moving the whole ragdoll.
+        rootWorld.translation = rootWorld.translation + findStartShift(*rig, rootWorld);
         opas::motor::BuildResult built = opas::motor::buildRagdoll(*mWorld, *rig, *mActorProfile, rootWorld);
         if (!built.ok())
             return fail(built.message);

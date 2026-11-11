@@ -3,6 +3,8 @@
 
 #include <Jolt/Jolt.h>
 
+#include <Jolt/Core/Reference.h>
+#include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 
 #include "ragdolltypes.hpp"
@@ -29,6 +31,11 @@ namespace MWPhysics
 {
     /// Where the debug ragdoll is removed on its own: its lowest body this far below its spawn point (metres).
     constexpr float cRagdollKillDepthMetres = 20.0f;
+
+    /// Task 0106, second slice (2): how far (metres) a ragdoll may be moved out of walls and floors before it is built,
+    /// and how many collision passes that may take. Beyond that it is built where it is and Jolt resolves the rest.
+    constexpr double cMaxStartShiftMetres = 2.0;
+    constexpr unsigned cMaxStartPlacementPasses = 8;
 
     /// How often the debug scenario writes the ragdoll's status to the log (about two seconds at 60 steps a second).
     constexpr unsigned cProgressLogSteps = 120;
@@ -119,6 +126,7 @@ namespace MWPhysics
     private:
         class LayerFilter;
         class BroadPhaseFilter;
+        class StaticLayerFilter;
 
         explicit RagdollHost(float unitsPerMeter);
 
@@ -140,13 +148,19 @@ namespace MWPhysics
         double metres(double units) const { return units / static_cast<double>(mUnitsPerMeter); }
         double fromMetres(double meters) const { return meters * static_cast<double>(mUnitsPerMeter); }
         void clearActorSlot(ActorSlot& slot);
+        // Task 0106, second slice (2): the shift (metres) that moves a ragdoll built from `rig` at `rootWorld` out of
+        // the static world, found with a bounded number of collision queries. Zero when nothing touches it or it
+        // cannot be freed within cMaxStartShiftMetres.
+        opas::math::Vec3 findStartShift(const opas::rig::Rig& rig, const opas::math::Transform& rootWorld) const;
 
+        JPH::PhysicsSystem* mSystem = nullptr; // the game's, not owned; outlives this object
         float mUnitsPerMeter;
         float mStepSeconds = 1.0f / 60.0f; // only for the developer trace
         // Parsed once, at the first actor spawn (the debug ragdoll still parses its own copy: unchanged).
         std::optional<opas::rig::Rig> mActorRig;
         std::optional<opas::rig::Profile> mActorProfile;
         std::vector<std::string> mActorBodyBones;
+        std::vector<JPH::RefConst<JPH::Shape>> mActorShapes; // one per rig body, for the start placement queries
         std::array<ActorSlot, cMaxActorRagdolls> mActorSlots;
         unsigned mActorStepCounter = 0;
         unsigned mActorTraceCounter = 0;
