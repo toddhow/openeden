@@ -1,0 +1,83 @@
+## text_templates
+LuaFlex rect=0,0,100,80 visible=1 alpha=1.0000
+  LuaText rect=0,0,48,16 visible=1 alpha=1.0000 text=48x16
+  LuaText rect=0,16,88,16 visible=1 alpha=1.0000 text=88x16
+  LuaTextEdit rect=0,32,100,48 visible=1 alpha=1.0000
+## padding_around_content
+LuaContainer rect=10,10,52,20 visible=1 alpha=1.0000
+  LuaText rect=0,0,48,16 visible=1 alpha=1.0000 text=48x16
+  template LuaWidget rect=0,0,2,2 visible=1 alpha=1.0000
+  template LuaWidget rect=2,2,48,16 visible=1 alpha=1.0000
+  template LuaWidget rect=50,18,2,2 visible=1 alpha=1.0000
+## interval_and_flex
+LuaFlex rect=0,0,50,16 visible=1 alpha=1.0000
+  LuaText rect=0,0,24,16 visible=1 alpha=1.0000 text=24x16
+  LuaText rect=26,0,24,16 visible=1 alpha=1.0000 text=24x16
+  LuaWidget rect=24,0,2,2 visible=1 alpha=1.0000
+## box_with_borders
+LuaContainer rect=20,20,104,24 visible=1 alpha=1.0000
+  LuaContainer rect=0,0,100,20 visible=1 alpha=1.0000
+    LuaText rect=0,0,96,16 visible=1 alpha=1.0000 text=96x16
+    template LuaWidget rect=0,0,2,2 visible=1 alpha=1.0000
+    template LuaWidget rect=2,2,96,16 visible=1 alpha=1.0000
+    template LuaWidget rect=98,18,2,2 visible=1 alpha=1.0000
+  template LuaImage rect=0,0,2,2 visible=1 alpha=1.0000
+  template LuaImage rect=0,2,2,20 visible=1 alpha=1.0000
+  template LuaImage rect=0,22,2,2 visible=1 alpha=1.0000
+  template LuaImage rect=102,0,2,2 visible=1 alpha=1.0000
+  template LuaImage rect=102,2,2,20 visible=1 alpha=1.0000
+  template LuaImage rect=102,22,2,2 visible=1 alpha=1.0000
+  template LuaImage rect=2,0,100,2 visible=1 alpha=1.0000
+  template LuaImage rect=2,22,100,2 visible=1 alpha=1.0000
+  template LuaWidget rect=2,2,100,20 visible=1 alpha=1.0000
+## box_transparent_and_thick
+LuaFlex rect=0,0,144,68 visible=1 alpha=1.0000
+  LuaContainer rect=0,0,92,20 visible=1 alpha=1.0000
+    LuaText rect=0,0,88,16 visible=1 alpha=1.0000 text=88x16
+    template LuaImage rect=0,0,2,2 visible=1 alpha=1.0000
+    template LuaImage rect=0,0,92,20 visible=1 alpha=1.0000
+    template LuaImage rect=0,18,2,2 visible=1 alpha=1.0000
+    template LuaImage rect=0,2,2,16 visible=1 alpha=1.0000
+    template LuaImage rect=2,0,88,2 visible=1 alpha=1.0000
+    template LuaImage rect=2,18,88,2 visible=1 alpha=1.0000
+    template LuaImage rect=90,0,2,2 visible=1 alpha=1.0000
+    template LuaImage rect=90,18,2,2 visible=1 alpha=1.0000
+    template LuaImage rect=90,2,2,16 visible=1 alpha=1.0000
+    template LuaWidget rect=2,2,88,16 visible=1 alpha=1.0000
+  LuaContainer rect=0,20,48,24 visible=1 alpha=1.0000
+    LuaText rect=0,0,40,16 visible=1 alpha=1.0000 text=40x16
+    template LuaImage rect=0,0,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=0,20,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=0,4,4,16 visible=1 alpha=1.0000
+    template LuaImage rect=4,0,40,4 visible=1 alpha=1.0000
+    template LuaImage rect=4,20,40,4 visible=1 alpha=1.0000
+    template LuaImage rect=44,0,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=44,20,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=44,4,4,16 visible=1 alpha=1.0000
+    template LuaWidget rect=4,4,40,16 visible=1 alpha=1.0000
+  LuaContainer rect=0,44,144,24 visible=1 alpha=1.0000
+    LuaText rect=0,0,136,16 visible=1 alpha=1.0000 text=136x16
+    template LuaImage rect=0,0,144,24 visible=1 alpha=1.0000
+    template LuaImage rect=0,0,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=0,20,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=0,4,4,16 visible=1 alpha=1.0000
+    template LuaImage rect=140,0,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=140,20,4,4 visible=1 alpha=1.0000
+    template LuaImage rect=140,4,4,16 visible=1 alpha=1.0000
+    template LuaImage rect=4,0,136,4 visible=1 alpha=1.0000
+    template LuaImage rect=4,20,136,4 visible=1 alpha=1.0000
+    template LuaWidget rect=4,4,136,16 visible=1 alpha=1.0000
+## lines_in_a_flex
+LuaFlex rect=0,0,120,34 visible=1 alpha=1.0000
+  LuaImage rect=0,16,120,2 visible=1 alpha=1.0000
+  LuaText rect=0,0,40,16 visible=1 alpha=1.0000 text=40x16
+  LuaText rect=0,18,40,16 visible=1 alpha=1.0000 text=40x16
+## disabled_filter
+LuaContainer rect=0,0,24,16 visible=1 alpha=0.6000
+  LuaText rect=0,0,24,16 visible=1 alpha=1.0000 text=24x16
+  template LuaImage rect=0,0,24,16 visible=1 alpha=1.0000
+  template LuaWidget rect=0,0,24,16 visible=1 alpha=1.0000
+## text_edit_line_and_box
+LuaFlex rect=0,0,100,60 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,0,100,20 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,20,100,40 visible=1 alpha=1.0000

@@ -39,6 +39,11 @@ namespace MWInput
         mTarget = target;
     }
 
+    void UiInputFilter::setFocusEntry(int controllerButton, int scancode)
+    {
+        mRouter.setFocusEntry(controllerButton, scancode);
+    }
+
     UiRml::UiState UiInputFilter::currentState()
     {
         UiRml::UiState state = mTarget->state();
@@ -59,6 +64,7 @@ namespace MWInput
         state.mOverDocument = false;
         state.mTextFocus = false;
         state.mNavCaptured = false;
+        state.mHasNavDocument = false;
         return state;
     }
 
@@ -169,6 +175,11 @@ namespace MWInput
             return;
         }
         const UiRml::Routing route = mRouter.keyDown(arg.keysym.scancode, currentState());
+        if (route.mFocusEntry)
+        {
+            mTarget->focusEntry();
+            return;
+        }
         if (route.mToUi)
             mTarget->key(arg.keysym.sym, arg.keysym.mod, true);
         if (route.mToGame)
@@ -197,6 +208,11 @@ namespace MWInput
             return;
         }
         const UiRml::Routing route = mRouter.controllerButtonDown(evt.button, currentState());
+        if (route.mFocusEntry)
+        {
+            mTarget->focusEntry();
+            return;
+        }
         if (route.mToUi)
             mTarget->controllerButton(evt.button, true);
         if (route.mToGame)

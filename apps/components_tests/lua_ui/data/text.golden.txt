@@ -1,0 +1,60 @@
+## sizes
+LuaWidget rect=0,0,400,200 visible=1 alpha=1.0000
+  LuaText rect=0,0,25,10 visible=1 alpha=1.0000 text=25x10
+  LuaText rect=0,20,40,16 visible=1 alpha=1.0000 text=40x16
+  LuaText rect=0,50,60,24 visible=1 alpha=1.0000 text=60x24
+  LuaText rect=0,100,152,16 visible=1 alpha=1.0000 text=152x16
+  LuaText rect=0,150,0,16 visible=1 alpha=1.0000 text=0x16
+## default_text_size
+LuaText rect=0,0,15,10 visible=1 alpha=1.0000 text=15x10
+## newlines_single_and_multiline
+LuaWidget rect=0,0,400,200 visible=1 alpha=1.0000
+  LuaText rect=0,0,91,14 visible=1 alpha=1.0000 text=91x14
+  LuaText rect=100,0,35,42 visible=1 alpha=1.0000 text=35x42
+## wrap
+LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaText rect=0,0,80,200 visible=1 alpha=1.0000 text=72x48
+  LuaText rect=100,0,160,200 visible=1 alpha=1.0000 text=150x24
+  LuaText rect=0,220,258,12 visible=1 alpha=1.0000 text=258x12
+  LuaText rect=300,0,50,100 visible=1 alpha=1.0000 text=210x12
+## align_grid
+LuaWidget rect=0,0,400,200 visible=1 alpha=1.0000
+  LuaText rect=0,0,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=0,50,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=0,100,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=110,0,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=110,50,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=110,100,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=220,0,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=220,50,100,40 visible=1 alpha=1.0000 text=18x12
+  LuaText rect=220,100,100,40 visible=1 alpha=1.0000 text=18x12
+## text_in_flex
+LuaFlex rect=0,0,300,40 visible=1 alpha=1.0000
+  LuaText rect=0,14,24,12 visible=1 alpha=1.0000 text=24x12
+  LuaText rect=24,14,30,12 visible=1 alpha=1.0000 text=30x12
+  LuaText rect=264,8,36,24 visible=1 alpha=1.0000 text=36x24
+## text_in_vertical_flex_with_stretch
+LuaFlex rect=0,0,100,44 visible=1 alpha=1.0000
+  LuaText rect=0,0,30,12 visible=1 alpha=1.0000 text=30x12
+  LuaText rect=0,12,66,12 visible=1 alpha=1.0000 text=66x12
+  LuaFlex rect=0,24,16,20 visible=1 alpha=1.0000
+    LuaText rect=0,0,6,12 visible=1 alpha=1.0000 text=6x12
+    LuaText rect=6,0,10,20 visible=1 alpha=1.0000 text=10x20
+## text_edit
+LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,0,100,30 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,40,0,14 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,80,0,14 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,120,0,0 visible=1 alpha=1.0000
+  LuaTextEdit rect=150,0,100,48 visible=1 alpha=1.0000
+## text_edit_align_grid
+LuaWidget rect=0,0,400,200 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,0,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,50,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=0,100,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=110,0,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=110,50,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=110,100,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=220,0,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=220,50,100,40 visible=1 alpha=1.0000
+  LuaTextEdit rect=220,100,100,40 visible=1 alpha=1.0000

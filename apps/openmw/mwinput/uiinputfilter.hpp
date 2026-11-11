@@ -28,6 +28,10 @@ namespace MWInput
         void setTarget(UiRml::InputTarget* target);
         UiRml::InputTarget* target() const { return mTarget; }
 
+        /// The configured focus entry (`[GUI] rmlui focus button` / `focus key`): SDL's controller button and scancode,
+        /// -1 for none. In GUI mode only, as every other overlay input.
+        void setFocusEntry(int controllerButton, int scancode);
+
         // MouseListener
         void mouseMoved(const SDLUtil::MouseMotionEvent& arg) override;
         void mousePressed(const SDL_MouseButtonEvent& arg, Uint8 id) override;

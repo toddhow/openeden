@@ -20,12 +20,19 @@ namespace UiRml
         bool mTextFocus = false;
         /// The focused element is inside a document that asked for the controller (`nav-capture`).
         bool mNavCaptured = false;
+        /// Some visible document asked for the controller (`nav-capture`), whether or not a control in it has the
+        /// focus: the focus entry key or button has something to enter.
+        bool mHasNavDocument = false;
     };
 
     struct Routing
     {
         bool mToUi = false;
         bool mToGame = false;
+        /// The event is the configured focus entry key or button (task 0111 follow-up): neither the overlay's
+        /// controls nor the game see it; the overlay is told to move the focus into the first nav-capture document,
+        /// or out of it if the focus is already there.
+        bool mFocusEntry = false;
     };
 
     class InputRouter
@@ -56,6 +63,13 @@ namespace UiRml
         Routing controllerButtonUp(int button);
         Routing controllerAxis(int axis, const UiState& state);
 
+        /// The key and the controller button that enter and leave the overlay's controller focus (`[GUI] rmlui focus
+        /// key` and `focus button`). -1 is unbound, which is the default: nothing is an entry. An entry press is taken
+        /// only when the overlay has a `nav-capture` document (or the focus is already in one, so the same press can
+        /// leave); otherwise it belongs to the game as any other. The release of a press taken as an entry is
+        /// dropped.
+        void setFocusEntry(int controllerButton, int scancode);
+
         /// Forgets all captured buttons and keys (focus lost, overlay switched off).
         void reset();
 
@@ -67,6 +81,10 @@ namespace UiRml
         std::bitset<kMaxButtons> mCapturedButtons;
         std::bitset<kMaxKeys> mUiKeys;
         std::bitset<kMaxControllerButtons> mUiControllerButtons;
+        std::bitset<kMaxKeys> mSwallowedKeys;
+        std::bitset<kMaxControllerButtons> mSwallowedControllerButtons;
+        int mEntryButton = -1;
+        int mEntryScancode = -1;
     };
 }
 

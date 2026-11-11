@@ -1,0 +1,123 @@
+## template_props_are_defaults
+LuaWidget rect=50,50,30,30 visible=1 alpha=1.0000
+## template_content_is_drawn_with_the_widget
+LuaWidget rect=0,0,100,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  template LuaWidget rect=0,0,100,60 visible=1 alpha=1.0000
+  template LuaWidget rect=50,30,50,30 visible=1 alpha=1.0000
+## template_slot_takes_the_content
+LuaWidget rect=0,0,100,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,20,20 visible=1 alpha=1.0000
+  template LuaWidget rect=0,0,100,60 visible=1 alpha=1.0000
+  template LuaWidget rect=4,4,92,52 visible=1 alpha=1.0000
+## template_type_gives_the_widget_type
+LuaFlex rect=0,0,30,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,20,20 visible=1 alpha=1.0000
+## template_inside_template
+LuaWidget rect=0,0,80,80 visible=1 alpha=1.0000
+  template LuaWidget rect=0,0,80,80 visible=1 alpha=1.0000
+    template LuaWidget rect=0,0,5,5 visible=1 alpha=1.0000
+## step_move_and_resize
+LuaWidget rect=10,10,100,100 visible=1 alpha=1.0000
+  LuaWidget rect=5,5,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=30,5,20,20 visible=1 alpha=1.0000
+# step 1
+LuaWidget rect=50,60,100,100 visible=1 alpha=1.0000
+  LuaWidget rect=5,5,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=30,5,20,20 visible=1 alpha=1.0000
+# step 2
+LuaWidget rect=50,60,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=5,5,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=30,5,20,20 visible=1 alpha=1.0000
+# step 3
+LuaWidget rect=50,60,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=30,5,20,20 visible=1 alpha=1.0000
+## step_text_change_resizes_the_flex
+LuaFlex rect=0,0,40,12 visible=1 alpha=1.0000
+  LuaText rect=0,0,30,12 visible=1 alpha=1.0000 text=30x12
+  LuaWidget rect=30,0,10,10 visible=1 alpha=1.0000
+# step 1
+LuaFlex rect=0,0,166,12 visible=1 alpha=1.0000
+  LuaText rect=0,0,156,12 visible=1 alpha=1.0000 text=156x12
+  LuaWidget rect=156,0,10,10 visible=1 alpha=1.0000
+# step 2
+LuaFlex rect=0,0,322,24 visible=1 alpha=1.0000
+  LuaText rect=0,0,312,24 visible=1 alpha=1.0000 text=312x24
+  LuaWidget rect=312,0,10,10 visible=1 alpha=1.0000
+# step 3
+LuaFlex rect=0,0,10,24 visible=1 alpha=1.0000
+  LuaText rect=0,0,0,24 visible=1 alpha=1.0000 text=0x24
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+## step_content_add_remove_reorder
+LuaFlex rect=0,0,30,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,10,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,30,30 visible=1 alpha=1.0000
+# step 1
+LuaFlex rect=0,0,30,100 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,10,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,30,30 visible=1 alpha=1.0000
+  LuaWidget rect=0,60,5,40 visible=1 alpha=1.0000
+# step 2
+LuaFlex rect=0,0,30,40 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,30,30 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,10,10 visible=1 alpha=1.0000
+# step 3
+LuaFlex rect=0,0,30,43 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,30,30 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,40,1,1 visible=1 alpha=1.0000
+  LuaWidget rect=0,41,2,2 visible=1 alpha=1.0000
+# step 4
+LuaFlex rect=0,0,0,0 visible=1 alpha=1.0000
+# step 5
+LuaFlex rect=0,0,7,7 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,7,7 visible=1 alpha=1.0000
+## step_child_type_changes
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,20,20 visible=1 alpha=1.0000
+# step 1
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaText rect=0,0,12,12 visible=1 alpha=1.0000 text=12x12
+  LuaWidget rect=0,0,20,20 visible=1 alpha=1.0000
+# step 2
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaText rect=0,0,12,12 visible=1 alpha=1.0000 text=12x12
+  LuaFlex rect=0,0,4,7 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,3,3 visible=1 alpha=1.0000
+    LuaWidget rect=0,3,4,4 visible=1 alpha=1.0000
+# step 3
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,4,7 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,3,3 visible=1 alpha=1.0000
+    LuaWidget rect=0,3,4,4 visible=1 alpha=1.0000
+## step_visibility_does_not_move_siblings
+LuaFlex rect=0,0,30,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,10,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,30,30 visible=1 alpha=1.0000
+# step 1
+LuaFlex rect=0,0,30,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,10,20,20 visible=0 alpha=1.0000
+  LuaWidget rect=0,30,30,30 visible=1 alpha=1.0000
+# step 2
+LuaFlex rect=0,0,30,60 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,10,20,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,30,30 visible=1 alpha=1.0000
+## step_anchor_follows_new_size
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=90,40,20,20 visible=1 alpha=1.0000
+# step 1
+LuaWidget rect=0,0,300,300 visible=1 alpha=1.0000
+  LuaWidget rect=140,140,20,20 visible=1 alpha=1.0000
+# step 2
+LuaWidget rect=0,0,300,300 visible=1 alpha=1.0000
+  LuaWidget rect=125,145,50,10 visible=1 alpha=1.0000

@@ -1,0 +1,135 @@
+## horizontal
+LuaFlex rect=10,10,47,40 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,20 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,30,5 visible=1 alpha=1.0000
+  LuaWidget rect=40,0,7,40 visible=1 alpha=1.0000
+## vertical
+LuaFlex rect=10,10,30,65 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,20 visible=1 alpha=1.0000
+  LuaWidget rect=0,20,30,5 visible=1 alpha=1.0000
+  LuaWidget rect=0,25,7,40 visible=1 alpha=1.0000
+## align_arrange_horizontal
+LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=20,0,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=0,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,25,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=20,20,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=0,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,50,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=20,40,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=25,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=45,0,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=25,25,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=45,20,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=25,50,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=45,40,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=50,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,0,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=50,25,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,20,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=50,50,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,40,30,20 visible=1 alpha=1.0000
+## align_arrange_vertical
+LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=0,10,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=0,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=40,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=35,10,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=0,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=80,0,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,10,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,15,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=0,25,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=40,15,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=35,25,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=110,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=80,15,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,25,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,0,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=0,30,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=0,40,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,70,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=40,30,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=35,40,30,20 visible=1 alpha=1.0000
+  LuaFlex rect=220,140,100,60 visible=1 alpha=1.0000
+    LuaWidget rect=80,30,20,10 visible=1 alpha=1.0000
+    LuaWidget rect=70,40,30,20 visible=1 alpha=1.0000
+## grow
+LuaFlex rect=0,0,100,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,31,10 visible=1 alpha=1.0000
+  LuaWidget rect=31,0,20,10 visible=1 alpha=1.0000
+  LuaWidget rect=51,0,48,10 visible=1 alpha=1.0000
+## grow_fractions_truncate
+LuaFlex rect=0,0,101,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,30,10 visible=1 alpha=1.0000
+  LuaWidget rect=30,0,30,10 visible=1 alpha=1.0000
+  LuaWidget rect=60,0,40,10 visible=1 alpha=1.0000
+## grow_without_free_space
+LuaFlex rect=0,0,20,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,10,10 visible=1 alpha=1.0000
+## grow_negative_is_zero
+LuaFlex rect=0,0,100,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,90,10 visible=1 alpha=1.0000
+## stretch
+LuaFlex rect=0,0,100,50 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,25 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,10,50 visible=1 alpha=1.0000
+  LuaWidget rect=20,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=30,0,10,50 visible=1 alpha=1.0000
+  LuaWidget rect=40,0,10,60 visible=1 alpha=1.0000
+## auto_size_on_and_off
+LuaWidget rect=0,0,200,200 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,80,30 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,40,30 visible=1 alpha=1.0000
+    LuaWidget rect=40,0,40,10 visible=1 alpha=1.0000
+  LuaFlex rect=0,100,5,5 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,40,30 visible=1 alpha=1.0000
+    LuaWidget rect=40,0,40,10 visible=1 alpha=1.0000
+  LuaFlex rect=100,0,100,100 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,40,30 visible=1 alpha=1.0000
+## relative_size_children
+LuaFlex rect=0,0,100,40 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,0,40 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,3,23 visible=1 alpha=1.0000
+## relative_size_children_fixed_flex
+LuaFlex rect=0,0,100,40 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+  LuaWidget rect=10,0,50,40 visible=1 alpha=1.0000
+  LuaWidget rect=60,0,40,23 visible=1 alpha=1.0000
+## nested_three_deep
+LuaFlex rect=4,4,30,55 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,30,10 visible=1 alpha=1.0000
+  LuaFlex rect=0,10,30,40 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,10,10 visible=1 alpha=1.0000
+    LuaFlex rect=10,0,20,40 visible=1 alpha=1.0000
+      LuaWidget rect=6,0,8,8 visible=1 alpha=1.0000
+      LuaWidget rect=4,8,12,32 visible=1 alpha=1.0000
+  LuaWidget rect=0,50,5,5 visible=1 alpha=1.0000
+## empty
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,30,30 visible=1 alpha=1.0000
+  LuaFlex rect=50,0,0,0 visible=1 alpha=1.0000
+  LuaFlex rect=100,0,10,10 visible=1 alpha=1.0000
+## in_sized_widget_with_relative_size
+LuaWidget rect=0,0,300,100 visible=1 alpha=1.0000
+  LuaFlex rect=0,0,300,50 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,290,10 visible=1 alpha=1.0000
+    LuaWidget rect=290,0,10,10 visible=1 alpha=1.0000
+  LuaFlex rect=0,50,300,50 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,290,10 visible=1 alpha=1.0000
+    LuaWidget rect=290,0,10,10 visible=1 alpha=1.0000

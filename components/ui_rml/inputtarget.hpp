@@ -31,6 +31,10 @@ namespace UiRml
         virtual void controllerButton(int sdlButton, bool down) = 0;
         /// Only the right stick's vertical axis is passed (the router decides); `value` is SDL's.
         virtual void controllerAxis(int sdlAxis, int value) = 0;
+        /// The configured focus entry key or button was pressed (`InputRouter` decided it is one): the controller focus
+        /// moves into the first `nav-capture` document, or out of it when it is already inside one. Default: nothing
+        /// (a target without a controller path ignores it).
+        virtual void focusEntry() {}
         /// The game left GUI mode: the focus the overlay holds (a text field, a control the controller drives) is
         /// let go.
         virtual void blur() = 0;

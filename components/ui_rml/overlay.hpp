@@ -77,6 +77,7 @@ namespace UiRml
         void controllerButton(int sdlButton, bool down) override;
         void controllerAxis(int sdlAxis, int value) override;
         void blur() override;
+        void focusEntry() override;
         void syncTextInput() override;
 
     private:

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <SDL_clipboard.h>
 #include <SDL_keyboard.h>
 
 #include <vsg/io/Options.h>
@@ -19,6 +20,8 @@
 #include <components/vfs/manager.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 
+#include "clipboard.hpp"
+#include "controllerfocus.hpp"
 #include "debugpanel.hpp"
 #include "fileinterface.hpp"
 #include "fontengine.hpp"
@@ -44,6 +47,21 @@ namespace UiRml
 
         std::atomic<bool> sExists{ false };
 
+        // The system clipboard through SDL; only ClipboardBridge's main-thread calls reach it.
+        class SdlClipboard final : public ClipboardBackend
+        {
+        public:
+            std::string get() override
+            {
+                char* text = SDL_GetClipboardText();
+                std::string result = text != nullptr ? text : "";
+                if (text != nullptr)
+                    SDL_free(text);
+                return result;
+            }
+            void set(const std::string& text) override { SDL_SetClipboardText(text.c_str()); }
+        };
+
         struct QueuedEvent
         {
             enum class Kind : std::uint8_t
@@ -56,6 +74,7 @@ namespace UiRml
                 Edit,
                 ControllerButton,
                 Blur,
+                FocusEntry,
             };
             Kind mKind = Kind::Move;
             bool mDown = false;
@@ -70,7 +89,9 @@ namespace UiRml
 
     struct Overlay::Impl
     {
-        SystemInterface mSystem;
+        SdlClipboard mClipboardBackend;
+        ClipboardBridge mClipboard{ mClipboardBackend };
+        SystemInterface mSystem{ &mClipboard };
         VfsFileInterface mFiles;
         RenderInterface mRender;
         TextInputTracker mTracker;
@@ -94,6 +115,7 @@ namespace UiRml
         std::atomic<bool> mOverDocument{ false };
         std::atomic<bool> mTextFocus{ false };
         std::atomic<bool> mNavCaptured{ false };
+        std::atomic<bool> mHasNavDocument{ false };
         std::atomic<int> mCaretX{ 0 };
         std::atomic<int> mCaretY{ 0 };
         std::atomic<int> mCaretWidth{ 0 };
@@ -183,16 +205,7 @@ namespace UiRml
             mQueue.push_back(std::move(event));
         }
 
-        // The focus element when it is a control inside a document (not the document itself).
-        Rml::Element* focusedControl() const
-        {
-            Rml::Element* focus = mContext->GetFocusElement();
-            if (focus == nullptr || focus == mContext->GetRootElement())
-                return nullptr;
-            if (focus->GetOwnerDocument() == focus)
-                return nullptr;
-            return focus;
-        }
+        Rml::Element* focusedControl() const { return UiRml::focusedControl(*mContext); }
 
         void blurFocus()
         {
@@ -252,6 +265,9 @@ namespace UiRml
                 }
                 case QueuedEvent::Kind::Blur:
                     blurFocus();
+                    break;
+                case QueuedEvent::Kind::FocusEntry:
+                    UiRml::toggleControllerFocus(*mContext);
                     break;
                 case QueuedEvent::Kind::Text:
                     mContext->ProcessTextInput(Rml::String(event.mText));
@@ -316,6 +332,7 @@ namespace UiRml
         void publish()
         {
             mHasDocuments.store(mContext->GetNumDocuments() > 0, std::memory_order_relaxed);
+            mHasNavDocument.store(hasNavCaptureDocument(*mContext), std::memory_order_relaxed);
             mOverDocument.store(mContext->IsMouseInteracting(), std::memory_order_relaxed);
 
             bool textFocus = false;
@@ -387,6 +404,7 @@ namespace UiRml
 
         ~Impl()
         {
+            mClipboard.pump();
             if (mStartedTextInput && !mTextInputWasActive)
                 SDL_StopTextInput();
             // The panel's listeners come off the document before RmlUi releases it.
@@ -445,6 +463,7 @@ namespace UiRml
         state.mOverDocument = mImpl->mOverDocument.load(std::memory_order_relaxed);
         state.mTextFocus = mImpl->mTextFocus.load(std::memory_order_relaxed);
         state.mNavCaptured = mImpl->mNavCaptured.load(std::memory_order_relaxed);
+        state.mHasNavDocument = mImpl->mHasNavDocument.load(std::memory_order_relaxed);
         return state;
     }
 
@@ -480,6 +499,10 @@ namespace UiRml
 
     void Overlay::key(int sdlKeycode, int sdlMods, bool down)
     {
+        // The paste is applied on the GUI thread a frame later, but the system clipboard is read here, on the main
+        // thread, before the key is queued (SDL's clipboard belongs to the main thread).
+        if (down && isPasteChord(sdlKeycode, static_cast<std::uint16_t>(sdlMods)))
+            mImpl->mClipboard.refresh();
         QueuedEvent event;
         event.mKind = QueuedEvent::Kind::Key;
         event.mA = sdlKeycode;
@@ -527,9 +550,18 @@ namespace UiRml
         mImpl->enqueue(std::move(event));
     }
 
+    void Overlay::focusEntry()
+    {
+        QueuedEvent event;
+        event.mKind = QueuedEvent::Kind::FocusEntry;
+        mImpl->enqueue(std::move(event));
+    }
+
     void Overlay::syncTextInput()
     {
         Impl& impl = *mImpl;
+        // text the overlay copied goes to the system clipboard here, on the main thread
+        impl.mClipboard.pump();
         const bool want = impl.mTextFocus.load(std::memory_order_relaxed);
         if (want)
         {

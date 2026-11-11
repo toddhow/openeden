@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MyGUI type="Resource" version="1.1">
+    <!-- The font the geometry corpus measures text with: the DejaVu file the game ships, at the game's default size. -->
+    <Resource type="ResourceTrueTypeFont" name="Default">
+        <Property key="Source" value="DejaVuLGCSansMono.ttf"/>
+        <Property key="Size" value="16"/>
+        <Property key="Resolution" value="58"/>
+        <Property key="Antialias" value="false"/>
+        <Property key="TabWidth" value="8"/>
+        <Property key="OffsetHeight" value="0"/>
+        <Codes>
+            <Code range="33 126"/>
+            <Code range="192 382"/>
+        </Codes>
+    </Resource>
+</MyGUI>

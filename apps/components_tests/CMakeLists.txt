@@ -21,6 +21,8 @@ file(GLOB UNITTEST_SRC_FILES
     lua/testutilmath.cpp
     lua/testutilpackage.cpp
     lua/testyaml.cpp
+    lua_ui/luauiharness.cpp
+    lua_ui/testluauigeometry.cpp
 
     misc/compression.cpp
     misc/progressreporter.cpp
@@ -565,6 +567,8 @@ if (TARGET openeden_rmlui)
         ui_rml/testbitmapfontmygui.cpp
         ui_rml/testfileinterface.cpp
         ui_rml/testfontengine.cpp
+        ui_rml/testuicontrollerfocus.cpp
+        ui_rml/testuifocusclipboard.cpp
         ui_rml/testuigeometry.cpp
         ui_rml/testuiinput.cpp
     )

@@ -37,7 +37,27 @@ namespace OMW
                 return SDL_CONTROLLER_BUTTON_DPAD_LEFT;
             if (name == "dpright")
                 return SDL_CONTROLLER_BUTTON_DPAD_RIGHT;
-            return SDL_CONTROLLER_BUTTON_INVALID;
+            return SDL_GameControllerGetButtonFromString(name.c_str());
+        }
+
+        // "ctrl", "shift", "alt", "gui" joined by + (empty is none): the modifier bits of a pushed key event
+        Uint16 modifierBits(const std::string& names)
+        {
+            Uint16 bits = KMOD_NONE;
+            std::istringstream words(names);
+            std::string word;
+            while (std::getline(words, word, '+'))
+            {
+                if (word == "ctrl")
+                    bits |= KMOD_LCTRL;
+                else if (word == "shift")
+                    bits |= KMOD_LSHIFT;
+                else if (word == "alt")
+                    bits |= KMOD_LALT;
+                else if (word == "gui")
+                    bits |= KMOD_LGUI;
+            }
+            return bits;
         }
 
         const std::string& arg(const std::vector<std::string>& arguments, std::size_t index)
@@ -83,7 +103,7 @@ namespace OMW
                 continue;
             }
             std::string word;
-            if (command.mName == "text" || command.mName == "log")
+            if (command.mName == "text" || command.mName == "log" || command.mName == "clip")
             {
                 // The rest of the line, one space after the command word removed.
                 std::string rest;
@@ -196,8 +216,20 @@ namespace OMW
             event.key.state = down ? SDL_PRESSED : SDL_RELEASED;
             event.key.keysym.sym = key;
             event.key.keysym.scancode = SDL_GetScancodeFromKey(key);
-            event.key.keysym.mod = KMOD_NONE;
+            event.key.keysym.mod = modifierBits(arg(a, 2));
             SDL_PushEvent(&event);
+        }
+        else if (name == "clip")
+        {
+            // the system clipboard, as another program would have left it
+            SDL_SetClipboardText(arg(a, 0).c_str());
+        }
+        else if (name == "cliplog")
+        {
+            char* text = SDL_GetClipboardText();
+            Log(Debug::Info) << "[UI] input script: clipboard = \"" << (text != nullptr ? text : "") << "\"";
+            if (text != nullptr)
+                SDL_free(text);
         }
         else if (name == "text")
         {

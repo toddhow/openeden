@@ -155,4 +155,31 @@ namespace UiRml
         const float speed = (magnitude - kStickDeadZone) / (1.f - kStickDeadZone) * kStickTicksPerSecond;
         return std::copysign(speed, value) * dt;
     }
+
+    bool isPasteChord(std::int32_t key, std::uint16_t mod)
+    {
+        if (key == SDLK_v)
+            return (mod & (KMOD_CTRL | KMOD_GUI)) != 0;
+        if (key == SDLK_INSERT)
+            return (mod & KMOD_SHIFT) != 0 && (mod & (KMOD_CTRL | KMOD_ALT | KMOD_GUI)) == 0;
+        return false;
+    }
+
+    int controllerButtonFromName(std::string_view name)
+    {
+        if (name.empty())
+            return -1;
+        const std::string copy(name);
+        const SDL_GameControllerButton button = SDL_GameControllerGetButtonFromString(copy.c_str());
+        return button == SDL_CONTROLLER_BUTTON_INVALID ? -1 : static_cast<int>(button);
+    }
+
+    int scancodeFromName(std::string_view name)
+    {
+        if (name.empty())
+            return -1;
+        const std::string copy(name);
+        const SDL_Scancode code = SDL_GetScancodeFromName(copy.c_str());
+        return code == SDL_SCANCODE_UNKNOWN ? -1 : static_cast<int>(code);
+    }
 }

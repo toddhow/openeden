@@ -143,7 +143,18 @@ namespace
 
     // Fills a ResourceManualFont as FontLoader::loadBitmapFont does (without the texture): code order, attributes.
     // The glyph byte is stored as the advance (+1, so that no glyph has advance 0, which the omitted entries have).
-    std::unique_ptr<MyGUI::ResourceManualFont> mygui(ToUTF8::FromType gameEncoding)
+    // The font with the MyGUI singletons it needs, which are destroyed with it: MyGUI allows one log manager and one
+    // render manager per process, and a test that leaves them behind keeps every later MyGUI test from creating its own
+    // (the Lua UI geometry tests do).
+    struct MyGuiFont
+    {
+        MyGUI::LogManager mLog; // MyGUI's assertions write to it (without one they recurse)
+        FakeRenderManager mRender;
+        std::unique_ptr<MyGUI::ResourceManualFont> mFont;
+        const MyGUI::ResourceManualFont* operator->() const { return mFont.get(); }
+    };
+
+    std::unique_ptr<MyGuiFont> mygui(ToUTF8::FromType gameEncoding)
     {
         const ToUTF8::FromType encoding = fontEncoding(gameEncoding);
         ToUTF8::Utf8Encoder encoder(encoding);
@@ -173,11 +184,10 @@ namespace
         for (const unsigned codePoint : omittedCodePoints())
             add(codePoint, 0, true);
 
-        static MyGUI::LogManager sLog; // MyGUI's assertions write to it (without one they recurse)
-        static FakeRenderManager sRender;
-        auto font = std::make_unique<MyGUI::ResourceManualFont>();
-        font->deserialization(root, MyGUI::Version(3, 2, 0));
-        return font;
+        auto result = std::make_unique<MyGuiFont>();
+        result->mFont = std::make_unique<MyGUI::ResourceManualFont>();
+        result->mFont->deserialization(root, MyGUI::Version(3, 2, 0));
+        return result;
     }
 
     class UiRmlMyGuiGlyphs : public testing::TestWithParam<ToUTF8::FromType>
@@ -193,7 +203,7 @@ namespace
         const auto check = [&](char32_t codePoint) {
             if (!checked.insert(codePoint).second)
                 return;
-            const MyGUI::GlyphInfo* info = font->getGlyphInfo(MyGUI::Char(codePoint));
+            const MyGUI::GlyphInfo* info = (*font)->getGlyphInfo(MyGUI::Char(codePoint));
             const int expected = map.lookup(codePoint);
             if (expected == GlyphMap::kHidden)
             {

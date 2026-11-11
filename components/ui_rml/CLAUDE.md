@@ -15,6 +15,8 @@ Decision 0015, tasks 0104 (U1) and 0111 (U2). Off by default behind `[GUI] rmlui
 - Keys, text and IME go to the overlay only while a text input has the focus. A focused button does not take game keys.
 - A document opts into the controller with `nav-capture="true"` on its `body`; while a control in it has the focus the d-pad (arrows), A (Return), B (Escape, which also drops the focus) and the right stick (scroll) are the overlay's.
 - Everything is GUI mode only. Leaving it makes the overlay let go of its focus.
+- A focus entry key or controller button (`[GUI] rmlui focus button` / `rmlui focus key`, default unbound) moves the controller focus into the first visible `nav-capture` document, or out of it again (`controllerfocus.*`); the router takes the press and drops its release, only in GUI mode.
+- The clipboard is `ClipboardBridge`: RmlUi's copy is queued on the GUI thread and written to SDL by `Overlay::syncTextInput` (main thread); a paste chord (`isPasteChord`) makes `Overlay::key` read SDL's clipboard on the main thread before the key is queued. Never call SDL's clipboard from the GUI thread.
 
 ## Scaling
 

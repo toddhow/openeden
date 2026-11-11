@@ -29,6 +29,15 @@ namespace UiRml
     /// `password`, `search`, `email`, `url`, `tel` or `number` (case-insensitive).
     bool isTextEntry(std::string_view tag, std::string_view type);
 
+    /// True for the key that pastes: Control+V (Command+V), or Shift+Insert. The overlay reads the system clipboard
+    /// when one is about to be queued (task 0111 follow-up: the clipboard is read on the main thread).
+    bool isPasteChord(std::int32_t sdlKeycode, std::uint16_t sdlMod);
+
+    /// An SDL game controller button by its SDL name ("back", "x", "leftshoulder", ...), or -1 for empty or unknown.
+    int controllerButtonFromName(std::string_view name);
+    /// An SDL scancode by its SDL name ("F9", "Tab", ...), or -1 for empty or unknown.
+    int scancodeFromName(std::string_view name);
+
     /// The mouse wheel ticks the right stick produces: `axisValue` (SDL's -32768 to 32767) inside a dead zone of
     /// a quarter of the range is nothing; outside it the speed grows linearly to `kStickTicksPerSecond` at full
     /// deflection (from nothing at the edge of the dead zone), and a push downwards (positive) scrolls down (a

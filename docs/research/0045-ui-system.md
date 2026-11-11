@@ -734,6 +734,10 @@ Layout runs on the main thread inside `applyDelayedActions`; the protocol calls 
 
 Stages L0 to L2 are useful even if the UI project stops: they remove MyGUI from `lua_ui` behind an interface and give `lua_ui` its first geometry tests.
 
+### 16.6a L0 built (2026-11-11, task 0112)
+
+The recorder is C++ in `apps/components_tests/lua_ui/` and runs the real `lua_ui` on MyGUI with no window: **text metrics do work headlessly**, with MyGUI's real `ResourceTrueTypeFont` and a stub render manager whose textures keep their pixels in memory (MyGUI's own DummyPlatform returns null textures, so it is not used). 55 corpus cases, 467 lines of golden rectangles; findings and gaps are in `docs/tasks/0112-lua-ui-compat-l0.md`. The tier-2 text goldens are exact for DejaVu at size 16, not for the Morrowind bitmap font; tier 3 (events) and the other built-in scripts' layouts are still to do. L1 can now start: its acceptance test is that these goldens pass unchanged.
+
 ### 16.7 Open questions for toddhow
 
 1. **Option A as the compatibility strategy** (recommended), and C only for new UI?

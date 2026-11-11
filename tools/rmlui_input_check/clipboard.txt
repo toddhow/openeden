@@ -1,0 +1,32 @@
+# Task 0111 follow-up: the clipboard. The overlay copies and pastes through SDL on the main thread.
+# Click the text field, type, select all, copy: the system clipboard gets the text. Then another program "sets" the
+# clipboard and Ctrl+V, Shift+Insert paste it; Ctrl+X cuts.
+200 key Escape down
+202 key Escape up
+250 mouse 130 185
+254 down L 130 185
+256 up L 130 185
+260 text abc
+270 key A down ctrl
+271 key A up ctrl
+272 key C down ctrl
+273 key C up ctrl
+280 cliplog
+282 clip pasted from outside
+290 key A down ctrl
+291 key A up ctrl
+292 key V down ctrl
+293 key V up ctrl
+300 shot
+310 clip second
+312 key A down ctrl
+313 key A up ctrl
+314 key Insert down shift
+315 key Insert up shift
+320 shot
+330 key A down ctrl
+331 key A up ctrl
+332 key X down ctrl
+333 key X up ctrl
+340 cliplog
+345 shot

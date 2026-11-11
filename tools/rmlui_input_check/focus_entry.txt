@@ -1,0 +1,22 @@
+# Task 0111 follow-up: the focus entry key and button ([GUI] rmlui focus button = back, rmlui focus key = F9).
+# Nothing is clicked: the panel is reached with the controller alone. Escape opens the game's main menu (GUI mode).
+200 key Escape down
+202 key Escape up
+240 shot
+250 cbutton back down
+252 cbutton back up
+270 shot
+280 cbutton dpdown down
+282 cbutton dpdown up
+290 cbutton a down
+292 cbutton a up
+300 shot
+310 cbutton back down
+312 cbutton back up
+330 shot
+340 key F9 down
+342 key F9 up
+360 shot
+370 key F9 down
+372 key F9 up
+390 shot

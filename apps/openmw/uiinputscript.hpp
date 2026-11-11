@@ -18,9 +18,10 @@ namespace OMW
     /// running game (not loading screens or the main menu before a game):
     ///
     ///   mouse X Y | down L|R|M X Y | up L|R|M X Y | wheel DY
-    ///   key NAME down|up (SDL key name, for example Return, Escape, A)
+    ///   key NAME down|up [ctrl+shift+alt+gui] (SDL key name, for example Return, Escape, A; modifiers optional)
+    ///   clip UTF8 (sets the system clipboard) | cliplog (writes it to the log)
     ///   text UTF8 | edit UTF8 START LENGTH
-    ///   cbutton a|b|dpup|dpdown|dpleft|dpright down|up | caxis righty VALUE
+    ///   cbutton NAME down|up (SDL controller button name: a, b, back, x, dpup, ...) | caxis righty VALUE
     ///   resize WIDTH HEIGHT | scale FACTOR | shot | log TEXT
     ///
     /// `scale` and `shot` (a screenshot, as the F12 key) are done through the callbacks given to frame().

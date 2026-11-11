@@ -1,0 +1,25 @@
+## container_fits_children
+LuaContainer rect=10,10,25,37 visible=1 alpha=1.0000
+  LuaWidget rect=5,5,20,10 visible=1 alpha=1.0000
+  LuaWidget rect=0,30,7,7 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,0,0 visible=1 alpha=1.0000
+## container_with_template_and_slot
+LuaContainer rect=10,10,32,47 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,30,20 visible=1 alpha=1.0000
+  LuaWidget rect=5,5,10,40 visible=1 alpha=1.0000
+  template LuaWidget rect=0,0,2,2 visible=1 alpha=1.0000
+  template LuaWidget rect=2,2,30,45 visible=1 alpha=1.0000
+  template LuaWidget rect=30,45,2,2 visible=1 alpha=1.0000
+## window_with_caption_and_action
+LuaWindow rect=20,20,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=0,20,50,50 visible=1 alpha=1.0000
+  template LuaText rect=0,0,40,16 visible=1 alpha=1.0000 text=40x16
+  template LuaWidget rect=192,92,8,8 visible=1 alpha=1.0000
+## image_sizes
+LuaWidget rect=0,0,300,300 visible=1 alpha=1.0000
+  LuaImage rect=0,0,40,40 visible=1 alpha=1.0000
+  LuaImage rect=50,0,40,40 visible=1 alpha=1.0000
+  LuaImage rect=100,0,50,50 visible=1 alpha=1.0000
+  LuaImage rect=160,0,10,10 visible=1 alpha=1.0000
+  LuaImage rect=180,0,20,20 visible=1 alpha=0.5000
+  LuaImage rect=0,150,300,60 visible=1 alpha=1.0000

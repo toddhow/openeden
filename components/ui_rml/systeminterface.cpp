@@ -9,6 +9,19 @@ namespace UiRml
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - mStart).count();
     }
 
+    void SystemInterface::SetClipboardText(const Rml::String& text)
+    {
+        if (mClipboard != nullptr)
+            mClipboard->setFromUi(text);
+        else
+            mLocalClipboard = text;
+    }
+
+    void SystemInterface::GetClipboardText(Rml::String& text)
+    {
+        text = mClipboard != nullptr ? mClipboard->textForUi() : mLocalClipboard;
+    }
+
     bool SystemInterface::LogMessage(Rml::Log::Type type, const Rml::String& message)
     {
         Debug::Level level = Debug::Info;

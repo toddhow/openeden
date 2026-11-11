@@ -116,6 +116,7 @@ namespace MWInput
         /// Task 0111 (U2): the RmlUi overlay (or null) that takes the input events that are its own; see
         /// UiInputFilter. Not owned. Call it again with null before the overlay goes.
         void setUiInputTarget(UiRml::InputTarget* target);
+        void setUiFocusEntry(int controllerButton, int scancode);
 
     private:
         bool mControlsDisabled;

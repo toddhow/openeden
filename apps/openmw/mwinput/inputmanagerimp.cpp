@@ -53,6 +53,11 @@ namespace MWInput
         mUiFilter->setTarget(target);
     }
 
+    void InputManager::setUiFocusEntry(int controllerButton, int scancode)
+    {
+        mUiFilter->setFocusEntry(controllerButton, scancode);
+    }
+
     void InputManager::clear()
     {
         // Enable all controls

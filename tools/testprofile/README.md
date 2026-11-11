@@ -161,7 +161,12 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   at the top left with "OpenEden UI", a live "FPS: n" line (updated twice a second) and three list lines, drawn in the
   game's own Morrowind font over the game and its HUD. Wrong: no panel, garbled or missing letters, a panel that moves or
   flickers, a black or white box, or any change to the game's own windows and HUD. Off (the default) must look exactly as
-  before. No input reaches the panel yet; there is nothing to click.
+  before. (Input, scaling and resize came with task 0111: see the next lines.)
+- *New UI system, input* (0111 and its follow-ups): with the `rmlui` variant, open a game menu (Escape), then press the Back button of a
+  gamepad (or F9) with no mouse touched: the first button of the panel lights up; the d-pad moves between the buttons and the text
+  field, A presses, B or Back/F9 again gives the controller back to the game. In the text field Ctrl+C, Ctrl+X, Ctrl+V and
+  Shift+Insert work with the system clipboard. Wrong: Back/F9 does something in the game's menu while the panel is shown, the
+  focus does not enter, or paste puts old text.
 
 **World**
 - *Whole-map view* (0055, 0059, 0066): `tcl`, `tgm`, then `player->setpos z 25000` over Balmora: land, towers and trees out

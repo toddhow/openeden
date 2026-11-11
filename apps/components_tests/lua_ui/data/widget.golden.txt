@@ -1,0 +1,41 @@
+## absolute
+LuaWidget rect=10,20,300,200 visible=1 alpha=1.0000
+  LuaWidget rect=5,6,50,60 visible=1 alpha=1.0000
+    LuaWidget rect=1,2,3,4 visible=1 alpha=1.0000
+  LuaWidget rect=-10,-20,1,1 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,0,0 visible=1 alpha=1.0000
+## relative
+LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaWidget rect=40,60,200,75 visible=1 alpha=1.0000
+    LuaWidget rect=0,0,100,37 visible=1 alpha=1.0000
+    LuaWidget rect=100,37,200,75 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,400,300 visible=1 alpha=1.0000
+  LuaWidget rect=-200,450,800,3 visible=1 alpha=1.0000
+## relative_with_odd_parent_size
+LuaWidget rect=0,0,101,51 visible=1 alpha=1.0000
+  LuaWidget rect=50,25,50,25 visible=1 alpha=1.0000
+  LuaWidget rect=33,34,33,17 visible=1 alpha=1.0000
+## anchor
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=75,40,50,20 visible=1 alpha=1.0000
+  LuaWidget rect=150,80,50,20 visible=1 alpha=1.0000
+  LuaWidget rect=25,-40,50,20 visible=1 alpha=1.0000
+  LuaWidget rect=287,-65,51,21 visible=1 alpha=1.0000
+  LuaWidget rect=100,0,100,50 visible=1 alpha=1.0000
+## absolute_plus_relative
+LuaWidget rect=0,0,200,100 visible=1 alpha=1.0000
+  LuaWidget rect=0,0,110,60 visible=1 alpha=1.0000
+  LuaWidget rect=57,32,5,5 visible=1 alpha=1.0000
+  LuaWidget rect=188,88,5,5 visible=1 alpha=1.0000
+## visible_and_alpha
+LuaWidget rect=0,0,100,100 visible=1 alpha=0.5000
+  LuaWidget rect=0,0,10,10 visible=0 alpha=1.0000
+    LuaWidget rect=0,0,5,5 visible=0 alpha=1.0000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=0.5000
+  LuaWidget rect=0,0,10,10 visible=1 alpha=0.2500
+  LuaWidget rect=0,0,10,10 visible=1 alpha=2.0000
+## root_defaults
+LuaWidget rect=0,0,0,0 visible=1 alpha=1.0000
+## root_in_hud_layer_fills_it
+LuaWidget rect=0,0,1024,768 visible=1 alpha=1.0000
+  LuaWidget rect=256,192,512,384 visible=1 alpha=1.0000

@@ -28,6 +28,7 @@
 #include <components/settings/shadermanager.hpp>
 #include <components/settings/values.hpp>
 #include <components/toutf8/toutf8.hpp>
+#include <components/ui_rml/inputmap.hpp>
 #include <components/ui_rml/overlay.hpp>
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
@@ -546,6 +547,17 @@ namespace OMW
                 group->addChild(mRmlUi->node());
                 guiRoot = group;
                 mInputManager->setUiInputTarget(mRmlUi.get());
+                {
+                    const std::string& buttonName = Settings::gui().mRmluiFocusButton.get();
+                    const std::string& keyName = Settings::gui().mRmluiFocusKey.get();
+                    const int button = UiRml::controllerButtonFromName(buttonName);
+                    const int key = UiRml::scancodeFromName(keyName);
+                    if (!buttonName.empty() && button < 0)
+                        Log(Debug::Warning) << "[UI] [GUI] rmlui focus button '" << buttonName << "' is not an SDL controller button";
+                    if (!keyName.empty() && key < 0)
+                        Log(Debug::Warning) << "[UI] [GUI] rmlui focus key '" << keyName << "' is not an SDL key name";
+                    mInputManager->setUiFocusEntry(button, key);
+                }
                 if (auto commands = UiInputScript::fromEnvironment(); !commands.empty())
                     mUiScript = std::make_unique<UiInputScript>(mWindow, std::move(commands));
                 Log(Debug::Info) << "[UI] RmlUi overlay on ([GUI] rmlui)";
