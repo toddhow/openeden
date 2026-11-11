@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
 
 #include <openeden/game/world_model.hpp>
@@ -37,6 +38,10 @@ namespace MWWorld
 {
     struct NeutralBase
     {
+        /// The record type tag the class registry and LiveCellRef use (task 0109); no file or save ever holds it.
+        static constexpr ESM::RecNameInts sRecordId = ESM::REC_NEUT;
+        static std::string_view getRecordType() { return "Neutral"; }
+
         ESM::RefId mId; ///< The scheme above
         std::string mGameId; ///< The pack's game id ("skyrimse")
         openeden::sdk::game::WorldId mBase = openeden::sdk::game::kNoWorldId; ///< The pack's id of the base form

@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -63,6 +64,16 @@ namespace NeutralWorld
         void removeSource(std::string_view gameId);
 
         [[nodiscard]] std::size_t sourceCount() const { return mSources.size(); }
+
+        /// The game ids of the registered sources, in the order of the map (alphabetical: deterministic).
+        [[nodiscard]] std::vector<std::string> gameIds() const
+        {
+            std::vector<std::string> ids;
+            ids.reserve(mSources.size());
+            for (const auto& entry : mSources)
+                ids.push_back(entry.first);
+            return ids;
+        }
 
         /// The cell, built on the first request. nullptr with `error` when the game is unknown, the source fails, the
         /// snapshot is refused or does not fit the caps. The pointer is valid until the next call of this function,

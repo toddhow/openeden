@@ -30,6 +30,7 @@
 #include "gamepackchunks.hpp"
 #include "loadgame.hpp"
 #include "loadingscreen.hpp"
+#include "neutralnewgame.hpp"
 #include "newgame.hpp"
 #include "quicksavemanager.hpp"
 #include "savegame.hpp"
@@ -121,6 +122,12 @@ namespace MWState
     {
         if (refuseWhileGamePackFailed())
             return;
+        // Task 0109: a neutral session starts only with a named cell (--start), there is no Morrowind new game.
+        if (MWBase::Environment::get().getExtensionManager()->hasNeutralWorldSource())
+        {
+            cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, std::string()));
+            return;
+        }
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, std::nullopt));
     }
 
@@ -128,6 +135,12 @@ namespace MWState
     {
         if (refuseWhileGamePackFailed())
             return;
+        // Task 0109: a session with a game pack's neutral world has a start path of its own.
+        if (MWBase::Environment::get().getExtensionManager()->hasNeutralWorldSource())
+        {
+            cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, startCell));
+            return;
+        }
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, startCell));
     }
 

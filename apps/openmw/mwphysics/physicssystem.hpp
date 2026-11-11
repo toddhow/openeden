@@ -175,6 +175,12 @@ namespace MWPhysics
 
         void addObject(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation,
             int collisionType = Layers::WORLD);
+
+        /// Task 0109 (neutral world, stage N3a-3): adds an object whose collision is a box (half extents and centre in
+        /// the object's own frame), for an object that has bounds and no collision mesh yet. Nothing is added for a
+        /// box that cannot be made.
+        void addBoxObject(const MWWorld::Ptr& ptr, const vsg::vec3& halfExtents, const vsg::vec3& centre,
+            vsg::dquat rotation, int collisionType);
         void addActor(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh);
 
         int addProjectile(

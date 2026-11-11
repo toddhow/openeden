@@ -12,6 +12,11 @@ namespace MWWorld
     class Ptr;
 }
 
+namespace NeutralWorld
+{
+    class NeutralWorldStore;
+}
+
 namespace MWBase
 {
     /// How game code tells extensions what happens (task 0017). Extensions never take part in a save (decision 0005).
@@ -53,6 +58,14 @@ namespace MWBase
         /// off). The text escapes MyGUI markup. Main thread only.
         virtual bool profilerOverlayEnabled() const { return false; }
         virtual std::string profilerReport() { return {}; }
+
+        /// The neutral world store when `[Game] neutral world` is on (task 0109, stage N3a-3: the world model asks it
+        /// for cells by editor id), else null. Main thread only.
+        virtual NeutralWorld::NeutralWorldStore* neutralWorldStore() { return nullptr; }
+
+        /// Whether a game pack has registered a neutral world source (a session of that pack's game, task 0109): the
+        /// session then has its own start path. False with `[Game] neutral world` off and with Morrowind. Main thread.
+        virtual bool hasNeutralWorldSource() { return false; }
 
         /// Non-empty once the game pack has failed: saving is refused. Main thread only.
         virtual const std::string& sessionError() const

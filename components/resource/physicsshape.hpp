@@ -85,6 +85,16 @@ namespace Resource
 
     vsg::ref_ptr<PhysicsShapeInstance> makeInstance(vsg::ref_ptr<const PhysicsShape> source);
 
+    /// The smallest half extent a box shape takes (game units): a box thinner than the convex radius is refused by
+    /// Jolt, and a floor slab of a few hundredths of a unit would let a character through anyway.
+    inline constexpr float kMinBoxHalfExtent = 0.25f;
+
+    /// Task 0109 (neutral world, stage N3a-3): a box shape for an object that has bounds and no collision mesh yet.
+    /// `halfExtents` and `centre` are in the object's own frame (before its transform); a half extent below
+    /// kMinBoxHalfExtent is raised to it. Null when a value is not finite. The convex radius is capped at half of the
+    /// smallest half extent (Jolt requires a box to be at least as large as its radius).
+    [[nodiscard]] vsg::ref_ptr<PhysicsShape> makeBoxShape(const vsg::vec3& halfExtents, const vsg::vec3& centre);
+
     struct TriangleMeshShape
     {
         JPH::MeshShapeSettings* m_meshInterface;

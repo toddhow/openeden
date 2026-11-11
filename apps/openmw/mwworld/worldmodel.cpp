@@ -19,8 +19,14 @@
 #include "../mwbase/world.hpp"
 #include "../mwstate/loading.hpp"
 
+#include "../mwbase/extensionmanager.hpp"
+
+#include <components/worldmodel/store.hpp>
+
 #include "cellstore.hpp"
 #include "esmstore.hpp"
+#include "neutralcell.hpp"
+#include "neutralstore.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -152,6 +158,7 @@ void MWWorld::WorldModel::clear()
     mInteriors.clear();
     mExteriors.clear();
     mCells.clear();
+    mNeutralCells.clear(); // after mCells: their Cells point into it
     std::fill(mIdCache.begin(), mIdCache.end(), std::make_pair(ESM::RefId(), (MWWorld::CellStore*)nullptr));
     mIdCacheIndex = 0;
 }
@@ -209,6 +216,61 @@ namespace MWWorld
         return *cellStore;
     }
 
+    CellStore* WorldModel::emplaceNeutralInteriorCellStore(std::string_view name) const
+    {
+        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        if (neutral == nullptr)
+            return nullptr;
+        for (const std::string& gameId : neutral->gameIds())
+        {
+            const openeden::sdk::game::WorldId id = neutral->findCellByEditorId(gameId, name);
+            if (id == openeden::sdk::game::kNoWorldId)
+                continue;
+            std::string error;
+            const openeden::sdk::game::WorldCell* cell = neutral->cell(gameId, id, error);
+            if (cell == nullptr)
+            {
+                Log(Debug::Error) << "Neutral cell '" << name << "' of " << gameId << " could not be built: " << error;
+                continue;
+            }
+            if (!cell->interior)
+            {
+                Log(Debug::Error) << "Neutral cell '" << name << "' of " << gameId
+                                  << " is an exterior; exterior neutral cells are not supported yet";
+                return nullptr;
+            }
+
+            // The base records first: the references of the cell point at them.
+            Store<NeutralBase>& bases = mStore.getWritable<NeutralBase>();
+            std::size_t refused = 0;
+            std::size_t conflicts = 0;
+            for (const openeden::sdk::game::WorldObject& object : cell->objects)
+            {
+                const auto result = bases.addFromObject(gameId, object);
+                if (result.mStatus == Store<NeutralBase>::Status::Refused)
+                    ++refused;
+                else if (result.mStatus == Store<NeutralBase>::Status::Conflict)
+                    ++conflicts;
+            }
+            if (refused != 0 || conflicts != 0)
+                Log(Debug::Warning) << "Neutral cell '" << name << "': " << refused << " objects have no usable base, "
+                                    << conflicts << " describe a base differently from an earlier object";
+
+            mNeutralCells.push_back(makeNeutralCellRecord(gameId, *cell));
+            const ESM::Cell& record = mNeutralCells.back();
+            const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
+                std::forward_as_tuple(Cell(record), mStore, mReaders));
+            if (!inserted)
+            {
+                mNeutralCells.pop_back();
+                return &it->second;
+            }
+            it->second.setNeutralCell(gameId, *cell);
+            return &it->second;
+        }
+        return nullptr;
+    }
+
     CellStore* WorldModel::findInterior(std::string_view name, bool forceLoad) const
     {
         const auto it = mInteriors.find(name);
@@ -216,7 +278,10 @@ namespace MWWorld
 
         if (it == mInteriors.end())
         {
-            cellStore = emplaceInteriorCellStore(name, mStore, mReaders, mCells);
+            // A game pack's neutral cell wins over the engine's own (experimental) reading of the same plugins.
+            cellStore = emplaceNeutralInteriorCellStore(name);
+            if (cellStore == nullptr)
+                cellStore = emplaceInteriorCellStore(name, mStore, mReaders, mCells);
             if (cellStore == nullptr)
                 return cellStore;
             mInteriors.emplace(name, cellStore);

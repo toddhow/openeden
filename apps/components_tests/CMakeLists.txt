@@ -91,6 +91,7 @@ file(GLOB UNITTEST_SRC_FILES
     resource/testobjectcache.cpp
     resource/testresourcesystem.cpp
     resource/testphysicsshapemanager.cpp
+    resource/testboxshape.cpp
     resource/colladadocuments.hpp
     resource/testassimpscene.cpp
 

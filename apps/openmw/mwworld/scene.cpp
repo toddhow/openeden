@@ -49,6 +49,8 @@
 #include "../mwworld/actionteleport.hpp"
 
 #include "cellstore.hpp"
+#include "neutralcell.hpp"
+#include "neutralstore.hpp"
 #include "cellvisitors.hpp"
 #include "class.hpp"
 #include "esmstore.hpp"
@@ -1059,8 +1061,16 @@ namespace MWWorld
         }
         {
             Misc::LoadTrace::Scope trace("insert.objects", static_cast<std::int64_t>(insertVisitor.mToInsert.size()));
-            insertVisitor.insert(
-                [&](const MWWorld::Ptr& ptr) { addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering); });
+            NeutralKindCounts neutralInserted; // task 0109: what a neutral cell puts into the scene, by kind
+            insertVisitor.insert([&](const MWWorld::Ptr& ptr) {
+                addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering);
+                if (ptr.getType() == NeutralBase::sRecordId)
+                    neutralInserted.add(ptr.get<NeutralBase>()->mBase->mKind);
+            });
+            if (cell.isNeutral())
+                Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId() << "' inserted into the scene: "
+                                 << neutralInserted.total() << " objects (" << neutralInserted.describe() << "), "
+                                 << cell.neutralSkipped() << " left out";
         }
         Misc::LoadTrace::Scope trace("insert.navigator");
         insertVisitor.insert([&](const MWWorld::Ptr& ptr) {

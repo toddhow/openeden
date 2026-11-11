@@ -1,6 +1,7 @@
 #ifndef GAME_MWWORLD_WORLDMODEL_H
 #define GAME_MWWORLD_WORLDMODEL_H
 
+#include <deque>
 #include <list>
 #include <map>
 #include <string>
@@ -114,10 +115,19 @@ namespace MWWorld
         mutable std::map<std::string, CellStore*, Misc::StringUtils::CiComp> mInteriors;
         mutable std::map<ESM::ExteriorCellLocation, CellStore*> mExteriors;
         ESM::Cell mDraftCell;
+        // The synthetic ESM::Cell records of the neutral cells (task 0109). A deque, so that the Cell of a CellStore
+        // can keep a pointer into it for as long as the model lives.
+        mutable std::deque<ESM::Cell> mNeutralCells;
         std::vector<std::pair<ESM::RefId, CellStore*>> mIdCache;
         std::size_t mIdCacheIndex = 0;
 
         CellStore& getOrInsertCellStore(const ESM::Cell& cell);
+
+        /// Task 0109 (neutral world, stage N3a-3): the interior cell of this editor id from a game pack's neutral
+        /// world, made into a CellStore (its base records go into the ESMStore's Store<NeutralBase>). Null when
+        /// `[Game] neutral world` is off, no pack has such a cell, or the cell cannot be used (exteriors are not
+        /// supported yet: design document 10.4, R7).
+        CellStore* emplaceNeutralInteriorCellStore(std::string_view name) const;
 
         CellStore& insertCellStore(const ESM::Cell& cell);
 

@@ -19,6 +19,8 @@
 #include <components/esm3/fogstate.hpp>
 #include <components/misc/tuplemeta.hpp>
 
+#include <openeden/game/world_model.hpp>
+
 #include "ptr.hpp"
 #include "timestamp.hpp"
 
@@ -87,6 +89,7 @@ namespace MWWorld
 {
     class ESMStore;
     struct CellStoreImp;
+    struct NeutralBase;
 
     using CellStoreTuple = std::tuple<CellRefList<ESM::Activator>, CellRefList<ESM::Potion>,
         CellRefList<ESM::Apparatus>, CellRefList<ESM::Armor>, CellRefList<ESM::Book>, CellRefList<ESM::Clothing>,
@@ -100,7 +103,10 @@ namespace MWWorld
         CellRefList<ESM4::Container>, CellRefList<ESM4::Door>, CellRefList<ESM4::Flora>, CellRefList<ESM4::Ingredient>,
         CellRefList<ESM4::ItemMod>, CellRefList<ESM4::Terminal>, CellRefList<ESM4::Tree>, CellRefList<ESM4::MiscItem>,
         CellRefList<ESM4::MovableStatic>, CellRefList<ESM4::Weapon>, CellRefList<ESM4::Furniture>,
-        CellRefList<ESM4::Creature>, CellRefList<ESM4::Npc>, CellRefList<ESM4::StaticCollection>>;
+        CellRefList<ESM4::Creature>, CellRefList<ESM4::Npc>, CellRefList<ESM4::StaticCollection>,
+
+        // Task 0109 (neutral world, stage N3a-3): the objects of a cell a game pack handed over.
+        CellRefList<NeutralBase>>;
 
     /// \brief Mutable state of a cell
     class CellStore
@@ -199,6 +205,23 @@ namespace MWWorld
 
         void load();
         ///< Load references from content file.
+
+        /// Task 0109 (neutral world, stage N3a-3): makes this cell the engine's form of a neutral cell. The snapshot
+        /// is copied (the store that built it may drop it at its next request); the next load() turns each of its
+        /// objects into a LiveCellRef<NeutralBase> whose base is already in the ESMStore's Store<NeutralBase>
+        /// (WorldModel puts it there). Call before load(); a cell that already loaded is refused (false).
+        bool setNeutralCell(std::string gameId, const openeden::sdk::game::WorldCell& cell);
+
+        /// The snapshot setNeutralCell copied; null for a cell that is not neutral.
+        const openeden::sdk::game::WorldCell* neutralCell() const { return mNeutralCell.get(); }
+
+        /// Whether this cell came from a game pack's neutral world (setNeutralCell).
+        bool isNeutral() const { return mNeutralCell != nullptr; }
+
+        /// What the last load() of a neutral cell made: objects turned into references, by kind, and objects left out
+        /// (no base in the store, a value the engine cannot hold). Zero for a cell that is not neutral.
+        std::size_t neutralLoaded() const { return mNeutralLoaded; }
+        std::size_t neutralSkipped() const { return mNeutralSkipped; }
 
         void preload();
         ///< Build ID list from content file.
@@ -349,6 +372,12 @@ namespace MWWorld
         std::unique_ptr<ESM::FogState> mFogState;
 
         MWWorld::Cell mCellVariant;
+
+        // Task 0109: the snapshot of a neutral cell and the game it came from (null/empty for every other cell).
+        std::unique_ptr<openeden::sdk::game::WorldCell> mNeutralCell;
+        std::string mNeutralGameId;
+        std::size_t mNeutralLoaded = 0;
+        std::size_t mNeutralSkipped = 0;
         State mState;
         bool mHasState;
         std::vector<ESM::RefId> mIds;
@@ -419,6 +448,7 @@ namespace MWWorld
 
         void loadRefs(const ESM::Cell& cell, std::map<ESM::RefNum, ESM::RefId>& refNumToID);
         void loadRefs(const ESM4::Cell& cell, std::map<ESM::RefNum, ESM::RefId>& refNumToID);
+        void loadNeutralRefs();
 
         void loadRefs();
 

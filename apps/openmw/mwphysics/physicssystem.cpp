@@ -922,6 +922,23 @@ namespace MWPhysics
             mAnimatedObjects.emplace(obj.get(), false);
     }
 
+    void PhysicsSystem::addBoxObject(const MWWorld::Ptr& ptr, const vsg::vec3& halfExtents, const vsg::vec3& centre,
+        vsg::dquat rotation, int collisionType)
+    {
+        if (ptr.mRef->mData.mPhysicsPostponed)
+            return;
+
+        vsg::ref_ptr<Resource::PhysicsShape> shape = Resource::makeBoxShape(halfExtents, centre);
+        if (shape == nullptr)
+            return;
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = Resource::makeInstance(shape);
+
+        assert(!getObject(ptr));
+
+        auto obj = std::make_shared<Object>(ptr, shapeInstance, rotation, collisionType, mTaskScheduler.get());
+        mObjects.emplace(ptr.mRef, obj);
+    }
+
     void PhysicsSystem::remove(const MWWorld::Ptr& ptr)
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())

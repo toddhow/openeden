@@ -1,5 +1,7 @@
 #include "cellstore.hpp"
 #include "magiceffects.hpp"
+#include "neutralcell.hpp"
+#include "neutralstore.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -883,11 +885,54 @@ namespace MWWorld
         visitCell4ActorReferences(cell, mStore, mReaders, [&](const ESM4::ActorCharacter& ref) { loadRef(ref); });
     }
 
+    bool CellStore::setNeutralCell(std::string gameId, const openeden::sdk::game::WorldCell& cell)
+    {
+        if (mState == State_Loaded)
+            return false;
+        mNeutralCell = std::make_unique<openeden::sdk::game::WorldCell>(cell);
+        mNeutralGameId = std::move(gameId);
+        return true;
+    }
+
+    void CellStore::loadNeutralRefs()
+    {
+        mNeutralLoaded = 0;
+        mNeutralSkipped = 0;
+        CellRefList<NeutralBase>& list = get<NeutralBase>();
+        const Store<NeutralBase>& bases = mStore.get<NeutralBase>();
+        for (const openeden::sdk::game::WorldObject& object : mNeutralCell->objects)
+        {
+            std::string error;
+            ESM::CellRef ref;
+            if (!makeNeutralCellRef(mNeutralGameId, object, ref, error))
+            {
+                ++mNeutralSkipped;
+                Log(Debug::Warning) << "Neutral cell " << getCell()->getDescription() << ": " << error;
+                continue;
+            }
+            const NeutralBase* base = bases.search(ref.mRefID);
+            if (base == nullptr)
+            {
+                ++mNeutralSkipped;
+                Log(Debug::Warning) << "Neutral cell " << getCell()->getDescription() << ": no base record "
+                                    << ref.mRefID << " for placement " << object.id << " (dropping reference)";
+                continue;
+            }
+            LiveCellRef<NeutralBase> live(ref, base);
+            if (object.initiallyDisabled)
+                live.mData.disable();
+            list.mList.push_back(std::move(live));
+            ++mNeutralLoaded;
+        }
+    }
+
     void CellStore::loadRefs()
     {
         std::map<ESM::RefNum, ESM::RefId> refNumToID; // used to detect refID modifications
 
         loadRefs(mCellVariant.getEsm3(), refNumToID);
+        if (mNeutralCell != nullptr)
+            loadNeutralRefs();
 
         requestMergedRefsUpdate();
     }

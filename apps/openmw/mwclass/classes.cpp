@@ -28,6 +28,7 @@
 #include "esm4base.hpp"
 #include "esm4npc.hpp"
 #include "light4.hpp"
+#include "neutral.hpp"
 
 namespace MWClass
 {
@@ -77,5 +78,8 @@ namespace MWClass
         ESM4Named<ESM4::Terminal>::registerSelf();
         ESM4Tree::registerSelf();
         ESM4Named<ESM4::Weapon>::registerSelf();
+
+        // Task 0109 (neutral world, stage N3a-3): the one class of a game pack's neutral objects.
+        Neutral::registerSelf();
     }
 }

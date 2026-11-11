@@ -284,7 +284,12 @@ namespace MWWorld
         {
             ensureNeededRecords();
             insertNeutralStubGlobals(mStore);
+            insertNeutralStubNewGameGlobals(mStore);
             insertNeutralStubGameSettings(mStore);
+            // Task 0109 (stage N3a-3): what the player and the windows read by name.
+            insertNeutralStubGameSettingStrings(mStore);
+            insertNeutralStubSkills(mStore);
+            insertNeutralStubMagicEffects(mStore);
         }
 
         fillGlobalVariables();

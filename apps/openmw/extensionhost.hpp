@@ -188,7 +188,14 @@ namespace OMW
 
         /// The neutral world store (decision 0016; N3a-1: nothing reads it yet). Null unless Config::neutralWorld. It
         /// outlives the game pack: the pack's source leaves it when the pack stops. Main thread only.
-        [[nodiscard]] NeutralWorld::NeutralWorldStore* neutralWorldStore() noexcept { return mNeutralWorldStore.get(); }
+        [[nodiscard]] NeutralWorld::NeutralWorldStore* neutralWorldStore() noexcept override
+        {
+            return mNeutralWorldStore.get();
+        }
+        [[nodiscard]] bool hasNeutralWorldSource() override
+        {
+            return mNeutralWorldStore != nullptr && mNeutralWorldStore->sourceCount() > 0;
+        }
 
     private:
         struct LogBridge;

@@ -15,8 +15,10 @@
 #include <components/esm3/loadglob.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loaddoor.hpp>
+#include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/esm3/loadskil.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
@@ -284,5 +286,91 @@ namespace
             feed(&bits, sizeof(bits));
         }
         EXPECT_EQ(hash, 0xcc1e4ff9c6814b32ull);
+    }
+
+    // --- Task 0109 (stage N3a-3): the string game settings and the skills ---------------------------------------------
+
+    TEST(NeutralStubText, drops_the_leading_s_and_turns_underscores_into_spaces)
+    {
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sQuick_Save"), "Quick Save");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sCancel"), "Cancel");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sGamma_Correction"), "Gamma Correction");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("fNotAString"), "fNotAString");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("s"), "");
+        EXPECT_EQ(MWWorld::neutralStubGmstText(""), "");
+    }
+
+    TEST(NeutralStubGameSettingStrings, an_empty_store_gets_every_string_of_the_table)
+    {
+        MWWorld::ESMStore store;
+        EXPECT_EQ(MWWorld::insertNeutralStubGameSettingStrings(store), ESM::DefaultGmsts::StringCount);
+        for (std::size_t i = 0; i < ESM::DefaultGmsts::StringCount; ++i)
+        {
+            const ESM::GameSetting* record
+                = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId(ESM::DefaultGmsts::Strings[i]));
+            ASSERT_NE(record, nullptr) << ESM::DefaultGmsts::Strings[i];
+            EXPECT_EQ(record->mValue.getType(), ESM::VT_String);
+            EXPECT_EQ(record->mValue.getString(), MWWorld::neutralStubGmstText(ESM::DefaultGmsts::Strings[i]));
+        }
+        const ESM::GameSetting* cancel = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("sCancel"));
+        ASSERT_NE(cancel, nullptr);
+        EXPECT_EQ(cancel->mValue.getString(), "Cancel");
+    }
+
+    TEST(NeutralStubGameSettingStrings, a_setting_the_content_defined_keeps_its_text_and_a_second_call_adds_nothing)
+    {
+        MWWorld::ESMStore store;
+        ESM::GameSetting real;
+        real.mId = ESM::RefId::stringRefId("sCancel");
+        real.mValue = ESM::Variant(std::string("Abbrechen"));
+        real.mRecordFlags = 0;
+        store.insertStatic(real);
+        EXPECT_EQ(MWWorld::insertNeutralStubGameSettingStrings(store), ESM::DefaultGmsts::StringCount - 1);
+        EXPECT_EQ(store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("sCancel"))->mValue.getString(),
+            "Abbrechen");
+        EXPECT_EQ(MWWorld::insertNeutralStubGameSettingStrings(store), 0u);
+    }
+
+    TEST(NeutralStubSkills, an_empty_store_gets_all_the_skills_in_index_order)
+    {
+        MWWorld::ESMStore store;
+        EXPECT_EQ(MWWorld::insertNeutralStubSkills(store), static_cast<std::size_t>(ESM::Skill::Length));
+        for (int index = 0; index < ESM::Skill::Length; ++index)
+        {
+            const ESM::Skill* skill = store.get<ESM::Skill>().search(ESM::Skill::indexToRefId(index));
+            ASSERT_NE(skill, nullptr) << index;
+            EXPECT_EQ(ESM::Skill::refIdToIndex(skill->mId), index);
+        }
+        EXPECT_EQ(MWWorld::insertNeutralStubSkills(store), 0u);
+    }
+
+    TEST(NeutralStubNewGameGlobals, an_empty_store_gets_the_chargen_state_and_a_second_call_adds_nothing)
+    {
+        MWWorld::ESMStore store;
+        EXPECT_EQ(MWWorld::insertNeutralStubNewGameGlobals(store), 1u);
+        const ESM::Global* record = store.get<ESM::Global>().search(ESM::RefId::stringRefId("chargenstate"));
+        ASSERT_NE(record, nullptr);
+        EXPECT_EQ(record->mValue.getInteger(), 0);
+        EXPECT_EQ(MWWorld::insertNeutralStubNewGameGlobals(store), 0u);
+    }
+
+    TEST(NeutralStubMagicEffects, an_empty_store_gets_all_the_effects_and_a_second_call_adds_nothing)
+    {
+        MWWorld::ESMStore store;
+        EXPECT_EQ(MWWorld::insertNeutralStubMagicEffects(store), static_cast<std::size_t>(ESM::MagicEffect::Length));
+        for (int index = 0; index < ESM::MagicEffect::Length; ++index)
+            EXPECT_NE(store.get<ESM::MagicEffect>().search(ESM::MagicEffect::indexToRefId(index)), nullptr) << index;
+        EXPECT_EQ(MWWorld::insertNeutralStubMagicEffects(store), 0u);
+    }
+
+    TEST(NeutralStubPlayer, the_stub_player_is_alive)
+    {
+        MWWorld::ESMStore store;
+        MWWorld::insertNeutralStubPlayer(store);
+        const ESM::NPC* player = store.get<ESM::NPC>().find(playerIdOf());
+        EXPECT_GT(player->mNpdt.mHealth, 0);
+        EXPECT_GT(player->mNpdt.mFatigue, 0);
+        EXPECT_GT(player->mNpdt.mLevel, 0);
+        EXPECT_GT(player->mNpdt.mAttributes[0], 0);
     }
 }

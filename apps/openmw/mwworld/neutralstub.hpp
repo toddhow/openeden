@@ -38,11 +38,37 @@ namespace MWWorld
     /// World::ensureNeededRecords). Returns how many it added. Call before World::fillGlobalVariables.
     std::size_t insertNeutralStubGlobals(ESMStore& store);
 
+    /// Task 0109 (stage N3a-3). Adds, as a static record and only where missing, the global the engine's new-game set-up
+    /// writes (`chargenstate`: World::startNewGame sets it to -1 when the start bypasses character generation, which a
+    /// neutral session always does). Returns how many it added. Call before World::fillGlobalVariables.
+    std::size_t insertNeutralStubNewGameGlobals(ESMStore& store);
+
     /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, Morrowind's default values of the
     /// numeric game settings (the table in components/esm3/defaultgmsts.hpp that OpenMW-CS also uses). The World and the
     /// managers it builds read many of them by name, and a plugin of another game defines none, so without them the
     /// session cannot get past World::World. Returns how many it added. Call before ESMStore::setUp().
     std::size_t insertNeutralStubGameSettings(ESMStore& store);
+
+    /// Task 0109 (stage N3a-3). The text a stub string game setting gets: the setting's name without its leading 's',
+    /// underscores turned into spaces ("sQuick_Save" gives "Quick Save"). Readable labels for the engine's windows in a
+    /// session whose plugins define none of Morrowind's strings, without any Morrowind text.
+    std::string neutralStubGmstText(std::string_view name);
+
+    /// Task 0109 (stage N3a-3). Adds, as static records and only where missing, every string game setting of
+    /// OpenMW-CS's table (components/esm3/defaultgmsts.hpp) with neutralStubGmstText as its value. The windows, the
+    /// skill and attribute stores and the localisation read them by name; without them each lookup logs an error.
+    /// Returns how many it added. Call before ESMStore::setUp().
+    std::size_t insertNeutralStubGameSettingStrings(ESMStore& store);
+
+    /// Task 0109 (stage N3a-3). Adds, as static records and only where missing, the 27 skills (blank, in index order):
+    /// the player's stats are built from the skill store, and the stub player's record lists all 27. Returns how many
+    /// it added. Call before ESMStore::setUp().
+    std::size_t insertNeutralStubSkills(ESMStore& store);
+
+    /// Task 0109 (stage N3a-3). Adds, as static records and only where missing, the 143 magic effects (blank, in index
+    /// order): the player's set-up looks the shield and other effects up by id. Returns how many it added. Call before
+    /// ESMStore::setUp().
+    std::size_t insertNeutralStubMagicEffects(ESMStore& store);
 }
 
 #endif
