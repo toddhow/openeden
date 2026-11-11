@@ -41,7 +41,9 @@ namespace Puddle
         out[PM::wordCellSize] = params.mCellSizeUnits;
         out[PM::wordSupply] = PM::floatBits(params.mSupply);
         out[PM::wordAbsorption] = PM::floatBits(params.mAbsorption);
-        out[PM::wordOptions] = params.mKeepStaticNoise ? PM::optionKeepStaticNoise : 0u;
+        out[PM::wordOptions] = (params.mKeepStaticNoise ? PM::optionKeepStaticNoise : 0u)
+            | (params.mTopographic ? PM::optionTopographic : 0u);
+        out[PM::wordTopoStrength] = params.mTopographic ? PM::floatBits(params.mTopographicStrength) : 0u;
         const std::uint32_t cellsInWindow = PM::windowSide * PM::windowSide;
         const bool withTops = words >= PM::bufferWordsWithTops(PM::windowSide, side);
         const std::uint32_t topsBase = PM::dataBase + cellsInWindow * static_cast<std::uint32_t>(texels);

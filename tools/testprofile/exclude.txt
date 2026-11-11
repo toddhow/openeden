@@ -114,6 +114,7 @@ Rendering|wetness puddles|default on, a part of wetness
 Rendering|wetness puddle depth|tuning of the puddle map's water supply (task 0095)
 Rendering|wetness puddle supply|tuning of the puddle map's water supply (task 0095)
 Rendering|wetness puddle absorption|tuning of the puddle map's water supply (task 0095)
+Rendering|wetness puddle topographic strength|tuning of the topographic puddles (task 0095, stage W-e), 1 is plain
 Rendering|wetness puddle static noise|a choice for flat static surfaces of the puddle map (task 0095, stage W-c), default true; false is looked at with the puddlestatics variant
 Rendering|volumetrics temporal|default on, a part of volumetrics
 Rendering|volumetric clouds shadows|default on, a part of volumetric clouds

@@ -147,6 +147,11 @@ namespace Settings
             makeClampSanitizerFloat(0, 20) };
         SettingValue<std::string> mWetnessPuddleDebug{ mIndex, "Rendering", "wetness puddle debug" };
         SettingValue<bool> mWetnessPuddleStaticNoise{ mIndex, "Rendering", "wetness puddle static noise" };
+        // Task 0095 (puddles v2, stage W-e): the topographic fallback, small shallow puddles in the fine dips of ground
+        // the puddle map found no pit on (needs `wetness puddle map`), and its strength.
+        SettingValue<bool> mWetnessPuddleTopographic{ mIndex, "Rendering", "wetness puddle topographic" };
+        SettingValue<float> mWetnessPuddleTopographicStrength{ mIndex, "Rendering",
+            "wetness puddle topographic strength", makeClampSanitizerFloat(0, 2) };
         // Task 0095 (puddles v2, stage W-b): what `openmw --bake-puddles` reads. Texel spacing in world units, the
         // maximum puddle depth in world units, the smallest pond a pit may have (texels), how far along the water's
         // path ground still counts as the pit's catchment (world units), the cells of halo the baker looks at round a

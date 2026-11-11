@@ -36,6 +36,9 @@ namespace Puddle
         /// Render::PuddleMap::optionKeepStaticNoise (stage W-c): objects keep the noise puddles on flat static
         /// surfaces the bake found no pit on.
         bool mKeepStaticNoise = false;
+        /// Render::PuddleMap::optionTopographic (stage W-e) and its strength (a scale on the fallback's coverage).
+        bool mTopographic = false;
+        float mTopographicStrength = 1.f;
     };
 
     struct GpuPackResult

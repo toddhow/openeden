@@ -345,6 +345,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpuddlemapshader.cpp
     render/testpuddlemaptops.cpp
     render/testpuddlemaptopsshader.cpp
+    render/testpuddletopo.cpp
     puddle/testpuddlemap.cpp
     puddle/testpuddlebake.cpp
     puddle/testpuddlepack.cpp

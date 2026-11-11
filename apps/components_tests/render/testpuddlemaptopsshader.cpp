@@ -112,7 +112,9 @@ namespace
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;
-            EXPECT_NE(text.find("puddleShadeAt(wetWorldPos, wetS.wet, 1.0, false)"), std::string::npos) << file;
+            // Stage W-e: the terrain passes its real normal's Z (the topographic fallback needs the flatness).
+            EXPECT_NE(text.find("puddleShadeAt("), std::string::npos) << file;
+            EXPECT_NE(text.find(".z, false)"), std::string::npos) << file;
         }
         for (const char* file : { "default/main.frag", "default/default.frag.slang" })
         {

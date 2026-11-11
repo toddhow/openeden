@@ -135,8 +135,10 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   deep and show ripples only where deep; objects and anything the map does not cover keep the noise puddles (with the
   `puddlestatics` variant, which also bakes roads, paving and decks: they take the baked puddles too, so a road is dry
   where it slopes and wet only in its own dips; the capture walks the player through every cell and takes long). Try
-  `ChangeWeather "Bitter Coast Region" 4` or Seyda Neen, and `wetness puddle debug = capacity` (or `level`, `cell`) in
-  `settings.cfg` to see the map. Wrong: puddles on a slope or a hill top, a puddle that jumps when the camera crosses a
+  `ChangeWeather "Bitter Coast Region" 4` or Seyda Neen, and `wetness puddle debug = capacity` (or `level`, `cell`, `relief`) in
+  `settings.cfg` to see the map. *Topographic puddles* (0095, stage W-e): roads, plateaus and fields where the map found no pit get small, shallow
+  puddles in the dips of the ground (`wetness puddle topographic`); they should sit in slight hollows, not in random spots,
+  appear when the rain has soaked the ground, spread with more rain and shrink as it dries. Wrong: puddles on a slope or a hill top, a puddle that jumps when the camera crosses a
   cell border, a mirrored placement (a puddle next to its hollow). *Precipitation lighting* (0040): rain and snow are lit
   by the scene and torches. *Lightning* (0040): `ChangeWeather ... 5`; a cold flash, and the shadows tilt for a moment.
 - *Snow and ash cover* (0039): `ChangeWeather "Isinfier Plains Region" 8` (snow) or an ash storm: upward-facing surfaces

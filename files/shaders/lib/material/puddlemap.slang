@@ -23,6 +23,8 @@ static const uint PUDDLE_ABSORPTION = 9u;
 static const uint PUDDLE_TOPS_BASE = 10u;
 static const uint PUDDLE_OPTIONS = 11u;
 static const uint PUDDLE_OPTION_KEEP_STATIC_NOISE = 1u;
+static const uint PUDDLE_OPTION_TOPOGRAPHIC = 2u;
+static const uint PUDDLE_TOPO_STRENGTH = 12u;
 static const uint PUDDLE_TABLE_BASE = 16u;
 static const uint PUDDLE_TEXEL_STATIC = 0x10u;
 
@@ -36,6 +38,14 @@ static const float puddleDebugDepthScale = 6.0;
 static const float puddleDebugLevelScale = 12.0;
 static const float puddleZTolerance = 2.0;
 static const float puddleObjectMinNormalZ = 0.7;
+// Stage W-e, the topographic fallback; Render::PuddleMap::topo* (components/render/puddlemapgpu.hpp) documents each.
+static const float puddleTopoNoiseCell = 64.0;
+static const float puddleTopoMaxCoverage = 0.3;
+static const float puddleTopoDipFrom = 0.4;
+static const float puddleTopoDipTo = 4.0;
+static const float puddleTopoDipBias = 0.35;
+static const float puddleTopoEdge = 0.06;
+static const float puddleTopoMaxDepth = 0.6;
 
 struct PuddleShade
 {
@@ -50,6 +60,9 @@ struct PuddleShade
     float depth;
     float coverage;
     float rippleGate;
+    float dip;
+    float dipFactor;
+    bool topographic;
     int2 cell;
 };
 
@@ -114,6 +127,60 @@ float puddleSmoothstep(float a, float b, float x)
     return t * t * (3.0 - 2.0 * t);
 }
 
+// The height of texel (gx, gy), or `fallback` where the cell is not loaded.
+float puddleHeightOrElse(int gx, int gy, float fallback)
+{
+    float2 top = puddleTexelTop(gx, gy);
+    return top.x != 0.0 ? top.y : fallback;
+}
+
+// The dip of the ground at texel coordinates p, in world units, positive in a hollow (Render::PuddleMap::groundDip):
+// the four texels round the point each have the mean of their four neighbours' heights minus their own.
+float puddleGroundDip(float2 p)
+{
+    if (puddleData[PUDDLE_TOPS_BASE] == 0u)
+        return 0.0;
+    float2 base = floor(p);
+    float2 t = p - base;
+    int2 i0 = int2(base);
+    float weights[4] = { (1.0 - t.x) * (1.0 - t.y), t.x * (1.0 - t.y), (1.0 - t.x) * t.y, t.x * t.y };
+    float dip = 0.0;
+    for (int k = 0; k < 4; ++k)
+    {
+        int gx = i0.x + (k & 1);
+        int gy = i0.y + (k >> 1);
+        float2 centre = puddleTexelTop(gx, gy);
+        if (centre.x == 0.0)
+            continue;
+        float mean = 0.25 * (puddleHeightOrElse(gx - 1, gy, centre.y) + puddleHeightOrElse(gx + 1, gy, centre.y)
+            + puddleHeightOrElse(gx, gy - 1, centre.y) + puddleHeightOrElse(gx, gy + 1, centre.y));
+        dip += weights[k] * (mean - centre.y);
+    }
+    return dip;
+}
+
+// How much water the ground has taken up, 0 to 1 (Render::PuddleMap::topoRamp).
+float puddleTopoRamp(float wet)
+{
+    float supply = asfloat(puddleData[PUDDLE_SUPPLY]);
+    float absorption = asfloat(puddleData[PUDDLE_ABSORPTION]);
+    float full = supply - absorption;
+    if (!(full > 0.0))
+        return 0.0;
+    return clamp((max(wet, 0.0) * supply - absorption) / full, 0.0, 1.0);
+}
+
+// The share of the pixel that is puddle in the topographic fallback (Render::PuddleMap::topoCoverage).
+float puddleTopoCoverage(float ramp, float dipFactor, float noiseValue, float normalZ, float strength)
+{
+    float fill = puddleTopoMaxCoverage * clamp(strength, 0.0, 2.0) * clamp(ramp, 0.0, 1.0);
+    if (!(fill > 0.0))
+        return 0.0;
+    float threshold = 1.0 - fill;
+    float n = noiseValue + puddleTopoDipBias * dipFactor;
+    return wetFlatness(normalZ) * smoothstep(threshold - puddleTopoEdge, threshold + puddleTopoEdge, n);
+}
+
 PuddleShade puddleShadeAt(float3 worldPos, float wet, float normalZ, bool objectMode)
 {
     float2 pos = worldPos.xy;
@@ -129,6 +196,9 @@ PuddleShade puddleShadeAt(float3 worldPos, float wet, float normalZ, bool object
     s.depth = 0.0;
     s.coverage = 0.0;
     s.rippleGate = 0.0;
+    s.dip = 0.0;
+    s.dipFactor = 0.0;
+    s.topographic = false;
     s.cell = int2(0, 0);
     if (puddleData[PUDDLE_ENABLED] == 0u)
         return s;
@@ -194,7 +264,21 @@ PuddleShade puddleShadeAt(float3 worldPos, float wet, float normalZ, bool object
         return s;
     s.capacity = capacity;
     if (!(capacity > 0.0))
+    {
+        // Stage W-e: no pit here (a road, a plateau, a field). Small shallow puddles from the fine shape of the ground.
+        if ((puddleData[PUDDLE_OPTIONS] & PUDDLE_OPTION_TOPOGRAPHIC) != 0u)
+        {
+            s.topographic = true;
+            s.dip = puddleGroundDip(p);
+            s.dipFactor = puddleSmoothstep(puddleTopoDipFrom, puddleTopoDipTo, s.dip);
+            s.coverage = puddleTopoCoverage(puddleTopoRamp(wet), s.dipFactor,
+                wetNoise(pos / puddleTopoNoiseCell), normalZ, asfloat(puddleData[PUDDLE_TOPO_STRENGTH]));
+            s.depth = puddleTopoMaxDepth * s.coverage;
+            s.level = s.depth;
+            s.rippleGate = puddleSmoothstep(puddleRippleFrom, puddleRippleTo, s.depth);
+        }
         return s;
+    }
     s.basinMax = float((pit >> 8) & 0xFFu) * (1.0 / 16.0);
     s.kappa = exp2(float((pit >> 16) & 0xFFu) * (1.0 / 15.0));
 
@@ -220,10 +304,16 @@ uint puddleDebugMode()
     return puddleData[PUDDLE_ENABLED] == 0u ? 0u : puddleData[PUDDLE_DEBUG];
 }
 
-// 1: capacity, 2: level, 3: cell, 4: statics (see Render::PuddleMap::debugColour).
+// 1: capacity, 2: level, 3: cell, 4: statics, 5: relief (see Render::PuddleMap::debugColour).
 float3 puddleDebugColour(PuddleShade s)
 {
     uint mode = puddleDebugMode();
+    if (mode == 5u)
+    {
+        if (!s.covered)
+            return float3(0.25, 0.0, 0.0);
+        return float3(s.capacity > 0.0 ? 0.6 : 0.0, s.dipFactor, 0.1 + 0.9 * s.coverage);
+    }
     if (mode == 4u)
     {
         if (!s.loaded)

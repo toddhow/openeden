@@ -1,0 +1,10 @@
+# GPU cost of the topographic fallback (task 0095, stage W-e): the Seyda Neen road in steady rain, a warm visit first (the
+# map's worker loads the window), then 25 s of simulation time held. Run with `gpu timing = true` and
+# OPENEDEN_FRAME_STATS_FILE (rr.sh sets it), with `wetness puddle topographic` off and on, interleaved.
+weather rain
+hour 12
+timescale 4
+first 40
+hold 25
+pose cost_warm -11050 -71500 130 0 0.15
+pose cost -11050 -71500 130 0 0.15

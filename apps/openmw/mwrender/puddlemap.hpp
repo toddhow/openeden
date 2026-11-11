@@ -53,6 +53,9 @@ namespace MWRender
             std::uint32_t mDebugMode = 0;
             /// `wetness puddle static noise` (stage W-c).
             bool mKeepStaticNoise = true;
+            /// `wetness puddle topographic` and its strength (stage W-e).
+            bool mTopographic = false;
+            float mTopographicStrength = 1.f;
         };
 
         explicit PuddleMapRuntime(Setup setup);

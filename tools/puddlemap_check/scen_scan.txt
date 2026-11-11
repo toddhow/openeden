@@ -1,0 +1,14 @@
+# Scan poses (task 0095 stage W-e): candidate vantage points for the road, street and field frames.
+weather rain
+hour 12
+timescale 4
+first 30
+hold 3
+pose s1 -23500 -14000 800 0 0.5
+pose s2 -22500 -15500 800 0 0.5
+pose s3 -22000 -12000 800 90 0.5
+pose s4 -21000 -13500 800 180 0.5
+pose s5 -20352 -48884 420 0 0.3
+pose s6 -19000 -50500 420 0 0.4
+pose s7 -9000 -70000 250 0 0.3
+pose s8 -12500 -72500 250 90 0.3

@@ -625,6 +625,8 @@ namespace MWRender
                             mPuddleMapEnabled = true;
                         mPuddleDebug = debugMode;
                         mPuddleKeepStaticNoise = Settings::rendering().mWetnessPuddleStaticNoise;
+                        mPuddleTopographic = Settings::rendering().mWetnessPuddleTopographic;
+                        mPuddleTopographicStrength = Settings::rendering().mWetnessPuddleTopographicStrength;
                         mPuddleSupply
                             = Settings::rendering().mWetnessPuddleSupply * Settings::rendering().mWetnessPuddleDepth;
                         mPuddleAbsorption = Settings::rendering().mWetnessPuddleAbsorption;
@@ -1473,6 +1475,8 @@ namespace MWRender
             puddles.mAbsorption = mPuddleAbsorption;
             puddles.mDebugMode = mPuddleDebug;
             puddles.mKeepStaticNoise = mPuddleKeepStaticNoise;
+            puddles.mTopographic = mPuddleTopographic;
+            puddles.mTopographicStrength = mPuddleTopographicStrength;
             mPuddleMap = std::make_unique<PuddleMapRuntime>(std::move(puddles));
         }
         // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.

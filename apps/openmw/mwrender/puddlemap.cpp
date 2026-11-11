@@ -155,6 +155,8 @@ namespace MWRender
             params.mAbsorption = mSetup.mAbsorption;
             params.mDebugMode = mSetup.mDebugMode;
             params.mKeepStaticNoise = mSetup.mKeepStaticNoise;
+            params.mTopographic = mSetup.mTopographic;
+            params.mTopographicStrength = mSetup.mTopographicStrength;
             std::vector<std::uint32_t> staging(
                 Render::PuddleMap::bufferWordsWithTops(Render::PuddleMap::windowSide, texels));
             {

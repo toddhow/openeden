@@ -283,7 +283,8 @@ FragmentOutput fragMain(FragmentInput input)
     float wetPuddleDark = wetPuddleDarkening;
     float wetRippleGate = 1.0;
 #ifdef WETNESS_PUDDLES
-    PuddleShade wetPm = puddleShadeAt(wetWorldPos, wetS.wet, 1.0, false);
+    PuddleShade wetPm = puddleShadeAt(
+        wetWorldPos, wetS.wet, mul((float3x3)scene.invView, normalize(input.io.viewNormal)).z, false);
     if (wetPm.covered)
     {
         wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;

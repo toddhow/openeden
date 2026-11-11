@@ -1,0 +1,16 @@
+# Frame check for the topographic fallback (task 0095, stage W-e): the Seyda Neen road, a Balmora street from above and flat
+# ground, in steady full rain at noon. Run with the map on and `wetness puddle topographic` off (before: the map finds no
+# pit on a road, so it stays dry) and on (after), and with the parent executable (the old noise puddles).
+weather rain
+hour 12
+timescale 4
+first 30
+hold 4
+pose seyda_road_a -11050 -71500 130 0 0.15
+pose seyda_road_b -11050 -71500 130 90 0.2
+pose seyda_road_c -11050 -71500 130 270 0.2
+pose balmora_street_a -22500 -15500 800 0 0.5
+pose balmora_street_b -22500 -15500 800 90 0.5
+pose field_a -20352 -48884 420 0 0.3
+pose field_b -20352 -48884 420 90 0.3
+pose field_c -20352 -48884 420 180 0.3

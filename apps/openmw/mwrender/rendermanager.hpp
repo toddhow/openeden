@@ -501,6 +501,8 @@ namespace MWRender
         float mPuddleAbsorption = 0.1f;
         std::uint32_t mPuddleDebug = 0;
         bool mPuddleKeepStaticNoise = true;
+        bool mPuddleTopographic = false;
+        float mPuddleTopographicStrength = 1.f;
         // Task 0045: parallax occlusion mapping took effect at start: 0 off, 1 low, 2 medium, 3 high.
         unsigned int mParallaxQuality = 0;
         float mWetnessStrength = 1.f;
