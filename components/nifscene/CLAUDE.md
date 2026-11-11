@@ -38,3 +38,8 @@ Rules and pitfalls:
 - No renderer work lives here. `vsgadapters/nif` still draws `NiGeometry` only.
 - Real files are read in place and only aggregates are written (`apps/components_tests/nifscene/testscenereal.cpp`,
   skipped unless `OPENEDEN_NIF_REPORT_DIRS` and `OPENEDEN_NIF_REPORT_OUT` are set). Never copy a game file into the repository.
+- **`flatten.*` (task 0110, stage N3a-4a) is the renderer-ready view of a scene and stays pure** (`NifScene::Flat`): static shapes with the
+  node transforms baked, materials reduced to a `MaterialKey`, shapes merged by key. It is in this layer because the layer rules let
+  nothing below the host include both a format and the renderer; the VSG half is `apps/openmw/mwrender/skyrimmodel.*`. Skyrim's shader
+  flag bits are named in `ShaderFlags` and pinned by number in `testflatten.cpp`; the refraction bits (15, 16) were measured on the inn's
+  heat planes. `header.*` is `isSkyrimSeHeader` (the decision Eden Studio's `chooseNifReader` also makes).

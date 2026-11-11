@@ -300,7 +300,7 @@ add_component_dir (contentsource
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene
-    build vertexdecode
+    build vertexdecode header flatten
     )
 
 # Task 0046: edits a Morrowind NIF as patches to named fields of the original bytes. Depends on nif.

@@ -2,7 +2,9 @@
 
 #include <cstring>
 #include <iostream>
+#include <iterator>
 #include <mutex>
+#include <sstream>
 #include <set>
 #include <stack>
 
@@ -199,6 +201,12 @@ namespace
 
 namespace vsgAdapters
 {
+    namespace
+    {
+        // How much of a file the scene reader's `accepts` sees: a NIF header line is at most this long.
+        constexpr std::size_t sMaxSceneHeader = 80;
+    }
+
     class nifImpl
     {
         const vsg::Options& mOptions;
@@ -1740,9 +1748,34 @@ namespace vsgAdapters
     {
         if (!vsg::compatibleExtension(options.get(), ".nif"))
             return {};
+        // Task 0110 (neutral world stage N3a-4): when the host gave a scene reader, a file it accepts (a Skyrim SE file)
+        // goes to it instead of the Morrowind reader. Without one the file reaches the Morrowind reader, which refuses
+        // it, exactly as before.
+        std::string replay;
+        if (sceneReader && sceneReader->accepts && sceneReader->read)
+        {
+            std::string filename;
+            options->getValue("filename", filename);
+            char head[sMaxSceneHeader];
+            const std::streamsize got = stream.rdbuf()->sgetn(head, sizeof(head));
+            const bool accepted = sceneReader->accepts(std::string_view(head, static_cast<std::size_t>(got)));
+            const bool rewound = stream.rdbuf()->pubseekpos(0, std::ios_base::in) != std::streampos(-1);
+            if (accepted || !rewound)
+            {
+                std::string data;
+                if (!rewound)
+                    data.assign(head, static_cast<std::size_t>(got));
+                data.append(std::istreambuf_iterator<char>(stream.rdbuf()), std::istreambuf_iterator<char>());
+                if (accepted)
+                    return sceneReader->read(std::move(data), filename, options);
+                replay = std::move(data);
+            }
+        }
+        std::istringstream replayStream(replay);
+        std::istream& source = replay.empty() ? stream : replayStream;
         try
         {
-            nifImpl impl(stream, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
+            nifImpl impl(source, *options, mImageOptions, showMarkers, mComputeBin, mDepthSortedBin, mBuilder);
             impl.mAutoMaps = &autoMaps;
             impl.mMaterialTable = materialTable.get();
             impl.mTextureExists = &textureExists;

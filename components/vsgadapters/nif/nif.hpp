@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include <vsg/io/ReaderWriter.h>
@@ -44,6 +45,20 @@ namespace vsgAdapters
         vsg::ref_ptr<vsg::Object> read(std::istream&, vsg::ref_ptr<const vsg::Options> = {}) const override;
 
         bool getFeatures(Features& features) const override;
+
+        /// Task 0110 (neutral world, stage N3a-4): a reader for files of another game that the Morrowind reader
+        /// refuses. `accepts` is given the first bytes of the file; when it says yes the whole file goes to `read`
+        /// (which owns the format: this class includes no format header). Null (the default): every file reaches the
+        /// Morrowind reader, as before. Set by the host (apps/openmw/mwrender/skyrimmodel) for Skyrim SE files when the
+        /// neutral world is on; must be set before the first model is read.
+        struct SceneReader
+        {
+            std::function<bool(std::string_view fileStart)> accepts;
+            std::function<vsg::ref_ptr<vsg::Object>(
+                std::string data, const std::string& filename, vsg::ref_ptr<const vsg::Options> options)>
+                read;
+        };
+        std::shared_ptr<const SceneReader> sceneReader;
 
         /// Whether or not nodes marked as "MRK" should be shown.
         /// These should be hidden ingame, but visible in the editor.

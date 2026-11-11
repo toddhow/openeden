@@ -1,5 +1,7 @@
 #include "scene.hpp"
 
+#include "../mwrender/skyrimmodel.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <limits>
@@ -1067,6 +1069,8 @@ namespace MWWorld
                 if (ptr.getType() == NeutralBase::sRecordId)
                     neutralInserted.add(ptr.get<NeutralBase>()->mBase->mKind);
             });
+            if (cell.isNeutral())
+                Log(Debug::Info) << MWRender::SkyrimModel::describeCounters();
             if (cell.isNeutral())
                 Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId() << "' inserted into the scene: "
                                  << neutralInserted.total() << " objects (" << neutralInserted.describe() << "), "

@@ -6,6 +6,7 @@
 #include <vsg/maths/quat.h>
 
 #include "../mwphysics/physicssystem.hpp"
+#include "../mwrender/renderinginterface.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
@@ -23,10 +24,11 @@ namespace MWClass
             return Misc::StringUtils::ciStartsWith(model, "marker");
         }
 
-        // Kinds that are live things in later stages (N5): inert references here.
+        // Kinds that are live things in later stages (N5): inert references here, with no model. Items (clutter, books,
+        // food) are drawn from stage N3a-4 on: they are static meshes in the world until N5 makes them pick-up-able.
         bool isLiveThing(ObjectKind kind)
         {
-            return kind == ObjectKind::Actor || kind == ObjectKind::Item || kind == ObjectKind::LeveledList;
+            return kind == ObjectKind::Actor || kind == ObjectKind::LeveledList;
         }
 
         const MWWorld::NeutralBase& baseOf(const MWWorld::ConstPtr& ptr)
@@ -60,9 +62,13 @@ namespace MWClass
     }
 
     void Neutral::insertObjectRendering(
-        const MWWorld::Ptr&, const std::string&, MWRender::RenderingInterface&) const
+        const MWWorld::Ptr& ptr, const std::string& model, MWRender::RenderingInterface& renderingInterface) const
     {
-        // Stage N3a-4 (the Skyrim model reader) draws the model. Nothing is drawn from the bounds.
+        // Stage N3a-4: the model is read through the same cache as Morrowind's (the NIF reader sees a Skyrim file and
+        // draws it as static shapes). An empty model (markers, actors, leveled lists) draws nothing; nothing is drawn
+        // from the bounds.
+        if (!model.empty())
+            renderingInterface.getObjects().insertModel(ptr, model);
     }
 
     void Neutral::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,

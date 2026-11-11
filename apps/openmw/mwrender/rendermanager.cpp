@@ -114,6 +114,7 @@
 
 #include "animcontext.hpp"
 #include "bin.hpp"
+#include "skyrimmodel.hpp"
 #include "camera.hpp"
 #include "distantobjects.hpp"
 #include "effects.hpp"
@@ -413,6 +414,11 @@ namespace MWRender
         nifOptions.mAllowedVersions
             = Settings::models().mLoadUnsupportedNifFiles ? Nif::VersionSet::Any : Nif::VersionSet::Morrowind;
         Nif::Reader::setDefaultReadOptions(nifOptions);
+        // Task 0110 (neutral world, stage N3a-4): with the neutral world on, Skyrim SE models are read as scenes and drawn as
+        // static shapes through the same node cache; off, the NIF reader refuses them as before.
+        if (Settings::game().mNeutralWorld)
+            resourceSystem->nifReader->sceneReader = SkyrimModel::makeSceneReader(
+                *resourceSystem->builder, resourceSystem->textureOptions, Bin_DepthSorted);
         mCamera.reset(new Camera);
 
         mShadow = std::make_unique<Shadow>(*context, mEngine.getEnabledFeatures().depthClamp);

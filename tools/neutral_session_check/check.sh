@@ -7,14 +7,14 @@
 # aggregates only. Read only: nothing is written outside <work dir>. The test game opens off-screen
 # (OPENEDEN_QUIET_WINDOW).
 #
-#   check.sh <build dir> <base config dir> <Skyrim Data folder> <work dir> [interior editor id] [frames]
+#   check.sh <build dir> <base config dir> <Skyrim Data folder> <work dir> [interior editor id] [frames] [screenshot frame]
 #
 # <base config dir> holds the openmw.cfg of a Morrowind setup (a COPY; its resources/extension/content/data-local lines
 # are replaced; its Morrowind data folder stays in the VFS for the engine's interface files). <work dir> must be under
 # I:/Projects/OpenEden-work.
 set -e
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
-BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; CELL=${5:-WhiterunBanneredMare}; FRAMES=${6:-400}
+BUILD=$1; BASE=$2; SKYRIM=$3; WORK=$4; CELL=${5:-WhiterunBanneredMare}; FRAMES=${6:-400}; SHOT=${7:-}
 native() { cygpath -m "$1"; }
 case "$(native "$WORK")" in
     I:/Projects/OpenEden-work/*) ;;
@@ -32,6 +32,18 @@ data="$(native "$SKYRIM")"
 data="$(native "$WORK/luatest")"
 game=skyrimse
 fallback-archive=Skyrim - Interface.bsa
+fallback-archive=Skyrim - Meshes0.bsa
+fallback-archive=Skyrim - Meshes1.bsa
+fallback-archive=Skyrim - Misc.bsa
+fallback-archive=Skyrim - Textures0.bsa
+fallback-archive=Skyrim - Textures1.bsa
+fallback-archive=Skyrim - Textures2.bsa
+fallback-archive=Skyrim - Textures3.bsa
+fallback-archive=Skyrim - Textures4.bsa
+fallback-archive=Skyrim - Textures5.bsa
+fallback-archive=Skyrim - Textures6.bsa
+fallback-archive=Skyrim - Textures7.bsa
+fallback-archive=Skyrim - Textures8.bsa
 content=Skyrim.esm
 content=Update.esm
 content=Dawnguard.esm
@@ -39,16 +51,19 @@ content=HearthFires.esm
 content=Dragonborn.esm
 content=n3a3save.omwscripts
 CFG
+[ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
+# Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
+[ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
 cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout 170 ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$([ "$SHOT" != look ] && echo --auto-screenshot "$SHOT")} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

@@ -41,6 +41,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwrender/testbonepose.cpp
+    mwrender/testskyrimmodel.cpp
     mwrender/testragdollbonemath.cpp
     mwrender/testactorragdolldriver.cpp
     mwrender/testfootik.cpp

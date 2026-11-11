@@ -262,7 +262,7 @@ namespace
         base.mModel = "architecture\\whiterun\\wrfloor.nif";
         EXPECT_EQ(ptr.getClass().getModel(ptr), "architecture\\whiterun\\wrfloor.nif");
 
-        for (const ObjectKind kind : { ObjectKind::Actor, ObjectKind::Item, ObjectKind::LeveledList })
+        for (const ObjectKind kind : { ObjectKind::Actor, ObjectKind::LeveledList })
         {
             base.mKind = kind;
             EXPECT_EQ(ptr.getClass().getModel(ptr), "") << static_cast<int>(kind);
@@ -270,5 +270,28 @@ namespace
         EXPECT_FALSE(ptr.getClass().isActor());
         EXPECT_FALSE(ptr.getClass().hasToolTip(ptr));
         EXPECT_TRUE(ptr.getClass().getScript(ptr).empty());
+    }
+
+    // Task 0110 (stage N3a-4): every kind that is not a live thing of a later stage is drawn from its model.
+    TEST(NeutralClass, every_kind_but_actors_and_leveled_lists_has_its_model)
+    {
+        MWClass::Neutral::registerSelf();
+        MWWorld::NeutralBase base;
+        base.mId = ESM::RefId::stringRefId("skyrimse:b2");
+        base.mGameId = "skyrimse";
+        base.mModel = "clutter\\bowl01.nif";
+        ESM::CellRef ref;
+        ref.mRefNum = { 2, MWWorld::kNeutralRefNumFile };
+        ref.mRefID = base.mId;
+        ref.mScale = 1.f;
+        MWWorld::LiveCellRef<MWWorld::NeutralBase> live(ref, &base);
+        MWWorld::Ptr ptr(&live, nullptr);
+        for (const ObjectKind kind : { ObjectKind::Static, ObjectKind::MovableStatic, ObjectKind::Furniture,
+                 ObjectKind::Container, ObjectKind::Door, ObjectKind::Activator, ObjectKind::Flora, ObjectKind::Item,
+                 ObjectKind::Light })
+        {
+            base.mKind = kind;
+            EXPECT_EQ(ptr.getClass().getModel(ptr), "clutter\\bowl01.nif") << static_cast<int>(kind);
+        }
     }
 }
