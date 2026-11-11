@@ -50,6 +50,7 @@
 #include "mwstate/loadingscreen.hpp"
 #include "mwstate/statemanagerimp.hpp"
 #include "probebaker.hpp"
+#include "puddlebaker.hpp"
 #include "skyvisbaker.hpp"
 
 #include <components/render/defaultsampler.hpp>
@@ -606,6 +607,13 @@ namespace OMW
                 = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
             lodTerrainBaker = std::make_unique<LodTerrainBaker>(out, *mResourceSystem);
         }
+        // Task 0095 stage W-b: the puddle map baker (--bake-puddles), only when asked for.
+        if (!args.bakePuddles.empty())
+        {
+            const std::filesystem::path out
+                = args.bakeGiOut.empty() ? mCfgMgr.getUserDataPath() : std::filesystem::path(args.bakeGiOut);
+            mPuddleBaker = std::make_unique<PuddleBaker>(args.bakePuddles, out, *mResourceSystem);
+        }
         // Task 0059: the world LOD object cluster baker (--bake-lod-objects), only when asked for.
         std::unique_ptr<LodObjectBaker> lodObjectBaker;
         if (args.bakeLodObjects)
@@ -664,6 +672,11 @@ namespace OMW
                           mStateManager->requestQuit();
                           autoQuitFired = true;
                       }
+                      if (mPuddleBaker && mPuddleBaker->update() && !autoQuitFired)
+                      {
+                          mStateManager->requestQuit();
+                          autoQuitFired = true;
+                      }
                       if (lodObjectBaker && lodObjectBaker->update() && !autoQuitFired)
                       {
                           mStateManager->requestQuit();
@@ -717,6 +730,7 @@ namespace OMW
             Log(Debug::Warning) << "Screenshot not written before quitting: "
                                 << Files::pathToUnicodeString(unwritten->writeFilename);
         mScreenshotWriter.reset();
+        mPuddleBaker.reset();
 
         std::cout << "Quitting peacefully." << std::endl;
 

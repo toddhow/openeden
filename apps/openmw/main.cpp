@@ -125,14 +125,16 @@ std::optional<OMW::Arguments> parseArgs(int argc, char** argv, Files::Configurat
         args.bakeGiOut = variables["bake-gi-out"].as<std::string>();
     args.bakeGiExterior = variables["bake-gi-exterior"].as<std::string>();
     args.bakeLodTerrain = variables["bake-lod-terrain"].as<bool>();
+    args.bakePuddles = variables["bake-puddles"].as<std::string>();
     args.bakeLodObjects = variables["bake-lod-objects"].as<bool>();
     args.analyseBodies = variables["analyse-bodies"].as<bool>();
     args.bakeBodies = variables["bake-bodies"].as<bool>();
     args.checkBodies = variables["check-bodies"].as<bool>();
     const bool bodyRun = args.analyseBodies || args.bakeBodies || args.checkBodies;
-    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects || bodyRun)
+    if (!args.bakeGiExterior.empty() || args.bakeLodTerrain || args.bakeLodObjects || !args.bakePuddles.empty()
+        || bodyRun)
         args.skipMenu = true;
-    MWRender::sLodBakeRun = args.bakeLodTerrain || args.bakeLodObjects || bodyRun;
+    MWRender::sLodBakeRun = args.bakeLodTerrain || args.bakeLodObjects || !args.bakePuddles.empty() || bodyRun;
     if (!args.bakeGiCell.empty())
     {
         // The baker needs the cell loaded: start in it, without the menu.

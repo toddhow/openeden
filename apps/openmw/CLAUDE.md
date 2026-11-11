@@ -42,6 +42,10 @@ loaded data and writes `<DIR or user data>/analysis/bodies.json` and `bodies.txt
 on the main thread one race and sex per frame, and keeps the plain view distance like the bakes (`sLodBakeRun`). The
 report names the user's own records: never commit it. Results: research note 0033.
 
+## Puddle map bake (task 0095, stage W-b)
+
+`openmw --bake-puddles [all|<x>,<y>|<x0>,<y0>:<x1>,<y1>] [--bake-gi-out DIR]` (`puddlebaker.*`, over `components/puddle`) bakes where water collects on the terrain of the loaded game data into `<DIR or user data>/openeden/puddles/puddles.edenpak`, then quits. Runs in the game on the main thread, one cell (about 70 ms) per frame, like the other bakers; god mode is switched on (the new game's player dies after about ten seconds, which stops the update and the bake). A killed bake resumes from `openeden/puddles/work/`; a second run with the same land and settings writes nothing ("already up to date"). Land is read with `Terrain::Storage::getVertexData` (one cell, lod 0); the cell water level is the exterior's -1 (`MWWorld::Cell`). Settings: `[Rendering] puddle bake ...`. Nothing reads the pack in the game yet. The pack is derived from the user's game files: never commit it. A bake takes about 2 minutes for Morrowind, Tribunal and Bloodmoon (1,540 land cells) and needs spare memory: two runs on a machine that was short of commit memory died with `bad allocation` and the next run resumed.
+
 ## Checking it
 
 `openmw-tests` runs `ExtensionHost` against real test extension libraries (`apps/openmw_tests/extension/`), but no unit test runs the engine loop. To check the phase calls, install the test extension, run the game with `OPENEDEN_TEST_EXTENSION_LOG=<file>` and `--extension=<id> --skip-menu --auto-quit 100`, then run `tools/check_extension_phases.sh <file>`. For data, settings, saves and Lua events, run `tools/extension_data_check/check.sh`; for the world, `tools/extension_world_check/check.sh`; for the sample extension, `tools/extension_example_check/check.sh`. Each needs an empty work folder, and no test extension left in the build folder's `extensions/`.

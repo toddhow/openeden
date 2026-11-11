@@ -76,6 +76,7 @@ namespace OMW
 {
     struct WindowListener;
     class ExtensionHost;
+    class PuddleBaker;
 
     /*
      * Runs game states.
@@ -111,6 +112,8 @@ namespace OMW
         // loop: the thread stops without running what is still queued when RenderManager goes. Made in go(), emptied
         // there after the wait; declared after the render manager, so destroyed before its thread.
         std::unique_ptr<Render::ScreenshotWriter> mScreenshotWriter;
+        // Task 0095 stage W-b: the puddle map baker (--bake-puddles), only when asked for; ended in go().
+        std::unique_ptr<PuddleBaker> mPuddleBaker;
         // openeden-vsg: created by the Game state, owned here so that, as in OpenMW 0.51, it is destroyed after the
         // window manager (GUI windows hold Lua-built widgets) and after the Game state's World.
         std::unique_ptr<MWLua::LuaManager> mLuaManager;

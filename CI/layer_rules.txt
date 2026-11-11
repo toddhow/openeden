@@ -78,6 +78,7 @@ dir components/nifjolt engine
 dir components/physicshelpers engine
 dir components/pipeline engine
 dir components/process engine
+dir components/puddle engine
 dir components/render engine
 dir components/resource engine
 dir components/sceneutil engine

@@ -98,6 +98,11 @@ namespace OpenMW
             "bake the sky visibility of exterior cells, \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\" (needs the game data; "
             "writes openeden/probes/exterior/ and quits)");
 
+        addOption("bake-puddles", bpo::value<std::string>()->implicit_value("all")->default_value(""),
+            "bake the puddle map of the loaded game data into openeden/puddles/puddles.edenpak (task 0095; needs the "
+            "game data; no argument or \"all\" for every land cell, \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\" to bake "
+            "those cells again; quits when done)");
+
         addOption("bake-lod-terrain", bpo::bool_switch()->default_value(false),
             "bake the terrain tiles of the world LOD into openeden/lod/terrain.edenpak (draft layout; needs the game "
             "data; quits when done)");

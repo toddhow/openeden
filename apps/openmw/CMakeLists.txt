@@ -3,6 +3,7 @@ set(OPENMW_SOURCES
     probebaker.cpp
     skyvisbaker.cpp
     lodterrainbaker.cpp
+    puddlebaker.cpp
     lodobjectbaker.cpp
     bodyanalyser.cpp
     bodybaker.cpp
@@ -24,6 +25,7 @@ set(OPENMW_HEADERS
     probebaker.hpp
     skyvisbaker.hpp
     lodterrainbaker.hpp
+    puddlebaker.hpp
     lodobjectbaker.hpp
     bodyanalyser.hpp
     bodybaker.hpp

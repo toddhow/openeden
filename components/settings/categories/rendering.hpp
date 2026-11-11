@@ -134,6 +134,20 @@ namespace Settings
         SettingValue<float> mWetnessDryTime{ mIndex, "Rendering", "wetness dry time",
             makeClampSanitizerFloat(1, 86400) };
         SettingValue<bool> mWetnessDebug{ mIndex, "Rendering", "wetness debug" };
+        // Task 0095 (puddles v2, stage W-b): what `openmw --bake-puddles` reads. Texel spacing in world units, the
+        // maximum puddle depth in world units, the smallest pond a pit may have (texels), how far along the water's
+        // path ground still counts as the pit's catchment (world units), the cells of halo the baker looks at round a
+        // cell, and whether static surfaces are captured (stage W-c; true is refused until then).
+        SettingValue<int> mPuddleBakeSpacing{ mIndex, "Rendering", "puddle bake spacing",
+            makeClampSanitizerInt(8, 128) };
+        SettingValue<float> mPuddleBakeCapacityCap{ mIndex, "Rendering", "puddle bake capacity cap",
+            makeClampSanitizerFloat(0.0625f, 15.9375f) };
+        SettingValue<int> mPuddleBakeMinArea{ mIndex, "Rendering", "puddle bake min area",
+            makeClampSanitizerInt(1, 4096) };
+        SettingValue<int> mPuddleBakeCatchmentRadius{ mIndex, "Rendering", "puddle bake catchment radius",
+            makeClampSanitizerInt(0, 1000000) };
+        SettingValue<int> mPuddleBakeHalo{ mIndex, "Rendering", "puddle bake halo", makeClampSanitizerInt(0, 4) };
+        SettingValue<bool> mPuddleBakeStatics{ mIndex, "Rendering", "puddle bake statics" };
         // Task 0039: snow and ash cover (read at start; needs hdr and pbr): its strength, the seconds of game time it
         // takes to build up while it snows or ash falls and to melt after, and a debug view of cover and upwardness.
         SettingValue<bool> mCover{ mIndex, "Rendering", "cover" };

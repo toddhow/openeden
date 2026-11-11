@@ -126,6 +126,12 @@ add_component_dir (lod
     loderror tilekey tileselection terraintile tilepack tilebake texturedecode albedobake objectcluster clusterbuild nifflatten clusterpack clusterfade terrainfade tileswap clusterplan viewlimits fartier residency
     )
 
+# Puddles (task 0095): the baked puddle map of an exterior cell, its pack and the baker pure code. Depends on
+# edenarchive and the pure maths in render (puddlefill.hpp, puddlelevel.hpp).
+add_component_dir (puddle
+    puddlemap puddlebake puddlepack puddlepartial puddlewindow puddlejob
+    )
+
 # Skinned body part NIF reading and the seam measurements of the merged legacy body (task 0069, stage a). Depends on nif.
 add_component_dir (bodynif
     skinnedshape seamanalysis analysisreport skeletonread

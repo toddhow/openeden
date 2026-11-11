@@ -518,6 +518,89 @@ namespace Render::Puddle
         }
         return Detail::catchmentOf(basins, fill, area, pondCapacity);
     }
+
+    // The path length of one step of the flood tree in the unit `catchmentRatioBounded` counts in: tenths of a texel,
+    // 10 for a step along an axis and 14 for a diagonal step (the usual integer approximation of sqrt(2)). Integers,
+    // so the bound gives the same answer on every compiler.
+    constexpr int pathStepOrthogonal = 10;
+    constexpr int pathStepDiagonal = 14;
+
+    // The catchment ratio with the contributing ground bounded (task 0095 stage W-b, decision 5 of toddhow,
+    // 2026-11-10): the real catchments of Morrowind's pits are whole hillsides (ratios up to 1.3 million, far beyond
+    // the stored range), and rain on a far slope would never reach a puddle in a shower anyway. Only a texel outside
+    // every pit whose water path to the pit is at most `maxPathTenths` long (tenths of a texel along the flood tree,
+    // see `pathStepOrthogonal`) counts as inflow. A texel's water goes to the FIRST pit it reaches (a texel of another
+    // pit is not inflow, and the water of an upstream pit is not counted in the pit below it: it fills the first pit
+    // first; this differs from `catchmentRatio`, which sums the flow of everything upstream, pits included). kappa =
+    // (the pit's own area + the inflow) / its pond footprint (`pondCapacity`: the pit's texels with a capacity above
+    // zero, as the overload above). A pit with no pond keeps ratio 1. `maxPathTenths` of zero counts no inflow (kappa =
+    // own area / footprint). Refused (with an error) when the basins or the capacities do not match the fill.
+    inline Catchment catchmentRatioBounded(
+        const Basins& basins, const FillResult& fill, std::span<const float> pondCapacity, std::int64_t maxPathTenths)
+    {
+        Catchment out;
+        if (!fill.ok())
+        {
+            out.error = "catchmentRatioBounded: the fill failed: " + fill.error;
+            return out;
+        }
+        const std::size_t count = fill.filled.size();
+        if (basins.id.size() != count || basins.source != Detail::sourceDigest(fill) || pondCapacity.size() != count)
+        {
+            out.error = "catchmentRatioBounded: the basins or the pond capacities were not made from this fill";
+            return out;
+        }
+        if (maxPathTenths < 0)
+        {
+            out.error = "catchmentRatioBounded: the bound must not be negative";
+            return out;
+        }
+        std::vector<std::int32_t> destination(count, -1);
+        std::vector<std::int64_t> length(count, 0);
+        std::vector<double> inflow(basins.basins.size(), 0.0);
+        std::vector<double> footprint(basins.basins.size(), 0.0);
+        for (std::size_t t = 0; t < count; ++t)
+        {
+            if (basins.id[t] >= 0 && pondCapacity[t] > 0.f)
+                footprint[static_cast<std::size_t>(basins.id[t])] += 1.0;
+        }
+        for (const std::uint32_t texel : fill.order)
+        {
+            if (basins.id[texel] >= 0)
+                continue;
+            const std::int32_t parent = fill.parent[texel];
+            if (parent < 0)
+                continue;
+            const int dx = static_cast<int>(parent % fill.width) - static_cast<int>(texel % fill.width);
+            const int dy = static_cast<int>(parent / fill.width) - static_cast<int>(texel / fill.width);
+            const int step = (dx != 0 && dy != 0) ? pathStepDiagonal : pathStepOrthogonal;
+            const std::size_t parentIndex = static_cast<std::size_t>(parent);
+            if (basins.id[parentIndex] >= 0)
+            {
+                destination[texel] = basins.id[parentIndex];
+                length[texel] = step;
+            }
+            else if (destination[parentIndex] >= 0)
+            {
+                destination[texel] = destination[parentIndex];
+                length[texel] = length[parentIndex] + step;
+            }
+            else
+                continue;
+            if (length[texel] <= maxPathTenths)
+                inflow[static_cast<std::size_t>(destination[texel])] += 1.0;
+        }
+        const double total = static_cast<double>(count);
+        out.ratio.assign(basins.basins.size(), 1.f);
+        for (std::size_t b = 0; b < out.ratio.size(); ++b)
+        {
+            if (!(footprint[b] > 0.0))
+                continue;
+            const double own = basins.basins[b].area;
+            out.ratio[b] = static_cast<float>(std::min(own + inflow[b], total) / footprint[b]);
+        }
+        return out;
+    }
 }
 
 #endif

@@ -59,6 +59,9 @@ namespace OMW
         std::string bakeGiExterior;
         // Task 0055: bake the terrain tiles of the loaded game data (draft layout), into bakeGiOut too.
         bool bakeLodTerrain = false;
+        // Task 0095 stage W-b: bake the puddle map ("all", "x,y" or "x0,y0:x1,y1"; empty when not asked), into
+        // bakeGiOut too.
+        std::string bakePuddles;
         bool bakeLodObjects = false;
         bool analyseBodies = false;
         // Task 0069 stage c: build the merged body cache (--bake-bodies) and check it against the stock parts.
