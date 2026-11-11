@@ -181,7 +181,10 @@ namespace Render
         try
         {
             auto start = std::chrono::steady_clock::now();
-            mViewer->compile();
+            {
+                std::unique_lock lock(vsgUtil::viewerCompileMutex()); // loader compiles wait: see compilecontext.hpp
+                mViewer->compile();
+            }
             auto end = std::chrono::steady_clock::now();
             auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
             std::cout << "Engine::compile() = " << dt << "s" << std::endl;

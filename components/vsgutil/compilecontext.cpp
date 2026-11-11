@@ -10,6 +10,12 @@
 
 namespace vsgUtil
 {
+    std::shared_mutex& viewerCompileMutex()
+    {
+        static std::shared_mutex mutex;
+        return mutex;
+    }
+
     CompileContext::CompileContext() {}
 
     CompileContext::~CompileContext() {}
@@ -23,6 +29,7 @@ namespace vsgUtil
 
     bool CompileContext::compile(vsg::ref_ptr<vsg::Object> obj) const
     {
+        std::shared_lock lock(viewerCompileMutex());
         Misc::LoadTrace::Scope traceCompile("compile.vsg");
         auto res = compileManager->compile(obj, contextSelectionFunction);
         traceCompile.end();

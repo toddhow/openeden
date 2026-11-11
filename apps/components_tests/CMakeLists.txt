@@ -275,6 +275,7 @@ file(GLOB UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotionstyle.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
 
+    vsg/testcompilemutex.cpp
     vsg/testshadercompile.cpp
     vsg/testslangshaders.cpp
     vsg/testshaderdefines.cpp

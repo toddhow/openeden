@@ -353,3 +353,8 @@ for their DejaVuLGCSansMono fontface, see DejaVuFontLicense.txt for their licens
 
 Thanks to Arseny Kapoulkine,
 for meshoptimizer (https://github.com/zeux/meshoptimizer, MIT License), which OpenEden uses to simplify objects for its distant object clusters.
+
+Thanks to the RmlUi team and contributors,
+for RmlUi (https://github.com/mikke89/RmlUi, MIT License), the first backend of OpenEden's new UI system.
+
+Portions of this software are copyright (c) 2026 The FreeType Project (www.freetype.org). All rights reserved. OpenEden uses FreeType under the FreeType License (FTL).
