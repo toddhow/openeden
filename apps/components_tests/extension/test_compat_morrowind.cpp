@@ -179,12 +179,9 @@ namespace
 
 TEST(CompatMorrowindTest, ManifestValidation)
 {
-    std::filesystem::path manifestPath = "extensions/compat_morrowind/extension.json";
-    if (!std::filesystem::exists(manifestPath))
-    {
-        // Check relative to source dir
-        manifestPath = "../extensions/compat_morrowind/extension.json";
-    }
+    // From the source tree the test was built from, so the working directory does not matter.
+    const std::filesystem::path manifestPath
+        = std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "extensions" / "compat_morrowind" / "extension.json";
 
     openeden::extension::LoadError err;
     auto manifestOpt = openeden::extension::loadManifestFile(manifestPath, err);

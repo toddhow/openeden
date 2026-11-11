@@ -423,7 +423,16 @@ namespace vsgUtil::TextureMips
         bool isArray = false;
     };
 
-    Swapper::~Swapper() = default;
+    Swapper::~Swapper()
+    {
+        // The registry of reductions is process-wide and keyed by the address of the full image: drop this swapper's
+        // keys before the images it holds go, or a later image allocated at the same address would be handed out as
+        // reduced.
+        for (const Entry& entry : mEntries)
+            setReduction(entry.full.get(), {});
+        if (mJob)
+            setReduction(mJob->full.get(), {});
+    }
 
     bool Swapper::beginSwap(std::uint64_t id, int toDrop, std::uint64_t frame)
     {

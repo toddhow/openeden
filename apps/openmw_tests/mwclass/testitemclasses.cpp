@@ -64,7 +64,8 @@
 // so on: see support/refidcasing.hpp.
 namespace
 {
-    [[maybe_unused]] const bool sRefIdCasing = TestSupport::primeRefIdCasing({ "gold_001", "gold_025", "gold_100" });
+    [[maybe_unused]] const bool sRefIdCasing = TestSupport::primeRefIdCasing(
+        { "gold_001", "gold_025", "gold_100", "misc_soulgem_petty", "misc_soulgem_grand" });
 }
 
 namespace CraftingTest

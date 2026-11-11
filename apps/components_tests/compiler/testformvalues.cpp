@@ -28,6 +28,7 @@
 #include <components/compiler/tokenloc.hpp>
 #include <components/esm/refid.hpp>
 #include <components/interpreter/program.hpp>
+#include <components/misc/strings/algorithm.hpp>
 
 namespace
 {
@@ -38,7 +39,7 @@ namespace
         char getGlobalType(const std::string& name) const override { return name == "someglobal" ? 'l' : ' '; }
         std::pair<char, bool> getMemberType(const std::string& name, const ESM::RefId& id) const override
         {
-            if (id.getRefIdString() == "someref" && name == "stage")
+            if (Misc::StringUtils::ciEqual(id.getRefIdString(), "someref") && name == "stage")
             {
                 return { 'l', false };
             }
@@ -46,8 +47,13 @@ namespace
         }
         bool isId(const ESM::RefId& name) const override
         {
+            // The id keeps the spelling that was interned first in the process (Morrowind.esm's "Player" if
+            // ContentFileTest ran before), so the names are compared without regard to case.
             const std::string text = name.getRefIdString();
-            return text == "someref" || text == "otherref" || text == "player" || text == "target";
+            for (const char* known : { "someref", "otherref", "player", "target" })
+                if (Misc::StringUtils::ciEqual(text, known))
+                    return true;
+            return false;
         }
     };
 

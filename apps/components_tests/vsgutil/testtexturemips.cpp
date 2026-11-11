@@ -560,6 +560,23 @@ namespace
         EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
     }
 
+    // The registry of reductions is process-wide and keyed by the address of the full image. A swapper that went away
+    // with a texture reduced left its key behind; once the image was freed, a different image allocated at the same
+    // address was handed out as "reduced" (wrong-sized images in TextureCapReadTest and others, in some test orders).
+    TEST(TextureMipsReduction, a_destroyed_swapper_leaves_no_reduction_behind)
+    {
+        auto data = bigTexture(2048, 12);
+        {
+            Recorder recorder;
+            Swapper swapper(recorder.hooks(), params());
+            auto root = vsg::Group::create();
+            root->addChild(makeGroup(makeBind(data)));
+            swapper.swap(swapper.scan(*root)[0].id, 1, 10);
+            ASSERT_TRUE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+        }
+        EXPECT_FALSE(vsgUtil::TextureMips::activeReduction(data.get()).valid());
+    }
+
     TEST(TextureMipsCachedModels, the_models_of_a_shared_object_cache_are_listed)
     {
         auto shared = vsg::SharedObjects::create();

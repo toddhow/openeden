@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <fstream>
 #include <span>
 
@@ -64,6 +65,15 @@ protected:
     // read absolute path to content files from openmw.cfg
     void readContentFiles()
     {
+        // Opt-in. These tests only print what a real installation's content files make of the store (they assert
+        // nothing about it), and loading the files puts every id of Morrowind.esm into the process-wide,
+        // case-insensitive table of id strings with Morrowind's spelling ("Gold_025", "Enchant Fail", "Hit", ...). Any
+        // test that prints an id as text then fails when it runs after this one, so on a machine with Morrowind
+        // installed a shuffled run of openmw-tests failed in about a dozen tests. CI has no content files and skips
+        // them anyway: set the variable to see the output locally.
+        if (std::getenv("OPENEDEN_TEST_CONTENT_FILES") == nullptr)
+            return;
+
         boost::program_options::variables_map variables;
 
         boost::program_options::options_description desc("Allowed options");
