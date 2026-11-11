@@ -531,6 +531,14 @@ add_component_dir (fontloader
     fontloader
     )
 
+# The RmlUi UI backend (decision 0015, task 0104): the VSG render interface, the VFS file interface, the Morrowind
+# bitmap font engine and the overlay the game draws over its GUI. Compiled only when extern/ built openeden_rmlui.
+if (TARGET openeden_rmlui)
+    add_component_dir (ui_rml
+        bitmapfont codepage fontengine fileinterface renderinterface systeminterface uigeometry overlay debugpanel
+        )
+endif()
+
 #<vgopenmw-code-style="pending">
 #vsgopenmw-move-me(components/sdl)
 # Wraps SDL.
@@ -817,6 +825,8 @@ target_link_libraries(components
     edenarchive
     # meshoptimizer (task 0059, MIT), used by lod/clusterbuild.cpp
     openeden_meshoptimizer
+    # RmlUi (task 0104, MIT), used by ui_rml/ only (absent when OPENEDEN_BUILD_RMLUI is OFF)
+    $<$<TARGET_EXISTS:openeden_rmlui>:openeden_rmlui>
     # openeden-vsg: collision shapes of non-NIF models (resource/physicsshapemanager.cpp)
     assimp::assimp
     SDL2::SDL2
@@ -884,6 +894,10 @@ set(COMPONENT_FILES ${COMPONENT_FILES} PARENT_SCOPE)
 target_compile_definitions(components PUBLIC
     MYGUI_DONT_USE_OBSOLETE=ON
 )
+
+if (TARGET openeden_rmlui)
+    target_compile_definitions(components PUBLIC OPENEDEN_HAS_RMLUI=1)
+endif()
 
 if(USE_QT)
     set_property(TARGET components_qt PROPERTY AUTOMOC ON)

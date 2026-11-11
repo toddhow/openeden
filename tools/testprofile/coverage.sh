@@ -29,6 +29,7 @@ awk -F'\t' -v exclude="$HERE/exclude.txt" '
                 || key == "actor collision shape type" || key == "enable authored transitions" \
                 || key ~ /^extension (debug draw|profiler)$/ || key == "neutral world"
         if (sec == "Cells") return key ~ /incremental/
+        if (sec == "GUI") return key == "rmlui"
         if (sec == "Physics") return key ~ /creativemotion/
         return 0
     }

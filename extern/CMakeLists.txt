@@ -590,3 +590,42 @@ endif()
 set_target_properties(openeden_meshoptimizer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(openeden_meshoptimizer SYSTEM PUBLIC "${meshoptimizer_src_SOURCE_DIR}/src")
 target_compile_features(openeden_meshoptimizer PUBLIC cxx_std_11)
+
+# Task 0104 (decision 0015, UI system U1): RmlUi 6.3 (MIT), the first backend of the new UI system. Fetched and compiled
+# here with the project's third-party flags (not by its own CMake file: that one brings samples, install rules and a
+# shared-library switch), as a static library with the default FreeType font engine. FreeType itself is not fetched: it is
+# the system/vcpkg library MyGUI already needs. Record and licences: docs/dependencies.md. OFF removes the UI backend
+# and `[GUI] rmlui` then only logs a warning.
+option(OPENEDEN_BUILD_RMLUI "Build the RmlUi UI backend (decision 0015, task 0104)" ON)
+if(OPENEDEN_BUILD_RMLUI)
+    find_package(Freetype REQUIRED)
+    if(TARGET Freetype::Freetype)
+        # Linked from a target of this directory and used by components/: an imported target is visible in its own
+        # directory only, unless it is global.
+        set_target_properties(Freetype::Freetype PROPERTIES IMPORTED_GLOBAL TRUE)
+    endif()
+    FetchContent_Declare(rmlui_src
+        URL https://github.com/mikke89/RmlUi/archive/refs/tags/6.3.tar.gz
+        URL_HASH SHA512=b66d2a3621ca2690d6e826661203fc3a4babe16243ed01b2f884d149f5b7ee598241f1f743262c7a8fbf8ae98641d5c5526fc63d8a6283638b6dc021d23e103e
+        SOURCE_DIR fetched/rmlui
+        # Its own CMake file is not used (the sources are compiled below).
+        SOURCE_SUBDIR does-not-exist
+    )
+    FetchContent_MakeAvailable(rmlui_src)
+    file(GLOB_RECURSE OPENEDEN_RMLUI_SOURCES "${rmlui_src_SOURCE_DIR}/Source/Core/*.cpp")
+    add_library(openeden_rmlui STATIC ${OPENEDEN_RMLUI_SOURCES})
+    if (MSVC)
+        target_compile_options(openeden_rmlui PRIVATE /W0 /utf-8)
+    else()
+        target_compile_options(openeden_rmlui PRIVATE -w)
+    endif()
+    set_target_properties(openeden_rmlui PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(openeden_rmlui PRIVATE "${rmlui_src_SOURCE_DIR}/Source/Core")
+    target_include_directories(openeden_rmlui SYSTEM PUBLIC "${rmlui_src_SOURCE_DIR}/Include")
+    # RMLUI_STATIC_LIB turns the __declspec(dllimport/export) off in the public headers; the library is linked into
+    # `components` only. RMLUI_FONT_ENGINE_FREETYPE selects the default font engine (FontEngineDefault/*.cpp).
+    target_compile_definitions(openeden_rmlui PUBLIC RMLUI_STATIC_LIB)
+    target_compile_definitions(openeden_rmlui PRIVATE RMLUI_FONT_ENGINE_FREETYPE "RMLUI_VERSION=\"6.3\"")
+    target_compile_features(openeden_rmlui PUBLIC cxx_std_17)
+    target_link_libraries(openeden_rmlui PRIVATE Freetype::Freetype)
+endif()

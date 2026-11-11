@@ -89,6 +89,8 @@ dir components/vfs engine
 dir components/view engine
 dir components/vsgadapters engine
 dir components/vsgutil engine
+# The RmlUi UI backend (task 0104): game-neutral, built on vfs, render, vsgutil and the font tables; the game windows come later.
+dir components/ui_rml engine
 
 # rules
 dir components/compiler rules

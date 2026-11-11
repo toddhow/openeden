@@ -538,6 +538,17 @@ source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
+# Task 0104 (decision 0015, UI system U1): the RmlUi backend's tests; the component exists only when extern/ built RmlUi.
+if (TARGET openeden_rmlui)
+    target_sources(components-tests PRIVATE
+        ui_rml/testbitmapfont.cpp
+        ui_rml/testbitmapfontmygui.cpp
+        ui_rml/testfileinterface.cpp
+        ui_rml/testfontengine.cpp
+        ui_rml/testuigeometry.cpp
+    )
+endif()
+
 target_include_directories(components-tests PRIVATE
     ${CMAKE_SOURCE_DIR}/extensions/compat_morrowind/include
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/include

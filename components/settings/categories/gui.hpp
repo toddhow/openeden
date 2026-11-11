@@ -26,6 +26,7 @@ namespace Settings
         SettingValue<bool> mWerewolfOverlay{ mIndex, "GUI", "werewolf overlay" };
         SettingValue<MyGUI::Colour> mColorBackgroundOwned{ mIndex, "GUI", "color background owned" };
         SettingValue<MyGUI::Colour> mColorCrosshairOwned{ mIndex, "GUI", "color crosshair owned" };
+        SettingValue<bool> mRmlui{ mIndex, "GUI", "rmlui" };
         SettingValue<bool> mKeyboardNavigation{ mIndex, "GUI", "keyboard navigation" };
         SettingValue<bool> mColorTopicEnable{ mIndex, "GUI", "color topic enable" };
         SettingValue<MyGUI::Colour> mColorTopicSpecific{ mIndex, "GUI", "color topic specific" };

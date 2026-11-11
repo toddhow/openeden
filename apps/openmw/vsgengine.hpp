@@ -36,6 +36,11 @@ namespace MWState
     class StateManager;
     class GameState;
 }
+namespace UiRml
+{
+    class Overlay;
+}
+
 namespace MWGui
 {
     class WindowManager;
@@ -94,6 +99,10 @@ namespace OMW
         std::unique_ptr<Resource::ResourceSystem> mResourceSystem;
         std::unique_ptr<MWInput::InputManager> mInputManager;
         std::unique_ptr<MWSound::SoundManager> mSoundManager;
+        // Task 0104 (decision 0015): OpenEden's new UI drawn over the GUI, only with `[GUI] rmlui` on (and RmlUi built
+        // in). Declared before the render manager so that it is destroyed after the graph that holds its node, and
+        // after the render engine's other members that its Vulkan objects are released through.
+        std::unique_ptr<UiRml::Overlay> mRmlUi;
         std::unique_ptr<MWRender::RenderManager> mRenderManager;
         // Task 0069 stage d: the merged bodies' cache and templates (GPU objects). Declared after the render engine, so
         // destroyed before it and its device.

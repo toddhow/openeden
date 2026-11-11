@@ -8,12 +8,14 @@
 
 #include <SDL_events.h>
 
+#include <vsg/nodes/Group.h>
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/vk/DeviceFeatures.h>
 #include <vsgXchange/images.h>
 
 #include <components/archivekinds/archivekinds.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/fallback/fallback.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/quietwindow.hpp>
@@ -26,6 +28,7 @@
 #include <components/settings/shadermanager.hpp>
 #include <components/settings/values.hpp>
 #include <components/toutf8/toutf8.hpp>
+#include <components/ui_rml/overlay.hpp>
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
@@ -193,6 +196,11 @@ namespace OMW
         mRenderManager->setExtensionDebugDraw(mExtensionHost->debugDrawFrame());
         mRenderManager->setViewMode(MWRender::ViewMode::Scene, gameState->requiresScene);
         mRenderManager->syncExtents();
+        if (mRmlUi)
+        {
+            const VkExtent2D extent = mRenderEngine->swapchainExtent();
+            mRmlUi->setExtent(extent.width, extent.height);
+        }
         Misc::LoadTrace::Scope traceRender("frame.render.onframe");
         if (gameState->requiresScene)
             mRenderManager->onFrame(dt);
@@ -502,8 +510,37 @@ namespace OMW
         mInputManager->setWindowListener(mWindowListener.get());
         mEnvironment.setInputManager(*mInputManager);
 
+        // Task 0104: with `[GUI] rmlui` the RmlUi overlay is drawn after the game's own GUI. Off: nothing is created.
+        vsg::ref_ptr<vsg::Node> guiRoot{ mWindowManager->node() };
+        if (Settings::gui().mRmlui)
+        {
+#ifdef OPENEDEN_HAS_RMLUI
+            try
+            {
+                UiRml::OverlayConfig overlayConfig;
+                overlayConfig.mBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_0"));
+                overlayConfig.mEncoding = args.encoding;
+                const VkExtent2D extent = mRenderEngine->extent2D();
+                mRmlUi = std::make_unique<UiRml::Overlay>(
+                    compile, mResourceSystem->shaderOptions, *mVFS, overlayConfig, extent.width, extent.height);
+                auto group = vsg::Group::create();
+                group->addChild(guiRoot);
+                group->addChild(mRmlUi->node());
+                guiRoot = group;
+                Log(Debug::Info) << "[UI] RmlUi overlay on ([GUI] rmlui)";
+            }
+            catch (const std::exception& e)
+            {
+                mRmlUi.reset();
+                Log(Debug::Error) << "[UI] [GUI] rmlui is on, but the overlay could not be created: " << e.what();
+            }
+#else
+            Log(Debug::Warning) << "[UI] [GUI] rmlui is on, but this build has no RmlUi (OPENEDEN_BUILD_RMLUI is off)";
+#endif
+        }
+
         mRenderManager = std::make_unique<MWRender::RenderManager>(
-            *mRenderEngine, vsg::ref_ptr{ mWindowManager->node() }, mResourceSystem.get() /*, *mNavigator*/);
+            *mRenderEngine, guiRoot, mResourceSystem.get() /*, *mNavigator*/);
 
         mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
         mRenderManager->setLodClusterPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "objects.edenpak");

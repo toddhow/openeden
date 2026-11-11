@@ -11,7 +11,7 @@ new feature too.
 - `variants/*.cfg` hold settings that exclude each other or cost a lot, so they are separate: `msaa` (multisampling
   instead of TAA), `glsl` (the GLSL shaders instead of the Slang ones), `lowtier` (the weakest whole-map tier), `aces`
   (another tonemap curve), `pcss` (soft shadow edges), `lowmemory` (a simulated 4 GiB card for the texture downscaler),
-  `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain), `vramsmall` (a simulated 225 MiB card for the video memory scale-back, the low tier).
+  `stats` (frame counters and the cell-load trace), `nolod` (the world LOD off, to tell a LOD pop from the live terrain), `vramsmall` (a simulated 225 MiB card for the video memory scale-back, the low tier), `rmlui` (the new UI system's test panel over the game).
 - `prepare.sh` makes a **profile folder** under `I:\Projects\OpenEden-work\testprofile\<name>` from a **copy** of your
   `openmw.cfg` and `settings.cfg`. Your real folder (`Documents\My Games\OpenMW`) is only read: nothing is written to
   it, and the profile has its own saves, screenshots, logs and baked data.
@@ -149,6 +149,13 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   NPC's or a swinging door's shadow follows within a few frames, a lantern left alone costs almost nothing. Wrong: a
   shadow that stays where a moved actor or door was for more than about half a second, or a shadow that flickers with the
   torch. Set it to false to compare.
+
+**UI**
+- *New UI system, first slice* (0104, decision 0015): `prepare.bat rmlui` (the variant switches `[GUI] rmlui` on). A dark panel
+  at the top left with "OpenEden UI", a live "FPS: n" line (updated twice a second) and three list lines, drawn in the
+  game's own Morrowind font over the game and its HUD. Wrong: no panel, garbled or missing letters, a panel that moves or
+  flickers, a black or white box, or any change to the game's own windows and HUD. Off (the default) must look exactly as
+  before. No input reaches the panel yet; there is nothing to click.
 
 **World**
 - *Whole-map view* (0055, 0059, 0066): `tcl`, `tgm`, then `player->setpos z 25000` over Balmora: land, towers and trees out
