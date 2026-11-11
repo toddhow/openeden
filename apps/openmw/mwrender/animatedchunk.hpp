@@ -8,6 +8,7 @@
 #include <vsg/core/Inherit.h>
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
+#include <vsg/nodes/Node.h>
 #include <vsg/maths/vec3.h>
 
 #include <components/animation/autoplay.hpp>
@@ -41,13 +42,21 @@ namespace MWRender
         /// Adds an object standing at `center` (world units), with a stable `id` (its reference number, for the phase
         /// of its animation and its place in the schedule) and the controllers to run. Only controllers with the
         /// auto-play hint are meant to be passed; they are grouped by their phase group. An empty list adds nothing.
-        void addObject(const vsg::dvec3& center, std::uint64_t id, const Controllers& controllers);
+        ///
+        /// `skins` (stage e) are the object's skin controllers with the bone matrix arrays they write (null controllers
+        /// are skipped); they are not auto-play controllers but must run after the others, since they read the bones
+        /// those move. They count in the object's cost. An object with no controllers adds nothing, skins or not.
+        /// `keepAlive` is the model whose nodes the skins' bones are (the skins hold raw pointers to those transforms),
+        /// kept for as long as this object lives.
+        void addObject(const vsg::dvec3& center, std::uint64_t id, const Controllers& controllers,
+            const Controllers& skins = {}, vsg::ref_ptr<vsg::Node> keepAlive = {});
 
         /// Reserves what update() needs. Call once, after the last addObject.
         void finish();
 
         std::size_t objectCount() const { return mObjects.size(); }
         std::size_t controllerCount() const;
+        std::size_t skinCount() const;
 
         /// Runs this frame's controllers; returns how many ran. `dt` is the frame's game time, `stopDistance` where the
         /// animation stops, `frame` a counter that grows by one each rendered frame, `budget` is shared by all chunks.
@@ -64,6 +73,9 @@ namespace MWRender
             std::vector<Anim::AutoPlay::Group> groups;
             // The owners of what the raw pointers in `groups` point to.
             Controllers owned;
+            // Run after the groups, each time the object runs (stage e).
+            Controllers skins;
+            vsg::ref_ptr<vsg::Node> keepAlive;
         };
         std::vector<Member> mObjects;
         std::vector<Lod::AnimItem> mItems;

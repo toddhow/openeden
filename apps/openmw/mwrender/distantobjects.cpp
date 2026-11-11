@@ -16,8 +16,11 @@
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/animation/bones.hpp>
 #include <components/animation/context.hpp>
+#include <components/animation/controllermap.hpp>
 #include <components/animation/skin.hpp>
+#include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -27,6 +30,7 @@
 #include <components/esm3/readerscache.hpp>
 #include <components/lod/clusterplan.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/mwanimation/bones.hpp>
 #include <components/mwanimation/clone.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -99,31 +103,106 @@ namespace MWRender
             return find.found;
         }
 
-        // Gives an object a copy of its model whose auto-play controllers a chunk can run, and returns them as
-        // (controller, target) pairs; returns `prototype` itself, and no controllers, when the model has none, has a
-        // skin (the bones it needs are not there) or has none that play by themselves. Runs on an operation thread,
-        // like the rest of buildChunk, and reads only the prototype.
-        vsg::ref_ptr<vsg::Node> makeAnimatedCopy(const MWAnim::Context& context,
-            const vsg::ref_ptr<vsg::Node>& prototype, AnimatedChunk::Controllers& controllers)
+        // What makeAnimatedCopy found for one object.
+        struct AnimatedCopy
         {
+            // The model to draw: the prototype itself when nothing moves.
+            vsg::ref_ptr<vsg::Node> node;
+            AnimatedChunk::Controllers controllers;
+            AnimatedChunk::Controllers skins;
+            // Why nothing moves, for the census (OPENEDEN_FARANIM_CENSUS); null when something does.
+            const char* reason = nullptr;
+            // Census only: the bones animated by the model's keyframe file (skinned models).
+            std::size_t kfBones = 0;
+        };
+
+        // Task 0096 stage e: whether a census line is written for each object (a developer trace, off by default).
+        bool farAnimationCensus()
+        {
+            static const bool census = std::getenv("OPENEDEN_FARANIM_CENSUS") != nullptr;
+            return census;
+        }
+
+        // Gives an object a copy of its model whose auto-play controllers a chunk can run, and returns them as
+        // (controller, target) pairs; returns `prototype` itself, and no controllers, when the model has none that play
+        // by themselves, or has particles or a skin whose bones cannot be found. A skinned model (banners and flags,
+        // stage e) is read again with the actor options, as a placed object that animates is, so that its bones are
+        // there; its skin controllers are returned apart, to be run after the others. Runs on an operation thread, like
+        // the rest of buildChunk, and reads only the prototypes.
+        AnimatedCopy makeAnimatedCopy(
+            const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype, const std::string& path)
+        {
+            AnimatedCopy out;
+            out.node = prototype;
             vsg::ref_ptr<vsg::Node> node = prototype;
             MWAnim::CloneResult result = MWAnim::cloneIfRequired(node);
             if (result.controllers.empty() && result.clonedControllers.empty())
-                return prototype;
-            for (const auto& [controller, target] : result.clonedControllers)
-                if (dynamic_cast<const Anim::Skin*>(controller) != nullptr)
-                    return prototype;
-            Anim::Context linkContext{ {}, { node.get() }, nullptr, &context.mask };
+            {
+                out.reason = "no controllers";
+                return out;
+            }
+            const auto isSkin = [](const Anim::Controller* controller) {
+                return dynamic_cast<const Anim::Skin*>(controller) != nullptr;
+            };
+            const bool skinned = std::any_of(result.clonedControllers.begin(), result.clonedControllers.end(),
+                [&isSkin](const auto& pair) { return isSkin(pair.first); });
+            std::optional<Anim::Bones> bones;
+            if (skinned)
+            {
+                vsg::ref_ptr<vsg::Node> actor;
+                try
+                {
+                    actor = context.readActor(path);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Failed to load animated distant object model '" << path
+                                        << "': " << e.what();
+                }
+                // These models are shared with the placed objects of the cells, so nothing in them is changed here
+                // (HideParticles is not applied): a skinned model with particles stays frozen.
+                if (!actor || hasParticles(*actor))
+                {
+                    out.reason = actor ? "skinned with particles" : "skinned, unreadable";
+                    return out;
+                }
+                if (farAnimationCensus())
+                {
+                    // How many bones the model's own keyframe file animates (the file a placed object reads with
+                    // readAnimation): what would move the skin if anything played it.
+                    vsg::ref_ptr<Anim::ControllerMap> kf = context.readAnimation(path);
+                    out.kfBones = kf ? kf->map.size() : 0;
+                }
+                node = actor;
+                result = MWAnim::cloneIfRequired(node);
+                bones.emplace(MWAnim::Bones(*node));
+            }
+            Anim::Context linkContext{ {}, { node.get() }, bones ? &*bones : nullptr, &context.mask };
             AnimatedChunk::Controllers found;
-            result.link(linkContext, [&found](const Anim::Controller* controller, vsg::Object* target) {
-                if (controller != nullptr && target != nullptr && controller->hints.autoPlay)
+            AnimatedChunk::Controllers skins;
+            result.link(linkContext, [&](const Anim::Controller* controller, vsg::Object* target) {
+                if (controller == nullptr || target == nullptr)
+                    return;
+                if (isSkin(controller))
+                    skins.emplace_back(
+                        vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
+                else if (controller->hints.autoPlay)
                     found.emplace_back(
                         vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
             });
             if (found.empty())
-                return prototype;
-            controllers = std::move(found);
-            return node;
+            {
+                out.reason = skins.empty() ? "no auto-play controllers" : "skinned, no auto-play controllers";
+                return out;
+            }
+            // The skin writes the bone matrices from the first frame on: run it once now (the chunk is not shared
+            // yet), so the pose before the first update is the model's own, not the arrays' initial values.
+            for (const auto& [skin, target] : skins)
+                skin->run(*target, 0.f);
+            out.node = node;
+            out.controllers = std::move(found);
+            out.skins = std::move(skins);
+            return out;
         }
 
         std::string_view getModel(int type, const ESM::RefId& id, const MWWorld::ESMStore& store)
@@ -248,13 +327,28 @@ namespace MWRender
                     = { { 0.f, distantObjectMaxDistance(static_cast<float>(modelBound.radius), 1.f, minSize) } };
                 vsg::ref_ptr<vsg::Node> drawn = prototype;
                 AnimatedChunk::Controllers controllers;
+                AnimatedChunk::Controllers skins;
                 if (animated && animated->objectCount() < sMaxAnimatedPerChunk)
                 {
                     auto particles = particleModels.find(prototype.get());
                     if (particles == particleModels.end())
                         particles = particleModels.emplace(prototype.get(), hasParticles(*prototype)).first;
                     if (!particles->second)
-                        drawn = makeAnimatedCopy(context, prototype, controllers);
+                    {
+                        AnimatedCopy copy = makeAnimatedCopy(context, prototype,
+                            std::string(Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model)).value()));
+                        drawn = copy.node;
+                        controllers = std::move(copy.controllers);
+                        skins = std::move(copy.skins);
+                        if (farAnimationCensus())
+                            Log(Debug::Info)
+                                << "far animation census: " << model << " "
+                                << (copy.reason != nullptr ? copy.reason : "animated") << " controllers "
+                                << controllers.size() << " skins " << skins.size() << " kfbones " << copy.kfBones
+                                << " at " << ref.mPos.pos[0] << " " << ref.mPos.pos[1] << " " << ref.mPos.pos[2];
+                    }
+                    else if (farAnimationCensus())
+                        Log(Debug::Info) << "far animation census: " << model << " particles";
                 }
                 lod->addChild(drawn);
                 transform->addChild(lod);
@@ -265,7 +359,7 @@ namespace MWRender
                     animated->addObject(center,
                         (static_cast<std::uint64_t>(static_cast<std::uint32_t>(refNum.mContentFile)) << 32)
                             | refNum.mIndex,
-                        controllers);
+                        controllers, skins, skins.empty() ? vsg::ref_ptr<vsg::Node>() : drawn);
                 const double radius = modelBound.radius * ref.mScale;
                 bounds.add(center - vsg::dvec3(radius, radius, radius));
                 bounds.add(center + vsg::dvec3(radius, radius, radius));

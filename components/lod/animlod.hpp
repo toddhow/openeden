@@ -73,6 +73,15 @@ namespace Lod
         return static_cast<AnimTier>(tier);
     }
 
+    /// The distance the animation LOD uses: on the ground plane (the horizontal offset dx, dy between an object and
+    /// the camera; the height difference is left out), so a camera high above the land, as in the whole-map view, does
+    /// not stop animation that is near in the plane (task 0096 stage e, toddhow 2026-11-11). Computed in double, so
+    /// a huge offset does not overflow; a non-finite offset gives a non-finite distance, which stops the animation.
+    inline float animHorizontalDistance(double dx, double dy) noexcept
+    {
+        return static_cast<float>(std::sqrt(dx * dx + dy * dy));
+    }
+
     /// A stable phase 0 to 15 for an object id (a reference number), so objects of one tier do not all run on the same
     /// frame. A mix of the id's bits (the finalizer of splitmix64); no state, no randomness.
     inline std::uint8_t animPhaseOf(std::uint64_t id) noexcept

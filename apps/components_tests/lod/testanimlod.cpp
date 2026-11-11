@@ -328,3 +328,24 @@ TEST(LodAnimPlan, the_same_inputs_give_the_same_plan)
     };
     EXPECT_EQ(run(), run());
 }
+
+// Task 0096 stage e (toddhow, blanket approval 2026-11-11): the stop distance is measured on the ground plane, so a
+// camera high above the land (the whole-map view) does not freeze animation that is near in the plane.
+TEST(LodAnimDistance, is_the_distance_on_the_ground_plane)
+{
+    EXPECT_FLOAT_EQ(animHorizontalDistance(3.0, 4.0), 5.f);
+    EXPECT_FLOAT_EQ(animHorizontalDistance(-3.0, -4.0), 5.f);
+    EXPECT_FLOAT_EQ(animHorizontalDistance(0.0, 0.0), 0.f);
+}
+
+TEST(LodAnimDistance, a_bad_number_stops_the_animation)
+{
+    EXPECT_EQ(chooseAnimTier(animHorizontalDistance(kNan, 0.0), AnimTier::Full, kStop), AnimTier::Stopped);
+    EXPECT_EQ(chooseAnimTier(animHorizontalDistance(kInf, 0.0), AnimTier::Full, kStop), AnimTier::Stopped);
+}
+
+TEST(LodAnimDistance, a_large_value_does_not_overflow_to_a_wrong_tier)
+{
+    // 1e30 squared overflows a float but not a double.
+    EXPECT_EQ(chooseAnimTier(animHorizontalDistance(1e30, 1e30), AnimTier::Full, kStop), AnimTier::Stopped);
+}

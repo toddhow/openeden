@@ -4,7 +4,8 @@
 
 namespace MWRender
 {
-    void AnimatedChunk::addObject(const vsg::dvec3& center, std::uint64_t id, const Controllers& controllers)
+    void AnimatedChunk::addObject(const vsg::dvec3& center, std::uint64_t id, const Controllers& controllers,
+        const Controllers& skins, vsg::ref_ptr<vsg::Node> keepAlive)
     {
         if (controllers.empty())
             return;
@@ -30,12 +31,17 @@ namespace MWRender
         }
         if (object.groups.empty())
             return;
+        for (const auto& [skin, target] : skins)
+            if (skin && target)
+                object.skins.emplace_back(skin, target);
+        object.keepAlive = std::move(keepAlive);
 
         Lod::AnimItem item;
         item.phase = Lod::animPhaseOf(id);
         std::size_t count = 0;
         for (const auto& group : object.groups)
             count += group.controllers.size();
+        count += object.skins.size();
         item.controllers = static_cast<std::uint16_t>(std::min<std::size_t>(count, 0xffff));
         mItems.push_back(item);
         mObjects.push_back(std::move(object));
@@ -44,6 +50,14 @@ namespace MWRender
     void AnimatedChunk::finish()
     {
         mRuns.reserve(mObjects.size());
+    }
+
+    std::size_t AnimatedChunk::skinCount() const
+    {
+        std::size_t count = 0;
+        for (const Member& object : mObjects)
+            count += object.skins.size();
+        return count;
     }
 
     std::size_t AnimatedChunk::controllerCount() const
@@ -58,17 +72,28 @@ namespace MWRender
     unsigned AnimatedChunk::update(
         const vsg::dvec3& camera, double dt, float stopDistance, unsigned frame, Lod::AnimBudget& budget)
     {
+        // On the ground plane (stage e): the camera's height does not count.
         for (std::size_t i = 0; i < mObjects.size(); ++i)
-            mItems[i].distance = static_cast<float>(vsg::length(mObjects[i].center - camera));
+            mItems[i].distance
+                = Lod::animHorizontalDistance(mObjects[i].center.x - camera.x, mObjects[i].center.y - camera.y);
         mRuns.clear();
         Lod::planAnimFrame(mItems, dt, stopDistance, frame, budget, mRuns);
         unsigned ran = 0;
         for (const Lod::AnimRun& run : mRuns)
-            for (Anim::AutoPlay::Group& group : mObjects[run.index].groups)
+        {
+            Member& object = mObjects[run.index];
+            for (Anim::AutoPlay::Group& group : object.groups)
             {
                 group.update(run.dt);
                 ran += static_cast<unsigned>(group.controllers.size());
             }
+            // The skins read the bones the groups just moved.
+            for (const auto& [skin, target] : object.skins)
+            {
+                skin->run(*target, 0.f);
+                ++ran;
+            }
+        }
         return ran;
     }
 

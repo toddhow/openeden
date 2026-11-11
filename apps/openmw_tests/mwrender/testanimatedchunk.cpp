@@ -286,3 +286,129 @@ TEST_F(AnimatedChunkTest, update_does_not_allocate)
         frame(*chunk, { 0, 0, 0 }, 0.016, f, 10);
     EXPECT_EQ(counter.count(), 0u);
 }
+
+// Task 0096 stage e: the distance is measured on the ground plane (toddhow, 2026-11-11).
+TEST_F(AnimatedChunkTest, a_camera_far_above_an_object_does_not_stop_its_animation)
+{
+    auto chunk = AnimatedChunk::create();
+    chunk->addObject({ 100, 0, 0 }, 1, one());
+    chunk->finish();
+    // 30,000 units up but 100 across: near in the plane, so it runs every frame at the full rate.
+    for (unsigned f = 0; f < 8; ++f)
+        EXPECT_EQ(frame(*chunk, { 0, 0, 30000 }, 0.01, f, 100000, 1000.f), 1u);
+    EXPECT_EQ(chunk->countInTier(Lod::AnimTier::Full), 1u);
+}
+
+TEST_F(AnimatedChunkTest, an_object_far_across_the_plane_still_stops_whatever_the_height)
+{
+    auto chunk = AnimatedChunk::create();
+    chunk->addObject({ 5000, 0, 0 }, 1, one());
+    chunk->finish();
+    for (unsigned f = 0; f < 8; ++f)
+        EXPECT_EQ(frame(*chunk, { 0, 0, 10 }, 0.01, f, 100000, 1000.f), 0u);
+    EXPECT_EQ(chunk->countInTier(Lod::AnimTier::Stopped), 1u);
+}
+
+// Task 0096 stage e: skinned objects (banners and flags). The skin controllers run after the object's own controllers,
+// every time the object runs, are part of its cost, and the model the skin's bones belong to lives as long as the chunk.
+namespace
+{
+    std::vector<int>* sOrder = nullptr;
+
+    struct OrderController : public Anim::Controller
+    {
+        int mark;
+        OrderController(int in_mark, bool autoPlay)
+            : mark(in_mark)
+        {
+            hints.autoPlay = autoPlay;
+        }
+        void run(vsg::Object&, float) const override
+        {
+            if (sOrder != nullptr)
+                sOrder->push_back(mark);
+        }
+    };
+
+    struct LiveNode : public vsg::Inherit<vsg::Group, LiveNode>
+    {
+        LiveNode() { ++sNodesAlive; }
+        ~LiveNode() override { --sNodesAlive; }
+        static inline int sNodesAlive = 0;
+    };
+
+    AnimatedChunk::Controllers marked(int mark, bool autoPlay)
+    {
+        return { { vsg::ref_ptr<const Anim::Controller>(new OrderController(mark, autoPlay)),
+            vsg::ref_ptr<vsg::Object>(new CountedTarget) } };
+    }
+}
+
+TEST_F(AnimatedChunkTest, skins_run_after_the_object_controllers_each_time_the_object_runs)
+{
+    std::vector<int> order;
+    sOrder = &order;
+    auto chunk = AnimatedChunk::create();
+    auto controllers = marked(1, true);
+    const auto more = marked(2, true);
+    controllers.insert(controllers.end(), more.begin(), more.end());
+    chunk->addObject({ 10, 0, 0 }, 5, controllers, marked(9, false));
+    chunk->finish();
+    EXPECT_EQ(chunk->skinCount(), 1u);
+    EXPECT_EQ(frame(*chunk, { 0, 0, 0 }, 0.016, 0), 3u);
+    EXPECT_EQ(frame(*chunk, { 0, 0, 0 }, 0.016, 1), 3u);
+    sOrder = nullptr;
+    ASSERT_EQ(order.size(), 6u);
+    EXPECT_EQ(order[2], 9);
+    EXPECT_EQ(order[5], 9);
+}
+
+TEST_F(AnimatedChunkTest, an_object_with_only_skins_adds_nothing)
+{
+    auto chunk = AnimatedChunk::create();
+    chunk->addObject({ 10, 0, 0 }, 5, {}, marked(9, false));
+    chunk->finish();
+    EXPECT_EQ(chunk->objectCount(), 0u);
+    EXPECT_EQ(chunk->skinCount(), 0u);
+}
+
+TEST_F(AnimatedChunkTest, the_skins_are_part_of_the_cost_against_the_budget)
+{
+    auto chunk = AnimatedChunk::create();
+    auto first = one();
+    auto skins = marked(9, false);
+    const auto moreSkins = marked(8, false);
+    skins.insert(skins.end(), moreSkins.begin(), moreSkins.end());
+    chunk->addObject({ 10, 0, 0 }, 1, first, skins); // costs 1 + 2
+    chunk->addObject({ 20, 0, 0 }, 2, one(), marked(7, false)); // costs 1 + 1
+    chunk->finish();
+    Lod::AnimBudget budget{ 4, 4 };
+    // The first object runs and leaves 1; the second needs 2 and is not the first of the frame: only 3 ran.
+    EXPECT_EQ(chunk->update({ 0, 0, 0 }, 0.016, 1000.f, 0, budget), 3u);
+}
+
+TEST_F(AnimatedChunkTest, the_model_given_to_keep_alive_lives_as_long_as_the_chunk)
+{
+    LiveNode::sNodesAlive = 0;
+    auto chunk = AnimatedChunk::create();
+    chunk->addObject({ 10, 0, 0 }, 1, one(), marked(9, false), vsg::ref_ptr<vsg::Node>(new LiveNode));
+    chunk->finish();
+    EXPECT_EQ(LiveNode::sNodesAlive, 1);
+    chunk = nullptr;
+    EXPECT_EQ(LiveNode::sNodesAlive, 0);
+}
+
+TEST_F(AnimatedChunkTest, update_with_skins_does_not_allocate)
+{
+    auto chunk = AnimatedChunk::create();
+    for (std::uint64_t i = 0; i < 16; ++i)
+        chunk->addObject({ double(i) * 10, 0, 0 }, i + 1, one(), marked(9, false));
+    chunk->finish();
+    for (auto& controller : mControllers)
+        controller->times.assign(4096, 0.f);
+    frame(*chunk, { 0, 0, 0 }, 0.016, 0);
+    TestSupport::AllocationCounter counter;
+    for (unsigned f = 1; f < 200; ++f)
+        frame(*chunk, { 0, 0, 0 }, 0.016, f, 10);
+    EXPECT_EQ(counter.count(), 0u);
+}
