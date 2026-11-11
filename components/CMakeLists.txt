@@ -87,6 +87,7 @@ add_component_dir (settings
     categories/windows
     categories/worldlod
     categories/bodies
+    categories/face
     gyroscopeaxis
     hrtfmode
     navmeshrendermode

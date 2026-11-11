@@ -2,6 +2,7 @@
 #define VSGOPENMW_MWANIMATION_FACE_H
 
 #include <components/animation/update.hpp>
+#include <components/misc/speechframe.hpp>
 
 namespace MWAnim
 {
@@ -26,6 +27,9 @@ namespace MWAnim
         bool enabled = true;
         bool talking = false;
         float loudness = 0.f;
+        // Task 0071: facial curves. When speech.mActive the head follows them instead of the loudness drive. Written by
+        // the main thread (CharacterController::update), read by update() on an update thread, like `loudness`.
+        Misc::SpeechFrame speech;
     };
 }
 

@@ -218,7 +218,7 @@ if (TARGET opas::anim_runtime)
 endif()
 
 # AdvancedBodies B1 (task 0063): the body contract, used by the bodycheck console command through bodylegacy.cpp.
-target_link_libraries(openmw-lib eden_body)
+target_link_libraries(openmw-lib eden_body eden_face)
 
 if (TARGET opas::ik)
     target_link_libraries(openmw-lib

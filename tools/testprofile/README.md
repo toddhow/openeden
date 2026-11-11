@@ -195,6 +195,11 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   the wrist, knee, ankle or neck; the skin through clothing. The log has a line "Merged bodies: ... draws the merged
   body" per actor, and one message box says to re-bake if the cache is stale (a load order change; run `prepare.sh`).
 
+- *Facial speech curves* (0071): an NPC with a `.facecurves` file beside its voice line moves its mouth and blinks by
+  the curves, in sync with the voice; no such file exists unless you generate one (`components/face` has the Rhubarb and
+  CSV importers), so by default nothing changes. Wrong: a mouth that lags or leads the voice, stays shut, or an NPC whose
+  lines with no curves file stop moving their mouth. `OPENEDEN_FACE_TRACE=1` logs the sampled values per frame.
+
 **Animation (the `[Game]` features)**
 - *Compound hitboxes* (0011): `tcb` shows a multi-segment shape round each actor.
 - *Foot planting, look at, smoother turns* (M9): feet stay on slopes and stairs, NPCs turn their heads to you, turns are

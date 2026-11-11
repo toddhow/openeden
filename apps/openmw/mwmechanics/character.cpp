@@ -4,8 +4,12 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <iterator>
 #include <numbers>
+#include <optional>
 #include <unordered_set>
+#include <vector>
 
 #include <iostream>
 #include <sstream>
@@ -1099,6 +1103,71 @@ namespace MWMechanics
 
         mAnimation->runAnimation(0.f);
         unpersistAnimationState();
+    }
+
+    namespace
+    {
+        // Task 0071. One cache for all actors; only the main thread (CharacterController::update) touches it.
+        ::Face::SpeechCurveCache& speechCurveCache()
+        {
+            static ::Face::SpeechCurveCache cache;
+            return cache;
+        }
+
+        std::optional<std::vector<std::uint8_t>> readVfsFile(std::string_view path)
+        {
+            try
+            {
+                const VFS::Manager* vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
+                const Files::IStreamPtr stream = vfs->find(VFS::Path::Normalized(path));
+                if (stream == nullptr)
+                    return std::nullopt;
+                return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "Facial curves: could not read " << path << ": " << e.what();
+                return std::nullopt;
+            }
+        }
+
+        const ::Face::ReadFile& speechReader()
+        {
+            static const ::Face::ReadFile reader = readVfsFile; // built once: no std::function per frame
+            return reader;
+        }
+
+        bool faceTraceRequested()
+        {
+            static const bool requested = std::getenv("OPENEDEN_FACE_TRACE") != nullptr;
+            return requested;
+        }
+    }
+
+    void CharacterController::updateFacialSpeech()
+    {
+        // Main thread. With the setting off this only undoes a speech frame left from when it was on.
+        if (!Settings::face().mSpeechCurves)
+        {
+            mSpeech.reset();
+            mNpc->setFacialSpeech({});
+            return;
+        }
+        if (!mSpeech)
+            mSpeech = std::make_unique<::Face::SpeechPlayback>();
+        std::string_view file;
+        float seconds = 0.f;
+        std::string warning;
+        const bool saying
+            = MWBase::Environment::get().getSoundManager()->getSayPlayback(mPtr, file, seconds);
+        const ::Face::SpeechFrame frame = mSpeech->update(
+            speechCurveCache(), speechReader(), saying ? file : std::string_view(), seconds, &warning);
+        if (!warning.empty())
+            Log(Debug::Warning) << "Facial curves: " << warning;
+        mNpc->setFacialSpeech(frame);
+        if (faceTraceRequested() && saying)
+            Log(Debug::Info) << "FACETRACE " << file << " t=" << seconds << " active=" << frame.mActive
+                             << " talk=" << frame.mTalk << " blink=" << frame.mBlink;
     }
 
     CharacterController::~CharacterController()
@@ -3450,6 +3519,8 @@ namespace MWMechanics
                     auto soundMgr = MWBase::Environment::get().getSoundManager();
                     mNpc->setFacialState(!cls.getCreatureStats(mPtr).isDead(), soundMgr->sayActive(mPtr),
                         soundMgr->getSaySoundLoudness(mPtr));
+                    if (Settings::face().mSpeechCurves || mSpeech)
+                        updateFacialSpeech();
                     if (mPlayer)
                     {
                         mPlayer->busy = mAnimation->isPriorityActive(Priority_Hit)

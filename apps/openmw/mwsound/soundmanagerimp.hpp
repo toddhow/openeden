@@ -77,6 +77,7 @@ namespace MWSound
         {
             const MWWorld::CellStore* mCell;
             StreamPtr mStream;
+            std::string mFile; // task 0071: the name say() was called with, the key of the facial curves
         };
 
         typedef std::map<const MWWorld::LiveCellRefBase*, SaySound> SaySoundMap;
@@ -201,6 +202,7 @@ namespace MWSound
         ///< Stop an actor speaking
 
         float getSaySoundLoudness(const MWWorld::ConstPtr& reference) const override;
+        bool getSayPlayback(const MWWorld::ConstPtr& reference, std::string_view& file, float& seconds) const override;
         ///< Check the currently playing say sound for this actor
         /// and get an average loudness value (scale [0,1]) at the current time position.
         /// If the actor is not saying anything, returns 0.

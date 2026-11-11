@@ -11,6 +11,7 @@
 
 #include "facecurves.hpp"
 
+#include <array>
 #include <cstddef>
 #include <optional>
 
@@ -47,6 +48,7 @@ namespace Face
     private:
         const Curves* mCurves;
         StockHeadTuning mTuning;
+        std::array<int, 9> mVisemes{ -1, -1, -1, -1, -1, -1, -1, -1, -1 }; // Rhubarb shapes, used only without jaw channels
         int mJaw = -1, mFunnel = -1, mPucker = -1, mBlinkLeft = -1, mBlinkRight = -1;
     };
 }

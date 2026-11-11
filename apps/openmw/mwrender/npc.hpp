@@ -11,6 +11,7 @@
 
 #include <components/animation/update.hpp>
 #include <components/esm3/loadarmo.hpp>
+#include <components/face/facespeech.hpp>
 #include <components/mwanimation/clone.hpp>
 #include <components/mwanimation/context.hpp>
 #include <components/mwanimation/wielding.hpp>
@@ -83,6 +84,8 @@ namespace MWRender
         static std::vector<PartModel> defaultPartModels(const ESM::NPC& npc);
 
         void setFacialState(bool enable, bool talking, float loudness);
+        /// Task 0071: facial curves for this frame (inactive = the loudness drive of setFacialState). Main thread.
+        void setFacialSpeech(const ::Face::SpeechFrame& frame);
 
         void update(float dt) override;
 

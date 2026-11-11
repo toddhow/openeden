@@ -5,6 +5,7 @@
 add_library(eden_face STATIC
     facecurves.cpp
     facesample.cpp
+    facespeech.cpp
     faceimport.cpp
 )
 # Includes are written <components/face/...> like the rest of the engine.

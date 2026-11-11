@@ -533,6 +533,7 @@ list(APPEND UNITTEST_SRC_FILES
 list(APPEND UNITTEST_SRC_FILES
     face/testfacecurves.cpp
     face/testfacesample.cpp
+    face/testfacespeech.cpp
 )
 
 # Task 0067 stage 0: the maths and the parser of the CreativeMotion transition measurement.

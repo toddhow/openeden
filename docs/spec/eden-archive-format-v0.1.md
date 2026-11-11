@@ -418,7 +418,8 @@ Unknown codec: the chunk cannot be decoded. A reader MAY open the pack (the othe
 | 0x0012 | impostor atlas | reserved (layout not defined) | 10.3 |
 | 0x0013 | grass coverage map | reserved (layout not defined) | 10.3 |
 | 0x0014 to 0x00FF | reserved for the tile family | reserved | |
-| 0x0100 to 0xEFFF | unallocated | reserved | |
+| 0x0100 | face curves (`opas.facecurves` packed binary "OPFC") | draft (task 0071; the payload is that format's own, the entry's path is the voice line's path with `.facecurves`) | |
+| 0x0101 to 0xEFFF | unallocated | reserved | |
 | 0xF000 to 0xFFFF | experimental | experimental | |
 
 Unknown entry type: **treat the entry as generic** (the content is readable; the type is advice about layout). A reader that gets a type it knows but a layout it cannot parse reports an error for the use, not for the open.

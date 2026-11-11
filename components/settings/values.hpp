@@ -2,6 +2,7 @@
 #define OPENMW_COMPONENTS_SETTINGS_VALUES_H
 
 #include "categories/bodies.hpp"
+#include "categories/face.hpp"
 #include "categories/camera.hpp"
 #include "categories/cells.hpp"
 #include "categories/fog.hpp"
@@ -46,6 +47,7 @@ namespace Settings
         WorldLodCategory mWorldLod{ mIndex };
         VideoMemoryCategory mVideoMemory{ mIndex };
         BodiesCategory mBodies{ mIndex };
+        FaceCategory mFace{ mIndex };
         FogCategory mFog{ mIndex };
         MapCategory mMap{ mIndex };
         GUICategory mGUI{ mIndex };
@@ -126,6 +128,11 @@ namespace Settings
     inline BodiesCategory& bodies()
     {
         return values().mBodies;
+    }
+
+    inline FaceCategory& face()
+    {
+        return values().mFace;
     }
 
     inline FogCategory& fog()

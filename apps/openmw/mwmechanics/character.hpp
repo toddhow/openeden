@@ -18,6 +18,7 @@
 #include "../mwworld/ptr.hpp"
 
 #include <components/animation/tags.hpp>
+#include <components/face/facespeech.hpp>
 #include <components/mwanimation/groups.hpp>
 
 namespace MWWorld
@@ -201,6 +202,9 @@ namespace MWMechanics
         MWAnim::Actor* mActor{};
         MWAnim::Wielding* mWielding{};
         MWRender::Npc* mNpc{};
+        // Task 0071: this actor's facial-curve playback; created on first use with [Face] speech curves on.
+        std::unique_ptr<::Face::SpeechPlayback> mSpeech;
+        void updateFacialSpeech();
         MWRender::Player* mPlayer{};
         // OpenEden's foot IK, procedural lean and compound hitbox driver (task 0011); actors only.
         std::unique_ptr<MWRender::ActorIkController> mIkController;

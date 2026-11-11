@@ -23,7 +23,9 @@ namespace MWAnim
     {
         if (enabled && dt > 0)
         {
-            if (!talking)
+            if (speech.mActive)
+                mValue = Misc::speechAnimTime(speech, mTalkStart, mTalkStop, mBlinkStart, mBlinkStop);
+            else if (!talking)
             {
                 mBlinkTimer += dt;
                 float duration = mBlinkStop - mBlinkStart;

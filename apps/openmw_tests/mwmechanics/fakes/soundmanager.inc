@@ -63,6 +63,11 @@ public:
         unexpectedCall("SoundManager::getSaySoundLoudness");
     }
 
+    bool getSayPlayback(const MWWorld::ConstPtr& reference, std::string_view& file, float& seconds) const override
+    {
+        unexpectedCall("SoundManager::getSayPlayback");
+    }
+
     SoundStream* playTrack(const MWSound::DecoderPtr& decoder, Type type) override
     {
         unexpectedCall("SoundManager::playTrack");

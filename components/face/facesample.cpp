@@ -1,6 +1,7 @@
 #include "facesample.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string_view>
 
@@ -17,6 +18,13 @@ namespace Face
                     return static_cast<int>(i);
             return -1;
         }
+
+        // Rhubarb shapes A..H and X (faceimport.hpp) as how far a stock head's jaw opens. INITIAL VALUES, chosen by me
+        // from the shapes' descriptions (A closed lips, B slightly open, C open, D wide open, E rounded, F puckered,
+        // G teeth on lip, H tongue up, X rest), not measured on a real head.
+        constexpr std::array<const char*, 9> sVisemeNames = { "viseme_a", "viseme_b", "viseme_c", "viseme_d",
+            "viseme_e", "viseme_f", "viseme_g", "viseme_h", "viseme_x" };
+        constexpr std::array<float, 9> sVisemeOpenness = { 0.f, 0.25f, 0.6f, 1.f, 0.55f, 0.35f, 0.15f, 0.4f, 0.f };
 
         float valueAt(const Curves& curves, int channel, std::uint32_t index, double fraction)
         {
@@ -59,6 +67,9 @@ namespace Face
         , mBlinkLeft(findChannel(curves, "eyeblinkleft"))
         , mBlinkRight(findChannel(curves, "eyeblinkright"))
     {
+        if (mJaw < 0 && mFunnel < 0 && mPucker < 0)
+            for (std::size_t i = 0; i < sVisemeNames.size(); ++i)
+                mVisemes[i] = findChannel(curves, sVisemeNames[i]);
     }
 
     std::optional<Reduction> Driver::update(double streamSeconds) const
@@ -81,6 +92,13 @@ namespace Face
         r.mTalk = std::clamp(
             at(mJaw) * mTuning.mJawOpen + at(mFunnel) * mTuning.mMouthFunnel + at(mPucker) * mTuning.mMouthPucker, 0.f,
             1.f);
+        if (mJaw < 0 && mFunnel < 0 && mPucker < 0)
+        {
+            float visemeTalk = 0.f;
+            for (std::size_t i = 0; i < mVisemes.size(); ++i)
+                visemeTalk += at(mVisemes[i]) * sVisemeOpenness[i];
+            r.mTalk = std::clamp(visemeTalk, 0.f, 1.f);
+        }
         r.mBlink = std::clamp(std::max(at(mBlinkLeft), at(mBlinkRight)), 0.f, 1.f);
         return r;
     }

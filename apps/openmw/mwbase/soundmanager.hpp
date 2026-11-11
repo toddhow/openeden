@@ -151,6 +151,12 @@ namespace MWBase
         /// and get an average loudness value (scale [0,1]) at the current time position.
         /// If the actor is not saying anything, returns 0.
 
+        virtual bool getSayPlayback(
+            const MWWorld::ConstPtr& reference, std::string_view& file, float& seconds) const = 0;
+        ///< OpenEden task 0071: the file name passed to say() and the playback position in seconds of the line this
+        /// actor is saying now. False (and the arguments untouched) when it says nothing or the stream is not
+        /// playing. `file` points into the sound manager and stays valid until its next update. Main thread.
+
         virtual SoundStream* playTrack(const MWSound::DecoderPtr& decoder, Type type) = 0;
         ///< Play a 2D audio track, using a custom decoder. The caller is expected to call
         /// stopTrack with the returned handle when done.

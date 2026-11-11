@@ -1512,6 +1512,11 @@ namespace MWRender
         mFace->loudness = loudness;
     }
 
+    void Npc::setFacialSpeech(const ::Face::SpeechFrame& frame)
+    {
+        mFace->speech = frame;
+    }
+
     void Npc::setVampire(bool vampire)
     {
         if (mNpcType == NpcType::Werewolf) // we can't have werewolf vampires, can we

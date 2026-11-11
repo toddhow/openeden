@@ -1,0 +1,2 @@
+GLOBAL: scripts/face_global.lua
+PLAYER: scripts/face_player.lua

@@ -330,7 +330,7 @@ namespace MWSound
         if (!sound)
             return;
 
-        mSaySoundsQueue.emplace(ptr.mRef, SaySound{ ptr.mCell, std::move(sound) });
+        mSaySoundsQueue.emplace(ptr.mRef, SaySound{ ptr.mCell, std::move(sound), std::string(filename.value()) });
     }
 
     float SoundManager::getSaySoundLoudness(const MWWorld::ConstPtr& ptr) const
@@ -343,6 +343,24 @@ namespace MWSound
         }
 
         return 0.0f;
+    }
+
+    bool SoundManager::getSayPlayback(const MWWorld::ConstPtr& ptr, std::string_view& file, float& seconds) const
+    {
+        // Task 0071. A line is in the queue until the next update moves it to the active map (sayActive looks in both).
+        auto found = mSaySoundsQueue.find(ptr.mRef);
+        if (found == mSaySoundsQueue.end())
+        {
+            found = mActiveSaySounds.find(ptr.mRef);
+            if (found == mActiveSaySounds.end())
+                return false;
+        }
+        Stream* stream = found->second.mStream.get();
+        if (!mOutput->isStreamPlaying(stream))
+            return false;
+        file = found->second.mFile;
+        seconds = mOutput->getStreamOffset(stream);
+        return true;
     }
 
     void SoundManager::say(VFS::Path::NormalizedView filename)
@@ -359,7 +377,7 @@ namespace MWSound
         if (!sound)
             return;
 
-        mActiveSaySounds.emplace(nullptr, SaySound{ nullptr, std::move(sound) });
+        mActiveSaySounds.emplace(nullptr, SaySound{ nullptr, std::move(sound), std::string(filename.value()) });
     }
 
     bool SoundManager::sayDone(const MWWorld::ConstPtr& ptr) const
