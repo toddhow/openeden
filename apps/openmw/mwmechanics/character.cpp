@@ -28,7 +28,12 @@
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
+#include <span>
+
+#include "ragdolltrigger.hpp"
+
 #include "../mwrender/actorikcontroller.hpp"
+#include "../mwrender/actorragdolldriver.hpp"
 #include "../mwrender/creativemotiondriver.hpp"
 #include "../mwrender/creativemotionstyle.hpp"
 #include "../mwrender/effect.hpp"
@@ -427,6 +432,20 @@ namespace MWMechanics
     {
         clearStateAnimation(mCurrentDeath);
         mDeathState = CharState_None;
+        // Task 0106: an actor that is alive again is not a ragdoll (resurrect is the caller). The bones are written
+        // by the animation from the next frame on. mRagdollTried stays: a second death gets a ragdoll again, through
+        // mSawAlive, only if the setting allows and nothing is left of the first.
+        if (mRagdollDriver || mRagdollTried)
+        {
+            mRagdollDriver.reset();
+            mRagdollTried = false;
+            mSawAlive = true;
+            if (MWBase::World* world = MWBase::Environment::get().getWorld())
+            {
+                if (MWPhysics::PhysicsSystem* physics = world->getPhysicsSystem())
+                    physics->stopActorRagdoll(mPtr);
+            }
+        }
     }
 
     void CharacterController::refreshHitRecoilAnims()
@@ -1060,6 +1079,7 @@ namespace MWMechanics
             return;
 
         mIkController.reset();
+        mRagdollDriver.reset();
         if (mPoseDriver)
         {
             mPoseDriver.reset();
@@ -2839,6 +2859,14 @@ namespace MWMechanics
 
     void CharacterController::createPoseControllers()
     {
+        // New bones: a ragdoll driver would write the old ones (task 0106), so the ragdoll ends with it and the corpse
+        // is drawn by the death clip again. Live game only (a rebuild); the destructor leaves it to PhysicsSystem::remove.
+        if (mRagdollDriver)
+        {
+            mRagdollDriver.reset();
+            if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+                physics->stopActorRagdoll(mPtr);
+        }
         mIkController = std::make_unique<MWRender::ActorIkController>(mPtr, *mObject);
 
         mPoseDriver.reset();
@@ -3027,6 +3055,94 @@ namespace MWMechanics
                                 << "m, rot = " << maxRotDiff << " rad";
     }
 
+    namespace
+    {
+        // Reads a dead NPC's ragdoll through the physics system (task 0106). Looks the system up on every call: the
+        // world may have been cleared since, and a stale handle then simply fails.
+        class PhysicsRagdollSource final : public MWRender::RagdollSource
+        {
+        public:
+            explicit PhysicsRagdollSource(MWPhysics::ActorRagdollHandle handle)
+                : mHandle(handle)
+            {
+            }
+
+            std::span<const std::string> boneNames() const override
+            {
+                const MWPhysics::PhysicsSystem* physics = physicsSystem();
+                return physics == nullptr ? std::span<const std::string>() : physics->actorRagdollBones();
+            }
+
+            bool read(std::span<MWPhysics::RagdollBoneState> out) const override
+            {
+                const MWPhysics::PhysicsSystem* physics = physicsSystem();
+                return physics != nullptr && physics->readActorRagdoll(mHandle, out);
+            }
+
+        private:
+            static const MWPhysics::PhysicsSystem* physicsSystem()
+            {
+                const MWBase::World* world = MWBase::Environment::get().getWorld();
+                return world == nullptr ? nullptr : world->getPhysicsSystem();
+            }
+
+            MWPhysics::ActorRagdollHandle mHandle;
+        };
+    }
+
+    void CharacterController::updateRagdoll()
+    {
+        if (!isDead())
+        {
+            mSawAlive = true;
+            return;
+        }
+        if (mRagdollDriver)
+        {
+            if (!mRagdollDriver->apply())
+                mRagdollDriver.reset();
+            return;
+        }
+        // One try per controller; a corpse that was loaded dead lies in the clip's last pose and gets none.
+        if (mRagdollTried)
+            return;
+        RagdollTriggerInput input;
+        input.mSettingOn = Settings::physics().mCreativeMotionRagdolls;
+        input.mDead = true;
+        input.mSawAliveHere = mSawAlive;
+        input.mIsNpc = mNpc != nullptr;
+        input.mIsPlayer = mPlayer != nullptr || mPtr == getPlayer();
+        input.mHasBodyAndBones = mObject != nullptr && mAnimation != nullptr;
+        input.mScriptedAnimation = isScriptedAnimPlaying();
+        if (!input.mSawAliveHere || !input.mSettingOn)
+            mRagdollTried = true; // never alive here, or not wanted: not looked at again
+        if (!shouldStartActorRagdoll(input))
+            return;
+        mRagdollTried = true;
+
+        MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem();
+        if (physics == nullptr)
+            return;
+        MWPhysics::ActorRagdollHandle handle;
+        std::string message;
+        if (!physics->startActorRagdoll(mPtr, handle, message))
+        {
+            Log(Debug::Verbose) << "No ragdoll for " << mPtr.getCellRef().getRefId() << ": " << message;
+            return;
+        }
+        auto driver = std::make_unique<MWRender::ActorRagdollDriver>(
+            mAnimation->bones, mObject->transform(), std::make_unique<PhysicsRagdollSource>(handle));
+        if (!driver->isValid())
+        {
+            Log(Debug::Verbose) << "No ragdoll for " << mPtr.getCellRef().getRefId() << ": " << driver->reason();
+            physics->stopActorRagdoll(mPtr);
+            return;
+        }
+        mRagdollDriver = std::move(driver);
+        Log(Debug::Info) << "Actor ragdoll started for " << mPtr.getCellRef().getRefId() << " ("
+                         << physics->actorRagdollCount() << " in all)";
+    }
+
     void CharacterController::postAnimation(float duration)
     {
         if (!mAnimation)
@@ -3123,6 +3239,9 @@ namespace MWMechanics
                 mIkController->update(duration);
                 mIkController->applyPostAnimation(duration);
             }
+            // OpenEden (task 0106): a dead NPC's skeleton follows its ragdoll. For a living actor this is one
+            // bool test, and with the setting off nothing more happens for a dead one either.
+            updateRagdoll();
             if (mWielding)
             {
                 if (mWeaponType != 0 && !mCurrentWeapon.empty())

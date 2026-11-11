@@ -39,6 +39,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/weightedsearch.cpp
 
     mwrender/testbonepose.cpp
+    mwrender/testragdollbonemath.cpp
+    mwrender/testactorragdolldriver.cpp
     mwrender/testfootik.cpp
     mwrender/testrain.cpp
     mwrender/testdistantobjectcells.cpp
@@ -79,6 +81,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     # Task 0085 move 2, stage 2b: characterization tests of the crafting rules (alchemy, enchanting, recharge, repair).
     mwmechanics/craftingfixture.cpp
+    mwmechanics/testragdolltrigger.cpp
     mwmechanics/testcraftingrepair.cpp
     mwmechanics/testcraftingrecharge.cpp
     mwmechanics/testcraftingalchemy.cpp

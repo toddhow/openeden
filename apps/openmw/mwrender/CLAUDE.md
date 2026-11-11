@@ -15,8 +15,15 @@ The game's renderer on VulkanSceneGraph (vsgopenmw's, merged in task 0009) plus 
 ## Frame order for an actor
 
 1. `MWMechanics::CharacterController::runAnimation` may run on an animation thread, one actor per call. It runs `MWAnim::Play::runAnimation`, which advances states, text keys and movement and writes bones through the keyframe controllers unless `Play::updateBones` is false. It then runs `CreativeMotionPoseDriver::update` and `apply` when "creativemotion animation" is on; Play's bone writes are then off.
-2. `CharacterController::postAnimation` runs on the main thread. It runs `MWAnim::Actor::manualAnimation` (head and spine turns), then `ActorIkController::update` and `applyPostAnimation` (IK, lean and hitboxes).
+2. `CharacterController::postAnimation` runs on the main thread. It runs `MWAnim::Actor::manualAnimation` (head and spine turns), then `ActorIkController::update` and `applyPostAnimation` (IK, lean and hitboxes), then `CharacterController::updateRagdoll` (task 0106): for a dead NPC with `[Physics] creativemotion ragdolls` on, `ActorRagdollDriver::apply` overwrites the mapped bones with the ragdoll's pose. It runs last on purpose; for a living actor it is one bool test.
 3. `Scene::update` updates objects, then skins. Anything written to bones before this step is drawn this frame.
+
+## Ragdoll bone driver (task 0106)
+
+- `actorragdolldriver.*` and `ragdollbonemath.hpp`. Bones are written only through `BonePose`; the rotation maths is pure (`RagdollBones`). The driver captures, on the spawn frame, `delta = inverse(ragdoll bone) * actor bone` per mapped bone and then draws `ragdoll bone * delta` in world space, so the first frame is the animation's pose; the pelvis origin follows the ragdoll pelvis's displacement. Bones the mapping does not name (and any rig bone with no body, like the neck of the embedded humanoid rig) keep the animation's local rotation under their driven parent.
+- The mapping table repeats `components/creativemotion/data/profiles/humanoid-to-eden.skeletonprofile.json`: change both together.
+- The ragdoll starts in the rig's standing rest pose, not in the actor's pose at the moment of death (task 0106, "Limits").
+- The driver is dropped (never the ragdoll's physics from a destructor) whenever the controller rebuilds its bone controllers; units: the driver sees game units only.
 
 ## Debugging CreativeMotion's animation (task 0053 research, note 0022)
 

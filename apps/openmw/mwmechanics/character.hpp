@@ -43,6 +43,7 @@ namespace MWRender
     class Npc;
     class Player;
     class ActorIkController;
+    class ActorRagdollDriver;
     class CreativeMotionPoseDriver;
     class IntentTracker;
     struct ActorState;
@@ -196,6 +197,10 @@ namespace MWMechanics
         MWRender::Player* mPlayer{};
         // OpenEden's foot IK, procedural lean and compound hitbox driver (task 0011); actors only.
         std::unique_ptr<MWRender::ActorIkController> mIkController;
+        // Task 0106: the dead NPC's skeleton drawn from its ragdoll ([Physics] creativemotion ragdolls, off by default).
+        std::unique_ptr<MWRender::ActorRagdollDriver> mRagdollDriver;
+        bool mSawAlive = false; // this controller saw the actor alive: only then does a death make a ragdoll
+        bool mRagdollTried = false;
         // CreativeMotion's animation runtime (task 0007, on VSG in task 0011): with "creativemotion animation" it
         // poses the bones in place of MWAnim::Play's controllers; with only "... compare" it is compared with them.
         // Actors only; null when both settings are off.
@@ -407,6 +412,8 @@ namespace MWMechanics
         const opas::style::StyleProfile* resolveStyleProfile();
         MWRender::ActorState currentStyleState() const;
         void postAnimation(float duration);
+        /// Task 0106. Main thread, in postAnimation: starts the dead NPC's ragdoll once, and draws it every frame.
+        void updateRagdoll();
         // }
 
         bool onOpen() const;
