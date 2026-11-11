@@ -6,6 +6,8 @@
 #include <components/nif/niffile.hpp>
 #include <components/nifscene/flatten.hpp>
 #include <components/pipeline/builder.hpp>
+#include <components/resource/fallback.hpp>
+#include <components/resource/resourcesystem.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 
 #include <gtest/gtest.h>
@@ -18,6 +20,7 @@
 #include <vsg/state/Sampler.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <filesystem>
 #include <sstream>
 #include <string>
 
@@ -62,7 +65,7 @@ namespace
             ++draws;
             indexCount += draw.indexCount;
             arrays = static_cast<std::uint32_t>(draw.arrays.size());
-            uintIndices = draw.indices && draw.indices->is_compatible(typeid(vsg::uintArray));
+            uintIndices = draw.indices && draw.indices->data && draw.indices->data.cast<vsg::uintArray>();
         }
     };
 
@@ -98,7 +101,11 @@ namespace
 
     struct SkyrimSceneReadTest : ::testing::Test
     {
-        vsg::ref_ptr<vsg::Options> mShaderOptions = vsg::Options::create();
+        // The real shader options (the files of the source tree, compiled by glslang at the first pipeline), so that the
+        // pipeline the builder asks for is the one the game would make.
+        vsg::ref_ptr<const vsg::Options> mShaderOptions
+            = Resource::createShaderOptions(
+                (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
         vsg::ref_ptr<vsgAdapters::nif> mReader
             = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, vsg::Options::create(), 0, 0) };
@@ -198,4 +205,28 @@ TEST_F(SkyrimSceneReadTest, a_model_that_draws_nothing_is_an_empty_group_not_a_m
     Census census;
     result->cast<vsg::Node>()->accept(census);
     EXPECT_EQ(census.draws, 0);
+}
+
+TEST_F(SkyrimSceneReadTest, a_texture_the_fallback_reader_answers_for_is_counted_as_missing)
+{
+    // The game's texture options end with Resource::Fallback, which answers a missing file with a magenta texel: the
+    // counter must see through it (a plain "image came back" would count every miss as a loaded texture).
+    const DefaultOptionsGuard guard{ Nif::ReadOptions{} };
+    auto fallback = vsg::ref_ptr{ new Resource::Fallback };
+    fallback->fallbackObject = vsg::ubvec4Array2D::create(
+        1, 1, vsg::ubvec4(0xff, 0x00, 0xff, 0xff), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+    auto textureOptions = vsg::Options::create();
+    textureOptions->readerWriters.push_back(fallback);
+    auto reader = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, textureOptions, 0, 0) };
+    reader->sceneReader = MWRender::SkyrimModel::makeSceneReader(mBuilder, textureOptions, 0);
+    auto options = vsg::Options::create();
+    options->extensionHint = ".nif";
+    options->sharedObjects = vsg::SharedObjects::create();
+    options->setValue("filename", std::string("fallback.nif"));
+    std::istringstream stream(skyrimQuad(0x10, "textures\\does\\not\\exist_d.dds"));
+    const auto missingBefore = MWRender::SkyrimModel::counters().mTexturesMissing.load();
+    const auto loadedBefore = MWRender::SkyrimModel::counters().mTexturesLoaded.load();
+    ASSERT_TRUE(reader->read(stream, options));
+    EXPECT_EQ(MWRender::SkyrimModel::counters().mTexturesMissing.load(), missingBefore + 1);
+    EXPECT_EQ(MWRender::SkyrimModel::counters().mTexturesLoaded.load(), loadedBefore);
 }

@@ -7,6 +7,7 @@
 
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwrender/renderinginterface.hpp"
+#include "../mwrender/skyrimmodel.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
@@ -68,7 +69,10 @@ namespace MWClass
         // draws it as static shapes). An empty model (markers, actors, leveled lists) draws nothing; nothing is drawn
         // from the bounds.
         if (!model.empty())
+        {
+            MWRender::SkyrimModel::counters().mRequests.fetch_add(1, std::memory_order_relaxed);
             renderingInterface.getObjects().insertModel(ptr, model);
+        }
     }
 
     void Neutral::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,

@@ -63,6 +63,7 @@ namespace MWRender::SkyrimModel
     /// Process-wide totals for the log line of a neutral cell. Relaxed atomics: a count, not a synchronisation.
     struct Counters
     {
+        std::atomic<std::uint64_t> mRequests{ 0 }; // objects that asked for a model (Neutral::insertObjectRendering)
         std::atomic<std::uint64_t> mModels{ 0 }; // models built from a scene (not cache hits: the cache is VSG's)
         std::atomic<std::uint64_t> mModelsEmpty{ 0 }; // of those, models that draw nothing
         std::atomic<std::uint64_t> mDraws{ 0 };

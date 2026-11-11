@@ -86,6 +86,16 @@ namespace MWRender::SkyrimModel
 
         using MaterialValue = vsg::Value<Pipeline::Data::Material>;
 
+        // Resource::Fallback's image for a file that could not be read (resourcesystem.cpp createTextureOptions): one
+        // magenta texel.
+        bool isFallbackImage(const vsg::Data& data)
+        {
+            if (data.width() != 1 || data.height() != 1 || data.depth() != 1)
+                return false;
+            const auto* texel = dynamic_cast<const vsg::ubvec4Array2D*>(&data);
+            return texel != nullptr && texel->at(0, 0) == vsg::ubvec4(0xff, 0x00, 0xff, 0xff);
+        }
+
         // OPENEDEN_NIFSCENE_TRACE=1 writes one line per drawn shape to stderr (a developer aid, read once).
         bool traceEnabled()
         {
@@ -135,13 +145,23 @@ namespace MWRender::SkyrimModel
                     auto sampler = context.mBuilder.createSampler();
                     sampler->addressModeU = (key.mClampMode >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
                                                                   : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-                    sampler->addressModeV
-                        = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                    sampler->addressModeV = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
+                                                                 : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
                     descriptors.emplace_back(vsgUtil::sharedDescriptorImage(
                         context.mSharedObjects, sampler, data, Pipeline::Descriptors::DIFFUSE_UNIT));
                     shader.addMode(Pipeline::Mode::DIFFUSE_MAP);
-                    ++result.mTexturesLoaded;
-                    ++totals.mTexturesLoaded;
+                    // The game's texture options end with a fallback reader that answers a missing file with a 1x1
+                    // magenta image (as for Morrowind); it is drawn, so that a miss is visible, and counted as one.
+                    if (isFallbackImage(*data))
+                    {
+                        ++result.mTexturesMissing;
+                        ++totals.mTexturesMissing;
+                    }
+                    else
+                    {
+                        ++result.mTexturesLoaded;
+                        ++totals.mTexturesLoaded;
+                    }
                 }
                 else
                 {
@@ -220,7 +240,8 @@ namespace MWRender::SkyrimModel
     {
         const Counters& c = counters();
         std::ostringstream out;
-        out << "Skyrim models: " << c.mModels.load() << " built (" << c.mModelsEmpty.load() << " draw nothing, "
+        out << "Skyrim models: " << c.mRequests.load() << " objects asked for a model, " << c.mModels.load()
+            << " built (the rest came from the model cache) (" << c.mModelsEmpty.load() << " draw nothing, "
             << c.mFailed.load() << " failed), " << c.mDraws.load() << " draws, " << c.mTriangles.load()
             << " triangles, " << c.mVertices.load() << " vertices, textures " << c.mTexturesLoaded.load()
             << " loaded / " << c.mTexturesMissing.load() << " missing, double sided shapes "
