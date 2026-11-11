@@ -37,7 +37,7 @@ namespace
 
     ::testing::AssertionResult sameRotation(const vsg::dquat& a, const vsg::dquat& b, double tolerance = 1e-9)
     {
-        for (const vsg::dvec3 axis : { vsg::dvec3(1, 0, 0), vsg::dvec3(0, 1, 0), vsg::dvec3(0, 0, 1) })
+        for (const vsg::dvec3& axis : { vsg::dvec3(1, 0, 0), vsg::dvec3(0, 1, 0), vsg::dvec3(0, 0, 1) })
         {
             const vsg::dvec3 ra = rotate(a, axis);
             const vsg::dvec3 rb = rotate(b, axis);

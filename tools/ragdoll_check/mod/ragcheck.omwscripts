@@ -1,0 +1,3 @@
+GLOBAL: scripts/ragcheck_global.lua
+PLAYER: scripts/ragcheck_player.lua
+NPC: scripts/ragcheck_npc.lua

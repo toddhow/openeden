@@ -197,7 +197,8 @@ namespace MWMechanics
         MWRender::Player* mPlayer{};
         // OpenEden's foot IK, procedural lean and compound hitbox driver (task 0011); actors only.
         std::unique_ptr<MWRender::ActorIkController> mIkController;
-        // Task 0106: the dead NPC's skeleton drawn from its ragdoll ([Physics] creativemotion ragdolls, off by default).
+        // Task 0106: the dead NPC's skeleton drawn from its ragdoll ([Physics] creativemotion ragdolls, off by
+        // default).
         std::unique_ptr<MWRender::ActorRagdollDriver> mRagdollDriver;
         bool mSawAlive = false; // this controller saw the actor alive: only then does a death make a ragdoll
         bool mRagdollTried = false;

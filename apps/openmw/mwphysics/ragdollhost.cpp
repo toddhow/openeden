@@ -20,7 +20,8 @@ namespace MWPhysics
     namespace
     {
         // The debug scenario makes one ragdoll; these are generous limits for it.
-        // The debug ragdoll plus cMaxActorRagdolls (task 0106) humanoids of 16 bodies and 15 joints, with room to spare.
+        // The debug ragdoll plus cMaxActorRagdolls (task 0106) humanoids of 16 bodies and 15 joints, with room to
+        // spare.
         constexpr std::uint32_t cMaxRagdollBodies = 192;
         constexpr std::uint32_t cMaxRagdollJoints = 192;
 

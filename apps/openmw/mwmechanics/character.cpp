@@ -2860,7 +2860,8 @@ namespace MWMechanics
     void CharacterController::createPoseControllers()
     {
         // New bones: a ragdoll driver would write the old ones (task 0106), so the ragdoll ends with it and the corpse
-        // is drawn by the death clip again. Live game only (a rebuild); the destructor leaves it to PhysicsSystem::remove.
+        // is drawn by the death clip again. Live game only (a rebuild); the destructor leaves it to
+        // PhysicsSystem::remove.
         if (mRagdollDriver)
         {
             mRagdollDriver.reset();

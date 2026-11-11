@@ -88,8 +88,8 @@ namespace MWPhysics
         /// Builds a limp humanoid ragdoll for a dead actor, standing at feet (game units) facing yaw (the actor's
         /// rot[2]), every body moving at linearVelocityUnits (game units per second). Returns an invalid handle and
         /// a message when the table is full (cMaxActorRagdolls) or the build fails; nothing is left behind then.
-        ActorRagdollHandle spawnActor(const JPH::RVec3& feetUnits, float yawRadians, const double linearVelocityUnits[3],
-            std::string* error = nullptr);
+        ActorRagdollHandle spawnActor(const JPH::RVec3& feetUnits, float yawRadians,
+            const double linearVelocityUnits[3], std::string* error = nullptr);
 
         /// False if the handle is stale. Frees the slot; the Jolt bodies and joints are gone.
         bool removeActor(ActorRagdollHandle handle);
