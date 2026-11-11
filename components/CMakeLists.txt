@@ -294,7 +294,7 @@ add_component_dir (nif
 # The record source, layer 1 (task 0083): plugin header, masters and raw records of TES3 and the TES4 family, no game rule.
 # Formats layer.
 add_component_dir (contentsource
-    plugin probe
+    plugin probe sessiontag
     )
 
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).

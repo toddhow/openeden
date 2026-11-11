@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "../contentsource/pluginbuilder.hpp"
+#include "../extension/sessionheaderreader.hpp"
 
 namespace
 {
@@ -181,7 +182,8 @@ namespace
                     if (!fs::exists(p))
                         return std::nullopt;
                     return p;
-                });
+                },
+                SessionContentTest::readHeader);
             host.worldSources().setSessionContent(std::move(collected.entries));
         }
     };
@@ -338,7 +340,8 @@ namespace
         HostImpl host;
         dir.write("base.esm", skyrimPlugin(Content::sRecMaster, interiorCell(0x900, "TestHall", false, 0, "The Hall")));
         auto collected = openeden::extension::collectSessionContent(
-            { "base.esm" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; });
+            { "base.esm" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; },
+            SessionContentTest::readHeader);
         int asked = 0;
         host.worldSources().setSessionContent(std::move(collected.entries));
         host.worldSources().setContentFilter([&asked](const openeden::sdk::ContentHeader&) {

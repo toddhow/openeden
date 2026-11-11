@@ -9,25 +9,6 @@
 
 namespace openeden::extension
 {
-    SessionContentEntry makeSessionContentEntry(
-        const std::string& name, const std::string& path, const Content::Header& header)
-    {
-        SessionContentEntry entry;
-        entry.name = name;
-        entry.path = path;
-        if (header.mFamily == Content::Family::Tes4)
-        {
-            entry.gameTag = "TES4";
-            entry.formatVersion = header.mFormVersion;
-        }
-        else
-        {
-            entry.gameTag = "TES3";
-            entry.formatVersion = 0;
-        }
-        return entry;
-    }
-
     std::vector<SessionContentEntry> filterSessionContent(const std::vector<SessionContentEntry>& entries,
         const std::function<bool(const openeden::sdk::ContentHeader&)>& accepts)
     {
@@ -58,7 +39,8 @@ namespace openeden::extension
     }
 
     SessionContentCollection collectSessionContent(const std::vector<std::string>& names,
-        const std::function<std::optional<std::filesystem::path>(const std::string&)>& resolve)
+        const std::function<std::optional<std::filesystem::path>(const std::string&)>& resolve,
+        const SessionHeaderReader& readHeader)
     {
         SessionContentCollection result;
         for (const std::string& name : names)
@@ -71,15 +53,15 @@ namespace openeden::extension
                 result.missing.push_back(name);
                 continue;
             }
-            Content::Error error;
-            const std::unique_ptr<Content::Plugin> plugin = Content::Plugin::openFile(*path, error);
-            if (plugin == nullptr)
+            std::string error;
+            const std::optional<SessionContentHeader> header = readHeader ? readHeader(*path, error) : std::nullopt;
+            if (!header.has_value())
             {
-                result.unreadable.push_back(name + ": " + error.describe());
+                result.unreadable.push_back(name + ": " + (error.empty() ? "no header reader" : error));
                 continue;
             }
             result.entries.push_back(
-                makeSessionContentEntry(name, Files::pathToUnicodeString(*path), plugin->header()));
+                SessionContentEntry{ name, Files::pathToUnicodeString(*path), header->gameTag, header->formatVersion });
         }
         return result;
     }

@@ -1070,7 +1070,8 @@ namespace MWWorld
             if (cell.isNeutral())
                 Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId() << "' inserted into the scene: "
                                  << neutralInserted.total() << " objects (" << neutralInserted.describe() << "), "
-                                 << cell.neutralSkipped() << " left out";
+                                 << cell.neutralSkipped() << " left out, " << cell.neutralDisabled()
+                                 << " initially disabled (loaded, not inserted)";
         }
         Misc::LoadTrace::Scope trace("insert.navigator");
         insertVisitor.insert([&](const MWWorld::Ptr& ptr) {

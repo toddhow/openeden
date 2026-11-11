@@ -471,6 +471,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepack.cpp
     skyrimse/testskyrimsepackworldsource.cpp
     skyrimse/testskyrimsepacksession.cpp
+    skyrimse/testskyrimseasyncindex.cpp
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseworldview.cpp

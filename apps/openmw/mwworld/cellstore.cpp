@@ -898,6 +898,7 @@ namespace MWWorld
     {
         mNeutralLoaded = 0;
         mNeutralSkipped = 0;
+        mNeutralDisabled = 0;
         CellRefList<NeutralBase>& list = get<NeutralBase>();
         const Store<NeutralBase>& bases = mStore.get<NeutralBase>();
         for (const openeden::sdk::game::WorldObject& object : mNeutralCell->objects)
@@ -920,7 +921,10 @@ namespace MWWorld
             }
             LiveCellRef<NeutralBase> live(ref, base);
             if (object.initiallyDisabled)
+            {
                 live.mData.disable();
+                ++mNeutralDisabled;
+            }
             list.mList.push_back(std::move(live));
             ++mNeutralLoaded;
         }

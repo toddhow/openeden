@@ -222,6 +222,9 @@ namespace MWWorld
         /// (no base in the store, a value the engine cannot hold). Zero for a cell that is not neutral.
         std::size_t neutralLoaded() const { return mNeutralLoaded; }
         std::size_t neutralSkipped() const { return mNeutralSkipped; }
+        /// References loaded as disabled (the object's `initiallyDisabled`, e.g. an XESP-gated placement). They are in
+        /// the cell but the scene's insert skips disabled objects, so they are not among the inserted ones (task 0109).
+        std::size_t neutralDisabled() const { return mNeutralDisabled; }
 
         void preload();
         ///< Build ID list from content file.
@@ -378,6 +381,7 @@ namespace MWWorld
         std::string mNeutralGameId;
         std::size_t mNeutralLoaded = 0;
         std::size_t mNeutralSkipped = 0;
+        std::size_t mNeutralDisabled = 0;
         State mState;
         bool mHasState;
         std::vector<ESM::RefId> mIds;

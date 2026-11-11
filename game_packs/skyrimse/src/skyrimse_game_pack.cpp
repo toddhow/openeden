@@ -65,16 +65,21 @@ namespace game_skyrimse
                     // Task 0107 (stage N3a-2b): the view is filled from the session's content list before the source
                     // is registered over it. The list, the VFS for the string tables and the language setting all come
                     // from the host; none of this runs when the host does not read sources.
+                    const auto startedAt = std::chrono::steady_clock::now();
                     loadSessionContent(host, *sources, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
                     mWorldSources = sources;
+                    const auto startMillis = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - startedAt);
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "pack start() work on the main thread: " + std::to_string(startMillis.count()) + " ms");
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info,
                             "Skyrim SE world source registered; the rules are not implemented, so only the world is "
                             "available");
-                    probeCell(logger);
                     return;
                 }
                 if (logger != nullptr)
@@ -84,19 +89,24 @@ namespace game_skyrimse
 
             void stop() override
             {
+                // The index worker uses the logger and the file source: end it before anything is withdrawn.
+                mWorldView.cancelAndJoin();
                 withdrawWorldSource();
                 withdrawWorldView();
             }
 
             ~SkyrimGamePack() override
             {
+                mWorldView.cancelAndJoin();
                 withdrawWorldSource();
                 withdrawWorldView();
             }
 
         private:
-            // Builds the world view from the plugins of the session that this pack's content loader accepts. Plugins
-            // the view refuses are named once and left out.
+            // Starts building the world view from the plugins of the session that this pack's content loader accepts,
+            // on a worker thread (task 0109, decision 2): start() returns at once and the view's queries wait for the
+            // worker if they come first (SkyrimWorldView, threading note). Plugins the view refuses are named once and
+            // left out. Thread: this function runs on the main thread; the completion function runs on the worker.
             void loadSessionContent(openeden::sdk::Host& host, openeden::sdk::game::WorldSourceService& sources,
                 openeden::sdk::Logger* logger)
             {
@@ -105,6 +115,12 @@ namespace game_skyrimse
                         logger->log(level, text);
                 };
                 SkyrimWorldView::Options options;
+                // The view tells us about waits and timeouts from whichever thread is affected; the logger has its own
+                // lock (components/extension/logging_service.cpp). The logger outlives the worker (stop() joins first).
+                options.mNotice = [logger](const std::string& text) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, text);
+                };
                 if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
                 {
                     const std::string wanted
@@ -123,36 +139,39 @@ namespace game_skyrimse
                 if (!mWorldView.configure(std::move(options), mFileSource.get()))
                     return;
 
-                const auto started = std::chrono::steady_clock::now();
                 std::vector<openeden::sdk::game::SessionContentFile> files;
                 const std::size_t given = sources.sessionContent(files);
-                std::size_t taken = 0;
-                for (const openeden::sdk::game::SessionContentFile& file : files)
-                {
-                    std::string error;
-                    if (mWorldView.addPlugin(Files::pathFromUnicodeString(file.path), error))
-                        ++taken;
-                    else
-                        say(openeden::sdk::LogLevel::Warning, "plugin left out: " + error);
-                }
                 if (given == 0)
                     return; // an empty view, as before this stage
-                mWorldView.finish();
-                const SkyrimWorldView::Stats& stats = mWorldView.stats();
-                // The pack's start() runs on the main thread inside Game::Game with no message pumping: the time is
-                // what the freeze monitor (5 s) would see.
-                const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started);
-                say(openeden::sdk::LogLevel::Info,
-                    "world view built from the session: " + std::to_string(taken) + " of " + std::to_string(given)
-                        + " plugins, " + std::to_string(stats.mCells) + " cells, " + std::to_string(stats.mWorlds)
-                        + " worlds, " + std::to_string(stats.mBaseForms) + " base forms, "
-                        + std::to_string(stats.mStringTablesMissing) + " string tables missing, language "
-                        + mWorldView.language() + ", " + std::to_string(millis.count()) + " ms");
+                std::vector<std::filesystem::path> paths;
+                paths.reserve(files.size());
+                for (const openeden::sdk::game::SessionContentFile& file : files)
+                    paths.push_back(Files::pathFromUnicodeString(file.path));
+                // Runs on the worker, after finish() and before the index is published to the main thread.
+                const bool started = mWorldView.startLoad(
+                    std::move(paths), [this, say, logger](const SkyrimWorldView::LoadReport& report) {
+                        if (report.mAborted)
+                            return; // stop() cancelled the load; nothing to tell
+                        for (const std::string& problem : report.mProblems)
+                            say(openeden::sdk::LogLevel::Warning, "plugin left out: " + problem);
+                        const SkyrimWorldView::Stats& stats = mWorldView.stats();
+                        say(openeden::sdk::LogLevel::Info,
+                            "world view built from the session: " + std::to_string(report.mTaken) + " of "
+                                + std::to_string(report.mGiven) + " plugins, " + std::to_string(stats.mCells)
+                                + " cells, " + std::to_string(stats.mWorlds) + " worlds, "
+                                + std::to_string(stats.mBaseForms) + " base forms, "
+                                + std::to_string(stats.mStringTablesMissing) + " string tables missing, language "
+                                + mWorldView.language() + ", " + std::to_string(report.mElapsed.count())
+                                + " ms on a worker thread");
+                        probeCell(logger);
+                    });
+                if (!started)
+                    say(openeden::sdk::LogLevel::Warning, "the world view could not start building");
             }
 
             // A test aid: OPENEDEN_SKYRIMSE_PROBE_CELL names an editor id; the log says whether the cell is found and
-            // how many objects it has. It never changes behaviour.
+            // how many objects it has. It never changes behaviour. Runs on the index worker (the one thread allowed to
+            // use the view while it builds), so it does not delay the main thread.
             void probeCell(openeden::sdk::Logger* logger)
             {
                 const char* const wanted = std::getenv("OPENEDEN_SKYRIMSE_PROBE_CELL");

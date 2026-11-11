@@ -14,8 +14,13 @@
 // fields a later record lacks fall back to the earlier ones. An exterior cell is also given the placements of its
 // world's persistent cell that stand inside its grid square (4096 units).
 //
-// Main thread only, deterministic (the same plugins give the same lists and the same objects), and nothing throws out
-// of it: failures are located Content::Error values or the `error` text of loadCell.
+// Threading (task 0109, decision 2): the queries are for ONE thread at a time (the main thread in the game). The index
+// can be built on a worker with startLoad(): while it runs, every query waits (bounded, Options::mIndexWait) for the
+// worker to finish and then sees the finished index (a mutex and an atomic flag order the worker's writes before the
+// reader's reads); after the bound it answers "nothing found" and never reads the half-built index. The result does
+// not depend on the thread or the timing: the worker runs the same addPlugin / finish calls in the same order.
+// Deterministic (the same plugins give the same lists and the same objects), and nothing throws out of it: failures
+// are located Content::Error values or the `error` text of loadCell.
 
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/records.hpp>
@@ -23,15 +28,21 @@
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -93,6 +104,23 @@ namespace game_skyrimse
             std::uint64_t mMaxCellBytes = 256ull * 1024 * 1024;
             /// Objects of one cell kept; further ones are dropped and counted in Stats::mObjectsDropped.
             std::size_t mMaxObjectsPerCell = 500000;
+            /// How long a query waits for a running startLoad() before it gives up and answers "nothing". Generous: the
+            /// index of the five masters takes about 2 s; a wait only happens when a query comes before it is done.
+            std::chrono::milliseconds mIndexWait{ 30000 };
+            /// Told about waits and timeouts (any thread; the pack passes its logger, which has its own lock).
+            /// May be empty.
+            std::function<void(const std::string&)> mNotice;
+        };
+
+        /// What startLoad's worker did, handed to the completion function.
+        struct LoadReport
+        {
+            std::size_t mGiven = 0;
+            std::size_t mTaken = 0;
+            std::vector<std::string> mProblems;
+            std::chrono::milliseconds mElapsed{ 0 };
+            /// True when the load was cut short by cancelAndJoin(); the index is then incomplete.
+            bool mAborted = false;
         };
 
         struct Stats
@@ -142,15 +170,35 @@ namespace game_skyrimse
         /// Builds the sorted lists and the lookups. Must be called after the last addPlugin (load does).
         void finish();
 
-        [[nodiscard]] const Stats& stats() const { return mStats; }
+        /// load() on a worker thread. Returns at once; false (and nothing started) if a load is already running or a
+        /// plugin was added. `onBuilt` runs ON THE WORKER after finish() and BEFORE the index is published to other
+        /// threads: the worker may use the view freely inside it (a test aid uses it to probe a cell), and other
+        /// threads' queries keep waiting until it returns. It must not throw (a throw is caught and reported to the
+        /// notice function). Thread: any one caller; queries before completion wait as described at the top.
+        [[nodiscard]] bool startLoad(
+            std::vector<std::filesystem::path> paths, std::function<void(const LoadReport&)> onBuilt);
+
+        /// True when no startLoad() is running (the index may be read). Any thread.
+        [[nodiscard]] bool isReady() const { return !mBuilding.load(std::memory_order_acquire); }
+
+        /// Asks a running startLoad() to stop after the plugin it is on, then waits for the worker to end. Safe to
+        /// call when nothing runs, and more than once. The destructor calls it. Not callable from the worker.
+        void cancelAndJoin();
+
+        /// How many queries had to wait for the worker, and the longest wait in milliseconds. Any thread.
+        [[nodiscard]] std::uint64_t indexWaits() const { return mWaits.load(); }
+        [[nodiscard]] std::uint64_t longestIndexWaitMillis() const { return mLongestWaitMillis.load(); }
+
+        /// Waits for a running startLoad() like a query; an empty Stats after the timeout.
+        [[nodiscard]] const Stats& stats() const;
         /// The string table language in use.
         [[nodiscard]] const std::string& language() const { return mOptions.mLanguage; }
         /// Located problems found while indexing and reading (capped).
-        [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
+        [[nodiscard]] const std::vector<Content::Error>& errors() const;
 
         // ---- openeden::sdk::game::WorldView ----
         /// The door-to-cell index (reference id to the id of the cell it stands in), for teleport doors only.
-        [[nodiscard]] const RefCellIndex& teleportDoorCells() const { return mRefCells; }
+        [[nodiscard]] const RefCellIndex& teleportDoorCells() const;
 
         /// The owner, lock and teleport of a placement of the cell the LAST loadCell returned (own placements and the
         /// world's persistent ones it borrowed). Null for any other cell or placement. Main thread only.
@@ -158,8 +206,8 @@ namespace game_skyrimse
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const override;
 
         [[nodiscard]] std::string_view gameId() const override { return "skyrimse"; }
-        [[nodiscard]] std::size_t cellCount() const override { return mCellOrder.size(); }
-        [[nodiscard]] std::size_t worldCount() const override { return mWorldOrder.size(); }
+        [[nodiscard]] std::size_t cellCount() const override;
+        [[nodiscard]] std::size_t worldCount() const override;
         std::size_t listCells(std::size_t first, std::size_t maxCount,
             std::vector<openeden::sdk::game::WorldCellInfo>& out) const override;
         std::size_t listWorlds(std::vector<openeden::sdk::game::WorldInfo>& out) const override;
@@ -222,6 +270,10 @@ namespace game_skyrimse
             std::map<FormId, PlacementComponents> mComponents; ///< by placement id; only placements that have any
         };
 
+        /// True when the caller may read or change the index: nothing is building, or the caller is the worker, or the
+        /// worker finishes within Options::mIndexWait. False after a timeout (the caller must answer "nothing").
+        [[nodiscard]] bool awaitIndex() const;
+        bool addPluginUnchecked(const std::filesystem::path& path, std::string& error);
         void noteError(Content::Error error);
         void indexPlugin(std::uint32_t pluginIndex);
         void resolveNames(PluginData& plugin, const StringTable* table);
@@ -249,6 +301,21 @@ namespace game_skyrimse
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;
+
+        // The worker (startLoad). mBuilding is set before the thread starts and cleared by the worker (under the
+        // mutex, release order) after the index is complete; readers use acquire. mWorkerId lets the worker pass its
+        // own gate.
+        std::thread mWorker;
+        std::atomic<bool> mBuilding{ false };
+        std::atomic<bool> mCancel{ false };
+        std::atomic<bool> mFailed{ false }; ///< the build was cancelled or threw: queries answer "nothing"
+        std::atomic<std::thread::id> mWorkerId{};
+        mutable std::mutex mBuildMutex;
+        mutable std::condition_variable mBuildCv;
+        mutable std::atomic<std::uint64_t> mWaits{ 0 };
+        mutable std::atomic<std::uint64_t> mLongestWaitMillis{ 0 };
+        mutable std::atomic<bool> mTimeoutReported{ false };
+        mutable std::atomic<bool> mWaitReported{ false };
     };
 }
 

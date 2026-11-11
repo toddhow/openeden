@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "../contentsource/pluginbuilder.hpp"
+#include "sessionheaderreader.hpp"
 
 namespace
 {
@@ -137,7 +138,7 @@ namespace
             if (!fs::exists(p))
                 return std::nullopt;
             return p;
-        });
+        }, SessionContentTest::readHeader);
         ASSERT_EQ(result.entries.size(), 3u);
         EXPECT_EQ(result.entries[0].name, "morrowind.esm");
         EXPECT_EQ(result.entries[0].gameTag, "TES3");
@@ -158,7 +159,8 @@ namespace
         TempDir dir;
         dir.write("broken.esp", Bytes().zstring("this is not a plugin"));
         const auto result = collectSessionContent(
-            { "broken.esp" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; });
+            { "broken.esp" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; },
+            SessionContentTest::readHeader);
         EXPECT_TRUE(result.entries.empty());
         ASSERT_EQ(result.unreadable.size(), 1u);
         EXPECT_NE(result.unreadable[0].find("broken.esp"), std::string::npos);
@@ -169,9 +171,10 @@ namespace
         TempDir dir;
         dir.write("Upper.ESM", tes4Header(1.7f, 1, "a", "b", 0, {}, 24, 44));
         const auto found = collectSessionContent(
-            { "Upper.ESM" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; });
+            { "Upper.ESM" }, [&](const std::string& name) -> std::optional<fs::path> { return dir.mPath / name; },
+            SessionContentTest::readHeader);
         ASSERT_EQ(found.entries.size(), 1u);
-        const auto none = collectSessionContent({ "Upper.ESM" }, nullptr);
+        const auto none = collectSessionContent({ "Upper.ESM" }, nullptr, SessionContentTest::readHeader);
         EXPECT_TRUE(none.entries.empty());
         EXPECT_EQ(none.missing.size(), 1u);
     }

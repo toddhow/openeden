@@ -161,11 +161,124 @@ namespace game_skyrimse
         mOptions.mLimits.mSkipReferences = true; // the index never holds a reference
     }
 
-    SkyrimWorldView::~SkyrimWorldView() = default;
+    SkyrimWorldView::~SkyrimWorldView()
+    {
+        cancelAndJoin();
+    }
+
+    // ---- the worker -------------------------------------------------------------------------------------------------
+
+    bool SkyrimWorldView::awaitIndex() const
+    {
+        if (!mBuilding.load(std::memory_order_acquire))
+            return !mFailed.load(std::memory_order_acquire); // a cancelled or failed build is never read
+        if (std::this_thread::get_id() == mWorkerId.load())
+            return true; // the worker is the only user while it builds
+        const auto started = std::chrono::steady_clock::now();
+        bool done;
+        {
+            std::unique_lock<std::mutex> lock(mBuildMutex);
+            done = mBuildCv.wait_for(lock, mOptions.mIndexWait, [this] { return !mBuilding.load(); });
+        }
+        const auto waited = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count());
+        mWaits.fetch_add(1);
+        std::uint64_t longest = mLongestWaitMillis.load();
+        while (waited > longest && !mLongestWaitMillis.compare_exchange_weak(longest, waited))
+        {
+        }
+        if (done && mFailed.load(std::memory_order_acquire))
+            return false;
+        if (done)
+        {
+            // Said once: the first wait, with how long the caller was blocked.
+            bool expected = false;
+            if (mOptions.mNotice && mWaitReported.compare_exchange_strong(expected, true))
+                mOptions.mNotice("a query waited " + std::to_string(waited) + " ms for the world index to finish");
+            return true;
+        }
+        bool expected = false;
+        if (mOptions.mNotice && mTimeoutReported.compare_exchange_strong(expected, true))
+            mOptions.mNotice("the world index was not ready after " + std::to_string(waited)
+                + " ms; queries answer 'nothing' until it is");
+        return false;
+    }
+
+    bool SkyrimWorldView::startLoad(
+        std::vector<std::filesystem::path> paths, std::function<void(const LoadReport&)> onBuilt)
+    {
+        if (mBuilding.load() || !mPlugins.empty())
+            return false;
+        if (mWorker.joinable())
+            mWorker.join(); // a finished earlier load whose thread is only waiting to be joined
+        mCancel.store(false);
+        mFailed.store(false);
+        mBuilding.store(true, std::memory_order_release);
+        mWorker = std::thread([this, pathList = std::move(paths), whenBuilt = std::move(onBuilt)]() {
+            mWorkerId.store(std::this_thread::get_id());
+            LoadReport report;
+            report.mGiven = pathList.size();
+            const auto started = std::chrono::steady_clock::now();
+            try
+            {
+                for (const std::filesystem::path& path : pathList)
+                {
+                    if (mCancel.load())
+                    {
+                        report.mAborted = true;
+                        break;
+                    }
+                    std::string error;
+                    if (addPluginUnchecked(path, error))
+                        ++report.mTaken;
+                    else
+                        report.mProblems.push_back(error);
+                }
+                if (!report.mAborted)
+                    finish();
+                report.mElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - started);
+                if (report.mAborted)
+                    mFailed.store(true); // no finish(): the lookups were never built
+                if (whenBuilt)
+                    whenBuilt(report);
+            }
+            catch (const std::exception& e)
+            {
+                // The index may be incomplete: queries answer "nothing" from now on (a session error would need a
+                // channel to the lifecycle that the pack does not have from a worker).
+                mFailed.store(true);
+                if (mOptions.mNotice)
+                    mOptions.mNotice(std::string("the world index build failed: ") + e.what());
+            }
+            catch (...)
+            {
+                mFailed.store(true);
+                if (mOptions.mNotice)
+                    mOptions.mNotice("the world index build failed with an unknown error");
+            }
+            mWorkerId.store(std::thread::id{}); // a finished thread's id may be handed to a new thread
+            {
+                std::lock_guard<std::mutex> lock(mBuildMutex);
+                mBuilding.store(false, std::memory_order_release);
+            }
+            mBuildCv.notify_all();
+        });
+        return true;
+    }
+
+    void SkyrimWorldView::cancelAndJoin()
+    {
+        if (std::this_thread::get_id() == mWorkerId.load() && mBuilding.load())
+            return; // never join oneself
+        mCancel.store(true);
+        if (mWorker.joinable())
+            mWorker.join();
+    }
 
     bool SkyrimWorldView::configure(Options options, const FileSource* files)
     {
-        if (!mPlugins.empty())
+        if (mBuilding.load() || !mPlugins.empty())
             return false;
         mOptions = std::move(options);
         mOptions.mLimits.mSkipReferences = true;
@@ -183,6 +296,16 @@ namespace game_skyrimse
     // ---- indexing ---------------------------------------------------------------------------------------------------
 
     bool SkyrimWorldView::addPlugin(const std::filesystem::path& path, std::string& error)
+    {
+        if (!awaitIndex())
+        {
+            error = path.filename().string() + ": the world index is being built";
+            return false;
+        }
+        return addPluginUnchecked(path, error);
+    }
+
+    bool SkyrimWorldView::addPluginUnchecked(const std::filesystem::path& path, std::string& error)
     {
         mFinished = false;
         mOptions.mLimits.mSkipReferences = true;
@@ -432,10 +555,40 @@ namespace game_skyrimse
 
     // ---- queries ----------------------------------------------------------------------------------------------------
 
+    const SkyrimWorldView::Stats& SkyrimWorldView::stats() const
+    {
+        static const Stats sEmpty;
+        return awaitIndex() ? mStats : sEmpty;
+    }
+
+    const std::vector<Content::Error>& SkyrimWorldView::errors() const
+    {
+        static const std::vector<Content::Error> sEmpty;
+        return awaitIndex() ? mErrors : sEmpty;
+    }
+
+    const RefCellIndex& SkyrimWorldView::teleportDoorCells() const
+    {
+        static const RefCellIndex sEmpty;
+        return awaitIndex() ? mRefCells : sEmpty;
+    }
+
+    std::size_t SkyrimWorldView::cellCount() const
+    {
+        return awaitIndex() ? mCellOrder.size() : 0;
+    }
+
+    std::size_t SkyrimWorldView::worldCount() const
+    {
+        return awaitIndex() ? mWorldOrder.size() : 0;
+    }
+
     std::size_t SkyrimWorldView::listCells(
         std::size_t first, std::size_t maxCount, std::vector<sdkgame::WorldCellInfo>& out) const
     {
         std::size_t appended = 0;
+        if (!awaitIndex())
+            return 0;
         for (std::size_t i = first; i < mCellOrder.size() && appended < maxCount; ++i, ++appended)
             out.push_back(mCells.at(mCellOrder[i]).mInfo);
         return appended;
@@ -443,6 +596,8 @@ namespace game_skyrimse
 
     std::size_t SkyrimWorldView::listWorlds(std::vector<sdkgame::WorldInfo>& out) const
     {
+        if (!awaitIndex())
+            return 0;
         for (const FormId id : mWorldOrder)
             out.push_back(mWorlds.at(id).mInfo);
         return mWorldOrder.size();
@@ -450,6 +605,8 @@ namespace game_skyrimse
 
     std::optional<sdkgame::WorldCellInfo> SkyrimWorldView::findCellByEditorId(std::string_view editorId) const
     {
+        if (!awaitIndex())
+            return std::nullopt;
         const auto it = mCellByEditorId.find(lowerAscii(editorId));
         if (it == mCellByEditorId.end())
             return std::nullopt;
@@ -459,6 +616,8 @@ namespace game_skyrimse
     std::optional<sdkgame::WorldCellInfo> SkyrimWorldView::findCellByGrid(
         sdkgame::WorldId world, std::int32_t x, std::int32_t y) const
     {
+        if (!awaitIndex())
+            return std::nullopt;
         const auto it = mCellByGrid.find({ world, x, y });
         if (it == mCellByGrid.end())
             return std::nullopt;
@@ -467,6 +626,8 @@ namespace game_skyrimse
 
     std::optional<sdkgame::WorldInfo> SkyrimWorldView::findWorldByEditorId(std::string_view editorId) const
     {
+        if (!awaitIndex())
+            return std::nullopt;
         const auto it = mWorldByEditorId.find(lowerAscii(editorId));
         if (it == mWorldByEditorId.end())
             return std::nullopt;
@@ -693,7 +854,7 @@ namespace game_skyrimse
 
     const PlacementComponents* SkyrimWorldView::find(sdkgame::WorldId cell, sdkgame::WorldId placement) const
     {
-        if (cell == kNullFormId || cell != mLastCell)
+        if (!awaitIndex() || cell == kNullFormId || cell != mLastCell)
             return nullptr;
         const auto it = mLastComponents.find(placement);
         return it != mLastComponents.end() ? &it->second : nullptr;
@@ -703,6 +864,11 @@ namespace game_skyrimse
     {
         out = sdkgame::WorldCellContent{};
         error.clear();
+        if (!awaitIndex())
+        {
+            error = "the world index is not ready";
+            return false;
+        }
         mLastCell = kNullFormId;
         mLastComponents.clear();
         try

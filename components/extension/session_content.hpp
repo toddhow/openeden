@@ -3,9 +3,8 @@
 // The session's content list as a game pack sees it (task 0107, stage N3a-2b; docs/design/neutral-world-model.md
 // 10.11). The engine reads the header of each `content=` file once (apps/openmw/extensionhost.cpp), the entries are
 // kept here as plain values, and WorldSourceServiceImpl::sessionContent hands a pack the ones its content loaders
-// accept. No engine, renderer, Qt or game type; the header facts come from Content::Header (components/contentsource).
-
-#include <components/contentsource/plugin.hpp>
+// accept. No engine, renderer, Qt or game type. Reading a header is a formats-layer job (components/contentsource),
+// which this engine-layer code may not include, so collectSessionContent takes the reader as a function.
 
 #include <openeden/game/content.hpp>
 #include <openeden/game/world_source_service.hpp>
@@ -31,11 +30,6 @@ namespace openeden::extension
         std::uint32_t formatVersion = 0;
     };
 
-    /// The tag and format version a content loader is asked about: the TES4 family gives "TES4" and the form version
-    /// of its header, TES3 gives "TES3" and 0. The same mapping as game_skyrimse::toContentHeader.
-    [[nodiscard]] SessionContentEntry makeSessionContentEntry(
-        const std::string& name, const std::string& path, const Content::Header& header);
-
     /// The entries `accepts` says yes to, in their order. Pure.
     [[nodiscard]] std::vector<SessionContentEntry> filterSessionContent(const std::vector<SessionContentEntry>& entries,
         const std::function<bool(const openeden::sdk::ContentHeader&)>& accepts);
@@ -51,9 +45,23 @@ namespace openeden::extension
         std::vector<std::string> unreadable;
     };
 
+    /// The facts a header reader gives for one file.
+    struct SessionContentHeader
+    {
+        std::string gameTag;
+        std::uint32_t formatVersion = 0;
+    };
+
+    /// Reads one plugin's header: the facts, or nothing with `error` set to the reason. The host passes
+    /// Content::readSessionTag (components/contentsource/sessiontag.hpp) adapted to this type.
+    using SessionHeaderReader
+        = std::function<std::optional<SessionContentHeader>(const std::filesystem::path&, std::string& error)>;
+
     /// Reads the header of each plugin in `names` (the engine's `content=` list). `resolve` turns a name into the
     /// file's path (the engine's file collections) or nothing. Names with another extension (builtin.omwscripts, an
-    /// .omwscripts file) are not plugins and are skipped without a mention. Reads headers only.
+    /// .omwscripts file) are not plugins and are skipped without a mention. Reads headers only. A null `readHeader`
+    /// makes every plugin unreadable.
     [[nodiscard]] SessionContentCollection collectSessionContent(const std::vector<std::string>& names,
-        const std::function<std::optional<std::filesystem::path>(const std::string&)>& resolve);
+        const std::function<std::optional<std::filesystem::path>(const std::string&)>& resolve,
+        const SessionHeaderReader& readHeader);
 }

@@ -12,6 +12,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/extension/dependency_resolver.hpp>
 #include <components/extension/game_conventions.hpp>
+#include <components/contentsource/sessiontag.hpp>
 #include <components/extension/session_content.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
@@ -508,6 +509,13 @@ namespace OMW
                 if (!collections.doesExist(name))
                     return std::nullopt;
                 return collections.getPath(name);
+            },
+            [](const std::filesystem::path& path,
+                std::string& error) -> std::optional<openeden::extension::SessionContentHeader> {
+                const std::optional<Content::SessionTag> tag = Content::readSessionTag(path, error);
+                if (!tag.has_value())
+                    return std::nullopt;
+                return openeden::extension::SessionContentHeader{ tag->mTag, tag->mFormatVersion };
             });
         for (const std::string& name : collected.missing)
             Log(Debug::Warning) << "Content file " << name
