@@ -199,7 +199,7 @@ add_component_dir (animation
 add_component_dir (mwanimation
     context play groups clone decorate attach
     color position light lighteffect effect effects
-    create object objectanim actor wielding face
+    create object objectanim actor wielding face sceneryanim
     )
 # Conveniently extends vsg.
 # vsgutil must not depend on other components.

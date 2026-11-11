@@ -32,6 +32,8 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/mwanimation/bones.hpp>
 #include <components/mwanimation/clone.hpp>
+#include <components/mwanimation/sceneryanim.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/cullnode.hpp>
@@ -129,14 +131,18 @@ namespace MWRender
         // stage e) is read again with the actor options, as a placed object that animates is, so that its bones are
         // there; its skin controllers are returned apart, to be run after the others. Runs on an operation thread, like
         // the rest of buildChunk, and reads only the prototypes.
-        AnimatedCopy makeAnimatedCopy(
-            const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype, const std::string& path)
+        AnimatedCopy makeAnimatedCopy(const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype,
+            const std::string& path, std::uint64_t id)
         {
             AnimatedCopy out;
             out.node = prototype;
             vsg::ref_ptr<vsg::Node> node = prototype;
             MWAnim::CloneResult result = MWAnim::cloneIfRequired(node);
-            if (result.controllers.empty() && result.clonedControllers.empty())
+            // Task 0096 stage f: a model with a keyframe file is read as an animated model even without a skin, so
+            // that its keyframes have bones to move (the setting decides; the rule is SceneryKeyframes::applies).
+            const bool keyframes = Settings::game().mAnimatePlacedSceneryKeyframes && context.hasKeyframeFile
+                && context.hasKeyframeFile(path);
+            if (result.controllers.empty() && result.clonedControllers.empty() && !keyframes)
             {
                 out.reason = "no controllers";
                 return out;
@@ -147,7 +153,7 @@ namespace MWRender
             const bool skinned = std::any_of(result.clonedControllers.begin(), result.clonedControllers.end(),
                 [&isSkin](const auto& pair) { return isSkin(pair.first); });
             std::optional<Anim::Bones> bones;
-            if (skinned)
+            if (skinned || keyframes)
             {
                 vsg::ref_ptr<vsg::Node> actor;
                 try
@@ -190,6 +196,24 @@ namespace MWRender
                     found.emplace_back(
                         vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
             });
+            if (found.empty() && keyframes && bones)
+            {
+                // The model has a keyframe file and no animation of its own: loop its group, in a Play this copy owns.
+                auto play = std::make_shared<MWAnim::Play>(*bones);
+                vsg::ref_ptr<Anim::ControllerMap> sources = context.readAnimation(path);
+                if (sources)
+                    play->addSingleAnimSource(sources, path);
+                const std::string group = sources ? MWAnim::SceneryKeyframes::chooseGroup(*sources->tags) : std::string();
+                if (MWAnim::SceneryKeyframes::start(*play, group, id))
+                {
+                    if (farAnimationCensus())
+                        Log(Debug::Info) << "far animation census: keyframes of " << path << " play group '" << group
+                                         << "' from phase " << MWAnim::SceneryKeyframes::phase(id);
+                    auto driver = vsg::ref_ptr<MWAnim::SceneryKeyframes::Driver>(
+                        new MWAnim::SceneryKeyframes::Driver(play.get(), play));
+                    found.emplace_back(vsg::ref_ptr<const Anim::Controller>(driver), vsg::ref_ptr<vsg::Object>(node));
+                }
+            }
             if (found.empty())
             {
                 out.reason = skins.empty() ? "no auto-play controllers" : "skinned, no auto-play controllers";
@@ -336,7 +360,9 @@ namespace MWRender
                     if (!particles->second)
                     {
                         AnimatedCopy copy = makeAnimatedCopy(context, prototype,
-                            std::string(Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model)).value()));
+                            std::string(Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model)).value()),
+                            (static_cast<std::uint64_t>(static_cast<std::uint32_t>(refNum.mContentFile)) << 32)
+                                | refNum.mIndex);
                         drawn = copy.node;
                         controllers = std::move(copy.controllers);
                         skins = std::move(copy.skins);

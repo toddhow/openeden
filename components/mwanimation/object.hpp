@@ -54,6 +54,9 @@ namespace MWAnim
 
         Anim::AutoPlay autoPlay;
 
+        /// Controllers the object's auto-play lists point to that nothing else owns (task 0096 stage f).
+        std::vector<vsg::ref_ptr<vsg::Object>> keepAlive;
+
         inline void addController(const Anim::Controller* ctrl, vsg::Object* target)
         {
             if (ctrl->hints.autoPlay)

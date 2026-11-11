@@ -1,7 +1,9 @@
 #include "scene.hpp"
 
 #include <algorithm>
+#include <mutex>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include <vsg/io/Options.h>
@@ -13,8 +15,10 @@
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/mwanimation/create.hpp>
+#include <components/mwanimation/sceneryanim.hpp>
 #include <components/render/pointshadowcache.hpp>
 #include <components/settings/values.hpp>
 #include <components/vsgutil/compilecontext.hpp>
@@ -122,6 +126,57 @@ namespace MWRender
         return {};
     }
 
+    // Task 0096 stage f (`[Game] animate placed scenery keyframes`): a static with a keyframe file and no animation of
+    // its own is read again as an animated object and its looping group plays, from a phase taken from the reference
+    // number (MWAnim::SceneryKeyframes). Anything else is returned as it was.
+    std::unique_ptr<MWAnim::Object> Scene::giveSceneryKeyframes(std::unique_ptr<MWAnim::Object> plain,
+        const MWWorld::Ptr& ptr, const std::string& mesh, const ESM::Light* light, MWAnim::Context& ctx)
+    {
+        const auto hasAutoPlay = [](const MWAnim::Object& object) {
+            return std::any_of(object.autoPlay.groups.begin(), object.autoPlay.groups.end(),
+                [](const auto& group) { return !group.controllers.empty(); });
+        };
+        if (!plain || mesh.empty() || !ctx.hasKeyframeFile || !ctx.hasKeyframeFile(mesh))
+            return plain;
+        if (!MWAnim::SceneryKeyframes::applies(true, true, hasAutoPlay(*plain)))
+            return plain;
+        std::unique_ptr<MWAnim::Object> animated;
+        try
+        {
+            animated = MWAnim::createObject(mesh, true, light, ctx);
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Scenery keyframes: can not read '" << mesh
+                                << "' as an animated model: " << e.what();
+            return plain;
+        }
+        if (!animated || !animated->animation || hasAutoPlay(*animated))
+            return plain;
+        const auto sources = ctx.readAnimation(mesh);
+        const std::string group = sources ? MWAnim::SceneryKeyframes::chooseGroup(*sources->tags) : std::string();
+        const ESM::RefNum refNum = ptr.getCellRef().getRefNum();
+        const std::uint64_t id
+            = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(refNum.mContentFile)) << 32) | refNum.mIndex;
+        if (!MWAnim::SceneryKeyframes::start(*animated->animation, group, id))
+            return plain;
+        {
+            // One line per model (the first object of each), so a log shows which scenery got keyframes.
+            static std::mutex mutex;
+            static std::set<std::string> logged;
+            const std::lock_guard<std::mutex> lock(mutex);
+            if (logged.insert(mesh).second)
+                Log(Debug::Info) << "Scenery keyframes: " << mesh << " plays group '" << group << "' (first object "
+                                 << ptr.getCellRef().getRefId() << ", phase " << MWAnim::SceneryKeyframes::phase(id)
+                                 << ")";
+        }
+        auto driver = vsg::ref_ptr<MWAnim::SceneryKeyframes::Driver>(
+            new MWAnim::SceneryKeyframes::Driver(animated->animation.get()));
+        animated->keepAlive.emplace_back(driver);
+        animated->autoPlay.add(driver, animated->transform());
+        return animated;
+    }
+
     void Scene::insertModel(const MWWorld::Ptr& ptr, const std::string& mesh, bool allowLight)
     {
         const ESM::Light* light{};
@@ -145,6 +200,8 @@ namespace MWRender
         Misc::LoadTrace::Scope traceCreate("model.create");
         auto anim = MWAnim::createObject(mesh, ptr.getClass().useAnim(), light, ctx);
         traceCreate.end();
+        if (Settings::game().mAnimatePlacedSceneryKeyframes && !ptr.getClass().useAnim())
+            anim = giveSceneryKeyframes(std::move(anim), ptr, mesh, light, ctx);
 
         // Graphic herbalism changes one plant's switch, so that plant needs its own copy.
         const bool harvestable = Settings::game().mGraphicHerbalism && ptr.getType() == ESM::Container::sRecordId

@@ -43,6 +43,7 @@ namespace Settings
             makeEnumSanitizerInt({ 0, 1, 2 }) };
         SettingValue<bool> mWeaponSheathing{ mIndex, "Game", "weapon sheathing" };
         SettingValue<bool> mShieldSheathing{ mIndex, "Game", "shield sheathing" };
+        SettingValue<bool> mAnimatePlacedSceneryKeyframes{ mIndex, "Game", "animate placed scenery keyframes" };
         SettingValue<bool> mOnlyAppropriateAmmunitionBypassesResistance{ mIndex, "Game",
             "only appropriate ammunition bypasses resistance" };
         SettingValue<bool> mUseMagicItemAnimations{ mIndex, "Game", "use magic item animations" };

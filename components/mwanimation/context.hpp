@@ -1,6 +1,9 @@
 #ifndef VSGOPENMW_MWANIMATION_CONTEXT_H
 #define VSGOPENMW_MWANIMATION_CONTEXT_H
 
+#include <functional>
+#include <string>
+
 #include <vsg/core/ref_ptr.h>
 #include <vsg/io/Options.h>
 
@@ -45,6 +48,10 @@ namespace MWAnim
         vsg::ref_ptr<const vsg::Options> animOptions;
 
         vsg::ref_ptr<vsgUtil::CompileContext> compileContext;
+
+        /// Task 0096 stage f: true when a keyframe file (x<name>.kf, the one Misc::ResourceHelpers::correctActorModelPath
+        /// finds) exists for the mesh path. Unset in contexts that never ask.
+        std::function<bool(const std::string&)> hasKeyframeFile;
 
         vsg::ref_ptr<vsg::Node> readNode(const std::string& fname) const;
         vsg::ref_ptr<vsg::Node> readEffect(const std::string& fname) const;

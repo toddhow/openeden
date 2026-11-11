@@ -426,6 +426,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testclonematerials.cpp
     mwanimation/testskinprevious.cpp
     mwanimation/testlightcontroller.cpp
+    mwanimation/testsceneryanim.cpp
     mwanimation/testpointshadowcarrier.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testdeferredbin.cpp

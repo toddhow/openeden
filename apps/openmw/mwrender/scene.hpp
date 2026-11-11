@@ -2,6 +2,7 @@
 #define VSGOPENMW_MWRENDER_SCENE_H
 
 #include <cstdint>
+#include <memory>
 #include <map>
 
 #include <vsg/core/ref_ptr.h>
@@ -14,6 +15,10 @@
 namespace MWWorld
 {
     class CellStore;
+}
+namespace ESM
+{
+    struct Light;
 }
 namespace MWAnim
 {
@@ -65,6 +70,12 @@ namespace MWRender
         /// @param animated Attempt to load separate keyframes from a .kf file matching the model file?
         /// @param allowLight If false, no lights will be created, and particles systems will be removed.
         void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) override;
+
+    private:
+        std::unique_ptr<MWAnim::Object> giveSceneryKeyframes(std::unique_ptr<MWAnim::Object> plain,
+            const MWWorld::Ptr& ptr, const std::string& mesh, const ESM::Light* light, MWAnim::Context& ctx);
+
+    public:
 
         void insertNPC(const MWWorld::Ptr& ptr) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
