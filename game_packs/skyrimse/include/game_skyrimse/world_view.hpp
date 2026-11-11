@@ -21,6 +21,7 @@
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/world_view.hpp>
+#include <openeden/vfs.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -59,6 +60,23 @@ namespace game_skyrimse
 
     private:
         std::filesystem::path mData;
+    };
+
+    /// The engine's files through the SDK's VfsService (Host::getVfsService()): loose files of the data folders and
+    /// the BSAs the session registered, so a string table in Skyrim - Interface.bsa is found without this pack opening
+    /// an archive. Not owned; the service must outlive it. An empty answer is "not found" (a string table is never
+    /// empty). Task 0107.
+    class VfsFileSource final : public FileSource
+    {
+    public:
+        explicit VfsFileSource(const openeden::sdk::VfsService& vfs)
+            : mVfs(vfs)
+        {
+        }
+        [[nodiscard]] bool read(std::string_view path, std::string& bytes) const override;
+
+    private:
+        const openeden::sdk::VfsService& mVfs;
     };
 
     class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource
@@ -108,6 +126,10 @@ namespace game_skyrimse
         SkyrimWorldView(const SkyrimWorldView&) = delete;
         SkyrimWorldView& operator=(const SkyrimWorldView&) = delete;
 
+        /// Replaces the options and the file source (the pack does it in start(), when the host's VFS and the language
+        /// setting are known). Refused (false) once a plugin was added. `files` is not owned and must outlive the view.
+        [[nodiscard]] bool configure(Options options, const FileSource* files);
+
         /// Appends one plugin to the load order and indexes it. False with `error` (the first line starts with the
         /// file name) for a file that cannot be opened, is not a Skyrim SE plugin, or cannot take a place in the
         /// load order; the plugin is then not part of the view. The index of a damaged file keeps the records before
@@ -121,6 +143,8 @@ namespace game_skyrimse
         void finish();
 
         [[nodiscard]] const Stats& stats() const { return mStats; }
+        /// The string table language in use.
+        [[nodiscard]] const std::string& language() const { return mOptions.mLanguage; }
         /// Located problems found while indexing and reading (capped).
         [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
 

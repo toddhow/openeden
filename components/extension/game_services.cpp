@@ -110,6 +110,14 @@ namespace openeden::extension
         }
     }
 
+    std::size_t WorldSourceServiceImpl::sessionContent(std::vector<openeden::sdk::game::SessionContentFile>& out) const
+    {
+        const std::vector<SessionContentEntry> kept = filterSessionContent(mSessionContent, mContentFilter);
+        for (const SessionContentEntry& entry : kept)
+            out.push_back({ entry.name, entry.path });
+        return kept.size();
+    }
+
     void WorldSourceServiceImpl::releaseAll()
     {
         while (!mSources.empty())

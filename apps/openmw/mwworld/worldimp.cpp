@@ -277,6 +277,16 @@ namespace MWWorld
         // openeden-vsg: the Lua manager is created by the Game state after the World, so LuaManager::init() calls
         // contentFilesLoaded() (with OpenMW 0.51's initPreLoad and initPostLoad around it) instead of this constructor.
 
+        // Task 0107 (neutral world, stage N3a-2b): the defaults a Morrowind-format master leaves out are what a session
+        // of another game needs too (its plugins define none of Morrowind's globals, and the date setup below reads
+        // them); added only with [Game] neutral world, only where missing.
+        if (Settings::game().mNeutralWorld.get())
+        {
+            ensureNeededRecords();
+            insertNeutralStubGlobals(mStore);
+            insertNeutralStubGameSettings(mStore);
+        }
+
         fillGlobalVariables();
 
         // Task 0105 (neutral world, stage N3a-2): a session whose content defines no player gets a stub one; a store

@@ -3,6 +3,8 @@
 
 #include <components/esm/refid.hpp>
 
+#include <cstddef>
+
 // The stub player of a neutral-world session (decision 0016, design document 10.4 R4, task 0105, stage N3a-2).
 //
 // The World looks the player up as the NPC record "Player" (World::World via movePlayerRecord, World::clear, the
@@ -29,6 +31,18 @@ namespace MWWorld
     /// changed). Call before ESMStore::setUp(), because the stub must be in the store when the shared lists and the id
     /// index are built.
     bool insertNeutralStubPlayer(ESMStore& store);
+
+    /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, the globals the World reads while it is
+    /// built and that a Morrowind-format master defines but a plugin of another game does not (today: "month", which
+    /// World::fillGlobalVariables reads through DateTimeManager::setup; the rest of the date globals come from
+    /// World::ensureNeededRecords). Returns how many it added. Call before World::fillGlobalVariables.
+    std::size_t insertNeutralStubGlobals(ESMStore& store);
+
+    /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, Morrowind's default values of the
+    /// numeric game settings (the table behind OpenMW-CS's new content, tools/neutral_gmsts/gen.py). The World and the
+    /// managers it builds read many of them by name, and a plugin of another game defines none, so without them the
+    /// session cannot get past World::World. Returns how many it added. Call before ESMStore::setUp().
+    std::size_t insertNeutralStubGameSettings(ESMStore& store);
 }
 
 #endif

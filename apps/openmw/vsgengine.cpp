@@ -409,6 +409,9 @@ namespace OMW
             mFileCollections = Files::Collections(mDataDirs);
         }
         mExtensionHost->setEngineVfs(mVFS.get());
+        // Task 0107 (neutral world stage N3a-2b): the game pack is given the content list; nothing happens with
+        // [Game] neutral world off.
+        mExtensionHost->setSessionContent(args.contentFiles, mFileCollections);
 
         // OpenEden, 2026-11-09: keep the driver's compiled pipelines between runs
         // (components/render/pipelinecache.hpp).

@@ -11,6 +11,15 @@
 #include <openeden/host.hpp>
 #include <openeden/logging.hpp>
 
+#include <openeden/settings.hpp>
+#include <openeden/vfs.hpp>
+
+#include <components/files/conversion.hpp>
+
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
@@ -53,6 +62,10 @@ namespace game_skyrimse
                 openeden::sdk::game::WorldSourceService* const sources = host.getWorldSourceService();
                 if (sources != nullptr && sources->consumerEnabled())
                 {
+                    // Task 0107 (stage N3a-2b): the view is filled from the session's content list before the source
+                    // is registered over it. The list, the VFS for the string tables and the language setting all come
+                    // from the host; none of this runs when the host does not read sources.
+                    loadSessionContent(host, *sources, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -61,6 +74,7 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Info,
                             "Skyrim SE world source registered; the rules are not implemented, so only the world is "
                             "available");
+                    probeCell(logger);
                     return;
                 }
                 if (logger != nullptr)
@@ -81,6 +95,87 @@ namespace game_skyrimse
             }
 
         private:
+            // Builds the world view from the plugins of the session that this pack's content loader accepts. Plugins
+            // the view refuses are named once and left out.
+            void loadSessionContent(openeden::sdk::Host& host, openeden::sdk::game::WorldSourceService& sources,
+                openeden::sdk::Logger* logger)
+            {
+                auto say = [logger](openeden::sdk::LogLevel level, const std::string& text) {
+                    if (logger != nullptr)
+                        logger->log(level, text);
+                };
+                SkyrimWorldView::Options options;
+                if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
+                {
+                    const std::string wanted
+                        = settings->getString(kPackId, kStringTableLanguageKey, kDefaultStringTableLanguage);
+                    bool usedDefault = false;
+                    options.mLanguage = sanitiseStringTableLanguage(wanted, usedDefault);
+                    if (usedDefault)
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kStringTableLanguageKey)
+                                + "' is not a language name (2 to 32 ASCII letters); using " + options.mLanguage);
+                }
+                if (const openeden::sdk::VfsService* vfs = host.getVfsService())
+                {
+                    mFileSource = std::make_unique<VfsFileSource>(*vfs);
+                }
+                if (!mWorldView.configure(std::move(options), mFileSource.get()))
+                    return;
+
+                const auto started = std::chrono::steady_clock::now();
+                std::vector<openeden::sdk::game::SessionContentFile> files;
+                const std::size_t given = sources.sessionContent(files);
+                std::size_t taken = 0;
+                for (const openeden::sdk::game::SessionContentFile& file : files)
+                {
+                    std::string error;
+                    if (mWorldView.addPlugin(Files::pathFromUnicodeString(file.path), error))
+                        ++taken;
+                    else
+                        say(openeden::sdk::LogLevel::Warning, "plugin left out: " + error);
+                }
+                if (given == 0)
+                    return; // an empty view, as before this stage
+                mWorldView.finish();
+                const SkyrimWorldView::Stats& stats = mWorldView.stats();
+                // The pack's start() runs on the main thread inside Game::Game with no message pumping: the time is
+                // what the freeze monitor (5 s) would see.
+                const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - started);
+                say(openeden::sdk::LogLevel::Info,
+                    "world view built from the session: " + std::to_string(taken) + " of " + std::to_string(given)
+                        + " plugins, " + std::to_string(stats.mCells) + " cells, " + std::to_string(stats.mWorlds)
+                        + " worlds, " + std::to_string(stats.mBaseForms) + " base forms, "
+                        + std::to_string(stats.mStringTablesMissing) + " string tables missing, language "
+                        + mWorldView.language() + ", " + std::to_string(millis.count()) + " ms");
+            }
+
+            // A test aid: OPENEDEN_SKYRIMSE_PROBE_CELL names an editor id; the log says whether the cell is found and
+            // how many objects it has. It never changes behaviour.
+            void probeCell(openeden::sdk::Logger* logger)
+            {
+                const char* const wanted = std::getenv("OPENEDEN_SKYRIMSE_PROBE_CELL");
+                if (wanted == nullptr || *wanted == '\0' || logger == nullptr)
+                    return;
+                const openeden::sdk::game::WorldId id = mCellSource.findCellByEditorId(wanted);
+                if (id == openeden::sdk::game::kNoWorldId)
+                {
+                    logger->log(openeden::sdk::LogLevel::Info, "probe cell found: no");
+                    return;
+                }
+                openeden::sdk::game::WorldCell cell;
+                std::string error;
+                if (!mCellSource.buildCell(id, cell, error))
+                {
+                    logger->log(openeden::sdk::LogLevel::Info, "probe cell found: yes, but it did not build");
+                    return;
+                }
+                logger->log(openeden::sdk::LogLevel::Info,
+                    "probe cell found: yes, " + std::to_string(cell.objects.size()) + " objects, "
+                        + std::to_string(cell.droppedObjects) + " dropped");
+            }
+
             void withdrawWorldSource()
             {
                 if (mWorldSources != nullptr)
@@ -96,6 +191,7 @@ namespace game_skyrimse
             }
 
             SkyrimContentLoader mLoader;
+            std::unique_ptr<VfsFileSource> mFileSource; // declared before the view that may refer to it
             SkyrimWorldView mWorldView;
             SkyrimCellSource mCellSource{ mWorldView };
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;

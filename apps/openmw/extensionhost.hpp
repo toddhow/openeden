@@ -17,6 +17,8 @@
 
 #include <openeden/extension.hpp>
 
+#include <components/files/collections.hpp>
+
 #include <filesystem>
 #include <functional>
 #include <memory>
@@ -139,6 +141,12 @@ namespace OMW
 
         /// Extensions read files through this from start() on. It must stay alive until stop().
         void setEngineVfs(const VFS::Manager* vfs) { mHost.vfsService().setEngineVfs(vfs); }
+
+        /// Task 0107 (stage N3a-2b): hands the game pack the session's content list. Reads the header of each plugin in
+        /// `contentFiles` (the `content=` lines; `collections` finds the files) and keeps the facts a content loader
+        /// probes; WorldSourceService::sessionContent then returns the ones the pack's loaders accept. Does nothing
+        /// unless Config::neutralWorld was set. Main thread, after the data folders are known.
+        void setSessionContent(const std::vector<std::string>& contentFiles, const Files::Collections& collections);
 
         /// Marked events are queued, and sent here. The engine calls this only where Lua may be touched: a save's or
         /// a load's worker uses Lua while frames, and so phases, continue.

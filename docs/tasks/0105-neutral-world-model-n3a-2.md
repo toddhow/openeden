@@ -51,3 +51,9 @@ Out of scope: anything that reads the base store (cells, class, `LiveCellRef`: N
 1. **Where does the pack get its plugin list (R5, second half)?** Needed before N3a-3 can show a real Skyrim cell; section 10.6 gives it to no stage. Options: (a) a field on the world source service (`registerSource` or a new function) through which the engine hands the pack the `content=` list and the data folders, called from `ExtensionHost` after the pack starts; (b) the pack reads the engine's `openmw.cfg` content list itself (needs a path and the same parsing the engine does, two readers of one file); (c) a Skyrim-only setting in the pack's own namespace. Recommendation: (a), as its own small stage "N3a-2b" before N3a-3 (an additive SDK function at the end of `WorldSourceService`, 1.1).
 2. The stub player makes a saving-refusal backstop that throws; `StateManager::saveGame` already refuses earlier, so a user sees the message box, not the exception.
 3. `Store<NeutralBase>` is not generic-store shaped (design choice 1); if you prefer it as a `TypedDynamicStore` the cost is an ESM-flavoured `load`/`save` that throw and a `DynamicStore` that shows in `begin()`.
+
+## Decisions recorded (2026-11-10, toddhow's blanket approval of recommendations)
+
+1. The save backstop throw in `ESMStore::write` while the stub player is present **stays** (open point 2).
+2. `Store<NeutralBase>` **stays deliberately not a `TypedDynamicStore`** (design choice 1, open point 3).
+3. The plugin-list delivery (open point 1, recommendation (a)) becomes its own small stage **N3a-2b** before N3a-3: `docs/tasks/0107-neutral-world-model-n3a-2b.md`.

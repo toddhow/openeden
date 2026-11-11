@@ -204,6 +204,35 @@ namespace game_skyrimse
         return { "TES3", 0 };
     }
 
+    std::string sanitiseStringTableLanguage(std::string_view value, bool& usedDefault)
+    {
+        usedDefault = false;
+        if (value.empty())
+            return std::string(kDefaultStringTableLanguage);
+        std::string result;
+        if (value.size() >= 2 && value.size() <= kMaxStringTableLanguage)
+        {
+            for (const char c : value)
+            {
+                if (c >= 'A' && c <= 'Z')
+                    result.push_back(static_cast<char>(c - 'A' + 'a'));
+                else if (c >= 'a' && c <= 'z')
+                    result.push_back(c);
+                else
+                {
+                    result.clear();
+                    break;
+                }
+            }
+        }
+        if (result.empty())
+        {
+            usedDefault = true;
+            return std::string(kDefaultStringTableLanguage);
+        }
+        return result;
+    }
+
     bool SkyrimContentLoader::probe(const openeden::sdk::ContentHeader& header) const
     {
         return header.gameTag == kContentTag

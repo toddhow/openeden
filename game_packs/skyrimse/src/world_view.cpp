@@ -139,6 +139,17 @@ namespace game_skyrimse
         return false;
     }
 
+    bool VfsFileSource::read(std::string_view path, std::string& bytes) const
+    {
+        std::string unified(path);
+        std::replace(unified.begin(), unified.end(), '\\', '/');
+        const std::vector<std::uint8_t> data = mVfs.readFile(unified);
+        if (data.empty())
+            return false;
+        bytes.assign(reinterpret_cast<const char*>(data.data()), data.size());
+        return true;
+    }
+
     // ---- construction ---------------------------------------------------------------------------------------------
 
     SkyrimWorldView::SkyrimWorldView() = default;
@@ -151,6 +162,16 @@ namespace game_skyrimse
     }
 
     SkyrimWorldView::~SkyrimWorldView() = default;
+
+    bool SkyrimWorldView::configure(Options options, const FileSource* files)
+    {
+        if (!mPlugins.empty())
+            return false;
+        mOptions = std::move(options);
+        mOptions.mLimits.mSkipReferences = true;
+        mFiles = files;
+        return true;
+    }
 
     void SkyrimWorldView::noteError(Content::Error error)
     {

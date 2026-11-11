@@ -730,6 +730,7 @@ add_component_dir(extension
     profiler_report
     physics_service
     game_services
+    session_content
     bindings_store
     mutate_queue
     save_chunk_store

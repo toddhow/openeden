@@ -36,6 +36,18 @@ namespace game_skyrimse
 
     [[nodiscard]] openeden::sdk::ContentHeader toContentHeader(const Content::Header& header);
 
+    /// The default string table language (task 0086) and the longest one a setting may name.
+    inline constexpr std::string_view kDefaultStringTableLanguage = "english";
+    inline constexpr std::size_t kMaxStringTableLanguage = 32;
+    /// The pack setting (`[extension.skyrimse]`) that names it.
+    inline constexpr std::string_view kStringTableLanguageKey = "string table language";
+
+    /// The string table language a setting asks for (`[extension.skyrimse] string table language`), made lower case.
+    /// The value goes into a file path (strings/plugin_language.strings), so only ASCII letters, 2 to 32 of
+    /// them, are accepted; anything else gives the default and `usedDefault` is true (the caller warns). An empty
+    /// value is "not set" and also gives the default, with `usedDefault` false.
+    [[nodiscard]] std::string sanitiseStringTableLanguage(std::string_view value, bool& usedDefault);
+
     /// The content probe the pack registers with the host's ContentService.
     class SkyrimContentLoader final : public openeden::sdk::ContentLoader
     {

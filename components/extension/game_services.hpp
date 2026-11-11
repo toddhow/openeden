@@ -7,8 +7,11 @@
 #include <openeden/game/world_source_service.hpp>
 #include <openeden/game/world_view.hpp>
 
+#include "session_content.hpp"
+
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -128,6 +131,17 @@ namespace openeden::extension
         void withdrawSource(openeden::sdk::game::WorldCellSource& source) override;
         [[nodiscard]] bool consumerEnabled() const override { return mConsumerEnabled; }
 
+        /// Task 0107 (stage N3a-2b): the session's content files with their header facts, in load order, and the
+        /// predicate that says which of them the session's game pack accepts (HostImpl points it at the registered
+        /// content loaders). The service copies the entries.
+        [[nodiscard]] std::size_t sessionContent(
+            std::vector<openeden::sdk::game::SessionContentFile>& out) const override;
+        void setSessionContent(std::vector<SessionContentEntry> entries) { mSessionContent = std::move(entries); }
+        void setContentFilter(std::function<bool(const openeden::sdk::ContentHeader&)> accepts)
+        {
+            mContentFilter = std::move(accepts);
+        }
+
         void setConsumerEnabled(bool enabled) noexcept { mConsumerEnabled = enabled; }
         void setListener(Listener* listener) noexcept { mListener = listener; }
         [[nodiscard]] std::size_t sourceCount() const noexcept { return mSources.size(); }
@@ -144,6 +158,8 @@ namespace openeden::extension
         };
 
         std::vector<Entry> mSources;
+        std::vector<SessionContentEntry> mSessionContent;
+        std::function<bool(const openeden::sdk::ContentHeader&)> mContentFilter;
         Listener* mListener = nullptr;
         bool mConsumerEnabled = false;
     };

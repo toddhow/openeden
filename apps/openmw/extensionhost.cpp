@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string_view>
 #include <system_error>
@@ -11,6 +12,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/extension/dependency_resolver.hpp>
 #include <components/extension/game_conventions.hpp>
+#include <components/extension/session_content.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/settings/values.hpp>
@@ -493,6 +495,31 @@ namespace OMW
     {
         if (mWorld)
             mWorld->gameSaved();
+    }
+
+    void ExtensionHost::setSessionContent(
+        const std::vector<std::string>& contentFiles, const Files::Collections& collections)
+    {
+        // Off means unchanged: with [Game] neutral world off nothing reads the list, so no file is opened.
+        if (mNeutralWorldStore == nullptr)
+            return;
+        openeden::extension::SessionContentCollection collected = openeden::extension::collectSessionContent(
+            contentFiles, [&collections](const std::string& name) -> std::optional<std::filesystem::path> {
+                if (!collections.doesExist(name))
+                    return std::nullopt;
+                return collections.getPath(name);
+            });
+        for (const std::string& name : collected.missing)
+            Log(Debug::Warning) << "Content file " << name
+                                << " is not in any data folder; the game pack is not given it";
+        for (const std::string& problem : collected.unreadable)
+            Log(Debug::Warning) << "Content file not given to the game pack: " << problem;
+        Log(Debug::Verbose) << "Session content for the game pack: " << collected.entries.size()
+                            << " plugin headers read";
+        mHost.worldSources().setSessionContent(std::move(collected.entries));
+        mHost.worldSources().setContentFilter([this](const openeden::sdk::ContentHeader& header) {
+            return mHost.content().findLoader(header) != nullptr;
+        });
     }
 
     ExtensionHost::~ExtensionHost()

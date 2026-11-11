@@ -9,6 +9,8 @@
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclas.hpp>
+#include <components/esm3/loadglob.hpp>
+#include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
@@ -188,5 +190,57 @@ namespace
         EXPECT_EQ(store.get<ESM::Activator>().getSize(), 0u);
         EXPECT_EQ(store.get<ESM::Static>().getSize(), 0u);
         EXPECT_EQ(store.get<ESM::Door>().getSize(), 0u);
+    }
+
+    // Task 0107 (stage N3a-2b): the globals the World reads while it is built.
+    TEST(NeutralStubGlobals, an_empty_store_gets_month_as_a_static_record)
+    {
+        MWWorld::ESMStore store;
+        EXPECT_EQ(MWWorld::insertNeutralStubGlobals(store), 1u);
+        const ESM::Global* month = store.get<ESM::Global>().search(ESM::RefId::stringRefId("month"));
+        ASSERT_NE(month, nullptr);
+        EXPECT_EQ(month->mValue.getInteger(), 0);
+    }
+
+    TEST(NeutralStubGlobals, a_global_that_exists_is_left_alone_and_a_second_call_adds_nothing)
+    {
+        MWWorld::ESMStore store;
+        ESM::Global real;
+        real.mId = ESM::RefId::stringRefId("month");
+        real.mValue = ESM::Variant(7);
+        real.mRecordFlags = 0;
+        store.insertStatic(real);
+        EXPECT_EQ(MWWorld::insertNeutralStubGlobals(store), 0u);
+        EXPECT_EQ(store.get<ESM::Global>().search(ESM::RefId::stringRefId("month"))->mValue.getInteger(), 7);
+
+        MWWorld::ESMStore other;
+        EXPECT_EQ(MWWorld::insertNeutralStubGlobals(other), 1u);
+        EXPECT_EQ(MWWorld::insertNeutralStubGlobals(other), 0u);
+    }
+
+    TEST(NeutralStubGameSettings, an_empty_store_gets_morrowinds_numeric_defaults)
+    {
+        MWWorld::ESMStore store;
+        const std::size_t added = MWWorld::insertNeutralStubGameSettings(store);
+        EXPECT_EQ(added, 258u + 89u);
+        const ESM::GameSetting* swim = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("fSwimHeightScale"));
+        ASSERT_NE(swim, nullptr);
+        EXPECT_FLOAT_EQ(swim->mValue.getFloat(), 0.9f);
+        const ESM::GameSetting* delta = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("i1stPersonSneakDelta"));
+        ASSERT_NE(delta, nullptr);
+        EXPECT_EQ(delta->mValue.getInteger(), 10);
+    }
+
+    TEST(NeutralStubGameSettings, a_setting_the_content_defined_keeps_its_value_and_a_second_call_adds_nothing)
+    {
+        MWWorld::ESMStore store;
+        ESM::GameSetting real;
+        real.mId = ESM::RefId::stringRefId("fSwimHeightScale");
+        real.mValue = ESM::Variant(2.5f);
+        real.mRecordFlags = 0;
+        store.insertStatic(real);
+        EXPECT_EQ(MWWorld::insertNeutralStubGameSettings(store), 258u + 89u - 1u);
+        EXPECT_FLOAT_EQ(store.get<ESM::GameSetting>().find("fSwimHeightScale")->mValue.getFloat(), 2.5f);
+        EXPECT_EQ(MWWorld::insertNeutralStubGameSettings(store), 0u);
     }
 }
