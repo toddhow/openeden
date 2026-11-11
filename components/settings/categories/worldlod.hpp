@@ -81,6 +81,16 @@ namespace Settings
         // means the tier's. A number above 65536 counts as that.
         SettingValue<int> mFarMemoryBudget{ mIndex, "WorldLod", "far memory budget", makeClampSanitizerInt(0, 65536) };
         SettingValue<int> mTerrainTileLevel{ mIndex, "WorldLod", "terrain tile level", makeClampSanitizerInt(1, 1) };
+        // Task 0096 stage d: the object paging chunks (`DistantObjects`) keep the auto-play controllers (texture
+        // scroll, alpha and colour, keyframes) of the models that have them, run at a rate that falls with the
+        // distance (every frame, a quarter, a sixteenth) and stopped beyond `animated object distance` (world units).
+        // `animated object budget` is the most controllers run in one frame. Off by default: with it off the chunks are
+        // built as before.
+        SettingValue<bool> mAnimatedObjects{ mIndex, "WorldLod", "animated objects" };
+        SettingValue<float> mAnimatedObjectDistance{ mIndex, "WorldLod", "animated object distance",
+            makeClampSanitizerFloat(512.f, 1000000.f) };
+        SettingValue<int> mAnimatedObjectBudget{ mIndex, "WorldLod", "animated object budget",
+            makeClampSanitizerInt(1, 100000) };
     };
 }
 

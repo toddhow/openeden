@@ -625,7 +625,7 @@ namespace MWRender
         std::uint64_t mLodClustersPushed = 0;
         ActiveCellGrid mActiveGrid;
         std::set<std::pair<int, int>> mUnbuiltCells; // task 0060: active cells whose objects are still being built
-        void updateDistantObjects(const vsg::vec3& cameraPosition);
+        void updateDistantObjects(const vsg::vec3& cameraPosition, float dt);
         void updateLodClusters(const vsg::vec3& cameraPosition, float dt);
         std::unique_ptr<Rain> mRain;
         Rain::Parameters mRainParameters;

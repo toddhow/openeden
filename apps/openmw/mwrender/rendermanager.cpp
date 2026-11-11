@@ -2607,7 +2607,7 @@ namespace MWRender
         (void)cameraPosition;
     }
 
-    void RenderManager::updateDistantObjects(const vsg::vec3& cameraPosition)
+    void RenderManager::updateDistantObjects(const vsg::vec3& cameraPosition, float dt)
     {
         if (!Settings::terrain().mDistantTerrain || !Settings::terrain().mObjectPaging)
             return;
@@ -2616,9 +2616,15 @@ namespace MWRender
             return;
         if (!mDistantObjects)
         {
+            // Task 0096 stage d: read once, when the chunks are first made (the chunks are built with or without
+            // controllers).
+            DistantObjects::AnimationOptions animation;
+            animation.mEnabled = Settings::worldLod().mAnimatedObjects;
+            animation.mStopDistance = Settings::worldLod().mAnimatedObjectDistance;
+            animation.mBudget = static_cast<unsigned>(Settings::worldLod().mAnimatedObjectBudget.get());
             mDistantObjects = std::make_unique<DistantObjects>(mScene->noParticlesContext,
                 MWBase::Environment::get().getWorld()->getStore(), static_cast<float>(ESM::Land::REAL_SIZE),
-                Settings::terrain().mObjectPagingMinSize);
+                Settings::terrain().mObjectPagingMinSize, animation);
             mDistantObjects->setActiveGrid(mActiveGrid);
             for (const auto& cell : mUnbuiltCells)
                 mDistantObjects->setCellUnbuilt(cell, true);
@@ -2627,7 +2633,10 @@ namespace MWRender
         // Morrowind's exterior only: another worldspace's coordinates would select its chunks.
         if (player.getCell()->isExterior()
             && player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId)
+        {
             mDistantObjects->update(cameraPosition, mViewDistance);
+            mDistantObjects->updateAnimation(cameraPosition, dt);
+        }
         else
             mDistantObjects->hide();
     }
@@ -3431,7 +3440,7 @@ namespace MWRender
         }
         {
             Misc::LoadTrace::Scope traceObjects("render.update.distantobjects");
-            updateDistantObjects(cameraPosition);
+            updateDistantObjects(cameraPosition, dt);
         }
         {
             Misc::LoadTrace::Scope traceClusters("render.update.lodclusters");

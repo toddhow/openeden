@@ -71,6 +71,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testcompiledupdates.cpp
     mwrender/testattachammo.cpp
     mwrender/testplancommit.cpp
+    mwrender/testanimatedchunk.cpp
     mwrender/testmainthreadupdate.cpp
     mwrender/testpartfailures.cpp
     mwrender/testpartslots.cpp

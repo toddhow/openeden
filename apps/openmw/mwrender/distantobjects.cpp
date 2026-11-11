@@ -1,9 +1,12 @@
 #include "distantobjects.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <iterator>
 #include <map>
 #include <optional>
+#include <vector>
 
 #include <vsg/commands/Dispatch.h>
 #include <vsg/core/Visitor.h>
@@ -13,6 +16,8 @@
 #include <vsg/threading/OperationThreads.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/animation/context.hpp>
+#include <components/animation/skin.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -22,6 +27,7 @@
 #include <components/esm3/readerscache.hpp>
 #include <components/lod/clusterplan.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/mwanimation/clone.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/cullnode.hpp>
@@ -77,6 +83,47 @@ namespace MWRender
                     child.mask = vsg::MASK_OFF;
             }
         };
+
+        // Task 0096 stage d: the most animated objects one chunk holds. Every one has a copy of its model of its own
+        // (the clone of what carries a controller) and keeps controllers running; the rest of a crowded cell stays
+        // frozen as before. A cell of Morrowind holds a handful of lava planes or Ghostgate fence segments, so this is a
+        // guard against a cell of a mod, not a limit the vanilla data reaches.
+        constexpr std::size_t sMaxAnimatedPerChunk = 128;
+
+        // Whether a model has a particle system (a compute dispatch): such models stay frozen with their particles
+        // off, as before; their controllers need the particle system's own link, which a chunk does not make.
+        bool hasParticles(vsg::Node& node)
+        {
+            FindDispatch find;
+            node.accept(find);
+            return find.found;
+        }
+
+        // Gives an object a copy of its model whose auto-play controllers a chunk can run, and returns them as
+        // (controller, target) pairs; returns `prototype` itself, and no controllers, when the model has none, has a
+        // skin (the bones it needs are not there) or has none that play by themselves. Runs on an operation thread, like
+        // the rest of buildChunk, and reads only the prototype.
+        vsg::ref_ptr<vsg::Node> makeAnimatedCopy(const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype,
+            AnimatedChunk::Controllers& controllers)
+        {
+            vsg::ref_ptr<vsg::Node> node = prototype;
+            MWAnim::CloneResult result = MWAnim::cloneIfRequired(node);
+            if (result.controllers.empty() && result.clonedControllers.empty())
+                return prototype;
+            for (const auto& [controller, target] : result.clonedControllers)
+                if (dynamic_cast<const Anim::Skin*>(controller) != nullptr)
+                    return prototype;
+            Anim::Context linkContext{ {}, { node.get() }, nullptr, &context.mask };
+            AnimatedChunk::Controllers found;
+            result.link(linkContext, [&found](const Anim::Controller* controller, vsg::Object* target) {
+                if (controller != nullptr && target != nullptr && controller->hints.autoPlay)
+                    found.emplace_back(vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
+            });
+            if (found.empty())
+                return prototype;
+            controllers = std::move(found);
+            return node;
+        }
 
         std::string_view getModel(int type, const ESM::RefId& id, const MWWorld::ESMStore& store)
         {
@@ -149,10 +196,14 @@ namespace MWRender
         // reads the store, the content files and the models, and touches nothing the main thread writes.
         vsg::ref_ptr<vsg::Node> buildChunk(const MWAnim::Context& context, const MWWorld::ESMStore& store,
             const std::pair<int, int>& cell, const std::set<ESM::RefNum>& disabled, float minSize,
-            const std::vector<Lod::ClusterRef>* clusterRefs)
+            const std::vector<Lod::ClusterRef>* clusterRefs, bool animate)
         {
             auto objects = vsg::Group::create();
             vsg::dbox bounds;
+            vsg::ref_ptr<AnimatedChunk> animated;
+            if (animate)
+                animated = AnimatedChunk::create();
+            std::map<const vsg::Node*, bool> particleModels;
             for (const auto& [refNum, ref] : collectReferences(cell, store))
             {
                 if (disabled.contains(refNum) || Misc::ResourceHelpers::isHiddenMarker(ref.mRefID))
@@ -194,11 +245,26 @@ namespace MWRender
                 // The range is in the transform's units, which the scale above it divides distance by.
                 lod->ranges
                     = { { 0.f, distantObjectMaxDistance(static_cast<float>(modelBound.radius), 1.f, minSize) } };
-                lod->addChild(prototype);
+                vsg::ref_ptr<vsg::Node> drawn = prototype;
+                AnimatedChunk::Controllers controllers;
+                if (animated && animated->objectCount() < sMaxAnimatedPerChunk)
+                {
+                    auto particles = particleModels.find(prototype.get());
+                    if (particles == particleModels.end())
+                        particles = particleModels.emplace(prototype.get(), hasParticles(*prototype)).first;
+                    if (!particles->second)
+                        drawn = makeAnimatedCopy(context, prototype, controllers);
+                }
+                lod->addChild(drawn);
                 transform->addChild(lod);
                 objects->addChild(transform);
 
                 const vsg::dvec3 center = matrix * modelBound.center;
+                if (!controllers.empty())
+                    animated->addObject(center,
+                        (static_cast<std::uint64_t>(static_cast<std::uint32_t>(refNum.mContentFile)) << 32)
+                            | refNum.mIndex,
+                        controllers);
                 const double radius = modelBound.radius * ref.mScale;
                 bounds.add(center - vsg::dvec3(radius, radius, radius));
                 bounds.add(center + vsg::dvec3(radius, radius, radius));
@@ -208,6 +274,11 @@ namespace MWRender
             const vsg::dvec3 boundsCenter = (bounds.min + bounds.max) * 0.5;
             auto cull = vsg::CullGroup::create(vsg::dsphere(boundsCenter, vsg::length(bounds.max - boundsCenter)));
             cull->children = objects->children;
+            if (animated && animated->objectCount() > 0)
+            {
+                animated->finish();
+                cull->setObject(AnimatedChunk::sKey, animated);
+            }
             return cull;
         }
     }
@@ -233,11 +304,13 @@ namespace MWRender
         float minSize;
         unsigned int generation;
         std::shared_ptr<const std::vector<Lod::ClusterRef>> clusterRefs;
+        bool animate;
         vsg::ref_ptr<vsg::Node> chunk;
 
         ChunkBuild(const MWAnim::Context& in_context, const MWWorld::ESMStore& in_store,
             const std::pair<int, int>& in_cell, std::set<ESM::RefNum> in_disabled, float in_minSize,
-            unsigned int in_generation, std::shared_ptr<const std::vector<Lod::ClusterRef>> in_clusterRefs)
+            unsigned int in_generation, std::shared_ptr<const std::vector<Lod::ClusterRef>> in_clusterRefs,
+            bool in_animate)
             : context(in_context)
             , store(in_store)
             , cell(in_cell)
@@ -245,6 +318,7 @@ namespace MWRender
             , minSize(in_minSize)
             , generation(in_generation)
             , clusterRefs(std::move(in_clusterRefs))
+            , animate(in_animate)
         {
         }
 
@@ -252,7 +326,7 @@ namespace MWRender
         {
             try
             {
-                chunk = buildChunk(context, store, cell, disabled, minSize, clusterRefs.get());
+                chunk = buildChunk(context, store, cell, disabled, minSize, clusterRefs.get(), animate);
             }
             catch (const std::exception& e)
             {
@@ -262,9 +336,10 @@ namespace MWRender
         }
     };
 
-    DistantObjects::DistantObjects(
-        const MWAnim::Context& context, const MWWorld::ESMStore& store, float cellSize, float minSize)
+    DistantObjects::DistantObjects(const MWAnim::Context& context, const MWWorld::ESMStore& store, float cellSize,
+        float minSize, const AnimationOptions& animation)
         : mContext(context)
+        , mAnimation(animation)
         , mStore(store)
         , mCellSize(cellSize)
         , mMinSize(minSize)
@@ -406,7 +481,7 @@ namespace MWRender
         for (const auto& cell : mTracker.setWanted(wanted))
         {
             auto build = vsg::ref_ptr{ new ChunkBuild(
-                mContext, mStore, cell, leftOut, mMinSize, mGeneration, clusterRefsOf(cell)) };
+                mContext, mStore, cell, leftOut, mMinSize, mGeneration, clusterRefsOf(cell), mAnimation.mEnabled) };
             mBuilds.push_back(build);
             mThreads->add(build);
         }
@@ -462,5 +537,56 @@ namespace MWRender
             if (std::find(chunks.begin(), chunks.end(), child) == chunks.end())
                 mContext.compileContext->detach(child);
         mRoot->children = std::move(chunks);
+        // The animated objects of the chunks now shown (a chunk's node holds its AnimatedChunk).
+        mAnimated.clear();
+        if (mAnimation.mEnabled)
+        {
+            static const std::string key = AnimatedChunk::sKey;
+            for (const auto& child : mRoot->children)
+                if (child)
+                    if (auto* animated = child->getObject<AnimatedChunk>(key))
+                        mAnimated.emplace_back(animated);
+        }
+    }
+
+    void DistantObjects::updateAnimation(const vsg::vec3& cameraPosition, double dt)
+    {
+        if (!mAnimation.mEnabled)
+            return;
+        static const bool trace = std::getenv("OPENEDEN_FARANIM_TRACE") != nullptr;
+        const auto started = trace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+        ++mAnimationFrame;
+        mAnimationStats = {};
+        const std::size_t count = mAnimated.size();
+        if (count == 0)
+            return;
+        Lod::AnimBudget budget{ mAnimation.mBudget, mAnimation.mBudget };
+        const vsg::dvec3 camera(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        // The start moves with the frame, so a budget that cannot run every chunk leaves a different one out each time.
+        const std::size_t start = mAnimationFrame % count;
+        for (std::size_t n = 0; n < count; ++n)
+        {
+            AnimatedChunk& chunk = *mAnimated[(start + n) % count];
+            mAnimationStats.mControllersRun
+                += chunk.update(camera, dt, mAnimation.mStopDistance, mAnimationFrame, budget);
+            mAnimationStats.mObjects += chunk.objectCount();
+        }
+        mAnimationStats.mChunks = count;
+        // A developer trace (task 0096 stage d): one line every 60 frames, to see the rates and the cost in a run.
+        if (trace)
+        {
+            mAnimationMicroseconds
+                += std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - started).count();
+            mAnimationControllers += mAnimationStats.mControllersRun;
+            if (mAnimationFrame % 60 == 0)
+            {
+                Log(Debug::Info) << "far animation: frame " << mAnimationFrame << ", " << mAnimationStats.mChunks
+                                 << " chunks, " << mAnimationStats.mObjects << " objects, "
+                                 << mAnimationControllers / 60.0 << " controllers run a frame, "
+                                 << mAnimationMicroseconds / 60.0 << " us a frame in updateAnimation";
+                mAnimationMicroseconds = 0.0;
+                mAnimationControllers = 0;
+            }
+        }
     }
 }

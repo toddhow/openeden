@@ -15,6 +15,7 @@
 #include <components/lod/objectcluster.hpp>
 #include <components/mwanimation/context.hpp>
 
+#include "animatedchunk.hpp"
 #include "distantobjectcells.hpp"
 #include "groundcoverchunks.hpp"
 
@@ -57,7 +58,20 @@ namespace MWRender
     class DistantObjects
     {
     public:
-        DistantObjects(const MWAnim::Context& context, const MWWorld::ESMStore& store, float cellSize, float minSize);
+        /// Task 0096 stage d (`[WorldLod] animated objects`): objects whose models have auto-play controllers keep
+        /// them, run by updateAnimation() at a rate that falls with the distance. Off (the default) builds the chunks as
+        /// before.
+        struct AnimationOptions
+        {
+            bool mEnabled = false;
+            /// Beyond this distance (world units) the animation stops.
+            float mStopDistance = 24576.f;
+            /// The most controllers run in one frame over all chunks.
+            unsigned mBudget = 512;
+        };
+
+        DistantObjects(const MWAnim::Context& context, const MWWorld::ESMStore& store, float cellSize, float minSize,
+            const AnimationOptions& animation);
         ~DistantObjects();
 
         vsg::ref_ptr<vsg::Group> node() const { return mRoot; }
@@ -67,6 +81,17 @@ namespace MWRender
         /// distant chunk stays drawn, and staticsReady() stays false, until the live statics are attached.
         void setCellUnbuilt(const std::pair<int, int>& cell, bool unbuilt);
         void update(const vsg::vec3& cameraPosition, float viewDistance);
+        /// Runs the controllers of the animated objects of the shown chunks (main thread, once per frame, after
+        /// update()); a no-op unless animation is on. `dt` is the frame's game time.
+        void updateAnimation(const vsg::vec3& cameraPosition, double dt);
+        /// What the last updateAnimation() found, for traces and tests.
+        struct AnimationStats
+        {
+            std::size_t mChunks = 0;
+            std::size_t mObjects = 0;
+            unsigned mControllersRun = 0;
+        };
+        const AnimationStats& animationStats() const { return mAnimationStats; }
         /// Hides every chunk (in interiors) and keeps the built ones for the next update().
         void hide();
         using Cells = std::vector<std::pair<int, int>>;
@@ -100,6 +125,14 @@ namespace MWRender
         std::shared_ptr<const std::vector<Lod::ClusterRef>> clusterRefsOf(const std::pair<int, int>& cell) const;
 
         MWAnim::Context mContext;
+        AnimationOptions mAnimation;
+        // The animated objects of the chunks in mRoot, rebuilt whenever the shown chunks change.
+        std::vector<vsg::ref_ptr<AnimatedChunk>> mAnimated;
+        AnimationStats mAnimationStats;
+        unsigned mAnimationFrame = 0;
+        // For the developer trace only.
+        double mAnimationMicroseconds = 0.0;
+        std::uint64_t mAnimationControllers = 0;
         const MWWorld::ESMStore& mStore;
         float mCellSize;
         float mMinSize;

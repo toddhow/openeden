@@ -173,6 +173,12 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   (`object cluster effects` and `object cluster scenery`, both in the profile; switch `effects` off to see them still).
   Wrong: a scroll that jumps, runs at another speed than near, or stops; a hole where a plane was; an activator you can
   no longer use near the player (clusters never draw in the active grid).
+- *Far lava and waterfalls keep moving in the object paging chunks* (0096 stage d): `animated objects` (in the profile) keeps
+  the texture scroll of activators the chunks draw (lava planes, waterfalls, the Ghostgate fence) running between the
+  live range and `animated object distance` (24,576 units), every frame near, every 4th and every 16th further out. It
+  matters where the baked clusters do not cover (with `object clusters` off, or the cells next to the active grid).
+  `OPENEDEN_FARANIM_TRACE=1` logs a line a second with the chunk, object and controller counts. Wrong: a scroll that
+  jumps when you walk closer, one that runs at another speed than the near copy, or a frame-time rise.
 - *Far trees sway* (0096 stage c): from a hill in the Bitter Coast or the Ascadian Isles look at the far trees (they are
   far clusters beyond the live objects): they lean and swing slowly with the wind, more on a stormy day, the trunk's foot
   fixed to the ground (`object cluster sway`, in the profile; it needs the objects re-baked, `prepare.sh` does it).
