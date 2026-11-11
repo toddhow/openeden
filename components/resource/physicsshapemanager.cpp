@@ -1,7 +1,9 @@
 #include "physicsshapemanager.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <vector>
@@ -16,6 +18,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/hash.hpp>
+#include <components/files/istreamptr.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
@@ -166,8 +169,12 @@ namespace Resource
 
         if (Misc::getFileExtension(name.value()) == "nif")
         {
-            NifJolt::JoltNifLoader loader(getVFS());
-            shape = loader.load(*mNifFileManager->get(name));
+            // Task 0110: a file the host's hook accepts (a Skyrim SE model) is the hook's alone.
+            if (!mSceneShapeReader || !readSceneShape(name, shape))
+            {
+                NifJolt::JoltNifLoader loader(getVFS());
+                shape = loader.load(*mNifFileManager->get(name));
+            }
         }
         else
             shape = loadModelShape(name);
@@ -175,6 +182,31 @@ namespace Resource
         mCache->addEntryToObjectCache(name.value(), shape);
 
         return shape;
+    }
+
+    bool PhysicsShapeManager::readSceneShape(VFS::Path::NormalizedView name, vsg::ref_ptr<PhysicsShape>& shape) const
+    {
+        if (!mSceneShapeReader || !mSceneShapeReader->accepts || !mSceneShapeReader->read || !getVFS()->exists(name))
+            return false;
+        // The first bytes decide; a file the hook does not accept is opened again by the Morrowind loader.
+        constexpr std::size_t headerBytes = 256;
+        {
+            Files::IStreamPtr probe = getVFS()->get(name);
+            char head[headerBytes];
+            probe->read(head, static_cast<std::streamsize>(headerBytes));
+            const auto got = static_cast<std::size_t>(std::max<std::streamsize>(probe->gcount(), 0));
+            if (!mSceneShapeReader->accepts(std::string_view(head, got)))
+                return false;
+        }
+        Files::IStreamPtr stream = getVFS()->get(name);
+        std::string data((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+        shape = mSceneShapeReader->read(std::move(data), std::string(name.value()));
+        if (shape != nullptr)
+        {
+            shape->mFileName = name;
+            shape->mFileHash.clear();
+        }
+        return true;
     }
 
     vsg::ref_ptr<PhysicsShape> PhysicsShapeManager::loadModelShape(VFS::Path::NormalizedView name) const

@@ -65,6 +65,7 @@
 #include "mtphysics.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
+#include "skyrimshape.hpp"
 #include "ragdollhost.hpp"
 #include "water.hpp"
 
@@ -300,6 +301,11 @@ namespace MWPhysics
         , mWaterEnabled(false)
         , mPhysicsDt(1.f / 60.f)
     {
+        // Task 0110 (neutral world stage N3a-4b): with the neutral world on, a Skyrim SE model gets a collision mesh
+        // from its visual triangles. Set before any shape is requested; off, the manager is exactly what it was.
+        if (Settings::game().mNeutralWorld)
+            mShapeManager->setSceneShapeReader(SkyrimShape::makeSceneShapeReader());
+
         // Register allocation hook and callbacks
         JPH::RegisterDefaultAllocator();
         JPH::Trace = TraceImpl;
@@ -954,6 +960,23 @@ namespace MWPhysics
 
         if (obj->isAnimated())
             mAnimatedObjects.emplace(obj.get(), false);
+    }
+
+    bool PhysicsSystem::addModelObject(
+        const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation, int collisionType)
+    {
+        if (ptr.mRef->mData.mPhysicsPostponed)
+            return true; // as addObject: nothing is added now, and the caller must not add a stand-in either
+
+        vsg::ref_ptr<Resource::PhysicsShapeInstance> shapeInstance = mShapeManager->getInstance(mesh);
+        if (!shapeInstance || !shapeInstance->mCollisionShape)
+            return false;
+
+        assert(!getObject(ptr));
+
+        auto obj = std::make_shared<Object>(ptr, shapeInstance, rotation, collisionType, mTaskScheduler.get());
+        mObjects.emplace(ptr.mRef, obj);
+        return true;
     }
 
     void PhysicsSystem::addBoxObject(const MWWorld::Ptr& ptr, const vsg::vec3& halfExtents, const vsg::vec3& centre,

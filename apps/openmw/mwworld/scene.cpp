@@ -47,6 +47,7 @@
 #include "../mwphysics/heightfield.hpp"
 #include "../mwphysics/object.hpp"
 #include "../mwphysics/physicssystem.hpp"
+#include "../mwphysics/skyrimshape.hpp"
 
 #include "../mwworld/actionteleport.hpp"
 
@@ -1071,6 +1072,8 @@ namespace MWWorld
             });
             if (cell.isNeutral())
                 Log(Debug::Info) << MWRender::SkyrimModel::describeCounters();
+            if (cell.isNeutral())
+                Log(Debug::Info) << MWPhysics::SkyrimShape::describeCounters();
             if (cell.isNeutral())
                 Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId() << "' inserted into the scene: "
                                  << neutralInserted.total() << " objects (" << neutralInserted.describe() << "), "

@@ -238,6 +238,7 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testvertexdecode.cpp
     nifscene/testscenereview.cpp
     nifscene/testflatten.cpp
+    nifscene/testcollision.cpp
 
     extension/test_version.cpp
     extension/test_resolution.cpp

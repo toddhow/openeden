@@ -176,6 +176,13 @@ namespace MWPhysics
         void addObject(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation,
             int collisionType = Layers::WORLD);
 
+        /// Task 0110 (neutral world, stage N3a-4b): adds an object whose collision is the model's own mesh, read
+        /// through the shape manager's scene hook (a Skyrim SE model). Returns false, adding nothing, when the model
+        /// has no collision shape (no triangles, over the cap, unreadable): the caller then falls back to a box.
+        /// Returns true without adding anything while the object's physics is postponed, as addObject does.
+        bool addModelObject(
+            const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, vsg::dquat rotation, int collisionType);
+
         /// Task 0109 (neutral world, stage N3a-3): adds an object whose collision is a box (half extents and centre in
         /// the object's own frame), for an object that has bounds and no collision mesh yet. Nothing is added for a
         /// box that cannot be made.

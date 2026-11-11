@@ -1,5 +1,8 @@
 #include "neutral.hpp"
 
+#include <cstdlib>
+
+#include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
 
@@ -8,9 +11,11 @@
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwrender/skyrimmodel.hpp"
+#include "../mwworld/cellref.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
+#include "../mwworld/refdata.hpp"
 
 namespace MWClass
 {
@@ -30,6 +35,18 @@ namespace MWClass
         bool isLiveThing(ObjectKind kind)
         {
             return kind == ObjectKind::Actor || kind == ObjectKind::LeveledList;
+        }
+
+        // Developer trace (task 0110 stage N3a-4b): OPENEDEN_NEUTRAL_COLLISION_TRACE=1 logs, for every object of a
+        // neutral cell that gets collision, its base, editor id, model, position, scale and whether it collides as
+        // its mesh or as its box. Read once.
+        bool collisionTraceWanted()
+        {
+            static const bool wanted = [] {
+                const char* value = std::getenv("OPENEDEN_NEUTRAL_COLLISION_TRACE");
+                return value != nullptr && *value != '\0' && *value != '0';
+            }();
+            return wanted;
         }
 
         const MWWorld::NeutralBase& baseOf(const MWWorld::ConstPtr& ptr)
@@ -81,11 +98,28 @@ namespace MWClass
         insertObjectPhysics(ptr, model, rotation, physics);
     }
 
-    void Neutral::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string&, const vsg::dquat& rotation,
+    void Neutral::insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
         MWPhysics::PhysicsSystem& physics) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
-        if (base.mCollision.source == CollisionSource::None || !base.mCollision.hasBounds)
+        if (base.mCollision.source == CollisionSource::None)
+            return;
+        // Stage N3a-4b: an object that has a model collides with the model's own triangles (a Skyrim SE file, read
+        // through the physics shape manager's scene hook); an object whose model gives no collision mesh, and one
+        // with no model, keeps the box of its bounds (stage N3a-3).
+        const bool asMesh = !model.empty()
+            && physics.addModelObject(ptr, VFS::Path::toNormalized(model), rotation, MWPhysics::Layers::WORLD);
+        if (collisionTraceWanted())
+        {
+            const auto& position = ptr.getRefData().getPosition().asVec3();
+            Log(Debug::Info) << "NCT " << ptr.getCellRef().getRefId() << " " << base.mEditorId << " model '" << model
+                             << "' at " << position.x << "," << position.y << "," << position.z << " scale "
+                             << ptr.getCellRef().getScale()
+                             << (asMesh                         ? " mesh"
+                                    : base.mCollision.hasBounds ? " box"
+                                                                : " none");
+        }
+        if (asMesh || !base.mCollision.hasBounds)
             return;
         const auto& lo = base.mCollision.boundsMin;
         const auto& hi = base.mCollision.boundsMax;
