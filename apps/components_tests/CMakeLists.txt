@@ -268,6 +268,7 @@ file(GLOB UNITTEST_SRC_FILES
     inertialmotion/testfootlock.cpp
     inertialmotion/testleansmoother.cpp
     inertialmotion/testmovementrequest.cpp
+    inertialmotion/teststrideshape.cpp
 
     mwrender/test_creativemotion_runtime.cpp
     mwrender/test_creativemotion_style.cpp

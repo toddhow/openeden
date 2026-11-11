@@ -186,6 +186,10 @@ namespace MWMechanics
         bool inertialActive = false;
         int mTraceLocomotionPhase = 0; // InertialMotion::LocomotionPhase, set in update for the developer trace
         float smoothedSpeed = 0.f;
+        // Task 0107: the mean root speed (units per second) of the movement cycle at the animation speed this frame,
+        // set by preAnimation, and whether the physics actor was given a stride shape other than one.
+        float mExpectedRootSpeed = 0.f;
+        bool mStrideShapeSet = false;
         //}
         MWWorld::Ptr mPtr;
         MWWorld::Ptr mWeapon;
@@ -405,6 +409,7 @@ namespace MWMechanics
         void runPoseDriver(float duration); //.supportsUpdateThreads=true
         /// Developer trace of "creativemotion animation debug", one log line per actor per frame.
         void traceAnimation(float duration);
+        void updateStrideShape(float duration);
         /// Creates the IK controller and, when a CreativeMotion setting is on, the pose driver for mAnimation's bones.
         void createPoseControllers();
         /// Picks the actor's style (console choice, else the rules of task 0053) and gives it to the pose driver.

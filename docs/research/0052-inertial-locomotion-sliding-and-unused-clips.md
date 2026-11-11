@@ -31,12 +31,19 @@ Task spec: `docs/tasks/0107-inertial-locomotion-sliding-and-authored-clips.md`.
      that we author our own (task 0067, answer 3); that still needs the clip authoring and licensing note and a way to put
      the clips into the actor's animation sources (a `.kf` with these text keys, or retargeting of the glTF clips). Names and
      rules a clip must satisfy are in the task spec, "What an authored clip needs".
-2. **The foot sliding is real, but it is not in steady walking.** Against the same scenario with every feature off
-   (vanilla), steady walking, running, arcs, reversing and strafing have the same stance-foot slip with inertial locomotion
-   (the clip itself is not perfectly planted at the ankle: about 20 units per second, 18 percent of the walking speed, in
-   vanilla too). What inertial locomotion adds is at the **stop**: with `creativemotion preset = natural` (the profile) the
-   stance foot glides back to the idle position for about 0.4 s after the body has stopped, at up to 75 to 107 units per
-   second. Cause: the group changes from the walk or run cycle to idle when the smoothed speed falls below 5 units per second,
+2. **There are two separate causes of foot sliding.**
+   - **Walking and running: the body moves at a constant speed while the clip's root speed varies** (inertial locomotion
+     only, from the `Intended` request of note 0022). Measured directly, without a foot classification: the median of
+     |body speed - the clip's root-motion speed| over 2-frame windows is 1.9 units per second in a vanilla walk and 11.8 with
+     inertial locomotion (run 0.0 and 2.3; arc walk 1.9 and 9.7; strafe 4.3 and 18.2; walk before a reverse 1.9 and 10.0). A
+     planted foot slides by that difference, about 10 percent of the walking speed, in a rhythm of two beats per step. The
+     ankle-based stance slip below does not show it: its floor is about 20 units per second even in vanilla (the ankle bone
+     rolls over a planted sole), which hides a 12 to 25 units per second skate. Fixed behind `[Game] inertial stride sync`
+     (off by default, see "Stride sync").
+   - **Stopping: the stance foot glides into the idle pose.** This is the creativemotion `natural` preset's stop, not inertial
+     locomotion itself: the runs with inertial locomotion alone (no CreativeMotion) show no glide (75th percentile 0.1 in every
+     stop; they pop instead). With `creativemotion preset = natural` (the profile) the stance foot glides back to the idle
+     position for about 0.4 s after the body has stopped, at up to 75 to 107 units per second. Cause: the group changes from the walk or run cycle to idle when the smoothed speed falls below 5 units per second,
    and CreativeMotion blends the pose over `creativemotion animation transition x stopping` (0.35 s x 1.5) from the frozen
    mid-stride pose to the idle pose. The body no longer moves, so the foot on the ground moves. The slip is proportional to the
    length of that blend (measured on the stop after walk-then-run, 75th percentile of the stance slip: `stopping = 0.1` 1.7 units per second, the default 35.7, `stopping = 2.5` 33.9 with the animated feet; the three runs were taken before the IK feet were traced).
@@ -59,7 +66,7 @@ have few low-foot frames, and the 75th percentile there is the swing foot), and 
 in vanilla. Read the differences between variants, not the absolute numbers. Positions between two runs of one build differ by
 one physics step on a few frames (the same noise note 0022 describes); animation outputs of the "off" runs are identical.
 
-### Steady motion: vanilla against inertial (same scenario, animated pose, stance slip median / p75, units per second)
+### Steady motion: vanilla against inertial (same scenario, animated pose, ankle-based stance slip median / p75, units per second)
 
 | phase | vanilla | inertial high | profile (inertial + CreativeMotion natural + IK) |
 | --- | --- | --- | --- |
@@ -69,13 +76,40 @@ one physics step on a few frames (the same noise note 0022 describes); animation
 | strafe left | 56.7 / 87.0 | 37.6 / 54.4 | 36.8 / 52.9 |
 
 (The profile column is from the run with IK feet; vanilla and inertial from the animated feet: not the same pose stage, see
-the limits above. The point is that none of the inertial columns is worse than vanilla in steady motion.)
+the limits above.) By this proxy the inertial columns are mostly not worse than vanilla, but some are (arc walk p75 105
+against 82, reverse 21 / 46 against 14 / 34), and the proxy cannot see the constant-speed skate described next; do not read
+this table as "steady walking is fine".
 
-A cause that does not show: the body moves at the smoothed constant speed while the walk clip's own root speed varies
-(113 to 155 units per second at a mean of 128 over a step), so one could expect periodic skating. It is there (the
-difference between the body and the root motion has a median of about 12 units per second in a walk) but vanilla's
-stance foot slips the same 21 units per second, so it is not what separates inertial locomotion from vanilla; no change
-was made for it.
+### Walking and running: body speed against root-motion speed (the direct measure)
+
+The body moves at the smoothed constant speed while the walk clip's own root speed varies (113 to 155 units per second at a
+mean of 128 over a step). A small script (`run0/prelim3.py` beside the run folders, not in the repository) compares, over
+2-frame windows and without a foot classification, the distance the body moved with the distance the clip's root motion says
+it should (`moved` of the `CMTRACE` line); teleport windows are left out. Median / mean / p95 of the difference, units per second:
+
+| phase | vanilla | inertial | inertial + stride sync |
+| --- | --- | --- | --- |
+| walk | 1.9 / 6.0 / 23.8 | 11.8 / 11.4 / 22.6 | 3.5 / 4.8 / 18.0 |
+| run | 0.0 / 4.9 / 30.0 | 2.3 / 5.5 / 17.9 | 0.1 / 3.8 / 17.5 |
+| walk before a run | 1.8 / 7.0 / 22.6 | 8.1 / 8.4 / 18.8 | 4.1 / 5.4 / 13.4 |
+| arc walk | 1.9 / 6.9 / 16.5 | 9.7 / 10.9 / 22.5 | 4.0 / 5.5 / 16.2 |
+| strafe left | 4.3 / 12.1 / 21.3 | 18.2 / 20.9 / 58.0 | 7.9 / 11.5 / 28.1 |
+| walk before a reverse | 1.9 / 6.7 / 22.6 | 10.0 / 10.9 / 22.6 | 4.1 / 5.6 / 14.3 |
+| reverse walk | 2.6 / 8.2 / 19.7 | 3.6 / 6.8 / 15.3 | 4.6 / 5.8 / 12.5 |
+
+The p95 column is dominated by the one-step noise of the physics position (vanilla has it too); the median is the signal.
+Stride sync brings the median to a few units per second, about vanilla's. The ankle-based stance slip does not separate the
+two clearly (walk median 22.7 and 17.3, strafe 37.6 and 43.8, reverse 21.1 and 14.3), as the limits of that proxy said; the
+mean body speed is unchanged within 1 to 2 percent (walk 111.7 and 110.6).
+
+### Stride sync
+
+`[Game] inertial stride sync` (off by default, needs inertial locomotion): `CharacterController::updateStrideShape` computes the
+frame's root speed of the movement clip over its mean at the animation speed in use (`InertialMotion::strideShape`, clamped to
+0.5 to 1.6) and gives it to the physics actor (`Actor::setStrideShape`); `MovementSolver::move` multiplies the smoothed
+ground speed by it after the smoothing, so the smoothed speed, the animation speed and the acceleration are unchanged and
+the mean ground speed stays the smoothed speed. The shape comes from the animation of the same frame (it runs before the
+physics step), so it has no lag. Whether the walk now looks better to the eye has not been judged.
 
 ### Stops (profile, `creativemotion preset = natural`, body below 8 units per second; peak = largest 5-frame mean)
 
@@ -132,9 +166,24 @@ a stop clip (see above) or a procedural step, which is more work than this task.
   moves toward the held position while the actor stands still and the animated foot is on the ground; the body speed is the
   smoothed position change.
 - `components/inertialmotion/locomotionstate.hpp` and `character.cpp`: `shouldPlayAuthoredStart` (start clip rule),
-  and the once-per-session log of which authored clips exist.
-- `[Game] foot lock = false` (`files/settings-default.cfg`), on in `tools/testprofile/profile.cfg`.
+  the once-per-session log of which authored clips exist, and `strideShape` with `CharacterController::updateStrideShape`,
+  `MWPhysics::Actor::setStrideShape` and the use in `MovementSolver::move`. `hasAnimation` is asked only when the rest of the
+  start rule holds (it walks the animation sources; asking it for every actor with input would add a cost to the vanilla path).
+- `[Game] foot lock = false` and `[Game] inertial stride sync = false` (`files/settings-default.cfg`), both on in `tools/testprofile/profile.cfg`.
 - Trace additions (only with `creativemotion animation debug`): `CMFEET_L/R` and `yaw` in `CMTRACE`, `CMFEETIK`, `CMLOCK`.
+
+## Off means unchanged: what was and was not compared
+
+- The player's `CMTRACE` lines (group, animation speed, locomotion state, bone rotations; new fields and timestamps stripped)
+  of the vanilla and the inertial-only variants of two builds (before and after the foot lock changes, both with the new
+  trace) differ only in the physics position of 1 to 6 of 1893 frames (one physics step, the noise two runs of one build
+  have). These variants have foot planting off, so they say nothing about the IK path. The stride sync change was not
+  compared against a build without it (the setting is off in those variants, and the code path is a multiplication by 1.0).
+- The `profile` variant (foot planting on, foot lock and stride sync off): leg frames (side camera, 15 screenshots of the
+  stop after a walk-then-run) of the old executable (`build-jolt`, an hour older than the commit) against the new one differ
+  by up to 12,000 of 86,400 pixels in the middle of the stop, and two runs of the new executable differ by up to 9,700: the
+  difference between the builds is within the spread between two runs of one build. Not identical frames; the IK path with
+  the lock off was otherwise checked by reading only.
 
 ## Not run
 

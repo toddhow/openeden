@@ -231,8 +231,10 @@ namespace MWPhysics
 
                     vsg::vec2 smoothed = actor.mActor->getLocomotionState().update(
                         vsg::vec2(velocity.x, velocity.y), time, params, nominalMaxSpeed);
-                    velocity.x = smoothed.x;
-                    velocity.y = smoothed.y;
+                    // The body follows the movement clip's own root speed within a step (task 0107): one unless
+                    // [Game] inertial stride sync is on.
+                    velocity.x = smoothed.x * actor.mStrideShape;
+                    velocity.y = smoothed.y * actor.mStrideShape;
                 }
 
                 if ((velocity.z > 0.f && actor.mIsOnGround && !actor.mIsOnSlope)

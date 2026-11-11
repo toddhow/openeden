@@ -6,12 +6,14 @@ code; no separate test writer, no fresh reviewer). Research and numbers: `docs/r
 Design doc section: `docs/design/inertial-locomotion.md` 3.3 (authored transitions and the procedural fallback) and 3.4 (foot
 stance planting: "the IK absorbs residual stance displacement" was never horizontal).
 Goal: find why feet slide with inertial locomotion and why the authored start, stop and turn clips never play; fix what is a
-code fault and what the evidence makes measurable.
+code fault and what the evidence makes measurable. Two causes of sliding were found: the stop (CreativeMotion's blend into idle,
+fixed by `foot lock`) and the constant body speed against the clip's varying root speed while walking (fixed by `inertial stride sync`).
 Inherited code touched: none of OpenMW's. OpenEden code: `apps/openmw/mwmechanics/character.cpp`
 (`CharacterController::preAnimation`, the movement state choice; `traceAnimation`), `apps/openmw/mwrender/actorikcontroller.*`
 (`applyPostAnimation`, `solveLeg`), `components/inertialmotion/` (`locomotionstate.hpp`, new `footlock.hpp`),
+`apps/openmw/mwphysics/` (`Actor::setStrideShape`, `ActorFrameData::mStrideShape`, `MovementSolver::move`),
 `components/settings/categories/game.hpp`, `files/settings-default.cfg`.
-Inputs / outputs: new setting `[Game] foot lock`; trace lines `CMFEET_L/R` and `yaw` (in `CMTRACE`), `CMFEETIK`, `CMLOCK`
+Inputs / outputs: new settings `[Game] foot lock` and `[Game] inertial stride sync`; trace lines `CMFEET_L/R` and `yaw` (in `CMTRACE`), `CMFEETIK`, `CMLOCK`
 (only with `creativemotion animation debug`); one Info line per session about the authored clips.
 Constraints: off by default; with `foot lock` false (and with `foot planting` false) the pose and movement are unchanged; no
 allocation in the foot lock (a value type); main thread (`ActorIkController::applyPostAnimation` runs on the main thread, see
@@ -25,9 +27,12 @@ its comment); determinism: the state machine has no clock or random input.
 - [x] A missing clip is no longer silent (one Info line per session, seen in the game's log).
 - [x] With `foot lock` on, the stance foot's slip after a stop is lower: mean peak over the eight stops of the scenario 60.8 to 23.6
   units per second, ground covered 16.5 to 7.8 units (second run 45.9 to 26.1, 14.0 to 7.7). One stop (after a running arc) stays at a peak of 94.
+- [x] With `inertial stride sync` on, the median difference between the body's speed and the clip's root speed in walking
+  falls from 11.8 to 3.5 units per second (vanilla 1.9), run 2.3 to 0.1, arc walk 9.7 to 4.0, strafe 18.2 to 7.9; the mean ground speed is unchanged within 2 percent.
 - [x] With `foot lock` off the animation outputs are identical to the build before: the `CMTRACE` lines of the player (without the
   new fields) of two builds over the whole scenario differ only in the physics position of 1 to 6 frames of 1893 (one physics step,
   the noise two runs of one build have), not in group, animation speed, locomotion state or bone rotations.
+- [ ] A pass of toddhow's own eyes on the walk with `inertial stride sync` (not judged by anyone).
 - [ ] A pass of toddhow's own eyes on the stop with `foot lock = true` (the wide stance for a second or two, see the research note).
 - [ ] Authored clips exist and play (not done: data work, see below).
 
@@ -74,7 +79,14 @@ Method and numbers are in the research note. Summary of what was done, in order:
    red against the code before the fix.
 5. Integration in `ActorIkController`, measurements with the IK ankles (`CMFEETIK`): the first measurements read the
    animated pose and showed no effect of the lock (the lock acts after them); the metric was moved to the final pose.
-6. clang-format 14 (docker image `openeden-cf14`) on the changed lines.
+6. The stride sync (added after a review of the first result, which pointed out that the ankle proxy could not
+   see a constant-speed skate): tests first (`InertialMotionStrideShape`, 3 of 5 red against a stub that returned 1), the
+   shape in `CharacterController::updateStrideShape`, `Actor`, `ActorFrameData` and `MovementSolver::move`; measured with the
+   direct body-against-root-motion comparison. The first build of it failed with the compiler out of heap space on four
+   other files (parallel builds with other work on the machine; a rerun at `-j 2` built); no code issue.
+7. `hasAnimation` was asked for every actor with movement input every frame (an eager argument); now only when the rest of
+   the start rule holds.
+8. clang-format 14 (docker image `openeden-cf14`) on the changed lines.
 
 Private test build (the whole `components-tests` was not built): `cl` with gtest from the build folder, the five inertial motion
 test files and `locomotionstate.cpp`: 46 tests pass (26 existing, 20 new: `InertialMotionAuthoredStart` 4, `FootLock` 16).
@@ -86,6 +98,7 @@ Decisions for toddhow:
 2. `FootLockParameters::mSlideSpeed` (8 units per second) and `mStillSpeed` (8): faster looks closer to the old glide, slower holds the stance longer.
 3. Whether to author stop clips first (the right fix), and who retargets `humanoid-locomotion.glb`.
 4. The stop after a running arc still has a peak of 94 units per second; wanted, or follow up?
-5. `slip.py` is Python (3.15 on this machine); the repository's other check tools are shell and C++. Keep, or port to `creativemotioncheck`?
+5. `inertial stride sync` and `foot lock` on by default with their prerequisites? (both are on in the test profile only)
+6. `slip.py` is Python (3.15 on this machine); the repository's other check tools are shell and C++. Keep, or port to `creativemotioncheck`?
 
 Not run: see the research note ("Not run").

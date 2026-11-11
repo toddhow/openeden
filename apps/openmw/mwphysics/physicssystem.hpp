@@ -123,6 +123,7 @@ namespace MWPhysics
         const bool mSkipCollisionDetection;
         const bool mIsPlayer;
         JPH::ObjectLayer mCollisionMask;
+        float mStrideShape = 1.f; // Actor::getStrideShape when the frame data was made
     };
 
     struct WorldFrameData

@@ -2,6 +2,7 @@
 #define OPENMW_MWPHYSICS_ACTOR_H
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -177,6 +178,12 @@ namespace MWPhysics
         InertialMotion::LocomotionState& getLocomotionState() noexcept { return mLocomotionState; }
         const InertialMotion::LocomotionState& getLocomotionState() const noexcept { return mLocomotionState; }
 
+        /// Task 0107: the movement clip's root speed this frame over its mean (InertialMotion::strideShape), set by
+        /// the character controller on the main thread before the physics step and applied to the smoothed ground
+        /// speed there. One unless [Game] inertial stride sync is on and a movement cycle plays.
+        void setStrideShape(float shape) noexcept { mStrideShape.store(shape, std::memory_order_relaxed); }
+        float getStrideShape() const noexcept { return mStrideShape.load(std::memory_order_relaxed); }
+
     private:
         MWWorld::Ptr mStandingOnPtr;
 
@@ -225,6 +232,7 @@ namespace MWPhysics
         bool mActive;
 
         InertialMotion::LocomotionState mLocomotionState;
+        std::atomic<float> mStrideShape{ 1.f };
 
         PhysicsTaskScheduler* mTaskScheduler;
 

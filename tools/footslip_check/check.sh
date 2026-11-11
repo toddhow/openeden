@@ -8,7 +8,7 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #
 # Usage: tools/footslip_check/check.sh <build dir> <base openmw.cfg> <empty work dir> [variant ...]
 #   SHOTS=1 takes screenshots (user/screenshotNNN.png) of the stops and the walk with a static side camera
-#   variants: vanilla, inertial (inertial locomotion = high), profilelock (profile + foot lock), profile (toddhow's test profile: inertial, npcs, foot
+#   variants: vanilla, inertial (inertial locomotion = high), profilelock (profile + foot lock), profilefull (profile + foot lock + inertial stride sync), inertialsync (inertial + stride sync), profile (toddhow's test profile: inertial, npcs, foot
 #             planting, look at, smoother turns, lean, collision 4, creativemotion preset natural + animation)
 # Environment: EXTRA_SETTINGS (settings.cfg text appended), FRAMES (default 1900), FIXED (frame time, default 0.0166667)
 # On Windows pass Windows paths (I:/...).
@@ -34,9 +34,10 @@ variant_settings() {
     case "$1" in
         vanilla) printf '' ;;
         inertial) printf 'inertial locomotion = high\n' ;;
+        inertialsync) printf 'inertial locomotion = high\ninertial stride sync = true\n' ;;
         profile) printf 'actor collision shape type = 4\nfoot planting = true\nlook at = true\nsmoother turns = true\ninertial locomotion = high\ninertial locomotion npcs = true\nprocedural lean = true\ncreativemotion preset = natural\ncreativemotion animation = true\ncreativemotion animation transition = 0.35\n' ;;
-        profilelock) printf 'foot lock = true
-'; variant_settings profile ;;
+        profilelock) printf 'foot lock = true\n'; variant_settings profile ;;
+        profilefull) printf 'foot lock = true\ninertial stride sync = true\n'; variant_settings profile ;;
         *) return 1 ;;
     esac
 }

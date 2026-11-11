@@ -97,6 +97,27 @@ namespace InertialMotion
             && smoothedSpeed < sAuthoredStartMaxSpeed;
     }
 
+    /// Limits of strideShape. A Morrowind walk step varies between about 0.88 and 1.21 of its mean root speed
+    /// (docs/research/0052); these only stop one bad frame (a clip's first frame, a text key jump) from launching the
+    /// actor or freezing it.
+    inline constexpr float sMinStrideShape = 0.5f;
+    inline constexpr float sMaxStrideShape = 1.6f;
+
+    /// How much faster or slower than its mean the movement clip's root moves in this frame: the frame's root speed
+    /// over the mean root speed at the animation speed in use (units per second, both). Inertial locomotion moves the
+    /// body at its smoothed speed, which is constant within a step, while the clip's root speed varies by 10 to 20
+    /// percent; a foot that is planted in the clip then slides by that difference. Multiplying the ground speed by
+    /// this ratio makes the body follow the clip's own root speed as vanilla does, and the mean stays the smoothed
+    /// speed. One when either speed is missing or not finite.
+    constexpr float strideShape(float rootSpeed, float meanSpeed)
+    {
+        constexpr float minimumMean = 1.f;
+        if (!(meanSpeed >= minimumMean) || !(rootSpeed >= 0.f) || meanSpeed > 1e9f || rootSpeed > 1e9f)
+            return 1.f;
+        const float ratio = rootSpeed / meanSpeed;
+        return ratio < sMinStrideShape ? sMinStrideShape : (ratio > sMaxStrideShape ? sMaxStrideShape : ratio);
+    }
+
     /// Converts a preset enum to its standard parameter set
     LocomotionParameters getPresetParameters(Preset preset);
 

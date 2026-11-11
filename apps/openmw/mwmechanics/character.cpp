@@ -2139,6 +2139,7 @@ namespace MWMechanics
         speed = 0.f;
         inertialActive = false;
         smoothedSpeed = 0.f;
+        mExpectedRootSpeed = 0.f;
         mTraceLocomotionPhase = 0;
         mIntentWantsToMove = false;
         mIntentSpeedMps = 0.f;
@@ -2578,8 +2579,13 @@ namespace MWMechanics
                             // first moves the actor: the locomotion phase is still Idle then (task 0107).
                             const bool standing = mMovementState == CharState_None || isTurning();
                             const char* const startGroup = effectiveIsRunning ? "runstart" : "walkstart";
-                            if (InertialMotion::shouldPlayAuthoredStart(inertialActive, enableAuthored,
-                                    mAnimation->hasAnimation(startGroup), true, standing, smoothedSpeed))
+                            // hasAnimation walks the animation sources: ask only when the rest of the rule holds
+                            // (it does not for any actor with inertial locomotion off).
+                            const bool clipExists = inertialActive && enableAuthored && standing
+                                && smoothedSpeed < InertialMotion::sAuthoredStartMaxSpeed
+                                && mAnimation->hasAnimation(startGroup);
+                            if (InertialMotion::shouldPlayAuthoredStart(
+                                    inertialActive, enableAuthored, clipExists, true, standing, smoothedSpeed))
                                 movestate = effectiveIsRunning ? CharState_RunStart : CharState_WalkStart;
                         }
 
@@ -2729,6 +2735,7 @@ namespace MWMechanics
                 }
                 // The style layer's cadence (1 without it), set by runPoseDriver (task 0053).
                 const float speedMult = currentSpeed / mMovementAnimSpeed * mStyleCadence;
+                mExpectedRootSpeed = currentSpeed * mStyleCadence;
                 mAnimation->adjustSpeedMult(mCurrentMovement, std::min(maxSpeedMult, speedMult));
                 // Make sure the actual speed is the "expected" speed even though the animation is slower
                 if (isMovementAnimationControlled())
@@ -3193,6 +3200,34 @@ namespace MWMechanics
                          << physics->actorRagdollCount() << " in all)";
     }
 
+    void CharacterController::updateStrideShape(float duration)
+    {
+        // Task 0107: with [Game] inertial stride sync the body follows the movement clip's own root speed within a
+        // step: the smoothed ground speed is constant, the clip's root speed varies by 10 to 20 percent over a step,
+        // and a foot that is planted in the clip slides by the difference. The shape is the frame's root speed over
+        // the mean at the animation speed in use (InertialMotion::strideShape); the solver multiplies the smoothed
+        // speed by it, so the mean stays the smoothed speed. Only while the intended velocity is the request (the
+        // same rule as the movement request below); one otherwise.
+        float shape = 1.f;
+        if (inertialActive && Settings::values().mGame.mInertialStrideSync.get() && duration > 0.f
+            && isMovementAnimationControlled()
+            && InertialMotion::chooseMovementRequestSource(inertialActive, mHitState != CharState_None,
+                   mMovementState != CharState_None, isTransitionMovementState(mMovementState))
+                == InertialMotion::MovementRequestSource::Intended)
+            shape = InertialMotion::strideShape(std::hypot(moved.x, moved.y) / duration, mExpectedRootSpeed);
+
+        if (shape == 1.f && !mStrideShapeSet)
+            return;
+        MWBase::World* world = MWBase::Environment::get().getWorld();
+        if (world == nullptr || world->getPhysicsSystem() == nullptr)
+            return;
+        MWPhysics::Actor* physicsActor = world->getPhysicsSystem()->getActor(mPtr);
+        if (physicsActor == nullptr)
+            return;
+        physicsActor->setStrideShape(shape);
+        mStrideShapeSet = shape != 1.f;
+    }
+
     void CharacterController::postAnimation(float duration)
     {
         if (!mAnimation)
@@ -3204,6 +3239,9 @@ namespace MWMechanics
         const bool godmode = isPlayer && world->getGodModeState();
 
         vsg::vec3 movementFromAnimation = moved;
+
+        if (cls.isActor())
+            updateStrideShape(duration);
 
         if (cls.isActor() && !isScriptedAnimPlaying())
         {

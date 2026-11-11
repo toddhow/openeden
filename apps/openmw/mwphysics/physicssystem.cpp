@@ -1477,6 +1477,7 @@ namespace MWPhysics
         , mSkipCollisionDetection(!actor.getCollisionMode())
         , mIsPlayer(isPlayer)
         , mCollisionMask(actor.getCollisionMask())
+        , mStrideShape(actor.getStrideShape())
     {
     }
 
