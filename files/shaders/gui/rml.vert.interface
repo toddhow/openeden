@@ -1,0 +1,16 @@
+# Recorded interface of the GLSL stage gui/rml.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
+# reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
+defines
+set 
+capability 1
+entry 0 main
+in location=0 vec2f32
+in location=1 vec4f32
+in location=2 vec2f32
+member push_constant 0:matrix
+member push_constant 64:translation
+out builtin=0
+out location=1 vec4f32
+out location=2 vec2f32
+push_constant 0:mat4xvec4f32 stride16;64:vec2f32;
+end

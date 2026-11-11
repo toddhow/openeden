@@ -5,6 +5,8 @@ file(GLOB UNITTEST_SRC_FILES
     main.cpp
 
     options.cpp
+    test_ui_input_script.cpp
+    mwinput/testuiinputfilter.cpp
     test_vsg_v1_invariants.cpp
 
     mwworld/teststore.cpp

@@ -37,6 +37,7 @@
 #include <components/vsgutil/readimage.hpp>
 
 #include "bodyanalyser.hpp"
+#include "uiinputscript.hpp"
 #include "bodybaker.hpp"
 #include "lodobjectbaker.hpp"
 #include "lodterrainbaker.hpp"
@@ -119,7 +120,16 @@ namespace OMW
         Misc::LoadTrace::Scope traceInput("frame.input");
         try
         {
+            // Task 0111: the test aid pushes its synthetic SDL events just before the input is read (rmlui only). Its frame
+            // counter runs only while a game is running, so the loading time of a start does not move the script.
+            if (mUiScript && mRmlUi && mStateManager->getState() == MWBase::StateManager::State_Running)
+                mUiScript->frame(
+                    mUiScriptFrame++, [this](float factor) { mRmlUi->setGuiScale(factor); },
+                    [this] { mInputManager->executeAction(MWInput::A_Screenshot); });
             mInputManager->update(dt, gameState->disableControls, gameState->disableEvents);
+            // Task 0111: SDL's text input follows the overlay's text field focus.
+            if (mRmlUi)
+                mRmlUi->syncTextInput();
         }
         catch (const std::exception& e)
         {
@@ -211,6 +221,9 @@ namespace OMW
     Engine::~Engine()
     {
         Misc::LoadTrace::stop();
+        // Task 0111: the input manager must not hold the overlay's pointer once the overlay can go.
+        if (mInputManager)
+            mInputManager->setUiInputTarget(nullptr);
         if (mExtensionHost)
             mExtensionHost->stop();
 
@@ -524,6 +537,7 @@ namespace OMW
                 UiRml::OverlayConfig overlayConfig;
                 overlayConfig.mBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_0"));
                 overlayConfig.mEncoding = args.encoding;
+                overlayConfig.mGuiScale = Settings::gui().mScalingFactor;
                 const VkExtent2D extent = mRenderEngine->extent2D();
                 mRmlUi = std::make_unique<UiRml::Overlay>(
                     compile, mResourceSystem->shaderOptions, *mVFS, overlayConfig, extent.width, extent.height);
@@ -531,6 +545,9 @@ namespace OMW
                 group->addChild(guiRoot);
                 group->addChild(mRmlUi->node());
                 guiRoot = group;
+                mInputManager->setUiInputTarget(mRmlUi.get());
+                if (auto commands = UiInputScript::fromEnvironment(); !commands.empty())
+                    mUiScript = std::make_unique<UiInputScript>(mWindow, std::move(commands));
                 Log(Debug::Info) << "[UI] RmlUi overlay on ([GUI] rmlui)";
             }
             catch (const std::exception& e)

@@ -40,6 +40,10 @@ namespace UiRml
 {
     class Overlay;
 }
+namespace OMW
+{
+    class UiInputScript;
+}
 
 namespace MWGui
 {
@@ -104,6 +108,9 @@ namespace OMW
         // in). Declared before the render manager so that it is destroyed after the graph that holds its node, and
         // after the render engine's other members that its Vulkan objects are released through.
         std::unique_ptr<UiRml::Overlay> mRmlUi;
+        // Task 0111: the synthetic input of OPENEDEN_RMLUI_INPUT_SCRIPT (a test aid), and its frame counter.
+        std::unique_ptr<UiInputScript> mUiScript;
+        std::uint64_t mUiScriptFrame = 0;
         std::unique_ptr<MWRender::RenderManager> mRenderManager;
         // Task 0069 stage d: the merged bodies' cache and templates (GPU objects). Declared after the render engine, so
         // destroyed before it and its device.

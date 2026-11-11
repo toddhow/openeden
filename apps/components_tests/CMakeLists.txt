@@ -564,6 +564,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testfileinterface.cpp
         ui_rml/testfontengine.cpp
         ui_rml/testuigeometry.cpp
+        ui_rml/testuiinput.cpp
     )
 endif()
 

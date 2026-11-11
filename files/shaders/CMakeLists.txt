@@ -355,6 +355,10 @@ endfunction()
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
 openeden_add_slang_permutations(SOURCE gui/gui.slang STAGE_FILE gui/gui.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
 
+# The RmlUi overlay (task 0111, U2): the twins of gui/rml.vert and gui/rml.frag, no defines.
+openeden_add_slang_permutations(SOURCE gui/rml.slang STAGE_FILE gui/rml.vert ENTRY vertMain STAGE vertex DEFINE_SETS -)
+openeden_add_slang_permutations(SOURCE gui/rml.slang STAGE_FILE gui/rml.frag ENTRY fragMain STAGE fragment DEFINE_SETS -)
+
 # The sky (task 0072, stage b). A set is what the GLSL compiler really applies: the requested Mode defines that the stage
 # imports with #pragma import_defines (vsgUtil::effectiveDefines), so the settings-driven defines every pipeline gets
 # (COVER, GI, PBR, WETNESS...) do not multiply the sky's sets. The sets are those of OPENEDEN_SHADER_TRACE runs with the

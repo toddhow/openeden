@@ -75,6 +75,7 @@ namespace SDLUtil
                         mKeyboardListener->keyReleased(evt.key);
                     break;
                 case SDL_TEXTEDITING:
+                    mKeyboardListener->textEditing(evt.edit);
                     break;
                 case SDL_TEXTINPUT:
                     mKeyboardListener->textInput(evt.text);

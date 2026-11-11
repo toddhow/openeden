@@ -65,6 +65,8 @@ namespace SDLUtil
     public:
         virtual ~KeyListener() {}
         virtual void textInput(const SDL_TextInputEvent& arg) {}
+        /// SDL_TEXTEDITING: an input method's composition so far (OpenEden, task 0111). Nothing before used it.
+        virtual void textEditing(const SDL_TextEditingEvent& arg) {}
         virtual void keyPressed(const SDL_KeyboardEvent& arg) = 0;
         virtual void keyReleased(const SDL_KeyboardEvent& arg) = 0;
     };

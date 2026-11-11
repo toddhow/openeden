@@ -1,0 +1,28 @@
+# Task 0111: controller navigation. A click gives Button one the focus (the panel's body has nav-capture); then
+# the d-pad moves it, A activates, B drops it. The right stick scrolls the list while a control has the focus.
+200 key Escape down
+202 key Escape up
+250 mouse 150 127
+254 down L 150 127
+256 up L 150 127
+270 shot
+280 cbutton dpdown down
+281 cbutton dpdown up
+290 cbutton a down
+291 cbutton a up
+300 shot
+310 cbutton dpdown down
+311 cbutton dpdown up
+320 cbutton dpdown down
+321 cbutton dpdown up
+330 cbutton a down
+331 cbutton a up
+340 shot
+# focus is on the text field now (text focus): the right stick still scrolls (nav-capture), B drops the focus
+350 caxis righty 30000
+390 caxis righty 0
+400 shot
+410 cbutton b down
+411 cbutton b up
+420 log controller done
+430 shot

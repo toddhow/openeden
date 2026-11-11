@@ -1,0 +1,14 @@
+# Task 0111: GUI scaling and window resize. The scale command changes the overlay's ratio at run time; the real
+# setting ([GUI] scaling factor) is passed to check.sh with --scale. The panel is 284 dp wide.
+200 key Escape down
+202 key Escape up
+250 shot
+260 scale 1.5
+290 shot
+300 scale 2
+330 shot
+340 scale 1
+350 resize 960 540
+390 shot
+400 resize 1280 720
+440 shot

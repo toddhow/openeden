@@ -178,7 +178,7 @@ namespace
     {
         static const std::set<std::string> stages = { "comp/fogofwar/update.comp", "comp/light/assign.comp",
             "comp/particle/simulate.comp", "comp/worldoverlay/update.comp", "default/main.frag", "default/main.vert",
-            "gui/gui.frag", "gui/gui.vert",
+            "gui/gui.frag", "gui/gui.vert", "gui/rml.frag", "gui/rml.vert",
             // Task 0072, stage g: the post passes whose GLSL was written inside C++; stage h: the .omwfx passes' vertex
             // stage.
             "post/ao.frag", "post/bloomdown.frag", "post/bloomup.frag", "post/fullscreen.vert", "post/omwfx.vert",

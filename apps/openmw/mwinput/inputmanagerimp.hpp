@@ -28,6 +28,11 @@ namespace SDLUtil
 
 struct SDL_Window;
 
+namespace UiRml
+{
+    class InputTarget;
+}
+
 namespace MWInput
 {
     class ControlSwitch;
@@ -38,6 +43,7 @@ namespace MWInput
     class MouseManager;
     class SensorManager;
     class GyroManager;
+    class UiInputFilter;
 
     /**
      * @brief Class that provides a high-level API for game input
@@ -107,6 +113,10 @@ namespace MWInput
 
         bool getScreenshotRequest();
 
+        /// Task 0111 (U2): the RmlUi overlay (or null) that takes the input events that are its own; see
+        /// UiInputFilter. Not owned. Call it again with null before the overlay goes.
+        void setUiInputTarget(UiRml::InputTarget* target);
+
     private:
         bool mControlsDisabled;
 
@@ -121,6 +131,7 @@ namespace MWInput
         std::unique_ptr<ControllerManager> mControllerManager;
         std::unique_ptr<SensorManager> mSensorManager;
         std::unique_ptr<GyroManager> mGyroManager;
+        std::unique_ptr<UiInputFilter> mUiFilter;
     };
 }
 #endif

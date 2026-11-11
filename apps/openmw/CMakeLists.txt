@@ -1,5 +1,6 @@
 set(OPENMW_SOURCES
     vsgengine.cpp
+    uiinputscript.cpp
     probebaker.cpp
     skyvisbaker.cpp
     lodterrainbaker.cpp
@@ -22,6 +23,7 @@ set(OPENMW_HEADERS
     arguments.hpp
     options.hpp
     vsgengine.hpp
+    uiinputscript.hpp
     probebaker.hpp
     skyvisbaker.hpp
     lodterrainbaker.hpp
@@ -49,7 +51,7 @@ add_openmw_dir (mwrender
 
 add_openmw_dir (mwinput
     actions actionmanager bindingsmanager controllermanager controlswitch
-    inputmanagerimp mousemanager keyboardmanager sensormanager gyromanager
+    inputmanagerimp mousemanager keyboardmanager sensormanager gyromanager uiinputfilter
     )
 
 add_openmw_dir (mwgui

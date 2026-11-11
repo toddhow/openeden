@@ -1,0 +1,30 @@
+# Task 0111: mouse, text, wheel and click-away in GUI mode, at scale 1 (panel coordinates in pixels).
+# Frames count frames of a running game. Escape opens the game's main menu (GUI mode); the panel stays over it.
+200 key Escape down
+202 key Escape up
+250 mouse 150 127
+254 down L 150 127
+256 up L 150 127
+260 mouse 150 156
+264 down L 150 156
+266 up L 150 156
+270 shot
+280 mouse 130 185
+284 down L 130 185
+286 up L 130 185
+290 text hello
+294 key BackSpace down
+295 key BackSpace up
+300 text !
+310 shot
+320 mouse 150 290
+324 wheel -1
+326 wheel -1
+328 wheel -1
+340 shot
+# a press that is not over the panel reaches the game: its Options button opens the options window, and the
+# overlay drops the text field's focus
+350 mouse 636 407
+354 down L 636 407
+356 up L 636 407
+400 shot

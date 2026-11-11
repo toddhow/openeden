@@ -19,6 +19,7 @@
 #include "gyromanager.hpp"
 #include "keyboardmanager.hpp"
 #include "mousemanager.hpp"
+#include "uiinputfilter.hpp"
 #include "sensormanager.hpp"
 
 namespace MWInput
@@ -39,10 +40,17 @@ namespace MWInput
         , mGyroManager(std::make_unique<GyroManager>())
     {
         mInputWrapper->setMouseVisible(false);
-        mInputWrapper->setKeyboardEventCallback(mKeyboardManager.get());
-        mInputWrapper->setMouseEventCallback(mMouseManager.get());
-        mInputWrapper->setControllerEventCallback(mControllerManager.get());
+        // The filter forwards everything to the three managers unless an overlay is set (task 0111).
+        mUiFilter = std::make_unique<UiInputFilter>(*mMouseManager, *mKeyboardManager, *mControllerManager);
+        mInputWrapper->setKeyboardEventCallback(mUiFilter.get());
+        mInputWrapper->setMouseEventCallback(mUiFilter.get());
+        mInputWrapper->setControllerEventCallback(mUiFilter.get());
         mInputWrapper->setSensorEventCallback(mSensorManager.get());
+    }
+
+    void InputManager::setUiInputTarget(UiRml::InputTarget* target)
+    {
+        mUiFilter->setTarget(target);
     }
 
     void InputManager::clear()
