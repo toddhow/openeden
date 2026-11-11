@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <optional>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
@@ -14,12 +15,14 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/bounds.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "mwbase/environment.hpp"
 #include "mwbase/world.hpp"
 #include "mwrender/terrainstorage.hpp"
 #include "mwworld/esmstore.hpp"
 #include "puddleland.hpp"
+#include "puddlestatics.hpp"
 
 namespace OMW
 {
@@ -91,13 +94,21 @@ namespace OMW
             : mRange(std::move(range))
             , mOut(std::move(out))
             , mStorage(&resources)
+            , mVfs(resources.getVFS())
         {
         }
 
         std::string mRange;
         std::filesystem::path mOut;
         MWRender::TerrainStorage mStorage;
+        const VFS::Manager* mVfs = nullptr;
         std::unique_ptr<StorageHeights> mHeights;
+        // Stage W-c (static surfaces): the capture of the cells' collision comes before the job, which then reads the
+        // captures through the source.
+        std::unique_ptr<StaticRefs> mRefs;
+        std::unique_ptr<StaticCapturer> mCapturer;
+        std::unique_ptr<CaptureSource> mSource;
+        std::optional<Puddle::JobConfig> mPendingConfig;
         std::unique_ptr<Puddle::BakeJob> mJob;
         bool mStarted = false;
         bool mFinished = false;
@@ -179,7 +190,62 @@ namespace OMW
                              << s.capacityCap() << " units, smallest pond " << s.mMinPondTexels
                              << " texels, catchment radius " << s.mCatchmentRadiusUnits << " units, halo " << s.mHalo
                              << " cells, range " << state.mRange << ".";
-            state.mJob = std::make_unique<Puddle::BakeJob>(*state.mHeights, std::move(config));
+            if (!s.mStatics)
+                state.mJob = std::make_unique<Puddle::BakeJob>(*state.mHeights, std::move(config));
+            else
+            {
+                // The capture folder is kept between bakes (a capture is current while the references are).
+                const Puddle::CaptureStore captureStore(config.mFolder / "statics");
+                state.mRefs = std::make_unique<StaticRefs>(*store, *state.mVfs);
+                StaticCapturer::Config capture;
+                const std::int32_t halo = static_cast<std::int32_t>(s.mHalo);
+                for (const auto& cell : config.mLandCells)
+                {
+                    // The cells to bake and the halo round them: a cell's window needs their statics too.
+                    if (config.mRange)
+                    {
+                        const auto& r = *config.mRange;
+                        if (cell.first < r[0] - halo || cell.first > r[2] + halo || cell.second < r[1] - halo
+                            || cell.second > r[3] + halo)
+                            continue;
+                    }
+                    capture.mCells.push_back(cell);
+                }
+                std::sort(capture.mCells.begin(), capture.mCells.end(), [](const auto& a, const auto& b) {
+                    return a.second != b.second ? a.second < b.second : a.first < b.first;
+                });
+                capture.mSide = s.texelsPerCell();
+                capture.mSpacing = static_cast<float>(s.mSpacingUnits);
+                capture.mCellSize = static_cast<float>(s.mCellSizeUnits);
+                state.mCapturer = std::make_unique<StaticCapturer>(*state.mRefs, captureStore, std::move(capture));
+                state.mSource = std::make_unique<CaptureSource>(
+                    *state.mRefs, captureStore, s.texelsPerCell(), static_cast<float>(s.mSpacingUnits));
+                state.mPendingConfig = std::move(config);
+                Log(Debug::Info) << "Puddle bake: static surfaces on; capturing the collision of the cells first.";
+            }
+        }
+
+        if (!state.mJob)
+        {
+            // Static surfaces: capture first, one step a frame.
+            try
+            {
+                if (!state.mCapturer->update())
+                    return false;
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Puddle bake: the static capture stopped by an exception: " << e.what();
+                state.mFinished = true;
+                state.mFailed = true;
+                return true;
+            }
+            Log(Debug::Info) << "Puddle statics: " << state.mCapturer->captured() << " cells captured, "
+                             << state.mCapturer->reused() << " captures kept, " << state.mCapturer->empty()
+                             << " cells without surfaces, " << state.mCapturer->failed() << " failed.";
+            state.mJob = std::make_unique<Puddle::BakeJob>(*state.mHeights, std::move(*state.mPendingConfig),
+                state.mSource.get());
+            state.mPendingConfig.reset();
         }
 
         bool done = false;
@@ -233,8 +299,8 @@ namespace OMW
         if (r.mBadCells != 0)
         {
             Log(Debug::Warning) << "Puddle bake: " << r.mBadCells
-                                << " cells skipped because a height was not finite or "
-                                   "beyond +-1e7 (they have no map); the first: "
+                                << " cells skipped because their data was unusable (a height that is not finite or "
+                                   "is beyond +-1e7, or no static capture; they have no map); the first: "
                                 << r.mFirstBadCell;
         }
         const std::filesystem::path path = state.mOut / "openeden" / "puddles" / "puddles.edenpak";
@@ -253,7 +319,8 @@ namespace OMW
         Log(Debug::Info) << "Puddle bake: " << r.mPitsInCells << " pits in the cells baked (" << r.mPitsDroppedByArea
                          << " small ponds dropped), " << r.mWetTexels << " wet texels, " << r.mHeightsClamped
                          << " cells with heights beyond the 16 bit range, " << r.mPondTexelsDroppedClamped
-                         << " pond texels dropped under such heights.";
+                         << " pond texels dropped under such heights, " << r.mStaticTexels
+                         << " texels that are static surfaces.";
         Log(Debug::Info) << "Puddle bake: catchment ratio of the pits, bounded: median "
                          << percentile(r.mKappasBounded, 0.5) << ", 90th " << percentile(r.mKappasBounded, 0.9)
                          << ", max " << percentile(r.mKappasBounded, 1.0)

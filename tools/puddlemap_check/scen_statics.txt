@@ -1,0 +1,18 @@
+# Frame check for static surfaces (task 0095, stage W-c): paved and built-up places seen from the air above them in steady
+# rain at noon. Every place is visited twice: the first visit gives the map's worker time to load the window (the
+# simulation runs faster than the worker; use the second shot). Run with the statics-off pack (the noise puddles stay on
+# objects) and with the statics pack (the map decides on the surfaces it knows), and with `wetness puddle debug =
+# statics` to see which columns hold a static surface.
+weather rain
+hour 12
+timescale 4
+first 30
+hold 30
+pose balmora_river_warm -19500 -14400 700 0 0.45
+pose balmora_river -19500 -14400 700 0 0.45
+pose balmora_bridge_warm -19800 -12600 700 0 0.5
+pose balmora_bridge -19800 -12600 700 0 0.5
+pose vivec_warm 26368 -86400 900 0 0.5
+pose vivec 26368 -86400 900 0 0.5
+pose seyda_road_warm -11050 -71500 130 0 0.15
+pose seyda_road -11050 -71500 130 0 0.15

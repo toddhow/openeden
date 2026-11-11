@@ -20,7 +20,11 @@ static const uint PUDDLE_SPACING = 6u;
 static const uint PUDDLE_CELL_SIZE = 7u;
 static const uint PUDDLE_SUPPLY = 8u;
 static const uint PUDDLE_ABSORPTION = 9u;
+static const uint PUDDLE_TOPS_BASE = 10u;
+static const uint PUDDLE_OPTIONS = 11u;
+static const uint PUDDLE_OPTION_KEEP_STATIC_NOISE = 1u;
 static const uint PUDDLE_TABLE_BASE = 16u;
+static const uint PUDDLE_TEXEL_STATIC = 0x10u;
 
 static const float puddleEdgeDepth = 0.3;
 static const float puddleRippleFrom = 0.3;
@@ -30,10 +34,15 @@ static const float puddleDeepDarkeningDepth = 3.0;
 static const float puddleMaxCapacity = 15.9375;
 static const float puddleDebugDepthScale = 6.0;
 static const float puddleDebugLevelScale = 12.0;
+static const float puddleZTolerance = 2.0;
+static const float puddleObjectMinNormalZ = 0.7;
 
 struct PuddleShade
 {
+    bool loaded;
     bool covered;
+    float top;
+    float staticShare;
     float capacity;
     float basinMax;
     float kappa;
@@ -75,16 +84,44 @@ uint2 puddleTexel(int gx, int gy)
     return uint2(1u, puddleData[start + uint((gy - cy * side) * side + (gx - cx * side))]);
 }
 
+// x: 1 when the buffer has tops and the texel's cell is loaded, y: the world Z of the surface there.
+float2 puddleTexelTop(int gx, int gy)
+{
+    uint topsBase = puddleData[PUDDLE_TOPS_BASE];
+    int side = int(puddleData[PUDDLE_TEXELS]);
+    if (topsBase == 0u || side <= 0)
+        return float2(0.0, 0.0);
+    int cx = puddleFloorDiv(gx, side);
+    int cy = puddleFloorDiv(gy, side);
+    int windowSide = int(puddleData[PUDDLE_WINDOW_SIDE]);
+    int sx = cx - int(puddleData[PUDDLE_ORIGIN_X]);
+    int sy = cy - int(puddleData[PUDDLE_ORIGIN_Y]);
+    if (sx < 0 || sy < 0 || sx >= windowSide || sy >= windowSide)
+        return float2(0.0, 0.0);
+    int slot = sx + windowSide * sy;
+    if (puddleData[PUDDLE_TABLE_BASE + uint(slot)] == 0u)
+        return float2(0.0, 0.0);
+    uint cells = uint(windowSide * windowSide);
+    uint local = uint((gy - cy * side) * side + (gx - cx * side));
+    uint word = puddleData[topsBase + cells + uint(slot) * uint(side * side) + local];
+    float base = asfloat(puddleData[topsBase + uint(slot)]);
+    return float2(1.0, base + float(word & 0xFFFFu) * 0.125);
+}
+
 float puddleSmoothstep(float a, float b, float x)
 {
     float t = clamp((x - a) / (b - a), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
 }
 
-PuddleShade puddleShadeAt(float2 pos, float wet)
+PuddleShade puddleShadeAt(float3 worldPos, float wet, float normalZ, bool objectMode)
 {
+    float2 pos = worldPos.xy;
     PuddleShade s;
+    s.loaded = false;
     s.covered = false;
+    s.top = 0.0;
+    s.staticShare = 0.0;
     s.capacity = 0.0;
     s.basinMax = 0.0;
     s.kappa = 0.0;
@@ -103,9 +140,10 @@ PuddleShade puddleShadeAt(float2 pos, float wet)
     if (!(cellSize > 0.0) || !(spacing > 0.0))
         return s;
     s.cell = int2(floor(pos / cellSize));
-    s.covered = puddleCellStart(s.cell.x, s.cell.y) != 0u;
-    if (!s.covered)
+    s.loaded = puddleCellStart(s.cell.x, s.cell.y) != 0u;
+    if (!s.loaded)
         return s;
+    s.covered = true;
 
     float2 p = pos / spacing;
     float2 base = floor(p);
@@ -115,6 +153,9 @@ PuddleShade puddleShadeAt(float2 pos, float wet)
     float capacity = 0.0;
     float bestScore = 0.0;
     uint pit = 0u;
+    float topSum = 0.0;
+    float topWeight = 0.0;
+    float staticWeight = 0.0;
     for (int k = 0; k < 4; ++k)
     {
         uint2 texel = puddleTexel(i0.x + (k & 1), i0.y + (k >> 1));
@@ -128,7 +169,29 @@ PuddleShade puddleShadeAt(float2 pos, float wet)
             bestScore = score;
             pit = texel.y;
         }
+        float2 tapTop = puddleTexelTop(i0.x + (k & 1), i0.y + (k >> 1));
+        if (tapTop.x != 0.0)
+        {
+            topSum += weights[k] * tapTop.y;
+            topWeight += weights[k];
+        }
+        if (((texel.y >> 24) & PUDDLE_TEXEL_STATIC) != 0u)
+            staticWeight += weights[k];
     }
+    if (topWeight > 0.0)
+        s.top = topSum / topWeight;
+    s.staticShare = staticWeight;
+    // The height test (stage W-c). Without tops in the buffer there is nothing to test against.
+    if (topWeight > 0.0 && (objectMode || staticWeight > 0.0) && !(abs(worldPos.z - s.top) <= puddleZTolerance))
+        s.covered = false;
+    if (objectMode && !(normalZ >= puddleObjectMinNormalZ))
+        s.covered = false;
+    // The bake cannot see the micro relief of paving: a flat static column keeps the noise puddles (the header option).
+    if (s.covered && objectMode && (puddleData[PUDDLE_OPTIONS] & PUDDLE_OPTION_KEEP_STATIC_NOISE) != 0u
+        && staticWeight >= 0.5 && !(capacity > 0.0))
+        s.covered = false;
+    if (!s.covered)
+        return s;
     s.capacity = capacity;
     if (!(capacity > 0.0))
         return s;
@@ -157,10 +220,18 @@ uint puddleDebugMode()
     return puddleData[PUDDLE_ENABLED] == 0u ? 0u : puddleData[PUDDLE_DEBUG];
 }
 
-// 1: capacity, 2: level, 3: cell (see Render::PuddleMap::debugColour).
+// 1: capacity, 2: level, 3: cell, 4: statics (see Render::PuddleMap::debugColour).
 float3 puddleDebugColour(PuddleShade s)
 {
     uint mode = puddleDebugMode();
+    if (mode == 4u)
+    {
+        if (!s.loaded)
+            return float3(0.2, 0.2, 0.2);
+        if (!s.covered)
+            return float3(0.25, 0.0, 0.0);
+        return float3(0.1 + 0.9 * s.staticShare, 0.2 * (1.0 - s.staticShare), 0.1 + 0.9 * s.staticShare);
+    }
     if (mode == 1u)
     {
         if (!s.covered)

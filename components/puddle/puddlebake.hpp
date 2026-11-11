@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "puddlemap.hpp"
+#include "puddlestatics.hpp"
 
 namespace Puddle
 {
@@ -98,6 +99,10 @@ namespace Puddle
         std::vector<float> mKappasBounded; // per pit in the cell
         std::vector<float> mKappasUnbounded;
         bool mHeightsClamped = false; // some height did not fit the cell's 16 bit range
+        /// Stage W-c: raw captured tops above the ground in the whole window, and texels of the cell that became a
+        /// static surface.
+        std::uint32_t mStaticCandidates = 0;
+        std::uint32_t mStaticTexels = 0;
         /// Pond texels of the cell dropped because their height is beyond the 16 bit range over the cell's base (a
         /// level test at run time could not use them): they have no capacity in the pack.
         std::uint32_t mPondTexelsDroppedClamped = 0;
@@ -124,14 +129,15 @@ namespace Puddle
     /// "heights" and the place (cell and vertex); the same in a neighbour of the window makes that neighbour count as
     /// a cell with no land (a sink), so one bad cell stops nothing else.
     BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings,
-        const BakeOptions& options = {});
+        const BakeOptions& options = {}, StaticSurfaceSource* statics = nullptr);
 
     /// The digest of the baker's settings and version.
     Digest parameterDigest(const BakeSettings& settings);
 
     /// The digest of the land a cell's bake depends on (its window): cheap, does not bake. The same value bakeCell
     /// writes into the cell.
-    Digest inputDigest(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings);
+    Digest inputDigest(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings,
+        StaticSurfaceSource* statics = nullptr);
 
     /// Quantisation base of a set of heights: the lowest height rounded down to a whole unit.
     float heightBaseOf(float lowest);

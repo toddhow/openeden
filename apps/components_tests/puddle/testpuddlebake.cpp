@@ -90,7 +90,7 @@ namespace
         EXPECT_EQ(validateSettings(t).mField, "halo");
         t = s;
         t.mStatics = true;
-        EXPECT_EQ(validateSettings(t).mField, "statics");
+        EXPECT_FALSE(validateSettings(t)); // stage W-c: static surfaces are valid settings (a source is needed to bake)
         t = s;
         t.mSpacingUnits = 16; // 8 texels a vertex step, 512 a cell: window of 5 cells is 2560 side, over the texel cap
         EXPECT_EQ(validateSettings(t).mField, "halo");

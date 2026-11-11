@@ -5,6 +5,7 @@ set(OPENMW_SOURCES
     skyvisbaker.cpp
     lodterrainbaker.cpp
     puddlebaker.cpp
+    puddlestatics.cpp
     lodobjectbaker.cpp
     bodyanalyser.cpp
     bodybaker.cpp
@@ -29,6 +30,7 @@ set(OPENMW_HEADERS
     lodterrainbaker.hpp
     puddlebaker.hpp
     puddleland.hpp
+    puddlestatics.hpp
     lodobjectbaker.hpp
     bodyanalyser.hpp
     bodybaker.hpp

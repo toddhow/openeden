@@ -27,6 +27,11 @@ namespace MWWorld
     class ESMStore;
 }
 
+namespace VFS
+{
+    class Manager;
+}
+
 namespace MWRender
 {
     class TerrainStorage;
@@ -39,11 +44,15 @@ namespace MWRender
             std::filesystem::path mPackPath;
             TerrainStorage* mStorage = nullptr;
             const MWWorld::ESMStore* mStore = nullptr;
+            /// Needed for a pack baked with static surfaces: the staleness check hashes the models the references name.
+            const VFS::Manager* mVfs = nullptr;
             /// Water in world units of depth that fully wet ground has had, and what the ground absorbs first.
             float mSupply = 0.5f;
             float mAbsorption = 0.1f;
             /// A Render::PuddleMap::DebugMode.
             std::uint32_t mDebugMode = 0;
+            /// `wetness puddle static noise` (stage W-c).
+            bool mKeepStaticNoise = true;
         };
 
         explicit PuddleMapRuntime(Setup setup);

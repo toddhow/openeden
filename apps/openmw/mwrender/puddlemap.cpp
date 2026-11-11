@@ -14,6 +14,7 @@
 #include <components/render/puddlemapgpu.hpp>
 
 #include "../puddleland.hpp"
+#include "../puddlestatics.hpp"
 
 namespace MWRender
 {
@@ -93,12 +94,44 @@ namespace MWRender
                 return;
 
             OMW::StorageHeights heights(*mSetup.mStorage, *mSetup.mStore);
+            // A pack baked with static surfaces is checked against the references of now (their digest, which the
+            // content files and the models give without loading a cell); only the digest is asked for, never the tops.
+            struct RefsOnly final : Puddle::StaticSurfaceSource
+            {
+                explicit RefsOnly(OMW::RefsProvider& refs)
+                    : mRefs(refs)
+                {
+                }
+                bool refsDigest(std::int32_t x, std::int32_t y, Puddle::Digest& digest) override
+                {
+                    OMW::RefsProvider::Entry e;
+                    if (!mRefs.entry(x, y, e))
+                        return false;
+                    digest = e.mDigest;
+                    return true;
+                }
+                bool cellTops(std::int32_t, std::int32_t, std::vector<float>&) override { return false; }
+                OMW::RefsProvider& mRefs;
+            };
+            std::unique_ptr<OMW::StaticRefs> refs;
+            std::unique_ptr<RefsOnly> statics;
+            if (settings.mStatics)
+            {
+                if (mSetup.mVfs == nullptr)
+                {
+                    Log(Debug::Warning) << "Puddle map: the pack has static surfaces and the renderer has no VFS to "
+                                           "check them with; the noise puddles stay.";
+                    return;
+                }
+                refs = std::make_unique<OMW::StaticRefs>(*mSetup.mStore, *mSetup.mVfs);
+                statics = std::make_unique<RefsOnly>(*refs);
+            }
             Puddle::PuddleWindow window(
                 pack,
                 [&](std::int32_t x, std::int32_t y) -> std::optional<Puddle::Digest> {
                     try
                     {
-                        return Puddle::inputDigest(heights, x, y, settings);
+                        return Puddle::inputDigest(heights, x, y, settings, statics.get());
                     }
                     catch (const std::exception&)
                     {
@@ -121,7 +154,9 @@ namespace MWRender
             params.mSupply = mSetup.mSupply;
             params.mAbsorption = mSetup.mAbsorption;
             params.mDebugMode = mSetup.mDebugMode;
-            std::vector<std::uint32_t> staging(Render::PuddleMap::bufferWords(Render::PuddleMap::windowSide, texels));
+            params.mKeepStaticNoise = mSetup.mKeepStaticNoise;
+            std::vector<std::uint32_t> staging(
+                Render::PuddleMap::bufferWordsWithTops(Render::PuddleMap::windowSide, texels));
             {
                 // Both buffers have their final size from here on, so swapping them never leaves one empty.
                 std::lock_guard lock(mMutex);

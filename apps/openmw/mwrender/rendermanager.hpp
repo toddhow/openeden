@@ -477,6 +477,7 @@ namespace MWRender
         // Task 0036: the exterior sky-visibility field (bindings 12 and 13), null with gi exterior off.
         void updateSkyVisibility();
         void updatePuddleMap();
+        void releasePuddleMap();
         // Stage d: the sky environment image, in the reflection probe buffer while outdoors.
         void updateSkyEnvironment();
         // Stage e: `gi debug` markers of the sky-visibility field around the camera.
@@ -499,6 +500,7 @@ namespace MWRender
         float mPuddleSupply = 0.5f;
         float mPuddleAbsorption = 0.1f;
         std::uint32_t mPuddleDebug = 0;
+        bool mPuddleKeepStaticNoise = true;
         // Task 0045: parallax occlusion mapping took effect at start: 0 off, 1 low, 2 medium, 3 high.
         unsigned int mParallaxQuality = 0;
         float mWetnessStrength = 1.f;

@@ -146,6 +146,7 @@ namespace Settings
         SettingValue<float> mWetnessPuddleAbsorption{ mIndex, "Rendering", "wetness puddle absorption",
             makeClampSanitizerFloat(0, 20) };
         SettingValue<std::string> mWetnessPuddleDebug{ mIndex, "Rendering", "wetness puddle debug" };
+        SettingValue<bool> mWetnessPuddleStaticNoise{ mIndex, "Rendering", "wetness puddle static noise" };
         // Task 0095 (puddles v2, stage W-b): what `openmw --bake-puddles` reads. Texel spacing in world units, the
         // maximum puddle depth in world units, the smallest pond a pit may have (texels), how far along the water's
         // path ground still counts as the pit's catchment (world units), the cells of halo the baker looks at round a

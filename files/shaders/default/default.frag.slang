@@ -62,6 +62,10 @@ import lib.view.reflection;
 #endif
 #ifdef WET_LIT
 #include "lib/material/wetness.slang"
+#ifdef WETNESS_PUDDLES
+// Task 0095, stage W-c: puddles from the baked puddle map, on the surfaces the bake knows (roads, decks).
+#include "lib/material/puddlemap.slang"
+#endif
 #endif
 #ifdef COVER_LIT
 #include "lib/material/cover.slang"
@@ -318,6 +322,19 @@ FragmentOutput fragMain(FragmentInput input)
     WetSurface wetS = wetSurfaceAt(
         mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz, mul((float3x3)scene.invView, viewNormal));
     float3 wetWorldPos = mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz;
+    float wetPuddleDark = wetPuddleDarkening;
+    float wetRippleGate = 1.0;
+#ifdef WETNESS_PUDDLES
+    // Task 0095, stage W-c (see the GLSL).
+    PuddleShade wetPm = puddleShadeAt(
+        wetWorldPos, wetS.wet, mul((float3x3)scene.invView, normalize(input.io.viewNormal)).z, true);
+    if (wetPm.covered)
+    {
+        wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
+        wetPuddleDark = wetPuddleDarkening * puddleDepthTint(wetPm.depth);
+        wetRippleGate = wetPm.rippleGate;
+    }
+#endif
     {
 #ifdef MATERIAL
         float wetSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
@@ -329,8 +346,13 @@ FragmentOutput fragMain(FragmentInput input)
         wetS.wet *= wetKeep;
         wetS.puddle *= wetKeep;
         if (wetS.puddle > 0.0)
-            viewNormal = normalize(
-                lerp(viewNormal, mul(transpose((float3x3)scene.invView), wetPuddleNormal(wetWorldPos)), wetS.puddle));
+        {
+            float3 wetPN = wetPuddleNormal(wetWorldPos);
+            // The rain's ripples only show where the water is deep enough (the baked map).
+            if (wetRippleGate < 1.0)
+                wetPN = normalize(lerp(float3(0.0, 0.0, 1.0), wetPN, wetRippleGate));
+            viewNormal = normalize(lerp(viewNormal, mul(transpose((float3x3)scene.invView), wetPN), wetS.puddle));
+        }
     }
 #endif
 #ifdef COVER_LIT
@@ -408,7 +430,7 @@ FragmentOutput fragMain(FragmentInput input)
     if (wetS.wet > 0.0)
     {
         float wetSurface = wetS.wet * (1.0 - pbrLit.metalness);
-        outColor.xyz *= wetDarkening(wetSurface, pbrLit.roughness) * lerp(1.0, wetPuddleDarkening, wetS.puddle);
+        outColor.xyz *= wetDarkening(wetSurface, pbrLit.roughness) * lerp(1.0, wetPuddleDark, wetS.puddle);
         pbrLit.roughness = lerp(wetRoughnessOf(pbrLit.roughness, wetSurface), wetPuddleRoughness, wetS.puddle);
     }
 #endif
@@ -491,6 +513,11 @@ FragmentOutput fragMain(FragmentInput input)
         }
 #ifdef WETNESS_DEBUG
         outColor.xyz = float3(wetS.wet, wetS.exposure, wetS.puddle);
+#endif
+#ifdef WETNESS_PUDDLES
+        // Task 0095: a debug view of the puddle map (the setting `wetness puddle debug`).
+        if (puddleDebugMode() != 0u)
+            outColor.xyz = puddleDebugColour(wetPm);
 #endif
 #endif
 #ifdef COVER_DEBUG

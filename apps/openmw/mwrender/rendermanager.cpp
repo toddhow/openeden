@@ -62,6 +62,7 @@
 #include <components/render/precipitationmath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
+#include <components/puddle/puddlegpu.hpp>
 #include <components/render/puddlemapgpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
@@ -623,6 +624,7 @@ namespace MWRender
                         else
                             mPuddleMapEnabled = true;
                         mPuddleDebug = debugMode;
+                        mPuddleKeepStaticNoise = Settings::rendering().mWetnessPuddleStaticNoise;
                         mPuddleSupply
                             = Settings::rendering().mWetnessPuddleSupply * Settings::rendering().mWetnessPuddleDepth;
                         mPuddleAbsorption = Settings::rendering().mWetnessPuddleAbsorption;
@@ -1455,7 +1457,7 @@ namespace MWRender
         mLodTerrain.reset();
         mLodClusters.reset();
         // Task 0095: the puddle map's worker reads the storage and the store too.
-        mPuddleMap.reset();
+        releasePuddleMap();
         mLodClustersAttached = false;
         mLodClustersPushed = 0;
         mTerrainStorage->setStore(&store);
@@ -1466,9 +1468,11 @@ namespace MWRender
             puddles.mPackPath = mPuddlePack;
             puddles.mStorage = mTerrainStorage.get();
             puddles.mStore = &store;
+            puddles.mVfs = mResourceSystem->getVFS();
             puddles.mSupply = mPuddleSupply;
             puddles.mAbsorption = mPuddleAbsorption;
             puddles.mDebugMode = mPuddleDebug;
+            puddles.mKeepStaticNoise = mPuddleKeepStaticNoise;
             mPuddleMap = std::make_unique<PuddleMapRuntime>(std::move(puddles));
         }
         // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.
@@ -2497,6 +2501,20 @@ namespace MWRender
     {
         // ~LodTerrain waits for its worker, which reads the World's ESM store through the live terrain storage.
         mLodTerrain.reset();
+        // The puddle map's worker reads the same store (task 0095, review of stage W-d).
+        releasePuddleMap();
+    }
+
+    void RenderManager::releasePuddleMap()
+    {
+        // The worker reads the terrain storage and the ESM store that the World owns, and the renderer outlives the
+        // World: it ends before the store goes, and the buffer says "no map" until a new world makes a new runtime.
+        mPuddleMap.reset();
+        if (mPuddleMapData)
+        {
+            Puddle::packOff(mPuddleMapData->data(), mPuddleMapData->size());
+            mPuddleMapData->dirty();
+        }
     }
 
     void RenderManager::setGroundcoverStore(const MWWorld::GroundcoverStore* store)

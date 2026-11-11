@@ -1,0 +1,12 @@
+# Balmora's bridge and the river walkways in steady rain at noon (task 0095, stage W-c). The weather of every region is
+# set at the start and each place is visited twice (the first visit gives the map's worker time to load its window: the
+# simulation runs faster than the worker); the second shot of each pair is the one to look at.
+weather rain
+hour 12
+timescale 4
+first 40
+hold 30
+pose balmora_river_warm -19500 -14400 700 0 0.45
+pose balmora_river -19500 -14400 700 0 0.45
+pose balmora_bridge_warm -19800 -12600 700 0 0.5
+pose balmora_bridge -19800 -12600 700 0 0.5

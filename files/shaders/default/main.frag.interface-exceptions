@@ -13,6 +13,8 @@
 #   (13, 16), which only shadow() reads; pointLightDiffuse (2, or 3 after softParticleSize). The colour input (0) is
 #   NOT an exception since toddhow's decision of 2026-11-04: the twin reads the particle's colour and alpha, which the
 #   GLSL declares and never reads (lib/material/terms.slang; the one deliberate difference in the output).
+# The puddle map's buffer (binding 20, task 0095 stage W-c): the set with PRECIPITATION_LIT, no GI and no point shadows
+#   returns before the wetness code in the twin, so slangc drops the binding the GLSL keeps (one line, scoped to the set).
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL GBUFFER_MOTION MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: in location=4 vec3f32
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP GBUFFER GBUFFER_AMBIENT GBUFFER_MATERIAL MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: in location=4 vec3f32
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP MATERIAL NORMAL PBR TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: in location=4 vec3f32
@@ -118,3 +120,4 @@
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: descriptor set=0 binding=6 image(f32,dim1,arrayed1,ms0)
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: descriptor set=0 binding=7 sampler
 [CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: in location=2 vec3f32
+[CLOUD_SHADOW COLOR COVER DIFFUSE_MAP NORMAL PARTICLE_OCCLUSION PBR PRECIPITATION_LIT TEXCOORD UVSETS_1 VOLUME_CLOUD_SHADOW WETNESS WETNESS_PUDDLES] glsl-only: descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;

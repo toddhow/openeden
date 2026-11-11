@@ -6,6 +6,12 @@
 // pit and the depth of the water over the ground. A pixel in a cell the map does not cover (no pack, a stale cell,
 // beyond the window) comes back `covered == false`: the caller keeps the old noise puddles for it. There is no branch on
 // a define: the buffer's first word says whether a map is loaded.
+//
+// Stage W-c, the height test: a column can hold a static surface (a road, a deck, a floor) and the pit's water lies on
+// its baked top. The blended top T of the four taps is the height of the surface the map describes at the pixel; the
+// pixel takes the map only where |z - T| <= puddleZTolerance. An OBJECT pixel (objectMode) always has to pass and to face
+// up (puddleObjectMinNormalZ); a TERRAIN pixel has to pass only where a static tap contributes. A pixel that fails comes
+// back `loaded` but not `covered`.
 #ifndef LIB_MATERIAL_PUDDLEMAP
 #define LIB_MATERIAL_PUDDLEMAP
 
@@ -23,7 +29,11 @@ const uint PUDDLE_SPACING = 6u;
 const uint PUDDLE_CELL_SIZE = 7u;
 const uint PUDDLE_SUPPLY = 8u;
 const uint PUDDLE_ABSORPTION = 9u;
+const uint PUDDLE_TOPS_BASE = 10u;
+const uint PUDDLE_OPTIONS = 11u;
+const uint PUDDLE_OPTION_KEEP_STATIC_NOISE = 1u;
 const uint PUDDLE_TABLE_BASE = 16u;
+const uint PUDDLE_TEXEL_STATIC = 0x10u;
 
 const float puddleEdgeDepth = 0.3;
 const float puddleRippleFrom = 0.3;
@@ -33,10 +43,15 @@ const float puddleDeepDarkeningDepth = 3.0;
 const float puddleMaxCapacity = 15.9375;
 const float puddleDebugDepthScale = 6.0;
 const float puddleDebugLevelScale = 12.0;
+const float puddleZTolerance = 2.0;
+const float puddleObjectMinNormalZ = 0.7;
 
 struct PuddleShade
 {
+    bool loaded;
     bool covered;
+    float top;
+    float staticShare;
     float capacity;
     float basinMax;
     float kappa;
@@ -78,16 +93,44 @@ uvec2 puddleTexel(int gx, int gy)
     return uvec2(1u, puddleData[start + uint((gy - cy * side) * side + (gx - cx * side))]);
 }
 
+// x: 1 when the buffer has tops and the texel's cell is loaded, y: the world Z of the surface there.
+vec2 puddleTexelTop(int gx, int gy)
+{
+    uint topsBase = puddleData[PUDDLE_TOPS_BASE];
+    int side = int(puddleData[PUDDLE_TEXELS]);
+    if (topsBase == 0u || side <= 0)
+        return vec2(0.0, 0.0);
+    int cx = puddleFloorDiv(gx, side);
+    int cy = puddleFloorDiv(gy, side);
+    int windowSide = int(puddleData[PUDDLE_WINDOW_SIDE]);
+    int sx = cx - int(puddleData[PUDDLE_ORIGIN_X]);
+    int sy = cy - int(puddleData[PUDDLE_ORIGIN_Y]);
+    if (sx < 0 || sy < 0 || sx >= windowSide || sy >= windowSide)
+        return vec2(0.0, 0.0);
+    int slot = sx + windowSide * sy;
+    if (puddleData[PUDDLE_TABLE_BASE + uint(slot)] == 0u)
+        return vec2(0.0, 0.0);
+    uint cells = uint(windowSide * windowSide);
+    uint local = uint((gy - cy * side) * side + (gx - cx * side));
+    uint word = puddleData[topsBase + cells + uint(slot) * uint(side * side) + local];
+    float base = uintBitsToFloat(puddleData[topsBase + uint(slot)]);
+    return vec2(1.0, base + float(word & 0xFFFFu) * 0.125);
+}
+
 float puddleSmoothstep(float a, float b, float x)
 {
     float t = clamp((x - a) / (b - a), 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
 }
 
-PuddleShade puddleShadeAt(vec2 pos, float wet)
+PuddleShade puddleShadeAt(vec3 worldPos, float wet, float normalZ, bool objectMode)
 {
+    vec2 pos = worldPos.xy;
     PuddleShade s;
+    s.loaded = false;
     s.covered = false;
+    s.top = 0.0;
+    s.staticShare = 0.0;
     s.capacity = 0.0;
     s.basinMax = 0.0;
     s.kappa = 0.0;
@@ -106,9 +149,10 @@ PuddleShade puddleShadeAt(vec2 pos, float wet)
     if (!(cellSize > 0.0) || !(spacing > 0.0))
         return s;
     s.cell = ivec2(floor(pos / cellSize));
-    s.covered = puddleCellStart(s.cell.x, s.cell.y) != 0u;
-    if (!s.covered)
+    s.loaded = puddleCellStart(s.cell.x, s.cell.y) != 0u;
+    if (!s.loaded)
         return s;
+    s.covered = true;
 
     vec2 p = pos / spacing;
     vec2 base = floor(p);
@@ -118,6 +162,9 @@ PuddleShade puddleShadeAt(vec2 pos, float wet)
     float capacity = 0.0;
     float bestScore = 0.0;
     uint pit = 0u;
+    float topSum = 0.0;
+    float topWeight = 0.0;
+    float staticWeight = 0.0;
     for (int k = 0; k < 4; ++k)
     {
         uvec2 texel = puddleTexel(i0.x + (k & 1), i0.y + (k >> 1));
@@ -131,7 +178,29 @@ PuddleShade puddleShadeAt(vec2 pos, float wet)
             bestScore = score;
             pit = texel.y;
         }
+        vec2 tapTop = puddleTexelTop(i0.x + (k & 1), i0.y + (k >> 1));
+        if (tapTop.x != 0.0)
+        {
+            topSum += weights[k] * tapTop.y;
+            topWeight += weights[k];
+        }
+        if (((texel.y >> 24) & PUDDLE_TEXEL_STATIC) != 0u)
+            staticWeight += weights[k];
     }
+    if (topWeight > 0.0)
+        s.top = topSum / topWeight;
+    s.staticShare = staticWeight;
+    // The height test (stage W-c). Without tops in the buffer there is nothing to test against.
+    if (topWeight > 0.0 && (objectMode || staticWeight > 0.0) && !(abs(worldPos.z - s.top) <= puddleZTolerance))
+        s.covered = false;
+    if (objectMode && !(normalZ >= puddleObjectMinNormalZ))
+        s.covered = false;
+    // The bake cannot see the micro relief of paving: a flat static column keeps the noise puddles (the header option).
+    if (s.covered && objectMode && (puddleData[PUDDLE_OPTIONS] & PUDDLE_OPTION_KEEP_STATIC_NOISE) != 0u
+        && staticWeight >= 0.5 && !(capacity > 0.0))
+        s.covered = false;
+    if (!s.covered)
+        return s;
     s.capacity = capacity;
     if (!(capacity > 0.0))
         return s;
@@ -160,10 +229,18 @@ uint puddleDebugMode()
     return puddleData[PUDDLE_ENABLED] == 0u ? 0u : puddleData[PUDDLE_DEBUG];
 }
 
-// 1: capacity, 2: level, 3: cell (see Render::PuddleMap::debugColour).
+// 1: capacity, 2: level, 3: cell, 4: statics (see Render::PuddleMap::debugColour).
 vec3 puddleDebugColour(PuddleShade s)
 {
     uint mode = puddleDebugMode();
+    if (mode == 4u)
+    {
+        if (!s.loaded)
+            return vec3(0.2);
+        if (!s.covered)
+            return vec3(0.25, 0.0, 0.0);
+        return vec3(0.1 + 0.9 * s.staticShare, 0.2 * (1.0 - s.staticShare), 0.1 + 0.9 * s.staticShare);
+    }
     if (mode == 1u)
     {
         if (!s.covered)

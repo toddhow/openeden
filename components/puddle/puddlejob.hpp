@@ -73,8 +73,11 @@ namespace Puddle
         std::uint64_t mClippedUnbounded = 0;
         std::uint64_t mClippedBounded = 0;
         std::uint32_t mHeightsClamped = 0; // cells
+        /// Stage W-c, totals over the cells baked in this run: texels of the cells that became a static surface.
+        std::uint64_t mStaticTexels = 0;
         std::uint64_t mPondTexelsDroppedClamped = 0; // pond texels dropped under a clamped height
-        /// Cells skipped because a height of their own was not finite or beyond +-1e7 (the first one is described).
+        /// Cells skipped because their data was unusable: a height of their own that was not finite or beyond +-1e7, or
+        /// (with statics) a missing static capture or unreadable references (the first one is described).
         std::uint32_t mBadCells = 0;
         std::string mFirstBadCell;
         /// The pack on disk was made with other settings or another layout (so none of its cells was reused), or
@@ -88,7 +91,8 @@ namespace Puddle
     class BakeJob
     {
     public:
-        BakeJob(LandHeightSource& source, JobConfig config);
+        /// `statics` is needed when the settings ask for static surfaces; it must outlive the job.
+        BakeJob(LandHeightSource& source, JobConfig config, StaticSurfaceSource* statics = nullptr);
 
         /// Does work for about `budget` (at least one unit). True when the job has finished (check result().mError).
         bool step(std::chrono::milliseconds budget);
@@ -109,6 +113,7 @@ namespace Puddle
         void stopWith(Error error);
 
         CachingLandSource mSource;
+        StaticSurfaceSource* mStatics = nullptr;
         JobConfig mConfig;
         JobResult mResult;
         Phase mPhase = Phase::Digests;

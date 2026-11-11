@@ -74,7 +74,6 @@ Rendering|puddle bake min area|bake parameter of openmw --bake-puddles (task 009
 Rendering|puddle bake catchment radius|bake parameter of openmw --bake-puddles (task 0095), not a feature switch
 Rendering|puddle bake halo|bake parameter of openmw --bake-puddles (task 0095), not a feature switch
 Rendering|puddle bake statistics|bake report of openmw --bake-puddles (task 0095), not a feature switch
-Rendering|puddle bake statics|bake parameter of openmw --bake-puddles (task 0095; statics are stage W-c, true is refused)
 Shadows|blocker samples|tuning of the shadow filter (PCSS, variants/pcss.cfg)
 Shadows|pcf samples|tuning of the shadow filter
 Shadows|filter shadow maps|tuning: hardware filtering of the shadow compare (default on)
@@ -115,6 +114,7 @@ Rendering|wetness puddles|default on, a part of wetness
 Rendering|wetness puddle depth|tuning of the puddle map's water supply (task 0095)
 Rendering|wetness puddle supply|tuning of the puddle map's water supply (task 0095)
 Rendering|wetness puddle absorption|tuning of the puddle map's water supply (task 0095)
+Rendering|wetness puddle static noise|a choice for flat static surfaces of the puddle map (task 0095, stage W-c), default true; false is looked at with the puddlestatics variant
 Rendering|volumetrics temporal|default on, a part of volumetrics
 Rendering|volumetric clouds shadows|default on, a part of volumetric clouds
 Game|creativemotion style layer|switched on by creativemotion preset = natural

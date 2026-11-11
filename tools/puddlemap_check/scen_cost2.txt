@@ -1,0 +1,11 @@
+# GPU cost of the map on the object shader (task 0095, stage W-c): Balmora's bridge from 700 units up in steady rain, a
+# warm visit first (the map's worker loads the window), then 25 s of simulation time held (about 1,500 frames). Run with
+# `gpu timing = true` and OPENEDEN_FRAME_STATS_FILE (rr.sh sets it), with the map off, with the statics-off pack and with
+# the statics pack.
+weather rain
+hour 12
+timescale 4
+first 40
+hold 25
+pose cost_warm -19800 -12600 700 0 0.5
+pose cost -19800 -12600 700 0 0.5

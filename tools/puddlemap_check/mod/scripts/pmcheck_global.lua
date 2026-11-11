@@ -51,6 +51,15 @@ return {
                 world.mwscript.getGlobalVariables().gamehour = cfg.hour
                 world.setGameTimeScale(cfg.timescale or 1)
                 setWeather(cfg.weather)
+                -- Every region the poses visit gets the weather from the start (a region entered later would start its
+                -- transition on arrival and be in a different state in every run).
+                local record = weatherRecord(cfg.weather)
+                if record then
+                    for _, region in ipairs({ 'bitter coast region', 'west gash region', 'ascadian isles region',
+                                              'grazelands region', "azura's coast region" }) do
+                        core.weather.changeWeather(region, record)
+                    end
+                end
                 print('PM start')
                 nextAt = cfg.first or 4
             end

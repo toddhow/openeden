@@ -283,7 +283,7 @@ FragmentOutput fragMain(FragmentInput input)
     float wetPuddleDark = wetPuddleDarkening;
     float wetRippleGate = 1.0;
 #ifdef WETNESS_PUDDLES
-    PuddleShade wetPm = puddleShadeAt(wetWorldPos.xy, wetS.wet);
+    PuddleShade wetPm = puddleShadeAt(wetWorldPos, wetS.wet, 1.0, false);
     if (wetPm.covered)
     {
         wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;

@@ -132,7 +132,9 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   dries about a quarter of an hour (game time) after the rain stops. *Puddle map* (0095): on the TERRAIN, puddles sit in
   the hollows the bake found (few and small: about 0.3 percent of the land), grow from their lowest point as the rain
   wets the ground and shrink back the same way as it dries, follow the ground's contours at the edge, are darker where
-  deep and show ripples only where deep; objects, roads and anything the map does not cover keep the noise puddles. Try
+  deep and show ripples only where deep; objects and anything the map does not cover keep the noise puddles (with the
+  `puddlestatics` variant, which also bakes roads, paving and decks: they take the baked puddles too, so a road is dry
+  where it slopes and wet only in its own dips; the capture walks the player through every cell and takes long). Try
   `ChangeWeather "Bitter Coast Region" 4` or Seyda Neen, and `wetness puddle debug = capacity` (or `level`, `cell`) in
   `settings.cfg` to see the map. Wrong: puddles on a slope or a hill top, a puddle that jumps when the camera crosses a
   cell border, a mirrored placement (a puddle next to its hollow). *Precipitation lighting* (0040): rain and snow are lit

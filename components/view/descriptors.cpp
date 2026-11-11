@@ -228,8 +228,8 @@ namespace View
 
     vsg::ref_ptr<vsg::Descriptor> puddleMapBuffer(vsg::ref_ptr<vsg::uintArray>& data)
     {
-        data = vsg::uintArray::create(
-            Render::PuddleMap::bufferWords(Render::PuddleMap::windowSide, Render::PuddleMap::maxTexelsPerSide));
+        data = vsg::uintArray::create(Render::PuddleMap::bufferWordsWithTops(
+            Render::PuddleMap::windowSide, Render::PuddleMap::maxTexelsPerSide));
         for (auto& v : *data)
             v = 0;
         data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;

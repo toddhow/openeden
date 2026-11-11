@@ -17,6 +17,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -69,6 +70,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -116,6 +118,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -174,6 +177,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -221,6 +225,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -274,6 +279,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -315,6 +321,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -364,6 +371,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -411,6 +419,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -468,6 +477,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -515,6 +525,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -567,6 +578,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -614,6 +626,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -666,6 +679,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -707,6 +721,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -755,6 +770,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -802,6 +818,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -854,6 +871,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -896,6 +914,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -947,6 +966,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -978,6 +998,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1029,6 +1050,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1054,6 +1076,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1102,6 +1125,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1138,6 +1162,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1186,6 +1211,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1211,6 +1237,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1258,6 +1285,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1289,6 +1317,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1339,6 +1368,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1378,6 +1408,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1425,6 +1456,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1464,6 +1496,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1510,6 +1543,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1555,6 +1589,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1608,6 +1643,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1655,6 +1691,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1707,6 +1744,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1748,6 +1786,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1796,6 +1835,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1843,6 +1883,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1899,6 +1940,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -1946,6 +1988,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -1997,6 +2040,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2038,6 +2082,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2085,6 +2130,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2132,6 +2178,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2183,6 +2230,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2219,6 +2267,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2266,6 +2315,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2308,6 +2358,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2359,6 +2410,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2398,6 +2450,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2445,6 +2498,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2490,6 +2544,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2539,6 +2594,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2578,6 +2634,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2623,6 +2680,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2668,6 +2726,7 @@ descriptor set=0 binding=17 image(f32,dim1,arrayed1,ms0,depth1)
 descriptor set=0 binding=18 sampler
 descriptor set=0 binding=19 storage 0:runtime_array stride16;0:vec4f32;
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2717,6 +2776,7 @@ member set=0 binding=15 96:toPreviousClip
 member set=0 binding=19 0:[]
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count
@@ -2751,6 +2811,7 @@ descriptor set=0 binding=14 sampled_image(image(f32,dim2,arrayed0,ms0))
 descriptor set=0 binding=15 uniform 0:vec4f32;16:vec4f32;32:vec4f32;48:vec4f32;64:vec4f32;80:vec4f32;96:mat4xvec4f32 stride16;
 descriptor set=0 binding=16 sampled_image(image(f32,dim1,arrayed0,ms0))
 descriptor set=0 binding=2 storage 0:runtime_array stride32;0:vec4f32;16:vec4f32;
+descriptor set=0 binding=20 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=3 storage 0:runtime_array stride4;0:u32;
 descriptor set=0 binding=4 storage 0:runtime_array stride8;0:u32;4:u32;
 descriptor set=0 binding=5 uniform 0:u32;4:u32;8:u32;12:u32;
@@ -2796,6 +2857,7 @@ member set=0 binding=15 80:jitter
 member set=0 binding=15 96:toPreviousClip
 member set=0 binding=2 0:[].colorIntensity
 member set=0 binding=2 16:[].position
+member set=0 binding=20 0:[]
 member set=0 binding=3 0:[]
 member set=0 binding=4 0:[].offset
 member set=0 binding=4 4:[].count

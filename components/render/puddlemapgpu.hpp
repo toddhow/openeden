@@ -16,10 +16,14 @@
 //   word 7  cell size in world units
 //   word 8  water supplied at wetness 1, in units of depth (float bits)
 //   word 9  water the ground absorbs before any stands, same unit (float bits)
+//   word 10 (stage W-c) the word index of the tops region below, 0 when the buffer has none
+//   word 11 (stage W-c) options: bit 0 `optionKeepStaticNoise`, see the height test below
 //   words tableBase .. tableBase + windowSide^2 - 1  the cell table, slot = (cx - originX) + windowSide * (cy -
 //   originY):
 //           the word index of the cell's first texel, 0 when the cell is not loaded
 //   words dataBase ..  the cells' texels, side * side words each, row-major, the SOUTH row first (the pack's order)
+//   (stage W-c) words topsBase .. topsBase + windowSide^2 - 1  the cells' height bases (float bits), by slot; then
+//           side * side words a slot, the cell's `top` of each texel in the low 16 bits (1/8 unit over the base)
 // A texel word, little end first: capacity (1/16 unit), the pit's maximum capacity (1/16 unit), the catchment code
 // (log2 kappa in 15ths) and the pack's texel flags. Texel (tx, ty) of cell (cx, cy) lies at world position
 // (cx * cellSize + tx * spacing, cy * cellSize + ty * spacing): the baker samples the ground at the texel corner
@@ -29,6 +33,19 @@
 // nearest texels (a missing cell counts as no capacity); the pit (its maximum Cmax and catchment kappa) is that of the
 // tap with the largest weighted capacity; wetness w gives the supply W = w * supply, the free water Wf = max(W -
 // absorption, 0), the pit's level L = min(Cmax, Wf * kappa) and the depth d = clamp(L - (Cmax - C), 0, C).
+//
+// Stage W-c, the height test: a column can hold a static surface (a road, a deck, a floor) whose top is the height the
+// pit's water lies on. The blended top T of the four taps is the height of the surface the map describes at the pixel.
+// A pixel takes the map only where its own world Z is within `zTolerance` of T: an OBJECT pixel (any object shader)
+// always has to pass, and also to face up (`objectMinNormalZ`); a TERRAIN pixel has to pass only where a static tap
+// contributes, so plain ground behaves as in stage W-d. A pixel that fails stays with the old noise puddles (`covered`
+// is false, `loaded` stays true). A buffer without tops cannot test and covers the cell.
+//
+// The bake cannot see the micro relief of paving (the collision meshes of Morrowind's paved statics are flat: across the
+// whole world not one pond of 16 texels, and 14 of 4, lies on a static surface), so a flat static surface is "dry" in the
+// data only because the data cannot say otherwise. With `optionKeepStaticNoise` an OBJECT pixel in a column that is mostly
+// static (the static taps weigh at least half) and has no capacity keeps the noise puddles (`covered` false): the map then
+// only takes over where it found a pit.
 
 #include <algorithm>
 #include <cmath>
@@ -51,6 +68,9 @@ namespace Render::PuddleMap
     inline constexpr std::uint32_t wordCellSize = 7;
     inline constexpr std::uint32_t wordSupply = 8;
     inline constexpr std::uint32_t wordAbsorption = 9;
+    inline constexpr std::uint32_t wordTopsBase = 10;
+    inline constexpr std::uint32_t wordOptions = 11;
+    inline constexpr std::uint32_t optionKeepStaticNoise = 1u;
     inline constexpr std::uint32_t tableBase = 16;
     // The table has room for a 9 x 9 window; the game uses 7 x 7 (3 cells round the camera's).
     inline constexpr std::uint32_t maxWindowSide = 9;
@@ -59,6 +79,15 @@ namespace Render::PuddleMap
     inline constexpr std::uint32_t windowSide = 2 * windowRadius + 1;
     // The most texels a cell side may have for the game's fixed buffer (the default spacing of 64 units gives 128).
     inline constexpr std::uint32_t maxTexelsPerSide = 128;
+    // The height test (stage W-c): by eye. A pixel is on the surface the map describes when its Z is within this many
+    // world units of the surface (the road mesh against its collision shape, the quantisation of 1/8 unit and the
+    // bilinear blend all fit well inside it; a roof a body height above, or the ground under a deck, does not).
+    inline constexpr float zTolerance = 2.f;
+    // An object pixel takes a puddle only where its surface faces up at least this much (about 45 degrees): a wall in a
+    // column of a road does not.
+    inline constexpr float objectMinNormalZ = 0.7f;
+    // The static-surface bit of a texel's flags byte (word >> 24); equal to Puddle::texelStatic (pinned by a test).
+    inline constexpr std::uint32_t texelStaticBit = 0x10u;
 
     // Visual constants (by eye, no source; the GLSL and Slang files repeat them under the same names):
     // the depth over which the water's edge fades in, in game units (a film of 0.4 cm at the shore).
@@ -81,6 +110,7 @@ namespace Render::PuddleMap
         DebugCapacity = 1,
         DebugLevel = 2,
         DebugCell = 3,
+        DebugStatics = 4,
     };
 
     /// The names of `wetness puddle debug`. Exact; on a name it does not know it returns false and leaves `mode`.
@@ -94,6 +124,8 @@ namespace Render::PuddleMap
             mode = DebugLevel;
         else if (text == "cell")
             mode = DebugCell;
+        else if (text == "statics")
+            mode = DebugStatics;
         else
             return false;
         return true;
@@ -103,6 +135,13 @@ namespace Render::PuddleMap
     {
         return static_cast<std::size_t>(dataBase)
             + static_cast<std::size_t>(windowSideCells) * windowSideCells * texelsPerSide * texelsPerSide;
+    }
+
+    /// The size of a buffer with the tops region (stage W-c): the texels, one base a slot, one top word a texel.
+    inline constexpr std::size_t bufferWordsWithTops(std::uint32_t windowSideCells, std::uint32_t texelsPerSide)
+    {
+        return bufferWords(windowSideCells, texelsPerSide)
+            + static_cast<std::size_t>(windowSideCells) * windowSideCells * (1u + texelsPerSide * texelsPerSide);
     }
 
     inline constexpr std::uint32_t packTexel(
@@ -163,9 +202,53 @@ namespace Render::PuddleMap
         return true;
     }
 
+    // The slot of cell (cx, cy) in the window, -1 when it is outside or not loaded.
+    inline std::int32_t cellSlot(const std::uint32_t* data, std::int32_t cx, std::int32_t cy)
+    {
+        const std::int32_t sx = cx - static_cast<std::int32_t>(data[wordOriginX]);
+        const std::int32_t sy = cy - static_cast<std::int32_t>(data[wordOriginY]);
+        const std::int32_t side = static_cast<std::int32_t>(data[wordWindowSide]);
+        if (sx < 0 || sy < 0 || sx >= side || sy >= side)
+            return -1;
+        const std::int32_t slot = sx + side * sy;
+        return data[tableBase + static_cast<std::uint32_t>(slot)] == 0 ? -1 : slot;
+    }
+
+    // The world Z of the surface at global texel (gx, gy): the cell's base plus the top over 8; false when the cell is
+    // not loaded or the buffer has no tops.
+    inline bool texelTop(const std::uint32_t* data, std::int32_t gx, std::int32_t gy, float& z)
+    {
+        const std::int32_t side = static_cast<std::int32_t>(data[wordTexelsPerCell]);
+        const std::uint32_t topsBase = data[wordTopsBase];
+        if (side <= 0 || topsBase == 0)
+            return false;
+        const std::int32_t cx = floorDiv(gx, side);
+        const std::int32_t cy = floorDiv(gy, side);
+        const std::int32_t slot = cellSlot(data, cx, cy);
+        if (slot < 0)
+            return false;
+        const std::uint32_t cells = data[wordWindowSide] * data[wordWindowSide];
+        const std::uint32_t local = static_cast<std::uint32_t>((gy - cy * side) * side + (gx - cx * side));
+        const std::uint32_t word
+            = data[topsBase + cells + static_cast<std::uint32_t>(slot) * static_cast<std::uint32_t>(side * side) + local];
+        z = Puddle::dequantiseHeight(static_cast<std::uint16_t>(word & 0xFFFFu), bitsFloat(data[topsBase + slot]));
+        return true;
+    }
+
+    // How a pixel is tested against the baked tops (see the header comment).
+    enum class ShadeMode
+    {
+        NoHeightTest, // stage W-d's behaviour: the cell being loaded is enough
+        Terrain,
+        Object,
+    };
+
     struct Shade
     {
-        bool covered = false; // the cell under the pixel is loaded
+        bool loaded = false; // the cell under the pixel is loaded
+        bool covered = false; // loaded, and the pixel passed the height test: the map decides this pixel
+        float top = 0.f; // the blended top of the surface, world Z (0 without tops)
+        float staticShare = 0.f; // the share of the four taps that are static surfaces
         float capacity = 0.f; // blended, units
         float basinMax = 0.f;
         float kappa = 0.f;
@@ -183,8 +266,10 @@ namespace Render::PuddleMap
         return t * t * (3.f - 2.f * t);
     }
 
-    // The map at world (x, y) for the wetness `wet` (0 dry to 1 soaked, already times the strength and the cover).
-    inline Shade shade(const std::uint32_t* data, float x, float y, float wet)
+    // The map at world (x, y, z) for the wetness `wet` (0 dry to 1 soaked, already times the strength and the cover),
+    // for a surface whose normal has the Z component `normalZ`.
+    inline Shade shadeAt(
+        const std::uint32_t* data, float x, float y, float z, float wet, float normalZ, ShadeMode mode)
     {
         Shade s;
         if (data[wordEnabled] == 0)
@@ -195,9 +280,10 @@ namespace Render::PuddleMap
             return s;
         s.cellX = static_cast<std::int32_t>(std::floor(x / cellSize));
         s.cellY = static_cast<std::int32_t>(std::floor(y / cellSize));
-        s.covered = cellStart(data, s.cellX, s.cellY) != 0;
-        if (!s.covered)
+        s.loaded = cellStart(data, s.cellX, s.cellY) != 0;
+        if (!s.loaded)
             return s;
+        s.covered = true;
 
         const float px = x / spacing;
         const float py = y / spacing;
@@ -214,6 +300,9 @@ namespace Render::PuddleMap
         float capacity = 0.f;
         float bestScore = 0.f;
         std::uint32_t pit = 0;
+        float topSum = 0.f;
+        float topWeight = 0.f;
+        float staticWeight = 0.f;
         for (int k = 0; k < 4; ++k)
         {
             std::uint32_t word = 0;
@@ -227,7 +316,35 @@ namespace Render::PuddleMap
                 bestScore = score;
                 pit = word;
             }
+            float tapTop = 0.f;
+            if (texelTop(data, i0 + dx[k], j0 + dy[k], tapTop))
+            {
+                topSum += weights[k] * tapTop;
+                topWeight += weights[k];
+            }
+            if (((word >> 24) & texelStaticBit) != 0)
+                staticWeight += weights[k];
         }
+        if (topWeight > 0.f)
+            s.top = topSum / topWeight;
+        s.staticShare = staticWeight;
+        // The height test. Without tops in the buffer, or without any loaded tap, there is nothing to test against.
+        if (mode != ShadeMode::NoHeightTest && topWeight > 0.f)
+        {
+            const bool test = mode == ShadeMode::Object || staticWeight > 0.f;
+            if (test && !(std::abs(z - s.top) <= zTolerance))
+                s.covered = false;
+            if (mode == ShadeMode::Object && !(normalZ >= objectMinNormalZ))
+                s.covered = false;
+        }
+        else if (mode == ShadeMode::Object && !(normalZ >= objectMinNormalZ))
+            s.covered = false;
+        // The bake cannot see the micro relief of paving: a flat static column keeps the noise puddles (see the header).
+        if (s.covered && mode == ShadeMode::Object && (data[wordOptions] & optionKeepStaticNoise) != 0
+            && staticWeight >= 0.5f && !(capacity > 0.f))
+            s.covered = false;
+        if (!s.covered)
+            return s;
         s.capacity = capacity;
         if (!(capacity > 0.f))
             return s;
@@ -241,6 +358,12 @@ namespace Render::PuddleMap
         s.coverage = Puddle::coverage(s.depth, edgeDepth);
         s.rippleGate = smoothstep(rippleDepthFrom, rippleDepthTo, s.depth);
         return s;
+    }
+
+    // Stage W-d's entry point: no height test.
+    inline Shade shade(const std::uint32_t* data, float x, float y, float wet)
+    {
+        return shadeAt(data, x, y, 0.f, wet, 1.f, ShadeMode::NoHeightTest);
     }
 
     // The factor on the ground colour under a puddle's water: 1 for a film, `deepDarkening` for deep water.
@@ -287,6 +410,17 @@ namespace Render::PuddleMap
                     return { 0.25f, 0.f, 0.f };
                 c.g = std::min(s.depth / debugDepthScale, 1.f);
                 c.b = 0.12f + 0.6f * std::min(s.level / debugLevelScale, 1.f);
+                return c;
+            case DebugStatics:
+                // Magenta where the column holds a static surface (brighter for a bigger share), a dim green where it
+                // is plain ground the map knows, dark red where the pixel is not covered.
+                if (!s.loaded)
+                    return { 0.2f, 0.2f, 0.2f };
+                if (!s.covered)
+                    return { 0.25f, 0.f, 0.f };
+                c.r = 0.1f + 0.9f * s.staticShare;
+                c.g = 0.2f * (1.f - s.staticShare);
+                c.b = 0.1f + 0.9f * s.staticShare;
                 return c;
             case DebugCell:
             {

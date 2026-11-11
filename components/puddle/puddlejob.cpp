@@ -39,8 +39,9 @@ namespace Puddle
         return true;
     }
 
-    BakeJob::BakeJob(LandHeightSource& source, JobConfig config)
+    BakeJob::BakeJob(LandHeightSource& source, JobConfig config, StaticSurfaceSource* statics)
         : mSource(source)
+        , mStatics(statics)
         , mConfig(std::move(config))
     {
         auto& cells = mConfig.mLandCells;
@@ -50,6 +51,8 @@ namespace Puddle
         });
         cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
         mResult.mError = validateSettings(mConfig.mSettings);
+        if (!mResult.mError && mConfig.mSettings.mStatics && mStatics == nullptr)
+            mResult.mError = Error{ "statics", 0, "the settings ask for static surfaces and there is no source for them" };
         if (mResult.mError)
         {
             mPhase = Phase::Done;
@@ -107,7 +110,8 @@ namespace Puddle
             {
                 if (mNext < cells.size())
                 {
-                    mDigests[mNext] = inputDigest(mSource, cells[mNext].first, cells[mNext].second, mConfig.mSettings);
+                    mDigests[mNext] = inputDigest(
+                        mSource, cells[mNext].first, cells[mNext].second, mConfig.mSettings, mStatics);
                     ++mNext;
                 }
                 if (mNext >= cells.size())
@@ -149,10 +153,11 @@ namespace Puddle
                     }
                     if (!have && wanted(cell))
                     {
-                        BakeResult baked = bakeCell(mSource, cell.first, cell.second, mConfig.mSettings, options);
-                        if (baked.mError && baked.mError.mField == "heights")
+                        BakeResult baked = bakeCell(mSource, cell.first, cell.second, mConfig.mSettings, options, mStatics);
+                        if (baked.mError && (baked.mError.mField == "heights" || baked.mError.mField == "statics"))
                         {
-                            // One cell with an impossible height is skipped; the others go on.
+                            // One cell with an impossible height, or (with statics) no capture to use, is skipped;
+                            // the others go on.
                             if (mResult.mBadCells++ == 0)
                                 mResult.mFirstBadCell = baked.mError.mMessage;
                             continue;
@@ -177,6 +182,7 @@ namespace Puddle
                         mResult.mClippedUnbounded += st.mClippedUnbounded;
                         mResult.mClippedBounded += st.mClippedBounded;
                         mResult.mHeightsClamped += st.mHeightsClamped ? 1 : 0;
+                        mResult.mStaticTexels += st.mStaticTexels;
                         mResult.mPondTexelsDroppedClamped += st.mPondTexelsDroppedClamped;
                         mResult.mKappasBounded.insert(
                             mResult.mKappasBounded.end(), st.mKappasBounded.begin(), st.mKappasBounded.end());

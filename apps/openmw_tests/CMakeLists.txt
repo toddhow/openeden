@@ -80,6 +80,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testmergedbodyregions.cpp
     mwrender/testmergedbodydefines.cpp
     mwrender/testlodlayerdigest.cpp
+    mwrender/testcapturesource.cpp
 
     mwscript/testscripts.cpp
     mwscript/testragdollcommands.cpp

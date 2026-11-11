@@ -1,0 +1,9 @@
+# The deepest pit that lies on a static surface (cell (-1, 1), found by the min area 4 bake), in steady rain at noon.
+weather rain
+hour 12
+timescale 4
+first 30
+hold 30
+pose static_pit_warm -4992 12600 600 0 0.5
+pose static_pit_far -4992 12600 600 0 0.5
+pose static_pit_near -4992 13300 500 0 0.55

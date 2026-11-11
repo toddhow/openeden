@@ -53,6 +53,10 @@ layout(constant_id=START_UVSET_CONSTANTS+BUMP_UNIT) const int bumpUV=0;
 #endif
 #ifdef WET_LIT
 #include "lib/material/wetness.glsl"
+#ifdef WETNESS_PUDDLES
+// OpenEden (task 0095, stage W-c): puddles from the baked puddle map, on the surfaces the bake knows (roads, decks).
+#include "lib/material/puddlemap.glsl"
+#endif
 #endif
 #ifdef COVER_LIT
 #include "lib/material/cover.glsl"
@@ -297,6 +301,20 @@ void main()
     // below, once the surface's roughness is known.
     WetSurface wetS = wetSurfaceAt((scene.invView * vec4(frag_in.viewPos, 1.0)).xyz, mat3(scene.invView) * viewNormal);
     vec3 wetWorldPos = (scene.invView * vec4(frag_in.viewPos, 1.0)).xyz;
+    float wetPuddleDark = wetPuddleDarkening;
+    float wetRippleGate = 1.0;
+  #ifdef WETNESS_PUDDLES
+    // Task 0095, stage W-c: where the baked puddle map covers this pixel (its cell is loaded, the pixel is on the
+    // surface the map describes and faces up) it decides the puddle; anywhere else the noise puddles stand.
+    PuddleShade wetPm = puddleShadeAt(
+        wetWorldPos, wetS.wet, (mat3(scene.invView) * normalize(frag_in.viewNormal)).z, true);
+    if (wetPm.covered)
+    {
+        wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
+        wetPuddleDark = wetPuddleDarkening * puddleDepthTint(wetPm.depth);
+        wetRippleGate = wetPm.rippleGate;
+    }
+  #endif
     {
   #ifdef MATERIAL
         float wetSkin = material.subsurface > 0.5 ? 1.0 : 0.0;
@@ -308,7 +326,13 @@ void main()
         wetS.wet *= wetKeep;
         wetS.puddle *= wetKeep;
         if (wetS.puddle > 0.0)
-            viewNormal = normalize(mix(viewNormal, transpose(mat3(scene.invView)) * wetPuddleNormal(wetWorldPos), wetS.puddle));
+        {
+            vec3 wetPN = wetPuddleNormal(wetWorldPos);
+            // The rain's ripples only show where the water is deep enough (the baked map).
+            if (wetRippleGate < 1.0)
+                wetPN = normalize(mix(vec3(0.0, 0.0, 1.0), wetPN, wetRippleGate));
+            viewNormal = normalize(mix(viewNormal, transpose(mat3(scene.invView)) * wetPN, wetS.puddle));
+        }
     }
 #endif
 #ifdef COVER_LIT
@@ -386,7 +410,7 @@ void main()
     {
         float wetSurface = wetS.wet * (1.0 - pbrLit.metalness);
         outColor.xyz *= wetDarkening(wetSurface, pbrLit.roughness)
-            * mix(1.0, wetPuddleDarkening, wetS.puddle);
+            * mix(1.0, wetPuddleDark, wetS.puddle);
         pbrLit.roughness = mix(wetRoughnessOf(pbrLit.roughness, wetSurface), wetPuddleRoughness, wetS.puddle);
     }
 #endif
@@ -469,6 +493,11 @@ void main()
         }
    #ifdef WETNESS_DEBUG
         outColor.xyz = vec3(wetS.wet, wetS.exposure, wetS.puddle);
+   #endif
+   #ifdef WETNESS_PUDDLES
+        // Task 0095: a debug view of the puddle map (the setting `wetness puddle debug`).
+        if (puddleDebugMode() != 0u)
+            outColor.xyz = puddleDebugColour(wetPm);
    #endif
   #endif
   #ifdef COVER_DEBUG

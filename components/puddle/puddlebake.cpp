@@ -50,6 +50,12 @@ namespace Puddle
             std::vector<std::uint8_t> mHasLand;
             // For each cell whose heights were refused: where and why (it then counts as no land).
             std::vector<std::string> mProblem;
+            // Stage W-c (only with statics on): the digest of each land cell's references, and for a bake the raw
+            // captured tops of each land cell.
+            std::vector<Digest> mRefs;
+            std::vector<std::uint8_t> mHasRefs;
+            std::vector<std::vector<float>> mTops;
+            std::string mStaticsProblem;
         };
 
         // The first height of a cell that the fill would refuse, as a located message; empty when all are fine.
@@ -68,7 +74,8 @@ namespace Puddle
             return {};
         }
 
-        Window fetchWindow(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& s)
+        Window fetchWindow(LandHeightSource& source, StaticSurfaceSource* statics, bool wantTops, std::int32_t cellX,
+            std::int32_t cellY, const BakeSettings& s)
         {
             Window window;
             window.mCells = 2 * s.mHalo + 1;
@@ -76,6 +83,13 @@ namespace Puddle
             window.mHeights.resize(count);
             window.mHasLand.assign(count, 0);
             window.mProblem.assign(count, std::string());
+            const bool withStatics = s.mStatics && statics != nullptr;
+            if (withStatics)
+            {
+                window.mRefs.assign(count, Digest{});
+                window.mHasRefs.assign(count, 0);
+                window.mTops.resize(count);
+            }
             const std::size_t expected = static_cast<std::size_t>(s.mCellVertices) * s.mCellVertices;
             for (std::uint32_t iy = 0; iy < window.mCells; ++iy)
             {
@@ -92,6 +106,26 @@ namespace Puddle
                         {
                             window.mHeights[index] = std::move(heights);
                             window.mHasLand[index] = 1;
+                            if (withStatics)
+                            {
+                                Digest refs{};
+                                if (statics->refsDigest(cx, cy, refs))
+                                {
+                                    window.mRefs[index] = refs;
+                                    window.mHasRefs[index] = 1;
+                                }
+                                if (wantTops)
+                                {
+                                    std::vector<float> tops;
+                                    const std::size_t texels
+                                        = static_cast<std::size_t>(s.texelsPerCell()) * s.texelsPerCell();
+                                    if (statics->cellTops(cx, cy, tops) && tops.size() == texels)
+                                        window.mTops[index] = std::move(tops);
+                                    else if (window.mStaticsProblem.empty())
+                                        window.mStaticsProblem = "no static surface capture for cell ("
+                                            + std::to_string(cx) + ", " + std::to_string(cy) + ")";
+                                }
+                            }
                         }
                     }
                 }
@@ -115,6 +149,21 @@ namespace Puddle
                 hasher.update(&land, 1);
                 if (land)
                     hashFloats(hasher, window.mHeights[i]);
+            }
+            if (s.mStatics)
+            {
+                // The references (and model contents) of every land cell; one byte says whether the digest could be
+                // made, so a cell whose references cannot be read gives another digest, never the same as one that
+                // can. Only with statics on: a statics-off digest is byte-for-byte that of stage W-b.
+                for (std::size_t i = 0; i < window.mHeights.size(); ++i)
+                {
+                    if (!window.mHasLand[i])
+                        continue;
+                    const std::uint8_t has = window.mHasRefs.empty() ? 0 : window.mHasRefs[i];
+                    hasher.update(&has, 1);
+                    if (has)
+                        hasher.update(window.mRefs[i].data(), window.mRefs[i].size());
+                }
             }
             return hasher.finalize();
         }
@@ -156,8 +205,6 @@ namespace Puddle
         if (windowSide > static_cast<std::uint64_t>(Render::Puddle::maxGridSide)
             || windowSide * windowSide > Render::Puddle::maxGridTexels)
             return fail("halo", "the window is larger than the fill accepts");
-        if (s.mStatics)
-            return fail("statics", "capturing static surfaces is not built yet (stage W-c)");
         if (s.mCatchmentRadiusUnits > 1000000)
             return fail("catchmentRadius", "the catchment radius must be at most 1,000,000 units");
         return {};
@@ -218,16 +265,20 @@ namespace Puddle
         hashU32(hasher, static_cast<std::uint32_t>(s.mWaterLevelUnits));
         hashU32(hasher, s.mCellSizeUnits);
         hashU32(hasher, s.mCellVertices);
+        // Stage W-c: what the static filter does is a parameter of a bake that uses statics (and of no other).
+        if (s.mStatics)
+            hashU32(hasher, staticFilterVersion);
         return hasher.finalize();
     }
 
-    Digest inputDigest(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings)
+    Digest inputDigest(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings,
+        StaticSurfaceSource* statics)
     {
-        return digestOfWindow(fetchWindow(source, cellX, cellY, settings), cellX, cellY, settings);
+        return digestOfWindow(fetchWindow(source, statics, false, cellX, cellY, settings), cellX, cellY, settings);
     }
 
     BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& s,
-        const BakeOptions& options)
+        const BakeOptions& options, StaticSurfaceSource* statics)
     {
         namespace RP = Render::Puddle;
         BakeResult result;
@@ -238,13 +289,36 @@ namespace Puddle
         }
         const std::uint32_t side = s.texelsPerCell();
         const std::uint32_t perStep = s.texelsPerVertexStep();
-        const Window window = fetchWindow(source, cellX, cellY, s);
+        if (s.mStatics && statics == nullptr)
+        {
+            result.mError = fail("statics", "the settings ask for static surfaces and there is no source for them");
+            return result;
+        }
+        const Window window = fetchWindow(source, statics, true, cellX, cellY, s);
         {
             const std::size_t centre = static_cast<std::size_t>(s.mHalo) * window.mCells + s.mHalo;
             if (!window.mProblem[centre].empty())
             {
                 result.mError = fail("heights", window.mProblem[centre]);
                 return result;
+            }
+        }
+        if (s.mStatics)
+        {
+            // Every land cell of the window needs its references' digest and its capture, or the answer would depend
+            // on what happened to be captured.
+            if (!window.mStaticsProblem.empty())
+            {
+                result.mError = fail("statics", window.mStaticsProblem);
+                return result;
+            }
+            for (std::size_t i = 0; i < window.mHasLand.size(); ++i)
+            {
+                if (window.mHasLand[i] && !window.mHasRefs[i])
+                {
+                    result.mError = fail("statics", "the references of a cell of the window cannot be read");
+                    return result;
+                }
             }
         }
         const std::uint32_t windowSide = window.mCells * side;
@@ -273,6 +347,38 @@ namespace Puddle
                         sinks[index] = h <= water ? 1 : 0;
                     }
                 }
+            }
+        }
+
+        // 1b. Stage W-c: the top-most static surface of each column joins the height field (research note 0049 4.3):
+        // H = max(terrain, accepted static top); a surface above the water is not a sink.
+        std::vector<std::uint8_t> staticTexel(count, 0);
+        if (s.mStatics)
+        {
+            std::vector<float> raw(count, std::numeric_limits<float>::quiet_NaN());
+            for (std::uint32_t iy = 0; iy < window.mCells; ++iy)
+            {
+                for (std::uint32_t ix = 0; ix < window.mCells; ++ix)
+                {
+                    const std::size_t cellIndex = static_cast<std::size_t>(iy) * window.mCells + ix;
+                    if (!window.mHasLand[cellIndex])
+                        continue;
+                    for (std::uint32_t ty = 0; ty < side; ++ty)
+                        for (std::uint32_t tx = 0; tx < side; ++tx)
+                            raw[static_cast<std::size_t>(iy * side + ty) * windowSide + (ix * side + tx)]
+                                = window.mTops[cellIndex][static_cast<std::size_t>(ty) * side + tx];
+                }
+            }
+            const StaticFilterResult filtered
+                = applyStatics(heights, raw, windowSide, static_cast<float>(s.mSpacingUnits));
+            result.mStats.mStaticCandidates = filtered.mCandidates;
+            for (std::size_t t = 0; t < count; ++t)
+            {
+                if (!filtered.mIsStatic[t])
+                    continue;
+                staticTexel[t] = 1;
+                heights[t] = filtered.mHeights[t];
+                sinks[t] = heights[t] <= water ? 1 : 0;
             }
         }
 
@@ -351,7 +457,7 @@ namespace Puddle
         cell.mCellY = cellY;
         cell.mSide = side;
         cell.mSpacing = static_cast<float>(s.mSpacingUnits);
-        cell.mFlags = 0;
+        cell.mFlags = s.mStatics ? flagStatics : 0;
         cell.mParameterDigest = parameterDigest(s);
         cell.mInputDigest = digestOfWindow(window, cellX, cellY, s);
         const std::size_t n = static_cast<std::size_t>(side) * side;
@@ -381,6 +487,11 @@ namespace Puddle
                 cell.mTop[out] = RP::quantiseHeight(heights[in], cell.mHeightBase);
                 const std::uint8_t direction = RP::flowDirection(fill, in);
                 cell.mTexelFlags[out] = direction == RP::flowNone ? texelSink : (direction & texelDirectionMask);
+                if (staticTexel[in])
+                {
+                    cell.mTexelFlags[out] |= texelStatic;
+                    ++result.mStats.mStaticTexels;
+                }
                 const std::uint8_t capacityCode = RP::quantiseCapacity(pond[in]);
                 if (capacityCode == 0)
                     continue;

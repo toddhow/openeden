@@ -33,6 +33,9 @@ namespace Puddle
         float mAbsorption = 0.f;
         /// A Render::PuddleMap::DebugMode.
         std::uint32_t mDebugMode = 0;
+        /// Render::PuddleMap::optionKeepStaticNoise (stage W-c): objects keep the noise puddles on flat static
+        /// surfaces the bake found no pit on.
+        bool mKeepStaticNoise = false;
     };
 
     struct GpuPackResult
@@ -49,7 +52,9 @@ namespace Puddle
 
     /// Clears `words` words at `out` and fills them for the window centred on the params' cell. If the buffer is
     /// smaller than Render::PuddleMap::bufferWords for these parameters, or the texels do not fit, the buffer is left
-    /// cleared and off (nothing is packed).
+    /// cleared and off (nothing is packed). With room for the tops (Render::PuddleMap::bufferWordsWithTops) the cells'
+    /// height bases and `top` channels are packed after the texels (stage W-c); a buffer with room for the texels only
+    /// says so in its header (no tops), and the shader then cannot test heights.
     GpuPackResult packWindow(
         std::uint32_t* out, std::size_t words, const GpuWindowParams& params, const CellFinder& find);
 

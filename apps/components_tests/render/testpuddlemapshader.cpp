@@ -135,9 +135,11 @@ namespace
             std::string::npos);
     }
 
-    TEST(RenderPuddleMapShaderFiles, only_the_terrain_stages_include_the_map_and_only_under_the_puddle_define)
+    TEST(RenderPuddleMapShaderFiles, only_the_terrain_and_object_stages_include_the_map_and_only_under_the_puddle_define)
     {
-        for (const char* file : { "terrain/main.frag", "terrain/terrain.frag.slang" })
+        // Stage W-c: the object shader reads the map too (under the height test), so a road takes the baked puddles.
+        for (const char* file :
+            { "terrain/main.frag", "terrain/terrain.frag.slang", "default/main.frag", "default/default.frag.slang" })
         {
             const std::string text = readShader(file);
             ASSERT_FALSE(text.empty()) << file;
@@ -148,9 +150,6 @@ namespace
             ASSERT_NE(guard, std::string::npos) << file;
             EXPECT_LT(include - guard, 200u) << file;
         }
-        // The object shader keeps the noise puddles (no way to tell a roof from the ground without the baked top).
-        EXPECT_EQ(readShader("default/main.frag").find("puddlemap"), std::string::npos);
-        EXPECT_EQ(readShader("default/default.frag.slang").find("puddlemap"), std::string::npos);
         EXPECT_EQ(readShader("lib/material/wetness.glsl").find("puddlemap"), std::string::npos);
     }
 

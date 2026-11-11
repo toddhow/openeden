@@ -295,7 +295,7 @@ void main()
 #ifdef WETNESS_PUDDLES
     // Task 0095: where the baked puddle map covers the pixel it decides the puddle (its depth, edge and darkening);
     // anywhere else the noise puddles of wetSurfaceAt stand.
-    PuddleShade wetPm = puddleShadeAt(wetWorldPos.xy, wetS.wet);
+    PuddleShade wetPm = puddleShadeAt(wetWorldPos, wetS.wet, 1.0, false);
     if (wetPm.covered)
     {
         wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
