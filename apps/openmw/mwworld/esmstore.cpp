@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
 #include <tuple>
 
 #include <components/debug/debuglog.hpp>
@@ -780,6 +781,13 @@ namespace MWWorld
 
     void ESMStore::write(ESM::ESMWriter& writer, Loading::Listener& progress) const
     {
+        // Task 0105: the neutral world's stub player is a dummy, never a save record. The game state refuses to save a
+        // neutral session before it gets here (ExtensionHost::savingRefusal); this makes it a property of the store.
+        if (mNeutralStubs)
+            throw std::runtime_error(
+                "Refusing to write a save: the store holds the neutral world's stub player (saves of neutral sessions "
+                "are not supported yet)");
+
         writer.startRecord(ESM::REC_DYNA);
         writer.startSubRecord("COUN");
         writer.writeT(mDynamicCount);

@@ -12,6 +12,7 @@
 #include <components/esmbridge/luascripts.hpp>
 #include <components/misc/tuplemeta.hpp>
 
+#include "neutralstore.hpp"
 #include "store.hpp"
 
 namespace Loading
@@ -154,7 +155,10 @@ namespace MWWorld
             Store<ESM4::LevelledNpc>, Store<ESM4::Light>, Store<ESM4::MiscItem>, Store<ESM4::MovableStatic>,
             Store<ESM4::Npc>, Store<ESM4::Outfit>, Store<ESM4::Potion>, Store<ESM4::Race>, Store<ESM4::Reference>,
             Store<ESM4::Sound>, Store<ESM4::SoundReference>, Store<ESM4::Static>, Store<ESM4::StaticCollection>,
-            Store<ESM4::Terminal>, Store<ESM4::TextureSet>, Store<ESM4::Tree>, Store<ESM4::Weapon>, Store<ESM4::World>>;
+            Store<ESM4::Terminal>, Store<ESM4::TextureSet>, Store<ESM4::Tree>, Store<ESM4::Weapon>, Store<ESM4::World>,
+
+            // The bases of the neutral world (task 0105): not a DynamicStore, so no loop over the stores sees it
+            Store<NeutralBase>>;
 
     private:
         template <typename T>
@@ -191,7 +195,14 @@ namespace MWWorld
 
         bool mIsSetUpDone = false;
 
+        // Set by insertNeutralStubPlayer (task 0105): the store holds a dummy player that must never be saved.
+        bool mNeutralStubs = false;
+
     public:
+        /// True when the store holds the neutral world's stub player (MWWorld::insertNeutralStubPlayer).
+        bool hasNeutralStubs() const { return mNeutralStubs; }
+        void markNeutralStubs() { mNeutralStubs = true; }
+
         void addOMWScripts(std::filesystem::path filePath) { mLuaContent.push_back(std::move(filePath)); }
         ESM::LuaScriptsCfg getLuaScriptsCfg() const;
 

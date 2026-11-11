@@ -23,6 +23,11 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralprojectionreal.cpp
     mwworld/testneutralprojectionlookups.cpp
 
+    # Task 0105 stage N3a-2: the neutral world's base records and the stub player.
+    mwworld/testneutralstore.cpp
+    mwworld/testneutralstub.cpp
+    mwworld/testneutralstorereal.cpp
+
     mwdialogue/testkeywordsearch.cpp
     mwdialogue/dialoguefixture.cpp
     mwdialogue/testdialoguejournal.cpp
@@ -163,6 +168,7 @@ target_link_libraries(openmw-tests
     GMock::GMock
     openmw-lib
     game_morrowind
+    game_skyrimse_world # the real-data check of the neutral base store (task 0105)
     eden_body
 )
 

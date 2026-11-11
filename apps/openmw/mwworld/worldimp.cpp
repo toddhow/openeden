@@ -98,6 +98,7 @@
 #include "datetimemanager.hpp"
 #include "inventorystore.hpp"
 #include "manualref.hpp"
+#include "neutralstub.hpp"
 #include "player.hpp"
 #include "projectilemanager.hpp"
 #include "weather.hpp"
@@ -277,6 +278,11 @@ namespace MWWorld
         // contentFilesLoaded() (with OpenMW 0.51's initPreLoad and initPostLoad around it) instead of this constructor.
 
         fillGlobalVariables();
+
+        // Task 0105 (neutral world, stage N3a-2): a session whose content defines no player gets a stub one; a store
+        // that has a "Player" (Morrowind, always) is not touched.
+        if (Settings::game().mNeutralWorld.get())
+            insertNeutralStubPlayer(mStore);
 
         mStore.setUp();
         mStore.validateRecords(mReaders);
