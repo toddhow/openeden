@@ -535,14 +535,44 @@ namespace OMW
         stop();
     }
 
+    ExtensionHost::GamePackStartStep ExtensionHost::planGamePackStart(const GamePackStartState& state) noexcept
+    {
+        if (!state.mLoaded || !state.mHasGamePack)
+            return GamePackStartStep::Nothing;
+        // The first phase ran earlier (task 0113): only the world may still be missing
+        if (state.mGamePackStarted)
+            return state.mPhysicsGiven && !state.mWorldAttached ? GamePackStartStep::AttachWorldOnly
+                                                                : GamePackStartStep::Nothing;
+        if (state.mRunning)
+            return GamePackStartStep::Nothing;
+        return GamePackStartStep::Start;
+    }
+
+    bool ExtensionHost::startGamePackEarly()
+    {
+        // Off means unchanged: without the neutral world the Game starts the pack, as it always did
+        if (mNeutralWorldStore == nullptr)
+            return false;
+        return startGamePack(nullptr);
+    }
+
     bool ExtensionHost::startGamePack(MWPhysics::PhysicsSystem* physics)
     {
         // No game pack: nothing at all happens here, and start() is the single start it always was
-        if (!mLoaded || mRunning || !mLifecycle.hasGamePack())
+        const GamePackStartStep step = planGamePackStart({ mLoaded, mLifecycle.hasGamePack(), mRunning,
+            mGamePackStarted, physics != nullptr, mWorld != nullptr });
+        if (step == GamePackStartStep::AttachWorldOnly)
+        {
+            // The pack started earlier, before the World existed (startGamePackEarly); it gets the world now
+            attachWorldNow(*physics);
+            return false;
+        }
+        if (step != GamePackStartStep::Start)
             return false;
 
         // The log bridge and the world must exist first, as they do for the single start
         beginRunning();
+        mGamePackStarted = true;
         if (physics != nullptr && !mWorld)
             attachWorldNow(*physics);
         if (!mLifecycle.initializeGamePack())

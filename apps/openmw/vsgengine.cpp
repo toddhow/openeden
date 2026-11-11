@@ -426,6 +426,10 @@ namespace OMW
         // Task 0107 (neutral world stage N3a-2b): the game pack is given the content list; nothing happens with
         // [Game] neutral world off.
         mExtensionHost->setSessionContent(args.contentFiles, mFileCollections);
+        // Task 0113 (N3a-3c): with [Game] neutral world on, the game pack starts now, so that its world index runs on
+        // its worker while the World below loads the content. The Game attaches the physics world later
+        // (ExtensionHost::startGamePack). Does nothing with the setting off.
+        mExtensionHost->startGamePackEarly();
 
         // OpenEden, 2026-11-09: keep the driver's compiled pipelines between runs
         // (components/render/pipelinecache.hpp).

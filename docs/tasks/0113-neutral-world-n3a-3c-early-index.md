@@ -1,6 +1,6 @@
 # Task: The neutral world model, stage N3a-3c (start the Skyrim SE pack's world index before the engine's own content load, so the two overlap)
 
-Status: DRAFT (awaiting toddhow). Docs only so far; nothing built or run. Facts below are cited from the code at the current checkout; anything not read in code is marked RECALLED-VERIFY.
+Status: BUILT (option A, see the stage log at the end). Was: DRAFT. Facts below are cited from the code at the current checkout; anything not read in code is marked RECALLED-VERIFY.
 
 Design doc section: `docs/design/neutral-world-model.md` section 10.6 (stages) and the N3a-3b log in `docs/tasks/0109-neutral-world-model-n3a-3.md` (decision 2: the main thread waits at the first query until the index starts before the `World` constructor); decision 0016.
 Goal: with `[Game] neutral world` on and `game=skyrimse`, the pack's world index (`SkyrimWorldView::startLoad`) runs on its worker WHILE the engine loads the session's content, so the first query (the neutral start) no longer waits 1.45 to 1.79 s and time-to-cell drops by roughly the overlap (target below).
@@ -55,3 +55,34 @@ Out of scope: retiring the engine's own ESM4 load (N7), a different indexing thr
 
 1. Is starting the game pack at the end of `prepareEngine` (before the loading screen and the `World`) acceptable, or must pack start stay in `Game::Game` (then option B, an additive SDK change)?
 2. Early start only with `[Game] neutral world` on (recommended, so default play is untouched), or for every game pack?
+
+
+## Stage log (2026-11-11, option A built; same hand wrote tests and code, no fresh reviewer; Windows only; local commit on branch `n3a3c`, not pushed)
+
+Status: BUILT on toddhow's standing approval of the recommendations (option A, only with `[Game] neutral world` on).
+
+RECALLED-VERIFY items checked in code first:
+- `SkyrimGamePack::start` touches no physics and no world: it uses the logger, the world source service, the settings service and the VFS service only (`skyrimse_game_pack.cpp`, `loadSessionContent`). True.
+- `VFS::Manager` is safe for concurrent readers once `buildIndex()` has run (`components/vfs/manager.hpp`, "Thread-safety contract"); `registerArchives` has finished before `setSessionContent`. True.
+- `HostImpl::attachPhysicsWorld` only does `mPhysicsService.emplace(...)`, so attaching after the pack has started is safe. True (nothing else reads the physics service in this pack).
+- `takeSessionFault` is polled from `Game::run`, so an early pack fault is held until the Game exists, then shown once. True; a new test pins it.
+- `beginRunning()` installs the log bridge earlier; engine lines before the Game are forwarded to extension sinks (harmless, only with the setting on).
+None made option A unsafe, so option B was not needed.
+
+Change: `ExtensionHost::startGamePackEarly()` (no-op unless `Config::neutralWorld`) called from `Engine::prepareEngine` right after `setSessionContent`; `ExtensionHost::planGamePackStart` is the pure decision behind `startGamePack` (Start, AttachWorldOnly, Nothing); `Game::Game`'s existing `startGamePack(physics)` now attaches the physics world explicitly when the pack already started (and returns false). The later `attachWorld` stays idempotent. No SDK, pack, CMake or `mwphysics` change.
+
+Tests (written first, red against stubs): 4 of the 8 new tests failed against the stub (`GamePackStartPlan.aFreshHostWithAPackStarts`, `.aPackStartedWithoutPhysicsIsGivenTheWorldLater`, `BuiltInPackTest.theEarlyStartWithNeutralWorldOnStartsThePackOnceAndTheGamesFirstPhaseDoesNotRepeatIt`, `.aPackThatFailsInTheEarlyStartIsTheSessionErrorOnceAndInstallsNothing`); the other four pin absence (setting off, no pack, no physics, after start()) and passed at once. After: `openmw-tests` 1,955 pass. The AttachWorldOnly branch's real call (`attachWorldNow` with a PhysicsSystem) is covered only by the pure plan test and the game run, not a unit test (a PhysicsSystem is not buildable in a unit test).
+
+Measured (`tools/neutral_session_check/check.sh`, five Skyrim SE masters, `WhiterunBanneredMare`, 400 frames, quiet window; time-to-cell = first log line to "Neutral cell inserted"; parent = this branch's base built unchanged):
+
+| run | parent time-to-cell | parent first-query wait | new time-to-cell | new wait |
+| --- | --- | --- | --- | --- |
+| 1 | 8,617 ms | 1,542 ms | 5,188 ms | none logged |
+| 2 | 7,003 ms | 2,042 ms | 5,361 ms | none logged |
+| 3 | 7,964 ms | 2,583 ms | 4,941 ms | none logged |
+
+Mean 7.86 s to 5.16 s (-2.7 s). The pack start line now comes before the engine's content load (0.5 s before `Loading content file Skyrim.esm`), and the index finishes during it. The absolute figures are higher than the N3a-3b log's 5.0 to 5.1 s (shared machine, a fresh build), so compare the pairs, not the old figures. Same result: 694 objects inserted, exit 0, no dump, 0 unexpected error lines, in all six runs.
+
+Morrowind unchanged: `tools/worldobjects_check` (110 result lines) byte-identical to the parent executable with `[Game] neutral world` off and on (`OK` both). Fixed-time Balmora frame (`OPENEDEN_FIXED_FRAME_TIME`, `--random-seed 7`, frame 600): SHA-256 prefix `1c5d47ad0b5dc32d` for new and parent, setting off and on. (That config has no `game=` line, so with the setting on there is no game pack to start early; the early path was exercised only by the Skyrim runs and the unit tests.)
+
+Not run: the Linux gate (Docker hung; GCC traps checked by hand: braces on all ifs, no new gtest-in-if, no unused functions), clang-format 14 (not installed here), clang-tidy, the Lua tests, `components-tests`, a fresh review, Morrowind with `game=morrowind` plus the setting on (would start the Morrowind pack early), a save/load in a Skyrim session.

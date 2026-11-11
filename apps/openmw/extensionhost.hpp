@@ -79,6 +79,33 @@ namespace OMW
         /// `physics`, if given, is attached first so that the pack gets the world's services at its start. Main thread.
         bool startGamePack(MWPhysics::PhysicsSystem* physics = nullptr);
 
+        /// Task 0113 (N3a-3c): what startGamePack does, as a pure decision so that it is testable without a world.
+        /// Start: begin the first phase. AttachWorldOnly: the pack started earlier without a physics system and the
+        /// Game now offers one, so only the world is attached (the pack is not started again). Nothing: as before.
+        enum class GamePackStartStep
+        {
+            Nothing,
+            Start,
+            AttachWorldOnly,
+        };
+        struct GamePackStartState
+        {
+            bool mLoaded = false;
+            bool mHasGamePack = false;
+            bool mRunning = false; // beginRunning() has run (the first phase or start())
+            bool mGamePackStarted = false; // the first phase has run
+            bool mPhysicsGiven = false;
+            bool mWorldAttached = false;
+        };
+        [[nodiscard]] static GamePackStartStep planGamePackStart(const GamePackStartState& state) noexcept;
+
+        /// Task 0113 (N3a-3c): starts the game pack at the end of Engine::prepareEngine, before the World exists, so
+        /// that the pack's world index can run while the engine loads the session's content. Only with
+        /// [Game] neutral world on (Config::neutralWorld); with it off this does nothing and returns false, and the
+        /// Game starts the pack as it always did. The physics world is attached later, by the Game's own
+        /// startGamePack(physics) call. Main thread.
+        bool startGamePackEarly();
+
         void start();
 
         /// Calling it again, or before start(), is safe.
@@ -214,6 +241,7 @@ namespace OMW
         void attachWorldNow(MWPhysics::PhysicsSystem& physics);
         bool mRulesFromPack = false;
         bool mStarted = false;
+        bool mGamePackStarted = false; // startGamePack() ran the first phase (maybe early, task 0113)
         bool mGamePackBuiltIn = false;
 
         // Task 0103 (N3a-1): both are made in the constructor when Config::neutralWorld is set, and are declared before

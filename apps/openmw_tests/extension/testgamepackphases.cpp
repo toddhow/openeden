@@ -363,6 +363,101 @@ namespace
         EXPECT_FALSE(host.startGamePack());
     }
 
+    // ---- Task 0113 (N3a-3c): the game pack starts early, before the World exists ---------------------------------
+
+    OMW::ExtensionHost::GamePackStartState startState()
+    {
+        OMW::ExtensionHost::GamePackStartState state;
+        state.mLoaded = true;
+        state.mHasGamePack = true;
+        return state;
+    }
+
+    TEST(GamePackStartPlan, aFreshHostWithAPackStarts)
+    {
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(startState()), OMW::ExtensionHost::GamePackStartStep::Start);
+    }
+
+    TEST(GamePackStartPlan, withNoPackOrNothingLoadedNothingHappens)
+    {
+        auto noPack = startState();
+        noPack.mHasGamePack = false;
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(noPack), OMW::ExtensionHost::GamePackStartStep::Nothing);
+        auto unloaded = startState();
+        unloaded.mLoaded = false;
+        unloaded.mPhysicsGiven = true;
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(unloaded), OMW::ExtensionHost::GamePackStartStep::Nothing);
+    }
+
+    TEST(GamePackStartPlan, aPackStartedWithoutPhysicsIsGivenTheWorldLater)
+    {
+        auto state = startState();
+        state.mRunning = true;
+        state.mGamePackStarted = true;
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::Nothing)
+            << "no physics given: nothing to attach";
+        state.mPhysicsGiven = true;
+        EXPECT_EQ(
+            OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::AttachWorldOnly);
+        state.mWorldAttached = true;
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::Nothing)
+            << "the world is attached once";
+    }
+
+    TEST(GamePackStartPlan, afterTheSingleStartOfOtherExtensionsNothingMoreHappens)
+    {
+        auto state = startState();
+        state.mRunning = true; // start() ran without a first phase
+        state.mPhysicsGiven = true;
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::Nothing);
+    }
+
+    TEST_F(BuiltInPackTest, theEarlyStartDoesNothingWithNeutralWorldOff)
+    {
+        OMW::ExtensionHost host({ {}, {}, "fakegame", { fakePack() }, false });
+        EXPECT_FALSE(host.startGamePackEarly());
+        EXPECT_EQ(MWWorld::craftingRules(), nullptr) << "default play is untouched";
+        // The game's own first phase still starts it, as it always did
+        EXPECT_TRUE(host.startGamePack());
+        EXPECT_NE(MWWorld::craftingRules(), nullptr);
+    }
+
+    TEST_F(BuiltInPackTest, theEarlyStartWithNeutralWorldOnStartsThePackOnceAndTheGamesFirstPhaseDoesNotRepeatIt)
+    {
+        OMW::ExtensionHost host({ {}, {}, "fakegame", { fakePack() }, true });
+        EXPECT_TRUE(host.startGamePackEarly());
+        EXPECT_NE(MWWorld::craftingRules(), nullptr);
+        EXPECT_EQ(host.gamePackId(), "fakegame");
+        EXPECT_TRUE(host.sessionError().empty());
+
+        EXPECT_FALSE(host.startGamePackEarly()) << "already running";
+        EXPECT_FALSE(host.startGamePack()) << "the Game's call does not start it again";
+        host.start();
+        EXPECT_TRUE(host.sessionError().empty());
+        host.stop();
+    }
+
+    TEST_F(BuiltInPackTest, aPackThatFailsInTheEarlyStartIsTheSessionErrorOnceAndInstallsNothing)
+    {
+        MWWorld::installCraftingRules(std::make_unique<MarkerCrafting>());
+        const sdkgame::CraftingRules* before = MWWorld::craftingRules();
+        OMW::ExtensionHost host({ {}, {}, "fakegame", { fakePack(true) }, true });
+        EXPECT_TRUE(host.startGamePackEarly());
+        EXPECT_THAT(host.sessionError(), HasSubstr("fakegame"));
+        EXPECT_EQ(MWWorld::craftingRules(), before);
+        EXPECT_THAT(host.takeSessionFault(), HasSubstr("fakegame"));
+        EXPECT_TRUE(host.takeSessionFault().empty()) << "shown once";
+        EXPECT_FALSE(host.startGamePack());
+    }
+
+    TEST_F(BuiltInPackTest, theEarlyStartWithNoGamePackDoesNothing)
+    {
+        OMW::ExtensionHost host({ {}, {}, "", { fakePack() }, true });
+        EXPECT_FALSE(host.startGamePackEarly());
+        host.start();
+        EXPECT_EQ(MWWorld::craftingRules(), nullptr);
+    }
+
     // ---- The Morrowind pack as a built-in game pack -------------------------------------------------------------
 
     TEST(MorrowindPack, itsManifestIsAGamePackThatProvidesTheRulesAndIsNamedLikeTheGame)
