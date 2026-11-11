@@ -260,9 +260,10 @@ namespace
         {
             EXPECT_TRUE(numbers.insert(number).second) << name << " shares the number " << number;
         }
-        // The old bindings keep their numbers (0 to 16) and the new ones follow (17 to 19).
-        EXPECT_EQ(glslBindings.size(), 20u);
-        for (long number = 0; number < 20; ++number)
+        // The old bindings keep their numbers (0 to 16) and the new ones follow (17 to 19, and 20 for the baked puddle
+        // map, task 0095 stage W-d).
+        EXPECT_EQ(glslBindings.size(), 21u);
+        for (long number = 0; number < 21; ++number)
         {
             EXPECT_EQ(numbers.count(number), 1u) << "binding number " << number << " is not used";
         }
