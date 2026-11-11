@@ -1,5 +1,5 @@
-// Task 0096 stage d: MWRender::AnimatedChunk, the moving objects of one object paging chunk. Controllers run at the rate
-// of the object's distance within a shared budget, keep their phase, and cannot outlive the nodes they move.
+// Task 0096 stage d: MWRender::AnimatedChunk, the moving objects of one object paging chunk. Controllers run at the
+// rate of the object's distance within a shared budget, keep their phase, and cannot outlive the nodes they move.
 // Written from the task spec before the implementation.
 
 #include "apps/openmw/mwrender/animatedchunk.hpp"
@@ -173,7 +173,8 @@ TEST_F(AnimatedChunkTest, the_budget_limits_the_controllers_per_frame_over_all_c
     for (unsigned f = 0; f < 20; ++f)
     {
         Lod::AnimBudget budget{ 20, 20 };
-        const unsigned ran = a->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget) + b->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget);
+        const unsigned ran = a->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget)
+            + b->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget);
         EXPECT_LE(ran, 20u);
         EXPECT_GT(ran, 0u);
     }

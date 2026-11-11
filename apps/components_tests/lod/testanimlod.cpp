@@ -196,8 +196,8 @@ TEST(LodAnimPlan, a_stopped_object_never_runs_but_keeps_its_time_for_when_it_com
 
 TEST(LodAnimPlan, the_phase_of_an_animation_never_changes_whatever_the_rate)
 {
-    // The time given to the animation plus the time still waiting equals the time that passed, always: this is what keeps
-    // an object in step with a near copy of itself when its rate changes or it stops and starts.
+    // The time given to the animation plus the time still waiting equals the time that passed, always: this is what
+    // keeps an object in step with a near copy of itself when its rate changes or it stops and starts.
     std::mt19937 rng(1234);
     std::uniform_real_distribution<float> distance(0.f, 2500.f);
     std::vector<AnimItem> items;

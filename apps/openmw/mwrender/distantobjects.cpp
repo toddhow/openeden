@@ -86,8 +86,8 @@ namespace MWRender
 
         // Task 0096 stage d: the most animated objects one chunk holds. Every one has a copy of its model of its own
         // (the clone of what carries a controller) and keeps controllers running; the rest of a crowded cell stays
-        // frozen as before. A cell of Morrowind holds a handful of lava planes or Ghostgate fence segments, so this is a
-        // guard against a cell of a mod, not a limit the vanilla data reaches.
+        // frozen as before. A cell of Morrowind holds a handful of lava planes or Ghostgate fence segments, so this is
+        // a guard against a cell of a mod, not a limit the vanilla data reaches.
         constexpr std::size_t sMaxAnimatedPerChunk = 128;
 
         // Whether a model has a particle system (a compute dispatch): such models stay frozen with their particles
@@ -101,10 +101,10 @@ namespace MWRender
 
         // Gives an object a copy of its model whose auto-play controllers a chunk can run, and returns them as
         // (controller, target) pairs; returns `prototype` itself, and no controllers, when the model has none, has a
-        // skin (the bones it needs are not there) or has none that play by themselves. Runs on an operation thread, like
-        // the rest of buildChunk, and reads only the prototype.
-        vsg::ref_ptr<vsg::Node> makeAnimatedCopy(const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype,
-            AnimatedChunk::Controllers& controllers)
+        // skin (the bones it needs are not there) or has none that play by themselves. Runs on an operation thread,
+        // like the rest of buildChunk, and reads only the prototype.
+        vsg::ref_ptr<vsg::Node> makeAnimatedCopy(const MWAnim::Context& context,
+            const vsg::ref_ptr<vsg::Node>& prototype, AnimatedChunk::Controllers& controllers)
         {
             vsg::ref_ptr<vsg::Node> node = prototype;
             MWAnim::CloneResult result = MWAnim::cloneIfRequired(node);
@@ -117,7 +117,8 @@ namespace MWRender
             AnimatedChunk::Controllers found;
             result.link(linkContext, [&found](const Anim::Controller* controller, vsg::Object* target) {
                 if (controller != nullptr && target != nullptr && controller->hints.autoPlay)
-                    found.emplace_back(vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
+                    found.emplace_back(
+                        vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
             });
             if (found.empty())
                 return prototype;

@@ -74,7 +74,7 @@ namespace MWRender
 
     std::size_t AnimatedChunk::countInTier(Lod::AnimTier tier) const
     {
-        return static_cast<std::size_t>(
-            std::count_if(mItems.begin(), mItems.end(), [tier](const Lod::AnimItem& item) { return item.tier == tier; }));
+        return static_cast<std::size_t>(std::count_if(
+            mItems.begin(), mItems.end(), [tier](const Lod::AnimItem& item) { return item.tier == tier; }));
     }
 }

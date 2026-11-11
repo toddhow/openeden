@@ -10,8 +10,8 @@
 #include <vsg/core/ref_ptr.h>
 #include <vsg/maths/vec3.h>
 
-#include <components/animation/controller.hpp>
 #include <components/animation/autoplay.hpp>
+#include <components/animation/controller.hpp>
 #include <components/lod/animlod.hpp>
 
 namespace MWRender
@@ -51,7 +51,8 @@ namespace MWRender
 
         /// Runs this frame's controllers; returns how many ran. `dt` is the frame's game time, `stopDistance` where the
         /// animation stops, `frame` a counter that grows by one each rendered frame, `budget` is shared by all chunks.
-        unsigned update(const vsg::dvec3& camera, double dt, float stopDistance, unsigned frame, Lod::AnimBudget& budget);
+        unsigned update(
+            const vsg::dvec3& camera, double dt, float stopDistance, unsigned frame, Lod::AnimBudget& budget);
 
         /// The tier of every object after the last update(), for tests and traces.
         std::size_t countInTier(Lod::AnimTier tier) const;

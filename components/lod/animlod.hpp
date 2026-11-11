@@ -91,7 +91,8 @@ namespace Lod
     {
         if (phaseGroup == 0)
             return 0.f;
-        std::uint64_t h = id * 0x9e3779b97f4a7c15ull + static_cast<std::uint64_t>(static_cast<std::uint32_t>(phaseGroup));
+        std::uint64_t h
+            = id * 0x9e3779b97f4a7c15ull + static_cast<std::uint64_t>(static_cast<std::uint32_t>(phaseGroup));
         h = (h ^ (h >> 30)) * 0xbf58476d1ce4e5b9ull;
         h = (h ^ (h >> 27)) * 0x94d049bb133111ebull;
         h ^= h >> 31;

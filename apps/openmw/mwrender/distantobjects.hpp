@@ -59,8 +59,8 @@ namespace MWRender
     {
     public:
         /// Task 0096 stage d (`[WorldLod] animated objects`): objects whose models have auto-play controllers keep
-        /// them, run by updateAnimation() at a rate that falls with the distance. Off (the default) builds the chunks as
-        /// before.
+        /// them, run by updateAnimation() at a rate that falls with the distance. Off (the default) builds the chunks
+        /// as before.
         struct AnimationOptions
         {
             bool mEnabled = false;
