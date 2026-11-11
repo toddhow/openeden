@@ -187,6 +187,8 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Compound hitboxes* (0011): `tcb` shows a multi-segment shape round each actor.
 - *Foot planting, look at, smoother turns* (M9): feet stay on slopes and stairs, NPCs turn their heads to you, turns are
   not snapped.
+- *Foot lock* (0107): stop walking or running and look at the feet: the foot on the ground stays where it was and settles
+  slowly instead of gliding back to the idle pose. `tools/footslip_check` measures it.
 - *Inertial locomotion* (high, also for NPCs) and *procedural lean*: the player accelerates and stops with momentum and
   leans into turns.
 - *CreativeMotion `natural`* (0067, with the style layer 0053): changes of animation blend (the stop from a run is soft,

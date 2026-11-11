@@ -1,0 +1,2 @@
+GLOBAL: scripts/footslip_global.lua
+PLAYER: scripts/footslip.lua

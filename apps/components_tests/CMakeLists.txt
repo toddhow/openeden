@@ -264,6 +264,8 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_world_source_service.cpp
     extension/test_crafting_contract.cpp
     inertialmotion/test_locomotion_state.cpp
+    inertialmotion/testauthoredstart.cpp
+    inertialmotion/testfootlock.cpp
     inertialmotion/testleansmoother.cpp
     inertialmotion/testmovementrequest.cpp
 

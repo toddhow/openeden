@@ -1,6 +1,7 @@
 #include "character.hpp"
 
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <numbers>
@@ -374,6 +375,32 @@ namespace
 
 namespace MWMechanics
 {
+
+    namespace
+    {
+        // Says once per session which of the authored locomotion clips the player's animation has (task 0107). The
+        // choice of those clips is silent when they are missing (the procedural fallback runs), which hid for a long
+        // time that no Morrowind animation file has any of them.
+        void reportAuthoredTransitionClips(const MWAnim::Play& animation)
+        {
+            static std::atomic<bool> reported{ false };
+            if (reported.exchange(true))
+                return;
+            constexpr std::string_view groups[]
+                = { "walkstart", "runstart", "walkstop", "runstop", "runskid", "turnleft90", "turnright90" };
+            std::string found;
+            std::string missing;
+            for (const std::string_view group : groups)
+            {
+                std::string& list = animation.hasAnimation(group) ? found : missing;
+                list += (list.empty() ? "" : ", ") + std::string(group);
+            }
+            Log(Debug::Info) << "Inertial locomotion: authored transition clips found: "
+                             << (found.empty() ? "none" : found)
+                             << "; missing: " << (missing.empty() ? "none" : missing)
+                             << " (a missing clip is replaced by the procedural fallback; see docs/research/0052)";
+        }
+    }
 
     std::string CharacterController::chooseRandomGroup(const std::string& prefix, int* num) const
     {
@@ -2166,6 +2193,8 @@ namespace MWMechanics
             const bool enableAuthored = Settings::values().mGame.mEnableAuthoredTransitions.get();
             inertialActive = useInertial && physActor && onground && !inwater && !flying;
             smoothedSpeed = inertialActive ? physActor->getLocomotionState().getSmoothedSpeed() : 0.0f;
+            if (inertialActive && enableAuthored && isPlayer)
+                reportAuthoredTransitionClips(*mAnimation);
             const InertialMotion::LocomotionPhase locPhase
                 = inertialActive ? physActor->getLocomotionState().getPhase() : InertialMotion::LocomotionPhase::Idle;
             mTraceLocomotionPhase = static_cast<int>(locPhase);
@@ -2543,14 +2572,15 @@ namespace MWMechanics
                         {
                             movestate = CharState_RunSkid;
                         }
-                        else if (inertialActive && enableAuthored
-                            && locPhase == InertialMotion::LocomotionPhase::Starting
-                            && (mMovementState == CharState_None || isTurning()) && smoothedSpeed < 20.0f)
+                        else
                         {
-                            if (effectiveIsRunning && mAnimation->hasAnimation("runstart"))
-                                movestate = CharState_RunStart;
-                            else if (!effectiveIsRunning && mAnimation->hasAnimation("walkstart"))
-                                movestate = CharState_WalkStart;
+                            // The start clip is chosen on the first frame of input, before the physics step that
+                            // first moves the actor: the locomotion phase is still Idle then (task 0107).
+                            const bool standing = mMovementState == CharState_None || isTurning();
+                            const char* const startGroup = effectiveIsRunning ? "runstart" : "walkstart";
+                            if (InertialMotion::shouldPlayAuthoredStart(inertialActive, enableAuthored,
+                                    mAnimation->hasAnimation(startGroup), true, standing, smoothedSpeed))
+                                movestate = effectiveIsRunning ? CharState_RunStart : CharState_WalkStart;
                         }
 
                         if (movestate == CharState_None)
@@ -2817,6 +2847,25 @@ namespace MWMechanics
                     style.mWeights.mMoving, style.mWeights.mIdle, style.mWeights.mPosture, style.mCadence);
                 line += styleText;
             }
+        }
+        // The ankles in world space and the actor's yaw (task 0107): foot slip is measured from these.
+        // Built per call: the animation object (and with it the bones) is replaced when the player's view changes.
+        const MWRender::BonePose tracePose(mAnimation->bones, mObject->transform());
+        for (const char* const footName : { "bip01 l foot", "bip01 r foot" })
+        {
+            const MWRender::BonePose::Bone foot = tracePose.find(footName);
+            if (!foot)
+                continue;
+            const vsg::vec3 world(Misc::VsgMath::getTrans(tracePose.getWorld(foot)));
+            char footText[sTraceTextCapacity];
+            std::snprintf(footText, sizeof(footText), " CMFEET_%c=(%.3f %.3f %.3f)", footName[6] == 'l' ? 'L' : 'R',
+                world.x, world.y, world.z);
+            line += footText;
+        }
+        {
+            char yawText[sTraceTextCapacity];
+            std::snprintf(yawText, sizeof(yawText), " yaw=%.4f", position.rot[2]);
+            line += yawText;
         }
         line += MWRender::describeBoneRotations(mAnimation->bones, traceBones);
         if (mPoseDriver && mPoseDriverApplies)

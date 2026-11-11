@@ -72,6 +72,7 @@ namespace Settings
             "actor collision shape type" };
         SettingValue<bool> mPlayerMovementIgnoresAnimation{ mIndex, "Game", "player movement ignores animation" };
         SettingValue<bool> mFootPlanting{ mIndex, "Game", "foot planting" };
+        SettingValue<bool> mFootLock{ mIndex, "Game", "foot lock" };
         SettingValue<bool> mLookAt{ mIndex, "Game", "look at" };
         SettingValue<bool> mSmootherTurns{ mIndex, "Game", "smoother turns" };
         SettingValue<std::string> mInertialLocomotion{ mIndex, "Game", "inertial locomotion" };

@@ -24,7 +24,7 @@ awk -F'\t' -v exclude="$HERE/exclude.txt" '
     function checked(sec, key) {
         if (sec == "Rendering" || sec == "WorldLod" || sec == "Bodies" || sec == "Shadows") return 1
         if (sec == "Game")
-            return key ~ /creativemotion|inertial|sheath/ || key == "foot planting" || key == "look at" \
+            return key ~ /creativemotion|inertial|sheath/ || key == "foot planting" || key == "foot lock" || key == "look at" \
                 || key == "smoother turns" || key == "procedural lean" || key == "lean scale" \
                 || key == "actor collision shape type" || key == "enable authored transitions" \
                 || key ~ /^extension (debug draw|profiler)$/ || key == "neutral world"

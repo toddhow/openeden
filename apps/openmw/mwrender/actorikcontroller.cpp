@@ -2,6 +2,7 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwmechanics/actorutil.hpp"
 #include "../mwphysics/actor.hpp"
 #include "../mwphysics/joltlayers.hpp"
 #include "../mwphysics/physicssystem.hpp"
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <string>
 
 namespace MWRender
 {
@@ -47,6 +49,16 @@ namespace MWRender
         constexpr float sNormalRate = 12.f;
         constexpr float sPelvisRate = 14.f;
         constexpr float sWeightRate = 8.f;
+
+        // Foot lock (task 0107): an animated ankle counts as on the ground when it is this far (times the actor's
+        // scale) above the lowest ankle height the sole allows. The stance ankle of Morrowind's idle and walk poses
+        // is within about 1 unit of it (docs/research/0052).
+        constexpr float sFootLockPlantHeight = 2.5f;
+        // The body speed (units per second) is the measured one smoothed at this rate (1/s): the physics position
+        // is not updated every frame at every frame rate.
+        constexpr float sBodySpeedRate = 20.f;
+        // A move of the actor origin farther than this in one frame is a teleport: the locks are dropped.
+        constexpr float sTeleportDistance = 100.f;
 
         float filterAlpha(float rate, float dt)
         {
@@ -285,6 +297,25 @@ namespace MWRender
         leg.mGroundNormal = combinedNormal;
     }
 
+    void ActorIkController::updateBodySpeed(const RootState& root, float dt)
+    {
+        const vsg::vec2 xy(root.mPosition.x, root.mPosition.y);
+        if (mHasLastRoot && dt > 0.f)
+        {
+            const float moved = std::hypot(xy.x - mLastRootXY.x, xy.y - mLastRootXY.y);
+            if (moved > sTeleportDistance)
+            {
+                mBodySpeed = 0.f;
+                for (LegState& leg : mLegs)
+                    leg.mLock.reset();
+            }
+            else
+                mBodySpeed += (moved / dt - mBodySpeed) * filterAlpha(sBodySpeedRate, dt);
+        }
+        mHasLastRoot = true;
+        mLastRootXY = xy;
+    }
+
     void ActorIkController::applyPostAnimation(float duration)
     {
         // Nothing to do (and no bone is read or written) until a feature that needs the bones is enabled.
@@ -292,11 +323,13 @@ namespace MWRender
             return;
 
         const float dt = std::clamp(duration, 0.f, sMaxFrameTime);
+        mFrameDt = dt;
 
         // Always start from the animated pose of this frame.
         restoreBones();
 
         const RootState root = getRoot();
+        updateBodySpeed(root, dt);
         const vsg::vec3 actorPos = root.mPosition;
         const float actorZ = actorPos.z;
         const float actorScale = std::max(0.25f, root.mScale);
@@ -356,7 +389,10 @@ namespace MWRender
             mIkWeight = 0.f;
             mPelvisInit = false;
             for (LegState& leg : mLegs)
+            {
                 leg.mFilterInit = false;
+                leg.mLock.reset();
+            }
 
             if (mHasCompoundHitboxes)
                 updateHitboxes(root, forward, actorScale);
@@ -450,8 +486,23 @@ namespace MWRender
         }
 
         // 3. Solve both legs against the actual animated pose of this frame.
+        std::string shownText;
+        const bool trace = Settings::game().mCreativeMotionAnimationDebug && mPtr == MWMechanics::getPlayer();
         for (LegState& leg : mLegs)
+        {
             solveLeg(leg, actorZ, mPelvis.mBone ? appliedPelvis : 0.f, mIkWeight, forward, actorScale);
+            if (leg.mFoot.mBone)
+            {
+                const vsg::vec3 shown = worldPos(leg.mFoot.mBone);
+                leg.mLastShown = vsg::vec2(shown.x, shown.y);
+                if (trace)
+                    shownText += " " + std::string(&leg == &mLegs[0] ? "L" : "R") + "=(" + std::to_string(shown.x) + " "
+                        + std::to_string(shown.y) + " " + std::to_string(shown.z) + ")";
+            }
+        }
+        // The ankles as drawn, after the leg solve: tools/footslip_check measures the foot slip from these.
+        if (trace)
+            Log(Debug::Info) << "CMFEETIK" << shownText;
 
         // 4. Drive skeletal hitbox capsules from the final animated + IK-solved skeleton pose.
         if (mHasCompoundHitboxes)
@@ -465,7 +516,10 @@ namespace MWRender
             return;
 
         if (!leg.mGroundHit || !leg.mFilterInit || weight < 1e-3f)
+        {
+            leg.mLock.reset();
             return;
+        }
 
         const vsg::mat4 thighWorld = mPose->getWorld(leg.mThigh.mBone);
         const vsg::mat4 calfWorld = mPose->getWorld(leg.mCalf.mBone);
@@ -484,7 +538,27 @@ namespace MWRender
         const float desiredAnkleZ = std::clamp(leg.mFilteredGroundZ + animHeightAboveOrigin,
             actorZ - sMaxFootOffset * actorScale, actorZ + sMaxFootRaise * actorScale);
 
-        const vsg::vec3 target(ankle.x, ankle.y, animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
+        vsg::vec3 target(ankle.x, ankle.y, animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
+
+        // Foot lock (task 0107): while the body stands still, a foot on the ground is held where it was drawn.
+        if (Settings::game().mFootLock)
+        {
+            const bool planted
+                = animatedAnkleZ - leg.mFilteredGroundZ <= (sMinSoleHeight + sFootLockPlantHeight) * actorScale;
+            const InertialMotion::FootLockResult lock = leg.mLock.update(vsg::vec2(ankle.x, ankle.y), leg.mLastShown,
+                planted, mBodySpeed, mFrameDt, InertialMotion::FootLockParameters{});
+            target.x = ankle.x + (lock.mTarget.x - ankle.x) * lock.mWeight;
+            target.y = ankle.y + (lock.mTarget.y - ankle.y) * lock.mWeight;
+            if (Settings::game().mCreativeMotionAnimationDebug && mPtr == MWMechanics::getPlayer())
+            {
+                Log(Debug::Info) << "CMLOCK foot=" << (&leg == &mLegs[0] ? 'L' : 'R') << " planted=" << planted
+                                 << " bodyspeed=" << mBodySpeed << " engaged=" << leg.mLock.isEngaged()
+                                 << " weight=" << lock.mWeight << " held=(" << lock.mTarget.x << " " << lock.mTarget.y
+                                 << ") animated=(" << ankle.x << " " << ankle.y << ")";
+            }
+        }
+        else
+            leg.mLock.reset();
 
         // Bias the knee pole vector along actorForward so nearly-straight legs do not wobble laterally.
         const vsg::vec3 pole = (knee - (hip + ankle) * 0.5f) + actorForward * (8.0f * actorScale);

@@ -5,6 +5,7 @@
 
 #include "../mwworld/ptr.hpp"
 
+#include <components/inertialmotion/footlock.hpp>
 #include <components/inertialmotion/leansmoother.hpp>
 #include <components/misc/vsgmath.hpp>
 
@@ -75,6 +76,11 @@ namespace MWRender
             bool mFilterInit = false;
             float mFilteredGroundZ = 0.f;
             vsg::vec3 mFilteredNormal{ 0.f, 0.f, 1.f };
+
+            // Foot lock (task 0107): holds this foot while the actor stands still. mLastShown is where the ankle
+            // was drawn last frame (after the solve), the position a hold starts at.
+            InertialMotion::FootLock mLock;
+            vsg::vec2 mLastShown{ 0.f, 0.f };
         };
 
         struct ArmNodes
@@ -92,6 +98,7 @@ namespace MWRender
         };
 
         RootState getRoot() const;
+        void updateBodySpeed(const RootState& root, float dt);
         vsg::vec3 worldPos(const BonePose::Bone& bone) const;
         void restoreBones();
         bool restoreBase(BoneState& bone);
@@ -123,6 +130,12 @@ namespace MWRender
         // Grounded/airborne blend target from update(), smoothed in the post pass
         bool mWantIk = false;
         float mIkWeight = 0.f;
+
+        // Frame time and horizontal ground speed of the actor for the foot lock (set in applyPostAnimation)
+        float mFrameDt = 0.f;
+        float mBodySpeed = 0.f;
+        bool mHasLastRoot = false;
+        vsg::vec2 mLastRootXY{ 0.f, 0.f };
 
         // Pelvis height filtered in world space (absorbs collision/stair height pops)
         bool mPelvisInit = false;

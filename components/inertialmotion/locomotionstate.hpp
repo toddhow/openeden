@@ -80,6 +80,23 @@ namespace InertialMotion
         return hasMovementInput && floorSpeed > smoothedSpeed ? floorSpeed : smoothedSpeed;
     }
 
+    /// The movement state "start" clip (WalkStart, RunStart) is only chosen for an actor that moves slower than this
+    /// (units per second); from then on the cycle plays. The value is the one the first version used.
+    inline constexpr float sAuthoredStartMaxSpeed = 20.f;
+
+    /// Whether the authored start clip may be chosen this frame. Evaluated at the top of the frame, before the
+    /// physics step that first moves the actor, so it must not wait for LocomotionPhase::Starting: that phase
+    /// exists only from the next frame on, and by then the actor's movement state is already the walk cycle (the
+    /// first version asked for it and so could never choose a start clip; docs/research/0052).
+    /// @param clipExists the actor's animation sources contain the group (Morrowind's data has none)
+    /// @param standingOrTurningInPlace the actor's movement state is 'none' or a turn in place
+    constexpr bool shouldPlayAuthoredStart(bool inertialActive, bool authoredEnabled, bool clipExists,
+        bool hasMovementInput, bool standingOrTurningInPlace, float smoothedSpeed)
+    {
+        return inertialActive && authoredEnabled && clipExists && hasMovementInput && standingOrTurningInPlace
+            && smoothedSpeed < sAuthoredStartMaxSpeed;
+    }
+
     /// Converts a preset enum to its standard parameter set
     LocomotionParameters getPresetParameters(Preset preset);
 
