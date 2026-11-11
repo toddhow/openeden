@@ -336,10 +336,13 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpuddlefill.cpp
     render/testpuddlelevel.cpp
     render/testpuddlecatchment.cpp
+    render/testpuddlemapgpu.cpp
+    render/testpuddlemapshader.cpp
     puddle/testpuddlemap.cpp
     puddle/testpuddlebake.cpp
     puddle/testpuddlepack.cpp
     puddle/testpuddlereview.cpp
+    puddle/testpuddlegpu.cpp
     render/testwetnessmath.cpp
     render/testcloudmath.cpp
     render/testcloudvolumemath.cpp

@@ -1,0 +1,19 @@
+# Frame check of the map's x and y orientation: the camera 900 units south of two pits, looking north. Rain. The
+# `probe` lines compare the baked ground height at 5 points round the pit's floor with a ray into the real terrain.
+weather rain
+hour 12
+timescale 1
+first 8
+hold 4
+pose pit_0_-8_id1 2304 -61956 1068 0 0.5
+probe 2304 -61056 568.00
+probe 2560 -61056 608.00
+probe 2048 -61056 576.00
+probe 2304 -60800 584.00
+probe 2304 -61312 576.00
+pose pit_-2_-10 -11264 -75140 500 0 0.5
+probe -11264 -74240 0.00
+probe -11008 -74240 8.00
+probe -11520 -74240 8.00
+probe -11264 -73984 16.00
+probe -11264 -74496 0.00

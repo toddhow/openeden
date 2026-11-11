@@ -1,0 +1,9 @@
+# GPU cost: one pose looking at the coastal pit from 500 units in steady rain, held for 25 s of simulation time (about
+# 1500 frames at the fixed frame time). Run with `gpu timing = true` and OPENEDEN_FRAME_STATS_FILE (rr.sh sets it), with the
+# map off and on; the terrain is drawn in the "main" pass.
+weather rain
+hour 12
+timescale 4
+first 30
+hold 25
+pose cost -11264 -74740 150 0 0.2

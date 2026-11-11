@@ -134,6 +134,18 @@ namespace Settings
         SettingValue<float> mWetnessDryTime{ mIndex, "Rendering", "wetness dry time",
             makeClampSanitizerFloat(1, 86400) };
         SettingValue<bool> mWetnessDebug{ mIndex, "Rendering", "wetness debug" };
+        // Task 0095 (puddles v2, stage W-d): the terrain's puddles from the baked puddle map (read at start; needs
+        // wetness and wetness puddles), their depth strength (it scales the water the rain supplies), the water the
+        // rain supplies at full wetness and what the ground absorbs first (world units of depth), and a debug view
+        // (off, capacity, level or cell).
+        SettingValue<bool> mWetnessPuddleMap{ mIndex, "Rendering", "wetness puddle map" };
+        SettingValue<float> mWetnessPuddleDepth{ mIndex, "Rendering", "wetness puddle depth",
+            makeClampSanitizerFloat(0, 2) };
+        SettingValue<float> mWetnessPuddleSupply{ mIndex, "Rendering", "wetness puddle supply",
+            makeClampSanitizerFloat(0, 20) };
+        SettingValue<float> mWetnessPuddleAbsorption{ mIndex, "Rendering", "wetness puddle absorption",
+            makeClampSanitizerFloat(0, 20) };
+        SettingValue<std::string> mWetnessPuddleDebug{ mIndex, "Rendering", "wetness puddle debug" };
         // Task 0095 (puddles v2, stage W-b): what `openmw --bake-puddles` reads. Texel spacing in world units, the
         // maximum puddle depth in world units, the smallest pond a pit may have (texels), how far along the water's
         // path ground still counts as the pit's catchment (world units), the cells of halo the baker looks at round a

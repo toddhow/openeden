@@ -62,7 +62,10 @@ namespace Pipeline
             { Descriptors::VIEW_POINT_SHADOW_SAMPLER_BINDING, VK_DESCRIPTOR_TYPE_SAMPLER, 1,
                 VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
             { Descriptors::VIEW_POINT_SHADOW_DATA_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr } });
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
+            // OpenEden (task 0095): the baked puddle map's window of cells.
+            { Descriptors::VIEW_PUDDLE_BINDING, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT,
+                nullptr } });
         return sceneLayout;
     }
 

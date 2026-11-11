@@ -25,5 +25,7 @@ const int VIEW_CLOUD_SHADOW_BINDING=16;
 const int VIEW_POINT_SHADOW_MAP_BINDING=17;
 const int VIEW_POINT_SHADOW_SAMPLER_BINDING=18;
 const int VIEW_POINT_SHADOW_DATA_BINDING=19;
+// OpenEden (task 0095): the baked puddle map's window of cells (lib/material/puddlemap.glsl).
+const int VIEW_PUDDLE_BINDING=20;
 
 const int VIEW_ENV_COUNT=32;

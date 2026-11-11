@@ -19,6 +19,7 @@
 #include "mwbase/world.hpp"
 #include "mwrender/terrainstorage.hpp"
 #include "mwworld/esmstore.hpp"
+#include "puddleland.hpp"
 
 namespace OMW
 {
@@ -29,35 +30,6 @@ namespace OMW
         // The water level of an exterior cell: MWWorld::Cell sets mWaterHeight to -1 for every exterior cell
         // (apps/openmw/mwworld/cell.cpp, the constructor for ESM::Cell records: "if (isExterior()) mWaterHeight = -1").
         constexpr std::int32_t exteriorWaterLevel = -1;
-
-        // The land of the loaded game data through the terrain storage's vertex data: the heights the live terrain is
-        // built from (lod 0, one cell, 65 x 65 vertices, x fastest, south row first).
-        class StorageHeights final : public Puddle::LandHeightSource
-        {
-        public:
-            StorageHeights(MWRender::TerrainStorage& storage, const MWWorld::ESMStore& store)
-                : mStorage(storage)
-                , mStore(store)
-            {
-            }
-
-            bool cellHeights(std::int32_t cellX, std::int32_t cellY, std::vector<float>& heights) override
-            {
-                if (mStore.get<ESM::Land>().search(cellX, cellY) == nullptr)
-                    return false;
-                Terrain::Bounds bounds;
-                bounds.size = 1.f;
-                bounds.min = vsg::vec2(static_cast<float>(cellX), static_cast<float>(cellY));
-                const Terrain::Storage::VertexData data = mStorage.getVertexData(0, bounds);
-                const std::size_t count = static_cast<std::size_t>(data.heights->width()) * data.heights->height();
-                heights.assign(data.heights->data(), data.heights->data() + count);
-                return true;
-            }
-
-        private:
-            MWRender::TerrainStorage& mStorage;
-            const MWWorld::ESMStore& mStore;
-        };
 
         bool parseCell(const std::string& text, std::int32_t& x, std::int32_t& y)
         {

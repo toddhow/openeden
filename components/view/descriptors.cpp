@@ -10,6 +10,7 @@
 #include <components/render/depth.hpp>
 #include <components/render/pointshadowgpu.hpp>
 #include <components/render/probegpu.hpp>
+#include <components/render/puddlemapgpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/skyvisgpu.hpp>
 #include <components/render/volumegpu.hpp>
@@ -213,6 +214,27 @@ namespace View
         (*data)[Render::PointShadow::lightEntryOffset()] = vsg::vec4(-1.f, 0.f, 0.f, 0.f);
         return vsg::DescriptorBuffer::create(
             data, Pipeline::Descriptors::VIEW_POINT_SHADOW_DATA_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> dummyPuddleMap()
+    {
+        // The header and the cell table, all zero: the shader reads "no map loaded" and draws the old puddles.
+        auto data = vsg::uintArray::create(Render::PuddleMap::dataBase);
+        for (auto& v : *data)
+            v = 0;
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_PUDDLE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    }
+
+    vsg::ref_ptr<vsg::Descriptor> puddleMapBuffer(vsg::ref_ptr<vsg::uintArray>& data)
+    {
+        data = vsg::uintArray::create(
+            Render::PuddleMap::bufferWords(Render::PuddleMap::windowSide, Render::PuddleMap::maxTexelsPerSide));
+        for (auto& v : *data)
+            v = 0;
+        data->properties.dataVariance = vsg::DataVariance::DYNAMIC_DATA;
+        return vsg::DescriptorBuffer::create(
+            data, Pipeline::Descriptors::VIEW_PUDDLE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
     vsg::ref_ptr<vsg::Descriptor> volumeParamsBuffer(vsg::ref_ptr<vsg::vec4Array>& data)

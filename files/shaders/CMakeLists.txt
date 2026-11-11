@@ -35,6 +35,7 @@ set(SHADER_FILES
     lib/view/cloudshadow.glsl
     lib/view/volumecloudshadow.glsl
     lib/material/wetness.glsl
+    lib/material/puddlemap.glsl
     lib/material/cover.glsl
     lib/light/precipitation.glsl
     lib/material/bindings.glsl

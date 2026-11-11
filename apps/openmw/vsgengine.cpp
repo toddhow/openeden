@@ -547,6 +547,7 @@ namespace OMW
             *mRenderEngine, guiRoot, mResourceSystem.get() /*, *mNavigator*/);
 
         mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
+        mRenderManager->setPuddlePack(mCfgMgr.getUserDataPath() / "openeden" / "puddles" / "puddles.edenpak");
         mRenderManager->setLodClusterPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "objects.edenpak");
         // Task 0069 stage d: the merged body cache ([Bodies] merged body) lives under <user data>/openeden/bodies.
         mMergedBodies = std::make_unique<MWRender::MergedBodies::Session>(mCfgMgr.getUserDataPath());

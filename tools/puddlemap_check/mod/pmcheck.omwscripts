@@ -1,0 +1,2 @@
+GLOBAL: scripts/pmcheck_global.lua
+PLAYER: scripts/pmcheck_player.lua

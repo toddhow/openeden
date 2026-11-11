@@ -1,0 +1,13 @@
+# Frame check, puddles before and after: three pits and a road of the Bitter Coast region seen from 400 to 500 units in
+# steady, full rain at noon (the ground is fully wet by the first pose). The same file is run with the parent executable
+# (noise puddles), with the map off and with the map on; the poses are first person, so the pictures line up. Every pose
+# is in the region the game starts in, so the weather does not change under the camera.
+weather rain
+hour 12
+timescale 4
+first 30
+hold 4
+pose pit_-2_-10 -11264 -74740 150 0 0.2
+pose pit_-3_-8 -18176 -58612 940 0 0.3
+pose pit_-3_-6 -20352 -48884 420 0 0.3
+pose seyda_road -11050 -71500 130 0 0.15

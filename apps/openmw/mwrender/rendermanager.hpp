@@ -119,6 +119,7 @@ namespace MWAnim
 namespace MWRender
 {
     class LodTerrain;
+    class PuddleMapRuntime;
     class LodClusters;
     class PrecipitationOccluder;
     class DistantObjects;
@@ -160,6 +161,8 @@ namespace MWRender
         void setStore(const MWWorld::ESMStore& store);
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
         void setLodTerrainPack(std::filesystem::path path) { mLodTerrainPack = std::move(path); }
+        // Task 0095: where the baked puddle map is (used with `wetness puddle map`).
+        void setPuddlePack(std::filesystem::path path) { mPuddlePack = std::move(path); }
         void setLodClusterPack(std::filesystem::path path) { mLodClusterPack = std::move(path); }
 
         RenderingInterface& getObjects();
@@ -473,6 +476,7 @@ namespace MWRender
         std::unique_ptr<Render::Gi::ReflectionSet> mLoadedReflections;
         // Task 0036: the exterior sky-visibility field (bindings 12 and 13), null with gi exterior off.
         void updateSkyVisibility();
+        void updatePuddleMap();
         // Stage d: the sky environment image, in the reflection probe buffer while outdoors.
         void updateSkyEnvironment();
         // Stage e: `gi debug` markers of the sky-visibility field around the camera.
@@ -488,6 +492,13 @@ namespace MWRender
         bool mGiSkyEnabled = false;
         // Task 0037: rain wetness took effect at start (needs hdr and pbr), its strength, and the current value.
         bool mWetnessEnabled = false;
+        // Task 0095: the terrain's puddles from the baked puddle map; the buffer the shader reads (binding 20).
+        bool mPuddleMapEnabled = false;
+        vsg::ref_ptr<vsg::uintArray> mPuddleMapData;
+        std::filesystem::path mPuddlePack;
+        float mPuddleSupply = 0.5f;
+        float mPuddleAbsorption = 0.1f;
+        std::uint32_t mPuddleDebug = 0;
         // Task 0045: parallax occlusion mapping took effect at start: 0 off, 1 low, 2 medium, 3 high.
         unsigned int mParallaxQuality = 0;
         float mWetnessStrength = 1.f;
@@ -563,6 +574,8 @@ namespace MWRender
         std::unique_ptr<Render::SimpleWater> mSimpleWater;
         std::unique_ptr<Terrain::Paging> mTerrain;
         std::unique_ptr<TerrainStorage> mTerrainStorage;
+        // Task 0095: reads the pack on a worker thread; declared after the terrain storage it reads, so it goes first.
+        std::unique_ptr<PuddleMapRuntime> mPuddleMap;
         std::unique_ptr<Terrain::View> mTerrainView;
         // Task 0055: baked terrain tiles for the far field, only with `[WorldLod] enabled` (declared after the
         // terrain storage it reads, so it goes first).

@@ -49,6 +49,12 @@ namespace View
     vsg::ref_ptr<vsg::Descriptor> dummyPointShadowSampler();
     vsg::ref_ptr<vsg::Descriptor> dummyPointShadowData();
 
+    // OpenEden (task 0095): the baked puddle map's window of cells (binding 20: a storage buffer of 32 bit words,
+    // layout in components/render/puddlemapgpu.hpp). The stand-in is a zeroed header that says "no map";
+    // `puddleMapBuffer` is the game's full-size dynamic one (the words start zeroed, off).
+    vsg::ref_ptr<vsg::Descriptor> dummyPuddleMap();
+    vsg::ref_ptr<vsg::Descriptor> puddleMapBuffer(vsg::ref_ptr<vsg::uintArray>& data);
+
     // openeden-vsg: the opaque depth copy at the far plane, for views without one (soft particles, task 0012, V4k).
     vsg::ref_ptr<vsg::Descriptor> dummyReflectDepth();
 

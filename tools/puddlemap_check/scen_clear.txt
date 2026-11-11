@@ -1,0 +1,11 @@
+# Frame check, clear weather: the same four poses with no rain, to show that with the map on or off, or with no map
+# pack, nothing differs from the parent build (nothing is wet). A fixed hour and weather make the frames repeatable.
+weather clear
+hour 12
+timescale 1
+first 6
+hold 4
+pose pit_-2_-10 -11264 -74740 150 0 0.2
+pose pit_-3_-8 -18176 -58612 940 0 0.3
+pose pit_-3_-6 -20352 -48884 420 0 0.3
+pose seyda_road -11050 -71500 130 0 0.15

@@ -62,6 +62,7 @@
 #include <components/render/precipitationmath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
+#include <components/render/puddlemapgpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
 #include <components/render/screenshot.hpp>
@@ -131,6 +132,7 @@
 #include "precipitationoccluder.hpp"
 #include "preview.hpp"
 #include "projectiles.hpp"
+#include "puddlemap.hpp"
 #include "reflect.hpp"
 #include "renderpass.hpp"
 #include "scene.hpp"
@@ -235,6 +237,7 @@ namespace MWRender
             descriptors.emplace_back(View::dummyPointShadowMap());
             descriptors.emplace_back(View::dummyPointShadowSampler());
             descriptors.emplace_back(View::dummyPointShadowData());
+            descriptors.emplace_back(View::dummyPuddleMap());
 
             View::Scene scene;
             descriptors.push_back(scene.descriptor());
@@ -596,6 +599,30 @@ namespace MWRender
                     mWetnessEnabled = true;
                     mWetnessStrength = Settings::rendering().mWetnessStrength;
                     Log(Debug::Info) << "Weather: rain wetness on";
+                    // Task 0095: the terrain's puddles from the baked puddle map. The buffer exists from here on; it
+                    // stays "off" (zero) until a pack is read, so the shader draws the noise puddles meanwhile.
+                    if (Settings::rendering().mWetnessPuddleMap)
+                    {
+                        std::uint32_t debugMode = Render::PuddleMap::DebugOff;
+                        if (!Settings::rendering().mWetnessPuddles)
+                            Log(Debug::Warning) << "[Rendering] wetness puddle map needs wetness puddles; it is off";
+                        else if (!Render::PuddleMap::parseDebugMode(
+                                     Settings::rendering().mWetnessPuddleDebug.get(), debugMode))
+                        {
+                            Log(Debug::Warning) << "[Rendering] wetness puddle debug: unknown '"
+                                                << Settings::rendering().mWetnessPuddleDebug.get()
+                                                << "' (off, capacity, level or cell); using off";
+                            mPuddleMapEnabled = true;
+                        }
+                        else
+                            mPuddleMapEnabled = true;
+                        mPuddleDebug = debugMode;
+                        mPuddleSupply
+                            = Settings::rendering().mWetnessPuddleSupply * Settings::rendering().mWetnessPuddleDepth;
+                        mPuddleAbsorption = Settings::rendering().mWetnessPuddleAbsorption;
+                        if (mPuddleMapEnabled)
+                            Log(Debug::Info) << "Weather: puddles from the baked puddle map";
+                    }
                 }
                 else
                     Log(Debug::Warning) << "[Rendering] wetness needs hdr and pbr; it is off";
@@ -775,6 +802,11 @@ namespace MWRender
             descriptors.emplace_back(View::dummyPointShadowSampler());
             descriptors.emplace_back(View::dummyPointShadowData());
         }
+        // Task 0095: the baked puddle map's window of cells, or a stand-in that says "no map".
+        if (mPuddleMapEnabled)
+            descriptors.emplace_back(View::puddleMapBuffer(mPuddleMapData));
+        else
+            descriptors.emplace_back(View::dummyPuddleMap());
         if (Settings::shaders().mWeatherParticleOcclusion)
         {
             mOccluder = std::make_unique<PrecipitationOccluder>(*context);
@@ -1416,10 +1448,23 @@ namespace MWRender
         // Task 0055: an earlier LodTerrain reads the storage on a worker thread; it goes before the store changes.
         mLodTerrain.reset();
         mLodClusters.reset();
+        // Task 0095: the puddle map's worker reads the storage and the store too.
+        mPuddleMap.reset();
         mLodClustersAttached = false;
         mLodClustersPushed = 0;
         mTerrainStorage->setStore(&store);
         mTerrain->setStorage(mTerrainStorage.get());
+        if (mPuddleMapEnabled && !mPuddlePack.empty())
+        {
+            PuddleMapRuntime::Setup puddles;
+            puddles.mPackPath = mPuddlePack;
+            puddles.mStorage = mTerrainStorage.get();
+            puddles.mStore = &store;
+            puddles.mSupply = mPuddleSupply;
+            puddles.mAbsorption = mPuddleAbsorption;
+            puddles.mDebugMode = mPuddleDebug;
+            mPuddleMap = std::make_unique<PuddleMapRuntime>(std::move(puddles));
+        }
         // Task 0055: baked terrain tiles, only when asked for. Nothing below runs with the setting off.
         if (Settings::worldLod().mEnabled && mTerrainMapsForLod && !mLodTerrainPack.empty())
         {
@@ -2186,6 +2231,19 @@ namespace MWRender
         Render::Gi::writeSkyHeader(
             mSkyVisHeader->data(), true, mSkyVisStrength, Render::Gi::skyFromColours(sky, horizonColour));
         mSkyVisHeader->dirty();
+    }
+
+    void RenderManager::updatePuddleMap()
+    {
+        // Task 0095: the window of baked puddle cells round the camera. The worker packs it; the render thread only
+        // names the camera's cell and copies a finished buffer (no allocation).
+        if (!mPuddleMap || !mPuddleMapData)
+            return;
+        const vsg::dvec3 eye = mViewMatrix->eye;
+        mPuddleMap->setCamera(static_cast<std::int32_t>(std::floor(eye.x / Constants::CellSizeInUnits)),
+            static_cast<std::int32_t>(std::floor(eye.y / Constants::CellSizeInUnits)));
+        if (mPuddleMap->takeNewest(mPuddleMapData->data(), mPuddleMapData->size()))
+            mPuddleMapData->dirty();
     }
 
     void RenderManager::updateCloudShadow()
@@ -3062,6 +3120,7 @@ namespace MWRender
         updateVolume();
         updateCloudVolume();
         updateSkyVisibility();
+        updatePuddleMap();
         updateSkyEnvironment();
         updateSkyDebug();
         updateCloudShadow();

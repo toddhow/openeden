@@ -199,6 +199,7 @@ if [ $bake = 1 ]; then
     runBake "the terrain tiles (about 20 s)" terrain openeden/lod/terrain.edenpak --bake-lod-terrain
     runBake "the object clusters (about 40 s)" objects openeden/lod/objects.edenpak --bake-lod-objects
     runBake "the merged bodies (about 10 s)" bodies openeden/bodies/current --bake-bodies
+    runBake "the puddle map (about 2 min; task 0095)" puddles openeden/puddles/puddles.edenpak --bake-puddles
     # Interiors worth looking at (README): the light probes of each (a second or so each). The game reads probe files
     # from the VFS (RenderManager::loadProbes), and the profile's user folder is not a data folder, so they are written
     # into the profile's data-local folder (data/openeden/probes). The LOD packs and the body cache are read from the
@@ -208,7 +209,7 @@ if [ $bake = 1 ]; then
     done
     runBake "the exterior sky visibility around Seyda Neen" gi_exterior "" --bake-gi-exterior "-3,-10:-1,-8" --bake-out "$profile/data"
 else
-    echo "--no-bake: nothing baked. The LOD tiles and clusters, the merged bodies and the light probes are missing until you bake."
+    echo "--no-bake: nothing baked. The LOD tiles and clusters, the merged bodies, the puddle map and the light probes are missing until you bake."
 fi
 
 # --- what to run ---

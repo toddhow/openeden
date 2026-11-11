@@ -23,6 +23,8 @@
 #define VIEW_POINT_SHADOW_MAP_BINDING 17
 #define VIEW_POINT_SHADOW_SAMPLER_BINDING 18
 #define VIEW_POINT_SHADOW_DATA_BINDING 19
+// OpenEden (task 0095): the baked puddle map's window of cells (lib/material/puddlemap.slang).
+#define VIEW_PUDDLE_BINDING 20
 
 #define VIEW_ENV_COUNT 32
 

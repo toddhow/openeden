@@ -10,6 +10,7 @@ The puddle map: where water collects on the terrain, baked on the user's machine
 - `puddlepartial.*`: the work folder of a bake (one file per finished cell) that makes a killed bake resumable.
 - `puddlejob.*`: the whole bake as a job run in slices (`BakeJob::step`): digest pass, reuse from the pack on disk and from the work folder, bake, assemble, write, read back. A second run with the same land writes nothing, but only when every cell came intact from the pack on disk (the content digest is of the inputs, not of the bytes). The job holds no cell maps: every cell is a file of the work folder and the pack is written from the files (`writePuddlePackFromFiles`), so the memory of a bake does not grow with the world. A cell with a bad height (not finite or beyond +-1e7) is skipped and counted, and counts as no land in its neighbours' windows.
 - `puddlewindow.*`: the run-time CPU window (7 x 7 cells) with the staleness check. The GPU array texture of stage W-d is fed from it.
+- `puddlegpu.*` (stage W-d): packs the window's cells into the storage buffer the terrain shader reads (`packWindow`, `packOff`). The layout and the maths that reads it are `components/render/puddlemapgpu.hpp`; a cell's texels sit at a fixed place by their slot in the window, so cells that stay loaded do not move. It is pure (no files, no Vulkan, no allocation), the caller (`apps/openmw/mwrender/puddlemap.*`) runs it on a worker thread.
 
 The pure maths (fill, basins, catchment, level) is in `components/render/puddlefill.hpp` and `puddlelevel.hpp`.
 

@@ -1,0 +1,22 @@
+# Frame check, retreat: the same pit; rain from the start (the ground is soaked after about 20 s), clear weather from 26 s on;
+# a frame every 4 s while it dries (`wetness dry time = 120` of the base settings, timescale 2: 60 s of real time from soaked to dry).
+weather rain
+hour 12
+timescale 2
+first 26
+change_after 26 clear
+hold 6
+pose d01 -11264 -74740 150 0 0.2
+pose d02 -11264 -74740 150 0 0.2
+pose d03 -11264 -74740 150 0 0.2
+pose d04 -11264 -74740 150 0 0.2
+pose d05 -11264 -74740 150 0 0.2
+pose d06 -11264 -74740 150 0 0.2
+pose d07 -11264 -74740 150 0 0.2
+pose d08 -11264 -74740 150 0 0.2
+pose d09 -11264 -74740 150 0 0.2
+pose d10 -11264 -74740 150 0 0.2
+pose d11 -11264 -74740 150 0 0.2
+pose d12 -11264 -74740 150 0 0.2
+pose d13 -11264 -74740 150 0 0.2
+pose d14 -11264 -74740 150 0 0.2

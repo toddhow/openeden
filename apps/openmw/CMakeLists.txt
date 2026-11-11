@@ -26,6 +26,7 @@ set(OPENMW_HEADERS
     skyvisbaker.hpp
     lodterrainbaker.hpp
     puddlebaker.hpp
+    puddleland.hpp
     lodobjectbaker.hpp
     bodyanalyser.hpp
     bodybaker.hpp
@@ -39,7 +40,7 @@ set(OPENMW_HEADERS
 source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPENMW_HEADERS} ${OPENMW_RESOURCES})
 
 add_openmw_dir (mwrender
-    mask bin rendermode renderinginterface renderpass intersect rendermanager texturemipsdriver terrainstorage landmanager lodterrain lodclusters
+    mask bin rendermode renderinginterface renderpass intersect rendermanager texturemipsdriver terrainstorage landmanager lodterrain lodclusters puddlemap
     animcontext bodyparts bodylegacy mergedbody partslots partreaderrorlog wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map mapdepthrange worldmap preview shadow pointshadows

@@ -23,6 +23,10 @@ import lib.material.pbr;
 #endif
 #ifdef WETNESS
 #include "lib/material/wetness.slang"
+#ifdef WETNESS_PUDDLES
+// Task 0095: puddles from the baked puddle map (the terrain only; objects keep the noise puddles).
+#include "lib/material/puddlemap.slang"
+#endif
 #endif
 #ifdef COVER
 #include "lib/material/cover.slang"
@@ -276,8 +280,19 @@ FragmentOutput fragMain(FragmentInput input)
 #endif
     float3 wetWorldPos = mul(scene.invView, float4(input.io.viewPos, 1.0)).xyz;
     WetSurface wetS = wetSurfaceAt(wetWorldPos, mul((float3x3)scene.invView, normalize(input.io.viewNormal)));
+    float wetPuddleDark = wetPuddleDarkening;
+    float wetRippleGate = 1.0;
+#ifdef WETNESS_PUDDLES
+    PuddleShade wetPm = puddleShadeAt(wetWorldPos.xy, wetS.wet);
+    if (wetPm.covered)
+    {
+        wetS.puddle = wetS.wet > 0.0 ? wetPm.coverage : 0.0;
+        wetPuddleDark = wetPuddleDarkening * puddleDepthTint(wetPm.depth);
+        wetRippleGate = wetPm.rippleGate;
+    }
+#endif
     if (wetS.wet > 0.0)
-        outColor.xyz *= wetDarkening(wetS.wet, wetTerrainRoughness) * lerp(1.0, wetPuddleDarkening, wetS.puddle);
+        outColor.xyz *= wetDarkening(wetS.wet, wetTerrainRoughness) * lerp(1.0, wetPuddleDark, wetS.puddle);
 #endif
 
     uint colorWidth, colorHeight;
@@ -331,8 +346,13 @@ FragmentOutput fragMain(FragmentInput input)
     {
         float3 wetN = normalize(input.io.viewNormal);
         if (wetS.puddle > 0.0)
-            wetN = normalize(
-                lerp(wetN, mul(transpose((float3x3)scene.invView), wetPuddleNormal(wetWorldPos)), wetS.puddle));
+        {
+            float3 wetPN = wetPuddleNormal(wetWorldPos);
+            // Task 0095: the rain's ripples only show where the water is deep enough.
+            if (wetRippleGate < 1.0)
+                wetPN = normalize(lerp(float3(0.0, 0.0, 1.0), wetPN, wetRippleGate));
+            wetN = normalize(lerp(wetN, mul(transpose((float3x3)scene.invView), wetPN), wetS.puddle));
+        }
         float wetRough = lerp(wetRoughnessOf(wetTerrainRoughness, wetS.wet), wetPuddleRoughness, wetS.puddle);
         float wetShadow = shadow(input.io.viewPos, input.io.viewNormal);
         outColor.xyz += scene.lightSpecular.xyz
@@ -348,6 +368,11 @@ FragmentOutput fragMain(FragmentInput input)
     }
 #ifdef WETNESS_DEBUG
     outColor.xyz = float3(wetS.wet, wetS.exposure, wetS.puddle);
+#endif
+#ifdef WETNESS_PUDDLES
+    // Task 0095: a debug view of the puddle map (the setting `wetness puddle debug`).
+    if (puddleDebugMode() != 0u)
+        outColor.xyz = puddleDebugColour(wetPm);
 #endif
 #endif
 #ifdef COVER_DEBUG

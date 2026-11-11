@@ -129,7 +129,13 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Volumetric fog and light shafts* (0041): in the Bitter Coast fog or at a low sun between trees, shafts of light through
   the fog. Wrong: banding or a bright haze everywhere.
 - *Wetness* (0037): rain makes the ground darker and glossier and flat ground collects puddles that mirror the sky; it
-  dries about a quarter of an hour (game time) after the rain stops. *Precipitation lighting* (0040): rain and snow are lit
+  dries about a quarter of an hour (game time) after the rain stops. *Puddle map* (0095): on the TERRAIN, puddles sit in
+  the hollows the bake found (few and small: about 0.3 percent of the land), grow from their lowest point as the rain
+  wets the ground and shrink back the same way as it dries, follow the ground's contours at the edge, are darker where
+  deep and show ripples only where deep; objects, roads and anything the map does not cover keep the noise puddles. Try
+  `ChangeWeather "Bitter Coast Region" 4` or Seyda Neen, and `wetness puddle debug = capacity` (or `level`, `cell`) in
+  `settings.cfg` to see the map. Wrong: puddles on a slope or a hill top, a puddle that jumps when the camera crosses a
+  cell border, a mirrored placement (a puddle next to its hollow). *Precipitation lighting* (0040): rain and snow are lit
   by the scene and torches. *Lightning* (0040): `ChangeWeather ... 5`; a cold flash, and the shadows tilt for a moment.
 - *Snow and ash cover* (0039): `ChangeWeather "Isinfier Plains Region" 8` (snow) or an ash storm: upward-facing surfaces
   gather white or dark grey over twenty game minutes; walls stay clear.

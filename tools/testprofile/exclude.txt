@@ -110,6 +110,9 @@ Game|creativemotion animation transition|tuning of the pose driver's blend time
 # --- switched on by something the profile already sets ---
 Rendering|sun follows colour tables|default on, a setting of atmosphere
 Rendering|wetness puddles|default on, a part of wetness
+Rendering|wetness puddle depth|tuning of the puddle map's water supply (task 0095)
+Rendering|wetness puddle supply|tuning of the puddle map's water supply (task 0095)
+Rendering|wetness puddle absorption|tuning of the puddle map's water supply (task 0095)
 Rendering|volumetrics temporal|default on, a part of volumetrics
 Rendering|volumetric clouds shadows|default on, a part of volumetric clouds
 Game|creativemotion style layer|switched on by creativemotion preset = natural

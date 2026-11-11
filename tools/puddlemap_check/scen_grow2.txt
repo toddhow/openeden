@@ -1,0 +1,32 @@
+# Frame check, growth: the coastal pit (-2, -10) from 500 units, a frame every 1.2 s while the rain comes and wets the ground.
+# At timescale 2 the weather change takes about 10 s of real time to show rain and the wetness then rises from 0 to 1 in about 10 s
+# more. The pit takes 5 times the free water as its level (kappa 5).
+weather rain
+hour 12
+timescale 2
+first 8
+hold 1.2
+pose g01 -11264 -74740 150 0 0.2
+pose g02 -11264 -74740 150 0 0.2
+pose g03 -11264 -74740 150 0 0.2
+pose g04 -11264 -74740 150 0 0.2
+pose g05 -11264 -74740 150 0 0.2
+pose g06 -11264 -74740 150 0 0.2
+pose g07 -11264 -74740 150 0 0.2
+pose g08 -11264 -74740 150 0 0.2
+pose g09 -11264 -74740 150 0 0.2
+pose g10 -11264 -74740 150 0 0.2
+pose g11 -11264 -74740 150 0 0.2
+pose g12 -11264 -74740 150 0 0.2
+pose g13 -11264 -74740 150 0 0.2
+pose g14 -11264 -74740 150 0 0.2
+pose g15 -11264 -74740 150 0 0.2
+pose g16 -11264 -74740 150 0 0.2
+pose g17 -11264 -74740 150 0 0.2
+pose g18 -11264 -74740 150 0 0.2
+pose g19 -11264 -74740 150 0 0.2
+pose g20 -11264 -74740 150 0 0.2
+pose g21 -11264 -74740 150 0 0.2
+pose g22 -11264 -74740 150 0 0.2
+pose g23 -11264 -74740 150 0 0.2
+pose g24 -11264 -74740 150 0 0.2
