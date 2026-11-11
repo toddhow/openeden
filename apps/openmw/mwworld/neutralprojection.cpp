@@ -122,6 +122,39 @@ namespace MWWorld
         }
     }
 
+    namespace
+    {
+        std::array<std::uint8_t, 3> unpackColor(std::uint32_t packed)
+        {
+            return { static_cast<std::uint8_t>(packed & 0xff), static_cast<std::uint8_t>((packed >> 8) & 0xff),
+                static_cast<std::uint8_t>((packed >> 16) & 0xff) };
+        }
+    }
+
+    LightComponent lightOf(const ESM::Light& record)
+    {
+        LightComponent light;
+        light.radius = static_cast<double>(record.mData.mRadius);
+        const auto rgb = unpackColor(static_cast<std::uint32_t>(record.mData.mColor));
+        light.red = rgb[0];
+        light.green = rgb[1];
+        light.blue = rgb[2];
+        const std::int32_t flags = record.mData.mFlags;
+        // The order components/mwanimation/light.cpp tests the bits in.
+        if ((flags & ESM::Light::Flicker) != 0)
+            light.animation = LightAnimation::Flicker;
+        else if ((flags & ESM::Light::FlickerSlow) != 0)
+            light.animation = LightAnimation::FlickerSlow;
+        else if ((flags & ESM::Light::Pulse) != 0)
+            light.animation = LightAnimation::Pulse;
+        else if ((flags & ESM::Light::PulseSlow) != 0)
+            light.animation = LightAnimation::PulseSlow;
+        light.negative = (flags & ESM::Light::Negative) != 0;
+        light.offByDefault = (flags & ESM::Light::OffDefault) != 0;
+        light.flags = static_cast<std::uint32_t>(flags);
+        return light;
+    }
+
     bool projectCell(
         const CellStore& cell, NeutralWorld::IdTable& ids, WorldCell& out, std::string& error, ProjectionStats* stats)
     {
@@ -149,6 +182,16 @@ namespace MWWorld
         result.hasGrid = source.isExterior();
         result.gridX = source.isExterior() ? source.getGridX() : 0;
         result.gridY = source.isExterior() ? source.getGridY() : 0;
+        if (result.interior)
+        {
+            // The interior's own ambient, sunlight and fog colours (Morrowind has fog density, not distances: both 0).
+            const auto& mood = source.getMood();
+            CellLighting lighting;
+            lighting.ambient = unpackColor(mood.mAmbiantColor);
+            lighting.directional = unpackColor(mood.mDirectionalColor);
+            lighting.fogColor = unpackColor(mood.mFogColor);
+            result.lighting = lighting;
+        }
 
         // What the loop reads from the store; the ids are minted afterwards, in the order of the reference numbers, so
         // the same cell gives the same ids whatever order the store lists its references in.
@@ -204,6 +247,9 @@ namespace MWWorld
             }
 
             object.initiallyDisabled = !ptr.getRefData().isEnabled();
+
+            if (ptr.getType() == ESM::Light::sRecordId)
+                object.light = lightOf(*ptr.get<ESM::Light>()->mBase);
 
             item.mOwner = ref.getOwner();
             item.mFaction = ref.getFaction();

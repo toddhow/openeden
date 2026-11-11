@@ -1,6 +1,7 @@
 #include "scene.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 #include <vsg/io/Options.h>
@@ -23,6 +24,8 @@
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/containerstore.hpp"
+#include "../mwworld/neutrallight.hpp"
+#include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
 
 #include "env.hpp"
@@ -122,8 +125,20 @@ namespace MWRender
     void Scene::insertModel(const MWWorld::Ptr& ptr, const std::string& mesh, bool allowLight)
     {
         const ESM::Light* light{};
+        // A neutral light (task 0113): the engine's own light record made from the base's LightComponent, alive for
+        // the call only (createObject copies what it needs).
+        std::optional<ESM::Light> neutralLight;
         if (allowLight && ptr.getType() == ESM::Light::sRecordId)
             light = ptr.get<ESM::Light>()->mBase;
+        else if (allowLight && ptr.getType() == MWWorld::NeutralBase::sRecordId)
+        {
+            const MWWorld::NeutralBase* base = ptr.get<MWWorld::NeutralBase>()->mBase;
+            if (base->mLight && !base->mLight->offByDefault)
+            {
+                neutralLight = MWWorld::makeNeutralEsmLight(*base->mLight);
+                light = &*neutralLight;
+            }
+        }
 
         MWAnim::Context& ctx = allowLight ? context : noParticlesContext;
 

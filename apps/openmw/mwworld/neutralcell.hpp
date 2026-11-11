@@ -47,12 +47,12 @@ namespace MWWorld
     /// The id the synthetic cell record has: "<gameId>:c<cell id>". Empty RefId when the game id cannot be carried.
     [[nodiscard]] ESM::RefId neutralCellRecordId(std::string_view gameId, openeden::sdk::game::WorldId cell);
 
-    /// A flat ambient light for a neutral interior (the WorldCell carries no lighting yet): RGB 0x60 each, so that a
-    /// placed object is not drawn black before lights exist (stage N3a-5). Named, not magic.
+    /// A flat ambient light for a neutral interior whose WorldCell carries no lighting: RGB 0x60 each, so that a placed
+    /// object is not drawn black. Named, not magic.
     inline constexpr std::uint32_t kNeutralCellAmbient = 0x00606060;
 
     /// The interior ESM::Cell record that stands for the neutral cell: id, name = the editor id (what the console and
-    /// findInterior use), the Interior flag, no content, the flat ambient above.
+    /// findInterior use), the Interior flag, no content, the flat ambient above, or the cell's own lighting (WorldCell::lighting) when it has one.
     [[nodiscard]] ESM::Cell makeNeutralCellRecord(std::string_view gameId, const openeden::sdk::game::WorldCell& cell);
 
     /// The reference of one placement: the base id (neutralBaseId), the RefNum, the position, the stored angles, the

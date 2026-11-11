@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -28,14 +29,14 @@
 
 namespace openeden::sdk::game
 {
-    /// This header's own version. FROZEN at 1.0 by stage N2 of the design document (task 0102): the policy below
+    /// This header's own version. FROZEN at major version 1 by stage N2 of the design document (task 0102): the policy below
     /// applies from here on, and CI (CI/check_extension_sdk.sh and the layout pins in worldmodel/testfrozen.cpp)
     /// keeps it. 0.1 and 0.2 were drafts.
     ///
     /// Version policy. An additive change (a new member at the END of a struct that a consumer only reads, a new
     /// enumerator at the END of an enumeration, a new type) raises the minor number. A change to the layout or meaning
     /// of anything that exists raises the major number. CI (CI/check_extension_sdk.sh) keeps this paragraph in place.
-    inline constexpr Version kWorldModelVersion{ 1, 0 };
+    inline constexpr Version kWorldModelVersion{ 1, 1 };
 
     /// What kind of thing an object is, as far as the engine's generic paths need to tell. The same set as BaseKind
     /// (a pack maps its record types onto it exactly as it does for WorldView); new kinds are added at the end.
@@ -128,6 +129,54 @@ namespace openeden::sdk::game
         friend bool operator==(const TeleportComponent&, const TeleportComponent&) = default;
     };
 
+    /// How a light animates. The same four the Morrowind engine animates (a random brightness walk for Flicker and
+    /// FlickerSlow, a slow switch between two levels for Pulse and PulseSlow); the speed difference of the "slow"
+    /// variants is the engine's. Added in 1.1.
+    enum class LightAnimation : std::uint8_t
+    {
+        None,
+        Flicker,
+        FlickerSlow,
+        Pulse,
+        PulseSlow,
+    };
+
+    /// A light the object gives (task 0113, stage N3a-5; added in 1.1). A point light at the object's origin; the
+    /// engine draws it with the light path it has (the brightness at the centre falls to nothing at `radius`).
+    struct LightComponent
+    {
+        /// Reach in the game's units. Not negative, finite.
+        double radius = 0.0;
+        std::uint8_t red = 255;
+        std::uint8_t green = 255;
+        std::uint8_t blue = 255;
+        /// The brightness multiplier the game stores with the light (Skyrim SE: LIGH FNAM, 0.1 to 10 in the five
+        /// masters; Morrowind: none, 1).
+        double fade = 1.0;
+        LightAnimation animation = LightAnimation::None;
+        /// Takes light away instead of adding it.
+        bool negative = false;
+        /// The light does not shine until something turns it on (it is not on when the cell loads).
+        bool offByDefault = false;
+        /// The game's own flag word, untouched, for a consumer that knows the game (Skyrim SE: LIGH DATA flags).
+        std::uint32_t flags = 0;
+
+        friend bool operator==(const LightComponent&, const LightComponent&) = default;
+    };
+
+    /// The lighting a cell sets for its own air (interiors; added in 1.1): colours in 8 bit RGB and the fog distances
+    /// in the game's units.
+    struct CellLighting
+    {
+        std::array<std::uint8_t, 3> ambient{};
+        std::array<std::uint8_t, 3> directional{};
+        std::array<std::uint8_t, 3> fogColor{};
+        double fogNear = 0.0;
+        double fogFar = 0.0;
+
+        friend bool operator==(const CellLighting&, const CellLighting&) = default;
+    };
+
     /// Something only the pack understands, kept with the object and given back to the pack. The core never reads it.
     /// `handle` is the pack's own number; zero means none. It is not a pointer. What it means is the pack's business
     /// and differs per game (Skyrim SE: the base form id; the Morrowind projection: the reference number, content
@@ -156,6 +205,8 @@ namespace openeden::sdk::game
         std::optional<LockComponent> lock;
         std::optional<TeleportComponent> teleport;
         PackPayload payload;
+        /// Added in 1.1: the light the object gives, if it is a light.
+        std::optional<LightComponent> light;
 
         friend bool operator==(const WorldObject&, const WorldObject&) = default;
     };
@@ -176,6 +227,8 @@ namespace openeden::sdk::game
         /// Placements the pack refused to hand over because a value was not usable (not finite, past the limits, a
         /// scale that is not positive): counted, never listed.
         std::uint32_t droppedObjects = 0;
+        /// Added in 1.1: the interior lighting the cell sets, when the game stores one.
+        std::optional<CellLighting> lighting;
 
         friend bool operator==(const WorldCell&, const WorldCell&) = default;
     };

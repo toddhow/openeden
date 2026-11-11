@@ -29,6 +29,10 @@ namespace game_skyrimse
     {
         double mMaxCoordinate = 1.0e7;
         double mMaxScale = 1.0e3;
+        /// A light's radius past this is refused as hostile (Skyrim's largest in the masters is 2,000 units).
+        double mMaxLightRadius = 1.0e6;
+        /// A light's fade value past this is refused (the masters use 0.1 to 10).
+        double mMaxLightFade = 1.0e3;
     };
 
     /// The neutral components of one placement (task 0099 stage N4, the record-decoding half): who owns it, how it is
@@ -39,8 +43,10 @@ namespace game_skyrimse
         std::optional<openeden::sdk::game::OwnerComponent> owner;
         std::optional<openeden::sdk::game::LockComponent> lock;
         std::optional<openeden::sdk::game::TeleportComponent> teleport;
+        /// The light of a LIGH base (task 0113, stage N3a-5), filled by the view from the placement's base.
+        std::optional<openeden::sdk::game::LightComponent> light;
 
-        [[nodiscard]] bool empty() const { return !owner && !lock && !teleport; }
+        [[nodiscard]] bool empty() const { return !owner && !lock && !teleport && !light; }
         friend bool operator==(const PlacementComponents&, const PlacementComponents&) = default;
     };
 
@@ -51,6 +57,8 @@ namespace game_skyrimse
         std::uint64_t mKeysUnresolved = 0; ///< XLOC whose key is not in the load order: the lock has no key
         std::uint64_t mTeleportsDropped = 0; ///< XTEL with no usable door, or a position or rotation that is hostile
         std::uint64_t mTeleportCellsUnknown = 0; ///< XTEL kept, but its door is in no cell the store knows
+        std::uint64_t mLightsDropped = 0; ///< LIGH whose radius or fade is not usable: no light component
+        std::uint64_t mLightFadesReset = 0; ///< LIGH whose FNAM is not finite, not positive or past the limit: fade 1
     };
 
     /// Maps a door reference's id to the cell it stands in (the store's index of teleport doors).
@@ -63,6 +71,17 @@ namespace game_skyrimse
     [[nodiscard]] PlacementComponents makeComponents(
         const PlacedRef& ref, const RefCellIndex& refCells, ComponentStats& stats, const NeutralLimits& limits);
 
+    /// The light of a LIGH base as a neutral component: radius, colour, the fade value (FNAM; 1 when absent or
+    /// unusable, counted), the animation (Flicker, else FlickerSlow, else Pulse, else PulseSlow: the order the engine's
+    /// own light controller tests them in) and the Negative and Off By Default bits; the raw flag word is kept. nullopt
+    /// (counted) when the radius is past the limit.
+    [[nodiscard]] std::optional<openeden::sdk::game::LightComponent> makeLightComponent(
+        const LightData& light, ComponentStats& stats, const NeutralLimits& limits);
+
+    /// The interior lighting of an XCLL: ambient, directional and fog colour and the fog distances. nullopt when a
+    /// distance is not finite.
+    [[nodiscard]] std::optional<openeden::sdk::game::CellLighting> makeCellLighting(const CellLightingData& lighting);
+
     /// Gives the components of a placement of a cell the view has just loaded. The pointer is valid until the next
     /// loadCell on the same view.
     class ComponentSource
@@ -71,6 +90,13 @@ namespace game_skyrimse
         virtual ~ComponentSource() = default;
         [[nodiscard]] virtual const PlacementComponents* find(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const = 0;
+        /// The interior lighting of the cell the view has just loaded (task 0113), none when the cell has none or is
+        /// not the last one loaded.
+        [[nodiscard]] virtual std::optional<openeden::sdk::game::CellLighting> findCellLighting(
+            openeden::sdk::game::WorldId /*cell*/) const
+        {
+            return std::nullopt;
+        }
     };
 
     /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rz * Ry * Rx with every angle

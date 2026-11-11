@@ -501,6 +501,15 @@ namespace game_skyrimse
             if (info.interior)
                 info.world = sdkgame::kNoWorldId;
             entry.mInfo = std::move(info);
+            for (auto s = entry.mSources.rbegin(); s != entry.mSources.rend(); ++s)
+            {
+                const CellRecord& c = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex];
+                if (c.mLighting)
+                {
+                    entry.mLighting = c.mLighting;
+                    break;
+                }
+            }
             if (entry.mWorldPersistent && entry.mInfo.world != sdkgame::kNoWorldId)
             {
                 const auto w = mWorlds.find(entry.mInfo.world);
@@ -721,6 +730,17 @@ namespace game_skyrimse
         return true;
     }
 
+    const LightData* SkyrimWorldView::lightOfBase(FormId base) const
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId)
+            return nullptr;
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return nullptr;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        return m.mLight ? &*m.mLight : nullptr;
+    }
+
     sdkgame::PlacedObject SkyrimWorldView::makeObject(const PlacedRef& ref, bool& baseMissing) const
     {
         sdkgame::PlacedObject o;
@@ -840,6 +860,8 @@ namespace game_skyrimse
             bool missing = false;
             result->mObjects.push_back(makeObject(ref, missing));
             PlacementComponents components = makeComponents(ref, mRefCells, mStats.mComponents, NeutralLimits{});
+            if (const LightData* light = lightOfBase(ref.mBase))
+                components.light = makeLightComponent(*light, mStats.mComponents, NeutralLimits{});
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));
             if (missing)
@@ -860,6 +882,13 @@ namespace game_skyrimse
         return it != mLastComponents.end() ? &it->second : nullptr;
     }
 
+    std::optional<sdkgame::CellLighting> SkyrimWorldView::findCellLighting(sdkgame::WorldId cell) const
+    {
+        if (!awaitIndex() || cell == kNullFormId || cell != mLastCell)
+            return std::nullopt;
+        return mLastLighting;
+    }
+
     bool SkyrimWorldView::loadCell(sdkgame::WorldId cell, sdkgame::WorldCellContent& out, std::string& error)
     {
         out = sdkgame::WorldCellContent{};
@@ -871,6 +900,7 @@ namespace game_skyrimse
         }
         mLastCell = kNullFormId;
         mLastComponents.clear();
+        mLastLighting.reset();
         try
         {
             const auto entryIt = mCells.find(cell);
@@ -927,6 +957,8 @@ namespace game_skyrimse
             out = std::move(content);
             mLastCell = cell;
             mLastComponents = std::move(components);
+            if (entry.mLighting && entry.mInfo.interior)
+                mLastLighting = makeCellLighting(*entry.mLighting);
             return true;
         }
         catch (const std::exception& e)

@@ -2,6 +2,7 @@
 #define OPENMW_MWWORLD_NEUTRALSTORE_H
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -51,6 +52,9 @@ namespace MWWorld
         std::string mModel; ///< As the game stores it, relative to the game's mesh root
         openeden::sdk::game::CollisionHint mCollision;
         openeden::sdk::game::PackPayload mPayload;
+        /// The light the base gives (task 0113, stage N3a-5; world_model.hpp 1.1). Part of the facts, so two objects
+        /// of one base must agree on it.
+        std::optional<openeden::sdk::game::LightComponent> mLight;
 
         friend bool operator==(const NeutralBase&, const NeutralBase&) = default;
     };

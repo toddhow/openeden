@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include <components/esm/refid.hpp>
+#include <components/esm3/loadligh.hpp>
 #include <components/worldmodel/idtable.hpp>
 
 #include <openeden/game/world_model.hpp>
@@ -53,6 +54,10 @@ namespace MWWorld
     /// The neutral kind of a record type number (ESM::REC_*). Morrowind has no movable statics, furniture, flora or
     /// trees; items are everything carried; body parts and unknown types are Other.
     [[nodiscard]] openeden::sdk::game::ObjectKind kindOfRecordType(unsigned int recordType);
+
+    /// A Morrowind light record as the neutral component (task 0113): radius, colour, the animation bit the engine's
+    /// light controller would act on, Negative, Off By Default and the raw flag word. The fade is 1.
+    [[nodiscard]] openeden::sdk::game::LightComponent lightOf(const ESM::Light& record);
 
     /// Projects one loaded cell. False with `error` when the cell is not loaded or the id table is full for the cell
     /// itself; `out` is then left empty. Objects that cannot be projected are counted in `droppedObjects`.

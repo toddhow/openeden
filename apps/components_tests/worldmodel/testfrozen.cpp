@@ -20,7 +20,7 @@ namespace
     TEST(WorldModelFrozen, theVersionsAreOnePointZero)
     {
         EXPECT_EQ(kWorldModelVersion.major, 1);
-        EXPECT_EQ(kWorldModelVersion.minor, 0);
+        EXPECT_EQ(kWorldModelVersion.minor, 1); // task 0113: the light component and cell lighting (additive, 1.0 to 1.1)
         EXPECT_EQ(kWorldSourceVersion.major, 1);
         EXPECT_EQ(kWorldSourceVersion.minor, 0);
     }

@@ -85,11 +85,22 @@ namespace MWClass
         // Stage N3a-4: the model is read through the same cache as Morrowind's (the NIF reader sees a Skyrim file and
         // draws it as static shapes). An empty model (markers, actors, leveled lists) draws nothing; nothing is drawn
         // from the bounds.
+        //
+        // Stage N3a-5: a light (the base carries a LightComponent) gives its light through the engine's light path
+        // (MWRender::Scene::insertModel reads the component of a neutral base); a light with no model (Skyrim has
+        // many) still gets a light-only object, and a light that is off by default is not created at all.
+        const MWWorld::NeutralBase& base = baseOf(ptr);
+        const bool offByDefault = base.mLight && base.mLight->offByDefault;
+        const bool wantsLight = base.mLight && !offByDefault;
         if (!model.empty())
         {
             MWRender::SkyrimModel::counters().mRequests.fetch_add(1, std::memory_order_relaxed);
-            renderingInterface.getObjects().insertModel(ptr, model);
+            // allowLight false only for a light that is off by default (the same call ESM4 lights and Morrowind's
+            // Off By Default lights make); every other object keeps the call it had.
+            renderingInterface.getObjects().insertModel(ptr, model, !offByDefault);
         }
+        else if (wantsLight)
+            renderingInterface.getObjects().insertModel(ptr, model, true);
     }
 
     void Neutral::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,

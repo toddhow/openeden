@@ -221,6 +221,7 @@ file(GLOB UNITTEST_SRC_FILES
     worldmodel/teststore.cpp
     # Task 0102 stage N2: the frozen 1.0 headers and the store's lookups.
     worldmodel/testfrozen.cpp
+    worldmodel/testlightmodel.cpp
     worldmodel/testlookups.cpp
 
     nifedit/nifeditbuilder.hpp
@@ -489,6 +490,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseworldview.cpp
     skyrimse/testskyrimseworldviewreal.cpp
     skyrimse/testskyrimseneutralworld.cpp
+    skyrimse/testskyrimselights.cpp
+    skyrimse/testskyrimselightsreal.cpp
     skyrimse/testskyrimseneutralworldreal.cpp
     skyrimse/testskyrimsecelllookups.cpp
     skyrimse/testskyrimseplugins.cpp

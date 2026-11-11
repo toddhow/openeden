@@ -29,6 +29,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralstore.cpp
     mwworld/testneutralstub.cpp
     mwworld/testneutralcell.cpp
+    mwworld/testneutrallight.cpp
+    mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
     mwworld/testneutralstorereal.cpp
 

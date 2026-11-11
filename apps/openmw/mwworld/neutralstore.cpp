@@ -69,6 +69,7 @@ namespace MWWorld
         facts.mModel = object.modelPath;
         facts.mCollision = object.collision;
         facts.mPayload = object.payload;
+        facts.mLight = object.light;
 
         const auto found = mRecords.find(id);
         if (found != mRecords.end())

@@ -261,6 +261,19 @@ namespace game_skyrimse
         std::int32_t y = 0;
     };
 
+    /// The first 20 bytes of XCLL: ambient colour (R G B A), directional colour, fog near colour, fog near distance f32,
+    /// fog far distance f32. Layout checked against the Whiterun inn's values (a dim warm ambient, fog 512 to 2000);
+    /// the rest of the record (directional rotation, fade, fog clip and power, the ambient cube, specular, fresnel, far
+    /// fog colour and maximum, light fade, inherit flags) is not decoded.
+    struct CellLightingData
+    {
+        std::array<std::uint8_t, 3> mAmbient{};
+        std::array<std::uint8_t, 3> mDirectional{};
+        std::array<std::uint8_t, 3> mFogColor{};
+        float mFogNear = 0.0f;
+        float mFogFar = 0.0f;
+    };
+
     struct CellRecord
     {
         RecordCommon mCommon;
@@ -269,6 +282,9 @@ namespace game_skyrimse
         std::optional<CellGrid> mGrid; ///< XCLC, exterior cells
         std::optional<float> mWaterHeight; ///< XCLW
         FormId mLocation = kNullFormId; ///< XLCN
+        /// XCLL, the interior lighting (64 or 92 bytes, VERIFIED on the five masters: 2,360 of 2,360). Only the part both
+        /// sizes share is decoded.
+        std::optional<CellLightingData> mLighting;
         /// The world whose children group held the cell, or 0 for an interior cell.
         FormId mWorld = kNullFormId;
         /// Interior cells: the labels of the block (type 2) and sub-block (type 3) groups, otherwise -1.
@@ -299,6 +315,48 @@ namespace game_skyrimse
         }
     };
 
+    namespace LightFlags
+    {
+        /// LIGH DATA flag bits. The values below 0x200 agree with the CK documentation, upstream's ESM4 loader (97722d48f9,
+        /// a second reader) and the installed masters (every flag word of 1,740 lights uses only these and the bits
+        /// 0x400 to 0x2000). 0x400 and later are RECALLED-VERIFY: upstream lists 0x200 and 0x400 for the spot bits, but
+        /// 0x200 occurs in none of the 1,740 lights of the five masters, so the CK values (spot light 0x400, spot shadow
+        /// 0x800, hemisphere shadow 0x1000, omnidirectional shadow 0x2000) are used.
+        inline constexpr std::uint32_t Dynamic = 0x001;
+        inline constexpr std::uint32_t Carryable = 0x002;
+        inline constexpr std::uint32_t Negative = 0x004;
+        inline constexpr std::uint32_t Flicker = 0x008;
+        inline constexpr std::uint32_t OffByDefault = 0x020;
+        inline constexpr std::uint32_t FlickerSlow = 0x040;
+        inline constexpr std::uint32_t Pulse = 0x080;
+        inline constexpr std::uint32_t PulseSlow = 0x100;
+        inline constexpr std::uint32_t SpotLight = 0x400;
+        inline constexpr std::uint32_t SpotShadow = 0x800;
+        inline constexpr std::uint32_t HemisphereShadow = 0x1000;
+        inline constexpr std::uint32_t OmnidirectionalShadow = 0x2000;
+    }
+
+    /// LIGH DATA (48 bytes, VERIFIED on the five masters: 1,740 of 1,740) and FNAM (4 bytes, 1,740 of 1,740). Layout:
+    /// time i32, radius u32, colour R G B A (bytes), flags u32, falloff exponent f32, FOV f32, near clip f32, flicker
+    /// period f32, flicker intensity amplitude f32, flicker movement amplitude f32, value u32, weight f32.
+    struct LightData
+    {
+        std::int32_t mTime = 0; ///< Duration; negative (no burn-out) on nearly every light of the masters
+        std::uint32_t mRadius = 0;
+        std::array<std::uint8_t, 4> mColor{ 255, 255, 255, 0 }; ///< R G B A
+        std::uint32_t mFlags = 0;
+        float mFalloff = 1.0f;
+        float mFov = 90.0f;
+        float mNearClip = 0.0f;
+        float mFlickerPeriod = 0.0f;
+        float mFlickerIntensity = 0.0f;
+        float mFlickerMovement = 0.0f;
+        std::uint32_t mValue = 0;
+        float mWeight = 0.0f;
+        float mFade = 1.0f; ///< FNAM; 1 when the record has none
+        bool mHasFade = false;
+    };
+
     struct StaticRecord
     {
         RecordCommon mCommon;
@@ -315,6 +373,8 @@ namespace game_skyrimse
         RecordCommon mCommon;
         std::optional<std::array<std::int16_t, 6>> mBounds; ///< OBND
         std::string mModel; ///< MODL
+        /// LIGH records only: DATA and FNAM.
+        std::optional<LightData> mLight;
     };
 
     namespace NpcFlags

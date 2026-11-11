@@ -720,6 +720,24 @@ namespace game_skyrimse
                         case Content::fourCC("XLCN"):
                             ok = formField(type, data, c.mLocation);
                             break;
+                        case Content::fourCC("XCLL"): // VERIFIED sizes 64 and 92 (tool); the 20 byte prefix is shared
+                            if (data.size() == 64 || data.size() == 92)
+                            {
+                                const std::byte* p = data.data();
+                                CellLightingData lighting;
+                                for (std::size_t i = 0; i < 3; ++i)
+                                {
+                                    lighting.mAmbient[i] = static_cast<std::uint8_t>(p[i]);
+                                    lighting.mDirectional[i] = static_cast<std::uint8_t>(p[4 + i]);
+                                    lighting.mFogColor[i] = static_cast<std::uint8_t>(p[8 + i]);
+                                }
+                                lighting.mFogNear = readLe<float>(p + 12);
+                                lighting.mFogFar = readLe<float>(p + 16);
+                                c.mLighting = lighting;
+                            }
+                            else
+                                odd("XCLL");
+                            break;
                         default:
                             break;
                     }
@@ -1009,6 +1027,11 @@ namespace game_skyrimse
             {
                 StaticRecord s;
                 s.mCommon = common(record);
+                const bool isLight = record.mType == Content::fourCC("LIGH");
+                LightData light;
+                bool hasLightData = false;
+                float lightFade = 1.0f;
+                bool hasLightFade = false;
                 SubReader reader(bytes);
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
@@ -1020,6 +1043,41 @@ namespace game_skyrimse
                     {
                         case Content::fourCC("EDID"):
                             ok = zstring(type, data, s.mCommon.mEditorId);
+                            break;
+                        case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
+                            if (!isLight)
+                                break;
+                            if (data.size() == 48)
+                            {
+                                const std::byte* p = data.data();
+                                light.mTime = readLe<std::int32_t>(p);
+                                light.mRadius = readLe<std::uint32_t>(p + 4);
+                                for (std::size_t i = 0; i < 4; ++i)
+                                    light.mColor[i] = static_cast<std::uint8_t>(p[8 + i]);
+                                light.mFlags = readLe<std::uint32_t>(p + 12);
+                                light.mFalloff = readLe<float>(p + 16);
+                                light.mFov = readLe<float>(p + 20);
+                                light.mNearClip = readLe<float>(p + 24);
+                                light.mFlickerPeriod = readLe<float>(p + 28);
+                                light.mFlickerIntensity = readLe<float>(p + 32);
+                                light.mFlickerMovement = readLe<float>(p + 36);
+                                light.mValue = readLe<std::uint32_t>(p + 40);
+                                light.mWeight = readLe<float>(p + 44);
+                                hasLightData = true;
+                            }
+                            else
+                                odd("DATA");
+                            break;
+                        case Content::fourCC("FNAM"): // LIGH: VERIFIED size 4 (tool), the fade value
+                            if (!isLight)
+                                break;
+                            if (data.size() == 4)
+                            {
+                                lightFade = readLe<float>(data.data());
+                                hasLightFade = true;
+                            }
+                            else
+                                odd("FNAM");
                             break;
                         case Content::fourCC("OBND"): // six i16; VERIFIED size 12 (tool)
                             if (data.size() == 12)
@@ -1046,8 +1104,16 @@ namespace game_skyrimse
                 if (record.mType == Content::fourCC("STAT"))
                     mOut.mStatics.push_back(std::move(s));
                 else
-                    mOut.mModels.push_back(
-                        ModelRecord{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel) });
+                {
+                    ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt };
+                    if (hasLightData)
+                    {
+                        light.mFade = lightFade;
+                        light.mHasFade = hasLightFade;
+                        model.mLight = light;
+                    }
+                    mOut.mModels.push_back(std::move(model));
+                }
                 return true;
             }
 

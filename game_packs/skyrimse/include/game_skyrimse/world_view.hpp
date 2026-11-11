@@ -204,6 +204,9 @@ namespace game_skyrimse
         /// world's persistent ones it borrowed). Null for any other cell or placement. Main thread only.
         [[nodiscard]] const PlacementComponents* find(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const override;
+        /// The interior lighting of the cell the last loadCell returned (its XCLL); none for any other cell.
+        [[nodiscard]] std::optional<openeden::sdk::game::CellLighting> findCellLighting(
+            openeden::sdk::game::WorldId cell) const override;
 
         [[nodiscard]] std::string_view gameId() const override { return "skyrimse"; }
         [[nodiscard]] std::size_t cellCount() const override;
@@ -255,6 +258,8 @@ namespace game_skyrimse
             std::vector<CellSource> mSources; ///< in load order
             openeden::sdk::game::WorldCellInfo mInfo;
             bool mWorldPersistent = false;
+            /// The XCLL of the latest source that has one (interior lighting; task 0113).
+            std::optional<CellLightingData> mLighting;
         };
 
         struct WorldEntry
@@ -281,6 +286,8 @@ namespace game_skyrimse
         [[nodiscard]] bool readCellRefs(
             const CellSource& source, const CellEntry& entry, std::vector<PlacedRef>& out, std::string& error);
         [[nodiscard]] openeden::sdk::game::PlacedObject makeObject(const PlacedRef& ref, bool& baseMissing) const;
+        /// The LIGH data of a base form, if the base is a light that has some.
+        [[nodiscard]] const LightData* lightOfBase(FormId base) const;
 
         Options mOptions;
         const FileSource* mFiles = nullptr;
@@ -297,6 +304,7 @@ namespace game_skyrimse
         std::deque<std::pair<FormId, std::shared_ptr<const Materialised>>> mCache;
         RefCellIndex mRefCells; ///< teleport doors: reference id to cell id (later plugins win)
         FormId mLastCell = kNullFormId; ///< the cell of the last successful loadCell
+        std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::vector<Content::Error> mErrors;
         Stats mStats;

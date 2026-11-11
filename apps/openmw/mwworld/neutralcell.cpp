@@ -9,6 +9,7 @@
 #include <components/esm/defs.hpp>
 #include <components/esm/position.hpp>
 
+#include "neutrallight.hpp"
 #include "neutralstore.hpp"
 
 namespace MWWorld
@@ -107,6 +108,15 @@ namespace MWWorld
         record.mAmbi.mSunlight = kNeutralCellAmbient;
         record.mAmbi.mFog = kNeutralCellAmbient;
         record.mAmbi.mFogDensity = 0.f;
+        // Stage N3a-5: a cell that carries its own lighting (Skyrim SE: XCLL) uses it. The directional colour is the
+        // "sunlight" of an interior (its direction is the engine's); the fog colour is kept and the fog stays off
+        // (density 0), because Morrowind's fog density has no counterpart in a pair of distances.
+        if (cell.lighting)
+        {
+            record.mAmbi.mAmbient = packNeutralColor(cell.lighting->ambient);
+            record.mAmbi.mSunlight = packNeutralColor(cell.lighting->directional);
+            record.mAmbi.mFog = packNeutralColor(cell.lighting->fogColor);
+        }
         record.mWater = 0.f;
         return record;
     }

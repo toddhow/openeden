@@ -137,6 +137,53 @@ namespace game_skyrimse
         return c;
     }
 
+    std::optional<sdkgame::LightComponent> makeLightComponent(
+        const LightData& light, ComponentStats& stats, const NeutralLimits& limits)
+    {
+        if (static_cast<double>(light.mRadius) > limits.mMaxLightRadius)
+        {
+            ++stats.mLightsDropped;
+            return std::nullopt;
+        }
+        sdkgame::LightComponent c;
+        c.radius = static_cast<double>(light.mRadius);
+        c.red = light.mColor[0];
+        c.green = light.mColor[1];
+        c.blue = light.mColor[2];
+        if (light.mHasFade)
+        {
+            if (std::isfinite(light.mFade) && light.mFade > 0.0f && static_cast<double>(light.mFade) <= limits.mMaxLightFade)
+                c.fade = static_cast<double>(light.mFade);
+            else
+                ++stats.mLightFadesReset;
+        }
+        if ((light.mFlags & LightFlags::Flicker) != 0)
+            c.animation = sdkgame::LightAnimation::Flicker;
+        else if ((light.mFlags & LightFlags::FlickerSlow) != 0)
+            c.animation = sdkgame::LightAnimation::FlickerSlow;
+        else if ((light.mFlags & LightFlags::Pulse) != 0)
+            c.animation = sdkgame::LightAnimation::Pulse;
+        else if ((light.mFlags & LightFlags::PulseSlow) != 0)
+            c.animation = sdkgame::LightAnimation::PulseSlow;
+        c.negative = (light.mFlags & LightFlags::Negative) != 0;
+        c.offByDefault = (light.mFlags & LightFlags::OffByDefault) != 0;
+        c.flags = light.mFlags;
+        return c;
+    }
+
+    std::optional<sdkgame::CellLighting> makeCellLighting(const CellLightingData& lighting)
+    {
+        if (!std::isfinite(lighting.mFogNear) || !std::isfinite(lighting.mFogFar))
+            return std::nullopt;
+        sdkgame::CellLighting c;
+        c.ambient = lighting.mAmbient;
+        c.directional = lighting.mDirectional;
+        c.fogColor = lighting.mFogColor;
+        c.fogNear = static_cast<double>(lighting.mFogNear);
+        c.fogFar = static_cast<double>(lighting.mFogFar);
+        return c;
+    }
+
     bool toNeutral(const sdkgame::PlacedObject& placed, sdkgame::WorldObject& out, std::string& problem,
         const NeutralLimits& limits, const PlacementComponents* components)
     {
@@ -178,6 +225,7 @@ namespace game_skyrimse
             o.owner = components->owner;
             o.lock = components->lock;
             o.teleport = components->teleport;
+            o.light = components->light;
         }
         o.payload.handle = placed.base;
 
@@ -224,10 +272,12 @@ namespace game_skyrimse
         result.gridY = content.cell.gridY;
         result.world = content.cell.world;
         result.unresolvedBases = content.unresolvedBases;
-        result.objects.reserve(content.objects.size());
         // A view that is its own component source (SkyrimWorldView) is asked without the caller naming it.
         if (components == nullptr)
             components = dynamic_cast<const ComponentSource*>(&view);
+        if (components != nullptr)
+            result.lighting = components->findCellLighting(content.cell.id);
+        result.objects.reserve(content.objects.size());
         for (const sdkgame::PlacedObject& placed : content.objects)
         {
             sdkgame::WorldObject object;
