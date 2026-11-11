@@ -14,7 +14,7 @@
 
 #include "../prefs/state.hpp"
 
-#include "../world/defaultgmsts.hpp"
+#include <components/esm3/defaultgmsts.hpp>
 
 CSMTools::GmstCheckStage::GmstCheckStage(const CSMWorld::IdCollection<ESM::GameSetting>& gameSettings)
     : mGameSettings(gameSettings)
@@ -49,9 +49,9 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     // optimization - compare it to lists based on naming convention (f-float,i-int,s-string)
     if (gmst.mId.startsWith("f"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::FloatCount; ++i)
+        for (size_t i = 0; i < ESM::DefaultGmsts::FloatCount; ++i)
         {
-            if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Floats[i]))
+            if (gmst.mId == ESM::RefId::stringRefId(ESM::DefaultGmsts::Floats[i]))
             {
                 if (gmst.mValue.getType() != ESM::VT_Float)
                 {
@@ -62,11 +62,11 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
                     messages.add(id, stream.str(), "", CSMDoc::Message::Severity_Error);
                 }
 
-                if (gmst.mValue.getFloat() < CSMWorld::DefaultGmsts::FloatLimits[i * 2])
+                if (gmst.mValue.getFloat() < ESM::DefaultGmsts::FloatLimits[i * 2])
                     messages.add(
                         id, gmstIdString + " is less than the suggested range", "", CSMDoc::Message::Severity_Warning);
 
-                if (gmst.mValue.getFloat() > CSMWorld::DefaultGmsts::FloatLimits[i * 2 + 1])
+                if (gmst.mValue.getFloat() > ESM::DefaultGmsts::FloatLimits[i * 2 + 1])
                     messages.add(
                         id, gmstIdString + " is more than the suggested range", "", CSMDoc::Message::Severity_Warning);
 
@@ -76,9 +76,9 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
     else if (gmst.mId.startsWith("i"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::IntCount; ++i)
+        for (size_t i = 0; i < ESM::DefaultGmsts::IntCount; ++i)
         {
-            if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Ints[i]))
+            if (gmst.mId == ESM::RefId::stringRefId(ESM::DefaultGmsts::Ints[i]))
             {
                 if (gmst.mValue.getType() != ESM::VT_Int)
                 {
@@ -89,11 +89,11 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
                     messages.add(id, stream.str(), "", CSMDoc::Message::Severity_Error);
                 }
 
-                if (gmst.mValue.getInteger() < CSMWorld::DefaultGmsts::IntLimits[i * 2])
+                if (gmst.mValue.getInteger() < ESM::DefaultGmsts::IntLimits[i * 2])
                     messages.add(
                         id, gmstIdString + " is less than the suggested range", "", CSMDoc::Message::Severity_Warning);
 
-                if (gmst.mValue.getInteger() > CSMWorld::DefaultGmsts::IntLimits[i * 2 + 1])
+                if (gmst.mValue.getInteger() > ESM::DefaultGmsts::IntLimits[i * 2 + 1])
                     messages.add(
                         id, gmstIdString + " is more than the suggested range", "", CSMDoc::Message::Severity_Warning);
 
@@ -103,9 +103,9 @@ void CSMTools::GmstCheckStage::perform(int stage, CSMDoc::Messages& messages)
     }
     else if (gmst.mId.startsWith("s"))
     {
-        for (size_t i = 0; i < CSMWorld::DefaultGmsts::StringCount; ++i)
+        for (size_t i = 0; i < ESM::DefaultGmsts::StringCount; ++i)
         {
-            if (gmst.mId == ESM::RefId::stringRefId(CSMWorld::DefaultGmsts::Strings[i]))
+            if (gmst.mId == ESM::RefId::stringRefId(ESM::DefaultGmsts::Strings[i]))
             {
                 ESM::VarType type = gmst.mValue.getType();
 

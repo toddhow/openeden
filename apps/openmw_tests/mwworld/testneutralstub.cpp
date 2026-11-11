@@ -2,9 +2,12 @@
 // spec before the implementation; the first run was against stubs.
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <cstring>
 #include <sstream>
 #include <string>
 
+#include <components/esm3/defaultgmsts.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -242,5 +245,44 @@ namespace
         EXPECT_EQ(MWWorld::insertNeutralStubGameSettings(store), 258u + 89u - 1u);
         EXPECT_FLOAT_EQ(store.get<ESM::GameSetting>().find("fSwimHeightScale")->mValue.getFloat(), 2.5f);
         EXPECT_EQ(MWWorld::insertNeutralStubGameSettings(store), 0u);
+    }
+
+    // Decision 4 of task 0109: the editor's table and the engine's stubs are ONE table now (components/esm3). This pins
+    // the values the engine's stubs had when the table was a generated copy: FNV-1a over each name and the 32 bits of
+    // its value, floats first then integers, hashed from the stub records the engine really inserts.
+    TEST(NeutralStubGameSettings, the_stub_values_are_the_values_the_generated_copy_had)
+    {
+        MWWorld::ESMStore store;
+        ASSERT_EQ(MWWorld::insertNeutralStubGameSettings(store), 347u);
+        std::uint64_t hash = 0xcbf29ce484222325ull;
+        const auto feed = [&hash](const void* data, std::size_t size) {
+            const unsigned char* bytes = static_cast<const unsigned char*>(data);
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                hash ^= bytes[i];
+                hash *= 0x100000001b3ull;
+            }
+        };
+        for (std::size_t i = 0; i < ESM::DefaultGmsts::FloatCount; ++i)
+        {
+            const std::string name = ESM::DefaultGmsts::Floats[i];
+            const ESM::GameSetting* record = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId(name));
+            ASSERT_NE(record, nullptr) << name;
+            const float value = record->mValue.getFloat();
+            std::uint32_t bits = 0;
+            std::memcpy(&bits, &value, sizeof(bits));
+            feed(name.data(), name.size());
+            feed(&bits, sizeof(bits));
+        }
+        for (std::size_t i = 0; i < ESM::DefaultGmsts::IntCount; ++i)
+        {
+            const std::string name = ESM::DefaultGmsts::Ints[i];
+            const ESM::GameSetting* record = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId(name));
+            ASSERT_NE(record, nullptr) << name;
+            const std::uint32_t bits = static_cast<std::uint32_t>(record->mValue.getInteger());
+            feed(name.data(), name.size());
+            feed(&bits, sizeof(bits));
+        }
+        EXPECT_EQ(hash, 0xcc1e4ff9c6814b32ull);
     }
 }

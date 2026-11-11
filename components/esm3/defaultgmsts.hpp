@@ -1,9 +1,9 @@
-#ifndef CSM_WORLD_DEFAULTGMSTS_H
-#define CSM_WORLD_DEFAULTGMSTS_H
+#ifndef OPENEDEN_ESM3_DEFAULTGMSTS_H
+#define OPENEDEN_ESM3_DEFAULTGMSTS_H
 
 #include <cstddef>
 
-namespace CSMWorld
+namespace ESM
 {
     namespace DefaultGmsts
     {

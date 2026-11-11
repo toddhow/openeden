@@ -3,6 +3,7 @@
 #include <array>
 #include <string_view>
 
+#include <components/esm3/defaultgmsts.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadglob.hpp>
 #include <components/esm3/loadgmst.hpp>
@@ -15,17 +16,6 @@ namespace MWWorld
 {
     namespace
     {
-        struct NeutralFloatGmst
-        {
-            std::string_view mName;
-            float mValue;
-        };
-        struct NeutralIntGmst
-        {
-            std::string_view mName;
-            int mValue;
-        };
-#include "neutralgmsts.inc"
 
         // The dummy records are named so that a log line or a debugger shows what they are. The ids carry a ':' like
         // the neutral base ids do, which no Morrowind record id has in practice.
@@ -113,10 +103,11 @@ namespace MWWorld
             store.insertStatic(record);
             ++added;
         };
-        for (const NeutralFloatGmst& gmst : sNeutralFloatGmsts)
-            add(gmst.mName, ESM::Variant(gmst.mValue));
-        for (const NeutralIntGmst& gmst : sNeutralIntGmsts)
-            add(gmst.mName, ESM::Variant(gmst.mValue));
+        // The one table of Morrowind's default numeric game settings is OpenMW-CS's, in components/esm3.
+        for (std::size_t i = 0; i < ESM::DefaultGmsts::FloatCount; ++i)
+            add(ESM::DefaultGmsts::Floats[i], ESM::Variant(ESM::DefaultGmsts::FloatsDefaultValues[i]));
+        for (std::size_t i = 0; i < ESM::DefaultGmsts::IntCount; ++i)
+            add(ESM::DefaultGmsts::Ints[i], ESM::Variant(ESM::DefaultGmsts::IntsDefaultValues[i]));
         return added;
     }
 }

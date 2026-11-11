@@ -27,7 +27,7 @@ opencs_units (model/world
     universalid commands columnbase columnimp scriptcontext refidcollection
     refiddata refidadapterimp ref collectionbase refcollection columns infocollection tablemimedata cellcoordinates cellselection resources resourcesmanager scope
     pathgrid land nestedcollection nestedcoladapterimp nestedinfocollection
-    idcompletionmanager metadata defaultgmsts infoselectwrapper commandmacro
+    idcompletionmanager metadata infoselectwrapper commandmacro
     )
 
 opencs_hdrs (model/world
