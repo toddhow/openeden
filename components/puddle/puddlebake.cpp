@@ -48,7 +48,25 @@ namespace Puddle
             std::uint32_t mCells = 0; // a side
             std::vector<std::vector<float>> mHeights;
             std::vector<std::uint8_t> mHasLand;
+            // For each cell whose heights were refused: where and why (it then counts as no land).
+            std::vector<std::string> mProblem;
         };
+
+        // The first height of a cell that the fill would refuse, as a located message; empty when all are fine.
+        std::string badHeight(
+            const std::vector<float>& heights, std::int32_t cellX, std::int32_t cellY, std::uint32_t vertices)
+        {
+            for (std::size_t i = 0; i < heights.size(); ++i)
+            {
+                if (std::isfinite(heights[i]) && std::abs(heights[i]) <= Render::Puddle::maxAbsHeight)
+                    continue;
+                return "cell (" + std::to_string(cellX) + ", " + std::to_string(cellY) + ") vertex ("
+                    + std::to_string(i % vertices) + ", " + std::to_string(i / vertices) + "): the height "
+                    + std::to_string(heights[i]) + " is not finite or is beyond +-"
+                    + std::to_string(static_cast<long long>(Render::Puddle::maxAbsHeight));
+            }
+            return {};
+        }
 
         Window fetchWindow(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& s)
         {
@@ -57,6 +75,7 @@ namespace Puddle
             const std::size_t count = static_cast<std::size_t>(window.mCells) * window.mCells;
             window.mHeights.resize(count);
             window.mHasLand.assign(count, 0);
+            window.mProblem.assign(count, std::string());
             const std::size_t expected = static_cast<std::size_t>(s.mCellVertices) * s.mCellVertices;
             for (std::uint32_t iy = 0; iy < window.mCells; ++iy)
             {
@@ -68,8 +87,12 @@ namespace Puddle
                     std::vector<float> heights;
                     if (source.cellHeights(cx, cy, heights) && heights.size() == expected)
                     {
-                        window.mHeights[index] = std::move(heights);
-                        window.mHasLand[index] = 1;
+                        window.mProblem[index] = badHeight(heights, cx, cy, s.mCellVertices);
+                        if (window.mProblem[index].empty())
+                        {
+                            window.mHeights[index] = std::move(heights);
+                            window.mHasLand[index] = 1;
+                        }
                     }
                 }
             }
@@ -203,7 +226,8 @@ namespace Puddle
         return digestOfWindow(fetchWindow(source, cellX, cellY, settings), cellX, cellY, settings);
     }
 
-    BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& s)
+    BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& s,
+        const BakeOptions& options)
     {
         namespace RP = Render::Puddle;
         BakeResult result;
@@ -215,6 +239,14 @@ namespace Puddle
         const std::uint32_t side = s.texelsPerCell();
         const std::uint32_t perStep = s.texelsPerVertexStep();
         const Window window = fetchWindow(source, cellX, cellY, s);
+        {
+            const std::size_t centre = static_cast<std::size_t>(s.mHalo) * window.mCells + s.mHalo;
+            if (!window.mProblem[centre].empty())
+            {
+                result.mError = fail("heights", window.mProblem[centre]);
+                return result;
+            }
+        }
         const std::uint32_t windowSide = window.mCells * side;
         const std::size_t count = static_cast<std::size_t>(windowSide) * windowSide;
         result.mStats.mWindowTexels = static_cast<std::uint32_t>(count);
@@ -295,7 +327,9 @@ namespace Puddle
         const std::int64_t radiusTenths
             = static_cast<std::int64_t>(s.mCatchmentRadiusUnits) * 10 / static_cast<std::int64_t>(s.mSpacingUnits);
         const RP::Catchment bounded = RP::catchmentRatioBounded(basins, fill, pond, radiusTenths);
-        const RP::Catchment unbounded = RP::catchmentRatio(basins, fill, RP::accumulateFlow(fill), pond);
+        RP::Catchment unbounded;
+        if (options.mStatistics)
+            unbounded = RP::catchmentRatio(basins, fill, RP::accumulateFlow(fill), pond);
         if (!bounded.ok() || !unbounded.ok())
         {
             result.mError = fail("catchment", bounded.ok() ? unbounded.error : bounded.error);
@@ -341,7 +375,8 @@ namespace Puddle
             {
                 const std::size_t out = static_cast<std::size_t>(ty) * side + tx;
                 const std::size_t in = static_cast<std::size_t>(origin + ty) * windowSide + origin + tx;
-                if (!RP::heightRepresentable(heights[in], cell.mHeightBase))
+                const bool clamped = !RP::heightRepresentable(heights[in], cell.mHeightBase);
+                if (clamped)
                     result.mStats.mHeightsClamped = true;
                 cell.mTop[out] = RP::quantiseHeight(heights[in], cell.mHeightBase);
                 const std::uint8_t direction = RP::flowDirection(fill, in);
@@ -349,6 +384,12 @@ namespace Puddle
                 const std::uint8_t capacityCode = RP::quantiseCapacity(pond[in]);
                 if (capacityCode == 0)
                     continue;
+                if (clamped)
+                {
+                    // The height is saturated, so a level test against it would be wrong: no pond here.
+                    ++result.mStats.mPondTexelsDroppedClamped;
+                    continue;
+                }
                 const std::int32_t windowId = basins.id[in];
                 auto found = local.find(windowId);
                 if (found == local.end())
@@ -383,9 +424,12 @@ namespace Puddle
                 info.mCatchmentCode = RP::quantiseKappa(bounded.ratio[w]);
                 cell.mBasins.push_back(info);
                 result.mStats.mKappasBounded.push_back(bounded.ratio[w]);
-                result.mStats.mKappasUnbounded.push_back(unbounded.ratio[w]);
-                if (unbounded.ratio[w] > clipAbove)
-                    ++result.mStats.mClippedUnbounded;
+                if (options.mStatistics)
+                {
+                    result.mStats.mKappasUnbounded.push_back(unbounded.ratio[w]);
+                    if (unbounded.ratio[w] > clipAbove)
+                        ++result.mStats.mClippedUnbounded;
+                }
                 if (bounded.ratio[w] > clipAbove)
                     ++result.mStats.mClippedBounded;
             }

@@ -101,7 +101,9 @@ namespace OpenMW
         addOption("bake-puddles", bpo::value<std::string>()->implicit_value("all")->default_value(""),
             "bake the puddle map of the loaded game data into openeden/puddles/puddles.edenpak (task 0095; needs the "
             "game data; no argument or \"all\" for every land cell, \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\" to bake "
-            "those cells again; quits when done)");
+            "those cells again; cells outside the range are kept only from a pack made with the SAME settings, so a "
+            "range bake after changing a puddle bake setting replaces the pack by one of only those cells; quits when "
+            "done; the exit code is not 0 when the bake failed)");
 
         addOption("bake-lod-terrain", bpo::bool_switch()->default_value(false),
             "bake the terrain tiles of the world LOD into openeden/lod/terrain.edenpak (draft layout; needs the game "

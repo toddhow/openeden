@@ -9,7 +9,10 @@
 // Derived data: baked on the user's machine from their own game data, never committed. The payload is read as
 // untrusted input: every size is bounded and checked against the bytes left before anything is allocated, a located
 // error comes back for anything else (never an exception), and the reader accepts only what the writer would write for
-// the parsed value (so a read followed by a write is the same bytes).
+// the parsed value (so a read followed by a write is the same bytes), and the writer only writes a cell whose parts
+// agree: the basin table matches the texels (maximum, catchment code, area at least the pit's texels in the cell), the
+// catchment and the pit maximum are the same on every texel of a pit, a sink has no flow direction and a static texel
+// needs a cell that captured statics. What the reader does NOT check is whether the numbers are right for the land.
 //
 // Payload (little-endian), `n` = side * side texels:
 //   offset  size  field

@@ -129,6 +129,8 @@ namespace OMW
         std::unique_ptr<Puddle::BakeJob> mJob;
         bool mStarted = false;
         bool mFinished = false;
+        bool mFailed = false;
+        bool mStatistics = false;
         std::chrono::steady_clock::time_point mStart;
         std::chrono::steady_clock::time_point mLastProgress;
     };
@@ -139,6 +141,11 @@ namespace OMW
     }
 
     PuddleBaker::~PuddleBaker() = default;
+
+    bool PuddleBaker::failed() const
+    {
+        return mState->mFailed;
+    }
 
     bool PuddleBaker::update()
     {
@@ -165,6 +172,7 @@ namespace OMW
                 Log(Debug::Error) << "Puddle bake: \"" << state.mRange
                                   << "\" is not \"all\", \"<x>,<y>\" or \"<x0>,<y0>:<x1>,<y1>\"; nothing baked.";
                 state.mFinished = true;
+                state.mFailed = true;
                 return true;
             }
             const auto& rendering = Settings::rendering();
@@ -185,10 +193,13 @@ namespace OMW
                 Log(Debug::Error) << "Puddle bake: the settings cannot be used (" << error.mField
                                   << "): " << error.mMessage << "; nothing baked.";
                 state.mFinished = true;
+                state.mFailed = true;
                 return true;
             }
             for (const ESM::Land& land : store->get<ESM::Land>())
                 config.mLandCells.emplace_back(land.mX, land.mY);
+            config.mStatistics = rendering.mPuddleBakeStatistics.get();
+            state.mStatistics = config.mStatistics;
             config.mFolder = state.mOut / "openeden" / "puddles";
             state.mHeights = std::make_unique<StorageHeights>(state.mStorage, *store);
             Log(Debug::Info) << "Puddle bake: " << config.mLandCells.size() << " land cells, spacing "
@@ -209,9 +220,10 @@ namespace OMW
             // A cell that fails with an exception (the heap, say) ends the bake with a message; the cells already
             // baked are in the work folder and the next run resumes from them.
             Log(Debug::Error) << "Puddle bake stopped by an exception after " << state.mJob->unitsDone() << " of "
-                              << state.mJob->unitsTotal() << " cells in this pass: " << e.what()
-                              << " (working set " << Render::processWorkingSetBytes() / (1024 * 1024) << " MiB).";
+                              << state.mJob->unitsTotal() << " cells in this pass: " << e.what() << " (working set "
+                              << Render::processWorkingSetBytes() / (1024 * 1024) << " MiB).";
             state.mFinished = true;
+            state.mFailed = true;
             return true;
         }
         const auto now = std::chrono::steady_clock::now();
@@ -230,8 +242,28 @@ namespace OMW
         const double seconds = std::chrono::duration<double>(now - state.mStart).count();
         if (r.mError)
         {
+            state.mFailed = true;
             Log(Debug::Error) << "Puddle bake failed, the old pack (if any) is unchanged: " << r.mError.describe();
             return true;
+        }
+        if (r.mOldPackOtherSettings)
+        {
+            Log(Debug::Warning) << "Puddle bake: the pack on disk was made with other settings or another layout, so "
+                                   "none of its cells was reused"
+                                << (state.mRange != "all" ? "; because only the cells of the range were baked, the new "
+                                                            "pack holds only those cells (bake \"all\" for the whole "
+                                                            "world)"
+                                                          : "")
+                                << ".";
+        }
+        if (r.mOldPackUnreadable)
+            Log(Debug::Warning) << "Puddle bake: the pack on disk could not be opened and is replaced.";
+        if (r.mBadCells != 0)
+        {
+            Log(Debug::Warning) << "Puddle bake: " << r.mBadCells
+                                << " cells skipped because a height was not finite or "
+                                   "beyond +-1e7 (they have no map); the first: "
+                                << r.mFirstBadCell;
         }
         const std::filesystem::path path = state.mOut / "openeden" / "puddles" / "puddles.edenpak";
         if (r.mUpToDate)
@@ -248,14 +280,19 @@ namespace OMW
                          << " s.";
         Log(Debug::Info) << "Puddle bake: " << r.mPitsInCells << " pits in the cells baked (" << r.mPitsDroppedByArea
                          << " small ponds dropped), " << r.mWetTexels << " wet texels, " << r.mHeightsClamped
-                         << " cells with heights beyond the 16 bit range.";
+                         << " cells with heights beyond the 16 bit range, " << r.mPondTexelsDroppedClamped
+                         << " pond texels dropped under such heights.";
         Log(Debug::Info) << "Puddle bake: catchment ratio of the pits, bounded: median "
                          << percentile(r.mKappasBounded, 0.5) << ", 90th " << percentile(r.mKappasBounded, 0.9)
-                         << ", max " << percentile(r.mKappasBounded, 1.0) << "; unbounded: median "
-                         << percentile(r.mKappasUnbounded, 0.5) << ", 90th " << percentile(r.mKappasUnbounded, 0.9)
-                         << ", max " << percentile(r.mKappasUnbounded, 1.0)
-                         << "; beyond the stored range (131072): " << r.mClippedBounded << " bounded, "
-                         << r.mClippedUnbounded << " unbounded.";
+                         << ", max " << percentile(r.mKappasBounded, 1.0)
+                         << "; beyond the stored range (131072): " << r.mClippedBounded << ".";
+        if (state.mStatistics)
+        {
+            Log(Debug::Info) << "Puddle bake: without the radius bound: median " << percentile(r.mKappasUnbounded, 0.5)
+                             << ", 90th " << percentile(r.mKappasUnbounded, 0.9) << ", max "
+                             << percentile(r.mKappasUnbounded, 1.0)
+                             << "; beyond the stored range (131072): " << r.mClippedUnbounded << ".";
+        }
         return true;
     }
 }

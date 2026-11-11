@@ -16,6 +16,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -48,6 +49,8 @@ namespace Puddle
         /// The cells to (re)bake, inclusive corners; none means all of them.
         std::optional<std::array<std::int32_t, 4>> mRange; // x0, y0, x1, y1
         bool mStoreOnly = false;
+        /// Also measure the unbounded catchment ratios (a report; costs a flow accumulation per cell).
+        bool mStatistics = false;
     };
 
     struct JobResult
@@ -70,6 +73,14 @@ namespace Puddle
         std::uint64_t mClippedUnbounded = 0;
         std::uint64_t mClippedBounded = 0;
         std::uint32_t mHeightsClamped = 0; // cells
+        std::uint64_t mPondTexelsDroppedClamped = 0; // pond texels dropped under a clamped height
+        /// Cells skipped because a height of their own was not finite or beyond +-1e7 (the first one is described).
+        std::uint32_t mBadCells = 0;
+        std::string mFirstBadCell;
+        /// The pack on disk was made with other settings or another layout (so none of its cells was reused), or
+        /// could not be opened although the file exists.
+        bool mOldPackOtherSettings = false;
+        bool mOldPackUnreadable = false;
         std::vector<float> mKappasBounded;
         std::vector<float> mKappasUnbounded;
     };
@@ -105,7 +116,16 @@ namespace Puddle
         std::unique_ptr<PuddlePack> mOldPack;
         Digest mParameters{};
         std::vector<Digest> mDigests;
-        std::vector<PackedCell> mCells;
+        // One record a cell of the pack: its payload is a file of the work folder (or, for a cell taken from the old
+        // pack, still in the old pack until the new one is written), never a map in memory.
+        struct CellRecord
+        {
+            std::int32_t mCellX = 0;
+            std::int32_t mCellY = 0;
+            Digest mInput{};
+            bool mInOldPack = false;
+        };
+        std::vector<CellRecord> mCells;
     };
 }
 

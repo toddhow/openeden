@@ -197,6 +197,45 @@ namespace Puddle
         }
     }
 
+    Error writePuddlePackFromFiles(const Manifest& manifest, const std::vector<CellFile>& cells,
+        const PackOptions& options, const std::filesystem::path& path)
+    {
+        std::vector<EdenArchive::InputEntry> entries;
+        std::vector<std::uint64_t> keys;
+        for (const CellFile& cell : cells)
+        {
+            std::uint64_t key = 0;
+            if (!packCellKey(cell.mCellX, cell.mCellY, key))
+                return fail("cell", 0, "the cell coordinates do not pack into a key");
+            keys.push_back(key);
+            EdenArchive::InputEntry entry;
+            entry.mKey = key;
+            entry.mType = entryTypePuddleCell;
+            entry.mFile = cell.mPath;
+            entry.mHintFlags = EdenArchive::entryFlagHintMemSize;
+            entry.mHintMemorySize = static_cast<std::uint32_t>(std::min<std::uint64_t>(cell.mSize, 0xFFFFFFFFu));
+            entry.mLayoutParamA = cell.mSide;
+            entry.mCompression = EdenArchive::Compression::Auto;
+            entry.mProvenance = EdenArchive::ProvenanceInput{ std::string(bakerToolId), cell.mInputDigest,
+                std::vector<std::uint8_t>(cell.mParameterDigest.begin(), cell.mParameterDigest.end()) };
+            entries.push_back(std::move(entry));
+        }
+        std::sort(keys.begin(), keys.end());
+        if (std::adjacent_find(keys.begin(), keys.end()) != keys.end())
+            return fail("cell", 0, "two cells have the same coordinates");
+        EdenArchive::InputEntry manifestEntry;
+        manifestEntry.mPath = std::string(manifestPath);
+        manifestEntry.mType = 0;
+        const std::string json = writeManifestJson(manifest);
+        manifestEntry.mData.assign(json.begin(), json.end());
+        manifestEntry.mProvenance = EdenArchive::ProvenanceInput{ std::string(bakerToolId), options.mSourceDigest, {} };
+        entries.push_back(std::move(manifestEntry));
+        const EdenArchive::Error error = EdenArchive::writePack(entries, path, writeOptionsFor(options));
+        if (error)
+            return fromArchive(error, "pack");
+        return {};
+    }
+
     Error buildPuddlePack(const Manifest& manifest, const std::vector<PackedCell>& cells, const PackOptions& options,
         std::vector<std::uint8_t>& out)
     {

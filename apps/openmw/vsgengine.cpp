@@ -733,6 +733,9 @@ namespace OMW
             Log(Debug::Warning) << "Screenshot not written before quitting: "
                                 << Files::pathToUnicodeString(unwritten->writeFilename);
         mScreenshotWriter.reset();
+        // A puddle bake that failed ends with a code that a script can see (task 0095 review).
+        if (mPuddleBaker && mPuddleBaker->failed() && mExitCode == 0)
+            mExitCode = sPuddleBakeFailedExitCode;
         mPuddleBaker.reset();
 
         std::cout << "Quitting peacefully." << std::endl;

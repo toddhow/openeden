@@ -98,6 +98,18 @@ namespace Puddle
         std::vector<float> mKappasBounded; // per pit in the cell
         std::vector<float> mKappasUnbounded;
         bool mHeightsClamped = false; // some height did not fit the cell's 16 bit range
+        /// Pond texels of the cell dropped because their height is beyond the 16 bit range over the cell's base (a
+        /// level test at run time could not use them): they have no capacity in the pack.
+        std::uint32_t mPondTexelsDroppedClamped = 0;
+    };
+
+    /// What a bake measures beyond what it stores.
+    struct BakeOptions
+    {
+        /// Also work out the unbounded catchment ratio of each pit (`BakeStats::mKappasUnbounded`,
+        /// `mClippedUnbounded`), which costs a flow accumulation over the whole window on every cell. For reports only:
+        /// off, those stay empty.
+        bool mStatistics = false;
     };
 
     struct BakeResult
@@ -108,8 +120,11 @@ namespace Puddle
     };
 
     /// Bakes cell (cellX, cellY). `settings` must be valid. The input digest in the result covers every cell of the
-    /// window.
-    BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings);
+    /// window. A vertex height of the cell itself that is not finite or beyond +-1e7 is an error with the field
+    /// "heights" and the place (cell and vertex); the same in a neighbour of the window makes that neighbour count as
+    /// a cell with no land (a sink), so one bad cell stops nothing else.
+    BakeResult bakeCell(LandHeightSource& source, std::int32_t cellX, std::int32_t cellY, const BakeSettings& settings,
+        const BakeOptions& options = {});
 
     /// The digest of the baker's settings and version.
     Digest parameterDigest(const BakeSettings& settings);

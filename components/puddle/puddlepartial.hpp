@@ -26,9 +26,10 @@ namespace Puddle
         /// Removes the folder.
         void clear() const;
         const std::filesystem::path& folder() const { return mFolder; }
+        /// The file of a cell: exactly the payload `writeCell` makes.
+        std::filesystem::path pathOf(std::int32_t cellX, std::int32_t cellY) const;
 
     private:
-        std::filesystem::path pathOf(std::int32_t cellX, std::int32_t cellY) const;
         std::filesystem::path mFolder;
     };
 }

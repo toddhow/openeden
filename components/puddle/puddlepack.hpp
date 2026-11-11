@@ -54,6 +54,18 @@ namespace Puddle
     /// input digest. A pack is up to date when its source digest equals this for the current land.
     Digest contentDigest(const Manifest& manifest, const std::vector<std::pair<std::uint64_t, Digest>>& cellInputs);
 
+    /// A cell whose payload is in a file (the payload `writeCell` makes), for packs too big to hold in memory.
+    struct CellFile
+    {
+        std::int32_t mCellX = 0;
+        std::int32_t mCellY = 0;
+        std::filesystem::path mPath;
+        Digest mInputDigest{};
+        Digest mParameterDigest{};
+        std::uint32_t mSide = 0;
+        std::uint64_t mSize = 0;
+    };
+
     struct PackOptions
     {
         std::uint64_t mGeneration = 0;
@@ -65,6 +77,10 @@ namespace Puddle
     /// Builds the pack. Cells may come in any order; the output depends only on the set. Fails on a duplicate cell.
     Error writePuddlePack(const Manifest& manifest, const std::vector<PackedCell>& cells, const PackOptions& options,
         const std::filesystem::path& path);
+    /// The same, with the cells read from their files while the pack is written (the writer holds a bounded amount of
+    /// them at a time). The files are not checked here: the reader checks every cell when the pack is read back.
+    Error writePuddlePackFromFiles(const Manifest& manifest, const std::vector<CellFile>& cells,
+        const PackOptions& options, const std::filesystem::path& path);
     Error buildPuddlePack(const Manifest& manifest, const std::vector<PackedCell>& cells, const PackOptions& options,
         std::vector<std::uint8_t>& out);
 

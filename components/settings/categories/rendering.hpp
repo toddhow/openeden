@@ -148,6 +148,9 @@ namespace Settings
             makeClampSanitizerInt(0, 1000000) };
         SettingValue<int> mPuddleBakeHalo{ mIndex, "Rendering", "puddle bake halo", makeClampSanitizerInt(0, 4) };
         SettingValue<bool> mPuddleBakeStatics{ mIndex, "Rendering", "puddle bake statics" };
+        // Also measure (and log) the catchment ratios without the distance bound: a report that costs a flow
+        // accumulation per cell and changes nothing in the pack.
+        SettingValue<bool> mPuddleBakeStatistics{ mIndex, "Rendering", "puddle bake statistics" };
         // Task 0039: snow and ash cover (read at start; needs hdr and pbr): its strength, the seconds of game time it
         // takes to build up while it snows or ash falls and to melt after, and a debug view of cover and upwardness.
         SettingValue<bool> mCover{ mIndex, "Rendering", "cover" };

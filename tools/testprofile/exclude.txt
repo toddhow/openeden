@@ -73,6 +73,7 @@ Rendering|puddle bake capacity cap|bake parameter of openmw --bake-puddles (task
 Rendering|puddle bake min area|bake parameter of openmw --bake-puddles (task 0095), not a feature switch
 Rendering|puddle bake catchment radius|bake parameter of openmw --bake-puddles (task 0095), not a feature switch
 Rendering|puddle bake halo|bake parameter of openmw --bake-puddles (task 0095), not a feature switch
+Rendering|puddle bake statistics|bake report of openmw --bake-puddles (task 0095), not a feature switch
 Rendering|puddle bake statics|bake parameter of openmw --bake-puddles (task 0095; statics are stage W-c, true is refused)
 Shadows|blocker samples|tuning of the shadow filter (PCSS, variants/pcss.cfg)
 Shadows|pcf samples|tuning of the shadow filter

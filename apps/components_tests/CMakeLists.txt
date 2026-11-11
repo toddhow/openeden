@@ -338,6 +338,7 @@ file(GLOB UNITTEST_SRC_FILES
     puddle/testpuddlemap.cpp
     puddle/testpuddlebake.cpp
     puddle/testpuddlepack.cpp
+    puddle/testpuddlereview.cpp
     render/testwetnessmath.cpp
     render/testcloudmath.cpp
     render/testcloudvolumemath.cpp

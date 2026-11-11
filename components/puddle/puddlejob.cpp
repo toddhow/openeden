@@ -66,10 +66,17 @@ namespace Puddle
         Manifest manifest;
         manifest.mSettings = mConfig.mSettings;
         Error error;
-        mOldPack = PuddlePack::open(mConfig.mFolder / "puddles.edenpak", error);
+        const std::filesystem::path packPath = mConfig.mFolder / "puddles.edenpak";
+        mOldPack = PuddlePack::open(packPath, error);
+        std::error_code ec;
+        if (!mOldPack && std::filesystem::exists(packPath, ec))
+            mResult.mOldPackUnreadable = true;
         // A pack made with other settings (or another layout) gives nothing to reuse.
         if (mOldPack && !(mOldPack->manifest() == manifest))
+        {
+            mResult.mOldPackOtherSettings = true;
             mOldPack.reset();
+        }
     }
 
     bool BakeJob::wanted(const std::pair<std::int32_t, std::int32_t>& cell) const
@@ -92,6 +99,8 @@ namespace Puddle
         const auto end = std::chrono::steady_clock::now() + budget;
         const PartialStore partial(mConfig.mFolder / "work");
         const auto& cells = mConfig.mLandCells;
+        BakeOptions options;
+        options.mStatistics = mConfig.mStatistics;
         while (mPhase != Phase::Done)
         {
             if (mPhase == Phase::Digests)
@@ -114,7 +123,12 @@ namespace Puddle
                     const auto& cell = cells[mNext];
                     const Digest& digest = mDigests[mNext];
                     ++mNext;
-                    std::optional<CellMap> map;
+                    CellRecord record;
+                    record.mCellX = cell.first;
+                    record.mCellY = cell.second;
+                    record.mInput = digest;
+                    bool have = false;
+                    // From the pack on disk, when its cell is intact and is for this land and these settings.
                     if (mOldPack && mOldPack->contains(cell.first, cell.second)
                         && mOldPack->inputDigest(cell.first, cell.second) == std::optional<Digest>(digest))
                     {
@@ -122,19 +136,27 @@ namespace Puddle
                         if (!mOldPack->readCell(cell.first, cell.second, loaded) && loaded.mInputDigest == digest
                             && loaded.mParameterDigest == mParameters)
                         {
-                            map = std::move(loaded);
+                            record.mInOldPack = true;
+                            have = true;
                             ++mResult.mFromPack;
                         }
                     }
-                    if (!map)
+                    // From the work folder (a bake that was killed).
+                    if (!have && partial.load(cell.first, cell.second, mParameters, digest))
                     {
-                        map = partial.load(cell.first, cell.second, mParameters, digest);
-                        if (map)
-                            ++mResult.mFromPartial;
+                        have = true;
+                        ++mResult.mFromPartial;
                     }
-                    if (!map && wanted(cell))
+                    if (!have && wanted(cell))
                     {
-                        BakeResult baked = bakeCell(mSource, cell.first, cell.second, mConfig.mSettings);
+                        BakeResult baked = bakeCell(mSource, cell.first, cell.second, mConfig.mSettings, options);
+                        if (baked.mError && baked.mError.mField == "heights")
+                        {
+                            // One cell with an impossible height is skipped; the others go on.
+                            if (mResult.mBadCells++ == 0)
+                                mResult.mFirstBadCell = baked.mError.mMessage;
+                            continue;
+                        }
                         if (baked.mError)
                         {
                             stopWith(Error{ baked.mError.mField, baked.mError.mOffset,
@@ -155,14 +177,15 @@ namespace Puddle
                         mResult.mClippedUnbounded += st.mClippedUnbounded;
                         mResult.mClippedBounded += st.mClippedBounded;
                         mResult.mHeightsClamped += st.mHeightsClamped ? 1 : 0;
+                        mResult.mPondTexelsDroppedClamped += st.mPondTexelsDroppedClamped;
                         mResult.mKappasBounded.insert(
                             mResult.mKappasBounded.end(), st.mKappasBounded.begin(), st.mKappasBounded.end());
                         mResult.mKappasUnbounded.insert(
                             mResult.mKappasUnbounded.end(), st.mKappasUnbounded.begin(), st.mKappasUnbounded.end());
-                        map = std::move(baked.mCell);
+                        have = true;
                     }
-                    if (map)
-                        mCells.push_back(PackedCell{ cell.first, cell.second, std::move(*map) });
+                    if (have)
+                        mCells.push_back(record);
                     else
                         ++mResult.mSkipped;
                 }
@@ -186,7 +209,7 @@ namespace Puddle
         Manifest manifest;
         manifest.mSettings = mConfig.mSettings;
         std::vector<std::pair<std::uint64_t, Digest>> inputs;
-        for (const PackedCell& cell : mCells)
+        for (const CellRecord& cell : mCells)
         {
             std::uint64_t key = 0;
             if (!packCellKey(cell.mCellX, cell.mCellY, key))
@@ -194,15 +217,19 @@ namespace Puddle
                 stopWith(Error{ "cell", 0, "a cell does not pack into a key" });
                 return;
             }
-            inputs.emplace_back(key, cell.mMap.mInputDigest);
+            inputs.emplace_back(key, cell.mInput);
         }
         mResult.mCellsInPack = static_cast<std::uint32_t>(mCells.size());
         PackOptions options;
         options.mSourceDigest = contentDigest(manifest, inputs);
         options.mStoreOnly = mConfig.mStoreOnly;
         options.mThreads = 2;
-        if (mOldPack && mOldPack->manifest() == manifest && mOldPack->sourceDigest() == options.mSourceDigest
-            && mOldPack->cells().size() == mCells.size())
+        // Up to date means: every cell came, intact, from the pack on disk, and it is the same set. A pack with a
+        // damaged cell is not up to date even when its digest says so: the digest is of the inputs, not of the bytes.
+        const bool allFromPack
+            = std::all_of(mCells.begin(), mCells.end(), [](const CellRecord& c) { return c.mInOldPack; });
+        if (mOldPack && allFromPack && mResult.mBaked == 0 && mOldPack->manifest() == manifest
+            && mOldPack->sourceDigest() == options.mSourceDigest && mOldPack->cells().size() == mCells.size())
         {
             mResult.mUpToDate = true;
             mResult.mGeneration = mOldPack->generation();
@@ -216,8 +243,45 @@ namespace Puddle
         std::error_code ec;
         std::filesystem::create_directories(mConfig.mFolder, ec);
         const std::filesystem::path path = mConfig.mFolder / "puddles.edenpak";
+
+        // Every cell becomes a file of the work folder, one at a time (a cell kept from the old pack is copied out
+        // before the old pack is released), and the pack is written from the files: no map is held in memory.
+        std::vector<CellFile> files;
+        files.reserve(mCells.size());
+        for (const CellRecord& cell : mCells)
+        {
+            if (cell.mInOldPack)
+            {
+                CellMap map;
+                if (Error error = mOldPack->readCell(cell.mCellX, cell.mCellY, map))
+                {
+                    stopWith(std::move(error));
+                    return;
+                }
+                if (Error error = partial.store(map))
+                {
+                    stopWith(std::move(error));
+                    return;
+                }
+            }
+            CellFile file;
+            file.mCellX = cell.mCellX;
+            file.mCellY = cell.mCellY;
+            file.mPath = partial.pathOf(cell.mCellX, cell.mCellY);
+            file.mInputDigest = cell.mInput;
+            file.mParameterDigest = mParameters;
+            std::error_code sizeError;
+            file.mSize = std::filesystem::file_size(file.mPath, sizeError);
+            if (sizeError)
+            {
+                stopWith(Error{ "partial", 0, "the file of a cell is missing: " + file.mPath.string() });
+                return;
+            }
+            file.mSide = mConfig.mSettings.texelsPerCell();
+            files.push_back(std::move(file));
+        }
         mOldPack.reset(); // release the file before it is replaced
-        if (Error error = writePuddlePack(manifest, mCells, options, path))
+        if (Error error = writePuddlePackFromFiles(manifest, files, options, path))
         {
             stopWith(std::move(error));
             return;
@@ -229,11 +293,14 @@ namespace Puddle
             stopWith(std::move(openError));
             return;
         }
+        // Read every cell back and compare it with the file it came from, one at a time.
         std::uint32_t good = 0;
-        for (const PackedCell& cell : mCells)
+        for (const CellFile& file : files)
         {
+            const std::optional<CellMap> original
+                = partial.load(file.mCellX, file.mCellY, file.mParameterDigest, file.mInputDigest);
             CellMap back;
-            if (!written->readCell(cell.mCellX, cell.mCellY, back) && back == cell.mMap)
+            if (original && !written->readCell(file.mCellX, file.mCellY, back) && back == *original)
                 ++good;
         }
         mResult.mReadBack = good;

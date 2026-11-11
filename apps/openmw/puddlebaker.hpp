@@ -23,6 +23,9 @@ namespace Resource
 
 namespace OMW
 {
+    /// The exit code of a game that was started with --bake-puddles and whose bake failed.
+    inline constexpr int sPuddleBakeFailedExitCode = 4;
+
     class PuddleBaker
     {
     public:
@@ -32,6 +35,10 @@ namespace OMW
 
         /// Call once per running frame. True when the bake has finished (or failed) and the game should quit.
         bool update();
+
+        /// True when the bake ended in a failure (bad range or settings, an error, an exception): the game then exits
+        /// with `sPuddleBakeFailedExitCode`.
+        bool failed() const;
 
     private:
         struct State;

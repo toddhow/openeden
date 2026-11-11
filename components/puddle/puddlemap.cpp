@@ -70,8 +70,13 @@ namespace Puddle
                 return fail("channels", 0, "the texel flags or the top channel have the wrong size");
             for (std::size_t i = 0; i < n; ++i)
             {
-                if ((cell.mTexelFlags[i] & ~texelKnownMask) != 0)
+                const std::uint8_t f = cell.mTexelFlags[i];
+                if ((f & ~texelKnownMask) != 0)
                     return fail("texelFlags", headerSize + n * (noPits ? 0 : 3) + i, "unknown texel flag bits");
+                // Canonical meaning: a sink has no direction, and a static surface needs a cell that captured them.
+                if (((f & texelSink) != 0 && (f & texelDirectionMask) != 0)
+                    || ((f & texelStatic) != 0 && (cell.mFlags & flagStatics) == 0))
+                    return fail("texelFlags", headerSize + n * (noPits ? 0 : 3) + i, "inconsistent texel flags");
             }
             if (noPits)
             {
@@ -87,6 +92,11 @@ namespace Puddle
                 return fail("basinCount", 36, "too many basins");
             const std::uint64_t basinCount = cell.mBasins.size();
             std::vector<std::uint8_t> seen(basinCount, 0);
+            // What the texels say about each pit, to be matched by the table: how many texels are in this cell, the
+            // pit maximum and the catchment code (the same on every texel of a pit).
+            std::vector<std::uint32_t> inCell(basinCount, 0);
+            std::vector<std::uint8_t> maxCode(basinCount, 0);
+            std::vector<std::uint8_t> catchCode(basinCount, 0);
             std::uint64_t next = 0;
             for (std::size_t i = 0; i < n; ++i)
             {
@@ -113,9 +123,25 @@ namespace Puddle
                 else if (id > next)
                     return fail(
                         "basinId", headerSize + 6 * n + 2 * i, "pit ids must be numbered in order of first use");
+                if (inCell[id]++ == 0)
+                {
+                    maxCode[id] = cell.mBasinMax[i];
+                    catchCode[id] = cell.mCatchment[i];
+                }
+                else if (cell.mBasinMax[i] != maxCode[id])
+                    return fail("basinMax", headerSize + n + i, "the pit maximum differs between texels of one pit");
+                else if (cell.mCatchment[i] != catchCode[id])
+                    return fail("catchment", headerSize + 2 * n + i, "the catchment differs between texels of one pit");
             }
             if (next != basinCount)
                 return fail("basinCount", 36, "a pit has no texel in the cell");
+            for (std::uint64_t b = 0; b < basinCount; ++b)
+            {
+                const BasinInfo& info = cell.mBasins[b];
+                if (info.mMaxCapacityCode != maxCode[b] || info.mCatchmentCode != catchCode[b]
+                    || info.mArea < inCell[b])
+                    return fail("basinTable", headerSize + 8 * n + 8 * b, "the basin table disagrees with the texels");
+            }
             return {};
         }
     }

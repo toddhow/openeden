@@ -4,11 +4,11 @@ The puddle map: where water collects on the terrain, baked on the user's machine
 
 ## Files
 
-- `puddlemap.*`: the payload of one cell (`openeden.puddlemap` layout 1) and its strict, canonical reader and writer. The header comment is the layout. The reader is the part that meets untrusted bytes: it checks every size against the bytes given before it allocates, returns a located `Puddle::Error` and never throws, and accepts only what the writer would write.
+- `puddlemap.*`: the payload of one cell (`openeden.puddlemap` layout 1) and its strict, canonical reader and writer. The header comment is the layout. The reader is the part that meets untrusted bytes: it checks every size against the bytes given before it allocates, returns a located `Puddle::Error` and never throws, and accepts only what the writer would write, in bytes and in meaning (the basin table against the texels, one catchment and one pit maximum per pit, sink and static flags), but not whether the values are right for the land.
 - `puddlebake.*`: `bakeCell` (the pure bake of one cell: window of land, fill, pits, pond, catchment, quantisation), `terrainHeightAt` (the ground on the triangles the renderer draws), `inputDigest` and `parameterDigest`. Land comes through `LandHeightSource`; the game's implementation is in `apps/openmw/puddlebaker.cpp`.
 - `puddlepack.*`: the manifest (canonical one-line JSON, integers only), the Eden Archive pack (`puddles.edenpak`: key tag 0x14, entry type 0x0014, provenance on every cell), `contentDigest`.
 - `puddlepartial.*`: the work folder of a bake (one file per finished cell) that makes a killed bake resumable.
-- `puddlejob.*`: the whole bake as a job run in slices (`BakeJob::step`): digest pass, reuse from the pack on disk and from the work folder, bake, assemble, write, read back. A second run with the same land writes nothing.
+- `puddlejob.*`: the whole bake as a job run in slices (`BakeJob::step`): digest pass, reuse from the pack on disk and from the work folder, bake, assemble, write, read back. A second run with the same land writes nothing, but only when every cell came intact from the pack on disk (the content digest is of the inputs, not of the bytes). The job holds no cell maps: every cell is a file of the work folder and the pack is written from the files (`writePuddlePackFromFiles`), so the memory of a bake does not grow with the world. A cell with a bad height (not finite or beyond +-1e7) is skipped and counted, and counts as no land in its neighbours' windows.
 - `puddlewindow.*`: the run-time CPU window (7 x 7 cells) with the staleness check. The GPU array texture of stage W-d is fed from it.
 
 The pure maths (fill, basins, catchment, level) is in `components/render/puddlefill.hpp` and `puddlelevel.hpp`.
