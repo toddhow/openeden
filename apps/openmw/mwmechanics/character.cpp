@@ -378,7 +378,7 @@ namespace MWMechanics
 
     namespace
     {
-        // Says once per session which of the authored locomotion clips the player's animation has (task 0107). The
+        // Says once per session which of the authored locomotion clips the player's animation has (task 0108). The
         // choice of those clips is silent when they are missing (the procedural fallback runs), which hid for a long
         // time that no Morrowind animation file has any of them.
         void reportAuthoredTransitionClips(const MWAnim::Play& animation)
@@ -2576,7 +2576,7 @@ namespace MWMechanics
                         else
                         {
                             // The start clip is chosen on the first frame of input, before the physics step that
-                            // first moves the actor: the locomotion phase is still Idle then (task 0107).
+                            // first moves the actor: the locomotion phase is still Idle then (task 0108).
                             const bool standing = mMovementState == CharState_None || isTurning();
                             const char* const startGroup = effectiveIsRunning ? "runstart" : "walkstart";
                             // hasAnimation walks the animation sources: ask only when the rest of the rule holds
@@ -2855,7 +2855,7 @@ namespace MWMechanics
                 line += styleText;
             }
         }
-        // The ankles in world space and the actor's yaw (task 0107): foot slip is measured from these.
+        // The ankles in world space and the actor's yaw (task 0108): foot slip is measured from these.
         // Built per call: the animation object (and with it the bones) is replaced when the player's view changes.
         const MWRender::BonePose tracePose(mAnimation->bones, mObject->transform());
         for (const char* const footName : { "bip01 l foot", "bip01 r foot" })
@@ -3202,7 +3202,7 @@ namespace MWMechanics
 
     void CharacterController::updateStrideShape(float duration)
     {
-        // Task 0107: with [Game] inertial stride sync the body follows the movement clip's own root speed within a
+        // Task 0108: with [Game] inertial stride sync the body follows the movement clip's own root speed within a
         // step: the smoothed ground speed is constant, the clip's root speed varies by 10 to 20 percent over a step,
         // and a foot that is planted in the clip slides by the difference. The shape is the frame's root speed over
         // the mean at the animation speed in use (InertialMotion::strideShape); the solver multiplies the smoothed

@@ -2,7 +2,7 @@
 
 Status: **Approved Design, Ready for Planning.** Owner: project owner (toddhow). Date: 2026-10-27.
 
-> **Status update, 2026-11-10 (task 0107, research note 0052):** no authored start, stop, skid or turn clip exists in any animation source (Morrowind has none; CreativeMotion's glTF clips are on another rig and are not loaded), so section 3.3 B, the procedural fallback, is all that has ever run. The start clip could not be chosen even with data (the rule waited for the Starting phase, which exists only one frame after the choice): fixed. Section 3.4's "the IK absorbs residual stance displacement" was vertical only; the horizontal slide of the stance foot at a stop is now held by `[Game] foot lock` (off by default).
+> **Status update, 2026-11-10 (task 0108, research note 0052):** no authored start, stop, skid or turn clip exists in any animation source (Morrowind has none; CreativeMotion's glTF clips are on another rig and are not loaded), so section 3.3 B, the procedural fallback, is all that has ever run. The start clip could not be chosen even with data (the rule waited for the Starting phase, which exists only one frame after the choice): fixed. Section 3.4's "the IK absorbs residual stance displacement" was vertical only; the horizontal slide of the stance foot at a stop is now held by `[Game] foot lock` (off by default).
 
 ## 1. Goal
 

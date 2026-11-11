@@ -186,7 +186,7 @@ namespace MWMechanics
         bool inertialActive = false;
         int mTraceLocomotionPhase = 0; // InertialMotion::LocomotionPhase, set in update for the developer trace
         float smoothedSpeed = 0.f;
-        // Task 0107: the mean root speed (units per second) of the movement cycle at the animation speed this frame,
+        // Task 0108: the mean root speed (units per second) of the movement cycle at the animation speed this frame,
         // set by preAnimation, and whether the physics actor was given a stride shape other than one.
         float mExpectedRootSpeed = 0.f;
         bool mStrideShapeSet = false;

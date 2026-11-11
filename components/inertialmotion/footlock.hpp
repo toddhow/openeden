@@ -11,7 +11,7 @@
 namespace InertialMotion
 {
     /// Tuning for FootLock. Distances are in world units (Morrowind units, about 1.4 cm), speeds in units per second.
-    /// The values were chosen against the stop measurements of docs/research/0052 (task 0107): with the
+    /// The values were chosen against the stop measurements of docs/research/0052 (task 0108): with the
     /// CreativeMotion transition into idle the stance foot slid back by up to 15 units at up to 76 units per second.
     struct FootLockParameters
     {

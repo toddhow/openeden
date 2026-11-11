@@ -1,4 +1,4 @@
-"""Contact sheet of the legs from the screenshots of a SHOTS=1 run (task 0107).
+"""Contact sheet of the legs from the screenshots of a SHOTS=1 run (task 0108).
 
 Usage: python -I sheet.py <screenshots folder> <out.png> [columns] [first] [last]
 The camera of the scenario follows the actor from the side at foot height, so the legs stay in the same place of every

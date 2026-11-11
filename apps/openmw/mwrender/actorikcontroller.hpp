@@ -77,7 +77,7 @@ namespace MWRender
             float mFilteredGroundZ = 0.f;
             vsg::vec3 mFilteredNormal{ 0.f, 0.f, 1.f };
 
-            // Foot lock (task 0107): holds this foot while the actor stands still. mLastShown is where the ankle
+            // Foot lock (task 0108): holds this foot while the actor stands still. mLastShown is where the ankle
             // was drawn last frame (after the solve), the position a hold starts at.
             InertialMotion::FootLock mLock;
             vsg::vec2 mLastShown{ 0.f, 0.f };

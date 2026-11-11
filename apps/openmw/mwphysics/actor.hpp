@@ -178,7 +178,7 @@ namespace MWPhysics
         InertialMotion::LocomotionState& getLocomotionState() noexcept { return mLocomotionState; }
         const InertialMotion::LocomotionState& getLocomotionState() const noexcept { return mLocomotionState; }
 
-        /// Task 0107: the movement clip's root speed this frame over its mean (InertialMotion::strideShape), set by
+        /// Task 0108: the movement clip's root speed this frame over its mean (InertialMotion::strideShape), set by
         /// the character controller on the main thread before the physics step and applied to the smoothed ground
         /// speed there. One unless [Game] inertial stride sync is on and a movement cycle plays.
         void setStrideShape(float shape) noexcept { mStrideShape.store(shape, std::memory_order_relaxed); }

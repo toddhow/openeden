@@ -1,7 +1,7 @@
 #!/bin/bash
 # Test games open off-screen (apps/openmw/vsgengine.cpp); OPENEDEN_QUIET_WINDOW=0 shows the window.
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
-# Measures foot slip while inertial locomotion drives the player (task 0107): one scripted scenario (mod/scripts/
+# Measures foot slip while inertial locomotion drives the player (task 0108): one scripted scenario (mod/scripts/
 # footslip.lua: start, stop, walk to run, arcs, strafe, reverse, sharp turn) per variant, with a fixed frame time and
 # seed; slip.py reads the game's CMTRACE lines (the ankles' world positions are CMFEET_L/R) and prints, per phase, the
 # horizontal speed of a foot while it is planted (low): zero for a foot that holds still on the ground.

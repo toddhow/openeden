@@ -1,9 +1,9 @@
 # Inertial locomotion: the foot sliding, and why the authored clips never play (2026-11-10)
 
 Written for toddhow, who reported two things: with `inertial locomotion` on, feet slide over the ground; and the animations
-meant for inertial locomotion "seemingly never got used". Everything below is measured with the tools of task 0107
+meant for inertial locomotion "seemingly never got used". Everything below is measured with the tools of task 0108
 (`tools/footslip_check`) or read in the code at the commit named in the task; where something is not measured it says so.
-Task spec: `docs/tasks/0107-inertial-locomotion-sliding-and-authored-clips.md`.
+Task spec: `docs/tasks/0108-inertial-locomotion-sliding-and-authored-clips.md`.
 
 ## Short answers
 

@@ -50,7 +50,7 @@ namespace MWRender
         constexpr float sPelvisRate = 14.f;
         constexpr float sWeightRate = 8.f;
 
-        // Foot lock (task 0107): an animated ankle counts as on the ground when it is this far (times the actor's
+        // Foot lock (task 0108): an animated ankle counts as on the ground when it is this far (times the actor's
         // scale) above the lowest ankle height the sole allows. The stance ankle of Morrowind's idle and walk poses
         // is within about 1 unit of it (docs/research/0052).
         constexpr float sFootLockPlantHeight = 2.5f;
@@ -540,7 +540,7 @@ namespace MWRender
 
         vsg::vec3 target(ankle.x, ankle.y, animatedAnkleZ + (desiredAnkleZ - animatedAnkleZ) * weight);
 
-        // Foot lock (task 0107): while the body stands still, a foot on the ground is held where it was drawn.
+        // Foot lock (task 0108): while the body stands still, a foot on the ground is held where it was drawn.
         if (Settings::game().mFootLock)
         {
             const bool planted

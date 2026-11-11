@@ -1,4 +1,4 @@
--- The scripted scenario of tools/footslip_check (task 0107): the player starts, accelerates, stops, switches from walk
+-- The scripted scenario of tools/footslip_check (task 0108): the player starts, accelerates, stops, switches from walk
 -- to run, walks an arc, turns sharply, strafes and reverses. Phases last a fixed number of frames. The log line
 -- "CMPHASE <name> t=<seconds>" marks each change; slip.py reads it with the game's CMTRACE lines.
 local self = require('openmw.self')

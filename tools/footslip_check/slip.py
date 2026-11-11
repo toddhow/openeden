@@ -1,4 +1,4 @@
-"""Foot slip per scenario phase from an openmw.log written with `creativemotion animation debug = true` (task 0107).
+"""Foot slip per scenario phase from an openmw.log written with `creativemotion animation debug = true` (task 0108).
 
 For each frame of the player the ankles' world positions (CMFEET_L, CMFEET_R) give a horizontal foot velocity. A foot
 is *planted* when its ankle height above the actor's origin is within PLANT_MARGIN of that foot's low level (the 5th

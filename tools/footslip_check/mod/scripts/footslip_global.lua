@@ -1,4 +1,4 @@
--- Moves the player back to the start of the scenario's space between phases (tools/footslip_check, task 0107).
+-- Moves the player back to the start of the scenario's space between phases (tools/footslip_check, task 0108).
 local world = require('openmw.world')
 local util = require('openmw.util')
 return {
