@@ -2,7 +2,12 @@
 # tools/ragdoll_check (task 0106, stage c): in a real game, an NPC is killed by a Lua script while the player watches
 # from 450 units away; nine screenshots are taken over 4 s. Run it with the ragdolls on and off:
 #
-#   check.sh <build dir> <base config dir> <work dir> <on|off>
+#   check.sh <build dir> <base config dir> <work dir> <on|off> [still|walk|wall]
+#
+# The scenario (default still) is written to scripts/ragparams.lua of a copy of the mod: still = the NPC stands where it is,
+# walk = it is sent walking and killed 4 s later (the pose at death is a walk), wall = it is moved against the nearest wall
+# and killed there. 12 s after the kill the corpse is activated by the player (a loot window opens) and a last screenshot is
+# taken beside it (task 0106 second slice: pose at death, wall, corpse follows the ragdoll).
 #
 # <base config dir> holds the openmw.cfg and settings.cfg of a Morrowind setup: a COPY, never the real one. <work dir> must
 # be under I:/Projects/OpenEden-work. OPENMW_EXE (default ./openmw.exe in the build dir) picks the executable, so the
@@ -13,7 +18,7 @@ set -e
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 export OPENEDEN_RAGDOLL_TRACE="${OPENEDEN_RAGDOLL_TRACE-1}"
 export OPENEDEN_FIXED_FRAME_TIME="${OPENEDEN_FIXED_FRAME_TIME-0.0166667}"
-BUILD=$1; BASE=$2; WORK=$3; MODE=${4:-on}
+BUILD=$1; BASE=$2; WORK=$3; MODE=${4:-on}; SCENARIO=${5:-still}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 native() { cygpath -m "$1"; }
 case "$(native "$WORK")" in
@@ -31,7 +36,10 @@ sed -i '/^creativemotion ragdolls/d' "$WORK/config/settings.cfg"
 if [ "$MODE" = on ]; then
     printf '\n[Physics]\ncreativemotion ragdolls = true\n' >> "$WORK/config/settings.cfg"
 fi
-printf '\ndata="%s"\ncontent=ragcheck.omwscripts\n' "$(native "$HERE/mod")" >> "$WORK/config/openmw.cfg"
+mkdir -p "$WORK/mod"; cp -r "$HERE/mod/." "$WORK/mod/"
+SHOTSTEP=0.5; [ "$SCENARIO" = walk ] && SHOTSTEP=0.2
+printf "return { scenario = '%s', shotStep = %s, distance = %s }\n" "$SCENARIO" "$SHOTSTEP" "${DISTANCE:-450}" > "$WORK/mod/scripts/ragparams.lua"
+printf '\ndata="%s"\ncontent=ragcheck.omwscripts\n' "$(native "$WORK/mod")" >> "$WORK/config/openmw.cfg"
 cd "$BUILD"
 set +e
 timeout "${TIMEOUT:-150}" "${OPENMW_EXE:-./openmw.exe}" --replace=config --config "$(native "$WORK/config")" \
@@ -44,8 +52,8 @@ errors=$(grep -ciE "\[[0-9:.]+ E\]|exception" "$WORK/log.txt" || true)
 shots=$(ls "$WORK/frames" | wc -l)
 killed=$(grep -c 'RAG killed' "$WORK/log.txt" || true)
 started=$(grep -c 'Actor ragdoll started' "$WORK/log.txt" || true)
-echo "mode $MODE: exit code $code, $dumps crash dumps, $errors error lines, $shots screenshots, killed $killed, ragdolls started $started"
-grep -E "RAG target|Actor ragdoll [0-9]|every body asleep" "$WORK/log.txt" | head -20
+echo "mode $MODE, scenario $SCENARIO: exit code $code, $dumps crash dumps, $errors error lines, $shots screenshots, killed $killed, ragdolls started $started"
+grep -E "RAG |Actor ragdoll|Corpse of|Ragdoll start" "$WORK/log.txt" | grep -v "RAG shot" | head -40
 if [ "$code" != 0 ] || [ "$dumps" != 0 ] || [ "$errors" != 0 ] || [ "$shots" -lt 9 ] || [ "$killed" != 1 ]; then
     echo "FAILED"
     exit 1

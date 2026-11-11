@@ -86,6 +86,8 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0085 move 2, stage 2b: characterization tests of the crafting rules (alchemy, enchanting, recharge, repair).
     mwmechanics/craftingfixture.cpp
     mwmechanics/testragdolltrigger.cpp
+    mwmechanics/testcorpserest.cpp
+    mwmechanics/testragdollvelocity.cpp
     mwmechanics/testcraftingrepair.cpp
     mwmechanics/testcraftingrecharge.cpp
     mwmechanics/testcraftingalchemy.cpp

@@ -12,6 +12,8 @@
 #include <components/esm3/loadweap.hpp>
 #include <vsg/maths/vec3.h>
 
+#include "../mwphysics/ragdolltypes.hpp"
+#include "ragdollvelocity.hpp"
 #include "../mwworld/movementdirection.hpp"
 #include "../mwworld/ptr.hpp"
 
@@ -210,6 +212,13 @@ namespace MWMechanics
         std::unique_ptr<MWRender::ActorRagdollRest> mRagdollRest;
         bool mSawAlive = false; // this controller saw the actor alive: only then does a death make a ragdoll
         bool mRagdollTried = false;
+        // Task 0106, second slice (3): the live ragdoll, and whether its corpse has been moved to where it came to
+        // rest (or judged not worth it). Checked every few frames while the ragdoll lives.
+        MWPhysics::ActorRagdollHandle mRagdollHandle;
+        bool mCorpseRestDone = false;
+        ActorVelocityTracker mVelocityTracker; // how the actor moved while alive: the ragdoll starts with it
+        unsigned mCorpseRestFrames = 0;
+        void placeCorpseAtRagdollRest();
         // CreativeMotion's animation runtime (task 0007, on VSG in task 0011): with "creativemotion animation" it
         // poses the bones in place of MWAnim::Play's controllers; with only "... compare" it is compared with them.
         // Actors only; null when both settings are off.
@@ -423,7 +432,7 @@ namespace MWMechanics
         MWRender::ActorState currentStyleState() const;
         void postAnimation(float duration);
         /// Task 0106. Main thread, in postAnimation: starts the dead NPC's ragdoll once, and draws it every frame.
-        void updateRagdoll();
+        void updateRagdoll(float duration);
         // }
 
         bool onOpen() const;

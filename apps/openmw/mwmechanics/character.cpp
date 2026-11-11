@@ -12,6 +12,7 @@
 
 #include <components/animation/transform.hpp>
 #include <components/esmbridge/records.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/misc/mathutil.hpp>
@@ -31,6 +32,7 @@
 
 #include <span>
 
+#include "corpserest.hpp"
 #include "ragdolltrigger.hpp"
 
 #include "../mwrender/actorikcontroller.hpp"
@@ -51,6 +53,7 @@
 #include "../mwphysics/actor.hpp"
 #include "../mwphysics/physicssystem.hpp"
 
+#include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/inventorystore.hpp"
@@ -467,6 +470,9 @@ namespace MWMechanics
             mRagdollDriver.reset();
             mRagdollTried = false;
             mSawAlive = true;
+            mRagdollHandle = {};
+            mCorpseRestDone = false;
+            mVelocityTracker.reset();
             if (MWBase::World* world = MWBase::Environment::get().getWorld())
             {
                 if (MWPhysics::PhysicsSystem* physics = world->getPhysicsSystem())
@@ -3157,17 +3163,25 @@ namespace MWMechanics
         };
     }
 
-    void CharacterController::updateRagdoll()
+    void CharacterController::updateRagdoll(float duration)
     {
         if (!isDead())
         {
             mSawAlive = true;
+            // With the setting off mRagdollRest is never made: a living actor costs this one test.
+            if (mRagdollRest != nullptr)
+            {
+                const float* pos = mPtr.getRefData().getPosition().pos;
+                mVelocityTracker.update(pos[0], pos[1], pos[2], duration);
+            }
             return;
         }
         if (mRagdollDriver)
         {
             if (!mRagdollDriver->apply())
                 mRagdollDriver.reset();
+            else
+                placeCorpseAtRagdollRest();
             return;
         }
         // One try per controller; a corpse that was loaded dead lies in the clip's last pose and gets none.
@@ -3197,7 +3211,11 @@ namespace MWMechanics
         MWPhysics::ActorStartPose startPose;
         const bool posed = mRagdollRest != nullptr
             && MWRender::makeActorStartPose(mAnimation->bones, mObject->transform(), *mRagdollRest, startPose);
-        if (!physics->startActorRagdoll(mPtr, handle, message, posed ? &startPose : nullptr))
+        // Moving as it was moving (the physics inertia is zero for an actor walking on the ground).
+        double velocity[3];
+        mVelocityTracker.velocity(velocity);
+        clampSpeed(velocity, cMaxStartSpeedMetresPerSecond * Misc::gameConventions().mUnitsPerMeter);
+        if (!physics->startActorRagdoll(mPtr, handle, message, posed ? &startPose : nullptr, velocity))
         {
             Log(Debug::Verbose) << "No ragdoll for " << mPtr.getCellRef().getRefId() << ": " << message;
             return;
@@ -3211,8 +3229,75 @@ namespace MWMechanics
             return;
         }
         mRagdollDriver = std::move(driver);
+        mRagdollHandle = handle;
+        mCorpseRestDone = false;
+        mCorpseRestFrames = 0;
         Log(Debug::Info) << "Actor ragdoll started for " << mPtr.getCellRef().getRefId() << " ("
                          << physics->actorRagdollCount() << " in all)";
+    }
+
+    void CharacterController::placeCorpseAtRagdollRest()
+    {
+        // Task 0106, second slice (3): the actor (its capsule, its saved position, the bounds its model is culled
+        // with) stays where it died while the ragdoll falls, slides and settles. Once every body sleeps the actor is
+        // moved there, once, so that picking, looting and culling use the corpse's real place.
+        if (mCorpseRestDone || !mRagdollHandle.isValid())
+            return;
+        constexpr unsigned cCheckEveryFrames = 10; // reading 16 bodies each frame is needless
+        if (++mCorpseRestFrames % cCheckEveryFrames != 0)
+            return;
+        MWBase::World* world = MWBase::Environment::get().getWorld();
+        MWPhysics::PhysicsSystem* physics = world == nullptr ? nullptr : world->getPhysicsSystem();
+        if (physics == nullptr)
+            return;
+
+        CorpseRestInput input;
+        input.mAlreadyDone = false;
+        input.mSettled = physics->actorRagdollAtRest(mRagdollHandle, input.mPelvis);
+        if (!input.mSettled)
+            return;
+        const ESM::Position& position = mPtr.getRefData().getPosition();
+        for (int k = 0; k < 3; ++k)
+            input.mActor[k] = position.pos[k];
+        const float unitsPerMeter = Misc::gameConventions().mUnitsPerMeter;
+        input.mUnitsPerMeter = unitsPerMeter;
+        // A ray down from just above the pelvis finds what the corpse lies on.
+        float groundZ = 0.f;
+        const vsg::vec3 above(static_cast<float>(input.mPelvis[0]), static_cast<float>(input.mPelvis[1]),
+            static_cast<float>(input.mPelvis[2]) + unitsPerMeter * 0.25f);
+        input.mHasGround = physics->groundBelow(above, unitsPerMeter * 3.f, groundZ);
+        input.mGroundZ = groundZ;
+
+        const CorpseRestDecision decision = decideCorpseRest(input);
+        mCorpseRestDone = decision.mDone;
+        if (!decision.mMove)
+        {
+            Log(Debug::Info) << "Corpse of " << mPtr.getCellRef().getRefId() << " stays where it died (its ragdoll rests "
+                             << std::hypot(input.mPelvis[0] - input.mActor[0], input.mPelvis[1] - input.mActor[1])
+                             << " units away"
+                             << (input.mHasGround ? "" : ", no ground found below it") << ")";
+            return;
+        }
+
+        // Across a cell border the move would run the actor through the cell change; the ragdoll would end with it.
+        const MWWorld::CellStore* cell = mPtr.getCell();
+        if (cell != nullptr && cell->isExterior())
+        {
+            const ESM::ExteriorCellLocation location = ESM::positionToExteriorCellLocation(
+                static_cast<float>(decision.mPosition[0]), static_cast<float>(decision.mPosition[1]),
+                cell->getCell()->getWorldSpace());
+            if (location.mX != cell->getCell()->getGridX() || location.mY != cell->getCell()->getGridY())
+            {
+                Log(Debug::Verbose) << "The corpse of " << mPtr.getCellRef().getRefId() << " lies in another cell: left";
+                return;
+            }
+        }
+        Log(Debug::Info) << "Corpse of " << mPtr.getCellRef().getRefId() << " moved to where its ragdoll lies ("
+                         << decision.mPosition[0] << ", " << decision.mPosition[1] << ", " << decision.mPosition[2]
+                         << ")";
+        world->moveObject(mPtr,
+            vsg::vec3(static_cast<float>(decision.mPosition[0]), static_cast<float>(decision.mPosition[1]),
+                static_cast<float>(decision.mPosition[2])));
     }
 
     void CharacterController::updateStrideShape(float duration)
@@ -3344,7 +3429,7 @@ namespace MWMechanics
             }
             // OpenEden (task 0106): a dead NPC's skeleton follows its ragdoll. For a living actor this is one
             // bool test, and with the setting off nothing more happens for a dead one either.
-            updateRagdoll();
+            updateRagdoll(duration);
             if (mWielding)
             {
                 if (mWeaponType != 0 && !mCurrentWeapon.empty())

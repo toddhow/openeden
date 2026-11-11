@@ -342,7 +342,11 @@ namespace MWPhysics
             rig = &posedRig;
         }
         // Out of walls and floors first (a hand in a wall, a foot below the floor), by moving the whole ragdoll.
-        rootWorld.translation = rootWorld.translation + findStartShift(*rig, rootWorld);
+        const opas::math::Vec3 shift = findStartShift(*rig, rootWorld);
+        rootWorld.translation = rootWorld.translation + shift;
+        if (shift.x != 0.0 || shift.y != 0.0 || shift.z != 0.0)
+            Log(Debug::Info) << "Ragdoll start moved out of the world's geometry by (" << fromMetres(shift.x) << ", "
+                             << fromMetres(shift.y) << ", " << fromMetres(shift.z) << ") units";
         opas::motor::BuildResult built = opas::motor::buildRagdoll(*mWorld, *rig, *mActorProfile, rootWorld);
         if (!built.ok())
             return fail(built.message);

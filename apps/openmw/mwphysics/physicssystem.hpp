@@ -203,10 +203,17 @@ namespace MWPhysics
         /// Builds one at the actor's position and yaw, moving as the actor was. False and a message when the setting
         /// is off, the actor has no physics body, it already has one, or the host refuses (the table is full).
         bool startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message,
-            const ActorStartPose* pose = nullptr);
+            const ActorStartPose* pose = nullptr,
+            const double* velocityUnits = nullptr);
         /// The ragdoll's bones in game units, in actorRagdollBones() order; false for a stale handle.
         bool readActorRagdoll(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const;
         bool hasActorRagdoll(ActorRagdollHandle handle) const;
+        /// Task 0106, second slice (3). True when every body of the actor's ragdoll is asleep; then pelvis holds the
+        /// pelvis bone's position (game units). False for a stale handle or while anything still moves.
+        bool actorRagdollAtRest(ActorRagdollHandle handle, double pelvis[3]) const;
+        /// The first static surface (world, ground, door) straight below `from`, at most maxDrop units down; false if
+        /// there is none. Main thread.
+        bool groundBelow(const vsg::vec3& from, float maxDrop, float& groundZ) const;
         /// Removes the actor's ragdoll if it has one. Called when the actor leaves the physics system.
         void stopActorRagdoll(const MWWorld::Ptr& ptr);
         /// The rig bone each ragdoll body follows; empty until the first ragdoll was built.

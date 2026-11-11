@@ -446,7 +446,8 @@ namespace MWPhysics
     }
 
     bool PhysicsSystem::startActorRagdoll(
-        const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose)
+        const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose,
+        const double* velocityUnits)
     {
         if (!Settings::physics().mCreativeMotionRagdolls)
         {
@@ -477,7 +478,10 @@ namespace MWPhysics
         const ESM::Position& position = ptr.getRefData().getPosition();
         // The actor's own velocity (inertia, including a fall), game units per second.
         const vsg::vec3& force = mActors.find(ptr.mRef)->second->getInertialForce();
-        const double velocity[3] = { force.x, force.y, force.z };
+        // The caller may know better (how the actor moved while it lived: the inertia is zero on the ground).
+        const double velocity[3] = { velocityUnits != nullptr ? velocityUnits[0] : force.x,
+            velocityUnits != nullptr ? velocityUnits[1] : force.y,
+            velocityUnits != nullptr ? velocityUnits[2] : force.z };
         handle = mRagdollHost->spawnActor(
             JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], velocity, &message, pose);
         if (!handle.isValid())
@@ -497,6 +501,35 @@ namespace MWPhysics
     bool PhysicsSystem::hasActorRagdoll(ActorRagdollHandle handle) const
     {
         return mRagdollHost != nullptr && mRagdollHost->hasActor(handle);
+    }
+
+    bool PhysicsSystem::actorRagdollAtRest(ActorRagdollHandle handle, double pelvis[3]) const
+    {
+        if (mRagdollHost == nullptr || !mRagdollHost->hasActor(handle) || !mRagdollHost->actorStatus(handle).allAsleep)
+            return false;
+        std::array<RagdollBoneState, 2 * cMaxStartPoseBones> states;
+        const std::span<const std::string> names = mRagdollHost->actorBodyBones();
+        if (names.size() > states.size() || !mRagdollHost->readActor(handle, states))
+            return false;
+        for (std::size_t i = 0; i < names.size(); ++i)
+        {
+            if (names[i] != "Pelvis")
+                continue;
+            for (int k = 0; k < 3; ++k)
+                pelvis[k] = states[i].mPosition[k];
+            return true;
+        }
+        return false;
+    }
+
+    bool PhysicsSystem::groundBelow(const vsg::vec3& from, float maxDrop, float& groundZ) const
+    {
+        const RayCastingResult result = castRay(from, vsg::vec3(from.x, from.y, from.z - maxDrop), {}, {},
+            Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR);
+        if (!result.mHit)
+            return false;
+        groundZ = result.mHitPos.z;
+        return true;
     }
 
     void PhysicsSystem::stopActorRagdoll(const MWWorld::Ptr& ptr)
