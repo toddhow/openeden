@@ -54,6 +54,53 @@ namespace MWRender
         return sMappings;
     }
 
+    ActorRagdollRest::ActorRagdollRest(Anim::Bones& bones)
+    {
+        // Model space: no root transform, so neither the actor's yaw nor its position is in the numbers.
+        const BonePose pose(bones, nullptr);
+        for (std::size_t i = 0; i < sMappings.size(); ++i)
+        {
+            const BonePose::Bone bone = pose.find(sMappings[i].mEngineBone);
+            if (!bone)
+                continue;
+            mRotations[i] = Misc::VsgMath::rotationOf(pose.getWorldRotation(bone));
+            mPresent[i] = true;
+        }
+        mValid = mPresent[0]; // the pelvis is the first mapping
+    }
+
+    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
+        MWPhysics::ActorStartPose& out)
+    {
+        if (!rest.isValid())
+            return false;
+        const BonePose modelPose(bones, nullptr);
+        const BonePose worldPose(bones, root);
+        const BonePose::Bone pelvis = worldPose.find(sMappings[0].mEngineBone);
+        if (!pelvis)
+            return false;
+
+        MWPhysics::ActorStartPose result;
+        for (std::size_t i = 0; i < sMappings.size(); ++i)
+        {
+            if (!rest.has(i))
+                continue;
+            const BonePose::Bone bone = modelPose.find(sMappings[i].mEngineBone);
+            if (!bone)
+                continue;
+            const vsg::dquat now = Misc::VsgMath::rotationOf(modelPose.getWorldRotation(bone));
+            const vsg::dquat relative = RagdollBones::restRelative(now, rest.rotation(i));
+            const double rotation[4] = { relative.x, relative.y, relative.z, relative.w };
+            result.add(sMappings[i].mRigBone, rotation);
+        }
+        const vsg::dvec3 position = Misc::VsgMath::getTrans(worldPose.getWorld(pelvis));
+        result.mPelvisPosition[0] = position.x;
+        result.mPelvisPosition[1] = position.y;
+        result.mPelvisPosition[2] = position.z;
+        out = result;
+        return true;
+    }
+
     ActorRagdollDriver::ActorRagdollDriver(
         Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source)
         : mPose(std::make_unique<BonePose>(bones, root))

@@ -44,6 +44,7 @@ namespace MWRender
     class Player;
     class ActorIkController;
     class ActorRagdollDriver;
+    class ActorRagdollRest;
     class CreativeMotionPoseDriver;
     class IntentTracker;
     struct ActorState;
@@ -204,6 +205,9 @@ namespace MWMechanics
         // Task 0106: the dead NPC's skeleton drawn from its ragdoll ([Physics] creativemotion ragdolls, off by
         // default).
         std::unique_ptr<MWRender::ActorRagdollDriver> mRagdollDriver;
+        // The 17 mapped bones in their rest pose, read when the pose controllers are made (setting on only); a death
+        // starts the ragdoll in the pose the bones have then, relative to this.
+        std::unique_ptr<MWRender::ActorRagdollRest> mRagdollRest;
         bool mSawAlive = false; // this controller saw the actor alive: only then does a death make a ragdoll
         bool mRagdollTried = false;
         // CreativeMotion's animation runtime (task 0007, on VSG in task 0011): with "creativemotion animation" it

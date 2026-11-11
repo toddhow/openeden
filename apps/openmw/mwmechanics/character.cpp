@@ -2926,6 +2926,16 @@ namespace MWMechanics
         }
         mIkController = std::make_unique<MWRender::ActorIkController>(mPtr, *mObject);
 
+        // Task 0106: the rest pose for a ragdoll's start pose. New bones are in their rest pose here, as for the
+        // CreativeMotion driver below. Only for a human NPC and only with the setting on.
+        mRagdollRest.reset();
+        if (Settings::physics().mCreativeMotionRagdolls && mNpc != nullptr)
+        {
+            auto rest = std::make_unique<MWRender::ActorRagdollRest>(mAnimation->bones);
+            if (rest->isValid())
+                mRagdollRest = std::move(rest);
+        }
+
         mPoseDriver.reset();
         mPoseDriverApplies = false;
         mStyleCadence = 1.f;
@@ -3182,7 +3192,12 @@ namespace MWMechanics
             return;
         MWPhysics::ActorRagdollHandle handle;
         std::string message;
-        if (!physics->startActorRagdoll(mPtr, handle, message))
+        // In the pose the actor died in; without a rest pose (a rebuilt skeleton the rest could not be read from) the
+        // old standing start.
+        MWPhysics::ActorStartPose startPose;
+        const bool posed = mRagdollRest != nullptr
+            && MWRender::makeActorStartPose(mAnimation->bones, mObject->transform(), *mRagdollRest, startPose);
+        if (!physics->startActorRagdoll(mPtr, handle, message, posed ? &startPose : nullptr))
         {
             Log(Debug::Verbose) << "No ragdoll for " << mPtr.getCellRef().getRefId() << ": " << message;
             return;

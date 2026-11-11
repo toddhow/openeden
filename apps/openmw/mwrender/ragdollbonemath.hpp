@@ -30,6 +30,15 @@ namespace MWRender::RagdollBones
         return compose(Misc::VsgMath::inverse(ragdollBoneAtSpawn), actorBoneAtSpawn);
     }
 
+    /// Task 0106, second slice: the rotation of a ragdoll bone, relative to the rig's rest pose, that matches the
+    /// actor's bone now. The rig's rest rotations are identity, so with F the actor bone's rest rotation (the same
+    /// space as the actor's rotation now) the ragdoll bone R must satisfy "R after F == actor now", which is the
+    /// driver's own relation actor = R * delta with delta = F.
+    inline vsg::dquat restRelative(const vsg::dquat& actorBoneNow, const vsg::dquat& actorBoneAtRest)
+    {
+        return compose(actorBoneNow, Misc::VsgMath::inverse(actorBoneAtRest));
+    }
+
     /// The actor bone's world rotation to draw this frame.
     inline vsg::dquat drivenWorldRotation(const vsg::dquat& ragdollBoneNow, const vsg::dquat& delta)
     {

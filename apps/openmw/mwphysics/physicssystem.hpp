@@ -202,7 +202,8 @@ namespace MWPhysics
         /// Task 0106. A dead NPC becomes a CreativeMotion ragdoll in the one Jolt world. All main thread.
         /// Builds one at the actor's position and yaw, moving as the actor was. False and a message when the setting
         /// is off, the actor has no physics body, it already has one, or the host refuses (the table is full).
-        bool startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message);
+        bool startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message,
+            const ActorStartPose* pose = nullptr);
         /// The ragdoll's bones in game units, in actorRagdollBones() order; false for a stale handle.
         bool readActorRagdoll(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const;
         bool hasActorRagdoll(ActorRagdollHandle handle) const;

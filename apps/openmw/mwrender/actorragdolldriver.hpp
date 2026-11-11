@@ -6,6 +6,7 @@
 #include "../mwphysics/ragdolltypes.hpp"
 #include "bonepose.hpp"
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <span>
@@ -44,6 +45,33 @@ namespace MWRender
         const char* mEngineBone;
     };
     std::span<const RagdollBoneMapping> ragdollBoneMappings();
+
+    /// The actor's bones in their REST pose (the pose the model has before any animation runs), model space, for the 17
+    /// mapped bones. Read once when the actor's pose controllers are made (CharacterController::createPoseControllers),
+    /// so that a death can tell the pose the actor was in from the way its bone axes differ from the rig's.
+    /// Ownership: plain values, no pointers into the bones. Main thread.
+    class ActorRagdollRest
+    {
+    public:
+        /// Reads the mapped bones' model space rotations now. isValid() is false when the pelvis bone is missing.
+        explicit ActorRagdollRest(Anim::Bones& bones);
+
+        bool isValid() const { return mValid; }
+        /// Index = the mapping's index (ragdollBoneMappings()).
+        bool has(std::size_t mapping) const { return mPresent[mapping]; }
+        const vsg::dquat& rotation(std::size_t mapping) const { return mRotations[mapping]; }
+
+    private:
+        std::array<vsg::dquat, 17> mRotations;
+        std::array<bool, 17> mPresent{};
+        bool mValid = false;
+    };
+
+    /// The pose a ragdoll for this actor should start in: the actor's mapped bones now, against their rest. False when
+    /// the rest is invalid or the actor lacks its pelvis; then `out` is untouched. Per death, not per frame
+    /// (BonePose::find allocates).
+    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
+        MWPhysics::ActorStartPose& out);
 
     /**
      * @brief Draws a dead NPC's skeleton from its CreativeMotion ragdoll (task 0106).

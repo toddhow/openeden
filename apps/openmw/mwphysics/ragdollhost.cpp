@@ -14,6 +14,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <vector>
 
 namespace MWPhysics
 {
@@ -33,6 +35,54 @@ namespace MWPhysics
         opas::math::Quat yawToQuat(float yawRadians)
         {
             return opas::math::fromAxisAngle(opas::math::Vec3{ 0.0, 0.0, 1.0 }, -static_cast<double>(yawRadians));
+        }
+    }
+
+    namespace
+    {
+        // Task 0106, second slice: turns the rig's bones to the actor's pose and puts the rig's root where the
+        // pelvis bone lands on the actor's pelvis. Each given rotation is the bone's WORLD rotation relative to the
+        // rig's rest pose (identity rest rotations), so a bone's local rotation is the inverse of its parent's world
+        // rotation times its own; a bone nobody names turns with its parent. The yaw is applied by the root.
+        // False if the rig has no Pelvis bone.
+        template <typename ToMetres>
+        bool applyStartPose(opas::rig::Rig& rig, const ActorStartPose& pose, const opas::math::Quat& rootRotation,
+            opas::math::Transform& rootWorld, ToMetres toMetres)
+        {
+            const std::vector<opas::rig::Bone>& source = rig.skeleton.bones;
+            std::vector<opas::math::Quat> world(source.size());
+            std::vector<opas::math::Vec3> position(source.size());
+            std::optional<std::size_t> pelvis;
+            for (std::size_t i = 0; i < source.size(); ++i)
+            {
+                opas::rig::Bone& bone = rig.skeleton.bones[i];
+                const bool hasParent = bone.parent >= 0;
+                const opas::math::Quat parentWorld
+                    = hasParent ? world[static_cast<std::size_t>(bone.parent)] : opas::math::Quat{};
+                opas::math::Quat wanted = parentWorld;
+                for (std::size_t k = 0; k < pose.mCount; ++k)
+                {
+                    if (pose.mBones[k].mRigBone == bone.name)
+                    {
+                        const double* r = pose.mBones[k].mRotation;
+                        wanted = opas::math::normalized(opas::math::Quat{ r[0], r[1], r[2], r[3] });
+                    }
+                }
+                world[i] = wanted;
+                bone.localRest.rotation = opas::math::normalized(opas::math::conjugate(parentWorld) * wanted);
+                const opas::math::Vec3 parentPosition
+                    = hasParent ? position[static_cast<std::size_t>(bone.parent)] : opas::math::Vec3{};
+                position[i] = parentPosition + opas::math::rotate(parentWorld, bone.localRest.translation);
+                if (bone.name == "Pelvis")
+                    pelvis = i;
+            }
+            if (!pelvis)
+                return false;
+            const opas::math::Vec3 wantedPelvis{ toMetres(pose.mPelvisPosition[0]), toMetres(pose.mPelvisPosition[1]),
+                toMetres(pose.mPelvisPosition[2]) };
+            rootWorld.rotation = rootRotation;
+            rootWorld.translation = wantedPelvis - opas::math::rotate(rootRotation, position[*pelvis]);
+            return true;
         }
     }
 
@@ -134,8 +184,8 @@ namespace MWPhysics
         return true;
     }
 
-    ActorRagdollHandle RagdollHost::spawnActor(
-        const JPH::RVec3& feetUnits, float yawRadians, const double linearVelocityUnits[3], std::string* error)
+    ActorRagdollHandle RagdollHost::spawnActor(const JPH::RVec3& feetUnits, float yawRadians,
+        const double linearVelocityUnits[3], std::string* error, const ActorStartPose* pose)
     {
         const auto fail = [&](const std::string& message) {
             if (error != nullptr)
@@ -162,7 +212,17 @@ namespace MWPhysics
             = opas::math::Vec3{ metres(feetUnits.GetX()), metres(feetUnits.GetY()), metres(feetUnits.GetZ()) };
         rootWorld.rotation = yawToQuat(yawRadians);
 
-        opas::motor::BuildResult built = opas::motor::buildRagdoll(*mWorld, *mActorRig, *mActorProfile, rootWorld);
+        opas::rig::Rig posedRig;
+        const opas::rig::Rig* rig = &*mActorRig;
+        if (pose != nullptr)
+        {
+            posedRig = *mActorRig;
+            const auto toMetres = [this](double units) { return metres(units); };
+            if (!applyStartPose(posedRig, *pose, yawToQuat(yawRadians), rootWorld, toMetres))
+                return fail("the start pose does not fit the rig");
+            rig = &posedRig;
+        }
+        opas::motor::BuildResult built = opas::motor::buildRagdoll(*mWorld, *rig, *mActorProfile, rootWorld);
         if (!built.ok())
             return fail(built.message);
 

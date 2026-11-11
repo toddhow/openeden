@@ -44,6 +44,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimmodel.cpp
     mwrender/testragdollbonemath.cpp
     mwrender/testactorragdolldriver.cpp
+    mwrender/testactorragdollstartpose.cpp
     mwrender/testfootik.cpp
     mwrender/testrain.cpp
     mwrender/testdistantobjectcells.cpp
@@ -130,6 +131,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp
+    mwphysics/testactorragdollpose.cpp
 
     extension/testdiagnosticsallocation.cpp
     extension/testextensionfailures.cpp

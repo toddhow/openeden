@@ -88,8 +88,13 @@ namespace MWPhysics
         /// Builds a limp humanoid ragdoll for a dead actor, standing at feet (game units) facing yaw (the actor's
         /// rot[2]), every body moving at linearVelocityUnits (game units per second). Returns an invalid handle and
         /// a message when the table is full (cMaxActorRagdolls) or the build fails; nothing is left behind then.
+        ///
+        /// With a pose (task 0106, second slice) the rig is built in that pose instead of the standing rest pose: the
+        /// pelvis at pose->mPelvisPosition, every named bone turned as given (the yaw added), the others turning with
+        /// their parent. The joint limits stay the rig's, measured from the start pose (a bent elbow can bend the rig's
+        /// range further either way: they are not re-centred on anatomy). feetUnits is then used for the kill depth only.
         ActorRagdollHandle spawnActor(const JPH::RVec3& feetUnits, float yawRadians,
-            const double linearVelocityUnits[3], std::string* error = nullptr);
+            const double linearVelocityUnits[3], std::string* error = nullptr, const ActorStartPose* pose = nullptr);
 
         /// False if the handle is stale. Frees the slot; the Jolt bodies and joints are gone.
         bool removeActor(ActorRagdollHandle handle);

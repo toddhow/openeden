@@ -445,7 +445,8 @@ namespace MWPhysics
         mRagdollHost->remove();
     }
 
-    bool PhysicsSystem::startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message)
+    bool PhysicsSystem::startActorRagdoll(
+        const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose)
     {
         if (!Settings::physics().mCreativeMotionRagdolls)
         {
@@ -478,7 +479,7 @@ namespace MWPhysics
         const vsg::vec3& force = mActors.find(ptr.mRef)->second->getInertialForce();
         const double velocity[3] = { force.x, force.y, force.z };
         handle = mRagdollHost->spawnActor(
-            JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], velocity, &message);
+            JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], velocity, &message, pose);
         if (!handle.isValid())
             return false;
         // Developer trace: where every actor ragdoll is, about every two seconds, in the log (task 0106).
