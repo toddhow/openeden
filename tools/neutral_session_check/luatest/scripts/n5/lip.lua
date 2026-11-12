@@ -7,6 +7,8 @@ local util = require('openmw.util')
 
 local A = { 336, -416, 64, -1.52699 } -- Hulda: x, y, z, placement rotation
 local DIST = 70
+local EYE = 108 -- camera height above her feet
+local PITCH = 0.12
 local SHOT_EVERY = 0.25
 local SHOT_UNTIL = 16
 local start, placed, activated, lastShot = nil, false, false, nil
@@ -37,7 +39,7 @@ return {
                 local len = math.sqrt(cx * cx + cy * cy)
                 local px, py = A[1] + cx / len * DIST, A[2] + cy / len * DIST
                 local yaw = math.atan2(A[1] - px, A[2] - py)
-                player:teleport(player.cell, util.vector3(px, py, A[3] + 2), { rotation = util.transform.rotateZ(yaw) })
+                player:sendEvent('N5Cam', { position = util.vector3(px, py, A[3] + EYE), yaw = yaw, pitch = PITCH })
                 print('N5T placed at ' .. string.format('%.1f', t))
             end
             if placed and not activated and t >= 9 then

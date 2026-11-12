@@ -14,6 +14,14 @@ namespace TriMorph
         return std::round(clamped * static_cast<float>(kMouthSteps)) / static_cast<float>(kMouthSteps);
     }
 
+    VisemeWeights toVisemes(const MouthWeights& weights)
+    {
+        VisemeWeights out{};
+        out[0] = weights.mAah;
+        out[1] = weights.mBigAah;
+        return out;
+    }
+
     MouthWeights MouthDrive::step(float loudness)
     {
         float target = 0.f;

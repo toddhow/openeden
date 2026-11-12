@@ -81,7 +81,7 @@ namespace
         EXPECT_TRUE(morph->setWeights({}));
         EXPECT_EQ((*positions)[0], vsg::vec3(1.f, 1.f, 1.f));
         EXPECT_EQ((*positions)[1], vsg::vec3(2.f, 2.f, 2.f));
-        EXPECT_EQ(morph->weights(), TriMorph::MouthWeights{});
+        EXPECT_EQ(morph->weights(), TriMorph::VisemeWeights{});
     }
 
     TEST(SkyrimLip, aFileWithOnlyOneOfTheMorphsStillMovesWithThat)
@@ -94,6 +94,41 @@ namespace
         morph->setWeights({ 1.f, 1.f });
         EXPECT_FLOAT_EQ((*positions)[0].x, 1.f); // the missing Aah did nothing
         EXPECT_FLOAT_EQ((*positions)[0].y, 1.f + 0.25f * 8.f);
+    }
+
+    TEST(SkyrimLip, sixteenVisemeWeightsMoveTheMorphsTheFileHasAndIgnoreTheRest)
+    {
+        auto positions = basePositions();
+        auto morph = MWRender::SkyrimLip::HeadMorph::make(twoVertexFile(), positions);
+        ASSERT_TRUE(morph);
+        TriMorph::VisemeWeights w{};
+        w[1] = 0.5f; // BigAah
+        w[5] = 1.f; // Eee: not in this file
+        EXPECT_TRUE(morph->setVisemes(w));
+        // BigAah x0.5: v0 y += 0.5*0.25*8 = 1; v1 z += 0.5*0.25*12 = 1.5
+        EXPECT_FLOAT_EQ((*positions)[0].y, 2.f);
+        EXPECT_FLOAT_EQ((*positions)[1].z, 3.5f);
+        EXPECT_FLOAT_EQ((*positions)[0].x, 1.f);
+        EXPECT_EQ(morph->weights()[5], 0.f);
+        EXPECT_FALSE(morph->setVisemes(w)); // the same again
+        w[5] = 0.25f; // a morph the file lacks changes nothing
+        EXPECT_FALSE(morph->setVisemes(w));
+        EXPECT_EQ(morph->uploads(), 1u);
+    }
+
+    TEST(SkyrimLip, visemeWeightsAreClampedAndQuantised)
+    {
+        auto positions = basePositions();
+        auto morph = MWRender::SkyrimLip::HeadMorph::make(twoVertexFile(), positions);
+        ASSERT_TRUE(morph);
+        TriMorph::VisemeWeights w{};
+        w[0] = 7.f; // clamps to 1
+        w[1] = 0.51f; // rounds to 0.5
+        EXPECT_TRUE(morph->setVisemes(w));
+        EXPECT_EQ(morph->weights()[0], 1.f);
+        EXPECT_EQ(morph->weights()[1], 0.5f);
+        w[1] = 0.52f; // still 0.5: no new upload
+        EXPECT_FALSE(morph->setVisemes(w));
     }
 
     TEST(SkyrimLip, theHeadFilesAreTheRaceHeads)

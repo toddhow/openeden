@@ -7,7 +7,11 @@
 #include <components/l10n/manager.hpp>
 #include <components/worldmodel/store.hpp>
 
+#include <components/files/istreamptr.hpp>
+#include <components/fuz/fuz.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -226,12 +230,65 @@ namespace MWWorld
         MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
         if (sound == nullptr)
             return;
-        const TriMorph::MouthWeights w = mMouth.step(sound->getSaySoundLoudness(mSpeaker));
-        const bool open = w.mAah > 0.f || w.mBigAah > 0.f;
+        // The line's own lip data at the playback position when it has some; else the loudness of the line.
+        std::string_view file;
+        float seconds = 0.f;
+        const bool saying = sound->getSayPlayback(mSpeaker, file, seconds);
+        TriMorph::VisemeWeights w{};
+        if (saying)
+        {
+            if (file != mLipFile)
+                loadLip(std::string(file));
+            if (mLip && Lip::sampleVisemes(*mLip, seconds, w))
+                mMouth.reset();
+            else
+                w = TriMorph::toVisemes(mMouth.step(sound->getSaySoundLoudness(mSpeaker)));
+        }
+        else
+        {
+            mLipFile.clear();
+            mLip.reset();
+            w = TriMorph::toVisemes(mMouth.step(0.f)); // the jaw closes
+        }
+        const bool open = std::any_of(w.begin(), w.end(), [](float x) { return x > 0.f; });
         if (!open && !mMouthOpen)
             return; // closed and staying closed: nothing to send
-        sink(mSpeaker, w.mAah, w.mBigAah);
+        sink(mSpeaker, w);
         mMouthOpen = open;
+    }
+
+    void NeutralDialogueSession::loadLip(const std::string& file)
+    {
+        mLipFile = file;
+        mLip.reset();
+        try
+        {
+            const VFS::Manager* vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
+            const Files::IStreamPtr stream = vfs->find(VFS::Path::Normalized(file));
+            if (!stream)
+                return;
+            const std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+            const Fuz::Result parts = Fuz::split(bytes, file);
+            if (!parts.mOk || parts.mParts.mLip.empty())
+            {
+                Log(Debug::Info) << "NLIP no lip data in " << file << (parts.mOk ? "" : ": " + parts.mError);
+                return;
+            }
+            Lip::Result lip = Lip::read(parts.mParts.mLip, file);
+            if (!lip.mOk || !lip.mTrack.mTimingKnown)
+            {
+                Log(Debug::Info) << "NLIP lip data of " << file << " not used: "
+                                 << (lip.mOk ? "the timing is not known" : lip.mError);
+                return;
+            }
+            Log(Debug::Info) << "NLIP lip data of " << file << ": " << lip.mTrack.mFrames << " frames, first "
+                             << lip.mTrack.mFirst;
+            mLip = std::move(lip.mTrack);
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Warning) << "Neutral lip sync: " << file << ": " << e.what();
+        }
     }
 
     void NeutralDialogueSession::stopVoice()
@@ -326,10 +383,12 @@ namespace MWWorld
             Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";
             stopVoice();
             if (mMouthOpen && mouthSink() && !mSpeaker.isEmpty())
-                mouthSink()(mSpeaker, 0.f, 0.f); // close the mouth of whoever was speaking
+                mouthSink()(mSpeaker, TriMorph::VisemeWeights{}); // close the mouth of whoever was speaking
         }
         mMouth.reset();
         mMouthOpen = false;
+        mLipFile.clear();
+        mLip.reset();
         mSpeaker = Ptr();
         mActive = false;
         mInjected = -1;

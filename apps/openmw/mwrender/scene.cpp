@@ -391,7 +391,7 @@ namespace MWRender
         addObject(ptr, std::move(anim), false);
     }
 
-    void Scene::setNeutralMouth(const MWWorld::Ptr& ptr, float aah, float bigAah)
+    void Scene::setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes)
     {
         auto cell = getCell(ptr, false);
         if (!cell)
@@ -403,9 +403,15 @@ namespace MWRender
             if (auto* morph = dynamic_cast<SkyrimLip::HeadMorph*>(kept.get()))
             {
                 static const bool trace = std::getenv("OPENEDEN_NEUTRAL_LIP_TRACE") != nullptr;
-                if (morph->setWeights({ TriMorph::quantise(aah), TriMorph::quantise(bigAah) }) && trace)
-                    Log(Debug::Info) << "NLIP aah=" << morph->weights().mAah << " bigaah=" << morph->weights().mBigAah
-                                     << " uploads=" << morph->uploads();
+                if (morph->setVisemes(visemes) && trace)
+                {
+                    Log(Debug::Info) << "NLIP uploads=" << morph->uploads() << " w=" << [&] {
+                        std::string s;
+                        for (float w : morph->weights())
+                            s += std::to_string(static_cast<int>(w * 16.f + 0.5f)) + ' ';
+                        return s;
+                    }();
+                }
                 return;
             }
     }

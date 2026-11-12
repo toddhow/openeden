@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/lip/lip.hpp>
 #include <components/trimorph/mouth.hpp>
 
 #include <openeden/game/dialogue_source.hpp>
@@ -109,7 +110,7 @@ namespace MWWorld
 
     /// Task 0146 (`[Game] neutral lip sync`): where the speaker's mouth weights go (Aah, BigAah, each 0..1). The world
     /// sets it to the renderer while it exists; unset, the drive does nothing.
-    using NeutralMouthSink = std::function<void(const Ptr&, float, float)>;
+    using NeutralMouthSink = std::function<void(const Ptr&, const TriMorph::VisemeWeights&)>;
     void setNeutralMouthSink(NeutralMouthSink sink);
 
     /// Runs one conversation at a time through the window manager.
@@ -147,10 +148,14 @@ namespace MWWorld
         void stopVoice();
         /// Task 0146: once a poll, with the setting on: the speaker's jaw follows the loudness of its voice line.
         void driveMouth();
+        /// Reads the `.lip` part of the voice file `file` (a VFS path) into mLip, or leaves it empty (logged).
+        void loadLip(const std::string& file);
 
         Ptr mSpeaker;
         TriMorph::MouthDrive mMouth;
         bool mMouthOpen = false; ///< a nonzero weight was sent and not yet closed
+        std::string mLipFile; ///< the voice file whose lip data mLip holds (or failed to give)
+        std::optional<Lip::Track> mLip;
         NeutralVoiceQueue mVoice;
         bool mActive = false;
         int mInjected = -1;

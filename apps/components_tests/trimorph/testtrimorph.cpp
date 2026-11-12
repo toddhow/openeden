@@ -460,6 +460,15 @@ namespace
         }
     }
 
+    TEST(Mouth, theLoudnessWeightsBecomeTheFirstTwoVisemes)
+    {
+        const TriMorph::VisemeWeights v = TriMorph::toVisemes({ 0.5f, 0.25f });
+        EXPECT_EQ(v[0], 0.5f);
+        EXPECT_EQ(v[1], 0.25f);
+        for (std::size_t i = 2; i < v.size(); ++i)
+            EXPECT_EQ(v[i], 0.f);
+    }
+
     TEST(Mouth, quantiseClampsAndRounds)
     {
         EXPECT_EQ(TriMorph::quantise(-1.f), 0.f);

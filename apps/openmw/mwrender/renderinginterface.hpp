@@ -1,6 +1,7 @@
 #ifndef GAME_RENDERING_INTERFACE_H
 #define GAME_RENDERING_INTERFACE_H
 
+#include <array>
 #include <string>
 
 #include <openeden/game/actor_appearance.hpp>
@@ -25,9 +26,10 @@ namespace MWRender
         {
         }
 
-        /// Task 0146 (`[Game] neutral lip sync`): opens the mouth of a drawn neutral actor, `aah` and `bigAah` in 0..1 (the
-        /// head's "Aah" and "BigAah" morphs). Does nothing for an object that has no head morph. Main thread.
-        virtual void setNeutralMouth(const MWWorld::Ptr& /*ptr*/, float /*aah*/, float /*bigAah*/) {}
+        /// Task 0146 (`[Game] neutral lip sync`): moves the mouth of a drawn neutral actor: the 16 viseme weights in 0..1
+        /// (the head's morphs Aah, BigAah, BMP, ChJSh, DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W). Does nothing for an
+        /// object that has no head morph. Main thread.
+        virtual void setNeutralMouth(const MWWorld::Ptr& /*ptr*/, const std::array<float, 16>& /*visemes*/) {}
     };
 }
 

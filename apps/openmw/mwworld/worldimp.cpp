@@ -265,8 +265,8 @@ namespace MWWorld
     {
         mRendering = &render;
         // Task 0146: the conversation's speaker moves its mouth through the renderer (cleared in ~World).
-        setNeutralMouthSink([this](const Ptr& speaker, float aah, float bigAah) {
-            mRendering->getObjects().setNeutralMouth(speaker, aah, bigAah);
+        setNeutralMouthSink([this](const Ptr& speaker, const TriMorph::VisemeWeights& visemes) {
+            mRendering->getObjects().setNeutralMouth(speaker, visemes);
         });
         // As OpenMW 0.51's NifFileManager did, physics decodes NIF strings with the content encoder.
         mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(

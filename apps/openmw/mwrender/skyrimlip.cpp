@@ -2,11 +2,9 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstring>
 #include <iterator>
 #include <map>
 #include <mutex>
-#include <set>
 
 #include <components/debug/debuglog.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -21,8 +19,10 @@ namespace MWRender::SkyrimLip
             {
                 const std::string& n = file.mMorphs[i].mName;
                 if (n.size() == name.size()
-                    && std::equal(n.begin(), n.end(), name.begin(),
-                        [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); }))
+                    && std::equal(n.begin(), n.end(), name.begin(), [](char a, char b) {
+                           return std::tolower(static_cast<unsigned char>(a))
+                               == std::tolower(static_cast<unsigned char>(b));
+                       }))
                     return i;
             }
             return ~0u;
@@ -34,10 +34,12 @@ namespace MWRender::SkyrimLip
     {
         if (!file || !positions || positions->size() != file->mVertices || file->mVertices == 0)
             return {};
-        if (findMorph(*file, sAah) == ~0u && findMorph(*file, sBigAah) == ~0u)
+        bool any = false;
+        for (const std::string_view name : Lip::kVisemeNames)
+            any = any || findMorph(*file, name) != ~0u;
+        if (!any)
             return {};
-        auto morph = vsg::ref_ptr<HeadMorph>(new HeadMorph(std::move(file), std::move(positions)));
-        return morph;
+        return vsg::ref_ptr<HeadMorph>(new HeadMorph(std::move(file), std::move(positions)));
     }
 
     HeadMorph::HeadMorph(std::shared_ptr<const TriMorph::File> file, vsg::ref_ptr<vsg::vec3Array> positions)
@@ -51,30 +53,36 @@ namespace MWRender::SkyrimLip
             const vsg::vec3& p = (*mPositions)[static_cast<std::uint32_t>(i)];
             mBase[i] = { p.x, p.y, p.z };
         }
-        mAah = findMorph(*mFile, sAah);
-        mBigAah = findMorph(*mFile, sBigAah);
+        for (std::size_t k = 0; k < mMorphOf.size(); ++k)
+            mMorphOf[k] = findMorph(*mFile, Lip::kVisemeNames[k]);
         mPositions->properties.dataVariance = vsg::DYNAMIC_DATA;
     }
 
     bool HeadMorph::setWeights(const TriMorph::MouthWeights& weights)
     {
-        if (weights == mLast)
+        return setVisemes(TriMorph::toVisemes(weights));
+    }
+
+    bool HeadMorph::setVisemes(const TriMorph::VisemeWeights& weights)
+    {
+        TriMorph::VisemeWeights q;
+        for (std::size_t k = 0; k < q.size(); ++k)
+            q[k] = mMorphOf[k] == ~0u ? 0.f : TriMorph::quantise(weights[k]);
+        if (q == mLast)
             return false;
-        TriMorph::Term terms[2];
+        TriMorph::Term terms[16];
         std::size_t count = 0;
-        if (mAah != ~0u)
-            terms[count++] = { mAah, weights.mAah };
-        if (mBigAah != ~0u)
-            terms[count++] = { mBigAah, weights.mBigAah };
+        for (std::size_t k = 0; k < q.size(); ++k)
+            if (q[k] != 0.f)
+                terms[count++] = { mMorphOf[k], q[k] };
         const std::size_t n = mPositions->size();
         static_assert(sizeof(std::array<float, 3>) == sizeof(vsg::vec3));
         auto* out = reinterpret_cast<std::array<float, 3>*>(mPositions->data());
-        const bool ok = TriMorph::apply(*mFile, std::span<const std::array<float, 3>>(mBase.get(), n),
-            std::span<const TriMorph::Term>(terms, count), std::span<std::array<float, 3>>(out, n));
-        if (!ok)
+        if (!TriMorph::apply(*mFile, std::span<const std::array<float, 3>>(mBase.get(), n),
+                std::span<const TriMorph::Term>(terms, count), std::span<std::array<float, 3>>(out, n)))
             return false;
         mPositions->dirty();
-        mLast = weights;
+        mLast = q;
         ++mUploads;
         return true;
     }
@@ -95,9 +103,9 @@ namespace MWRender::SkyrimLip
                     const Files::IStreamPtr stream = vfs.find(VFS::Path::Normalized(path));
                     if (stream)
                     {
-                        const std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
-                        const std::string_view wanted[] = { sAah, sBigAah };
-                        TriMorph::Result r = TriMorph::read(bytes, path, wanted);
+                        const std::string bytes(
+                            (std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+                        TriMorph::Result r = TriMorph::read(bytes, path, Lip::kVisemeNames);
                         if (r.mOk)
                             file = std::make_shared<const TriMorph::File>(std::move(r.mFile));
                         else

@@ -21,15 +21,14 @@
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
 
+#include <components/lip/lip.hpp>
 #include <components/trimorph/mouth.hpp>
 #include <components/trimorph/trimorph.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender::SkyrimLip
 {
-    /// The morphs the drive moves; nothing else is read from the `.tri` file.
-    inline constexpr std::string_view sAah = "Aah";
-    inline constexpr std::string_view sBigAah = "BigAah";
+    /// The morphs the drive moves are the 16 visemes (Lip::kVisemeNames); nothing else is read from the `.tri` file.
 
     /// The race head files of Skyrim SE (provenance: the listing of Skyrim - Meshes0.bsa, task 0146). The one whose
     /// vertex count equals the face shape's is the NPC's; the count is the check, the names are the candidates.
@@ -56,7 +55,12 @@ namespace MWRender::SkyrimLip
         /// written); false when nothing changed. A closed mouth (both zero) is the base vertices exactly.
         bool setWeights(const TriMorph::MouthWeights& weights);
 
-        [[nodiscard]] const TriMorph::MouthWeights& weights() const { return mLast; }
+        /// Writes the vertices for 16 viseme weights (each clamped to 0..1 and rounded to a multiple of 1/16, so a
+        /// moving mouth uploads at most when a weight steps). Entries for morphs the file lacks are ignored. Returns
+        /// true when the weights differ from the last ones written. Allocates nothing.
+        bool setVisemes(const TriMorph::VisemeWeights& weights);
+
+        [[nodiscard]] const TriMorph::VisemeWeights& weights() const { return mLast; }
         /// How many times the vertices were written (for tests and the log).
         [[nodiscard]] std::uint64_t uploads() const { return mUploads; }
 
@@ -66,9 +70,8 @@ namespace MWRender::SkyrimLip
         std::shared_ptr<const TriMorph::File> mFile;
         vsg::ref_ptr<vsg::vec3Array> mPositions;
         std::unique_ptr<std::array<float, 3>[]> mBase;
-        std::uint32_t mAah = ~0u;
-        std::uint32_t mBigAah = ~0u;
-        TriMorph::MouthWeights mLast;
+        TriMorph::VisemeWeights mLast{};
+        std::array<std::uint32_t, 16> mMorphOf{}; ///< viseme index to the file's morph, ~0u when it has none
         std::uint64_t mUploads = 0;
     };
 

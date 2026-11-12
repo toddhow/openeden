@@ -22,8 +22,9 @@
 //             a 0x00 byte is followed by a u16 count (non-zero) of zero bytes; any other byte is a literal.
 //   The decoded bytes are `count` floats; they fill a grid of `frames` rows of 33 slots, starting at slot
 //   p0 = (6 - count) mod 33 of row 0, so that the data ends at slot 6 of the last row. A candidate `extra` is accepted
-//   only if the decoding succeeds, every float is finite and in [-2, 2], and the row count equals `frames`; the
-//   smallest such `extra` wins.
+//   only if the decoding succeeds, every float is finite and in [-2, 2], and the row count equals `frames` or
+//   `frames + 1` (VERIFIED on the user's files, task log: the header counts one row less in two thirds of them; the
+//   Mudcrab text asks for equality, which rejects those); the smallest such `extra` wins.
 //   Slots 6 to 21 of a row are the 16 FaceGen visemes (the names of the head `.tri` morphs): Aah, BigAah, BMP, ChJSh,
 //   DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W. The other slots are other curves and are kept, not interpreted.
 //   Frame f is at time (f + first) / 30 seconds.

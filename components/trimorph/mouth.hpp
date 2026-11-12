@@ -1,10 +1,11 @@
 #ifndef OPENEDEN_COMPONENTS_TRIMORPH_MOUTH_H
 #define OPENEDEN_COMPONENTS_TRIMORPH_MOUTH_H
 
-// Task 0146 (slice 2): a mouth that follows the loudness of the voice. No .lip data is used (its format is not decoded,
-// docs/tasks/0146-skyrim-lip-sync.md): the loudness of the line at its playback position opens the jaw. Pure, standard
-// library only. The numbers are named starting values (guesses, judged by frames), not measured facts.
+// Task 0146 (slice 2): a mouth that follows the loudness of the voice: the fallback for a line that has no usable `.lip`
+// data (components/lip). The loudness of the line at its playback position opens the jaw. Pure, standard library only.
+// The numbers are named starting values (guesses, judged by frames), not measured facts.
 
+#include <array>
 #include <cstdint>
 
 namespace TriMorph
@@ -17,6 +18,13 @@ namespace TriMorph
 
         friend bool operator==(const MouthWeights&, const MouthWeights&) = default;
     };
+
+    /// The 16 FaceGen visemes in the order of the head `.tri` morphs and of the `.lip` slots 6 to 21 (Aah, BigAah, BMP,
+    /// ChJSh, DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W), each weight in 0..1.
+    using VisemeWeights = std::array<float, 16>;
+
+    /// The loudness drive's two weights as visemes (index 0 Aah, 1 BigAah), for a line that has no `.lip` data.
+    [[nodiscard]] VisemeWeights toVisemes(const MouthWeights& weights);
 
     inline constexpr int kMouthSteps = 16; ///< weights are multiples of 1/16
     inline constexpr float kLoudnessGain = 4.f; ///< loudness (0..1, as SoundManager::getSaySoundLoudness) to openness
