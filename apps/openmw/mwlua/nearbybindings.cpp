@@ -12,6 +12,7 @@
 #include "../mwphysics/raycasting.hpp"
 #include "../mwworld/cell.hpp"
 #include "../mwworld/cellstore.hpp"
+#include "../mwworld/esmstore.hpp"
 #include "../mwworld/scene.hpp"
 
 #include "context.hpp"
@@ -238,12 +239,20 @@ namespace MWLua
             Settings::game().mActorCollisionShapeType,
             Settings::game().mDefaultActorPathfindHalfExtents.get(),
         };
+        // Task 0132: while the player is in a game pack's neutral cell the default agent is the neutral one.
+        static const auto defaultAgentBoundsNow = []() {
+            MWBase::World* world = MWBase::Environment::get().getWorld();
+            const MWWorld::Ptr player = world->getPlayerPtr();
+            if (world->getStore().hasNeutralStubs())
+                return world->getPathfindingAgentBounds(player);
+            return defaultAgentBounds;
+        };
         static constexpr DetourNavigator::Flags defaultIncludeFlags = DetourNavigator::Flag_walk
             | DetourNavigator::Flag_swim | DetourNavigator::Flag_openDoor | DetourNavigator::Flag_usePathgrid;
 
         api["findPath"]
             = [lua](const vsg::vec3& source, const vsg::vec3& destination, const sol::optional<sol::table>& options) {
-                  DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
+                  DetourNavigator::AgentBounds agentBounds = defaultAgentBoundsNow();
                   DetourNavigator::Flags includeFlags = defaultIncludeFlags;
                   DetourNavigator::AreaCosts areaCosts{};
                   float destinationTolerance = 1;
@@ -299,7 +308,7 @@ namespace MWLua
 
         api["findRandomPointAroundCircle"] = [](const vsg::vec3& position, float maxRadius,
                                                  const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
-            DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
+            DetourNavigator::AgentBounds agentBounds = defaultAgentBoundsNow();
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
             if (options.has_value())
@@ -324,7 +333,7 @@ namespace MWLua
 
         api["castNavigationRay"] = [](const vsg::vec3& from, const vsg::vec3& to,
                                        const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
-            DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
+            DetourNavigator::AgentBounds agentBounds = defaultAgentBoundsNow();
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 
             if (options.has_value())
@@ -346,7 +355,7 @@ namespace MWLua
 
         api["findNearestNavMeshPosition"]
             = [](const vsg::vec3& position, const sol::optional<sol::table>& options) -> std::optional<vsg::vec3> {
-            DetourNavigator::AgentBounds agentBounds = defaultAgentBounds;
+            DetourNavigator::AgentBounds agentBounds = defaultAgentBoundsNow();
             std::optional<vsg::vec3> searchAreaHalfExtents;
             DetourNavigator::Flags includeFlags = defaultIncludeFlags;
 

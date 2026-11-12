@@ -1,4 +1,5 @@
 #include "scene.hpp"
+#include "neutralnavigation.hpp"
 
 #include "../mwrender/skyrimmodel.hpp"
 
@@ -214,6 +215,11 @@ namespace
                     DetourNavigator::DoorShapes(
                         object->getShapeInstance(), objectTransform, connectionStart, connectionEnd),
                     object->getTransform(), navigatorUpdateGuard);
+            }
+            else if (ptr.getType() == MWWorld::NeutralBase::sRecordId
+                && !MWWorld::neutralKindBlocksNavigation(ptr.get<MWWorld::NeutralBase>()->mBase->mKind))
+            {
+                // Task 0132: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
             }
             else if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)
             {
@@ -569,7 +575,14 @@ namespace MWWorld
         // the global water state alone; the infinite plane would flood every lower square of the world.
         const bool neutralExterior = cell.isExterior() && cell.isNeutral();
         if (neutralExterior && cellVariant.hasWater())
+        {
             mRendering.setNeutralCellWater(cellX, cellY, static_cast<float>(ESM::getCellSize(worldspace)), cell.getWaterLevel());
+            // Task 0132: the navigator gets the square's water as Morrowind's exteriors give it
+            if (const auto navWater = neutralNavigatorWater(true, mPhysics->getHeightField(cellX, cellY) != nullptr,
+                    cell.getWaterLevel(), ESM::getCellSize(worldspace)))
+                mNavigator.addWater(
+                    vsg::ivec2(cellX, cellY), navWater->mCellSize, navWater->mLevel, navigatorUpdateGuard);
+        }
         bool waterEnabled = !neutralExterior && (cellVariant.hasWater() || cell.isExterior());
         float waterLevel = cell.getWaterLevel();
         if (!neutralExterior)
@@ -1152,7 +1165,7 @@ namespace MWWorld
             NeutralKindCounts neutralInserted; // task 0109: what a neutral cell puts into the scene, by kind
             insertVisitor.insert([&](const MWWorld::Ptr& ptr) {
                 addObject(ptr, mWorld, mPagedRefs, *mPhysics, mRendering);
-                if (ptr.getType() == NeutralBase::sRecordId)
+                if (ptr.getType() == MWWorld::NeutralBase::sRecordId)
                     neutralInserted.add(ptr.get<NeutralBase>()->mBase->mKind);
             });
             if (cell.isNeutral())

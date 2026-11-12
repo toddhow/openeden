@@ -17,6 +17,7 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
@@ -268,6 +269,108 @@ namespace
                 Vec3fEq(215.33331298828125, 181.33331298828125, -20.6666717529296875),
                 Vec3fEq(460, 56.66664886474609375, 1.99999392032623291015625)))
             << mPath;
+    }
+
+    // Task 0132: an open-riser stair of a game pack's interior, as a visual-triangle mesh (a Skyrim SE stair read in game:
+    // flat treads about 78 units wide and 18 deep, risers 20.5 high; docs/tasks/0132-skyrim-navmesh.md). The navmesh
+    // must lead over it for a narrow agent.
+    struct StairMesh
+    {
+        static constexpr int steps = 13;
+        static constexpr float tread = 18.f;
+        static constexpr float rise = 20.5f;
+        static constexpr float x0 = 140.f;
+        static constexpr float yMin = 217.f;
+        static constexpr float yMax = 295.f;
+
+        static std::unique_ptr<JPH::Shape> make()
+        {
+            JPH::MeshShapeSettings settings;
+            settings.SetEmbedded();
+            const auto quad = [&](JPH::Vec3 a, JPH::Vec3 b, JPH::Vec3 c, JPH::Vec3 d) {
+                const JPH::uint32 base = static_cast<JPH::uint32>(settings.mTriangleVertices.size());
+                for (const JPH::Vec3& v : { a, b, c, d })
+                    settings.mTriangleVertices.push_back(JPH::Float3(v.GetX(), v.GetY(), v.GetZ()));
+                settings.mIndexedTriangles.push_back(JPH::IndexedTriangle(base, base + 1, base + 2));
+                settings.mIndexedTriangles.push_back(JPH::IndexedTriangle(base, base + 2, base + 3));
+            };
+            // landings, 300 wide, level with the first tread's foot and the last tread
+            quad(JPH::Vec3(x0 - 150, 106, 0), JPH::Vec3(x0, 106, 0), JPH::Vec3(x0, 406, 0), JPH::Vec3(x0 - 150, 406, 0));
+            const float xEnd = x0 + steps * tread;
+            const float top = steps * rise;
+            quad(JPH::Vec3(xEnd, 106, top), JPH::Vec3(xEnd + 150, 106, top), JPH::Vec3(xEnd + 150, 406, top),
+                JPH::Vec3(xEnd, 406, top));
+            for (int i = 0; i < steps; ++i)
+            {
+                const float xa = x0 + i * tread;
+                const float xb = xa + tread;
+                const float z = (i + 1) * rise;
+                quad(JPH::Vec3(xa, yMin, z), JPH::Vec3(xb, yMin, z), JPH::Vec3(xb, yMax, z), JPH::Vec3(xa, yMax, z));
+                quad(JPH::Vec3(xa, yMin, z - rise), JPH::Vec3(xa, yMax, z - rise), JPH::Vec3(xa, yMax, z),
+                    JPH::Vec3(xa, yMin, z));
+            }
+            JPH::Ref<JPH::Shape> shape = settings.Create().Get();
+            shape->SetEmbedded(); // the instance below holds it by a raw pointer, as the other tests' shapes do
+            return std::unique_ptr<JPH::Shape>(shape.GetPtr());
+        }
+    };
+
+    TEST_F(DetourNavigatorNavigatorTest, find_path_should_lead_a_narrow_agent_up_an_open_riser_stair)
+    {
+        mSettings.mWaitUntilMinDistanceToPlayer = 0;
+        // the game's own voxel size, slope and tile size (files/settings-default.cfg and Constants::sMaxSlope): the
+        // test settings' coarser voxels (11 units) lose an 18 unit tread
+        mSettings.mRecast.mRecastScaleFactor = 0.029411764705882353f;
+        mSettings.mRecast.mMaxSlope = 46;
+        mSettings.mRecast.mTileSize = 128;
+        mNavigator.reset(new NavigatorImpl(
+            mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max())));
+        const AgentBounds narrow{ CollisionShapeType::Aabb, { 18, 18, 66 } };
+        CollisionShapeInstance stair(StairMesh::make());
+
+        ASSERT_TRUE(mNavigator->addAgent(narrow));
+        {
+            auto updateGuard = mNavigator->makeUpdateGuard();
+            mNavigator->addObject(ObjectId(&stair.shape()), ObjectShapes(stair.instance(), mObjectTransform),
+                vsg::dmat4(), updateGuard.get());
+            mNavigator->update(vsg::vec3(256, 256, 0), updateGuard.get());
+        }
+        mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
+
+        const float xEnd = StairMesh::x0 + StairMesh::steps * StairMesh::tread;
+        const vsg::vec3 start(StairMesh::x0 - 75, 256, 2);
+        const vsg::vec3 end(xEnd + 75, 256, StairMesh::steps * StairMesh::rise + 2);
+        EXPECT_EQ(findPath(*mNavigator, narrow, start, end, Flag_walk, mAreaCosts, 40, {}, mOut), Status::Success)
+            << mPath;
+        ASSERT_FALSE(mPath.empty());
+        EXPECT_GT(mPath.back().z, StairMesh::steps * StairMesh::rise - 30);
+    }
+
+    TEST_F(DetourNavigatorNavigatorTest, find_path_should_not_lead_a_morrowind_sized_agent_up_the_narrow_stair)
+    {
+        mSettings.mWaitUntilMinDistanceToPlayer = 0;
+        mSettings.mRecast.mRecastScaleFactor = 0.029411764705882353f;
+        mSettings.mRecast.mMaxSlope = 46;
+        mSettings.mRecast.mTileSize = 128;
+        mNavigator.reset(new NavigatorImpl(
+            mSettings, std::make_unique<NavMeshDb>(":memory:", std::numeric_limits<std::uint64_t>::max())));
+        // Morrowind's default agent (about 29 x 28.5): the stair's 78 unit wide flat tread is eroded away
+        const AgentBounds fat{ CollisionShapeType::Aabb, { 29.28f, 28.48f, 66.5f } };
+        CollisionShapeInstance stair(StairMesh::make());
+
+        ASSERT_TRUE(mNavigator->addAgent(fat));
+        {
+            auto updateGuard = mNavigator->makeUpdateGuard();
+            mNavigator->addObject(ObjectId(&stair.shape()), ObjectShapes(stair.instance(), mObjectTransform),
+                vsg::dmat4(), updateGuard.get());
+            mNavigator->update(vsg::vec3(256, 256, 0), updateGuard.get());
+        }
+        mNavigator->wait(WaitConditionType::allJobsDone, &mListener);
+
+        const float xEnd = StairMesh::x0 + StairMesh::steps * StairMesh::tread;
+        const vsg::vec3 start(StairMesh::x0 - 75, 256, 2);
+        const vsg::vec3 end(xEnd + 75, 256, StairMesh::steps * StairMesh::rise + 2);
+        EXPECT_NE(findPath(*mNavigator, fat, start, end, Flag_walk, mAreaCosts, 40, {}, mOut), Status::Success);
     }
 
     TEST_F(DetourNavigatorNavigatorTest, update_changed_object_should_change_navmesh)

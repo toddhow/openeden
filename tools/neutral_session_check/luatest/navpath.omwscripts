@@ -1,0 +1,2 @@
+GLOBAL: scripts/navpath/global.lua
+PLAYER: scripts/navpath/player.lua

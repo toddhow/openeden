@@ -68,6 +68,8 @@ namespace Settings
             "allow actors to follow over water surface" };
         SettingValue<vsg::vec3> mDefaultActorPathfindHalfExtents{ mIndex, "Game", "default actor pathfind half extents",
             makeMaxStrictSanitizerVec3f(vsg::vec3(0, 0, 0)) };
+        SettingValue<vsg::vec3> mNeutralPathfindHalfExtents{ mIndex, "Game", "neutral pathfind half extents",
+            makeMaxStrictSanitizerVec3f(vsg::vec3(0, 0, 0)) };
         SettingValue<bool> mDayNightSwitches{ mIndex, "Game", "day night switches" };
         SettingValue<DetourNavigator::CollisionShapeType> mActorCollisionShapeType{ mIndex, "Game",
             "actor collision shape type" };

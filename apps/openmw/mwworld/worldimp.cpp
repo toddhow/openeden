@@ -51,6 +51,7 @@
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/detournavigator/stats.hpp>
+#include "neutralnavigation.hpp"
 #include <components/detournavigator/updateguard.hpp>
 
 #include <components/files/conversion.hpp>
@@ -3811,12 +3812,17 @@ namespace MWWorld
     DetourNavigator::AgentBounds World::getPathfindingAgentBounds(const MWWorld::ConstPtr& actor) const
     {
         const MWPhysics::Actor* physicsActor = mPhysics->getActor(actor);
-        if (physicsActor == nullptr || !actor.isInCell() || actor.getCell()->isExterior())
-            return DetourNavigator::AgentBounds{ Settings::game().mActorCollisionShapeType,
-                Settings::game().mDefaultActorPathfindHalfExtents.get() };
-        else
-            return DetourNavigator::AgentBounds{ physicsActor->getCollisionShapeType(),
-                physicsActor->getHalfExtents() };
+        const DetourNavigator::AgentBounds configuredDefault{ Settings::game().mActorCollisionShapeType,
+            Settings::game().mDefaultActorPathfindHalfExtents.get() };
+        std::optional<DetourNavigator::AgentBounds> own;
+        if (physicsActor != nullptr && actor.isInCell() && !actor.getCell()->isExterior())
+            own = DetourNavigator::AgentBounds{ physicsActor->getCollisionShapeType(), physicsActor->getHalfExtents() };
+        // Task 0132: a game pack session (neutral stubs in the store) builds its navmesh for the neutral agent size
+        std::optional<vsg::vec3> neutral;
+        // (the session's flag, not the actor's cell: the player's agent is added before it stands in a cell)
+        if (mStore.hasNeutralStubs())
+            neutral = Settings::game().mNeutralPathfindHalfExtents.get();
+        return choosePathfindingAgentBounds(configuredDefault, own, neutral);
     }
 
     bool World::hasCollisionWithDoor(
