@@ -21,13 +21,22 @@ namespace
 
     // ---- planning --------------------------------------------------------------------------------------------------
 
-    TEST(A2FPlan, v3WindowsHopHalfASecondAndAreCentredOnTheirHop)
+    TEST(A2FPlan, v3GateWindowsAreConsecutiveSeconds)
     {
         EXPECT_TRUE(planV3Windows(0).empty());
-        EXPECT_EQ(planV3Windows(1), (std::vector<std::int64_t>{ -4000 }));
-        EXPECT_EQ(planV3Windows(8000), (std::vector<std::int64_t>{ -4000 }));
-        EXPECT_EQ(planV3Windows(8001), (std::vector<std::int64_t>{ -4000, 4000 }));
-        EXPECT_EQ(planV3Windows(20000), (std::vector<std::int64_t>{ -4000, 4000, 12000 }));
+        EXPECT_EQ(planV3Windows(1), (std::vector<std::int64_t>{ 0 }));
+        EXPECT_EQ(planV3Windows(16000), (std::vector<std::int64_t>{ 0 }));
+        EXPECT_EQ(planV3Windows(16001), (std::vector<std::int64_t>{ 0, 16000 }));
+        EXPECT_EQ(planV3Windows(40000), (std::vector<std::int64_t>{ 0, 16000, 32000 }));
+    }
+
+    TEST(A2FPlan, v3OverlappedWindowsHopHalfASecondAndAreCentredOnTheirHop)
+    {
+        EXPECT_TRUE(planV3Windows(0, V3Layout::Overlapped).empty());
+        EXPECT_EQ(planV3Windows(1, V3Layout::Overlapped), (std::vector<std::int64_t>{ -4000 }));
+        EXPECT_EQ(planV3Windows(8000, V3Layout::Overlapped), (std::vector<std::int64_t>{ -4000 }));
+        EXPECT_EQ(planV3Windows(8001, V3Layout::Overlapped), (std::vector<std::int64_t>{ -4000, 4000 }));
+        EXPECT_EQ(planV3Windows(20000, V3Layout::Overlapped), (std::vector<std::int64_t>{ -4000, 4000, 12000 }));
     }
 
     TEST(A2FPlan, v23WindowsAreOnePerThirtiethOfASecondCentredOnTheFrame)
@@ -147,13 +156,32 @@ namespace
         return a;
     }
 
-    TEST(A2FGenerate, v3KeepsFramesFifteenToFortyFourOfEveryWindowAtSixtyFramesPerSecond)
+    TEST(A2FGenerate, v3GateLayoutKeepsFramesFifteenToFortyFourOfEachSecondAtThirtyFramesPerSecond)
     {
         const GeneratorModel model = syntheticV3();
         StubV3 net(model);
         GeneratedWeights out;
         std::string error;
-        ASSERT_TRUE(generateWeights(model, net, ramp(20000), {}, {}, out, error)) << error;
+        ASSERT_TRUE(generateWeights(model, net, ramp(20000), {}, {}, out, error)) << error; // the default layout
+        EXPECT_EQ(out.mFrameRate, 30u);
+        EXPECT_EQ(out.frameCount(), 38u); // ceil(20000 * 30 / 16000)
+        EXPECT_EQ(net.mCalls, 2);
+        for (std::size_t n = 0; n < out.frameCount(); ++n)
+        {
+            const std::size_t call = n / 30, j = n % 30;
+            EXPECT_NEAR(out.at(n, 0), static_cast<float>(15 + j + 100 * call) / 1000.f, 0.01f) << n;
+        }
+    }
+
+    TEST(A2FGenerate, v3OverlappedLayoutKeepsFramesFifteenToFortyFourOfEveryWindowAtSixtyFramesPerSecond)
+    {
+        const GeneratorModel model = syntheticV3();
+        StubV3 net(model);
+        GeneratedWeights out;
+        std::string error;
+        GenerateOptions options;
+        options.mV3Layout = V3Layout::Overlapped;
+        ASSERT_TRUE(generateWeights(model, net, ramp(20000), options, {}, out, error)) << error;
         EXPECT_EQ(out.mFrameRate, 60u);
         EXPECT_EQ(out.mNames, (std::vector<std::string>{ "jawopen", "mouthclose" }));
         EXPECT_EQ(out.frameCount(), 75u); // ceil(20000 * 60 / 16000), not the 90 the three windows hold
@@ -175,7 +203,7 @@ namespace
         options.mNoiseSeed = 99;
         GeneratedWeights out;
         std::string error;
-        ASSERT_TRUE(generateWeights(model, net, ramp(20000), options, {}, out, error)) << error;
+        ASSERT_TRUE(generateWeights(model, net, ramp(40000), options, {}, out, error)) << error;
         ASSERT_EQ(net.mCalls, 3);
         EXPECT_EQ(net.mLatentsSeen, (std::vector<float>{ 0.f, 1.f, 2.f }));
         for (const auto& id : net.mIdentities)
@@ -193,7 +221,7 @@ namespace
     {
         const GeneratorModel model = syntheticV3();
         StubV3 net(model);
-        const auto audio = ramp(20000);
+        const auto audio = ramp(40000);
         GeneratedWeights out;
         std::string error;
         ASSERT_TRUE(generateWeights(model, net, audio, {}, {}, out, error)) << error;

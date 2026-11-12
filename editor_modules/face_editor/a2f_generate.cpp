@@ -204,12 +204,14 @@ namespace face_editor
 
     // ----- windows -------------------------------------------------------------------------------------------------
 
-    std::vector<std::int64_t> planV3Windows(std::size_t sampleCount)
+    std::vector<std::int64_t> planV3Windows(std::size_t sampleCount, V3Layout layout)
     {
         std::vector<std::int64_t> starts;
-        const std::size_t windows = (sampleCount + A2FDims::sV3Hop - 1) / A2FDims::sV3Hop;
+        const std::size_t hop = layout == V3Layout::Gate ? A2FDims::sV3HopGate : A2FDims::sV3HopOverlapped;
+        const auto shift = layout == V3Layout::Gate ? std::int64_t{ 0 } : static_cast<std::int64_t>(hop / 2);
+        const std::size_t windows = (sampleCount + hop - 1) / hop;
         for (std::size_t i = 0; i < windows; ++i)
-            starts.push_back(static_cast<std::int64_t>(i * A2FDims::sV3Hop) - static_cast<std::int64_t>(A2FDims::sV3Hop / 2));
+            starts.push_back(static_cast<std::int64_t>(i * hop) - shift);
         return starts;
     }
 
@@ -256,8 +258,9 @@ namespace face_editor
             const auto setupStart = Clock::now();
             const BlendshapeSolver solver(set);
             const std::size_t P = solver.poseCount();
-            const auto starts = planV3Windows(audio.size());
-            const std::size_t totalFrames = (audio.size() * A2FDims::sV3OutputRate + A2FDims::sSampleRate - 1) / A2FDims::sSampleRate;
+            const auto starts = planV3Windows(audio.size(), options.mV3Layout);
+            const std::size_t rate = options.mV3Layout == V3Layout::Gate ? A2FDims::sV3RateGate : A2FDims::sV3RateOverlapped;
+            const std::size_t totalFrames = (audio.size() * rate + A2FDims::sSampleRate - 1) / A2FDims::sSampleRate;
 
             std::vector<float> noise(A2FDims::sV3NoiseFloats);
             fillNormalNoise(noise.data(), noise.size(), options.mNoiseSeed);
@@ -294,7 +297,7 @@ namespace face_editor
                 }
                 out.mSolveSeconds += secondsSince(solveStart);
             }
-            out.mFrameRate = static_cast<std::uint32_t>(A2FDims::sV3OutputRate);
+            out.mFrameRate = static_cast<std::uint32_t>(rate);
             return report(progress, 1.0, "done", error);
         }
 

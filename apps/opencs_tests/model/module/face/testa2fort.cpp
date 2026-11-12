@@ -4,6 +4,7 @@
 // without a reference: the run completes, is finite and in range, reacts to speech-like input differently from
 // silence, is repeatable on one provider, CPU and DirectML agree, progress and cancel work, the hash gate refuses a
 // damaged copy. Whether the curves look like the speech is a judgement made on frames, not here.
+#include "editor_modules/face_editor/audio_pcm.hpp"
 #include "editor_modules/face_editor/generate_run.hpp"
 
 #include <gtest/gtest.h>
@@ -142,14 +143,46 @@ namespace
         GenerateResult a, b;
         std::string error;
         auto r = request(root, "v3.0", false);
-        r.mAudio.resize(22050); // one second: two windows
+        r.mAudio.resize(22050); // 1 s: one window, 30 frames
         ASSERT_TRUE(runGeneration(r, {}, a, error)) << error;
         ASSERT_TRUE(runGeneration(r, {}, b, error)) << error;
-        EXPECT_EQ(a.mWeights.mFrameRate, 60u);
-        EXPECT_EQ(a.mWeights.frameCount(), 60u);
+        EXPECT_EQ(a.mWeights.mFrameRate, 30u);
+        EXPECT_EQ(a.mWeights.frameCount(), 30u);
         EXPECT_EQ(a.mWeights.mWeights, b.mWeights.mWeights);
         for (float w : a.mWeights.mWeights)
             ASSERT_TRUE(std::isfinite(w));
+    }
+
+    TEST(A2FOrt, v30GateLayoutOnTheGatesVoiceLineReproducesItsRecordedPeaks)
+    {
+        fs::path root;
+        std::string why;
+        const char* wav = std::getenv("OPENEDEN_A2F_VOICE_WAV");
+        if (!modelsRoot(root) || wav == nullptr || !generationAvailable(why))
+            GTEST_SKIP() << "needs OPENEDEN_A2F_MODELS, OPENEDEN_A2F_VOICE_WAV (the gate's bIdl_AM001 as 16 kHz WAV) and the runtime";
+        Pcm pcm;
+        std::string error;
+        ASSERT_TRUE(loadVoiceFile(wav, pcm, error)) << error;
+        GenerateRequest r;
+        r.mModelsRoot = root;
+        r.mVariantId = "v3.0";
+        r.mAllowDirectMl = false;
+        r.mAudio = pcm.mSamples;
+        r.mAudioRate = pcm.mRate;
+        GenerateResult gate, overlapped;
+        ASSERT_TRUE(runGeneration(r, {}, gate, error)) << error;
+        r.mOptions.mV3Layout = V3Layout::Overlapped;
+        ASSERT_TRUE(runGeneration(r, {}, overlapped, error)) << error;
+        std::printf("v3.0 on the gate's line: Gate jaw %.3f close %.3f pucker %.3f (%zu frames at %u); Overlapped jaw %.3f close %.3f "
+                    "pucker %.3f (%zu frames at %u); the gate recorded 0.547 / 0.861 / 0.628\n",
+            peak(gate.mWeights, "jawopen"), peak(gate.mWeights, "mouthclose"), peak(gate.mWeights, "mouthpucker"),
+            gate.mWeights.frameCount(), gate.mWeights.mFrameRate, peak(overlapped.mWeights, "jawopen"),
+            peak(overlapped.mWeights, "mouthclose"), peak(overlapped.mWeights, "mouthpucker"),
+            overlapped.mWeights.frameCount(), overlapped.mWeights.mFrameRate);
+        // The gate's noise was per window and numpy's; ours is one seeded tensor, so near, not equal.
+        EXPECT_NEAR(peak(gate.mWeights, "jawopen"), 0.547f, 0.06f);
+        EXPECT_NEAR(peak(gate.mWeights, "mouthclose"), 0.861f, 0.08f);
+        EXPECT_NEAR(peak(gate.mWeights, "mouthpucker"), 0.628f, 0.12f);
     }
 
     TEST(A2FOrt, progressNeverGoesBackAndACancelStopsTheRun)

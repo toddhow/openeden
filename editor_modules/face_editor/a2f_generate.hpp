@@ -5,11 +5,13 @@
 // Everything else is pure and deterministic: resampling, windowing, the fixed noise, the solve and the frame-rate
 // conversion. The window layouts are what the feasibility gate found by running the networks (task 0071 "Stage a
 // results"); they are INFERRED (RECALLED-VERIFY), not taken from NVIDIA's SDK:
-//  - v3.0 (diffusion, 60 output frames per 16,000-sample window): windows hop 8,000 samples and are centred on their
-//    hop (start = i * 8000 - 4000, zero padded); frames 15..44 (the config's num_frames_center 30 after a 15 frame
-//    truncation at each end) of every window are kept, so the output runs at 60 frames per second. (The gate's first
-//    reading, hop 16,000 and 30 fps, ran the motion at half the pace of the audio; the lag between the mouth and the
-//    audio envelope was -0.25 s with it and -0.05 s with this layout: task 0147 stage log.)
+//  - v3.0 (diffusion, 60 output frames per 16,000-sample window), V3Layout::Gate (the DEFAULT, the gate's reading, as
+//    toddhow's brief says): consecutive 1 s windows (hop 16,000), frames 15..44 of every window kept as 30 frames per
+//    second. V3Layout::Overlapped is an alternative this task's author suspects is the right one (a 60 fps reading:
+//    hop 8,000, windows centred on the hop, frames 15..44 at 60 frames per second): on the gate's voice line the
+//    mouth-to-audio lag was -0.25 s with Gate and -0.05 s with Overlapped, but the correlation metric is weak and Gate
+//    reproduces the gate's recorded weights exactly (jawOpen max 0.547, mouthClose 0.861, mouthPucker 0.628; Overlapped
+//    0.603, 0.956, 0.794). Neither is confirmed: task 0147 slice 2, decision 1.
 //  - v2.3 (regression, 8,320-sample windows, 301 outputs): one window per 1/30 s centred on the frame time; the first
 //    272 outputs are shape coefficients of a linear skin model.
 // Standard library only.
@@ -25,6 +27,13 @@
 
 namespace face_editor
 {
+    /// How the v3.0 windows are laid over the audio (see the comment at the top).
+    enum class V3Layout
+    {
+        Gate,
+        Overlapped
+    };
+
     enum class A2FVariant
     {
         V30, ///< "v3.0", Mark identity
@@ -36,7 +45,8 @@ namespace face_editor
         inline constexpr std::size_t sSampleRate = 16000;
         // v3.0
         inline constexpr std::size_t sV3Window = 16000;
-        inline constexpr std::size_t sV3Hop = 8000;
+        inline constexpr std::size_t sV3HopGate = 16000;
+        inline constexpr std::size_t sV3HopOverlapped = 8000;
         inline constexpr std::size_t sV3Frames = 60;
         inline constexpr std::size_t sV3KeepFrom = 15;
         inline constexpr std::size_t sV3Keep = 30;
@@ -45,7 +55,8 @@ namespace face_editor
         inline constexpr std::size_t sV3NoiseFloats = 3 * 60 * 88831;
         inline constexpr std::size_t sV3LatentFloats = 2 * 2 * 1 * 256;
         inline constexpr std::size_t sV3EmotionFloats = 30 * 10;
-        inline constexpr std::size_t sV3OutputRate = 60;
+        inline constexpr std::size_t sV3RateGate = 30;
+        inline constexpr std::size_t sV3RateOverlapped = 60;
         // v2.3
         inline constexpr std::size_t sV23Window = 8320;
         inline constexpr std::size_t sV23Batch = 30;
@@ -98,9 +109,9 @@ namespace face_editor
     /// on every platform and library.
     void fillNormalNoise(float* dst, std::size_t count, std::uint64_t seed);
 
-    /// Sample index of every v3.0 window's first sample (negative = starts in the zero padding). ceil(n / 8000) windows,
-    /// none for no audio.
-    std::vector<std::int64_t> planV3Windows(std::size_t sampleCount);
+    /// Sample index of every v3.0 window's first sample (negative = starts in the zero padding): Gate ceil(n / 16000)
+    /// windows at i * 16000; Overlapped ceil(n / 8000) windows at i * 8000 - 4000. None for no audio.
+    std::vector<std::int64_t> planV3Windows(std::size_t sampleCount, V3Layout layout = V3Layout::Gate);
     /// Sample index of every v2.3 window's first sample: round(i * 16000 / 30) - 4160, one per 1/30 s (ceil), none for
     /// no audio.
     std::vector<std::int64_t> planV23Windows(std::size_t sampleCount);
@@ -123,6 +134,7 @@ namespace face_editor
 
     struct GenerateOptions
     {
+        V3Layout mV3Layout = V3Layout::Gate;
         /// Seeds the one noise tensor of a v3.0 run (generated once, reused by every window). The value is recorded in
         /// the curve file's generator.seed.
         std::uint64_t mNoiseSeed = 20261112;
