@@ -533,6 +533,13 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_25 IsMoving: the direction the subject is requesting to move: 0 not moving, 1 forward, 2 backward, 3
+        /// left, 4 right (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float moveDirection(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

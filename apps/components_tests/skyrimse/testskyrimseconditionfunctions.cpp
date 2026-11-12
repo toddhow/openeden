@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float moveDirection(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         bool mInFriendStateWithPlayerFlag = true;
         bool inFriendStateWithPlayer(Subject s) const override { return s == mSubject && mInFriendStateWithPlayerFlag; }
         bool isSpellTarget(Subject s, std::uint32_t m) const override { return s == mSubject && m == 0x1D0; }
@@ -755,6 +756,16 @@ namespace
         w.mInFriendStateWithPlayerFlag = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(638, kEq, 0.f), w));
+    }
+
+    // fn_25 IsMoving: requested move direction, 0 none, 1 forward, 2 back, 3 left, 4 right (CK wiki, toddhow
+    // 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_25_is_the_move_direction)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(25, kEq, 3.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(25, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

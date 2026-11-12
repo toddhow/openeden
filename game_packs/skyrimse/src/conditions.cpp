@@ -491,6 +491,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inFriendStateWithPlayer(subject));
         }
 
+        // 25 IsMoving: direction 0 to 4 (CK wiki, toddhow 2026-11-11)
+        float isMoving(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.moveDirection(subject) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -499,10 +505,11 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 77> sTable = { {
+        constexpr std::array<Entry, 78> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
+            { 25, isMoving },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
