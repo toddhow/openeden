@@ -33,7 +33,7 @@ namespace
 
 TEST(LodClusterSway, the_name_list_matches_substrings_case_insensitively)
 {
-    EXPECT_TRUE(swayCapableModel("Meshes\f\Flora_Tree_Ash_01.nif", "flora_tree"));
+    EXPECT_TRUE(swayCapableModel("Meshes\\f\\Flora_Tree_Ash_01.nif", "flora_tree"));
     EXPECT_TRUE(swayCapableModel("meshes/f/furn_imp_flag_01.nif", "banner, flag"));
     EXPECT_TRUE(swayCapableModel("meshes/f/furn_imp_flag_01.nif", "BANNER;FLAG"));
     EXPECT_TRUE(swayCapableModel("meshes/f/ex_v_ban_01.nif", "flag\nex_v_ban"));
