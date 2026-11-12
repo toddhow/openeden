@@ -37,6 +37,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <map>
 #include <span>
 #include <string>
@@ -221,6 +222,41 @@ namespace game_skyrimse::conditions
         virtual bool isEquipped(Subject subject, std::uint32_t object) const
         {
             (void)subject, (void)object;
+            return false;
+        }
+        /// fn_1 GetDistance(reference): the distance in game units from the subject to the reference (CK wiki, shown
+        /// by toddhow, 2026-11-11). A world that cannot tell (other worldspace, reference not loaded) answers a large
+        /// value.
+        virtual float distanceTo(Subject subject, std::uint32_t reference) const
+        {
+            (void)subject, (void)reference;
+            return std::numeric_limits<float>::max();
+        }
+        /// fn_161 GetIsCurrentPackage(package): is the subject running this package? Combat and flight interrupts do
+        /// not change the answer (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool runsPackage(Subject subject, std::uint32_t package) const
+        {
+            (void)subject, (void)package;
+            return false;
+        }
+        /// fn_84 GetDeadCount(actor base): how many actors of this base have been killed (CK wiki, 2026-11-11).
+        virtual float deadCount(std::uint32_t actorBase) const
+        {
+            (void)actorBase;
+            return 0.f;
+        }
+        /// fn_255 GetOffersServicesNow: is the subject's current AI package set to offer services? (CK wiki, shown by
+        /// toddhow, 2026-11-11)
+        virtual bool offersServicesNow(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_149 GetIsCurrentWeather(weather): 1 if the current weather is this WTHR, also from the moment a transition
+        /// into it starts (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool isCurrentWeather(std::uint32_t weather) const
+        {
+            (void)weather;
             return false;
         }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)

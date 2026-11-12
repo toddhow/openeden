@@ -17,7 +17,7 @@ namespace
     using game_skyrimse::survey::Ctda;
     using ContentTests::Bytes;
 
-    constexpr std::uint8_t kEq = 0, kGe = 3;
+    constexpr std::uint8_t kEq = 0, kGe = 3, kLt = 4;
     constexpr std::uint8_t kSwap = 0x10;
 
     Ctda cond(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0, std::uint32_t p2 = 0,
@@ -122,6 +122,12 @@ namespace
         bool mRunning = true;
         std::uint32_t mWorldspace = 0xC0;
         std::uint32_t mEquipped = 0xD0;
+        bool mServices = true;
+        bool isCurrentWeather(std::uint32_t x) const override { return x == 0x101; }
+        bool offersServicesNow(Subject s) const override { return s == mSubject && mServices; }
+        bool runsPackage(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xF0; }
+        float deadCount(std::uint32_t b) const override { return b == 0xF8 ? 6.f : 0.f; }
+        float distanceTo(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0xE0 ? 512.f : 9000.f; }
         bool isEquipped(Subject s, std::uint32_t o) const override { return s == mSubject && o == mEquipped; }
         bool inWorldspace(Subject s, std::uint32_t w) const override { return s == mSubject && w == mWorldspace; }
         bool isRace(Subject s, std::uint32_t r) const override
@@ -244,6 +250,50 @@ namespace
         EXPECT_TRUE(run(cond(130, kEq, 0.f, 0xB2), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(182, kEq, 0.f, 0xD0), w));
+    }
+
+    // fn_1 GetDistance(reference): units from the subject to the reference (CK wiki, toddhow 2026-11-11). Nobody as
+    // subject is infinitely far, so a "closer than" test fails.
+    TEST(SkyrimConditionFunctions, fn_1_is_the_distance_to_the_reference)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(1, kEq, 512.f, 0xE0), w));
+        EXPECT_TRUE(run(cond(1, kGe, 9000.f, 0xE1), w));
+        w.mSubject = 0;
+        EXPECT_FALSE(run(cond(1, kLt, 1.0e30f, 0xE0), w));
+    }
+
+    // fn_161 GetIsCurrentPackage(package) and fn_84 GetDeadCount(actor base) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_161_is_the_current_package_and_84_the_dead_count)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(161, kEq, 1.f, 0xF0), w));
+        EXPECT_TRUE(run(cond(161, kEq, 0.f, 0xF1), w));
+        EXPECT_TRUE(run(cond(84, kEq, 6.f, 0xF8), w));
+        EXPECT_TRUE(run(cond(84, kEq, 0.f, 0xF9), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(161, kEq, 0.f, 0xF0), w));
+        EXPECT_TRUE(run(cond(84, kEq, 6.f, 0xF8), w));
+    }
+
+    // fn_255 GetOffersServicesNow: the subject's current package offers services (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_255_is_offering_services_now)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(255, kEq, 1.f), w));
+        w.mServices = false;
+        EXPECT_TRUE(run(cond(255, kEq, 0.f), w));
+        w.mServices = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(255, kEq, 0.f), w));
+    }
+
+    // fn_149 GetIsCurrentWeather(weather): true from the start of a transition into it (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_149_is_the_current_weather)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(149, kEq, 1.f, 0x101), w));
+        EXPECT_TRUE(run(cond(149, kEq, 0.f, 0x102), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

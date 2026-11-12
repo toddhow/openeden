@@ -1,6 +1,7 @@
 #include <game_skyrimse/conditions.hpp>
 
 #include <array>
+#include <limits>
 #include <string>
 
 namespace game_skyrimse::conditions
@@ -214,6 +215,36 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isEquipped(subject, c.mParam1));
         }
 
+        // 1 GetDistance(reference): nobody as subject is infinitely far (CK wiki, toddhow 2026-11-11)
+        float getDistance(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.distanceTo(subject, c.mParam1) : std::numeric_limits<float>::max();
+        }
+
+        // 161 GetIsCurrentPackage(package) (CK wiki, 2026-11-11)
+        float getIsCurrentPackage(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.runsPackage(subject, c.mParam1));
+        }
+
+        // 84 GetDeadCount(actor base): names its base, so no subject (CK wiki, 2026-11-11)
+        float getDeadCount(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return world.deadCount(c.mParam1);
+        }
+
+        // 255 GetOffersServicesNow (CK wiki, toddhow 2026-11-11)
+        float getOffersServicesNow(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.offersServicesNow(subject));
+        }
+
+        // 149 GetIsCurrentWeather(weather): names its weather, so no subject (CK wiki, toddhow 2026-11-11)
+        float getIsCurrentWeather(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.isCurrentWeather(c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -222,7 +253,8 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 31> sTable = { {
+        constexpr std::array<Entry, 36> sTable = { {
+            { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
@@ -238,10 +270,14 @@ namespace game_skyrimse::conditions
             { 73, getFactionRank },
             { 74, getGlobalValue },
             { 77, getRandomPercent },
+            { 84, getDeadCount },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 149, getIsCurrentWeather },
+            { 161, getIsCurrentPackage },
             { 182, getEquipped },
             { 249, isInDialogueWithPlayer },
+            { 255, getOffersServicesNow },
             { 286, isSneaking },
             { 310, getInWorldspace },
             { 359, getInCurrentLoc },
