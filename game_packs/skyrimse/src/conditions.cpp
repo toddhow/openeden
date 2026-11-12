@@ -625,6 +625,40 @@ namespace game_skyrimse::conditions
             return world.weatherPleasantness();
         }
 
+        // 5 GetLocked (CK wiki, toddhow 2026-11-11: the object is locked)
+        float getLockedFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isLocked(subject));
+        }
+
+        // 657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest)
+        float getArrestingActorFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isArrestingActor(subject));
+        }
+
+        // 263 IsWeaponOut, 651 GetKeywordDataForCurrentLocation, 682 WornHasKeyword, 75 IsSnowing (CK wiki, toddhow
+        // 2026-11-11)
+        float isWeaponOut(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.weaponOutState(subject) : 0.f;
+        }
+
+        float getKeywordDataForCurrentLocation(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.keywordDataForCurrentLocation(subject, c.mParam1) : 0.f;
+        }
+
+        float wornHasKeyword(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.wornHasKeyword(subject, c.mParam1));
+        }
+
+        float isSnowing(const survey::Ctda&, Subject, const ConditionWorld& world)
+        {
+            return world.snowiness();
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -633,8 +667,9 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 100> sTable = { {
+        constexpr std::array<Entry, 106> sTable = { {
             { 1, getDistance },
+            { 5, getLockedFn },
             { 14, getActorValue },
             { 18, getCurrentTime },
             { 25, isMoving },
@@ -657,6 +692,7 @@ namespace game_skyrimse::conditions
             { 72, getIsId },
             { 73, getFactionRank },
             { 74, getGlobalValue },
+            { 75, isSnowing },
             { 77, getRandomPercent },
             { 79, getQuestVariable },
             { 80, getLevel },
@@ -681,6 +717,7 @@ namespace game_skyrimse::conditions
             { 255, getOffersServicesNow },
             { 258, hasAssociationType },
             { 261, hasParentRelationship },
+            { 263, isWeaponOut },
             { 264, hasSpell },
             { 266, isPleasant },
             { 274, isSmallBumpFn },
@@ -729,8 +766,11 @@ namespace game_skyrimse::conditions
             { 635, isInFavorStateFn },
             { 638, isInFriendStateWithPlayerFn },
             { 640, getActorValuePercent },
+            { 651, getKeywordDataForCurrentLocation },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },
+            { 657, getArrestingActorFn },
+            { 682, wornHasKeyword },
             { 698, isAllowedToFlyFn },
             { 700, isCommandedActorFn },
             { 707, getCombatTargetHasKeyword },

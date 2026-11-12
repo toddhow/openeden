@@ -669,6 +669,42 @@ namespace game_skyrimse::conditions
         /// fn_266 IsPleasant: 0 when the current weather is not classified pleasant, between 0 and 1 while changing to
         /// a pleasant weather, 1 when it is stable and pleasant (CK wiki, shown by toddhow, 2026-11-11).
         virtual float weatherPleasantness() const { return 0.f; }
+        /// fn_5 GetLocked (CK wiki, toddhow 2026-11-11: the object is locked).
+        virtual bool isLocked(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest).
+        virtual bool isArrestingActor(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_263 IsWeaponOut: 0 nothing drawn, 1 only fists out, 2 a weapon in either hand; spells do not count (CK
+        /// wiki, shown by toddhow, 2026-11-11).
+        virtual float weaponOutState(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_651 GetKeywordDataForCurrentLocation(keyword): the value stored for the keyword on the subject's current
+        /// location, 0 if none (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float keywordDataForCurrentLocation(Subject subject, std::uint32_t keyword) const
+        {
+            (void)subject, (void)keyword;
+            return 0.f;
+        }
+        /// fn_682 WornHasKeyword(keyword): has the subject an armor or weapon with the keyword equipped? (CK wiki,
+        /// shown by toddhow, 2026-11-11)
+        virtual bool wornHasKeyword(Subject subject, std::uint32_t keyword) const
+        {
+            (void)subject, (void)keyword;
+            return false;
+        }
+        /// fn_75 IsSnowing: 0 when the weather is not classified snowing, between 0 and 1 while changing to it, 1 when
+        /// stable and snowy (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float snowiness() const { return 0.f; }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

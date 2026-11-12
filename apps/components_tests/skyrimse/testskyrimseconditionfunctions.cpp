@@ -124,6 +124,14 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float weaponOutState(Subject s) const override { return s == mSubject ? 1.f : 0.f; }
+        float keywordDataForCurrentLocation(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80 ? 10.f : 0.f; }
+        bool wornHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x81; }
+        float snowiness() const override { return 0.25f; }
+        bool mIsArrestingActorFlag = true;
+        bool isArrestingActor(Subject s) const override { return s == mSubject && mIsArrestingActorFlag; }
+        bool mIsLockedFlag = true;
+        bool isLocked(Subject s) const override { return s == mSubject && mIsLockedFlag; }
         float weatherPleasantness() const override { return 0.5f; }
         bool mIsInSceneFlag = true;
         bool isInScene(Subject s) const override { return s == mSubject && mIsInSceneFlag; }
@@ -950,6 +958,46 @@ namespace
         World w;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(266, kEq, 0.5f), w));
+    }
+
+    // fn_5 GetLocked (CK wiki, toddhow 2026-11-11: the object is locked).
+    TEST(SkyrimConditionFunctions, fn_5_getLocked)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(5, kEq, 1.f), w));
+        w.mIsLockedFlag = false;
+        EXPECT_TRUE(run(cond(5, kEq, 0.f), w));
+        w.mIsLockedFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(5, kEq, 0.f), w));
+    }
+
+    // fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest).
+    TEST(SkyrimConditionFunctions, fn_657_getArrestingActor)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(657, kEq, 1.f), w));
+        w.mIsArrestingActorFlag = false;
+        EXPECT_TRUE(run(cond(657, kEq, 0.f), w));
+        w.mIsArrestingActorFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(657, kEq, 0.f), w));
+    }
+
+    // fn_263 IsWeaponOut (0 to 2), fn_651 GetKeywordDataForCurrentLocation(keyword), fn_682 WornHasKeyword(keyword),
+    // fn_75 IsSnowing (0 to 1, no subject) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_263_weapon_out_651_location_data_682_worn_keyword_75_snow)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(263, kEq, 1.f), w));
+        EXPECT_TRUE(run(cond(651, kEq, 10.f, 0x80), w));
+        EXPECT_TRUE(run(cond(682, kEq, 1.f, 0x81), w));
+        EXPECT_TRUE(run(cond(682, kEq, 0.f, 0x80), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(263, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(651, kEq, 0.f, 0x80), w));
+        EXPECT_TRUE(run(cond(682, kEq, 0.f, 0x81), w));
+        EXPECT_TRUE(run(cond(75, kEq, 0.25f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
