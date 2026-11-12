@@ -660,6 +660,15 @@ namespace game_skyrimse::conditions
             (void)subject, (void)formList;
             return false;
         }
+        /// fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene).
+        virtual bool isInScene(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_266 IsPleasant: 0 when the current weather is not classified pleasant, between 0 and 1 while changing to
+        /// a pleasant weather, 1 when it is stable and pleasant (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float weatherPleasantness() const { return 0.f; }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

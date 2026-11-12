@@ -124,6 +124,9 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float weatherPleasantness() const override { return 0.5f; }
+        bool mIsInSceneFlag = true;
+        bool isInScene(Subject s) const override { return s == mSubject && mIsInSceneFlag; }
         float crimeGoldViolent(Subject s, std::uint32_t f) const override
         {
             return f == 0xA0 ? 30.f : (f == 0 && s == mSubject ? 10.f : 0.f);
@@ -926,6 +929,27 @@ namespace
         EXPECT_TRUE(run(cond(372, kEq, 0.f, 0x1F0), w));
         EXPECT_TRUE(run(cond(398, kEq, 0.f, 0x1F1), w));
         EXPECT_TRUE(run(cond(444, kEq, 0.f, 0x1F2), w));
+    }
+
+    // fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene).
+    TEST(SkyrimConditionFunctions, fn_590_isInScene)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(590, kEq, 1.f), w));
+        w.mIsInSceneFlag = false;
+        EXPECT_TRUE(run(cond(590, kEq, 0.f), w));
+        w.mIsInSceneFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(590, kEq, 0.f), w));
+    }
+
+    // fn_266 IsPleasant: 0 not pleasant, between 0 and 1 changing to pleasant, 1 pleasant; no subject (CK wiki,
+    // toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_266_is_the_weather_pleasantness)
+    {
+        World w;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(266, kEq, 0.5f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

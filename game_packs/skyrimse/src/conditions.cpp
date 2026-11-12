@@ -613,6 +613,18 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.locationInList(subject, c.mParam1));
         }
 
+        // 590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene)
+        float isInSceneFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isInScene(subject));
+        }
+
+        // 266 IsPleasant: weather, no subject (CK wiki, toddhow 2026-11-11)
+        float isPleasant(const survey::Ctda&, Subject, const ConditionWorld& world)
+        {
+            return world.weatherPleasantness();
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -621,7 +633,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 98> sTable = { {
+        constexpr std::array<Entry, 100> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -670,6 +682,7 @@ namespace game_skyrimse::conditions
             { 258, hasAssociationType },
             { 261, hasParentRelationship },
             { 264, hasSpell },
+            { 266, isPleasant },
             { 274, isSmallBumpFn },
             { 277, getBaseActorValue },
             { 286, isSneaking },
@@ -704,6 +717,7 @@ namespace game_skyrimse::conditions
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
             { 580, isBleedingOut },
+            { 590, isInSceneFn },
             { 594, getIsFlyingFn },
             { 596, spellHasKeyword },
             { 605, locAliasIsLocation },
