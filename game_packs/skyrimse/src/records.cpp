@@ -142,6 +142,15 @@ namespace game_skyrimse
         return light ? (*prefix | (stored & 0xFFFu)) : (*prefix | (stored & 0xFFFFFFu));
     }
 
+    std::optional<std::uint32_t> FormIdResolver::ownStoredId(FormId id) const
+    {
+        if (!mSelfPrefix || mSelfLight || id == kNullFormId)
+            return std::nullopt;
+        if ((id & 0xFF000000u) != *mSelfPrefix)
+            return std::nullopt;
+        return (static_cast<std::uint32_t>(mMasterPrefixes.size()) << 24) | (id & 0xFFFFFFu);
+    }
+
     // ---- string tables -------------------------------------------------------------------------------------------
 
     namespace

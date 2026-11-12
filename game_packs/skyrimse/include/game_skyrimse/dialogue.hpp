@@ -187,6 +187,15 @@ namespace game_skyrimse
         [[nodiscard]] const GlobalValue* global(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
 
+        /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the folder
+        /// of this plugin, named with that id. Nullopt when no plugin of the index owns the id.
+        struct VoiceOrigin
+        {
+            std::string mPlugin;
+            std::uint32_t mStoredId = 0;
+        };
+        [[nodiscard]] std::optional<VoiceOrigin> voiceOriginOf(const DialogInfo& info) const;
+
         /// The file name of the plugin at `index` (DialogInfo::mPlugin / DialogTopic::mPlugin); empty out of range.
         [[nodiscard]] const std::string& pluginName(std::uint32_t index) const;
         /// The editor id of a voice type (VTYP); empty when unknown.

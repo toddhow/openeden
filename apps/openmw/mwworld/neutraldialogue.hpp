@@ -10,6 +10,8 @@
 
 #include <openeden/game/dialogue_source.hpp>
 
+#include "ptr.hpp"
+
 // Talking to a neutral actor (task 0141, milestone M-S4 slice 1; docs/tasks/0141-neutral-dialogue-slice1.md).
 //
 // The pack decides what is said (openeden::sdk::game::DialogueSource); this file only presents it. Slice 1 shows each
@@ -83,6 +85,8 @@ namespace MWWorld
     class NeutralVoiceQueue
     {
     public:
+        static constexpr std::size_t kMaxLines = 64; ///< a response has few lines; the rest of a hostile list is dropped
+
         /// A new turn: whatever was pending is dropped (the session stops the line that is playing).
         void set(std::vector<std::string> paths);
         void clear();
@@ -106,7 +110,10 @@ namespace MWWorld
     public:
         /// Opens the first turn of a conversation the source of game `gameId` has begun. The session keeps the game id,
         /// not the source: every poll looks the source up again, and ends if it is gone (a stopped pack, a new game).
-        void start(std::string gameId, const openeden::sdk::game::DialogueTurn& first, const std::string& speakerName);
+        /// `speaker` is the object that talks: its voice lines (DialogueTurn::voice, task 0143) play from its head. An
+        /// empty Ptr means no voice. The session keeps the Ptr until the conversation ends: the message box is modal.
+        void start(std::string gameId, const openeden::sdk::game::DialogueTurn& first, const std::string& speakerName,
+            const Ptr& speaker = Ptr());
 
         /// One poll a frame: reads the pressed button and shows the next turn, or closes. Cheap when idle.
         void update();
@@ -125,7 +132,14 @@ namespace MWWorld
 
     private:
         void show();
+        /// Starts the voice lines of `turn` (stopping those of the turn before).
+        void speak(const openeden::sdk::game::DialogueTurn& turn);
+        /// Once a poll: starts the next queued line when the one before has ended.
+        void pollVoice();
+        void stopVoice();
 
+        Ptr mSpeaker;
+        NeutralVoiceQueue mVoice;
         bool mActive = false;
         int mInjected = -1;
         int mPolls = 0;

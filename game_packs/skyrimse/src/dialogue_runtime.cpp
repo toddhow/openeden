@@ -38,21 +38,45 @@ namespace game_skyrimse
         const QuestRecord* quest = mQuestIndex.quest(questId);
         const std::string stem = voiceStem(quest != nullptr ? quest->mCommon.mEditorId : std::string(),
             topic != nullptr ? topic->mCommon.mEditorId : std::string());
-        const std::string& plugin = mDialogue.pluginName(info.mPlugin);
+        // Two places to look, in this order (SETTLED BY DATA, task 0143: of 407 responses whose INFO a later plugin
+        // overrides, all 407 have their file in the folder of the plugin that made the INFO, under the id that plugin
+        // stores it with; 12 other overrides are found under the overriding plugin): the plugin that made the INFO,
+        // then the plugin whose record is used.
+        std::string candidatePlugin[2];
+        std::uint32_t candidateId[2] = { 0, 0 };
+        std::size_t candidates = 0;
+        if (const std::optional<DialogueIndex::VoiceOrigin> origin = mDialogue.voiceOriginOf(info))
+        {
+            candidatePlugin[candidates] = origin->mPlugin;
+            candidateId[candidates++] = origin->mStoredId;
+        }
+        const std::string& winner = mDialogue.pluginName(info.mPlugin);
+        if (candidates == 0 || candidatePlugin[0] != winner || candidateId[0] != info.mCommon.mStoredId)
+        {
+            candidatePlugin[candidates] = winner;
+            candidateId[candidates++] = info.mCommon.mStoredId;
+        }
         for (const DialogResponse& response : info.mResponses)
         {
-            const std::string path
-                = voicePath(plugin, mVoiceType, stem, info.mCommon.mStoredId, response.mNumber);
-            if (path.empty())
+            bool named = false;
+            bool found = false;
+            for (std::size_t c = 0; c < candidates && !found; ++c)
             {
+                const std::string path
+                    = voicePath(candidatePlugin[c], mVoiceType, stem, candidateId[c], response.mNumber);
+                if (path.empty())
+                    continue;
+                named = true;
+                if (mVoiceProbe(path))
+                {
+                    found = true;
+                    out.voice.push_back(path);
+                }
+            }
+            if (!named)
                 ++mStats.mVoiceUnnamed;
-                continue;
-            }
-            if (mVoiceProbe(path))
-            {
+            else if (found)
                 ++mStats.mVoiceFound;
-                out.voice.push_back(path);
-            }
             else
                 ++mStats.mVoiceMissing;
         }

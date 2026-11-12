@@ -627,6 +627,19 @@ namespace game_skyrimse
                 mInfoCount += alive ? 1 : 0;
     }
 
+    std::optional<DialogueIndex::VoiceOrigin> DialogueIndex::voiceOriginOf(const DialogInfo& info) const
+    {
+        // At most a few hundred plugins; a voice line is named a handful of times per conversation.
+        for (std::size_t i = 0; i < mResolvers.size(); ++i)
+        {
+            if (mPluginNames[i].empty())
+                continue;
+            if (const std::optional<std::uint32_t> stored = mResolvers[i].ownStoredId(info.mCommon.mId))
+                return VoiceOrigin{ mPluginNames[i], *stored };
+        }
+        return std::nullopt;
+    }
+
     const std::string& DialogueIndex::pluginName(std::uint32_t index) const
     {
         static const std::string kEmpty;

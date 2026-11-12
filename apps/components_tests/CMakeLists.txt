@@ -528,6 +528,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialogueruntime.cpp
     skyrimse/testskyrimsedialogueruntimereal.cpp
     skyrimse/testskyrimsevoice.cpp
+    skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsequestreal.cpp
     skyrimse/testskyrimseappearance.cpp

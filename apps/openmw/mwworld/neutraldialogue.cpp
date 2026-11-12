@@ -7,8 +7,12 @@
 #include <components/l10n/manager.hpp>
 #include <components/worldmodel/store.hpp>
 
+#include <components/misc/resourcehelpers.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
+#include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 
 namespace MWWorld
@@ -80,14 +84,32 @@ namespace MWWorld
         return choice;
     }
 
-    // STUB (task 0143, tests first)
-    void NeutralVoiceQueue::set(std::vector<std::string>) {}
-
-    void NeutralVoiceQueue::clear() {}
-
-    std::optional<std::string> NeutralVoiceQueue::poll(bool)
+    void NeutralVoiceQueue::set(std::vector<std::string> paths)
     {
-        return std::nullopt;
+        mPaths.clear();
+        mNext = 0;
+        mStarted = 0;
+        for (std::string& path : paths)
+        {
+            if (path.empty())
+                continue;
+            if (mPaths.size() >= kMaxLines)
+                break;
+            mPaths.push_back(std::move(path));
+        }
+    }
+
+    void NeutralVoiceQueue::clear()
+    {
+        set({});
+    }
+
+    std::optional<std::string> NeutralVoiceQueue::poll(bool linePlaying)
+    {
+        if (linePlaying || mNext >= mPaths.size())
+            return std::nullopt;
+        ++mStarted;
+        return mPaths[mNext++];
     }
 
     std::vector<std::pair<int, int>> parseNeutralDialoguePressScript(const std::string& text)
@@ -130,8 +152,8 @@ namespace MWWorld
         }
     }
 
-    void NeutralDialogueSession::start(
-        std::string gameId, const openeden::sdk::game::DialogueTurn& first, const std::string& speakerName)
+    void NeutralDialogueSession::start(std::string gameId, const openeden::sdk::game::DialogueTurn& first,
+        const std::string& speakerName, const Ptr& speaker)
     {
         if (mActive)
             close();
@@ -147,7 +169,47 @@ namespace MWWorld
         mName = speakerName;
         mPager.emplace(message("NeutralDialogueGoodbye"), message("NeutralDialogueMore"));
         mPager->setTurn(first, mName);
+        mSpeaker = speaker;
         show();
+        speak(first);
+    }
+
+    void NeutralDialogueSession::speak(const openeden::sdk::game::DialogueTurn& turn)
+    {
+        stopVoice();
+        if (mSpeaker.isEmpty() || turn.voice.empty())
+            return;
+        mVoice.set(turn.voice);
+        Log(Debug::Info) << "NTALK voice: " << mVoice.pending() << " line(s) for this turn";
+        pollVoice();
+    }
+
+    void NeutralDialogueSession::pollVoice()
+    {
+        if (mSpeaker.isEmpty() || mVoice.pending() == 0)
+            return;
+        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+        if (sound == nullptr)
+            return;
+        const std::optional<std::string> path = mVoice.poll(sound->sayActive(mSpeaker));
+        if (!path)
+            return;
+        // The path is the pack's, relative to the sound folder; say() takes the VFS path, so the caller adds "sound/"
+        // (as the Morrowind dialogue does). The decoder reads a .fuz as a lip file plus xWMA audio.
+        Log(Debug::Info) << "NTALK voice: line " << mVoice.started() << " " << *path;
+        const VFS::Path::Normalized soundPath = Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(*path));
+        sound->say(mSpeaker, soundPath);
+        Log(Debug::Info) << "NTALK voice: line " << mVoice.started() << " "
+                         << (sound->sayActive(mSpeaker) ? "playing" : "did not start");
+    }
+
+    void NeutralDialogueSession::stopVoice()
+    {
+        mVoice.clear();
+        if (mSpeaker.isEmpty())
+            return;
+        if (MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager())
+            sound->stopSay(mSpeaker);
     }
 
     void NeutralDialogueSession::show()
@@ -170,6 +232,7 @@ namespace MWWorld
             return;
         }
         ++mPolls;
+        pollVoice();
         int pressed = MWBase::Environment::get().getWindowManager()->readPressedButton();
         for (const auto& [poll, button] : mScript)
         {
@@ -202,6 +265,7 @@ namespace MWWorld
                 }
                 mPager->setTurn(turn, mName);
                 show();
+                speak(turn);
                 return;
             }
             case NeutralDialogueChoice::Kind::Goodbye:
@@ -225,7 +289,11 @@ namespace MWWorld
     void NeutralDialogueSession::abandon()
     {
         if (mActive)
+        {
             Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";
+            stopVoice();
+        }
+        mSpeaker = Ptr();
         mActive = false;
         mInjected = -1;
         mPager.reset();

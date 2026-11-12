@@ -353,6 +353,13 @@ namespace game_skyrimse
                 const std::string* found = slot->find(text.mId);
                 return found != nullptr ? *found : std::string();
             });
+        if (mFiles != nullptr)
+        {
+            // Task 0143: a voice line is named only when its .fuz exists (loose, in a mod or in "Skyrim - Voices_*.bsa",
+            // whichever the session's VFS holds).
+            const FileSource* files = mFiles;
+            raw->mRuntime->setVoiceProbe([files](const std::string& path) { return files->exists("sound/" + path); });
+        }
         mDialogue = std::move(state);
         return true;
     }

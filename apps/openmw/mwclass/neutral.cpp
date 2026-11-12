@@ -155,7 +155,8 @@ namespace MWClass
                 }
                 Log(Debug::Info) << "NTALK " << base.mEditorId << ": greeting of " << turn.text.size() << " bytes, "
                                  << turn.topics.size() << " topics";
-                MWWorld::neutralDialogueSession().start(base.mGameId, turn, turn.speakerName.empty() ? base.mEditorId : turn.speakerName);
+                MWWorld::neutralDialogueSession().start(
+                    base.mGameId, turn, turn.speakerName.empty() ? base.mEditorId : turn.speakerName, mTarget);
             }
 
         public:

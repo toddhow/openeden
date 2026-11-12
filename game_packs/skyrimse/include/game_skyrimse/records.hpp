@@ -88,6 +88,11 @@ namespace game_skyrimse
         /// 0 stays 0. Nullopt when the plugin the id points into is not in the load order.
         [[nodiscard]] std::optional<FormId> resolve(std::uint32_t stored) const;
 
+        /// The inverse for this plugin's own records (task 0143): the id as THIS plugin stores a record it made,
+        /// (its master count << 24) | the low 24 bits. Nullopt when the load order id is not one of this plugin's own
+        /// records, and for a light plugin (not needed yet).
+        [[nodiscard]] std::optional<std::uint32_t> ownStoredId(FormId id) const;
+
     private:
         std::vector<std::optional<FormId>> mMasterPrefixes; // by master index; nullopt: not in the load order
         std::vector<bool> mMasterLight;

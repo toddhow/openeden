@@ -243,6 +243,78 @@ namespace
 
     using Turn = openeden::sdk::game::DialogueTurn;
 
+    /// other.esp (masters Skyrim.esm, test.esp) overrides the greeting INFO of test.esp with a new text.
+    Bytes overridePlugin()
+    {
+        Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 }, { "filler.esp", 0 }, { "test.esp", 0 } }, 24, 44);
+        // Master 2 is test.esp here: 0x02000020 is the INFO test.esp made (it stores it as 0x01000020). Only the topic's
+        // group is given, not the DIAL record, so the topic stays test.esp's.
+        bytes.append(top("DIAL", group4(0x02000300, kGrupTopicChildren, infoRecord(0x02000020, { "Changed." }))));
+        return bytes;
+    }
+
+    TEST(SkyrimVoiceOverride, theVoiceFileOfAnOverriddenInfoIsLookedForUnderThePluginThatMadeIt)
+    {
+        Talk talk;
+        // other.esp is loaded second: add its dialogue to the same index, so its INFO wins.
+        const Bytes second = overridePlugin();
+        DialogueRecords records;
+        Content::Error error;
+        ASSERT_TRUE(parseDialogueRecordsBytes(second.str(), "other.esp", order(), DialogueLimits(), records, error))
+            << error.mMessage;
+        const auto plugin = Content::Plugin::open(
+            std::make_unique<std::istringstream>(second.str(), std::ios::binary), "other.esp", error);
+        ASSERT_NE(plugin, nullptr);
+        talk.mDialogueIndex.add(std::move(records), FormIdResolver(plugin->header(), "other.esp", order()));
+
+        const DialogInfo* info = talk.mDialogueIndex.infosOf(kTopicHello).at(0);
+        EXPECT_EQ(talk.mDialogueIndex.pluginName(info->mPlugin), "other.esp");
+        const auto origin = talk.mDialogueIndex.voiceOriginOf(*info);
+        ASSERT_TRUE(origin.has_value());
+        EXPECT_EQ(origin->mPlugin, "test.esp");
+        EXPECT_EQ(origin->mStoredId, 0x01000020u);
+
+        talk.mFiles = { "voice/test.esp/malenord/dialoguegeneric_hello_01000020_1.fuz" };
+        talk.withProbe();
+        Turn turn;
+        std::string err;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(kNpcWithVoice), turn, err)) << err;
+        EXPECT_EQ(turn.text, "Changed.");
+        ASSERT_EQ(turn.voice.size(), 1u);
+        EXPECT_EQ(turn.voice[0], "voice/test.esp/malenord/dialoguegeneric_hello_01000020_1.fuz");
+    }
+
+    TEST(SkyrimVoiceOverride, theWinningPluginsFolderIsTheSecondChoice)
+    {
+        Talk talk;
+        const Bytes second = overridePlugin();
+        DialogueRecords records;
+        Content::Error error;
+        ASSERT_TRUE(parseDialogueRecordsBytes(second.str(), "other.esp", order(), DialogueLimits(), records, error));
+        const auto plugin = Content::Plugin::open(
+            std::make_unique<std::istringstream>(second.str(), std::ios::binary), "other.esp", error);
+        ASSERT_NE(plugin, nullptr);
+        talk.mDialogueIndex.add(std::move(records), FormIdResolver(plugin->header(), "other.esp", order()));
+        // Only the winner's folder has a file, under the id as other.esp stores it (master index 2 is test.esp there).
+        talk.mFiles = { "voice/other.esp/malenord/dialoguegeneric_hello_02000020_1.fuz" };
+        talk.withProbe();
+        Turn turn;
+        std::string err;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(kNpcWithVoice), turn, err)) << err;
+        ASSERT_EQ(turn.voice.size(), 1u);
+        EXPECT_EQ(turn.voice[0], "voice/other.esp/malenord/dialoguegeneric_hello_02000020_1.fuz");
+    }
+
+    TEST(SkyrimVoiceOverride, aRecordOfNoPluginOfTheIndexHasNoOrigin)
+    {
+        Talk talk;
+        DialogInfo info;
+        info.mCommon.mId = 0x07000020; // a plugin that is not in the load order
+        EXPECT_FALSE(talk.mDialogueIndex.voiceOriginOf(info).has_value());
+        info.mCommon.mId = kNullFormId;
+        EXPECT_FALSE(talk.mDialogueIndex.voiceOriginOf(info).has_value());
+    }
+
     // ---- what the index keeps ---------------------------------------------------------------------------------------------
 
     TEST(SkyrimVoiceIndex, theIndexKeepsThePluginFileNameAndTheVoiceTypeEditorIds)
