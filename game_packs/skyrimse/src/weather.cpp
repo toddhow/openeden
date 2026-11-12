@@ -373,6 +373,71 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- IMGS -----------------------------------------------------------------------------------------------------
+
+    bool decodeImageSpace(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, const WeatherLimits& limits, ImageSpaceRecord& out, std::string& why)
+    {
+        const Dec d{ context, limits, "IMGS", why };
+        out = ImageSpaceRecord();
+        out.mCommon = d.fields().common(record);
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        // A float that is not finite is a damaged subrecord: counted as odd and left out.
+        const auto finite = [](const std::byte* p, std::size_t count)
+        {
+            for (std::size_t i = 0; i < count; ++i)
+                if (!std::isfinite(readLe<float>(p + i * 4)))
+                    return false;
+            return true;
+        };
+        while ((status = reader.next(type, data)) == 1)
+        {
+            switch (type)
+            {
+                case Content::fourCC("EDID"):
+                    if (!d.text(type, data, out.mCommon.mEditorId))
+                        return false;
+                    break;
+                case Content::fourCC("CNAM"):
+                    if (data.size() == 12 && finite(data.data(), 3))
+                        out.mCinematic = ImageSpaceRecord::Cinematic{ readLe<float>(data.data()),
+                            readLe<float>(data.data() + 4), readLe<float>(data.data() + 8) };
+                    else
+                        d.odd(type);
+                    break;
+                case Content::fourCC("TNAM"):
+                    if (data.size() == 16 && finite(data.data(), 4))
+                        out.mTint = ImageSpaceRecord::Tint{ readLe<float>(data.data()), readLe<float>(data.data() + 4),
+                            readLe<float>(data.data() + 8), readLe<float>(data.data() + 12) };
+                    else
+                        d.odd(type);
+                    break;
+                case Content::fourCC("HNAM"):
+                    if (data.size() == 36 && finite(data.data(), 9))
+                    {
+                        std::array<float, 9> h{};
+                        for (std::size_t i = 0; i < 9; ++i)
+                            h[i] = readLe<float>(data.data() + i * 4);
+                        out.mHdr = h;
+                    }
+                    else
+                        d.odd(type);
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        return true;
+    }
+
     // ---- CLMT -----------------------------------------------------------------------------------------------------
 
     bool decodeClimate(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,
@@ -532,6 +597,7 @@ namespace game_skyrimse
                     case Content::fourCC("REGN"):
                     case Content::fourCC("WRLD"):
                     case Content::fourCC("CELL"):
+                    case Content::fourCC("IMGS"):
                         break;
                     default:
                         return true;
@@ -590,6 +656,14 @@ namespace game_skyrimse
                         ok = decodeClimate(bytes, record, mContext, mLimits, c, why);
                         if (ok)
                             mOut.mClimates.push_back(std::move(c));
+                        break;
+                    }
+                    case Content::fourCC("IMGS"):
+                    {
+                        ImageSpaceRecord i;
+                        ok = decodeImageSpace(bytes, record, mContext, mLimits, i, why);
+                        if (ok)
+                            mOut.mImageSpaces.push_back(std::move(i));
                         break;
                     }
                     case Content::fourCC("REGN"):
@@ -820,6 +894,7 @@ namespace game_skyrimse
         put(mRegions, records.mRegions);
         put(mWorlds, records.mWorlds);
         put(mCells, records.mCells);
+        put(mImageSpaces, records.mImageSpaces);
     }
 
     namespace

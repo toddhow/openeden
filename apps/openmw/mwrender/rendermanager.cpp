@@ -1999,6 +1999,11 @@ namespace MWRender
         mLightningDirection = direction;
     }
 
+    void RenderManager::setImageSpaceStops(float stops)
+    {
+        mImageSpaceStops = std::isfinite(stops) ? std::clamp(stops, -2.f, 2.f) : 0.f;
+    }
+
     void RenderManager::setWetness(float wetness)
     {
         mWetness = Render::Wetness::saturate(wetness);
@@ -3368,11 +3373,20 @@ namespace MWRender
             {
                 mTonemapSteppedAside = steppedAside;
                 mTonemap->setParameters(tonemapParameters(steppedAside));
+                mImageSpaceStopsApplied = 0.f; // the parameters were rebuilt without the grade; the next frame adds it
                 if (steppedAside)
                     Log(Debug::Info) << "HDR: a post-processing technique sets hdr, so the built-in tonemap only clips";
             }
         }
         updateVelocity();
+        if (mTonemap && std::abs(mImageSpaceStops - mImageSpaceStopsApplied) > 0.002f)
+        {
+            // The weather's image space brightness (task 0127): add the change to the tonemap's exposure.
+            auto parameters = mTonemap->parameters();
+            parameters.exposureStops += mImageSpaceStops - mImageSpaceStopsApplied;
+            mTonemap->setParameters(parameters);
+            mImageSpaceStopsApplied = mImageSpaceStops;
+        }
         if (mSssEnabled && mTonemap && mHdrTarget)
         {
             // The blur's size on the screen follows the projection and the target's height; set only when it moves.

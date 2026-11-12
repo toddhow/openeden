@@ -331,6 +331,7 @@ namespace game_skyrimse
         const FileSource* mFiles = nullptr;
         std::unique_ptr<WeatherIndex> mWeatherIndex; ///< built by the first weather ask; null before
         std::unique_ptr<WeatherTable> mWeatherTable; ///< over mWeatherIndex
+        std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         LoadOrder mOrder;

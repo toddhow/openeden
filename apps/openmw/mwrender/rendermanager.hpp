@@ -251,6 +251,10 @@ namespace MWRender
         /// light is tilted towards the flash by its share of the light, for the shadows and the shading. 0 indoors.
         /// Ignored unless lightning took effect. Main thread.
         void setLightning(float intensity, const vsg::vec3& direction);
+        /// Task 0127 stage W-S3: exposure, in stops, added to the tonemap's own (a game pack's image space brightness,
+        /// applied by the weather manager only with [Game] neutral weather image space). 0 is no change. Clamped to
+        /// +-2 stops. Needs hdr; otherwise ignored.
+        void setImageSpaceStops(float stops);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -604,6 +608,8 @@ namespace MWRender
         bool mHavePreviousCamera = false;
         std::chrono::steady_clock::time_point mPreviousCameraTime;
         void updateVelocity();
+        float mImageSpaceStops = 0.f; // wanted (task 0127)
+        float mImageSpaceStopsApplied = 0.f; // what the tonemap's parameters hold now
         bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled
         vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;
         vsg::ref_ptr<vsg::CommandGraph> mCommandGraph;

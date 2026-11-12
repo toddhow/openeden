@@ -244,6 +244,7 @@ namespace game_skyrimse
             const FileSource* files = mFiles;
             probe = [files](const std::string& path) { return files->exists("textures\\" + path); };
         }
+        mWeatherProbe = probe;
         mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex, probe);
         return true;
     }
@@ -268,7 +269,7 @@ namespace game_skyrimse
 
     bool SkyrimWorldView::describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out)
     {
-        return ensureWeather() && game_skyrimse::describeTimeOfDay(*mWeatherIndex, out);
+        return ensureWeather() && game_skyrimse::describeTimeOfDay(*mWeatherIndex, out, mWeatherProbe);
     }
 
     bool SkyrimWorldView::weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out)

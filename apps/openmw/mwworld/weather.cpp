@@ -264,6 +264,8 @@ namespace MWWorld
     {
         mDL.FogFactor = dlFactor;
         mDL.FogOffset = dlOffset;
+        mExtraClouds = params.extraClouds;
+        mImageSpace = params.imageSpace;
         for (size_t i = 0; i < mThunderSoundID.size(); ++i)
             mThunderSoundID[i] = ESM::RefId::stringRefId(params.thunderSoundId[i]);
 
@@ -692,6 +694,10 @@ namespace MWWorld
         , mSunPreSunsetTime(params.sunPreSunsetTime)
         , mNightFade(0, 0, 0, 1)
         , mHoursBetweenWeatherChanges(params.hoursBetweenWeatherChanges)
+        , mSunTexture(params.sunTexture)
+        , mSunGlareTexture(params.sunGlareTexture)
+        , mMasserAvailable(params.masser)
+        , mSecundaAvailable(params.secunda)
         , mRainSpeed(params.rainSpeed)
         , mUnderwaterFog(params.underwaterFog[0], params.underwaterFog[1], params.underwaterFog[2],
               params.underwaterFog[3])
@@ -1168,6 +1174,10 @@ namespace MWWorld
         mRendering.setSunColour(rendered->mSunColor, rendered->mSunColor * rendered->mGlareView * glareFade);
 
         mRendering.getSky()->setWeather(*rendered);
+        // Task 0127 stage W-S3: only with the setting (a game pack's image space brightness is a linear multiplier, so
+        // its logarithm is the exposure in stops); otherwise the renderer is never told.
+        if (Settings::game().mNeutralWeatherImageSpace.get())
+            mRendering.setImageSpaceStops(mResult.mHasGrade ? std::log2(std::max(mResult.mGrade.x, 0.25f)) : 0.f);
 
         // Play sounds
         if (mPlayingAmbientSoundID != mResult.mAmbientLoopSoundID)
@@ -1638,6 +1648,40 @@ namespace MWWorld
             mResult.mSunDiscColor.a = 1;
 
         mResult.mStormDirection = calculateStormDirection(mResult.mParticleEffect);
+
+        // Task 0127 stage W-S3 (a game pack's weather; Morrowind's weathers have none of this).
+        mResult.mSunTexture = mSunTexture;
+        mResult.mSunGlareTexture = mSunGlareTexture;
+        mResult.mMasserAvailable = mMasserAvailable;
+        mResult.mSecundaAvailable = mSecundaAvailable;
+        mResult.mExtraClouds.resize(current.mExtraClouds.size());
+        for (std::size_t i = 0; i < current.mExtraClouds.size(); ++i)
+        {
+            const ExtraCloudParams& e = current.mExtraClouds[i];
+            MWRender::ExtraCloudLayer& r = mResult.mExtraClouds[i];
+            r.mTexture = e.texture;
+            r.mAlpha = TimeOfDayInterpolator<float>(e.alpha[0], e.alpha[1], e.alpha[2], e.alpha[3])
+                           .getValue(gameHour, mTimeSettings, "Sky");
+            const vsg::vec4 tint = TimeOfDayInterpolator<vsg::vec4>(e.tint[0], e.tint[1], e.tint[2], e.tint[3])
+                                       .getValue(gameHour, mTimeSettings, "Sky");
+            r.mTint = vsg::vec3(tint.x, tint.y, tint.z);
+            r.mSpeed = e.speed;
+        }
+        mResult.mHasGrade = current.mImageSpace.has_value();
+        if (current.mImageSpace)
+        {
+            const ImageSpaceParams& g = *current.mImageSpace;
+            mResult.mGrade = TimeOfDayInterpolator<vsg::vec4>(g.grade[0], g.grade[1], g.grade[2], g.grade[3])
+                                 .getValue(gameHour, mTimeSettings, "Sky");
+            const vsg::vec4 tint = TimeOfDayInterpolator<vsg::vec4>(g.tint[0], g.tint[1], g.tint[2], g.tint[3])
+                                       .getValue(gameHour, mTimeSettings, "Sky");
+            mResult.mGradeTint = vsg::vec3(tint.x, tint.y, tint.z);
+        }
+        else
+        {
+            mResult.mGrade = vsg::vec4(1.f, 1.f, 1.f, 0.f);
+            mResult.mGradeTint = vsg::vec3(1.f, 1.f, 1.f);
+        }
     }
 
     inline void WeatherManager::calculateTransitionResult(const float factor, const float gameHour)
@@ -1653,6 +1697,17 @@ namespace MWWorld
         mResult.mCloudTexture = current.mCloudTexture;
         mResult.mNextCloudTexture = other.mCloudTexture;
         mResult.mCloudBlendFactor = mWeatherSettings[mNextWeather].cloudBlendFactor(factor);
+
+        // Task 0127 stage W-S3: the extra layers of the weather that is going fade out with the pictures, the next
+        // one's fade in (the same blend as the first picture's). At most as many as the renderer has.
+        {
+            blendExtraCloudLayers(current.mExtraClouds, other.mExtraClouds, mResult.mCloudBlendFactor, mResult.mExtraClouds);
+            mResult.mHasGrade = current.mHasGrade || other.mHasGrade;
+            mResult.mGrade = lerp(current.mGrade, other.mGrade, factor);
+            mResult.mGradeTint = vsg::vec3(lerp(current.mGradeTint.x, other.mGradeTint.x, factor),
+                lerp(current.mGradeTint.y, other.mGradeTint.y, factor),
+                lerp(current.mGradeTint.z, other.mGradeTint.z, factor));
+        }
 
         mResult.mFogColor = lerp(current.mFogColor, other.mFogColor, factor);
         mResult.mSunColor = lerp(current.mSunColor, other.mSunColor, factor);

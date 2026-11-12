@@ -1,15 +1,41 @@
 #ifndef VSGOPENMW_MWRENDER_WEATHERDATA_H
 #define VSGOPENMW_MWRENDER_WEATHERDATA_H
 
+#include <cstddef>
 #include <string>
+#include <vector>
 
 #include <components/esm/refid.hpp>
 #include <components/misc/vsgmath.hpp>
 
 namespace MWRender
 {
+    /// The renderer's pool of extra cloud layers (the SDK allows this many per weather).
+    inline constexpr std::size_t kMaxExtraCloudLayers = 8;
+
+    /// One more cloud picture drawn over the weather's first (OpenEden task 0127, stage W-S3; a game pack's weather
+    /// only). The alpha already holds the weather's share of a transition.
+    struct ExtraCloudLayer
+    {
+        std::string mTexture;
+        float mAlpha = 0.f;
+        vsg::vec3 mTint{ 1.f, 1.f, 1.f };
+        float mSpeed = 0.f;
+    };
+
     struct WeatherResult
     {
+        // OpenEden (task 0127, stage W-S3). All of these keep their defaults for Morrowind: no extra layers, no image
+        // space, the engine's own sun pictures, both moons.
+        std::vector<ExtraCloudLayer> mExtraClouds;
+        bool mHasGrade = false;
+        vsg::vec4 mGrade{ 1.f, 1.f, 1.f, 0.f }; // brightness, saturation, contrast, tint amount
+        vsg::vec3 mGradeTint{ 1.f, 1.f, 1.f };
+        std::string mSunTexture;
+        std::string mSunGlareTexture;
+        bool mMasserAvailable = true;
+        bool mSecundaAvailable = true;
+
         std::string mCloudTexture;
         std::string mNextCloudTexture;
         float mCloudBlendFactor;

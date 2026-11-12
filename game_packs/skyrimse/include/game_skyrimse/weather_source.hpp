@@ -49,6 +49,12 @@ namespace game_skyrimse
         inline constexpr std::uint8_t kNoThunderByte = 255;
         inline constexpr float kThunderFrequencyPerStep = 0.05f;
         inline constexpr float kThunderFrequencyMax = 1.f;
+        /// Extra cloud layers (task 0127 stage W-S3). A layer is drawn over the picture only when its largest alpha over
+        /// the four times of day reaches this (JNAM is 0 to 1 in the data; layers that are never visible are left out).
+        inline constexpr float kMinExtraLayerAlpha = 0.05f;
+        /// A texture of this name (case-insensitive) is a blank picture the data uses as a placeholder layer (several
+        /// installed weathers name Sky\Alpha.dds on layer 2): nothing is drawn for it.
+        inline constexpr const char* kBlankCloudTexture = "alpha.dds";
     }
 
     /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts as
@@ -59,12 +65,18 @@ namespace game_skyrimse
     /// (the disc at sunset); the picture is the first cloud layer with a texture that exists (some weathers name a
     /// leftover Oblivion texture on layer 0 that the game does not ship: the first frame drew the engine's purple
     /// fallback).
-    [[nodiscard]] openeden::sdk::game::WeatherDescription describeWeather(
-        const WeatherRecord& weather, const TextureProbe& textureExists = {});
+    /// The record an IMGS form id names, or null (the index's `imageSpace`).
+    using ImageSpaceLookup = std::function<const ImageSpaceRecord*(FormId)>;
+
+    [[nodiscard]] openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& weather,
+        const TextureProbe& textureExists = {}, const ImageSpaceLookup& imageSpaces = {});
 
     /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no climate
     /// has a timing.
-    [[nodiscard]] bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out);
+    /// Also (stage W-S3) the sun and sun glare pictures of that climate when `textureExists` (if given) finds them, and
+    /// which moons the climate has.
+    [[nodiscard]] bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out,
+        const TextureProbe& textureExists = {});
 
     /// The table of every weather of an index in ascending form id order, and the lists of cells over it. Holds a
     /// pointer to the index, which must outlive it.

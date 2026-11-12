@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -20,14 +21,15 @@
 // Units: colours are linear-looking 0..1 floats exactly as the game stores them divided by 255 (no gamma conversion is
 // done here); fogDepth is the engine's own fraction (see WeatherDescription::fogDepth); hours are 0..24 floats.
 //
-// Version policy: DRAFT 0.2 (0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
-// WeatherDescription, defaults mean "none"). Additive changes (a new trailing field with a default that means "not given", a new
+// Version policy: DRAFT 0.3 (0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
+// WeatherDescription, defaults mean "none"; 0.3, stage W-S3: extra cloud layers and the image space grade at the end of
+// WeatherDescription, the sun and moon fields at the end of TimeOfDayDescription, defaults mean "none given"). Additive changes (a new trailing field with a default that means "not given", a new
 // trailing virtual with a "not supported" default) raise the minor number; anything else raises the major number.
 // Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kWeatherSourceVersion{ 0, 2 };
+    inline constexpr Version kWeatherSourceVersion{ 0, 3 };
 
     struct WeatherColour
     {
@@ -51,6 +53,33 @@ namespace openeden::sdk::game
         Rain = 1,
         Snow = 2,
     };
+
+    /// One more cloud picture drawn over the first (task 0127 stage W-S3). Alpha and tint are by time of day, as the
+    /// game stores them; `speed` is the engine's cloud drift multiplier for this layer.
+    struct CloudLayerDescription
+    {
+        std::string texture;
+        PerTimeOfDay<float> alpha;
+        PerTimeOfDay<WeatherColour> tint;
+        float speed = 0.f;
+        friend bool operator==(const CloudLayerDescription&, const CloudLayerDescription&) = default;
+    };
+
+    /// The cinematic part of a game's image space for one time of day (task 0127 stage W-S3): neutral values are
+    /// saturation 1, brightness 1, contrast 1 and tint amount 0. The names follow the game's fields; the order of
+    /// saturation, brightness and contrast in the data is RECALLED-VERIFY (see the Skyrim pack).
+    struct ImageSpaceGrade
+    {
+        float saturation = 1.f;
+        float brightness = 1.f;
+        float contrast = 1.f;
+        float tintAmount = 0.f;
+        WeatherColour tint;
+        friend bool operator==(const ImageSpaceGrade&, const ImageSpaceGrade&) = default;
+    };
+
+    /// The maximum number of extra cloud layers a description may carry.
+    inline constexpr std::size_t kMaxExtraCloudLayers = 8;
 
     struct WeatherDescription
     {
@@ -85,6 +114,12 @@ namespace openeden::sdk::game
         /// The share of a transition after which the thunder starts (0..1).
         float thunderThreshold = 0.f;
 
+        // Added in 0.3. Defaults mean "no extra layers, no image space".
+        /// The cloud layers beyond the picture in `cloudTexture`, in draw order, at most kMaxExtraCloudLayers.
+        std::vector<CloudLayerDescription> extraCloudLayers;
+        bool hasImageSpace = false;
+        PerTimeOfDay<ImageSpaceGrade> imageSpace;
+
         friend bool operator==(const WeatherDescription&, const WeatherDescription&) = default;
     };
 
@@ -92,6 +127,12 @@ namespace openeden::sdk::game
     struct TimeOfDayDescription
     {
         float sunriseBegin = 6.f, sunriseEnd = 10.f, sunsetBegin = 18.f, sunsetEnd = 22.f;
+        // Added in 0.3 (the climate that gave the hours): the sun disc and sun glare pictures, relative to the game's
+        // texture root ("" for none given), and which moons the sky has (true when the data does not say).
+        std::string sunTexture;
+        std::string sunGlareTexture;
+        bool masser = true;
+        bool secunda = true;
         friend bool operator==(const TimeOfDayDescription&, const TimeOfDayDescription&) = default;
     };
 

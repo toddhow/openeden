@@ -94,6 +94,46 @@ namespace MWWorld
         }
     }
 
+    namespace
+    {
+        // Stage W-S3. The layers keep the pack's order; those past the cap, past the SDK's maximum, or with no picture
+        // are dropped. Alpha and tint are cleaned of values that are not finite.
+        void applyCloudLayersAndImageSpace(const openeden::sdk::game::WeatherDescription& w,
+            std::size_t maxExtraCloudLayers, WeatherParams& p)
+        {
+            const std::size_t cap = std::min(maxExtraCloudLayers, openeden::sdk::game::kMaxExtraCloudLayers);
+            const auto alpha = [](float a) { return std::isfinite(a) ? std::clamp(a, 0.f, 1.f) : 0.f; };
+            for (const openeden::sdk::game::CloudLayerDescription& l : w.extraCloudLayers)
+            {
+                if (p.extraClouds.size() >= cap)
+                    break;
+                if (l.texture.empty())
+                    continue;
+                ExtraCloudParams e;
+                e.texture = l.texture;
+                e.alpha = { alpha(l.alpha.sunrise), alpha(l.alpha.day), alpha(l.alpha.sunset), alpha(l.alpha.night) };
+                e.tint = colours(l.tint);
+                e.speed = std::isfinite(l.speed) ? std::max(l.speed, 0.f) : 0.f;
+                p.extraClouds.push_back(std::move(e));
+            }
+            if (w.hasImageSpace)
+            {
+                const auto finite = [](float v, float fallback) { return std::isfinite(v) ? v : fallback; };
+                ImageSpaceParams g;
+                const openeden::sdk::game::ImageSpaceGrade* in[4]
+                    = { &w.imageSpace.sunrise, &w.imageSpace.day, &w.imageSpace.sunset, &w.imageSpace.night };
+                for (std::size_t t = 0; t < 4; ++t)
+                {
+                    g.grade[t] = vsg::vec4(std::max(finite(in[t]->brightness, 1.f), 0.f),
+                        std::max(finite(in[t]->saturation, 1.f), 0.f), std::max(finite(in[t]->contrast, 1.f), 0.f),
+                        std::clamp(finite(in[t]->tintAmount, 0.f), 0.f, 1.f));
+                    g.tint[t] = colour(in[t]->tint);
+                }
+                p.imageSpace = g;
+            }
+        }
+    }
+
     int findWeatherByName(const std::vector<WeatherEntry>& weathers, const std::string& name)
     {
         const auto lower = [](std::string s)
@@ -108,7 +148,7 @@ namespace MWWorld
         return -1;
     }
 
-    WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& w)
+    WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& w, std::size_t maxExtraCloudLayers)
     {
         WeatherEntry entry;
         entry.name = !w.editorId.empty() ? w.editorId : "weather" + hex(w.id);
@@ -132,8 +172,30 @@ namespace MWWorld
         p.transitionDelta = w.transitionDelta;
         applyPrecipitation(w, entry);
         applyThunder(w, entry);
+        applyCloudLayersAndImageSpace(w, maxExtraCloudLayers, p);
         // Sound and the game's own particle data wait for a later stage: the loop sound ids stay empty or "None".
         return entry;
+    }
+
+    void blendExtraCloudLayers(const std::vector<MWRender::ExtraCloudLayer>& current,
+        const std::vector<MWRender::ExtraCloudLayer>& next, float blend, std::vector<MWRender::ExtraCloudLayer>& out)
+    {
+        blend = std::isfinite(blend) ? std::clamp(blend, 0.f, 1.f) : 0.f;
+        out.clear();
+        for (const MWRender::ExtraCloudLayer& layer : current)
+        {
+            if (out.size() >= MWRender::kMaxExtraCloudLayers)
+                return;
+            out.push_back(layer);
+            out.back().mAlpha *= 1.f - blend;
+        }
+        for (const MWRender::ExtraCloudLayer& layer : next)
+        {
+            if (out.size() >= MWRender::kMaxExtraCloudLayers)
+                return;
+            out.push_back(layer);
+            out.back().mAlpha *= blend;
+        }
     }
 
     WeatherManagerParams neutralManagerParams(const openeden::sdk::game::TimeOfDayDescription* timing)
@@ -155,6 +217,13 @@ namespace MWWorld
             out.sunsetDuration = 2.f;
         }
         out.sunPreSunsetTime = 0.f;
+        if (timing != nullptr)
+        {
+            out.sunTexture = timing->sunTexture;
+            out.sunGlareTexture = timing->sunGlareTexture;
+            out.masser = timing->masser;
+            out.secunda = timing->secunda;
+        }
         out.hoursBetweenWeatherChanges = NeutralWeatherConstants::kHoursBetweenWeatherChanges;
         out.rainSpeed = NeutralWeatherConstants::kRainSpeed;
         // Morrowind's underwater fog values: the pack has no water fog source yet.
@@ -262,8 +331,9 @@ namespace MWWorld
         out = {};
         out.manager = neutralManagerParams(hasTiming ? &timing : nullptr);
         out.weathers.reserve(weathers.size());
+        const std::size_t layers = static_cast<std::size_t>(std::clamp(Settings::game().mNeutralWeatherCloudLayers.get(), 0, 8));
         for (const openeden::sdk::game::WeatherDescription& w : weathers)
-            out.weathers.push_back(weatherEntryFromDescription(w));
+            out.weathers.push_back(weatherEntryFromDescription(w, layers));
         out.regions = std::make_shared<NeutralRegionProvider>(source, out.weathers.size());
         return true;
     }

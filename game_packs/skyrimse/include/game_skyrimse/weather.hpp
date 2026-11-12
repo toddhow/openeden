@@ -184,6 +184,29 @@ namespace game_skyrimse
         std::optional<std::array<std::uint8_t, 4>> mOnam;
     };
 
+    /// IMGS (task 0127 stage W-S3): the parts of an image space the engine can use. Sizes VERIFIED on the 268 records of
+    /// the five masters that have them: CNAM 12 bytes (three floats), TNAM 16 bytes (four floats), HNAM 36 bytes (nine
+    /// floats), DNAM 16 (or 12 in two records). The ORDER of the CNAM floats (saturation, brightness, contrast) is
+    /// RECALLED-VERIFY (xEdit's definition); the data supports it: the third value is 1.0 to 2.0 (a contrast never below
+    /// 1), the second 0.9 to 1.5 (brightness dims and brightens), the first 0.4 to 2.45. TNAM is amount then a colour
+    /// (all four 0 to 1: VERIFIED range). HNAM is kept raw: its meaning (eye adaptation, bloom) needs an auto-exposure
+    /// pass the engine does not have.
+    struct ImageSpaceRecord
+    {
+        RecordCommon mCommon;
+        struct Cinematic
+        {
+            float mSaturation = 1.f, mBrightness = 1.f, mContrast = 1.f;
+        };
+        struct Tint
+        {
+            float mAmount = 0.f, mR = 0.f, mG = 0.f, mB = 0.f;
+        };
+        std::optional<Cinematic> mCinematic;
+        std::optional<Tint> mTint;
+        std::optional<std::array<float, 9>> mHdr;
+    };
+
     /// One entry of a weather list (CLMT WLST, REGN RDWT): VERIFIED 12 bytes, a WTHR, a signed chance and a global
     /// (always 0 in the installed data).
     struct WeatherChance
@@ -267,6 +290,8 @@ namespace game_skyrimse
         const DecodeContext& context, const WeatherLimits& limits, WeatherRecord& out, std::string& why);
     [[nodiscard]] bool decodeClimate(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, const WeatherLimits& limits, ClimateRecord& out, std::string& why);
+    [[nodiscard]] bool decodeImageSpace(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, const WeatherLimits& limits, ImageSpaceRecord& out, std::string& why);
     [[nodiscard]] bool decodeRegionWeather(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, const WeatherLimits& limits, RegionWeatherRecord& out, std::string& why);
 
@@ -280,6 +305,7 @@ namespace game_skyrimse
         std::vector<ClimateRecord> mClimates;
         std::vector<RegionWeatherRecord> mRegions;
         std::vector<CellWeatherLinks> mCells;
+        std::vector<ImageSpaceRecord> mImageSpaces; ///< IMGS (task 0127 stage W-S3)
         DecodeNotes mNotes;
         std::map<std::uint32_t, TypeCount> mCounts; ///< by record type: seen, parsed, failed, deleted
         std::vector<Content::Error> mErrors;
@@ -310,6 +336,7 @@ namespace game_skyrimse
         [[nodiscard]] const RegionWeatherRecord* region(FormId id) const { return find(mRegions, id); }
         [[nodiscard]] const WorldSpaceRecord* world(FormId id) const { return find(mWorlds, id); }
         [[nodiscard]] const CellWeatherLinks* cell(FormId id) const { return find(mCells, id); }
+        [[nodiscard]] const ImageSpaceRecord* imageSpace(FormId id) const { return find(mImageSpaces, id); }
 
         [[nodiscard]] std::size_t weatherCount() const { return mWeathers.size(); }
         [[nodiscard]] std::size_t climateCount() const { return mClimates.size(); }
@@ -361,6 +388,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, RegionWeatherRecord> mRegions;
         std::unordered_map<FormId, WorldSpaceRecord> mWorlds;
         std::unordered_map<FormId, CellWeatherLinks> mCells;
+        std::unordered_map<FormId, ImageSpaceRecord> mImageSpaces;
     };
 }
 

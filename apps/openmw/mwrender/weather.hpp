@@ -141,6 +141,8 @@ namespace MWRender
         void updateRainParameters();
         void updateParticleOrientation();
         void applyVolumeClouds(const WeatherResult& weather);
+        void applyExtraClouds(const WeatherResult& weather);
+        void applySunAndMoons(const WeatherResult& weather);
         void applyCirrus(const WeatherResult& weather);
         void updateCirrus(float duration);
 
@@ -153,6 +155,15 @@ namespace MWRender
         vsgUtil::Toggle<AtmosphereNight> mAtmosphereNight;
         vsgUtil::Toggle<Clouds> mClouds;
         vsgUtil::Toggle<Clouds> mNextClouds;
+        // Task 0127 stage W-S3: more cloud pictures over the first (a game pack's weather; empty for Morrowind, so
+        // nothing extra is made), each with its own drift.
+        std::vector<vsgUtil::Toggle<Clouds>> mExtraClouds;
+        std::vector<float> mExtraCloudTimers;
+        std::vector<float> mExtraCloudSpeeds;
+        std::string mSunTextureName;
+        std::string mSunGlareTextureName;
+        bool mMasserAvailable = true;
+        bool mSecundaAvailable = true;
         vsgUtil::Toggle<Sun> mSun;
         vsgUtil::Toggle<Moon> mMasser;
         vsgUtil::Toggle<Moon> mSecunda;

@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <map>
 #include <limits>
 
 namespace
@@ -428,5 +429,211 @@ namespace
         EXPECT_FLOAT_EQ(describeWeather(thundering(0, 0, 0)).thunderFrequency, 0.f);
         // No DATA: none.
         EXPECT_FLOAT_EQ(describeWeather(weatherRecord(0x34, "NoData")).thunderFrequency, 0.f);
+    }
+
+    // ---- stage W-S3: extra cloud layers, the image space, the climate's sky pictures --------------------------------
+
+    void addLayer(WeatherRecord& w, std::size_t index, const char* texture,
+        std::optional<std::array<float, 4>> alpha = std::array<float, 4>{ 1.f, 1.f, 1.f, 1.f })
+    {
+        if (w.mCloudLayers.size() <= index)
+            w.mCloudLayers.resize(index + 1);
+        w.mCloudLayers[index].mHasTexture = true;
+        w.mCloudLayers[index].mTexture = texture;
+        w.mCloudLayers[index].mAlpha = alpha;
+        w.mCloudLayers[index].mSpeedQ = 127;
+        w.mCloudLayers[index].mSpeedR = 127;
+    }
+
+    TEST(SkyrimWeatherLayers, theOtherTexturedLayersFollowThePictureWithTheirAlphaTintAndSpeed)
+    {
+        WeatherRecord w = weatherRecord(0x40, "Layers");
+        addLayer(w, 0, "Sky\\A.dds");
+        addLayer(w, 1, "Sky\\B.dds", std::array<float, 4>{ 0.2f, 1.f, 0.5f, 0.8f });
+        w.mCloudLayers[1].mColour = std::array<Rgba8, 4>{ Rgba8{ 255, 0, 0, 0 }, Rgba8{ 0, 255, 0, 0 },
+            Rgba8{ 0, 0, 255, 0 }, Rgba8{ 51, 102, 153, 0 } };
+        w.mCloudLayers[1].mSpeedQ = 0; // 127 away: 2.0
+        const sdk::WeatherDescription d = describeWeather(w);
+        EXPECT_EQ(d.cloudTexture, "Sky\\A.dds");
+        ASSERT_EQ(d.extraCloudLayers.size(), 1u);
+        const sdk::CloudLayerDescription& l = d.extraCloudLayers[0];
+        EXPECT_EQ(l.texture, "Sky\\B.dds");
+        EXPECT_FLOAT_EQ(l.alpha.sunrise, 0.2f);
+        EXPECT_FLOAT_EQ(l.alpha.day, 1.f);
+        EXPECT_FLOAT_EQ(l.alpha.sunset, 0.5f);
+        EXPECT_FLOAT_EQ(l.alpha.night, 0.8f);
+        EXPECT_EQ(l.tint.sunrise, (sdk::WeatherColour{ 1.f, 0.f, 0.f }));
+        EXPECT_EQ(l.tint.sunset, (sdk::WeatherColour{ 0.f, 0.f, 1.f }));
+        EXPECT_EQ(l.tint.night, (sdk::WeatherColour{ 51 / 255.f, 102 / 255.f, 153 / 255.f }));
+        EXPECT_FLOAT_EQ(l.speed, 2.f);
+    }
+
+    TEST(SkyrimWeatherLayers, aLayerWithoutAlphaOrColourIsOpaqueAndWhite)
+    {
+        WeatherRecord w = weatherRecord(0x41, "Bare");
+        addLayer(w, 0, "Sky\\A.dds");
+        addLayer(w, 1, "Sky\\B.dds", std::nullopt);
+        const sdk::WeatherDescription d = describeWeather(w);
+        ASSERT_EQ(d.extraCloudLayers.size(), 1u);
+        EXPECT_FLOAT_EQ(d.extraCloudLayers[0].alpha.night, 1.f);
+        EXPECT_EQ(d.extraCloudLayers[0].tint.day, (sdk::WeatherColour{ 1.f, 1.f, 1.f }));
+    }
+
+    TEST(SkyrimWeatherLayers, blankDuplicateInvisibleMissingAndUncountedLayersAreLeftOut)
+    {
+        WeatherRecord w = weatherRecord(0x42, "Skips");
+        addLayer(w, 0, "Sky\\A.dds");
+        addLayer(w, 1, "SKY\\A.DDS"); // the picture again (case-insensitive)
+        addLayer(w, 2, "Sky\\Alpha.dds"); // the blank placeholder
+        addLayer(w, 3, "Sky\\Faint.dds", std::array<float, 4>{ 0.01f, 0.04f, 0.f, 0.02f }); // never visible
+        addLayer(w, 4, "Sky\\Gone.dds"); // not shipped
+        addLayer(w, 5, "Sky\\C.dds");
+        addLayer(w, 6, "Sky\\C.dds"); // twice
+        addLayer(w, 7, "Sky\\D.dds"); // past LNAM
+        w.mLayerCount = 7;
+        const auto exists = [](const std::string& path) { return path != "Sky\\Gone.dds"; };
+        const sdk::WeatherDescription d = describeWeather(w, exists);
+        ASSERT_EQ(d.extraCloudLayers.size(), 1u);
+        EXPECT_EQ(d.extraCloudLayers[0].texture, "Sky\\C.dds");
+        // A texture whose name merely ends in "alpha.dds" is not the placeholder.
+        WeatherRecord other = weatherRecord(0x43, "Other");
+        addLayer(other, 0, "Sky\\A.dds");
+        addLayer(other, 1, "Sky\\MyAlpha.dds");
+        EXPECT_EQ(describeWeather(other).extraCloudLayers.size(), 1u);
+    }
+
+    TEST(SkyrimWeatherLayers, atMostTheSdkMaximumAreKeptInOrder)
+    {
+        WeatherRecord w = weatherRecord(0x44, "Many");
+        for (std::size_t i = 0; i < 12; ++i)
+        {
+            const std::string name = "Sky\\L" + std::to_string(i) + ".dds";
+            addLayer(w, i, name.c_str());
+        }
+        const sdk::WeatherDescription d = describeWeather(w);
+        EXPECT_EQ(d.cloudTexture, "Sky\\L0.dds");
+        ASSERT_EQ(d.extraCloudLayers.size(), sdk::kMaxExtraCloudLayers);
+        EXPECT_EQ(d.extraCloudLayers.front().texture, "Sky\\L1.dds");
+        EXPECT_EQ(d.extraCloudLayers.back().texture, "Sky\\L8.dds");
+    }
+
+    TEST(SkyrimWeatherLayers, nonFiniteAlphaCountsAsZero)
+    {
+        WeatherRecord w = weatherRecord(0x45, "Nan");
+        addLayer(w, 0, "Sky\\A.dds");
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        addLayer(w, 1, "Sky\\B.dds", std::array<float, 4>{ nan, 0.5f, nan, 7.f });
+        const sdk::WeatherDescription d = describeWeather(w);
+        ASSERT_EQ(d.extraCloudLayers.size(), 1u);
+        EXPECT_FLOAT_EQ(d.extraCloudLayers[0].alpha.sunrise, 0.f);
+        EXPECT_FLOAT_EQ(d.extraCloudLayers[0].alpha.day, 0.5f);
+        EXPECT_FLOAT_EQ(d.extraCloudLayers[0].alpha.night, 1.f); // clamped
+    }
+
+    ImageSpaceRecord imageSpace(FormId id, float saturation, float brightness, float contrast, float amount = 0.f)
+    {
+        ImageSpaceRecord r;
+        r.mCommon.mId = id;
+        r.mCinematic = ImageSpaceRecord::Cinematic{ saturation, brightness, contrast };
+        if (amount > 0.f)
+            r.mTint = ImageSpaceRecord::Tint{ amount, 0.25f, 0.5f, 0.75f };
+        return r;
+    }
+
+    TEST(SkyrimWeatherImageSpace, fourImageSpacesGiveTheGradeByTimeOfDay)
+    {
+        WeatherRecord w = weatherRecord(0x50, "Graded");
+        w.mHasImageSpaces = true;
+        w.mImageSpaces = { 0x1, 0x2, 0x3, 0x4 };
+        std::map<FormId, ImageSpaceRecord> table;
+        table[0x1] = imageSpace(0x1, 1.1f, 1.2f, 1.3f);
+        table[0x2] = imageSpace(0x2, 1.5f, 1.05f, 1.75f, 0.5f);
+        table[0x3] = imageSpace(0x3, 0.9f, 0.95f, 1.f);
+        // 0x4 is not in the table
+        const ImageSpaceLookup lookup = [&](FormId id)
+        { return table.count(id) != 0 ? &table.at(id) : static_cast<const ImageSpaceRecord*>(nullptr); };
+        const sdk::WeatherDescription d = describeWeather(w, {}, lookup);
+        ASSERT_TRUE(d.hasImageSpace);
+        EXPECT_FLOAT_EQ(d.imageSpace.sunrise.saturation, 1.1f);
+        EXPECT_FLOAT_EQ(d.imageSpace.sunrise.brightness, 1.2f);
+        EXPECT_FLOAT_EQ(d.imageSpace.sunrise.contrast, 1.3f);
+        EXPECT_FLOAT_EQ(d.imageSpace.day.saturation, 1.5f);
+        EXPECT_FLOAT_EQ(d.imageSpace.day.brightness, 1.05f);
+        EXPECT_FLOAT_EQ(d.imageSpace.day.contrast, 1.75f);
+        EXPECT_FLOAT_EQ(d.imageSpace.day.tintAmount, 0.5f);
+        EXPECT_EQ(d.imageSpace.day.tint, (sdk::WeatherColour{ 0.25f, 0.5f, 0.75f }));
+        EXPECT_FLOAT_EQ(d.imageSpace.sunset.brightness, 0.95f);
+        // The missing one is neutral.
+        EXPECT_EQ(d.imageSpace.night, sdk::ImageSpaceGrade{});
+    }
+
+    TEST(SkyrimWeatherImageSpace, noLookupNoIdsOrNoCinematicMeansNoImageSpace)
+    {
+        WeatherRecord w = weatherRecord(0x51, "None");
+        w.mHasImageSpaces = true;
+        w.mImageSpaces = { 0x1, 0x2, 0x3, 0x4 };
+        EXPECT_FALSE(describeWeather(w).hasImageSpace); // no lookup given
+        ImageSpaceRecord noCinematic;
+        const ImageSpaceLookup lookup = [&](FormId) { return &noCinematic; };
+        EXPECT_FALSE(describeWeather(w, {}, lookup).hasImageSpace);
+        w.mHasImageSpaces = false;
+        const ImageSpaceRecord cinematic = imageSpace(1, 1.f, 1.f, 1.f);
+        const ImageSpaceLookup full = [&](FormId) { return &cinematic; };
+        EXPECT_FALSE(describeWeather(w, {}, full).hasImageSpace);
+    }
+
+    TEST(SkyrimWeatherImageSpace, theTableLooksImageSpacesUpInItsIndex)
+    {
+        WeatherRecords r;
+        WeatherRecord w = weatherRecord(0x60, "InTable");
+        w.mHasImageSpaces = true;
+        w.mImageSpaces = { 0x7, 0x7, 0x7, 0x7 };
+        r.mWeathers.push_back(w);
+        r.mImageSpaces.push_back(imageSpace(0x7, 1.f, 1.25f, 1.f));
+        WeatherIndex index;
+        index.add(r);
+        const WeatherTable table(index);
+        ASSERT_EQ(table.weathers().size(), 1u);
+        ASSERT_TRUE(table.weathers()[0].hasImageSpace);
+        EXPECT_FLOAT_EQ(table.weathers()[0].imageSpace.day.brightness, 1.25f);
+    }
+
+    TEST(SkyrimClimateSky, theWinningClimateGivesItsSunPicturesAndMoons)
+    {
+        WeatherRecords r;
+        ClimateRecord c = climate(2, 33, 60, 96, 123);
+        c.mSunTexture = "Sky\\Sun.dds";
+        c.mSunGlareTexture = "Sky\\SunGlare.dds";
+        c.mTiming->mMoonByte = 0x40 | 0x03; // Masser only
+        r.mClimates = { c };
+        WeatherIndex index;
+        index.add(r);
+        sdk::TimeOfDayDescription out;
+        ASSERT_TRUE(describeTimeOfDay(index, out));
+        EXPECT_EQ(out.sunTexture, "Sky\\Sun.dds");
+        EXPECT_EQ(out.sunGlareTexture, "Sky\\SunGlare.dds");
+        EXPECT_TRUE(out.masser);
+        EXPECT_FALSE(out.secunda);
+        // A picture that does not exist is not named.
+        sdk::TimeOfDayDescription probed;
+        ASSERT_TRUE(describeTimeOfDay(index, probed, [](const std::string& p) { return p == "Sky\\Sun.dds"; }));
+        EXPECT_EQ(probed.sunTexture, "Sky\\Sun.dds");
+        EXPECT_TRUE(probed.sunGlareTexture.empty());
+    }
+
+    TEST(SkyrimClimateSky, aClimateWithNoMoonBitsHasNoMoonsAndNoPicturesLeavesThemEmpty)
+    {
+        WeatherRecords r;
+        ClimateRecord c = climate(2, 33, 60, 96, 123);
+        c.mTiming->mMoonByte = 3;
+        r.mClimates = { c };
+        WeatherIndex index;
+        index.add(r);
+        sdk::TimeOfDayDescription out;
+        ASSERT_TRUE(describeTimeOfDay(index, out));
+        EXPECT_FALSE(out.masser);
+        EXPECT_FALSE(out.secunda);
+        EXPECT_TRUE(out.sunTexture.empty());
+        EXPECT_TRUE(out.sunGlareTexture.empty());
     }
 }

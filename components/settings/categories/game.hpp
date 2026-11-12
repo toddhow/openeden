@@ -99,6 +99,9 @@ namespace Settings
         SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
         SettingValue<bool> mNeutralActorIdles{ mIndex, "Game", "neutral actor idles" };
         SettingValue<bool> mNeutralWeather{ mIndex, "Game", "neutral weather" };
+        SettingValue<int> mNeutralWeatherCloudLayers{ mIndex, "Game", "neutral weather cloud layers",
+            makeClampSanitizerInt(0, 8) };
+        SettingValue<bool> mNeutralWeatherImageSpace{ mIndex, "Game", "neutral weather image space" };
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
         SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };
     };

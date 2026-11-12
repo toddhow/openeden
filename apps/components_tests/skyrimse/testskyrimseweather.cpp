@@ -1064,4 +1064,50 @@ namespace
         EXPECT_EQ(WeatherIndex::pickWeather(list, 0.25), std::optional<FormId>(0xA));
         EXPECT_EQ(WeatherIndex::pickWeather(list, 0.75), std::optional<FormId>(0xB));
     }
+
+    // ---- IMGS (task 0127, stage W-S3) -------------------------------------------------------------------------------
+
+    TEST(SkyrimImageSpaceDecode, cinematicTintAndHdrAreRead)
+    {
+        Fixture f;
+        ImageSpaceRecord r;
+        std::string why;
+        Bytes subs = sub4("EDID", Bytes().zstring("ISTest"));
+        subs.append(sub4("CNAM", Bytes().f32(1.5f).f32(1.1f).f32(1.25f)));
+        subs.append(sub4("TNAM", Bytes().f32(0.5f).f32(0.25f).f32(0.5f).f32(0.75f)));
+        Bytes hdr;
+        for (int i = 0; i < 9; ++i)
+            hdr.f32(static_cast<float>(i) + 0.5f);
+        subs.append(sub4("HNAM", hdr));
+        ASSERT_TRUE(decodeImageSpace(view(subs), raw("IMGS"), f.context(), f.mLimits, r, why)) << why;
+        EXPECT_EQ(r.mCommon.mEditorId, "ISTest");
+        ASSERT_TRUE(r.mCinematic.has_value());
+        EXPECT_FLOAT_EQ(r.mCinematic->mSaturation, 1.5f);
+        EXPECT_FLOAT_EQ(r.mCinematic->mBrightness, 1.1f);
+        EXPECT_FLOAT_EQ(r.mCinematic->mContrast, 1.25f);
+        ASSERT_TRUE(r.mTint.has_value());
+        EXPECT_FLOAT_EQ(r.mTint->mAmount, 0.5f);
+        EXPECT_FLOAT_EQ(r.mTint->mR, 0.25f);
+        EXPECT_FLOAT_EQ(r.mTint->mG, 0.5f);
+        EXPECT_FLOAT_EQ(r.mTint->mB, 0.75f);
+        ASSERT_TRUE(r.mHdr.has_value());
+        EXPECT_FLOAT_EQ((*r.mHdr)[8], 8.5f);
+    }
+
+    TEST(SkyrimImageSpaceDecode, wrongSizesAndNonFiniteFloatsAreOddAndLeaveTheFieldOut)
+    {
+        Fixture f;
+        ImageSpaceRecord r;
+        std::string why;
+        Bytes subs = sub4("CNAM", Bytes().f32(1.f).f32(1.f)); // 8 bytes
+        subs.append(sub4("TNAM", Bytes().f32(0.f).f32(std::numeric_limits<float>::quiet_NaN()).f32(0.f).f32(0.f)));
+        subs.append(sub4("HNAM", Bytes().f32(1.f)));
+        ASSERT_TRUE(decodeImageSpace(view(subs), raw("IMGS"), f.context(), f.mLimits, r, why)) << why;
+        EXPECT_FALSE(r.mCinematic.has_value());
+        EXPECT_FALSE(r.mTint.has_value());
+        EXPECT_FALSE(r.mHdr.has_value());
+        EXPECT_EQ(f.mNotes.mOddBy["IMGS.CNAM"], 1u);
+        EXPECT_EQ(f.mNotes.mOddBy["IMGS.TNAM"], 1u);
+        EXPECT_EQ(f.mNotes.mOddBy["IMGS.HNAM"], 1u);
+    }
 }

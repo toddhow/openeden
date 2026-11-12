@@ -149,6 +149,9 @@ namespace MWWorld
         std::string mName;
         std::string mCloudTexture;
         size_t mCloudTextureIndex = 0;
+        // Task 0127 stage W-S3 (a game pack's weather only): more cloud pictures and the image space.
+        std::vector<ExtraCloudParams> mExtraClouds;
+        std::optional<ImageSpaceParams> mImageSpace;
 
         // Sky (atmosphere) color
         TimeOfDayInterpolator<vsg::vec4> mSkyColor;
@@ -413,6 +416,11 @@ namespace MWWorld
         TimeOfDayInterpolator<float> mNightFade;
 
         float mHoursBetweenWeatherChanges;
+        // Task 0127 stage W-S3 (a game pack's climate): the sun pictures and the moons the sky has.
+        std::string mSunTexture;
+        std::string mSunGlareTexture;
+        bool mMasserAvailable = true;
+        bool mSecundaAvailable = true;
         float mRainSpeed;
 
         // underwater fog not really related to weather, but we handle it here because it's convenient

@@ -9,6 +9,7 @@
 
 #include <openeden/game/weather_source.hpp>
 
+#include "../mwrender/weatherdata.hpp"
 #include "weatherparams.hpp"
 
 // A game pack's weather in the engine's weather manager (OpenEden task 0127, stage W-S1; toddhow's answers of
@@ -49,7 +50,16 @@ namespace MWWorld
         inline constexpr float kThresholdDefault = 0.5f;
     }
 
-    [[nodiscard]] WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& weather);
+    /// `maxExtraCloudLayers`: how many of the description's extra cloud layers are kept (stage W-S3; 0 keeps none, the
+    /// single picture of W-S1). The image space is always carried; the manager applies it only when asked to.
+    [[nodiscard]] WeatherEntry weatherEntryFromDescription(
+        const openeden::sdk::game::WeatherDescription& weather, std::size_t maxExtraCloudLayers = 0);
+
+    /// During a transition the layers of the weather that is going fade with the first picture's blend (`blend` 0 to 1:
+    /// 0 is all the current weather's), and the next one's fade in. The result holds at most
+    /// MWRender::kMaxExtraCloudLayers, the current weather's first. `out` is cleared first.
+    void blendExtraCloudLayers(const std::vector<MWRender::ExtraCloudLayer>& current,
+        const std::vector<MWRender::ExtraCloudLayer>& next, float blend, std::vector<MWRender::ExtraCloudLayer>& out);
 
     /// `timing` null: the default hours (6 to 8 and 18 to 20, Morrowind's).
     [[nodiscard]] WeatherManagerParams neutralManagerParams(const openeden::sdk::game::TimeOfDayDescription* timing);

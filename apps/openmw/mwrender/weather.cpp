@@ -325,8 +325,44 @@ namespace MWRender
         std::unique_ptr<SunGlare> mGlare;
         vsg::ref_ptr<vsg::Node> mResetQueryPool;
         bool mPendingQuery = false;
+        // Task 0127 stage W-S3: what a changed sun picture needs. The groups' second state command is the descriptor
+        // set with the picture; it is replaced by a compiled one.
+        vsg::ref_ptr<vsg::PipelineLayout> mLayout;
+        vsg::ref_ptr<vsg::Sampler> mSunSampler;
+        vsg::ref_ptr<vsg::Sampler> mFlashSampler;
+        vsg::ref_ptr<vsg::StateGroup> mDrawGroup;
+        vsg::ref_ptr<vsg::StateGroup> mQueryGroup;
+        vsg::ref_ptr<vsg::StateGroup> mFlashGroup;
 
     public:
+        /// The picture of the sun disc (and of its occlusion query, which must count what is drawn) is replaced. False
+        /// when it could not be compiled; the old picture stays.
+        bool setDiscTexture(vsg::ref_ptr<vsg::Data> image, vsgUtil::CompileContext& compile)
+        {
+            if (!image || !mDrawGroup || !mQueryGroup)
+                return false;
+            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout,
+                Pipeline::TEXTURE_SET,
+                vsg::Descriptors{ vsg::DescriptorImage::create(mSunSampler, image), material.descriptor() });
+            if (!compile.compile(bds))
+                return false;
+            mDrawGroup->stateCommands[1] = bds;
+            mQueryGroup->stateCommands[1] = bds;
+            return true;
+        }
+        /// The glare picture (the quad drawn over the sun when it is seen through haze).
+        bool setGlareTexture(vsg::ref_ptr<vsg::Data> image, vsgUtil::CompileContext& compile)
+        {
+            if (!image || !mFlashGroup)
+                return false;
+            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout,
+                Pipeline::TEXTURE_SET,
+                vsg::Descriptors{ vsg::DescriptorImage::create(mFlashSampler, image), sunFlashMaterial.descriptor() });
+            if (!compile.compile(bds))
+                return false;
+            mFlashGroup->stateCommands[1] = bds;
+            return true;
+        }
         float glareView = 1.f;
         float glareTimeOfDayFade = 1.f;
         float visibleRatio = 0.f;
@@ -359,6 +395,8 @@ namespace MWRender
             auto sunTex = vsg::DescriptorImage::create(sampler, vsgUtil::readImage("tx_sun_05.dds", textureOptions));
 
             auto pipeline = builder.graphics->getOrCreate(pipelineOptions("sky/sun"));
+            mLayout = pipeline->pipeline->layout;
+            mSunSampler = sampler;
             auto sunBds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
                 Pipeline::TEXTURE_SET, vsg::Descriptors{ sunTex, material.descriptor() });
             {
@@ -370,6 +408,7 @@ namespace MWRender
                 auto sg = vsg::StateGroup::create();
                 sg->stateCommands = { drawPipeline, sunBds };
                 sg->children = { sDrawQuad };
+                mDrawGroup = sg;
                 addChild(sg);
             }
             addChild(vsg::EndQuery::create(mQueryPool, 0));
@@ -381,6 +420,7 @@ namespace MWRender
                 auto sg = vsg::StateGroup::create();
                 sg->stateCommands = { queryPipeline, sunBds };
                 sg->children = { sDrawQuad };
+                mQueryGroup = sg;
                 binGroup->addChild(sg);
             }
             binGroup->addChild(vsg::EndQuery::create(mQueryPool, 1));
@@ -398,6 +438,8 @@ namespace MWRender
                 auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline->layout,
                     Pipeline::TEXTURE_SET, vsg::Descriptors{ descriptorImage, sunFlashMaterial.descriptor() });
                 sg->stateCommands = { pipeline, bds };
+                mFlashGroup = sg;
+                mFlashSampler = flashSampler;
                 mFlash = vsg::ref_ptr{ new Anim::Transform };
                 mFlash->children = { sDrawQuad };
                 sg->children = { mFlash };
@@ -745,6 +787,17 @@ namespace MWRender
             auto node = vsgUtil::readNode(Settings::Manager::getString("skyclouds", "Models"), nodeOptions);
             mClouds.setup(vsg::ref_ptr{ new Clouds(node) }, mSwitch, false);
             mNextClouds.setup(vsg::ref_ptr{ new Clouds(node) }, mSwitch, false);
+            // Task 0127 stage W-S3: the pool of extra layers, only for a game pack's weather.
+            if (Settings::game().mNeutralWorld.get() && Settings::game().mNeutralWeather.get())
+            {
+                const std::size_t layers = static_cast<std::size_t>(
+                    std::clamp(Settings::game().mNeutralWeatherCloudLayers.get(), 0, static_cast<int>(kMaxExtraCloudLayers)));
+                mExtraClouds.resize(layers);
+                mExtraCloudTimers.assign(layers, 0.f);
+                mExtraCloudSpeeds.assign(layers, 0.f);
+                for (auto& layer : mExtraClouds)
+                    layer.setup(vsg::ref_ptr{ new Clouds(node) }, mSwitch, false);
+            }
             // shareDescriptorSet();
         }
 
@@ -861,6 +914,13 @@ namespace MWRender
         // morrowind rotates each cloud mesh independently
         vsg::dquat rotation = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mStormDirection);
         mClouds->setAttitude(vsg::quat(rotation));
+        for (std::size_t i = 0; i < mExtraClouds.size(); ++i)
+        {
+            mExtraCloudTimers[i] += duration * mExtraCloudSpeeds[i] * 0.003f;
+            mExtraClouds[i]->texmat.value() = vsg::translate(vsg::vec3(0, -mExtraCloudTimers[i], 0));
+            mExtraClouds[i]->texmat.dirty();
+            mExtraClouds[i]->setAttitude(vsg::quat(rotation));
+        }
 
         rotation = Misc::VsgMath::makeRotate(MWWorld::Weather::defaultDirection(), mNextStormDirection);
         mNextClouds->setAttitude(vsg::quat(rotation));
@@ -970,6 +1030,8 @@ namespace MWRender
         }
         mNextClouds.setEnabled(mCloudBlendFactor > 0.f && mNextClouds->textureValid() && !mCirrusDebugOn);
         mCloudSpeed = weather.mCloudSpeed;
+        applyExtraClouds(weather);
+        applySunAndMoons(weather);
         if (mCloudsLit || mCloudShadowsOn)
         {
             mCloudShareTarget = Render::Cloud::weatherShare(weather.mGlareView, weather.mIsStorm);
@@ -1006,6 +1068,47 @@ namespace MWRender
 
         mPrecipitationAlpha = weather.mPrecipitationAlpha;
         mLightSize = 8 + (weather.mNightFade * 20);
+    }
+
+    // Task 0127 stage W-S3. The extra layers use the same cloud pipeline as the first picture; each has its alpha (the
+    // game's, already scaled by a transition), tint (the game's, times the atmosphere's) and drift. With the volumetric
+    // clouds on the layers are not drawn (the volume replaces the cloud dome).
+    void Sky::applyExtraClouds(const WeatherResult& weather)
+    {
+        for (std::size_t i = 0; i < mExtraClouds.size(); ++i)
+        {
+            const bool used = i < weather.mExtraClouds.size() && !mCirrusDebugOn && !mVolumeCloudsOn;
+            if (used)
+            {
+                const ExtraCloudLayer& layer = weather.mExtraClouds[i];
+                mExtraClouds[i]->setTexture(getOrCreateCloudTexture(layer.mTexture), *mCompile);
+                mExtraClouds[i]->material.setAlpha(std::clamp(layer.mAlpha, 0.f, 1.f));
+                mExtraClouds[i]->material.setTint(vsg::vec3(layer.mTint.x * weather.mCloudTint.x,
+                    layer.mTint.y * weather.mCloudTint.y, layer.mTint.z * weather.mCloudTint.z));
+                mExtraCloudSpeeds[i] = layer.mSpeed;
+            }
+            mExtraClouds[i].setEnabled(used && mExtraClouds[i]->textureValid() && weather.mExtraClouds[i].mAlpha > 0.001f);
+        }
+    }
+
+    // The climate's sun pictures replace the engine's when they are named (once per name), and a moon the climate does
+    // not have is drawn with alpha 0.
+    void Sky::applySunAndMoons(const WeatherResult& weather)
+    {
+        if (!weather.mSunTexture.empty() && weather.mSunTexture != mSunTextureName)
+        {
+            mSunTextureName = weather.mSunTexture;
+            if (!mSun->setDiscTexture(vsgUtil::readImage(mSunTextureName, mTextureOptions), *mCompile))
+                Log(Debug::Warning) << "Sky: the sun picture " << mSunTextureName << " could not be used";
+        }
+        if (!weather.mSunGlareTexture.empty() && weather.mSunGlareTexture != mSunGlareTextureName)
+        {
+            mSunGlareTextureName = weather.mSunGlareTexture;
+            if (!mSun->setGlareTexture(vsgUtil::readImage(mSunGlareTextureName, mTextureOptions), *mCompile))
+                Log(Debug::Warning) << "Sky: the sun glare picture " << mSunGlareTextureName << " could not be used";
+        }
+        mMasserAvailable = weather.mMasserAvailable;
+        mSecundaAvailable = weather.mSecundaAvailable;
     }
 
     void Sky::sunEnable()
@@ -1057,14 +1160,20 @@ namespace MWRender
 
     void Sky::setMasserState(const MoonState& state)
     {
-        mMasser->setState(state);
+        MoonState shown = state;
+        if (!mMasserAvailable)
+            shown.mMoonAlpha = 0.f;
+        mMasser->setState(shown);
         // mMasser.setEnabled(isBelowHorizon);
         // CullScreenSpaceQuad(
     }
 
     void Sky::setSecundaState(const MoonState& state)
     {
-        mSecunda->setState(state);
+        MoonState shown = state;
+        if (!mSecundaAvailable)
+            shown.mMoonAlpha = 0.f;
+        mSecunda->setState(shown);
         // mSecunda.setEnabled(isBelowHorizon);
     }
 

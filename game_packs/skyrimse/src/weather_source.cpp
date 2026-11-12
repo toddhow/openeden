@@ -1,6 +1,7 @@
 #include "game_skyrimse/weather_source.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <map>
 #include <tuple>
@@ -52,7 +53,111 @@ namespace game_skyrimse
         }
     }
 
-    openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& w, const TextureProbe& textureExists)
+    namespace
+    {
+        bool sameTexture(const std::string& a, const std::string& b)
+        {
+            return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y)
+                { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); });
+        }
+
+        bool endsWithBlank(const std::string& path)
+        {
+            const std::string blank = WeatherScale::kBlankCloudTexture;
+            if (path.size() < blank.size())
+                return false;
+            const std::size_t at = path.size() - blank.size();
+            if (!sameTexture(path.substr(at), blank))
+                return false;
+            return at == 0 || path[at - 1] == '\\' || path[at - 1] == '/';
+        }
+
+        float cleanAlpha(float a)
+        {
+            return std::isfinite(a) ? std::clamp(a, 0.f, 1.f) : 0.f;
+        }
+
+        // Layers beyond the picture: the ones the record counts (LNAM, when it has one), that have a texture which
+        // exists, is not blank and is not already drawn, and that are visible at some time of day.
+        void addExtraLayers(const WeatherRecord& w, std::size_t picture, const TextureProbe& textureExists,
+            openeden::sdk::game::WeatherDescription& d)
+        {
+            const std::size_t limit
+                = w.mLayerCount ? std::min<std::size_t>(*w.mLayerCount, w.mCloudLayers.size()) : w.mCloudLayers.size();
+            std::vector<std::string> taken;
+            if (!d.cloudTexture.empty())
+                taken.push_back(d.cloudTexture);
+            for (std::size_t i = 0; i < limit && d.extraCloudLayers.size() < openeden::sdk::game::kMaxExtraCloudLayers;
+                 ++i)
+            {
+                const CloudLayer& l = w.mCloudLayers[i];
+                if (i == picture || !l.mHasTexture || l.mTexture.empty() || endsWithBlank(l.mTexture))
+                    continue;
+                if (textureExists && !textureExists(l.mTexture))
+                    continue;
+                if (std::any_of(
+                        taken.begin(), taken.end(), [&](const std::string& t) { return sameTexture(t, l.mTexture); }))
+                    continue;
+                const std::array<float, 4> alpha = l.mAlpha ? *l.mAlpha : std::array<float, 4>{ 1.f, 1.f, 1.f, 1.f };
+                float largest = 0.f;
+                for (float a : alpha)
+                    largest = std::max(largest, cleanAlpha(a));
+                if (largest < WeatherScale::kMinExtraLayerAlpha)
+                    continue;
+                openeden::sdk::game::CloudLayerDescription layer;
+                layer.texture = l.mTexture;
+                layer.alpha = { cleanAlpha(alpha[0]), cleanAlpha(alpha[1]), cleanAlpha(alpha[2]), cleanAlpha(alpha[3]) };
+                if (l.mColour)
+                {
+                    const auto c = [&](std::size_t t)
+                    {
+                        const Rgba8 v = (*l.mColour)[t];
+                        return openeden::sdk::game::WeatherColour{ v.r / 255.f, v.g / 255.f, v.b / 255.f };
+                    };
+                    layer.tint = { c(WeatherConstants::Sunrise), c(WeatherConstants::Day), c(WeatherConstants::Sunset),
+                        c(WeatherConstants::Night) };
+                }
+                else
+                    layer.tint = { { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 }, { 1, 1, 1 } };
+                layer.speed = cloudSpeedOf(w, i);
+                taken.push_back(layer.texture);
+                d.extraCloudLayers.push_back(std::move(layer));
+            }
+        }
+
+        // IMSP gives four image spaces in the time-of-day order (VERIFIED by their editor ids: DAWN, DAY, DUSK,
+        // NIGHT). A missing record or one without CNAM is neutral for that time.
+        void addImageSpace(
+            const WeatherRecord& w, const ImageSpaceLookup& lookup, openeden::sdk::game::WeatherDescription& d)
+        {
+            if (!lookup || !w.mHasImageSpaces)
+                return;
+            openeden::sdk::game::ImageSpaceGrade grades[4];
+            bool any = false;
+            for (std::size_t t = 0; t < 4; ++t)
+            {
+                const ImageSpaceRecord* r = w.mImageSpaces[t] != kNullFormId ? lookup(w.mImageSpaces[t]) : nullptr;
+                if (r == nullptr || !r->mCinematic)
+                    continue;
+                grades[t].saturation = r->mCinematic->mSaturation;
+                grades[t].brightness = r->mCinematic->mBrightness;
+                grades[t].contrast = r->mCinematic->mContrast;
+                if (r->mTint)
+                {
+                    grades[t].tintAmount = std::clamp(r->mTint->mAmount, 0.f, 1.f);
+                    grades[t].tint = { r->mTint->mR, r->mTint->mG, r->mTint->mB };
+                }
+                any = true;
+            }
+            if (!any)
+                return;
+            d.hasImageSpace = true;
+            d.imageSpace = { grades[0], grades[1], grades[2], grades[3] };
+        }
+    }
+
+    openeden::sdk::game::WeatherDescription describeWeather(
+        const WeatherRecord& w, const TextureProbe& textureExists, const ImageSpaceLookup& imageSpaces)
     {
         openeden::sdk::game::WeatherDescription d;
         d.id = w.mCommon.mId;
@@ -113,12 +218,15 @@ namespace game_skyrimse
                 d.thunderThreshold = w.mData->mThunderBegin / 255.f;
             }
         }
+        addExtraLayers(w, picture, textureExists, d);
+        addImageSpace(w, imageSpaces, d);
         d.cloudsMaximumPercent = 1.f;
         d.storm = false;
         return d;
     }
 
-    bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out)
+    bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out,
+        const TextureProbe& textureExists)
     {
         using Key = std::tuple<unsigned, unsigned, unsigned, unsigned>;
         std::map<Key, std::pair<int, FormId>> votes; // timing -> (climates, lowest id)
@@ -153,6 +261,21 @@ namespace game_skyrimse
         out.sunriseEnd = std::get<1>(*best) / 60.f;
         out.sunsetBegin = std::get<2>(*best) / 60.f;
         out.sunsetEnd = std::get<3>(*best) / 60.f;
+        // The sky pictures and moons of the climate that gave the hours (the lowest form id of the winning timing).
+        if (const ClimateRecord* c = index.climate(bestId))
+        {
+            const auto usable
+                = [&](const std::string& path) { return !path.empty() && (!textureExists || textureExists(path)); };
+            if (usable(c->mSunTexture))
+                out.sunTexture = c->mSunTexture;
+            if (usable(c->mSunGlareTexture))
+                out.sunGlareTexture = c->mSunGlareTexture;
+            if (c->mTiming)
+            {
+                out.masser = c->mTiming->hasMasser();
+                out.secunda = c->mTiming->hasSecunda();
+            }
+        }
         return true;
     }
 
@@ -164,7 +287,7 @@ namespace game_skyrimse
         for (const FormId id : mIds)
         {
             const WeatherRecord* w = index.weather(id);
-            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists) : openeden::sdk::game::WeatherDescription{});
+            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId id) { return mIndex->imageSpace(id); }) : openeden::sdk::game::WeatherDescription{});
         }
     }
 

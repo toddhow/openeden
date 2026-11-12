@@ -434,4 +434,142 @@ namespace
         EXPECT_FLOAT_EQ(e.params.rainEntranceSpeed, 0.f);
         EXPECT_FLOAT_EQ(e.params.rainThreshold, 0.f);
     }
+
+    // ---- stage W-S3 ----
+
+    sdk::CloudLayerDescription layer(const char* texture, float day, float speed)
+    {
+        sdk::CloudLayerDescription l;
+        l.texture = texture;
+        l.alpha = { 0.1f, day, 0.3f, 0.4f };
+        l.tint = { { 1.f, 0.f, 0.f }, { 0.f, 1.f, 0.f }, { 0.f, 0.f, 1.f }, { 0.5f, 0.5f, 0.5f } };
+        l.speed = speed;
+        return l;
+    }
+
+    TEST(MWWorldNeutralWeather, extra_cloud_layers_are_carried_in_order_up_to_the_cap)
+    {
+        sdk::WeatherDescription d = description();
+        d.extraCloudLayers = { layer("Sky\\B.dds", 0.9f, 1.5f), layer("Sky\\C.dds", 0.8f, 2.f), layer("Sky\\D.dds", 0.7f, 3.f) };
+        const MWWorld::WeatherEntry two = MWWorld::weatherEntryFromDescription(d, 2);
+        ASSERT_EQ(two.params.extraClouds.size(), 2u);
+        EXPECT_EQ(two.params.extraClouds[0].texture, "Sky\\B.dds");
+        EXPECT_EQ(two.params.extraClouds[1].texture, "Sky\\C.dds");
+        EXPECT_FLOAT_EQ(two.params.extraClouds[0].alpha[1], 0.9f);
+        EXPECT_FLOAT_EQ(two.params.extraClouds[0].alpha[3], 0.4f);
+        EXPECT_FLOAT_EQ(two.params.extraClouds[0].tint[1].y, 1.f);
+        EXPECT_FLOAT_EQ(two.params.extraClouds[0].tint[2].z, 1.f);
+        EXPECT_FLOAT_EQ(two.params.extraClouds[0].speed, 1.5f);
+        EXPECT_EQ(MWWorld::weatherEntryFromDescription(d, 8).params.extraClouds.size(), 3u);
+        // The default is the single picture of stage W-S1, and the picture itself is untouched.
+        EXPECT_TRUE(MWWorld::weatherEntryFromDescription(d).params.extraClouds.empty());
+        EXPECT_EQ(two.params.cloudTexture, "Sky\\SkyrimClouds01.dds");
+    }
+
+    TEST(MWWorldNeutralWeather, an_extra_layer_with_bad_numbers_is_cleaned_and_one_without_a_picture_is_dropped)
+    {
+        sdk::WeatherDescription d = description();
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        sdk::CloudLayerDescription bad = layer("Sky\\B.dds", nan, nan);
+        bad.alpha.night = 5.f;
+        d.extraCloudLayers = { layer("", 1.f, 1.f), bad };
+        const MWWorld::WeatherEntry e = MWWorld::weatherEntryFromDescription(d, 4);
+        ASSERT_EQ(e.params.extraClouds.size(), 1u);
+        EXPECT_FLOAT_EQ(e.params.extraClouds[0].alpha[1], 0.f);
+        EXPECT_FLOAT_EQ(e.params.extraClouds[0].alpha[3], 1.f);
+        EXPECT_FLOAT_EQ(e.params.extraClouds[0].speed, 0.f);
+    }
+
+    TEST(MWWorldNeutralWeather, an_image_space_is_carried_by_time_of_day_and_cleaned)
+    {
+        sdk::WeatherDescription d = description();
+        EXPECT_FALSE(MWWorld::weatherEntryFromDescription(d, 4).params.imageSpace.has_value());
+        d.hasImageSpace = true;
+        d.imageSpace.sunrise = { 1.1f, 1.2f, 1.3f, 0.5f, { 0.25f, 0.5f, 0.75f } };
+        d.imageSpace.day.brightness = 1.05f;
+        d.imageSpace.night.brightness = std::numeric_limits<float>::infinity();
+        d.imageSpace.night.tintAmount = 3.f;
+        const MWWorld::WeatherEntry e = MWWorld::weatherEntryFromDescription(d, 0);
+        ASSERT_TRUE(e.params.imageSpace.has_value());
+        const MWWorld::ImageSpaceParams& g = *e.params.imageSpace;
+        EXPECT_FLOAT_EQ(g.grade[0].x, 1.2f); // brightness
+        EXPECT_FLOAT_EQ(g.grade[0].y, 1.1f); // saturation
+        EXPECT_FLOAT_EQ(g.grade[0].z, 1.3f); // contrast
+        EXPECT_FLOAT_EQ(g.grade[0].w, 0.5f); // tint amount
+        EXPECT_FLOAT_EQ(g.tint[0].z, 0.75f);
+        EXPECT_FLOAT_EQ(g.grade[1].x, 1.05f);
+        EXPECT_FLOAT_EQ(g.grade[3].x, 1.f); // not finite: neutral
+        EXPECT_FLOAT_EQ(g.grade[3].w, 1.f); // clamped
+    }
+
+    TEST(MWWorldNeutralWeather, the_climate_sky_reaches_the_manager_params)
+    {
+        sdk::TimeOfDayDescription t;
+        t.sunTexture = "Sky\\Sun.dds";
+        t.sunGlareTexture = "Sky\\SunGlare.dds";
+        t.masser = true;
+        t.secunda = false;
+        const MWWorld::WeatherManagerParams p = MWWorld::neutralManagerParams(&t);
+        EXPECT_EQ(p.sunTexture, "Sky\\Sun.dds");
+        EXPECT_EQ(p.sunGlareTexture, "Sky\\SunGlare.dds");
+        EXPECT_TRUE(p.masser);
+        EXPECT_FALSE(p.secunda);
+        const MWWorld::WeatherManagerParams none = MWWorld::neutralManagerParams(nullptr);
+        EXPECT_TRUE(none.sunTexture.empty());
+        EXPECT_TRUE(none.masser);
+        EXPECT_TRUE(none.secunda);
+    }
+
+    MWRender::ExtraCloudLayer renderLayer(const char* texture, float alpha)
+    {
+        MWRender::ExtraCloudLayer l;
+        l.mTexture = texture;
+        l.mAlpha = alpha;
+        return l;
+    }
+
+    TEST(MWWorldNeutralWeather, during_a_transition_the_old_layers_fade_out_and_the_new_ones_fade_in)
+    {
+        const std::vector<MWRender::ExtraCloudLayer> current = { renderLayer("a", 1.f), renderLayer("b", 0.5f) };
+        const std::vector<MWRender::ExtraCloudLayer> next = { renderLayer("c", 0.8f) };
+        std::vector<MWRender::ExtraCloudLayer> out;
+        MWWorld::blendExtraCloudLayers(current, next, 0.25f, out);
+        ASSERT_EQ(out.size(), 3u);
+        EXPECT_EQ(out[0].mTexture, "a");
+        EXPECT_FLOAT_EQ(out[0].mAlpha, 0.75f);
+        EXPECT_FLOAT_EQ(out[1].mAlpha, 0.375f);
+        EXPECT_EQ(out[2].mTexture, "c");
+        EXPECT_FLOAT_EQ(out[2].mAlpha, 0.2f);
+        MWWorld::blendExtraCloudLayers(current, next, 0.f, out);
+        EXPECT_FLOAT_EQ(out[2].mAlpha, 0.f);
+        EXPECT_FLOAT_EQ(out[0].mAlpha, 1.f);
+        MWWorld::blendExtraCloudLayers(current, next, 7.f, out); // clamped to 1
+        EXPECT_FLOAT_EQ(out[0].mAlpha, 0.f);
+        EXPECT_FLOAT_EQ(out[2].mAlpha, 0.8f);
+        MWWorld::blendExtraCloudLayers(current, next, std::numeric_limits<float>::quiet_NaN(), out);
+        EXPECT_FLOAT_EQ(out[0].mAlpha, 1.f);
+    }
+
+    TEST(MWWorldNeutralWeather, a_transition_never_holds_more_layers_than_the_renderer_has)
+    {
+        std::vector<MWRender::ExtraCloudLayer> many;
+        for (std::size_t i = 0; i < MWRender::kMaxExtraCloudLayers; ++i)
+            many.push_back(renderLayer("x", 1.f));
+        std::vector<MWRender::ExtraCloudLayer> out;
+        MWWorld::blendExtraCloudLayers(many, many, 0.5f, out);
+        EXPECT_EQ(out.size(), MWRender::kMaxExtraCloudLayers);
+        MWWorld::blendExtraCloudLayers({}, {}, 0.5f, out);
+        EXPECT_TRUE(out.empty());
+    }
+
+    TEST(MWWorldNeutralWeather, a_morrowind_result_has_no_extras_and_both_moons_and_neutral_grade)
+    {
+        const MWRender::WeatherResult r{};
+        EXPECT_TRUE(r.mExtraClouds.empty());
+        EXPECT_FALSE(r.mHasGrade);
+        EXPECT_TRUE(r.mMasserAvailable);
+        EXPECT_TRUE(r.mSecundaAvailable);
+        EXPECT_TRUE(r.mSunTexture.empty());
+        EXPECT_FLOAT_EQ(r.mGrade.x, 1.f);
+    }
 }

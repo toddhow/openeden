@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,24 @@
 namespace MWWorld
 {
     class CellStore;
+
+    /// One more cloud picture drawn over the weather's first one (task 0127, stage W-S3; a game pack's weather only).
+    /// The arrays are in the order sunrise, day, sunset, night.
+    struct ExtraCloudParams
+    {
+        std::string texture;
+        std::array<float, 4> alpha{};
+        std::array<vsg::vec4, 4> tint{};
+        float speed = 0.f;
+    };
+
+    /// The cinematic part of a game's image space (stage W-S3), by time of day: x brightness, y saturation, z contrast,
+    /// w tint amount; the tint colour is separate. Only the brightness reaches the tonemap (as exposure).
+    struct ImageSpaceParams
+    {
+        std::array<vsg::vec4, 4> grade{};
+        std::array<vsg::vec4, 4> tint{};
+    };
 
     /// Everything one `Weather` reads from its source of numbers. The colour arrays are in the order sunrise, day,
     /// sunset, night.
@@ -52,6 +71,9 @@ namespace MWWorld
         std::array<std::string, 4> thunderSoundId;
         std::string rainLoopSoundId;
         std::string ambientLoopSoundId;
+        // Stage W-S3. Morrowind's INI gives none of these: no extra layers, no image space.
+        std::vector<ExtraCloudParams> extraClouds;
+        std::optional<ImageSpaceParams> imageSpace;
     };
 
     /// One entry of the weather table: the weather's name (its script-visible id), its numbers and the three values the
@@ -85,6 +107,12 @@ namespace MWWorld
         float starsPostSunsetStart = 0.f;
         float starsPreSunriseFinish = 0.f;
         float starsFadingDuration = 0.f;
+        // Stage W-S3 (a game pack's climate): the sun disc and glare pictures ("" keeps the engine's own) and which moons
+        // the sky has.
+        std::string sunTexture;
+        std::string sunGlareTexture;
+        bool masser = true;
+        bool secunda = true;
     };
 
     /// Morrowind's: the values the old constructors read from `Fallback::Map`.
