@@ -23,9 +23,9 @@ local function pathLength(path)
 end
 
 -- A point on the ground below (x, y): a ray from zTop down on the World and Heightmap layers.
-local function groundAt(x, y, zTop)
+local function groundAt(x, y, zTop, mask)
     local hit = nearby.castRay(util.vector3(x, y, zTop), util.vector3(x, y, zTop - 3000),
-        { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World + nearby.COLLISION_TYPE.HeightMap })
+        { ignore = self.object, collisionType = mask or (nearby.COLLISION_TYPE.World + nearby.COLLISION_TYPE.HeightMap) })
     if hit.hit then return hit.hitPos end
     return nil
 end
@@ -103,10 +103,13 @@ return {
             local n = math.floor(d.length / d.step)
             for i = 0, n do
                 local x, y = d.x + d.dx * i * d.step, d.y + d.dy * i * d.step
-                local g = groundAt(x, y, d.zTop)
+                local mask = nil
+                if d.layer == 'world' then mask = nearby.COLLISION_TYPE.World
+                elseif d.layer == 'height' then mask = nearby.COLLISION_TYPE.HeightMap end
+                local g = groundAt(x, y, d.zTop, mask)
                 out[#out + 1] = g and string.format('%.0f', g.z) or '.'
             end
-            print(string.format('NAV scan %s from %.0f,%.0f dir %.0f,%.0f step %d: %s', d.name, d.x, d.y, d.dx, d.dy, d.step, table.concat(out, ' ')))
+            print(string.format('NAV scan [%s] %s from %.0f,%.0f dir %.0f,%.0f step %d: %s', d.layer or 'both', d.name, d.x, d.y, d.dx, d.dy, d.step, table.concat(out, ' ')))
         end,
         NPPos = function()
             local p = self.object.position

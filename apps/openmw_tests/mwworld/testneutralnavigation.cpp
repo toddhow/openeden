@@ -1,9 +1,17 @@
+#include <Jolt/Jolt.h>
+
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/RegisterTypes.h>
+
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <limits>
 
 #include <apps/openmw/mwworld/neutralnavigation.hpp>
+
+#include <components/resource/physicsshape.hpp>
 
 // Task 0134: the pure decisions of what a neutral world tells the navigator.
 namespace
@@ -53,6 +61,37 @@ namespace
                  BaseKind::Door, BaseKind::Activator, BaseKind::Container, BaseKind::Tree, BaseKind::Actor,
                  BaseKind::Other })
             EXPECT_TRUE(neutralKindBlocksNavigation(kind)) << static_cast<int>(kind);
+    }
+
+    // The stand-in box of an object whose model has no collision triangles (an effect or a marker) is not a surface:
+    // docs/tasks/0134 (the cause of Whiterun's navmesh islands).
+    struct JoltAllocator
+    {
+        JoltAllocator() { JPH::RegisterDefaultAllocator(); }
+    };
+
+    TEST(NeutralNavigationShapes, theStandInBoxIsRecognisedWhereverItsCentreIs)
+    {
+        const JoltAllocator allocator;
+        const auto centred = Resource::makeBoxShape(vsg::vec3(50.f, 40.f, 30.f), vsg::vec3(0.f, 0.f, 0.f));
+        ASSERT_NE(centred, nullptr);
+        EXPECT_TRUE(neutralShapeIsStandInBox(*centred->mCollisionShape));
+        // a box with an offset centre is a box inside a RotatedTranslatedShape
+        const auto shifted = Resource::makeBoxShape(vsg::vec3(50.f, 40.f, 30.f), vsg::vec3(10.f, 20.f, 30.f));
+        ASSERT_NE(shifted, nullptr);
+        EXPECT_TRUE(neutralShapeIsStandInBox(*shifted->mCollisionShape));
+    }
+
+    TEST(NeutralNavigationShapes, aModelsOwnShapeIsNotAStandInBox)
+    {
+        const JoltAllocator allocator;
+        const JPH::Ref<JPH::SphereShape> sphere = new JPH::SphereShape(10.f);
+        EXPECT_FALSE(neutralShapeIsStandInBox(*sphere));
+        // a shifted sphere is still not a box
+        JPH::RotatedTranslatedShapeSettings settings(JPH::Vec3(1.f, 2.f, 3.f), JPH::Quat::sIdentity(), sphere);
+        const JPH::ShapeSettings::ShapeResult result = settings.Create();
+        ASSERT_FALSE(result.HasError());
+        EXPECT_FALSE(neutralShapeIsStandInBox(*result.Get()));
     }
 
     TEST(NeutralNavigationWater, aSquareWithWaterAndLandGetsItsLevelAndSize)

@@ -221,6 +221,12 @@ namespace
             {
                 // Task 0134: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
             }
+            else if (ptr.getType() == MWWorld::NeutralBase::sRecordId
+                && MWWorld::neutralShapeIsStandInBox(*object->getShapeInstance()->mCollisionShape))
+            {
+                // Task 0134: the stand-in box of a neutral object whose model has no collision triangles is a guess for
+                // physics, not a surface: it is not given to the navigator
+            }
             else if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)
             {
                 navigator.addObject(DetourNavigator::ObjectId(object),

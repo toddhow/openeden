@@ -1,5 +1,10 @@
 #include "neutralnavigation.hpp"
 
+#include <Jolt/Jolt.h>
+
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+
 #include <cmath>
 
 namespace MWWorld
@@ -19,6 +24,14 @@ namespace MWWorld
     {
         using openeden::sdk::game::BaseKind;
         return kind != BaseKind::Flora && kind != BaseKind::Item && kind != BaseKind::Light;
+    }
+
+    bool neutralShapeIsStandInBox(const JPH::Shape& shape)
+    {
+        const JPH::Shape* current = &shape;
+        while (current->GetSubType() == JPH::EShapeSubType::RotatedTranslated)
+            current = static_cast<const JPH::RotatedTranslatedShape*>(current)->GetInnerShape();
+        return current->GetSubType() == JPH::EShapeSubType::Box;
     }
 
     std::optional<NeutralNavigatorWater> neutralNavigatorWater(

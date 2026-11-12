@@ -15,5 +15,16 @@ return {
         { name = 'door to top of stairs', from = door, to = topOfStairs },
     },
     street = {},
+    -- Ground heights by ray along lines from the street start (25382,-7629,-3352): west and south.
+    scan = (function()
+        local out = {}
+        for _, layer in ipairs({ 'world', 'height' }) do
+            out[#out + 1] = { name = 'west', x = 25382, y = -7629, dx = -1, dy = 0, length = 600, step = 20, zTop = -3000, layer = layer }
+            out[#out + 1] = { name = 'south', x = 25382, y = -7629, dx = 0, dy = -1, length = 600, step = 20, zTop = -3000, layer = layer }
+            out[#out + 1] = { name = 'north', x = 25382, y = -7629, dx = 0, dy = 1, length = 600, step = 20, zTop = -3000, layer = layer }
+        end
+        return out
+    end)(),
+    objects = { 25382, -7629, 450 },
     fast = false,
 }

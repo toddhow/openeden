@@ -97,6 +97,21 @@ return {
             elseif step == 71 then
                 step = 8; at = t + 1
                 player:sendEvent('NPPos')
+                if scen.objects then
+                    local c = player.cell
+                    for _, obj in ipairs(c:getAll()) do
+                        local p = obj.position
+                        local d = math.sqrt((p.x - scen.objects[1]) ^ 2 + (p.y - scen.objects[2]) ^ 2)
+                        if d < scen.objects[3] then
+                            local okM, model = pcall(function() return obj.type.record(obj).model end)
+                            print(string.format('NAV obj %s at %.0f,%.0f,%.0f rot %.2f scale %.2f enabled=%s model=%s', tostring(obj.recordId), p.x, p.y, p.z,
+                                obj.rotation:getYaw(), obj.scale, tostring(obj.enabled), okM and tostring(model) or 'n/a'))
+                        end
+                    end
+                end
+                if scen.scan then
+                    for _, sc in ipairs(scen.scan) do player:sendEvent('NPScan', sc) end
+                end
                 if not scen.fast then
                     player:sendEvent('NPRing', { phase = 'street', radii = { 300, 700 }, retry = 6 }); waiting = true
                 end

@@ -50,10 +50,12 @@ NAVM import, door off-mesh connections for neutral doors, cover, per-NPC agent s
 
 Built in `I:\Projects\OpenEden-work\skynavuild` (RelWithDebInfo, branch `skynav`, same hand wrote tests and code, no fresh reviewer; Windows only).
 
-- Tests first: `testneutralnavigation.cpp` against a stub implementation: 5 of 7 failed (the 2 that passed pin absence), log `I:\Projects\OpenEden-work\skynaved_nav.txt`; after the real code 7 of 7 pass. No mutation checks run. `openmw-tests` 2,101 pass (2 skipped, real data), `components-tests` filtered to `DetourNavigator*:Settings*` 225 pass; the whole `components-tests` was not run.
+- Tests first: `testneutralnavigation.cpp` against a stub implementation: 5 of 7 failed (the 2 that passed pin absence), log `I:\Projects\OpenEden-work\skynav
+ed_nav.txt`; after the real code 7 of 7 pass. No mutation checks run. `openmw-tests` 2,101 pass (2 skipped, real data), `components-tests` filtered to `DetourNavigator*:Settings*` 225 pass; the whole `components-tests` was not run.
 - In game (`tools/neutral_session_check/check.sh ... WhiterunBanneredMare 200000 navpath`; `OPENEDEN_QUIET_WINDOW=1`): with the new default agent all 6 Mare queries Success at t = 0.0 s (door to bar 716 units, door to top of stairs 1,890 units, 10 nodes) and 22 of 24 ring queries; frames of the navmesh at the foot and top of the stairs viewed (`run4`/`run6` screenshots).
 - Tile build cost, from `OPENMW_DEBUG_LEVEL=DEBUG` job lines: 1,192 jobs, mean 6 ms, median 4 ms, max 51 ms (one worker thread).
-- Morrowind unchanged: `tools/worldobjects_check/check.sh` OK against the older reference build `ms0closeefdir` (110 lines equal); the fixed-frame Balmora screenshot has the same SHA-256 prefix `1c5d47ad0b5dc32d` for the new build and the reference. A Morrowind navmesh or Balmora path query was NOT compared in game: the agent rule for non-neutral sessions is the old code path (unit tested with no neutral override).
+- Morrowind unchanged: `tools/worldobjects_check/check.sh` OK against the older reference build `ms0close
+efdir` (110 lines equal); the fixed-frame Balmora screenshot has the same SHA-256 prefix `1c5d47ad0b5dc32d` for the new build and the reference. A Morrowind navmesh or Balmora path query was NOT compared in game: the agent rule for non-neutral sessions is the old code path (unit tested with no neutral override).
 - **Not run:** the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua integration tests, a fresh reviewer, a Skyrim exterior in the acceptance list, door off-mesh links, `navmeshtool` for Skyrim.
 
 ### Decisions for toddhow
@@ -61,3 +63,43 @@ Built in `I:\Projects\OpenEden-work\skynavuild` (RelWithDebInfo, branch `skynav
 1. Default `[Game] neutral pathfind half extents = 18 18 66.5`: the largest radius tried that passes every Mare query (22 passes the stairs but not the route to them). Skyrim's real capsule is unmeasured; the physics player still has Morrowind's 29 x 28 box, so the navmesh lets paths through gaps the player body may not fit. Reconcile with N5.
 2. The exterior needs its own investigation (next steps above) before M-S3's "path across Whiterun". Recast on real stairs works, so D8 (no NAVM import) stands for interiors; the exterior failure is not evidence for NAVM yet.
 3. Flora/item/light filter kept or dropped.
+
+## Stage 2: why Whiterun's navmesh is islands (root cause found and fixed)
+
+Branch `skynav2`, built in `I:\Projects\OpenEden-work\skynav2uild` (RelWithDebInfo; same hand wrote tests and code, no fresh reviewer; Windows only). The investigation was by experiment, with the navmesh read back as data: `[Navigator] enable write nav mesh to file` writes the Detour tiles (`all_tiles_navmesh.bin`), and a small parser (`I:\Projects\OpenEden-work\skynav2
+avbin.py`, not committed) reads polygons and `dtLink` connections, finds the connected components and draws them. `enable write recast mesh to file` gave the raw object triangles of a tile (`tri.py`).
+
+### Findings, in the order they were established
+
+1. **The navmesh is not broken into small islands by tiles or build latency; the player's own pocket is cut off.** Street start (25382,-7629,-3352): the nearest polygon belongs to a component of **9 polygons**; the plaza beside it is a component of 1,134 polygons, with a gap of about 200 units of no navmesh between them (frame of the polygons, height band round the start).
+2. **Not the heightfield overlap.** The terrain heightfield lies 130 to 170 units *below* the city's street meshes (ray scans from the street start: terrain z about -3516, static ground -3368 to -3392), so the two layers do not touch. Removing the heightfield from the navigator (experiment `noheight`) changes nothing for the pocket (ring results identical to baseline).
+3. **Not paving bumps or voxel size.** The raw triangles along a line west of the start (`tri.py`) are flat (normal y = 1.0) at -3369, -3385 to -3393 over the whole gap: continuous floor with steps of 8 to 17 units, under the 34 unit climb.
+4. **What fills the gap is a box.** The same line shows an up-facing surface at -3263 and a down-facing one at -3414 over exactly the gap (40 to 175 units west): a 150 unit tall solid. `OPENEDEN_NEUTRAL_COLLISION_TRACE` names it: `StockadeBarricade01Activator` (`stockadebarricade01.nif`) at (-90,-37,-3414) relative to the start, collision `box`. Those are the stand-in boxes of `MWClass::Neutral::insertObjectPhysics`: an object whose model gives no collision triangles (effect and marker models, a barricade) keeps the box of its bounds as its physics body (stage N3a-3). In the 25-cell Whiterun grid 38 fire effects, 35 chimney smokes, 21 smoke clouds, waterfalls, 9 barricades and many markers are such boxes. The navigator received them like real geometry, so each is a pillar the agent cannot cross.
+5. **Proof by removal.** Experiment (env hook, not kept): the navigator is not given neutral objects whose shape is a plain box. Ring of up to 16 targets (r 300 and 700; 15 had ground in these runs) from the street start, one run each, same scene:
+
+| | Success | PartialPath | start component | components in the whole mesh |
+| --- | --- | --- | --- | --- |
+| before (stage 1; two runs: 1 of 15 and 1 of 13 targets found ground) | 1 | 14 (ending 57 to 338 units out) | 9 polygons | 1,265 |
+| without stand-in boxes | 7 | 8 | 1,729 polygons | 969 |
+| without boxes and without the heightfield | 10 | 5 | 1,642 polygons | 811 |
+| without boxes and without trees (kind `Tree`) | 13 | 2 | not read | not read |
+
+   The remaining partial paths are two other causes, found the same way: **trees** (`BaseKind::Tree`): their visual triangles (trunk plus leaf cards, thickets, shrubs) are given to the navigator; leaving them out is worth 6 more Successes (second row from the bottom to the last), see below; and a few targets at r = 700 whose ground ray lands on the terrain layer under the city (the heightfield row).
+
+### The fix (commit 1)
+
+`MWWorld::neutralShapeIsStandInBox` (`neutralnavigation.*`, a Jolt box, maybe shifted by a RotatedTranslatedShape) and one branch in `scene.cpp`'s navigator part of `addObject`: a neutral object whose physics shape is the stand-in box is not given to the navigator. Physics is not changed (the box still stops the player; whether the stand-in should exist for effects and markers at all is a separate question, noted below). Morrowind: the branch is only taken for `NeutralBase` objects (`ptr.getType() == NeutralBase::sRecordId`), a record type that exists only in a game pack session.
+
+### Tests
+
+`NeutralNavigationShapes.theStandInBoxIsRecognisedWhereverItsCentreIs` and `..aModelsOwnShapeIsNotAStandInBox` in `apps/openmw_tests/mwworld/testneutralnavigation.cpp`, written first and run red against a stub that returns false (the box test failed with `Actual: false  Expected: true`, the sphere test passes against the stub as it pins absence); green with the real function. Existing tests are not edited.
+
+### Before and after (game, `tools/neutral_session_check/check.sh ... navpath`)
+
+See the changelog row in CLAUDE.md (not edited: the guide is owned by toddhow's review). The tool gained `scan` (ground heights by ray per layer) and `objects` (what stands near a point, with `enabled`) in `scenarios.lua`.
+
+### Not done / for toddhow
+
+1. **Trees.** Giving the navigator no `Tree` objects (commit 2, flagged: it edits the pinned kinds test `plantsCarriedThingsAndLightsDoNotBlockButSolidThingsDo`) takes the ring to 13 of 15. The cost is that paths may run through a trunk (the physics body still stops the walker). A trunk-only collision needs the model's own collision data (`bhk`), which the pack does not read.
+2. Whether effect and marker models should keep a physics box at all: they collide for the player today.
+3. The 2 remaining partials and the heightfield row are not run to ground (ground rays that hit the terrain layer under the city are a likely reason).

@@ -7,6 +7,11 @@
 
 #include <openeden/game/world_view.hpp>
 
+namespace JPH
+{
+    class Shape;
+}
+
 // Task 0134 (milestone M-S3 stage 1, docs/design/skyrim-se-implementation-plan.md 4.4): what a neutral (game pack)
 // world tells the navigator, the pure part.
 //
@@ -39,6 +44,15 @@ namespace MWWorld
     /// the original game: flora, items and lights are left out; everything else (statics, furniture, doors, containers,
     /// trees, activators, unknown kinds) blocks as before. Physics is not affected.
     [[nodiscard]] bool neutralKindBlocksNavigation(openeden::sdk::game::BaseKind kind);
+
+    /// Whether a neutral object's physics shape is the stand-in box (`Neutral::insertObjectPhysics`: the box of the
+    /// bounds an object gets when its model gives no collision triangles, such as an effect or marker model with no
+    /// surface). That box is only a guess for the physics body: it is not a surface that an actor walks on or is
+    /// stopped by, and giving it to the navigator cut Whiterun's streets into islands (task 0134, docs/tasks/0134):
+    /// 38 fire effects, 35 chimney smokes, markers and the stockade barricades near the Bannered Mare each left an
+    /// unwalkable pillar of recast voxels. The box is the shape of a `Resource::makeBoxShape` (a Jolt box, perhaps
+    /// shifted by a RotatedTranslatedShape); a model's own mesh is a mesh and never matches. Physics is not affected.
+    [[nodiscard]] bool neutralShapeIsStandInBox(const JPH::Shape& shape);
 
     /// A water plane for the navigator: the side of the square it covers and its height.
     struct NeutralNavigatorWater
