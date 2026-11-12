@@ -237,6 +237,9 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testpackfile.cpp
     havokpack/testspline.cpp
     havokpack/testexport.cpp
+    havokpack/testanimationdata.cpp
+    havokpack/testfloattracks.cpp
+    havokpack/testexportmotion.cpp
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

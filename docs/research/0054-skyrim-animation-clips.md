@@ -83,6 +83,11 @@ rotation row `time x y z w`). Meaning of each field is inferred from three sampl
 root motion and the annotation events of a Skyrim clip are available as text with no Havok involvement at all**, which
 removes two of the plan's listed risks (root-motion extraction and annotation tracks) for the clips this data covers.
 
+**Update 2026-11-11 (task 0119 stage 7):** the formats are now settled by data over all the files and read by
+`components/havokpack/animationdata.*`: provenance F44 to F53. The "324 files" are 323 project files and a project
+list; the `boundanims` rows are cumulative root motion keyed by a cache index (not a file name), and event times
+are playback time (animation time = stored time x playback speed).
+
 ## 3. Clip compression: what is public, from where, and under what terms
 
 ### 3.1 The scheme (RECALLED-VERIFY, all of it)

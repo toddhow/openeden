@@ -41,11 +41,21 @@ namespace HavokPack
             {
                 switch (ch)
                 {
-                    case '"': out += "\\\""; break;
-                    case '\\': out += "\\\\"; break;
-                    case '\n': out += "\\n"; break;
-                    case '\r': out += "\\r"; break;
-                    case '\t': out += "\\t"; break;
+                    case '"':
+                        out += "\\\"";
+                        break;
+                    case '\\':
+                        out += "\\\\";
+                        break;
+                    case '\n':
+                        out += "\\n";
+                        break;
+                    case '\r':
+                        out += "\\r";
+                        break;
+                    case '\t':
+                        out += "\\t";
+                        break;
                     default:
                         if (static_cast<unsigned char>(ch) < 0x20)
                         {
@@ -131,7 +141,38 @@ namespace HavokPack
         return pose;
     }
 
-    std::string writeGltf(const Skeleton& skeleton, const Clip& clip, const std::string& name)
+    namespace
+    {
+        // The animation's `extras`: every linked generator with its events, and the root motion's identity. Empty when
+        // there is nothing to say.
+        std::string sidecarExtras(const ClipLink& link)
+        {
+            if (link.mClips.empty() && link.mMotion == nullptr)
+                return {};
+            std::string out = ",\"extras\":{\"sidecar\":{\"generators\":[";
+            for (std::size_t g = 0; g < link.mClips.size(); ++g)
+            {
+                const SidecarClip& c = *link.mClips[g];
+                out += (g > 0 ? ",{" : "{") + std::string("\"name\":") + quote(c.mName)
+                    + ",\"cacheIndex\":" + std::to_string(c.mCacheIndex)
+                    + ",\"playbackSpeed\":" + number(c.mPlaybackSpeed) + ",\"events\":[";
+                for (std::size_t e = 0; e < c.mEvents.size(); ++e)
+                    out += (e > 0 ? ",{" : "{") + std::string("\"name\":") + quote(c.mEvents[e].mName)
+                        + ",\"time\":" + number(c.mEvents[e].mTime)
+                        + ",\"animationTime\":" + number(eventAnimationTime(c, c.mEvents[e])) + "}";
+                out += "]}";
+            }
+            out += "]";
+            if (link.mMotion != nullptr)
+                out += ",\"rootMotion\":{\"cacheIndex\":" + std::to_string(link.mMotion->mCacheIndex)
+                    + ",\"duration\":" + number(link.mMotion->mDuration)
+                    + ",\"translationRows\":" + std::to_string(link.mMotion->mTranslation.size()) + ",\"rotationRows\":"
+                    + std::to_string(link.mMotion->mRotation.size()) + ",\"rotationApplied\":false}";
+            return out + "}}";
+        }
+    }
+
+    std::string writeGltf(const Skeleton& skeleton, const Clip& clip, const std::string& name, const ClipLink& link)
     {
         const std::size_t bones = skeleton.mBoneNames.size();
         for (std::uint32_t t = 0; t < clip.mNumTransformTracks; ++t)
@@ -185,13 +226,29 @@ namespace HavokPack
                 + ",\"path\":\"" + path + "\"}}";
             ++samplerCount;
         };
+        // Root motion (translation only) goes to the first root bone, at every frame.
+        const MotionBlock* motion = link.mMotion;
+        std::size_t rootBone = 0;
+        while (rootBone < bones && skeleton.mParents[rootBone] >= 0)
+            ++rootBone;
+        if (rootBone >= bones)
+            motion = nullptr;
+        auto motionAt = [&](std::uint32_t f) {
+            return motion != nullptr ? rootTranslationAt(*motion, static_cast<float>(f) * clip.mFrameDuration)
+                                     : std::array<float, 3>{ 0, 0, 0 };
+        };
+        bool rootHasTrack = false;
         for (std::uint32_t t = 0; t < clip.mNumTransformTracks; ++t)
         {
             std::vector<float> translation, rotation, scale;
+            const bool isRoot = motion != nullptr && !rootHasTrack && clip.boneOfTrack(t) == rootBone;
+            rootHasTrack = rootHasTrack || isRoot;
             for (std::uint32_t f = 0; f < frames; ++f)
             {
                 const Transform& x = sampled[f][t];
-                translation.insert(translation.end(), x.mTranslation.begin(), x.mTranslation.end());
+                const auto m = isRoot ? motionAt(f) : std::array<float, 3>{ 0, 0, 0 };
+                for (int k = 0; k < 3; ++k)
+                    translation.push_back(x.mTranslation[k] + m[k]);
                 rotation.insert(rotation.end(), x.mRotation.begin(), x.mRotation.end());
                 scale.insert(scale.end(), x.mScale.begin(), x.mScale.end());
             }
@@ -199,6 +256,17 @@ namespace HavokPack
             addChannel(bone, "translation", "VEC3", 3, translation);
             addChannel(bone, "rotation", "VEC4", 4, rotation);
             addChannel(bone, "scale", "VEC3", 3, scale);
+        }
+        if (motion != nullptr && !rootHasTrack)
+        {
+            std::vector<float> translation;
+            for (std::uint32_t f = 0; f < frames; ++f)
+            {
+                const auto m = motionAt(f);
+                for (int k = 0; k < 3; ++k)
+                    translation.push_back(skeleton.mReferencePose[rootBone].mTranslation[k] + m[k]);
+            }
+            addChannel(static_cast<std::uint32_t>(rootBone), "translation", "VEC3", 3, translation);
         }
 
         std::string nodes;
@@ -232,23 +300,29 @@ namespace HavokPack
                 accessors += ",";
                 bufferViews += ",";
             }
-            bufferViews += "{\"buffer\":0,\"byteOffset\":" + std::to_string(v.mOffset) + ",\"byteLength\":"
-                + std::to_string(v.mBytes) + "}";
-            accessors += "{\"bufferView\":" + std::to_string(i) + ",\"componentType\":5126,\"count\":"
-                + std::to_string(v.mCount) + ",\"type\":\"" + v.mType + "\"";
+            bufferViews += "{\"buffer\":0,\"byteOffset\":" + std::to_string(v.mOffset)
+                + ",\"byteLength\":" + std::to_string(v.mBytes) + "}";
+            accessors += "{\"bufferView\":" + std::to_string(i)
+                + ",\"componentType\":5126,\"count\":" + std::to_string(v.mCount) + ",\"type\":\"" + v.mType + "\"";
             if (!v.mMin.empty())
                 accessors += ",\"min\":" + v.mMin + ",\"max\":" + v.mMax;
             accessors += "}";
         }
 
-        std::string out = "{\"asset\":{\"version\":\"2.0\",\"generator\":\"OpenEden hkxconvert\",\"extras\":{\"units\":"
-                          "\"as stored in the .hkx (Havok units)\",\"axes\":\"as stored (not converted to Y up)\"}},";
+        std::string out
+            = "{\"asset\":{\"version\":\"2.0\",\"generator\":\"OpenEden hkxconvert\",\"extras\":{\"units\":"
+              "\"as stored in the .hkx (Havok units)\",\"axes\":\"as stored (not converted to Y up)\"}},";
         out += "\"scene\":0,\"scenes\":[{\"nodes\":[" + roots + "]}],\"nodes\":[" + nodes + "],";
         out += "\"animations\":[{\"name\":" + quote(name) + ",\"channels\":[" + channels + "],\"samplers\":[" + samplers
-            + "]}],";
+            + "]" + sidecarExtras(link) + "}],";
         out += "\"accessors\":[" + accessors + "],\"bufferViews\":[" + bufferViews + "],";
         out += "\"buffers\":[{\"byteLength\":" + std::to_string(buffer.size())
             + ",\"uri\":\"data:application/octet-stream;base64," + base64(buffer) + "\"}]}";
         return out;
+    }
+
+    std::string writeGltf(const Skeleton& skeleton, const Clip& clip, const std::string& name)
+    {
+        return writeGltf(skeleton, clip, name, ClipLink{});
     }
 }

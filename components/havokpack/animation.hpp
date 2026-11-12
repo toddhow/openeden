@@ -59,6 +59,15 @@ namespace HavokPack
         Spline mSpline; // four dimensions; neighbouring points are in one hemisphere
     };
 
+    // A float track in one block (stage 7): one value, or a spline of one dimension. Skyrim SE uses them for the
+    // visibility and fade slots of the skeleton ("hkVis:Weapon", "hkFade:AnimObjectA", ...), provenance F37 to F43.
+    struct FloatTrackBlock
+    {
+        bool mAnimated = false;
+        float mConstant = 0;
+        Spline mSpline; // one dimension, when mAnimated
+    };
+
     struct TrackBlock
     {
         VectorTrack mPosition;
@@ -82,11 +91,19 @@ namespace HavokPack
         std::uint32_t mNonFiniteValues = 0;
         // [block][track]
         std::vector<std::vector<TrackBlock>> mBlocks;
+        // [block][float track]; empty when the clip has no float tracks
+        std::vector<std::vector<FloatTrackBlock>> mFloatBlocks;
+        // Float slot of each float track (the skeleton's mFloatSlots index); empty means track i drives slot i.
+        std::vector<std::int16_t> mFloatTrackToSlot;
 
         // The bone each track drives.
         std::uint32_t boneOfTrack(std::uint32_t track) const
         {
             return mTrackToBone.empty() ? track : static_cast<std::uint32_t>(mTrackToBone[track]);
+        }
+        std::uint32_t slotOfFloatTrack(std::uint32_t track) const
+        {
+            return mFloatTrackToSlot.empty() ? track : static_cast<std::uint32_t>(mFloatTrackToSlot[track]);
         }
     };
 
@@ -95,6 +112,10 @@ namespace HavokPack
 
     // 40-bit quaternion (five bytes) to x y z w. Exposed for tests.
     std::array<float, 4> unpackQuaternion40(const std::uint8_t* five);
+
+    // Writes the value of each float track (out.size() must be mNumFloatTracks) at `time` seconds, clamped to
+    // [0, duration]. Allocates nothing.
+    void sampleFloats(const Clip& clip, float time, std::span<float> out);
 
     // Writes one transform per track (out.size() must be mNumTransformTracks) at `time` seconds, clamped to
     // [0, duration]. Throws nothing; allocates nothing.

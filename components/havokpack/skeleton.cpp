@@ -11,6 +11,7 @@ namespace HavokPack
         constexpr std::uint32_t ParentsOffset = 24;
         constexpr std::uint32_t BonesOffset = 40;
         constexpr std::uint32_t ReferencePoseOffset = 56;
+        constexpr std::uint32_t FloatSlotsOffset = 88; // provenance F42: an array of string pointers
         constexpr std::uint32_t BoneStride = 16; // hkaBone: name pointer, lock flag, padding
         constexpr std::uint32_t TransformStride = 48; // hkQsTransform: translation, rotation, scale as 4 floats each
 
@@ -75,6 +76,16 @@ namespace HavokPack
                     norm += v * v;
                 if (!std::isfinite(norm) || std::fabs(norm - 1.0f) > 0.01f)
                     bad(file, at, "bone " + std::to_string(i) + " has a rotation that is not a unit quaternion");
+            }
+            const ArrayRef slots = file.arrayAt(field(FloatSlotsOffset));
+            if (slots.mSize > limits.mMaxFloatSlots)
+                bad(file, at, "too many float slots (" + std::to_string(slots.mSize) + ")");
+            for (std::uint32_t i = 0; i < slots.mSize; ++i)
+            {
+                const auto name = file.pointerAt({ slots.mData->mSection, slots.mData->mOffset + 8 * i });
+                if (!name)
+                    bad(file, at, "float slot " + std::to_string(i) + " has no name");
+                s.mFloatSlots.emplace_back(file.cstring(*name));
             }
             out.push_back(std::move(s));
         }

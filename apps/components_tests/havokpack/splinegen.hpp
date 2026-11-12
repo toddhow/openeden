@@ -108,6 +108,25 @@ namespace HavokPackTest
         VecDesc mScale;
     };
 
+    // One float track of one block (stage 7): mask 0 stores nothing, 0x03 one float, 0x12 a spline of 16-bit values
+    // between a min and a max.
+    struct FloatDesc
+    {
+        enum Kind { Zero, Constant, Spline } mKind = Constant;
+        float mValue = 0; // Constant
+        float mMin = 0, mMax = 1; // Spline
+        std::vector<std::uint16_t> mControl; // Spline
+        std::uint8_t mDegree = 1;
+        std::vector<std::uint8_t> mKnots; // items + degree + 1
+        int mRawMask = -1; // >= 0: written as the mask byte instead (to test refusals)
+        std::uint8_t mask() const
+        {
+            if (mRawMask >= 0)
+                return static_cast<std::uint8_t>(mRawMask);
+            return mKind == Zero ? 0 : (mKind == Constant ? 0x03 : 0x12);
+        }
+    };
+
     inline void writeSplineHeader(
         std::vector<std::uint8_t>& d, std::size_t block, std::size_t items, std::uint8_t degree,
         const std::vector<std::uint8_t>& knots)
@@ -151,7 +170,8 @@ namespace HavokPackTest
     }
 
     // The data array of one block: masks, then the tracks; returns the offset where the float tracks would start.
-    inline std::size_t writeBlock(std::vector<std::uint8_t>& d, const std::vector<TrackDesc>& tracks, std::size_t maskSize)
+    inline std::size_t writeBlock(std::vector<std::uint8_t>& d, const std::vector<TrackDesc>& tracks, std::size_t maskSize,
+        const std::vector<FloatDesc>* floats = nullptr)
     {
         const std::size_t block = d.size();
         for (const auto& t : tracks)
@@ -162,6 +182,9 @@ namespace HavokPackTest
             d.push_back(t.mScale.mask());
         }
         d.resize(block + maskSize, 0);
+        if (floats != nullptr)
+            for (std::size_t i = 0; i < floats->size(); ++i)
+                d[block + 4 * tracks.size() + i] = (*floats)[i].mask();
         for (const auto& t : tracks)
         {
             writeVec(d, block, t.mPos);
@@ -183,7 +206,30 @@ namespace HavokPackTest
             writeVec(d, block, t.mScale);
         }
         padTo4(d, block);
-        return d.size() - block;
+        const std::size_t floatsAt = d.size() - block;
+        if (floats != nullptr)
+        {
+            for (const auto& f : *floats)
+            {
+                if (f.mKind == FloatDesc::Constant && f.mRawMask < 0)
+                {
+                    padTo4(d, block);
+                    putFloat(d, f.mValue);
+                }
+                else if (f.mKind == FloatDesc::Spline && f.mRawMask < 0)
+                {
+                    writeSplineHeader(d, block, f.mControl.size(), f.mDegree, f.mKnots);
+                    padTo4(d, block);
+                    putFloat(d, f.mMin);
+                    putFloat(d, f.mMax);
+                    for (std::uint16_t q : f.mControl)
+                        put(d, &q, 2);
+                }
+            }
+            while ((d.size() - block) % 16 != 0) // a block ends on a 16 byte boundary when it has float tracks
+                d.push_back(0);
+        }
+        return floatsAt;
     }
 
     struct ClipDesc
@@ -194,6 +240,11 @@ namespace HavokPackTest
         float mFrameDuration = 1.0f / 30.0f;
         std::uint32_t mFloatTracks = 0;
         std::vector<std::int16_t> mTrackToBone; // empty: identity
+        // [block][float track]. When not empty these are written (masks and data) and mFloatTracks is ignored; when
+        // empty the legacy output (zero masks, zero bytes for mFloatTracks tracks) is unchanged.
+        std::vector<std::vector<FloatDesc>> mFloats;
+        std::vector<std::int16_t> mFloatSlots; // empty: float track i drives slot i
+        std::uint32_t mFloatTailExtra = 0; // extra bytes after a block's padded float data (to test refusals)
         std::string mSkeletonName = "Skeleton";
         std::uint8_t mType = 5;
     };
@@ -202,14 +253,20 @@ namespace HavokPackTest
     inline std::uint32_t addSplineClip(PackGen& g, const ClipDesc& c)
     {
         const std::uint32_t tracks = static_cast<std::uint32_t>(c.mBlocks.front().size());
-        const std::uint32_t maskSize = 4 * tracks + c.mFloatTracks;
+        const bool realFloats = !c.mFloats.empty();
+        const std::uint32_t floatTracks = realFloats ? static_cast<std::uint32_t>(c.mFloats.front().size()) : c.mFloatTracks;
+        const std::uint32_t maskSize = realFloats ? (4 * tracks + floatTracks + 3) / 4 * 4 : 4 * tracks + c.mFloatTracks;
         std::vector<std::uint8_t> data;
         std::vector<std::uint32_t> offsets, floatOffsets;
-        for (const auto& block : c.mBlocks)
+        for (std::size_t bi = 0; bi < c.mBlocks.size(); ++bi)
         {
             offsets.push_back(static_cast<std::uint32_t>(data.size()));
-            floatOffsets.push_back(static_cast<std::uint32_t>(writeBlock(data, block, maskSize)));
-            data.resize(data.size() + 4 * c.mFloatTracks, 0); // the float tracks' bytes (unused by the reader)
+            floatOffsets.push_back(static_cast<std::uint32_t>(
+                writeBlock(data, c.mBlocks[bi], maskSize, realFloats ? &c.mFloats[bi] : nullptr)));
+            if (!realFloats)
+                data.resize(data.size() + 4 * c.mFloatTracks, 0); // the float tracks' bytes (unused by the legacy tests)
+            else
+                data.resize(data.size() + c.mFloatTailExtra, 0);
         }
         const std::uint32_t anim = g.addObject("hkaSplineCompressedAnimation", 176);
         const std::uint32_t blocks = static_cast<std::uint32_t>(c.mBlocks.size());
@@ -217,7 +274,7 @@ namespace HavokPackTest
         g.put32(anim + 16, c.mType);
         g.putF32(anim + 20, (c.mNumFrames - 1) * frameDur);
         g.put32(anim + 24, tracks);
-        g.put32(anim + 28, c.mFloatTracks);
+        g.put32(anim + 28, floatTracks);
         g.put32(anim + 56, c.mNumFrames);
         g.put32(anim + 60, blocks);
         g.put32(anim + 64, c.mMaxFramesPerBlock);
@@ -245,6 +302,13 @@ namespace HavokPackTest
                 put(b, &x, 2);
             g.array(binding + 32, g.addBytes(b), static_cast<std::uint32_t>(c.mTrackToBone.size()));
         }
+        if (!c.mFloatSlots.empty())
+        {
+            std::vector<std::uint8_t> b;
+            for (std::int16_t x : c.mFloatSlots)
+                put(b, &x, 2);
+            g.array(binding + 48, g.addBytes(b), static_cast<std::uint32_t>(c.mFloatSlots.size()));
+        }
         return anim;
     }
 
@@ -255,6 +319,7 @@ namespace HavokPackTest
         std::vector<std::int16_t> mParents;
         // x y z, qx qy qz qw, sx sy sz
         std::vector<std::array<float, 10>> mPose;
+        std::vector<std::string> mFloatSlots; // written at +88 when not empty
     };
 
     inline std::uint32_t addSkeleton(PackGen& g, const SkeletonDesc& s)
@@ -284,6 +349,14 @@ namespace HavokPackTest
             putFloat(pose, 0);
         }
         g.array(obj + 56, g.addBytes(pose), n);
+        if (!s.mFloatSlots.empty())
+        {
+            const std::uint32_t count = static_cast<std::uint32_t>(s.mFloatSlots.size());
+            const std::uint32_t slots = g.addBytes(std::vector<std::uint8_t>(8 * count, 0));
+            for (std::uint32_t i = 0; i < count; ++i)
+                g.pointer(slots + 8 * i, g.addCString(s.mFloatSlots[i]));
+            g.array(obj + 88, slots, count);
+        }
         return obj;
     }
 }

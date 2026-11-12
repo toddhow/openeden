@@ -28,11 +28,14 @@ namespace HavokPack
         // -1 for a root. A parent always comes before its child (checked by the reader).
         std::vector<std::int16_t> mParents;
         std::vector<Transform> mReferencePose;
+        // Names of the float slots the clips' float tracks drive ("hkVis:Weapon", ...); usually empty (F42).
+        std::vector<std::string> mFloatSlots;
     };
 
     struct SkeletonLimits
     {
         std::uint32_t mMaxBones = 4096;
+        std::uint32_t mMaxFloatSlots = 4096;
     };
 
     // Every hkaSkeleton object of the file, in file order. Throws Error on a damaged object.

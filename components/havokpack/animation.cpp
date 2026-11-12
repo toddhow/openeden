@@ -27,6 +27,13 @@ namespace HavokPack
         constexpr std::uint32_t BindingSkeletonNameOffset = 16;
         constexpr std::uint32_t BindingAnimationOffset = 24;
         constexpr std::uint32_t BindingTrackToBoneOffset = 32;
+        constexpr std::uint32_t BindingFloatSlotsOffset = 48; // provenance F42
+        // The only float track masks seen in the installed files (F38): one float, or a spline of 16-bit values between
+        // a min and a max. A track with mask 0 stores nothing and is 0 (never seen; the generator of the older tests
+        // writes it).
+        constexpr std::uint8_t FloatMaskConstant = 0x03;
+        constexpr std::uint8_t FloatMaskSpline = 0x12;
+        constexpr std::size_t BlockAlignment = 16; // a block with float data ends on a 16 byte boundary (F40)
 
         // The quantisation byte every one of the 504,241 track blocks of the installed files has (F30): positions and
         // scales in 16 bits, rotations in 40 bits.
@@ -180,6 +187,33 @@ namespace HavokPack
             return t;
         }
 
+        // One float track (F38 to F40): a constant, or a one dimensional spline between a min and a max.
+        FloatTrackBlock readFloatTrack(Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
+        {
+            FloatTrackBlock f;
+            if (mask == 0)
+                return f;
+            if (mask == FloatMaskConstant)
+            {
+                c.align4();
+                f.mConstant = c.finiteOr(0.0f);
+                return f;
+            }
+            if (mask != FloatMaskSpline)
+                c.fail("unsupported float track mask " + std::to_string(mask));
+            f.mAnimated = true;
+            f.mSpline = readSplineHeader(c, limits, maxFramesPerBlock, 1);
+            c.align4();
+            const std::uint32_t before = c.nonFinite();
+            float lo = c.finiteOr(0.0f);
+            float hi = c.finiteOr(0.0f);
+            if (c.nonFinite() != before)
+                lo = hi = 0.0f;
+            for (std::uint32_t item = 0; item < f.mSpline.mItems; ++item)
+                f.mSpline.mControl[item] = lo + (hi - lo) * (static_cast<float>(c.u16()) / 65535.0f);
+            return f;
+        }
+
         RotationTrack readRotation(Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
         {
             RotationTrack r;
@@ -282,7 +316,11 @@ namespace HavokPack
             if (data.mData)
                 bytes = file.bytes(*data.mData, data.mSize);
 
+            if (clip.mNumFloatTracks != 0 && maskSize < 4ull * clip.mNumTransformTracks + clip.mNumFloatTracks)
+                fail("mask and quantisation size is smaller than the track and float track masks");
             clip.mBlocks.resize(numBlocks);
+            if (clip.mNumFloatTracks != 0)
+                clip.mFloatBlocks.resize(numBlocks);
             for (std::uint32_t b = 0; b < numBlocks; ++b)
             {
                 const std::uint32_t start = file.u32({ offsets.mData->mSection, offsets.mData->mOffset + 4 * b });
@@ -311,6 +349,35 @@ namespace HavokPack
                     throw Error("track data of block " + std::to_string(b) + " ends at offset "
                         + std::to_string(c.position() - start) + " but the file says " + std::to_string(floatsAt)
                         + " (an unknown layout; spline data offset " + std::to_string(c.position()) + ")");
+                if (clip.mNumFloatTracks != 0)
+                {
+                    auto& floats = clip.mFloatBlocks[b];
+                    const std::uint32_t transformNonFinite = c.nonFinite();
+                    floats.resize(clip.mNumFloatTracks);
+                    bool stored = false;
+                    for (std::uint32_t i = 0; i < clip.mNumFloatTracks; ++i)
+                    {
+                        const std::uint8_t mask = bytes[start + 4 * static_cast<std::size_t>(clip.mNumTransformTracks) + i];
+                        floats[i] = readFloatTrack(c, mask, limits, clip.mMaxFramesPerBlock);
+                        stored = stored || mask != 0;
+                    }
+                    clip.mNonFiniteValues += c.nonFinite() - transformNonFinite;
+                    // With float data present the block ends on a 16 byte boundary, and that is where the next block
+                    // (or the end of the data) starts: the size invariant for the float tracks.
+                    if (stored)
+                    {
+                        const std::size_t used = c.position() - start;
+                        const std::size_t padded = (used + BlockAlignment - 1) / BlockAlignment * BlockAlignment;
+                        const std::size_t end = b + 1 < numBlocks
+                            ? file.u32({ offsets.mData->mSection, offsets.mData->mOffset + 4 * (b + 1) })
+                            : bytes.size();
+                        if (end < start || end - start != padded)
+                            throw Error("float track data of block " + std::to_string(b) + " ends at offset "
+                                + std::to_string(used) + " but the block is " + std::to_string(end - start)
+                                + " bytes, not that rounded up to 16 (an unknown layout; spline data offset "
+                                + std::to_string(c.position()) + ")");
+                    }
+                }
             }
             clips.push_back(std::move(clip));
         }
@@ -329,6 +396,23 @@ namespace HavokPack
                     continue;
                 if (const auto name = file.pointerAt({ at.mSection, at.mOffset + BindingSkeletonNameOffset }))
                     clips[i].mSkeletonName = std::string(file.cstring(*name));
+                const ArrayRef slots = file.arrayAt({ at.mSection, at.mOffset + BindingFloatSlotsOffset });
+                if (slots.mSize != 0)
+                {
+                    if (slots.mSize != clips[i].mNumFloatTracks)
+                        throw Error("binding maps " + std::to_string(slots.mSize) + " float tracks but the animation has "
+                            + std::to_string(clips[i].mNumFloatTracks) + " (hkaAnimationBinding at offset "
+                            + std::to_string(at.mOffset) + ")");
+                    clips[i].mFloatTrackToSlot.resize(slots.mSize);
+                    for (std::uint32_t k = 0; k < slots.mSize; ++k)
+                    {
+                        clips[i].mFloatTrackToSlot[k] = static_cast<std::int16_t>(
+                            file.u16({ slots.mData->mSection, slots.mData->mOffset + 2 * k }));
+                        if (clips[i].mFloatTrackToSlot[k] < 0)
+                            throw Error("binding names a negative float slot (hkaAnimationBinding at offset "
+                                + std::to_string(at.mOffset) + ")");
+                    }
+                }
                 const ArrayRef map = file.arrayAt({ at.mSection, at.mOffset + BindingTrackToBoneOffset });
                 if (map.mSize != 0)
                 {
@@ -390,6 +474,30 @@ namespace HavokPack
             for (int i = 0; i < 3; ++i)
                 if ((t.mSplineAxes >> i) & 1)
                     out[i] = v[d++];
+        }
+    }
+
+    void sampleFloats(const Clip& clip, float time, std::span<float> out)
+    {
+        if (clip.mFloatBlocks.empty())
+            return;
+        const float frame = std::clamp(time, 0.0f, clip.mDuration) / clip.mFrameDuration;
+        const float blockFrames = static_cast<float>(clip.mMaxFramesPerBlock - 1);
+        const std::uint32_t block = std::min(static_cast<std::uint32_t>(frame / blockFrames),
+            static_cast<std::uint32_t>(clip.mFloatBlocks.size() - 1));
+        const float u = frame - static_cast<float>(block) * blockFrames;
+        const auto& tracks = clip.mFloatBlocks[block];
+        const std::size_t n = std::min(out.size(), tracks.size());
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            if (!tracks[i].mAnimated)
+            {
+                out[i] = tracks[i].mConstant;
+                continue;
+            }
+            float v[4];
+            evaluate(tracks[i].mSpline, u, v);
+            out[i] = v[0];
         }
     }
 
