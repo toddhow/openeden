@@ -499,6 +499,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimseactors.cpp
     skyrimse/testskyrimseappearance.cpp
+    skyrimse/testskyrimseappearancereal.cpp
     skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseland.cpp
