@@ -319,7 +319,7 @@ namespace OMW
         options.mThreads = 2;
         // Stored, not compressed: the pack is small (a few MiB) and its bytes then depend only on the land data,
         // on any machine and with any zstd version.
-        options.mStoreOnly = true;
+        options.mStoreOnly = Lod::terrainPackStored(state.mNeutral);
         if (const Lod::LodError error = Lod::writeTilePack(state.mManifest, state.mTiles, options, path))
         {
             Log(Debug::Error) << "LOD terrain bake failed, the old pack (if any) is unchanged: " << error.describe();

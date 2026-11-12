@@ -463,7 +463,7 @@ namespace OMW
             state.mManifest.mWorldspace = state.mNeutral ? state.mManifestName : std::string(worldspaceName);
             // Levels 1 to 4. Level 5 would need 1,024 cell slots (a cluster holds 256) and keeps almost no object (the
             // survey below), so the baker stops at level 4 (task 0066 stage d).
-            state.mManifest.mLevels = { 1, 2, 3, 4 };
+            state.mManifest.mLevels = Lod::objectClusterLevels(state.mNeutral);
             for (const std::uint32_t level : state.mManifest.mLevels)
                 state.mManifest.mErrors.push_back(levelError(level));
             Log(Debug::Info) << "LOD object bake: "
@@ -646,7 +646,8 @@ namespace OMW
                         loadNeutralModel(*vfs, entry);
                         // A model whose largest placement is smaller than the first level's cut is left out by every
                         // level: do not keep its triangles (a Skyrim world has thousands of such small models).
-                        if (entry.mFlat.mTraits.mRadius * entry.mMaxScale < dropFactor * levelError(1))
+                        if (entry.mFlat.mTraits.mRadius * entry.mMaxScale
+                            < dropFactor * levelError(state.mManifest.mLevels.front()))
                         {
                             entry.mOk = false;
                             entry.mTooSmall = true;
@@ -762,7 +763,7 @@ namespace OMW
                 const PlacedObject& object = state.mObjects[index];
                 if (!seen.emplace(object.mRef.mIndex, object.mRef.mContentFile).second)
                 {
-                    if (id.mLevel == 1)
+                    if (id.mLevel == state.mManifest.mLevels.front())
                         ++state.mDuplicates;
                     continue;
                 }

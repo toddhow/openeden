@@ -72,6 +72,15 @@ namespace Lod
     [[nodiscard]] ClusterRef clusterRefFromPlacement(std::uint64_t placementId) noexcept;
     [[nodiscard]] std::uint64_t placementFromClusterRef(const ClusterRef& ref) noexcept;
 
+    /// Task 0133 stage 3: the levels an object cluster bake writes. Morrowind: 1 to 4, as always. A neutral (Skyrim)
+    /// world starts at level 2: level 1 (error 128) kept 157,752 objects and 38M triangles of WhiterunWorld, 1,807 of
+    /// its 2,496 clusters, and the live active grid covers its nearest range (toddhow, 2026-11-12).
+    [[nodiscard]] std::vector<std::uint32_t> objectClusterLevels(bool neutralWorld);
+
+    /// Is the terrain tile pack of this kind of world written stored (not compressed)? Morrowind's is, so that its bytes
+    /// depend only on the land (byte-stable digests); a neutral world's is compressed with zstd (task 0133 stage 3).
+    [[nodiscard]] bool terrainPackStored(bool neutralWorld);
+
     /// The worldspace name written into a neutral pack's manifest: "<game>:<world editor id>:<fingerprint>".
     [[nodiscard]] std::string neutralWorldspaceName(const NeutralWorldFacts& facts);
 }

@@ -277,4 +277,20 @@ namespace
                 EXPECT_TRUE(seen.emplace(ref.mIndex, ref.mContentFile).second);
             }
     }
+
+    TEST(LodWorldStage3, morrowind_clusters_keep_levels_one_to_four)
+    {
+        EXPECT_EQ(objectClusterLevels(false), (std::vector<std::uint32_t>{ 1, 2, 3, 4 }));
+    }
+
+    TEST(LodWorldStage3, a_neutral_world_starts_at_level_two)
+    {
+        EXPECT_EQ(objectClusterLevels(true), (std::vector<std::uint32_t>{ 2, 3, 4 }));
+    }
+
+    TEST(LodWorldStage3, only_morrowinds_terrain_pack_is_stored)
+    {
+        EXPECT_TRUE(terrainPackStored(false));
+        EXPECT_FALSE(terrainPackStored(true));
+    }
 }

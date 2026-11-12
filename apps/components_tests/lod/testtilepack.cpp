@@ -556,6 +556,44 @@ namespace
         }
     }
 
+    // Task 0133 stage 3: a neutral world's terrain pack is compressed. Everything that reads it (whole tiles, headers,
+    // the albedo range, the digest and provenance a staleness check compares) must give what the stored pack gives.
+    TEST(LodTilePack, a_compressed_pack_reads_back_like_a_stored_one)
+    {
+        Fixture fixture = makeFixture();
+        const std::vector<std::uint8_t> storedBytes = buildPack(fixture);
+        fixture.mOptions.mStoreOnly = false;
+        fixture.mOptions.mZstdLevel = 9;
+        const std::vector<std::uint8_t> bytes = buildPack(fixture);
+        EXPECT_NE(bytes, storedBytes);
+
+        LodError error;
+        const std::unique_ptr<TilePack> stored = openBytes(storedBytes, error);
+        ASSERT_NE(stored, nullptr) << error.describe();
+        const std::unique_ptr<TilePack> pack = openBytes(bytes, error);
+        ASSERT_NE(pack, nullptr) << error.describe();
+        EXPECT_EQ(pack->sourceDigest(), stored->sourceDigest());
+        EXPECT_EQ(pack->generation(), stored->generation());
+        EXPECT_TRUE(pack->manifest() == stored->manifest());
+        ASSERT_EQ(pack->tileIds().size(), fixture.mTiles.size());
+
+        for (const BakedTile& baked : fixture.mTiles)
+        {
+            SCOPED_TRACE(testing::Message() << "tile " << baked.mId.mX << "," << baked.mId.mY);
+            TerrainTile tile;
+            const LodError readError = pack->readTile(baked.mId, tile);
+            ASSERT_TRUE(readError.ok()) << readError.describe();
+            expectSameTile(baked.mData, tile);
+            TerrainTile header;
+            TerrainTileLayout layout;
+            ASSERT_TRUE(pack->readHeader(baked.mId, header, layout).ok());
+            EXPECT_EQ(header.mGridSize, baked.mData.mGridSize);
+            std::vector<std::uint8_t> albedo;
+            ASSERT_TRUE(pack->readAlbedo(baked.mId, albedo).ok());
+            EXPECT_EQ(albedo, baked.mData.mAlbedo);
+        }
+    }
+
     TEST(LodTilePack, tile_entries_have_type_0x0010_a_tagged_key_and_provenance)
     {
         const Fixture fixture = makeFixture();

@@ -186,4 +186,16 @@ namespace Lod
     {
         return (static_cast<std::uint64_t>(ref.mContentFile) << 32) | ref.mIndex;
     }
+
+    std::vector<std::uint32_t> objectClusterLevels(bool neutralWorld)
+    {
+        if (neutralWorld)
+            return { 2, 3, 4 };
+        return { 1, 2, 3, 4 };
+    }
+
+    bool terrainPackStored(bool neutralWorld)
+    {
+        return !neutralWorld;
+    }
 }
