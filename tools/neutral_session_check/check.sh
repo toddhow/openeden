@@ -73,6 +73,8 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscr
 # Task 0127 stage W-S1: "w1" leaves the Mare into WhiterunWorld, looks at the sky at several hours, then speeds the clock up and
 # takes a picture at each weather change (use at least 4000 frames; set [Game] neutral weather = true through SETTINGS_EXTRA).
 [ "$SHOT" = w1 ] && echo "content=w1.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0129 swimming follow-up: "e2swim" swims in the Whiterun lake and walks out (use at least 6000 frames).
+[ "$SHOT" = e2swim ] && echo "content=n4e2swim.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -80,7 +82,7 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|e2terrain|e2water|w1|stairs|keylocked|keycontainer) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

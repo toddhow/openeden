@@ -1,0 +1,2 @@
+GLOBAL: scripts/e2swim/global.lua
+PLAYER: scripts/e2swim/player.lua
