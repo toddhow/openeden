@@ -573,6 +573,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)child;
             return false;
         }
+        /// fn_432 GetIsObjectType(object class): is the subject's base form of this object class (for example an
+        /// Activator)? The class is the enum value as stored (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool isObjectType(Subject subject, std::uint32_t objectClass) const
+        {
+            (void)subject, (void)objectClass;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

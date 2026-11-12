@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool isObjectType(Subject s, std::uint32_t c) const override { return s == mSubject && c == 4; }
         bool hasPerk(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xC3680; }
         float healthFraction(Subject s) const override { return s == mSubject ? 0.4f : 0.f; }
         float mapMarkerState(Subject s) const override { return s == mSubject ? 2.f : 0.f; }
@@ -801,6 +802,16 @@ namespace
         EXPECT_TRUE(run(cond(430, kEq, 0.f), w));
         EXPECT_TRUE(run(cond(491, kEq, 0.f), w));
         EXPECT_TRUE(run(cond(261, kEq, 0.f, 0x1E0), w));
+    }
+
+    // fn_432 GetIsObjectType(object class): the subject's base form is of that class (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_432_is_the_object_type)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(432, kEq, 1.f, 4), w));
+        EXPECT_TRUE(run(cond(432, kEq, 0.f, 5), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(432, kEq, 0.f, 4), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

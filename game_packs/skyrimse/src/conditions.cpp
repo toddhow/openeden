@@ -532,6 +532,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isParentOf(subject, c.mParam1));
         }
 
+        // 432 GetIsObjectType(object class) (CK wiki, toddhow 2026-11-11)
+        float getIsObjectType(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isObjectType(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -540,7 +546,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 84> sTable = { {
+        constexpr std::array<Entry, 85> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -601,6 +607,7 @@ namespace game_skyrimse::conditions
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
             { 430, getHealthPercentage },
+            { 432, getIsObjectType },
             { 448, hasPerk },
             { 449, getFactionRelation },
             { 453, getPlayerTeammate },

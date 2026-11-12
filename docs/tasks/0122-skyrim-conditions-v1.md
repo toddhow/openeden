@@ -80,3 +80,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_25 IsMoving (move direction 0 to 4; CK wiki page toddhow showed). Red, then 82 of 82.
 - 2026-11-11: fn_449 GetFactionRelation(target actor) (0 neutral, 1 enemy, 2 ally, 3 friend) and fn_79 GetQuestVariable (deprecated, does not work: always 0, INFERRED from that note) (CK wiki pages toddhow showed). Red, then 83 of 83.
 - 2026-11-11: fn_448 HasPerk(perk), fn_430 GetHealthPercentage (0 to 1), fn_491 GetMapMarkerVisible (0 to 2), fn_261 HasParentRelationship(actor) (CK wiki pages toddhow showed). Red, then 84 of 84.
+- 2026-11-11: fn_432 GetIsObjectType(object class) (CK wiki page toddhow showed). Red, then 85 of 85.
