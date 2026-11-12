@@ -246,6 +246,7 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testscenerealmaterials.cpp
     nifscene/testvertexdecode.cpp
     nifscene/testscenereview.cpp
+    nifscene/testskinned.cpp
     nifscene/testflatten.cpp
     nifscene/testcollision.cpp
 
@@ -497,6 +498,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseasyncindex.cpp
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimseactors.cpp
+    skyrimse/testskyrimseappearance.cpp
     skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseland.cpp
@@ -520,6 +522,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/records.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actors.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/terrain_source.cpp
