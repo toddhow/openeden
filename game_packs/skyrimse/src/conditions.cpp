@@ -724,6 +724,47 @@ namespace game_skyrimse::conditions
             return world.refTypeAliveCount(c.mParam1, c.mParam2);
         }
 
+        // 244 GetRestrained (CK wiki, toddhow 2026-11-11: the actor has been set to a restrained state)
+        float getRestrainedFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isRestrained(subject));
+        }
+
+        // 555 HasLoaded3D (CK wiki, toddhow 2026-11-11: the reference has its 3D loaded)
+        float hasLoaded3DFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasLoaded3D(subject));
+        }
+
+        // 656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches)
+        float getArrestedStateFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isUnderArrest(subject));
+        }
+
+        // 632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting)
+        float isCastingFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isCasting(subject));
+        }
+
+        // 699 HasMagicEffectKeyword(keyword) (CK wiki); 250 GetLocationCleared(location), 625 IsLocationLoaded(location)
+        // (CK dialog, meaning inferred) (toddhow 2026-11-11)
+        float hasMagicEffectKeyword(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasMagicEffectKeyword(subject, c.mParam1));
+        }
+
+        float getLocationCleared(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.locationCleared(c.mParam1));
+        }
+
+        float isLocationLoaded(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.locationLoaded(c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -732,7 +773,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 118> sTable = { {
+        constexpr std::array<Entry, 125> sTable = { {
             { 1, getDistance },
             { 5, getLockedFn },
             { 14, getActorValue },
@@ -782,8 +823,10 @@ namespace game_skyrimse::conditions
             { 214, hasMagicEffect },
             { 223, isSpellTarget },
             { 237, getIsGhost },
+            { 244, getRestrainedFn },
             { 248, isScenePlaying },
             { 249, isInDialogueWithPlayer },
+            { 250, getLocationCleared },
             { 255, getOffersServicesNow },
             { 258, hasAssociationType },
             { 261, hasParentRelationship },
@@ -822,6 +865,7 @@ namespace game_skyrimse::conditions
             { 499, getDaysInJail },
             { 513, isCombatTarget },
             { 543, getQuestCompleted },
+            { 555, hasLoaded3DFn },
             { 560, hasKeyword },
             { 561, hasRefType },
             { 562, locationHasKeyword },
@@ -837,8 +881,10 @@ namespace game_skyrimse::conditions
             { 606, getKeywordDataForLocation },
             { 610, locAliasHasKeyword },
             { 624, getInContainer },
+            { 625, isLocationLoaded },
             { 629, getVMQuestVariable },
             { 630, getVMScriptVariable },
+            { 632, isCastingFn },
             { 633, getFlyingState },
             { 635, isInFavorStateFn },
             { 638, isInFriendStateWithPlayerFn },
@@ -846,9 +892,11 @@ namespace game_skyrimse::conditions
             { 651, getKeywordDataForCurrentLocation },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },
+            { 656, getArrestedStateFn },
             { 657, getArrestingActorFn },
             { 682, wornHasKeyword },
             { 698, isAllowedToFlyFn },
+            { 699, hasMagicEffectKeyword },
             { 700, isCommandedActorFn },
             { 707, getCombatTargetHasKeyword },
         } };

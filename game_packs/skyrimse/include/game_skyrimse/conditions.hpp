@@ -776,6 +776,51 @@ namespace game_skyrimse::conditions
             (void)location, (void)refType;
             return 0.f;
         }
+        /// fn_244 GetRestrained (CK wiki, toddhow 2026-11-11: the actor has been set to a restrained state).
+        virtual bool isRestrained(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_555 HasLoaded3D (CK wiki, toddhow 2026-11-11: the reference has its 3D loaded).
+        virtual bool hasLoaded3D(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches).
+        virtual bool isUnderArrest(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting).
+        virtual bool isCasting(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_699 HasMagicEffectKeyword(keyword): is the subject affected by a spell that can potentially apply a
+        /// magic effect with the keyword (as fn_214, "having", not "being affected by")? (CK wiki, toddhow 2026-11-11)
+        virtual bool hasMagicEffectKeyword(Subject subject, std::uint32_t keyword) const
+        {
+            (void)subject, (void)keyword;
+            return false;
+        }
+        /// fn_250 GetLocationCleared(location): has the LCTN been cleared? One location parameter (CK condition
+        /// dialog, toddhow 2026-11-11); meaning INFERRED from the name.
+        virtual bool locationCleared(std::uint32_t location) const
+        {
+            (void)location;
+            return false;
+        }
+        /// fn_625 IsLocationLoaded(location): is the LCTN loaded? One location parameter (CK condition dialog,
+        /// toddhow 2026-11-11); meaning INFERRED from the name.
+        virtual bool locationLoaded(std::uint32_t location) const
+        {
+            (void)location;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

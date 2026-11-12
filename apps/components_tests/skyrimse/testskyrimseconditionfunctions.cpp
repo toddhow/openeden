@@ -124,6 +124,17 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool hasMagicEffectKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80; }
+        bool locationCleared(std::uint32_t l) const override { return l == 0x50; }
+        bool locationLoaded(std::uint32_t l) const override { return l == 0x51; }
+        bool mIsCastingFlag = true;
+        bool isCasting(Subject s) const override { return s == mSubject && mIsCastingFlag; }
+        bool mIsUnderArrestFlag = true;
+        bool isUnderArrest(Subject s) const override { return s == mSubject && mIsUnderArrestFlag; }
+        bool mHasLoaded3DFlag = true;
+        bool hasLoaded3D(Subject s) const override { return s == mSubject && mHasLoaded3DFlag; }
+        bool mIsRestrainedFlag = true;
+        bool isRestrained(Subject s) const override { return s == mSubject && mIsRestrainedFlag; }
         float weaponAnimType(Subject s) const override { return s == mSubject ? 108.f : 0.f; }
         float flyingState(Subject s) const override { return s == mSubject ? 633.f : 0.f; }
         float clothingValue(Subject s) const override { return s == mSubject ? 41.f : 0.f; }
@@ -1080,6 +1091,70 @@ namespace
         EXPECT_TRUE(run(cond(597, kEq, 0.f, 1), w));
         EXPECT_TRUE(run(cond(408, kEq, 0.f, 0x14), w));
         EXPECT_TRUE(run(cond(592, kEq, 6.f, 0x50, 0x200), w));
+    }
+
+    // fn_244 GetRestrained (CK wiki, toddhow 2026-11-11: the actor has been set to a restrained state).
+    TEST(SkyrimConditionFunctions, fn_244_getRestrained)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(244, kEq, 1.f), w));
+        w.mIsRestrainedFlag = false;
+        EXPECT_TRUE(run(cond(244, kEq, 0.f), w));
+        w.mIsRestrainedFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(244, kEq, 0.f), w));
+    }
+
+    // fn_555 HasLoaded3D (CK wiki, toddhow 2026-11-11: the reference has its 3D loaded).
+    TEST(SkyrimConditionFunctions, fn_555_hasLoaded3D)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(555, kEq, 1.f), w));
+        w.mHasLoaded3DFlag = false;
+        EXPECT_TRUE(run(cond(555, kEq, 0.f), w));
+        w.mHasLoaded3DFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(555, kEq, 0.f), w));
+    }
+
+    // fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches).
+    TEST(SkyrimConditionFunctions, fn_656_getArrestedState)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(656, kEq, 1.f), w));
+        w.mIsUnderArrestFlag = false;
+        EXPECT_TRUE(run(cond(656, kEq, 0.f), w));
+        w.mIsUnderArrestFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(656, kEq, 0.f), w));
+    }
+
+    // fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting).
+    TEST(SkyrimConditionFunctions, fn_632_isCasting)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(632, kEq, 1.f), w));
+        w.mIsCastingFlag = false;
+        EXPECT_TRUE(run(cond(632, kEq, 0.f), w));
+        w.mIsCastingFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(632, kEq, 0.f), w));
+    }
+
+    // fn_699 HasMagicEffectKeyword(keyword) (CK wiki), fn_250 GetLocationCleared(location) and fn_625
+    // IsLocationLoaded(location) (CK dialog, meaning inferred) (toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_699_effect_keyword_250_cleared_625_loaded)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(699, kEq, 1.f, 0x80), w));
+        EXPECT_TRUE(run(cond(699, kEq, 0.f, 0x81), w));
+        EXPECT_TRUE(run(cond(250, kEq, 1.f, 0x50), w));
+        EXPECT_TRUE(run(cond(250, kEq, 0.f, 0x51), w));
+        EXPECT_TRUE(run(cond(625, kEq, 1.f, 0x51), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(699, kEq, 0.f, 0x80), w));
+        EXPECT_TRUE(run(cond(250, kEq, 1.f, 0x50), w));
+        EXPECT_TRUE(run(cond(625, kEq, 1.f, 0x51), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
