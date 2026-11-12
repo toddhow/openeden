@@ -76,8 +76,7 @@ CFG
 # lines then follow the pacing actor. Leave OPENEDEN_NEUTRAL_ACTOR_WALK unset.
 # Task 0135 stage S4 (go-to): "n5goto" takes pictures every 2 s of the actor the pack sends along a navmesh path (luatest/scripts/n5/goto.lua; use at least 2400 frames).
 [ "$SHOT" = n5goto ] && echo "content=n5goto.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0135 stage S5 (AI packages): "n5pack" takes pictures every 12 s of the Mare while the NPCs run their packages (set "[extension.skyrimse]
-actor packages = true" in SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1; use at least 6000 frames).
+# Task 0135 stage S5 (AI packages): "n5pack" takes pictures every 12 s of the Mare while the NPCs run their packages (set "[extension.skyrimse] actor packages = true" in SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1; use at least 6000 frames).
 [ "$SHOT" = n5pack ] && echo "content=n5pack.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0131 stage N3a-6: "ms0sweep" runs the Lua API sweep over the neutral cell (use at least 1500 frames).
