@@ -55,6 +55,10 @@ namespace game_skyrimse
         /// A texture of this name (case-insensitive) is a blank picture the data uses as a placeholder layer (several
         /// installed weathers name Sky\Alpha.dds on layer 2): nothing is drawn for it.
         inline constexpr const char* kBlankCloudTexture = "alpha.dds";
+        /// A texture whose name holds this (case-insensitive) is a horizon strip (SkyrimCloudsHorizon01.dds): the game maps
+        /// it round the horizon, and on the engine's overhead cloud dome it came out as long straight streaks across the
+        /// whole sky (found by the first frame), so it is not drawn as an extra layer. GUESS (a look decision).
+        inline constexpr const char* kHorizonCloudMarker = "horizon";
     }
 
     /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts as

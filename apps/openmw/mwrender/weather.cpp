@@ -1100,12 +1100,16 @@ namespace MWRender
             mSunTextureName = weather.mSunTexture;
             if (!mSun->setDiscTexture(vsgUtil::readImage(mSunTextureName, mTextureOptions), *mCompile))
                 Log(Debug::Warning) << "Sky: the sun picture " << mSunTextureName << " could not be used";
+            else
+                Log(Debug::Info) << "Sky: the sun picture is " << mSunTextureName;
         }
         if (!weather.mSunGlareTexture.empty() && weather.mSunGlareTexture != mSunGlareTextureName)
         {
             mSunGlareTextureName = weather.mSunGlareTexture;
             if (!mSun->setGlareTexture(vsgUtil::readImage(mSunGlareTextureName, mTextureOptions), *mCompile))
                 Log(Debug::Warning) << "Sky: the sun glare picture " << mSunGlareTextureName << " could not be used";
+            else
+                Log(Debug::Info) << "Sky: the sun glare picture is " << mSunGlareTextureName;
         }
         mMasserAvailable = weather.mMasserAvailable;
         mSecundaAvailable = weather.mSecundaAvailable;

@@ -72,6 +72,14 @@ namespace game_skyrimse
             return at == 0 || path[at - 1] == '\\' || path[at - 1] == '/';
         }
 
+        bool isHorizonStrip(const std::string& path)
+        {
+            const std::string marker = WeatherScale::kHorizonCloudMarker;
+            return std::search(path.begin(), path.end(), marker.begin(), marker.end(), [](char x, char y)
+                       { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); })
+                != path.end();
+        }
+
         float cleanAlpha(float a)
         {
             return std::isfinite(a) ? std::clamp(a, 0.f, 1.f) : 0.f;
@@ -91,7 +99,8 @@ namespace game_skyrimse
                  ++i)
             {
                 const CloudLayer& l = w.mCloudLayers[i];
-                if (i == picture || !l.mHasTexture || l.mTexture.empty() || endsWithBlank(l.mTexture))
+                if (i == picture || !l.mHasTexture || l.mTexture.empty() || endsWithBlank(l.mTexture)
+                    || isHorizonStrip(l.mTexture))
                     continue;
                 if (textureExists && !textureExists(l.mTexture))
                     continue;

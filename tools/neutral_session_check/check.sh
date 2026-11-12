@@ -93,6 +93,8 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscr
 # Task 0127 stage W-S2: "w2" leaves the Mare into WhiterunWorld and takes pictures on a fast clock; force a weather with
 # OPENEDEN_NEUTRAL_FORCE_WEATHER=<editor id> (use at least 3500 frames and CHECK_TIMEOUT=240).
 [ "$SHOT" = w2 ] && echo "content=w2.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0127 stage W-S3: "w3" leaves the Mare and aims the camera at the sun's direction for several hours (use at least 4000 frames).
+[ "$SHOT" = w3 ] && echo "content=w3.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0133 (milestone M-S2): "lodbake" runs `openmw --bake-lod-terrain` in the session (the world is OPENEDEN_LOD_BAKE_WORLD,
 # default Tamriel); the pack lands in <work>/user/openeden/lod/skyrimse/<world>/terrain.edenpak. "lodview" is the e2 walk
 # with the world LOD on (put the [WorldLod] settings in SETTINGS_EXTRA and keep the baked user folder with KEEP_USER=1).
@@ -112,7 +114,7 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

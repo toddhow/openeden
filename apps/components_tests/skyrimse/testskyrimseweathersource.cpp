@@ -489,8 +489,9 @@ namespace
         addLayer(w, 4, "Sky\\Gone.dds"); // not shipped
         addLayer(w, 5, "Sky\\C.dds");
         addLayer(w, 6, "Sky\\C.dds"); // twice
-        addLayer(w, 7, "Sky\\D.dds"); // past LNAM
-        w.mLayerCount = 7;
+        addLayer(w, 7, "Sky\\SkyrimCloudsHORIZON01.dds"); // a horizon strip: not for the overhead dome
+        addLayer(w, 8, "Sky\\D.dds"); // past LNAM
+        w.mLayerCount = 8;
         const auto exists = [](const std::string& path) { return path != "Sky\\Gone.dds"; };
         const sdk::WeatherDescription d = describeWeather(w, exists);
         ASSERT_EQ(d.extraCloudLayers.size(), 1u);
