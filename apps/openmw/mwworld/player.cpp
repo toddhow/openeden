@@ -1,5 +1,6 @@
 #include "player.hpp"
 
+#include <cstdlib>
 #include <stdexcept>
 
 #include <components/debug/debuglog.hpp>
@@ -197,6 +198,22 @@ namespace MWWorld
             return;
 
         MWWorld::Ptr toActivate = MWBase::Environment::get().getWorld()->getFocusObject();
+
+        // Task 0142: a test aid that says where the activate key's path ends (OPENEDEN_ACTIVATE_TRACE=1).
+        static const bool trace = [] {
+            const char* text = std::getenv("OPENEDEN_ACTIVATE_TRACE");
+            return text != nullptr && *text != 0 && *text != '0';
+        }();
+        if (trace)
+        {
+            if (toActivate.isEmpty())
+                Log(Debug::Info) << "ACTKEY focus: nothing";
+            else
+                Log(Debug::Info) << "ACTKEY focus: " << toActivate.getCellRef().getRefId().toDebugString() << " name '"
+                                 << toActivate.getClass().getName(toActivate) << "' tooltip "
+                                 << toActivate.getClass().hasToolTip(toActivate) << " distance "
+                                 << MWBase::Environment::get().getWorld()->getDistanceToFocusObject();
+        }
 
         if (toActivate.isEmpty())
             return;

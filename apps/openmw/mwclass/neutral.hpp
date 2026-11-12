@@ -26,7 +26,10 @@ namespace MWClass
     public:
         std::string_view getName(const MWWorld::ConstPtr& ptr) const override;
         std::string_view getModel(const MWWorld::ConstPtr& ptr) const override;
-        bool hasToolTip(const MWWorld::ConstPtr& ptr) const override { return false; }
+        /// Task 0142: the activate key (MWWorld::Player::activate) ignores a focused object whose class has no tooltip,
+        /// so a neutral actor, door or container has one (a caption: its name), and every other kind stays silent.
+        bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
+        MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;
 
         /// The preloader (a worker thread) must not read a neutral object's model: no reader for the game's models
         /// exists yet (stage N3a-4) and cells are built on the main thread (design 10.4, R9).

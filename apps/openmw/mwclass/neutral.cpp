@@ -23,6 +23,7 @@
 #include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
+#include "../mwgui/tooltips.hpp"
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwphysics/skyrimshape.hpp"
@@ -336,6 +337,19 @@ namespace MWClass
     std::string_view Neutral::getName(const MWWorld::ConstPtr& ptr) const
     {
         return baseOf(ptr).mEditorId;
+    }
+
+    bool Neutral::hasToolTip(const MWWorld::ConstPtr& ptr) const
+    {
+        const ObjectKind kind = baseOf(ptr).mKind;
+        return kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container;
+    }
+
+    MWGui::ToolTipInfo Neutral::getToolTipInfo(const MWWorld::ConstPtr& ptr, int /*count*/) const
+    {
+        MWGui::ToolTipInfo info;
+        info.caption = std::string(getName(ptr));
+        return info;
     }
 
     std::string_view Neutral::getModel(const MWWorld::ConstPtr& ptr) const

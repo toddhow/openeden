@@ -12,6 +12,7 @@
 #include <components/esm3/readerscache.hpp>
 
 #include "apps/openmw/mwclass/neutral.hpp"
+#include "apps/openmw/mwgui/tooltips.hpp"
 #include "apps/openmw/mwworld/cellstore.hpp"
 #include "apps/openmw/mwworld/class.hpp"
 #include "apps/openmw/mwworld/doorstate.hpp"
@@ -165,7 +166,7 @@ namespace
             EXPECT_NO_THROW(cls.getModel(ptr));
             EXPECT_NO_THROW(cls.getCorrectedModel(ptr));
             EXPECT_NO_THROW(EXPECT_TRUE(cls.getScript(ptr).empty()));
-            EXPECT_NO_THROW(EXPECT_FALSE(cls.hasToolTip(ptr)));
+            EXPECT_NO_THROW(cls.hasToolTip(ptr)); // which kinds have one: NeutralActivationFocus below (task 0142)
             EXPECT_NO_THROW(EXPECT_FALSE(cls.canLock(ptr)));
             EXPECT_NO_THROW(EXPECT_FALSE(cls.isEssential(ptr)));
             EXPECT_NO_THROW(EXPECT_TRUE(cls.getEnchantment(ptr).empty()));
@@ -174,6 +175,27 @@ namespace
             std::vector<std::string_view> models;
             EXPECT_NO_THROW(cls.getModelsToPreload(ptr, models));
             EXPECT_TRUE(models.empty());
+        }
+    }
+
+    // Task 0142: the activate key (MWWorld::Player::activate) and the tooltip drop a focused object whose class says it
+    // has no tooltip. A neutral actor, door and container are things the player acts on, so they have one; the other
+    // kinds (statics, lights, items nothing can take yet, leveled lists) stay inert and silent.
+    TEST_F(NeutralSafetyFixture, only_the_kinds_the_player_acts_on_have_a_tooltip_and_so_can_be_activated)
+    {
+        const std::vector<MWWorld::Ptr> ptrs = loadAllKinds();
+        ASSERT_EQ(ptrs.size(), std::size(kAllKinds));
+        for (const MWWorld::Ptr& ptr : ptrs)
+        {
+            const ObjectKind kind = ptr.get<MWWorld::NeutralBase>()->mBase->mKind;
+            const bool expected = kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container;
+            SCOPED_TRACE(static_cast<int>(kind));
+            EXPECT_EQ(ptr.getClass().hasToolTip(ptr), expected);
+            // The HUD asks for the tooltip text of whatever has one; it must not throw.
+            if (expected)
+            {
+                EXPECT_NO_THROW(EXPECT_FALSE(ptr.getClass().getToolTipInfo(ptr, 1).caption.empty()));
+            }
         }
     }
 }
