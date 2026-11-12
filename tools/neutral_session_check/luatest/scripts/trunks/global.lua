@@ -55,15 +55,27 @@ return {
                 step = 3
                                 local trees = {}
                 local p = player.position
+                if player.cell.isExterior then
+                    -- diagnostics: how many objects the cell lists and how many of them lie within 1500 units
+                    local all, near, shown = 0, 0, 0
+                    for _, obj in ipairs(player.cell:getAll()) do
+                        all = all + 1
+                        if (obj.position - p):length() < 1500 then
+                            near = near + 1
+                            if shown < 6 then shown = shown + 1 print('TRUNKS near ' .. tostring(obj.recordId)) end
+                        end
+                    end
+                    print(string.format('TRUNKS the cell lists %d objects, %d within 1500 units of the player at %.0f,%.0f', all, near, p.x, p.y))
+                end
                 for _, obj in ipairs(player.cell:getAll()) do
                     local ok, id = pcall(function() return obj.recordId end)
-                    if ok and isTree[id] then trees[#trees + 1] = obj end
+                    if ok and isTree[id] and (not player.cell.isExterior or (obj.position - p):length() < 4000) then trees[#trees + 1] = obj end
                 end
                 -- the tree with the most other trees within 1200 units (a grove, not a lone town tree), at least 1500 away
                 local best, bestN, bestD, count = nil, -1, 0, #trees
                 for _, a in ipairs(trees) do
                     local d = (a.position - p):length()
-                    if d >= 700 then
+                    if d >= (player.cell.isExterior and 300 or 700) then
                         local n = 0
                         for _, b in ipairs(trees) do
                             if b ~= a and (a.position - b.position):length() < 1200 then n = n + 1 end
@@ -95,10 +107,12 @@ return {
                 end
                 local dir = util.vector3(p.x - tp.x, p.y - tp.y, 0):normalize()
                 if cn > 0 then dir = util.vector3(tp.x - cx / cn, tp.y - cy / cn, 0):normalize() end
-                local cam = util.vector3(tp.x + dir.x * 500, tp.y + dir.y * 500, tp.z + 250)
+                local back, up = 500, 250
+                if player.cell.isExterior then back, up = 1100, 700 end -- task 0140: farther and higher, the tree stands on a slope
+                local cam = util.vector3(tp.x + dir.x * back, tp.y + dir.y * back, tp.z + up)
                 lookYaw = math.atan2(dir.x, -dir.y) -- OpenMW: forward is (-sin yaw, cos yaw)
                 lookPos = cam
-                lookPitch = math.atan2(250 - 150, 500) -- positive looks down
+                lookPitch = math.atan2(up - 150, back) -- positive looks down
                 print(string.format('TRUNKS camera at %.0f,%.0f,%.0f yaw %.2f pitch %.2f, tree %s at %.0f,%.0f,%.0f', cam.x, cam.y, cam.z, lookYaw, lookPitch, tostring(best.recordId), tp.x, tp.y, tp.z))
                 pcall(function() world.mwscript.getGlobalVariables(player).gamehour = 12 end)
                 nextAt = t + 1
