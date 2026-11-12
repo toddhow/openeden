@@ -12,6 +12,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/dialogue_source.hpp>
 
 #include <vsg/maths/quat.h>
 
@@ -32,6 +33,7 @@
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/failedaction.hpp"
+#include "../mwworld/neutraldialogue.hpp"
 #include "../mwworld/neutraldoor.hpp"
 #include "../mwworld/neutrallock.hpp"
 #include "../mwworld/neutralstore.hpp"
@@ -122,6 +124,46 @@ namespace MWClass
             }
         };
 
+        // Task 0140: talking to a neutral actor. The pack that owns the actor's base runs the conversation through the
+        // optional DialogueSource of its registered world source; the engine only presents it (neutraldialogue.hpp).
+        class TalkAction final : public MWWorld::Action
+        {
+            MWWorld::Ptr mTarget;
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                const MWWorld::NeutralBase& base = baseOf(mTarget);
+                MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+                NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+                openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
+                auto* dialogue = dynamic_cast<openeden::sdk::game::DialogueSource*>(source);
+                const MWWorld::CellStore* cell = mTarget.getCell();
+                if (dialogue == nullptr || cell == nullptr || cell->neutralCell() == nullptr)
+                    return;
+                const auto placement = MWWorld::neutralPlacementOf(mTarget.getCellRef().getRefNum());
+                openeden::sdk::game::DialogueTurn turn;
+                std::string error;
+                if (!dialogue->beginConversation(base.mBase, placement ? *placement : openeden::sdk::game::kNoWorldId,
+                        cell->neutralCell()->id, turn, error))
+                {
+                    Log(Debug::Info) << "Neutral dialogue with " << base.mEditorId << ": " << error;
+                    return;
+                }
+                Log(Debug::Info) << "NTALK " << base.mEditorId << ": greeting of " << turn.text.size() << " bytes, "
+                                 << turn.topics.size() << " topics";
+                MWWorld::neutralDialogueSession().start(base.mGameId, turn, turn.speakerName.empty() ? base.mEditorId : turn.speakerName);
+            }
+
+        public:
+            explicit TalkAction(const MWWorld::Ptr& target)
+                : MWWorld::Action(false, target)
+                , mTarget(target)
+            {
+            }
+        };
+
         // One trace line per activation (OPENEDEN_NEUTRAL_DOOR_TRACE).
         void logDoor(const MWWorld::Ptr& ptr, const MWWorld::NeutralDoorDecision& decision,
             std::string_view destination, bool reused)
@@ -147,6 +189,10 @@ namespace MWClass
     std::unique_ptr<MWWorld::Action> Neutral::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
+        // Task 0140: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
+        // same setting that draws them, and only by the player).
+        if (base.mKind == ObjectKind::Actor && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
+            return std::make_unique<TalkAction>(ptr);
         if (base.mKind != ObjectKind::Door && base.mKind != ObjectKind::Container)
             return MWWorld::Class::activate(ptr, actor);
 

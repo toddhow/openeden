@@ -26,6 +26,7 @@
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
@@ -106,6 +107,7 @@ namespace game_skyrimse
         public ComponentSource,
         public TerrainProvider,
         public openeden::sdk::game::ActorAppearanceSource,
+        public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::WeatherSource
     {
     public:
@@ -258,6 +260,14 @@ namespace game_skyrimse
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
+        // ---- openeden::sdk::game::DialogueSource (task 0140, M-S4 slice 1) ----
+        /// The dialogue, quest and actor records of every plugin are read on the first call and kept (another read of
+        /// each plugin file); string tables are read when a text needs them. One conversation at a time; main thread.
+        bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
+        bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
+        void endConversation() override;
+
         // ---- openeden::sdk::game::WeatherSource (task 0127, stage W-S1) ----
         /// The weather records of every plugin are read on the first call and kept (a second read of each plugin file,
         /// as the actor index does); main thread only.
@@ -338,6 +348,10 @@ namespace game_skyrimse
         std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
+        bool ensureActorIndex();
+        struct DialogueState; ///< the dialogue and quest indexes and the runtime (task 0140); defined in the .cpp
+        std::unique_ptr<DialogueState> mDialogue;
+        bool ensureDialogue();
         LoadOrder mOrder;
         std::vector<PluginData> mPlugins;
         std::unordered_map<FormId, BaseRef> mBases;

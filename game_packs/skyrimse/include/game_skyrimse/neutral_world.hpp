@@ -15,6 +15,7 @@
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -138,6 +139,7 @@ namespace game_skyrimse
     /// reference to the view, which must outlive it. Main thread only, like the view.
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
         public openeden::sdk::game::ActorAppearanceSource,
+        public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::CellWaterSource,
         public openeden::sdk::game::WeatherSource
     {
@@ -176,6 +178,11 @@ namespace game_skyrimse
         /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        /// Conversations (task 0140): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
+        bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
+            openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
+        bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
+        void endConversation() override;
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;

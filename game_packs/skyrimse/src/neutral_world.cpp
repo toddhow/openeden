@@ -377,6 +377,37 @@ namespace game_skyrimse
         return source->describeActor(base, variation, out, error);
     }
 
+    bool SkyrimCellSource::beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view cannot run conversations";
+            return false;
+        }
+        return source->beginConversation(base, reference, cell, out, error);
+    }
+
+    bool SkyrimCellSource::chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view cannot run conversations";
+            return false;
+        }
+        return source->chooseTopic(topicId, out, error);
+    }
+
+    void SkyrimCellSource::endConversation()
+    {
+        if (auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView))
+            source->endConversation();
+    }
+
     bool SkyrimCellSource::describeWeathers(
         std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error)
     {

@@ -3,6 +3,7 @@
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
+#include "game_skyrimse/dialogue_runtime.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
@@ -163,6 +164,16 @@ namespace game_skyrimse
 
     // ---- construction ---------------------------------------------------------------------------------------------
 
+    struct SkyrimWorldView::DialogueState
+    {
+        DialogueIndex mDialogue;
+        QuestIndex mQuests;
+        /// String tables by (plugin index, kind); a null entry is a table that could not be read (tried once).
+        std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mTables;
+        std::unique_ptr<DialogueRuntime> mRuntime;
+        std::uint64_t mTablesMissing = 0;
+    };
+
     SkyrimWorldView::SkyrimWorldView() = default;
 
     SkyrimWorldView::SkyrimWorldView(Options options, const FileSource* files)
@@ -177,16 +188,10 @@ namespace game_skyrimse
         cancelAndJoin();
     }
 
-    bool SkyrimWorldView::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
-        openeden::sdk::game::ActorAppearance& out, std::string& error)
+    bool SkyrimWorldView::ensureActorIndex()
     {
-        out = {};
-        if (!awaitIndex())
-        {
-            error = "the world index is not available";
-            return false;
-        }
-        if (mActorIndex == nullptr)
+        if (mActorIndex != nullptr)
+            return true;
         {
             auto index = std::make_unique<ActorIndex>();
             const ActorLimits limits;
@@ -201,10 +206,29 @@ namespace game_skyrimse
                 }
                 ActorRecords records;
                 (void)parseActorRecords(*file, mOrder, limits, records);
+                for (ActorNpc& npc : records.mNpcs)
+                    npc.mPlugin = static_cast<std::uint32_t>(&plugin - mPlugins.data());
                 index->add(records);
                 index->addLeveledLists(plugin.mParsed.mLeveledLists);
             }
             mActorIndex = std::move(index);
+        }
+        return true;
+    }
+
+    bool SkyrimWorldView::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        out = {};
+        if (!awaitIndex())
+        {
+            error = "the world index is not available";
+            return false;
+        }
+        if (!ensureActorIndex())
+        {
+            error = "the actor records are not available";
+            return false;
         }
         FaceFileProbe probe;
         if (mFiles != nullptr)
@@ -214,6 +238,103 @@ namespace game_skyrimse
             probe.mExists = [files](const std::string& path) { return files->exists(path); };
         }
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
+    }
+
+    // ---- conversations (task 0140, M-S4 slice 1) -----------------------------------------------------------------
+
+    bool SkyrimWorldView::ensureDialogue()
+    {
+        if (mDialogue != nullptr)
+            return mDialogue->mRuntime != nullptr;
+        if (!ensureActorIndex())
+            return false;
+        auto state = std::make_unique<DialogueState>();
+        const DialogueLimits dialogueLimits;
+        const QuestLimits questLimits;
+        for (const PluginData& plugin : mPlugins)
+        {
+            Content::Error openError;
+            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+            if (file == nullptr)
+            {
+                noteError(openError);
+                // Keep the plugin numbering of the index: an empty plugin takes the slot.
+                state->mDialogue.add(DialogueRecords(), FormIdResolver(Content::Header(), plugin.mName, mOrder));
+                state->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), plugin.mName, mOrder));
+                continue;
+            }
+            DialogueRecords dialogue;
+            (void)parseDialogueRecords(*file, mOrder, dialogueLimits, dialogue);
+            state->mDialogue.add(std::move(dialogue), FormIdResolver(file->header(), plugin.mName, mOrder));
+            QuestRecords quests;
+            (void)parseQuestRecords(*file, mOrder, questLimits, quests);
+            state->mQuests.add(std::move(quests), FormIdResolver(file->header(), plugin.mName, mOrder));
+        }
+        DialogueState* raw = state.get();
+        raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mDialogue, raw->mQuests,
+            QuestState::initial(raw->mQuests),
+            [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
+                if (!text.mPresent)
+                    return std::string();
+                if (!text.mLocalized)
+                    return text.mText;
+                if (mFiles == nullptr || plugin >= mPlugins.size())
+                    return std::string();
+                auto& slot = raw->mTables[{ plugin, static_cast<int>(kind) }];
+                if (slot == nullptr)
+                {
+                    std::string bytes;
+                    const std::string path = stringTablePath(stemOf(mPlugins[plugin].mPath), mOptions.mLanguage, kind);
+                    auto table = std::make_unique<StringTable>();
+                    Content::Error tableError;
+                    if (mFiles->read(path, bytes)
+                        && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
+                            mPlugins[plugin].mName, *table, tableError))
+                        slot = std::move(table);
+                    else
+                    {
+                        ++raw->mTablesMissing;
+                        slot = std::make_unique<StringTable>(); // empty: not tried again
+                    }
+                }
+                const std::string* found = slot->find(text.mId);
+                return found != nullptr ? *found : std::string();
+            });
+        mDialogue = std::move(state);
+        return true;
+    }
+
+    bool SkyrimWorldView::beginConversation(sdkgame::WorldId base, sdkgame::WorldId reference, sdkgame::WorldId cell,
+        sdkgame::DialogueTurn& out, std::string& error)
+    {
+        out = {};
+        if (!awaitIndex() || !ensureDialogue())
+        {
+            error = "the dialogue records are not available";
+            return false;
+        }
+        DialogueSpeaker speaker;
+        speaker.mBase = static_cast<FormId>(base);
+        speaker.mReference = static_cast<FormId>(reference);
+        speaker.mCell = static_cast<FormId>(cell);
+        return mDialogue->mRuntime->begin(speaker, out, error);
+    }
+
+    bool SkyrimWorldView::chooseTopic(std::uint32_t topicId, sdkgame::DialogueTurn& out, std::string& error)
+    {
+        out = {};
+        if (mDialogue == nullptr || mDialogue->mRuntime == nullptr)
+        {
+            error = "no conversation is open";
+            return false;
+        }
+        return mDialogue->mRuntime->choose(topicId, out, error);
+    }
+
+    void SkyrimWorldView::endConversation()
+    {
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->end();
     }
 
     bool SkyrimWorldView::ensureWeather()

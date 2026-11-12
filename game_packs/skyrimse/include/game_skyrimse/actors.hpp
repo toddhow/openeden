@@ -86,6 +86,9 @@ namespace game_skyrimse
     {
         RecordCommon mCommon;
         LString mName;
+        /// Which plugin of the caller's load order this record came from (set by the caller before `ActorIndex::add`;
+        /// the string table of a localised name is that plugin's). 0 when the caller does not care.
+        std::uint32_t mPlugin = 0;
         FormId mRace = kNullFormId; ///< RNAM
         FormId mClass = kNullFormId; ///< CNAM
         FormId mVoiceType = kNullFormId; ///< VTCK

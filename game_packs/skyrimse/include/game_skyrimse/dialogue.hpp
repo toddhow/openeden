@@ -113,6 +113,7 @@ namespace game_skyrimse
         std::vector<DialogResponse> mResponses;
         std::vector<FormId> mLinksTo; ///< TCLT
         std::vector<survey::Ctda> mConditions; ///< as stored (plugin-local form ids), see DialogueIndex::resolverOf
+        bool mHasScript = false; ///< a VMAD subrecord is present (script fragments, not run; task 0140)
         bool mConditionsOk = true; ///< false: the CTDA list was damaged, the INFO never passes
         std::uint32_t mPlugin = 0; ///< index into DialogueIndex's plugins
     };
