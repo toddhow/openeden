@@ -320,6 +320,13 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_655 GetIntimidateSuccess: can the player intimidate the subject? The formula is the "Mod Player
+        /// Intimidation" perk entry point (CK wiki, shown by toddhow, 2026-11-11); the world owns it.
+        virtual bool playerCanIntimidate(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

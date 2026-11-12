@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mIntimidate = true;
+        bool playerCanIntimidate(Subject s) const override { return s == mSubject && mIntimidate; }
         bool mTalked = true;
         bool talkedToPlayer(Subject s) const override { return s == mSubject && mTalked; }
         float baseActorValue(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 100.f : 0.f; }
@@ -397,6 +399,18 @@ namespace
         w.mTalked = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(50, kEq, 0.f), w));
+    }
+
+    // fn_655 GetIntimidateSuccess: the player can intimidate the subject (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_655_is_intimidation_success)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(655, kEq, 1.f), w));
+        w.mIntimidate = false;
+        EXPECT_TRUE(run(cond(655, kEq, 0.f), w));
+        w.mIntimidate = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(655, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

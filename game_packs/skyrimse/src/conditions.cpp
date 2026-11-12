@@ -305,6 +305,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.talkedToPlayer(subject));
         }
 
+        // 655 GetIntimidateSuccess (CK wiki, toddhow 2026-11-11)
+        float getIntimidateSuccess(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.playerCanIntimidate(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -313,7 +319,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 46> sTable = { {
+        constexpr std::array<Entry, 47> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -360,6 +366,7 @@ namespace game_skyrimse::conditions
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
             { 629, getVMQuestVariable },
+            { 655, getIntimidateSuccess },
         } };
     }
 
