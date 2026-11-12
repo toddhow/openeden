@@ -57,7 +57,7 @@ map.
 
 ## Stage log
 
-Windows only, one build tree (`I:\Projects\OpenEden-work\skyextdoorsuild`), local commit on `skyextdoors`, not pushed.
+Windows only, one build tree (`I:\Projects\OpenEden-work\skyextdoors build dir`), local commit on `skyextdoors`, not pushed.
 
 **Data facts (VERIFIED on the five official masters, `testskyrimseexteriordoorsreal.cpp`, aggregates):** 12,060 cells read
 (every interior plus every exterior cell of WhiterunWorld and Tamriel), 2,452 teleports, 0 with an unknown destination
