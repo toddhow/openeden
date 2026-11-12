@@ -258,6 +258,7 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testflatten.cpp
     nifscene/testflattenmaterials.cpp
     nifscene/testflattentreesway.cpp
+    nifscene/testflattenskinnedatrest.cpp
     nifscene/testskyrimmaterialsreal.cpp
     nifscene/testcollision.cpp
 
@@ -511,6 +512,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseconditions.cpp
     skyrimse/testskyrimseconditionsreal.cpp
     skyrimse/testskyrimsetreesreal.cpp
+    skyrimse/testskyrimsetrunksreal.cpp
     skyrimse/testskyrimseconditionnames.cpp
     skyrimse/testskyrimseconditionfunctions.cpp
     skyrimse/testskyrimsepack.cpp

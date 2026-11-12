@@ -520,7 +520,8 @@ namespace MWRender::SkyrimModel
             << c.mFailed.load() << " failed), " << c.mDraws.load() << " draws, " << c.mTriangles.load()
             << " triangles, " << c.mVertices.load() << " vertices, textures " << c.mTexturesLoaded.load()
             << " loaded / " << c.mTexturesMissing.load() << " missing, double sided shapes "
-            << c.mDoubleSidedShapes.load() << ", left out: " << c.mSkippedSkinned.load() << " skinned, "
+            << c.mDoubleSidedShapes.load() << ", left out: " << c.mSkippedSkinned.load() << " skinned (and " << c.mSkinnedAtRest.load()
+            << " skinned shapes drawn in their rest pose), "
             << c.mSkippedEffect.load() << " effect, " << c.mSkippedNoMaterial.load() << " no shader, "
             << c.mSkippedHidden.load() << " hidden, " << c.mDroppedTriangles.load() << " bad triangles; materials: "
             << c.mNormalMaps.load() << " normal maps, " << c.mGlowMaps.load() << " glow maps, "
@@ -535,6 +536,10 @@ namespace MWRender::SkyrimModel
         Counters& totals = counters();
         totals.mModels.fetch_add(1, std::memory_order_relaxed);
         totals.mSkippedSkinned += model.mReport.mSkippedSkinned;
+        totals.mSkinnedAtRest += model.mReport.mSkinnedAtRest;
+        if (model.mReport.mSkinnedAtRest != 0 && traceEnabled())
+            std::cerr << "nifscene: " << context.mFilename << " has " << model.mReport.mSkinnedAtRest
+                      << " skinned shapes drawn in their rest pose\n";
         totals.mSkippedEffect += model.mReport.mSkippedEffect;
         totals.mSkippedNoMaterial += model.mReport.mSkippedNoMaterial;
         totals.mSkippedHidden += model.mReport.mSkippedHidden;
@@ -601,6 +606,9 @@ namespace MWRender::SkyrimModel
                 NifScene::Flat::Limits limits;
                 limits.mSurfaceMaps = surfaceMaps;
                 limits.mTreeSway = swayUniform != nullptr;
+                // Task 0136: the trunks and branches of trees are skinned shapes; as static models they are drawn in
+                // the rest pose (this reader is for statics only, actors have their own skinned path).
+                limits.mSkinnedAtRest = true;
                 const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene, limits);
                 totals.mNormalMapsNoTangents += flat.mReport.mNormalMapsNoTangents;
                 totals.mNormalMapsModelSpace += flat.mReport.mNormalMapsModelSpace;

@@ -107,6 +107,8 @@ BAKE=""
 # Task 0133 stage 2: "lodobjbake" bakes the far object clusters (--bake-lod-objects) of the same world; "lodobjview" is "lodview" for them.
 [ "$SHOT" = lodobjbake ] && BAKE="--bake-lod-objects"
 case "$SHOT" in lodview|lodobjview) echo "content=n4lodview.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
+# Task 0136 (skinned trunks): the same walk to a grove of the 35 TREE records whose model has a BSTreeNode (trunk and branches are skinned shapes).
+[ "$SHOT" = trunks ] && echo "content=trunks.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -114,11 +116,11 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters|TRUNKS " "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

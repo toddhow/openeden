@@ -142,6 +142,30 @@ namespace NifScene::Flat
             return info;
         }
 
+        // Per bone of a skin, the pose that takes a shape-local vertex to the model frame with every bone node where the
+        // node tree has it: boneWorld * bind (the bind maps shape space to bone space). False when the skin names a bone
+        // that is not a walked node or has no bind, or a pose is not finite.
+        bool restPoses(const Scene& scene, const Skin& skin, const std::vector<NodeInfo>& nodes, std::vector<Pose>& out)
+        {
+            out.clear();
+            if (skin.mBoneNodes.empty() || skin.mBoneNodes.size() != skin.mBindTransforms.size())
+                return false;
+            out.reserve(skin.mBoneNodes.size());
+            for (std::size_t i = 0; i < skin.mBoneNodes.size(); ++i)
+            {
+                const std::uint32_t bone = skin.mBoneNodes[i];
+                const Pose bind = toPose(skin.mBindTransforms[i]);
+                if (bone >= nodes.size() || !finite(bind))
+                {
+                    out.clear();
+                    return false;
+                }
+                out.push_back(compose(nodes[bone].world, bind));
+            }
+            (void)scene;
+            return true;
+        }
+
         // A coordinate the renderer can hold.
         bool usable(double v, double limit)
         {
@@ -354,7 +378,13 @@ namespace NifScene::Flat
                 ++report.mSkippedHidden;
                 continue;
             }
-            if (geometry.mSkin < scene.mSkins.size())
+            // Task 0136: with Limits::mSkinnedAtRest a skinned shape of a static model is drawn in its rest pose: each
+            // vertex is skinned by the bone nodes' world poses (see skinPoses). The skin's own transform is NOT applied
+            // (task a8203e2cfb). A shape whose bones cannot be found stays out, as before.
+            std::vector<Pose> skinPoses; // per bone: boneWorld * bind, empty for an unskinned shape
+            const bool skinnedAtRest = geometry.mSkin < scene.mSkins.size() && limits.mSkinnedAtRest
+                && restPoses(scene, scene.mSkins[geometry.mSkin], nodes, skinPoses);
+            if (geometry.mSkin < scene.mSkins.size() && !skinnedAtRest)
             {
                 ++report.mSkippedSkinned;
                 continue;
@@ -393,7 +423,29 @@ namespace NifScene::Flat
             for (std::size_t v = 0; v < vertexCount; ++v)
             {
                 const auto& p = geometry.mPositions[v];
-                const Vec3d placed = apply(pose, { p[0], p[1], p[2] });
+                Vec3d placed = apply(pose, { p[0], p[1], p[2] });
+                if (skinnedAtRest)
+                {
+                    // the weighted mean of the bones' answers; a vertex without a usable influence keeps its node pose
+                    Vec3d sum{ 0, 0, 0 };
+                    double total = 0.0;
+                    if (geometry.mInfluenceStart.size() == vertexCount + 1)
+                        for (std::uint32_t k = geometry.mInfluenceStart[v]; k < geometry.mInfluenceStart[v + 1]
+                             && k < geometry.mInfluences.size();
+                             ++k)
+                        {
+                            const Influence& influence = geometry.mInfluences[k];
+                            if (influence.mBone >= skinPoses.size() || !std::isfinite(influence.mWeight)
+                                || influence.mWeight <= 0.f)
+                                continue;
+                            const Vec3d q = apply(skinPoses[influence.mBone], { p[0], p[1], p[2] });
+                            for (int c = 0; c < 3; ++c)
+                                sum[c] += double(influence.mWeight) * q[c];
+                            total += influence.mWeight;
+                        }
+                    if (total > 1e-9)
+                        placed = { sum[0] / total, sum[1] / total, sum[2] / total };
+                }
                 if (usable(placed[0], limits.mMaxCoordinate) && usable(placed[1], limits.mMaxCoordinate)
                     && usable(placed[2], limits.mMaxCoordinate))
                     positions[v] = { static_cast<float>(placed[0]), static_cast<float>(placed[1]),
@@ -447,6 +499,28 @@ namespace NifScene::Flat
                     double r[3];
                     for (int row = 0; row < 3; ++row)
                         r[row] = pose.r[row * 3] * nv[0] + pose.r[row * 3 + 1] * nv[1] + pose.r[row * 3 + 2] * nv[2];
+                    if (skinnedAtRest && geometry.mInfluenceStart.size() == vertexCount + 1)
+                    {
+                        // turned by the same weighted bones (rotation only: a uniform scale does not turn a direction)
+                        double b[3] = { 0, 0, 0 };
+                        double total = 0.0;
+                        for (std::uint32_t k = geometry.mInfluenceStart[v];
+                             k < geometry.mInfluenceStart[v + 1] && k < geometry.mInfluences.size(); ++k)
+                        {
+                            const Influence& influence = geometry.mInfluences[k];
+                            if (influence.mBone >= skinPoses.size() || !std::isfinite(influence.mWeight)
+                                || influence.mWeight <= 0.f)
+                                continue;
+                            const Pose& bp = skinPoses[influence.mBone];
+                            for (int row = 0; row < 3; ++row)
+                                b[row] += double(influence.mWeight)
+                                    * (bp.r[row * 3] * nv[0] + bp.r[row * 3 + 1] * nv[1] + bp.r[row * 3 + 2] * nv[2]);
+                            total += influence.mWeight;
+                        }
+                        if (total > 1e-9)
+                            for (int row = 0; row < 3; ++row)
+                                r[row] = b[row];
+                    }
                     normals[v] = normalized(r[0], r[1], r[2], allGood);
                 }
                 if (!allGood)
@@ -519,7 +593,7 @@ namespace NifScene::Flat
 
             // Task 0130: the maps and values beyond the diffuse texture, only on request.
             std::vector<std::array<float, 4>> tangents;
-            if (limits.mSurfaceMaps)
+            if (limits.mSurfaceMaps && !skinnedAtRest) // a skinned shape's tangents would need the blend too: no normal map
                 collectSurfaceMaps(scene, geometry, material, pose, vertexCount, !uvs.empty(), limits, key, tangents, report);
 
             // Bounds of the vertices the kept triangles use.
@@ -561,6 +635,7 @@ namespace NifScene::Flat
             acceptedTriangles += fullTriangles;
             ++acceptedShapes;
             ++report.mDrawn;
+            report.mSkinnedAtRest += skinnedAtRest ? 1u : 0u;
             report.mSwayShapes += treeSway ? 1u : 0u;
         }
 

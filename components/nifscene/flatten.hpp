@@ -67,6 +67,13 @@ namespace NifScene::Flat
         /// Task 0136 (Skyrim tree sway): mark shapes with the Tree_Anim flag (MaterialKey::mSway) and keep the file's
         /// per-vertex alpha on them whatever the Vertex_Alpha flag says. Off (the default) nothing changes.
         bool mTreeSway = false;
+        /// Task 0136 (skinned trunks): a skinned shape of a STATIC model (a tree's trunk and branches under a
+        /// BSTreeNode) is drawn as a static shape in its rest pose: each vertex is skinned by the bone nodes' world poses
+        /// in the file's own node tree (sum of weight * boneWorld * bind * vertex, the influences' weights renormalised;
+        /// the skin data's own transform is NOT applied). A vertex with no usable influence keeps its node's pose; a
+        /// shape whose bones are missing stays out. Off (the default) skinned shapes are left out as before. Actors do
+        /// not use this: their skinned shapes keep the Skinned path (skinned.hpp).
+        bool mSkinnedAtRest = false;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -134,6 +141,7 @@ namespace NifScene::Flat
         std::uint32_t mNormalMapsNoTangents = 0; // slot 1 named but the shape has no tangents: no normal map
         std::uint32_t mNormalMapsModelSpace = 0; // slot 1 named but the shader says model space normals: not used
         std::uint32_t mGlowMaps = 0; // keep a glow map
+        std::uint32_t mSkinnedAtRest = 0; // task 0136 (only with Limits::mSkinnedAtRest): skinned geometries drawn as static
         std::uint32_t mSwayShapes = 0; // task 0136 (only with Limits::mTreeSway): geometries marked as swaying
     };
 

@@ -1,0 +1,2 @@
+GLOBAL: scripts/trunks/global.lua
+PLAYER: scripts/trunks/player.lua

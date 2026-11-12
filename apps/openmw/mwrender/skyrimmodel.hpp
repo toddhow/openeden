@@ -86,6 +86,7 @@ namespace MWRender::SkyrimModel
         std::atomic<std::uint64_t> mTexturesLoaded{ 0 };
         std::atomic<std::uint64_t> mTexturesMissing{ 0 };
         std::atomic<std::uint64_t> mSkippedSkinned{ 0 };
+        std::atomic<std::uint64_t> mSkinnedAtRest{ 0 }; // task 0136: skinned shapes of statics drawn in their rest pose
         std::atomic<std::uint64_t> mSkippedEffect{ 0 };
         std::atomic<std::uint64_t> mSkippedNoMaterial{ 0 };
         std::atomic<std::uint64_t> mSkippedHidden{ 0 };
