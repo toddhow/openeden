@@ -561,6 +561,30 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.daysInJail(subject) : 0.f;
         }
 
+        // 698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0)
+        float isAllowedToFlyFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isAllowedToFly(subject));
+        }
+
+        // 700 IsCommandedActor (CK wiki, toddhow 2026-11-11: raised as a zombie or summoned by a summoning spell)
+        float isCommandedActorFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isCommandedActor(subject));
+        }
+
+        // 402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date)
+        float isBribedbyPlayerFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isBribedByPlayer(subject));
+        }
+
+        // 32 GetInSameCell(reference) (CK wiki, toddhow 2026-11-11)
+        float getInSameCell(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inSameCell(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -569,11 +593,12 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 89> sTable = { {
+        constexpr std::array<Entry, 93> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
             { 25, isMoving },
+            { 32, getInSameCell },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
@@ -626,6 +651,7 @@ namespace game_skyrimse::conditions
             { 314, isActorAVictim },
             { 359, getInCurrentLoc },
             { 360, getInCurrentLocAlias },
+            { 402, isBribedbyPlayerFn },
             { 403, getRelationshipRank },
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
@@ -658,6 +684,8 @@ namespace game_skyrimse::conditions
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },
+            { 698, isAllowedToFlyFn },
+            { 700, isCommandedActorFn },
             { 707, getCombatTargetHasKeyword },
         } };
     }

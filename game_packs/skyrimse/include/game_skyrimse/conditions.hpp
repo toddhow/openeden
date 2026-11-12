@@ -608,6 +608,31 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
+        /// fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
+        virtual bool isAllowedToFly(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_700 IsCommandedActor (CK wiki, toddhow 2026-11-11: raised as a zombie or summoned by a summoning spell).
+        virtual bool isCommandedActor(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date).
+        virtual bool isBribedByPlayer(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_32 GetInSameCell(reference): is the subject in the same cell as the reference? (CK wiki, shown by toddhow,
+        /// 2026-11-11)
+        virtual bool inSameCell(Subject subject, std::uint32_t reference) const
+        {
+            (void)subject, (void)reference;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

@@ -124,6 +124,13 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool inSameCell(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x14; }
+        bool mIsBribedByPlayerFlag = true;
+        bool isBribedByPlayer(Subject s) const override { return s == mSubject && mIsBribedByPlayerFlag; }
+        bool mIsCommandedActorFlag = true;
+        bool isCommandedActor(Subject s) const override { return s == mSubject && mIsCommandedActorFlag; }
+        bool mIsAllowedToFlyFlag = true;
+        bool isAllowedToFly(Subject s) const override { return s == mSubject && mIsAllowedToFlyFlag; }
         float daysInJail(Subject s) const override { return s == mSubject ? 4.f : 0.f; }
         bool canPayCrimeGold(Subject s, std::uint32_t f) const override { return s == mSubject && (f == 0 || f == 0xA0); }
         bool hasCombatTarget(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14; }
@@ -842,6 +849,52 @@ namespace
         EXPECT_TRUE(run(cond(499, kEq, 4.f), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(499, kEq, 0.f), w));
+    }
+
+    // fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
+    TEST(SkyrimConditionFunctions, fn_698_isAllowedToFly)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(698, kEq, 1.f), w));
+        w.mIsAllowedToFlyFlag = false;
+        EXPECT_TRUE(run(cond(698, kEq, 0.f), w));
+        w.mIsAllowedToFlyFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(698, kEq, 0.f), w));
+    }
+
+    // fn_700 IsCommandedActor (CK wiki, toddhow 2026-11-11: raised as a zombie or summoned by a summoning spell).
+    TEST(SkyrimConditionFunctions, fn_700_isCommandedActor)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(700, kEq, 1.f), w));
+        w.mIsCommandedActorFlag = false;
+        EXPECT_TRUE(run(cond(700, kEq, 0.f), w));
+        w.mIsCommandedActorFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(700, kEq, 0.f), w));
+    }
+
+    // fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date).
+    TEST(SkyrimConditionFunctions, fn_402_isBribedbyPlayer)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(402, kEq, 1.f), w));
+        w.mIsBribedByPlayerFlag = false;
+        EXPECT_TRUE(run(cond(402, kEq, 0.f), w));
+        w.mIsBribedByPlayerFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(402, kEq, 0.f), w));
+    }
+
+    // fn_32 GetInSameCell(reference) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_32_is_in_the_same_cell)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(32, kEq, 1.f, 0x14), w));
+        EXPECT_TRUE(run(cond(32, kEq, 0.f, 0x15), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(32, kEq, 0.f, 0x14), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -83,3 +83,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_432 GetIsObjectType(object class) (CK wiki page toddhow showed). Red, then 85 of 85.
 - 2026-11-11: fn_497 CanPayCrimeGold(faction, optional), fn_513 IsCombatTarget(actor), fn_707 GetCombatTargetHasKeyword(keyword) (CK wiki pages toddhow showed; GetGroupTargetCount, fn_416, does not occur in the data and was not added). Red, then 86 of 86. Real data: 31,957 of 32,148 lists (99.4 percent); unknown conditions 195 (0.25 percent), 35 distinct functions.
 - 2026-11-11: fn_499 GetDaysInJail (CK wiki page toddhow showed). Red, then 87 of 87.
+- 2026-11-11: fn_698 IsAllowedToFly, fn_700 IsCommandedActor, fn_402 IsBribedbyPlayer, fn_32 GetInSameCell(reference) (CK wiki pages toddhow showed). Red, then 91 of 91.
