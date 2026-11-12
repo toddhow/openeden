@@ -43,11 +43,43 @@ Constraints:
 Acceptance criteria:
 - [x] Paths, binding, loop time and sampling are tested (`HavokIdle*`, written first and run red against stubs).
 - [x] The controller writes translation, rotation and scale of each bound bone and skips unbound ones (`SkyrimIdle*`).
-- [ ] In game, the Bannered Mare's NPCs show a pose different from the rest pose, at two times different from each other.
+- [x] In game, the Bannered Mare's NPCs show a pose different from the rest pose, at two times different from each other.
 - [x] With the setting off, nothing changes: Morrowind (`tools/worldobjects_check`, fixed-frame Balmora hash, C0/C2 pose trace).
 - Out of scope: other idle clips, state changes (sit, sleep, talk), locomotion, creatures, root motion, the CreativeMotion
   graph, faces, Papyrus idle markers.
 
 ## Stage log
 
-(filled in below as the work proceeds)
+2026-11-12, one hand wrote tests and code (no separate test writer, no fresh reviewer); Windows only; local commits on branch
+`skyidle`, not pushed.
+
+- **The clip:** the humanoid has NO `mt_idle.hkx` (it exists for creatures only: `chicken`, `hare`, `bear`, ...). The standing
+  unarmed idle of the character is `meshes/actors/character/animations/h2h_idle.hkx` (8 s, 99 tracks), so the default clip
+  name is `h2h_idle` (decided from the extracted `Skyrim - Animations.bsa`, 8,979 files; the clip name is a parameter of
+  `clipHkxPath`). The male and female skeletons share the clip folder (`character assets` and `character assets female`).
+- **Tests first, red:** `HavokIdle*` against a stub `idle.cpp`: 7 of 8 failed (the 8th pins a wrong-size no-op), green after.
+  Two mutations (no negative-time wrap; clip folder one level too deep) each failed named tests; restored. The
+  `SkyrimIdle*` controller tests (4 of 5 written with the code, not run red) pass; the fifth's expectation was a test fault
+  (the VFS throws "not found") and was corrected.
+- **Real data:** the humanoid skeleton (99 bones) and `h2h_idle` bind with all 99 tracks; in game 96 of 99 track bones are
+  scene nodes (3 missing: helper bones of the animation skeleton the NIF lacks, as 0119 found). One sample of all tracks costs
+  **6.9 microseconds** (20,000 samples, opt-in test `HavokIdleRealData`, `OPENEDEN_HAVOK_IDLE_ROOT`), plus about 96
+  `setAttitude` writes: no per-frame allocation by construction (scratch sized at construction), not measured with a counter.
+- **In game** (`tools/neutral_session_check/check.sh ... WhiterunBanneredMare 3500 n5idle`, the new scenario; quiet window):
+  all 6 actors log "idles: 96 of 99 tracks bound". Frames of one woman, setting off against on (viewed): off = the arms-down rest
+  pose; on = the unarmed stance (hands raised, body lowered), and two frames 3.3 s apart differ in head and arm position.
+  `idle.hkx` poses lower the pelvis: the actor stands visibly lower than in the rest pose (root motion and the root bone are
+  ignored; the NPC's `NPC COM` z comes from the clip's track, not the NIF).
+- **Morrowind unchanged** (parent = this tree with `scene.cpp`, `game.hpp`, `settings-default.cfg` taken from `main`, built in
+  the same folder; `openmw_parent.exe`): `tools/worldobjects_check` dump 110 lines byte-identical; the fixed-time Balmora
+  frame (`OPENEDEN_FIXED_FRAME_TIME`, seed 7, frame 600) SHA-256 `1c5d47ad0b5dc32d...` for parent, new with the setting off and
+  new with it on; `tools/creativemotion_check` `cm` variant with `OPENEDEN_FORCE_ANIM_VARIANT=1` and a fixed frame time: the
+  player's CMTRACE lines (1,401, positions removed, timestamps stripped) byte-identical between parent and new.
+- **Not run:** the Linux gate and GCC `-Werror` (Docker is not to be used), clang-format 14, clang-tidy, the Lua tests, a fresh
+  review, sanitizers, a frame-time measurement with many actors, female actors and other races in a frame, a third time sample
+  (the 3500-frame run ended after two shots), creatures (they keep the rest pose: no `mt_idle` lookup for their folders).
+- **Decisions for toddhow:** (1) `h2h_idle` (hands raised) as the standing pose looks like a fight stance; Skyrim's ambient
+  standing NPCs use the behaviour graph's choice, which we do not read: a calmer clip (for example `idlelookaround` family or
+  the `1hm_idle`/idle variants) can be named per race or actor later. (2) The pelvis lowering of the clip makes feet float
+  above or sink; root handling belongs to M-S3 proper. (3) `Skyrim - Animations.bsa` is added to the archive list of
+  `tools/neutral_session_check/check.sh`; a real game config needs it too.
