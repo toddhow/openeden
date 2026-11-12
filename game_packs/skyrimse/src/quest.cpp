@@ -7,7 +7,7 @@
 #include <memory>
 #include <sstream>
 
-// Layout status of every subrecord read here: see the header (task 0138). VERIFIED on the five installed Skyrim SE
+// Layout status of every subrecord read here: see the header (task 0139). VERIFIED on the five installed Skyrim SE
 // masters by tools/skyrimse_quest_check; RECALLED-VERIFY where the header says so. Nothing is copied from xEdit or the
 // Creation Kit wiki.
 

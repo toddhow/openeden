@@ -887,7 +887,7 @@ namespace game_skyrimse
         return isSpeaker(subject) && list != kNullFormId && inList(list, mSpeaker.mBase, 0);
     }
 
-    // ---- quests (task 0138) ----------------------------------------------------------------------------------
+    // ---- quests (task 0139) ----------------------------------------------------------------------------------
 
     bool SkyrimConditionWorld::questKnown(std::uint32_t storedQuest) const
     {

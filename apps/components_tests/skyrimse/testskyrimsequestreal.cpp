@@ -1,4 +1,4 @@
-// Task 0138, M-S4 slice 2: the aggregate check of the quest records, the initial quest state and its effect on the
+// Task 0139, M-S4 slice 2: the aggregate check of the quest records, the initial quest state and its effect on the
 // response choice, on the player's own Skyrim SE masters. Prints counts and official editor ids only (lines starting
 // SKYRIMSE-QUEST), never a text, a path or a mod name, and writes nothing. Skipped when the environment is not set.
 //

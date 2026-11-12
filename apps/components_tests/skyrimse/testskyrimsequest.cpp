@@ -1,4 +1,4 @@
-// Task 0138, milestone M-S4 slice 2: Skyrim SE quests (QUST), the pure quest state, and the conditions world that answers
+// Task 0139, milestone M-S4 slice 2: Skyrim SE quests (QUST), the pure quest state, and the conditions world that answers
 // GetStage, GetStageDone, GetQuestRunning, GetQuestCompleted and GetIsAliasRef from them, on generated plugins. No
 // game data.
 #include <game_skyrimse/dialogue.hpp>

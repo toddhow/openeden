@@ -1,5 +1,5 @@
 #!/bin/bash
-# Task 0138, M-S4 slice 2: the gated real-data check of the Skyrim SE quest records, the initial quest state and its effect on the Hello choice.
+# Task 0139, M-S4 slice 2: the gated real-data check of the Skyrim SE quest records, the initial quest state and its effect on the Hello choice.
 #
 # Decodes QUST (and the dialogue) of the five official masters, builds the initial quest state, and compares which Hello INFO a few
 # Bannered Mare NPCs get with and without it. Prints AGGREGATE numbers and official editor ids only (lines starting

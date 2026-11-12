@@ -1,7 +1,7 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_QUEST_H
 #define OPENEDEN_GAME_SKYRIMSE_QUEST_H
 
-// Skyrim SE quests (task 0138, milestone M-S4 "talk to an NPC", slice 2; docs/design/skyrim-se-implementation-plan.md
+// Skyrim SE quests (task 0139, milestone M-S4 "talk to an NPC", slice 2; docs/design/skyrim-se-implementation-plan.md
 // sections 4.16 and 4.20). Pack side only: decode QUST (flags, stages with their log entries, objectives, aliases and
 // how each alias is filled, the quest's dialogue conditions and its start conditions), merge a load order, and keep a pure `QuestState`
 // (running, current stage, stages done, completed, alias fills) that starts from what the data alone says. Plain

@@ -238,7 +238,7 @@ namespace game_skyrimse
 
         void setSpeaker(const DialogueSpeaker& speaker);
         void setCurrentWeather(FormId weather) { mWeather = weather; }
-        /// Quest data and state (task 0138). Both null (the default): no quest is known, every quest function keeps the
+        /// Quest data and state (task 0139). Both null (the default): no quest is known, every quest function keeps the
         /// default answer (stage 0, nothing done, not running) and `answers` says so.
         void setQuests(const QuestIndex* index, const QuestState* state)
         {
