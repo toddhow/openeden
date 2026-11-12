@@ -162,6 +162,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.locationHasKeyword(subject, c.mParam1));
         }
 
+        // 403 GetRelationshipRank(target): nobody as subject is neutral (toddhow, 2026-11-11)
+        float getRelationshipRank(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.relationshipRank(subject, c.mParam1) : 0.f;
+        }
+
         // 606 GetKeywordDataForLocation(location, keyword): names its location, so no subject (toddhow, 2026-11-11)
         float getKeywordDataForLocation(const survey::Ctda& c, Subject, const ConditionWorld& world)
         {
@@ -176,7 +182,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 23> sTable = { {
+        constexpr std::array<Entry, 24> sTable = { {
             { 14, getActorValue },
             { 46, getDead },
             { 47, getItemCount },
@@ -192,6 +198,7 @@ namespace game_skyrimse::conditions
             { 131, getPCIsSex },
             { 249, isInDialogueWithPlayer },
             { 359, getInCurrentLoc },
+            { 403, getRelationshipRank },
             { 426, getIsVoiceType },
             { 543, getQuestCompleted },
             { 560, hasKeyword },

@@ -184,6 +184,13 @@ namespace game_skyrimse::conditions
             (void)location, (void)keyword;
             return 0.f;
         }
+        /// fn_403 GetRelationshipRank(target): the subject's relationship rank with the target actor, -4 (enemy) to 4
+        /// (lover), 0 neutral (toddhow, 2026-11-11).
+        virtual float relationshipRank(Subject subject, std::uint32_t target) const
+        {
+            (void)subject, (void)target;
+            return 0.f;
+        }
     };
 
     /// The CTDA subrecords of a record's (inflated) data, in order. False if the data is malformed (a subrecord

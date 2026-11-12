@@ -110,6 +110,12 @@ namespace
             return l == mLocation && k == mKeyword ? mKeywordData : 0.f;
         }
         float mKeywordData = 2.5f;
+        float relationshipRank(Subject s, std::uint32_t t) const override
+        {
+            return s == mSubject && t == mTarget ? mRank403 : 0.f;
+        }
+        std::uint32_t mTarget = 0x14;
+        float mRank403 = 3.f;
     };
 
     bool run(const Ctda& c, const World& w, Evaluator* out = nullptr)
@@ -162,6 +168,19 @@ namespace
         EXPECT_TRUE(run(cond(606, kEq, 0.f, 0x50, 0x81), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(606, kEq, 2.5f, 0x50, 0x80), w));
+    }
+
+    // fn_403 GetRelationshipRank(target): the subject's relationship rank with the target actor, -4 to 4, 0 neutral
+    // (toddhow, 2026-11-11). Nobody as subject is neutral, without asking the world.
+    TEST(SkyrimConditionFunctions, fn_403_is_the_relationship_rank_with_the_target)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(403, kGe, 3.f, 0x14), w));
+        EXPECT_TRUE(run(cond(403, kEq, 0.f, 0x15), w));
+        w.mRank403 = -2.f;
+        EXPECT_FALSE(run(cond(403, kGe, 0.f, 0x14), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(403, kEq, 0.f, 0x14), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
