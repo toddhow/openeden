@@ -1,5 +1,7 @@
 #include "neutraldoor.hpp"
 
+#include <cmath>
+
 #include "neutralcell.hpp"
 
 namespace MWWorld
@@ -21,6 +23,18 @@ namespace MWWorld
         position.rot[1] = angles[1];
         position.rot[2] = angles[2];
         return position;
+    }
+
+    std::optional<std::pair<int, int>> neutralExteriorSquare(double x, double y, double cellSize)
+    {
+        constexpr double kMaxSquare = 1000000.0;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(cellSize) || cellSize <= 0.0)
+            return std::nullopt;
+        const double sx = std::floor(x / cellSize);
+        const double sy = std::floor(y / cellSize);
+        if (!(std::abs(sx) <= kMaxSquare) || !(std::abs(sy) <= kMaxSquare))
+            return std::nullopt;
+        return std::make_pair(static_cast<int>(sx), static_cast<int>(sy));
     }
 
     std::optional<WorldId> neutralPlacementOf(const ESM::RefNum& refNum)

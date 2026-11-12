@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <optional>
+#include <utility>
 #include <string_view>
 
 #include <components/esm/position.hpp>
@@ -54,6 +55,13 @@ namespace MWWorld
     /// uses the same units as the placements) and the quaternion as the three stored angles
     /// (neutralRotationAngles), so that Misc::Convert::makeOsgQuat gives the quaternion back.
     [[nodiscard]] ESM::Position neutralArrivalPosition(const openeden::sdk::game::TeleportComponent& teleport);
+
+    /// Task 0137: the exterior grid square (x, y) that a teleport's arrival position stands in, for a worldspace whose
+    /// cells are `cellSize` units wide: floor(position / cellSize) in double, so a negative coordinate rounds down and
+    /// a position exactly on a boundary belongs to the square above it. nullopt for a cell size that is not positive and
+    /// finite, a position that is not finite, or a square beyond +-1,000,000 (the number would not fit the engine's
+    /// int grid or is not a place).
+    [[nodiscard]] std::optional<std::pair<int, int>> neutralExteriorSquare(double x, double y, double cellSize);
 
     /// The placement id behind a reference number made by neutralRefNum; nullopt for any other reference number.
     [[nodiscard]] std::optional<openeden::sdk::game::WorldId> neutralPlacementOf(const ESM::RefNum& refNum);

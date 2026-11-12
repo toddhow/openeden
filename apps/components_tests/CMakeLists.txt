@@ -540,6 +540,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimselights.cpp
     skyrimse/testskyrimselightsreal.cpp
     skyrimse/testskyrimseneutralworldreal.cpp
+    skyrimse/testskyrimseexteriordoorsreal.cpp
     skyrimse/testskyrimsecelllookups.cpp
     skyrimse/testskyrimseplugins.cpp
     skyrimse/testskyrimsearchives.cpp

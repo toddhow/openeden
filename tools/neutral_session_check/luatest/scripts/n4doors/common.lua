@@ -4,6 +4,7 @@
 -- 'door', base = recordId, near = { x, y, z } }.
 local core = require('openmw.core')
 local world = require('openmw.world')
+local util = require('openmw.util')
 
 local M = {}
 
@@ -41,6 +42,10 @@ function M.run(steps)
                 elseif step.what == 'report' then
                     local p = player.position
                     print(string.format('N4D report t=%.1f cell=%s pos=%.0f,%.0f,%.0f', t, tostring(player.cell.name), p.x, p.y, p.z))
+                elseif step.what == 'tp' then
+                    -- Task 0137: puts the player on the ground at a spot of the cell it is in (to stand before a gate).
+                    player:teleport(player.cell, util.vector3(step.pos[1], step.pos[2], step.pos[3]), { onGround = true })
+                    print('N4D teleported within ' .. tostring(player.cell.name))
                 elseif step.what == 'near' then
                     -- Task 0128: lists the objects within 400 units of the player (record id, distance), to find a door's base.
                     local p = player.position
@@ -52,7 +57,9 @@ function M.run(steps)
                         end
                     end
                 elseif step.what == 'door' then
-                    local door, dist, total = nearestObject(player.cell, step.base, step.near)
+                    local near = step.near
+                    if near == 'player' then local pp = player.position; near = { pp.x, pp.y, pp.z } end
+                    local door, dist, total = nearestObject(player.cell, step.base, near)
                     if door == nil then
                         print('N4D door not found in ' .. tostring(player.cell.name) .. ' for ' .. step.base)
                     else

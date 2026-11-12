@@ -210,9 +210,15 @@ namespace MWClass
                     // arrival stands in, in the worldspace's own cell size; the cell is built (or reused) and entered
                     // like any other store.
                     const auto& arrival = object->teleport->destination.position;
-                    const double cellSize = ESM::getCellSize(found.mWorldspace);
-                    const ESM::ExteriorCellLocation location(static_cast<int>(std::floor(arrival.x / cellSize)),
-                        static_cast<int>(std::floor(arrival.y / cellSize)), found.mWorldspace);
+                    const auto square = MWWorld::neutralExteriorSquare(
+                        arrival.x, arrival.y, ESM::getCellSize(found.mWorldspace));
+                    if (!square)
+                    {
+                        Log(Debug::Warning) << "Neutral door " << *placement
+                                            << ": the arrival is not a place the exterior grid can hold";
+                        return MWWorld::NeutralDestination::Unavailable;
+                    }
+                    const ESM::ExteriorCellLocation location(square->first, square->second, found.mWorldspace);
                     Misc::LoadTrace::Scope traceExterior("neutral.door.exterior");
                     destination = &worldModel->getExterior(location);
                     reused = false;
