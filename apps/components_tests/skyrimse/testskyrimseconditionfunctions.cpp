@@ -124,6 +124,13 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float crimeGoldNonviolent(Subject s, std::uint32_t f) const override
+        {
+            return f == 0xA0 ? 20.f : (f == 0 && s == mSubject ? 5.f : 0.f);
+        }
+        bool detects(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14; }
+        float raininess() const override { return 1.f; }
+        bool hasRefType(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x200; }
         float weaponOutState(Subject s) const override { return s == mSubject ? 1.f : 0.f; }
         float keywordDataForCurrentLocation(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80 ? 10.f : 0.f; }
         bool wornHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x81; }
@@ -998,6 +1005,25 @@ namespace
         EXPECT_TRUE(run(cond(651, kEq, 0.f, 0x80), w));
         EXPECT_TRUE(run(cond(682, kEq, 0.f, 0x81), w));
         EXPECT_TRUE(run(cond(75, kEq, 0.25f), w));
+    }
+
+    // fn_376 GetCrimeGoldNonviolent(faction, optional), fn_45 GetDetected(target), fn_62 IsRaining (0 to 1, no
+    // subject), fn_561 HasRefType(location ref type) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_376_nonviolent_45_detected_62_rain_561_ref_type)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(376, kEq, 20.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(376, kEq, 5.f, 0), w));
+        EXPECT_TRUE(run(cond(45, kEq, 1.f, 0x14), w));
+        EXPECT_TRUE(run(cond(45, kEq, 0.f, 0x15), w));
+        EXPECT_TRUE(run(cond(561, kEq, 1.f, 0x200), w));
+        EXPECT_TRUE(run(cond(561, kEq, 0.f, 0x201), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(376, kEq, 20.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(376, kEq, 0.f, 0), w));
+        EXPECT_TRUE(run(cond(45, kEq, 0.f, 0x14), w));
+        EXPECT_TRUE(run(cond(62, kEq, 1.f), w));
+        EXPECT_TRUE(run(cond(561, kEq, 0.f, 0x200), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

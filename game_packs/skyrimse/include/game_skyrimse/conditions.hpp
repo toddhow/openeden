@@ -705,6 +705,29 @@ namespace game_skyrimse::conditions
         /// fn_75 IsSnowing: 0 when the weather is not classified snowing, between 0 and 1 while changing to it, 1 when
         /// stable and snowy (CK wiki, shown by toddhow, 2026-11-11).
         virtual float snowiness() const { return 0.f; }
+        /// fn_376 GetCrimeGoldNonviolent(faction, optional): the player's non-violent crime gold (all crimes but murder
+        /// and assault) with the faction; with 0, with the subject's crime faction (CK wiki, toddhow 2026-11-11).
+        virtual float crimeGoldNonviolent(Subject subject, std::uint32_t faction) const
+        {
+            (void)subject, (void)faction;
+            return 0.f;
+        }
+        /// fn_45 GetDetected(target): is the target detected by the subject? Not about sneaking, and not a line of
+        /// sight test (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool detects(Subject subject, std::uint32_t target) const
+        {
+            (void)subject, (void)target;
+            return false;
+        }
+        /// fn_62 IsRaining: 0 when the weather is not classified raining, between 0 and 1 while changing to it, 1 when
+        /// stable and rainy (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float raininess() const { return 0.f; }
+        /// fn_561 HasRefType(location ref type): is the subject flagged as that LCRT? (CK wiki, toddhow 2026-11-11)
+        virtual bool hasRefType(Subject subject, std::uint32_t refType) const
+        {
+            (void)subject, (void)refType;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

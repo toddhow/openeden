@@ -659,6 +659,28 @@ namespace game_skyrimse::conditions
             return world.snowiness();
         }
 
+        // 376 GetCrimeGoldNonviolent, 45 GetDetected(target), 62 IsRaining, 561 HasRefType (CK wiki, toddhow
+        // 2026-11-11)
+        float getCrimeGoldNonviolent(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return c.mParam1 != 0 || subject != 0 ? world.crimeGoldNonviolent(subject, c.mParam1) : 0.f;
+        }
+
+        float getDetected(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.detects(subject, c.mParam1));
+        }
+
+        float isRaining(const survey::Ctda&, Subject, const ConditionWorld& world)
+        {
+            return world.raininess();
+        }
+
+        float hasRefType(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasRefType(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -667,7 +689,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 106> sTable = { {
+        constexpr std::array<Entry, 110> sTable = { {
             { 1, getDistance },
             { 5, getLockedFn },
             { 14, getActorValue },
@@ -675,6 +697,7 @@ namespace game_skyrimse::conditions
             { 25, isMoving },
             { 32, getInSameCell },
             { 35, getDisabled },
+            { 45, getDetected },
             { 46, getDead },
             { 47, getItemCount },
             { 48, getGold },
@@ -684,6 +707,7 @@ namespace game_skyrimse::conditions
             { 58, getStage },
             { 59, getStageDone },
             { 61, getAlarmed },
+            { 62, isRaining },
             { 66, getShouldAttack },
             { 67, getInCell },
             { 69, getIsRace },
@@ -732,6 +756,7 @@ namespace game_skyrimse::conditions
             { 360, getInCurrentLocAlias },
             { 372, isInList },
             { 375, getCrimeGoldViolent },
+            { 376, getCrimeGoldNonviolent },
             { 398, isWeaponInList },
             { 402, isBribedbyPlayerFn },
             { 403, getRelationshipRank },
@@ -750,6 +775,7 @@ namespace game_skyrimse::conditions
             { 513, isCombatTarget },
             { 543, getQuestCompleted },
             { 560, hasKeyword },
+            { 561, hasRefType },
             { 562, locationHasKeyword },
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
