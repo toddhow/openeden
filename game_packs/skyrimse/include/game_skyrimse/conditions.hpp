@@ -393,6 +393,26 @@ namespace game_skyrimse::conditions
             (void)scene;
             return false;
         }
+        /// fn_101 IsWeaponMagicOut: has the subject a weapon, spell or fists out? (CK wiki, toddhow 2026-11-11)
+        virtual bool weaponOrMagicOut(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_80 GetLevel: the subject's level (CK wiki, toddhow 2026-11-11).
+        virtual float levelOf(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_214 HasMagicEffect(effect): is the subject affected by a spell that can potentially apply the MGEF? True
+        /// when the effect-side conditions hold even if the spell-side ones do not and the effect is not active
+        /// (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool hasMagicEffect(Subject subject, std::uint32_t effect) const
+        {
+            (void)subject, (void)effect;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

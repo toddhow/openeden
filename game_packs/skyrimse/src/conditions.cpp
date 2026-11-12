@@ -365,6 +365,24 @@ namespace game_skyrimse::conditions
             return asFloat(world.scenePlaying(c.mParam1));
         }
 
+        // 101 IsWeaponMagicOut (CK wiki, toddhow 2026-11-11)
+        float isWeaponMagicOut(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.weaponOrMagicOut(subject));
+        }
+
+        // 80 GetLevel (CK wiki, toddhow 2026-11-11)
+        float getLevel(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.levelOf(subject) : 0.f;
+        }
+
+        // 214 HasMagicEffect(effect): "having", not "being affected by" (CK wiki, toddhow 2026-11-11)
+        float hasMagicEffect(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasMagicEffect(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -373,7 +391,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 56> sTable = { {
+        constexpr std::array<Entry, 59> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -394,7 +412,9 @@ namespace game_skyrimse::conditions
             { 73, getFactionRank },
             { 74, getGlobalValue },
             { 77, getRandomPercent },
+            { 80, getLevel },
             { 84, getDeadCount },
+            { 101, isWeaponMagicOut },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
             { 144, getTrespassWarningLevel },
@@ -402,6 +422,7 @@ namespace game_skyrimse::conditions
             { 149, getIsCurrentWeather },
             { 161, getIsCurrentPackage },
             { 182, getEquipped },
+            { 214, hasMagicEffect },
             { 248, isScenePlaying },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
