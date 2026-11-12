@@ -139,11 +139,11 @@ namespace
         EXPECT_FALSE(valid);
     }
 
-    TEST(SkyrimConditionsFunctions, the_five_named_functions_are_known_and_the_four_unnamed_are_not)
+    TEST(SkyrimConditionsFunctions, the_five_named_functions_are_known_and_four_indices_outside_the_table_are_not)
     {
         for (std::uint16_t fn : { 72, 58, 71, 59, 74 })
             EXPECT_NE(findFunction(fn), nullptr) << fn;
-        for (std::uint16_t fn : { 566, 426, 629, 560, 0, 9999 })
+        for (std::uint16_t fn : { 9001, 9002, 9003, 9004, 0, 9999 })
             EXPECT_EQ(findFunction(fn), nullptr) << fn;
     }
 
@@ -299,11 +299,11 @@ namespace
         Ctda t = isId(0x100);
         t.mFlags = kOr;
         // known true OR unknown: an open policy would pass; closed does not.
-        const Ctda list[] = { t, cond(566, kEq, 1) };
+        const Ctda list[] = { t, cond(9001, kEq, 1) };
         EXPECT_FALSE(e.evaluate(list, w));
         EXPECT_EQ(e.mListsFailedClosed, 1u);
         EXPECT_EQ(e.mConditionsUnknown, 1u);
-        EXPECT_EQ(e.mUnknownFunctions.at(566), 1u);
+        EXPECT_EQ(e.mUnknownFunctions.at(9001), 1u);
     }
 
     TEST(SkyrimConditionsEvaluate, every_unknown_condition_is_counted_and_logged_once_per_index)
@@ -312,25 +312,25 @@ namespace
         Evaluator e;
         std::vector<std::string> log;
         e.setLog([&](const std::string& s) { log.push_back(s); });
-        const Ctda list[] = { cond(426, kEq, 1), cond(426, kEq, 1), cond(629, kEq, 1), isId(0x100) };
+        const Ctda list[] = { cond(9002, kEq, 1), cond(9002, kEq, 1), cond(9003, kEq, 1), isId(0x100) };
         EXPECT_FALSE(e.evaluate(list, w));
         EXPECT_FALSE(e.evaluate(list, w));
         EXPECT_EQ(e.mConditionsUnknown, 6u);
-        EXPECT_EQ(e.mUnknownFunctions.at(426), 4u);
-        EXPECT_EQ(e.mUnknownFunctions.at(629), 2u);
+        EXPECT_EQ(e.mUnknownFunctions.at(9002), 4u);
+        EXPECT_EQ(e.mUnknownFunctions.at(9003), 2u);
         EXPECT_EQ(e.mListsFailedClosed, 2u);
         ASSERT_EQ(log.size(), 2u);
-        EXPECT_NE(log[0].find("fn_426"), std::string::npos);
-        EXPECT_NE(log[1].find("fn_629"), std::string::npos);
+        EXPECT_NE(log[0].find("fn_9002"), std::string::npos);
+        EXPECT_NE(log[1].find("fn_9003"), std::string::npos);
     }
 
     TEST(SkyrimConditionsEvaluate, an_unknown_function_without_a_log_sink_is_fine)
     {
         FakeWorld w;
         Evaluator e;
-        const Ctda list[] = { cond(560, kEq, 1) };
+        const Ctda list[] = { cond(9004, kEq, 1) };
         EXPECT_FALSE(e.evaluate(list, w));
-        EXPECT_EQ(e.mUnknownFunctions.at(560), 1u);
+        EXPECT_EQ(e.mUnknownFunctions.at(9004), 1u);
     }
 
     TEST(SkyrimConditionsEvaluate, a_compare_code_above_five_fails_the_list_closed_and_is_counted)

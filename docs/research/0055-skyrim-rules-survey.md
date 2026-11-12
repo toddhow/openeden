@@ -160,6 +160,21 @@ The full 255-row table (per-record counts, run-on, compare, flags and parameter 
 
 So the table is usable up to about 330 and wrong from 360 on; the indices Skyrim added (the 560 to 700 range: fn_566, fn_629, fn_560, fn_561, fn_562, fn_576, ...) are not in it at all. **90 of the 255 surveyed indices get a name (those at most 330 that the table has): they cover 71,472 of the 117,272 uses (61 percent).** The nine top functions of build step 2 split as: fn_72 GetIsID, fn_58 GetStage, fn_71 GetInFaction, fn_59 GetStageDone and fn_74 GetGlobalValue have names; fn_566, fn_426, fn_629 and fn_560 do not. The survey output prints `fn_72 (GetIsID?)` for named indices (the question mark means RECALLED-VERIFY).
 
+### 2.5 Names and functions from xEdit, and the measured coverage (task 0122 follow-up, 2026-11-11)
+
+Source (toddhow's permission of 2026-11-11, decision 0014 amendment): xEdit `Core/wbDefinitionsTES5.pas`, table `wbConditionFunctions`, branch dev-4.1.6 (MPL-2.0; see `game_packs/skyrimse/src/survey_names_xedit.cpp` and `docs/dependencies.md`). All 255 surveyed indices now have a name (`survey::xeditFunctionName`); 17 more functions are evaluated (14, 46, 47, 67, 70, 73, 131, 249, 359, 426, 543, 560, 562, 566, 579, 629, 77).
+
+Measured on the five official masters (`SkyrimSeConditionsReal.every_info_condition_list_of_the_masters`, aggregates only, stub world):
+
+| | before (5 functions) | after (22 functions) |
+| --- | --- | --- |
+| INFO lists fully evaluated | 12,570 of 32,148 (39.1 percent) | 27,421 of 32,148 (85.3 percent) |
+| lists failed closed on an unknown function | 19,578 | 4,727 |
+| conditions unknown | 37,207 of 76,556 (48.6 percent) | 6,415 of 76,556 (8.4 percent) |
+| distinct unknown functions | 118 | 101 |
+
+Top remaining unknowns (conditions): fn_606 595 (GetKeywordDataForLocation, meaning unclear), fn_403 358, fn_69 GetIsRace 354, fn_35 GetDisabled 334, fn_286 IsSneaking 323, fn_56 GetQuestRunning 296, fn_130 GetPCIsRace 291, fn_310 GetInWorldspace 287, fn_182 GetEquipped 262, fn_1 GetDistance 241, fn_161 GetIsCurrentPackage 227, fn_84 GetDeadCount 213. Caveat: "fully evaluated" means every function is known, not that a real world would answer well; the stub world answers 0 or false.
+
 ## 3. Papyrus natives and events
 
 ### 3.1 Natives, ranked by call sites

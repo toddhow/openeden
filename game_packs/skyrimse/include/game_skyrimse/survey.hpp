@@ -51,6 +51,12 @@ namespace game_skyrimse::survey
         bool mPaddingNonZero = false;
         bool mPaddingAfterTypeNonZero = false; ///< bytes 1 to 3
         bool mPaddingAfterFunctionNonZero = false; ///< bytes 10 to 11
+        /// The CIS1 and CIS2 subrecords that follow a CTDA hold the string forms of parameters 1 and 2 (xEdit's
+        /// definition of a condition, wbConditions; fn_629 carries its variable name in CIS2 in every one of its
+        /// 6,900 uses in the five masters). Empty when absent. Filled by conditions::decodeConditions, not by
+        /// decodeCtda.
+        std::string mString1;
+        std::string mString2;
     };
 
     /// False unless the subrecord is exactly kCtdaSize bytes.
@@ -62,6 +68,11 @@ namespace game_skyrimse::survey
     /// A name for the index from the upstream OpenMW table (survey_names.cpp; the Oblivion/FO3/FNV numbering,
     /// RECALLED-VERIFY, given only for indices up to 330 that the data agrees with), or an empty view.
     [[nodiscard]] std::string_view upstreamFunctionName(std::uint16_t index);
+
+    /// The name of a surveyed function index from xEdit's table (survey_names_xedit.cpp, MPL-2.0, cited there), for
+    /// all 255 indices the five masters use; an empty view for any other index.
+    [[nodiscard]] std::string_view xeditFunctionName(std::uint16_t index);
+    [[nodiscard]] std::size_t xeditFunctionNameCount();
 
     /// "fn_72 (GetIsID?)": the index and, when known, the upstream name with a question mark.
     [[nodiscard]] std::string describeFunction(std::uint16_t index);

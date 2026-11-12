@@ -16,6 +16,7 @@ openeden_add_game_pack(skyrimse
         src/survey_scripts.cpp
         src/survey_nif.cpp
         src/survey_names.cpp
+        src/survey_names_xedit.cpp
         src/conditions.cpp
         include/game_skyrimse/survey.hpp
         include/game_skyrimse/conditions.hpp
@@ -66,6 +67,7 @@ add_library(game_skyrimse_world STATIC
     src/survey_scripts.cpp
     src/survey_nif.cpp
     src/survey_names.cpp
+    src/survey_names_xedit.cpp
     src/conditions.cpp
 )
 set_target_properties(game_skyrimse_world PROPERTIES POSITION_INDEPENDENT_CODE ON)
