@@ -114,15 +114,44 @@ layout(location=5) out vec4 outAmbient;
 
 void main()
 {
-    float blendTexSize = textureSize(blendMap, 0).x;
-    vec2 blendCoord = frag_in.texCoord * blendTexSize;
-    ivec2 blendTexel = ivec2(blendCoord);
-    //blendTexel = min(blendTexel, int(blendTexSize-1));
-    vec2 blendPos = blendCoord - blendTexel;
-    blendPos = clamp((blendPos-0.5)*2+0.5, 0.0, 1.0);
-    vec4 blendCoeffs = vec4(blendPos, 1-blendPos);
-    blendCoeffs = blendCoeffs.zxzx * blendCoeffs.wwyy;
-    ivec4 textures = ivec4(texelFetch(blendMap, blendTexel, 0) * 255);
+    ivec2 blendSize = textureSize(blendMap, 0);
+    float blendTexSize = float(blendSize.x);
+    vec4 blendCoeffs;
+    ivec4 textures;
+    if (blendSize.y > blendSize.x)
+    {
+        // OpenEden (task 0149): a splat blend map (components/neutralterrain/splat.hpp; Splat::lookupFor and tilesAcross
+        // are this maths in C++). It is not square: k x k quadrant slots of s x s texels hold the four layers' weights
+        // (one texel a vertex, blended bilinearly inside one slot), and k rows of k texels below hold the four layer indices of each
+        // quadrant. The ground texture repeats 16 times a cell, as with the corner scheme.
+        int splatK = blendSize.y - blendSize.x;
+        int splatS = blendSize.x / splatK;
+        vec2 slotPos = clamp(frag_in.texCoord, vec2(0.0), vec2(1.0)) * float(splatK);
+        ivec2 slot = min(ivec2(slotPos), ivec2(splatK - 1));
+        vec2 vertexPos = (slotPos - vec2(slot)) * float(splatS - 1);
+        // Bilinear by hand: no dependence on the sampler's state, and never across two slots.
+        ivec2 vertex0 = min(ivec2(vertexPos), ivec2(splatS - 1));
+        ivec2 vertex1 = min(vertex0 + 1, ivec2(splatS - 1));
+        vec2 vertexFrac = vertexPos - vec2(vertex0);
+        ivec2 slotOrigin = slot * splatS;
+        blendCoeffs = mix(
+            mix(texelFetch(blendMap, slotOrigin + vertex0, 0), texelFetch(blendMap, slotOrigin + ivec2(vertex1.x, vertex0.y), 0), vertexFrac.x),
+            mix(texelFetch(blendMap, slotOrigin + ivec2(vertex0.x, vertex1.y), 0), texelFetch(blendMap, slotOrigin + vertex1, 0), vertexFrac.x),
+            vertexFrac.y);
+        textures = ivec4(texelFetch(blendMap, ivec2(slot.x, blendSize.x + slot.y), 0) * 255.0 + 0.5);
+        blendTexSize = float(splatS - 1) * float(splatK) * 0.5;
+    }
+    else
+    {
+        vec2 blendCoord = frag_in.texCoord * blendTexSize;
+        ivec2 blendTexel = ivec2(blendCoord);
+        //blendTexel = min(blendTexel, int(blendTexSize-1));
+        vec2 blendPos = blendCoord - blendTexel;
+        blendPos = clamp((blendPos-0.5)*2+0.5, 0.0, 1.0);
+        blendCoeffs = vec4(blendPos, 1-blendPos);
+        blendCoeffs = blendCoeffs.zxzx * blendCoeffs.wwyy;
+        textures = ivec4(texelFetch(blendMap, blendTexel, 0) * 255);
+    }
     vec2 diffuseTexCoord = frag_in.texCoord * blendTexSize;
 
     outColor = vec4(0,0,0,1);

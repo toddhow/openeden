@@ -33,7 +33,7 @@ namespace openeden::sdk::game
 {
     /// Same version policy as world_model.hpp: a new type or a new member at the END of a struct raises the minor
     /// number; anything else is a major change. CI (CI/check_extension_sdk.sh) keeps this line and the number in place.
-    inline constexpr Version kWorldTerrainVersion{ 1, 0 };
+    inline constexpr Version kWorldTerrainVersion{ 1, 1 }; // 1.1 (task 0149): TerrainLayer and TerrainCell::layers, appended
 
     /// The bit of WorldSpaceInfo::parentUsage that says the parent lends its land (Skyrim SE's PNAM bit 0x01 as UESP
     /// orders it; 0x01 and 0x02 are never apart in the installed data, so which of land and LOD it is stays unproven).
@@ -57,6 +57,18 @@ namespace openeden::sdk::game
         float defaultLandHeight = 0.0f;
     };
 
+    /// Vertices per side of one quadrant's layer opacity grid (a Skyrim SE quadrant is 16 intervals: 17 x 17 vertices).
+    inline constexpr std::uint32_t kTerrainLayerSide = 17;
+
+    /// One alpha layer of a quadrant (task 0149): a ground texture drawn over what lies under it with a per-vertex
+    /// opacity. `opacity` has kTerrainLayerSide^2 values, index = row * 17 + column, column = +X (east), row = +Y
+    /// (north) inside the quadrant, 0 = not drawn, 255 = fully drawn.
+    struct TerrainLayer
+    {
+        WorldId texture = 0; ///< a GroundTexture id (0: the default; the source maps a null or dangling id to 0)
+        std::vector<std::uint8_t> opacity;
+    };
+
     /// One cell's land. With hasHeights false the world's default land height applies; likewise the normals (straight
     /// up) and the colours (white).
     struct TerrainCell
@@ -74,6 +86,9 @@ namespace openeden::sdk::game
         /// A GroundTexture id per quadrant; 0 is the game's default ground texture (the source maps a stored null id
         /// and a dangling id to 0).
         std::array<WorldId, 4> baseTextures{};
+        /// Task 0149 (version 1.1): per quadrant, the alpha layers in draw order (the first is drawn over the base
+        /// texture, each next one over the result). Empty when the cell has none.
+        std::array<std::vector<TerrainLayer>, 4> layers;
     };
 
     /// A ground texture a cell names. Paths are VFS paths (lower case, backslashes, with the leading `textures\`).

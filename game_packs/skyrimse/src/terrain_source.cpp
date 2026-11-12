@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -398,7 +399,31 @@ namespace game_skyrimse
             out.colours = std::move(land.mColours);
         }
         for (std::size_t q = 0; q < LandConstants::kQuadrants; ++q)
+        {
             out.baseTextures[q] = mapTexture(land.mQuadrants[q].mBase);
+
+            // Task 0149: the alpha layers in layer number order (the file order breaks ties), each with its opacity
+            // grid; a layer with no VTXT adds nothing and is left out.
+            std::vector<const LandLayer*> ordered;
+            for (const LandLayer& layer : land.mQuadrants[q].mLayers)
+                if (!layer.mOpacity.empty())
+                    ordered.push_back(&layer);
+            std::stable_sort(ordered.begin(), ordered.end(),
+                [](const LandLayer* a, const LandLayer* b) { return a->mLayerIndex < b->mLayerIndex; });
+            for (const LandLayer* layer : ordered)
+            {
+                sdk::TerrainLayer converted;
+                converted.texture = mapTexture(layer->mTexture);
+                converted.opacity.assign(sdk::kTerrainLayerSide * sdk::kTerrainLayerSide, 0);
+                for (const LandOpacity& entry : layer->mOpacity)
+                    if (entry.mPosition < converted.opacity.size())
+                    {
+                        const float clamped = std::isfinite(entry.mOpacity) ? std::clamp(entry.mOpacity, 0.0f, 1.0f) : 0.0f;
+                        converted.opacity[entry.mPosition] = static_cast<std::uint8_t>(std::lround(clamped * 255.0f));
+                    }
+                out.layers[q].push_back(std::move(converted));
+            }
+        }
         return sdk::TerrainResult::Built;
     }
 }

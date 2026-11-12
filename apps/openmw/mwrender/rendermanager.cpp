@@ -2472,10 +2472,14 @@ namespace MWRender
         // 1,024 (terrainEnsureWindow gives 42 x 42 at 10 cells).
         NeutralTerrain::CacheLimits limits;
         limits.mMaxCells = 4096;
+        // Task 0149: the alpha layers of the quadrants are drawn (and kept in the cache) only with this setting.
+        const bool terrainLayers = Settings::game().mNeutralTerrainLayers;
+        limits.mKeepLayers = terrainLayers;
         auto cache = std::make_shared<NeutralTerrain::CellCache>(source, limits);
         if (!cache->setWorld(world, error))
             return false;
         auto storage = std::make_unique<NeutralTerrain::Storage>(cache);
+        storage->setLayerSplat(terrainLayers);
 
         // Everything that reads the old storage goes first (as in setStore): the LOD tiles and clusters and the puddle
         // map read it on worker threads. Then the terrain forgets its view and its chunks, which were cut from the
@@ -2496,7 +2500,8 @@ namespace MWRender
         Log(Debug::Info) << "Neutral terrain: " << mNeutralGame << " world " << world << " ("
                          << mNeutralCache->world().editorId << "), cells of " << mNeutralStorage->cellWorldSize
                          << " units with " << mNeutralStorage->cellVertices << " vertices, "
-                         << mNeutralCache->textures().size() << " ground textures";
+                         << mNeutralCache->textures().size() << " ground textures"
+                         << (terrainLayers ? ", alpha layers on" : "");
         startNeutralLodTerrain(source);
         startNeutralLodClusters(source);
         return true;

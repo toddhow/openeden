@@ -117,13 +117,38 @@ FragmentOutput fragMain(FragmentInput input)
     uint blendWidth, blendHeight;
     blendMap.GetDimensions(blendWidth, blendHeight);
     float blendTexSize = float(int(blendWidth));
-    float2 blendCoord = input.io.texCoord * blendTexSize;
-    int2 blendTexel = int2(blendCoord);
-    float2 blendPos = blendCoord - float2(blendTexel);
-    blendPos = clamp((blendPos - 0.5) * 2 + 0.5, 0.0, 1.0);
-    float4 blendCoeffs = float4(blendPos, 1 - blendPos);
-    blendCoeffs = blendCoeffs.zxzx * blendCoeffs.wwyy;
-    int4 textures = int4(blendMap.Load(int3(blendTexel, 0)) * 255);
+    float4 blendCoeffs;
+    int4 textures;
+    if (blendHeight > blendWidth)
+    {
+        // Task 0149: a splat blend map, see terrain/main.frag.
+        int splatK = int(blendHeight) - int(blendWidth);
+        int splatS = int(blendWidth) / splatK;
+        float2 slotPos = clamp(input.io.texCoord, float2(0.0), float2(1.0)) * float(splatK);
+        int2 slot = min(int2(slotPos), int2(splatK - 1, splatK - 1));
+        float2 vertexPos = (slotPos - float2(slot)) * float(splatS - 1);
+        // Bilinear by hand, as in the GLSL.
+        int2 vertex0 = min(int2(vertexPos), int2(splatS - 1, splatS - 1));
+        int2 vertex1 = min(vertex0 + 1, int2(splatS - 1, splatS - 1));
+        float2 vertexFrac = vertexPos - float2(vertex0);
+        int2 slotOrigin = slot * splatS;
+        blendCoeffs = lerp(
+            lerp(blendMap.Load(int3(slotOrigin + vertex0, 0)), blendMap.Load(int3(slotOrigin + int2(vertex1.x, vertex0.y), 0)), vertexFrac.x),
+            lerp(blendMap.Load(int3(slotOrigin + int2(vertex0.x, vertex1.y), 0)), blendMap.Load(int3(slotOrigin + vertex1, 0)), vertexFrac.x),
+            vertexFrac.y);
+        textures = int4(blendMap.Load(int3(slot.x, int(blendWidth) + slot.y, 0)) * 255.0 + 0.5);
+        blendTexSize = float(splatS - 1) * float(splatK) * 0.5;
+    }
+    else
+    {
+        float2 blendCoord = input.io.texCoord * blendTexSize;
+        int2 blendTexel = int2(blendCoord);
+        float2 blendPos = blendCoord - float2(blendTexel);
+        blendPos = clamp((blendPos - 0.5) * 2 + 0.5, 0.0, 1.0);
+        blendCoeffs = float4(blendPos, 1 - blendPos);
+        blendCoeffs = blendCoeffs.zxzx * blendCoeffs.wwyy;
+        textures = int4(blendMap.Load(int3(blendTexel, 0)) * 255);
+    }
     float2 diffuseTexCoord = input.io.texCoord * blendTexSize;
 
     float4 outColor = float4(0, 0, 0, 1);

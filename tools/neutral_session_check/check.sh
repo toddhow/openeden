@@ -96,6 +96,8 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate|doorsdr
 # navmesh debug view (use at least 6000 frames; set [Navigator] settings through SETTINGS_EXTRA).
 [ "$SHOT" = navpath ] && echo "content=navpath.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = e2terrain ] && echo "content=n4e2.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0149: "tlayers" leaves the Mare, visits spots of Whiterun's plains and takes a picture of the ground at each (use at least 3000 frames).
+[ "$SHOT" = tlayers ] && echo "content=terrainlayers.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0129: "e2water" visits a lake and a river of WhiterunWorld and takes pictures (use at least 4000 frames).
 [ "$SHOT" = e2water ] && echo "content=n4e2water.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0127 stage W-S1: "w1" leaves the Mare into WhiterunWorld, looks at the sky at several hours, then speeds the clock up and
@@ -140,7 +142,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|n5pack) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|n5pack|tlayers) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

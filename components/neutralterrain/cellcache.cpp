@@ -42,6 +42,16 @@ namespace NeutralTerrain
         if (cell.hasColours && cell.colours.size() != count * 3)
             return fail("colours has " + std::to_string(cell.colours.size()) + " values, expected "
                 + std::to_string(count * 3));
+        for (std::size_t q = 0; q < cell.layers.size(); ++q)
+        {
+            if (cell.layers[q].size() > limits.mMaxLayersPerQuadrant)
+                return fail("quadrant " + std::to_string(q) + " has " + std::to_string(cell.layers[q].size())
+                    + " alpha layers, over the limit of " + std::to_string(limits.mMaxLayersPerQuadrant));
+            for (const sdk::TerrainLayer& layer : cell.layers[q])
+                if (layer.opacity.size() != static_cast<std::size_t>(sdk::kTerrainLayerSide) * sdk::kTerrainLayerSide)
+                    return fail("a layer of quadrant " + std::to_string(q) + " has " + std::to_string(layer.opacity.size())
+                        + " opacity values, expected 289");
+        }
         return true;
     }
 
@@ -173,6 +183,9 @@ namespace NeutralTerrain
                 std::string why;
                 if (validateTerrainCell(cell, mWorld.vertsPerSide, mLimits, why))
                 {
+                    if (!mLimits.mKeepLayers)
+                        for (auto& quadrant : cell.layers)
+                            quadrant.clear();
                     found = std::make_shared<const sdk::TerrainCell>(std::move(cell));
                     ++mBuilt;
                 }

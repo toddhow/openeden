@@ -40,6 +40,8 @@ namespace NeutralTerrain
         std::uint32_t mMaxParentDepth = 8;
         std::uint32_t mMaxVertsPerSide = 257;
         std::size_t mMaxTextures = 65536;
+        std::size_t mMaxLayersPerQuadrant = 32; ///< alpha layers one quadrant may carry (task 0149)
+        bool mKeepLayers = true; ///< false: published cells drop their alpha layers (the splat map is off)
         std::size_t mMaxErrors = 64;
         std::int64_t mMaxEnsureCells = 4096; ///< one ensure() call's area
     };

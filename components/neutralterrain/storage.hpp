@@ -57,8 +57,13 @@ namespace NeutralTerrain
 
         [[nodiscard]] const CellCache& cache() const { return *mCache; }
 
+        /// Task 0149: build the blend map as a splat map (splat.hpp) that carries the quadrants' alpha layers.
+        void setLayerSplat(bool on) { mLayerSplat = on; }
+        [[nodiscard]] bool layerSplat() const { return mLayerSplat; }
+
     private:
         std::shared_ptr<CellCache> mCache;
+        bool mLayerSplat = false;
     };
 }
 

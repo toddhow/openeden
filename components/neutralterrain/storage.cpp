@@ -7,6 +7,8 @@
 
 #include <components/terrain/bounds.hpp>
 
+#include "splat.hpp"
+
 namespace NeutralTerrain
 {
     namespace sdk = openeden::sdk::game;
@@ -148,8 +150,84 @@ namespace NeutralTerrain
         return { heights, normals, colours };
     }
 
+    namespace
+    {
+        std::int64_t floorMod(std::int64_t a, std::int64_t b)
+        {
+            const std::int64_t r = a % b;
+            return (r != 0 && ((r < 0) != (b < 0))) ? r + b : r;
+        }
+
+        // The splat blend map (splat.hpp) of one chunk. The chunk's quadrant slots are k x k whole quadrants, or one slot
+        // holding the part of a quadrant the chunk covers when it is smaller than a quadrant.
+        vsg::ref_ptr<vsg::Data> splatBlendmap(const Terrain::Bounds& bounds, const CellCache& cache)
+        {
+            const Splat::Layout layout = Splat::layoutFor(bounds.size);
+            auto image = vsg::ubvec4Array2D::create(layout.mWidth, layout.mHeight, vsg::ubvec4(),
+                vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+
+            // The chunk's first quadrant, and for a chunk inside one quadrant the vertex it starts at.
+            const double qx = static_cast<double>(bounds.min.x) * 2.0;
+            const double qy = static_cast<double>(bounds.min.y) * 2.0;
+            const std::int64_t firstX = static_cast<std::int64_t>(layout.mK == 1 ? std::floor(qx) : std::llround(qx));
+            const std::int64_t firstY = static_cast<std::int64_t>(layout.mK == 1 ? std::floor(qy) : std::llround(qy));
+            int offsetX = 0;
+            int offsetY = 0;
+            if (layout.mK == 1)
+            {
+                offsetX = static_cast<int>(std::llround((qx - static_cast<double>(firstX)) * (Splat::kSide - 1)));
+                offsetY = static_cast<int>(std::llround((qy - static_cast<double>(firstY)) * (Splat::kSide - 1)));
+            }
+
+            Local local(cache);
+            for (int sy = 0; sy < layout.mK; ++sy)
+                for (int sx = 0; sx < layout.mK; ++sx)
+                {
+                    const std::int64_t gx = firstX + sx;
+                    const std::int64_t gy = firstY + sy;
+                    const std::int64_t cx = floorDiv(gx, 2);
+                    const std::int64_t cy = floorDiv(gy, 2);
+                    const int quadrant = static_cast<int>(floorMod(gy, 2) * 2 + floorMod(gx, 2));
+                    const sdk::TerrainCell* cell = nullptr;
+                    if (cx > INT32_MIN && cx < INT32_MAX && cy > INT32_MIN && cy < INT32_MAX)
+                        cell = local.at(static_cast<std::int32_t>(cx), static_cast<std::int32_t>(cy));
+
+                    Splat::Quadrant composed;
+                    if (cell)
+                    {
+                        const auto indexOf = [&](sdk::WorldId id) {
+                            const std::size_t i = cache.textureIndex(id);
+                            return static_cast<std::uint8_t>(i < 256 ? i : 0);
+                        };
+                        std::vector<Splat::LayerIn> inputs;
+                        for (const sdk::TerrainLayer& layer : cell->layers[static_cast<std::size_t>(quadrant)])
+                            inputs.push_back({ indexOf(layer.texture), &layer.opacity });
+                        composed = Splat::composeQuadrant(indexOf(cell->baseTextures[static_cast<std::size_t>(quadrant)]), inputs);
+                    }
+                    else
+                    {
+                        composed = Splat::composeQuadrant(0, std::span<const Splat::LayerIn>());
+                    }
+
+                    for (int ty = 0; ty < layout.mS; ++ty)
+                        for (int tx = 0; tx < layout.mS; ++tx)
+                        {
+                            const int vx = std::min(offsetX + tx, Splat::kSide - 1);
+                            const int vy = std::min(offsetY + ty, Splat::kSide - 1);
+                            const auto& w = composed.mWeights[static_cast<std::size_t>(vy * Splat::kSide + vx)];
+                            (*image)(sx * layout.mS + tx, sy * layout.mS + ty) = vsg::ubvec4(w[0], w[1], w[2], w[3]);
+                        }
+                    (*image)(sx, layout.mWidth + sy)
+                        = vsg::ubvec4(composed.mIds[0], composed.mIds[1], composed.mIds[2], composed.mIds[3]);
+                }
+            return image;
+        }
+    }
+
     vsg::ref_ptr<vsg::Data> Storage::getBlendmap(const Terrain::Bounds& bounds)
     {
+        if (mLayerSplat && bounds.size <= Splat::kMaxChunkCells)
+            return splatBlendmap(bounds, *mCache);
         const int size = std::max(1, static_cast<int>(std::lround(kBlendTexelsPerCell * bounds.size)));
         auto image = vsg::ubvec4Array2D::create(
             size, size, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });

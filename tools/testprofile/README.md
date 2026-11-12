@@ -238,6 +238,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Neutral world materials* (0130): `neutral world materials` makes Skyrim SE static meshes use their normal map (with tangents), glow map, specular and emissive values, and with `pbr` on turns glossiness and specular colour into roughness and reflectance. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Neutral havok collision* (0144): `neutral havok collision` builds Skyrim SE collision from the `bhk` shapes in each NIF (compressed meshes, convex hulls, boxes) instead of the visual triangles; models without usable `bhk` data keep the visual-triangle collision. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Neutral tree sway* (0136): `neutral tree sway` makes Skyrim SE trees (shapes with the Tree_Anim flag) bend in the weather's wind: crowns move, feet stay. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
+- *Neutral terrain layers* (0149): `neutral terrain layers` draws the alpha layers (ATXT and VTXT) of each Skyrim SE terrain quadrant over its base texture, so roads, paths and ground transitions show. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Ragdoll* (0035): `cmRagdoll` on the target. *Death ragdolls* (0106): kill an NPC (e.g. `"name"->SetHealth 0` in the console, or hit it) and watch it fall and settle.
 
 ## Video memory scale-back (task 0080)

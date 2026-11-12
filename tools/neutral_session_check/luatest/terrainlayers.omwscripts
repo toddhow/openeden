@@ -1,0 +1,2 @@
+GLOBAL: scripts/terrainlayers/global.lua
+PLAYER: scripts/terrainlayers/player.lua

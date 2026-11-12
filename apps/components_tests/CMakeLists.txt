@@ -229,6 +229,7 @@ file(GLOB UNITTEST_SRC_FILES
     worldmodel/testfrozen.cpp
     neutralterrain/testneutralterrain.cpp
     neutralterrain/testneutralwindow.cpp
+    neutralterrain/testneutralsplat.cpp
     worldmodel/testlightmodel.cpp
     worldmodel/testlookups.cpp
 
@@ -550,6 +551,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseweatherreal.cpp
     skyrimse/testskyrimseterrain.cpp
     skyrimse/testskyrimseterrainreal.cpp
+    skyrimse/testskyrimseterrainlayers.cpp
     skyrimse/testskyrimsewater.cpp
     skyrimse/testskyrimsewaterreal.cpp
     skyrimse/testskyrimselandreal.cpp
