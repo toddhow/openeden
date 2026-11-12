@@ -489,6 +489,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/bsabuilder.hpp
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
+    skyrimse/testskyrimseconditions.cpp
+    skyrimse/testskyrimseconditionsreal.cpp
     skyrimse/testskyrimsepack.cpp
     skyrimse/testskyrimsepackworldsource.cpp
     skyrimse/testskyrimsepacksession.cpp
@@ -527,6 +529,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_scripts.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_nif.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_names.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/conditions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
 )
 set_source_files_properties(
