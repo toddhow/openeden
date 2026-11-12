@@ -162,7 +162,7 @@ namespace MWClass
                     reused = found.mReused;
                     return MWWorld::NeutralDestination::Interior;
                 }
-                // Said once per destination: the store caches an exterior it built, so asking again is cheap.
+                // Logged on every activation; asking again is cheap because the store caches the cell it built.
                 Log(Debug::Info) << "Neutral door " << *placement << ": " << found.mError;
                 return found.mStatus == MWWorld::NeutralCellStatus::Exterior ? MWWorld::NeutralDestination::Exterior
                                                                              : MWWorld::NeutralDestination::Unavailable;
