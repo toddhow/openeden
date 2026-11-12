@@ -496,6 +496,8 @@ M-S0 finish in-progress (index 3c, lights 5, N3a-6/7)
 | D14 | `ESMStore` ESM4 experimental path | Retire at N7 / retire sooner | N7 as planned |
 | D15 | Alternative route: contribute shared pieces upstream | No (OpenMW is a reference only) | Keep adopted answer: reference only |
 
+**Decided 2026-11-11 (toddhow: "your recommendation" for D1 to D3 and D5 to D15).** Every row above takes its recommendation column: D1 commit to L1 to L2 (M-S1 to M-S4) and re-decide at M-S4; D2 alternate start for M-S6, the Helgen intro later as a scene-runner test; D3 option (a) with (b) additions (decision 0017); D5 visual-triangle collision now, `bhk` read after M-S2; D6 minimal character creation at M-S6; D7 own save format only; D8 Recast first, NAVM import only if Recast fails on real stairs; D9 ffmpeg if the pinned build is LGPL-clean (to verify), else an own decoder; D10 PBR-leaning remap behind a setting, matched for skin, hair and eyes; D11 SKSE tier 1 at M-S9; D12 user data first, a licence-checked open font fallback; D13 full loop for engine, SDK, saves and Papyrus wiring, lighter loop for tools and survey scripts (still marked per spec by toddhow); D14 retire the ESM4 path at N7; D15 upstream is a reference only. D4 was settled earlier the same day by toddhow's direction to wire CreativeMotion in fully as the animation runtime (O1+O2: own graph and converted clips; behaviour-graph mods are not supported).
+
 ---
 
 ## 8. What to do next (ordered; task numbers TBD)
