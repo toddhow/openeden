@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0133): the player side of the "trees" check. Puts a static camera where asked and
+-- tools/neutral_session_check (task 0136): the player side of the "trees" check. Puts a static camera where asked and
 -- takes pictures on request. The camera mode changes at the end of the frame, so the position is set a frame later.
 local debug = require('openmw.debug')
 local camera = require('openmw.camera')

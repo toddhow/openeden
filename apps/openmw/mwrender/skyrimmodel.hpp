@@ -44,7 +44,7 @@ namespace MWRender::SkyrimModel
         vsg::ref_ptr<vsg::SharedObjects> mSharedObjects; // may be null
         int mDepthSortedBin = 0;
         std::string mFilename; // diagnostics only
-        /// Task 0133 (`[Game] neutral tree sway`): the process-wide sway uniform (SkyrimTreeSway::Driver::uniform). Null
+        /// Task 0136 (`[Game] neutral tree sway`): the process-wide sway uniform (SkyrimTreeSway::Driver::uniform). Null
         /// (the default) means trees do not sway and are built exactly as before.
         vsg::ref_ptr<vsg::mat4Value> mSwayUniform;
     };
@@ -69,7 +69,7 @@ namespace MWRender::SkyrimModel
     /// The scene reader the host hands to the renderer's NIF reader (vsgAdapters::nif::sceneReader) when the neutral
     /// world is on: accepts Skyrim SE files (header 20.2.0.7), reads them as a Nif::Scene, flattens and builds them.
     /// The references must outlive the reader (the renderer's Pipeline::Builder and the texture options).
-    /// `swayUniform` (task 0133): the uniform of SkyrimTreeSway::Driver, or null for no tree sway.
+    /// `swayUniform` (task 0136): the uniform of SkyrimTreeSway::Driver, or null for no tree sway.
     std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(const Pipeline::Builder& builder,
         vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin,
         vsg::ref_ptr<vsg::mat4Value> swayUniform = {});
@@ -95,7 +95,7 @@ namespace MWRender::SkyrimModel
         std::atomic<std::uint64_t> mGlowMaps{ 0 };
         std::atomic<std::uint64_t> mNormalMapsNoTangents{ 0 };
         std::atomic<std::uint64_t> mNormalMapsModelSpace{ 0 };
-        std::atomic<std::uint64_t> mSwayShapes{ 0 }; // task 0133: shapes built with the tree sway path
+        std::atomic<std::uint64_t> mSwayShapes{ 0 }; // task 0136: shapes built with the tree sway path
         std::atomic<std::uint64_t> mFailed{ 0 }; // models whose read threw
     };
 

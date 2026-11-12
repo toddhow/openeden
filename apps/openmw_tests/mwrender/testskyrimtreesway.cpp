@@ -1,4 +1,4 @@
-// Task 0133 (Skyrim tree sway, `[Game] neutral tree sway`): the weight byte, the driver that writes the shared uniform,
+// Task 0136 (Skyrim tree sway, `[Game] neutral tree sway`): the weight byte, the driver that writes the shared uniform,
 // and the model builder giving a Tree_Anim shape the LOD_SWAY draw. Files are generated (nifscene/ssebuilder.hpp,
 // shaderbuilder.hpp); no game asset is read.
 #include <apps/openmw/mwrender/skyrimmodel.hpp>

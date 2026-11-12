@@ -434,7 +434,7 @@ namespace MWRender::SkyrimModel
             if (!shape.mColors.empty())
             {
                 shader.addMode(Pipeline::Mode::COLOR);
-                // Task 0133: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own alpha,
+                // Task 0136: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own alpha,
                 // its flexibility, scaled by the model's height), and the shader draws it with alpha 1.
                 if (swaying)
                 {

@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0133, Skyrim tree sway): leaves the Bannered Mare by its front door, finds the nearest
+-- tools/neutral_session_check (task 0136, Skyrim tree sway): leaves the Bannered Mare by its front door, finds the nearest
 -- placed tree (a base form of Skyrim.esm's TREE group) in WhiterunWorld, puts a static camera 800 units from it, 600 up, looking down at it,
 -- and takes four pictures 0.5, 1.0, 1.5 and 2.0 real seconds after the first (use at least 2500 frames). Real seconds.
 local core = require('openmw.core')

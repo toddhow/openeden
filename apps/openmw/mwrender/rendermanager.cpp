@@ -423,7 +423,7 @@ namespace MWRender
         // static shapes through the same node cache; off, the NIF reader refuses them as before.
         if (Settings::game().mNeutralWorld)
         {
-            // Task 0133: Skyrim trees bend in the weather's wind; the driver's one uniform is bound by every swaying shape.
+            // Task 0136: Skyrim trees bend in the weather's wind; the driver's one uniform is bound by every swaying shape.
             if (Settings::game().mNeutralTreeSway)
             {
                 mTreeSway = std::make_unique<SkyrimTreeSway::Driver>();

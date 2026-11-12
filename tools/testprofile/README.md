@@ -230,7 +230,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Neutral weather* (0127, W-S1): `neutral weather` runs a game pack's weathers in the weather manager (Skyrim SE: the sky, fog, ambient and sun colours of its 100+ weathers by time of day, one cloud picture, wind, regional weather lists and transitions; no rain, snow, thunder or sound yet). Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Neutral pathfind half extents* (0134): `neutral pathfind half extents` is the size of the agent the navmesh of a game pack's neutral cell (Skyrim SE) is built for and the default agent of `nearby.findPath` there; 18 x 18 x 66.5 passes the Bannered Mare's stairs, Morrowind's 29 does not. Nothing shows with Morrowind.
 - *Neutral world materials* (0130): `neutral world materials` makes Skyrim SE static meshes use their normal map (with tangents), glow map, specular and emissive values, and with `pbr` on turns glossiness and specular colour into roughness and reflectance. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
-- *Neutral tree sway* (0133): `neutral tree sway` makes Skyrim SE trees (shapes with the Tree_Anim flag) bend in the weather's wind: crowns move, feet stay. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
+- *Neutral tree sway* (0136): `neutral tree sway` makes Skyrim SE trees (shapes with the Tree_Anim flag) bend in the weather's wind: crowns move, feet stay. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Ragdoll* (0035): `cmRagdoll` on the target. *Death ragdolls* (0106): kill an NPC (e.g. `"name"->SetHealth 0` in the console, or hit it) and watch it fall and settle.
 
 ## Video memory scale-back (task 0080)

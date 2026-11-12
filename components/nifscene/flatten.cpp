@@ -472,8 +472,8 @@ namespace NifScene::Flat
             const bool wantColors = (material.mFlags2 & ShaderFlags::sVertexColors) != 0;
             const bool vertexAlpha = (material.mFlags1 & ShaderFlags::sVertexAlpha) != 0;
             std::vector<std::array<float, 4>> colors;
-            // Task 0133: a Tree_Anim shape keeps the file's vertex alpha, which is its per-vertex flexibility (the
-            // Vertex_Alpha flag is not what says so; see docs/tasks/0133-skyrim-tree-sway.md).
+            // Task 0136: a Tree_Anim shape keeps the file's vertex alpha, which is its per-vertex flexibility (the
+            // Vertex_Alpha flag is not what says so; see docs/tasks/0136-skyrim-tree-sway.md).
             const bool treeSway = limits.mTreeSway && wantColors && geometry.mColors.size() == vertexCount
                 && (material.mFlags2 & ShaderFlags::sTreeAnim) != 0;
             if (wantColors && geometry.mColors.size() == vertexCount)

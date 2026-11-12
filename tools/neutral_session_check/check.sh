@@ -99,7 +99,7 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscr
 BAKE=""
 [ "$SHOT" = lodbake ] && BAKE="--bake-lod-terrain"
 [ "$SHOT" = lodview ] && echo "content=n4lodview.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0133: "trees" walks out of the Mare, stands before the nearest Skyrim tree and takes four pictures half a second apart
+# Task 0136: "trees" walks out of the Mare, stands before the nearest Skyrim tree and takes four pictures half a second apart
 # (use at least 2500 frames; set [Game] neutral tree sway = true through SETTINGS_EXTRA; OPENEDEN_NEUTRAL_TREE_WIND forces the wind).
 [ "$SHOT" = trees ] && echo "content=trees.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"

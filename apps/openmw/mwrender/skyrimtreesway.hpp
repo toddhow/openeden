@@ -1,13 +1,13 @@
 #ifndef OPENMW_MWRENDER_SKYRIMTREESWAY_H
 #define OPENMW_MWRENDER_SKYRIMTREESWAY_H
 
-// Task 0133 (Skyrim tree sway, `[Game] neutral tree sway`): Skyrim SE shapes with the Tree_Anim shader flag bend in the
+// Task 0136 (Skyrim tree sway, `[Game] neutral tree sway`): Skyrim SE shapes with the Tree_Anim shader flag bend in the
 // weather's wind through the vertex shader path the world LOD's far trees already use (`LOD_SWAY` in
 // default/main.vert and its Slang twin; task 0096 stage c). No shader or pipeline set is new.
 //
 // How the pieces fit:
 //  - flatten (components/nifscene) marks the shape (MaterialKey::mSway) and keeps the file's per-vertex alpha, which
-//    is the vertex's flexibility (0: rigid trunk ... 1: free tip; docs/tasks/0133-skyrim-tree-sway.md survey).
+//    is the vertex's flexibility (0: rigid trunk ... 1: free tip; docs/tasks/0136-skyrim-tree-sway.md survey).
 //  - the model builder (skyrimmodel.cpp) turns that alpha into the sway weight byte of `weightByte` and binds ONE
 //    process-wide uniform (this Driver's) as the shape's TEXMAT_BINDING buffer, with the LOD_SWAY pipeline mode.
 //  - the Driver writes column 0 of that uniform every frame: the wind push in world units at full weight, the clock's
