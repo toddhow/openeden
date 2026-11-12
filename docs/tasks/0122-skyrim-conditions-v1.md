@@ -62,3 +62,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_264 HasSpell(spell or shout) from the Papyrus Actor.HasSpell page toddhow showed (the condition page is empty): known, not merely in effect. Red, then 60 of 60.
 - 2026-11-11: fn_654 GetBribeSuccess: no parameters, runs on the subject (CK condition dialog toddhow showed; the wiki page is empty); meaning INFERRED from GetIntimidateSuccess. Red, then 61 of 61.
 - 2026-11-11: fn_144 GetTrespassWarningLevel (CK wiki page toddhow showed): warnings given, counted on the warner. Red, then 62 of 62.
+- 2026-11-11: fn_248 IsScenePlaying(scene) (CK wiki page toddhow showed; the original can answer true for a scene that is not playing). Red, then 63 of 63.

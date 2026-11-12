@@ -386,6 +386,13 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
+        /// fn_248 IsScenePlaying(scene): is the scene playing? The original can answer true for a scene that is not
+        /// (CK wiki, shown by toddhow, 2026-11-11); a world decides whether to copy that.
+        virtual bool scenePlaying(std::uint32_t scene) const
+        {
+            (void)scene;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
