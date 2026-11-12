@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mInFavorStateFlag = true;
+        bool inFavorState(Subject s) const override { return s == mSubject && mInFavorStateFlag; }
         bool mAlarmed = true;
         bool hasAssociation(Subject s, std::uint32_t o, std::uint32_t a) const override
         {
@@ -629,6 +631,18 @@ namespace
         EXPECT_TRUE(run(cond(258, kEq, 0.f, 0x15, 0x143CA), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(258, kEq, 0.f, 0x14, 0x143CA), w));
+    }
+
+    // fn_635 IsInFavorState (CK wiki, toddhow 2026-11-11: doing something the player asked).
+    TEST(SkyrimConditionFunctions, fn_635_isInFavorState)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(635, kEq, 1.f), w));
+        w.mInFavorStateFlag = false;
+        EXPECT_TRUE(run(cond(635, kEq, 0.f), w));
+        w.mInFavorStateFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(635, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

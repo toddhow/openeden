@@ -431,6 +431,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.hasAssociation(subject, c.mParam1, c.mParam2));
         }
 
+        // 635 IsInFavorState (CK wiki, toddhow 2026-11-11: doing something the player asked)
+        float isInFavorStateFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inFavorState(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -439,7 +445,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 67> sTable = { {
+        constexpr std::array<Entry, 68> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -504,6 +510,7 @@ namespace game_skyrimse::conditions
             { 624, getInContainer },
             { 629, getVMQuestVariable },
             { 630, getVMScriptVariable },
+            { 635, isInFavorStateFn },
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },

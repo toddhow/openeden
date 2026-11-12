@@ -69,3 +69,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_61 GetAlarmed, fn_136 GetIsReference(reference), fn_159 GetSitting (state 0 to 4, 11 to 14) (CK wiki pages toddhow showed). Red, then 69 of 69.
 - 2026-11-11: fn_237 GetIsGhost, fn_630 GetVMScriptVariable(object, "variable") (CK wiki pages toddhow showed; the parameter shape is taken from fn_629, RECALLED-VERIFY). Red, then 70 of 70.
 - 2026-11-11: fn_258 HasAssociationType(actor, association type) (CK wiki page toddhow showed). Red, then 71 of 71. Real data: 31,630 of 32,148 lists (98.4 percent); unknown conditions 573 (0.75 percent), 56 distinct functions.
+- 2026-11-11: fn_635 IsInFavorState (CK wiki page toddhow showed). Red, then 72 of 72.
