@@ -64,3 +64,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_144 GetTrespassWarningLevel (CK wiki page toddhow showed): warnings given, counted on the warner. Red, then 62 of 62.
 - 2026-11-11: fn_248 IsScenePlaying(scene) (CK wiki page toddhow showed; the original can answer true for a scene that is not playing). Red, then 63 of 63.
 - 2026-11-11: fn_101 IsWeaponMagicOut, fn_80 GetLevel, fn_214 HasMagicEffect(effect) (CK wiki pages toddhow showed). Red, then 64 of 64. Real data: 31,409 of 32,148 lists (97.7 percent); unknown conditions 848 (1.1 percent).
+- 2026-11-11: fn_580 IsBleedingOut (CK wiki page toddhow showed). Red, then 65 of 65.

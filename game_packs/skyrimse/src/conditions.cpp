@@ -383,6 +383,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.hasMagicEffect(subject, c.mParam1));
         }
 
+        // 580 IsBleedingOut (CK wiki, toddhow 2026-11-11)
+        float isBleedingOut(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isBleedingOut(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -391,7 +397,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 59> sTable = { {
+        constexpr std::array<Entry, 60> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -444,6 +450,7 @@ namespace game_skyrimse::conditions
             { 562, locationHasKeyword },
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
+            { 580, isBleedingOut },
             { 596, spellHasKeyword },
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },

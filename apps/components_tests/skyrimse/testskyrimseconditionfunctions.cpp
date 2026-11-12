@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mBleeding = true;
+        bool isBleedingOut(Subject s) const override { return s == mSubject && mBleeding; }
         bool mDrawn = true;
         bool weaponOrMagicOut(Subject s) const override { return s == mSubject && mDrawn; }
         float levelOf(Subject s) const override { return s == mSubject ? 12.f : 0.f; }
@@ -528,6 +530,18 @@ namespace
         EXPECT_TRUE(run(cond(101, kEq, 0.f), w));
         EXPECT_TRUE(run(cond(80, kEq, 0.f), w));
         EXPECT_TRUE(run(cond(214, kEq, 0.f, 0xB729D), w));
+    }
+
+    // fn_580 IsBleedingOut (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_580_is_bleeding_out)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(580, kEq, 1.f), w));
+        w.mBleeding = false;
+        EXPECT_TRUE(run(cond(580, kEq, 0.f), w));
+        w.mBleeding = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(580, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
