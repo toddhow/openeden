@@ -47,8 +47,10 @@ return {
                 pcall(function() world.mwscript.getGlobalVariables(player).gamehour = 12 end)
             elseif step == 1 and t >= 6 then
                 step = 2
-                local door = nearestDoor(player.cell, 'skyrimse:b152263', { -128, -1152, 120 })
-                if door == nil then print('TRUNKS door not found') else door:activateBy(player) end
+                -- task 0140: started in an exterior with --start @<world>,x,y: no door to take, search from here
+                local door = (not player.cell.isExterior) and nearestDoor(player.cell, 'skyrimse:b152263', { -128, -1152, 120 }) or nil
+                if player.cell.isExterior then print('TRUNKS started in an exterior, searching from the start position')
+                elseif door == nil then print('TRUNKS door not found') else door:activateBy(player) end
             elseif step == 2 and t >= nextSearch then
                 step = 3
                                 local trees = {}

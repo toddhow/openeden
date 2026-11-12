@@ -39,6 +39,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralnavigation.cpp
     mwworld/testneutralexterior.cpp
     mwworld/testneutraldoorexterior.cpp
+    mwworld/testneutralstart.cpp
     mwworld/testneutralwater.cpp
     mwworld/testneutraldoorreal.cpp
     mwworld/testneutrallock.cpp

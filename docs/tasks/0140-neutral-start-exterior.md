@@ -1,0 +1,11 @@
+# Task: Start a neutral session at a spot in an exterior
+Design doc section: `docs/design/neutral-world-model.md` (start path, task 0109) and task 0125 (exteriors). Approved under toddhow's blanket "go with your recommendations". Full loop (it touches the engine start path).
+Goal: `--start @<world editor id>,<x>,<y>[,<z>]` starts a neutral (Skyrim SE) session standing in that world's exterior, so tests and toddhow can reach a place without a door.
+Inherited code touched: `apps/openmw/mwstate/neutralnewgame.hpp` (`NeutralNewGame::run`), `apps/openmw/mwworld/worldmodel.{hpp,cpp}` (new `findNeutralWorld`, beside `findNeutralCell`/`findNeutralExterior`). Morrowind's start (`NewGame`, `--start <cell>`) is not touched: `NeutralNewGame` is only used when a game pack provides a neutral world.
+Inputs / outputs: `--start` text. `MWWorld::parseNeutralStart` (pure): text without a leading `@` is an interior name as before; the `@` form takes a world editor id, x, y (units), optional z, refuses non-finite numbers, more than four fields and values beyond 1e7. `MWWorld::neutralLandHeight(source, world, x, y, error)` reads the pack's `buildTerrain` for the square (walking `WorldSpaceInfo::parent` when `parentUsage` lends land, cycle-safe) and interpolates bilinearly (`neutralCellHeightAt`, col east, row north). z omitted: land height + 20 units, then `adjustPosition` settles the player.
+Constraints: main thread; off unless a neutral session (`[Game] neutral world`) is running; refuses with a clear message (shown by the state manager's error path) for an unknown world, a world the pack cannot describe, a spot with no land, or a malformed text.
+Acceptance criteria:
+- [ ] The parse, height and land-lookup tests pass (written first, red against stubs).
+- [ ] In game: `--start @Tamriel,<x>,<y>` puts the player in the Tamriel exterior at that spot; an unknown world and a spot in the sea are refused with a message and the game ends with an error box text in the log, not a crash.
+- [ ] With the feature unused: `tools/worldobjects_check` dump and the fixed-frame Balmora frame equal the parent build; `--start <Morrowind cell>` behaves as before; `--start <interior editor id>` in a Skyrim session behaves as before.
+Out of scope: saving in a neutral session, a launcher entry, rotation (the player faces rot 0).

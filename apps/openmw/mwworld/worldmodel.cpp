@@ -230,6 +230,40 @@ namespace MWWorld
         return *cellStore;
     }
 
+    NeutralWorldLookup WorldModel::findNeutralWorld(
+        NeutralWorld::NeutralWorldStore& neutral, std::string_view editorId) const
+    {
+        NeutralWorldLookup result;
+        for (const std::string& gameId : neutral.gameIds())
+        {
+            const openeden::sdk::game::WorldId world = neutral.findWorldByEditorId(gameId, editorId);
+            if (world == openeden::sdk::game::kNoWorldId)
+                continue;
+            openeden::sdk::game::WorldSpaceInfo info;
+            openeden::sdk::game::WorldCellSource* source = neutral.source(gameId);
+            if (source == nullptr || !source->worldInfo(world, info))
+            {
+                result.mError = "the world '" + std::string(editorId) + "' of " + gameId
+                    + " cannot be described by its game pack";
+                return result;
+            }
+            const ESM::RefId worldspace = neutralWorldspaceId(gameId, world);
+            if (worldspace.empty())
+            {
+                result.mError = "the world '" + std::string(editorId) + "' of " + gameId
+                    + " cannot be carried by the engine";
+                return result;
+            }
+            mNeutralWorldspaces.emplace(worldspace, NeutralWorldspace{ gameId, world });
+            result.mGameId = gameId;
+            result.mWorld = world;
+            result.mWorldspace = worldspace;
+            return result;
+        }
+        result.mError = "no world named '" + std::string(editorId) + "' in the loaded game";
+        return result;
+    }
+
     const NeutralWorldspace* WorldModel::neutralWorldspace(const ESM::RefId& worldspace) const
     {
         const auto it = mNeutralWorldspaces.find(worldspace);

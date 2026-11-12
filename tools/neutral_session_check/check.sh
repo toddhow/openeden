@@ -116,7 +116,10 @@ printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
 cd "$BUILD"
 set +e
-OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
+PROBE_CELL="$CELL"
+# Task 0140: a start text beginning with @ is an exterior spot (--start @<world>,<x>,<y>[,<z>]); the probe cell is then a fixed interior.
+case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
+OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
     ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
@@ -129,7 +132,10 @@ echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"
 grep -q "world view built from the session: 5 of 5 plugins" "$WORK/log.txt" || { echo "FAILED: the pack was not given the five Skyrim plugins"; exit 1; }
 grep -q "probe cell found: yes" "$WORK/log.txt" || { echo "FAILED: the probe cell was not found"; exit 1; }
 grep -q "Starting a new game (neutral world)" "$WORK/log.txt" || { echo "FAILED: the neutral start path did not run"; exit 1; }
-grep -q "Neutral cell '$CELL' inserted into the scene: [1-9]" "$WORK/log.txt" || { echo "FAILED: no objects were inserted"; exit 1; }
+case "$CELL" in
+    @*) grep -q "Neutral start: the player stands at" "$WORK/log.txt" || { echo "FAILED: the exterior start did not run"; exit 1; } ;;
+    *) grep -q "Neutral cell '$CELL' inserted into the scene: [1-9]" "$WORK/log.txt" || { echo "FAILED: no objects were inserted"; exit 1; } ;;
+esac
 grep -q "Saving refused" "$WORK/log.txt" || { echo "FAILED: the save attempt was not refused"; exit 1; }
 [ "$code" = 0 ] && [ "$dumps" = 0 ] && [ "$errors" = 0 ] || { echo FAILED; exit 1; }
 echo OK

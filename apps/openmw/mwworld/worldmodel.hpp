@@ -75,6 +75,15 @@ namespace MWWorld
         openeden::sdk::game::WorldId mWorld = openeden::sdk::game::kNoWorldId;
     };
 
+    /// Task 0140: what finding a neutral world by its editor id says.
+    struct NeutralWorldLookup
+    {
+        std::string mGameId;
+        openeden::sdk::game::WorldId mWorld = openeden::sdk::game::kNoWorldId;
+        ESM::RefId mWorldspace; ///< empty unless the world was found and registered
+        std::string mError;
+    };
+
     /// \brief Cell container
     class WorldModel
     {
@@ -94,6 +103,11 @@ namespace MWWorld
         NeutralCellLookup findNeutralCell(
             NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId, openeden::sdk::game::WorldId id) const;
         NeutralCellLookup findNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId id) const;
+
+        /// Task 0140: finds a world of any known neutral game by its editor id (the first game that has it, in the
+        /// store's order) and registers it as a neutral worldspace, so that getExterior works for it. The error says
+        /// why not (no such world, or the game pack cannot describe it).
+        NeutralWorldLookup findNeutralWorld(NeutralWorld::NeutralWorldStore& neutral, std::string_view editorId) const;
 
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
 
