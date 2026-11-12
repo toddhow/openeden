@@ -35,6 +35,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutraldoor.cpp
     mwworld/testneutralexterior.cpp
     mwworld/testneutraldoorreal.cpp
+    mwworld/testneutrallock.cpp
     mwworld/testneutralstorereal.cpp
 
     mwdialogue/testkeywordsearch.cpp

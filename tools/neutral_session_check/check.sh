@@ -58,6 +58,9 @@ CFG
 # walks four legs, logging height above the floor and what stops it); use at least 1000 frames.
 [ "$SHOT" = collision ] && echo "content=n3a4bcollision.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = colldraw ] && echo "content=n3a4bdraw.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0127: "stairs" walks the player up and down the Bannered Mare stairs (use at least 1500 frames); "keylocked" and "keycontainer" are the lock scenarios (give the key with OPENEDEN_NEUTRAL_KEYS).
+[ "$SHOT" = stairs ] && echo "content=n3a4bstairs.omwscripts" >> "$WORK/config/openmw.cfg"
+case "$SHOT" in keylocked|keycontainer) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task 0115 stage N4 (doors): "doorshop", "doorsexterior" and "doorslocked" run the door scenarios (use at least 2400 frames).
 case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task 0125 stage E2: "e2terrain" leaves the Mare by its front door into WhiterunWorld, walks, and hops across cell borders
@@ -70,11 +73,11 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout 170 ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*|n5actors|e2terrain) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*|n5actors|e2terrain|stairs|keylocked|keycontainer) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|NDOOR|N4D|Neutral door|E2 |Neutral terrain|Neutral exterior" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|NLOCK|Neutral door|E2 |Neutral terrain|Neutral exterior" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

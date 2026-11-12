@@ -24,6 +24,7 @@
 #include "../mwbase/world.hpp"
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwworld/globals.hpp"
+#include "../mwworld/neutrallock.hpp"
 
 #include "askloadrecent.hpp"
 #include "cleanup.hpp"
@@ -125,6 +126,7 @@ namespace MWState
         // Task 0109: a neutral session starts only with a named cell (--start), there is no Morrowind new game.
         if (MWBase::Environment::get().getExtensionManager()->hasNeutralWorldSource())
         {
+            MWWorld::resetNeutralLockState();
             cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, std::string()));
             return;
         }
@@ -138,6 +140,7 @@ namespace MWState
         // Task 0109: a session with a game pack's neutral world has a start path of its own.
         if (MWBase::Environment::get().getExtensionManager()->hasNeutralWorldSource())
         {
+            MWWorld::resetNeutralLockState();
             cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, startCell));
             return;
         }

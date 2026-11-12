@@ -31,6 +31,7 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/failedaction.hpp"
 #include "../mwworld/neutraldoor.hpp"
+#include "../mwworld/neutrallock.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/refdata.hpp"
@@ -144,7 +145,7 @@ namespace MWClass
     std::unique_ptr<MWWorld::Action> Neutral::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
-        if (base.mKind != ObjectKind::Door)
+        if (base.mKind != ObjectKind::Door && base.mKind != ObjectKind::Container)
             return MWWorld::Class::activate(ptr, actor);
 
         const MWWorld::CellStore* cell = ptr.getCell();
@@ -154,11 +155,44 @@ namespace MWClass
         if (object == nullptr)
             return MWWorld::Class::activate(ptr, actor);
 
+        // Task 0127: a lock is opened by its key (the session's key ring) or refused; an opened lock stays open for the
+        // session. Lock picking is not applied (Morrowind's rules read Morrowind GMSTs and skills). Only the player
+        // is judged here: a door still refuses anybody else below.
+        bool lockOpen = false;
+        if (actor == MWMechanics::getPlayer())
+        {
+            MWWorld::NeutralLockState& locks = MWWorld::neutralLockState();
+            const std::string& gameId = cell->neutralGameId();
+            const MWWorld::NeutralLockOutcome lockOutcome = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(),
+                locks.isUnlocked(gameId, *placement),
+                [&](openeden::sdk::game::WorldId key) { return locks.hasKey(gameId, key); });
+            if (doorTraceWanted() && object->lock)
+                Log(Debug::Info) << "NLOCK " << *placement << " in " << cell->getCell()->getDescription()
+                                 << ": locked=" << object->lock->locked << " key " << object->lock->key << " level "
+                                 << object->lock->level << " -> " << static_cast<int>(lockOutcome)
+                                 << " (0 none, 1 open, 2 unlocked by key, 3 refused)";
+            if (lockOutcome == MWWorld::NeutralLockOutcome::Locked)
+                return std::make_unique<RefusalAction>(base.mKind == ObjectKind::Container
+                        ? std::string("NeutralContainerLocked")
+                        : std::string(MWWorld::neutralLockMessageKey(lockOutcome)));
+            if (lockOutcome == MWWorld::NeutralLockOutcome::UnlockedByKey)
+            {
+                locks.unlock(gameId, *placement);
+                MWBase::Environment::get().getWindowManager()->messageBox(
+                    MWBase::Environment::get().getL10nManager()->getMessage(
+                        "OMWEngine", std::string(MWWorld::neutralLockMessageKey(lockOutcome))));
+            }
+            lockOpen = lockOutcome != MWWorld::NeutralLockOutcome::NotLocked;
+        }
+        // A container has nothing more to do before the neutral inventory (stage N5).
+        if (base.mKind == ObjectKind::Container)
+            return MWWorld::Class::activate(ptr, actor);
+
         MWWorld::WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
         MWWorld::CellStore* destination = nullptr;
         bool reused = false;
         const auto decision = MWWorld::decideNeutralDoor(*object, actor == MWMechanics::getPlayer(),
-            unlockDoorsWanted(), [&](openeden::sdk::game::WorldId destinationCell) {
+            unlockDoorsWanted() || lockOpen, [&](openeden::sdk::game::WorldId destinationCell) {
                 Misc::LoadTrace::Scope traceFind("neutral.door.find");
                 const MWWorld::NeutralCellLookup found
                     = worldModel->findNeutralCell(cell->neutralGameId(), destinationCell);
@@ -301,6 +335,22 @@ namespace MWClass
         MWPhysics::PhysicsSystem& physics) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
+        if (doorTraceWanted() && (base.mKind == ObjectKind::Door || base.mKind == ObjectKind::Container)
+            && ptr.getCell() != nullptr)
+        {
+            // Task 0127 (developer trace): every locked door and container of a cell as it is inserted.
+            const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            const openeden::sdk::game::WorldObject* object
+                = placement ? ptr.getCell()->neutralObject(*placement) : nullptr;
+            if (object != nullptr && object->lock && object->lock->locked)
+            {
+                const auto& position = ptr.getRefData().getPosition().asVec3();
+                Log(Debug::Info) << "NLOCKED " << (base.mKind == ObjectKind::Door ? "door" : "container") << " "
+                                 << *placement << " " << ptr.getCellRef().getRefId() << " " << base.mEditorId
+                                 << " at " << position.x << "," << position.y << "," << position.z << " key "
+                                 << object->lock->key << " level " << object->lock->level;
+            }
+        }
         if (base.mCollision.source == CollisionSource::None)
             return;
         // Stage N3a-4b: an object that has a model collides with the model's own triangles (a Skyrim SE file, read
