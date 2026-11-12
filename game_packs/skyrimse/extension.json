@@ -34,6 +34,11 @@
       "key": "actor test goto",
       "type": "string",
       "default": ""
+    },
+    {
+      "key": "actor packages",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

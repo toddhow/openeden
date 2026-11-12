@@ -23,6 +23,7 @@
 // are located Content::Error values or the `error` text of loadCell.
 
 #include <game_skyrimse/neutral_world.hpp>
+#include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
@@ -32,6 +33,7 @@
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -111,6 +113,8 @@ namespace game_skyrimse
         public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::WeatherSource
+        public openeden::sdk::game::WeatherSource,
+        public PackageSource
     {
     public:
         struct Options
@@ -256,6 +260,16 @@ namespace game_skyrimse
         bool loadCell(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCellContent& out, std::string& error) override;
 
+        // ---- PackageSource (task 0135, S5) ----
+        // The packages of an NPC, their conditions and the places of the references of the cells loaded so far. The
+        // records are read on the dialogue worker (the same plugin pass); ready() is false until it is done and never
+        // blocks. Main thread only.
+        [[nodiscard]] bool ready() const override;
+        bool packagesFor(FormId base, std::vector<const PackageRecord*>& out) const override;
+        [[nodiscard]] PackageBehavior behaviorOf(const PackageRecord& package) const override;
+        bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) override;
+        [[nodiscard]] bool locate(FormId reference, double& x, double& y, double& z) const override;
+
         // ---- openeden::sdk::game::ActorAppearanceSource (task 0121, N5-1) ----
         /// The appearance of the NPC_ `base` (see makeActorAppearance). The actor records of every plugin are read
         /// on the first call and kept (a second read of each plugin file, beside the world index); main thread only.
@@ -379,6 +393,8 @@ namespace game_skyrimse
         std::deque<std::pair<FormId, std::shared_ptr<const Materialised>>> mCache;
         RefCellIndex mRefCells; ///< teleport doors: reference id to cell id (later plugins win)
         FormId mLastCell = kNullFormId; ///< the cell of the last successful loadCell
+        /// Where every reference of every cell loadCell returned stands (task 0135 S5: package locations). Only grows.
+        std::unordered_map<FormId, std::array<double, 3>> mPlacements;
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::vector<Content::Error> mErrors;

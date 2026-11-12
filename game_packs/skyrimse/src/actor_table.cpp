@@ -92,9 +92,18 @@ namespace game_skyrimse
         return found == mRows.end() ? std::nullopt : found->second.mGoalResult;
     }
 
+    void SkyrimActorTable::enablePackages(PackageSource& source, std::uint64_t seed)
+    {
+        PackageBrain::Options options;
+        options.mSeed = seed;
+        mBrain = std::make_unique<PackageBrain>(source, options);
+    }
+
     void SkyrimActorTable::onGoalFinished(
         openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result)
     {
+        if (mBrain)
+            mBrain->onGoalFinished(handle, result);
         const auto found = mRows.find(handle.reference);
         if (found == mRows.end() || found->second.mHandle != handle)
             return; // a stale result
@@ -128,6 +137,8 @@ namespace game_skyrimse
     {
         if (!info.handle.valid())
             return;
+        if (mBrain)
+            mBrain->onActorAdded(info);
         Row row;
         row.mHandle = info.handle;
         row.mBase = info.base;
@@ -154,6 +165,8 @@ namespace game_skyrimse
 
     void SkyrimActorTable::onActorRemoved(openeden::sdk::game::ActorHandle handle)
     {
+        if (mBrain)
+            mBrain->onActorRemoved(handle);
         auto found = mRows.find(handle.reference);
         if (found == mRows.end() || found->second.mHandle != handle)
             return; // already replaced by a newer session, or never held
@@ -167,6 +180,8 @@ namespace game_skyrimse
 
     void SkyrimActorTable::update(float seconds, openeden::sdk::game::ActorRequestWriter& writer)
     {
+        if (mBrain)
+            mBrain->update(seconds, writer);
         if (mPacers == 0 && mGoers == 0)
             return;
         for (auto it = mRows.begin(); it != mRows.end();)

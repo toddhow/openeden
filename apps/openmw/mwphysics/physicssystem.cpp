@@ -1307,6 +1307,11 @@ namespace MWPhysics
                              << " handle " << handle.reference << "/" << handle.session;
     }
 
+    void PhysicsSystem::setNeutralClock(float hour, int day)
+    {
+        mNeutralBridge.setClock({ hour, static_cast<std::int32_t>(day), true });
+    }
+
     void PhysicsSystem::updateNeutralActors(float dt)
     {
         mNeutralMoved.clear();

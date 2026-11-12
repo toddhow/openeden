@@ -9,10 +9,13 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only. update() allocates nothing once the table is built
 // (the rows live in a std::map, which allocates only on add).
 
+#include <game_skyrimse/package_brain.hpp>
+
 #include <openeden/game/actor_rules.hpp>
 
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -23,6 +26,9 @@ namespace game_skyrimse
     inline constexpr std::string_view kActorTestWalkKey = "actor test walk";
     /// Longest editor id the setting may name (Skyrim's own are far shorter).
     inline constexpr std::size_t kMaxActorTestWalkName = 128;
+
+    /// The pack setting (bool, off by default) that makes the NPCs run their AI packages (stage S5).
+    inline constexpr std::string_view kActorPackagesKey = "actor packages";
 
     /// The pack setting for the go-to test rule (stage S4): `<editor id>,<x>,<y>,<z>`; empty (the default) means off.
     inline constexpr std::string_view kActorTestGotoKey = "actor test goto";
@@ -76,6 +82,11 @@ namespace game_skyrimse
 
         void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result) override;
 
+        /// Stage S5: turns the AI package scheduler on over `source` (which must outlive the table). Actors that are
+        /// added from now on get their packages; off (no brain) is the default and costs nothing.
+        void enablePackages(PackageSource& source, std::uint64_t seed);
+        [[nodiscard]] const PackageBrain* packageBrain() const { return mBrain.get(); }
+
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override;
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override;
@@ -106,6 +117,7 @@ namespace game_skyrimse
         std::size_t mGoers = 0;
         std::size_t mPacers = 0;
         Stats mStats;
+        std::unique_ptr<PackageBrain> mBrain;
     };
 }
 

@@ -94,6 +94,13 @@ namespace MWPhysics
         mPendingGoals.push_back({ key, result });
     }
 
+    void NeutralActorBridge::setClock(const openeden::sdk::game::ActorClock& clock)
+    {
+        mClock = clock;
+        if (!std::isfinite(clock.hour) || clock.hour < 0.f || clock.hour >= 24.f || clock.day < 0)
+            mClock = openeden::sdk::game::ActorClock{};
+    }
+
     void NeutralActorBridge::update(ActorRules* rules, float seconds, NeutralRequestSink& sink)
     {
         if (rules == nullptr || mEntries.empty())

@@ -170,6 +170,7 @@ namespace game_skyrimse
     {
         DialogueIndex mDialogue;
         QuestIndex mQuests;
+        PackageIndex mPackages; ///< task 0135 stage S5
     };
 
     struct SkyrimWorldView::DialogueState
@@ -179,6 +180,11 @@ namespace game_skyrimse
         std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mTables;
         std::unique_ptr<DialogueRuntime> mRuntime;
         std::uint64_t mTablesMissing = 0;
+        // Task 0135 stage S5: the package conditions are evaluated against these (not the conversation's own).
+        std::unique_ptr<SkyrimConditionWorld> mPackageWorld;
+        QuestState mPackageQuests;
+        conditions::Evaluator mPackageEvaluator;
+        std::map<FormId, std::vector<const PackageRecord*>> mPackageLists; ///< by NPC base: resolved once
     };
 
     namespace
@@ -267,6 +273,7 @@ namespace game_skyrimse
         auto data = std::make_unique<DialogueData>();
         const DialogueLimits dialogueLimits;
         const QuestLimits questLimits;
+        const PackageLimits packageLimits;
         for (const auto& [path, name] : plugins)
         {
             Content::Error openError;
@@ -276,6 +283,7 @@ namespace game_skyrimse
                 // Keep the plugin numbering of the index: an empty plugin takes the slot.
                 data->mDialogue.add(DialogueRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), name, order));
+                data->mPackages.add(PackageRecords(), FormIdResolver(Content::Header(), name, order));
                 continue;
             }
             DialogueRecords dialogue;
@@ -284,6 +292,9 @@ namespace game_skyrimse
             QuestRecords quests;
             (void)parseQuestRecords(*file, order, questLimits, quests);
             data->mQuests.add(std::move(quests), FormIdResolver(file->header(), name, order));
+            PackageRecords packages;
+            (void)parsePackageRecords(*file, order, packageLimits, packages);
+            data->mPackages.add(std::move(packages), FormIdResolver(file->header(), name, order));
         }
         return data;
     }
@@ -360,7 +371,86 @@ namespace game_skyrimse
             const FileSource* files = mFiles;
             raw->mRuntime->setVoiceProbe([files](const std::string& path) { return files->exists("sound/" + path); });
         }
+        raw->mPackageQuests = QuestState::initial(raw->mData->mQuests);
+        raw->mPackageWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
+        raw->mPackageWorld->setQuests(&raw->mData->mQuests, &raw->mPackageQuests);
         mDialogue = std::move(state);
+        return true;
+    }
+
+    // ---- AI packages (task 0135, stage S5) -------------------------------------------------------------------------
+
+    bool SkyrimWorldView::ready() const
+    {
+        // ensureDialogue() joins the finished worker and builds the runtime: cheap, and it never waits for a running one.
+        SkyrimWorldView* self = const_cast<SkyrimWorldView*>(this);
+        if (self->mDialogue == nullptr)
+            self->startDialoguePrefetch(); // without a worker ensureDialogue() would read everything on this thread
+        return self->ensureDialogue();
+    }
+
+    bool SkyrimWorldView::packagesFor(FormId base, std::vector<const PackageRecord*>& out) const
+    {
+        out.clear();
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mActorIndex == nullptr)
+            return false;
+        const auto cached = mDialogue->mPackageLists.find(base);
+        if (cached != mDialogue->mPackageLists.end())
+        {
+            out = cached->second;
+            return true;
+        }
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(base, 1, 0, resolved) != ActorIndex::ResolveStatus::Ok)
+            return false;
+        const PackageIndex& index = mDialogue->mData->mPackages;
+        std::vector<const PackageRecord*> list;
+        for (const FormId id : resolved.mPackages)
+            if (const PackageRecord* p = index.package(id))
+                list.push_back(p);
+        // Then the default package list (an FLST) of the record that supplies the packages.
+        if (const ActorNpc* holder = mActorIndex->npc(resolved.mPackagesFrom))
+            if (const FormListRecord* flst = mDialogue->mData->mDialogue.formList(holder->mDefaultPackageList))
+                for (const FormId id : flst->mEntries)
+                    if (const PackageRecord* p = index.package(id))
+                        list.push_back(p);
+        out = list;
+        mDialogue->mPackageLists.emplace(base, std::move(list));
+        return true;
+    }
+
+    PackageBehavior SkyrimWorldView::behaviorOf(const PackageRecord& package) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return PackageBehavior::Stand;
+        return mDialogue->mData->mPackages.behaviorOf(package);
+    }
+
+    bool SkyrimWorldView::conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference)
+    {
+        if (!package.mConditionsOk)
+            return false;
+        if (package.mConditions.empty())
+            return true;
+        if (mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mPackageWorld == nullptr)
+            return false;
+        DialogueSpeaker speaker;
+        speaker.mBase = actorBase;
+        speaker.mReference = actorReference;
+        SkyrimConditionWorld& world = *mDialogue->mPackageWorld;
+        world.setSpeaker(speaker);
+        world.setPlugin(&mDialogue->mData->mPackages.resolverOf(package));
+        return mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
+    }
+
+    bool SkyrimWorldView::locate(FormId reference, double& x, double& y, double& z) const
+    {
+        const auto it = mPlacements.find(reference);
+        if (it == mPlacements.end())
+            return false;
+        x = it->second[0];
+        y = it->second[1];
+        z = it->second[2];
         return true;
     }
 
@@ -1334,6 +1424,9 @@ namespace game_skyrimse
                 }
             }
             content.cell.objectCount = static_cast<std::uint32_t>(content.objects.size());
+            if (mPlacements.size() < 4u * 1024 * 1024)
+                for (const sdkgame::PlacedObject& o : content.objects)
+                    mPlacements[static_cast<FormId>(o.id)] = { o.position.x, o.position.y, o.position.z };
             out = std::move(content);
             mLastCell = cell;
             mLastComponents = std::move(components);

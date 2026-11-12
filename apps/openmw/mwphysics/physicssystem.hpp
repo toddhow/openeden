@@ -211,6 +211,10 @@ namespace MWPhysics
         /// actor with no request costs one state test and one request test; neither list allocates once reserved.
         void updateNeutralActors(float dt);
 
+        /// Task 0135 stage S5: the game clock the pack reads (ActorRequestWriter::clock()) in the next update. Main
+        /// thread; call before updateNeutralActors.
+        void setNeutralClock(float hour, int day);
+
         /// The actors the last updateNeutralActors changed the position of, and (a subset) those it turned.
         const std::vector<MWWorld::Ptr>& getNeutralActorsMoved() const { return mNeutralMoved; }
         const std::vector<MWWorld::Ptr>& getNeutralActorsTurned() const { return mNeutralTurned; }

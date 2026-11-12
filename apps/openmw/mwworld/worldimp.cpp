@@ -4,6 +4,7 @@
 
 #include <array>
 #include <charconv>
+#include <cstdlib>
 #include <vector>
 
 #include <MyGUI_TextIterator.h>
@@ -1451,6 +1452,16 @@ namespace MWWorld
             // Task 0135: neutral actors that are not yet on the floor fall (or are snapped), and grounded ones with a
             // movement request walk, before the step, so the step commits their new body position. Main thread; an
             // empty list costs one test.
+            {
+                // Task 0135 stage S5: the pack's AI packages follow the game's clock. OPENEDEN_NEUTRAL_ACTOR_HOUR=<h>
+                // (a developer aid, not a setting) pins the hour of the day.
+                static const float pinnedHour = []() {
+                    const char* text = std::getenv("OPENEDEN_NEUTRAL_ACTOR_HOUR");
+                    return text != nullptr ? static_cast<float>(std::atof(text)) : -1.f;
+                }();
+                const MWWorld::TimeStamp now = getTimeStamp();
+                mPhysics->setNeutralClock(pinnedHour >= 0.f ? pinnedHour : now.getHour(), now.getDay());
+            }
             mPhysics->updateNeutralActors(duration);
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
             {

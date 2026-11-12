@@ -81,6 +81,11 @@ namespace MWPhysics
         /// an empty table. A non-finite or negative `seconds` is passed as 0.
         void update(openeden::sdk::game::ActorRules* rules, float seconds, NeutralRequestSink& sink);
 
+        /// Stage S5: the game clock the pack reads through ActorRequestWriter::clock() during update(). Set by the
+        /// caller before each update(); the default is an invalid clock. A clock whose hour is not in [0, 24) or whose
+        /// day is negative is stored as invalid.
+        void setClock(const openeden::sdk::game::ActorClock& clock);
+
         [[nodiscard]] std::size_t size() const { return mEntries.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
@@ -108,6 +113,7 @@ namespace MWPhysics
             bool goTo(openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::ActorGoal& goal) override;
             bool cancelGoal(openeden::sdk::game::ActorHandle handle) override;
             bool setHeading(openeden::sdk::game::ActorHandle handle, float heading) override;
+            [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 
         private:
@@ -127,6 +133,7 @@ namespace MWPhysics
         std::vector<Entry> mEntries;
         std::uint32_t mNextSession = 1;
         Stats mStats;
+        openeden::sdk::game::ActorClock mClock;
         Writer mWriter;
     };
 }

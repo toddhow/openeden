@@ -149,6 +149,13 @@ namespace game_skyrimse
                                 + "' is not <editor id>,<x>,<y>,<z>; the test go-to is off");
                     else if (!goer.empty())
                         say(openeden::sdk::LogLevel::Info, "actor test goto: " + goer);
+                    // Stage S5: AI packages, off unless the setting says so (needs the world view, which is the
+                    // packages' source).
+                    if (settings->getBool(kPackId, kActorPackagesKey, false))
+                    {
+                        mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed);
+                        say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
+                    }
                 }
                 if (const openeden::sdk::VfsService* vfs = host.getVfsService())
                 {

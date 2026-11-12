@@ -15,8 +15,9 @@
 // registered WorldCellSource, so the frozen WorldCellSource (world_source.hpp 1.x) is untouched. A pack that does not
 // implement it simply has actors that stand where they were placed. No SDK major or minor change: the SDK stays 4.0.
 //
-// Version policy: DRAFT 0.2 (0.2, task 0135 stage S4: go-to requests with a result event, and a heading request; all
-// additions have defaults, so a 0.1 pack or core keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field
+// Version policy: DRAFT 0.3 (0.2, task 0135 stage S4: go-to requests with a result event, and a heading request; 0.3,
+// stage S5: the game clock through ActorRequestWriter::clock(); all additions have defaults, so a 0.1 pack or core
+// keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field
 // a consumer only reads) raise the minor number.
 //
 // Threading: main thread only. The core calls onActorAdded / onActorRemoved when it creates or destroys the actor's
@@ -29,7 +30,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 2 };
+    inline constexpr Version kActorRulesVersion{ 0, 3 };
 
     struct ActorHandle
     {
@@ -62,6 +63,15 @@ namespace openeden::sdk::game
         Arrived = 0, ///< the actor reached the goal
         NoPath = 1, ///< the navigator found no path to it (or none that ends at it)
         Blocked = 2, ///< the actor made no progress along its path, also after the core asked for new paths
+    };
+
+    /// (0.3) The game's clock as the core keeps it, for the schedules of AI packages. `valid` is false when the core has
+    /// no clock (an old core, a test): `hour` and `day` are then the defaults and a pack should not trust them.
+    struct ActorClock
+    {
+        float hour = 12.f; ///< game hours since midnight, [0, 24)
+        std::int32_t day = 0; ///< whole game days since the session's start day (the core's day counter)
+        bool valid = false;
     };
 
     /// What the pack is told about an actor that appeared.
@@ -115,6 +125,9 @@ namespace openeden::sdk::game
             (void)heading;
             return false;
         }
+
+        /// (0.3) The game clock of this frame. The default is an invalid clock. Valid during update() only.
+        [[nodiscard]] virtual ActorClock clock() const { return {}; }
     };
 
     /// Implemented by a WorldCellSource whose game has actors with a life.
