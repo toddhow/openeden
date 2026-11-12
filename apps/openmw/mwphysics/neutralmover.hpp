@@ -40,6 +40,11 @@ namespace MWPhysics::NeutralMover
     /// The centre of the capsule must have floor within this much above to kStepDown below the feet; the normal of
     /// that floor, not the one the capsule's rim touched (a step's edge), decides whether the ground is walkable.
     inline constexpr float kProbeLift = 4.f;
+    /// A steep normal under the capsule's centre only refuses the pass when that ground is lower than the resting capsule
+    /// by more than this: a bevel or a seam in a floor mesh is steep for a few units and is not a slope (task 0135
+    /// stage S4: a floor seam in the Bannered Mare stopped every NPC). A capsule of radius 22 resting on the rim of a
+    /// 50 degree slope has the centre ground about 12 units lower, on a 38 degree slope about 6.
+    inline constexpr float kBevelSlack = 3.f;
     /// Horizontal distances under this are not moves.
     inline constexpr float kMinMove = 1e-4f;
 

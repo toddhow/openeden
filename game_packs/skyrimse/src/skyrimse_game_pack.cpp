@@ -141,6 +141,14 @@ namespace game_skyrimse
                             "the setting '" + std::string(kActorTestWalkKey) + "' is too long; the test walk is off");
                     else if (!walker.empty())
                         say(openeden::sdk::LogLevel::Info, "actor test walk: actors named " + walker + " pace");
+                    // Stage S4: the go-to test rule.
+                    const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
+                    if (!mCellSource.actorTable().setTestGoto(goer))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kActorTestGotoKey)
+                                + "' is not <editor id>,<x>,<y>,<z>; the test go-to is off");
+                    else if (!goer.empty())
+                        say(openeden::sdk::LogLevel::Info, "actor test goto: " + goer);
                 }
                 if (const openeden::sdk::VfsService* vfs = host.getVfsService())
                 {

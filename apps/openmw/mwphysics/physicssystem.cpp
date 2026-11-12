@@ -1169,6 +1169,7 @@ namespace MWPhysics
         mObjects.emplace(ptr.mRef, obj);
 
         NeutralActorEntry entry;
+        entry.mCapsule = capsule;
         entry.mRef = ptr.mRef;
         entry.mStartZ = ptr.getRefData().getPosition().pos[2];
         entry.mFall.mZ = entry.mStartZ;
@@ -1234,16 +1235,57 @@ namespace MWPhysics
         }
     }
 
-    void PhysicsSystem::NeutralRequestApplier::setRequest(const void* key, float velX, float velY)
+    PhysicsSystem::NeutralActorEntry* PhysicsSystem::findNeutralActor(const void* key)
     {
-        for (NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        for (NeutralActorEntry& entry : mNeutralActors)
         {
             if (static_cast<const void*>(entry.mRef) == key)
-            {
-                entry.mRequest.mVelX = velX;
-                entry.mRequest.mVelY = velY;
-                return;
-            }
+                return &entry;
+        }
+        return nullptr;
+    }
+
+    void PhysicsSystem::NeutralRequestApplier::setRequest(const void* key, float velX, float velY)
+    {
+        if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
+        {
+            entry->mFollow.cancel(); // an explicit velocity replaces a go-to, without a result
+            entry->mRequest.mVelX = velX;
+            entry->mRequest.mVelY = velY;
+        }
+    }
+
+    void PhysicsSystem::NeutralRequestApplier::setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return;
+        entry->mRequest = {};
+        const float speed = goal.speed == openeden::sdk::game::ActorSpeed::Run ? NeutralPath::kRunSpeed
+                                                                               : NeutralPath::kWalkSpeed;
+        const vsg::vec3 target(static_cast<float>(goal.x), static_cast<float>(goal.y), static_cast<float>(goal.z));
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        if (trace)
+            Log(Debug::Info) << "NACTGOTO goal " << target.x << " " << target.y << " " << target.z << " speed " << speed;
+        if (!entry->mFollow.setGoal(target, speed))
+            mPhysics.mNeutralBridge.reportGoal(key, openeden::sdk::game::GoalResult::NoPath); // a float overflow
+    }
+
+    void PhysicsSystem::NeutralRequestApplier::cancelGoal(const void* key)
+    {
+        if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
+        {
+            entry->mFollow.cancel();
+            entry->mRequest = {};
+        }
+    }
+
+    void PhysicsSystem::NeutralRequestApplier::setHeading(const void* key, float heading)
+    {
+        if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
+        {
+            entry->mFace = heading;
+            entry->mFaceValid = true;
         }
     }
 
@@ -1287,8 +1329,27 @@ namespace MWPhysics
                 continue;
             if (entry.mFall.mState == NeutralActor::State::Grounded)
             {
+                // Stage S4: a go-to turns its path into this frame's velocity request first.
+                if (entry.mFollow.active())
+                    followNeutralGoal(entry, found->second->getPtr(), dt, trace);
                 if (entry.mRequest.isMoving())
+                {
+                    entry.mFaceValid = false; // a walking actor faces where it goes
                     walkNeutralActor(entry, *found->second, dt, trace);
+                }
+                else if (entry.mFaceValid)
+                {
+                    entry.mFaceValid = false;
+                    const MWWorld::Ptr ptr = found->second->getPtr();
+                    ESM::Position pos = ptr.getRefData().getPosition();
+                    if (pos.rot[2] != entry.mFace)
+                    {
+                        pos.rot[2] = entry.mFace;
+                        ptr.getRefData().setPosition(pos);
+                        mNeutralMoved.push_back(ptr);
+                        mNeutralTurned.push_back(ptr);
+                    }
+                }
                 continue;
             }
             if (entry.mFall.mState == NeutralActor::State::Lost)
@@ -1333,6 +1394,63 @@ namespace MWPhysics
                                  << " start z " << entry.mStartZ << " rest z " << entry.mFall.mZ << " frames "
                                  << entry.mFall.mFrames;
         }
+    }
+
+    void PhysicsSystem::followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace)
+    {
+        // The path finder the follower asks, with this actor's capsule; built on the stack, no allocation.
+        class Finder final : public NeutralPath::PathFinder
+        {
+        public:
+            Finder(const NeutralPathFinderFn& fn, const NeutralActor::Capsule& capsule, bool trace)
+                : mFn(fn)
+                , mCapsule(capsule)
+                , mTrace(trace)
+            {
+            }
+            NeutralPath::FindStatus find(
+                const vsg::vec3& from, const vsg::vec3& to, std::vector<vsg::vec3>& out) const override
+            {
+                if (!mFn)
+                    return NeutralPath::FindStatus::NoPath;
+                const NeutralPath::FindStatus status = mFn(from, to, mCapsule, out);
+                if (mTrace)
+                {
+                    Log(Debug::Info) << "NACTGOTO path status " << static_cast<int>(status) << " points " << out.size()
+                                     << " from " << from.x << " " << from.y << " " << from.z;
+                    for (const vsg::vec3& point : out)
+                        Log(Debug::Info) << "NACTGOTO waypoint " << point.x << " " << point.y << " " << point.z;
+                }
+                return status;
+            }
+
+        private:
+            const NeutralPathFinderFn& mFn;
+            NeutralActor::Capsule mCapsule;
+            bool mTrace;
+        };
+
+        const Finder finder(mNeutralPathFinder, entry.mCapsule, trace);
+        const vsg::vec3 feet = ptr.getRefData().getPosition().asVec3();
+        const NeutralPath::StepResult result = entry.mFollow.step(feet, dt, finder);
+        if (result.mSetVelocity)
+        {
+            entry.mRequest.mVelX = result.mVelX;
+            entry.mRequest.mVelY = result.mVelY;
+        }
+        if (result.mOutcome == NeutralPath::Outcome::None)
+            return;
+        using openeden::sdk::game::GoalResult;
+        const GoalResult reported = result.mOutcome == NeutralPath::Outcome::Arrived ? GoalResult::Arrived
+            : result.mOutcome == NeutralPath::Outcome::NoPath                          ? GoalResult::NoPath
+                                                                                       : GoalResult::Blocked;
+        mNeutralBridge.reportGoal(entry.mRef, reported);
+        if (trace)
+            Log(Debug::Info) << "NACTGOTO result " << ptr.getCellRef().getRefId() << " "
+                             << (reported == GoalResult::Arrived       ? "arrived"
+                                        : reported == GoalResult::NoPath ? "no path"
+                                                                         : "blocked")
+                             << " at " << feet.x << " " << feet.y << " " << feet.z;
     }
 
     void PhysicsSystem::walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace)

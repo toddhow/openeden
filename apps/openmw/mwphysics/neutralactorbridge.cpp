@@ -8,11 +8,13 @@ namespace MWPhysics
     using openeden::sdk::game::ActorHandle;
     using openeden::sdk::game::ActorInfo;
     using openeden::sdk::game::ActorRules;
+    using openeden::sdk::game::GoalResult;
     using openeden::sdk::game::WorldId;
 
     NeutralActorBridge::NeutralActorBridge()
         : mWriter(*this)
     {
+        mPendingGoals.reserve(kMaxActors);
     }
 
     ActorHandle NeutralActorBridge::add(ActorRules* rules, const void* key, WorldId reference, WorldId base,
@@ -60,6 +62,7 @@ namespace MWPhysics
         if (found == mEntries.end())
             return;
         const ActorHandle handle = found->mHandle;
+        std::erase_if(mPendingGoals, [&](const PendingGoal& pending) { return pending.mKey == key; });
         if (rules != nullptr)
         {
             try
@@ -78,14 +81,50 @@ namespace MWPhysics
     void NeutralActorBridge::clear()
     {
         mEntries.clear();
+        mPendingGoals.clear();
+    }
+
+    void NeutralActorBridge::reportGoal(const void* key, GoalResult result)
+    {
+        if (key == nullptr || handleOf(key).session == 0)
+        {
+            ++mStats.mResultsDropped;
+            return;
+        }
+        mPendingGoals.push_back({ key, result });
     }
 
     void NeutralActorBridge::update(ActorRules* rules, float seconds, NeutralRequestSink& sink)
     {
         if (rules == nullptr || mEntries.empty())
+        {
+            mStats.mResultsDropped += mPendingGoals.size();
+            mPendingGoals.clear();
             return;
+        }
         if (!std::isfinite(seconds) || seconds < 0.f)
             seconds = 0.f;
+        // Results of frame N-1 first, so the pack sees them before it decides what to ask for in frame N. A pack that
+        // asks for something from inside onGoalFinished is refused: the writer is only open during update().
+        for (const PendingGoal& pending : mPendingGoals)
+        {
+            const ActorHandle handle = handleOf(pending.mKey);
+            if (!handle.valid())
+            {
+                ++mStats.mResultsDropped;
+                continue;
+            }
+            try
+            {
+                rules->onGoalFinished(handle, pending.mResult);
+                ++mStats.mResultsDelivered;
+            }
+            catch (...)
+            {
+                ++mStats.mRulesFailures;
+            }
+        }
+        mPendingGoals.clear();
         mWriter.mSink = &sink;
         try
         {
@@ -110,12 +149,12 @@ namespace MWPhysics
         return {};
     }
 
-    bool NeutralActorBridge::Writer::setMovement(ActorHandle handle, float velX, float velY)
+    const void* NeutralActorBridge::Writer::keyOf(ActorHandle handle)
     {
         if (mSink == nullptr)
         {
             ++mBridge.mStats.mOutsideUpdate;
-            return false;
+            return nullptr;
         }
         // Sessions are ascending in the table: binary search, then the placement must match as well.
         const auto found = std::lower_bound(mBridge.mEntries.begin(), mBridge.mEntries.end(), handle.session,
@@ -123,15 +162,64 @@ namespace MWPhysics
         if (handle.session == 0 || found == mBridge.mEntries.end() || found->mHandle != handle)
         {
             ++mBridge.mStats.mStale;
-            return false;
+            return nullptr;
         }
+        return found->mKey;
+    }
+
+    bool NeutralActorBridge::Writer::setMovement(ActorHandle handle, float velX, float velY)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
         if (!std::isfinite(velX) || !std::isfinite(velY))
         {
             ++mBridge.mStats.mBadValues;
             return false;
         }
         ++mBridge.mStats.mRequests;
-        mSink->setRequest(found->mKey, velX, velY);
+        mSink->setRequest(key, velX, velY);
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::goTo(ActorHandle handle, const openeden::sdk::game::ActorGoal& goal)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(goal.x) || !std::isfinite(goal.y) || !std::isfinite(goal.z)
+            || static_cast<unsigned>(goal.speed) > static_cast<unsigned>(openeden::sdk::game::ActorSpeed::Run))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        ++mBridge.mStats.mGoals;
+        mSink->setGoal(key, goal);
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::cancelGoal(ActorHandle handle)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        ++mBridge.mStats.mCancels;
+        mSink->cancelGoal(key);
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::setHeading(ActorHandle handle, float heading)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(heading))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        ++mBridge.mStats.mHeadings;
+        mSink->setHeading(key, heading);
         return true;
     }
 }

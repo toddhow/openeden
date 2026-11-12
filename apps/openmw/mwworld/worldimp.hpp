@@ -1,7 +1,10 @@
 #ifndef GAME_MWWORLD_WORLDIMP_H
 #define GAME_MWWORLD_WORLDIMP_H
 
+#include <set>
+
 #include <components/debug/debuglog.hpp>
+#include <components/detournavigator/agentbounds.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/settings.hpp>
@@ -81,6 +84,7 @@ namespace MWWorld
         std::unique_ptr<MWWorld::Player> mPlayer;
         std::unique_ptr<MWPhysics::PhysicsSystem> mPhysics;
         std::unique_ptr<DetourNavigator::Navigator> mNavigator;
+        std::set<DetourNavigator::AgentBounds> mNeutralPathAgents; // task 0135 S4: agents added for neutral go-to paths
         MWRender::RenderManager* mRendering;
         std::unique_ptr<MWWorld::Scene> mWorldScene;
         std::unique_ptr<MWWorld::WeatherManager> mWeatherManager;

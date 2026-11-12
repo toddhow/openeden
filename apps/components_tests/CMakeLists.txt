@@ -516,6 +516,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimseactorrules.cpp
+    skyrimse/testskyrimseactorgoto.cpp
     skyrimse/testskyrimseconditions.cpp
     skyrimse/testskyrimseconditionsreal.cpp
     skyrimse/testskyrimsetreesreal.cpp

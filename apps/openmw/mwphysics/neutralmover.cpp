@@ -67,9 +67,13 @@ namespace MWPhysics::NeutralMover
         for (int pass = 0; pass < kMaxSlidePasses; ++pass)
         {
             // Raise, so that a low ledge and the floor itself are not in the way of the sideways sweep.
-            const Sweep up = world.sweep(pos, vsg::vec3(0.f, 0.f, kStepUp));
+            // The capsule rests in contact with the floor (the last drop put it there), and a sweep that starts in contact
+            // reports a hit at fraction 0, in any direction: lift the start by the skin first (task 0135 stage S4: an
+            // actor in the Bannered Mare stood for ever with a rise of 0 and every sweep stopped at once).
+            const vsg::vec3 base(pos.x, pos.y, pos.z + kSkin);
+            const Sweep up = world.sweep(base, vsg::vec3(0.f, 0.f, kStepUp));
             const float rise = up.mHit ? std::max(0.f, up.mFraction * kStepUp - kSkin) : kStepUp;
-            const vsg::vec3 raised(pos.x, pos.y, pos.z + rise);
+            const vsg::vec3 raised(base.x, base.y, base.z + rise);
 
             const float length = length2d(remaining.x, remaining.y);
             const Sweep side = world.sweep(raised, remaining);
@@ -79,7 +83,7 @@ namespace MWPhysics::NeutralMover
             const vsg::vec3 landing(raised.x + remaining.x * fraction, raised.y + remaining.y * fraction, raised.z);
 
             // Put the capsule down on whatever is below: within the raise and kStepDown.
-            const float drop = rise + kStepDown;
+            const float drop = rise + kSkin + kStepDown;
             const Sweep down = world.sweep(landing, vsg::vec3(0.f, 0.f, -drop));
             if (!down.mHit)
             {
@@ -97,7 +101,8 @@ namespace MWPhysics::NeutralMover
                 result.mEdge = true;
                 break;
             }
-            if (ground.mNormal.z < kMinFloorNormalZ)
+            const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * (kProbeLift + kStepDown));
+            if (ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack)
             {
                 result.mBlocked = true;
                 break;

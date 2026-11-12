@@ -49,6 +49,7 @@
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/navigator.hpp>
+#include <components/detournavigator/navigatorutils.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/detournavigator/stats.hpp>
 #include "neutraldialogue.hpp"
@@ -326,6 +327,37 @@ namespace MWWorld
             mNavigator = DetourNavigator::makeNavigatorStub();
         }
         mRendering->setNavigator(mNavigator.get());
+
+        // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
+        // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.
+        mPhysics->setNeutralPathFinder([this](const vsg::vec3& from, const vsg::vec3& to,
+                                           const MWPhysics::NeutralActor::Capsule& capsule,
+                                           std::vector<vsg::vec3>& out) {
+            const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
+            const DetourNavigator::AgentBounds bounds{ sessionAgent.mShapeType,
+                MWPhysics::NeutralPath::agentHalfExtents(capsule.mRadius, sessionAgent.mHalfExtents) };
+            // The first path of an agent size the navigator does not know yet adds it (a navmesh of its own is then
+            // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
+            if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
+                return MWPhysics::NeutralPath::FindStatus::NoPath;
+            const DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to,
+                DetourNavigator::Flag_walk, DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {},
+                std::back_inserter(out));
+            switch (status)
+            {
+                case DetourNavigator::Status::Success:
+                    return MWPhysics::NeutralPath::FindStatus::Success;
+                case DetourNavigator::Status::PartialPath:
+                    return MWPhysics::NeutralPath::FindStatus::Partial;
+                case DetourNavigator::Status::NavMeshNotFound:
+                case DetourNavigator::Status::StartPolygonNotFound:
+                case DetourNavigator::Status::EndPolygonNotFound:
+                case DetourNavigator::Status::TargetPolygonNotFound:
+                    return MWPhysics::NeutralPath::FindStatus::NotReady;
+                default:
+                    return MWPhysics::NeutralPath::FindStatus::NoPath;
+            }
+        });
 
         mProjectileManager = std::make_unique<ProjectileManager>(mRendering, mPhysics.get());
 

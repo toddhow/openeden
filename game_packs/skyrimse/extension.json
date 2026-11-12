@@ -29,6 +29,11 @@
       "key": "actor test walk",
       "type": "string",
       "default": ""
+    },
+    {
+      "key": "actor test goto",
+      "type": "string",
+      "default": ""
     }
   ],
   "licence": "GPL-3.0-or-later"

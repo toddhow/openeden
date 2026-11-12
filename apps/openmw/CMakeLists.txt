@@ -114,6 +114,7 @@ add_openmw_dir (mwphysics
     contacttestresultcallback stepper movementsolver projectile
     actorconvexcallback raycasting mtphysics water contacttestwrapper projectileconvexcallback
     ragdollhost ragdollrigdata skyrimshape skyrimhavok neutralactor neutralmover neutralactorbridge
+    ragdollhost ragdollrigdata skyrimshape neutralactor neutralmover neutralactorbridge neutralpathfollower
     )
 
 add_openmw_dir (mwclass

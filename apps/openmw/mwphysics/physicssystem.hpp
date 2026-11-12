@@ -30,6 +30,7 @@
 #include "neutralactor.hpp"
 #include "neutralactorbridge.hpp"
 #include "neutralmover.hpp"
+#include "neutralpathfollower.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
 
@@ -229,6 +230,13 @@ namespace MWPhysics
         /// placement id and `base` the base id in the pack's terms. Does nothing without a body, a resolver or rules.
         void announceNeutralActor(const MWWorld::Ptr& ptr, openeden::sdk::game::WorldId reference,
             openeden::sdk::game::WorldId base, std::string_view editorId);
+
+        /// Task 0135 stage S4: how a go-to request gets its path. Called on the main thread when an actor asks for a
+        /// path (at a new goal, and again after a stall), with the capsule of the actor, and appends waypoints to the
+        /// vector. The World sets it to the navigator; without one a go-to ends as NoPath.
+        using NeutralPathFinderFn = std::function<NeutralPath::FindStatus(const vsg::vec3& from, const vsg::vec3& to,
+            const NeutralActor::Capsule& capsule, std::vector<vsg::vec3>& out)>;
+        void setNeutralPathFinder(NeutralPathFinderFn finder) { mNeutralPathFinder = std::move(finder); }
 
         [[nodiscard]] const NeutralActorBridge::Stats& getNeutralBridgeStats() const { return mNeutralBridge.stats(); }
 
@@ -443,6 +451,10 @@ namespace MWPhysics
             float mStartZ;
             NeutralMover::Request mRequest;
             std::uint32_t mWalkFrames = 0; ///< frames this actor was walked, for the trace
+            NeutralActor::Capsule mCapsule; ///< for the navigator's agent size (stage S4)
+            NeutralPath::Follower mFollow; ///< the go-to request, if any (stage S4)
+            float mFace = 0.f; ///< a heading request, applied once when the actor stands
+            bool mFaceValid = false;
         };
         std::vector<NeutralActorEntry> mNeutralActors;
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
@@ -454,6 +466,9 @@ namespace MWPhysics
             {
             }
             void setRequest(const void* key, float velX, float velY) override;
+            void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal) override;
+            void cancelGoal(const void* key) override;
+            void setHeading(const void* key, float heading) override;
 
         private:
             PhysicsSystem& mPhysics;
@@ -462,6 +477,9 @@ namespace MWPhysics
         NeutralActorBridge mNeutralBridge;
         NeutralRequestApplier mNeutralApplier{ *this };
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
+        void followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace);
+        NeutralActorEntry* findNeutralActor(const void* key);
+        NeutralPathFinderFn mNeutralPathFinder;
         std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
         std::vector<MWWorld::Ptr> mNeutralTurned;
 

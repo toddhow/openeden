@@ -193,6 +193,10 @@ namespace game_skyrimse
         {
             mActors.update(seconds, writer);
         }
+        void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result) override
+        {
+            mActors.onGoalFinished(handle, result);
+        }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;

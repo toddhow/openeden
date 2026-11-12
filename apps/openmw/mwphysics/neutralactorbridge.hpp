@@ -29,6 +29,10 @@ namespace MWPhysics
     public:
         virtual ~NeutralRequestSink() = default;
         virtual void setRequest(const void* key, float velX, float velY) = 0;
+        // Stage S4 (defaults do nothing, so a sink that only knows velocities still works):
+        virtual void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal) { (void)key; (void)goal; }
+        virtual void cancelGoal(const void* key) { (void)key; }
+        virtual void setHeading(const void* key, float heading) { (void)key; (void)heading; }
     };
 
     class NeutralActorBridge
@@ -43,6 +47,11 @@ namespace MWPhysics
             std::uint64_t mBadValues = 0; ///< requests with a value that is not finite
             std::uint64_t mOutsideUpdate = 0; ///< requests written when no update() was running
             std::uint64_t mRulesFailures = 0; ///< a pack function that threw
+            std::uint64_t mGoals = 0; ///< go-to requests passed to the sink (stage S4)
+            std::uint64_t mCancels = 0;
+            std::uint64_t mHeadings = 0;
+            std::uint64_t mResultsDelivered = 0; ///< goal results told to the pack
+            std::uint64_t mResultsDropped = 0; ///< goal results whose actor had gone by the time they were told
         };
 
         NeutralActorBridge();
@@ -62,6 +71,11 @@ namespace MWPhysics
         /// Forgets every actor without telling anybody (shutdown: the pack may be gone already). Sessions go on
         /// counting up.
         void clear();
+
+        /// Stage S4: the core reports that the go-to of the actor behind `key` ended. It is told to the pack at the start
+        /// of the next update() (ActorRules::onGoalFinished), if the actor is still registered then. Does not allocate
+        /// while fewer than kMaxActors results wait (the list is reserved).
+        void reportGoal(const void* key, openeden::sdk::game::GoalResult result);
 
         /// Calls rules->update(seconds, writer); every valid request goes to `sink`. Does nothing for null rules or
         /// an empty table. A non-finite or negative `seconds` is passed as 0.
@@ -91,11 +105,23 @@ namespace MWPhysics
             {
             }
             bool setMovement(openeden::sdk::game::ActorHandle handle, float velX, float velY) override;
+            bool goTo(openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::ActorGoal& goal) override;
+            bool cancelGoal(openeden::sdk::game::ActorHandle handle) override;
+            bool setHeading(openeden::sdk::game::ActorHandle handle, float heading) override;
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 
         private:
+            /// The key behind a valid handle while update() runs; counts the refusal otherwise.
+            const void* keyOf(openeden::sdk::game::ActorHandle handle);
             NeutralActorBridge& mBridge;
         };
+
+        struct PendingGoal
+        {
+            const void* mKey;
+            openeden::sdk::game::GoalResult mResult;
+        };
+        std::vector<PendingGoal> mPendingGoals;
 
         // Sorted by session number: they are handed out in ascending order and never reused.
         std::vector<Entry> mEntries;
