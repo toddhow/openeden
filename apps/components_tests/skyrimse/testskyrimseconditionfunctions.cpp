@@ -124,6 +124,9 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mIsFlyingFlag = true;
+        bool isFlying(Subject s) const override { return s == mSubject && mIsFlyingFlag; }
+        float combatGroupSize(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         float friendHits(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
         bool locAliasHasKeyword(std::uint32_t a, std::uint32_t k) const override { return a == 5 && k == 0x1C0; }
         float gameHour() const override { return 19.75f; }
@@ -676,6 +679,28 @@ namespace
         EXPECT_TRUE(run(cond(288, kEq, 0.f, 0x15), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(288, kEq, 0.f, 0x14), w));
+    }
+
+    // fn_415 GetGroupMemberCount: same as GetCombatGroupMemberCount, actors in the subject's combat group, 0 out of
+    // combat (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_415_is_the_combat_group_size)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(415, kEq, 3.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(415, kEq, 0.f), w));
+    }
+
+    // fn_594 GetIsFlying (CK wiki, toddhow 2026-11-11: flying, 0 once the landing animation ends).
+    TEST(SkyrimConditionFunctions, fn_594_getIsFlying)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(594, kEq, 1.f), w));
+        w.mIsFlyingFlag = false;
+        EXPECT_TRUE(run(cond(594, kEq, 0.f), w));
+        w.mIsFlyingFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(594, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

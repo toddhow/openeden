@@ -455,6 +455,18 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.friendHits(subject, c.mParam1) : 0.f;
         }
 
+        // 415 GetGroupMemberCount = GetCombatGroupMemberCount (CK wiki, toddhow 2026-11-11)
+        float getGroupMemberCount(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.combatGroupSize(subject) : 0.f;
+        }
+
+        // 594 GetIsFlying (CK wiki, toddhow 2026-11-11: flying, 0 once the landing animation ends)
+        float getIsFlyingFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isFlying(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -463,7 +475,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 71> sTable = { {
+        constexpr std::array<Entry, 73> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -515,6 +527,7 @@ namespace game_skyrimse::conditions
             { 359, getInCurrentLoc },
             { 360, getInCurrentLocAlias },
             { 403, getRelationshipRank },
+            { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
             { 453, getPlayerTeammate },
             { 459, getCrimeGold },
@@ -524,6 +537,7 @@ namespace game_skyrimse::conditions
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
             { 580, isBleedingOut },
+            { 594, getIsFlyingFn },
             { 596, spellHasKeyword },
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },

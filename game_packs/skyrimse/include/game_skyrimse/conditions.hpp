@@ -494,6 +494,20 @@ namespace game_skyrimse::conditions
             (void)subject, (void)target;
             return 0.f;
         }
+        /// fn_415 GetGroupMemberCount (obsolete, identical to GetCombatGroupMemberCount): the number of actors in the
+        /// subject's combat group (its allies in the fight); 0 when not in combat or with no combat target; the dead
+        /// leave the group (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float combatGroupSize(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_594 GetIsFlying (CK wiki, toddhow 2026-11-11: flying, 0 once the landing animation ends).
+        virtual bool isFlying(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
