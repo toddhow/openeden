@@ -149,6 +149,17 @@ namespace MWWorld
 
     std::string neutralStubGmstText(std::string_view name)
     {
+        // Task skyext: the messages the game formats with arguments (the l10n "gmst" lookup of Mechanics: skill changes
+        // and the days in prison) need real wording with printf-style tokens; the rest keep the name-derived text.
+        // The wording is our own.
+        if (name == "sNotifyMessage39")
+            return "Your %s skill increased to %d.";
+        if (name == "sNotifyMessage44")
+            return "Your %s skill decreased to %d.";
+        if (name == "sNotifyMessage42")
+            return "%d day has passed in prison.";
+        if (name == "sNotifyMessage43")
+            return "%d days have passed in prison.";
         if (!name.empty() && name.front() == 's')
             name.remove_prefix(1);
         std::string text(name);

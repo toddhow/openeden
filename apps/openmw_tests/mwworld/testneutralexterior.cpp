@@ -75,6 +75,17 @@ namespace
         EXPECT_TRUE(record.mContextList.empty());
     }
 
+    // Task skyext: the HUD showed "GallowsRockExterior" (an editor id) as the location; an exterior's name is the
+    // pack's display name (Skyrim: the localised FULL), empty when the cell has none (the engine then says Wilderness).
+    TEST(NeutralExteriorRecord, the_exterior_name_is_the_display_name_never_the_editor_id)
+    {
+        openeden::sdk::game::WorldCell cell;
+        cell.editorId = "GallowsRockExterior";
+        EXPECT_EQ(MWWorld::neutralExteriorCellName(cell), "");
+        cell.name = "Gallows Rock";
+        EXPECT_EQ(MWWorld::neutralExteriorCellName(cell), "Gallows Rock");
+    }
+
     TEST(NeutralExteriorCell, the_cell_takes_the_given_worldspace_and_has_no_water)
     {
         const ESM::RefId worldspace = MWWorld::neutralWorldspaceId("skyrimse", 20);

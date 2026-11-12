@@ -130,6 +130,11 @@ namespace MWWorld
         return ESM::RefId::stringRefId(key);
     }
 
+    std::string_view neutralExteriorCellName(const WorldCell& cell)
+    {
+        return cell.name;
+    }
+
     ESM::Cell makeNeutralExteriorCellRecord(
         const ESM::RefId& id, std::string_view editorId, std::int32_t x, std::int32_t y)
     {

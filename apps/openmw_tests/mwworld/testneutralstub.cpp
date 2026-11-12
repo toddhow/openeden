@@ -290,6 +290,18 @@ namespace
 
     // --- Task 0109 (stage N3a-3): the string game settings and the skills ---------------------------------------------
 
+    // Task skyext: the skill-changed and prison messages are shown to the player through the l10n "gmst" lookup with
+    // arguments ("NotifyMessage39" was shown raw in a Skyrim session): they get our own wording with the printf-style
+    // tokens the lookup turns into message arguments.
+    TEST(NeutralStubText, the_notify_messages_the_game_formats_have_real_wording_with_their_tokens)
+    {
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sNotifyMessage39"), "Your %s skill increased to %d.");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sNotifyMessage44"), "Your %s skill decreased to %d.");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sNotifyMessage42"), "%d day has passed in prison.");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sNotifyMessage43"), "%d days have passed in prison.");
+        EXPECT_EQ(MWWorld::neutralStubGmstText("sNotifyMessage40"), "NotifyMessage40");
+    }
+
     TEST(NeutralStubText, drops_the_leading_s_and_turns_underscores_into_spaces)
     {
         EXPECT_EQ(MWWorld::neutralStubGmstText("sQuick_Save"), "Quick Save");

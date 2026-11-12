@@ -3,6 +3,8 @@
 #include <cmath>
 #include <limits>
 
+#include <components/esm3/loadcell.hpp>
+
 #include <gtest/gtest.h>
 
 namespace
@@ -12,6 +14,14 @@ namespace
     vsg::dbox box(double zmin, double zmax)
     {
         return vsg::dbox(vsg::dvec3(0, 0, zmin), vsg::dvec3(100, 100, zmax));
+    }
+
+    // Task skyext: the exterior local map was black in a Skyrim exterior because it placed every map cell at the
+    // Morrowind cell size (8192) while the neutral worldspace's cells are 4096 units.
+    TEST(MapWorldSize, a_worldspace_uses_its_own_cell_size)
+    {
+        EXPECT_EQ(MWRender::mapWorldSizeFor(ESM::Cell::sDefaultWorldspaceId), 8192.f);
+        EXPECT_EQ(MWRender::mapWorldSizeFor(ESM::RefId::stringRefId("skyrimse:w4")), 4096.f);
     }
 
     TEST(MapDepthRange, nothing_known_gives_no_range)

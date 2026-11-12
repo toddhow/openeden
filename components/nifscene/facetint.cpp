@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 
 namespace NifScene::FaceTint
 {
@@ -86,6 +87,17 @@ namespace NifScene::FaceTint
         }
         if (path.empty())
             return path;
+        // Task skyext: 60 vanilla Skyrim SE models name textures under the build machine's folder
+        // "skyrimhd/build/pc/data/", which no archive holds; the file is under the plain "textures/..." (119 of the 120
+        // distinct paths exist there, the 120th is in no archive). The marker needs its whole folder chain at the
+        // start of a path component.
+        static constexpr std::string_view kBuildFolder = "skyrimhd/build/pc/data/";
+        for (std::size_t at = path.find(kBuildFolder); at != std::string::npos; at = path.find(kBuildFolder, at + 1))
+            if (at == 0 || path[at - 1] == '/')
+            {
+                path.erase(0, at + kBuildFolder.size());
+                break;
+            }
         if (path.rfind("data/", 0) == 0)
             path.erase(0, 5);
         if (path.rfind("textures/", 0) != 0)

@@ -3,8 +3,15 @@
 #include <algorithm>
 #include <cmath>
 
+#include <components/esmbridge/util.hpp>
+
 namespace MWRender
 {
+    float mapWorldSizeFor(const ESM::RefId& worldspace)
+    {
+        return static_cast<float>(ESM::getCellSize(worldspace));
+    }
+
     std::optional<MapDepthRange> mapDepthRange(
         const vsg::dbox& objects, const std::optional<vsg::vec2>& terrain, const std::optional<float>& water)
     {

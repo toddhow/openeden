@@ -40,6 +40,16 @@ namespace
     const int cellSize = Constants::CellSizeInUnits;
     constexpr float speed = 1.08f; // the zoom speed, it should be greater than 1
 
+    // Task skyext: the worldspace the exterior map shows: the player's, so a neutral game's map asks for its own cells
+    // (it asked for Morrowind's default worldspace, whose empty cells drew a black map).
+    ESM::RefId exteriorWorldspace()
+    {
+        const MWWorld::CellStore* cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
+        if (cell != nullptr && cell->isExterior())
+            return cell->getCell()->getWorldSpace();
+        return ESM::Cell::sDefaultWorldspaceId;
+    }
+
     enum LocalMapWidgetDepth
     {
         Local_MarkerAboveFogLayer = 0,
@@ -600,7 +610,7 @@ namespace MWGui
             if (!mInterior && useFog)
             {
                 const auto& cell = MWBase::Environment::get().getWorldModel()->getExterior(
-                    ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId));
+                    ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, exteriorWorldspace()));
                 if ((!cell.getFog() && !mLocalMapRender->isCellExplored(entry.mCellX, entry.mCellY)))
                 {
                     setBlack(entry);
@@ -621,7 +631,7 @@ namespace MWGui
                 }
                 if (!mInterior && !entry.mMapTexture)
                     requestMapRender(&MWBase::Environment::get().getWorldModel()->getExterior(
-                        ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)));
+                        ESM::ExteriorCellLocation(entry.mCellX, entry.mCellY, exteriorWorldspace())));
                 auto mapTex = mLocalMapRender->getMapTexture(entry.mCellX, entry.mCellY);
                 if (!mapTex)
                 {
@@ -668,7 +678,7 @@ namespace MWGui
             {
                 if (!entry.mBlack)
                     world->getDoorMarkers(worldModel->getExterior(ESM::ExteriorCellLocation(
-                                              entry.mCellX, entry.mCellY, ESM::Cell::sDefaultWorldspaceId)),
+                                              entry.mCellX, entry.mCellY, exteriorWorldspace())),
                         doors);
             }
             if (doors.empty())

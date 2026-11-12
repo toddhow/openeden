@@ -321,7 +321,7 @@ namespace MWWorld
                 Log(Debug::Warning) << "Neutral exterior (" << location.mX << ", " << location.mY << "): " << refused
                                     << " objects have no usable base";
             mNeutralCells.push_back(
-                makeNeutralExteriorCellRecord(recordId, cell->editorId, location.mX, location.mY));
+                makeNeutralExteriorCellRecord(recordId, neutralExteriorCellName(*cell), location.mX, location.mY));
             const ESM::Cell& record = mNeutralCells.back();
             // Task 0129: the water of the square, from the pack's optional CellWaterSource (also for an empty square:
             // the sea is there with no cell record at all).

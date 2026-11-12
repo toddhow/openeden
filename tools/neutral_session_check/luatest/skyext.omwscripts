@@ -1,0 +1,2 @@
+GLOBAL: scripts/skyext/global.lua
+PLAYER: scripts/skyext/player.lua

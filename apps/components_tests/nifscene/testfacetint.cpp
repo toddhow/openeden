@@ -139,3 +139,20 @@ TEST(NifSceneFaceTint, a_path_that_already_has_the_root_is_only_lowered_and_flip
     EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("Textures/A.dds"), "textures/a.dds");
     EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath(""), "");
 }
+
+// Task skyext: 60 vanilla Skyrim SE models (295 references, 120 distinct paths) name their textures under the build
+// machine's folder "textures\skyrimhd\build\pc\data\textures\...", which no archive holds; 119 of the 120 exist in the
+// archives as plain "textures\...", the 120th is in no archive.
+TEST(NifSceneFaceTint, the_skyrimhd_build_folder_is_stripped_to_the_plain_textures_path)
+{
+    EXPECT_EQ(
+        NifScene::FaceTint::normaliseTexturePath("textures\\SkyrimHD\\build\\pc\\data\\textures\\plants\\thistle01.dds"),
+        "textures/plants/thistle01.dds");
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath(
+                  "Textures/skyrimhd/build/pc/data/textures/landscape/grass/swordfern_n.dds"),
+        "textures/landscape/grass/swordfern_n.dds");
+    // Without the textures root in front the same folder is still the marker.
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("skyrimhd\\build\\pc\\data\\textures\\a.dds"), "textures/a.dds");
+    // A path that merely mentions the word elsewhere keeps its folder.
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath("textures\\skyrimhdfoo\\a.dds"), "textures/skyrimhdfoo/a.dds");
+}

@@ -535,6 +535,8 @@ namespace MWRender
     {
         int x = cell->getCell()->getGridX();
         int y = cell->getCell()->getGridY();
+        // Task skyext: a neutral game's cells are not Morrowind's 8192 units wide.
+        mMapWorldSize = mapWorldSizeFor(cell->getCell()->getWorldSpace());
         Segment& segment = mSegments[std::make_pair(x, y)];
         segment.cell = cell;
 
@@ -654,6 +656,8 @@ namespace MWRender
             return;
 
         mInterior = true;
+        // Interior segments are always Morrowind's size; an exterior of a neutral worldspace may have changed it.
+        mMapWorldSize = static_cast<float>(Constants::CellSizeInUnits);
 
         mBounds = bounds;
 

@@ -56,6 +56,10 @@ namespace MWWorld
     [[nodiscard]] ESM::RefId neutralEmptyExteriorCellId(
         std::string_view gameId, openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y);
 
+    /// The name an exterior cell shows (the location line of the HUD): the pack's display name, never the editor id;
+    /// empty when the cell has none, which the engine shows as the default cell name.
+    [[nodiscard]] std::string_view neutralExteriorCellName(const openeden::sdk::game::WorldCell& cell);
+
     /// The exterior ESM::Cell record that stands for a neutral exterior cell: the given id, the editor id as the name,
     /// the grid square, no Interior flag and NO water (Skyrim's water is a later stage), no content.
     [[nodiscard]] ESM::Cell makeNeutralExteriorCellRecord(
