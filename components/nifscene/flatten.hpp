@@ -43,6 +43,10 @@ namespace NifScene::Flat
         constexpr std::uint32_t sFireRefraction = 1u << 16; // flags 1
         constexpr std::uint32_t sDoubleSided = 1u << 4; // flags 2
         constexpr std::uint32_t sVertexColors = 1u << 5; // flags 2
+        // Task 0130, each checked against the installed meshes by testskyrimmaterialsreal.cpp (see the task spec).
+        constexpr std::uint32_t sSpecular = 1u << 0; // flags 1
+        constexpr std::uint32_t sModelSpaceNormals = 1u << 12; // flags 1
+        constexpr std::uint32_t sGlowMap = 1u << 6; // flags 2
     }
 
     struct Limits
@@ -54,6 +58,10 @@ namespace NifScene::Flat
         std::size_t mMaxMergedVertices = 262144; // a merged shape never grows beyond this
         double mMaxCoordinate = 1.0e7; // a baked coordinate beyond this (or not a number) is a bad vertex
         std::size_t mMaxPathLength = 260; // a longer texture path is ignored
+        /// Task 0130 (Skyrim material mapping v1): also keep the normal map (slot 1) with per-vertex tangents, the glow
+        /// map (slot 2, only with the Glow_Map flag), the specular and emissive values and the shader type in the key.
+        /// Off (the default) the key and the shapes are exactly what they were before the task.
+        bool mSurfaceMaps = false;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -71,6 +79,13 @@ namespace NifScene::Flat
         bool mNoSorter = false;
         std::uint8_t mClampMode = 3; // 0 clamp/clamp, 1 clamp S wrap T, 2 wrap S clamp T, 3 wrap/wrap
         float mAlpha = 1.f;
+        // Task 0130: filled only with Limits::mSurfaceMaps. Defaults are "nothing", so a key made without it is unchanged.
+        std::string mNormal; // slot 1 (tangent space), only when the shape has tangents; the shape's mTangents are then set
+        std::string mGlow; // slot 2 when the shader has the Glow_Map flag
+        std::array<float, 3> mSpecularColor{ 0.f, 0.f, 0.f }; // colour * strength, zero without the Specular flag
+        float mGlossiness = 0.f; // Blinn-Phong exponent as stored, only with a specular colour
+        std::array<float, 3> mEmissive{ 0.f, 0.f, 0.f }; // emissive colour * multiple
+        std::uint32_t mShaderType = 0; // BSLightingShaderType
         friend auto operator<=>(const MaterialKey&, const MaterialKey&) = default;
     };
 
@@ -82,6 +97,7 @@ namespace NifScene::Flat
         std::vector<std::array<float, 3>> mNormals; // one per vertex, unit length
         std::vector<std::array<float, 2>> mUV; // empty, or one per vertex
         std::vector<std::array<float, 4>> mColors; // empty, or one per vertex
+        std::vector<std::array<float, 4>> mTangents; // empty, or one per vertex (glTF-style: xyz unit, w sign); task 0130
         std::vector<std::uint32_t> mIndices; // three per triangle, all below mPositions.size()
         std::uint32_t mMergedFrom = 1; // geometries that went into this shape
         std::uint32_t mFlags1 = 0; // the first geometry's shader flag words (diagnostics; not part of the key)
@@ -105,6 +121,11 @@ namespace NifScene::Flat
         std::uint32_t mVertices = 0; // after merging
         std::uint32_t mTriangles = 0; // after merging
         bool mNodesOverCap = false;
+        // Task 0130 (only counted with Limits::mSurfaceMaps), geometries:
+        std::uint32_t mNormalMaps = 0; // keep a normal map and tangents
+        std::uint32_t mNormalMapsNoTangents = 0; // slot 1 named but the shape has no tangents: no normal map
+        std::uint32_t mNormalMapsModelSpace = 0; // slot 1 named but the shader says model space normals: not used
+        std::uint32_t mGlowMaps = 0; // keep a glow map
     };
 
     struct FlatModel

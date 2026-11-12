@@ -1,5 +1,7 @@
 #include "skyrimmodel.hpp"
 
+#include "skyrimmaterial.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -29,6 +31,8 @@
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/group.hpp>
+#include <components/settings/values.hpp>
+#include <components/vsgadapters/nif/automaps.hpp>
 #include <components/vsgutil/arraytexture.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/readimage.hpp>
@@ -157,6 +161,48 @@ namespace MWRender::SkyrimModel
                 }
             }
 
+            // Task 0130: the normal map (tangent space; its tangents ride in the draw, see buildShape) and the glow map,
+            // each with the diffuse texture's clamp mode and UV set, as the Morrowind reader binds its maps.
+            auto addMap = [&](const std::string& path, std::uint32_t binding, vsgUtil::TextureCap::Kind kind,
+                              Pipeline::Mode mode) -> vsg::ref_ptr<vsg::Data> {
+                vsgUtil::ImageUse mapUse;
+                mapUse.category = vsgUtil::TextureCap::Category::Object;
+                mapUse.kind = kind;
+                auto map = vsgUtil::readOptionalImage(texturePath(path), context.mImageOptions, mapUse);
+                if (!map || isFallbackImage(*map))
+                {
+                    ++result.mTexturesMissing;
+                    ++totals.mTexturesMissing;
+                    return {};
+                }
+                auto sampler = context.mBuilder.createSampler();
+                sampler->addressModeU = (key.mClampMode >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
+                                                              : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                sampler->addressModeV = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
+                                                             : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                descriptors.emplace_back(vsgUtil::sharedDescriptorImage(context.mSharedObjects, sampler, map, binding));
+                shader.addMode(mode);
+                ++result.mTexturesLoaded;
+                ++totals.mTexturesLoaded;
+                return map;
+            };
+            if (!key.mNormal.empty() && shader.hasMode(Pipeline::Mode::TEXCOORD))
+            {
+                if (auto map = addMap(key.mNormal, Pipeline::Descriptors::NORMAL_UNIT,
+                        vsgUtil::TextureCap::Kind::Normal, Pipeline::Mode::NORMAL_MAP))
+                {
+                    if (vsgAdapters::isTwoChannelFormat(map->properties.format))
+                        shader.addMode(Pipeline::Mode::RECONSTRUCT_NORMAL_Z);
+                    ++totals.mNormalMaps;
+                }
+            }
+            if (!key.mGlow.empty() && shader.hasMode(Pipeline::Mode::TEXCOORD))
+            {
+                if (addMap(key.mGlow, Pipeline::Descriptors::GLOW_UNIT, vsgUtil::TextureCap::Kind::Colour,
+                        Pipeline::Mode::GLOW_MAP))
+                    ++totals.mGlowMaps;
+            }
+
             // Fixed state from the key.
             options.cullMode = key.mDoubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
             if (key.mDoubleSided)
@@ -176,8 +222,9 @@ namespace MWRender::SkyrimModel
             options.alphaTestMode = key.mTest ? key.mTestMode : 0;
 
             // The material: white, with the shader's alpha and the alpha test cutoff.
-            auto material = MaterialValue::create(Pipeline::Material::createDefault());
-            material->value().diffuse.a = key.mAlpha;
+            // (task 0130: SkyrimMaterial::makeMaterial is the default material with the shader's alpha for a key
+            // made without [Game] neutral world materials)
+            auto material = MaterialValue::create(SkyrimMaterial::makeMaterial(key));
             if (tintColour != nullptr)
             {
                 // A hair tint shader's colour (task 0125): the grey hair map is multiplied by it, in the ambient and the
@@ -388,6 +435,9 @@ namespace MWRender::SkyrimModel
                 dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
                 options.colorMode = 2; // the vertex colour is the ambient and diffuse colour, as NiVertexColorProperty
             }
+            // The tangent array goes before the texture coordinates (Pipeline::Graphics, lib/attributes.glsl); it is
+            // inserted below only if the normal map was read.
+            const std::size_t tangentPosition = dataList.size();
             if (!shape.mUV.empty())
             {
                 shader.addMode(Pipeline::Mode::TEXCOORD);
@@ -397,6 +447,14 @@ namespace MWRender::SkyrimModel
 
             vsg::Descriptors descriptors;
             addSurface(key, context, result, totals, options, descriptors);
+            if (shader.hasMode(Pipeline::Mode::NORMAL_MAP))
+            {
+                if (shape.mTangents.size() == shape.mPositions.size())
+                    dataList.insert(dataList.begin() + static_cast<std::ptrdiff_t>(tangentPosition),
+                        copyArray<vsg::vec4Array>(shape.mTangents));
+                else
+                    shader.removeMode(Pipeline::Mode::NORMAL_MAP); // cannot happen: a key with a normal map has tangents
+            }
 
             auto geometry = vsg::VertexIndexDraw::create();
             geometry->assignArrays(dataList);
@@ -446,7 +504,10 @@ namespace MWRender::SkyrimModel
             << " loaded / " << c.mTexturesMissing.load() << " missing, double sided shapes "
             << c.mDoubleSidedShapes.load() << ", left out: " << c.mSkippedSkinned.load() << " skinned, "
             << c.mSkippedEffect.load() << " effect, " << c.mSkippedNoMaterial.load() << " no shader, "
-            << c.mSkippedHidden.load() << " hidden, " << c.mDroppedTriangles.load() << " bad triangles";
+            << c.mSkippedHidden.load() << " hidden, " << c.mDroppedTriangles.load() << " bad triangles; materials: "
+            << c.mNormalMaps.load() << " normal maps, " << c.mGlowMaps.load() << " glow maps, "
+            << c.mNormalMapsNoTangents.load() << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
+            << " model-space normal maps left out";
         return out.str();
     }
 
@@ -507,8 +568,9 @@ namespace MWRender::SkyrimModel
         const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin)
     {
         auto reader = std::make_shared<vsgAdapters::nif::SceneReader>();
+        const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
-        reader->read = [&builder, imageOptions, depthSortedBin](std::string data, const std::string& filename,
+        reader->read = [&builder, imageOptions, depthSortedBin, surfaceMaps](std::string data, const std::string& filename,
                            vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
@@ -517,7 +579,11 @@ namespace MWRender::SkyrimModel
                 Files::IStreamPtr stream(new std::istringstream(std::move(data)));
                 const NifScene::Scene scene
                     = NifScene::readScene(std::move(stream), VFS::Path::Normalized(filename), sceneOptions);
-                const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene);
+                NifScene::Flat::Limits limits;
+                limits.mSurfaceMaps = surfaceMaps;
+                const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene, limits);
+                totals.mNormalMapsNoTangents += flat.mReport.mNormalMapsNoTangents;
+                totals.mNormalMapsModelSpace += flat.mReport.mNormalMapsModelSpace;
                 const BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename };
                 BuildResult built = buildNode(flat, context);
                 if (!built.mNode)

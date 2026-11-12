@@ -1,0 +1,52 @@
+# Task: Skyrim material mapping v1
+Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.7 (rendering: shader types, materials, textures) and section 8 item TBD-C; decision D10 (2026-11-11, toddhow "your recommendation": PBR-leaning remap behind a setting, matched for skin, hair and eyes). Approved under toddhow's blanket "go with your recommendations".
+Goal: Skyrim SE static meshes drawn by the neutral world use their normal map, glow map, specular and emissive data, through the engine's existing material model and shader permutations, behind a setting that is off by default.
+Inherited code touched: none of OpenMW's own rendering; `components/nifscene/flatten.*` and `apps/openmw/mwrender/skyrimmodel.*` (both task 0110, new code); `components/settings/categories/game.hpp` and `files/settings-default.cfg` (one setting).
+Inputs / outputs: `NifScene::Flat::Limits::mSurfaceMaps` (new, false) fills new `MaterialKey` fields and `Shape::mTangents`; `MWRender::SkyrimMaterial::makeMaterial` (pure) builds the descriptor; `[Game] neutral world materials` (new, false) turns it on in `makeSceneReader`.
+Constraints:
+- Off by default. With the setting off the key, the shapes, the pipelines, the descriptors and the material bytes are what they were (a test pins the key; the material helper gives the default material for a default key).
+- No new shader file and no shader edit: the existing `NORMAL_MAP`, `RECONSTRUCT_NORMAL_Z`, `GLOW_MAP` modes and the material descriptor are used. Slang twins therefore need nothing (`files/shaders/CLAUDE.md`).
+- Threading: `flatten` and `makeMaterial` are pure; the build half runs where the Morrowind NIF reader runs (loader threads), as before.
+- Actors (skinned shapes), skin, hair, eyes and faces keep their look (D10: matched, not remapped): the skinned path builds keys with the new fields at their defaults.
+Acceptance criteria:
+- [x] Every flag and slot meaning used is VERIFIED on the installed meshes (survey below) or marked RECALLED-VERIFY.
+- [x] Pure tests (flatten, material helper) written first and shown red against stubs; mutations caught.
+- [x] With the setting off, the Morrowind world is unchanged: `tools/worldobjects_check` dump equal, fixed-frame Balmora hash equal, setting off and on.
+- [x] In game (Bannered Mare, Whiterun exterior): before/after frames show glowing windows and flames and normal-mapped planks (foliage alpha: the task 0110 path, not re-shown).
+Out of scope: skinned shapes' normal maps (armour needs skinned tangents), environment cube maps (shader types 1 and 16), parallax (types 3, 7, 11), snow (10), LOD and tree types, effect shaders, decals, model-space normal maps (face meshes), terrain layers (M-S2), per-material overrides.
+
+## Survey (installed data, the five masters' BSAs, aggregates only)
+
+`apps/components_tests/nifscene/testskyrimmaterialsreal.cpp` (gated by `OPENEDEN_SKYRIMSE_DATA`) read 22,091 meshes (1 failed to read; 1,966 geometries have no shader property, 6,421 an effect shader) and 73,191 lighting-shader geometries with a texture set (81,578 geometries in all).
+
+Shader types of lighting shapes (shapes / skinned): 0 default 45,509 / 6,570; 1 env map 6,726 / 1,078; 2 glow 1,400 / 192; 3 parallax 11; 4 face tint 3,159 / 3,159; 5 skin tint 1,631 / 1,610; 6 hair tint 10,822 / 10,818; 11 multilayer parallax 662; 14 sparkle snow 19; 16 eye env 3,252 / 3,236 (the plan's table of types, RECALLED-VERIFY, is consistent with the slot use below).
+
+VERIFIED on the data:
+- Flag bits (nif.xml order, named in `flatten.hpp` `ShaderFlags`): Model_Space_Normals is F1 bit 12: 4,062 shapes with the flag all have a normal map named `_msn`, 12 flagged shapes do not, none named `_msn` lacks the flag. Glow_Map is F2 bit 6: set on all 1,400 type 2 shapes and on no other type, slot 2 is then a `_g` map (1,374 of 1,400); slot 2 of type 0 holds `_g`, `_sk`, `_rim` ... with the flag CLEAR (9,560 shapes), so slot 2 is a glow map only with the flag. Environment_Mapping is F1 bit 7 (6,738 of 6,739 flagged have slot 4). Parallax is F1 bit 11 (all 11 type 3 shapes, slot 3 `_p`). Specular is F1 bit 0 (64,396 flagged, all with strength above 0).
+- Own_Emit (F1 bit 22) is set on 72,979 of 72,991 shapes, so it says nothing; the emissive colour is non-zero on 639 of 45,509 type 0 shapes, 1,337 of 1,400 glow shapes and nowhere on skin, hair or face shapes.
+- Tangent convention: for 46,240 static shapes (21.6 million vertices) the stored tangent (the scene's glTF-style one) agrees with the engine's own `vsgAdapters::generateTangents` on the shape's UVs in direction and handedness sign for 98.1 percent of vertices (21,230,419), opposite sign 0.38 percent, opposite direction 0.37 percent, neither 1.1 percent. So the stored tangents are used as they are and the shader's binormal rule is the Morrowind path's.
+- Slot 1 is a normal map for every lighting shape (`_n` names 45,282 of 45,509 type 0); 45,155 of 45,509 type 0 shapes have tangents.
+- Alpha: type 0 has 11,688 alpha-test and 1,539 alpha-blend shapes (task 0110 already maps these and double sided; unchanged).
+
+NOT verified (RECALLED-VERIFY, for toddhow's eye): the green channel convention of Skyrim's normal maps against the engine's (frames with the tangent sign flipped and not flipped were not decisive; the stored tangents and the engine's generator agree, so the maps are taken in the Morrowind path's convention, as OpenMW does for Skyrim meshes); the specular mask in the normal map's alpha (no existing permutation reads it); the meaning of glossiness above about 500 (max 10,000, clamped at 1,024); the cube environment maps (types 1 and 16) and parallax (3, 7, 11), out of scope.
+
+## Design
+
+- `flatten` (pure) with `Limits::mSurfaceMaps` keeps in the `MaterialKey`: the normal map path (slot 1) only when the shader does not say model space normals, the shape has UVs and every tangent is finite and non-zero (the tangents are turned with the node like the normals and ride in `Shape::mTangents`); the glow map path (slot 2) only with Glow_Map; specular colour times strength (only with Specular) and glossiness; the emissive colour times multiple (zero for a glow-mapped shape: the engine adds the map as it is, and the colour would light the whole mesh); the shader type. Counts in `Report`.
+- `SkyrimMaterial::makeMaterial` (pure, host layer) turns the key into the material descriptor: the shader alpha, `pbr.x` roughness and `pbr.z` reflectance from glossiness and specular colour by the engine's tier 1 formulas (`Render::Pbr`; the PBR-leaning remap of D10, read only with `[Rendering] pbr`), and the emission. The lit shader reads no material specular or shininess (only a specular map), so nothing else is set.
+- `buildShape`/`addSurface` bind the normal map (`NORMAL_MAP`, plus `RECONSTRUCT_NORMAL_Z` for two-channel formats), insert the tangent array before the texture coordinates, and bind the glow map (`GLOW_MAP`). No shader file and no define set is new, so the Slang twins and the interface records are untouched.
+- `[Game] neutral world materials` (off) is read once in `makeSceneReader`. Skinned shapes (actors, armour, skin, hair, eyes, faces) are not touched.
+
+## Stage log
+
+- **Tests first.** `testflattenmaterials.cpp`: against the unmodified `flatten.cpp` 12 of 14 failed and 2 passed (the off-by-default test and the no-UV test, which test absence); a 15th test (a glow shape emits through the map only) was added after the survey, with the implementation. `testskyrimmaterial.cpp` (`openmw-tests`): against a `makeMaterial` that returns the default material 4 of 6 failed (the other two test absence). After the implementation: `NifScene*`, `*Settings*`, `*Flatten*` 346 pass; `*Skyrim*`, `*Neutral*` 188 pass. Mutations, each caught by the named test: tangent sign dropped (`tangents_turn_with_the_node_and_keep_their_sign`), Glow_Map flag ignored (`the_glow_map_needs_the_glow_flag_and_a_name`), model-space check removed (`model_space_normals_are_not_used_as_tangent_space_normals`), roughness from twice the glossiness (`specular_becomes_pbr_roughness_and_reflectance`).
+- **In game** (`tools/neutral_session_check`, five Skyrim SE masters, `OPENEDEN_QUIET_WINDOW=1`; `I:\Projects\OpenEden-work\skymat\run_*` and `ext_*`): the Bannered Mare with the setting on binds 356 normal maps and 4 glow maps over 358 draws (1 shape without tangents, 0 model-space maps among static shapes), 717 textures loaded and 2 missing (355 and 1 with it off); the Whiterun exterior walk (`e2terrain`) 1,346 normal maps and 42 glow maps over 1,363 draws; exit 0, no crash dump, no log error. Frames viewed: the lit window panes and candle flames glow with the setting on; with `pbr` on the planks, pillars and carved bands show relief and a specular sheen (somewhat plastic: the per-texel specular mask in the normal map's alpha is not read). Foliage alpha is the task 0110 path, unchanged; no close frame of foliage was taken.
+- **Morrowind unchanged.** Balmora, seed 7, `OPENEDEN_FIXED_FRAME_TIME=0.0166667`, frame 600: the `worldobjects_check` result lines (111) are byte-identical between a parent build (the same tree with `flatten.*` and `skyrimmodel.*` of `main`) and the new build with the setting off and with it on, and the three screenshots have the same SHA-256 (`1c5d47ad0b5dc32d...`).
+- **Not run:** the Linux gate and GCC `-Werror`, clang-format 14 and clang-tidy (formatted by hand to the surrounding style), the Lua tests, sanitizers, a fresh review (the same hand wrote tests and code, tests first), the whole `components-tests` and `openmw-tests` binaries (the filters above only), a mod list.
+
+## Decisions for toddhow
+
+1. **Specular mask.** Skyrim's per-texel specular strength is the normal map's alpha, which no permutation reads. With `pbr` on, a uniform specular (colour times strength, mean strength 1.2, so reflectance 0.9 to 1 on most surfaces) makes wood look glossy. Options: keep for v1 behind the setting (recommended), cap the reflectance, or read the alpha later with a new define (a shader edit and a Slang twin edit).
+2. **Glow strength.** A glow-mapped shape's emissive colour times multiple (mean multiple 2.3) is not applied; glow maps draw at the map's own brightness. A CPU pre-multiplied glow texture (as the face tint) would apply it.
+3. **Green channel convention** needs your eye on a raking-light wall (see Survey).
+4. Skinned armour and clothing normal maps (needs skinned tangents in `Skinned::Shape`), cube environment maps and parallax stay out.

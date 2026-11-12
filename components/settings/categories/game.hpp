@@ -96,6 +96,7 @@ namespace Settings
         SettingValue<bool> mNeutralWorld{ mIndex, "Game", "neutral world" };
         SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
         SettingValue<bool> mNeutralWeather{ mIndex, "Game", "neutral weather" };
+        SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
     };
 }
 

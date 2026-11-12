@@ -84,6 +84,10 @@ namespace MWRender::SkyrimModel
         std::atomic<std::uint64_t> mSkippedHidden{ 0 };
         std::atomic<std::uint64_t> mDroppedTriangles{ 0 };
         std::atomic<std::uint64_t> mDoubleSidedShapes{ 0 };
+        std::atomic<std::uint64_t> mNormalMaps{ 0 }; // task 0130: normal maps bound
+        std::atomic<std::uint64_t> mGlowMaps{ 0 };
+        std::atomic<std::uint64_t> mNormalMapsNoTangents{ 0 };
+        std::atomic<std::uint64_t> mNormalMapsModelSpace{ 0 };
         std::atomic<std::uint64_t> mFailed{ 0 }; // models whose read threw
     };
 

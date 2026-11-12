@@ -43,3 +43,5 @@ Rules and pitfalls:
   nothing below the host include both a format and the renderer; the VSG half is `apps/openmw/mwrender/skyrimmodel.*`. Skyrim's shader
   flag bits are named in `ShaderFlags` and pinned by number in `testflatten.cpp`; the refraction bits (15, 16) were measured on the inn's
   heat planes. `header.*` is `isSkyrimSeHeader` (the decision Eden Studio's `chooseNifReader` also makes).
+
+- **Material mapping (task 0130, `[Game] neutral world materials`, off):** `Limits::mSurfaceMaps` makes `flatten` keep the normal map (slot 1) with turned tangents (`Shape::mTangents`), the glow map (slot 2, only with the Glow_Map flag F2 bit 6), specular colour times strength, glossiness, emissive and the shader type in `MaterialKey`; model-space normals (F1 bit 12) and shapes with a bad tangent get no normal map. Flag meanings, tangent convention and slot use are checked by `testskyrimmaterialsreal.cpp` (gated, aggregates only). Skinned shapes are not covered.

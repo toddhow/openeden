@@ -204,6 +204,105 @@ namespace NifScene::Flat
             return out;
         }
 
+        std::string slotPath(const Scene& scene, const ShaderMaterial& material, std::size_t slot, const Limits& limits)
+        {
+            if (material.mTextureSet >= scene.mTextureSets.size())
+                return {};
+            const auto& set = scene.mTextureSets[material.mTextureSet].mTextures;
+            if (slot >= set.size() || set[slot].empty() || set[slot].size() > limits.mMaxPathLength)
+                return {};
+            return set[slot];
+        }
+
+        float finiteOr(float v, float fallback)
+        {
+            return std::isfinite(v) ? v : fallback;
+        }
+
+        // Task 0130. The tangents are turned with the node like the normals (a direction: no scale, no translation)
+        // and made unit length; the sign (handedness) stays. Any bad tangent drops the whole geometry's normal map.
+        void collectSurfaceMaps(const Scene& scene, const Geometry& geometry, const ShaderMaterial& material,
+            const Pose& pose, std::size_t vertexCount, bool hasUV, const Limits& limits, MaterialKey& key,
+            std::vector<std::array<float, 4>>& tangents, Report& report)
+        {
+            if (material.mKind != ShaderKind::Lighting)
+                return;
+            key.mShaderType = material.mShaderType;
+
+            const std::string normal = slotPath(scene, material, 1, limits);
+            if (!normal.empty() && hasUV)
+            {
+                if ((material.mFlags1 & ShaderFlags::sModelSpaceNormals) != 0)
+                    ++report.mNormalMapsModelSpace;
+                else
+                {
+                    bool good = geometry.mTangents.size() == vertexCount;
+                    std::vector<std::array<float, 4>> turned;
+                    if (good)
+                    {
+                        turned.resize(vertexCount);
+                        for (std::size_t v = 0; v < vertexCount && good; ++v)
+                        {
+                            const auto& t = geometry.mTangents[v];
+                            if (!std::isfinite(t[0]) || !std::isfinite(t[1]) || !std::isfinite(t[2])
+                                || !std::isfinite(t[3]))
+                            {
+                                good = false;
+                                break;
+                            }
+                            double r[3];
+                            for (int row = 0; row < 3; ++row)
+                                r[row] = pose.r[row * 3] * t[0] + pose.r[row * 3 + 1] * t[1] + pose.r[row * 3 + 2] * t[2];
+                            bool ok = false;
+                            const auto unit = normalized(r[0], r[1], r[2], ok);
+                            if (!ok)
+                            {
+                                good = false;
+                                break;
+                            }
+                            turned[v] = { unit[0], unit[1], unit[2], t[3] < 0.f ? -1.f : 1.f };
+                        }
+                    }
+                    if (good)
+                    {
+                        key.mNormal = normal;
+                        tangents = std::move(turned);
+                        ++report.mNormalMaps;
+                    }
+                    else
+                        ++report.mNormalMapsNoTangents;
+                }
+            }
+
+            if ((material.mFlags2 & ShaderFlags::sGlowMap) != 0 && hasUV)
+            {
+                const std::string glow = slotPath(scene, material, 2, limits);
+                if (!glow.empty())
+                {
+                    key.mGlow = glow;
+                    ++report.mGlowMaps;
+                }
+            }
+
+            if ((material.mFlags1 & ShaderFlags::sSpecular) != 0)
+            {
+                const float strength = std::clamp(finiteOr(material.mSpecularStrength, 0.f), 0.f, 16.f);
+                for (std::size_t c = 0; c < 3; ++c)
+                    key.mSpecularColor[c] = std::clamp(finiteOr(material.mSpecularColor[c], 0.f), 0.f, 1.f) * strength;
+                key.mGlossiness = std::clamp(finiteOr(material.mGlossiness, 0.f), 0.f, 1024.f);
+            }
+
+            // A shape with a glow map gets its emission from the map (the engine adds the map's texels as they are; the
+            // shader's emissive colour times multiple, 2.3 on average for the glow shader type, is not applied: it would
+            // light the whole mesh). Others (lamps, candle flames without a map) emit their colour all over.
+            if (key.mGlow.empty())
+            {
+                const float multiple = std::clamp(finiteOr(material.mEmissiveMultiple, 0.f), 0.f, 16.f);
+                for (std::size_t c = 0; c < 3; ++c)
+                    key.mEmissive[c] = std::clamp(finiteOr(material.mEmissiveColor[c], 0.f), 0.f, 16.f) * multiple;
+            }
+        }
+
         float clamp01(float v)
         {
             if (!std::isfinite(v))
@@ -412,6 +511,11 @@ namespace NifScene::Flat
                 }
             }
 
+            // Task 0130: the maps and values beyond the diffuse texture, only on request.
+            std::vector<std::array<float, 4>> tangents;
+            if (limits.mSurfaceMaps)
+                collectSurfaceMaps(scene, geometry, material, pose, vertexCount, !uvs.empty(), limits, key, tangents, report);
+
             // Bounds of the vertices the kept triangles use.
             for (std::uint32_t index : indices)
                 bounds.add(positions[index]);
@@ -442,6 +546,7 @@ namespace NifScene::Flat
             shape->mNormals.insert(shape->mNormals.end(), normals.begin(), normals.end());
             shape->mUV.insert(shape->mUV.end(), uvs.begin(), uvs.end());
             shape->mColors.insert(shape->mColors.end(), colors.begin(), colors.end());
+            shape->mTangents.insert(shape->mTangents.end(), tangents.begin(), tangents.end());
             for (std::uint32_t index : indices)
                 shape->mIndices.push_back(base + index);
             ++shape->mMergedFrom;
