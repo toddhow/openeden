@@ -301,3 +301,10 @@ Process: full loop for every stage touching `mwphysics`, the SDK, ragdolls or sa
 * Whether the first two arrays of `hkbBehaviorGraphStringData` are always events then variables (true in `blockbehavior.hkx` by names; the counts of all 18 files plausible but not cross-checked with the event ids used by transitions).
 * The 2,508 `hkbClipTriggerArray` events inside the behaviours, the character files, `hkbClipGenerator` to clip-file linkage, creature behaviours (only counted), mod content (not surveyed: five masters only).
 * No Linux gate, build, clang-format or tests were run: nothing in the repository but this note changed. No in-game check.
+
+## Decisions of toddhow (2026-11-12)
+
+- **Behaviour graphs: option B.** Combat is driven by CreativeMotion's graph with Skyrim's clips and their sidecar events; Skyrim's behaviour graphs are not read. A bake-time state/clip/event table stays an option for later.
+- **Firebolt: native for now.** Its scripted damage effect is implemented natively in the pack for M-S5 and replaced by its Papyrus script once Papyrus is wired (M-S6).
+- **Interface: a separate `CombatRules`**, found by `dynamic_cast` like the other optional pack interfaces, not more methods on `ActorRules`.
+- **S5-0 not started yet** (toddhow: "Not yet"); M-S2 to M-S4 polish comes first. The other decisions of this note stay open.
