@@ -540,6 +540,13 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
+        /// fn_449 GetFactionRelation(target actor): the relation between the subject and the target: 0 neutral, 1
+        /// enemy, 2 ally, 3 friend (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float factionRelation(Subject subject, std::uint32_t target) const
+        {
+            (void)subject, (void)target;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

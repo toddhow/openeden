@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float factionRelation(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 3.f : 0.f; }
         float moveDirection(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         bool mInFriendStateWithPlayerFlag = true;
         bool inFriendStateWithPlayer(Subject s) const override { return s == mSubject && mInFriendStateWithPlayerFlag; }
@@ -766,6 +767,18 @@ namespace
         EXPECT_TRUE(run(cond(25, kEq, 3.f), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(25, kEq, 0.f), w));
+    }
+
+    // fn_449 GetFactionRelation(target actor): 0 neutral, 1 enemy, 2 ally, 3 friend; fn_79 GetQuestVariable is
+    // deprecated and does not work, so it is 0 (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_449_is_the_faction_relation_and_79_is_zero)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(449, kEq, 3.f, 0x14), w));
+        EXPECT_TRUE(run(cond(449, kEq, 0.f, 0x15), w));
+        EXPECT_TRUE(run(cond(79, kEq, 0.f, 9, 1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(449, kEq, 0.f, 0x14), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

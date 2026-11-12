@@ -497,6 +497,19 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.moveDirection(subject) : 0.f;
         }
 
+        // 449 GetFactionRelation(target actor): 0 to 3 (CK wiki, toddhow 2026-11-11)
+        float getFactionRelation(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.factionRelation(subject, c.mParam1) : 0.f;
+        }
+
+        // 79 GetQuestVariable(quest, variable): deprecated, "will not work in current versions" (CK wiki, toddhow
+        // 2026-11-11); Skyrim quests have no ObScript variables, so the answer is 0 (INFERRED from that note).
+        float getQuestVariable(const survey::Ctda&, Subject, const ConditionWorld&)
+        {
+            return 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -505,7 +518,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 78> sTable = { {
+        constexpr std::array<Entry, 80> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -529,6 +542,7 @@ namespace game_skyrimse::conditions
             { 73, getFactionRank },
             { 74, getGlobalValue },
             { 77, getRandomPercent },
+            { 79, getQuestVariable },
             { 80, getLevel },
             { 84, getDeadCount },
             { 101, isWeaponMagicOut },
@@ -563,6 +577,7 @@ namespace game_skyrimse::conditions
             { 403, getRelationshipRank },
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
+            { 449, getFactionRelation },
             { 453, getPlayerTeammate },
             { 459, getCrimeGold },
             { 543, getQuestCompleted },
