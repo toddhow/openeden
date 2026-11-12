@@ -41,7 +41,7 @@ instance of it; counts are files, not instances):
 
 | Role | Files | Notes |
 | --- | --- | --- |
-| clips under an `animations` folder | 5,938 | 5,935 contain `hkaSplineCompressedAnimation`; 2 contain `hkaInterleavedUncompressedAnimation`; 5,937 contain `hkaAnimationBinding` |
+| clips under an `animations` folder | 5,938 | 5,935 contain `hkaSplineCompressedAnimation`; 2 contain `hkaInterleavedUncompressedAnimation`; 5,937 contain `hkaAnimationBinding` (**corrected by the spike, task 0119: none of the 7,699 files contains `hkaInterleavedUncompressedAnimation`, as a class name or as an object; 6,126 contain a spline animation and its binding; the counts here came from a different pass and do not hold**) |
 | clips elsewhere (auxbones, dungeons, traps, clutter, magic, furniture...) | about 190 | 191 more spline-compressed animations in files not under `animations` |
 | behaviour graphs | 423 (role by folder) | 428 files contain `hkbBehaviorGraph`, 425 `hkbStateMachine`, 300 `hkbClipGenerator`, 30 `BSSynchronizedClipGenerator` |
 | character definitions | 311 | `hkbCharacterData`: names the skeleton, behaviour and animation lists |
@@ -239,6 +239,24 @@ names; none of it needs a behaviour graph. A mod that ships clips for an existin
 8. **Where does the decoder library live** (`components/havokpack`, layer `formats`, versus inside the Skyrim pack)?
    *Recommendation:* in `components`, game-neutral (Fallout 4 uses another Havok version, so the name should not promise
    more than the 2010 packfile), consumed by `compat_skyrimse`.
+
+**Answered by toddhow, 2026-11-11 (via a question to him; recorded by the task 0119 spike):**
+- Question 1 and the recommendation of 2: **"Yes, spike it"**: a clean-room decoder as a game-neutral library, used first by a
+  converter the user runs on their own `.hkx` files, output outside the repository; 10 to 15 days, go/no-go after about a week.
+  The decoder does not ship in the engine yet (option (b) is not decided).
+- Question 3: **"Licences/READMEs only"**: read only the licence files and READMEs of HavokLib, HKX2 and DSAnimStudio; use
+  HavokLib's source to cross-check only if those files show its provenance clean; never read HKX2's or DSAnimStudio's
+  source; never use the Havok SDK or anything derived from it. Result: the three READMEs/licences were read (summaries
+  in `docs/research/0054-provenance.md`); none shows a clean provenance, so no outside source was read.
+- Still open: 4 (the oracle conversion by his own tool), 5, 6, 7; 8 is answered as recommended (`components/havokpack`).
+
+## 9. Spike results (task 0119, 2026-11-11; details in `docs/tasks/0119-havok-clip-spike.md` and `0054-provenance.md`)
+
+Container, skeleton and spline decoding were established from the user's data alone: all 7,699 files parse, all 6,126
+clips (6,505 blocks) decode with every block ending exactly where the file says, constant tracks reproduce the skeleton's
+reference pose, and `mt_idle`, `mt_walkforward` and `mt_runforward` give believable poses. **Go** for the decoder as the
+spike defined it; the interpolated values have no independent oracle (vanilla holds no uncompressed clip) until a conversion
+with toddhow's own tool is compared. The viewer integration was not done (no per-frame pose hook).
 
 ## 8. Not verified
 

@@ -231,6 +231,11 @@ file(GLOB UNITTEST_SRC_FILES
     nifedit/testnifdocument.cpp
     nifedit/testnifeditreal.cpp
 
+    havokpack/packgen.hpp
+    havokpack/splinegen.hpp
+    havokpack/testpackfile.cpp
+    havokpack/testspline.cpp
+    havokpack/testexport.cpp
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

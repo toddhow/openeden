@@ -670,6 +670,12 @@ add_subdirectory(apps/edenbodyvalidate)
 # Task 0070 stage a: the read-only measurement of extended skeletons (components and eden_body).
 add_subdirectory(apps/edenskelstat)
 
+# Task 0119: the Havok clip converter (reads the player's own .hkx files). Off by default.
+option(OPENEDEN_BUILD_HKXCONVERT "Build hkxconvert, the Havok .hkx clip converter (developer tool)" OFF)
+if (OPENEDEN_BUILD_HKXCONVERT)
+    add_subdirectory(tools/hkxconvert)
+endif()
+
 # CreativeMotion in the game, stage 0 (task 0067): the transition measurement and its command-line tool.
 add_subdirectory(components/animtrace)
 add_subdirectory(apps/creativemotioncheck)
