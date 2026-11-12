@@ -5,11 +5,12 @@ local core = require('openmw.core')
 local world = require('openmw.world')
 local util = require('openmw.util')
 
-local DEFAULT = '24500,-15000;26500,-17500;28500,-19500;22000,-14000;30000,-12000;20000,-9000;27500,-9500;25670,-7633'
+-- Roads: the 'dirtpath01' quadrants of the data (cell 7,-3 q0 and q1; cell 9,-4 q1 and q3) and the border spots between them.
+local DEFAULT = '30720,-12150;39400,-14336;30000,-12288;40960,-15000;30000,-10240;39300,-14900;31500,-12060'
 local spots = {}
 for x, y in string.gmatch(DEFAULT, '([%-%d%.]+),([%-%d%.]+)') do spots[#spots + 1] = { tonumber(x), tonumber(y) } end
 local start, hourSet, nextAt, index = nil, false, 8, 0
-local SECONDS = 4
+local SECONDS = 5
 
 return {
     engineHandlers = {
@@ -36,7 +37,11 @@ return {
             end
             local s = spots[index]
             print(string.format('TLAYERS spot %d at %.0f,%.0f', index, s[1], s[2]))
-            player:teleport(player.cell, util.vector3(s[1], s[2], -2600), { onGround = true })
+            local z = -2600
+            local ok, h = pcall(function() return core.land.getHeightAt(util.vector3(s[1], s[2], 0), player.cell) end)
+            if ok and h then z = h + 40 end
+            print(string.format('TLAYERS ground %.0f', z))
+            player:teleport(player.cell, util.vector3(s[1], s[2], z), { onGround = true })
             player:sendEvent('TLook')
             index = index + 1
             nextAt = t + SECONDS

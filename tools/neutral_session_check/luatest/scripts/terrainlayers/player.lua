@@ -8,7 +8,8 @@ return {
     eventHandlers = {
         TLook = function()
             camera.setMode(camera.MODE.FirstPerson)
-            camera.setPitch(0.55)
+            camera.setPitch(0.6)
+            camera.setYaw(1.5708)
             shotAtFrame = frame + 400
         end,
     },
