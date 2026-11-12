@@ -52,13 +52,13 @@ namespace
         EXPECT_EQ(result.mHalfExtents, morrowindDefault.mHalfExtents);
     }
 
-    TEST(NeutralNavigationKinds, plantsCarriedThingsAndLightsDoNotBlockButSolidThingsDo)
+    TEST(NeutralNavigationKinds, plantsTreesCarriedThingsAndLightsDoNotBlockButSolidThingsDo)
     {
         using openeden::sdk::game::BaseKind;
-        for (const BaseKind kind : { BaseKind::Flora, BaseKind::Item, BaseKind::Light })
+        for (const BaseKind kind : { BaseKind::Flora, BaseKind::Tree, BaseKind::Item, BaseKind::Light })
             EXPECT_FALSE(neutralKindBlocksNavigation(kind)) << static_cast<int>(kind);
         for (const BaseKind kind : { BaseKind::Unknown, BaseKind::Static, BaseKind::MovableStatic, BaseKind::Furniture,
-                 BaseKind::Door, BaseKind::Activator, BaseKind::Container, BaseKind::Tree, BaseKind::Actor,
+                 BaseKind::Door, BaseKind::Activator, BaseKind::Container, BaseKind::Actor,
                  BaseKind::Other })
             EXPECT_TRUE(neutralKindBlocksNavigation(kind)) << static_cast<int>(kind);
     }

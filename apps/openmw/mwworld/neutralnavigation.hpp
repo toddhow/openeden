@@ -40,9 +40,11 @@ namespace MWWorld
         const std::optional<vsg::vec3>& neutralHalfExtents);
 
     /// Whether a neutral object's collision mesh is given to the navigator. The pack's collision is the model's visual
-    /// triangles (task 0110), which for plants and carried things are leaf cards and clutter no actor is stopped by in
-    /// the original game: flora, items and lights are left out; everything else (statics, furniture, doors, containers,
-    /// trees, activators, unknown kinds) blocks as before. Physics is not affected.
+    /// triangles (task 0110), which for plants, trees and carried things are leaf cards and clutter no actor is
+    /// stopped by in the original game: flora, trees, items and lights are left out (trees: measured in Whiterun, they
+    /// cut streets into islands as the stand-in boxes did, docs/tasks/0134 stage 2; a walker can still be stopped by a
+    /// trunk through physics); everything else (statics, furniture, doors, containers, activators, unknown kinds) blocks
+    /// as before. Physics is not affected.
     [[nodiscard]] bool neutralKindBlocksNavigation(openeden::sdk::game::BaseKind kind);
 
     /// Whether a neutral object's physics shape is the stand-in box (`Neutral::insertObjectPhysics`: the box of the

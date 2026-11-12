@@ -100,6 +100,6 @@ See the changelog row in CLAUDE.md (not edited: the guide is owned by toddhow's 
 
 ### Not done / for toddhow
 
-1. **Trees.** Giving the navigator no `Tree` objects (commit 2, flagged: it edits the pinned kinds test `plantsCarriedThingsAndLightsDoNotBlockButSolidThingsDo`) takes the ring to 13 of 15. The cost is that paths may run through a trunk (the physics body still stops the walker). A trunk-only collision needs the model's own collision data (`bhk`), which the pack does not read.
+1. **Trees (commit 2, needs your approval: it edits the pinned kinds test, renamed `plantsTreesCarriedThingsAndLightsDoNotBlockButSolidThingsDo`, `BaseKind::Tree` moved to the non-blocking list; red first, then green; drop the commit to keep trees blocking).** Giving the navigator no `Tree` objects takes the ring from 7 to 13 of 15 (measured with the committed code: `r=300` 8 of 8, `r=700` 5 of 7; the same rule as the experiment row). The cost is that paths may run through a trunk (the physics body still stops the walker). A trunk-only collision needs the model's own collision data (`bhk`), which the pack does not read.
 2. Whether effect and marker models should keep a physics box at all: they collide for the player today.
 3. The 2 remaining partials and the heightfield row are not run to ground (ground rays that hit the terrain layer under the city are a likely reason).

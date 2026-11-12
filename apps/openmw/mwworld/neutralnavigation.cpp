@@ -23,7 +23,7 @@ namespace MWWorld
     bool neutralKindBlocksNavigation(openeden::sdk::game::BaseKind kind)
     {
         using openeden::sdk::game::BaseKind;
-        return kind != BaseKind::Flora && kind != BaseKind::Item && kind != BaseKind::Light;
+        return kind != BaseKind::Flora && kind != BaseKind::Tree && kind != BaseKind::Item && kind != BaseKind::Light;
     }
 
     bool neutralShapeIsStandInBox(const JPH::Shape& shape)
