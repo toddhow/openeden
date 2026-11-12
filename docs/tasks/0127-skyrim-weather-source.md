@@ -1,0 +1,120 @@
+# Task: Skyrim SE weather and sky source (TBD-E)
+Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.5 (World: water, weather, sky, climate, image spaces), section 8 item 6 (TBD-E), milestone M-S2. Coordinates with `docs/tasks/0094-weather-system.md` (W0 weather state contract) and `docs/research/0048-weather-system.md`. Decisions in force: plan section 7 D10 (PBR-leaning remap behind a setting) and D13 (full loop for engine work, lighter loop for tools), decision 0014's amendment (xEdit, the Creation Kit wiki and CommonLibSSE may be read for meanings, each fact cited; no Havok, nothing decompiled).
+Goal: decode what the Skyrim SE data says about weather (WTHR), climate (CLMT), region weather lists (REGN) and the worldspace and cell links that choose them, in the Skyrim pack; and propose how a neutral weather/sky source feeds the existing weather manager and sky renderer.
+Status: APPROVED by toddhow's blanket "go with your recommendations" of 2026-11-11 for stage 1 (the pack half). Stage 2 (the engine half) is a PROPOSAL in section "Engine half" below and needs his approval of one option before any engine file is touched.
+Loop: stage 1 is pack-only (new files, no engine, SDK or core file touched, nothing calls it), tests written by the same hand as the code (the full loop's separate test writer was not used; recorded as a deviation), no fresh reviewer yet. Stage 2 is engine work: full loop (D13).
+
+Inherited code touched: none in stage 1. Stage 2 would touch `apps/openmw/mwworld/weather.cpp` (`WeatherManager::WeatherManager`, `Weather::Weather`, `WeatherManager::update*`), `apps/openmw/mwworld/weather.hpp`, `apps/openmw/mwworld/worldimp.cpp` (`World::updateWeather`), `apps/openmw/mwrender/weatherdata.hpp` (`WeatherResult`, read only) and the SDK (a new header).
+Inputs / outputs (stage 1): new `game_packs/skyrimse/include/game_skyrimse/weather.hpp`, `src/weather.cpp`; tests `apps/components_tests/skyrimse/testskyrimseweather.cpp` and `testskyrimseweatherreal.cpp`; `tools/skyrimse_weather_check/`.
+Constraints: hostile-input caps, located errors, nothing throws; every layout fact VERIFIED (measured on the installed masters) or RECALLED-VERIFY; aggregates only in anything committed; no game data in the repository.
+Out of scope (stage 1): any engine, SDK or core change; WATR shading parameters (DNAM), IMGS/IMAD/VOLI/RFCT/SPGD/SNDR/LGTM decoding (only their ids are kept); sky model, star and aurora NIFs; moon phases; the time-of-day blending rule (RECALLED-VERIFY, see below).
+
+## What stage 1 built
+
+`game_skyrimse::weather.hpp` (plain structs, no engine type):
+
+- `WeatherRecord` (WTHR): cloud layers (texture path, PNAM colours and JNAM alphas per time of day, QNAM and RNAM speed bytes), `WeatherData` (the 19 byte DATA: wind, transition delta, sun glare and damage, precipitation and thunder fades, thunder frequency, flags, lightning colour, wind direction and range), `WeatherFog` (FNAM, 8 floats), the NAM0 colour table (17, 14 or 13 types x 4 times of day), `DirectionalAmbient` (DALC x4), sounds, sky statics, precipitation (SPGD) and visual-effect (RFCT) links, the four image-space and four volumetric-lighting links, aurora model, and the raw NAM1/NAM2/NAM3/ONAM.
+- `ClimateRecord` (CLMT): weather list (WLST), sun and sun-glare textures, sky model, `ClimateTiming` (TNAM).
+- `RegionWeatherRecord` (REGN): the weather section only (RDAT type 3 and its RDWT).
+- `CellWeatherLinks` (CELL): world, grid, XCLR regions, XCCM, XCWT, XCIM.
+- The world's climate link is the CNAM that `worldspace.hpp` already decodes (`WorldSpaceRecord::mClimate`); `WeatherIndex::climateOfWorld` follows WNAM while PNAM has the Climate bit (0x10), 16 levels at most, loops end without a climate.
+- `parseWeatherRecords{,Bytes,File}` (one plugin) and `WeatherIndex` (a load order: later plugins replace earlier records by form id, a deleted record removes it): `effectiveWeatherList(cell)` and the deterministic `pickWeather(list, roll)`.
+
+## Layout facts, with how each was established
+
+Method: `tools/skyrimse_weather_check/*.py` (a separate parser, so it shares no bug with the C++) and the gated C++ test `SkyrimWeatherRealData`, both over the five official masters (Skyrim.esm, Update.esm, Dawnguard.esm, HearthFires.esm, Dragonborn.esm). Counts below count records in every master, overrides included (177 WTHR records are 108 distinct ids after the merge).
+
+| Record / subrecord | Fact | Status |
+| --- | --- | --- |
+| WTHR | 177 records, 108 unique ids, 0 failed, 0 odd subrecords | VERIFIED |
+| WTHR.DATA | 19 bytes in all 177. Bytes 1, 2, 15 and 16 are 0 in all 177 (kept raw, not named). Byte 0 wind 0 to 178, 3 transition delta (125 in 134), 4 sun glare, 5 sun damage, 6/7 precipitation fades, 8/9 thunder fades, 10 thunder frequency (255 in 164), 11 flags, 12 to 14 lightning colour, 17/18 wind direction and range (43 in 157) | sizes VERIFIED; names RECALLED-VERIFY |
+| WTHR.DATA flags | values seen: 0, 1, 2, 4, 8, 17, 18, 20, 50 (bits 0 to 5). Bit 1 on the clear, 2 on the cloudy, 4 on the rainy, 8 on the snowy weathers by editor id | bit names RECALLED-VERIFY, supported by the data |
+| WTHR.FNAM | 32 bytes = 8 floats in all 177; distances 0 to 300,000, the other four 0.2 to 1.0 | size VERIFIED; names (day/night near/far, power, max) RECALLED-VERIFY |
+| WTHR.NAM0 | 272 (165 records), 224 (11), 208 (1) bytes = 17, 14, 13 colour types x 4 times of day x 4 bytes (type-major). Order of times of day: sunrise, day, sunset, night (stars and moon glare are brightest in slot 3, sunlight in slot 1, fog near and far alike) | layout VERIFIED by plausibility; type names RECALLED-VERIFY |
+| WTHR cloud textures | subrecords named `c0TX`, c = layer: '0'..'9', ':', ';', '<', '=', '>', '?', '@', 'A'..'L' = layers 0 to 28 (contiguous character codes 0x30 to 0x4C); 1,937 textured layers in all | VERIFIED |
+| WTHR.PNAM / JNAM / QNAM / RNAM | PNAM 512 bytes = 32 layers x 4 colours x 4 bytes (176 records; 64 bytes = 4 layers in 1), JNAM 512 bytes = 32 x 4 floats (176; absent in 1), QNAM and RNAM 32 bytes = one byte per layer (176; the value 127 means "no movement" in the common case). Which of QNAM and RNAM is X is not settled | sizes VERIFIED; axis RECALLED-VERIFY |
+| WTHR.LNAM | 4 bytes: 29 in 164 records, 4 in 13 | VERIFIED; meaning (layer count) RECALLED-VERIFY |
+| WTHR.NAM1 | 4 bytes in 176 records. The hypothesis "bit i set = layer i has no texture" is FALSE (142 of 176 records disagree), so it is kept as a raw u32 | meaning unsettled |
+| WTHR.DALC | four per record (176), 32 bytes = six colours + specular + float (the float is 1.0: the structure closes); one record has the 24 byte form. Order of the four: sunrise, day, sunset, night (file order) | VERIFIED; direction order RECALLED-VERIFY |
+| WTHR.SNAM | 8 bytes, repeated (55 records, 76 entries): SNDR 67, SOUN 5, 4 dangling (ids that no master defines); type word 0 to 3 | VERIFIED; type meaning RECALLED-VERIFY |
+| WTHR.TNAM | 4 bytes, repeated: 15,984 entries in 150 records, every one a STAT (0 dangling) | VERIFIED |
+| WTHR.MNAM / NNAM | 4 bytes: SPGD in 36 records (0 in 141); RFCT in 5 (0 in 172) | VERIFIED |
+| WTHR.IMSP / HNAM | 16 bytes = four ids: IMGS in all 177 (708 refs); VOLI or 0 in 93 records | VERIFIED |
+| WTHR.NAM2 / NAM3 / ONAM | 16 / 16 / 4 bytes; NOT form ids (the 16 byte blocks are 0x00FFFFFF patterns; 11 records, the "FX" weathers); kept raw and never resolved | VERIFIED not ids |
+| CLMT | 9 records; WLST 12 bytes per entry (u32 weather, i32 chance, u32 global): ONE entry in 8 climates, two in 1 (Soul Cairn, 99 and 1); the global is 0 in all 10; FNAM/GNAM sun and sun-glare textures (absent in 1), MODL sky model, TNAM 6 bytes | VERIFIED |
+| CLMT.TNAM | bytes 0 to 3 = 33, 60, 96, 123 in the climates that have the normal day (5:30, 10:00, 16:00, 20:30 in units of ten minutes); byte 4 = 50 or 0; byte 5 = 195 (0xC3) in the two climates of the sky with both moons, 3 elsewhere | values VERIFIED; sunrise/sunset reading and the moon bits RECALLED-VERIFY |
+| REGN | 389 records; RDAT 8 bytes (u32 type, flags, priority, 2 pad), type 3 in 91 sections; RDWT 12 bytes per entry, 88 subrecords, 329 entries, every RDWT directly after an RDAT of type 3 (3 weather sections have no RDWT); the global is 0 in all 329; chances add to 100 in 87 lists and to 85 in 1; all entries are WTHR; priorities 50 to 100; flags 0 or 1 | VERIFIED; priority and flag meaning RECALLED-VERIFY |
+| **Where the weather is chosen** | A climate lists ONE weather in 8 of 9 climates; the variety lives in REGN weather lists, which cells reach through XCLR (33,441 exterior cell records, 80,355 region references, every one a REGN except 30 dangling). So "climate weather" alone gives Tamriel one weather for ever | VERIFIED |
+| WRLD | 77 records, 49 worlds; 20 have a CNAM; 42 end with a climate after PNAM inheritance (WhiterunWorld, PNAM 127, takes Tamriel's, SkyrimClimate); 7 worlds end with none | VERIFIED |
+| CELL | 75,776 exterior and 929 interior cell records; XCWT 1,246 (all exterior, WATR); XCIM 1,051 (IMGS); XCCM 314, ALL interior, and every one a REGN: it is a region to take sky and weather from, not a climate | VERIFIED |
+| Effective list per cell record (the RECALLED-VERIFY rule below) | from a region 21,851; from the world's climate (exterior) 53,940; interior from the climate 0; no list (exterior) 289; a pick at 0.5 succeeds for 75,791 | counts only |
+
+Rules the code applies that the data cannot prove (all RECALLED-VERIFY, each pinned by a test so a change is a deliberate one): the cell's XCCM region wins over its XCLR regions; among XCLR regions with a non-empty weather list the highest RDAT priority wins, ties go to the earlier region; a region whose weather section is empty or absent is skipped; with no region list the world's climate applies; chances are weights (negative counts as 0) and need not add to 100. The sunrise/sunset blending between the four times of day is NOT implemented (stage 2 question).
+
+Sources: the installed data (measurements) and memory of the xEdit / Creation Kit field names. No outside page or source file was opened in this stage, so no licence notice is needed and nothing was copied; every name taken from memory is marked RECALLED-VERIFY.
+
+## Tests and evidence (stage 1)
+
+- 52 unit tests on generated records and plugins (`testskyrimseweather.cpp`): each subrecord's layout with distinct byte values, wrong sizes counted as odd and decoded to nothing, caps and string limits, an unresolved master, XXXX, compressed records, a bad record in the middle of the walk, the group context (world and interior), the index (override, deleted, PNAM inheritance, loops, a 20 level chain, priorities, ties, XCCM, fallbacks) and `pickWeather` (boundaries, a sum of 85, negative and NaN, overflow).
+- Red first: written against a stub that refused everything; 47 of the first 51 failed (the other 4 test refusal or absence). Two index tests (XCCM region) and one unresolved-id test were written or corrected after the code and the real data showed XCCM is a region; they were not run red.
+- Mutations of the implementation, each caught by a named test: priority tie `>=`, roll boundary `<=`, PNAM inheritance bit ignored, layer index bound off by one (crashed the test process: caught), NAM0 empty-size check removed, RDWT outside an RDAT-3 section accepted (6 of 6).
+- Real data (`SkyrimWeatherRealData`, aggregates printed as `SKYRIMSE-WEATHER ...`): 0 walk errors, 0 odd subrecords, 0 unresolved ids; WTHR 177/177, CLMT 9/9, REGN 389/389, WRLD 77/77, CELL 76,705/76,705 parsed; numbers in the table above are asserted. The independent Python survey agrees on every shared figure.
+- `CI/check_tests_registered.sh`, `CI/check_layer_rules.sh` (104 exceptions, unchanged), `CI/check_game_conventions.sh`, `CI/check_extension_sdk.sh` pass.
+
+Not run (stage 1): the CMake configure and build of the real tree (tests ran in a private link of the new sources against a copy of another build's `componentsrd.lib`; the CMake lists were edited and not configured), the Linux gate and GCC `-Werror` (Docker was not used), clang-format 14 and clang-tidy (not installed), the Lua tests, `components-tests` and `openmw-tests` as wholes, sanitizers, a fresh review, the Creation Club and mod list (only the five official masters).
+
+## Engine half (stage 2): PROPOSAL, nothing built
+
+### What the engine does today (cited)
+
+- `MWWorld::WeatherManager::WeatherManager` (`apps/openmw/mwworld/weather.cpp`, line 612): reads the time-of-day settings from `Fallback::Map` (`Weather_Sunrise_Time`, `Weather_Sunset_Time`, `Weather_Sunrise_Duration`, ...), builds `TimeOfDaySettings` (`mNightStart`, `mDayStart`, per-type pre/post-sunrise and sunset windows for "Sky", "Ambient", "Fog", "Sun" and "Stars") and calls `addWeather` for exactly ten Morrowind names (Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight, Snow, Blizzard), then makes one `RegionWeather` per `ESM::Region` in the store (`store.get<ESM::Region>()`).
+- `MWWorld::Weather::Weather` (line 151): every value of one weather is read from `Fallback::Map` as `Weather_<name>_*`: cloud texture, four time-of-day colours each for sky, fog, ambient and sun (`TimeOfDayInterpolator`s), land fog depth, sun disc sunset colour, wind and cloud speed, glare view, rain entrance speed, max raindrops, thunder frequency/threshold, flash decrement, transition delta and `Clouds_Maximum_Percent`.
+- The renderer receives `MWRender::WeatherResult` (`apps/openmw/mwrender/weatherdata.hpp`): two cloud textures and a blend, fog/ambient/sky/sun colours, fog depth, wind speeds, glare, night fade, ambient/rain sound ids, particle effect and rain effect names, precipitation alpha. The atmosphere (task 0034), cirrus, volumetric clouds and wetness read this plus the few setters listed in `docs/research/0048-weather-system.md` section 1.
+- Region weather: `WeatherManager::updateWeatherRegion` takes the player's cell region (`ESM::RefId`) and `RegionWeather::chooseNewWeather` rolls the region's chances (by weather index 0 to 9) on the game PRNG; `ChangeWeather` and the save record (`RegionWeatherState`) use the same indices. A neutral cell has no region at all (`world_model.hpp` 1.0 is frozen), and the neutral session has no `ESM::Region` records.
+
+### The mapping a Skyrim weather needs
+
+| Morrowind (`Weather`) | Skyrim data | Fit |
+| --- | --- | --- |
+| Sky/Fog/Ambient/Sun colours x (sunrise, day, sunset, night) | NAM0 types SkyUpper (+SkyLower, Horizon), FogNear/FogFar, Ambient, Sunlight/Sun x the same four times | one to one for the four; Skyrim has more types (horizon, stars, glare) |
+| `mCloudTexture` (one picture) and `mCloudsMaximumPercent` | up to 29 layers (texture, colour and alpha per time of day, speeds) | MISMATCH: the sky renderer draws one cloud picture and one volumetric layer. First slice: layer 0 (or the most opaque) as the picture; the rest waits for 0094 W2 or a layered dome |
+| `mLandFogDepth`, one fog colour | FNAM near/far x day/night, power, max | partial: near/far both needed |
+| `mWindSpeed`, `mCloudSpeed` | DATA wind (0 to 255), QNAM/RNAM bytes (127 = still) | unit conversion RECALLED-VERIFY, measure |
+| rain / snow by effect name | DATA flags Rainy/Snow + MNAM (SPGD) | kind from flags; the SPGD particle data is not decoded |
+| thunder frequency/threshold, `mFlashDecrement` | DATA thunder fades and frequency, lightning colour | partial; 0094 W3 owns the look |
+| `mTransitionDelta` | DATA byte 3 (125) | scale RECALLED-VERIFY |
+| sounds (ambient, rain, thunder) | SNAM list (SNDR) | needs the Skyrim sound path; leave off in the first slice |
+| `TimeOfDaySettings` (from Fallback keys) | CLMT TNAM (5:30, 10:00, 16:00, 20:30) | the engine's windows are "pre/post sunrise/sunset" around `Weather_Sunrise_Time`; mapping Skyrim's begin/end onto them, and how the four TOD colours are blended, is RECALLED-VERIFY and must be settled by looking at the game's own sky at fixed hours before any claim of fidelity |
+| Sun/moon textures, stars, aurora | CLMT FNAM/GNAM/MODL, WTHR MODL | later stage; the cirrus and procedural sun (tasks 0047, 0079) may stand in |
+
+### Options
+
+1. **Neutral `WeatherSource` and a data-driven `WeatherManager` (recommended).** A new SDK interface of plain values (no Qt, Jolt, OSG, MyGUI or engine types; `openeden/game/weather_source.hpp`, DRAFT 0.1, found by `dynamic_cast` on the pack's registered `WorldCellSource`, the precedent of `ActorAppearanceSource`, so the frozen `WorldCellSource` and `world_model.hpp` stay untouched): a table of weathers (colours per time of day, fog, wind, precipitation kind and intensity, thunder, cloud layers with the first used), climates (weather chances, timing), and `weatherListForCell(cellId)` (the pack answers from `WeatherIndex::effectiveWeatherList`). In the engine, `Weather` and `TimeOfDaySettings` get a second constructor from this plain description; the Fallback-built path becomes one function that builds the same plain description from `Fallback::Map`, so Morrowind runs the same code with the same numbers (pinned by a test that compares the old and the new construction field by field, and by frames). `WeatherManager` takes an injectable weather table and a region-list provider (a small interface; the Morrowind one wraps `ESM::Region`), the neutral one wraps the pack. Everything else (transitions, `ChangeWeather`, wetness, cover, lightning, atmosphere, volumetric clouds) keeps reading `Weather` and `WeatherResult`, so 0094's work applies to Skyrim unchanged. Setting `[Game] neutral weather` (false; read only when `[Game] neutral world` is on, in the test profile). Cost: touches the heart of the weather manager; saves refuse in neutral sessions until N6, so no save change yet.
+2. **A pack-owned weather manager that pushes `WeatherResult` each frame.** Decouples from `weather.cpp`, but duplicates transitions, region rolls and the thunder schedule, cannot serve `ChangeWeather`/`GetCurrentWeather` from the engine's script and Lua paths, and makes the pack own per-frame render input (the "core renders, packs decide rules" split would blur). Rejected.
+3. **Feed only 0094 W0's `WeatherState`.** No colours and no times of day, so the sky would not change; W0 is still needed for the new storm effects but is not a source. Rejected as the source (kept as the consumer side).
+4. **Synthesize Morrowind `Weather_<name>_*` fallback keys from the Skyrim data and reuse the manager unchanged.** Cheapest spike (no `weather.cpp` change), but the manager has ten fixed weather names and one cloud picture, region lists are by index into those ten, and the strings lose the fog near/far pair; Skyrim's 108 weathers do not fit. Acceptable only as a throw-away spike to see a Skyrim sky in a day; rejected as the design.
+
+### Recommended staging for option 1 (estimates are mine, plus or minus 50 percent)
+
+- **W-S1 (6 to 9 days):** the SDK interface and the pack's adapter (WTHR to plain description, CLMT timing); `Weather`/`TimeOfDaySettings` second constructor; injectable weather table and region-list provider; Morrowind equivalence test; `[Game] neutral weather`; sky colours, fog, ambient, sun, one cloud picture, wind, transitions; the Whiterun exterior changes sky through the day and between region weathers. No precipitation, thunder, sound or layers.
+- **W-S2 (4 to 7 days):** precipitation kind and intensity (rain/snow from flags, the particle effect names of the existing weather), thunder and lightning colour into the existing lightning path, wetness and cover through the existing code.
+- **W-S3 (5 to 10 days):** cloud layers beyond the first, sun/moon/star textures from CLMT, aurora, image spaces (IMSP) as a colour grade; sounds when the Skyrim sound path exists; the time-of-day blend checked against the game.
+- Interaction with 0094: W0's `WeatherState` derives from `Weather`, so it is the same for both games; Skyrim's thunder frequency, cloud alphas and flags are inputs to W2/W3 (storminess), not extra work in them.
+
+### Acceptance for stage 2 (to be written into its own spec after approval)
+
+- With `[Game] neutral weather` off, Morrowind is unchanged: the table built the new way equals the Fallback-built table field by field; fixed-time frames in clear, rain, thunderstorm, ash and snow weather are byte-identical to the parent executable; the pinned vanilla PRNG sequence of `Weather::calculateThunder` and the region rolls is identical.
+- Skyrim exterior, `neutral world` and `neutral weather` on: a scripted day shows sunrise, day, sunset and night colours from NAM0; two cells in different regions get different weather lists; a forced weather (`ChangeWeather`) transitions; no allocation per frame; frames viewed.
+- Full loop: tests written first by a separate writer and run red; a fresh reviewer; Linux gate; Morrowind-unchanged comparison.
+
+## Open questions for toddhow (stage 2)
+
+1. Approve option 1 (a data-driven `WeatherManager` behind the SDK `WeatherSource`) as the engine half, or prefer the throw-away spike (option 4) first to see a sky quickly?
+2. May the first slice be one cloud picture (layer 0 or the most opaque) with the layers coming in W-S3, given the sky renderer draws one picture?
+3. Time-of-day blending: the data gives the four colour slots and the climate's begin/end times; how they blend is unsettled. Should I measure it by comparing the game's own screenshots at fixed hours (you would have to supply them from a running Skyrim), or accept an engine-style linear blend between slots around the TNAM times for now and mark it unverified?
+4. Priority rule for overlapping regions and the XCCM rule are RECALLED-VERIFY (pinned by tests); is a documented guess acceptable for M-S2, or should region weather wait for a source you trust?
+5. Sound (SNAM), aurora and the SPGD precipitation data: leave to later stages as listed?
+
+## Stage log
+
+- 2026-11-12, stage 1 (pack half), branch `skyweather`, Windows only. Survey, decoders, index, tests, real-data check and the tool as above. CMake lists edited (`game_packs/skyrimse/CMakeLists.txt` both targets, `apps/components_tests/CMakeLists.txt` tests and sources) and NOT configured.
