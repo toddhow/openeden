@@ -79,10 +79,10 @@ namespace CSMModule
 
         TEST(EditorApi11, versionIsOneDotTwoAndOldModulesStillLoad)
         {
-            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 3 }));
+            EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 4 }));
             EXPECT_TRUE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 0 }, kApiVersion));
             EXPECT_TRUE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 1 }, kApiVersion));
-            EXPECT_FALSE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 4 }, kApiVersion));
+            EXPECT_FALSE(openeden::sdk::isCompatible(openeden::sdk::Version{ 1, 5 }, kApiVersion));
         }
 
         TEST(EditorApi11, aSinkWrittenForOneDotZeroKeepsWorkingAndIgnoresTriangles)

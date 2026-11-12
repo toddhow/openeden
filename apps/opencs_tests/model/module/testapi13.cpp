@@ -99,7 +99,7 @@ namespace
 
 TEST(EditorModuleApi13, theVersionIsOneDotThree)
 {
-    EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 3 }));
+    EXPECT_EQ(kApiVersion, (openeden::sdk::Version{ 1, 4 }));
 }
 
 TEST(EditorModuleApi13, aContextWrittenFor10HasNoSandbox)
@@ -144,7 +144,7 @@ TEST(EditorModuleApi13, aModuleThatDeclaresOneThreeIsRefusedByOlderHostsAndNames
         const auto modules = host.modules();
         ASSERT_EQ(modules.size(), 1u) << hostMinor;
         EXPECT_EQ(modules[0].mState, CSMModule::ModuleInfo::State::Failed) << hostMinor;
-        EXPECT_NE(modules[0].mMessage.find("1.3"), std::string::npos) << modules[0].mMessage;
+        EXPECT_NE(modules[0].mMessage.find("1.4"), std::string::npos) << modules[0].mMessage;
         EXPECT_NE(modules[0].mMessage.find(std::string("1.") + std::to_string(hostMinor)), std::string::npos)
             << modules[0].mMessage;
     }

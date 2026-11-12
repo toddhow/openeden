@@ -19,5 +19,5 @@ TEST(EditorModuleHeaderTypes, selfContainedAndDefaults)
     EXPECT_FALSE(desc.readOnly);
 
     EXPECT_EQ(openeden::editor::kApiVersion.major, 1);
-    EXPECT_EQ(openeden::editor::kApiVersion.minor, 3);
+    EXPECT_EQ(openeden::editor::kApiVersion.minor, 4);
 }
