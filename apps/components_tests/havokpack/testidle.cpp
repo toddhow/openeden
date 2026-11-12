@@ -172,3 +172,56 @@ TEST(HavokIdlePaths, no_sex_folder_keeps_the_old_path_and_a_bad_one_is_refused)
     EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "../x"), "");
     EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "a/b"), "");
 }
+
+// Task 0145: how far the ambient idle moves the pelvis from the skeleton's reference pose (opt-in, real data). A pose that
+// lowers the pelvis puts the feet above or below the floor the actor's capsule stands on.
+TEST(HavokIdleRealData, the_ambient_idle_keeps_the_pelvis_where_the_reference_pose_has_it)
+{
+    const char* root = std::getenv("OPENEDEN_HAVOK_IDLE_ROOT");
+    if (root == nullptr)
+        GTEST_SKIP() << "OPENEDEN_HAVOK_IDLE_ROOT is not set";
+    const std::string nif = "meshes/actors/character/character assets/skeleton.nif";
+    auto read = [&](const std::string& rel) {
+        std::ifstream in(std::string(root) + "/" + rel, std::ios::binary);
+        EXPECT_TRUE(in.good()) << rel;
+        return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    const auto skeletons = readSkeletons(Packfile::parse(read(skeletonHkxPath(nif))));
+    ASSERT_FALSE(skeletons.empty());
+    for (const char* name : { "mt_idle", "h2h_idle" })
+    {
+        auto clips = readClips(Packfile::parse(read(clipHkxPath(nif, name, std::string_view(name) == "mt_idle" ? "male" : ""))));
+        ASSERT_FALSE(clips.empty());
+        const BoundClip bound = bindClip(skeletons[0], std::move(clips[0]));
+        std::vector<Transform> out(bound.mClip.mNumTransformTracks);
+        for (std::size_t track = 0; track < bound.mTrackBones.size(); ++track)
+        {
+            const std::string& bone = bound.mTrackBones[track];
+            if (bone.rfind("npc com", 0) != 0 && bone.rfind("npc root", 0) != 0 && bone.rfind("npc l foot", 0) != 0)
+                continue;
+            std::size_t boneIndex = 0;
+            for (std::size_t i = 0; i < skeletons[0].mBoneNames.size(); ++i)
+            {
+                std::string n = skeletons[0].mBoneNames[i];
+                for (char& c : n)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (n == bone)
+                    boneIndex = i;
+            }
+            const Transform& ref = skeletons[0].mReferencePose[boneIndex];
+            float lo = 1e9f, hi = -1e9f, sum = 0;
+            constexpr int steps = 200;
+            for (int i = 0; i < steps; ++i)
+            {
+                samplePose(bound, bound.mClip.mDuration * static_cast<float>(i) / steps, out);
+                const float z = out[track].mTranslation[2];
+                lo = std::min(lo, z);
+                hi = std::max(hi, z);
+                sum += z;
+            }
+            std::cout << "IDLEPELVIS " << name << " bone '" << bone << "' reference z " << ref.mTranslation[2] << " clip z min "
+                      << lo << " mean " << sum / steps << " max " << hi << " (ref xyz " << ref.mTranslation[0] << " "
+                      << ref.mTranslation[1] << " " << ref.mTranslation[2] << ")\n";
+        }
+    }
+}

@@ -6,6 +6,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/havokpack/packfile.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
 namespace MWRender::SkyrimIdle
@@ -210,6 +211,7 @@ namespace MWRender::SkyrimIdle
             return;
         if (!mClip || mBound == 0)
             return;
+        Misc::LoadTrace::Scope trace("skyrimidle.run");
         HavokPack::samplePose(*mClip, time + mPhase, mScratch);
         for (std::size_t i = 0; i < mTargets.size(); ++i)
             if (mTargets[i])
