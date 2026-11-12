@@ -60,6 +60,9 @@ CFG
 [ "$SHOT" = colldraw ] && echo "content=n3a4bdraw.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0115 stage N4 (doors): "doorshop", "doorsexterior" and "doorslocked" run the door scenarios (use at least 2400 frames).
 case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
+# Task 0125 stage E2: "e2terrain" leaves the Mare by its front door into WhiterunWorld, walks, and hops across cell borders
+# (use at least 4000 frames).
+[ "$SHOT" = e2terrain ] && echo "content=n4e2.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -67,11 +70,11 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout 170 ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*|n5actors) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*|n5actors|e2terrain) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|NDOOR|N4D|Neutral door" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|NDOOR|N4D|Neutral door|E2 |Neutral terrain|Neutral exterior" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

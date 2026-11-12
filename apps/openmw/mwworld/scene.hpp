@@ -128,6 +128,9 @@ namespace MWWorld
 
         vsg::ivec2 mCurrentGridCenter;
 
+        /// Task 0125: points the terrain at the neutral world of `worldspace` (no-op for any other worldspace).
+        void selectNeutralTerrain(const ESM::RefId& worldspace);
+
         // Load and unload cells as necessary to create a cell grid with "X" and "Y" in the center
         // incremental: build the new cells' objects over several frames (task 0060, [Cells] incremental cell build)
         void changeCellGrid(const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent = true,

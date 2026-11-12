@@ -208,12 +208,95 @@ namespace MWWorld
 {
     CellStore& WorldModel::getExterior(ESM::ExteriorCellLocation location, bool forceLoad) const
     {
-        CellStore* cellStore = getOrCreateExterior(location, mExteriors, mStore, mReaders, mCells, true);
+        CellStore* cellStore = nullptr;
+        if (!mNeutralWorldspaces.empty() && mNeutralWorldspaces.count(location.mWorldspace) != 0)
+        {
+            // Task 0125: an exterior of a game pack's neutral world.
+            NeutralWorld::NeutralWorldStore* neutral
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            if (neutral != nullptr)
+                cellStore = findNeutralExterior(*neutral, location);
+            if (cellStore == nullptr)
+                throw std::runtime_error("Neutral exterior cell is not available: " + location.mWorldspace.toDebugString());
+        }
+        else
+            cellStore = getOrCreateExterior(location, mExteriors, mStore, mReaders, mCells, true);
 
         if (forceLoad && cellStore->getState() != CellStore::State_Loaded)
             cellStore->load();
 
         return *cellStore;
+    }
+
+    const NeutralWorldspace* WorldModel::neutralWorldspace(const ESM::RefId& worldspace) const
+    {
+        const auto it = mNeutralWorldspaces.find(worldspace);
+        return it == mNeutralWorldspaces.end() ? nullptr : &it->second;
+    }
+
+    CellStore* WorldModel::findNeutralExterior(
+        NeutralWorld::NeutralWorldStore& neutral, const ESM::ExteriorCellLocation& location) const
+    {
+        if (const auto known = mExteriors.find(location); known != mExteriors.end())
+            return known->second;
+        const NeutralWorldspace* world = neutralWorldspace(location.mWorldspace);
+        if (world == nullptr)
+            return nullptr;
+        const std::string& gameId = world->mGameId;
+
+        // The pack's cell for the square, or an empty cell when it has none (the world's edge, a square no plugin lists).
+        openeden::sdk::game::WorldCell empty;
+        const openeden::sdk::game::WorldCell* cell = nullptr;
+        ESM::RefId recordId;
+        const openeden::sdk::game::WorldId packCell = neutral.findCellByGrid(gameId, world->mWorld, location.mX, location.mY);
+        if (packCell != openeden::sdk::game::kNoWorldId)
+        {
+            std::string error;
+            cell = neutral.cell(gameId, packCell, error);
+            if (cell == nullptr)
+                Log(Debug::Error) << "Neutral exterior (" << location.mX << ", " << location.mY << ") of " << gameId
+                                  << " could not be built: " << error;
+            else
+                recordId = neutralCellRecordId(gameId, cell->id);
+        }
+        if (cell == nullptr)
+        {
+            empty.world = world->mWorld;
+            empty.hasGrid = true;
+            empty.gridX = location.mX;
+            empty.gridY = location.mY;
+            cell = &empty;
+            recordId = neutralEmptyExteriorCellId(gameId, world->mWorld, location.mX, location.mY);
+        }
+        if (recordId.empty())
+            return nullptr;
+
+        CellStore* store = nullptr;
+        if (const auto found = mCells.find(recordId); found != mCells.end())
+            store = &found->second;
+        else
+        {
+            Store<NeutralBase>& bases = mStore.getWritable<NeutralBase>();
+            std::size_t refused = 0;
+            for (const openeden::sdk::game::WorldObject& object : cell->objects)
+                if (bases.addFromObject(gameId, object).mStatus == Store<NeutralBase>::Status::Refused)
+                    ++refused;
+            if (refused != 0)
+                Log(Debug::Warning) << "Neutral exterior (" << location.mX << ", " << location.mY << "): " << refused
+                                    << " objects have no usable base";
+            mNeutralCells.push_back(
+                makeNeutralExteriorCellRecord(recordId, cell->editorId, location.mX, location.mY));
+            const ESM::Cell& record = mNeutralCells.back();
+            const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(recordId),
+                std::forward_as_tuple(Cell(record, location.mWorldspace), mStore, mReaders));
+            if (!inserted)
+                mNeutralCells.pop_back();
+            else
+                it->second.setNeutralCell(gameId, *cell);
+            store = &it->second;
+        }
+        mExteriors.emplace(location, store);
+        return store;
     }
 
     CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
@@ -283,8 +366,26 @@ namespace MWWorld
         if (!cell->interior)
         {
             result.mStatus = NeutralCellStatus::Exterior;
+            // Task 0125: an exterior of a world the pack can describe can be entered; the worldspace is registered.
+            openeden::sdk::game::WorldSpaceInfo info;
+            openeden::sdk::game::WorldCellSource* source = neutral.source(gameId);
+            if (source != nullptr && cell->world != openeden::sdk::game::kNoWorldId
+                && source->worldInfo(cell->world, info))
+            {
+                const ESM::RefId worldspace = neutralWorldspaceId(gameId, cell->world);
+                if (!worldspace.empty())
+                {
+                    mNeutralWorldspaces.emplace(worldspace, NeutralWorldspace{ std::string(gameId), cell->world });
+                    result.mWorldSupported = true;
+                    result.mWorldspace = worldspace;
+                    result.mHasGrid = cell->hasGrid;
+                    result.mGridX = cell->gridX;
+                    result.mGridY = cell->gridY;
+                    return result;
+                }
+            }
             result.mError
-                = "cell '" + cell->editorId + "' is an exterior; exterior neutral cells are not supported yet";
+                = "cell '" + cell->editorId + "' is an exterior of a world the game pack cannot describe";
             return result;
         }
         if (cell->editorId.empty())

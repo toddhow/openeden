@@ -9,6 +9,7 @@
 #include <components/esm4/loadwrld.hpp>
 #include <components/misc/algorithm.hpp>
 
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -102,5 +103,16 @@ namespace MWWorld
         }
         else
             mGridPos = {};
+    }
+}
+
+namespace MWWorld
+{
+    Cell::Cell(const ESM::Cell& cell, const ESM::RefId& worldspace)
+        : Cell(cell)
+    {
+        mParent = worldspace;
+        mHasWater = false;
+        mWaterHeight = -std::numeric_limits<float>::max();
     }
 }

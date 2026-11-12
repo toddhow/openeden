@@ -124,7 +124,7 @@ add_component_dir (worldmodel
 # The terrain storage of the neutral world (task 0120, stage E1): a Terrain::Storage over land a game pack described.
 # Layer: engine.
 add_component_dir (neutralterrain
-    cellcache storage
+    cellcache storage window
     )
 
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.

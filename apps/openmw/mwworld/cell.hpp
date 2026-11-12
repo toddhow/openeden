@@ -38,6 +38,9 @@ namespace MWWorld
     public:
         explicit Cell(const ESM4::Cell& cell);
         explicit Cell(const ESM::Cell& cell);
+        /// Task 0125: an exterior record of a game pack's neutral world: the worldspace is the given one (its cell size
+        /// comes from ESM::getCellSize) and the cell has no water.
+        Cell(const ESM::Cell& cell, const ESM::RefId& worldspace);
 
         int getGridX() const { return mGridPos.x; }
         int getGridY() const { return mGridPos.y; }

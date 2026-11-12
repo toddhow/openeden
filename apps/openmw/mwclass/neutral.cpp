@@ -1,8 +1,10 @@
 #include "neutral.hpp"
 
+#include <cmath>
 #include <cstdlib>
 
 #include <components/debug/debuglog.hpp>
+#include <components/esmbridge/util.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
@@ -163,6 +165,19 @@ namespace MWClass
                     destination = found.mStore;
                     reused = found.mReused;
                     return MWWorld::NeutralDestination::Interior;
+                }
+                if (found.mStatus == MWWorld::NeutralCellStatus::Exterior && found.mWorldSupported)
+                {
+                    // Task 0125 (stage E2): an exterior of a world the pack can describe. The square is the one the
+                    // arrival stands in, in the worldspace's own cell size; the cell is built (or reused) and entered
+                    // like any other store.
+                    const auto& arrival = object->teleport->destination.position;
+                    const double cellSize = ESM::getCellSize(found.mWorldspace);
+                    const ESM::ExteriorCellLocation location(static_cast<int>(std::floor(arrival.x / cellSize)),
+                        static_cast<int>(std::floor(arrival.y / cellSize)), found.mWorldspace);
+                    destination = &worldModel->getExterior(location);
+                    reused = false;
+                    return MWWorld::NeutralDestination::ExteriorWorld;
                 }
                 // Logged on every activation; asking again is cheap because the store caches the cell it built.
                 Log(Debug::Info) << "Neutral door " << *placement << ": " << found.mError;

@@ -78,6 +78,8 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 
+#include <components/neutralterrain/cellcache.hpp>
+#include <components/neutralterrain/storage.hpp>
 #include <components/terrain/paging.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
@@ -2438,8 +2440,76 @@ namespace MWRender
         mWaterRipples->removeCell(store);
     }
 
+    bool RenderManager::useNeutralTerrain(
+        openeden::sdk::game::WorldCellSource& source, std::uint64_t world, std::string& error)
+    {
+        if (mNeutralStorage != nullptr && mNeutralWorld == world && mNeutralGame == source.gameId())
+            return true;
+        // The cache keeps the cells of the window round the camera; a long view distance asks for more than the default
+        // 1,024 (terrainEnsureWindow gives 42 x 42 at 10 cells).
+        NeutralTerrain::CacheLimits limits;
+        limits.mMaxCells = 4096;
+        auto cache = std::make_shared<NeutralTerrain::CellCache>(source, limits);
+        if (!cache->setWorld(world, error))
+            return false;
+        auto storage = std::make_unique<NeutralTerrain::Storage>(cache);
+
+        // Everything that reads the old storage goes first (as in setStore): the LOD tiles and clusters and the puddle
+        // map read it on worker threads. Then the terrain forgets its view and its chunks, which were cut from the
+        // old land, and is pointed at the new storage (its layer arrays are rebuilt on a worker).
+        mLodTerrain.reset();
+        mLodClusters.reset();
+        releasePuddleMap();
+        mLodClustersAttached = false;
+        mLodClustersPushed = 0;
+        mTerrain->clearView(*mTerrainView);
+        mTerrain->clearCache();
+        mTerrain->setStorage(storage.get());
+        mNeutralStorage = std::move(storage);
+        mNeutralCache = std::move(cache);
+        mNeutralGame = std::string(source.gameId());
+        mNeutralWorld = world;
+        mNeutralWindow = {};
+        Log(Debug::Info) << "Neutral terrain: " << mNeutralGame << " world " << world << " ("
+                         << mNeutralCache->world().editorId << "), cells of " << mNeutralStorage->cellWorldSize
+                         << " units with " << mNeutralStorage->cellVertices << " vertices, "
+                         << mNeutralCache->textures().size() << " ground textures";
+        return true;
+    }
+
+    std::shared_ptr<const openeden::sdk::game::TerrainCell> RenderManager::neutralTerrainCell(
+        std::int32_t x, std::int32_t y) const
+    {
+        return mNeutralCache ? mNeutralCache->get(x, y) : nullptr;
+    }
+
+    float RenderManager::neutralTerrainCellSize() const
+    {
+        return mNeutralStorage ? mNeutralStorage->cellWorldSize : 0.f;
+    }
+
+    void RenderManager::ensureNeutralTerrain(const vsg::dvec3& eye)
+    {
+        if (!mNeutralCache)
+            return;
+        const NeutralTerrain::CellWindow window = NeutralTerrain::terrainEnsureWindow(
+            eye.x, eye.y, mViewDistance, mNeutralStorage->cellWorldSize);
+        if (window.empty() || window == mNeutralWindow)
+            return;
+        Misc::LoadTrace::Scope trace("terrain.neutral.ensure", window.count());
+        const std::uint64_t unloadedBefore = mNeutralCache->unloadedReads();
+        const std::uint64_t builtBefore = mNeutralCache->builtCells();
+        mNeutralCache->ensure(window.mX0, window.mY0, window.mX1, window.mY1);
+        mNeutralWindow = window;
+        Log(Debug::Verbose) << "Neutral terrain: cells (" << window.mX0 << ", " << window.mY0 << ") to (" << window.mX1
+                            << ", " << window.mY1 << ") ensured, " << (mNeutralCache->builtCells() - builtBefore)
+                            << " built, " << mNeutralCache->resident() << " resident, " << unloadedBefore
+                            << " chunk reads of cells that were not loaded so far";
+    }
+
     void RenderManager::updateTerrain(const vsg::dvec3& pos, float dt)
     {
+        ensureNeutralTerrain(pos);
         // Task 0089: the layer arrays are built on a thread of their own; the main thread does not wait for them, the
         // terrain follows in the first frame after they are done.
         if (!mTerrain->layersReady())
@@ -3811,6 +3881,8 @@ namespace MWRender
     // TODO: if there is only ever one worldspace active at a time, isn't the worldspace parameter redundant
     float RenderManager::getTerrainHeightAt(const vsg::vec3& pos, ESM::RefId worldspace)
     {
+        if (mNeutralStorage)
+            return mNeutralStorage->getHeightAt(pos, worldspace);
         return mTerrainStorage->getHeightAt(pos, worldspace);
     }
 

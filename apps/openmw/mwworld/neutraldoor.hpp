@@ -28,6 +28,7 @@ namespace MWWorld
     {
         Interior,
         Exterior,
+        ExteriorWorld, ///< task 0125: an exterior of a world the pack can describe (terrain), which the engine can enter
         Unavailable,
     };
 

@@ -96,6 +96,53 @@ namespace MWWorld
         return ESM::RefId::stringRefId(key);
     }
 
+    namespace
+    {
+        bool carriableGameId(std::string_view gameId)
+        {
+            return !gameId.empty()
+                && std::none_of(gameId.begin(), gameId.end(),
+                    [](char c) { return c == ':' || static_cast<unsigned char>(c) < 0x20 || c == 0x7f; });
+        }
+    }
+
+    ESM::RefId neutralWorldspaceId(std::string_view gameId, WorldId world)
+    {
+        if (!carriableGameId(gameId))
+            return ESM::RefId();
+        std::string key(gameId);
+        key += ":w";
+        key += std::to_string(world);
+        return ESM::RefId::stringRefId(key);
+    }
+
+    ESM::RefId neutralEmptyExteriorCellId(std::string_view gameId, WorldId world, std::int32_t x, std::int32_t y)
+    {
+        if (!carriableGameId(gameId))
+            return ESM::RefId();
+        std::string key(gameId);
+        key += ":e";
+        key += std::to_string(world);
+        key += '.';
+        key += std::to_string(x);
+        key += '.';
+        key += std::to_string(y);
+        return ESM::RefId::stringRefId(key);
+    }
+
+    ESM::Cell makeNeutralExteriorCellRecord(
+        const ESM::RefId& id, std::string_view editorId, std::int32_t x, std::int32_t y)
+    {
+        ESM::Cell record;
+        record.mId = id;
+        record.mName = editorId;
+        record.mData.mFlags = 0; // an exterior: no Interior flag, and no HasWater (water is a later stage)
+        record.mData.mX = x;
+        record.mData.mY = y;
+        record.mWater = 0.f;
+        return record;
+    }
+
     ESM::Cell makeNeutralCellRecord(std::string_view gameId, const WorldCell& cell)
     {
         ESM::Cell record;

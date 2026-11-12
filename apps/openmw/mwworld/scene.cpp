@@ -52,6 +52,9 @@
 #include "../mwworld/actionteleport.hpp"
 
 #include "cellstore.hpp"
+#include <components/neutralterrain/window.hpp>
+#include <components/worldmodel/store.hpp>
+
 #include "neutralcell.hpp"
 #include "neutralstore.hpp"
 #include "cellvisitors.hpp"
@@ -451,7 +454,34 @@ namespace MWWorld
         ESM::RefId worldspace = cellVariant.getWorldSpace();
         ESM::ExteriorCellLocation cellIndex(cellX, cellY, worldspace);
 
-        if (cellVariant.isExterior())
+        if (cellVariant.isExterior() && cell.isNeutral())
+        {
+            // Task 0125 (stage E2 of docs/research/0053): the land of a game pack's neutral world. The cells of the
+            // window round the camera are in the renderer's cache (RenderManager::ensureNeutralTerrain, which the grid
+            // change runs first); the physics heightfield and the navigator take the same samples the terrain draws.
+            Misc::LoadTrace::Scope traceHeight("load.physics.heightfield");
+            const auto land = mRendering.neutralTerrainCell(cellX, cellY);
+            if (land && land->hasHeights && land->vertsPerSide >= 2
+                && land->heights.size() == static_cast<std::size_t>(land->vertsPerSide) * land->vertsPerSide)
+            {
+                const int verts = static_cast<int>(land->vertsPerSide);
+                const int worldsize = static_cast<int>(mRendering.neutralTerrainCellSize());
+                const auto [minHeight, maxHeight] = NeutralTerrain::terrainHeightRange(*land, 0.f);
+                mPhysics->addHeightField(
+                    land->heights.data(), cellX, cellY, worldsize, verts, minHeight, maxHeight, nullptr);
+                DetourNavigator::HeightfieldSurface heights;
+                heights.mHeights = land->heights.data();
+                heights.mSize = static_cast<std::size_t>(verts);
+                heights.mMinHeight = minHeight;
+                heights.mMaxHeight = maxHeight;
+                mNavigator.addHeightfield(
+                    vsg::ivec2(cellX, cellY), worldsize, HeightfieldShape{ heights }, navigatorUpdateGuard);
+            }
+            else
+                Log(Debug::Verbose) << "Neutral exterior (" << cellX << ", " << cellY
+                                    << ") has no land: no heightfield";
+        }
+        else if (cellVariant.isExterior())
         {
             // openeden-vsg: vsgopenmw's land manager reads ESM3 land only, so ESM4 worldspaces get no terrain
             // heightfield until ESM4 terrain is ported (task 0012, Track V stage V4).
@@ -529,7 +559,8 @@ namespace MWWorld
         MWBase::Environment::get().getWindowManager()->addCell(&cell);
         traceWindow.end();
         Misc::LoadTrace::Scope traceWater("load.water.ambient.sky");
-        bool waterEnabled = cellVariant.hasWater() || cell.isExterior();
+        // Task 0125: a neutral exterior has no water yet (Skyrim's water is a later stage); Morrowind's exterior always has.
+        bool waterEnabled = cellVariant.hasWater() || (cell.isExterior() && !cell.isNeutral());
         float waterLevel = cell.getWaterLevel();
         mRendering.setWaterEnabled(waterEnabled);
         if (waterEnabled)
@@ -644,10 +675,35 @@ namespace MWWorld
         }
     }
 
+    void Scene::selectNeutralTerrain(const ESM::RefId& worldspace)
+    {
+        // Task 0125: entering an exterior of a game pack's neutral world points the terrain at that world's land. The
+        // terrain preloader's views are released first (it builds chunks on a worker from the storage being replaced).
+        const NeutralWorldspace* neutralWorld = mWorld.getWorldModel().neutralWorldspace(worldspace);
+        if (neutralWorld == nullptr)
+            return;
+        if (mRendering.neutralTerrainActive() && mRendering.neutralTerrainGame() == neutralWorld->mGameId
+            && mRendering.neutralTerrainWorld() == neutralWorld->mWorld)
+            return;
+        NeutralWorld::NeutralWorldStore* store = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(neutralWorld->mGameId) : nullptr;
+        if (source == nullptr)
+        {
+            Log(Debug::Error) << "Neutral terrain: no world source for game '" << neutralWorld->mGameId << "'";
+            return;
+        }
+        mTerrainPreloader->releaseViews();
+        std::string error;
+        if (!mRendering.useNeutralTerrain(*source, neutralWorld->mWorld, error))
+            Log(Debug::Error) << "Neutral terrain: world " << neutralWorld->mWorld << " of " << neutralWorld->mGameId
+                              << " has no usable land: " << error;
+    }
+
     void Scene::changeCellGrid(
         const vsg::vec3& pos, ESM::ExteriorCellLocation playerCellIndex, bool changeEvent, bool incremental)
     {
         Misc::LoadTrace::Scope traceGrid("grid.total");
+        selectNeutralTerrain(playerCellIndex.mWorldspace);
         const int halfGridSize = getHalfGridSize(playerCellIndex.mWorldspace);
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
         const int playerCellX = playerCellIndex.mX;
@@ -875,7 +931,8 @@ namespace MWWorld
     void Scene::changePlayerCell(CellStore& cell)
     {
         finishCell(cell);
-        mHalfGridSize = cell.getCell()->isEsm4() ? Constants::ESM4CellGridRadius : Constants::CellGridRadius;
+        mHalfGridSize = (cell.getCell()->isEsm4() || cell.isNeutral()) ? Constants::ESM4CellGridRadius
+                                                                        : Constants::CellGridRadius;
         mCurrentCell = &cell;
         MWBase::Environment::get().getExtensionManager()->cellChanged(cell.getCell()->getDescription());
 

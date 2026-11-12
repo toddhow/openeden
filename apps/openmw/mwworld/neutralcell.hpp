@@ -47,6 +47,20 @@ namespace MWWorld
     /// The id the synthetic cell record has: "<gameId>:c<cell id>". Empty RefId when the game id cannot be carried.
     [[nodiscard]] ESM::RefId neutralCellRecordId(std::string_view gameId, openeden::sdk::game::WorldId cell);
 
+    /// Task 0125 (stage E2, exteriors): the worldspace a neutral game's world is known by in the engine,
+    /// "<gameId>:w<world id>". isEsm4Ext is true for it, so the cell size is 4096 and the grid radius 2. Empty RefId
+    /// when the game id cannot be carried.
+    [[nodiscard]] ESM::RefId neutralWorldspaceId(std::string_view gameId, openeden::sdk::game::WorldId world);
+
+    /// The id of the synthetic record of an exterior grid square the pack has no cell for, "<gameId>:e<world>.<x>.<y>".
+    [[nodiscard]] ESM::RefId neutralEmptyExteriorCellId(
+        std::string_view gameId, openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y);
+
+    /// The exterior ESM::Cell record that stands for a neutral exterior cell: the given id, the editor id as the name,
+    /// the grid square, no Interior flag and NO water (Skyrim's water is a later stage), no content.
+    [[nodiscard]] ESM::Cell makeNeutralExteriorCellRecord(
+        const ESM::RefId& id, std::string_view editorId, std::int32_t x, std::int32_t y);
+
     /// A flat ambient light for a neutral interior whose WorldCell carries no lighting: RGB 0x60 each, so that a placed
     /// object is not drawn black. Named, not magic.
     inline constexpr std::uint32_t kNeutralCellAmbient = 0x00606060;

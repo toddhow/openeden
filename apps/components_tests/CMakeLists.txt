@@ -222,6 +222,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0102 stage N2: the frozen 1.0 headers and the store's lookups.
     worldmodel/testfrozen.cpp
     neutralterrain/testneutralterrain.cpp
+    neutralterrain/testneutralwindow.cpp
     worldmodel/testlightmodel.cpp
     worldmodel/testlookups.cpp
 

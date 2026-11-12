@@ -58,6 +58,21 @@ namespace MWWorld
         CellStore* mStore = nullptr;
         bool mReused = false; ///< the store was built earlier and is returned as it is
         std::string mError;
+        // Task 0125 (stage E2): for status Exterior, when the game pack can describe the cell's worldspace (its
+        // WorldCellSource::worldInfo says so) the exterior can be entered: the worldspace it is known by in the engine
+        // and the cell's grid square (when the pack's cell has one; a persistent cell has none).
+        bool mWorldSupported = false;
+        ESM::RefId mWorldspace;
+        bool mHasGrid = false;
+        std::int32_t mGridX = 0;
+        std::int32_t mGridY = 0;
+    };
+
+    /// Task 0125: the pack and world a neutral worldspace of the engine stands for.
+    struct NeutralWorldspace
+    {
+        std::string mGameId;
+        openeden::sdk::game::WorldId mWorld = openeden::sdk::game::kNoWorldId;
     };
 
     /// \brief Cell container
@@ -81,6 +96,16 @@ namespace MWWorld
         NeutralCellLookup findNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId id) const;
 
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
+
+        /// Task 0125 (stage E2): the neutral worldspaces the engine knows (registered when a door or a start finds an
+        /// exterior of a supported world); null for any other worldspace, Morrowind's included.
+        const NeutralWorldspace* neutralWorldspace(const ESM::RefId& worldspace) const;
+
+        /// The exterior cell of a registered neutral worldspace at a grid square, built from the pack's cell (or an empty
+        /// cell when the pack has none there) and kept; null when the worldspace is not a registered neutral one. The
+        /// first form takes the store explicitly (tests), getExterior uses the extension host's.
+        CellStore* findNeutralExterior(
+            NeutralWorld::NeutralWorldStore& neutral, const ESM::ExteriorCellLocation& location) const;
 
         CellStore* findCell(ESM::RefId id, bool forceLoad = true) const;
 
@@ -150,6 +175,8 @@ namespace MWWorld
         // The synthetic ESM::Cell records of the neutral cells (task 0109). A deque, so that the Cell of a CellStore
         // can keep a pointer into it for as long as the model lives.
         mutable std::deque<ESM::Cell> mNeutralCells;
+        // Task 0125: neutral worldspaces by their RefId in the engine (see neutralWorldspaceId).
+        mutable std::map<ESM::RefId, NeutralWorldspace> mNeutralWorldspaces;
         std::vector<std::pair<ESM::RefId, CellStore*>> mIdCache;
         std::size_t mIdCacheIndex = 0;
 

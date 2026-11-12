@@ -40,6 +40,8 @@
 #include <components/render/vramscaler.hpp>
 #include <components/settings/settings.hpp>
 
+#include <components/neutralterrain/window.hpp>
+
 namespace MWWorld
 {
     class Ptr;
@@ -48,6 +50,15 @@ namespace MWWorld
     class Cell;
     class ESMStore;
     class GroundcoverStore;
+}
+namespace NeutralTerrain
+{
+    class CellCache;
+    class Storage;
+}
+namespace openeden::sdk::game
+{
+    class WorldCellSource;
 }
 namespace Resource
 {
@@ -159,6 +170,26 @@ namespace MWRender
         ~RenderManager();
 
         void setStore(const MWWorld::ESMStore& store);
+
+        /// Task 0125 (stage E2 of docs/research/0053): draws the land of a game pack's neutral world instead of
+        /// Morrowind's. Builds the terrain cache and storage for `world` of `source` and points the terrain at them (the
+        /// terrain, its view and its chunk cache are rebuilt: call it behind the loading screen, with the terrain
+        /// preloader's views released). The same game and world again does nothing. False with `error` when the source
+        /// has no terrain for the world; the terrain is then left as it was. Main thread.
+        bool useNeutralTerrain(
+            openeden::sdk::game::WorldCellSource& source, std::uint64_t world, std::string& error);
+        /// Whether the terrain draws a neutral world, and which one (game id, world id).
+        bool neutralTerrainActive() const { return mNeutralStorage != nullptr; }
+        const std::string& neutralTerrainGame() const { return mNeutralGame; }
+        std::uint64_t neutralTerrainWorld() const { return mNeutralWorld; }
+        /// The land of one cell of the active neutral world (own or a parent's); null with none, or when no neutral
+        /// world is active. The cell must have been in the window ensureNeutralTerrain filled.
+        std::shared_ptr<const openeden::sdk::game::TerrainCell> neutralTerrainCell(std::int32_t x, std::int32_t y) const;
+        /// Loads the cells Terrain::Paging will read for a camera at `eye` into the cache (main thread). A window the
+        /// last call already filled costs a comparison.
+        void ensureNeutralTerrain(const vsg::dvec3& eye);
+        /// The height and bounds the physics heightfield of a neutral cell needs; the world's cell size and vertices.
+        float neutralTerrainCellSize() const;
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
         void setLodTerrainPack(std::filesystem::path path) { mLodTerrainPack = std::move(path); }
         // Task 0095: where the baked puddle map is (used with `wetness puddle map`).
@@ -578,6 +609,13 @@ namespace MWRender
         std::unique_ptr<Render::SimpleWater> mSimpleWater;
         std::unique_ptr<Terrain::Paging> mTerrain;
         std::unique_ptr<TerrainStorage> mTerrainStorage;
+        // Task 0125: the land of a game pack's neutral world, when the player is in one. Declared after the terrain
+        // (Paging) that holds a raw pointer to the storage, so that it goes first.
+        std::shared_ptr<NeutralTerrain::CellCache> mNeutralCache;
+        std::unique_ptr<NeutralTerrain::Storage> mNeutralStorage;
+        std::string mNeutralGame;
+        std::uint64_t mNeutralWorld = 0;
+        NeutralTerrain::CellWindow mNeutralWindow;
         // Task 0095: reads the pack on a worker thread; declared after the terrain storage it reads, so it goes first.
         std::unique_ptr<PuddleMapRuntime> mPuddleMap;
         std::unique_ptr<Terrain::View> mTerrainView;

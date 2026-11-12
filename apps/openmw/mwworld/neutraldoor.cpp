@@ -64,6 +64,11 @@ namespace MWWorld
                 decision.mDestinationCell = teleport.destinationCell;
                 decision.mArrival = neutralArrivalPosition(teleport);
                 break;
+            case NeutralDestination::ExteriorWorld:
+                decision.mOutcome = NeutralDoorOutcome::Teleport;
+                decision.mDestinationCell = teleport.destinationCell;
+                decision.mArrival = neutralArrivalPosition(teleport);
+                break;
             case NeutralDestination::Exterior:
                 decision.mOutcome = NeutralDoorOutcome::Exterior;
                 break;
