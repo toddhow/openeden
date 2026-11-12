@@ -121,7 +121,7 @@ case "$SHOT" in lodview|lodobjview) echo "content=n4lodview.omwscripts" >> "$WOR
 # Task 0136 (skinned trunks): the same walk to a grove of the 35 TREE records whose model has a BSTreeNode (trunk and branches are skinned shapes).
 [ "$SHOT" = trunks ] && echo "content=trunks.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = poslog ] && echo "content=poslog.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0142: "actactor" and "actdoor" stand the player before Hulda or the Mare front door, facing it;
+# Task 0150: "actactor" and "actdoor" stand the player before Hulda or the Mare front door, facing it;
 # the activate key then comes from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true in SETTINGS_EXTRA) and
 # OPENEDEN_ACTIVATE_TRACE=1 logs the focus query (use at least 2400 frames; the script's press frame must be after real second 6).
 case "$SHOT" in actactor|actdoor) echo "content=$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac

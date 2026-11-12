@@ -26,7 +26,7 @@ namespace MWClass
     public:
         std::string_view getName(const MWWorld::ConstPtr& ptr) const override;
         std::string_view getModel(const MWWorld::ConstPtr& ptr) const override;
-        /// Task 0142: the activate key (MWWorld::Player::activate) ignores a focused object whose class has no tooltip,
+        /// Task 0150: the activate key (MWWorld::Player::activate) ignores a focused object whose class has no tooltip,
         /// so a neutral actor, door or container has one (a caption: its name), and every other kind stays silent.
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override;
         MWGui::ToolTipInfo getToolTipInfo(const MWWorld::ConstPtr& ptr, int count) const override;

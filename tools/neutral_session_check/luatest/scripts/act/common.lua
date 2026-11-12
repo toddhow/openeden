@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0142): stands the player a short way in front of a target, FACING it (first person
+-- tools/neutral_session_check (task 0150): stands the player a short way in front of a target, FACING it (first person
 -- camera, nothing static), and logs what the engine's own focus query sees there. The activation itself is NOT done
 -- here: a synthetic activate key press arrives through the real input path (OPENEDEN_RMLUI_INPUT_SCRIPT), which is the
 -- point of the scenario (task 0141's tests all used object:activateBy, which skips the focus ray and the tooltip check).

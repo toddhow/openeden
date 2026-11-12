@@ -199,7 +199,7 @@ namespace MWWorld
 
         MWWorld::Ptr toActivate = MWBase::Environment::get().getWorld()->getFocusObject();
 
-        // Task 0142: a test aid that says where the activate key's path ends (OPENEDEN_ACTIVATE_TRACE=1).
+        // Task 0150: a test aid that says where the activate key's path ends (OPENEDEN_ACTIVATE_TRACE=1).
         static const bool trace = [] {
             const char* text = std::getenv("OPENEDEN_ACTIVATE_TRACE");
             return text != nullptr && *text != 0 && *text != '0';

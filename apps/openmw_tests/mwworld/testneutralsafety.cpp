@@ -166,7 +166,7 @@ namespace
             EXPECT_NO_THROW(cls.getModel(ptr));
             EXPECT_NO_THROW(cls.getCorrectedModel(ptr));
             EXPECT_NO_THROW(EXPECT_TRUE(cls.getScript(ptr).empty()));
-            EXPECT_NO_THROW(cls.hasToolTip(ptr)); // which kinds have one: NeutralActivationFocus below (task 0142)
+            EXPECT_NO_THROW(cls.hasToolTip(ptr)); // which kinds have one: NeutralActivationFocus below (task 0150)
             EXPECT_NO_THROW(EXPECT_FALSE(cls.canLock(ptr)));
             EXPECT_NO_THROW(EXPECT_FALSE(cls.isEssential(ptr)));
             EXPECT_NO_THROW(EXPECT_TRUE(cls.getEnchantment(ptr).empty()));
@@ -178,7 +178,7 @@ namespace
         }
     }
 
-    // Task 0142: the activate key (MWWorld::Player::activate) and the tooltip drop a focused object whose class says it
+    // Task 0150: the activate key (MWWorld::Player::activate) and the tooltip drop a focused object whose class says it
     // has no tooltip. A neutral actor, door and container are things the player acts on, so they have one; the other
     // kinds (statics, lights, items nothing can take yet, leveled lists) stay inert and silent.
     TEST_F(NeutralSafetyFixture, only_the_kinds_the_player_acts_on_have_a_tooltip_and_so_can_be_activated)
