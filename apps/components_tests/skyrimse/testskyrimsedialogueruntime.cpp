@@ -267,6 +267,26 @@ namespace
     }
 
     constexpr FormId kNpcC = kSelf | 0x203;
+    constexpr FormId kTopicMisc = kSelf | 0x317;
+
+    /// A named topic of category 7 (miscellaneous): the game says it, the player never picks it.
+    Bytes namedMiscTopic(std::uint32_t id, const std::string& name, const std::vector<InfoSpec>& infos)
+    {
+        Bytes children;
+        for (const InfoSpec& i : infos)
+            children.append(infoRecord(i));
+        Bytes b;
+        b.append(edid(name));
+        b.append(sub4("FULL", Bytes().zstring(name)));
+        b.append(sub4("PNAM", Bytes().f32(1.0f)));
+        b.append(sub4("QNAM", Bytes().u32(kQuest)));
+        b.append(sub4("DATA", Bytes().u8(0).u8(7).u16(0)));
+        b.append(sub4("SNAM", Bytes().text("MISC")));
+        b.append(sub4("TIFC", Bytes().u32(static_cast<std::uint32_t>(infos.size()))));
+        Bytes record = record4("DIAL", 0, id, b);
+        record.append(group4(id, kGrupTopicChildren, children));
+        return record;
+    }
 
     Bytes namedNpc(std::uint32_t id, const std::string& editorId, const std::string& full)
     {
@@ -295,6 +315,7 @@ namespace
         InfoSpec scripted = info(0x27, "Take this.");
         scripted.mConditions = sub4("VMAD", Bytes().u16(5).u16(2).u16(0));
         dials.append(playerTopic(kTopicScript, "Gift", { scripted }));
+        dials.append(namedMiscTopic(kTopicMisc, "Overheard", { info(0x29, "Nobody picks this.") }));
         dials.append(playerTopic(kTopicNoName, "Hidden", { info(0x28, "Nobody sees this.") }, false));
         Bytes npcs = npc(kNpcA, "Alice", NpcFlags::Female, 0, 0, {}, kVoice, faction(kFaction, 1));
         npcs.append(npc(kNpcB, "Bob", 0, 0, 0, {}, 0, Bytes()));
@@ -461,6 +482,21 @@ namespace
         EXPECT_EQ(talk.mRuntime->stats().mScriptsNotRun, 1u);
         ASSERT_TRUE(talk.mRuntime->choose(idOf(turn, "Rumors"), reply, error));
         EXPECT_FALSE(reply.hadUnrunEffects);
+    }
+
+    TEST(SkyrimDialogueRuntime, aTopicThatPassesButWasCutFromTheListIsRefused)
+    {
+        DialogueRuntimeLimits limits;
+        limits.mMaxTopics = 1;
+        Talk talk(conversationPlugin(), limits);
+        Turn turn, reply;
+        std::string error;
+        ASSERT_TRUE(talk.mRuntime->begin(Talk::speaker(kNpcA), turn, error));
+        ASSERT_EQ(turn.topics.size(), 1u);
+        error.clear();
+        // "Work" has a response for Alice, but it is not on the list she was shown
+        EXPECT_FALSE(talk.mRuntime->choose(kTopicOnce, reply, error));
+        EXPECT_FALSE(error.empty());
     }
 
     TEST(SkyrimDialogueRuntime, theTopicLimitCutsTheListAndCountsWhatItCut)

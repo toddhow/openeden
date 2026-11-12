@@ -13,6 +13,7 @@ local ACTORS = {
     { -241.652, -1071.21, 68 },
 }
 local INTERVAL = 14
+local MAXACT = 1 -- Hulda only: a box left open by the real click path must not meet a second activation
 local start, step, shotAt = nil, 0, {}
 
 local function nearest(cell, pos)
@@ -42,7 +43,7 @@ return {
                     print('N5T shot at ' .. string.format('%.1f', t))
                 end
             end
-            if step < #ACTORS and t >= 8 + step * INTERVAL then
+            if step < MAXACT and t >= 8 + step * INTERVAL then
                 step = step + 1
                 local obj = nearest(player.cell, ACTORS[step])
                 if obj == nil then

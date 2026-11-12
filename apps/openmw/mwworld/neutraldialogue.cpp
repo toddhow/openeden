@@ -125,11 +125,12 @@ namespace MWWorld
     {
         if (mActive)
             close();
-        MWBase::Environment& env = MWBase::Environment::get();
+        const MWBase::Environment& env = MWBase::Environment::get();
         const auto message = [&](const char* key) { return env.getL10nManager()->getMessage("OMWEngine", key); };
         mActive = true;
         mInjected = -1;
         mPolls = 0;
+        mTurns = 0;
         const char* script = std::getenv("OPENEDEN_NEUTRAL_DIALOGUE_PRESS");
         mScript = script != nullptr ? parseNeutralDialoguePressScript(script) : std::vector<std::pair<int, int>>{};
         mGameId = std::move(gameId);
@@ -213,6 +214,8 @@ namespace MWWorld
 
     void NeutralDialogueSession::abandon()
     {
+        if (mActive)
+            Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";
         mActive = false;
         mInjected = -1;
         mPager.reset();

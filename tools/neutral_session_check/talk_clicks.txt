@@ -1,0 +1,10 @@
+# task 0140: real clicks on the conversation box (800x600 window): topic "Give me the latest gossip.", then Goodbye.
+11000 shot
+12000 mouse 404 306
+12004 down L 404 306
+12006 up L 404 306
+12500 shot
+13500 mouse 402 408
+13504 down L 402 408
+13506 up L 402 408
+14500 shot
