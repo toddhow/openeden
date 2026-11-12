@@ -1,4 +1,4 @@
-# Task 0139: the player drift in a neutral Skyrim exterior (found by experiment)
+# Task 0140: the player drift in a neutral Skyrim exterior (found by experiment)
 
 Reported in task 0138: after arriving at Whiterun's gate the player "drifted" 1,271 units in y in 12 s and fell 200, and
 after a `tp` 1,000 units in x. Guessed to be slope physics; not investigated. This task found the cause.

@@ -250,7 +250,7 @@ TEST(SkyrimShape, a_blended_only_model_has_no_collision)
     EXPECT_EQ(MWPhysics::SkyrimShape::counters().mNoMesh.load(), before + 1);
 }
 
-// Task 0139: the stand-in box of a model with nothing to collide with threw the player 1,000 units in one frame.
+// Task 0140: the stand-in box of a model with nothing to collide with threw the player 1,000 units in one frame.
 TEST(SkyrimShape, a_model_read_fine_with_nothing_to_collide_with_is_remembered_as_collision_free)
 {
     ensureJoltInitialized();

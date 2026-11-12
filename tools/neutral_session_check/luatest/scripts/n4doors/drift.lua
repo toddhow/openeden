@@ -1,4 +1,4 @@
--- Task 0139: the gate scenario of task 0138 with a per-frame trace of the player around the tp, the gate door and the
+-- Task 0140: the gate scenario of task 0138 with a per-frame trace of the player around the tp, the gate door and the
 -- door back (the case that drifted); the trace thins out two seconds after each action.
 local common = require('scripts.n4doors.common')
 local BASE = 'skyrimse:b330099'

@@ -1,4 +1,4 @@
--- Task 0139: traces the player every 0.25 s (position, speed from the position change, on-ground, swimming, controls)
+-- Task 0140: traces the player every 0.25 s (position, speed from the position change, on-ground, swimming, controls)
 -- while the global step script has switched the trace on.
 local self = require('openmw.self')
 local types = require('openmw.types')

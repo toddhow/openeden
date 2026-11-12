@@ -1,4 +1,4 @@
--- Task 0139: teleports the player (onGround) to a list of spots of WhiterunWorld, one every 4 s, and reports where it
+-- Task 0140: teleports the player (onGround) to a list of spots of WhiterunWorld, one every 4 s, and reports where it
 -- is 3 s later, to see where the player stays put and where it jumps. Spots from the street out to the gate.
 local common = require('scripts.n4doors.common')
 local spots = {

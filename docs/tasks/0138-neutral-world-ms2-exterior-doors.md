@@ -89,7 +89,7 @@ masters only, frames viewed):
   `WhiterunExterior04` (4,-2), arrival 19243.5,-7427.34 (player 19244,-7427), Tamriel terrain built (144 cells); the Tamriel
   side is locked (key 888588): refused ("NLOCK ... -> 3") without the key, with `OPENEDEN_NEUTRAL_KEYS=skyrimse:D8F0C` it opens
   ("-> 2") and arrives in WhiterunWorld at 19516,-7428.37.
-- ~~Not understood: the drift of 1,271 units in y and 1,000 in x~~ **Explained and fixed in task 0139** (not slope
+- ~~Not understood: the drift of 1,271 units in y and 1,000 in x~~ **Explained and fixed in task 0140** (not slope
   physics: `unstuck` threw the player out of a 3,300-unit stand-in box of a river effect volume,
   `WRMainRoadPlainsRiver01ACT`).
 
