@@ -71,3 +71,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_258 HasAssociationType(actor, association type) (CK wiki page toddhow showed). Red, then 71 of 71. Real data: 31,630 of 32,148 lists (98.4 percent); unknown conditions 573 (0.75 percent), 56 distinct functions.
 - 2026-11-11: fn_635 IsInFavorState (CK wiki page toddhow showed). Red, then 72 of 72.
 - 2026-11-11: fn_18 GetCurrentTime (game hour as a decimal; CK wiki page toddhow showed). Red, then 73 of 73.
+- 2026-11-11: fn_610 LocAliasHasKeyword(location alias, keyword): parameters from the CK dialog toddhow showed; meaning INFERRED from the name and fn_605. Red, then 74 of 74.

@@ -479,6 +479,14 @@ namespace game_skyrimse::conditions
         /// fn_18 GetCurrentTime: the game hour as a decimal, 4:30 am = 4.5, 7:45 pm = 19.75 (CK wiki, shown by toddhow,
         /// 2026-11-11).
         virtual float gameHour() const { return 0.f; }
+        /// fn_610 LocAliasHasKeyword(location alias, keyword): does the location that alias of the owning quest holds
+        /// have the keyword? Parameters from the CK condition dialog (shown by toddhow, 2026-11-11); the meaning is
+        /// INFERRED from the name and fn_605.
+        virtual bool locAliasHasKeyword(std::uint32_t alias, std::uint32_t keyword) const
+        {
+            (void)alias, (void)keyword;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

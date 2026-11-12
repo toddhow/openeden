@@ -443,6 +443,12 @@ namespace game_skyrimse::conditions
             return world.gameHour();
         }
 
+        // 610 LocAliasHasKeyword(location alias, keyword): meaning inferred (CK dialog, toddhow 2026-11-11)
+        float locAliasHasKeyword(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.locAliasHasKeyword(c.mParam1, c.mParam2));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -451,7 +457,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 69> sTable = { {
+        constexpr std::array<Entry, 70> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -514,6 +520,7 @@ namespace game_skyrimse::conditions
             { 596, spellHasKeyword },
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
+            { 610, locAliasHasKeyword },
             { 624, getInContainer },
             { 629, getVMQuestVariable },
             { 630, getVMScriptVariable },

@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool locAliasHasKeyword(std::uint32_t a, std::uint32_t k) const override { return a == 5 && k == 0x1C0; }
         float gameHour() const override { return 19.75f; }
         bool mInFavorStateFlag = true;
         bool inFavorState(Subject s) const override { return s == mSubject && mInFavorStateFlag; }
@@ -653,6 +654,17 @@ namespace
         EXPECT_TRUE(run(cond(18, kEq, 19.75f), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(18, kEq, 19.75f), w));
+    }
+
+    // fn_610 LocAliasHasKeyword(location alias, keyword): parameters from the CK dialog toddhow showed (2026-11-11),
+    // meaning inferred from the name and fn_605. Names its alias, so no subject.
+    TEST(SkyrimConditionFunctions, fn_610_location_alias_has_keyword)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(610, kEq, 1.f, 5, 0x1C0), w));
+        EXPECT_TRUE(run(cond(610, kEq, 0.f, 5, 0x1C1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(610, kEq, 1.f, 5, 0x1C0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
