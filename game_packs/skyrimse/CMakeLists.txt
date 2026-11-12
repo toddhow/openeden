@@ -5,10 +5,12 @@ openeden_add_game_pack(skyrimse
         src/skyrimse_game_pack.cpp
         src/pack_core.cpp
         src/records.cpp
+        src/actors.cpp
         src/world_view.cpp
         src/neutral_world.cpp
         include/game_skyrimse/pack_core.hpp
         include/game_skyrimse/records.hpp
+        include/game_skyrimse/actors.hpp
         include/game_skyrimse/world_view.hpp
         include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
@@ -36,6 +38,7 @@ target_link_libraries(skyrimse
 add_library(game_skyrimse_world STATIC
     src/pack_core.cpp
     src/records.cpp
+    src/actors.cpp
     src/world_view.cpp
     src/neutral_world.cpp
 )

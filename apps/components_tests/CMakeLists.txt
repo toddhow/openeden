@@ -488,6 +488,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepacksession.cpp
     skyrimse/testskyrimseasyncindex.cpp
     skyrimse/testskyrimserecords.cpp
+    skyrimse/testskyrimseactors.cpp
+    skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseworldview.cpp
     skyrimse/testskyrimseworldviewreal.cpp
@@ -503,6 +505,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/records.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actors.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
