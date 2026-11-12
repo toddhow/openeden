@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mTalked = true;
+        bool talkedToPlayer(Subject s) const override { return s == mSubject && mTalked; }
         float baseActorValue(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 100.f : 0.f; }
         bool locAliasIs(std::uint32_t a, std::uint32_t l) const override { return a == 5 && l == 0x150; }
         bool inLocationAlias(Subject s, std::uint32_t a) const override { return s == mSubject && a == 6; }
@@ -383,6 +385,18 @@ namespace
         EXPECT_TRUE(run(cond(277, kEq, 0.f, 25), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(277, kEq, 0.f, 24), w));
+    }
+
+    // fn_50 GetTalkedToPC: the subject has ever spoken to the player (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_50_has_talked_to_the_player)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(50, kEq, 1.f), w));
+        w.mTalked = false;
+        EXPECT_TRUE(run(cond(50, kEq, 0.f), w));
+        w.mTalked = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(50, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

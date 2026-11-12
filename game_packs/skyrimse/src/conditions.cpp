@@ -299,6 +299,12 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.baseActorValue(subject, c.mParam1) : 0.f;
         }
 
+        // 50 GetTalkedToPC (CK wiki, toddhow 2026-11-11)
+        float getTalkedToPC(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.talkedToPlayer(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -307,13 +313,14 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 45> sTable = { {
+        constexpr std::array<Entry, 46> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
             { 48, getGold },
+            { 50, getTalkedToPC },
             { 56, getQuestRunning },
             { 58, getStage },
             { 59, getStageDone },
