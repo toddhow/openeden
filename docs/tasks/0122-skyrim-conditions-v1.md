@@ -58,3 +58,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_66 GetShouldAttack(target), fn_640 GetActorValuePercent(actor value) (CK wiki pages toddhow showed). Red, then 57 of 57.
 - 2026-11-11: fn_459 GetCrimeGold(faction, optional), fn_289 IsInCombat(flag) (CK wiki pages toddhow showed). Red, then 58 of 58. Real data: 31,128 of 32,148 lists (96.8 percent); unknown conditions 1,244 (1.6 percent).
 - 2026-11-11: fn_49 GetSleeping (sleep state 0 to 4; CK wiki page toddhow showed). Red, then 59 of 59.
+- 2026-11-11: xEdit's names checked against UESP's 'Skyrim Mod:Function Indices' page (a saved copy toddhow supplied, not committed; 734 indices, 0 to 733): all 255 surveyed indices name the same function, 6 differ only in wording (327 IsRidingMount/IsRidingHorse, 339, 680, 681, 725, 732). UESP states the CTDA index is the console id minus 4096, which confirms the raw index the decoder reads.
