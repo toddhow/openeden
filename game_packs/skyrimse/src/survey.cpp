@@ -62,6 +62,12 @@ namespace game_skyrimse::survey
         return "fn_" + std::to_string(index);
     }
 
+    std::string describeFunction(std::uint16_t index)
+    {
+        const std::string_view name = upstreamFunctionName(index);
+        return name.empty() ? functionName(index) : functionName(index) + " (" + std::string(name) + "?)";
+    }
+
     bool forEachSubrecord(std::span<const std::byte> data, const std::function<void(const SubrecordView&)>& visit)
     {
         constexpr std::uint32_t xxxx = fourCC("XXXX");
@@ -350,7 +356,7 @@ namespace game_skyrimse::survey
             if (rank++ >= topFunctions)
                 break;
             const FunctionStats& f = s.mFunctions.at(index);
-            out << tag << "function #" << rank << " " << functionName(index) << " uses " << uses << " records ["
+            out << tag << "function #" << rank << " " << describeFunction(index) << " uses " << uses << " records ["
                 << joinCounts(f.mByRecordType, 4) << "] run-on [" << runOnText(f.mRunOn) << "] compare ["
                 << joinCounts(f.mCompare, 6) << "] global " << f.mUseGlobal << " or " << f.mOrFlag << " p1 ["
                 << paramText(f.mParam1) << "] p2 [" << paramText(f.mParam2) << "] p3 [" << paramText(f.mParam3) << "] ref [" << paramText(f.mReference)

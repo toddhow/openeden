@@ -1,5 +1,5 @@
 #!/bin/bash
-# Task 0116: the gated real-data Skyrim SE data survey (docs/research/0053-skyrim-rules-survey.md).
+# Task 0116: the gated real-data Skyrim SE data survey (docs/research/0055-skyrim-rules-survey.md).
 #
 # Measures, on the player's own installed data, which pieces of Skyrim's rules real content uses most: condition
 # functions (CTDA) by index, record type and parameter kind; the native Papyrus functions the game's scripts call and

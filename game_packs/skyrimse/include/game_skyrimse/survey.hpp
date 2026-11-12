@@ -7,8 +7,9 @@
 // it the player's own plugins and prints aggregates.
 //
 // Clean-room rule (CLAUDE.md, decision 0014): this file contains no condition function table. A function is known by
-// its index only, written fn_<index>; what a function reads is shown by the data (the parameter kinds below), never by
-// a name copied from xEdit, the Creation Kit wiki or CommonLib.
+// its index, written fn_<index>; what a function reads is shown by the data (the parameter kinds below). Names come
+// only from survey_names.cpp (upstream OpenMW's table, cited there), never from xEdit, the Creation Kit wiki or
+// CommonLib.
 //
 // The CTDA layout (32 bytes) is RECALLED-VERIFY until the real-data check has verified it on the installed plugins; the
 // checks that do so are listed in the research note of the survey.
@@ -21,6 +22,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -54,8 +56,15 @@ namespace game_skyrimse::survey
     /// False unless the subrecord is exactly kCtdaSize bytes.
     [[nodiscard]] bool decodeCtda(std::span<const std::byte> data, Ctda& out);
 
-    /// "fn_<index>": the only name a function gets here.
+    /// "fn_<index>": the identity of a function here.
     [[nodiscard]] std::string functionName(std::uint16_t index);
+
+    /// A name for the index from the upstream OpenMW table (survey_names.cpp; the Oblivion/FO3/FNV numbering,
+    /// RECALLED-VERIFY, given only for indices up to 330 that the data agrees with), or an empty view.
+    [[nodiscard]] std::string_view upstreamFunctionName(std::uint16_t index);
+
+    /// "fn_72 (GetIsID?)": the index and, when known, the upstream name with a question mark.
+    [[nodiscard]] std::string describeFunction(std::uint16_t index);
 
     /// One subrecord of a record's data.
     struct SubrecordView

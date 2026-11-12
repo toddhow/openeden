@@ -1,4 +1,4 @@
-# Research note 0053: what real Skyrim SE content uses (conditions, Papyrus natives and events, NIF block types)
+# Research note 0055: what real Skyrim SE content uses (conditions, Papyrus natives and events, NIF block types)
 
 Status: measured, aggregates only. Task 0116 (`docs/tasks/0116-skyrim-data-survey.md`), item 2 of section 8 of `docs/design/skyrim-se-implementation-plan.md`. Everything below was measured on this machine's installed Skyrim Special Edition with `tools/skyrimse_survey_check/check.sh`; nothing from the game is committed. **VERIFIED** means checked against the data in this run; **RECALLED-VERIFY** means from memory and not checked; **unknown** means the data cannot say.
 
@@ -6,13 +6,13 @@ Status: measured, aggregates only. Task 0116 (`docs/tasks/0116-skyrim-data-surve
 
 - **Conditions.** The five masters (Skyrim, Update, Dawnguard, HearthFires, Dragonborn) hold **117,272 conditions** (CTDA) in 1,178,642 records, using **255 distinct function indices**. **5 functions give 50 percent of all uses, 20 give 80, 43 give 90, 66 give 95, 141 give 99.** Dialogue responses (INFO) hold 65 percent of the conditions, quests (QUST) 12 percent, AI packages (PACK) 6 percent.
 - **The layout is verified.** Every one of the 117,272 CTDA subrecords is exactly 32 bytes; the compare operator (top 3 bits of byte 0) is only ever 0 to 5; run-on is only ever 0 to 7; the parameters of most functions resolve to form ids of one or two record types (section 2).
-- **The meaning of a function index is not in the data.** Records carry no function names. This survey ranks `fn_<index>` only. Giving the top 43 functions behaviour needs a clean source for what each index does (question 1 in section 7, for toddhow); it is the one thing that can stop the conditions engine.
+- **The data holds no function names; upstream OpenMW has a partial table.** Records carry no names, so the survey ranks `fn_<index>`. Upstream's `components/esm4/script.hpp` (Oblivion/FO3/FNV numbering, cc9cii, zlib-style notice) names 90 of the 255 surveyed indices, all at most 330, which cover 61 percent of uses, and the data's parameter shapes agree with those names (section 2.4). It is wrong from about 360 on and lacks Skyrim's own additions (the 560 to 700 range: fn_566, fn_629, fn_560 among the top nine), so those still need a clean source (question 1 in section 7, for toddhow).
 - **Papyrus.** 14,049 game scripts (all parse), **126,088 call sites, 63,327 of them to natives (528 distinct natives)**. **12 natives give 50 percent of native call sites, 55 give 80, 109 give 90, 172 give 95, 308 give 99.** 117 distinct event handler names; 6 events (OnActivate, OnTriggerEnter, OnLoad, OnDeath, OnUpdate, OnEffectStart) give 50 percent of handlers, 18 give 80 and 37 give 95. Only 3,048 of the 14,049 scripts handle any event: most scripts are fragments.
 - **NIF.** The 22,091 meshes in the master archives use **143 block types; the engine's record reader parses all of them (0 unsupported block types, 0 header failures)**. That says nothing about the renderer, collision or animation use of those blocks.
 
 ## 1. What was run and what it can and cannot say
 
-- Code: `game_packs/skyrimse/{include/game_skyrimse,src}/survey*.{hpp,cpp}` (pure, no file access, no function table), tests `apps/components_tests/skyrimse/testskyrimsesurvey.cpp` (28 tests on generated records, written first and run red against stubs: 25 of the first 26 failed), the gated run `testskyrimsesurveyreal.cpp` and `tools/skyrimse_survey_check/check.sh`.
+- Code: `game_packs/skyrimse/{include/game_skyrimse,src}/survey*.{hpp,cpp}` (pure, no file access, no function table), tests `apps/components_tests/skyrimse/testskyrimsesurvey.cpp` (30 tests on generated records, written first and run red against stubs: 25 of the first 26 failed; built and run in the real CMake tree: `components-tests --gtest_filter=*Skyrim*` 210 pass, the gated `SkyrimSeSurveyReal.*` 3 pass), the gated run `testskyrimsesurveyreal.cpp` and `tools/skyrimse_survey_check/check.sh`.
 - Conditions: the five masters only (the installed Data folder; the Creation Club archives and the user's mod list were **not** surveyed). Records are counted **as stored in each file**: a record that Update.esm or a DLC overrides is counted in both files, so the numbers describe file contents, not the winning load-order state. Compressed records are inflated (0 failures).
 - Papyrus: the 14,049 distinct script names of the master archives (`Skyrim - *.bsa`; Update, Dawnguard, HearthFires and Dragonborn archives when present) plus the loose `Scripts` folder, each name counted once. Creation Club and mod scripts were not counted (note 0046 counted 15,231 with them). Natives are those `link()` of the runtime (task 0093) resolves; calls whose receiver class is not known statically (136 sites) and one unresolved call are left out.
 - NIF: every `.nif` of the master archives, not only meshes a record references (one pass is cheaper than resolving every model path; it over-counts unused meshes slightly).
@@ -127,6 +127,39 @@ Columns: rank, index, uses, cumulative percent, the three record types using it 
 
 The full 255-row table (per-record counts, run-on, compare, flags and parameter kinds) is printed by `check.sh` and not committed.
 
+### 2.4 Names from upstream OpenMW (added after the first version of this note)
+
+**Source (clean, GPL-compatible).** Upstream OpenMW has a table: `components/esm4/script.hpp`, `enum ESM4::FunctionIndices` (about 250 `FUN_<Name> = <index>` entries, indices 1 to 619; file last changed in upstream commit `9889b225b155951b1c6effc896e6857f95886c33`, read at upstream master `97722d48f98f14b323c3880a698e8ce81babf7b3` with `git show` only). It is Copyright (C) 2020-2021 cc9cii under a zlib-style notice (free to use, alter and redistribute; origin not misrepresented; altered versions plainly marked; the notice stays). Its header says the facts come from the UESP wikis (Tes4Mod, Tes5Mod, FO3/FNV pages) and TES5Edit documentation, so it is an Oblivion/FO3/FNV table, not a Skyrim one. We took only index and name pairs (`game_packs/skyrimse/src/survey_names.cpp`, with the notice, the citation and an "altered" statement in its header); nothing else of the file, and nothing from xEdit, the Creation Kit wiki or CommonLib.
+
+**Does the data agree with it?** Mostly for low indices, not above 330. Checks of the parameter shapes in section 2.3 against the upstream names (every name stays RECALLED-VERIFY):
+
+| Index | Upstream name | Data shape | Agrees |
+| --- | --- | --- | --- |
+| 72 | GetIsID | NPC_ form (23,338 of 23,816) | yes |
+| 58 | GetStage | QUST form, run on subject | yes |
+| 71 | GetInFaction | FACT form | yes |
+| 59 | GetStageDone | QUST form, second parameter an integer | yes |
+| 74 | GetGlobalValue | GLOB form | yes |
+| 47 | GetItemCount | item forms (MISC, BOOK, ALCH), most in COBJ | yes |
+| 77 | GetRandomPercent | no parameters | yes |
+| 67 | GetInCell | CELL form | yes |
+| 46 | GetDead | no parameters, reference field set | yes |
+| 14 | GetActorValue | small integer | yes |
+| 1 | GetDistance | reference form | yes |
+| 18 | GetCurrentTime | no parameters (SNDR, MUST) | yes |
+| 69 | GetIsRace | RACE form | yes |
+| 73 | GetFactionRank | FACT form | yes |
+| 56 | GetQuestRunning | QUST form | yes |
+| 310 | GetInWorldspace | WRLD form | yes |
+| 136 | GetIsReference | reference form | yes |
+| 300, 159, 286, 35 | IsInInterior, GetSitting, IsSneaking, GetDisabled | no parameters | yes |
+| 70, 131 | GetIsSex, GetPCIsSex | 0 or 1 (counted as "form STAT" where the number happens to be a record id) | plausible |
+| 362 | GetPlayerHasLastRiddenHorse | PACK only, keyword form | **no** |
+| 403 | HasFriendDisposition | quest/INFO, object forms | **no** |
+| 426 and 448 | not in the table (the table has GetIsVoiceType at 427 and HasPerk at 449) | VTYP/FLST form at 426, PERK form at 448 | Skyrim sits one below the table here |
+
+So the table is usable up to about 330 and wrong from 360 on; the indices Skyrim added (the 560 to 700 range: fn_566, fn_629, fn_560, fn_561, fn_562, fn_576, ...) are not in it at all. **90 of the 255 surveyed indices get a name (those at most 330 that the table has): they cover 71,472 of the 117,272 uses (61 percent).** The nine top functions of build step 2 split as: fn_72 GetIsID, fn_58 GetStage, fn_71 GetInFaction, fn_59 GetStageDone and fn_74 GetGlobalValue have names; fn_566, fn_426, fn_629 and fn_560 do not. The survey output prints `fn_72 (GetIsID?)` for named indices (the question mark means RECALLED-VERIFY).
+
 ## 3. Papyrus natives and events
 
 ### 3.1 Natives, ranked by call sites
@@ -201,7 +234,7 @@ The evaluator (parse CTDA into a plain struct, register functions by index, eval
 4. **43 functions = 90 percent; 66 = 95 percent**: the milestone for "a quest slice runs". Do it when the quest runtime exists; most of this tail is specific to a record type (IDLE needs 44 functions for 90 percent of its own conditions, MGEF 14, PERK 13).
 5. The remaining functions on demand, with strict mode in tests.
 
-**The blocker is the meaning of each index** (question 1, section 7). The engine needs behaviour, and a function index is not a name. This survey gives the call shapes against which a proposed meaning can be checked: a meaning for fn_58 must take a quest form, return a number compared with a constant, and run on the subject (10,619 of 10,632 uses). The game's own quests and scenes are the oracle (plan risk 3). The survey does not provide the meaning.
+**The blocker is the meaning of the indices the table lacks** (question 1, section 7). Names exist for 90 indices up to 330 (section 2.4, RECALLED-VERIFY, shapes agree); fn_566, fn_426, fn_629 and fn_560 of the top nine and everything Skyrim added above 330 have none. This survey gives the call shapes against which a proposed meaning can be checked: a meaning for fn_58 must take a quest form, return a number compared with a constant, and run on the subject (10,619 of 10,632 uses). The game's own quests and scenes are the oracle (plan risk 3).
 
 ### 6.2 Papyrus world natives v1
 
@@ -212,7 +245,7 @@ The evaluator (parse CTDA into a plain struct, register functions by index, eval
 
 ## 7. What remains unknown, and decisions for toddhow
 
-1. **Function meanings.** Where does a clean-room function table come from? Options: (a) toddhow supplies meanings from his own knowledge, function by function, checked against the shapes in this note; (b) derive by experiment as the ObScript table was (note 0046 section 10): not possible here, because no condition text exists to pair with the bytes; (c) a licensed source. Recommended: (a) for the top 43, each meaning RECALLED-VERIFY until a quest slice passes.
+1. **Function meanings above 330.** Upstream OpenMW's table gives RECALLED-VERIFY names for 90 surveyed indices up to 330 (section 2.4). For the rest (fn_426 and fn_448, which sit one below the table's GetIsVoiceType and HasPerk; fn_560 to fn_700 and others Skyrim added) options are: (a) toddhow supplies meanings from his own knowledge, function by function, checked against the shapes in this note; (b) derive by experiment as the ObScript table was (note 0046 section 10): not possible here, because no condition text exists to pair with the bytes; (c) a licensed source. Recommended: (a) for the few high-use ones (fn_566, fn_426, fn_629, fn_560, fn_448, fn_359), each RECALLED-VERIFY until a quest slice passes; the first nine build-order functions then need only four decisions.
 2. The **compare-operator, run-on and flag bit meanings** are recalled, not verified (section 2).
 3. **Winners.** Counts are per file; overridden records count twice. A load-order-winner count needs the record merge (the world view does it for cells only).
 4. **Mods.** The Creation Club content and the user's mod list were not surveyed; the tool takes the Data folder only. Extending it to a Mod Organizer 2 profile is small.

@@ -98,6 +98,29 @@ namespace
         EXPECT_EQ(functionName(65535), "fn_65535");
     }
 
+    TEST(SkyrimSurveyNames, upstream_names_for_known_indices_and_none_otherwise)
+    {
+        EXPECT_EQ(upstreamFunctionName(72), "GetIsID");
+        EXPECT_EQ(upstreamFunctionName(58), "GetStage");
+        EXPECT_EQ(upstreamFunctionName(310), "GetInWorldspace");
+        EXPECT_TRUE(upstreamFunctionName(0).empty());
+        EXPECT_TRUE(upstreamFunctionName(426).empty()); // not in the table
+        EXPECT_TRUE(upstreamFunctionName(362).empty()); // above 330 the numbering is not trusted
+        EXPECT_TRUE(upstreamFunctionName(65535).empty());
+        EXPECT_EQ(describeFunction(72), "fn_72 (GetIsID?)");
+        EXPECT_EQ(describeFunction(426), "fn_426");
+    }
+
+    TEST(SkyrimSurveyNames, report_function_lines_carry_the_name)
+    {
+        ConditionSurvey s;
+        s.addRecord(cc("INFO"), view(record({ sub("CTDA", ctda(0, 0, 72)), sub("CTDA", ctda(0, 0, 426)) })));
+        std::ostringstream out;
+        writeConditionReport(s, out, 5);
+        EXPECT_NE(out.str().find("function #1 fn_72 (GetIsID?) uses 1"), std::string::npos);
+        EXPECT_NE(out.str().find("function #2 fn_426 uses 1"), std::string::npos);
+    }
+
     TEST(SkyrimSurveySubrecords, walks_in_order_with_xxxx)
     {
         Bytes data = record({ sub("EDID", Bytes().zstring("a")), sub("CTDA", ctda(0, 0, 5)) });

@@ -1,7 +1,7 @@
 # Task: Skyrim SE data survey tools (conditions, Papyrus natives and events, NIF block types)
 
 Status: built (lighter loop, same hand wrote tests and code; see the CLAUDE.md changelog row of 2026-11-11 for what was and was not run).
-Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.16, 4.20, 4.21, section 6 risk 2, section 8 item 2; results in `docs/research/0053-skyrim-rules-survey.md`.
+Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.16, 4.20, 4.21, section 6 risk 2, section 8 item 2; results in `docs/research/0055-skyrim-rules-survey.md`.
 Goal: measure on the user's own installed data which condition functions, Papyrus natives and events real content uses most, so the conditions engine and the Papyrus world natives are built in order of value.
 Inherited code touched: none. New: `game_packs/skyrimse/{include/game_skyrimse,src}/survey.*`, `survey_scripts.*`, `survey_nif.*`; reuses `Content::Plugin`, `inflateRecord`, `LoadOrder`/`FormIdResolver`, `ScriptPapyrus::Pex` and `PapyrusRuntime::nativeCallSites`, `Nif::Reader`.
 Inputs / outputs: the Data folder (read only); aggregate lines starting `SKYRIMSE-SURVEY`; nothing written.
