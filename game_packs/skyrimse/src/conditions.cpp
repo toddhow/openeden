@@ -293,6 +293,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.spellHasKeyword(subject, c.mParam1, c.mParam2));
         }
 
+        // 277 GetBaseActorValue(actor value) (CK wiki, toddhow 2026-11-11)
+        float getBaseActorValue(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.baseActorValue(subject, c.mParam1) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -301,7 +307,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 44> sTable = { {
+        constexpr std::array<Entry, 45> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -328,6 +334,7 @@ namespace game_skyrimse::conditions
             { 182, getEquipped },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
+            { 277, getBaseActorValue },
             { 286, isSneaking },
             { 300, isInInterior },
             { 310, getInWorldspace },

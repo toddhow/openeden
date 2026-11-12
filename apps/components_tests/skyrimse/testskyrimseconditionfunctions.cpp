@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float baseActorValue(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 100.f : 0.f; }
         bool locAliasIs(std::uint32_t a, std::uint32_t l) const override { return a == 5 && l == 0x150; }
         bool inLocationAlias(Subject s, std::uint32_t a) const override { return s == mSubject && a == 6; }
         bool isPlayerTeammate(Subject s) const override { return s == mSubject; }
@@ -372,6 +373,16 @@ namespace
         EXPECT_TRUE(run(cond(360, kEq, 0.f, 6), w));
         EXPECT_TRUE(run(cond(453, kEq, 0.f), w));
         EXPECT_TRUE(run(cond(596, kEq, 0.f, 0, 0x160), w));
+    }
+
+    // fn_277 GetBaseActorValue(actor value): the base value, not the current one (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_277_is_the_base_actor_value)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(277, kEq, 100.f, 24), w));
+        EXPECT_TRUE(run(cond(277, kEq, 0.f, 25), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(277, kEq, 0.f, 24), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

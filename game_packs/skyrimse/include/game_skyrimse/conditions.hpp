@@ -307,6 +307,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)castingSource, (void)keyword;
             return false;
         }
+        /// fn_277 GetBaseActorValue(actor value): the base value of the actor value (fn_14 is the current, modified
+        /// one) (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float baseActorValue(Subject subject, std::uint32_t actorValueIndex) const
+        {
+            (void)subject, (void)actorValueIndex;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
