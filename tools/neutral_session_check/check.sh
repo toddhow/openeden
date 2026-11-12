@@ -56,8 +56,8 @@ content=HearthFires.esm
 content=Dragonborn.esm
 content=n3a3save.omwscripts
 CFG
-# Optional extra openmw.cfg text (for example "fallback-archive=_ResourcePack.bsa", which holds the textures\skyrimhd files some tree
-# meshes name), appended as given.
+# Optional extra openmw.cfg text (for example a further "fallback-archive=" line), appended as given. (The textures\skyrimhd\... paths some tree
+# meshes name are in NO archive: `_ResourcePack.bsa` does not hold them, measured; the engine maps them to plain textures\... instead.)
 [ -n "${CFG_EXTRA:-}" ] && printf '%b' "$CFG_EXTRA" >> "$WORK/config/openmw.cfg"
 # Task 0121: "n5actors" visits each neutral actor of the Bannered Mare and takes a picture of it (use at least 1500 frames).
 [ "$SHOT" = n5actors ] && echo "content=n5actors.omwscripts" >> "$WORK/config/openmw.cfg"
