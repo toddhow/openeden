@@ -467,6 +467,18 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isFlying(subject));
         }
 
+        // 125 IsGuard (CK wiki, toddhow 2026-11-11: the NPC's class is marked as a Guard class)
+        float isGuardFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isGuardClass(subject));
+        }
+
+        // 274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger)
+        float isSmallBumpFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isSmallBump(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -475,7 +487,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 73> sTable = { {
+        constexpr std::array<Entry, 75> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -501,6 +513,7 @@ namespace game_skyrimse::conditions
             { 80, getLevel },
             { 84, getDeadCount },
             { 101, isWeaponMagicOut },
+            { 125, isGuardFn },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
             { 136, getIsReference },
@@ -517,6 +530,7 @@ namespace game_skyrimse::conditions
             { 255, getOffersServicesNow },
             { 258, hasAssociationType },
             { 264, hasSpell },
+            { 274, isSmallBumpFn },
             { 277, getBaseActorValue },
             { 286, isSneaking },
             { 288, getFriendHit },

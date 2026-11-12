@@ -124,6 +124,10 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mIsSmallBumpFlag = true;
+        bool isSmallBump(Subject s) const override { return s == mSubject && mIsSmallBumpFlag; }
+        bool mIsGuardClassFlag = true;
+        bool isGuardClass(Subject s) const override { return s == mSubject && mIsGuardClassFlag; }
         bool mIsFlyingFlag = true;
         bool isFlying(Subject s) const override { return s == mSubject && mIsFlyingFlag; }
         float combatGroupSize(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
@@ -701,6 +705,30 @@ namespace
         w.mIsFlyingFlag = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(594, kEq, 0.f), w));
+    }
+
+    // fn_125 IsGuard (CK wiki, toddhow 2026-11-11: the NPC's class is marked as a Guard class).
+    TEST(SkyrimConditionFunctions, fn_125_isGuard)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(125, kEq, 1.f), w));
+        w.mIsGuardClassFlag = false;
+        EXPECT_TRUE(run(cond(125, kEq, 0.f), w));
+        w.mIsGuardClassFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(125, kEq, 0.f), w));
+    }
+
+    // fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger).
+    TEST(SkyrimConditionFunctions, fn_274_isSmallBump)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(274, kEq, 1.f), w));
+        w.mIsSmallBumpFlag = false;
+        EXPECT_TRUE(run(cond(274, kEq, 0.f), w));
+        w.mIsSmallBumpFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(274, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

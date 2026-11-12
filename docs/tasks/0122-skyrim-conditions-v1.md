@@ -74,3 +74,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_610 LocAliasHasKeyword(location alias, keyword): parameters from the CK dialog toddhow showed; meaning INFERRED from the name and fn_605. Red, then 74 of 74.
 - 2026-11-11: fn_288 GetFriendHit(target actor) (CK wiki page toddhow showed). Red, then 75 of 75.
 - 2026-11-11: fn_415 GetGroupMemberCount (= GetCombatGroupMemberCount, combat group size), fn_594 GetIsFlying (CK wiki pages toddhow showed). Red, then 77 of 77.
+- 2026-11-11: fn_125 IsGuard, fn_274 IsSmallBump (CK wiki pages toddhow showed). Red, then 79 of 79.

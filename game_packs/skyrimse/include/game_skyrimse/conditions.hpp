@@ -508,6 +508,18 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_125 IsGuard (CK wiki, toddhow 2026-11-11: the NPC's class is marked as a Guard class).
+        virtual bool isGuardClass(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger).
+        virtual bool isSmallBump(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
