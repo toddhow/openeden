@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float daysInJail(Subject s) const override { return s == mSubject ? 4.f : 0.f; }
         bool canPayCrimeGold(Subject s, std::uint32_t f) const override { return s == mSubject && (f == 0 || f == 0xA0); }
         bool hasCombatTarget(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14; }
         bool combatTargetHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80; }
@@ -832,6 +833,15 @@ namespace
         EXPECT_TRUE(run(cond(497, kEq, 0.f, 0), w));
         EXPECT_TRUE(run(cond(513, kEq, 0.f, 0x14), w));
         EXPECT_TRUE(run(cond(707, kEq, 0.f, 0x80), w));
+    }
+
+    // fn_499 GetDaysInJail: days the player will serve, 0 unless in jail (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_499_is_the_days_in_jail)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(499, kEq, 4.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(499, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -601,6 +601,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)keyword;
             return false;
         }
+        /// fn_499 GetDaysInJail: run on the player, the days the player will serve if they serve their time; 0 unless
+        /// actually in jail; back to 0 after serving or escaping (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float daysInJail(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

@@ -555,6 +555,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.combatTargetHasKeyword(subject, c.mParam1));
         }
 
+        // 499 GetDaysInJail (CK wiki, toddhow 2026-11-11)
+        float getDaysInJail(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.daysInJail(subject) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -563,7 +569,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 88> sTable = { {
+        constexpr std::array<Entry, 89> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -631,6 +637,7 @@ namespace game_skyrimse::conditions
             { 459, getCrimeGold },
             { 491, getMapMarkerVisible },
             { 497, canPayCrimeGold },
+            { 499, getDaysInJail },
             { 513, isCombatTarget },
             { 543, getQuestCompleted },
             { 560, hasKeyword },

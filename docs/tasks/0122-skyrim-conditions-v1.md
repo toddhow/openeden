@@ -82,3 +82,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_448 HasPerk(perk), fn_430 GetHealthPercentage (0 to 1), fn_491 GetMapMarkerVisible (0 to 2), fn_261 HasParentRelationship(actor) (CK wiki pages toddhow showed). Red, then 84 of 84.
 - 2026-11-11: fn_432 GetIsObjectType(object class) (CK wiki page toddhow showed). Red, then 85 of 85.
 - 2026-11-11: fn_497 CanPayCrimeGold(faction, optional), fn_513 IsCombatTarget(actor), fn_707 GetCombatTargetHasKeyword(keyword) (CK wiki pages toddhow showed; GetGroupTargetCount, fn_416, does not occur in the data and was not added). Red, then 86 of 86. Real data: 31,957 of 32,148 lists (99.4 percent); unknown conditions 195 (0.25 percent), 35 distinct functions.
+- 2026-11-11: fn_499 GetDaysInJail (CK wiki page toddhow showed). Red, then 87 of 87.
