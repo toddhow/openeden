@@ -191,6 +191,8 @@ namespace MWRender
         void ensureNeutralTerrain(const vsg::dvec3& eye);
         /// Task 0133: the baked terrain tiles of the active neutral world, when its pack exists (main thread).
         void startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source);
+        /// Task 0133 stage 2: the far object clusters of a neutral world, from its own pack (see startNeutralLodTerrain).
+        void startNeutralLodClusters(openeden::sdk::game::WorldCellSource& source);
         /// The height and bounds the physics heightfield of a neutral cell needs; the world's cell size and vertices.
         float neutralTerrainCellSize() const;
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.

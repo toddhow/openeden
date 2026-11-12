@@ -176,4 +176,14 @@ namespace Lod
     {
         return facts.mGameId + ":" + facts.mWorldEditorId + ":" + neutralFingerprint(facts);
     }
+
+    ClusterRef clusterRefFromPlacement(std::uint64_t placementId) noexcept
+    {
+        return { static_cast<std::uint32_t>(placementId & 0xFFFFFFFFull), static_cast<std::uint32_t>(placementId >> 32) };
+    }
+
+    std::uint64_t placementFromClusterRef(const ClusterRef& ref) noexcept
+    {
+        return (static_cast<std::uint64_t>(ref.mContentFile) << 32) | ref.mIndex;
+    }
 }

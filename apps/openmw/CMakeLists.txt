@@ -7,6 +7,7 @@ set(OPENMW_SOURCES
     puddlebaker.cpp
     puddlestatics.cpp
     lodobjectbaker.cpp
+    lodneutralobjects.cpp
     bodyanalyser.cpp
     bodybaker.cpp
     bodycommon.cpp
@@ -32,6 +33,7 @@ set(OPENMW_HEADERS
     puddleland.hpp
     puddlestatics.hpp
     lodobjectbaker.hpp
+    lodneutralobjects.hpp
     bodyanalyser.hpp
     bodybaker.hpp
     bodycommon.hpp

@@ -55,6 +55,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwrender/testbonepose.cpp
     mwrender/testskyrimmodel.cpp
+    mwrender/testlodneutralobjects.cpp
     mwrender/testskyrimmaterial.cpp
     mwrender/testskyrimtreesway.cpp
     mwrender/testskyrimactor.cpp

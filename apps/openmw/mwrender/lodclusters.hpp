@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <string>
 #include <span>
 #include <utility>
 #include <vector>
@@ -101,6 +102,9 @@ namespace MWRender
             /// `[WorldLod] object cluster sway distance boost`: the sway grows with the distance (Lod::swayDistanceBoost).
             bool mSwayBoost = false;
             double mCellSize = 8192;
+            /// The worldspace name the pack's manifest must carry ("Morrowind" for the ESM world; a neutral world's
+            /// "<game>:<world>:<fingerprint>", task 0133 stage 2). A pack of another world is not used. Empty: no check.
+            std::string mExpectedWorldspace;
             const Pipeline::Builder* mBuilder = nullptr;
             vsg::ref_ptr<const vsg::Options> mImageOptions;
             vsg::ref_ptr<vsgUtil::CompileContext> mCompile;

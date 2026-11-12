@@ -4,9 +4,11 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <future>
 #include <iterator>
+#include <sstream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -25,19 +27,27 @@
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clusterpack.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/clustersway.hpp>
 #include <components/lod/nifflatten.hpp>
 #include <components/lod/sceneryscript.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/nif/niffile.hpp>
+#include <components/nifscene/build.hpp>
+#include <components/worldmodel/store.hpp>
+#include <openeden/game/world_source.hpp>
+#include <openeden/game/world_terrain.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
+#include "lodneutralobjects.hpp"
 #include "mwbase/environment.hpp"
+#include "mwbase/extensionmanager.hpp"
 #include "mwbase/world.hpp"
 #include "mwrender/distantobjectcells.hpp"
 #include "mwrender/distantobjects.hpp"
+#include "mwrender/lodterrain.hpp"
 #include "mwworld/esmstore.hpp"
 
 namespace OMW
@@ -77,12 +87,18 @@ namespace OMW
             float mPos[3] = { 0, 0, 0 };
             float mRot[3] = { 0, 0, 0 };
             float mScale = 1;
+            // Task 0133 stage 2: a neutral object carries its transform as a matrix (mRef holds the placement id in its
+            // two words, see Lod::clusterRefFromPlacement).
+            bool mHasMatrix = false;
+            std::array<double, 12> mMatrix{};
         };
 
         struct ModelEntry
         {
             std::string mPath;
             bool mOk = false;
+            float mMaxScale = 0; // neutral bake: the largest scale any object of the model has
+            bool mTooSmall = false; // neutral bake: too small for every level, dropped after the read
             Lod::FlattenedModel mFlat;
             EdenArchive::Hash mHash{};
         };
@@ -155,6 +171,22 @@ namespace OMW
         std::string mSwayModels;
         float mSwayLean = 0;
         std::size_t mSceneryObjects = 0, mSceneryNamed = 0, mSceneryScripted = 0;
+
+        // Task 0133 stage 2: a game pack's neutral world (Skyrim SE). Set by beginNeutral.
+        struct NeutralCell
+        {
+            std::int32_t mX = 0, mY = 0;
+            std::uint64_t mId = 0;
+        };
+        bool mNeutral = false;
+        std::string mGameId;
+        std::string mWorldName;
+        std::string mManifestName;
+        std::uint32_t mCellSize = 0; // world units, from the world
+        NeutralWorld::NeutralWorldStore* mNeutralStore = nullptr;
+        std::vector<NeutralCell> mNeutralCells;
+        std::size_t mCellsFailed = 0, mDisabled = 0, mMarkers = 0, mTooSmallModels = 0, mTooSmallObjects = 0;
+        bool mFinished = false;
 
         // Models
         std::size_t mNextModel = 0;
@@ -230,6 +262,34 @@ namespace OMW
             entry.mOk = true;
         }
 
+        // Task 0133 stage 2: a Skyrim model read through the scene reader and flattened (static shapes, node transforms
+        // baked in), then turned into cluster pieces. The texture names become VFS paths; one that is not in the VFS is
+        // dropped (the piece is then drawn untextured, as the live path draws a missing texture).
+        void loadNeutralModel(const VFS::Manager& vfs, ModelEntry& entry)
+        {
+            const VFS::Path::Normalized path(entry.mPath);
+            std::string bytes;
+            {
+                Files::IStreamPtr stream = vfs.get(path);
+                bytes.assign((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+                EdenArchive::Hasher hasher;
+                hasher.update(bytes.data(), bytes.size());
+                entry.mHash = hasher.finalize();
+            }
+            Files::IStreamPtr stream(new std::istringstream(std::move(bytes)));
+            const NifScene::Scene scene = NifScene::readScene(std::move(stream), path, NifScene::SceneOptions{});
+            const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene);
+            entry.mFlat = NeutralLod::toFlattenedModel(flat, true);
+            for (Lod::SourcePiece& piece : entry.mFlat.mPieces)
+                if (!piece.mTexture.empty())
+                {
+                    piece.mTexture = NeutralLod::textureVfsPath(piece.mTexture);
+                    if (!vfs.exists(VFS::Path::Normalized(piece.mTexture)))
+                        piece.mTexture.clear();
+                }
+            entry.mOk = true;
+        }
+
         // An activator whose model may stand in a far cluster (task 0096 stage b): scenery nobody can use and nothing
         // changes. It has no name (the game offers no activation without one, and the tooltip needs it), and no script,
         // or a script that never enables, disables, moves, turns, scales or removes it or starts another script
@@ -251,6 +311,64 @@ namespace OMW
                 scripted = script == nullptr || Lod::scriptChangesItsObject(script->mScriptText);
             }
             return !named && !scripted;
+        }
+
+        // Task 0133 stage 2: a session of a game pack with a neutral world source bakes that world's static objects.
+        // True when this is such a session and the bake is set up; false for Morrowind's; with state.mFinished set
+        // when it IS such a session and cannot go on (the reason is logged). The world is OPENEDEN_LOD_BAKE_WORLD (an
+        // editor id, default Tamriel) like the terrain baker's. The cells are the world's own, and for a cell it has
+        // none of the parent's when the parent lends its land (the same rule as the terrain: WhiterunWorld shows
+        // Tamriel's horizon).
+        bool beginNeutral(LodObjectBaker::State& state)
+        {
+            if (!Settings::game().mNeutralWorld)
+                return false;
+            NeutralWorld::NeutralWorldStore* store
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            if (store == nullptr || store->sourceCount() == 0)
+                return false;
+            const std::vector<std::string> games = store->gameIds();
+            state.mGameId = games.front();
+            openeden::sdk::game::WorldCellSource* source = store->source(state.mGameId);
+            const char* requested = std::getenv("OPENEDEN_LOD_BAKE_WORLD");
+            const std::string worldName
+                = requested != nullptr && *requested != 0 ? std::string(requested) : std::string("Tamriel");
+            const openeden::sdk::game::WorldId world = store->findWorldByEditorId(state.mGameId, worldName);
+            openeden::sdk::game::WorldSpaceInfo info;
+            if (source == nullptr || world == openeden::sdk::game::kNoWorldId || !source->worldInfo(world, info))
+            {
+                Log(Debug::Error) << "LOD object bake failed, no pack written: " << state.mGameId << " has no world '"
+                                  << worldName << "' (set OPENEDEN_LOD_BAKE_WORLD to an editor id).";
+                state.mFinished = true;
+                return false;
+            }
+            state.mNeutralStore = store;
+            state.mWorldName = info.editorId;
+            state.mCellSize = static_cast<std::uint32_t>(info.cellSizeUnits);
+            state.mManifestName = Lod::neutralWorldspaceName(MWRender::neutralWorldFacts(*source, info));
+            const bool lends = info.parent != openeden::sdk::game::kNoWorldId
+                && (info.parentUsage & openeden::sdk::game::TerrainParentUsage::Land) != 0;
+            constexpr std::int32_t scanRadius = 100; // as the terrain baker's scan
+            bool onBorder = false;
+            for (std::int32_t y = -scanRadius; y <= scanRadius; ++y)
+                for (std::int32_t x = -scanRadius; x <= scanRadius; ++x)
+                {
+                    openeden::sdk::game::WorldId id = source->findCellByGrid(world, x, y);
+                    if (id == openeden::sdk::game::kNoWorldId && lends)
+                        id = source->findCellByGrid(info.parent, x, y);
+                    if (id == openeden::sdk::game::kNoWorldId)
+                        continue;
+                    state.mNeutralCells.push_back({ x, y, id });
+                    onBorder = onBorder || std::abs(x) == scanRadius || std::abs(y) == scanRadius;
+                }
+            if (onBorder)
+                Log(Debug::Warning) << "LOD object bake: cells reach the border of the scan (" << scanRadius
+                                    << " cells from the origin); a larger world needs a larger scan.";
+            state.mNeutral = true;
+            Log(Debug::Info) << "LOD object bake: neutral world " << state.mGameId << " / " << state.mWorldName
+                             << ", cells of " << state.mCellSize << " units; " << state.mNeutralCells.size()
+                             << " exterior cells" << (lends ? " (the parent's where the world has none)" : "") << ".";
+            return true;
         }
 
         std::vector<std::uint8_t> parameterBytes(std::uint32_t level, std::uint32_t error, std::uint32_t cellSize,
@@ -294,7 +412,11 @@ namespace OMW
         }
         const MWWorld::ESMStore* store = MWBase::Environment::get().getESMStore();
         const VFS::Manager* vfs = state.mResources.getVFS();
-        const auto cellSize = static_cast<std::uint32_t>(ESM::Land::REAL_SIZE);
+        if (state.mFinished)
+            return true;
+        auto cellSize = static_cast<std::uint32_t>(ESM::Land::REAL_SIZE);
+        if (state.mNeutral)
+            cellSize = state.mCellSize;
 
         if (!state.mStarted)
         {
@@ -312,24 +434,110 @@ namespace OMW
             if (MWBase::World* world = MWBase::Environment::get().getWorld();
                 world != nullptr && !world->getGodModeState())
                 world->toggleGodMode();
-            const auto& cells = store->get<ESM::Cell>();
-            for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
-                state.mCells.emplace_back(it->getGridX(), it->getGridY());
-            std::sort(state.mCells.begin(), state.mCells.end());
+            if (beginNeutral(state))
+                cellSize = state.mCellSize;
+            else if (state.mFinished)
+                return true;
+            if (!state.mNeutral)
+            {
+                const auto& cells = store->get<ESM::Cell>();
+                for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
+                    state.mCells.emplace_back(it->getGridX(), it->getGridY());
+                std::sort(state.mCells.begin(), state.mCells.end());
+            }
             state.mManifest.mBakerVersion = bakerVersion;
             state.mManifest.mCellSize = cellSize;
-            state.mManifest.mWorldspace = worldspaceName;
+            state.mManifest.mWorldspace = state.mNeutral ? state.mManifestName : std::string(worldspaceName);
             // Levels 1 to 4. Level 5 would need 1,024 cell slots (a cluster holds 256) and keeps almost no object (the
             // survey below), so the baker stops at level 4 (task 0066 stage d).
             state.mManifest.mLevels = { 1, 2, 3, 4 };
             for (const std::uint32_t level : state.mManifest.mLevels)
                 state.mManifest.mErrors.push_back(levelError(level));
-            Log(Debug::Info) << "LOD object bake: " << state.mCells.size() << " exterior cells (cluster layout version "
-                             << Lod::clusterLayoutVersion << ").";
+            Log(Debug::Info) << "LOD object bake: "
+                             << (state.mNeutral ? state.mNeutralCells.size() : state.mCells.size())
+                             << " exterior cells (cluster layout version " << Lod::clusterLayoutVersion << ").";
         }
 
         const auto sliceEnd = std::chrono::steady_clock::now() + sliceTime;
         const auto timeLeft = [&] { return std::chrono::steady_clock::now() < sliceEnd; };
+
+        if (state.mPhase == Phase::Collect && state.mNeutral)
+        {
+            // Task 0133 stage 2: the neutral store builds a cell on the main thread and keeps only a few; the objects we
+            // want are copied out at once.
+            while (state.mNextCell < state.mNeutralCells.size() && timeLeft())
+            {
+                const State::NeutralCell& entry = state.mNeutralCells[state.mNextCell++];
+                std::string error;
+                const openeden::sdk::game::WorldCell* cell = state.mNeutralStore->cell(state.mGameId, entry.mId, error);
+                if (cell == nullptr)
+                {
+                    if (++state.mCellsFailed <= 5)
+                        Log(Debug::Warning) << "LOD object bake: cell (" << entry.mX << ", " << entry.mY
+                                            << ") cannot be built: " << error;
+                    continue;
+                }
+                for (const openeden::sdk::game::WorldObject& object : cell->objects)
+                {
+                    ++state.mReferencesSeen;
+                    if (!NeutralLod::isFarStaticKind(object.kind))
+                    {
+                        ++state.mNotStatic;
+                        continue;
+                    }
+                    if (object.initiallyDisabled)
+                    {
+                        ++state.mDisabled;
+                        continue;
+                    }
+                    if (object.modelPath.empty())
+                    {
+                        ++state.mNoModel;
+                        continue;
+                    }
+                    if (NeutralLod::isMarkerModel(object.modelPath))
+                    {
+                        ++state.mMarkers;
+                        continue;
+                    }
+                    PlacedObject placed;
+                    if (!NeutralLod::placementMatrix(object.transform, placed.mMatrix))
+                    {
+                        ++state.mBadReferences;
+                        continue;
+                    }
+                    placed.mHasMatrix = true;
+                    const Lod::ClusterRef ref = Lod::clusterRefFromPlacement(object.id);
+                    placed.mRef.mIndex = ref.mIndex;
+                    placed.mRef.mContentFile = static_cast<std::int32_t>(ref.mContentFile);
+                    placed.mRefId = object.baseEditorId;
+                    placed.mScale = static_cast<float>(object.transform.scale);
+                    placed.mCellX = entry.mX;
+                    placed.mCellY = entry.mY;
+                    const std::string path = NeutralLod::meshVfsPath(object.modelPath);
+                    auto [it, inserted] = state.mModelIndex.emplace(path, state.mModels.size());
+                    if (inserted)
+                    {
+                        state.mModels.emplace_back();
+                        state.mModels.back().mPath = path;
+                    }
+                    placed.mModel = it->second;
+                    ModelEntry& model = state.mModels[it->second];
+                    model.mMaxScale = std::max(model.mMaxScale, placed.mScale);
+                    state.mObjects.push_back(std::move(placed));
+                }
+            }
+            if (state.mNextCell < state.mNeutralCells.size())
+                return false;
+            state.mPhase = Phase::Models;
+            Log(Debug::Info) << "LOD object bake: " << state.mReferencesSeen << " references, " << state.mObjects.size()
+                             << " statics and trees with a model (" << state.mNotStatic
+                             << " of other kinds stay live, " << state.mDisabled << " initially disabled, "
+                             << state.mMarkers << " markers, " << state.mNoModel << " without a model, "
+                             << state.mBadReferences << " refused, " << state.mCellsFailed << " cells failed), "
+                             << state.mModels.size() << " distinct models.";
+            return false;
+        }
 
         if (state.mPhase == Phase::Collect)
         {
@@ -420,7 +628,21 @@ namespace OMW
                 ModelEntry& entry = state.mModels[state.mNextModel++];
                 try
                 {
-                    loadModel(*vfs, entry, state.mUvEffects);
+                    if (state.mNeutral)
+                    {
+                        loadNeutralModel(*vfs, entry);
+                        // A model whose largest placement is smaller than the first level's cut is left out by every
+                        // level: do not keep its triangles (a Skyrim world has thousands of such small models).
+                        if (entry.mFlat.mTraits.mRadius * entry.mMaxScale < dropFactor * levelError(1))
+                        {
+                            entry.mOk = false;
+                            entry.mTooSmall = true;
+                            entry.mFlat = {};
+                            ++state.mTooSmallModels;
+                        }
+                    }
+                    else
+                        loadModel(*vfs, entry, state.mUvEffects);
                 }
                 catch (const std::exception& e)
                 {
@@ -480,7 +702,10 @@ namespace OMW
             }
             state.mPhase = Phase::Build;
             Log(Debug::Info) << "LOD object bake: " << state.mModels.size() - state.mModelsFailed << " models read ("
-                             << state.mModelsFailed << " failed), " << state.mWork.size() << " tiles to build.";
+                             << state.mModelsFailed << " failed"
+                             << (state.mNeutral ? ", " + std::to_string(state.mTooSmallModels) + " too small for every level"
+                                                : std::string())
+                             << "), " << state.mWork.size() << " tiles to build.";
             return false;
         }
 
@@ -535,9 +760,12 @@ namespace OMW
                 source.mCellY = object.mCellY;
                 source.mTraits = model.mFlat.mTraits;
                 source.mTraits.mRadius *= object.mScale;
-                source.mTransform
-                    = rowMajor(MWRender::distantObjectMatrix(vsg::vec3(object.mPos[0], object.mPos[1], object.mPos[2]),
-                        vsg::vec3(object.mRot[0], object.mRot[1], object.mRot[2]), object.mScale));
+                if (object.mHasMatrix)
+                    source.mTransform = object.mMatrix;
+                else
+                    source.mTransform = rowMajor(
+                        MWRender::distantObjectMatrix(vsg::vec3(object.mPos[0], object.mPos[1], object.mPos[2]),
+                            vsg::vec3(object.mRot[0], object.mRot[1], object.mRot[2]), object.mScale));
                 source.mPieces = model.mFlat.mPieces;
                 if (state.mSway && Lod::swayCapableModel(model.mPath, state.mSwayModels))
                     source.mSwayLean = state.mSwayLean;
@@ -553,6 +781,8 @@ namespace OMW
                 hasher.update(object.mPos, sizeof(object.mPos));
                 hasher.update(object.mRot, sizeof(object.mRot));
                 hashValue(hasher, object.mScale);
+                if (object.mHasMatrix)
+                    hasher.update(object.mMatrix.data(), sizeof(double) * object.mMatrix.size());
             }
 
             LevelTotals& totals = state.mTotals[levelSlot];
@@ -651,7 +881,8 @@ namespace OMW
         state.mPhase = Phase::Write;
         state.mWrite = std::async(std::launch::async, [&state]() {
             const EdenArchive::Hash digest = Lod::clusterContentDigest(state.mManifest, state.mClusters);
-            const std::filesystem::path path = state.mOut / "openeden" / "lod" / "objects.edenpak";
+            const std::filesystem::path path = Lod::objectPackPath(state.mOut / "openeden" / "lod",
+                state.mNeutral ? state.mGameId : std::string(), state.mNeutral ? state.mWorldName : std::string());
             std::error_code ec;
             std::filesystem::create_directories(path.parent_path(), ec);
 

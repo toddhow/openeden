@@ -1546,6 +1546,7 @@ namespace MWRender
             setup.mSwayWindScale = Settings::worldLod().mObjectClusterSwayWind;
             setup.mSwayBoost = Settings::worldLod().mObjectClusterSwayBoost;
             setup.mCellSize = ESM::Land::REAL_SIZE;
+            setup.mExpectedWorldspace = "Morrowind"; // what the object baker writes (task 0133 stage 2)
             setup.mBuilder = mResourceSystem->builder.get();
             setup.mImageOptions = mResourceSystem->textureOptions;
             setup.mCompile = mScene->context.compileContext;
@@ -2492,7 +2493,47 @@ namespace MWRender
                          << " units with " << mNeutralStorage->cellVertices << " vertices, "
                          << mNeutralCache->textures().size() << " ground textures";
         startNeutralLodTerrain(source);
+        startNeutralLodClusters(source);
         return true;
+    }
+
+    void RenderManager::startNeutralLodClusters(openeden::sdk::game::WorldCellSource& source)
+    {
+        if (!Settings::worldLod().mEnabled || !Settings::worldLod().mObjectClusters || mLodRoot.empty()
+            || !mNeutralCache || !mNeutralStorage)
+            return;
+        const Lod::NeutralWorldFacts facts = neutralWorldFacts(source, mNeutralCache->world());
+        const std::filesystem::path pack = Lod::objectPackPath(mLodRoot, facts.mGameId, facts.mWorldEditorId);
+        std::error_code ec;
+        if (!std::filesystem::exists(pack, ec))
+        {
+            Log(Debug::Info) << "World LOD clusters: no pack for " << facts.mGameId << " world " << facts.mWorldEditorId
+                             << " (" << Files::pathToUnicodeString(pack) << "); make one with openmw --bake-lod-objects.";
+            return;
+        }
+        LodClusters::Setup setup;
+        setup.mPack = pack;
+        setup.mExpectedWorldspace = Lod::neutralWorldspaceName(facts);
+        setup.mThreshold = mFarTierActive
+            ? Lod::effectiveTileThreshold(Settings::worldLod().mObjectClusterThreshold, mFarTier)
+            : Settings::worldLod().mObjectClusterThreshold;
+        setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
+        setup.mFarTextureMaxSize = mFarTierActive ? mFarTextureSize : 0;
+        setup.mResidentBudgetBytes = mFarTierActive ? farMemoryBudgetBytes() : 0;
+        setup.mEvictFar = mFarTierActive && mFarTier.mEvictFarClusters;
+        setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
+        setup.mPlayEffects = Settings::worldLod().mObjectClusterEffects;
+        setup.mPlaySway = Settings::worldLod().mObjectClusterSway;
+        setup.mSwayWindScale = Settings::worldLod().mObjectClusterSwayWind;
+        setup.mSwayBoost = Settings::worldLod().mObjectClusterSwayBoost;
+        setup.mCellSize = mNeutralStorage->cellWorldSize;
+        setup.mBuilder = mResourceSystem->builder.get();
+        setup.mImageOptions = mResourceSystem->textureOptions;
+        setup.mCompile = mScene->context.compileContext;
+        mLodClusters = std::make_unique<LodClusters>(std::move(setup));
+        mLodClustersAttached = false;
+        Log(Debug::Info) << "World LOD clusters: using " << Files::pathToUnicodeString(pack) << " for " << facts.mGameId
+                         << " world " << facts.mWorldEditorId;
     }
 
     void RenderManager::startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source)
@@ -2737,8 +2778,11 @@ namespace MWRender
         // Morrowind's exterior only, as the distant objects.
         const MWWorld::Ptr player = MWMechanics::getPlayer();
         LodClusters::Camera camera;
+        // Task 0133 stage 2: a game pack's neutral exterior is the other world a pack can be for (the pack is the one
+        // of the world the terrain follows: a change of world replaces the clusters, useNeutralTerrain).
         camera.mEnabled = !player.isEmpty() && player.isInCell() && player.getCell()->isExterior()
-            && player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId;
+            && (player.getCell()->isNeutral()
+                || player.getCell()->getCell()->getWorldSpace() == ESM::Cell::sDefaultWorldspaceId);
         camera.mEye = mViewMatrix->eye;
         camera.mForward = vsg::normalize(mViewMatrix->center - mViewMatrix->eye);
         camera.mFovYDegrees = mProjectionMatrix->fieldOfViewY;

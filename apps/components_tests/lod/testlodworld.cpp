@@ -250,4 +250,31 @@ namespace
         EXPECT_EQ(extent.mMinX, 4);
         EXPECT_EQ(extent.mMaxX, 7);
     }
+
+    TEST(LodWorldClusterRef, a_placement_id_travels_in_the_two_reference_words)
+    {
+        const ClusterRef ref = clusterRefFromPlacement(0x1122334455667788ull);
+        EXPECT_EQ(ref.mIndex, 0x55667788u); // low word
+        EXPECT_EQ(ref.mContentFile, 0x11223344u); // high word
+        EXPECT_EQ(placementFromClusterRef(ref), 0x1122334455667788ull);
+    }
+
+    TEST(LodWorldClusterRef, the_two_functions_are_inverses_for_every_kind_of_id)
+    {
+        for (const std::uint64_t id : { std::uint64_t{ 0 }, std::uint64_t{ 1 }, std::uint64_t{ 0xFFFFFFFFull },
+                 std::uint64_t{ 0x100000000ull }, std::uint64_t{ 0x7FFFFFFFFFFFFFFFull },
+                 std::uint64_t{ 0x8000000000000000ull }, ~std::uint64_t{ 0 } })
+            EXPECT_EQ(placementFromClusterRef(clusterRefFromPlacement(id)), id) << id;
+    }
+
+    TEST(LodWorldClusterRef, different_ids_never_share_a_reference)
+    {
+        std::set<std::pair<std::uint32_t, std::uint32_t>> seen;
+        for (std::uint64_t id = 0; id < 64; ++id)
+            for (const std::uint64_t high : { std::uint64_t{ 0 }, std::uint64_t{ 1 }, std::uint64_t{ 0xFFFFFFFFull } })
+            {
+                const ClusterRef ref = clusterRefFromPlacement((high << 32) | id);
+                EXPECT_TRUE(seen.emplace(ref.mIndex, ref.mContentFile).second);
+            }
+    }
 }

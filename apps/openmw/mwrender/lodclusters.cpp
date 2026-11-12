@@ -681,6 +681,13 @@ namespace MWRender
                                     << " (make one with openmw --bake-lod-objects); the live objects draw everything.";
                 return;
             }
+            if (!setup.mExpectedWorldspace.empty() && result.mPack->manifest().mWorldspace != setup.mExpectedWorldspace)
+            {
+                Log(Debug::Warning) << "LOD clusters: " << setup.mPack.string() << " was baked for world \""
+                                    << result.mPack->manifest().mWorldspace << "\", not \"" << setup.mExpectedWorldspace
+                                    << "\"; it is not used (make a new one with openmw --bake-lod-objects).";
+                return;
+            }
             state.mPack = result.mPack;
             state.mParents = Lod::nearestAncestors(result.mOrdered);
             for (std::size_t i = 0; i < result.mOrdered.size(); ++i)

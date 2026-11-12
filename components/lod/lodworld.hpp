@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "objectcluster.hpp"
 #include "tilepack.hpp"
 #include "viewlimits.hpp"
 
@@ -64,6 +65,12 @@ namespace Lod
     /// past the land by up to a tile, so the box is generous). Empty when no tile is valid. Used for the view limits of
     /// a neutral world (`view distance = auto` with `map view`), which has no ESM land to measure.
     [[nodiscard]] LandExtent extentOfTiles(const std::vector<TileId>& tiles);
+
+    /// Task 0133 stage 2: a neutral placement has a 64-bit id; a cluster lists the references it stands in for in two
+    /// 32-bit words (the layout is frozen at version 1), so the id travels in them as its low word (mIndex) and its high
+    /// word (mContentFile). The two functions are inverses for every id.
+    [[nodiscard]] ClusterRef clusterRefFromPlacement(std::uint64_t placementId) noexcept;
+    [[nodiscard]] std::uint64_t placementFromClusterRef(const ClusterRef& ref) noexcept;
 
     /// The worldspace name written into a neutral pack's manifest: "<game>:<world editor id>:<fingerprint>".
     [[nodiscard]] std::string neutralWorldspaceName(const NeutralWorldFacts& facts);
