@@ -94,9 +94,21 @@ avbin.py`, not committed) reads polygons and `dtLink` connections, finds the con
 
 `NeutralNavigationShapes.theStandInBoxIsRecognisedWhereverItsCentreIs` and `..aModelsOwnShapeIsNotAStandInBox` in `apps/openmw_tests/mwworld/testneutralnavigation.cpp`, written first and run red against a stub that returns false (the box test failed with `Actual: false  Expected: true`, the sphere test passes against the stub as it pins absence); green with the real function. Existing tests are not edited.
 
-### Before and after (game, `tools/neutral_session_check/check.sh ... navpath`)
+### Before and after (game, `tools/neutral_session_check/check.sh ... navpath`, one run each, 45,000 frames)
 
-See the changelog row in CLAUDE.md (not edited: the guide is owned by toddhow's review). The tool gained `scan` (ground heights by ray per layer) and `objects` (what stands near a point, with `enabled`) in `scenarios.lua`.
+| | Success of the street ring (15 targets) | start component | interior (28 queries) |
+| --- | --- | --- | --- |
+| before | 1 | 9 polygons | 28 Success |
+| commit 1 (boxes) | 7 | 1,729 polygons | 28 Success |
+| commit 2 (boxes and trees) | 13 | not read | 28 Success |
+
+Frames: a top-down render of the Detour polygons round the start (colour by component, height band of 120 units) before and after commit 1: the pocket (red island) is joined to the plaza (`I:\Projects\OpenEden-work\skynav2\q3.png`, `q3f.png`, not committed). The in-game navmesh debug view was not photographed before the fix (the old binary's street screenshots were not taken in that run); the one after is `e_fix/user/screenshots/screenshot005.png` (viewed: continuous walkable patches along the plaza). The tool gained `scan` (ground heights by ray per layer) and `objects` (what stands near a point, with `enabled`) in `scenarios.lua`.
+
+### Morrowind unchanged
+
+`tools/worldobjects_check/check.sh` against the stage 1 build (`skynav/build`): 110 lines equal, OK. Fixed-frame Balmora screenshot (`OPENEDEN_FIXED_FRAME_TIME=0.0166667`, seed 7, frame 900): SHA-256 prefix `19ca305b10681680` for both. Morrowind navmesh (`enable write nav mesh to file`, Balmora, 3,500 frames, two runs of each build): 817 tiles in all four, and the geometry of every tile (vertices and polygons, without the run-dependent link references) is identical across the four files; the raw `.bin` files differ even between two runs of one build (async build order and polygon references). The code path is only taken for `NeutralBase` objects, which exist only in a game pack session.
+
+`openmw-tests` 2,116 pass (2 skipped real-data tests). Not run: the Linux gate (GCC, clang-format 14, clang-tidy), `components-tests`, the Lua integration tests, a fresh reviewer.
 
 ### Not done / for toddhow
 
