@@ -126,6 +126,8 @@ namespace Pipeline
                 return "POINT_SHADOW";
             case Mode::LOD_SWAY:
                 return "LOD_SWAY";
+            case Mode::WATER_CELL:
+                return "WATER_CELL";
         }
         return "";
     }

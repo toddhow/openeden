@@ -23,6 +23,8 @@
 
 #include <components/worldmodel/store.hpp>
 
+#include <openeden/game/world_water.hpp>
+
 #include "cellstore.hpp"
 #include "esmstore.hpp"
 #include "neutralcell.hpp"
@@ -287,12 +289,26 @@ namespace MWWorld
             mNeutralCells.push_back(
                 makeNeutralExteriorCellRecord(recordId, cell->editorId, location.mX, location.mY));
             const ESM::Cell& record = mNeutralCells.back();
+            // Task 0129: the water of the square, from the pack's optional CellWaterSource (also for an empty square:
+            // the sea is there with no cell record at all).
+            std::optional<float> water;
+            if (const auto* waterSource
+                = dynamic_cast<const openeden::sdk::game::CellWaterSource*>(neutral.source(gameId)))
+            {
+                openeden::sdk::game::CellWater answer;
+                if (waterSource->cellWater(world->mWorld, location.mX, location.mY, answer) && answer.present)
+                    water = answer.height;
+            }
             const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(recordId),
-                std::forward_as_tuple(Cell(record, location.mWorldspace), mStore, mReaders));
+                std::forward_as_tuple(Cell(record, location.mWorldspace, water), mStore, mReaders));
             if (!inserted)
                 mNeutralCells.pop_back();
             else
+            {
                 it->second.setNeutralCell(gameId, *cell);
+                if (water)
+                    Log(Debug::Info) << "NWATER (" << location.mX << ", " << location.mY << ") water at " << *water;
+            }
             store = &it->second;
         }
         mExteriors.emplace(location, store);

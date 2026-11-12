@@ -116,3 +116,16 @@ namespace MWWorld
         mWaterHeight = -std::numeric_limits<float>::max();
     }
 }
+
+namespace MWWorld
+{
+    Cell::Cell(const ESM::Cell& cell, const ESM::RefId& worldspace, std::optional<float> waterHeight)
+        : Cell(cell, worldspace)
+    {
+        if (waterHeight)
+        {
+            mHasWater = true;
+            mWaterHeight = *waterHeight;
+        }
+    }
+}

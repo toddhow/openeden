@@ -398,6 +398,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testlodmeasure.cpp
     render/testscreenshotnames.cpp
     render/testframecapture.cpp
+    render/testwatercells.cpp
     lod/testtilekey.cpp
     lod/testtileselection.cpp
     lod/testterraintile.cpp
@@ -520,6 +521,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseweatherreal.cpp
     skyrimse/testskyrimseterrain.cpp
     skyrimse/testskyrimseterrainreal.cpp
+    skyrimse/testskyrimsewater.cpp
+    skyrimse/testskyrimsewaterreal.cpp
     skyrimse/testskyrimselandreal.cpp
     skyrimse/testskyrimseworldview.cpp
     skyrimse/testskyrimseworldviewreal.cpp

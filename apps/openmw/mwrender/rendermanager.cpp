@@ -3665,8 +3665,33 @@ namespace MWRender
         mScene->removeObject(ptr);
     }
 
+    void RenderManager::setNeutralCellWater(int x, int y, float cellSize, float height)
+    {
+        mWater->setCellWater(x, y, cellSize, height);
+        if (mWater->cellWaterCount() == 0)
+            return;
+        // Cell-bounded surfaces need the water pass's copies and the water render mode, and no infinite plane.
+        mNeutralWaterMode = true;
+        mWater->setGlobalVisible(false);
+        setRenderModeActive(Render_Water, true);
+    }
+
+    void RenderManager::removeNeutralCellWater(int x, int y)
+    {
+        mWater->removeCellWater(x, y);
+        if (mNeutralWaterMode && mWater->cellWaterCount() == 0)
+        {
+            mNeutralWaterMode = false;
+            mWater->setGlobalVisible(true);
+            setRenderModeActive(Render_Water, false);
+        }
+    }
+
     void RenderManager::setWaterEnabled(bool enabled)
     {
+        // Task 0129: the game's own water is the infinite plane again.
+        mNeutralWaterMode = false;
+        mWater->setGlobalVisible(true);
         setRenderModeActive(Render_Water, enabled);
         mSimpleWater->setEnabled(enabled);
     }

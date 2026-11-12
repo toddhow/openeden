@@ -1,6 +1,8 @@
 #ifndef OPENW_MWORLD_CELL
 #define OPENW_MWORLD_CELL
 
+#include <optional>
+
 #include <components/misc/vsgmath.hpp>
 
 #include <vsg/maths/vec2.h>
@@ -41,6 +43,8 @@ namespace MWWorld
         /// Task 0125: an exterior record of a game pack's neutral world: the worldspace is the given one (its cell size
         /// comes from ESM::getCellSize) and the cell has no water.
         Cell(const ESM::Cell& cell, const ESM::RefId& worldspace);
+        /// Task 0129: the same with the water the pack gives the square (a height in units), or none.
+        Cell(const ESM::Cell& cell, const ESM::RefId& worldspace, std::optional<float> waterHeight);
 
         int getGridX() const { return mGridPos.x; }
         int getGridY() const { return mGridPos.y; }

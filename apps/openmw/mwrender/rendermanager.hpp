@@ -294,6 +294,10 @@ namespace MWRender
 
         void setWaterEnabled(bool enabled);
         void setWaterHeight(float level);
+        /// Task 0129: a water surface bounded to one exterior grid square of a game pack's neutral world (the infinite
+        /// plane is hidden while any exists).
+        void setNeutralCellWater(int x, int y, float cellSize, float height);
+        void removeNeutralCellWater(int x, int y);
 
         struct RayResult
         {
@@ -657,6 +661,7 @@ namespace MWRender
         vsg::mat4 mPostProcessLastView;
         float mPostProcessLastTime = 0.f;
         float mPostProcessWaterHeight = 0.f;
+        bool mNeutralWaterMode = false; // task 0129: Render_Water is on because cell-bounded surfaces exist
         bool mPostProcessNight = false;
         unsigned int mPostProcessFrame = 0;
         std::unique_ptr<DistantObjects> mDistantObjects;

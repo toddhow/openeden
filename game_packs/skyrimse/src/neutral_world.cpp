@@ -344,6 +344,14 @@ namespace game_skyrimse
         return index->buildTerrain(world, x, y, out, error);
     }
 
+    bool SkyrimCellSource::cellWater(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
+        openeden::sdk::game::CellWater& out) const
+    {
+        out = openeden::sdk::game::CellWater();
+        const SkyrimTerrainIndex* index = terrain();
+        return index && index->cellWater(world, x, y, out);
+    }
+
     std::size_t SkyrimCellSource::listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const
     {
         const SkyrimTerrainIndex* index = terrain();

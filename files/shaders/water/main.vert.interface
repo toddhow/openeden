@@ -1,6 +1,6 @@
 # Recorded interface of the GLSL stage water/main.vert per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
 # reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
-defines
+defines WATER_CELL
 set 
 capability 1
 descriptor set=0 binding=0 uniform 0:mat4xvec4f32 stride16;64:mat4xvec4f32 stride16;128:mat4xvec4f32 stride16;192:vec4f32;208:mat4xvec4f32;272:mat4xvec4f32;336:mat4xvec4f32;400:mat4xvec4f32 stride16;464:vec4f32;480:vec4f32;496:vec4f32;512:vec4f32;528:vec4f32;544:vec4f32;560:vec4f32;576:vec2f32;584:f32;588:f32;592:f32;596:f32;600:f32;604:f32;608:vec4f32;624:vec4f32;

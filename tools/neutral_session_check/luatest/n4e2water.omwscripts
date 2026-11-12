@@ -1,0 +1,2 @@
+GLOBAL: scripts/e2water/global.lua
+PLAYER: scripts/e2water/player.lua

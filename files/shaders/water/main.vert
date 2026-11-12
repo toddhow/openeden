@@ -1,3 +1,5 @@
+#pragma import_defines(WATER_CELL)
+
 #include "lib/pushconstants.glsl"
 #include "lib/attributes.glsl"
 #include "lib/view/scene.glsl"
@@ -16,6 +18,17 @@ vec3 slide(vec3 from, vec3 to, float targetZ)
     return mix(from, to, clamp(-(from.z-targetZ)/zDiff, 0, 1));
 }
 
+#ifdef WATER_CELL
+// Task 0129: a water surface bounded to one cell. The draw is the same four-vertex strip; the node's transform
+// (translation = the cell's south-west corner and the surface height, scale = the cell's size) places the unit square.
+void main()
+{
+    vec3 local = vec3(float(gl_VertexIndex & 1), float((gl_VertexIndex >> 1) & 1), 0.0);
+    vec4 viewPos = pc.modelview * vec4(local, 1.0);
+    vert_out.viewPos = viewPos.xyz;
+    gl_Position = pc.projection * viewPos;
+}
+#else
 void main()
 {
     vec2 edge = vec2(1) + vec2(8) / scene.resolution;
@@ -73,3 +86,4 @@ void main()
     vert_out.viewPos = viewPos.xyz;
     gl_Position = pc.projection * viewPos;
 }
+#endif

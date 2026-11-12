@@ -47,6 +47,9 @@ namespace game_skyrimse
                 dst.mParent = src.mParent;
             takeIf(dst.mParentUsage, src.mParentUsage);
             takeIf(dst.mDefaultLandHeight, src.mDefaultLandHeight);
+            takeIf(dst.mDefaultWaterHeight, src.mDefaultWaterHeight);
+            if (src.mWater != kNullFormId)
+                dst.mWater = src.mWater;
         }
     }
 
@@ -129,6 +132,16 @@ namespace game_skyrimse
                 mLands.erase(key);
             else
                 mLands[key] = LandPlace{ pluginIndex, l.mCommon.mOffset };
+        }
+        for (const ExteriorCellInfo& c : data.mCells)
+        {
+            if (!c.mGrid || c.mWorld == kNullFormId || c.mWorld == kUnresolvedFormId)
+                continue;
+            const LandKey key{ c.mWorld, c.mGrid->x, c.mGrid->y };
+            if (c.mCommon.deleted())
+                mCellWaters.erase(key);
+            else
+                mCellWaters[key] = c.mWater;
         }
         for (const GroundTextureRecord& t : data.mGroundTextures)
         {
@@ -220,6 +233,72 @@ namespace game_skyrimse
             }
         }
         return count;
+    }
+
+    bool SkyrimTerrainIndex::defaultWater(FormId world, float& height) const
+    {
+        // A world with the water bit takes its parent's water (the bit is set only on worlds with no NAM2 of their own,
+        // task 0117); the chain is short and capped so a cycle in hostile data ends.
+        for (int hops = 0; hops < 8 && world != kNullFormId; ++hops)
+        {
+            const auto found = mWorlds.find(world);
+            if (found == mWorlds.end())
+                return false;
+            const WorldSpaceRecord& w = found->second;
+            const bool hasParent = w.mParent != kNullFormId && w.mParent != kUnresolvedFormId;
+            const bool inherits = hasParent && (w.mParentUsage.value_or(0) & ParentUsage::Water) != 0;
+            if (!inherits)
+            {
+                const CellWater water = classifyCellWater(w.mDefaultWaterHeight);
+                if (water.mKind != CellWaterKind::Height)
+                    return false;
+                height = water.mHeight;
+                return true;
+            }
+            world = w.mParent;
+        }
+        return false;
+    }
+
+    bool SkyrimTerrainIndex::cellWater(sdk::WorldId world, std::int32_t x, std::int32_t y, sdk::CellWater& out) const
+    {
+        out = sdk::CellWater();
+        if (mWorlds.find(world) == mWorlds.end())
+            return false;
+        FormId current = world;
+        for (int hops = 0; hops < 8 && current != kNullFormId; ++hops)
+        {
+            const auto cell = mCellWaters.find(LandKey{ current, x, y });
+            if (cell != mCellWaters.end())
+            {
+                const CellWater& water = cell->second;
+                if (water.mKind == CellWaterKind::Height)
+                {
+                    out.present = true;
+                    out.height = water.mHeight;
+                    return true;
+                }
+                if (water.mKind == CellWaterKind::NoWater)
+                    return true;
+                break; // the default, the absence of XCLW and an invalid value all mean the world's default
+            }
+            const auto w = mWorlds.find(current);
+            if (w == mWorlds.end())
+                break;
+            const WorldSpaceRecord& rec = w->second;
+            const bool lends = rec.mParent != kNullFormId && rec.mParent != kUnresolvedFormId
+                && (rec.mParentUsage.value_or(0) & ParentUsage::Land) != 0;
+            if (!lends)
+                break;
+            current = rec.mParent;
+        }
+        float height = 0.0f;
+        if (defaultWater(world, height))
+        {
+            out.present = true;
+            out.height = height;
+        }
+        return true;
     }
 
     sdk::TerrainResult SkyrimTerrainIndex::buildTerrain(

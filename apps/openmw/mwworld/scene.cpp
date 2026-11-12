@@ -374,6 +374,8 @@ namespace MWWorld
         mBuildStartUs.erase(cell);
         if (cell->isExterior())
             mRendering.exteriorCellUnloaded(cell->getCell()->getGridX(), cell->getCell()->getGridY());
+        if (cell->isExterior() && cell->isNeutral())
+            mRendering.removeNeutralCellWater(cell->getCell()->getGridX(), cell->getCell()->getGridY());
         MWBase::Environment::get().getExtensionManager()->cellUnloaded(cell->getCell()->getDescription());
 
         ListAndResetObjectsVisitor visitor;
@@ -562,9 +564,15 @@ namespace MWWorld
         traceWindow.end();
         Misc::LoadTrace::Scope traceWater("load.water.ambient.sky");
         // Task 0125: a neutral exterior has no water yet (Skyrim's water is a later stage); Morrowind's exterior always has.
-        bool waterEnabled = cellVariant.hasWater() || (cell.isExterior() && !cell.isNeutral());
+        // Task 0129: a neutral exterior draws its own cell-bounded surface (the game pack gave its height) and leaves
+        // the global water state alone; the infinite plane would flood every lower square of the world.
+        const bool neutralExterior = cell.isExterior() && cell.isNeutral();
+        if (neutralExterior && cellVariant.hasWater())
+            mRendering.setNeutralCellWater(cellX, cellY, static_cast<float>(ESM::getCellSize(worldspace)), cell.getWaterLevel());
+        bool waterEnabled = !neutralExterior && (cellVariant.hasWater() || cell.isExterior());
         float waterLevel = cell.getWaterLevel();
-        mRendering.setWaterEnabled(waterEnabled);
+        if (!neutralExterior)
+            mRendering.setWaterEnabled(waterEnabled);
         if (waterEnabled)
         {
             mPhysics->enableWater(waterLevel);

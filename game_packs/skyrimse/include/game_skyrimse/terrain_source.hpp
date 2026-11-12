@@ -24,6 +24,7 @@
 #include "game_skyrimse/worldspace.hpp"
 
 #include <openeden/game/world_terrain.hpp>
+#include <openeden/game/world_water.hpp>
 
 #include <cstdint>
 #include <filesystem>
@@ -77,6 +78,13 @@ namespace game_skyrimse
         [[nodiscard]] openeden::sdk::game::TerrainResult buildTerrain(openeden::sdk::game::WorldId world, std::int32_t x,
             std::int32_t y, openeden::sdk::game::TerrainCell& out, std::string& error) const;
         std::size_t listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const;
+        /// The water of one grid square (task 0129; sdk world_water.hpp). The cell's own XCLW wins (a real height is the
+        /// surface, a "no water" sentinel means none); a cell with the world-default value, no XCLW or no CELL record
+        /// takes the world's default water height (WRLD DNAM, second float). A world whose PNAM has the water bit takes
+        /// its parent's default; a square the world does not list is looked up in the parent when the parent lends its
+        /// land (the same rule as the land). False for an unknown world.
+        [[nodiscard]] bool cellWater(
+            openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y, openeden::sdk::game::CellWater& out) const;
 
         [[nodiscard]] Stats stats() const { return mStats; }
         [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
@@ -98,6 +106,7 @@ namespace game_skyrimse
         bool addPlugin(PluginSource source, const LoadOrder& order, std::string& error);
         void merge(ExteriorData& data, std::uint32_t pluginIndex);
         [[nodiscard]] openeden::sdk::game::WorldId mapTexture(FormId texture) const;
+        [[nodiscard]] bool defaultWater(FormId world, float& height) const;
         [[nodiscard]] bool textureUsable(FormId texture, openeden::sdk::game::GroundTexture* out) const;
 
         ExteriorLimits mLimits;
@@ -105,6 +114,7 @@ namespace game_skyrimse
         std::vector<PluginSource> mPlugins;
         std::map<FormId, WorldSpaceRecord> mWorlds;
         std::map<LandKey, LandPlace> mLands;
+        std::map<LandKey, game_skyrimse::CellWater> mCellWaters; ///< by the cell's world and grid; later plugins replace
         std::map<FormId, GroundTextureRecord> mGround;
         std::map<FormId, TextureSetRecord> mSets;
         std::vector<Content::Error> mErrors;
