@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -65,6 +66,7 @@
 #include "movementsolver.hpp"
 #include "mtphysics.hpp"
 #include "neutralactor.hpp"
+#include "neutralmover.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
 #include "skyrimshape.hpp"
@@ -1168,6 +1170,9 @@ namespace MWPhysics
         entry.mStartZ = ptr.getRefData().getPosition().pos[2];
         entry.mFall.mZ = entry.mStartZ;
         mNeutralActors.push_back(entry);
+        // Reserved here so that a frame that moves every actor does not allocate.
+        mNeutralMoved.reserve(mNeutralActors.size());
+        mNeutralTurned.reserve(mNeutralActors.size());
     }
 
     const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
@@ -1180,19 +1185,76 @@ namespace MWPhysics
         return nullptr;
     }
 
-    void PhysicsSystem::updateNeutralActors(float dt, std::vector<MWWorld::Ptr>& moved)
+    namespace
     {
+        // OPENEDEN_NEUTRAL_ACTOR_WALK=<index>,<vx>,<vy>: a developer aid (not a setting), the test seam of stage S2
+        // that stands in for the pack's movement request (stage S3). Walks the neutral actor with that position in
+        // the order the bodies were added, at that velocity (units a second), from the frame it is grounded.
+        struct WalkAid
+        {
+            bool mValid = false;
+            std::size_t mIndex = 0;
+            NeutralMover::Request mRequest;
+        };
+
+        WalkAid readWalkAid()
+        {
+            WalkAid aid;
+            const char* text = std::getenv("OPENEDEN_NEUTRAL_ACTOR_WALK");
+            if (text == nullptr)
+                return aid;
+            unsigned long index = 0;
+            float vx = 0.f;
+            float vy = 0.f;
+            if (std::sscanf(text, "%lu,%f,%f", &index, &vx, &vy) == 3 && std::isfinite(vx) && std::isfinite(vy))
+            {
+                aid.mValid = true;
+                aid.mIndex = static_cast<std::size_t>(index);
+                aid.mRequest.mVelX = vx;
+                aid.mRequest.mVelY = vy;
+            }
+            else
+                Log(Debug::Warning) << "OPENEDEN_NEUTRAL_ACTOR_WALK is not <index>,<vx>,<vy>: " << text;
+            return aid;
+        }
+    }
+
+    void PhysicsSystem::setNeutralActorRequest(const MWWorld::ConstPtr& ptr, const NeutralMover::Request& request)
+    {
+        for (NeutralActorEntry& entry : mNeutralActors)
+        {
+            if (entry.mRef == ptr.mRef)
+            {
+                entry.mRequest = request;
+                return;
+            }
+        }
+    }
+
+    void PhysicsSystem::updateNeutralActors(float dt)
+    {
+        mNeutralMoved.clear();
+        mNeutralTurned.clear();
         if (mNeutralActors.empty())
             return;
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        static const WalkAid walkAid = readWalkAid();
+        if (walkAid.mValid && walkAid.mIndex < mNeutralActors.size())
+            mNeutralActors[walkAid.mIndex].mRequest = walkAid.mRequest;
         // Every actor's ray ignores every neutral actor's body, so the order of the entries cannot change a result.
         std::vector<MWWorld::ConstPtr> ignore;
         for (NeutralActorEntry& entry : mNeutralActors)
         {
-            if (entry.mFall.mState == NeutralActor::State::Grounded || entry.mFall.mState == NeutralActor::State::Lost)
-                continue;
             const auto found = mObjects.find(entry.mRef);
             if (found == mObjects.end())
+                continue;
+            if (entry.mFall.mState == NeutralActor::State::Grounded)
+            {
+                if (entry.mRequest.isMoving())
+                    walkNeutralActor(entry, *found->second, dt, trace);
+                continue;
+            }
+            if (entry.mFall.mState == NeutralActor::State::Lost)
                 continue;
             if (ignore.empty())
             {
@@ -1224,7 +1286,7 @@ namespace MWPhysics
                 ESM::Position pos = ptr.getRefData().getPosition();
                 pos.pos[2] = entry.mFall.mZ;
                 ptr.getRefData().setPosition(pos);
-                moved.push_back(ptr);
+                mNeutralMoved.push_back(ptr);
             }
             if (trace
                 && (entry.mFall.mState == NeutralActor::State::Grounded
@@ -1234,6 +1296,41 @@ namespace MWPhysics
                                  << " start z " << entry.mStartZ << " rest z " << entry.mFall.mZ << " frames "
                                  << entry.mFall.mFrames;
         }
+    }
+
+    void PhysicsSystem::walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace)
+    {
+        const MWWorld::Ptr ptr = object.getPtr();
+        ESM::Position pos = ptr.getRefData().getPosition();
+        const vsg::vec3 feet = pos.asVec3();
+
+        const NeutralMover::JoltSweeper sweeper(mPhysicsSystem, object.getShapeInstance()->mCollisionShape,
+            object.getPhysicsBody(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR);
+        const NeutralMover::Result result = NeutralMover::step(feet, entry.mRequest, dt, sweeper);
+        ++entry.mWalkFrames;
+
+        // Face the way it was asked to go, whether or not a wall let it move (a turn never needs room).
+        const float heading = NeutralMover::headingOf(entry.mRequest.mVelX, entry.mRequest.mVelY);
+        const bool turned = heading != pos.rot[2];
+        if (turned)
+            pos.rot[2] = heading;
+        if (result.mMoved)
+        {
+            pos.pos[0] = result.mFeet.x;
+            pos.pos[1] = result.mFeet.y;
+            pos.pos[2] = result.mFeet.z;
+        }
+        if (result.mMoved || turned)
+        {
+            ptr.getRefData().setPosition(pos);
+            mNeutralMoved.push_back(ptr);
+            if (turned)
+                mNeutralTurned.push_back(ptr);
+        }
+        if (trace && (entry.mWalkFrames == 1 || entry.mWalkFrames % 30 == 0))
+            Log(Debug::Info) << "NACTWALK " << ptr.getCellRef().getRefId() << " frame " << entry.mWalkFrames << " pos "
+                             << pos.pos[0] << " " << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2]
+                             << (result.mBlocked ? " blocked" : "") << (result.mEdge ? " edge" : "");
     }
 
     int PhysicsSystem::addProjectile(

@@ -26,6 +26,7 @@
 
 #include "joltlisteners.hpp"
 #include "neutralactor.hpp"
+#include "neutralmover.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
 
@@ -198,11 +199,22 @@ namespace MWPhysics
         /// object already has a body or the shape cannot be made.
         void addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f);
 
-        /// Task 0135: one frame of standing the neutral actors on the floor (NeutralActor::stepFall, a ray cast down
-        /// per actor that is not yet on the floor). Writes each new height into the object's position and appends the
-        /// Ptr to `moved`; the caller moves the drawn object and calls updatePosition for each. Call before
-        /// stepSimulation, on the main thread. A grounded actor costs one state test.
-        void updateNeutralActors(float dt, std::vector<MWWorld::Ptr>& moved);
+        /// Task 0135: one frame of the neutral actors: those not yet on the floor are stood on it (NeutralActor::stepFall,
+        /// a ray cast down per actor), those that are grounded and have a movement request are walked
+        /// (NeutralMover::step: swept capsule, step up, slide, floor snap). Writes each new position and heading into
+        /// the object's position and fills getNeutralActorsMoved() / getNeutralActorsTurned(); the caller moves the
+        /// drawn object and calls updatePosition for each. Call before stepSimulation, on the main thread. A grounded
+        /// actor with no request costs one state test and one request test; neither list allocates once reserved.
+        void updateNeutralActors(float dt);
+
+        /// The actors the last updateNeutralActors changed the position of, and (a subset) those it turned.
+        const std::vector<MWWorld::Ptr>& getNeutralActorsMoved() const { return mNeutralMoved; }
+        const std::vector<MWWorld::Ptr>& getNeutralActorsTurned() const { return mNeutralTurned; }
+
+        /// Task 0135 stage S2: the movement the pack (stage S3) or a test seam wants of a neutral actor from now on:
+        /// a velocity on the ground in units a second. A zero velocity stops it. The mover turns the actor to face the
+        /// velocity. Ignored for an actor that has no neutral body. Main thread.
+        void setNeutralActorRequest(const MWWorld::ConstPtr& ptr, const NeutralMover::Request& request);
 
         /// The fall state of a neutral actor, null if `ptr` has none. For traces and tests.
         const NeutralActor::Fall* getNeutralActorFall(const MWWorld::ConstPtr& ptr) const;
@@ -413,8 +425,13 @@ namespace MWPhysics
             const MWWorld::LiveCellRefBase* mRef;
             NeutralActor::Fall mFall;
             float mStartZ;
+            NeutralMover::Request mRequest;
+            std::uint32_t mWalkFrames = 0; ///< frames this actor was walked, for the trace
         };
         std::vector<NeutralActorEntry> mNeutralActors;
+        void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
+        std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
+        std::vector<MWWorld::Ptr> mNeutralTurned;
 
         using ProjectileMap = std::map<int, std::shared_ptr<Projectile>>;
         ProjectileMap mProjectiles;

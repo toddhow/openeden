@@ -1410,15 +1410,17 @@ namespace MWWorld
         processDoors(duration);
         mProjectileManager->update(duration);
         {
-            // Task 0135: neutral actors that are not yet on the floor fall (or are snapped) before the step, so the
-            // step commits their new body position. Main thread; an empty list costs one test.
-            std::vector<MWWorld::Ptr> settled;
-            mPhysics->updateNeutralActors(duration, settled);
-            for (const MWWorld::Ptr& ptr : settled)
+            // Task 0135: neutral actors that are not yet on the floor fall (or are snapped), and grounded ones with a
+            // movement request walk, before the step, so the step commits their new body position. Main thread; an
+            // empty list costs one test.
+            mPhysics->updateNeutralActors(duration);
+            for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
             {
                 mRendering->moveObject(ptr, ptr.getRefData().getPosition().asVec3());
                 mPhysics->updatePosition(ptr);
             }
+            for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsTurned())
+                mRendering->rotateObject(ptr, Misc::Convert::makeQuaternion(ptr.getRefData().getPosition()));
         }
         mPhysics->stepSimulation(duration, mDiscardMovements);
         mProjectileManager->processHits();
