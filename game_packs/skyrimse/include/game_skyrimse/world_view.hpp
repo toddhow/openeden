@@ -201,6 +201,10 @@ namespace game_skyrimse
         /// call when nothing runs, and more than once. The destructor calls it. Not callable from the worker.
         void cancelAndJoin();
 
+        /// True once cancelAndJoin() has asked the worker to stop. Any thread (lets a test wait for the request instead of
+        /// sleeping).
+        [[nodiscard]] bool cancelRequested() const { return mCancel.load(); }
+
         /// Task 0125: whether startLoad's worker built the terrain index (LAND, LTEX of every plugin) itself, right after
         /// the cell index and after isReady() turned true, so that the first exterior door does not build it on the
         /// main thread (it took 2.8 s). Any thread; true once the worker has finished that build.

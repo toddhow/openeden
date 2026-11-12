@@ -359,7 +359,11 @@ namespace
         ASSERT_TRUE(files.waitReached(5000ms));
         // The worker is inside plugin 2 of 3 (a.esm is done). Cancel, then let it go on.
         std::thread canceller([&] { view.cancelAndJoin(); });
-        std::this_thread::sleep_for(30ms);
+        // Wait for the request itself: a fixed sleep raced on a busy machine (toddhow approved this edit, 2026-11-12).
+        const auto until = std::chrono::steady_clock::now() + 5000ms;
+        while (!view.cancelRequested() && std::chrono::steady_clock::now() < until)
+            std::this_thread::yield();
+        EXPECT_TRUE(view.cancelRequested());
         files.open();
         canceller.join();
         const SkyrimWorldView::LoadReport report = reported.get_future().get();
