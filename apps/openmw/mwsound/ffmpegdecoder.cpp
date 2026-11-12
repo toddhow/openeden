@@ -6,7 +6,11 @@
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
+#include <components/fuz/fuz.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/vfs/manager.hpp>
+
+#include <sstream>
 
 #include <ffmpeg-videoplayer/libavformatdefines.hpp>
 #include <ffmpeg-videoplayer/libavutildefines.hpp>
@@ -17,6 +21,35 @@
 
 namespace MWSound
 {
+    namespace
+    {
+        // Task 0143. A Skyrim SE voice line is a .fuz: a lip file and an xWMA file in one container. The decoder is
+        // given only the audio part, ffmpeg's own xwma demuxer and wmav2 decoder do the rest.
+        bool isFuzPath(std::string_view path)
+        {
+            return Misc::StringUtils::ciEndsWith(path, ".fuz");
+        }
+
+        Files::IStreamPtr openFuzAudio(std::string_view name, Files::IStreamPtr in)
+        {
+            const Fuz::Limits limits;
+            std::string bytes;
+            char chunk[16384];
+            while (in->read(chunk, sizeof(chunk)) || in->gcount() > 0)
+            {
+                bytes.append(chunk, static_cast<std::size_t>(in->gcount()));
+                if (bytes.size() > limits.mMaxBytes)
+                    break; // split() refuses it
+            }
+            const Fuz::Result result = Fuz::split(bytes, name, limits);
+            if (!result.mOk)
+                throw std::runtime_error(result.mError);
+            Log(Debug::Info) << "Voice file " << name << ": lip " << result.mParts.mLip.size() << " bytes, audio "
+                             << result.mParts.mAudio.size() << " bytes" << (result.mParts.mAudioIsXwma ? " (xWMA)" : "");
+            return std::make_unique<std::istringstream>(std::string(result.mParts.mAudio), std::ios::binary);
+        }
+    }
+
     void AVIOContextDeleter::operator()(AVIOContext* ptr) const
     {
         if (ptr->buffer != nullptr)
@@ -231,6 +264,11 @@ namespace MWSound
     {
         close();
         mDataStream = mResourceMgr->get(fname);
+        if (isFuzPath(fname.value()))
+        {
+            mDataStream = openFuzAudio(fname.value(), std::move(mDataStream));
+            mFuzName = std::string(fname.value());
+        }
 
         AVIOContextPtr ioCtx(avio_alloc_context(nullptr, 0, 0, this, readPacket, writePacket, seek));
         if (ioCtx == nullptr)
@@ -319,6 +357,13 @@ namespace MWSound
 
     void FFmpegDecoder::close()
     {
+        if (!mFuzName.empty() && mCodecCtx != nullptr)
+        {
+            Log(Debug::Info) << "Voice file " << mFuzName << ": decoded " << mNextPts << " s of audio with "
+                             << (mCodecCtx->codec != nullptr ? mCodecCtx->codec->name : "?") << " at "
+                             << mCodecCtx->sample_rate << " Hz";
+            mFuzName.clear();
+        }
         mStream = nullptr;
         mCodecCtx.reset();
 

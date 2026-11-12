@@ -304,6 +304,12 @@ add_component_dir (contentsource
     plugin probe sessiontag
     )
 
+# The .fuz voice line container of Bethesda games (task 0143): a lip part and the audio. Standard library only.
+# Formats layer.
+add_component_dir (fuz
+    fuz
+    )
+
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene

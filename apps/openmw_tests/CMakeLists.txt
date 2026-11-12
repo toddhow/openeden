@@ -29,6 +29,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralstore.cpp
     mwworld/testneutralstub.cpp
     mwworld/testneutraldialogue.cpp
+    mwworld/testneutralvoice.cpp
     mwworld/testneutralweather.cpp
     mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp

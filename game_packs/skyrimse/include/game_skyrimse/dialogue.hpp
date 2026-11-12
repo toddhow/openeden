@@ -131,6 +131,13 @@ namespace game_skyrimse
         std::vector<FormId> mEntries;
     };
 
+    /// A VTYP record: only its editor id is read (the name of the folder that holds the voice files of the NPCs that
+    /// have this voice type; task 0143).
+    struct VoiceTypeRecord
+    {
+        RecordCommon mCommon;
+    };
+
     struct DialogueLimits
     {
         std::uint64_t mMaxRecordBytes = 16ull * 1024 * 1024;
@@ -150,6 +157,7 @@ namespace game_skyrimse
         std::vector<DialogInfo> mInfos;
         std::vector<GlobalValue> mGlobals;
         std::vector<FormListRecord> mFormLists;
+        std::vector<VoiceTypeRecord> mVoiceTypes;
 
         std::map<std::uint32_t, TypeCount> mCounts;
         std::uint64_t mUnresolvedFormIds = 0;
@@ -179,6 +187,11 @@ namespace game_skyrimse
         [[nodiscard]] const GlobalValue* global(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
 
+        /// The file name of the plugin at `index` (DialogInfo::mPlugin / DialogTopic::mPlugin); empty out of range.
+        [[nodiscard]] const std::string& pluginName(std::uint32_t index) const;
+        /// The editor id of a voice type (VTYP); empty when unknown.
+        [[nodiscard]] const std::string& voiceTypeName(FormId id) const;
+
         /// The responses of a topic in the order the game asks them; empty for an unknown topic.
         [[nodiscard]] std::vector<const DialogInfo*> infosOf(FormId topic) const;
 
@@ -203,6 +216,8 @@ namespace game_skyrimse
         };
 
         std::vector<FormIdResolver> mResolvers;
+        std::vector<std::string> mPluginNames;
+        std::unordered_map<FormId, std::string> mVoiceTypes;
         std::unordered_map<FormId, DialogTopic> mTopics;
         std::unordered_map<FormId, Slot> mSlots;
         std::unordered_map<FormId, GlobalValue> mGlobals;
@@ -238,6 +253,9 @@ namespace game_skyrimse
         SkyrimConditionWorld(const ActorIndex& actors, const DialogueIndex& dialogue);
 
         void setSpeaker(const DialogueSpeaker& speaker);
+        /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
+        /// the race's voice type for its sex; kNullFormId when none (task 0143).
+        [[nodiscard]] FormId speakerVoiceType() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
         /// Quest data and state (task 0139). Both null (the default): no quest is known, every quest function keeps the
         /// default answer (stage 0, nothing done, not running) and `answers` says so.

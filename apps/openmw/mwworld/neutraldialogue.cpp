@@ -80,6 +80,16 @@ namespace MWWorld
         return choice;
     }
 
+    // STUB (task 0143, tests first)
+    void NeutralVoiceQueue::set(std::vector<std::string>) {}
+
+    void NeutralVoiceQueue::clear() {}
+
+    std::optional<std::string> NeutralVoiceQueue::poll(bool)
+    {
+        return std::nullopt;
+    }
+
     std::vector<std::pair<int, int>> parseNeutralDialoguePressScript(const std::string& text)
     {
         std::vector<std::pair<int, int>> out;

@@ -77,6 +77,29 @@ namespace MWWorld
         bool mEnded = false;
     };
 
+    /// The voice lines of the turn on screen, played one after the other (task 0143). Pure: the session tells it
+    /// whether the line it started last is still playing and gets back the next path to start. The paths are the pack's
+    /// (DialogueTurn::voice), relative to the sound folder.
+    class NeutralVoiceQueue
+    {
+    public:
+        /// A new turn: whatever was pending is dropped (the session stops the line that is playing).
+        void set(std::vector<std::string> paths);
+        void clear();
+
+        /// Called once a poll with whether the last started line still plays. Returns the next line to start, or
+        /// nothing while one plays or none is left.
+        [[nodiscard]] std::optional<std::string> poll(bool linePlaying);
+
+        [[nodiscard]] std::size_t pending() const { return mPaths.size() - mNext; }
+        [[nodiscard]] std::size_t started() const { return mStarted; }
+
+    private:
+        std::vector<std::string> mPaths;
+        std::size_t mNext = 0;
+        std::size_t mStarted = 0;
+    };
+
     /// Runs one conversation at a time through the window manager.
     class NeutralDialogueSession
     {

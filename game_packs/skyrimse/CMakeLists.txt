@@ -9,6 +9,7 @@ openeden_add_game_pack(skyrimse
         src/dialogue.cpp
         src/quest.cpp
         src/dialogue_runtime.cpp
+        src/voice.cpp
         src/appearance.cpp
         src/land.cpp
         src/worldspace.cpp
@@ -33,6 +34,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/dialogue.hpp
         include/game_skyrimse/quest.hpp
         include/game_skyrimse/dialogue_runtime.hpp
+        include/game_skyrimse/voice.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
         include/game_skyrimse/worldspace.hpp
@@ -70,6 +72,7 @@ add_library(game_skyrimse_world STATIC
     src/dialogue.cpp
     src/quest.cpp
     src/dialogue_runtime.cpp
+    src/voice.cpp
     src/appearance.cpp
     src/land.cpp
     src/worldspace.cpp

@@ -78,6 +78,9 @@ namespace MWSound
 
         double mNextPts;
 
+        // Task 0143: set when the file was a .fuz (Skyrim SE voice line); only used for the log line in close().
+        std::string mFuzName;
+
         SwrContext* mSwr;
         enum AVSampleFormat mOutputSampleFormat;
 #if OPENMW_FFMPEG_5_OR_GREATER

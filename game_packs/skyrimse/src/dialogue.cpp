@@ -80,6 +80,7 @@ namespace game_skyrimse
                     case Content::fourCC("INFO"):
                     case Content::fourCC("GLOB"):
                     case Content::fourCC("FLST"):
+                    case Content::fourCC("VTYP"):
                         break;
                     default:
                         return true;
@@ -130,6 +131,9 @@ namespace game_skyrimse
                         break;
                     case Content::fourCC("GLOB"):
                         ok = readGlobal(record, bytes);
+                        break;
+                    case Content::fourCC("VTYP"):
+                        ok = readVoiceType(record, bytes);
                         break;
                     default:
                         ok = readFormList(record, bytes);
@@ -447,6 +451,20 @@ namespace game_skyrimse
                 return ok;
             }
 
+            bool readVoiceType(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                VoiceTypeRecord v;
+                v.mCommon = common(record);
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    if (type == Content::fourCC("EDID"))
+                        return zstring(type, data, v.mCommon.mEditorId);
+                    return true;
+                });
+                if (ok)
+                    mOut.mVoiceTypes.push_back(std::move(v));
+                return ok;
+            }
+
             bool readFormList(const Content::RawRecord& record, std::span<const std::byte> bytes)
             {
                 FormListRecord f;
@@ -542,6 +560,16 @@ namespace game_skyrimse
     {
         const std::uint32_t plugin = static_cast<std::uint32_t>(mResolvers.size());
         mResolvers.push_back(std::move(resolver));
+        mPluginNames.push_back(records.mName);
+        for (const VoiceTypeRecord& v : records.mVoiceTypes)
+        {
+            if (!usable(v.mCommon.mId))
+                continue;
+            if (v.mCommon.deleted())
+                mVoiceTypes.erase(v.mCommon.mId);
+            else
+                mVoiceTypes[v.mCommon.mId] = v.mCommon.mEditorId;
+        }
         for (DialogTopic& t : records.mTopics)
         {
             if (!usable(t.mCommon.mId))
@@ -597,6 +625,34 @@ namespace game_skyrimse
         for (const auto& [id, slot] : mSlots)
             for (bool alive : slot.mAlive)
                 mInfoCount += alive ? 1 : 0;
+    }
+
+    const std::string& DialogueIndex::pluginName(std::uint32_t index) const
+    {
+        static const std::string kEmpty;
+        return index < mPluginNames.size() ? mPluginNames[index] : kEmpty;
+    }
+
+    const std::string& DialogueIndex::voiceTypeName(FormId id) const
+    {
+        static const std::string kEmpty;
+        const auto it = mVoiceTypes.find(id);
+        return it == mVoiceTypes.end() ? kEmpty : it->second;
+    }
+
+    FormId SkyrimConditionWorld::speakerVoiceType() const
+    {
+        if (!mHasResolved)
+            return kNullFormId;
+        const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
+        FormId voice = traits != nullptr ? traits->mVoiceType : kNullFormId;
+        if (voice == kNullFormId && traits != nullptr)
+        {
+            const RaceRecord* race = mActors.race(mResolved.mRace);
+            if (race != nullptr)
+                voice = race->mVoiceTypes[traits->female() ? 1 : 0];
+        }
+        return voice;
     }
 
     const DialogTopic* DialogueIndex::topic(FormId id) const
@@ -824,14 +880,7 @@ namespace game_skyrimse
         const FormId target = resolve(voiceOrList);
         if (!isSpeaker(subject) || !mHasResolved || target == kNullFormId)
             return false;
-        const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
-        FormId voice = traits != nullptr ? traits->mVoiceType : kNullFormId;
-        if (voice == kNullFormId)
-        {
-            const RaceRecord* race = mActors.race(mResolved.mRace);
-            if (race != nullptr && traits != nullptr)
-                voice = race->mVoiceTypes[traits->female() ? 1 : 0];
-        }
+        const FormId voice = speakerVoiceType();
         return voice != kNullFormId && (voice == target || inList(target, voice, 0));
     }
 

@@ -15,13 +15,13 @@
 // WorldCellSource, so the frozen WorldCellSource (world_source.hpp 1.x) is untouched. A pack that does not implement
 // it simply has actors that cannot be talked to.
 //
-// Version policy: DRAFT 0.1. Additive changes (a new trailing virtual with a "not supported" default, a trailing field a
-// consumer only reads) raise the minor number. Threading: main thread only. Plain values only: no engine, renderer,
-// UI or Qt type.
+// Version policy: DRAFT 0.2 (0.2, task 0143: DialogueTurn::voice, a trailing field). Additive changes (a new
+// trailing virtual with a "not supported" default, a trailing field a consumer only reads) raise the minor number.
+// Threading: main thread only. Plain values only: no engine, renderer, UI or Qt type.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kDialogueSourceVersion{ 0, 1 };
+    inline constexpr Version kDialogueSourceVersion{ 0, 2 };
 
     /// A topic the player may choose. `id` is opaque to the core.
     struct DialogueTopicChoice
@@ -43,6 +43,11 @@ namespace openeden::sdk::game
         bool endsConversation = false;
         /// The response had a script or other effect the pack does not run yet (counted by the pack, logged once).
         bool hadUnrunEffects = false;
+        /// Voice lines of this response, in order, one per response line that has a file: the VFS path of each, relative
+        /// to the game's sound folder (the core prefixes "sound/"), exactly as the VFS knows it. Empty when the pack has
+        /// no voice for this speaker or none of the files exist. The core plays them one after the other; the subtitle
+        /// stays `text`. Added in 0.2.
+        std::vector<std::string> voice;
 
         friend bool operator==(const DialogueTurn&, const DialogueTurn&) = default;
     };

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <utility>
 
+#include "game_skyrimse/voice.hpp"
+
 namespace game_skyrimse
 {
     DialogueRuntime::DialogueRuntime(const ActorIndex& actors, const DialogueIndex& dialogue, const QuestIndex& quests,
@@ -28,9 +30,40 @@ namespace game_skyrimse
         return o;
     }
 
+    void DialogueRuntime::nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out)
+    {
+        const DialogTopic* topic = mDialogue.topic(info.mTopic);
+        // The file name is made from the topic's quest (the INFO's own QNAM is not used: SETTLED BY DATA, task 0143).
+        const FormId questId = topic != nullptr && topic->mQuest != kNullFormId ? topic->mQuest : info.mQuest;
+        const QuestRecord* quest = mQuestIndex.quest(questId);
+        const std::string stem = voiceStem(quest != nullptr ? quest->mCommon.mEditorId : std::string(),
+            topic != nullptr ? topic->mCommon.mEditorId : std::string());
+        const std::string& plugin = mDialogue.pluginName(info.mPlugin);
+        for (const DialogResponse& response : info.mResponses)
+        {
+            const std::string path
+                = voicePath(plugin, mVoiceType, stem, info.mCommon.mStoredId, response.mNumber);
+            if (path.empty())
+            {
+                ++mStats.mVoiceUnnamed;
+                continue;
+            }
+            if (mVoiceProbe(path))
+            {
+                ++mStats.mVoiceFound;
+                out.voice.push_back(path);
+            }
+            else
+                ++mStats.mVoiceMissing;
+        }
+    }
+
     void DialogueRuntime::fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out)
     {
         out.text.clear();
+        out.voice.clear();
+        if (mVoiceProbe)
+            nameVoice(info, out);
         for (const DialogResponse& response : info.mResponses)
         {
             std::string line = response.mText.mPresent && !response.mText.mLocalized
@@ -98,6 +131,8 @@ namespace game_skyrimse
         out = {};
         mOpen = false;
         mSpeaker = speaker;
+        mWorld.setSpeaker(speaker);
+        mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
         // The random pick is a function of the placement, so the same actor greets the same way in a session.
         const Selection greeting = pickFromTopics(
             mDialogue, "HELO", mWorld, mSpeaker, options(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase));

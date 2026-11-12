@@ -6,7 +6,10 @@
 // player may choose) and answers a chosen topic. Text comes through a resolver (string tables); no engine, UI or Qt
 // type. Not thread safe; one conversation at a time.
 //
-// Slice 1 limits (each counted in `Stats`, none silent): no voice, lip sync, camera or idle; no INFO script
+// Voice (task 0143): with a voice probe set (`setVoiceProbe`), a response's lines that have a voice file are named in
+// `DialogueTurn::voice` (see voice.hpp for the file names). The pack never reads the audio; no probe, no voice.
+//
+// Slice 1 limits (each counted in `Stats`, none silent): no lip sync, camera or idle; no INFO script
 // fragments (VMAD is only noticed, `hadUnrunEffects`); no link-to topics (TCLT) or choices; no speech challenges,
 // barter, training or other services; say-once is remembered for the session only.
 
@@ -29,6 +32,9 @@ namespace game_skyrimse
     using DialogueTextResolver
         = std::function<std::string(const LString& text, std::uint32_t plugin, StringTableKind kind)>;
 
+    /// True when the VFS holds the file `path` (relative to the sound folder, lower case, '/' separators).
+    using VoiceProbe = std::function<bool(const std::string& path)>;
+
     struct DialogueRuntimeLimits
     {
         std::uint32_t mMaxTopics = 256; ///< topics offered at once (the rest are counted as cut)
@@ -46,6 +52,9 @@ namespace game_skyrimse
             std::uint64_t mLinksIgnored = 0; ///< shown responses with link-to topics (TCLT)
             std::uint64_t mTopicsCut = 0; ///< topics that passed but did not fit mMaxTopics
             std::uint64_t mUncertainTopics = 0; ///< offered topics chosen with a condition the data cannot answer
+            std::uint64_t mVoiceFound = 0; ///< response lines whose voice file exists (task 0143)
+            std::uint64_t mVoiceMissing = 0; ///< response lines with a text and no voice file
+            std::uint64_t mVoiceUnnamed = 0; ///< shown responses for which no voice path could be made
         };
 
         DialogueRuntime(const DialogueRuntime&) = delete; // the world points at mState
@@ -65,12 +74,16 @@ namespace game_skyrimse
 
         void end();
 
+        /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
+        void setVoiceProbe(VoiceProbe probe) { mVoiceProbe = std::move(probe); }
+
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] const QuestState& quests() const { return mState; }
 
     private:
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
+        void nameVoice(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);
         void offerTopics(openeden::sdk::game::DialogueTurn& out);
         [[nodiscard]] SelectionOptions options(std::uint32_t pick);
 
@@ -81,6 +94,8 @@ namespace game_skyrimse
         SkyrimConditionWorld mWorld;
         DialogueTextResolver mResolver;
         DialogueRuntimeLimits mLimits;
+        VoiceProbe mVoiceProbe;
+        std::string mVoiceType; ///< editor id of the speaker's voice type, lower case; empty when unknown
         DialogueSpeaker mSpeaker;
         std::set<FormId> mSaid;
         std::set<FormId> mOffered;

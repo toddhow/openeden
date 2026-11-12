@@ -200,6 +200,8 @@ file(GLOB UNITTEST_SRC_FILES
     nif/testreadoptions.cpp
     nif/testdefaultoptions.cpp
 
+    fuz/testfuz.cpp
+
     contentsource/pluginbuilder.hpp
     contentsource/testplugin.cpp
     contentsource/testprobefamily.cpp
@@ -525,6 +527,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialoguereal.cpp
     skyrimse/testskyrimsedialogueruntime.cpp
     skyrimse/testskyrimsedialogueruntimereal.cpp
+    skyrimse/testskyrimsevoice.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsequestreal.cpp
     skyrimse/testskyrimseappearance.cpp
@@ -563,6 +566,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dialogue.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dialogue_runtime.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/voice.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
