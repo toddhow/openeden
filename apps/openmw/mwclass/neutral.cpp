@@ -12,6 +12,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 
 #include <vsg/maths/quat.h>
@@ -409,6 +410,22 @@ namespace MWClass
                 return text != nullptr ? static_cast<float>(std::atof(text)) : 0.f;
             }();
             physics->addNeutralActor(ptr, appearance.heightScale, raise);
+
+            // Stage S3 (actor hooks): a game whose source implements ActorRules is told about the actor and, once a
+            // frame, asked what it wants. The resolver looks the source up each time it is used (the pack may have
+            // been stopped by then); it holds the game id, never a pointer to the pack.
+            if (dynamic_cast<openeden::sdk::game::ActorRules*>(source) != nullptr)
+            {
+                const std::string gameId = base.mGameId;
+                physics->setNeutralRulesResolver([gameId]() -> openeden::sdk::game::ActorRules* {
+                    MWBase::ExtensionManager* manager = MWBase::Environment::get().getExtensionManager();
+                    NeutralWorld::NeutralWorldStore* worldStore = manager != nullptr ? manager->neutralWorldStore() : nullptr;
+                    return dynamic_cast<openeden::sdk::game::ActorRules*>(
+                        worldStore != nullptr ? worldStore->source(gameId) : nullptr);
+                });
+                if (const auto reference = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum()))
+                    physics->announceNeutralActor(ptr, *reference, base.mBase, base.mEditorId);
+            }
         }
     }
 

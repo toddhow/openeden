@@ -11,10 +11,12 @@
 // view and cell give equal results, on one platform; floating point results are not claimed to be bit-identical across
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
+#include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
@@ -140,6 +142,7 @@ namespace game_skyrimse
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
         public openeden::sdk::game::ActorAppearanceSource,
         public openeden::sdk::game::DialogueSource,
+        public openeden::sdk::game::ActorRules,
         public openeden::sdk::game::CellWaterSource,
         public openeden::sdk::game::WeatherSource
     {
@@ -183,6 +186,14 @@ namespace game_skyrimse
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         void endConversation() override;
+        /// Actor hooks (task 0135, stage S3): handled by the pack's own table.
+        void onActorAdded(const openeden::sdk::game::ActorInfo& info) override { mActors.onActorAdded(info); }
+        void onActorRemoved(openeden::sdk::game::ActorHandle handle) override { mActors.onActorRemoved(handle); }
+        void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
+        {
+            mActors.update(seconds, writer);
+        }
+        [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -192,6 +203,7 @@ namespace game_skyrimse
         [[nodiscard]] const SkyrimTerrainIndex* terrain() const;
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
+        SkyrimActorTable mActors;
     };
 }
 

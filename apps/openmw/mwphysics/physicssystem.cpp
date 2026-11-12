@@ -376,6 +376,7 @@ namespace MWPhysics
         mTaskScheduler->releaseSharedStates();
         mHeightFields.clear();
         mObjects.clear();
+        mNeutralBridge.clear(); // silently: the pack may be unloaded already
         mNeutralActors.clear();
         mActors.clear();
         mProjectiles.clear();
@@ -1005,6 +1006,8 @@ namespace MWPhysics
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())
         {
+            if (mNeutralBridge.size() != 0)
+                mNeutralBridge.remove(mNeutralRulesResolver ? mNeutralRulesResolver() : nullptr, ptr.mRef);
             std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
 
@@ -1231,12 +1234,46 @@ namespace MWPhysics
         }
     }
 
+    void PhysicsSystem::NeutralRequestApplier::setRequest(const void* key, float velX, float velY)
+    {
+        for (NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        {
+            if (static_cast<const void*>(entry.mRef) == key)
+            {
+                entry.mRequest.mVelX = velX;
+                entry.mRequest.mVelY = velY;
+                return;
+            }
+        }
+    }
+
+    void PhysicsSystem::announceNeutralActor(const MWWorld::Ptr& ptr, openeden::sdk::game::WorldId reference,
+        openeden::sdk::game::WorldId base, std::string_view editorId)
+    {
+        if (!mNeutralRulesResolver || getObject(ptr) == nullptr)
+            return;
+        const bool known = std::any_of(mNeutralActors.begin(), mNeutralActors.end(),
+            [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
+        if (!known)
+            return;
+        const ESM::Position& pos = ptr.getRefData().getPosition();
+        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.add(mNeutralRulesResolver(), ptr.mRef,
+            reference, base, editorId, pos.pos[0], pos.pos[1], pos.pos[2], pos.rot[2]);
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        if (trace)
+            Log(Debug::Info) << "NACTHOOK added " << ptr.getCellRef().getRefId() << " editor id " << editorId
+                             << " handle " << handle.reference << "/" << handle.session;
+    }
+
     void PhysicsSystem::updateNeutralActors(float dt)
     {
         mNeutralMoved.clear();
         mNeutralTurned.clear();
         if (mNeutralActors.empty())
             return;
+        // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
+        if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
+            mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         static const WalkAid walkAid = readWalkAid();
         if (walkAid.mValid && walkAid.mIndex < mNeutralActors.size())

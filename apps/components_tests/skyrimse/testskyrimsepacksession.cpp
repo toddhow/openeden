@@ -9,6 +9,7 @@
 #include <openeden/game/world_source_service.hpp>
 #include <openeden/logging.hpp>
 
+#include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/skyrimse_game_pack.hpp>
 #include <game_skyrimse/world_view.hpp>
@@ -410,5 +411,40 @@ namespace
         options.mLanguage = "french";
         EXPECT_FALSE(view.configure(options, nullptr));
         EXPECT_EQ(view.language(), "german");
+    }
+
+    // Task 0135 stage S3: the pack setting `actor test walk` reaches the registered source's ActorRules.
+    TEST(SkyrimSePackSession, theActorTestWalkSettingReachesTheRegisteredSourcesActorRules)
+    {
+        for (const std::string value : { "", "Bob" })
+        {
+            Session s;
+            s.dir.write("base.esm", skyrimPlugin(Content::sRecMaster, interiorCell(0x900, "TestHall", false, 0, "H")));
+            if (!value.empty())
+                s.host.settingsService().setString("skyrimse", std::string(kActorTestWalkKey), value);
+            s.setContent({ "base.esm" });
+            LifecycleManager manager(s.host);
+            manager.addExtension(packManifest(), createSkyrimGamePack());
+            ASSERT_TRUE(manager.initialize()) << value;
+            auto* rules = dynamic_cast<openeden::sdk::game::ActorRules*>(s.listener.mStore.source("skyrimse"));
+            ASSERT_NE(rules, nullptr) << value;
+            struct Writer final : openeden::sdk::game::ActorRequestWriter
+            {
+                bool setMovement(openeden::sdk::game::ActorHandle, float, float) override
+                {
+                    ++mCalls;
+                    return true;
+                }
+                int mCalls = 0;
+            } writer;
+            openeden::sdk::game::ActorInfo info;
+            info.handle = { 5, 1 };
+            info.base = 1;
+            info.editorId = "bob";
+            rules->onActorAdded(info);
+            rules->update(0.1f, writer);
+            EXPECT_EQ(writer.mCalls, value.empty() ? 0 : 1) << value;
+            manager.shutdown();
+        }
     }
 }

@@ -113,7 +113,7 @@ add_openmw_dir (mwphysics
     physicssystem trace collisiontype actor convert object heightfield closestnotmerayresultcallback
     contacttestresultcallback stepper movementsolver projectile
     actorconvexcallback raycasting mtphysics water contacttestwrapper projectileconvexcallback
-    ragdollhost ragdollrigdata skyrimshape neutralactor neutralmover
+    ragdollhost ragdollrigdata skyrimshape neutralactor neutralmover neutralactorbridge
     )
 
 add_openmw_dir (mwclass

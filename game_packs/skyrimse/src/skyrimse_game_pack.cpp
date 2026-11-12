@@ -132,6 +132,16 @@ namespace game_skyrimse
                             "the setting '" + std::string(kStringTableLanguageKey)
                                 + "' is not a language name (2 to 32 ASCII letters); using " + options.mLanguage);
                 }
+                if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
+                {
+                    // Task 0135 stage S3: the test rule of the actor hooks, off unless the setting names an editor id.
+                    const std::string walker = settings->getString(kPackId, kActorTestWalkKey, "");
+                    if (!mCellSource.actorTable().setTestWalk(walker))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kActorTestWalkKey) + "' is too long; the test walk is off");
+                    else if (!walker.empty())
+                        say(openeden::sdk::LogLevel::Info, "actor test walk: actors named " + walker + " pace");
+                }
                 if (const openeden::sdk::VfsService* vfs = host.getVfsService())
                 {
                     mFileSource = std::make_unique<VfsFileSource>(*vfs);

@@ -25,7 +25,10 @@
 #include "../mwworld/ptr.hpp"
 
 #include "joltlisteners.hpp"
+#include <openeden/game/actor_rules.hpp>
+
 #include "neutralactor.hpp"
+#include "neutralactorbridge.hpp"
 #include "neutralmover.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
@@ -215,6 +218,19 @@ namespace MWPhysics
         /// a velocity on the ground in units a second. A zero velocity stops it. The mover turns the actor to face the
         /// velocity. Ignored for an actor that has no neutral body. Main thread.
         void setNeutralActorRequest(const MWWorld::ConstPtr& ptr, const NeutralMover::Request& request);
+
+        /// Task 0135 stage S3 (actor hooks, sdk/include/openeden/game/actor_rules.hpp). The resolver finds the game's
+        /// ActorRules (null when there is none, or the pack is gone); it is asked each time the bridge calls the pack,
+        /// never cached, so a pack that stops cannot be called. Set it before announcing actors.
+        using NeutralRulesResolver = std::function<openeden::sdk::game::ActorRules*()>;
+        void setNeutralRulesResolver(NeutralRulesResolver resolver) { mNeutralRulesResolver = std::move(resolver); }
+
+        /// Tells the pack about a neutral actor that already has a body (addNeutralActor): `reference` is the
+        /// placement id and `base` the base id in the pack's terms. Does nothing without a body, a resolver or rules.
+        void announceNeutralActor(const MWWorld::Ptr& ptr, openeden::sdk::game::WorldId reference,
+            openeden::sdk::game::WorldId base, std::string_view editorId);
+
+        [[nodiscard]] const NeutralActorBridge::Stats& getNeutralBridgeStats() const { return mNeutralBridge.stats(); }
 
         /// The fall state of a neutral actor, null if `ptr` has none. For traces and tests.
         const NeutralActor::Fall* getNeutralActorFall(const MWWorld::ConstPtr& ptr) const;
@@ -429,6 +445,22 @@ namespace MWPhysics
             std::uint32_t mWalkFrames = 0; ///< frames this actor was walked, for the trace
         };
         std::vector<NeutralActorEntry> mNeutralActors;
+        // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
+        class NeutralRequestApplier final : public NeutralRequestSink
+        {
+        public:
+            explicit NeutralRequestApplier(PhysicsSystem& physics)
+                : mPhysics(physics)
+            {
+            }
+            void setRequest(const void* key, float velX, float velY) override;
+
+        private:
+            PhysicsSystem& mPhysics;
+        };
+        NeutralRulesResolver mNeutralRulesResolver;
+        NeutralActorBridge mNeutralBridge;
+        NeutralRequestApplier mNeutralApplier{ *this };
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
         std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
         std::vector<MWWorld::Ptr> mNeutralTurned;

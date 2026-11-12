@@ -511,6 +511,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/bsabuilder.hpp
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
+    skyrimse/testskyrimseactorrules.cpp
     skyrimse/testskyrimseconditions.cpp
     skyrimse/testskyrimseconditionsreal.cpp
     skyrimse/testskyrimsetreesreal.cpp
@@ -576,6 +577,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/terrain_source.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_table.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_scripts.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_nif.cpp

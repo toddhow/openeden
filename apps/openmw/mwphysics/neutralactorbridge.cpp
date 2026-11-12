@@ -1,0 +1,137 @@
+#include "neutralactorbridge.hpp"
+
+#include <algorithm>
+#include <cmath>
+
+namespace MWPhysics
+{
+    using openeden::sdk::game::ActorHandle;
+    using openeden::sdk::game::ActorInfo;
+    using openeden::sdk::game::ActorRules;
+    using openeden::sdk::game::WorldId;
+
+    NeutralActorBridge::NeutralActorBridge()
+        : mWriter(*this)
+    {
+    }
+
+    ActorHandle NeutralActorBridge::add(ActorRules* rules, const void* key, WorldId reference, WorldId base,
+        std::string_view editorId, double x, double y, double z, float heading)
+    {
+        if (key == nullptr || reference == openeden::sdk::game::kNoWorldId || mEntries.size() >= kMaxActors
+            || mNextSession == 0)
+            return {};
+        for (const Entry& entry : mEntries)
+        {
+            if (entry.mKey == key)
+                return {};
+        }
+        ActorHandle handle;
+        handle.reference = reference;
+        handle.session = mNextSession++;
+        mEntries.push_back({ handle, key }); // ascending sessions keep the table sorted
+        ++mStats.mAdded;
+        if (rules != nullptr)
+        {
+            ActorInfo info;
+            info.handle = handle;
+            info.base = base;
+            info.editorId = editorId;
+            info.x = x;
+            info.y = y;
+            info.z = z;
+            info.heading = heading;
+            try
+            {
+                rules->onActorAdded(info);
+            }
+            catch (...)
+            {
+                ++mStats.mRulesFailures; // nothing crosses the core / pack boundary
+            }
+        }
+        return handle;
+    }
+
+    void NeutralActorBridge::remove(ActorRules* rules, const void* key)
+    {
+        const auto found
+            = std::find_if(mEntries.begin(), mEntries.end(), [&](const Entry& entry) { return entry.mKey == key; });
+        if (found == mEntries.end())
+            return;
+        const ActorHandle handle = found->mHandle;
+        if (rules != nullptr)
+        {
+            try
+            {
+                rules->onActorRemoved(handle);
+            }
+            catch (...)
+            {
+                ++mStats.mRulesFailures;
+            }
+        }
+        mEntries.erase(found);
+        ++mStats.mRemoved;
+    }
+
+    void NeutralActorBridge::clear()
+    {
+        mEntries.clear();
+    }
+
+    void NeutralActorBridge::update(ActorRules* rules, float seconds, NeutralRequestSink& sink)
+    {
+        if (rules == nullptr || mEntries.empty())
+            return;
+        if (!std::isfinite(seconds) || seconds < 0.f)
+            seconds = 0.f;
+        mWriter.mSink = &sink;
+        try
+        {
+            rules->update(seconds, mWriter);
+        }
+        catch (...)
+        {
+            ++mStats.mRulesFailures;
+        }
+        mWriter.mSink = nullptr;
+    }
+
+    ActorHandle NeutralActorBridge::handleOf(const void* key) const
+    {
+        if (key == nullptr)
+            return {};
+        for (const Entry& entry : mEntries)
+        {
+            if (entry.mKey == key)
+                return entry.mHandle;
+        }
+        return {};
+    }
+
+    bool NeutralActorBridge::Writer::setMovement(ActorHandle handle, float velX, float velY)
+    {
+        if (mSink == nullptr)
+        {
+            ++mBridge.mStats.mOutsideUpdate;
+            return false;
+        }
+        // Sessions are ascending in the table: binary search, then the placement must match as well.
+        const auto found = std::lower_bound(mBridge.mEntries.begin(), mBridge.mEntries.end(), handle.session,
+            [](const Entry& entry, std::uint32_t session) { return entry.mHandle.session < session; });
+        if (handle.session == 0 || found == mBridge.mEntries.end() || found->mHandle != handle)
+        {
+            ++mBridge.mStats.mStale;
+            return false;
+        }
+        if (!std::isfinite(velX) || !std::isfinite(velY))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        ++mBridge.mStats.mRequests;
+        mSink->setRequest(found->mKey, velX, velY);
+        return true;
+    }
+}

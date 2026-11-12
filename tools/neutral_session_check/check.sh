@@ -69,6 +69,9 @@ CFG
 [ "$SHOT" = n5bodydraw ] && echo "content=n5bodydraw.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S2: "n5walk" takes pictures of a neutral actor walked by OPENEDEN_NEUTRAL_ACTOR_WALK (use at least 900 frames).
 [ "$SHOT" = n5walk ] && echo "content=n5walk.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
+# "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
+# lines then follow the pacing actor. Leave OPENEDEN_NEUTRAL_ACTOR_WALK unset.
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0131 stage N3a-6: "ms0sweep" runs the Lua API sweep over the neutral cell (use at least 1500 frames).
 [ "$SHOT" = ms0sweep ] && echo "content=ms0sweep.omwscripts" >> "$WORK/config/openmw.cfg"

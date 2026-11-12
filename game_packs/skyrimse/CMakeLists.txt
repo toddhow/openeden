@@ -18,6 +18,7 @@ openeden_add_game_pack(skyrimse
         src/terrain_source.cpp
         src/world_view.cpp
         src/neutral_world.cpp
+        src/actor_table.cpp
         src/survey.cpp
         src/survey_scripts.cpp
         src/survey_nif.cpp
@@ -43,6 +44,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/terrain_source.hpp
         include/game_skyrimse/world_view.hpp
         include/game_skyrimse/neutral_world.hpp
+        include/game_skyrimse/actor_table.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
         extension.json
@@ -81,6 +83,7 @@ add_library(game_skyrimse_world STATIC
     src/terrain_source.cpp
     src/world_view.cpp
     src/neutral_world.cpp
+    src/actor_table.cpp
     src/survey.cpp
     src/survey_scripts.cpp
     src/survey_nif.cpp
