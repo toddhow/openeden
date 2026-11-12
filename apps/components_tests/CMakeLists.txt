@@ -503,6 +503,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseplugins.cpp
     skyrimse/testskyrimsearchives.cpp
     skyrimse/testskyrimserealdata.cpp
+    skyrimse/testskyrimsesurvey.cpp
+    skyrimse/testskyrimsesurveyreal.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/scene_options.cpp
     ${CMAKE_SOURCE_DIR}/extensions/compat_skyrimse/src/skyrimse_compat_extension.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
@@ -512,6 +514,9 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_scripts.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_nif.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/skyrimse_game_pack.cpp
 )
 set_source_files_properties(

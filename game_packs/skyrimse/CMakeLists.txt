@@ -10,6 +10,12 @@ openeden_add_game_pack(skyrimse
         src/worldspace.cpp
         src/world_view.cpp
         src/neutral_world.cpp
+        src/survey.cpp
+        src/survey_scripts.cpp
+        src/survey_nif.cpp
+        include/game_skyrimse/survey.hpp
+        include/game_skyrimse/survey_scripts.hpp
+        include/game_skyrimse/survey_nif.hpp
         include/game_skyrimse/pack_core.hpp
         include/game_skyrimse/records.hpp
         include/game_skyrimse/actors.hpp
@@ -47,6 +53,9 @@ add_library(game_skyrimse_world STATIC
     src/worldspace.cpp
     src/world_view.cpp
     src/neutral_world.cpp
+    src/survey.cpp
+    src/survey_scripts.cpp
+    src/survey_nif.cpp
 )
 set_target_properties(game_skyrimse_world PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(game_skyrimse_world
