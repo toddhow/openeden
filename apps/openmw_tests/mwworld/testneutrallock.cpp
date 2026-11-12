@@ -86,6 +86,18 @@ namespace
         EXPECT_FALSE(asked);
     }
 
+    // toddhow, 2026-11-12: a lock of level 0 that names no key is not a lock (the Angarvunde draugr chests); a level 0
+    // lock with a key still needs the key.
+    TEST(NeutralLockDecision, level_zero_with_no_key_is_not_locked)
+    {
+        WorldObject o = lockedObject(kNoWorldId);
+        o.lock->level = 0;
+        EXPECT_EQ(MWWorld::decideNeutralLock(o, false, false, never), NeutralLockOutcome::NotLocked);
+        o = lockedObject(9);
+        o.lock->level = 0;
+        EXPECT_EQ(MWWorld::decideNeutralLock(o, false, false, never), NeutralLockOutcome::Locked);
+    }
+
     TEST(NeutralLockDecision, the_developer_aid_opens_everything)
     {
         EXPECT_EQ(MWWorld::decideNeutralLock(lockedObject(kNoWorldId), true, false, never), NeutralLockOutcome::Open);

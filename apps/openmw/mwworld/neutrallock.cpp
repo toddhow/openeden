@@ -14,6 +14,9 @@ namespace MWWorld
     {
         if (!object.lock || !object.lock->locked)
             return NeutralLockOutcome::NotLocked;
+        // A level 0 lock that names no key is no lock (toddhow, 2026-11-12; the Angarvunde draugr chests).
+        if (object.lock->level == 0 && object.lock->key == kNoWorldId)
+            return NeutralLockOutcome::NotLocked;
         if (unlockAll || alreadyUnlocked)
             return NeutralLockOutcome::Open;
         if (object.lock->key != kNoWorldId && hasKey && hasKey(object.lock->key))
