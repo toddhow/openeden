@@ -238,7 +238,13 @@ namespace game_skyrimse
             index->add(records);
         }
         mWeatherIndex = std::move(index);
-        mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex);
+        TextureProbe probe;
+        if (mFiles != nullptr)
+        {
+            const FileSource* files = mFiles;
+            probe = [files](const std::string& path) { return files->exists("textures\\" + path); };
+        }
+        mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex, probe);
         return true;
     }
 

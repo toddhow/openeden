@@ -142,6 +142,26 @@ namespace
         EXPECT_NEAR(describeWeather(w).cloudSpeed, 0.992f, 0.001f);
     }
 
+    TEST(SkyrimWeatherSource, aLayerWhoseTextureDoesNotExistIsSkipped)
+    {
+        WeatherRecord w = weatherRecord(0x18, "Leftover");
+        w.mCloudLayers.resize(3);
+        w.mCloudLayers[0].mHasTexture = true;
+        w.mCloudLayers[0].mTexture = "Sky\\OblivionCloudCloudyUpper01.dds"; // not shipped
+        w.mCloudLayers[1].mHasTexture = true;
+        w.mCloudLayers[1].mTexture = "Sky\\SkyrimClouds04.dds";
+        w.mCloudLayers[1].mSpeedQ = 0;
+        w.mCloudLayers[1].mSpeedR = 127;
+        const auto exists = [](const std::string& path) { return path != "Sky\\OblivionCloudCloudyUpper01.dds"; };
+        const sdk::WeatherDescription d = describeWeather(w, exists);
+        EXPECT_EQ(d.cloudTexture, "Sky\\SkyrimClouds04.dds");
+        EXPECT_FLOAT_EQ(d.cloudSpeed, 2.f); // the speed is the chosen layer's own
+        // No probe: the first textured layer.
+        EXPECT_EQ(describeWeather(w).cloudTexture, "Sky\\OblivionCloudCloudyUpper01.dds");
+        // Nothing exists: no picture.
+        EXPECT_TRUE(describeWeather(w, [](const std::string&) { return false; }).cloudTexture.empty());
+    }
+
     TEST(SkyrimWeatherSource, aWeatherWithNoCloudTextureHasNoPicture)
     {
         WeatherRecord w = weatherRecord(0x17, "Clear");

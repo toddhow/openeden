@@ -52,7 +52,7 @@ namespace game_skyrimse
         }
     }
 
-    openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& w)
+    openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& w, const TextureProbe& textureExists)
     {
         openeden::sdk::game::WeatherDescription d;
         d.id = w.mCommon.mId;
@@ -60,7 +60,8 @@ namespace game_skyrimse
 
         std::size_t picture = w.mCloudLayers.size();
         for (std::size_t i = 0; i < w.mCloudLayers.size(); ++i)
-            if (w.mCloudLayers[i].mHasTexture && !w.mCloudLayers[i].mTexture.empty())
+            if (w.mCloudLayers[i].mHasTexture && !w.mCloudLayers[i].mTexture.empty()
+                && (!textureExists || textureExists(w.mCloudLayers[i].mTexture)))
             {
                 picture = i;
                 d.cloudTexture = w.mCloudLayers[i].mTexture;
@@ -130,7 +131,7 @@ namespace game_skyrimse
         return true;
     }
 
-    WeatherTable::WeatherTable(const WeatherIndex& index)
+    WeatherTable::WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists)
         : mIndex(&index)
         , mIds(index.weatherIds())
     {
@@ -138,7 +139,7 @@ namespace game_skyrimse
         for (const FormId id : mIds)
         {
             const WeatherRecord* w = index.weather(id);
-            mWeathers.push_back(w != nullptr ? describeWeather(*w) : openeden::sdk::game::WeatherDescription{});
+            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists) : openeden::sdk::game::WeatherDescription{});
         }
     }
 

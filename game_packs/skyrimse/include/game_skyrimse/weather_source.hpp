@@ -14,6 +14,8 @@
 #include <openeden/game/weather_source.hpp>
 
 #include <cstdint>
+#include <functional>
+#include <string>
 #include <vector>
 
 namespace game_skyrimse
@@ -40,9 +42,16 @@ namespace game_skyrimse
         inline constexpr std::uint8_t kCloudStillByte = 127;
     }
 
+    /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts as
+    /// existing.
+    using TextureProbe = std::function<bool(const std::string&)>;
+
     /// One weather as the SDK describes it. NAM0 types used: SkyUpper (sky), FogFar (fog), Ambient, Sunlight (sun), Sun
-    /// (the disc at sunset); the layer with the first cloud texture is the one picture.
-    [[nodiscard]] openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& weather);
+    /// (the disc at sunset); the picture is the first cloud layer with a texture that exists (some weathers name a
+    /// leftover Oblivion texture on layer 0 that the game does not ship: the first frame drew the engine's purple
+    /// fallback).
+    [[nodiscard]] openeden::sdk::game::WeatherDescription describeWeather(
+        const WeatherRecord& weather, const TextureProbe& textureExists = {});
 
     /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no climate
     /// has a timing.
@@ -53,7 +62,7 @@ namespace game_skyrimse
     class WeatherTable
     {
     public:
-        explicit WeatherTable(const WeatherIndex& index);
+        explicit WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists = {});
 
         [[nodiscard]] const std::vector<openeden::sdk::game::WeatherDescription>& weathers() const { return mWeathers; }
         /// The table position of a weather form id, or -1.
