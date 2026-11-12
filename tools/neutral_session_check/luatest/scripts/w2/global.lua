@@ -7,7 +7,8 @@ local world = require('openmw.world')
 local start = nil
 local step = 0
 local DOORBASE = 'skyrimse:b152263'
-local SHOTS = { 18, 30, 45, 60 }
+local SHOTS = { 20, 40, 60, 80 }
+local lastLog = 0
 local shotIndex = 0
 
 local function nearestDoor(cell, base, near)
@@ -52,11 +53,16 @@ return {
             elseif step == 1 and t >= 14 then
                 step = 2
                 -- the ground wets and the snow builds over game time: a fast clock, kept around noon
-                world.mwscript.getGlobalVariables(player).timescale = 200
+                world.mwscript.getGlobalVariables(player).timescale = 1000
                 print('W2 outside: ' .. describe(player))
                 player:sendEvent('W2Look')
             elseif step == 2 then
                 local hour = world.mwscript.getGlobalVariables(player).gamehour
+                if t - lastLog >= 5 then
+                    lastLog = t
+                    print(string.format('W2 clock %.0f s: %s timescale=%s', t, describe(player),
+                        tostring(world.mwscript.getGlobalVariables(player).timescale)))
+                end
                 if hour > 15 or hour < 10 then
                     world.mwscript.getGlobalVariables(player).gamehour = 11
                 end

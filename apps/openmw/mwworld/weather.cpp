@@ -989,7 +989,13 @@ namespace MWWorld
                 continue;
             float strength = 0.f;
             if (mWeatherSettings[type].takeStrike(strength))
+            {
                 mFlasher.strike(mLightningTime, strength);
+                // Test aid of the neutral weather check (task 0127): the strikes can be counted in the log.
+                if (mRegionProvider != nullptr)
+                    Log(Debug::Info) << "Neutral weather: lightning strike " << mWeatherSettings[type].mName << " strength "
+                                     << strength << " at " << mLightningTime << " s";
+            }
         }
         const float setting = mRendering.lightningStrength();
         const float debugAge = mRendering.lightningDebugAge();
