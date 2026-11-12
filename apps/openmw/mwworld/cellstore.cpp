@@ -894,6 +894,20 @@ namespace MWWorld
         return true;
     }
 
+    const openeden::sdk::game::WorldObject* CellStore::neutralObject(openeden::sdk::game::WorldId placement) const
+    {
+        if (mNeutralCell == nullptr)
+            return nullptr;
+        const auto& objects = mNeutralCell->objects;
+        const auto it = std::lower_bound(objects.begin(), objects.end(), placement,
+            [](const openeden::sdk::game::WorldObject& object, openeden::sdk::game::WorldId id) {
+                return object.id < id;
+            });
+        if (it == objects.end() || it->id != placement)
+            return nullptr;
+        return &*it;
+    }
+
     void CellStore::loadNeutralRefs()
     {
         mNeutralLoaded = 0;

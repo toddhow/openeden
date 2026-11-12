@@ -8,14 +8,28 @@
 
 #include <vsg/maths/quat.h>
 
+#include <components/l10n/manager.hpp>
+
+#include <components/worldmodel/store.hpp>
+
+#include "../mwbase/environment.hpp"
+#include "../mwbase/extensionmanager.hpp"
+#include "../mwbase/windowmanager.hpp"
+#include "../mwmechanics/actorutil.hpp"
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwrender/skyrimmodel.hpp"
+#include "../mwworld/action.hpp"
+#include "../mwworld/actionteleport.hpp"
 #include "../mwworld/cellref.hpp"
 #include "../mwworld/cellstore.hpp"
+#include "../mwworld/esmstore.hpp"
+#include "../mwworld/failedaction.hpp"
+#include "../mwworld/neutraldoor.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
 #include "../mwworld/refdata.hpp"
+#include "../mwworld/worldmodel.hpp"
 
 namespace MWClass
 {
@@ -53,6 +67,128 @@ namespace MWClass
         {
             return *ptr.get<MWWorld::NeutralBase>()->mBase;
         }
+    }
+
+    namespace
+    {
+        // Developer aids (task 0115), read once: OPENEDEN_NEUTRAL_DOOR_TRACE=1 logs a line per door activation,
+        // OPENEDEN_NEUTRAL_UNLOCK_DOORS=1 lets every locked door open (for testing; not a setting).
+        bool envFlag(const char* name)
+        {
+            const char* value = std::getenv(name);
+            return value != nullptr && *value != '\0' && *value != '0';
+        }
+
+        bool doorTraceWanted()
+        {
+            static const bool wanted = envFlag("OPENEDEN_NEUTRAL_DOOR_TRACE");
+            return wanted;
+        }
+
+        bool unlockDoorsWanted()
+        {
+            static const bool wanted = envFlag("OPENEDEN_NEUTRAL_UNLOCK_DOORS");
+            return wanted;
+        }
+
+        // A refusal: shows its text (a key of the OMWEngine l10n context, looked up when the action runs) to the
+        // player. Owns what it needs, so nothing dangles.
+        class RefusalAction final : public MWWorld::Action
+        {
+            std::string mKey;
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                const std::string text
+                    = MWBase::Environment::get().getL10nManager()->getMessage("OMWEngine", mKey);
+                MWBase::Environment::get().getWindowManager()->messageBox(text);
+            }
+
+        public:
+            explicit RefusalAction(std::string key)
+                : MWWorld::Action(false)
+                , mKey(std::move(key))
+            {
+            }
+        };
+
+        // One trace line per activation (OPENEDEN_NEUTRAL_DOOR_TRACE).
+        void logDoor(const MWWorld::Ptr& ptr, const MWWorld::NeutralDoorDecision& decision,
+            std::string_view destination, bool reused)
+        {
+            if (!doorTraceWanted())
+                return;
+            // What a hop leaves behind (task 0115 memory check): the base records and the extension host's resident
+            // neutral cells must not grow when a cell is entered again.
+            const std::size_t bases = MWBase::Environment::get().getESMStore()->get<MWWorld::NeutralBase>().getSize();
+            const NeutralWorld::NeutralWorldStore* neutral
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            Log(Debug::Info) << "NDOOR " << ptr.getCellRef().getRefNum().mIndex << " in "
+                             << ptr.getCell()->getCell()->getDescription() << ": "
+                             << MWWorld::neutralDoorOutcomeName(decision.mOutcome) << " destination '" << destination
+                             << "' arrival " << decision.mArrival.pos[0] << "," << decision.mArrival.pos[1] << ","
+                             << decision.mArrival.pos[2] << (destination.empty() ? "" : reused ? " reused" : " built")
+                             << ", base records " << bases
+                             << ", resident neutral cells "
+                             << (neutral != nullptr ? neutral->stats().mResidentCells : 0);
+        }
+    }
+
+    std::unique_ptr<MWWorld::Action> Neutral::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
+    {
+        const MWWorld::NeutralBase& base = baseOf(ptr);
+        if (base.mKind != ObjectKind::Door)
+            return MWWorld::Class::activate(ptr, actor);
+
+        const MWWorld::CellStore* cell = ptr.getCell();
+        const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+        const openeden::sdk::game::WorldObject* object
+            = (cell != nullptr && placement) ? cell->neutralObject(*placement) : nullptr;
+        if (object == nullptr)
+            return MWWorld::Class::activate(ptr, actor);
+
+        MWWorld::WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
+        MWWorld::CellStore* destination = nullptr;
+        bool reused = false;
+        const auto decision = MWWorld::decideNeutralDoor(*object, actor == MWMechanics::getPlayer(),
+            unlockDoorsWanted(), [&](openeden::sdk::game::WorldId destinationCell) {
+                const MWWorld::NeutralCellLookup found
+                    = worldModel->findNeutralCell(cell->neutralGameId(), destinationCell);
+                if (found.mStatus == MWWorld::NeutralCellStatus::Found)
+                {
+                    destination = found.mStore;
+                    reused = found.mReused;
+                    return MWWorld::NeutralDestination::Interior;
+                }
+                // Said once per destination: the store caches an exterior it built, so asking again is cheap.
+                Log(Debug::Info) << "Neutral door " << *placement << ": " << found.mError;
+                return found.mStatus == MWWorld::NeutralCellStatus::Exterior ? MWWorld::NeutralDestination::Exterior
+                                                                             : MWWorld::NeutralDestination::Unavailable;
+            });
+        logDoor(ptr, decision,
+            destination != nullptr ? std::string_view(destination->getCell()->getNameId()) : std::string_view(),
+            reused);
+
+        switch (decision.mOutcome)
+        {
+            case MWWorld::NeutralDoorOutcome::Teleport:
+                // No followers: a neutral session has none (task 0115, open question 9). No door sound: Skyrim's are
+                // sound descriptor records the pack does not decode.
+                return std::make_unique<MWWorld::ActionTeleport>(
+                    destination->getCell()->getId(), decision.mArrival, false);
+            case MWWorld::NeutralDoorOutcome::Locked:
+            case MWWorld::NeutralDoorOutcome::Exterior:
+            case MWWorld::NeutralDoorOutcome::Nowhere:
+                return std::make_unique<RefusalAction>(std::string(MWWorld::neutralDoorMessageKey(decision.mOutcome)));
+            case MWWorld::NeutralDoorOutcome::NotAPlayer:
+                return std::make_unique<MWWorld::FailedAction>(std::string_view{}, ptr);
+            case MWWorld::NeutralDoorOutcome::Inert:
+            case MWWorld::NeutralDoorOutcome::NotADoor:
+                break;
+        }
+        return MWWorld::Class::activate(ptr, actor);
     }
 
     Neutral::Neutral()

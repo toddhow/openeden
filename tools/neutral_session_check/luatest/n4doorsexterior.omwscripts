@@ -1,0 +1,2 @@
+GLOBAL: scripts/n4doors/exterior.lua
+PLAYER: scripts/n4doors/shot.lua

@@ -33,9 +33,32 @@ namespace MWState
     class Loading;
 }
 
+namespace NeutralWorld
+{
+    class NeutralWorldStore;
+}
+
 namespace MWWorld
 {
     class ESMStore;
+
+    /// Task 0115: the answer of WorldModel::findNeutralCell. Found: `mStore` is the cell (new or reused). Exterior:
+    /// the pack's cell is an exterior, which the neutral model cannot enter yet. Failed: unknown id or game, or the
+    /// source could not build the cell (`mError` says why).
+    enum class NeutralCellStatus
+    {
+        Found,
+        Exterior,
+        Failed,
+    };
+
+    struct NeutralCellLookup
+    {
+        NeutralCellStatus mStatus = NeutralCellStatus::Failed;
+        CellStore* mStore = nullptr;
+        bool mReused = false; ///< the store was built earlier and is returned as it is
+        std::string mError;
+    };
 
     /// \brief Cell container
     class WorldModel
@@ -47,6 +70,15 @@ namespace MWWorld
         WorldModel& operator=(const WorldModel&) = delete;
 
         void clear();
+
+        /// Task 0115 (neutral world, stage N4): the interior CellStore of a game pack's neutral cell by its pack id,
+        /// built on first use exactly as findInterior builds one by editor id, and registered under its editor id so
+        /// that the scene's by-name lookup after a teleport finds the same store. A cell built earlier (by either
+        /// route) is returned as it is. An exterior is refused and nothing is added. Main thread. The second form
+        /// uses the extension host's store; the first is for tests.
+        NeutralCellLookup findNeutralCell(
+            NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId, openeden::sdk::game::WorldId id) const;
+        NeutralCellLookup findNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId id) const;
 
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
 
@@ -128,6 +160,11 @@ namespace MWWorld
         /// `[Game] neutral world` is off, no pack has such a cell, or the cell cannot be used (exteriors are not
         /// supported yet: design document 10.4, R7).
         CellStore* emplaceNeutralInteriorCellStore(std::string_view name) const;
+
+        /// The shared builder of the two routes above (by name, by pack id): the bases of the cell's objects into the
+        /// ESMStore and the CellStore into mCells; the store that already exists for this cell when there is one.
+        CellStore* emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
+            std::string_view name, bool& reused) const;
 
         CellStore& insertCellStore(const ESM::Cell& cell);
 

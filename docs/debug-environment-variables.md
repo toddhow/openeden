@@ -19,3 +19,5 @@ OpenEden test aids (task 0017, for screenshots; not from vsgopenmw):
 | --- | --- |
 | `OPENEDEN_OPEN_DEBUG_WINDOW` | Any value: the debug window (F10) opens by itself at running frame 20. |
 | `OPENEDEN_DEBUG_WINDOW_TAB` | `extensions`: the debug window starts on its Extensions tab (the extension profiler). |
+| `OPENEDEN_NEUTRAL_DOOR_TRACE` | `1` logs one `NDOOR` line per activation of a neutral (game pack) door: placement, outcome, destination cell, arrival, whether the cell was built or reused, the neutral base record count and the resident neutral cells (task 0115). |
+| `OPENEDEN_NEUTRAL_UNLOCK_DOORS` | `1` lets every locked door of a neutral cell open, for testing; without it a locked door is refused with a message (task 0115). Not a setting. |

@@ -1,0 +1,113 @@
+#include "neutraldoor.hpp"
+
+#include "neutralcell.hpp"
+
+namespace MWWorld
+{
+    using openeden::sdk::game::kNoWorldId;
+    using openeden::sdk::game::ObjectKind;
+    using openeden::sdk::game::TeleportComponent;
+    using openeden::sdk::game::WorldId;
+    using openeden::sdk::game::WorldObject;
+
+    ESM::Position neutralArrivalPosition(const TeleportComponent& teleport)
+    {
+        ESM::Position position;
+        position.pos[0] = static_cast<float>(teleport.destination.position.x);
+        position.pos[1] = static_cast<float>(teleport.destination.position.y);
+        position.pos[2] = static_cast<float>(teleport.destination.position.z);
+        const std::array<float, 3> angles = neutralRotationAngles(teleport.destination.rotation);
+        position.rot[0] = angles[0];
+        position.rot[1] = angles[1];
+        position.rot[2] = angles[2];
+        return position;
+    }
+
+    std::optional<WorldId> neutralPlacementOf(const ESM::RefNum& refNum)
+    {
+        if (refNum.mContentFile != kNeutralRefNumFile)
+            return std::nullopt;
+        return static_cast<WorldId>(refNum.mIndex);
+    }
+
+    NeutralDoorDecision decideNeutralDoor(const WorldObject& object, bool actorIsPlayer, bool unlockAll,
+        const std::function<NeutralDestination(WorldId)>& classify)
+    {
+        NeutralDoorDecision decision;
+        if (object.kind != ObjectKind::Door)
+            return decision;
+        if (!actorIsPlayer)
+        {
+            decision.mOutcome = NeutralDoorOutcome::NotAPlayer;
+            return decision;
+        }
+        if (object.lock && object.lock->locked && !unlockAll)
+        {
+            decision.mOutcome = NeutralDoorOutcome::Locked;
+            return decision;
+        }
+        if (!object.teleport)
+        {
+            decision.mOutcome = NeutralDoorOutcome::Inert;
+            return decision;
+        }
+        const TeleportComponent& teleport = *object.teleport;
+        if (teleport.destinationCell == kNoWorldId)
+        {
+            decision.mOutcome = NeutralDoorOutcome::Nowhere;
+            return decision;
+        }
+        switch (classify(teleport.destinationCell))
+        {
+            case NeutralDestination::Interior:
+                decision.mOutcome = NeutralDoorOutcome::Teleport;
+                decision.mDestinationCell = teleport.destinationCell;
+                decision.mArrival = neutralArrivalPosition(teleport);
+                break;
+            case NeutralDestination::Exterior:
+                decision.mOutcome = NeutralDoorOutcome::Exterior;
+                break;
+            case NeutralDestination::Unavailable:
+                decision.mOutcome = NeutralDoorOutcome::Nowhere;
+                break;
+        }
+        return decision;
+    }
+
+    std::string_view neutralDoorMessageKey(NeutralDoorOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case NeutralDoorOutcome::Locked:
+                return "NeutralDoorLocked";
+            case NeutralDoorOutcome::Exterior:
+                return "NeutralDoorOutside";
+            case NeutralDoorOutcome::Nowhere:
+                return "NeutralDoorNowhere";
+            default:
+                return {};
+        }
+    }
+
+    std::string_view neutralDoorOutcomeName(NeutralDoorOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case NeutralDoorOutcome::NotADoor:
+                return "not-a-door";
+            case NeutralDoorOutcome::NotAPlayer:
+                return "not-a-player";
+            case NeutralDoorOutcome::Locked:
+                return "locked";
+            case NeutralDoorOutcome::Inert:
+                return "inert";
+            case NeutralDoorOutcome::Nowhere:
+                return "nowhere";
+            case NeutralDoorOutcome::Exterior:
+                return "exterior";
+            case NeutralDoorOutcome::Teleport:
+                return "teleport";
+        }
+        return "unknown";
+    }
+}

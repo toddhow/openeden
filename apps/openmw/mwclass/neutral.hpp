@@ -1,6 +1,9 @@
 #ifndef OPENMW_MWCLASS_NEUTRAL_H
 #define OPENMW_MWCLASS_NEUTRAL_H
 
+#include <memory>
+
+#include "../mwworld/action.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/registeredclass.hpp"
 
@@ -25,6 +28,12 @@ namespace MWClass
 
         /// The preloader (a worker thread) must not read a neutral object's model: no reader for the game's models
         /// exists yet (stage N3a-4) and cells are built on the main thread (design 10.4, R9).
+        /// Task 0115 (stage N4): a door of the neutral cell. A teleport door takes the player to the destination
+        /// cell (built as a neutral cell) at the XTEL arrival; a locked door, a door to an exterior and a door that
+        /// leads nowhere refuse with a message; a door with no teleport is inert; every other kind keeps the null
+        /// action. The decision is MWWorld::decideNeutralDoor.
+        std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
+
         void getModelsToPreload(const MWWorld::ConstPtr&, std::vector<std::string_view>&) const override {}
 
         void insertObjectRendering(const MWWorld::Ptr& ptr, const std::string& model,

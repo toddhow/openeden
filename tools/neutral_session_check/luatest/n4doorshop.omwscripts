@@ -1,0 +1,2 @@
+GLOBAL: scripts/n4doors/hop.lua
+PLAYER: scripts/n4doors/shot.lua

@@ -216,9 +216,107 @@ namespace MWWorld
         return *cellStore;
     }
 
+    CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
+        std::string_view name, bool& reused) const
+    {
+        reused = false;
+        // A cell built earlier, by either route, is the same store (the "come back" path).
+        const ESM::RefId recordId = neutralCellRecordId(gameId, cell.id);
+        if (const auto found = mCells.find(recordId); found != mCells.end())
+        {
+            reused = true;
+            return &found->second;
+        }
+
+        // The base records first: the references of the cell point at them.
+        Store<NeutralBase>& bases = mStore.getWritable<NeutralBase>();
+        std::size_t refused = 0;
+        std::size_t conflicts = 0;
+        for (const openeden::sdk::game::WorldObject& object : cell.objects)
+        {
+            const auto result = bases.addFromObject(gameId, object);
+            if (result.mStatus == Store<NeutralBase>::Status::Refused)
+                ++refused;
+            else if (result.mStatus == Store<NeutralBase>::Status::Conflict)
+                ++conflicts;
+        }
+        if (refused != 0 || conflicts != 0)
+            Log(Debug::Warning) << "Neutral cell '" << name << "': " << refused << " objects have no usable base, "
+                                << conflicts << " describe a base differently from an earlier object";
+
+        mNeutralCells.push_back(makeNeutralCellRecord(gameId, cell));
+        const ESM::Cell& record = mNeutralCells.back();
+        const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
+            std::forward_as_tuple(Cell(record), mStore, mReaders));
+        if (!inserted)
+        {
+            mNeutralCells.pop_back();
+            return &it->second;
+        }
+        it->second.setNeutralCell(std::string(gameId), cell);
+        return &it->second;
+    }
+
+    NeutralCellLookup WorldModel::findNeutralCell(
+        NeutralWorld::NeutralWorldStore& neutral, std::string_view gameId, openeden::sdk::game::WorldId id) const
+    {
+        NeutralCellLookup result;
+        std::string error;
+        const bool knownGame = [&] {
+            for (const std::string& known : neutral.gameIds())
+                if (known == gameId)
+                    return true;
+            return false;
+        }();
+        if (!knownGame || id == openeden::sdk::game::kNoWorldId)
+        {
+            result.mError = !knownGame ? "no neutral world source for game '" + std::string(gameId) + "'"
+                                       : "the cell id is none";
+            return result;
+        }
+        const openeden::sdk::game::WorldCell* cell = neutral.cell(gameId, id, error);
+        if (cell == nullptr)
+        {
+            result.mError = std::move(error);
+            return result;
+        }
+        if (!cell->interior)
+        {
+            result.mStatus = NeutralCellStatus::Exterior;
+            result.mError
+                = "cell '" + cell->editorId + "' is an exterior; exterior neutral cells are not supported yet";
+            return result;
+        }
+        if (cell->editorId.empty())
+        {
+            // The scene finds an interior by its name, so a cell without one cannot be entered.
+            result.mError = "the interior cell " + std::to_string(id) + " has no editor id";
+            return result;
+        }
+        result.mStore = emplaceNeutralCellStore(gameId, *cell, cell->editorId, result.mReused);
+        result.mStatus = NeutralCellStatus::Found;
+        // Register the store under its name, so that the lookup by name after the teleport finds this very store.
+        mInteriors.emplace(cell->editorId, result.mStore);
+        return result;
+    }
+
+    NeutralCellLookup WorldModel::findNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId id) const
+    {
+        NeutralWorld::NeutralWorldStore* neutral
+            = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        if (neutral == nullptr)
+        {
+            NeutralCellLookup result;
+            result.mError = "no neutral world is active";
+            return result;
+        }
+        return findNeutralCell(*neutral, gameId, id);
+    }
+
     CellStore* WorldModel::emplaceNeutralInteriorCellStore(std::string_view name) const
     {
-        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        NeutralWorld::NeutralWorldStore* neutral
+            = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
         if (neutral == nullptr)
             return nullptr;
         for (const std::string& gameId : neutral->gameIds())
@@ -239,34 +337,8 @@ namespace MWWorld
                                   << " is an exterior; exterior neutral cells are not supported yet";
                 return nullptr;
             }
-
-            // The base records first: the references of the cell point at them.
-            Store<NeutralBase>& bases = mStore.getWritable<NeutralBase>();
-            std::size_t refused = 0;
-            std::size_t conflicts = 0;
-            for (const openeden::sdk::game::WorldObject& object : cell->objects)
-            {
-                const auto result = bases.addFromObject(gameId, object);
-                if (result.mStatus == Store<NeutralBase>::Status::Refused)
-                    ++refused;
-                else if (result.mStatus == Store<NeutralBase>::Status::Conflict)
-                    ++conflicts;
-            }
-            if (refused != 0 || conflicts != 0)
-                Log(Debug::Warning) << "Neutral cell '" << name << "': " << refused << " objects have no usable base, "
-                                    << conflicts << " describe a base differently from an earlier object";
-
-            mNeutralCells.push_back(makeNeutralCellRecord(gameId, *cell));
-            const ESM::Cell& record = mNeutralCells.back();
-            const auto [it, inserted] = mCells.emplace(std::piecewise_construct, std::forward_as_tuple(record.mId),
-                std::forward_as_tuple(Cell(record), mStore, mReaders));
-            if (!inserted)
-            {
-                mNeutralCells.pop_back();
-                return &it->second;
-            }
-            it->second.setNeutralCell(gameId, *cell);
-            return &it->second;
+            bool reused = false;
+            return emplaceNeutralCellStore(gameId, *cell, name, reused);
         }
         return nullptr;
     }

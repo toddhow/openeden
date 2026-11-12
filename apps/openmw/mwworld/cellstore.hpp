@@ -215,6 +215,13 @@ namespace MWWorld
         /// The snapshot setNeutralCell copied; null for a cell that is not neutral.
         const openeden::sdk::game::WorldCell* neutralCell() const { return mNeutralCell.get(); }
 
+        /// The game id setNeutralCell was given; empty for a cell that is not neutral.
+        const std::string& neutralGameId() const { return mNeutralGameId; }
+
+        /// Task 0115: the placement of this neutral cell with that id (the snapshot's objects are in ascending id
+        /// order, so a binary search); null for an unknown id or a cell that is not neutral.
+        const openeden::sdk::game::WorldObject* neutralObject(openeden::sdk::game::WorldId placement) const;
+
         /// Whether this cell came from a game pack's neutral world (setNeutralCell).
         bool isNeutral() const { return mNeutralCell != nullptr; }
 

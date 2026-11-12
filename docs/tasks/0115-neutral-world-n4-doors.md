@@ -1,6 +1,6 @@
 # Task: The neutral world model, stage N4 engine half (doors and moving between cells)
 
-Status: **DRAFT, awaiting toddhow's approval** (docs only; nothing built, run or changed when this was written).
+Status: **BUILT on branch `n4doors` (toddhow's "go with your recommendations" taken for every open question; see the stage log at the end)**. The text below is the draft as written.
 Design doc section: `docs/design/neutral-world-model.md` sections 9 and 10 (10.1 "door destination, owner, lock" row, 10.3, 10.4 R6/R7/R9, 10.7); `docs/design/skyrim-se-implementation-plan.md` sections 4.1 and 4.2 (milestone M-S1); decision 0016
 Goal: with `[Game] neutral world` on, activating a Skyrim SE teleport door in a neutral interior moves the player to the destination cell (built as a neutral cell) at the XTEL arrival position and rotation; an interior-to-exterior door is refused with a message; locked doors are refused with a message; doors with no teleport do not crash and do not teleport.
 
@@ -111,3 +111,45 @@ Reads `WorldObject::teleport`, `lock`, `kind` from the cell snapshot; no new SDK
 ## Estimate
 
 About 5 days (the plan's 4.2 estimate is 5 to 10 for the whole workstream): survey and audit 1, `findNeutralCell` and lookups with tests 1.5, `activate` and messages 1, in-game route and frames 1, comparison and review fixes 0.5. The sub-stage 4c collision toggle is +1; exteriors are not in it.
+
+## Stage log (built 2026-11-11, branch `n4doors`, Windows only, not pushed)
+
+Same hand wrote tests and code (no separate test writer, no fresh reviewer). Every open question took the spec's recommendation by toddhow's standing approval: locked doors refused with a message (`OPENEDEN_NEUTRAL_UNLOCK_DOORS` for testing), doors with no teleport inert (sub-stage 4c, the collision toggle, NOT built), interior to exterior refused with a message, an interior pair substituted where the Mare has none, no new source query, refusal strings in YAML localisation, XTEL arrival checked in game, `locked` = an XLOC is present, followers false.
+
+### Stage a, the survey (before any code; an independent Python reader of `Skyrim.esm` alone, no build; counts only)
+
+- 17,568 cells, 1,722 REFRs with an XTEL, **every destination door resolves to a cell** (no unknown). Interior to interior 320 (301 open, 19 locked, **all 301 open ones lead back to the very door they came from**), interior to exterior 656 (495 open, 161 locked), exterior to interior 656, exterior to exterior 90. XLOC flag byte: 0 (216) or 4 (23). XTEL flags: 0 (1,711), 1 (11).
+- **The Bannered Mare has two teleport doors and both lead to the exterior** (Whiterun); there is no interior-to-interior door. Substitution (decision 4): the go-and-come-back route is `DawnstarBarracks` (door to `DawnstarBarracksJail`, one door each way; the Barracks has two more doors to the exterior), the exterior refusal is the Mare's front door, the locked door is `Angarvunde01` to `Angarvunde02` (locked, XLOC flag 0).
+- The same through the pack's merged load order of all five masters (gated test `NeutralDoorRealData`, through the engine's own `decideNeutralDoor`): 759 interior cells, 3,259 doors, 2,021 without a teleport, 1,238 with one, 201 locked; with the lock aid on, 416 lead to an interior, 822 to an exterior, **0 lead nowhere, 0 cells could not be built, 0 interior destinations without a way back, 0 arrivals further than 4,000 units from every object of the destination cell**. 4.2 s for the whole survey.
+- Audit: `Scene::preloadCell` for a neutral destination goes through `CellPreloader::preload`, which runs only for a loaded cell (`ChangeCell` gets it with `getCell(id)`, whose default loads it); `Neutral::getModelsToPreload` is empty, so the worker reads nothing; `preloadTeleportDoorDestinations` reads `ESM::Door` lists, which a neutral cell has none of. No code change was needed. Activation reaches `Class::activate` through `object:activateBy` -> the built-in `activationhandlers.lua` -> `_runStandardActivationAction` (the built-in script list is added by `main.cpp`, not by the config).
+
+### What was built
+
+- `apps/openmw/mwworld/neutraldoor.{hpp,cpp}` (new, pure): `decideNeutralDoor` (kind, player, lock, teleport, then one destination classification), `neutralArrivalPosition` (the XTEL position unconverted, rotation through `neutralRotationAngles`), `neutralPlacementOf(RefNum)` (inverse of `neutralRefNum`), message keys.
+- `WorldModel::findNeutralCell(gameId, WorldId)` (and a form taking the store, for tests) over a shared builder `emplaceNeutralCellStore`; the by-name route uses the same builder; a built cell is reused (`mCells` lookup by its record id) and registered in `mInteriors` under its editor id so that `Scene::changeToInteriorCell`'s by-name lookup finds the same store; an exterior or a cell with no editor id is refused and nothing is added. `CellStore::neutralObject(WorldId)` (binary search) and `neutralGameId()`.
+- `MWClass::Neutral::activate` (doors only; every other kind keeps the null action): teleport -> `ActionTeleport(destination cell, arrival, followers false)`; locked, exterior, nowhere -> a small action that owns its key and shows the OMWEngine l10n text when it runs (`NeutralDoorLocked`, `NeutralDoorOutside`, `NeutralDoorNowhere`, added to `files/data/l10n/OMWEngine/en.yaml`); not the player -> `FailedAction` with no message; no teleport -> inert. `isDoor()` stays false. No door sound.
+- Developer aids, read once and not settings: `OPENEDEN_NEUTRAL_DOOR_TRACE`, `OPENEDEN_NEUTRAL_UNLOCK_DOORS` (`docs/debug-environment-variables.md`). No SDK change (`world_model.hpp` 1.1, `kSdkVersion` 4.0), no new setting, nothing for the test profile.
+
+### Tests
+
+- `apps/openmw_tests/mwworld/testneutraldoor.cpp`, 27 tests written first, **run red against stubs: 24 failed, 4 passed at once (the absence cases: every other kind, a foreign RefNum, a non-neutral cell, and one more), all 28 then**; one test was removed afterwards (building a cell by name needs the extension manager of a running game, which the unit fixture lacks; that path is covered in game: the start cell is built by name and the return hop reuses it). Mutations, each caught by named tests: rotation not converted (2), destination swapped with the door's own cell (2), lock check removed (2), exterior check removed (1).
+- `testneutraldoorreal.cpp`: the gated aggregate above (skips without `OPENEDEN_SKYRIMSE_DATA`).
+- `openmw-tests` 1,998 tests, 1,996 pass, 2 gated skips (this one and `NeutralBaseStoreRealData`; the first was run with the data set and passes). `components-tests` not rebuilt (no file of `components/` changed).
+
+### In game (quiet window, `tools/neutral_session_check/check.sh` with the new scenarios `doorshop`, `doorsexterior`, `doorslocked`, the five Skyrim masters, `game=skyrimse`, `[Game] neutral world`, `OPENEDEN_NEUTRAL_DOOR_TRACE=1`; each run exit 0, 0 crash dumps, 0 unexpected error lines; frames in `I:\Projects\OpenEden-work\n4doors\run_*\user\screenshots\`)
+
+- **Go and come back, twice** (`run_hop`, 16,000 frames): start `DawnstarBarracks` (frame `screenshot000.png`, the room before the first door) -> door -> `DawnstarBarracksJail` at (1570, -572, 1) (the XTEL arrival (1570.29, -571.58, 0) after the engine's drop to the floor; `screenshot001.png`, viewed: the jail hall, lit, in front of the cell bars, not in a wall) -> return door -> `DawnstarBarracks` at (1025, 666, -255) (XTEL (1024.93, 666.48, -256); `screenshot002.png`, viewed: the foot of a staircase) -> again to the jail and back. Objects inserted equal on every visit (Barracks 128, Jail 188). The trace says `built` for the first Jail visit and `reused` for every later one. **Memory: base records 123 and resident neutral cells 2 at all four hops** (counted). Hop time from the door line to the cell inserted: 151 ms for the cell built the first time (Jail), 30 to 40 ms for a reused one.
+- **Exterior refused** (`run_ext`, `WhiterunBanneredMare`, front door): the message "That door leads outside, which is not supported yet." (`screenshot001.png`, viewed), the player stays at (-256, -306, 100), the log says the destination is an exterior once.
+- **Locked refused** (`run_lock`, `Angarvunde01`): "The door is locked." (`screenshot001.png`, viewed), the player stays. **With `OPENEDEN_NEUTRAL_UNLOCK_DOORS=1`** (`run_unlock`) the same door teleports to `Angarvunde02` at (2720, -7488, -991) (XTEL arrival (2720, -7488, -992); `screenshot002.png`, viewed).
+- XTEL arrival semantics (open question 7) held in every case: the player arrives at the XTEL position and the cell around it is sensible. The arrival rotation was judged from the frames only (the Barracks return faces a stair, the jail arrival faces the cells), not measured.
+
+### Morrowind unchanged (parent = an executable built from `main` before any edit, `I:\Projects\OpenEden-work\n4doors\parent`)
+
+- `tools/worldobjects_check` dump (110 lines, 111 with the count line): byte-identical to the parent's, setting off and on (the four result files compare equal).
+- The fixed-time Balmora frame (`OPENEDEN_FIXED_FRAME_TIME`, seed 7, frame 600): SHA-256 prefix `1c5d47ad0b5dc32d` for the new build and the parent, off and on (all four equal, the same hash as the earlier N3a rows).
+- A Morrowind teleport door (`Balmora, Guild of Mages`, the first teleport door of the cell, by `activateBy`): lands in `Balmora` at (-22066.8, -14040.2, 501.1) in the new build and the parent, off and on (`tools/neutral_session_check/morrowind_door`).
+- `CI/check_layer_rules.sh`: 104 exceptions, none added. `check_cmake_format`, `check_extension_sdk`, `check_file_names`, `check_game_conventions`, `check_mwbase_fakes`, `check_no_osg` pass.
+
+### Not run
+
+The Linux gate (Docker is hung: no GCC `-Werror`, no clang-format 14; long lines were wrapped by hand and the GCC traps avoided by reading, so `CI/check_clang_format.sh` could not run and fails here for want of the tool), clang-tidy, the Lua integration tests, sanitizers, `components-tests`, a fresh reviewer, a real keypress activation (every activation used `object:activateBy`, the path the key takes after `activationhandlers.lua`), a door in an interior reached from an exterior, a hop through a door whose destination door has a different base, the exterior build cost (the exterior cell is built once to classify it, not timed), non-player actors, saving (still refused). Limits: no door sound, no door animation, a door without a teleport stays shut and solid (4c not built), an interior cell with no editor id is refused as "nowhere" (none in the masters), followers and keys are not modelled.

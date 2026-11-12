@@ -32,6 +32,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallight.cpp
     mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
+    mwworld/testneutraldoor.cpp
+    mwworld/testneutraldoorreal.cpp
     mwworld/testneutralstorereal.cpp
 
     mwdialogue/testkeywordsearch.cpp

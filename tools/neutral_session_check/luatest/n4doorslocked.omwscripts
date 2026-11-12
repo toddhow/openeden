@@ -1,0 +1,2 @@
+GLOBAL: scripts/n4doors/locked.lua
+PLAYER: scripts/n4doors/shot.lua
