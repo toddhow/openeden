@@ -52,6 +52,7 @@
 #include "autoplaytrace.hpp"
 #include "bodyparts.hpp"
 #include "env.hpp"
+#include "gltfclips.hpp"
 #include "equipmentupdate.hpp"
 #include "mergedbody.hpp"
 #include "partreaderrorlog.hpp"
@@ -361,6 +362,11 @@ namespace MWRender
         for (const auto& bones : customBones)
             animation->bones.addCustomBones(*bones);
         animation->addAnimSources(animations, plan.mSkeleton);
+        // Task 0123: CreativeMotion's authored locomotion clips (glTF), baked for this skeleton. Only with
+        // [Game] inertial locomotion on; null otherwise. The file read is cached, and a failure to read is logged once
+        // inside (the update has no catch for a throw here).
+        if (auto locomotion = GltfClips::loadLocomotionClips(mContext, animation->bones))
+            animation->addAnimSources({ locomotion }, "humanoid-locomotion.glb");
         assignBones();
     }
 

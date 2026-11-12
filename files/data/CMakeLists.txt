@@ -270,3 +270,12 @@ set(BUILTIN_DATA_FILES
 foreach (f ${BUILTIN_DATA_FILES})
     copy_resource_file("${CMAKE_CURRENT_SOURCE_DIR}/${f}" "${OPENMW_RESOURCES_ROOT}" "resources/vfs/${f}")
 endforeach (f)
+
+# CreativeMotion's authored locomotion clips and the skeleton profile that retargets them onto Morrowind's Bip01
+# (task 0123, apps/openmw/mwrender/gltfclips.*). Read only with [Game] inertial locomotion on. The files stay where
+# CreativeMotion keeps them; the build copies them into the VFS.
+set(CREATIVEMOTION_DATA_DIR "${CMAKE_SOURCE_DIR}/components/creativemotion/data")
+copy_resource_file("${CREATIVEMOTION_DATA_DIR}/clips/humanoid-locomotion.glb" "${OPENMW_RESOURCES_ROOT}"
+    "resources/vfs/animations/humanoid-locomotion.glb")
+copy_resource_file("${CREATIVEMOTION_DATA_DIR}/profiles/humanoid-to-eden.skeletonprofile.json" "${OPENMW_RESOURCES_ROOT}"
+    "resources/vfs/animations/humanoid-to-eden.skeletonprofile.json")

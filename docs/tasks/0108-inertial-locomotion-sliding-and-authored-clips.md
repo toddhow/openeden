@@ -39,6 +39,13 @@ its comment); determinism: the state machine has no clock or random input.
 Out of scope: authoring the clips; retargeting `humanoid-locomotion.glb`; a stop that ends with a procedural step; slopes;
 first person.
 
+**Correction, 2026-11-11 (task 0123):** the statements in this task and in the research note that the authored clips "exist in no
+animation source" and that "authoring the clips is data work" are wrong. CreativeMotion's `components/creativemotion/data/clips/humanoid-locomotion.glb`
+(with `humanoid-locomotion.events.json`) holds WalkStart, RunStop, RunSkid, TurnLeft90 and TurnRight90 (plus idle, walk and wave), authored
+on CreativeMotion's 19-joint rig; the search above looked only for Morrowind animation formats (`.kf`, `.dae`) and never for glTF. The clips never
+played because nothing in the engine loaded CreativeMotion's clip runtime. Task 0123 loads them (`apps/openmw/mwrender/gltfclips.*`). `walkstop` and
+`runstart` are NOT in that file and stay missing. The old text above is kept as it was written.
+
 ## What an authored clip needs (for whoever authors them)
 
 The engine chooses a clip when `MWAnim::Play::hasAnimation(<group>)` is true, that is when one of the actor's `.kf` animation

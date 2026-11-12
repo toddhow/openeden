@@ -51,6 +51,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimmodel.cpp
     mwrender/testskyrimactor.cpp
     mwrender/testragdollbonemath.cpp
+    mwrender/testgltfclips.cpp
     mwrender/testactorragdolldriver.cpp
     mwrender/testactorragdollstartpose.cpp
     mwrender/testfootik.cpp

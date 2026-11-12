@@ -212,7 +212,7 @@ namespace MWRender
 
     CreativeMotionPoseDriver::~CreativeMotionPoseDriver() = default;
 
-    bool CreativeMotionPoseDriver::buildSkeleton(Anim::Bones& bones)
+    std::optional<RigBones> buildRigBones(Anim::Bones& bones)
     {
         struct Entry
         {
@@ -228,7 +228,7 @@ namespace MWRender
             namesByNode.emplace(bone.node(), name);
         });
         if (entries.empty())
-            return false;
+            return std::nullopt;
 
         // Parents first: by depth, then by name, so the order does not depend on the bones' hash map.
         std::sort(entries.begin(), entries.end(), [](const Entry& lhs, const Entry& rhs) {
@@ -237,6 +237,8 @@ namespace MWRender
             return lhs.mName < rhs.mName;
         });
 
+        RigBones result;
+        std::map<std::string, int> indexByName;
         for (const Entry& entry : entries)
         {
             opas::rig::Bone bone;
@@ -248,24 +250,37 @@ namespace MWRender
                 const auto found = namesByNode.find(path[i].get());
                 if (found != namesByNode.end())
                 {
-                    bone.parent = mBoneNameToIndex.at(found->second);
+                    bone.parent = indexByName.at(found->second);
                     break;
                 }
             }
             Anim::Transform* node = entry.mBone->node();
             bone.localRest = localTransform(*node);
-            mBoneNameToIndex.emplace(entry.mName, static_cast<int>(mSkeleton.bones.size()));
-            mSkeleton.bones.push_back(std::move(bone));
-            mBoneNodes.push_back(node);
-            mBoneGroups.push_back(entry.mBone->group);
+            indexByName.emplace(entry.mName, static_cast<int>(result.mSkeleton.bones.size()));
+            result.mSkeleton.bones.push_back(std::move(bone));
+            result.mNodes.push_back(node);
+            result.mGroups.push_back(entry.mBone->group);
         }
 
-        const std::string error = opas::rig::validateSkeleton(mSkeleton);
+        const std::string error = opas::rig::validateSkeleton(result.mSkeleton);
         if (!error.empty())
         {
-            Log(Debug::Warning) << "CreativeMotionPoseDriver: skeleton validation failed: " << error;
-            return false;
+            Log(Debug::Warning) << "CreativeMotion: skeleton validation failed: " << error;
+            return std::nullopt;
         }
+        return result;
+    }
+
+    bool CreativeMotionPoseDriver::buildSkeleton(Anim::Bones& bones)
+    {
+        std::optional<RigBones> rig = buildRigBones(bones);
+        if (!rig)
+            return false;
+        mSkeleton = std::move(rig->mSkeleton);
+        mBoneNodes = std::move(rig->mNodes);
+        mBoneGroups = std::move(rig->mGroups);
+        for (std::size_t i = 0; i < mSkeleton.bones.size(); ++i)
+            mBoneNameToIndex.emplace(mSkeleton.bones[i].name, static_cast<int>(i));
 
         // The root bone names are the game's conventions (task 0085, move 1).
         const Misc::GameConventions& game = Misc::gameConventions();

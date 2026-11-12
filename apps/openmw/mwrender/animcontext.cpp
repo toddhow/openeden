@@ -12,6 +12,9 @@
 #include <components/pipeline/override.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/settings.hpp>
+#include <components/vfs/manager.hpp>
+
+#include <iterator>
 
 #include "mask.hpp"
 
@@ -116,6 +119,13 @@ namespace MWRender
                     path = Misc::ResourceHelpers::correctMeshPath(path);
                 return Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()).value()
                     != path.value();
+            },
+            .readFile = [resourceSystem](const std::string& file) -> std::string {
+                const VFS::Manager* vfs = resourceSystem->getVFS();
+                if (!vfs->exists(file))
+                    return {};
+                const Files::IStreamPtr stream = vfs->get(file);
+                return std::string(std::istreambuf_iterator<char>(*stream), {});
             } };
     }
 }

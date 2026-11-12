@@ -53,6 +53,10 @@ namespace MWAnim
         /// finds) exists for the mesh path. Unset in contexts that never ask.
         std::function<bool(const std::string&)> hasKeyframeFile;
 
+        /// Task 0123: the bytes of a VFS file, empty when it does not exist (may throw on an unreadable archive entry).
+        /// Unset in contexts that never ask.
+        std::function<std::string(const std::string&)> readFile;
+
         vsg::ref_ptr<vsg::Node> readNode(const std::string& fname) const;
         vsg::ref_ptr<vsg::Node> readEffect(const std::string& fname) const;
         vsg::ref_ptr<vsg::Node> readActor(const std::string& fname) const;

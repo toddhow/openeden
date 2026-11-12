@@ -13,6 +13,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -29,6 +30,18 @@ namespace Anim
 
 namespace MWRender
 {
+    /// A skeleton's bones as CreativeMotion sees them: parents first, rests in metres (task 0123 lifted this out of
+    /// the pose driver so the glTF clip retargeting builds the same skeleton).
+    struct RigBones
+    {
+        opas::rig::Skeleton mSkeleton;
+        std::vector<Anim::Transform*> mNodes;
+        std::vector<uint32_t> mGroups;
+    };
+
+    /// Empty when there are no bones or the skeleton does not validate (logged). The nodes are not owned.
+    std::optional<RigBones> buildRigBones(Anim::Bones& bones);
+
     /// What one bone group plays this frame: the animation source of its active state, that state's group name and
     /// its time on the source's timeline (MWAnim::Play::getActive). A null source means the group plays nothing.
     struct CreativeMotionActiveSource
