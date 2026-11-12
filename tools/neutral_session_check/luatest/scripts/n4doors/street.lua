@@ -1,4 +1,4 @@
--- Task 0137: start in WhiterunBanneredMare, leave by the front door into Whiterun's street, come back in by the same
+-- Task 0138: start in WhiterunBanneredMare, leave by the front door into Whiterun's street, come back in by the same
 -- door (the nearest one to where the player arrived), and go out and in once more.
 local common = require('scripts.n4doors.common')
 local BASE = 'skyrimse:b152263'

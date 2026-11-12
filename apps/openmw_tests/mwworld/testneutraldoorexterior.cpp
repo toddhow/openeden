@@ -1,4 +1,4 @@
-// Task 0137 (milestone M-S2, "leave and enter an interior from the street"): doors whose destination is an exterior.
+// Task 0138 (milestone M-S2, "leave and enter an interior from the street"): doors whose destination is an exterior.
 // The pure parts: the grid square an arrival stands in, and the door decision chained with a lock and an exterior
 // destination, both ways. Written from the task spec before the implementation; the first run was against a stub.
 #include <gtest/gtest.h>

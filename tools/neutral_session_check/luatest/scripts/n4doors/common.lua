@@ -43,7 +43,7 @@ function M.run(steps)
                     local p = player.position
                     print(string.format('N4D report t=%.1f cell=%s pos=%.0f,%.0f,%.0f', t, tostring(player.cell.name), p.x, p.y, p.z))
                 elseif step.what == 'tp' then
-                    -- Task 0137: puts the player on the ground at a spot of the cell it is in (to stand before a gate).
+                    -- Task 0138: puts the player on the ground at a spot of the cell it is in (to stand before a gate).
                     player:teleport(player.cell, util.vector3(step.pos[1], step.pos[2], step.pos[3]), { onGround = true })
                     print('N4D teleported within ' .. tostring(player.cell.name))
                 elseif step.what == 'near' then

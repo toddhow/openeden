@@ -1,4 +1,4 @@
-# Task 0137: Neutral world M-S2, doors that lead to an exterior (leave and enter an interior from the street)
+# Task 0138: Neutral world M-S2, doors that lead to an exterior (leave and enter an interior from the street)
 
 Status: APPROVED under toddhow's blanket "go with your recommendations" (2026-11-12). Full loop (decision D13: doors, cell
 changes and the engine's world model are rules the loop covers). Same hand wrote tests and code; no fresh reviewer.

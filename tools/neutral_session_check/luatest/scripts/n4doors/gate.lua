@@ -1,4 +1,4 @@
--- Task 0137: out of the Mare into Whiterun's street, to the Whiterun gate (a door of WhiterunWorld that leads to
+-- Task 0138: out of the Mare into Whiterun's street, to the Whiterun gate (a door of WhiterunWorld that leads to
 -- Tamriel), through it, then back through the Tamriel side of the gate (locked in the data: needs
 -- OPENEDEN_NEUTRAL_UNLOCK_DOORS=1 to open, else it is refused and the player stays in Tamriel).
 local common = require('scripts.n4doors.common')

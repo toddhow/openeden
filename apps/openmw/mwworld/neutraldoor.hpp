@@ -56,7 +56,7 @@ namespace MWWorld
     /// (neutralRotationAngles), so that Misc::Convert::makeOsgQuat gives the quaternion back.
     [[nodiscard]] ESM::Position neutralArrivalPosition(const openeden::sdk::game::TeleportComponent& teleport);
 
-    /// Task 0137: the exterior grid square (x, y) that a teleport's arrival position stands in, for a worldspace whose
+    /// Task 0138: the exterior grid square (x, y) that a teleport's arrival position stands in, for a worldspace whose
     /// cells are `cellSize` units wide: floor(position / cellSize) in double, so a negative coordinate rounds down and
     /// a position exactly on a boundary belongs to the square above it. nullopt for a cell size that is not positive and
     /// finite, a position that is not finite, or a square beyond +-1,000,000 (the number would not fit the engine's
