@@ -432,6 +432,33 @@ namespace
         EXPECT_EQ(p.objects.size(), 3u);
     }
 
+    // Task 0142 follow-up: the neutral store refuses a cell whose ids are not strictly ascending. The real data has
+    // placements that one plugin keeps in the world's persistent cell and a later plugin moves into a grid square's
+    // temporary children (the same form id, the persistent flag cleared): the square then held it twice.
+    TEST(SkyrimWorldView, aPlacementInBothThePersistentCellAndTheSquareIsListedOnce)
+    {
+        constexpr std::uint32_t world = 0x00000C00, pcell = 0x00000C01, g00 = 0x00000C10;
+        Bytes baseBytes = header(Content::sRecMaster);
+        baseBytes.append(topGroup("STAT", modelRecord("STAT", kStatA, "StoneWall", "architecture\\wall.nif")));
+        baseBytes.append(worldGroup(world, "TestWorld", pcell, refr(0x00000D01, kStatA, 0x400, 100, 100),
+            { { g00, 0, 0, "TestWorldX0Y0", refr(0x00000D10, kStatA, 0, 10, 10) } }));
+        // over.esp has base.esm as its master and puts D01 into the square's temporary children.
+        Bytes overBytes = header(0, { { "base.esm", 0 } });
+        overBytes.append(worldGroup(world, "TestWorld", pcell, Bytes(),
+            { { g00, 0, 0, "TestWorldX0Y0", refr(0x00000D01, kStatA, 0, 100, 100) } }));
+        Loaded l({ { "base.esm", baseBytes }, { "over.esp", overBytes } });
+        ASSERT_TRUE(l.problems.empty()) << l.problems.front();
+        const auto c00 = l.view.findCellByGrid(world, 0, 0);
+        ASSERT_TRUE(c00.has_value());
+        sdkgame::WorldCellContent content;
+        std::string error;
+        ASSERT_TRUE(l.view.loadCell(c00->id, content, error)) << error;
+        ASSERT_EQ(content.objects.size(), 2u); // D10 and D01, once
+        for (std::size_t i = 1; i < content.objects.size(); ++i)
+            EXPECT_LT(content.objects[i - 1].id, content.objects[i].id);
+        EXPECT_EQ(content.cell.objectCount, 2u);
+    }
+
     // ---- owner, lock and teleport through the store (task 0099 stage N4)
     // -----------------------------------------------
 

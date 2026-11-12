@@ -548,6 +548,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseneutralworldreal.cpp
     skyrimse/testskyrimseexteriordoorsreal.cpp
     skyrimse/testskyrimsetreeplacementsreal.cpp
+    skyrimse/testskyrimsecellidsreal.cpp
     skyrimse/testskyrimsecelllookups.cpp
     skyrimse/testskyrimseplugins.cpp
     skyrimse/testskyrimsearchives.cpp

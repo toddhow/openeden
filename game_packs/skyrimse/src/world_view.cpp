@@ -1271,9 +1271,17 @@ namespace game_skyrimse
                         error = persistentError;
                         return false;
                     }
+                    // A placement can be in both lists: one plugin keeps it in the world's persistent cell and a later
+                    // plugin moves it into this square's temporary children (same form id, persistent flag cleared;
+                    // 5 squares of the five masters). The square's own copy is kept, so each id is listed once.
+                    std::set<sdkgame::WorldId> ownIds;
+                    for (const sdkgame::PlacedObject& own : content.objects)
+                        ownIds.insert(own.id);
                     for (const sdkgame::PlacedObject& o : persistent->mObjects)
                     {
                         if (!finite(o.position.x) || !finite(o.position.y))
+                            continue;
+                        if (ownIds.count(o.id) != 0)
                             continue;
                         if (static_cast<std::int32_t>(std::floor(o.position.x / kCellSize)) == entry.mInfo.gridX
                             && static_cast<std::int32_t>(std::floor(o.position.y / kCellSize)) == entry.mInfo.gridY)

@@ -19,3 +19,26 @@ Out of scope: saving in a neutral session, a launcher entry, rotation (the playe
 - **Found, not fixed (decision for toddhow):** on most exterior spots I tried the player is moved 17,000 to 27,000 units sideways in the FIRST physics step after the load (`PhysicsSystem::moveActors` takes `Actor::getSimulationPosition`; the Jolt actor's own `mPosition` has moved, not the ptr; z is unchanged; temporary logging, removed). Not seen at a sea spot `(24000,-18000)` and at `(60000,-60000)`, seen at `(101843,162)`, `(99000,500)`, `(100000,3000)`, `(103000,2000)`, `(121840,-93749)`, each time on steep mountain land. The destination after the move has no loaded ground, so the player then falls. The cause is not found (the first step after a long loading frame, steep slope, or a Skyrim collision shape are the candidates; Lua shows the player at the start position for two frames first). The start itself is right (the log line and the loaded grid); a test that needs the player to stand there should use a flat spot, or a Lua teleport after the load.
 - **Not run:** the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua integration tests, a fresh review, `components-tests`/`openmw-tests` as wholes (only the new tests; the whole `components-tests` target was built), a launcher entry.
 - **Helper:** `apps/components_tests/skyrimse/testskyrimsetreeplacementsreal.cpp` (gated by `OPENEDEN_SKYRIMSE_DATA`, prints `SKYTREE-PLACED` lines: counts and grid squares only): 72,964 exterior cells read, 3,660 hold at least one of the 35 BSTreeNode trees, 42,712 placements; the densest Tamriel squares are (-20, 31) with 67, (29, -23) with 62 and (24, 0) with 54.
+
+## Follow-up (2026-11-12, branch `skystart2`, local commits, not pushed)
+
+- **The sideways throw is gone on main.** With the tree at `981896fb9e` (task 0140's no-stand-in-box fix) `check.sh ... poslog` logs the
+  player every half second for 13.6 s: `@Tamriel,101843,162` stays at `101843,162,-8113` the whole time; `@Tamriel,100000,3000` at
+  `100000,3000,-8027`; `@Tamriel,121840,-93749` settles from z 11491 to its square 34 units away and stays. Shown to be that change: with
+  `standInBoxWanted` temporarily returning the old `!meshAdded && hasBounds` the same start at `101843,162` jumps at t = 2.5 s to
+  `81755,8655,-8076` (the earlier throw to the unit) and then falls to -14165; restored afterwards. The mechanism is the one of task 0140
+  (`MovementSolver::unstuck` pushing the player out of a stand-in box of a model with no collidable triangles).
+- **Pack error `snapshot refused: cell 38320: object 59: ids not strictly ascending` (a pack bug, fixed).** The gated test
+  `SkyrimCellIdsRealData` (new) loads every cell of the five masters (73,723) through `SkyrimWorldView::loadCell` and checks the ids:
+  5 exterior squares of Tamriel, (-3, -17), (12, -13), (18, 0), (-20, 22) and (8, 27), listed one placement TWICE (equal ids, never
+  out of order). Each of the 5 is a placement that one plugin keeps in the world's persistent cell and another plugin moves into the
+  square's temporary children (same form id; copies identical in base and position; the square's copy has the persistent flag
+  cleared): `loadCell` appended the persistent cell's placements that stand in the square without checking for an id the square
+  already had. Now such a persistent copy is skipped, the square's own copy kept. Test first:
+  `SkyrimWorldView.aPlacementInBothThePersistentCellAndTheSquareIsListedOnce` (generated plugins; failed before, passes after). Real data after:
+  0 of 73,723 cells with bad ids; in game `@Tamriel,75000,2000` (square 18, 0) loads with no error line (before: the error).
+  Not known: whether the persistent or the temporary copy is the load order's winner (the copies are identical in the 5 cases;
+  `Materialised` keeps no plugin index) - a rule on the persistent flag would need that.
+- **Morrowind unchanged:** `worldobjects_check` dump (111 lines, `0367aa75e033b45c`) and the fixed Balmora frame (`1c5d47ad0b5dc32d`)
+  equal the earlier results of the parent build; the change is in the Skyrim pack only.
+- **Not run:** the Linux gate, GCC, clang-format 14, clang-tidy, Lua tests, the whole test binaries, a fresh review.
