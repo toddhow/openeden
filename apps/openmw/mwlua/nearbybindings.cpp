@@ -239,7 +239,7 @@ namespace MWLua
             Settings::game().mActorCollisionShapeType,
             Settings::game().mDefaultActorPathfindHalfExtents.get(),
         };
-        // Task 0132: while the player is in a game pack's neutral cell the default agent is the neutral one.
+        // Task 0134: while the player is in a game pack's neutral cell the default agent is the neutral one.
         static const auto defaultAgentBoundsNow = []() {
             MWBase::World* world = MWBase::Environment::get().getWorld();
             const MWWorld::Ptr player = world->getPlayerPtr();

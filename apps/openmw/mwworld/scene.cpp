@@ -219,7 +219,7 @@ namespace
             else if (ptr.getType() == MWWorld::NeutralBase::sRecordId
                 && !MWWorld::neutralKindBlocksNavigation(ptr.get<MWWorld::NeutralBase>()->mBase->mKind))
             {
-                // Task 0132: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
+                // Task 0134: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
             }
             else if (object->getShapeInstance()->mVisualCollisionType == Resource::VisualCollisionType::None)
             {
@@ -577,7 +577,7 @@ namespace MWWorld
         if (neutralExterior && cellVariant.hasWater())
         {
             mRendering.setNeutralCellWater(cellX, cellY, static_cast<float>(ESM::getCellSize(worldspace)), cell.getWaterLevel());
-            // Task 0132: the navigator gets the square's water as Morrowind's exteriors give it
+            // Task 0134: the navigator gets the square's water as Morrowind's exteriors give it
             if (const auto navWater = neutralNavigatorWater(true, mPhysics->getHeightField(cellX, cellY) != nullptr,
                     cell.getWaterLevel(), ESM::getCellSize(worldspace)))
                 mNavigator.addWater(

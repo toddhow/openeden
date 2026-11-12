@@ -5,7 +5,7 @@
 
 #include <apps/openmw/mwworld/neutralnavigation.hpp>
 
-// Task 0132: the pure decisions of what a neutral world tells the navigator.
+// Task 0134: the pure decisions of what a neutral world tells the navigator.
 namespace
 {
     using namespace MWWorld;

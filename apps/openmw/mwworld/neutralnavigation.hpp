@@ -7,7 +7,7 @@
 
 #include <openeden/game/world_view.hpp>
 
-// Task 0132 (milestone M-S3 stage 1, docs/design/skyrim-se-implementation-plan.md 4.4): what a neutral (game pack)
+// Task 0134 (milestone M-S3 stage 1, docs/design/skyrim-se-implementation-plan.md 4.4): what a neutral (game pack)
 // world tells the navigator, the pure part.
 //
 // The navigator (components/detournavigator) already receives a neutral cell's objects (PhysicsSystem::addModelObject
@@ -16,7 +16,7 @@
 //
 //  - the size of the agent the navmesh is built for. Morrowind's default (about 29 x 28 half extents, from the vanilla
 //    human collision box) is too fat for a Skyrim interior: the Bannered Mare's stairs have a flat tread about 78 units
-//    wide, and recast's erosion by 29 units removes them (measured in game, docs/tasks/0132-skyrim-navmesh.md). A neutral
+//    wide, and recast's erosion by 29 units removes them (measured in game, docs/tasks/0134-skyrim-navmesh.md). A neutral
 //    session therefore builds its navmesh for `[Game] neutral pathfind half extents`.
 //  - the water of a neutral exterior square, which Morrowind gives the navigator for every exterior and a neutral
 //    exterior did not (Scene::loadCell leaves the global water state alone, task 0129).

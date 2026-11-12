@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0132, milestone M-S3 stage 1): path queries over the navmesh of a neutral Skyrim cell.
+-- tools/neutral_session_check (task 0134, milestone M-S3 stage 1): path queries over the navmesh of a neutral Skyrim cell.
 -- Started when check.sh is given "navpath" as its screenshot argument. The global script (global.lua) decides when each
 -- phase runs and sends NPRun / NPRing events; this script answers with `NAV` lines:
 --   NAV <phase> <name> status=<Success|PartialPath|...> nodes=<n> length=<units> straight=<units> t=<real seconds to success>

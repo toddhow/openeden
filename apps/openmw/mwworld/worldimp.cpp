@@ -3817,7 +3817,7 @@ namespace MWWorld
         std::optional<DetourNavigator::AgentBounds> own;
         if (physicsActor != nullptr && actor.isInCell() && !actor.getCell()->isExterior())
             own = DetourNavigator::AgentBounds{ physicsActor->getCollisionShapeType(), physicsActor->getHalfExtents() };
-        // Task 0132: a game pack session (neutral stubs in the store) builds its navmesh for the neutral agent size
+        // Task 0134: a game pack session (neutral stubs in the store) builds its navmesh for the neutral agent size
         std::optional<vsg::vec3> neutral;
         // (the session's flag, not the actor's cell: the player's agent is added before it stands in a cell)
         if (mStore.hasNeutralStubs())

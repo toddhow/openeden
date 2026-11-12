@@ -271,8 +271,8 @@ namespace
             << mPath;
     }
 
-    // Task 0132: an open-riser stair of a game pack's interior, as a visual-triangle mesh (a Skyrim SE stair read in game:
-    // flat treads about 78 units wide and 18 deep, risers 20.5 high; docs/tasks/0132-skyrim-navmesh.md). The navmesh
+    // Task 0134: an open-riser stair of a game pack's interior, as a visual-triangle mesh (a Skyrim SE stair read in game:
+    // flat treads about 78 units wide and 18 deep, risers 20.5 high; docs/tasks/0134-skyrim-navmesh.md). The navmesh
     // must lead over it for a narrow agent.
     struct StairMesh
     {
