@@ -87,7 +87,8 @@ namespace CSVDoc
 
     CSMModule::TimeAxis CurveCanvas::axis() const
     {
-        return CSMModule::TimeAxis{ 0.0, std::max(mTracks.duration(), cMinDuration), std::max(1, width() - 2 * sMargin) };
+        return CSMModule::TimeAxis{ 0.0, std::max(mTracks.duration(), cMinDuration),
+            std::max(1, width() - 2 * sMargin) };
     }
 
     int CurveCanvas::curveTop() const
@@ -216,7 +217,8 @@ namespace CSVDoc
                         const QPointF p = point(keys[i]);
                         const bool sel = static_cast<int>(i) == mSelectedKey;
                         painter.setPen(QPen(text, 1.0));
-                        painter.setBrush(sel ? QBrush(palette().color(QPalette::Highlight)) : QBrush(toQt(info.colour)));
+                        painter.setBrush(
+                            sel ? QBrush(palette().color(QPalette::Highlight)) : QBrush(toQt(info.colour)));
                         painter.drawRect(QRectF(p.x() - 3.5, p.y() - 3.5, 7.0, 7.0));
                     }
             }
@@ -306,8 +308,8 @@ namespace CSVDoc
         if (!info || info->readOnly)
             return;
         const CSMModule::TimeAxis a = axis();
-        const auto hit = CSMModule::pickKey(currentKeys(), *info, a, curveHeight(), p.x() - sMargin, p.y() - curveTop(),
-            sPickTolerancePx);
+        const auto hit = CSMModule::pickKey(
+            currentKeys(), *info, a, curveHeight(), p.x() - sMargin, p.y() - curveTop(), sPickTolerancePx);
         if (hit)
             return; // a double click on a key is two clicks on it
         const CurveKey key = keyAt(p, *info);
@@ -360,8 +362,9 @@ namespace CSVDoc
         mPlay->setToolTip(AudioPlayer::available() ? tr("Plays the voice audio from the playhead.")
                                                    : tr("Audio playback is not available on this platform yet."));
         mChannels->setObjectName("moduleCurveChannel");
-        mChannels->setToolTip(tr("The channel whose keys you edit. Drag a key to move it, double click to add one, "
-                                 "Delete removes the chosen key; click the ruler or the waveform to move the playhead."));
+        mChannels->setToolTip(
+            tr("The channel whose keys you edit. Drag a key to move it, double click to add one, "
+               "Delete removes the chosen key; click the ruler or the waveform to move the playhead."));
         bar->addWidget(mPlay);
         bar->addWidget(new QLabel(tr("Channel:"), this));
         bar->addWidget(mChannels, 1);
@@ -383,7 +386,10 @@ namespace CSVDoc
             stopPlayback();
             refresh();
         });
-        connect(&ui, &CSVModule::ModuleUi::playheadChanged, this, [this] { mCanvas->update(); refresh(); });
+        connect(&ui, &CSVModule::ModuleUi::playheadChanged, this, [this] {
+            mCanvas->update();
+            refresh();
+        });
         refresh();
     }
 
@@ -424,7 +430,8 @@ namespace CSVDoc
             mChannels->clear();
             if (!tracks.mCurves.empty())
                 for (const auto& c : tracks.mCurves.front()->channels())
-                    mChannels->addItem(QString::fromStdString(c.label.empty() ? c.id : c.label), QString::fromStdString(c.id));
+                    mChannels->addItem(
+                        QString::fromStdString(c.label.empty() ? c.id : c.label), QString::fromStdString(c.id));
             mChannels->blockSignals(false);
         }
         const int index = mChannels->findData(QString::fromStdString(mCanvas->channel()));

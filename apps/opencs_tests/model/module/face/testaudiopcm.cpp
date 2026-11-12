@@ -24,8 +24,8 @@ namespace
         s.push_back(static_cast<char>(v >> 8));
     }
 
-    std::string wav(std::uint16_t format, std::uint16_t channels, std::uint32_t rate, std::uint16_t bits,
-        const std::string& data)
+    std::string wav(
+        std::uint16_t format, std::uint16_t channels, std::uint32_t rate, std::uint16_t bits, const std::string& data)
     {
         std::string s = "RIFF";
         put32(s, static_cast<std::uint32_t>(36 + data.size()));

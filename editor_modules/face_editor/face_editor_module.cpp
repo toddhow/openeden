@@ -134,7 +134,8 @@ namespace face_editor
                 {
                     std::string error;
                     if (!ensureModelsFolder(modelsRoot(mContext->userDataPath()), error))
-                        mContext->log(LogLevel::Warning, "The Audio2Face models folder could not be prepared: " + error);
+                        mContext->log(
+                            LogLevel::Warning, "The Audio2Face models folder could not be prepared: " + error);
                 }
 
                 SettingDesc audioRootSetting;
@@ -326,7 +327,8 @@ namespace face_editor
                                 specs.push_back(spec);
                 if (specs.empty())
                 {
-                    context.log(LogLevel::Info, "Verify Models: no model variant is complete in " + root.generic_string());
+                    context.log(
+                        LogLevel::Info, "Verify Models: no model variant is complete in " + root.generic_string());
                     return;
                 }
                 ModelsSource* models = mModels.get();

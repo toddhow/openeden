@@ -35,9 +35,7 @@ namespace face_editor
         std::vector<CurveKey> keys;
         if (frames.empty() || frameRate == 0)
             return keys;
-        auto keyOf = [&](std::size_t i) {
-            return CurveKey{ timeOfFrame(i, frameRate), frames[i] / kQuantScale };
-        };
+        auto keyOf = [&](std::size_t i) { return CurveKey{ timeOfFrame(i, frameRate), frames[i] / kQuantScale }; };
         // Quantised range of the data, for the exactness check (a signed channel reaches below 0).
         const int lo = -static_cast<int>(kQuantScale);
         const int hi = static_cast<int>(kQuantScale);
@@ -65,8 +63,8 @@ namespace face_editor
         return keys;
     }
 
-    std::vector<std::int16_t> resample(const std::vector<CurveKey>& input, std::uint32_t frameRate,
-        std::uint32_t frameCount, int lo, int hi)
+    std::vector<std::int16_t> resample(
+        const std::vector<CurveKey>& input, std::uint32_t frameRate, std::uint32_t frameCount, int lo, int hi)
     {
         std::vector<std::int16_t> out(frameCount, 0);
         std::vector<CurveKey> keys;
@@ -79,8 +77,8 @@ namespace face_editor
         for (std::uint32_t j = 0; j < frameCount; ++j)
         {
             const double t = timeOfFrame(j, frameRate);
-            auto next = std::upper_bound(keys.begin(), keys.end(), t,
-                [](double time, const CurveKey& key) { return time < key.timeSeconds; });
+            auto next = std::upper_bound(
+                keys.begin(), keys.end(), t, [](double time, const CurveKey& key) { return time < key.timeSeconds; });
             double value;
             if (next == keys.begin())
                 value = keys.front().value;

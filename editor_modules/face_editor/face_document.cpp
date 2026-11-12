@@ -22,7 +22,8 @@ namespace face_editor
 
         std::string lowerCase(std::string s)
         {
-            std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(
+                s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return s;
         }
 
@@ -103,15 +104,18 @@ namespace face_editor
             return true;
         }
 
-        double rangeMin(Face::ChannelKind kind) { return kind == Face::ChannelKind::Signed ? -1.0 : 0.0; }
+        double rangeMin(Face::ChannelKind kind)
+        {
+            return kind == Face::ChannelKind::Signed ? -1.0 : 0.0;
+        }
     }
 
     const std::vector<std::string>& defaultChannelNames()
     {
-        static const std::vector<std::string> sNames = { "jawopen", "mouthclose", "mouthfunnel", "mouthpucker",
-            "mouthsmileleft", "mouthsmileright", "mouthlowerdownleft", "mouthlowerdownright", "mouthupperupleft",
-            "mouthupperupright", "eyeblinkleft", "eyeblinkright", "browinnerup", "browdownleft", "browdownright",
-            "gazex", "gazey" };
+        static const std::vector<std::string> sNames
+            = { "jawopen", "mouthclose", "mouthfunnel", "mouthpucker", "mouthsmileleft", "mouthsmileright",
+                  "mouthlowerdownleft", "mouthlowerdownright", "mouthupperupleft", "mouthupperupright", "eyeblinkleft",
+                  "eyeblinkright", "browinnerup", "browdownleft", "browdownright", "gazex", "gazey" };
         return sNames;
     }
 
@@ -153,7 +157,8 @@ namespace face_editor
         }
     }
 
-    bool createCurvesFile(const fs::path& audioPath, const fs::path& outPath, std::uint32_t frameRate, std::string& error)
+    bool createCurvesFile(
+        const fs::path& audioPath, const fs::path& outPath, std::uint32_t frameRate, std::string& error)
     {
         if (frameRate < kMinFrameRate || frameRate > Face::Limits::sMaxFrameRate)
         {
@@ -173,7 +178,8 @@ namespace face_editor
         c.mFrameRate = frameRate;
         // Within one frame of the audio, as Face::validate requires (frameCount / frameRate against the duration): the
         // smallest count that covers it. (A real Morrowind line with 45.6 frames failed with "round + 1".)
-        const auto frames = std::max<std::uint64_t>(1, static_cast<std::uint64_t>(std::ceil(duration * frameRate - 1e-9)));
+        const auto frames
+            = std::max<std::uint64_t>(1, static_cast<std::uint64_t>(std::ceil(duration * frameRate - 1e-9)));
         if (frames > Face::Limits::sMaxFrameCount)
         {
             error = "the audio is too long for one curve file";
@@ -192,7 +198,8 @@ namespace face_editor
         if (!text)
         {
             const auto issues = Face::validate(c);
-            error = "the new curve file is not valid" + (issues.empty() ? std::string() : ": " + issues.front().mMessage);
+            error
+                = "the new curve file is not valid" + (issues.empty() ? std::string() : ": " + issues.front().mMessage);
             return false;
         }
         return writeFileAtomically(outPath, *text, error);
@@ -348,7 +355,8 @@ namespace face_editor
                     row("face.audio.match", "Audio matches the file", PropertyType::String),
                     row("face.audio.duration", "Audio duration (s)", PropertyType::Float),
                     row("face.framerate", "Frames per second", PropertyType::Int),
-                    row("face.frames", "Frames", PropertyType::Int), row("face.channels", "Channels", PropertyType::Int),
+                    row("face.frames", "Frames", PropertyType::Int),
+                    row("face.channels", "Channels", PropertyType::Int),
                     row("face.generator", "Generator", PropertyType::String) };
             }
             PropertyValue get(std::string_view id) const override
@@ -454,7 +462,8 @@ namespace face_editor
 
     FaceDocument::~FaceDocument() = default;
 
-    std::unique_ptr<FaceDocument> FaceDocument::open(const fs::path& path, const fs::path& audioRoot, std::string& error)
+    std::unique_ptr<FaceDocument> FaceDocument::open(
+        const fs::path& path, const fs::path& audioRoot, std::string& error)
     {
         std::string text;
         std::error_code ec;
@@ -500,8 +509,8 @@ namespace face_editor
             // A stable colour per channel: the hue follows the channel's place.
             const std::size_t n = impl->mChannels.size();
             const float hue = static_cast<float>(n % 12) / 12.f;
-            state.mInfo.colour = Colour{ 0.5f + 0.5f * std::sin(hue * 6.2832f), 0.5f + 0.5f * std::sin(hue * 6.2832f + 2.094f),
-                0.5f + 0.5f * std::sin(hue * 6.2832f + 4.188f), 1.f };
+            state.mInfo.colour = Colour{ 0.5f + 0.5f * std::sin(hue * 6.2832f),
+                0.5f + 0.5f * std::sin(hue * 6.2832f + 2.094f), 0.5f + 0.5f * std::sin(hue * 6.2832f + 4.188f), 1.f };
             state.mKeys = sparsify(channel.mValues, impl->mCurves.mFrameRate);
             impl->mChannels.push_back(std::move(state));
         }
@@ -543,7 +552,8 @@ namespace face_editor
             if (!state.mEdited)
                 continue;
             const int lo = state.mKind == Face::ChannelKind::Signed ? -Face::Limits::sMaxWeight : 0;
-            out.mChannels[i].mValues = resample(state.mKeys, out.mFrameRate, out.mFrameCount, lo, Face::Limits::sMaxWeight);
+            out.mChannels[i].mValues
+                = resample(state.mKeys, out.mFrameRate, out.mFrameCount, lo, Face::Limits::sMaxWeight);
         }
         const auto text = Face::writeJson(out);
         if (!text)

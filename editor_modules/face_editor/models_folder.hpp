@@ -1,9 +1,9 @@
 #pragma once
 
 // The Audio2Face models folder (task 0147, decisions of toddhow 2026-11-03 and 2026-11-12): people download the models
-// themselves; Eden Studio keeps a folder `<eden-studio user data>/models/audio2face/<variant>/`, writes a README there on
-// first use, lists the variants it finds and checks them against the file sizes and SHA-256 recorded below (taken from
-// the downloads of 2026-11-12, docs/tasks/0071-facial-speech-animation.md). No model file is ever copied into the
+// themselves; Eden Studio keeps a folder `<eden-studio user data>/models/audio2face/<variant>/`, writes a README there
+// on first use, lists the variants it finds and checks them against the file sizes and SHA-256 recorded below (taken
+// from the downloads of 2026-11-12, docs/tasks/0071-facial-speech-animation.md). No model file is ever copied into the
 // repository or shipped. Pure: standard library only.
 
 #include <cstdint>
@@ -61,8 +61,8 @@ namespace face_editor
     /// Hashes the files with a recorded SHA-256 (streams them; slow for 1.2 GB: call from a background task). \a
     /// progress gets a fraction in [0, 1] and returns false to cancel. Returns the status with Verified or
     /// HashMismatch; a cancelled run returns Present.
-    VariantStatus verifyVariant(const std::filesystem::path& root, const VariantSpec& spec,
-        const std::function<bool(double)>& progress);
+    VariantStatus verifyVariant(
+        const std::filesystem::path& root, const VariantSpec& spec, const std::function<bool(double)>& progress);
 
     /// Text of the README Studio writes: which pages to visit, which licence is accepted, which files go where, with
     /// their names, sizes and hashes.

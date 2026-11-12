@@ -107,7 +107,9 @@ TEST(FaceModels, firstUseWritesTheReadmeAndLeavesAnEditedOneAlone)
     EXPECT_NE(text.find("dcd16d3b1affb090d4da1ba88791faa6bcd755f97c853b3b667abad9be15cb4b"), std::string::npos);
     EXPECT_NE(text.find("v2.3-mark"), std::string::npos);
 
-    { std::ofstream(root / "README.txt") << "my notes"; }
+    {
+        std::ofstream(root / "README.txt") << "my notes";
+    }
     ASSERT_TRUE(ensureModelsFolder(root, error));
     std::ifstream again(root / "README.txt");
     std::string kept((std::istreambuf_iterator<char>(again)), std::istreambuf_iterator<char>());
@@ -117,7 +119,9 @@ TEST(FaceModels, firstUseWritesTheReadmeAndLeavesAnEditedOneAlone)
 TEST(FaceModels, aFolderThatCannotBeCreatedIsAnErrorNotACrash)
 {
     fs::path base = scratch("blocked");
-    { std::ofstream(base / "file") << "x"; }
+    {
+        std::ofstream(base / "file") << "x";
+    }
     std::string error;
     EXPECT_FALSE(ensureModelsFolder(base / "file" / "sub", error));
     EXPECT_FALSE(error.empty());
@@ -147,7 +151,9 @@ TEST(FaceModels, scanReportsMissingIncompleteWrongSizeAndPresent)
     for (const auto& f : v23->mFiles)
         if (f.mSize >= 10u * 1024 * 1024)
         {
-            { std::ofstream(root / "v2.3-mark" / f.mName, std::ios::binary) << "x"; }
+            {
+                std::ofstream(root / "v2.3-mark" / f.mName, std::ios::binary) << "x";
+            }
             fs::resize_file(root / "v2.3-mark" / f.mName, f.mName == "network.onnx" ? f.mSize - 1 : f.mSize);
         }
     statuses = scanModels(root);

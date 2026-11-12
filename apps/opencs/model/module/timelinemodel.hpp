@@ -1,8 +1,9 @@
 #ifndef CSM_MODULE_TIMELINEMODEL_H
 #define CSM_MODULE_TIMELINEMODEL_H
 
-// Editor Module API 1.4 (task 0147): the pure part of Studio's curve canvas, waveform track, playhead and dialogs. No Qt,
-// no GPU: the widget (view/doc/curvestrip.*) draws what this computes, and eden-studio-tests run it without a display.
+// Editor Module API 1.4 (task 0147): the pure part of Studio's curve canvas, waveform track, playhead and dialogs. No
+// Qt, no GPU: the widget (view/doc/curvestrip.*) draws what this computes, and eden-studio-tests run it without a
+// display.
 
 #include <cstddef>
 #include <functional>
@@ -59,8 +60,8 @@ namespace CSMModule
         const openeden::editor::CurveChannelInfo& channel, const openeden::editor::CurveKey& key, double duration);
 
     /// Clamps a value to the channel's range (a drag past the edge).
-    openeden::editor::CurveKey clampKey(const openeden::editor::CurveChannelInfo& channel,
-        const openeden::editor::CurveKey& key, double duration);
+    openeden::editor::CurveKey clampKey(
+        const openeden::editor::CurveChannelInfo& channel, const openeden::editor::CurveKey& key, double duration);
 
     /// Empty when a dialog description can be shown, otherwise why not (no title, no fields, a Vec3 field, an empty or
     /// duplicate id, too many fields, a Choice with no choices, a number range that is empty or not finite).
@@ -145,8 +146,8 @@ namespace CSMModule
         double duration() const;
     };
 
-    /// A 16 bit mono WAV file of samples[from..] for the system's audio output; empty for no samples, a start at or past
-    /// the end, a zero rate or a non-finite start. Non-finite samples are silence.
+    /// A 16 bit mono WAV file of samples[from..] for the system's audio output; empty for no samples, a start at or
+    /// past the end, a zero rate or a non-finite start. Non-finite samples are silence.
     std::vector<char> pcmToWav16(const float* samples, std::size_t count, std::uint32_t rate, double fromSeconds);
 
     /// Splits tracks into curve and waveform ones with dynamic_cast (a track may be both).

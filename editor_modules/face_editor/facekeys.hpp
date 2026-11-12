@@ -1,8 +1,8 @@
 #pragma once
 
 // The face editor's key model (task 0147): opas.facecurves stores one integer per frame, the canvas edits sparse keys.
-// sparsify() turns frames into keys that resample() turns back into EXACTLY the same integers, so a channel nobody edits
-// is never rewritten and an edited one is resampled from its keys. Pure; standard library only.
+// sparsify() turns frames into keys that resample() turns back into EXACTLY the same integers, so a channel nobody
+// edits is never rewritten and an edited one is resampled from its keys. Pure; standard library only.
 
 #include <openeden/editor_module/types.hpp>
 

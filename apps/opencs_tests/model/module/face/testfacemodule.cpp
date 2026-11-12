@@ -1,6 +1,6 @@
-// Task 0147: the face editor module as Eden Studio loads it, through ModuleRegistry (the module's sources are linked into
-// the test; the shared library is loaded by the editor check). Written after the module, so the red evidence is the
-// stubbed pure parts; the mutations tried are in the task's stage log.
+// Task 0147: the face editor module as Eden Studio loads it, through ModuleRegistry (the module's sources are linked
+// into the test; the shared library is loaded by the editor check). Written after the module, so the red evidence is
+// the stubbed pure parts; the mutations tried are in the task's stage log.
 #include "apps/opencs/model/module/moduleregistry.hpp"
 
 #include "editor_modules/face_editor/face_document.hpp"
@@ -163,7 +163,9 @@ TEST(FaceModule, newCurvesMakesAFileForAnAudioFileAndOpensIt)
 {
     Fixture f("new");
     const std::string wav = face_editor::encodeWav16(std::vector<float>(8000, 0.2f), 8000);
-    { std::ofstream(f.mDir / "line.wav", std::ios::binary) << wav; }
+    {
+        std::ofstream(f.mDir / "line.wav", std::ios::binary) << wav;
+    }
     f.mContext.mAnswer = std::vector<PropertyValue>{ (f.mDir / "line.wav").generic_string(), std::int64_t{ 30 } };
     ASSERT_TRUE(f.mRegistry.runCommand("face.newCurves"));
     ASSERT_EQ(f.mContext.mDialogs.size(), 1u);
@@ -197,7 +199,9 @@ TEST(FaceModule, generateSaysTheRuntimeIsNotThereYet)
 {
     Fixture f("generate");
     const std::string wav = face_editor::encodeWav16(std::vector<float>(8000, 0.2f), 8000);
-    { std::ofstream(f.mDir / "line.wav", std::ios::binary) << wav; }
+    {
+        std::ofstream(f.mDir / "line.wav", std::ios::binary) << wav;
+    }
     std::string error;
     ASSERT_TRUE(face_editor::createCurvesFile(f.mDir / "line.wav", f.mDir / "line.facecurves.json", 30, error));
     ASSERT_NE(f.mContext.openAsset(f.mDir / "line.facecurves.json"), nullptr);
@@ -226,7 +230,9 @@ TEST(FaceModule, verifyModelsHashesACompleteVariantAsABackgroundTask)
             for (const auto& file : spec.mFiles)
             {
                 fs::create_directories(root / spec.mId);
-                { std::ofstream(root / spec.mId / file.mName, std::ios::binary) << "x"; }
+                {
+                    std::ofstream(root / spec.mId / file.mName, std::ios::binary) << "x";
+                }
                 fs::resize_file(root / spec.mId / file.mName, file.mSize);
             }
     ASSERT_TRUE(f.mRegistry.runCommand("face.verifyModels"));

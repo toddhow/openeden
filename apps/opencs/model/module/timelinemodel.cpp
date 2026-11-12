@@ -81,8 +81,8 @@ namespace CSMModule
                 continue;
             }
             const long long first = std::max<long long>(0, static_cast<long long>(firstD));
-            const long long last = std::min<long long>(
-                static_cast<long long>(data.sampleCount) - 1, static_cast<long long>(lastD));
+            const long long last
+                = std::min<long long>(static_cast<long long>(data.sampleCount) - 1, static_cast<long long>(lastD));
             float lo = std::numeric_limits<float>::max();
             float hi = std::numeric_limits<float>::lowest();
             for (long long i = first; i <= last; ++i)
@@ -128,8 +128,10 @@ namespace CSMModule
     CurveKey clampKey(const CurveChannelInfo& channel, const CurveKey& key, double duration)
     {
         CurveKey out = key;
-        out.timeSeconds = std::clamp(std::isfinite(key.timeSeconds) ? key.timeSeconds : 0.0, 0.0, std::max(duration, 0.0));
-        out.value = std::clamp(std::isfinite(key.value) ? key.value : channel.minValue, channel.minValue, channel.maxValue);
+        out.timeSeconds
+            = std::clamp(std::isfinite(key.timeSeconds) ? key.timeSeconds : 0.0, 0.0, std::max(duration, 0.0));
+        out.value
+            = std::clamp(std::isfinite(key.value) ? key.value : channel.minValue, channel.minValue, channel.maxValue);
         return out;
     }
 

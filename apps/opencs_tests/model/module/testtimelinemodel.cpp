@@ -60,7 +60,8 @@ namespace
             after.push_back(key);
             return std::make_unique<SetKeys>(mKeys, after);
         }
-        std::unique_ptr<Command> makeMoveKeyCommand(std::string_view id, std::size_t index, const CurveKey& key) override
+        std::unique_ptr<Command> makeMoveKeyCommand(
+            std::string_view id, std::size_t index, const CurveKey& key) override
         {
             if (id != "jawopen" || index >= mKeys.size())
                 return nullptr;
@@ -305,8 +306,13 @@ TEST(TimelineWav, makesA16BitMonoFileFromTheChosenSecond)
     EXPECT_EQ(std::string(wav.data(), 4), "RIFF");
     EXPECT_EQ(std::string(wav.data() + 8, 8), "WAVEfmt ");
     EXPECT_EQ(std::string(wav.data() + 36, 4), "data");
-    auto u16 = [&](std::size_t at) { return static_cast<std::uint16_t>(static_cast<unsigned char>(wav[at]) | (static_cast<unsigned char>(wav[at + 1]) << 8)); };
-    auto u32 = [&](std::size_t at) { return static_cast<std::uint32_t>(u16(at)) | (static_cast<std::uint32_t>(u16(at + 2)) << 16); };
+    auto u16 = [&](std::size_t at) {
+        return static_cast<std::uint16_t>(
+            static_cast<unsigned char>(wav[at]) | (static_cast<unsigned char>(wav[at + 1]) << 8));
+    };
+    auto u32 = [&](std::size_t at) {
+        return static_cast<std::uint32_t>(u16(at)) | (static_cast<std::uint32_t>(u16(at + 2)) << 16);
+    };
     EXPECT_EQ(u16(20), 1u); // PCM
     EXPECT_EQ(u16(22), 1u); // mono
     EXPECT_EQ(u32(24), 100u);

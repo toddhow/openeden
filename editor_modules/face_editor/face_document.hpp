@@ -1,8 +1,8 @@
 #pragma once
 
-// The face editor's asset (task 0147): one opas.facecurves file (.facecurves.json), its voice audio, editable on Studio's
-// timeline as sparse keys. The format, reader and canonical writer are components/face (stage b of task 0071); this class
-// only adapts them to the Editor Module API 1.4 curve and waveform tracks.
+// The face editor's asset (task 0147): one opas.facecurves file (.facecurves.json), its voice audio, editable on
+// Studio's timeline as sparse keys. The format, reader and canonical writer are components/face (stage b of task 0071);
+// this class only adapts them to the Editor Module API 1.4 curve and waveform tracks.
 //
 // Editing model: each channel is shown as keys (facekeys.hpp). A channel nobody edits keeps its original integers, so
 // opening and saving a file never changes it; an edited channel is resampled from its keys when the file is saved.
@@ -25,8 +25,8 @@ namespace face_editor
     inline constexpr const char* kFileExtension = ".facecurves.json";
     inline constexpr const char* kFormatId = "opas.facecurves";
 
-    /// The channels a new file starts with: 52 ARKit names are the long-term set (task 0071); a first set that covers the
-    /// jaw, lips, blinks, brows and gaze keeps a new file small.
+    /// The channels a new file starts with: 52 ARKit names are the long-term set (task 0071); a first set that covers
+    /// the jaw, lips, blinks, brows and gaze keeps a new file small.
     const std::vector<std::string>& defaultChannelNames();
 
     /// Where the audio of a curve file is: next to it with the same name (any known extension), then the file name of

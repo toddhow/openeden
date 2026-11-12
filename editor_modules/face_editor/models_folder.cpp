@@ -12,8 +12,8 @@ namespace face_editor
 
     namespace
     {
-        // File names, sizes and SHA-256 recorded from toddhow's downloads of 2026-11-12 (docs/tasks/0071-...md, "Stage a
-        // results"). Only network.onnx is hashed: it is the file that decides the output and the one that is big
+        // File names, sizes and SHA-256 recorded from toddhow's downloads of 2026-11-12 (docs/tasks/0071-...md, "Stage
+        // a results"). Only network.onnx is hashed: it is the file that decides the output and the one that is big
         // enough to be corrupted by a failed download; the others are small and checked by size.
         std::vector<VariantSpec> makeVariants()
         {
@@ -22,7 +22,9 @@ namespace face_editor
             VariantSpec v30;
             v30.mId = "v3.0";
             v30.mLabel = "Audio2Face-3D v3.0 (high quality)";
-            v30.mSource = "huggingface.co/nvidia, repository Audio2Face-3D-v3.0 (name from the download; the page itself was not checked)";
+            v30.mSource
+                = "huggingface.co/nvidia, repository Audio2Face-3D-v3.0 (name from the download; the page itself was "
+                  "not checked)";
             v30.mLicence = "NVIDIA Open Model License";
             v30.mFiles = {
                 { "network.onnx", 724844664, "db47c2701ca849de443c9e9f25657210f829a74fc458ee6fed603a8a501253a8" },
@@ -61,8 +63,9 @@ namespace face_editor
             emo.mId = "audio2emotion";
             emo.mLabel = "Audio2Emotion (optional emotion model)";
             emo.mSource = "huggingface.co/nvidia, the Audio2Emotion repository (gated: accept its own licence there)";
-            emo.mLicence = "its own licence: accept it on its own page; use only together with Audio2Face; not for "
-                           "emotion recognition";
+            emo.mLicence
+                = "its own licence: accept it on its own page; use only together with Audio2Face; not for "
+                  "emotion recognition";
             emo.mOptional = true;
             emo.mFiles = {
                 { "network.onnx", 1271318264, "92eab06c234b78ee3d5efe4762d0ac198cf39e085f942fe8e1065120e3d411b7" },
@@ -140,8 +143,9 @@ namespace face_editor
                 if (ec || size != file.mSize)
                 {
                     status.mState = VariantState::WrongSize;
-                    status.mDetail = file.mName + " has " + (ec ? std::string("an unreadable size") : std::to_string(size))
-                        + " bytes, expected " + std::to_string(file.mSize);
+                    status.mDetail = file.mName + " has "
+                        + (ec ? std::string("an unreadable size") : std::to_string(size)) + " bytes, expected "
+                        + std::to_string(file.mSize);
                     break;
                 }
             }
@@ -209,13 +213,19 @@ namespace face_editor
         t << "Eden Studio: Audio2Face models folder\n"
              "=====================================\n\n"
              "Eden Studio generates facial animation curves for voice lines with NVIDIA's Audio2Face-3D networks. The\n"
-             "networks are NOT part of OpenEden, are not bundled and are not hosted by us: you download them yourself,\n"
-             "under NVIDIA's licence, and put them in this folder. Studio looks here, lists what it finds and checks the\n"
+             "networks are NOT part of OpenEden, are not bundled and are not hosted by us: you download them "
+             "yourself,\n"
+             "under NVIDIA's licence, and put them in this folder. Studio looks here, lists what it finds and checks "
+             "the\n"
              "files against the sizes and SHA-256 hashes below (Face > Verify Models). Nothing is ever uploaded.\n\n"
-             "Licence. The Audio2Face models are published under the NVIDIA Open Model License. By downloading them you\n"
-             "accept it; read it on the model's page. Audio2Emotion has its OWN licence, which you accept separately on\n"
-             "its page: it may be used only together with Audio2Face and not for emotion recognition. Curves you generate\n"
-             "are yours, but the audio they were generated from may not be: do not ship curves made from audio you have\n"
+             "Licence. The Audio2Face models are published under the NVIDIA Open Model License. By downloading them "
+             "you\n"
+             "accept it; read it on the model's page. Audio2Emotion has its OWN licence, which you accept separately "
+             "on\n"
+             "its page: it may be used only together with Audio2Face and not for emotion recognition. Curves you "
+             "generate\n"
+             "are yours, but the audio they were generated from may not be: do not ship curves made from audio you "
+             "have\n"
              "no right to.\n\n"
              "Layout: one folder per variant, named exactly as below, with the files directly inside it.\n\n";
         for (const VariantSpec& spec : knownVariants())
@@ -232,7 +242,8 @@ namespace face_editor
             }
             t << "\n";
         }
-        t << "The v3.0 download holds three identities (Claire, James, Mark); Studio's first version uses Mark, so only\n"
+        t << "The v3.0 download holds three identities (Claire, James, Mark); Studio's first version uses Mark, so "
+             "only\n"
              "the Mark files are required. If a page asks you to sign in or accept terms, that is NVIDIA's page: Eden\n"
              "Studio never does it for you.\n";
         return t.str();

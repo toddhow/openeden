@@ -617,6 +617,9 @@ namespace CSVModule
                 routing->clearModuleStack(); // also hands Edit > Undo back to the document
         mRoutings.clear();
         mOwnStack.clear();
+        // The timeline canvas keeps pointers to the tracks of the asset that is gone (task 0147): it takes them again
+        // now, while the modules' libraries are still loaded, and finds none.
+        emit changed();
     }
 
     std::vector<std::filesystem::path> ModuleUi::findAssets(

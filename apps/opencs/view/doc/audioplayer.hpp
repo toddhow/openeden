@@ -9,8 +9,8 @@
 namespace CSVDoc
 {
     /// Plays a mono PCM buffer for the timeline's waveform track (Editor Module API 1.4, task 0147). Windows only for
-    /// now (PlaySound from memory); elsewhere available() is false and play() does nothing. The buffer is copied, so the
-    /// module's buffer may change while it plays. Main thread only.
+    /// now (PlaySound from memory); elsewhere available() is false and play() does nothing. The buffer is copied, so
+    /// the module's buffer may change while it plays. Main thread only.
     class AudioPlayer
     {
     public:
@@ -20,6 +20,7 @@ namespace CSVDoc
         /// output on this platform).
         bool play(const float* samples, std::size_t count, std::uint32_t rate, double fromSeconds);
         void stop();
+
     private:
         std::vector<char> mBuffer; // must stay alive while it plays
     };

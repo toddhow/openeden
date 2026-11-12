@@ -130,8 +130,8 @@ TEST(EditorModuleApi14, aModuleThatDeclaresOneFourIsRefusedByOlderHostsAndNamesB
 
 TEST(EditorModuleApi14, modulesThatDeclareAnyEarlierMinorLoadOnAnOneFourHost)
 {
-    for (const std::uint16_t minor : { std::uint16_t(0), std::uint16_t(1), std::uint16_t(2), std::uint16_t(3),
-             std::uint16_t(4) })
+    for (const std::uint16_t minor :
+        { std::uint16_t(0), std::uint16_t(1), std::uint16_t(2), std::uint16_t(3), std::uint16_t(4) })
     {
         CSMModule::ModuleRegistry registry;
         Context10 context;

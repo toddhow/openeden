@@ -1,9 +1,9 @@
 #pragma once
 
-// Voice audio for the face editor (task 0147): a file to mono float PCM. WAV is read here (PCM 8/16/24/32 bit and 32 bit
-// float, any channel count mixed down); Morrowind's .mp3 and the xWMA inside a Skyrim .fuz go through FFmpeg
-// (audio_ffmpeg.cpp), which the game already links. Untrusted input: every size is checked against the bytes present and
-// against caps before anything is allocated; nothing throws.
+// Voice audio for the face editor (task 0147): a file to mono float PCM. WAV is read here (PCM 8/16/24/32 bit and 32
+// bit float, any channel count mixed down); Morrowind's .mp3 and the xWMA inside a Skyrim .fuz go through FFmpeg
+// (audio_ffmpeg.cpp), which the game already links. Untrusted input: every size is checked against the bytes present
+// and against caps before anything is allocated; nothing throws.
 
 #include <cstdint>
 #include <filesystem>

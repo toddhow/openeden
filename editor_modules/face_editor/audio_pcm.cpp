@@ -162,7 +162,8 @@ namespace face_editor
         }
         if (bytes.size() > AudioLimits::sMaxFileBytes)
         {
-            error = std::string(name) + ": the file is larger than " + std::to_string(AudioLimits::sMaxFileBytes) + " bytes";
+            error = std::string(name) + ": the file is larger than " + std::to_string(AudioLimits::sMaxFileBytes)
+                + " bytes";
             return false;
         }
         if (isRiffWave(bytes))
@@ -253,8 +254,8 @@ namespace face_editor
         s += "data";
         put32(dataBytes);
         for (float v : samples)
-            put16(static_cast<std::uint16_t>(static_cast<std::int16_t>(
-                std::lround(std::clamp(std::isfinite(v) ? v : 0.f, -1.f, 1.f) * 32767.f))));
+            put16(static_cast<std::uint16_t>(
+                static_cast<std::int16_t>(std::lround(std::clamp(std::isfinite(v) ? v : 0.f, -1.f, 1.f) * 32767.f))));
         return s;
     }
 }

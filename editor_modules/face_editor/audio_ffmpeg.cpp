@@ -15,9 +15,9 @@ extern "C"
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 namespace face_editor
 {
