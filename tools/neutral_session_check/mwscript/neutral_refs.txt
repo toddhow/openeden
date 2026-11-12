@@ -1,0 +1,329 @@
+#select skyrimse:b152263
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b80803
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b108144
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b59
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b201531
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b77495
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b381393
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+#select skyrimse:b761344
+GetPos X
+GetPos Z
+GetDisabled
+Disable
+GetDisabled
+Enable
+GetDistance Player
+GetScale
+SetScale 1.1
+GetAngle Z
+SetAngle Z 10
+GetLocked
+Lock 5
+Unlock
+GetItemCount gold_001
+AddItem gold_001 1
+RemoveItem gold_001 1
+Equip gold_001
+GetHealth
+GetDead
+GetInterior
+GetStartingPos X
+GetStartingAngle Z
+SetPos Z 70
+PlaceAtMe gold_001 1 0 0
+Activate
+GetWeight
+GetSelf
+StopCombat
+AIWander 0 0 0
+GetSoundPlaying "x"
+PlaySound3D "Drum Hit"
+GetLineOfSight Player
+GetStandingPC
+GetContainer
+GetDoorState
+SetDoorState 1
+GetValue
+RemoveMe
+Delete
+MessageBox "MS0 mwscript done"

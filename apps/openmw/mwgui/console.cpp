@@ -6,10 +6,12 @@
 #include <MyGUI_LayerManager.h>
 
 #include <filesystem>
+#include <cstdlib>
 #include <fstream>
 #include <regex>
 
 #include <components/compiler/exception.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/compiler/lineparser.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/scanner.hpp>
@@ -25,9 +27,11 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
+#include "../mwbase/world.hpp"
 #include "../mwbase/scriptmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 
+#include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 
@@ -208,6 +212,14 @@ namespace MWGui
 
     void Console::print(const std::string& msg, std::string_view color)
     {
+        // Developer aid (task 0131): OPENEDEN_CONSOLE_TRACE=1 copies what the console prints into the log, so a scripted
+        // --script-run can be checked without a window. Read once; off by default.
+        static const bool trace = [] {
+            const char* value = std::getenv("OPENEDEN_CONSOLE_TRACE");
+            return value != nullptr && *value != '\0' && *value != '0';
+        }();
+        if (trace)
+            Log(Debug::Info) << "CONSOLE " << msg;
         mHistory->addText(std::string(color) + MyGUI::TextIterator::toTagsString(msg));
     }
 
@@ -274,7 +286,26 @@ namespace MWGui
 
         std::string line;
         while (std::getline(stream, line))
+        {
+            // Developer aid (task 0131, with OPENEDEN_CONSOLE_TRACE set): "#select <record id>" does what a click on the
+            // first object of that record id in the player's cell does, so the following lines run on that reference.
+            // A neutral object cannot be named in a command (the compiler's isId does not know it), only selected.
+            constexpr std::string_view selectPrefix = "#select ";
+            if (line.compare(0, selectPrefix.size(), selectPrefix) == 0 && std::getenv("OPENEDEN_CONSOLE_TRACE") != nullptr)
+            {
+                const std::string wanted = line.substr(selectPrefix.size());
+                MWWorld::Ptr found;
+                MWBase::Environment::get().getWorld()->getPlayerPtr().getCell()->forEach([&](const MWWorld::Ptr& ptr) {
+                    if (found.isEmpty() && ptr.getCellRef().getRefId().serializeText() == wanted)
+                        found = ptr;
+                    return found.isEmpty();
+                });
+                setSelectedObject(found);
+                Log(Debug::Info) << "CONSOLE selected " << (found.isEmpty() ? "nothing" : found.toString());
+                continue;
+            }
             execute(line);
+        }
     }
 
     void Console::clear()

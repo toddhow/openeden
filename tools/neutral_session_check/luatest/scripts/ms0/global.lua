@@ -60,7 +60,15 @@ local function sweepObject(o)
     end
     -- the typed APIs must refuse (a Lua error), not crash: call a spread of them on the neutral object
     try('Actor.stats.level', function() return types.Actor.stats.level(o) end)
+    try('Actor.stats.level.current', function() return types.Actor.stats.level(o).current end)
+    try('Actor.stats.health.current', function() return types.Actor.stats.dynamic.health(o).current end)
     try('Actor.inventory', function() return types.Actor.inventory(o) end)
+    try('Actor.inventory:getAll', function() return types.Actor.inventory(o):getAll() end)
+    try('Container.inventory:getAll', function() return types.Container.inventory(o):getAll() end)
+    try('Container.content:getAll', function() return types.Container.content(o):getAll() end)
+    try('Item.itemData.condition', function() return types.Item.itemData(o).condition end)
+    try('Item.itemData.soul', function() return types.Item.itemData(o).soul end)
+    try('Lockable.isLocked.value', function() return types.Lockable.isLocked(o) end)
     try('Actor.getEquipment', function() return types.Actor.getEquipment(o) end)
     try('Actor.activeSpells', function() return types.Actor.activeSpells(o) end)
     try('Actor.isDead', function() return types.Actor.isDead(o) end)
@@ -129,7 +137,7 @@ local function cellSweep()
     try('player.stats.level', function() return types.Actor.stats.level(player).current end)
     try('player.stats.health', function() return types.Actor.stats.dynamic.health(player).current end)
     try('player.equipment', function() return types.Actor.getEquipment(player) end)
-    try('player.activeSpells', function() return types.Actor.activeSpells(player):canApplySpell('x') end)
+    try('player.activeSpells', function() return types.Actor.activeSpells(player):isSpellActive('x') end)
     try('player.spells', function() return types.Actor.spells(player) end)
     try('player.encumbrance', function() return types.Actor.getEncumbrance(player) end)
 end
@@ -148,6 +156,13 @@ return {
                 objects = {}
                 for _, o in ipairs(player.cell:getAll()) do objects[#objects + 1] = o end
                 print(string.format('MS0 cell %s objects %d', tostring(player.cell.name), #objects))
+                local seen, listed = {}, 0
+                for _, o in ipairs(objects) do
+                    if not seen[o.recordId] and listed < 60 then
+                        seen[o.recordId] = true; listed = listed + 1
+                        print(string.format('MS0 base %s at %.0f,%.0f,%.0f', o.recordId, o.position.x, o.position.y, o.position.z))
+                    end
+                end
                 cellSweep()
                 for _, o in ipairs(objects) do sweepObject(o) end
                 report()
