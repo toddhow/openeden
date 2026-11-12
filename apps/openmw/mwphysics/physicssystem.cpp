@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdarg>
 #include <cstdint>
 #include <cstdlib>
@@ -63,6 +64,7 @@
 #include "heightfield.hpp"
 #include "movementsolver.hpp"
 #include "mtphysics.hpp"
+#include "neutralactor.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
 #include "skyrimshape.hpp"
@@ -372,6 +374,7 @@ namespace MWPhysics
         mTaskScheduler->releaseSharedStates();
         mHeightFields.clear();
         mObjects.clear();
+        mNeutralActors.clear();
         mActors.clear();
         mProjectiles.clear();
 
@@ -1000,6 +1003,7 @@ namespace MWPhysics
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())
         {
+            std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
 
             mObjects.erase(foundObject);
@@ -1138,6 +1142,98 @@ namespace MWPhysics
             ptr, shape, mTaskScheduler.get(), canWaterWalk, Settings::game().mActorCollisionShapeType);
 
         mActors.emplace(ptr.mRef, std::move(actor));
+    }
+
+    void PhysicsSystem::addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise)
+    {
+        if (getObject(ptr) != nullptr)
+            return;
+        const NeutralActor::Capsule capsule = NeutralActor::capsuleFor(heightScale);
+        vsg::ref_ptr<Resource::PhysicsShape> shape = NeutralActor::makeShape(capsule);
+        if (shape == nullptr)
+            return;
+        if (std::isfinite(raise) && raise != 0.f)
+        {
+            ESM::Position pos = ptr.getRefData().getPosition();
+            pos.pos[2] += raise;
+            ptr.getRefData().setPosition(pos);
+        }
+        // A capsule looks the same from every side, so the placement's rotation is not needed.
+        auto obj = std::make_shared<Object>(
+            ptr, Resource::makeInstance(shape), vsg::dquat(0.0, 0.0, 0.0, 1.0), Layers::WORLD, mTaskScheduler.get());
+        mObjects.emplace(ptr.mRef, obj);
+
+        NeutralActorEntry entry;
+        entry.mRef = ptr.mRef;
+        entry.mStartZ = ptr.getRefData().getPosition().pos[2];
+        entry.mFall.mZ = entry.mStartZ;
+        mNeutralActors.push_back(entry);
+    }
+
+    const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
+    {
+        for (const NeutralActorEntry& entry : mNeutralActors)
+        {
+            if (entry.mRef == ptr.mRef)
+                return &entry.mFall;
+        }
+        return nullptr;
+    }
+
+    void PhysicsSystem::updateNeutralActors(float dt, std::vector<MWWorld::Ptr>& moved)
+    {
+        if (mNeutralActors.empty())
+            return;
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        // Every actor's ray ignores every neutral actor's body, so the order of the entries cannot change a result.
+        std::vector<MWWorld::ConstPtr> ignore;
+        for (NeutralActorEntry& entry : mNeutralActors)
+        {
+            if (entry.mFall.mState == NeutralActor::State::Grounded || entry.mFall.mState == NeutralActor::State::Lost)
+                continue;
+            const auto found = mObjects.find(entry.mRef);
+            if (found == mObjects.end())
+                continue;
+            if (ignore.empty())
+            {
+                ignore.reserve(mNeutralActors.size());
+                for (const NeutralActorEntry& other : mNeutralActors)
+                {
+                    if (const auto otherObject = mObjects.find(other.mRef); otherObject != mObjects.end())
+                        ignore.push_back(otherObject->second->getPtr());
+                }
+            }
+            const MWWorld::Ptr ptr = found->second->getPtr();
+            const vsg::vec3 feet = ptr.getRefData().getPosition().asVec3();
+
+            NeutralActor::FloorProbe probe;
+            const RayCastingResult hit = castRay(vsg::vec3(feet.x, feet.y, feet.z + NeutralActor::kStepUp),
+                vsg::vec3(feet.x, feet.y, feet.z - NeutralActor::kProbeDepth), ignore, {},
+                Layers::WORLD | Layers::HEIGHTMAP);
+            if (hit.mHit)
+            {
+                probe.mHit = true;
+                probe.mZ = hit.mHitPos.z;
+            }
+
+            // The Ptr's position is the truth (a script may have moved the actor); the state follows it.
+            entry.mFall.mZ = feet.z;
+            entry.mFall = NeutralActor::stepFall(entry.mFall, dt, probe);
+            if (entry.mFall.mZ != feet.z)
+            {
+                ESM::Position pos = ptr.getRefData().getPosition();
+                pos.pos[2] = entry.mFall.mZ;
+                ptr.getRefData().setPosition(pos);
+                moved.push_back(ptr);
+            }
+            if (trace
+                && (entry.mFall.mState == NeutralActor::State::Grounded
+                    || entry.mFall.mState == NeutralActor::State::Lost))
+                Log(Debug::Info) << "NACTBODY " << ptr.getCellRef().getRefId() << " "
+                                 << (entry.mFall.mState == NeutralActor::State::Grounded ? "grounded" : "lost")
+                                 << " start z " << entry.mStartZ << " rest z " << entry.mFall.mZ << " frames "
+                                 << entry.mFall.mFrames;
+        }
     }
 
     int PhysicsSystem::addProjectile(

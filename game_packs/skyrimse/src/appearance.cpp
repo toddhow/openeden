@@ -1,5 +1,7 @@
 #include "game_skyrimse/appearance.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <optional>
 #include <set>
@@ -97,6 +99,16 @@ namespace game_skyrimse
         }
         out.skeletonPath = race->skeleton(sex);
         out.female = sex == Sex::Female;
+
+        // The height: the race's for this sex times the NPC's own (NAM6) of the NPC the traits come from.
+        {
+            const ActorNpc* looks = traits != nullptr ? traits : own;
+            const float raceHeight = race->mHeight[sex == Sex::Male ? 0 : 1];
+            const float own6 = looks != nullptr && looks->mHeight ? *looks->mHeight : 1.0f;
+            const float scale = raceHeight * own6;
+            // A NaN fails both comparisons of std::clamp's order, so test it first.
+            out.heightScale = std::isfinite(scale) ? std::clamp(scale, kMinHeightScale, kMaxHeightScale) : 1.0f;
+        }
 
         // The outfit first: its slots decide which skin parts are covered.
         std::vector<ActorPart> worn;

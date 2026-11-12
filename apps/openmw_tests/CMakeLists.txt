@@ -151,6 +151,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testragdollhost.cpp
     # Task 0110 stage N3a-4b: collision from a Skyrim SE model's visual triangles (the Jolt half and the shape manager hook).
     mwphysics/testskyrimshape.cpp
+    mwphysics/testneutralactor.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp

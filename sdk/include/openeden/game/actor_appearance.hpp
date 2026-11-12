@@ -17,13 +17,14 @@
 // 1.0 by tests). A pack that does not implement it simply draws no actors. Plain values only: no engine, renderer,
 // Jolt or Qt type.
 //
-// Version policy: DRAFT 0.2 (0.2, task 0125: ActorPartKind::Face, appended). Additive changes (a new trailing virtual with a default meaning "not supported", a new
+// Version policy: DRAFT 0.3 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0133: ActorAppearance::heightScale, a
+// trailing field the core only reads). Additive changes (a new trailing virtual with a default meaning "not supported", a new
 // trailing field of ActorPart or ActorAppearance that a consumer only reads) raise the minor number; anything else
 // raises the major number. Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorAppearanceVersion{ 0, 2 };
+    inline constexpr Version kActorAppearanceVersion{ 0, 3 };
 
     enum class ActorPartKind : std::uint8_t
     {
@@ -55,6 +56,11 @@ namespace openeden::sdk::game
         bool female = false;
         /// In draw order. Skin parts the outfit covers are already left out.
         std::vector<ActorPart> parts;
+        /// How tall the actor stands compared with the game's standard adult (1 = standard), race and individual
+        /// combined (Skyrim SE: RACE DATA height for the sex times the NPC's own NAM6). The core sizes the actor's
+        /// collision capsule from it (task 0133, decision 0017 N5-3). Finite and positive; a pack clamps what the data
+        /// holds. Added in 0.3.
+        float heightScale = 1.0f;
 
         friend bool operator==(const ActorAppearance&, const ActorAppearance&) = default;
     };

@@ -25,6 +25,12 @@ namespace game_skyrimse
     /// what level an actor is seen, and a leveled entry above it is not eligible.
     inline constexpr std::uint16_t kAppearanceLevel = 30;
 
+    /// Task 0133: the range an actor's height scale (race height times the NPC's own, NAM6) is cut to. The installed
+    /// data holds NPC heights from 0.5 to 3.3 (see ActorNpc::mHeight); the bounds keep a hostile or damaged value from
+    /// giving the core a capsule it cannot build.
+    inline constexpr float kMinHeightScale = 0.25f;
+    inline constexpr float kMaxHeightScale = 4.0f;
+
     /// Task 0125: where an NPC's pre-built face (facegen) is. The game stores it per NPC as
     /// `meshes\actors\character\facegendata\facegeom\<plugin>\<form id as 8 hex digits>.nif` (the plugin that
     /// owns the form id, lower case; the form id local to that plugin with the load-order byte zero). Verified on the

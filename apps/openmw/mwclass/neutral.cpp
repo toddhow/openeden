@@ -20,6 +20,7 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+#include "../mwbase/world.hpp"
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwrender/renderinginterface.hpp"
@@ -341,6 +342,18 @@ namespace MWClass
             return;
         }
         renderingInterface.getObjects().insertNeutralActor(ptr, appearance);
+
+        // Task 0133 (decision 0017, stage N5-3): the actor's body in the physics world, a capsule sized from the race
+        // and the individual. Scene::addObject calls insertObject only for an object with a model, and an actor has
+        // none, so this is the one place that sees both the appearance and the physics system.
+        if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+        {
+            static const float raise = [] {
+                const char* text = std::getenv("OPENEDEN_NEUTRAL_ACTOR_RAISE"); // developer aid: shows the fall
+                return text != nullptr ? static_cast<float>(std::atof(text)) : 0.f;
+            }();
+            physics->addNeutralActor(ptr, appearance.heightScale, raise);
+        }
     }
 
     void Neutral::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,

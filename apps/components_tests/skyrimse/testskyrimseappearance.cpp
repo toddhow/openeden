@@ -472,3 +472,73 @@ TEST(SkyrimAppearance, a_facegen_path_over_the_limit_is_not_used)
     ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, limits, &probe)) << error;
     EXPECT_TRUE(models(a, ActorPartKind::Face).empty());
 }
+
+// Task 0133 (decision 0017 N5-3): the height scale the core sizes an actor's collision capsule from.
+namespace
+{
+    // One race with the given male and female heights, a male NPC and a female NPC with the given own heights.
+    ActorIndex heightWorld(float raceMale, float raceFemale, std::optional<float> maleNpcHeight,
+        std::optional<float> femaleNpcHeight = std::nullopt)
+    {
+        ActorRecords r;
+        RaceRecord race;
+        race.mCommon.mId = kRaceNord;
+        race.mSkeleton[0] = "actors\\character\\character assets\\skeleton.nif";
+        race.mSkeleton[1] = "actors\\character\\character assets female\\skeleton_female.nif";
+        race.mHeight = { raceMale, raceFemale };
+        r.mRaces.push_back(race);
+        ActorNpc m = npc(kNpc, kRaceNord, false);
+        m.mHeight = maleNpcHeight;
+        r.mNpcs.push_back(m);
+        ActorNpc f = npc(kNpcFemale, kRaceNord, true);
+        f.mHeight = femaleNpcHeight;
+        r.mNpcs.push_back(f);
+        ActorIndex index;
+        index.add(r);
+        return index;
+    }
+
+    float heightScaleOf(const ActorIndex& index, FormId id)
+    {
+        ActorAppearance a;
+        std::string error;
+        EXPECT_TRUE(makeActorAppearance(index, id, 1, a, error)) << error;
+        return a.heightScale;
+    }
+}
+
+TEST(SkyrimAppearanceHeight, a_race_and_an_npc_with_no_height_data_stand_at_the_standard_height)
+{
+    EXPECT_FLOAT_EQ(heightScaleOf(heightWorld(1.0f, 1.0f, std::nullopt), kNpc), 1.0f);
+}
+
+TEST(SkyrimAppearanceHeight, the_race_height_of_the_actors_sex_applies)
+{
+    const ActorIndex index = heightWorld(1.1f, 0.9f, std::nullopt, std::nullopt);
+    EXPECT_FLOAT_EQ(heightScaleOf(index, kNpc), 1.1f);
+    EXPECT_FLOAT_EQ(heightScaleOf(index, kNpcFemale), 0.9f);
+}
+
+TEST(SkyrimAppearanceHeight, the_npcs_own_height_multiplies_the_race_height)
+{
+    const ActorIndex index = heightWorld(1.2f, 0.9f, 1.5f, 1.1f);
+    EXPECT_NEAR(heightScaleOf(index, kNpc), 1.8f, 1e-5f);
+    EXPECT_NEAR(heightScaleOf(index, kNpcFemale), 0.99f, 1e-5f);
+}
+
+TEST(SkyrimAppearanceHeight, absurd_data_is_clamped_to_a_range_the_collision_can_use)
+{
+    EXPECT_FLOAT_EQ(heightScaleOf(heightWorld(1.0f, 1.0f, 1000.0f), kNpc), kMaxHeightScale);
+    EXPECT_FLOAT_EQ(heightScaleOf(heightWorld(1.0f, 1.0f, 0.0f), kNpc), kMinHeightScale);
+    EXPECT_FLOAT_EQ(heightScaleOf(heightWorld(-3.0f, 1.0f, std::nullopt), kNpc), kMinHeightScale);
+}
+
+TEST(SkyrimAppearanceHeight, a_refused_appearance_keeps_the_default)
+{
+    const ActorIndex index = world();
+    ActorAppearance a;
+    a.heightScale = 7.0f;
+    std::string error;
+    ASSERT_FALSE(makeActorAppearance(index, 0xdead, 1, a, error));
+    EXPECT_FLOAT_EQ(a.heightScale, 1.0f);
+}
