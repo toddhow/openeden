@@ -78,7 +78,7 @@ namespace
         bool hasBaseId(Subject, std::uint32_t) const override { return false; }
         float questStage(std::uint32_t) const override { return 0.f; }
         bool questStageDone(std::uint32_t, std::uint32_t) const override { return false; }
-        bool inFaction(Subject, std::uint32_t) const override { return false; }
+        bool inFaction(Subject s, std::uint32_t f) const override { return s == mSubject && f == mFaction; }
         float globalValue(std::uint32_t) const override { return 0.f; }
 
         bool isAliasRef(Subject s, std::uint32_t a) const override { return s == mSubject && a == mAlias; }
@@ -124,6 +124,13 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float crimeGoldViolent(Subject s, std::uint32_t f) const override
+        {
+            return f == 0xA0 ? 30.f : (f == 0 && s == mSubject ? 10.f : 0.f);
+        }
+        bool baseInList(Subject s, std::uint32_t l) const override { return s == mSubject && l == 0x1F0; }
+        bool weaponInList(Subject s, std::uint32_t l) const override { return s == mSubject && l == 0x1F1; }
+        bool locationInList(Subject s, std::uint32_t l) const override { return s == mSubject && l == 0x1F2; }
         bool inSameCell(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x14; }
         bool mIsBribedByPlayerFlag = true;
         bool isBribedByPlayer(Subject s) const override { return s == mSubject && mIsBribedByPlayerFlag; }
@@ -895,6 +902,30 @@ namespace
         EXPECT_TRUE(run(cond(32, kEq, 0.f, 0x15), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(32, kEq, 0.f, 0x14), w));
+    }
+
+    // fn_375 GetCrimeGoldViolent(faction, optional), fn_132 GetPCInFaction(faction), fn_372 IsInList(form list),
+    // fn_398 IsWeaponInList(form list), fn_444 GetInCurrentLocFormList(form list) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_375_132_372_398_444_crime_faction_and_lists)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(375, kEq, 30.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(375, kEq, 10.f, 0), w));
+        EXPECT_TRUE(run(cond(132, kEq, 0.f, 0xA0), w)); // the player (1) is in no faction in this world
+        EXPECT_TRUE(run(cond(372, kEq, 1.f, 0x1F0), w));
+        EXPECT_TRUE(run(cond(398, kEq, 1.f, 0x1F1), w));
+        EXPECT_TRUE(run(cond(444, kEq, 1.f, 0x1F2), w));
+        EXPECT_TRUE(run(cond(372, kEq, 0.f, 0x1F1), w));
+        w.mPlayer = w.mSubject;
+        EXPECT_TRUE(run(cond(132, kEq, 1.f, 0xA0), w));
+        w.mSubject = 0;
+        w.mPlayer = 0;
+        EXPECT_TRUE(run(cond(375, kEq, 30.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(375, kEq, 0.f, 0), w));
+        EXPECT_TRUE(run(cond(132, kEq, 0.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(372, kEq, 0.f, 0x1F0), w));
+        EXPECT_TRUE(run(cond(398, kEq, 0.f, 0x1F1), w));
+        EXPECT_TRUE(run(cond(444, kEq, 0.f, 0x1F2), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

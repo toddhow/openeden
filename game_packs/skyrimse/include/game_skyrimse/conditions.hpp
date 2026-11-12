@@ -633,6 +633,33 @@ namespace game_skyrimse::conditions
             (void)subject, (void)reference;
             return false;
         }
+        /// fn_375 GetCrimeGoldViolent(faction, optional): the player's violent crime gold (murder and assault) with
+        /// the faction; with faction 0, with the subject's crime faction (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float crimeGoldViolent(Subject subject, std::uint32_t faction) const
+        {
+            (void)subject, (void)faction;
+            return 0.f;
+        }
+        /// fn_372 IsInList(form list): is the subject's base object in the FLST? (Not for locations, see fn_444.)
+        /// (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool baseInList(Subject subject, std::uint32_t formList) const
+        {
+            (void)subject, (void)formList;
+            return false;
+        }
+        /// fn_398 IsWeaponInList(form list): is the subject's current weapon in the FLST? (CK wiki, toddhow 2026-11-11)
+        virtual bool weaponInList(Subject subject, std::uint32_t formList) const
+        {
+            (void)subject, (void)formList;
+            return false;
+        }
+        /// fn_444 GetInCurrentLocFormList(form list): is the subject's location, or one of its parent locations, in
+        /// the FLST? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool locationInList(Subject subject, std::uint32_t formList) const
+        {
+            (void)subject, (void)formList;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

@@ -585,6 +585,34 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inSameCell(subject, c.mParam1));
         }
 
+        // 375 GetCrimeGoldViolent(faction, optional), 132 GetPCInFaction(faction), 372 IsInList, 398 IsWeaponInList,
+        // 444 GetInCurrentLocFormList (CK wiki, toddhow 2026-11-11)
+        float getCrimeGoldViolent(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return c.mParam1 != 0 || subject != 0 ? world.crimeGoldViolent(subject, c.mParam1) : 0.f;
+        }
+
+        float getPCInFaction(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            const Subject player = world.playerSubject();
+            return asFloat(player != 0 && world.inFaction(player, c.mParam1));
+        }
+
+        float isInList(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.baseInList(subject, c.mParam1));
+        }
+
+        float isWeaponInList(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.weaponInList(subject, c.mParam1));
+        }
+
+        float getInCurrentLocFormList(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.locationInList(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -593,7 +621,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 93> sTable = { {
+        constexpr std::array<Entry, 98> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -625,6 +653,7 @@ namespace game_skyrimse::conditions
             { 125, isGuardFn },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 132, getPCInFaction },
             { 136, getIsReference },
             { 144, getTrespassWarningLevel },
             { 145, isTrespassing },
@@ -651,12 +680,16 @@ namespace game_skyrimse::conditions
             { 314, isActorAVictim },
             { 359, getInCurrentLoc },
             { 360, getInCurrentLocAlias },
+            { 372, isInList },
+            { 375, getCrimeGoldViolent },
+            { 398, isWeaponInList },
             { 402, isBribedbyPlayerFn },
             { 403, getRelationshipRank },
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
             { 430, getHealthPercentage },
             { 432, getIsObjectType },
+            { 444, getInCurrentLocFormList },
             { 448, hasPerk },
             { 449, getFactionRelation },
             { 453, getPlayerTeammate },
