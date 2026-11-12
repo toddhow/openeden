@@ -59,6 +59,10 @@ namespace Lod
         std::uint32_t mLevel = 1; // 2^level cells a side
         std::uint32_t mGridSize = 33; // N; (64 << level) / (N - 1) must be a power of two
         std::uint32_t mCellSize = 8192; // world units, from the world source (never assumed)
+        /// Vertices a side of one cell of land (task 0130): 65 for Morrowind, 33 for Skyrim SE. The cell's intervals
+        /// (this minus 1) must be a power of two. The default is Morrowind's, and with the default nothing about a
+        /// bake (digests, parameters, manifest) differs from before this field existed.
+        std::uint32_t mVerticesPerCell = landVerticesPerCell;
         std::uint8_t mWorldspace = 0;
         /// Texels a side of the baked albedo picture (a power of two, 0 for none). Only used when an AlbedoSource is
         /// given to bakeTerrainTile; then the tile has an RGBA8 albedo of this size with one mip level.

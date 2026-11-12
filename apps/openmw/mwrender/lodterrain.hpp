@@ -29,7 +29,10 @@
 #include <vsg/maths/vec3.h>
 #include <vsg/nodes/Group.h>
 
+#include <openeden/game/world_source.hpp>
+
 #include <components/lod/albedobake.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/residency.hpp>
 #include <components/lod/tilebake.hpp>
 #include <components/lod/tileselection.hpp>
@@ -104,9 +107,19 @@ namespace MWRender
     };
 
     /// The levels and sizes the baker and the runtime agree on (Lod::TerrainBakePlan's defaults).
-    Lod::TerrainBakePlan terrainBakePlan();
+    /// The ground picture's size follows the cell size (Lod::albedoSizeForCell): 256 for Morrowind, as always.
+    /// A neutral world's plan has a ground picture on every level (task 0130): level 1 would otherwise take its blend
+    /// map and vertex colours from the live neutral storage, which holds only the cells round the camera, and show the
+    /// default ground where a far tile lies outside that window.
+    Lod::TerrainBakePlan terrainBakePlan(float cellSizeUnits = 8192.f, bool neutralWorld = false);
     /// The settings the baker and the runtime agree on, for a storage with this cell size.
-    Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize);
+    /// `verticesPerCell` is the storage's Terrain::Storage::cellVertices (65 for Morrowind, 33 for Skyrim SE: task 0130).
+    Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize, std::uint32_t verticesPerCell = 65);
+
+    /// Task 0130: the facts a neutral world's pack is keyed and checked by (Lod::neutralFingerprint), from its source
+    /// and the world description the terrain cache holds. Main thread (it asks the source).
+    Lod::NeutralWorldFacts neutralWorldFacts(
+        const openeden::sdk::game::WorldCellSource& source, const openeden::sdk::game::WorldSpaceInfo& world);
 
     class LodTerrain
     {
@@ -130,6 +143,11 @@ namespace MWRender
         struct Setup
         {
             std::filesystem::path mPack;
+            /// Task 0130: a game pack's neutral world. The name its pack's manifest must carry
+            /// (Lod::neutralWorldspaceName); with it set the pack is checked against that name, the cell size and the
+            /// grid size instead of re-reading the land (the neutral cells are loaded a window at a time by the main
+            /// thread, which a worker cannot do), and mLandCells stays empty. Empty: Morrowind's check, as before.
+            std::string mNeutralWorldspaceName;
             float mThreshold = 8;
             /// The highest tile level read and drawn (`[WorldLod] far levels`); 0: every level of the pack.
             std::uint32_t mMaxLevel = 0;
@@ -188,6 +206,10 @@ namespace MWRender
         /// with it. Main thread.
         const std::vector<Lod::GroundSquare>& drawnGround() const;
         std::uint64_t groundVersion() const;
+
+        /// Task 0130: the box of land cells the pack's tiles cover, once the pack is adopted and usable (empty before). For
+        /// the view limits of a neutral world, which has no ESM land to measure. Main thread.
+        Lod::LandExtent landExtent() const;
 
         /// Counts for the log and the viewer.
         struct Stats

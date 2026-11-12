@@ -21,7 +21,11 @@ case "$(native "$WORK")" in
     *) echo "refused: $WORK must be under I:/Projects/OpenEden-work"; exit 2 ;;
 esac
 HERE=$(cd "$(dirname "$0")" && pwd)
-rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest"
+if [ -n "${KEEP_USER:-}" ] && [ -d "$WORK/user" ]; then
+    mv "$WORK/user" "$WORK.user.keep"; rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/luatest"; mv "$WORK.user.keep" "$WORK/user"
+else
+    rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest"
+fi
 cp -r "$HERE/luatest/." "$WORK/luatest/"
 B=$(native "$BUILD")
 grep -vE '^(content|data-local|resources|extension|user-data|config)=|vfs-mw|worldobjects_check|omwscripts' "$BASE/openmw.cfg" > "$WORK/config/openmw.cfg"
@@ -80,6 +84,12 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked) echo "content=n4$SHOT.omwscr
 # Task 0127 stage W-S2: "w2" leaves the Mare into WhiterunWorld and takes pictures on a fast clock; force a weather with
 # OPENEDEN_NEUTRAL_FORCE_WEATHER=<editor id> (use at least 3500 frames and CHECK_TIMEOUT=240).
 [ "$SHOT" = w2 ] && echo "content=w2.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0130 (milestone M-S2): "lodbake" runs `openmw --bake-lod-terrain` in the session (the world is OPENEDEN_LOD_BAKE_WORLD,
+# default Tamriel); the pack lands in <work>/user/openeden/lod/skyrimse/<world>/terrain.edenpak. "lodview" is the e2 walk
+# with the world LOD on (put the [WorldLod] settings in SETTINGS_EXTRA and keep the baked user folder with KEEP_USER=1).
+BAKE=""
+[ "$SHOT" = lodbake ] && BAKE="--bake-lod-terrain"
+[ "$SHOT" = lodview ] && echo "content=n4lodview.omwscripts" >> "$WORK/config/openmw.cfg"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -87,11 +97,11 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD" "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

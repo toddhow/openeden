@@ -10,7 +10,6 @@ namespace Lod
         constexpr std::uint32_t maxSizeInCells = 256;
         constexpr std::uint32_t minAlbedoSize = 4;
         constexpr std::uint32_t maxAlbedoSize = 2048;
-        constexpr std::uint32_t landVerticesPerCellSide = 64;
         // What a layer that could not be read looks like.
         constexpr float missingLayerGrey = 128.f;
 
@@ -37,14 +36,14 @@ namespace Lod
         }
 
         LodError fetch(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
-            std::vector<std::uint8_t>& blend, std::vector<std::uint8_t>& colours)
+            std::uint32_t verticesPerCell, std::vector<std::uint8_t>& blend, std::vector<std::uint8_t>& colours)
         {
             blend.clear();
             colours.clear();
             source.blendMap(cellX, cellY, sizeInCells, blend);
             source.vertexColours(cellX, cellY, sizeInCells, colours);
             const std::size_t blendTexels = std::size_t{ blendTexelsPerCell } * sizeInCells;
-            const std::size_t vertices = std::size_t{ landVerticesPerCellSide } * sizeInCells + 1;
+            const std::size_t vertices = std::size_t{ verticesPerCell - 1 } * sizeInCells + 1;
             if (blend.size() != blendTexels * blendTexels * 4)
                 return fail("blendMap", "the source returned a blend map of the wrong size");
             if (colours.size() != vertices * vertices * 3)
@@ -171,21 +170,24 @@ namespace Lod
     }
 
     LodError bakeAlbedoImage(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
-        std::uint32_t sizeInCells, std::uint32_t albedoSize, std::vector<std::uint8_t>& rgba)
+        std::uint32_t sizeInCells, std::uint32_t albedoSize, std::vector<std::uint8_t>& rgba,
+        std::uint32_t verticesPerCell)
     {
         rgba.clear();
         if (LodError error = validate(sizeInCells, albedoSize))
             return error;
+        if (verticesPerCell < 3)
+            return fail("verticesPerCell", "a cell needs at least 3 vertices a side");
         std::vector<std::uint8_t> blend;
         std::vector<std::uint8_t> colours;
-        if (LodError error = fetch(source, cellX, cellY, sizeInCells, blend, colours))
+        if (LodError error = fetch(source, cellX, cellY, sizeInCells, verticesPerCell, blend, colours))
             return error;
 
         const std::size_t layerCount = source.layerCount();
         std::vector<LayerMips> layers(layerCount);
         std::vector<bool> prepared(layerCount, false);
         const std::uint32_t blendSize = blendTexelsPerCell * sizeInCells;
-        const std::uint32_t vertices = landVerticesPerCellSide * sizeInCells + 1;
+        const std::uint32_t vertices = (verticesPerCell - 1) * sizeInCells + 1;
         const double repeatsPerTexel = static_cast<double>(blendSize) / albedoSize;
 
         std::vector<std::uint8_t> out(std::size_t{ albedoSize } * albedoSize * 4, 255);
@@ -262,16 +264,18 @@ namespace Lod
 
     LodError albedoInputsDigest(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
         std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest,
-        std::vector<std::uint32_t>* usedLayers)
+        std::vector<std::uint32_t>* usedLayers, std::uint32_t verticesPerCell)
     {
         digest = {};
         if (usedLayers != nullptr)
             usedLayers->clear();
         if (LodError error = validate(sizeInCells, albedoSize))
             return error;
+        if (verticesPerCell < 3)
+            return fail("verticesPerCell", "a cell needs at least 3 vertices a side");
         std::vector<std::uint8_t> blend;
         std::vector<std::uint8_t> colours;
-        if (LodError error = fetch(source, cellX, cellY, sizeInCells, blend, colours))
+        if (LodError error = fetch(source, cellX, cellY, sizeInCells, verticesPerCell, blend, colours))
             return error;
 
         const auto putU32 = [](EdenArchive::Hasher& hasher, std::uint32_t value) {

@@ -15,6 +15,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/residency.hpp>
 #include <components/lod/terrainfade.hpp>
 #include <components/lod/texturedecode.hpp>
@@ -55,16 +56,34 @@ namespace MWRender
         }
     }
 
-    Lod::TerrainBakePlan terrainBakePlan()
+    Lod::TerrainBakePlan terrainBakePlan(float cellSizeUnits, bool neutralWorld)
     {
-        return Lod::TerrainBakePlan{};
+        Lod::TerrainBakePlan plan;
+        plan.mAlbedoSize = Lod::albedoSizeForCell(cellSizeUnits);
+        if (neutralWorld)
+            plan.mAlbedoFromLevel = 1;
+        return plan;
     }
 
-    Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize)
+    Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize, std::uint32_t verticesPerCell)
     {
         Lod::TileBakeSettings settings;
         settings.mCellSize = cellSize;
+        settings.mVerticesPerCell = verticesPerCell;
         return settings;
+    }
+
+    Lod::NeutralWorldFacts neutralWorldFacts(
+        const openeden::sdk::game::WorldCellSource& source, const openeden::sdk::game::WorldSpaceInfo& world)
+    {
+        Lod::NeutralWorldFacts facts;
+        facts.mGameId = std::string(source.gameId());
+        facts.mWorldEditorId = world.editorId;
+        facts.mCellSizeUnits = world.cellSizeUnits;
+        facts.mVertsPerSide = world.vertsPerSide;
+        facts.mDefaultLandHeight = world.defaultLandHeight;
+        facts.mCellCount = static_cast<std::uint64_t>(source.cellCount());
+        return facts;
     }
 
     // ---- the ground colour inputs ----
@@ -318,9 +337,42 @@ namespace MWRender
             return text;
         }
 
+        // Task 0130: reads the tiles of a pack that passed the neutral check (the Morrowind path below has its own loop).
+        // `far levels` (maxLevel, 0: every level) caps the levels in use.
+        LoadResult readPackTiles(
+            const Lod::TilePack& pack, std::uint32_t maxLevel, LoadResult result)
+        {
+            std::vector<Lod::TileId> ordered = Lod::orderTilesForTree(pack.tileIds());
+            if (maxLevel > 0)
+            {
+                ordered.erase(std::remove_if(ordered.begin(), ordered.end(),
+                                  [maxLevel](const Lod::TileId& id) { return id.mLevel > maxLevel; }),
+                    ordered.end());
+            }
+            result.mTiles.reserve(ordered.size());
+            for (const Lod::TileId& id : ordered)
+            {
+                LoadedTile tile;
+                tile.mId = id;
+                tile.mKey = Lod::packTileKey(id).value_or(0);
+                if (const Lod::LodError error = pack.readTile(id, tile.mData))
+                {
+                    result.mReason = "cannot read a tile: " + error.describe();
+                    result.mTiles.clear();
+                    return result;
+                }
+                result.mTiles.push_back(std::move(tile));
+            }
+            Log(Debug::Verbose) << "World LOD terrain: " << result.mTiles.size() << " tiles read; working set "
+                                << (Render::processWorkingSetBytes() >> 20) << " MiB.";
+            result.mUsable = true;
+            return result;
+        }
+
         LoadResult loadPackUnchecked(const std::filesystem::path& path, Terrain::Storage& live,
             const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, StorageAlbedoSource& albedo,
-            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel)
+            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel,
+            const std::string& neutralWorldspaceName)
         {
             LoadResult result;
             Lod::LodError error;
@@ -332,6 +384,23 @@ namespace MWRender
                 result.mReason = "cannot use " + Files::pathToUnicodeString(path) + ": " + error.describe()
                     + " (make one with openmw --bake-lod-terrain)";
                 return result;
+            }
+
+            // Task 0130: a game pack's neutral world. The land cannot be read again here (its cells are loaded by the
+            // main thread, a window at a time), so the pack is checked against the facts of the world its name carries
+            // (Lod::neutralFingerprint) and the sizes; a bake made from other plugins reaches another fingerprint.
+            if (!neutralWorldspaceName.empty())
+            {
+                const std::string mismatch = Lod::describeNeutralPackMismatch(pack->manifest(), neutralWorldspaceName,
+                    base.mCellSize, base.mGridSize, plan.mAlbedoSize);
+                if (!mismatch.empty())
+                {
+                    result.mReason = "the pack was made for another world or other settings (stale); make a new one "
+                                     "with openmw --bake-lod-terrain. First difference: "
+                        + mismatch;
+                    return result;
+                }
+                return readPackTiles(*pack, maxLevel, std::move(result));
             }
 
             // Is the pack made from the land and the land textures this game has loaded? Work out the same tiles'
@@ -441,11 +510,12 @@ namespace MWRender
         // Runs on the worker thread. An exception must not travel through the future to the main thread.
         LoadResult loadPack(const std::filesystem::path& path, Terrain::Storage& live,
             const std::vector<std::pair<std::int32_t, std::int32_t>>& landCells, StorageAlbedoSource& albedo,
-            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel)
+            const Lod::TileBakeSettings& base, const Lod::TerrainBakePlan& plan, std::uint32_t maxLevel,
+            const std::string& neutralWorldspaceName)
         {
             try
             {
-                return loadPackUnchecked(path, live, landCells, albedo, base, plan, maxLevel);
+                return loadPackUnchecked(path, live, landCells, albedo, base, plan, maxLevel, neutralWorldspaceName);
             }
             catch (const std::exception& e)
             {
@@ -636,14 +706,15 @@ namespace MWRender
 
         void start()
         {
-            mPlan = terrainBakePlan();
-            mBase = terrainBakeSettings(static_cast<std::uint32_t>(mSetup.mLive->cellWorldSize));
+            mPlan = terrainBakePlan(mSetup.mLive->cellWorldSize, !mSetup.mNeutralWorldspaceName.empty());
+            mBase = terrainBakeSettings(static_cast<std::uint32_t>(mSetup.mLive->cellWorldSize),
+                static_cast<std::uint32_t>(mSetup.mLive->cellVertices));
             // The worker has its own colour source (the caches are not locked) over the same live storage.
             mWorkerAlbedo = std::make_unique<StorageAlbedoSource>(
                 *mSetup.mLive, mSetup.mLayers, mSetup.mImageOptions, mSetup.mVfs);
             mFuture = std::async(std::launch::async, [this]() {
-                return loadPack(
-                    mSetup.mPack, *mSetup.mLive, mSetup.mLandCells, *mWorkerAlbedo, mBase, mPlan, mSetup.mMaxLevel);
+                return loadPack(mSetup.mPack, *mSetup.mLive, mSetup.mLandCells, *mWorkerAlbedo, mBase, mPlan,
+                    mSetup.mMaxLevel, mSetup.mNeutralWorldspaceName);
             });
         }
 
@@ -1149,6 +1220,17 @@ namespace MWRender
     std::uint64_t LodTerrain::groundVersion() const
     {
         return mState->mCoverage.version;
+    }
+
+    Lod::LandExtent LodTerrain::landExtent() const
+    {
+        if (!mState->mReady || !mState->mLoaded.mUsable)
+            return {};
+        std::vector<Lod::TileId> ids;
+        ids.reserve(mState->mLoaded.mTiles.size());
+        for (const LoadedTile& tile : mState->mLoaded.mTiles)
+            ids.push_back(tile.mId);
+        return Lod::extentOfTiles(ids);
     }
 
     LodTerrain::Stats LodTerrain::stats() const

@@ -1,0 +1,2 @@
+GLOBAL: scripts/lodview/global.lua
+PLAYER: scripts/lodview/player.lua

@@ -32,7 +32,9 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/fx/technique.hpp>
+#include <components/files/conversion.hpp>
 #include <components/lod/fartier.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/viewlimits.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/pathhelpers.hpp>
@@ -2474,7 +2476,45 @@ namespace MWRender
                          << mNeutralCache->world().editorId << "), cells of " << mNeutralStorage->cellWorldSize
                          << " units with " << mNeutralStorage->cellVertices << " vertices, "
                          << mNeutralCache->textures().size() << " ground textures";
+        startNeutralLodTerrain(source);
         return true;
+    }
+
+    void RenderManager::startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source)
+    {
+        if (!Settings::worldLod().mEnabled || !mTerrainMapsForLod || mLodRoot.empty() || !mNeutralCache)
+            return;
+        const Lod::NeutralWorldFacts facts = neutralWorldFacts(source, mNeutralCache->world());
+        const std::filesystem::path pack = Lod::terrainPackPath(mLodRoot, facts.mGameId, facts.mWorldEditorId);
+        std::error_code ec;
+        if (!std::filesystem::exists(pack, ec))
+        {
+            Log(Debug::Info) << "World LOD terrain: no pack for " << facts.mGameId << " world " << facts.mWorldEditorId
+                             << " (" << Files::pathToUnicodeString(pack) << "); make one with openmw --bake-lod-terrain.";
+            return;
+        }
+        mLodTerrainAttached = false;
+        mNeutralExtentPending = true;
+        LodTerrain::Setup setup;
+        setup.mPack = pack;
+        setup.mNeutralWorldspaceName = Lod::neutralWorldspaceName(facts);
+        setup.mThreshold = mFarTierActive ? Lod::effectiveTileThreshold(Settings::worldLod().mTerrainTileThreshold, mFarTier)
+                                          : Settings::worldLod().mTerrainTileThreshold;
+        setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
+        setup.mResidentBudgetBytes = mFarTierActive ? farTerrainBudgetBytes() : 0;
+        setup.mLive = mNeutralStorage.get();
+        setup.mLayers = mNeutralStorage->getLayers();
+        setup.mCompile = mCompileContext->clone(Mask_Terrain);
+        setup.mImageOptions = mResourceSystem->textureOptions;
+        setup.mShaderOptions = mResourceSystem->shaderOptions;
+        setup.mSampler = mResourceSystem->builder->createSampler();
+        setup.mMapSettings = *mTerrainMapsForLod;
+        setup.mShareLayersFrom = &mTerrain->builder();
+        setup.mVfs = mResourceSystem->getVFS();
+        setup.mFadeSeconds = Settings::worldLod().mTerrainFadeTime;
+        mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
+        Log(Debug::Info) << "World LOD terrain: using " << Files::pathToUnicodeString(pack) << " for "
+                         << facts.mGameId << " world " << facts.mWorldEditorId;
     }
 
     std::shared_ptr<const openeden::sdk::game::TerrainCell> RenderManager::neutralTerrainCell(
@@ -2532,6 +2572,22 @@ namespace MWRender
             camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
             camera.mDeltaSeconds = dt; // task 0087: the tile fade; 0 for the cell grid change between frames
             coverage = mLodTerrain->update(camera);
+            if (mNeutralExtentPending && mLodTerrain->stats().mUsable)
+            {
+                // Task 0130: a neutral world has no ESM land to measure for `view distance = auto` with `map view`; the
+                // tiles of its pack say how far the land reaches.
+                mNeutralExtentPending = false;
+                const Lod::LandExtent extent = mLodTerrain->landExtent();
+                if (!extent.empty() && mNeutralStorage)
+                {
+                    mLandDiagonal = Lod::landDiagonal(extent, mNeutralStorage->cellWorldSize);
+                    if (!mViewLimitsOverridden)
+                        applyViewLimits(currentViewLimits(mLandDiagonal, farTierOrNull()), true);
+                    Log(Debug::Info) << "World LOD terrain: the land of the neutral world reaches " << mLandDiagonal
+                                     << " units across (cells " << extent.mMinX << ", " << extent.mMinY << " to "
+                                     << extent.mMaxX << ", " << extent.mMaxY << ").";
+                }
+            }
         }
         const bool coverageChanged = coverage != nullptr && coverage->version != mLastCoverageVersion;
         // The clock is read only for a coverage change, the one case the timing line below reports (third review).

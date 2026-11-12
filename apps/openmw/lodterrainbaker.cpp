@@ -7,16 +7,28 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/files/conversion.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/tilebake.hpp>
 #include <components/lod/tilepack.hpp>
 #include <components/lod/tileselection.hpp>
+#include <components/neutralterrain/cellcache.hpp>
+#include <components/neutralterrain/storage.hpp>
+#include <components/render/processmemory.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/terrain/bounds.hpp>
 
+#include <components/settings/values.hpp>
+
+#include <cstdlib>
+#include <cmath>
+
 #include "mwbase/environment.hpp"
+#include "mwbase/extensionmanager.hpp"
 #include "mwrender/lodterrain.hpp"
 #include "mwrender/terrainstorage.hpp"
 #include "mwworld/esmstore.hpp"
+
+#include <components/worldmodel/store.hpp>
 
 namespace OMW
 {
@@ -26,6 +38,12 @@ namespace OMW
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         // The name Morrowind's one exterior world gets in the manifest (worldspace index 0).
         constexpr const char* worldspaceName = "Morrowind";
+        // Task 0130: the world a bake of a game pack's neutral world takes when OPENEDEN_LOD_BAKE_WORLD is not set.
+        constexpr const char* defaultNeutralWorld = "Tamriel";
+        // How far from the origin (in cells) the scan for land looks. Skyrim's Tamriel spans about -60..60 by -45..50;
+        // a larger world raises this (and the cache cap) on purpose.
+        constexpr std::int32_t neutralScanRadius = 100;
+        constexpr std::size_t neutralCacheCells = (2 * neutralScanRadius + 1) * (2 * neutralScanRadius + 1) + 1024;
     }
 
     struct LodTerrainBaker::State
@@ -33,15 +51,25 @@ namespace OMW
         State(std::filesystem::path out, Resource::ResourceSystem& resources)
             : mOut(std::move(out))
             , mResources(resources)
-            , mStorage(&resources)
-            , mSource(mStorage)
         {
         }
 
         std::filesystem::path mOut;
         Resource::ResourceSystem& mResources;
-        MWRender::TerrainStorage mStorage;
-        MWRender::StorageLandSource mSource;
+        // Morrowind: the ESM store's terrain storage. A game pack's neutral world: the neutral storage over a cache of
+        // its own that holds the whole land (task 0130). mStorage points at whichever is in use.
+        std::unique_ptr<MWRender::TerrainStorage> mEsmStorage;
+        std::shared_ptr<NeutralTerrain::CellCache> mNeutralCache;
+        std::unique_ptr<NeutralTerrain::Storage> mNeutralStorage;
+        Terrain::Storage* mStorage = nullptr;
+        std::unique_ptr<MWRender::StorageLandSource> mSource;
+        bool mNeutral = false;
+        std::string mGameId;
+        std::string mWorldName; // the world's editor id (the pack's folder)
+        std::string mManifestName;
+        std::int32_t mScanRow = -neutralScanRadius; // the next row of cells the neutral scan reads
+        bool mScanning = false;
+        std::vector<std::pair<std::int32_t, std::int32_t>> mLandCells;
         std::unique_ptr<MWRender::StorageAlbedoSource> mAlbedo;
         Lod::TileBakeSettings mSettings;
         Lod::TerrainBakePlan mPlan;
@@ -53,6 +81,86 @@ namespace OMW
         bool mFinished = false;
         std::chrono::steady_clock::time_point mStart;
     };
+
+
+    namespace
+    {
+        // Plans the tiles of every level for the land cells found and the albedo source (both kinds of world).
+        void planWork(LodTerrainBaker::State& state)
+        {
+            for (const std::uint32_t level : state.mPlan.mLevels)
+            {
+                Lod::TileBakeSettings settings = state.mSettings;
+                settings.mLevel = level;
+                settings.mAlbedoSize = level >= state.mPlan.mAlbedoFromLevel ? state.mPlan.mAlbedoSize : 0;
+                const std::vector<Lod::TileId> ids = Lod::tilesCoveringCells(state.mLandCells, settings);
+                for (const Lod::TileId& id : ids)
+                    state.mWork.emplace_back(id, settings);
+                Log(Debug::Info) << "LOD terrain bake: level " << level << ": " << ids.size() << " tiles"
+                                 << (settings.mAlbedoSize != 0 ? " with a ground picture" : "");
+            }
+            state.mAlbedo = std::make_unique<MWRender::StorageAlbedoSource>(*state.mStorage,
+                state.mStorage->getLayers(), state.mResources.textureOptions, state.mResources.getVFS());
+            state.mManifest = Lod::makeTerrainManifest(state.mSettings, state.mPlan, true, state.mManifestName);
+            state.mTiles.reserve(state.mWork.size());
+            Log(Debug::Info) << "LOD terrain bake: " << state.mLandCells.size() << " land cells, "
+                             << state.mWork.size() << " tiles in all (layout version " << Lod::tileKeyLayoutVersion
+                             << ").";
+        }
+
+        // Task 0130: a session of a game pack with a neutral world source bakes that world's land. True when this is
+        // such a session and the bake is set up (the scan of the land follows, slice by slice); false for Morrowind's;
+        // with state.mFinished set when it IS such a session and cannot go on (the reason is logged).
+        bool beginNeutral(LodTerrainBaker::State& state)
+        {
+            if (!Settings::game().mNeutralWorld)
+                return false;
+            NeutralWorld::NeutralWorldStore* store
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            if (store == nullptr || store->sourceCount() == 0)
+                return false;
+            const std::vector<std::string> games = store->gameIds();
+            state.mGameId = games.front();
+            openeden::sdk::game::WorldCellSource* source = store->source(state.mGameId);
+            const char* requested = std::getenv("OPENEDEN_LOD_BAKE_WORLD");
+            const std::string worldName
+                = requested != nullptr && *requested != 0 ? std::string(requested) : std::string(defaultNeutralWorld);
+            const openeden::sdk::game::WorldId world = store->findWorldByEditorId(state.mGameId, worldName);
+            if (source == nullptr || world == openeden::sdk::game::kNoWorldId)
+            {
+                Log(Debug::Error) << "LOD terrain bake failed, no pack written: " << state.mGameId << " has no world '"
+                                  << worldName << "' (set OPENEDEN_LOD_BAKE_WORLD to an editor id).";
+                state.mFinished = true;
+                return false;
+            }
+            NeutralTerrain::CacheLimits limits;
+            limits.mMaxCells = neutralCacheCells;
+            limits.mMaxEnsureCells = 2 * neutralScanRadius + 1;
+            state.mNeutralCache = std::make_shared<NeutralTerrain::CellCache>(*source, limits);
+            std::string error;
+            if (!state.mNeutralCache->setWorld(world, error))
+            {
+                Log(Debug::Error) << "LOD terrain bake failed, no pack written: " << error;
+                state.mFinished = true;
+                return false;
+            }
+            state.mNeutralStorage = std::make_unique<NeutralTerrain::Storage>(state.mNeutralCache);
+            state.mStorage = state.mNeutralStorage.get();
+            state.mSource = std::make_unique<MWRender::StorageLandSource>(*state.mStorage);
+            const openeden::sdk::game::WorldSpaceInfo& info = state.mNeutralCache->world();
+            state.mWorldName = info.editorId;
+            state.mSettings = MWRender::terrainBakeSettings(
+                static_cast<std::uint32_t>(info.cellSizeUnits), static_cast<std::uint32_t>(info.vertsPerSide));
+            state.mPlan = MWRender::terrainBakePlan(info.cellSizeUnits, true);
+            state.mManifestName = Lod::neutralWorldspaceName(MWRender::neutralWorldFacts(*source, info));
+            state.mNeutral = true;
+            state.mScanning = true;
+            Log(Debug::Info) << "LOD terrain bake: neutral world " << state.mGameId << " / " << state.mWorldName
+                             << ", cells of " << info.cellSizeUnits << " units with " << info.vertsPerSide
+                             << " vertices; scanning cells " << -neutralScanRadius << ".." << neutralScanRadius << ".";
+            return true;
+        }
+    }
 
     LodTerrainBaker::LodTerrainBaker(std::filesystem::path outFolder, Resource::ResourceSystem& resources)
         : mState(std::make_unique<State>(std::move(outFolder), resources))
@@ -74,30 +182,59 @@ namespace OMW
         {
             state.mStarted = true;
             state.mStart = std::chrono::steady_clock::now();
-            state.mStorage.setStore(store);
-            // The cell size comes from the storage (8192 for Morrowind), never from a literal here.
-            state.mSettings = MWRender::terrainBakeSettings(static_cast<std::uint32_t>(state.mStorage.cellWorldSize));
-            state.mPlan = MWRender::terrainBakePlan();
-            std::vector<std::pair<std::int32_t, std::int32_t>> cells;
-            for (const ESM::Land& land : store->get<ESM::Land>())
-                cells.emplace_back(land.mX, land.mY);
-            for (const std::uint32_t level : state.mPlan.mLevels)
+            if (!beginNeutral(state))
             {
-                Lod::TileBakeSettings settings = state.mSettings;
-                settings.mLevel = level;
-                settings.mAlbedoSize = level >= state.mPlan.mAlbedoFromLevel ? state.mPlan.mAlbedoSize : 0;
-                const std::vector<Lod::TileId> ids = Lod::tilesCoveringCells(cells, settings);
-                for (const Lod::TileId& id : ids)
-                    state.mWork.emplace_back(id, settings);
-                Log(Debug::Info) << "LOD terrain bake: level " << level << ": " << ids.size() << " tiles"
-                                 << (settings.mAlbedoSize != 0 ? " with a ground picture" : "");
+                if (state.mFinished)
+                    return true;
+                state.mEsmStorage = std::make_unique<MWRender::TerrainStorage>(&state.mResources);
+                state.mEsmStorage->setStore(store);
+                state.mStorage = state.mEsmStorage.get();
+                state.mSource = std::make_unique<MWRender::StorageLandSource>(*state.mStorage);
+                // The cell size comes from the storage (8192 for Morrowind), never from a literal here.
+                state.mSettings
+                    = MWRender::terrainBakeSettings(static_cast<std::uint32_t>(state.mStorage->cellWorldSize));
+                state.mPlan = MWRender::terrainBakePlan();
+                state.mManifestName = worldspaceName;
+                for (const ESM::Land& land : store->get<ESM::Land>())
+                    state.mLandCells.emplace_back(land.mX, land.mY);
+                planWork(state);
             }
-            state.mAlbedo = std::make_unique<MWRender::StorageAlbedoSource>(
-                state.mStorage, state.mStorage.getLayers(), state.mResources.textureOptions, state.mResources.getVFS());
-            state.mManifest = Lod::makeTerrainManifest(state.mSettings, state.mPlan, true, worldspaceName);
-            state.mTiles.reserve(state.mWork.size());
-            Log(Debug::Info) << "LOD terrain bake: " << cells.size() << " land cells, " << state.mWork.size()
-                             << " tiles in all (layout version " << Lod::tileKeyLayoutVersion << ").";
+        }
+
+        if (state.mScanning)
+        {
+            // Task 0130: read the land of a neutral world a row of cells at a time (the source is main thread only).
+            const auto scanEnd = std::chrono::steady_clock::now() + sliceTime;
+            while (state.mScanRow <= neutralScanRadius && std::chrono::steady_clock::now() < scanEnd)
+            {
+                state.mNeutralCache->ensure(-neutralScanRadius, state.mScanRow, neutralScanRadius, state.mScanRow);
+                for (std::int32_t x = -neutralScanRadius; x <= neutralScanRadius; ++x)
+                    if (state.mNeutralCache->get(x, state.mScanRow) != nullptr)
+                        state.mLandCells.emplace_back(x, state.mScanRow);
+                ++state.mScanRow;
+            }
+            if (state.mScanRow <= neutralScanRadius)
+                return false;
+            state.mScanning = false;
+            Log(Debug::Info) << "LOD terrain bake: scanned the land of " << state.mWorldName << ": "
+                             << state.mLandCells.size() << " cells with land, " << state.mNeutralCache->resident()
+                             << " cells held, " << state.mNeutralCache->refusedCells() << " refused.";
+            const bool onBorder = std::any_of(state.mLandCells.begin(), state.mLandCells.end(), [](const auto& cell) {
+                return std::abs(cell.first) >= neutralScanRadius || std::abs(cell.second) >= neutralScanRadius;
+            });
+            if (onBorder)
+                Log(Debug::Warning) << "LOD terrain bake: land reaches the border of the scan (" << neutralScanRadius
+                                    << " cells from the origin); a larger world needs a larger scan.";
+            Log(Debug::Info) << "LOD terrain bake: working set " << (Render::processWorkingSetBytes() >> 20)
+                             << " MiB after the scan.";
+            if (state.mLandCells.empty())
+            {
+                Log(Debug::Error) << "LOD terrain bake failed, no pack written: the world has no land.";
+                state.mFinished = true;
+                return true;
+            }
+            planWork(state);
+            return false;
         }
 
         const auto sliceEnd = std::chrono::steady_clock::now() + sliceTime;
@@ -106,7 +243,7 @@ namespace OMW
             Lod::BakedTile tile;
             const auto& [id, settings] = state.mWork[state.mTiles.size()];
             if (const Lod::LodError error
-                = Lod::bakeTerrainTile(state.mSource, state.mAlbedo.get(), id, settings, tile))
+                = Lod::bakeTerrainTile(*state.mSource, state.mAlbedo.get(), id, settings, tile))
             {
                 Log(Debug::Error) << "LOD terrain bake failed, no pack written: " << error.describe();
                 state.mFinished = true;
@@ -151,7 +288,8 @@ namespace OMW
             }
         }
         const EdenArchive::Hash digest = Lod::contentDigest(state.mManifest, state.mTiles);
-        const std::filesystem::path path = state.mOut / "openeden" / "lod" / "terrain.edenpak";
+        const std::filesystem::path path = Lod::terrainPackPath(
+            state.mOut / "openeden" / "lod", state.mNeutral ? state.mGameId : std::string(), state.mWorldName);
         std::error_code ec;
         std::filesystem::create_directories(path.parent_path(), ec);
 
@@ -202,6 +340,8 @@ namespace OMW
             }
         }
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - state.mStart).count();
+        Log(Debug::Info) << "LOD terrain bake: working set " << (Render::processWorkingSetBytes() >> 20)
+                         << " MiB at the end.";
         Log(Debug::Info) << "LOD terrain bake: wrote " << Files::pathToUnicodeString(path) << " (generation "
                          << generation << "), " << state.mTiles.size() << " tiles, " << good << " read back fine, "
                          << seconds << " s.";

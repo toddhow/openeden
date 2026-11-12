@@ -188,10 +188,15 @@ namespace MWRender
         /// Loads the cells Terrain::Paging will read for a camera at `eye` into the cache (main thread). A window the
         /// last call already filled costs a comparison.
         void ensureNeutralTerrain(const vsg::dvec3& eye);
+        /// Task 0130: the baked terrain tiles of the active neutral world, when its pack exists (main thread).
+        void startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source);
         /// The height and bounds the physics heightfield of a neutral cell needs; the world's cell size and vertices.
         float neutralTerrainCellSize() const;
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
         void setLodTerrainPack(std::filesystem::path path) { mLodTerrainPack = std::move(path); }
+        /// Task 0130: <user data>/openeden/lod, the folder a game pack's neutral world keeps its packs in
+        /// (Lod::terrainPackPath, keyed by game and world). Used only with `[WorldLod] enabled`.
+        void setLodRoot(std::filesystem::path path) { mLodRoot = std::move(path); }
         // Task 0095: where the baked puddle map is (used with `wetness puddle map`).
         void setPuddlePack(std::filesystem::path path) { mPuddlePack = std::move(path); }
         void setLodClusterPack(std::filesystem::path path) { mLodClusterPack = std::move(path); }
@@ -626,6 +631,9 @@ namespace MWRender
         // Task 0055: baked terrain tiles for the far field, only with `[WorldLod] enabled` (declared after the
         // terrain storage it reads, so it goes first).
         std::filesystem::path mLodTerrainPack;
+        std::filesystem::path mLodRoot;
+        // Task 0130: a neutral world's land extent comes from its LOD pack, once that is adopted.
+        bool mNeutralExtentPending = false;
         std::unique_ptr<Terrain::TerrainMapSettings> mTerrainMapsForLod;
         std::unique_ptr<LodTerrain> mLodTerrain;
         bool mLodTerrainAttached = false;

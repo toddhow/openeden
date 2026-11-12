@@ -33,8 +33,9 @@ namespace OMW
         // Call once per running frame. True when the bake has finished (or failed) and the game should quit.
         bool update();
 
+        struct State; // public so that the file's helpers can take it (task 0130)
+
     private:
-        struct State;
         std::unique_ptr<State> mState;
     };
 }

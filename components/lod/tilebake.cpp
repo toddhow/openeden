@@ -54,9 +54,10 @@ namespace Lod
         // tiles, with equal heights and equal other normals (the stored normal of the corner itself is ignored). The
         // corner is not an input: its neighbours are hashed (with the tile that holds them), and everything else is
         // exact.
-        void hashNormalsWithoutCorners(EdenArchive::Hasher& hasher, const std::vector<float>& normals, std::uint32_t n)
+        void hashNormalsWithoutCorners(EdenArchive::Hasher& hasher, const std::vector<float>& normals, std::uint32_t n,
+            std::uint32_t verticesPerCell)
         {
-            constexpr std::uint32_t cornerSpacing = landVerticesPerCell - 1;
+            const std::uint32_t cornerSpacing = verticesPerCell - 1;
             for (std::uint32_t j = 0; j < n; ++j)
             {
                 for (std::uint32_t i = 0; i < n; ++i)
@@ -143,7 +144,11 @@ namespace Lod
     {
         if (settings.mLevel > maxLevel || settings.mGridSize < minGridSize || settings.mGridSize > maxGridSize)
             return false;
-        const std::uint64_t intervals = std::uint64_t{ landVerticesPerCell - 1 } << settings.mLevel;
+        // A cell has a power-of-two number of intervals, at least 2 (task 0130: 64 for Morrowind, 32 for Skyrim SE).
+        if (settings.mVerticesPerCell < 3 || settings.mVerticesPerCell > 1025
+            || ((settings.mVerticesPerCell - 1) & (settings.mVerticesPerCell - 2)) != 0)
+            return false;
+        const std::uint64_t intervals = std::uint64_t{ settings.mVerticesPerCell - 1 } << settings.mLevel;
         const std::uint64_t wanted = settings.mGridSize - 1;
         if (intervals % wanted != 0)
             return false;
@@ -173,7 +178,7 @@ namespace Lod
         tileOriginCell(id, cellX, cellY);
         const std::uint32_t cells = 1u << settings.mLevel;
         const std::uint32_t n = settings.mGridSize;
-        const std::uint32_t fineN = (landVerticesPerCell - 1) * cells + 1;
+        const std::uint32_t fineN = (settings.mVerticesPerCell - 1) * cells + 1;
         const std::uint32_t step = 1u << lod;
 
         std::vector<float> fineHeights;
@@ -254,15 +259,18 @@ namespace Lod
         hashU32(hasher, id.mY);
         hashU32(hasher, settings.mGridSize);
         hashU32(hasher, settings.mCellSize);
+        // Only a cell that is not Morrowind's adds to the digest, so Morrowind's packs keep theirs (task 0130).
+        if (settings.mVerticesPerCell != landVerticesPerCell)
+            hashU32(hasher, settings.mVerticesPerCell);
         hashU32(hasher, bakerVersion);
         hashFloats(hasher, fineHeights);
-        hashNormalsWithoutCorners(hasher, fineNormals, fineN);
+        hashNormalsWithoutCorners(hasher, fineNormals, fineN, settings.mVerticesPerCell);
 
         // The parts, for the message of a stale pack (the same bytes, hashed on their own).
         EdenArchive::Hasher heightsHasher;
         hashFloats(heightsHasher, fineHeights);
         EdenArchive::Hasher normalsHasher;
-        hashNormalsWithoutCorners(normalsHasher, fineNormals, fineN);
+        hashNormalsWithoutCorners(normalsHasher, fineNormals, fineN, settings.mVerticesPerCell);
 
         tile.mId = id;
         tile.mData = std::move(data);
@@ -274,6 +282,8 @@ namespace Lod
         appendU32(tile.mParameters, settings.mGridSize);
         appendU32(tile.mParameters, settings.mCellSize);
         appendU32(tile.mParameters, settings.mWorldspace);
+        if (settings.mVerticesPerCell != landVerticesPerCell)
+            appendU32(tile.mParameters, settings.mVerticesPerCell);
         return {};
     }
 
@@ -292,7 +302,8 @@ namespace Lod
         const std::uint32_t cells = 1u << settings.mLevel;
         EdenArchive::Hash inputs;
         if (LodError error
-            = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs, &tile.mUsedLayers))
+            = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs, &tile.mUsedLayers,
+                settings.mVerticesPerCell))
         {
             tile = {};
             return error;
@@ -309,7 +320,7 @@ namespace Lod
         if (settings.mDigestOnly)
             return {};
         std::vector<std::uint8_t> rgba;
-        if (LodError error = bakeAlbedoImage(*albedo, cellX, cellY, cells, settings.mAlbedoSize, rgba))
+        if (LodError error = bakeAlbedoImage(*albedo, cellX, cellY, cells, settings.mAlbedoSize, rgba, settings.mVerticesPerCell))
         {
             tile = {};
             return error;

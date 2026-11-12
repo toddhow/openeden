@@ -55,8 +55,8 @@ namespace Lod
         virtual void blendMap(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& indices) const = 0;
 
-        /// The vertex colours of the same square: n = 64 * sizeInCells + 1 vertices a side (cells share their edge
-        /// vertices), x fastest, south row first, 3 bytes (R, G, B) a vertex. `rgb` gets n * n * 3 bytes.
+        /// The vertex colours of the same square: n = (verticesPerCell - 1) * sizeInCells + 1 vertices a side (cells share their edge
+        /// vertices; 65 vertices a cell for Morrowind, 33 for Skyrim SE: task 0130), x fastest, south row first, 3 bytes (R, G, B) a vertex. `rgb` gets n * n * 3 bytes.
         virtual void vertexColours(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& rgb) const = 0;
     };
@@ -66,7 +66,8 @@ namespace Lod
     /// is 0, albedoSize is not a power of two from 4 to 2048, or the source returns arrays of the wrong size. A blend
     /// index at or above layerCount() counts as a missing layer.
     LodError bakeAlbedoImage(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
-        std::uint32_t sizeInCells, std::uint32_t albedoSize, std::vector<std::uint8_t>& rgba);
+        std::uint32_t sizeInCells, std::uint32_t albedoSize, std::vector<std::uint8_t>& rgba,
+        std::uint32_t verticesPerCell = 65);
 
     /// A digest of everything bakeAlbedoImage would read for this square, without blending anything: the algorithm
     /// version, the sizes, the blend map bytes, the vertex colour bytes, and the layerDigest of every layer index the
@@ -75,7 +76,7 @@ namespace Lod
     /// `usedLayers`, when given, gets the layer indices that went into the digest.
     LodError albedoInputsDigest(const AlbedoSource& source, std::int32_t cellX, std::int32_t cellY,
         std::uint32_t sizeInCells, std::uint32_t albedoSize, EdenArchive::Hash& digest,
-        std::vector<std::uint32_t>* usedLayers = nullptr);
+        std::vector<std::uint32_t>* usedLayers = nullptr, std::uint32_t verticesPerCell = 65);
 }
 
 #endif

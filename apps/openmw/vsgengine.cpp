@@ -580,6 +580,7 @@ namespace OMW
             *mRenderEngine, guiRoot, mResourceSystem.get() /*, *mNavigator*/);
 
         mRenderManager->setLodTerrainPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "terrain.edenpak");
+        mRenderManager->setLodRoot(mCfgMgr.getUserDataPath() / "openeden" / "lod");
         mRenderManager->setPuddlePack(mCfgMgr.getUserDataPath() / "openeden" / "puddles" / "puddles.edenpak");
         mRenderManager->setLodClusterPack(mCfgMgr.getUserDataPath() / "openeden" / "lod" / "objects.edenpak");
         // Task 0069 stage d: the merged body cache ([Bodies] merged body) lives under <user data>/openeden/bodies.
