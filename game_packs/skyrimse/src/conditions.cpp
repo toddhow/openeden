@@ -538,6 +538,23 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isObjectType(subject, c.mParam1));
         }
 
+        // 497 CanPayCrimeGold(faction, optional), 513 IsCombatTarget(actor), 707 GetCombatTargetHasKeyword(keyword)
+        // (CK wiki, toddhow 2026-11-11)
+        float canPayCrimeGold(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.canPayCrimeGold(subject, c.mParam1));
+        }
+
+        float isCombatTarget(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasCombatTarget(subject, c.mParam1));
+        }
+
+        float getCombatTargetHasKeyword(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.combatTargetHasKeyword(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -546,7 +563,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 85> sTable = { {
+        constexpr std::array<Entry, 88> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -613,6 +630,8 @@ namespace game_skyrimse::conditions
             { 453, getPlayerTeammate },
             { 459, getCrimeGold },
             { 491, getMapMarkerVisible },
+            { 497, canPayCrimeGold },
+            { 513, isCombatTarget },
             { 543, getQuestCompleted },
             { 560, hasKeyword },
             { 562, locationHasKeyword },
@@ -632,6 +651,7 @@ namespace game_skyrimse::conditions
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },
+            { 707, getCombatTargetHasKeyword },
         } };
     }
 

@@ -124,6 +124,9 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool canPayCrimeGold(Subject s, std::uint32_t f) const override { return s == mSubject && (f == 0 || f == 0xA0); }
+        bool hasCombatTarget(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14; }
+        bool combatTargetHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80; }
         bool isObjectType(Subject s, std::uint32_t c) const override { return s == mSubject && c == 4; }
         bool hasPerk(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xC3680; }
         float healthFraction(Subject s) const override { return s == mSubject ? 0.4f : 0.f; }
@@ -812,6 +815,23 @@ namespace
         EXPECT_TRUE(run(cond(432, kEq, 0.f, 5), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(432, kEq, 0.f, 4), w));
+    }
+
+    // fn_497 CanPayCrimeGold(faction, optional), fn_513 IsCombatTarget(actor), fn_707 GetCombatTargetHasKeyword(keyword)
+    // (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_497_pay_crime_gold_513_combat_target_707_target_keyword)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(497, kEq, 1.f, 0), w));
+        EXPECT_TRUE(run(cond(497, kEq, 0.f, 0xA1), w));
+        EXPECT_TRUE(run(cond(513, kEq, 1.f, 0x14), w));
+        EXPECT_TRUE(run(cond(513, kEq, 0.f, 0x15), w));
+        EXPECT_TRUE(run(cond(707, kEq, 1.f, 0x80), w));
+        EXPECT_TRUE(run(cond(707, kEq, 0.f, 0x81), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(497, kEq, 0.f, 0), w));
+        EXPECT_TRUE(run(cond(513, kEq, 0.f, 0x14), w));
+        EXPECT_TRUE(run(cond(707, kEq, 0.f, 0x80), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

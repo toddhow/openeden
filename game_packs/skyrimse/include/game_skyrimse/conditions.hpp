@@ -580,6 +580,27 @@ namespace game_skyrimse::conditions
             (void)subject, (void)objectClass;
             return false;
         }
+        /// fn_497 CanPayCrimeGold(faction, optional): has the subject enough gold to pay its crime gold with the
+        /// faction (with 0, its own crime faction)? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool canPayCrimeGold(Subject subject, std::uint32_t faction) const
+        {
+            (void)subject, (void)faction;
+            return false;
+        }
+        /// fn_513 IsCombatTarget(actor): is the actor one of the subject's current combat targets? (CK wiki, shown by
+        /// toddhow, 2026-11-11)
+        virtual bool hasCombatTarget(Subject subject, std::uint32_t target) const
+        {
+            (void)subject, (void)target;
+            return false;
+        }
+        /// fn_707 GetCombatTargetHasKeyword(keyword): is the subject in a combat group with at least one target whose
+        /// base form has the keyword? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool combatTargetHasKeyword(Subject subject, std::uint32_t keyword) const
+        {
+            (void)subject, (void)keyword;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
