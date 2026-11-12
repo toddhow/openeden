@@ -66,3 +66,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_101 IsWeaponMagicOut, fn_80 GetLevel, fn_214 HasMagicEffect(effect) (CK wiki pages toddhow showed). Red, then 64 of 64. Real data: 31,409 of 32,148 lists (97.7 percent); unknown conditions 848 (1.1 percent).
 - 2026-11-11: fn_580 IsBleedingOut (CK wiki page toddhow showed). Red, then 65 of 65.
 - 2026-11-11: fn_624 GetInContainer(reference): one reference parameter, runs on the subject (CK condition dialog toddhow showed; the wiki page is empty); meaning INFERRED from the name. Red, then 66 of 66.
+- 2026-11-11: fn_61 GetAlarmed, fn_136 GetIsReference(reference), fn_159 GetSitting (state 0 to 4, 11 to 14) (CK wiki pages toddhow showed). Red, then 69 of 69.

@@ -395,6 +395,24 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inContainer(subject, c.mParam1));
         }
 
+        // 61 GetAlarmed (CK wiki, toddhow 2026-11-11)
+        float getAlarmed(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isAlarmed(subject));
+        }
+
+        // 136 GetIsReference(reference) (CK wiki, toddhow 2026-11-11)
+        float getIsReference(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isReference(subject, c.mParam1));
+        }
+
+        // 159 GetSitting: state 0 to 4, 11 to 14 (CK wiki, toddhow 2026-11-11)
+        float getSitting(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.sitState(subject) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -403,7 +421,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 61> sTable = { {
+        constexpr std::array<Entry, 64> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -415,6 +433,7 @@ namespace game_skyrimse::conditions
             { 56, getQuestRunning },
             { 58, getStage },
             { 59, getStageDone },
+            { 61, getAlarmed },
             { 66, getShouldAttack },
             { 67, getInCell },
             { 69, getIsRace },
@@ -429,9 +448,11 @@ namespace game_skyrimse::conditions
             { 101, isWeaponMagicOut },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 136, getIsReference },
             { 144, getTrespassWarningLevel },
             { 145, isTrespassing },
             { 149, getIsCurrentWeather },
+            { 159, getSitting },
             { 161, getIsCurrentPackage },
             { 182, getEquipped },
             { 214, hasMagicEffect },

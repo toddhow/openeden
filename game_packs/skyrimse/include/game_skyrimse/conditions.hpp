@@ -427,6 +427,28 @@ namespace game_skyrimse::conditions
             (void)subject, (void)container;
             return false;
         }
+        /// fn_61 GetAlarmed: is the subject alarmed? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool isAlarmed(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_136 GetIsReference(reference): is the subject this (persistent) placed reference? GetIsID compares the
+        /// base object instead (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool isReference(Subject subject, std::uint32_t reference) const
+        {
+            (void)subject, (void)reference;
+            return false;
+        }
+        /// fn_159 GetSitting: the subject's sitting state: 0 not sitting, 1 loading the sitting idle, 2 getting ready
+        /// to sit, 3 sitting, 4 getting ready to stand; 11 to 14 the same for mounting a horse. Never 1 or 11 for the
+        /// player; never 1 for a bed or leaning on a wall; the original may not return 11 to 14 reliably (CK wiki,
+        /// shown by toddhow, 2026-11-11).
+        virtual float sitState(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

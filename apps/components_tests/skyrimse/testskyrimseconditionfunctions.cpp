@@ -124,6 +124,10 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mAlarmed = true;
+        float sitState(Subject s) const override { return s == mSubject ? 13.f : 0.f; }
+        bool isReference(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x1A0; }
+        bool isAlarmed(Subject s) const override { return s == mSubject && mAlarmed; }
         bool inContainer(Subject s, std::uint32_t c) const override { return s == mSubject && c == 0x190; }
         bool mBleeding = true;
         bool isBleedingOut(Subject s) const override { return s == mSubject && mBleeding; }
@@ -554,6 +558,38 @@ namespace
         EXPECT_TRUE(run(cond(624, kEq, 0.f, 0x191), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(624, kEq, 0.f, 0x190), w));
+    }
+
+    // fn_61 GetAlarmed (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_61_is_alarmed)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(61, kEq, 1.f), w));
+        w.mAlarmed = false;
+        EXPECT_TRUE(run(cond(61, kEq, 0.f), w));
+        w.mAlarmed = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(61, kEq, 0.f), w));
+    }
+
+    // fn_136 GetIsReference(reference): the subject is that placed reference, not a base form (CK wiki, toddhow
+    // 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_136_is_the_reference)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(136, kEq, 1.f, 0x1A0), w));
+        EXPECT_TRUE(run(cond(136, kEq, 0.f, 0x1A1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(136, kEq, 0.f, 0x1A0), w));
+    }
+
+    // fn_159 GetSitting: the sitting state, 0 to 4 and 11 to 14 for horses (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_159_is_the_sitting_state)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(159, kEq, 13.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(159, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
