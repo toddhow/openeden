@@ -198,7 +198,7 @@ add_component_dir (animation
     # Tools support nodes.
     softwareskin clone attachbone
     # Logic plays animations.
-    animation visitor context update autoplay transformupdate tags bones controllermap contents meta
+    animation visitor context update autoplay transformupdate tags bones controllermap contents meta animset textkeys
     )
 # Creates animation scene graph.
 # Depends on esm, animation.

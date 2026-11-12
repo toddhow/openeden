@@ -1,5 +1,5 @@
 # Task: CreativeMotion becomes the engine's full animation runtime; retire the COLLADA animation path
-Status: DRAFT (awaiting toddhow's approval; nothing built, nothing run; written 2026-11-11 from a read-only pass over the tree)
+Status: APPROVED by toddhow 2026-11-11 ("Go ahead and start the C path"); stages C0 and C1 done 2026-11-12 (see the stage log); C2 onward not started. Written 2026-11-11 from a read-only pass over the tree.
 Design doc section: CreativeMotion's Implementation Doc (animation runtime); `docs/decisions/0001` (CreativeMotion is compiled into the engine) and `0010` (it is edited here); `docs/research/0022-creativemotion-in-game-status.md`
 Goal: every actor's pose is produced by CreativeMotion (`opas::anim`), `MWAnim::Play` stops being a second animation system, and the assimp COLLADA *animation* reader is gone, while Morrowind plays exactly as before until toddhow switches.
 Inherited code touched: `components/mwanimation/play.{hpp,cpp}` (`MWAnim::Play`, `getActiveState`, `updateBones`, text keys), `apps/openmw/mwmechanics/character.cpp` (`createPoseControllers`, `runPoseDriver`, `runAnimation`, `postAnimation`), `apps/openmw/mwrender/creativemotiondriver.*`, `components/vsgadapters/dae/daeanim.*`, `components/resource/resourcesystem.cpp` (the reader list near line 200), `apps/openmw/mwlua/animationbindings.cpp`. Commit hash to be recorded when work starts.
@@ -145,4 +145,68 @@ Determinism and allocation as in section 5; `AnimSet` public API free of VSG and
 Authoring locomotion clips, `.omwfx` and UI work, non-skeletal object animation, facial animation (task 0071), a stable C ABI for animation extensions, Skyrim `.hkx` clips (task 0119 is the separate spike), changing saves, the fate of the `openeden.animation` contract.
 
 ## Stage log
-(empty: nothing started)
+
+### 2026-11-12: stages C0 and C1 (toddhow approved the task on 2026-11-11: "Go ahead and start the C path")
+
+Same hand wrote tests and code (no separate test-writing agent, no fresh reviewer); Windows only; local commits on the branch `c0runtime`, not pushed. Built in `I:\Projects\OpenEden-work\c0\build` from `e611a47752` (main). Work files (traces, suite clone, scripts) are in `I:\Projects\OpenEden-work\c0\`, outside the repository.
+
+#### C0 inventory: the example suite (revision `a1ba6fc9d7315c2158ef4c60349fc4e71b7ca343`, cloned to `c0\suite`)
+
+61 `.dae` files in the suite, **two** with animations:
+
+| Model | Size | `<animation>` | `<animation_clip>` | Text key file | Groups in the `.txt` | With start and stop key |
+| --- | --- | --- | --- | --- | --- | --- |
+| `example_animated_creature/data/meshes/land_racer.dae` | 3.2 MB | 380 | 10 | `land_racer.txt`, 22 lines | 10 | 10 (one with loop keys) |
+| `game_template/data/meshes/BasicPlayer.dae` | 56.5 MB | 10,530 | 135 | `BasicPlayer.txt`, 583 lines | 112 | 98 (eight with loop start and stop) |
+
+All other `.dae` (the hub's architecture, doors, weapons, markers, the barrel, `BasicPlayerBody.dae`) have no animation. No `.kf`, `.nif` or `.glb` in the suite.
+
+How the engine uses them: the clip names in the `.dae` (`1h_chop`, `walk`, ...) are NOT used; `daeAnimation` only shifts each clip's samplers by the clip start (`applyClipStartTimes`). The group table comes entirely from the `.txt` (`weapononehand: chop start 65.6`, ...). Facts found in the files, all pinned by tests:
+- `BasicPlayer.txt` has one line without a colon, `hit1 stop 101.07`: the key is stored but names no group, so `hit1` has a start key and **no stop key and can never be played** (`PlayDaeFixture`, `AnimSet.a_key_without_a_group_belongs_to_no_group`).
+- `swimknocdown: start` (typo) and `swimknockdown: stop`: two broken groups, neither playable.
+- The weapon groups (`weapononehand`, `bowandarrow`, ...) have no plain `start` key; they start with `equip start`, `chop start` and so on, which `CharacterController` asks for as markers, so "98 of 112 groups have start and stop" is not "98 playable groups".
+
+Lua integration tests (`scripts/data/integration_tests/test_lua_api`, read, not run): they depend on the animations only indirectly. `record model property` expects `meshes/basicplayer.dae`; `player weapon attack` (player.lua, `basic_dagger1h`) needs the attack group's `hit` text key to fire, because damage is dealt on it (the test fails with "Did not damage any targets in 10 seconds" otherwise); `player forward running` needs the run group's root motion (distance > 0 along +Y); `load while teleporting` creates a `landracer` (the second animated model) and teleports it. No test asks for a group by name through `openmw.animation`. **The 32 Lua tests were not run in C0** (no Python/Windows runner set up; they are the C3 gate).
+
+#### C0 golden pose traces (current build, `creativemotion animation debug`)
+
+`tools/creativemotion_check` gained `MODDIR` (an alternative scenario folder) and `mod_firstperson/` (the same scenario with the camera in first person). Scenario: idle, walk, run, stop, turn, draw, attack, hit, sheathe, 1,400 frames at a fixed frame time (`OPENEDEN_FIXED_FRAME_TIME=0.0166667`), `--random-seed 7`, cell Seyda Neen, `OPENEDEN_QUIET_WINDOW=1`; the runner is `c0\run_trace.sh`. The log's `CMTRACE` lines (one per actor per frame: groups of the four bone groups, movement from animation, animation speed, yaw, six bone rotations) are stored as text per run in `c0\golden\<label>\trace.txt`; `pose.txt` is the same without `pos=` and `CMFEET_*` (world positions, which depend on the physics threads' timing: two runs of one executable differ in them from frame 304). Raw traces stay out of the repository (they name the user's game records); the hashes are here.
+
+- Actors in each run: the player, Imperial guards (three at once), two `chargen` guards, Fargoth, Eldafire and five other NPCs, mudcrabs, slaughterfish, rats (14 distinct ids).
+- **Player, determinism:** the first 1,111 lines of the player's pose (up to the hit phase) are byte-identical between two runs of the baseline executable, in third person (`57752746df4a`) and first person (`029615456b18`). After the hit phase begins the pose differs run to run because the hit reaction group (`hit1` to `hit5`) is chosen at random (`hit4` in run A; `--random-seed` does not fix it).
+- **NPCs and creatures:** not reproducible run to run (idle variants, wandering and which creatures are active are random: for example Fargoth plays `idle4` then `idle2` in both runs but for `idle5` in one). Their traces are a characterization of what each group looks like, not an exact golden. Side finding: a mudcrab's `g0` changes between `idle`, `idle2` and `idle3` on consecutive frames for most of the run (baseline behaviour, not investigated).
+- Variants run: `vanilla` third person (x2) and first person (x2), `cm` (inertial locomotion plus `creativemotion animation`) third and first person, `cmonly` (`creativemotion animation` alone) third person. With the driver on the trace says `driver=applies` for every actor.
+- Player prefix hashes of the baseline: vanilla-tp `57752746df4a`, vanilla-fp `029615456b18`, cm-tp `5c0853f14002`.
+
+#### C0 characterization tests of `MWAnim::Play`
+
+`apps/components_tests/mwanimation/testplaycharacterization.cpp`, 43 tests (this file is new; no existing test was edited): group lookup (whole-name match, the last source wins, prefix text key lookup, group listing order), play and completion, text key firing (the key at the start time fires on play, keys before a start point do not, one long step fires every key it crosses and stops on the stop key), loops (hand-traced counts, loop keys, the `loopfallback` flag, looping switched off), speed, priority and blend-mask arbitration per bone group (equal vectors replace, different vectors coexist, the tie goes to the earlier name), persistent priority, root motion on the accumulated axes and the reset of the root bone, `updateBones = false`, velocity, a source with an unknown bone and no root bone, and two real readers: a generated NIF 4.0.0.2 `.kf` (`vsgAdapters::kf`) and a generated COLLADA model with a `.txt` (`vsgAdapters::daeAnimation`). The expectations were derived by hand from `play.cpp` and checked by running them. **All 43 passed on the unmodified code** after two of my own reading errors were corrected in the tests (not in the code): keys before a start point do not fire (`lowerBound`), and `setAccumulation` does not change the returned movement.
+- **A quirk pinned, not fixed:** `Play::setAccumulation` changes only the reset channel of the playing source, not `Play::mAccumulate`, which `updatePosition` uses; so after `setAccumulation({1,0,0})` y is both left on the bone and still returned as movement, until the next `resetActiveGroups` (test `setting_the_accumulated_axes_changes_what_stays_on_the_bone_but_not_the_movement`). `character.cpp` calls it; the effect in game was not investigated.
+- **Mutation:** in `Play::resetActiveGroups` the arbitration `active->second.priority[i] < state->second.priority[i]` was changed to `<=` (single line), built, and `PlayCharacterization.equal_priority_on_a_bone_group_goes_to_the_first_state_by_name` failed (42 others passed); restored (`git diff` of `play.cpp` is empty for that line). One mutation only.
+- A version of `an_unknown_bone_in_a_source_is_skipped_and_the_rest_play` that used `testing::internal::CaptureStderr` passed alone and ended the whole-binary run with exit code 3 (cause not found); the capture was removed.
+
+#### C1 `Anim::AnimSet` and the shared text key parser
+
+- `components/animation/animset.{hpp,cpp}`: `AnimSet` (immutable, shareable): the `ControllerMap` it came from, its `Tags` (an empty table when there are none, never null) and ONE group table: per group the first key time, and the LAST `start`, `stop` (any key beginning with `stop`, so `stop.` counts), `loop start` and `loop stop` key. Queries: `find`, `hasGroup`, `startTime`, `textKeyTime` (prefix). A source with no tags (which used to be a null dereference in `Play::hasAnimation`) now has an empty table.
+- `components/animation/textkeys.{hpp,cpp}`: `addTextKeys` (a .kf record: CR/LF split, trim, lower case) and `addTextKeyLine` (a `.txt` line: key then time after the last space). The `.kf` reader (`handleTextKeys`) and the COLLADA reader (`readTextKeys`) now call them; their bodies were moved, not rewritten. The glTF clips of task 0123 build their `Tags` in code (`group: key` strings), so they join the table through `Play`.
+- `MWAnim::Play` builds an `AnimSet` in `addSingleAnimSource` and answers `hasAnimation`, `getStartTime`, `getTextKeyTime` and `listAnimationGroups` from it. `play()`, `runAnimation()`, `reset()`, `getVelocity()` still read the `Tags` (now `set->tags`) and the `ControllerMap` controllers; the pose driver is untouched (C2). **Boundary kept:** the `AnimSet` does not hold clips yet (the spec's "one clip" model is C2).
+- **Tests written first and shown red:** `apps/components_tests/mwanimation/testanimset.cpp` (AnimSet 9, equivalence 3, TextKeys 5, two gated tests) against stubs of both new files (a stub header and `.cpp` that found nothing): 15 of 18 runnable tests failed (`c0\c1_red.txt`; the three that passed test absence: an empty source, blank record, non-key lines), then all pass with the code.
+- **Equivalence evidence:** for every group of every table, a real `Play` is driven and compared: it knows the group, its start time equals the table's first key and the pre-C1 derivation (`Tags::findGroup`, `Tags::getGroups`), playing it starts at the table's start and a long step ends it at the table's stop (or refuses exactly when a marker is missing or start > stop). Over the main generated source, a source with repeated sections / garbage stops / group-less keys, 60 seeded random sources, **162 real Morrowind `.kf` files in the three BSAs (2,554 groups, all read, none without groups; gated test with `OPENEDEN_ANIMSET_CHECK_DIRS`)** and **the two text key files of the example suite** (gated, `OPENEDEN_ANIMSET_SUITE_DIR`): no difference. Loose and mod `.kf` files were not compared.
+- Existing tests: `testdaeanimation.cpp` (the COLLADA reader, which uses the shared line parser now), the kf-related tests and `testsceneryanim` pass unedited.
+- **Setting off, compared:** the new executable and the baseline executable give byte-identical player pose lines (before the hit phase) in all three variants run: vanilla third person (1,111 lines), vanilla first person (1,111), `cm` third person (1,111). That is the only compared trace of the engine; NPC and creature traces are not exact (above).
+- Whole binaries on the final tree: `components-tests` 9,298 pass, 43 skipped (data-gated), 0 failed, with `*Slang*`, `*Complement*`, `*Property*` left out (very slow); `openmw-tests` 2,032 pass with `*Slang*` left out. `CI/check_layer_rules.sh` 104 exceptions (unchanged), `check_tests_registered`, `check_game_conventions`, `check_mwbase_fakes`, `check_no_osg`, `check_cmake_format` and `tools/testprofile/coverage.sh` pass; `check_file_names` still lists two files from main.
+
+#### Behaviour changes
+
+None intended with every setting at its default. Two edge cases differ from before: a source with no text key table no longer crashes `hasAnimation` and friends; and `getStartTime` finds a group through the table's rule (the text before the first `: ` of a key) instead of the prefix `group + ": "`, which differ only for a group whose own name contains `: `. No setting added.
+
+#### Not run
+
+The Linux gate and GCC `-Werror` (Docker is not to be used), clang-format 14 (not installed; the new code was formatted by hand), clang-tidy, the 32 Lua integration tests, sanitizers, a fresh reviewer, Eden Studio (not built in this configuration), the NPC/creature pose comparison (not reproducible), the hit phase of the player trace, mutations beyond one, loose and mod `.kf` files, the launcher.
+
+#### Open for toddhow
+
+1. C1 stops short of the spec's "clips inside the set" on purpose (that is C2's driver change); say so if you want `AnimSet` to own clips already in C1.
+2. The `setAccumulation` quirk above: pinned as it is; fixing it changes root motion in the cases that call it (a decision, not part of this task).
+3. `--random-seed` does not fix the player's random hit reaction or NPC idle choice; exact goldens exist only for the player before the hit phase. Do you want the hit variant forced (a developer-only knob) for later stages?
+4. 0123's gltf `ControllerMap` is not yet built into an `AnimSet` anywhere but `Play` (it needs no change), so "AnimSet builds from glTF" is true only through `Play::addSingleAnimSource`.

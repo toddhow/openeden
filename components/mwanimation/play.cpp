@@ -3,6 +3,7 @@
 #include <iostream>
 #include <limits>
 
+#include <components/animation/animset.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/animation/reset.hpp>
 #include <components/misc/gameconventions.hpp>
@@ -74,6 +75,8 @@ namespace MWAnim
     struct Play::AnimSource
     {
         vsg::ref_ptr<const Anim::ControllerMap> ref;
+        // openeden: the source's group table (task 0124, stage C1); the group and text key queries answer from it.
+        vsg::ref_ptr<const Anim::AnimSet> set;
         std::vector<Anim::TransformControllers> tcontrollers;
         vsg::ref_ptr<const Anim::Tags> tags;
         vsg::ref_ptr<Anim::Reset> reset;
@@ -144,7 +147,8 @@ namespace MWAnim
                 replaceAccumCtrl = resetCtrl;
             }
         }
-        anim->tags = map->tags;
+        anim->set = vsg::ref_ptr<const Anim::AnimSet>(new Anim::AnimSet(map, debugName));
+        anim->tags = anim->set->tags; // never null: a source with no text keys has an empty table
         mAnimSources.emplace_back(std::move(anim));
     }
 
@@ -158,7 +162,7 @@ namespace MWAnim
     bool Play::hasAnimation(std::string_view anim) const
     {
         for (const auto& src : mAnimSources)
-            if (src->tags->hasGroup(anim))
+            if (src->set->hasGroup(anim))
                 return true;
         return false;
     }
@@ -167,9 +171,8 @@ namespace MWAnim
     {
         for (AnimSourceList::const_reverse_iterator iter(mAnimSources.rbegin()); iter != mAnimSources.rend(); ++iter)
         {
-            const auto found = (*iter)->tags->findGroup(groupname);
-            if (found != (*iter)->tags->end())
-                return found->first;
+            if (const Anim::AnimSet::Group* found = (*iter)->set->find(groupname))
+                return found->firstKey;
         }
         return -1.f;
     }
@@ -178,10 +181,9 @@ namespace MWAnim
     {
         for (AnimSourceList::const_reverse_iterator iter(mAnimSources.rbegin()); iter != mAnimSources.rend(); ++iter)
         {
-            const auto keys = (*iter)->tags;
-            for (auto iterKey = keys->begin(); iterKey != keys->end(); ++iterKey)
-                if (iterKey->second.compare(0, textKey.size(), textKey) == 0)
-                    return iterKey->first;
+            const float time = (*iter)->set->textKeyTime(textKey);
+            if (time != Anim::AnimSet::sAbsent)
+                return time;
         }
 
         return -1.f;
@@ -652,9 +654,8 @@ namespace MWAnim
     {
         for (const auto& src : mAnimSources)
         {
-            const auto& groups = src->tags->getGroups();
-            for (const auto& group : groups)
-                handler(group);
+            for (const auto& [name, group] : src->set->groups())
+                handler(name);
         }
     }
 }

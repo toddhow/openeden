@@ -17,6 +17,7 @@
 #include <components/animation/controllermap.hpp>
 #include <components/animation/interpolate.hpp>
 #include <components/animation/tags.hpp>
+#include <components/animation/textkeys.hpp>
 #include <components/animation/transformcontroller.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -136,19 +137,7 @@ namespace vsgAdapters
             }
             std::string line;
             while (std::getline(*file, line))
-            {
-                Misc::StringUtils::trim(line);
-                const std::size_t spacePos = line.find_last_of(' ');
-                if (spacePos == std::string::npos)
-                    continue;
-                const float time
-                    = Misc::StringUtils::toNumeric<float>(std::string_view(line).substr(spacePos + 1), 0.f);
-                std::string key = line.substr(0, spacePos);
-                Misc::StringUtils::trim(key);
-                Misc::StringUtils::lowerCaseInPlace(key);
-                if (!key.empty())
-                    tags->emplace(time, std::move(key));
-            }
+                Anim::addTextKeyLine(*tags, line); // the one text key parser (task 0124)
             return tags;
         }
     }

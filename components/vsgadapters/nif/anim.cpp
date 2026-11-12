@@ -4,6 +4,7 @@
 #include <components/animation/roll.hpp>
 #include <components/animation/rotate.hpp>
 #include <components/animation/tags.hpp>
+#include <components/animation/textkeys.hpp>
 #include <components/animation/transformcontroller.hpp>
 
 #include <components/misc/strings/algorithm.hpp>
@@ -71,17 +72,7 @@ namespace vsgAdapters
     {
         auto tags = vsg::ref_ptr{ new Anim::Tags };
         for (size_t i = 0; i < keys.mList.size(); i++)
-        {
-            std::vector<std::string> results;
-            Misc::StringUtils::split(keys.mList[i].mText, results, "\r\n");
-            for (std::string& result : results)
-            {
-                Misc::StringUtils::trim(result);
-                Misc::StringUtils::lowerCaseInPlace(result);
-                if (!result.empty())
-                    tags->emplace(keys.mList[i].mTime, std::move(result));
-            }
-        }
+            Anim::addTextKeys(*tags, keys.mList[i].mTime, keys.mList[i].mText); // the one text key parser (task 0124)
         return tags;
     }
 

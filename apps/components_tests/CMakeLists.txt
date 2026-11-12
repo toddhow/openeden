@@ -442,6 +442,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwanimation/testlightcontroller.cpp
     mwanimation/testsceneryanim.cpp
     mwanimation/testpointshadowcarrier.cpp
+    mwanimation/testplaycharacterization.cpp
+    mwanimation/testanimset.cpp
     vsgutil/testimagepixels.cpp
     vsgutil/testdeferredbin.cpp
     vsgutil/testarraystate.cpp

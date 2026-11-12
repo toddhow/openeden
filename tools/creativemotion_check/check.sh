@@ -20,7 +20,9 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #     natural   inertial locomotion = high and creativemotion preset = natural (task 0067, stage 1); a natural run
 #               whose trace never shows the intent wanting to move, starting and stopping FAILS (the engine feed is
 #               broken: stage 1 review, finding 1)
-# Environment: EXTRA_SETTINGS=<text> is appended to each run's settings.cfg (including section headers) and recorded
+# Environment: MODDIR=<folder> uses another scenario mod (tools/creativemotion_check/mod_firstperson: the same
+#              scenario in first person; task 0124);
+#              EXTRA_SETTINGS=<text> is appended to each run's settings.cfg (including section headers) and recorded
 #              in each report's meta;
 #              REPEAT=<n> runs each variant n times (default 3; a difference between variants counts only where it
 #              is larger than the spread between the runs of one variant) and writes <variant>-summary.txt/.json with
@@ -41,7 +43,7 @@ mkdir -p "$3"
 WORK=$(cd "$3" && { pwd -W 2>/dev/null || pwd; })
 shift 3
 HERE=$(cd "$(dirname "$0")" && pwd)
-MOD=$(cd "$HERE/mod" && { pwd -W 2>/dev/null || pwd; })
+MOD=$(cd "${MODDIR:-$HERE/mod}" && { pwd -W 2>/dev/null || pwd; })
 CELL=${CELL:-Seyda Neen}
 FRAMES=${FRAMES:-1400}
 REPEAT=${REPEAT:-3}
