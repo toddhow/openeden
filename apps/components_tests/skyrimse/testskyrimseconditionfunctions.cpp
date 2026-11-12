@@ -123,6 +123,20 @@ namespace
         std::uint32_t mWorldspace = 0xC0;
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
+        bool mInterior = true;
+        bool locAliasIs(std::uint32_t a, std::uint32_t l) const override { return a == 5 && l == 0x150; }
+        bool inLocationAlias(Subject s, std::uint32_t a) const override { return s == mSubject && a == 6; }
+        bool isPlayerTeammate(Subject s) const override { return s == mSubject; }
+        bool spellHasKeyword(Subject s, std::uint32_t src, std::uint32_t k) const override
+        {
+            return s == mSubject && src == 0 && k == 0x160;
+        }
+        float goldOf(Subject s) const override { return s == mSubject ? 250.f : 0.f; }
+        bool mTrespassing = true;
+        bool isTrespassing(Subject s) const override { return s == mSubject && mTrespassing; }
+        Subject mVictim = 7;
+        Subject crimeVictim() const override { return mVictim; }
+        bool inInterior(Subject s) const override { return s == mSubject && mInterior; }
         bool isCurrentWeather(std::uint32_t x) const override { return x == 0x101; }
         bool offersServicesNow(Subject s) const override { return s == mSubject && mServices; }
         bool runsPackage(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xF0; }
@@ -294,6 +308,70 @@ namespace
         World w;
         EXPECT_TRUE(run(cond(149, kEq, 1.f, 0x101), w));
         EXPECT_TRUE(run(cond(149, kEq, 0.f, 0x102), w));
+    }
+
+    // fn_300 IsInInterior: the subject is in an interior cell (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_300_is_in_an_interior)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(300, kEq, 1.f), w));
+        w.mInterior = false;
+        EXPECT_TRUE(run(cond(300, kEq, 0.f), w));
+        w.mInterior = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(300, kEq, 0.f), w));
+    }
+
+    // fn_314 IsActorAVictim: the subject is the current crime victim, one actor at most (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_314_is_the_current_crime_victim)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(314, kEq, 1.f), w));
+        w.mVictim = 8;
+        EXPECT_TRUE(run(cond(314, kEq, 0.f), w));
+        w.mVictim = 0;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(314, kEq, 0.f), w));
+    }
+
+    // fn_145 IsTrespassing: the subject is trespassing (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_145_is_trespassing)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(145, kEq, 1.f), w));
+        w.mTrespassing = false;
+        EXPECT_TRUE(run(cond(145, kEq, 0.f), w));
+        w.mTrespassing = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(145, kEq, 0.f), w));
+    }
+
+    // fn_48 GetGold: the subject's gold (CK wiki, toddhow 2026-11-11). Nobody has none.
+    TEST(SkyrimConditionFunctions, fn_48_is_the_gold)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(48, kEq, 250.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(48, kEq, 0.f), w));
+    }
+
+    // fn_605 LocAliasIsLocation(alias, location), fn_360 GetInCurrentLocAlias(alias), fn_453 GetPlayerTeammate,
+    // fn_596 SpellHasKeyword(casting source, keyword) (toddhow's descriptions, 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_605_360_453_596_location_aliases_teammate_spell_keyword)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(605, kEq, 1.f, 5, 0x150), w));
+        EXPECT_TRUE(run(cond(605, kEq, 0.f, 5, 0x151), w));
+        EXPECT_TRUE(run(cond(360, kEq, 1.f, 6), w));
+        EXPECT_TRUE(run(cond(360, kEq, 0.f, 7), w));
+        EXPECT_TRUE(run(cond(453, kEq, 1.f), w));
+        EXPECT_TRUE(run(cond(596, kEq, 1.f, 0, 0x160), w));
+        EXPECT_TRUE(run(cond(596, kEq, 0.f, 1, 0x160), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(605, kEq, 1.f, 5, 0x150), w));
+        EXPECT_TRUE(run(cond(360, kEq, 0.f, 6), w));
+        EXPECT_TRUE(run(cond(453, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(596, kEq, 0.f, 0, 0x160), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

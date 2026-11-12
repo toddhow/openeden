@@ -245,6 +245,54 @@ namespace game_skyrimse::conditions
             return asFloat(world.isCurrentWeather(c.mParam1));
         }
 
+        // 300 IsInInterior (CK wiki, toddhow 2026-11-11)
+        float isInInterior(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inInterior(subject));
+        }
+
+        // 314 IsActorAVictim: one victim at a time (CK wiki, toddhow 2026-11-11)
+        float isActorAVictim(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.crimeVictim() == subject);
+        }
+
+        // 145 IsTrespassing (CK wiki, toddhow 2026-11-11)
+        float isTrespassing(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isTrespassing(subject));
+        }
+
+        // 48 GetGold (CK wiki, toddhow 2026-11-11)
+        float getGold(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.goldOf(subject) : 0.f;
+        }
+
+        // 605 LocAliasIsLocation(alias, location): names its alias, so no subject (toddhow, 2026-11-11)
+        float locAliasIsLocation(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.locAliasIs(c.mParam1, c.mParam2));
+        }
+
+        // 360 GetInCurrentLocAlias(alias) (toddhow, 2026-11-11)
+        float getInCurrentLocAlias(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inLocationAlias(subject, c.mParam1));
+        }
+
+        // 453 GetPlayerTeammate (toddhow, 2026-11-11)
+        float getPlayerTeammate(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isPlayerTeammate(subject));
+        }
+
+        // 596 SpellHasKeyword(casting source, keyword) (toddhow, 2026-11-11)
+        float spellHasKeyword(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.spellHasKeyword(subject, c.mParam1, c.mParam2));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -253,12 +301,13 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 36> sTable = { {
+        constexpr std::array<Entry, 44> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
+            { 48, getGold },
             { 56, getQuestRunning },
             { 58, getStage },
             { 59, getStageDone },
@@ -273,21 +322,28 @@ namespace game_skyrimse::conditions
             { 84, getDeadCount },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 145, isTrespassing },
             { 149, getIsCurrentWeather },
             { 161, getIsCurrentPackage },
             { 182, getEquipped },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
             { 286, isSneaking },
+            { 300, isInInterior },
             { 310, getInWorldspace },
+            { 314, isActorAVictim },
             { 359, getInCurrentLoc },
+            { 360, getInCurrentLocAlias },
             { 403, getRelationshipRank },
             { 426, getIsVoiceType },
+            { 453, getPlayerTeammate },
             { 543, getQuestCompleted },
             { 560, hasKeyword },
             { 562, locationHasKeyword },
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
+            { 596, spellHasKeyword },
+            { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
             { 629, getVMQuestVariable },
         } };

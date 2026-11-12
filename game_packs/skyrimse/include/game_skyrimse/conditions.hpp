@@ -259,6 +259,54 @@ namespace game_skyrimse::conditions
             (void)weather;
             return false;
         }
+        /// fn_300 IsInInterior: is the subject in an interior cell? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool inInterior(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_314 IsActorAVictim: the current crime victim, or 0; one actor at most (CK wiki, shown by toddhow,
+        /// 2026-11-11).
+        virtual Subject crimeVictim() const { return 0; }
+        /// fn_145 IsTrespassing: is the subject trespassing? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool isTrespassing(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_48 GetGold: the subject's gold (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float goldOf(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_605 LocAliasIsLocation(alias, location): is location alias `alias` of the quest that owns the list filled
+        /// with this LCTN? The world owns that quest context (toddhow, 2026-11-11).
+        virtual bool locAliasIs(std::uint32_t alias, std::uint32_t location) const
+        {
+            (void)alias, (void)location;
+            return false;
+        }
+        /// fn_360 GetInCurrentLocAlias(alias): is the subject in the location that alias holds? Counts the subject's
+        /// persistence location as well as where it stands (toddhow, 2026-11-11).
+        virtual bool inLocationAlias(Subject subject, std::uint32_t alias) const
+        {
+            (void)subject, (void)alias;
+            return false;
+        }
+        /// fn_453 GetPlayerTeammate: is the subject flagged as the player's teammate? (toddhow, 2026-11-11)
+        virtual bool isPlayerTeammate(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_596 SpellHasKeyword(casting source, keyword): does the spell the subject has equipped at that source
+        /// (left hand, right hand, voice, instant; the enum as stored) have the keyword? (toddhow, 2026-11-11)
+        virtual bool spellHasKeyword(Subject subject, std::uint32_t castingSource, std::uint32_t keyword) const
+        {
+            (void)subject, (void)castingSource, (void)keyword;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
