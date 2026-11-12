@@ -1,8 +1,8 @@
 # Task 0146: Lip sync for Skyrim SE speech (milestone M-S4)
 
-Status: STAGE (a) ONLY, STOPPED. The head half holds; the `.lip` half does not yet (the format is only partly settled by the
-data). Nothing was built in the engine, the pack or the formats layer; no setting was added; no code was changed. Branch
-`skylip` (from local `main` f7184f15b2), not pushed.
+Status: BUILT (slices 2 and 3; stage (a) below was written first and its verdict on `.lip` is superseded by section 6). Branch `skylip`
+(from local `main`), Windows only, not pushed. Full loop in form: the pure parts tests first and run red against stubs, the same hand wrote
+tests and code, no fresh reviewer.
 
 Design doc section: `docs/design/skyrim-se-implementation-plan.md` (Lip sync, section 4.22); task 0143 (voice; `.fuz` split,
 `.lip` part unused); task 0126 (facegen heads); task 0071 (`getSayPlayback` loudness drive).
@@ -83,3 +83,77 @@ Everything past stage (a): the `.lip` reader, the `.tri` reader, the setting, th
 Morrowind comparison (nothing in the engine changed, so none was needed), the Linux gate, clang-format 14, clang-tidy.
 The build folder `I:\Projects\OpenEden-work\skylip\build` holds a finished build of this tree (`openmw`, `components-tests`,
 `openmw-tests`) for the next hand; the survey scripts are in `I:\Projects\OpenEden-work\skylip\data\`.
+
+## 5. Slice 2: the head moves, driven by loudness (`[Game] neutral lip sync`, off by default)
+
+- `components/trimorph` (formats layer): `TriMorph::read` for the FaceGen `.tri` (FRTRI003; layout verified by the exact-end-of-file parses of
+  section 2.2, interleaved x, y, z deltas settled by the biggest mover of `Aah` on the midline moving down and back),
+  `TriMorph::apply` (weights, scale, deltas; no allocation), `MouthDrive` (loudness to Aah/BigAah, attack 0.6, release 0.3,
+  gain 4: named guesses). Capped, hostile-input safe; files with layouts never seen (quads, label vertices, static morphs,
+  modifiers) are refused.
+- `apps/openmw/mwrender/skyrimlip.*`: `HeadMorph` keeps the face shape's own vertices as the base and writes base + deltas
+  into the (DYNAMIC_DATA) position array, `dirty()` only when the quantised (1/16) weights change. The face shape is the
+  skinned shape with the face tint shader (type 4) whose vertex count equals a race head file (`sHeadTriFiles`; the count
+  is the check). `SkyrimModel::buildSkinnedShape` hands the array back (`BuildContext::mMorphableFace`, off unless the
+  setting is on). Normals are not updated (the shading of a moving jaw is slightly off; not judged visible).
+- `NeutralDialogueSession::driveMouth` runs once a poll (main thread) and sends the weights to `Scene::setNeutralMouth`
+  through a sink the world sets (`RenderingInterface::setNeutralMouth`, default no-op, declared after the existing virtuals).
+- **Deltas relative to the facegen vertices: yes.** In game the head of Hulda (facegen NIF, her own face) opens her
+  mouth with the `.tri` deltas added to her facegen vertices, with no visible distortion of the rest of the face (frames
+  `I:\Projects\OpenEden-work\skylip\lipon_m1.png`, `lipon3_m2.png`).
+
+## 6. Stage (b): the `.lip` format, decoded (toddhow, 2026-11-12: "docs and open readers" allowed for `.lip`)
+
+### Sources read (provenance)
+
+| Source | What | Licence / status |
+| --- | --- | --- |
+| Web search result lists (two queries) | titles and snippets only | none relied on, except that they pointed to the next rows |
+| `github.com/realfakenerd/wah-krah-jol` page and its pull request 26 ("Add Skyrim .lip decoding and inspection tools", merged into Mudcrab-Team/mudcrab) | description, file names, that the decoder tries payload offsets, decodes run-length data and reconstructs frames | repository page says GPL-3.0-or-later (compatible with OpenEden's GPL-3.0-or-later); I did not open its `LICENSE` file |
+| `docs/specs/converters/data-formats.md` and `crates/converter/src/lip.rs` of Mudcrab-Team/mudcrab (through the fetch tool, which returned summaries, not the raw files) | the 24-byte header fields, the payload search 24..32, the zero-run coding (`00` + u16 count; other bytes literal), 33 slots a row, slots 6 to 21 the 16 visemes in head-morph order, 30 frames a second, `frame time = (frame + first) / 30`, the one-byte timing repair | GPL-3.0-or-later per the repository page. **Where Mudcrab learned the format is not stated.** No code was copied: `lip.cpp` was written from the facts |
+| Not read | `Tools/LipGen`, the Creation Kit, any game executable, Havok anything, FaceFXWrapper's source | the Havok rule and the no-executable rule hold |
+
+### Facts confirmed on the user's own files (`Skyrim - Voices_en0.bsa`, 74,070 non-empty `.lip` parts, aggregates only)
+
+- The zero-run coding is right: it turns the payload into whole floats in [-2, 2] for **71,321 of 74,070 files (96.3 percent)**;
+  the rest (2,749: 1,800 of the 13-curve kind and 949 of the 9-curve kind) have header variants not handled (`00 06 00` without
+  the timing field, the 9-curve dragons) and use the loudness fallback. 1,338 parts are empty (loudness fallback too).
+  This is what the first attempt (section 2.1) had seen as glue `00 xx 00`: a run of xx zero bytes. (These numbers are
+  from a Python port of the same rule; the C++ reader was run on four lines in game and on generated bytes.)
+- **Correction of the Mudcrab text by the data:** the row count of the grid equals the header's `frames` in 20,874 files and
+  `frames + 1` in 50,447; requiring equality would reject two thirds. The reader accepts both.
+- The slot alignment (the data ends at slot 6 mod 33): for the files with `33 * frames - 27` floats the stream starts at slot 0
+  and columns 6 to 23 are in [0, 1], columns 0, 3, 4, 5 are small signed curves, 24 to 27 are zero everywhere and 28, 29 are a
+  pair that reaches 1.03; for the files with `33 * frames` floats the column signature best fits a shift of 6 in 257 of 300
+  files. So slots 6 to 21 are weights in [0, 1], as the Mudcrab text says.
+- Timing: `first` is in -120..0 with the marker 16 in the header directly in 65,163 files (the one-byte repair covers more, not
+  counted separately). 30 frames a second is the Mudcrab value; my own measurement (rows divided by the audio duration)
+  had a median of 33.5 per second (the pre-roll and the last audio block explain the excess; not a proof of 30).
+- **Not confirmed on the data:** the NAMES and ORDER of the 16 viseme slots (only that 16 weight columns exist and that they are
+  plausible: BigAah is rare and the open vowels common), what the slots 0 to 5 and 22 to 33 are, and the sync of the lip data
+  with the audio (checked by eye only: the mouth opens and closes while the line plays; the lag was not measured).
+
+### What was built
+
+- `components/lip` (formats layer): `Lip::read`, `Lip::frameTime`, `Lip::sampleVisemes` (linear between rows, closed outside
+  them); 16 tests first (15 red against a stub), a 20,000-mutation fuzz, hostile caps (4 MiB in, 4 MiB expanded).
+- `NeutralDialogueSession` reads the playing line's `.lip` (`Fuz::split` then `Lip::read`, once per line, logged as `NLIP lip
+  data ...`); each poll samples the 16 weights at `getSayPlayback`'s position. A line without usable data (empty,
+  unreadable, timing unknown) falls back to the loudness drive; `HeadMorph::setVisemes` uploads only when the 1/16 steps change.
+- In game (`tools/neutral_session_check/check.sh ... n5lip`, five masters, null audio, quiet window): four of four lines of
+  Hulda's first conversation had lip data (32, 213, 191 and 160 rows) and the mouth takes different shapes across the
+  line (`lipon3_m2.png`: open, rounded, closed, pursed); with the setting off the mouth is closed in every frame
+  (`lipoff3_m2.png`, no `NLIP` line); loudness only (`lipon_m1.png`): open and closed. Morrowind unchanged: the
+  `worldobjects_check` dump (110 lines) and the fixed Balmora frame (SHA-256 `1c5d47ad0b5dc32d...`) equal a build of the
+  parent commit.
+- Mutations (one line each, built and run, then restored): the `frames + 1` acceptance removed (1 named lip test fails), the
+  morph scale dropped (4 `TriMorphApply` tests fail), one attack and release share for the jaw (`Mouth.theJawOpensFasterThanItCloses`).
+
+## 7. Not done / not run (slices 2 and 3)
+
+The Linux gate (no Docker), clang-format 14 (not installed here), clang-tidy, the Lua tests, a fresh reviewer, sanitizers, the
+other head shapes (teeth, tongue, eyes: separate shapes with their own morph data and vertex counts; to move them a
+`HeadMorph` would be made for each shape whose vertex count equals a `.tri` of the same race, or better the part's own `.tri`
+name from its HDPT record, which the pack does not decode yet), the normals of the moving head, the audio sync measured,
+`.lip` variants without a timing field and the 9-curve dragons, creatures, saving. The `components-tests` and `openmw-tests`
+runs here were the new groups only (`TriMorph*`, `Mouth*`, `Lip*`, `SkyrimLip*`, `SkyrimActor*`), not the whole binaries.
