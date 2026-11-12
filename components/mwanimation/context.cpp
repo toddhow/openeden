@@ -48,7 +48,8 @@ namespace MWAnim
         // set from AnimSet::forSource and the clip made from it once. Its controllers are immutable once read.
         if (const auto* set = dynamic_cast<const Anim::AnimSet*>(object.get()))
             return vsg::ref_ptr<Anim::ControllerMap>(const_cast<Anim::ControllerMap*>(set->controllers.get()));
-        return object.cast<Anim::ControllerMap>();
+        // dynamic_cast, as vsg::read_cast does: Object::cast only knows types made with vsg::Inherit.
+        return vsg::ref_ptr<Anim::ControllerMap>(dynamic_cast<Anim::ControllerMap*>(object.get()));
     }
 
     std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(

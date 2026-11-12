@@ -607,6 +607,34 @@ namespace
         EXPECT_NE(mLastSet->tags, nullptr);
     }
 
+    // A reader that hands over a bare ControllerMap, as the .kf reader does.
+    struct BareMapReader : vsg::ReaderWriter
+    {
+        vsg::ref_ptr<vsg::Object> read(std::istream&, vsg::ref_ptr<const vsg::Options>) const override
+        {
+            return vsg::ref_ptr<Anim::ControllerMap>(new Anim::ControllerMap);
+        }
+        bool getFeatures(Features& features) const override
+        {
+            features.extensionFeatureMap[".kf"] = READ_ISTREAM;
+            return true;
+        }
+    };
+
+    TEST_F(VsgAdaptersDaeClipsTest, the_context_still_passes_a_bare_controller_map_through)
+    {
+        mFiles.push_back(std::make_unique<TestingOpenMW::VFSTestFile>("x"));
+        VFS::FileMap fileMap;
+        fileMap.emplace(VFS::Path::Normalized("meshes/xbase.kf"), mFiles[0].get());
+        mVfs = TestingOpenMW::createTestVFS(std::move(fileMap));
+        auto options = vsg::Options::create();
+        options->readerWriters = { vsg::ref_ptr{ new vsgAdapters::vfs(*mVfs, { vsg::ref_ptr{ new BareMapReader } }) } };
+        MWAnim::Context context;
+        context.animOptions = options;
+
+        EXPECT_NE(context.readAnimation("meshes/xbase.kf"), nullptr);
+    }
+
     TEST_F(VsgAdaptersDaeClipsTest, the_context_reads_the_controllers_of_a_cached_set_once_per_file)
     {
         mFiles.push_back(std::make_unique<TestingOpenMW::VFSTestFile>(makeSingleAnimationDocument()));
