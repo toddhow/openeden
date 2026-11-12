@@ -225,3 +225,57 @@ Goal: with `[Face] speech curves = true` (off by default) an NPC that speaks a v
 - **Game check** (`tools/face_check/check.sh`, quiet window, Seyda Neen, the nearest NPC is an Imperial guard, 800x600, field of view 35, camera 90 units in front of the face; line `Sound/Vo/a/f/Hlo_AF002.mp3`, 2.17 s; the curves are a TEST PATTERN written by `mkcurves.cpp`: jaw a triangle wave of period 0.4 s from 0.3 s to 1.9 s, a blink from 1.0 s to 1.2 s; the file lives in the run's work folder only, nothing derived from game audio is committed). Setting on with the curves file, 26 screenshots 0.1 s apart, all viewed (`runs\on\montage.png`, `montage_eyes.png`): the mouth opens and closes with the pattern (closed at jaw 0, clearly open with teeth at 0.96; the sampled values equal the curve at each frame's stream position to two decimals) and both eyes close in exactly the two frames whose sampled blink is 1.0. A crude lip-line score from the pixels correlates with the curve at r = 0.70 and 0.71 (two runs; the box and metric are a rough aid, see `analyze.py`). The same line with the setting OFF (curves file present) and with the setting ON but NO curves file: the mouth hardly moves in either (lip score mean 9.9 and 10.1 against 12.0 with curves, max 11.0 and 11.7 against 16.7), the stock loudness drive of this quiet greeting; the two look alike. Each run: exit 0, no dump, no error line.
 - **Setting off: identical behaviour.** By construction (`updateFacialSpeech` is not entered, `Face::speech.mActive` stays false, `Face::update`'s old branches are untouched) and by the run above (setting on with no curves file looks like off). NOT shown by a pixel comparison: even two runs of the same executable with `OPENEDEN_FIXED_FRAME_TIME`, the same seed and no voice line differ by 1k to 18k pixels in the 240x240 face region of each frame (the NPC's idle animation is not repeatable), as much as on against off, so such a comparison proves nothing in this scene.
 - **Limits and open points.** The blink maps to the first half of the head's blink range assuming it closes at the middle (the frames show the eyes closed, so it holds at least for this head). One animation value means a blink of 0.1 or more hides talk for its duration. The stream position has about 10 ms resolution in the log and `OpenAL_SoundStream::getStreamOffset` includes the buffer queue; no lead or lag is applied and a latency offset is not measured. The curve file's audio hash is not checked at run time. Curves inside an Eden Archive were NOT tried in the game (the path goes through `VFS::Manager::find`, the same call a loose file takes). Creatures, first-person player and Lua `say` without an actor are not covered (`mNpc` only). Tuning on other heads (beast races, replacers) not seen. No Linux build, no clang-format 14, no clang-tidy, no sanitizers (Docker hung); GCC `-Werror` traps checked by hand (braced bodies, no shadowing, aggregates fully initialised); no fresh reviewer.
+
+## Stage a results (2026-11-12)
+
+Hands-on feasibility gate for architecture D, run on toddhow's machine with the downloaded Audio2Face-3D v3.0 ONNX. No repository code; scripts and outputs are in `I:\Projects\OpenEden-work\a2f` (not committed). **The gate is only partly run: onnxruntime could not be installed.**
+
+### Blocker
+
+The only Python on the machine is 3.15.2 (`py -0p`). PyPI has no `onnxruntime` or `onnxruntime-directml` wheel for CPython 3.15 (`pip install` and `pip download` both: "No matching distribution found"; wheels exist for cp313 and cp314: onnxruntime 1.31.1, onnxruntime-directml 1.24.4). numpy 2.5.4 installed fine (`venv-cpu`). Installing another Python interpreter was outside the approval (pip packages only), so items 1 to 3 were NOT run. Fix: approve installing Python 3.13 or 3.14 (for example `py install 3.13`), or install it himself; `run_gate.py` (written, never executed) then runs items 1 and 3.
+
+### Results table
+
+| Gate item | Result | Evidence |
+| --- | --- | --- |
+| 1a. Loads on CPU provider | NOT RUN (no ORT for Python 3.15) | blocker above |
+| 1b. Loads on DirectML | NOT RUN | blocker above |
+| 1c. Operator inventory (static, from the file) | Done, a partial substitute | Hand-written protobuf scan (`onnxscan.py`, no onnx package): v3.0 is ONNX IR 7, opset 14, producer pytorch, 1,321 nodes of 39 op types, 307 initialisers. Types: Add, Cast, Ceil, Clip, Concat, ConstantOfShape, Conv, Div, Equal, Erf, Exp, Expand, Floor, GRU, Gather, Gemm, InstanceNormalization, MatMul, Mul, NonZero, Not, Pow, Range, ReduceMean, Relu, Reshape, ScatterND, Shape, Slice, Softmax, Softplus, Sqrt, Squeeze, Sub, Tanh, Tile, Transpose, Unsqueeze, Where. All are standard-domain ops (no custom domain, no contrib ops). Possible DirectML risk points (RECALLED-VERIFY, not tested): GRU (4), NonZero (2), ScatterND (6), Range (6), InstanceNormalization, dynamic Shape/Expand chains. ORT falls back to CPU per node for unsupported ones, so a mixed CPU/DML run is plausible; only a real run can show it |
+| 2. Reference match vs NVIDIA | pending NVIDIA reference | toddhow installs the SDK later. Sanity checks (finite, changes with speech, near rest for silence) NOT RUN: need ORT. No decoder package exists for the Morrowind MP3 voices, so a WAV or synthetic tone/silence would be needed (a synthetic tone is not speech: limitation) |
+| 3. Time per second of audio, priority, peak memory | NOT RUN | needs ORT. The graph runs one 16,000-sample (1 s) window per call and produces 60 frames of 88,831 floats; `run_gate.py` is written to time that |
+| 4. Blendshape weight solve | Equations inferred; validated on SYNTHETIC targets only | `bssolve.py`, `bssolve-scales.txt` (below) |
+| Audio2Emotion loads | NOT RUN (no ORT); static scan only | opset 12, 2,762 nodes, 22 op types (Conv, Gemm, MatMul, Softmax, Erf, ReduceMean, ReduceProd, ...), input `input_values [batch, seq]`, output `[N, 6]` (angry, disgust, fear, happy, neutral, sad). The folder has NO licence or README (only json files; `config.json` is empty), so its terms could not be read. The task's recommendation (do not use it) is unchanged; nothing built on it |
+| v2.3 Mark | Not downloaded; not tested | v3.0 only |
+
+### What the published files tell us (read directly)
+
+- **Network signature (v3.0 ONNX):** inputs `window [B,16000]`, `identity [B,3]`, `emotion [B,30,10]`, `input_latents [2,2,B,256]`, `noise [B,3,60,88831]` (all float); outputs `prediction [B,60,88831]` and `output_latents [2,2,B,256]`. 88,831 = skin 72,006 + tongue 16,806 + jaw 15 + eyes 4 (matches `network_info.json`). The latents output presumably feeds the next window's input (GRU continuity). Open: how 60 frames per 16,000-sample window relate to `num_frames_left/right_truncate` 15, `num_frames_center` 30 and the 1 s left and right audio padding (the json files do not spell it out); what the 3 in `noise` is (guess: diffusion steps + 1); that `identity` is a one-hot over Claire/James/Mark (guess). NVIDIA's SDK source would settle these.
+- **Correction to note 0034 and this task:** the 52 pose names ARE published, inside `bs_skin_*.npz` (`poseNames`, 53 entries: `neutral` plus the 52 ARKit names; `rig_version` v3.1); the tongue file has `neutral` plus 16 poses (`tongueTipUp` ... `tongueNarrow`, v1.0). Each npz also holds `frontalMask` (4,262 vertex indices of the 24,002 skin vertices). Poses are small deltas from `neutral` (jawOpen mean absolute delta 0.156 against a neutral mean of 54.3).
+- `model_data_*.npz`: `neutral_skin (24002,3)`, `neutral_jaw (5,3)`, `neutral_tongue (5602,3)`, `lip_open_pose_delta` and `eye_close_pose_delta` (24002,3), `saccade_rot_matrix (5000,2)`. `model_config_*.json`: strengths, smoothing, eye offsets, saccade seed 0.
+- Skin solve config: L2 0.1, L1 0.1, temporal 0.05, symmetry 100, 52 poses, an active-pose mask (several eye and brow poses and tongueOut off), symmetry groups pairing left and right poses (ids 0 to 12). Tongue: L2 3.5, temporal 5.0, L1 1.0, 16 poses, per-pose multipliers (2, 1, 1, 1, 3, ...) and an offset of 0.2 on pose 9.
+
+### Item 4: the solve, inferred (RECALLED-VERIFY)
+
+Implemented in `bssolve.py` (numpy only). Over the frontal-mask vertices, with B_i the pose deltas and t the target displacement from neutral, minimise
+`||sum_i w_i B_i - t||^2 + l2 ||w||^2 + lt ||w - w_prev||^2 + ls * sum_pairs (w_a - w_b)^2 + l1 * sum w`, with 0 <= w <= 1 and inactive poses fixed at 0, by coordinate descent on the 52x52 normal matrix. This is my reading of the parameter names; the exact scaling of each term and the role of `templateBBSize` are NOT in the published files.
+Synthetic check (random sparse true weights, target built from the same poses, Mark): with geometry in native units the weights are recovered to a maximum error of 0.015 to 0.027 (mean about 0.001), reconstruction error 0.2 to 0.4 percent, jawOpen 0.8 recovered as 0.8, 14 to 17 ms per frame in a pure-numpy loop. Dividing the geometry by `templateBBSize` (53.45) makes the regularisation swamp the data (maximum error up to 0.99). So native units give sensible strengths, but only a comparison with NVIDIA's weights on real network output can confirm the formulation (item 2, pending).
+Not reproduced: weights over test audio (needs network output), tongue/eye/jaw handling, `model_config` smoothing and strengths, mask level and softness, saccades.
+
+### Go / no-go evidence
+
+- Item 1: undecided. Static evidence is favourable (opset 14, standard ops only); nothing was executed.
+- Item 2: pending NVIDIA reference.
+- Item 3: undecided; no timing exists. The only prior figure is the third-party CPU run of the small v2.3.
+- Item 4: the inferred solve is plausible and cheap; verification waits for real network output.
+- Overall: no go or no-go can be called yet. Nothing found contradicts architecture D; the next step is blocked on a Python with onnxruntime wheels.
+
+### Not verified
+
+AMD and Intel (only an NVIDIA machine); any execution of onnxruntime; DirectML operator coverage and fallbacks; speech and silence behaviour; timing, priority effects, peak memory; the NVIDIA reference match; v2.3 Mark (not downloaded); Audio2Emotion loading and licence terms; the network's window and frame bookkeeping.
+
+### Decisions for toddhow
+
+1. Allow a CPython 3.13 or 3.14 beside 3.15 (wheels exist for both) so the gate can run, or run `run_gate.py` under one yourself. Recommend: yes, 3.13.
+2. Download the v2.3 Mark model too (75.8 MB), the proposed portable tier.
+3. Provide one voice line as WAV (Morrowind's are MP3 and no decoder is available) for the sanity checks.
+4. Run NVIDIA's SDK once on the same line to produce reference vertices or weights (item 2); its source also settles the window bookkeeping and the solver scaling.
