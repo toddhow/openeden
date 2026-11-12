@@ -103,4 +103,42 @@ Everything under "Not built" above; the RmlUi dialogue panel; the Morrowind dial
 
 ## Stage log
 
-(see the end of the file; filled in as the work is run)
+2026-11-12, Windows only, local commits on `skytalk` (based on `main` at `31dc8ac2df`, which already holds task 0139), not pushed.
+Same hand wrote tests and code; no fresh reviewer; an advisor read the plan once.
+
+- **Tests.** `SkyrimDialogueRuntime` (11 tests, generated plugins): written first and run RED against a stub runtime (9 of 10
+  failed, the tenth tests absence), green after. Four single-line mutations of the runtime (category filter dropped, say-once
+  never remembered, goodbye flag ignored, "was it offered" check removed): the first and fourth survived the first test set,
+  two tests were added, all four are caught now. `NeutralDialoguePager` (9 tests incl. the press script parser): written after
+  the pager (not red first); three mutations (no wrap, ended turn keeps topics, goodbye index off by one) each fail named tests.
+  `openmw-tests` 2,204 pass; `components-tests` `Skyrim*`, `Extension*`, `WorldSource*` 640 pass.
+- **Real data** (five masters, gated `SkyrimDialogueRuntimeRealData`): the 7 actors of the Bannered Mare: 6 greet, 1
+  (`AmaundMotierreEnd`) has no greeting that passes; topics offered 4, 5, 3, 1, 9, 3 (25 in all, at most 9): not absurd, so
+  the DLBR "starting topic" filter was not needed for slice 1. Names come from the NPC_ FULL. First conversation: 8.9 s on
+  the main thread when the records are read on demand, which is over the freeze monitor's 5 s, so the pack now reads the
+  dialogue and quest records on a worker after the first actor is described (`startDialoguePrefetch`), and a conversation
+  asked for before they are ready answers "nothing to say" instead of blocking. In the game the first activation answered
+  in 45 ms.
+- **In game** (`tools/neutral_session_check/check.sh <build> <config> <Skyrim Data> <work> WhiterunBanneredMare 9000 n5talk`
+  with `[Game] neutral actors = true`; frames viewed): Hulda's box shows her name, "Hmm?" and four topics plus Goodbye;
+  choosing a topic shows its response and the list again; real mouse clicks (synthetic SDL events of task 0111's script, so
+  `[GUI] rmlui = true`, `tools/neutral_session_check/talk_clicks.txt`) on a topic and then on Goodbye work: the second box
+  shows the response, the third click closes the box and play mode returns. `OPENEDEN_NEUTRAL_DIALOGUE_PRESS` (dev aid)
+  presses buttons through the same session code but cannot dismiss the modal box, so it shows turns, not the closing.
+- **Morrowind unchanged.** `tools/worldobjects_check` result lines: byte-identical between a parent executable (built from
+  `31dc8ac2df` in the same build tree) and this one; fixed-frame Balmora frame (`OPENEDEN_FIXED_FRAME_TIME`, seed 7,
+  frame 600): same SHA-256 (`1ae72bec04593e1b...`); `tools/dialogue_check`: the same Morrowind dialogue window and NPC
+  (Balyn Omavel) in both, only the greeting differs, and it also differs between two runs of the parent (the tool passes
+  no seed), so pixel identity is not claimed there.
+- **Limits seen.** Response and topic texts keep the data's tags (`<Global=RoomCost>` shows literally; `<Alias=...>`,
+  `<Token>` are not expanded); topics are in form-id order; the greeting of four actors is 4 bytes of text; one actor
+  (`AmaundMotierreEnd`) has no greeting that passes with the conditions the engine can answer; a second activation while a
+  box is open does nothing visible; a conversation is not closed by leaving the cell or by a menu (the box stays until
+  answered).
+- **Not run.** The Linux gate, GCC `-Werror`, clang-format 14, clang-tidy, the Lua integration tests, sanitizers, a fresh
+  review, `eden-studio` (not built here), the first-activation behaviour when the player talks before the prefetch is done
+  (answered by the message, not seen in game), the pack's `.ILSTRINGS` path for a mod plugin, voice, saving.
+
+Decisions for toddhow beyond section 5: (a) say-once memory lives as long as the pack session (reset only by a restart);
+(b) the message-box presentation is a stopgap: a proper window (RmlUi, decision 0015) is the next step; (c) the engine
+shows "They have nothing to say to you." when the pack cannot open a conversation.
