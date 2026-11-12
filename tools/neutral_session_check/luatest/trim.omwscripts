@@ -1,0 +1,2 @@
+GLOBAL: scripts/trim/global.lua
+PLAYER: scripts/trim/player.lua

@@ -116,10 +116,13 @@ namespace game_skyrimse
         }
     };
 
-    /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rz * Ry * Rx with every angle
-    /// negated (clockwise for a positive angle), the convention Eden Studio's cell viewer uses (apps/opencs/model/mesh/
-    /// cellscene.cpp, kAngleSign). Z was settled by frame and X and Y by terrain normals in task 0086 (stage log,
-    /// rotation convention). A non-finite angle gives the identity (toNeutral refuses such an object before it gets
+    /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rx * Ry * Rz with every angle
+    /// negated (clockwise for a positive angle): a vector is turned about Z first. The signs were settled by frame (Z)
+    /// and by terrain normals (X, Y) in task 0086; the ORDER by task 0151: with Rz * Ry * Rx the object's up axis
+    /// depended on its yaw, and 26,397 tilted Tamriel placements near the ground then fit the terrain normal at 0.51 rad
+    /// on average against 0.26 rad with this order; the floating MountainTrim01 slab (b197124) lies on its slope with
+    /// it (docs/tasks/0151-floating-mountain-slabs.md). The engine drew exactly what the pack said (ray hits on the
+    /// slab lay on the old order's mesh to 0.2 units): the fault was the order, not the engine. A non-finite angle gives the identity (toNeutral refuses such an object before it gets
     /// here).
     [[nodiscard]] openeden::sdk::game::Quatd eulerToQuat(const openeden::sdk::game::WorldVec3& storedAngles);
 

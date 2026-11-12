@@ -62,9 +62,11 @@ namespace game_skyrimse
     {
         if (!finite(storedAngles.x) || !finite(storedAngles.y) || !finite(storedAngles.z))
             return {};
-        // R = Rz * Ry * Rx, so the quaternion is qz * qy * qx.
+        // R = Rx * Ry * Rz (a vector is turned about Z first, then Y, then X, all about the world axes), so the
+        // quaternion is qx * qy * qz. Task 0151: the old order (Rz * Ry * Rx) tipped every object that also had a yaw
+        // the wrong way (the floating mountain trims).
         sdkgame::Quatd q = multiply(
-            axisAngle(2, storedAngles.z), multiply(axisAngle(1, storedAngles.y), axisAngle(0, storedAngles.x)));
+            axisAngle(0, storedAngles.x), multiply(axisAngle(1, storedAngles.y), axisAngle(2, storedAngles.z)));
         const double length = std::sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
         if (length > 0.0)
         {

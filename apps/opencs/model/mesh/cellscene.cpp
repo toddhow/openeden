@@ -142,10 +142,11 @@ namespace CSMMesh
         const double ax = kAngleSign[0] * rotation.x, ay = kAngleSign[1] * rotation.y, az = kAngleSign[2] * rotation.z;
         const double cx = std::cos(ax), sx = std::sin(ax), cy = std::cos(ay), sy = std::sin(ay), cz = std::cos(az),
                      sz = std::sin(az);
-        // R = Rz * Ry * Rx (a vector is rotated about X first), row-major here, written to the columns below.
-        const double r00 = cz * cy, r01 = cz * sy * sx - sz * cx, r02 = cz * sy * cx + sz * sx;
-        const double r10 = sz * cy, r11 = sz * sy * sx + cz * cx, r12 = sz * sy * cx - cz * sx;
-        const double r20 = -sy, r21 = cy * sx, r22 = cy * cx;
+        // R = Rx * Ry * Rz (a vector is rotated about Z first; task 0151, the same as the pack's eulerToQuat),
+        // row-major here, written to the columns below.
+        const double r00 = cy * cz, r01 = -cy * sz, r02 = sy;
+        const double r10 = cx * sz + sx * sy * cz, r11 = cx * cz - sx * sy * sz, r12 = -sx * cy;
+        const double r20 = sx * sz - cx * sy * cz, r21 = sx * cz + cx * sy * sz, r22 = cx * cy;
         return { r00 * scale, r10 * scale, r20 * scale, 0.0, r01 * scale, r11 * scale, r21 * scale, 0.0, r02 * scale,
             r12 * scale, r22 * scale, 0.0, position.x, position.y, position.z, 1.0 };
     }
