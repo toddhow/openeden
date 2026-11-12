@@ -144,6 +144,14 @@ namespace
         EXPECT_EQ(MWWorld::normalizedChances(list, 3), (std::vector<std::uint8_t>{ 34, 33, 33 }));
     }
 
+    TEST(MWWorldNeutralWeather, the_rounding_remainder_goes_to_the_largest_weight_not_the_first_entry)
+    {
+        // 1/3 -> 33 and 2/3 -> 66 add to 99: the missing one goes to the larger weight (index 1).
+        sdk::CellWeatherList list;
+        list.entries = { { 0, 1 }, { 1, 2 } };
+        EXPECT_EQ(MWWorld::normalizedChances(list, 2), (std::vector<std::uint8_t>{ 33, 67 }));
+    }
+
     TEST(MWWorldNeutralWeather, chances_ignore_entries_outside_the_table_and_an_empty_list_is_all_zero)
     {
         sdk::CellWeatherList list;
