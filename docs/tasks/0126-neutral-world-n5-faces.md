@@ -73,3 +73,17 @@ The previous (0121) metric applied the skin transform and printed 0.29 (skin) an
 - The factor 2 of the face tint and the hair tint rule are judged by eye, not against the game; hair colour was not compared with a real game frame.
 - A light plugin's facegen name; a facegen file stored under an overriding plugin; skin tint (type 5, 81 shapes of the sample), eye shine (type 16), normal and specular maps; the neck is the body skin and may not match the face's tone exactly; the NPCs that have no facegen file (1,692 of 6,361; why was not examined) still show head parts only.
 - Time of an actor build with a face (decode and product of the maps) was not measured.
+
+### Why 1,692 NPCs have no facegen file (follow-up, 2026-11-12; investigation only, no code change)
+
+An independent Python walk (not the pack's code) of the five masters' NPC_, LVLN, ACHR and RACE records and the facegeom listings of every Skyrim, Update, Dawnguard, HearthFires and Dragonborn BSA, applying the pack's rule (owner folder from the form id's master byte; the traits template followed while the ACBS template flag 0x1 is set, through NPC_ and nested LVLN lists). It reproduces the pack's numbers exactly: 4,669 with a file, 1,692 without (6,361 NPCs; the walk sees one more NPC_, the Player, which the pack does not describe). Aggregates only; the script is not committed.
+
+| Class of the 1,692 | Count |
+| --- | --- |
+| Creature races (no human skeleton): Draugr 409, Falmer 90, Dragon 83, Skeleton 44, Horse 43, Wolf 39, Riekling 39, spiders, spheres, werewolves and others; 714 are placed by an ACHR, 743 never | 1,457 |
+| Humanoid, never placed: the character-creation presets (`<Race><Sex>Preset NN`, 233 of them, e.g. 100 female presets) | 233 |
+| Humanoid, placed, no template, no file (`DLC01SoulCairnSoulMorven`, `dlc2DBAncientDragonborn`; InvisibleRace) | 2 |
+
+Checked and ruled out as lookup mistakes: (1) templated NPCs: the walk follows templates and levelled lists exactly as `ActorIndex::resolve` (a first version that ignored nested LVLN lists gave 2,026, which showed nothing but its own gap); (2) a facegen file in an overriding plugin's folder: 0 of 3,158 files belong to an (NPC, overriding plugin) pair that is not the owner pair, so the "not looked for" limit costs nothing on the five masters (a coincident local id in another folder, for example `0003b540.nif` under dragonborn.esm, belongs to Dragonborn's own `0403b540`); (3) file under another name or case: none; (4) only one facegeom file (`update.esm\00002ecf.nif`) is not claimed by any NPC. Light plugins: none among the masters, still RECALLED-VERIFY.
+
+Conclusion: the lookup is correct. The remaining NPCs have no facegen in vanilla because creatures are not facegen-built and the presets are never placed; no NPC gains a face from a lookup change, so no code changed and no before/after frame exists. What the engine shows for them is what 0121 drew: their head parts (Draugr and Falmer heads come from their race and head parts; creatures have none). Not run: a game run of this follow-up (nothing to compare), the pack itself on the walk's list (the equality of counts is the check).
