@@ -419,6 +419,14 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_624 GetInContainer(reference): is the subject inside that container reference? One reference parameter,
+        /// runs on the subject (CK condition dialog, shown by toddhow, 2026-11-11); the meaning is INFERRED from the
+        /// name, no page describes it.
+        virtual bool inContainer(Subject subject, std::uint32_t container) const
+        {
+            (void)subject, (void)container;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

@@ -389,6 +389,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isBleedingOut(subject));
         }
 
+        // 624 GetInContainer(reference): meaning inferred from the name (CK dialog, toddhow 2026-11-11)
+        float getInContainer(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inContainer(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -397,7 +403,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 60> sTable = { {
+        constexpr std::array<Entry, 61> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -454,6 +460,7 @@ namespace game_skyrimse::conditions
             { 596, spellHasKeyword },
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
+            { 624, getInContainer },
             { 629, getVMQuestVariable },
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },

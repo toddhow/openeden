@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool inContainer(Subject s, std::uint32_t c) const override { return s == mSubject && c == 0x190; }
         bool mBleeding = true;
         bool isBleedingOut(Subject s) const override { return s == mSubject && mBleeding; }
         bool mDrawn = true;
@@ -542,6 +543,17 @@ namespace
         w.mBleeding = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(580, kEq, 0.f), w));
+    }
+
+    // fn_624 GetInContainer(reference): one reference parameter, runs on the subject (CK condition dialog, toddhow
+    // 2026-11-11); meaning inferred from the name.
+    TEST(SkyrimConditionFunctions, fn_624_is_in_the_container)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(624, kEq, 1.f, 0x190), w));
+        EXPECT_TRUE(run(cond(624, kEq, 0.f, 0x191), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(624, kEq, 0.f, 0x190), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
