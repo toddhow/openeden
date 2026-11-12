@@ -124,6 +124,12 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float crimeGold(Subject s, std::uint32_t f) const override
+        {
+            return f == 0xA0 ? 40.f : (f == 0 && s == mSubject ? 15.f : 0.f);
+        }
+        bool mIgnoring = false;
+        bool inCombat(Subject s, bool notIgnoring) const override { return s == mSubject && !(notIgnoring && mIgnoring); }
         float attackDesire(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
         float actorValuePercent(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 0.45f : 1.f; }
         bool mIntimidate = true;
@@ -426,6 +432,24 @@ namespace
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(66, kEq, 0.f, 0x14), w));
         EXPECT_TRUE(run(cond(640, kEq, 0.f, 24), w));
+    }
+
+    // fn_459 GetCrimeGold(faction, optional): the player's crime gold with the faction, or with the subject's crime
+    // faction when none is named; fn_289 IsInCombat(flag): a non-zero flag makes an actor ignoring combat count as not
+    // in combat (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_459_is_crime_gold_and_289_in_combat)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(459, kEq, 40.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(459, kEq, 15.f, 0), w));
+        EXPECT_TRUE(run(cond(289, kEq, 1.f, 0), w));
+        w.mIgnoring = true;
+        EXPECT_TRUE(run(cond(289, kEq, 1.f, 0), w));
+        EXPECT_TRUE(run(cond(289, kEq, 0.f, 1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(459, kEq, 40.f, 0xA0), w));
+        EXPECT_TRUE(run(cond(459, kEq, 0.f, 0), w));
+        EXPECT_TRUE(run(cond(289, kEq, 0.f, 0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -323,6 +323,18 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.actorValuePercent(subject, c.mParam1) : 0.f;
         }
 
+        // 459 GetCrimeGold(faction, optional): with no faction, the subject's crime faction (CK wiki, 2026-11-11)
+        float getCrimeGold(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return c.mParam1 != 0 || subject != 0 ? world.crimeGold(subject, c.mParam1) : 0.f;
+        }
+
+        // 289 IsInCombat(flag) (CK wiki, toddhow 2026-11-11)
+        float isInCombat(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inCombat(subject, c.mParam1 != 0));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -331,7 +343,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 49> sTable = { {
+        constexpr std::array<Entry, 51> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -362,6 +374,7 @@ namespace game_skyrimse::conditions
             { 255, getOffersServicesNow },
             { 277, getBaseActorValue },
             { 286, isSneaking },
+            { 289, isInCombat },
             { 300, isInInterior },
             { 310, getInWorldspace },
             { 314, isActorAVictim },
@@ -370,6 +383,7 @@ namespace game_skyrimse::conditions
             { 403, getRelationshipRank },
             { 426, getIsVoiceType },
             { 453, getPlayerTeammate },
+            { 459, getCrimeGold },
             { 543, getQuestCompleted },
             { 560, hasKeyword },
             { 562, locationHasKeyword },

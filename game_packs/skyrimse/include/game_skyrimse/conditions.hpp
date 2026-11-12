@@ -341,6 +341,20 @@ namespace game_skyrimse::conditions
             (void)subject, (void)actorValueIndex;
             return 0.f;
         }
+        /// fn_459 GetCrimeGold(faction, optional): the player's crime gold with the faction; with faction 0, with the
+        /// subject's crime faction (subject 0 then means none) (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float crimeGold(Subject subject, std::uint32_t faction) const
+        {
+            (void)subject, (void)faction;
+            return 0.f;
+        }
+        /// fn_289 IsInCombat(flag): is the subject in combat? With `notIgnoring` (the flag non-zero), an actor that
+        /// is ignoring combat is not (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool inCombat(Subject subject, bool notIgnoring) const
+        {
+            (void)subject, (void)notIgnoring;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
