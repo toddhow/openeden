@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float friendHits(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
         bool locAliasHasKeyword(std::uint32_t a, std::uint32_t k) const override { return a == 5 && k == 0x1C0; }
         float gameHour() const override { return 19.75f; }
         bool mInFavorStateFlag = true;
@@ -665,6 +666,16 @@ namespace
         EXPECT_TRUE(run(cond(610, kEq, 0.f, 5, 0x1C1), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(610, kEq, 1.f, 5, 0x1C0), w));
+    }
+
+    // fn_288 GetFriendHit(target actor): friendly hits on the subject from the target (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_288_is_friendly_hits_from_the_target)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(288, kEq, 2.f, 0x14), w));
+        EXPECT_TRUE(run(cond(288, kEq, 0.f, 0x15), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(288, kEq, 0.f, 0x14), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

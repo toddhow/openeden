@@ -449,6 +449,12 @@ namespace game_skyrimse::conditions
             return asFloat(world.locAliasHasKeyword(c.mParam1, c.mParam2));
         }
 
+        // 288 GetFriendHit(target actor) (CK wiki, toddhow 2026-11-11)
+        float getFriendHit(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.friendHits(subject, c.mParam1) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -457,7 +463,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 70> sTable = { {
+        constexpr std::array<Entry, 71> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -501,6 +507,7 @@ namespace game_skyrimse::conditions
             { 264, hasSpell },
             { 277, getBaseActorValue },
             { 286, isSneaking },
+            { 288, getFriendHit },
             { 289, isInCombat },
             { 300, isInInterior },
             { 310, getInWorldspace },

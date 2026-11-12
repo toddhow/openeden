@@ -72,3 +72,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_635 IsInFavorState (CK wiki page toddhow showed). Red, then 72 of 72.
 - 2026-11-11: fn_18 GetCurrentTime (game hour as a decimal; CK wiki page toddhow showed). Red, then 73 of 73.
 - 2026-11-11: fn_610 LocAliasHasKeyword(location alias, keyword): parameters from the CK dialog toddhow showed; meaning INFERRED from the name and fn_605. Red, then 74 of 74.
+- 2026-11-11: fn_288 GetFriendHit(target actor) (CK wiki page toddhow showed). Red, then 75 of 75.

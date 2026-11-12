@@ -487,6 +487,13 @@ namespace game_skyrimse::conditions
             (void)alias, (void)keyword;
             return false;
         }
+        /// fn_288 GetFriendHit(target actor): the number of friendly hits the subject has taken from the target (CK
+        /// wiki, shown by toddhow, 2026-11-11).
+        virtual float friendHits(Subject subject, std::uint32_t target) const
+        {
+            (void)subject, (void)target;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
