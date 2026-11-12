@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@
 #include "apps/openmw/mwworld/cellstore.hpp"
 #include "apps/openmw/mwworld/esmstore.hpp"
 #include "apps/openmw/mwworld/neutralcell.hpp"
+#include "apps/openmw/mwworld/neutralphysicswater.hpp"
 #include "apps/openmw/mwworld/neutralstore.hpp"
 #include "apps/openmw/mwworld/worldmodel.hpp"
 
@@ -201,4 +203,38 @@ namespace
         EXPECT_FALSE(pack->getCell()->hasWater());
         EXPECT_FALSE(empty->getCell()->hasWater());
     }
+
+    // Task 0129 follow-up (swimming): the physics water plane follows the player's square.
+    TEST_F(WithWater, the_physics_plane_of_a_square_with_water_is_at_its_height)
+    {
+        MWWorld::CellStore* store = square(2, 3);
+        ASSERT_NE(store, nullptr);
+        const std::optional<float> level = MWWorld::neutralPhysicsWaterLevel(*store);
+        ASSERT_TRUE(level.has_value());
+        EXPECT_FLOAT_EQ(*level, 500.f);
+    }
+
+    TEST_F(WithWater, a_square_with_other_water_gives_its_own_height)
+    {
+        MWWorld::CellStore* store = square(-7, 8);
+        ASSERT_NE(store, nullptr);
+        const std::optional<float> level = MWWorld::neutralPhysicsWaterLevel(*store);
+        ASSERT_TRUE(level.has_value());
+        EXPECT_FLOAT_EQ(*level, -14000.f);
+    }
+
+    TEST_F(WithWater, a_dry_square_gives_no_plane)
+    {
+        MWWorld::CellStore* store = square(6, 6);
+        ASSERT_NE(store, nullptr);
+        EXPECT_FALSE(MWWorld::neutralPhysicsWaterLevel(*store).has_value());
+    }
+
+    TEST_F(WithoutWater, a_source_without_water_gives_no_plane)
+    {
+        MWWorld::CellStore* store = square(2, 3);
+        ASSERT_NE(store, nullptr);
+        EXPECT_FALSE(MWWorld::neutralPhysicsWaterLevel(*store).has_value());
+    }
+
 }

@@ -58,6 +58,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include "neutralcell.hpp"
+#include "neutralphysicswater.hpp"
 #include "neutralstore.hpp"
 #include "cellvisitors.hpp"
 #include "class.hpp"
@@ -590,8 +591,8 @@ namespace MWWorld
                     vsg::ivec2(cellX, cellY), std::numeric_limits<int>::max(), waterLevel, navigatorUpdateGuard);
             }
         }
-        else
-            mPhysics->disableWater();
+        else if (!neutralExterior)
+            mPhysics->disableWater(); // task 0129: a neutral exterior leaves the plane to changePlayerCell
 
         if (!cell.isExterior() && !cellVariant.isQuasiExterior())
             mRendering.configureAmbient(cellVariant);
@@ -947,6 +948,20 @@ namespace MWWorld
         mHalfGridSize = (cell.getCell()->isEsm4() || cell.isNeutral()) ? Constants::ESM4CellGridRadius
                                                                         : Constants::CellGridRadius;
         mCurrentCell = &cell;
+        if (cell.isNeutral())
+        {
+            // Task 0129 (swimming): the physics water plane follows the player's square (toddhow, 2026-11-12).
+            if (const std::optional<float> level = neutralPhysicsWaterLevel(cell))
+            {
+                mPhysics->enableWater(*level);
+                Log(Debug::Info) << "NWATER physics plane at " << *level << " for " << cell.getCell()->getDescription();
+            }
+            else
+            {
+                mPhysics->disableWater();
+                Log(Debug::Info) << "NWATER physics plane off for " << cell.getCell()->getDescription();
+            }
+        }
         MWBase::Environment::get().getExtensionManager()->cellChanged(cell.getCell()->getDescription());
 
         MWWorld::Ptr old = mWorld.getPlayerPtr();
