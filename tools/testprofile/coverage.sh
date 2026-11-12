@@ -48,7 +48,8 @@ awk -F'\t' -v exclude="$HERE/exclude.txt" '
     FILENAME ~ /testprofile-all/ { known[$1 SUBSEP $2] = 1; order[++nall] = $1 SUBSEP $2; next }
     { inProfile[$1 SUBSEP $2] = 1; profileOrder[++nprof] = $1 SUBSEP $2 }
     END {
-        for (i = 1; i <= nprof; ++i) if (!(profileOrder[i] in known)) {
+        # an [extension.<id>] setting takes its default from the extension, not settings-default.cfg
+        for (i = 1; i <= nprof; ++i) if (!(profileOrder[i] in known) && profileOrder[i] !~ /^extension[.]/) {
             split(profileOrder[i], q, SUBSEP); print "FAIL: profile.cfg or a variant names a setting that is not in files/settings-default.cfg: [" q[1] "] " q[2]; bad = 1 }
         for (i = 1; i <= nall; ++i) {
             id = order[i]; split(id, q, SUBSEP)
