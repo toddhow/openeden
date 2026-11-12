@@ -120,6 +120,8 @@ namespace
         bool mDisabled = true;
         bool mSneaking = true;
         bool mRunning = true;
+        std::uint32_t mWorldspace = 0xC0;
+        bool inWorldspace(Subject s, std::uint32_t w) const override { return s == mSubject && w == mWorldspace; }
         bool isRace(Subject s, std::uint32_t r) const override { return s == mSubject && r == mRace; }
         bool isDisabled(Subject s) const override { return s == mSubject && mDisabled; }
         bool isSneaking(Subject s) const override { return s == mSubject && mSneaking; }
@@ -210,6 +212,17 @@ namespace
         EXPECT_TRUE(run(cond(56, kEq, 0.f, 9), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(69, kEq, 0.f, 0xB0), w));
+    }
+
+    // fn_310 GetInWorldspace(worldspace): 1 in an exterior cell of that worldspace, 0 in an interior (CK wiki page
+    // shown by toddhow, 2026-11-11; the world decides "interior"). Nobody as subject is false.
+    TEST(SkyrimConditionFunctions, fn_310_is_in_an_exterior_of_the_worldspace)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(310, kEq, 1.f, 0xC0), w));
+        EXPECT_TRUE(run(cond(310, kEq, 0.f, 0xC1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(310, kEq, 0.f, 0xC0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

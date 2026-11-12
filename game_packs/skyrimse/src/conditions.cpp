@@ -195,6 +195,12 @@ namespace game_skyrimse::conditions
             return asFloat(world.questRunning(c.mParam1));
         }
 
+        // 310 GetInWorldspace(worldspace): exteriors only; the world answers false in an interior (CK wiki, 2026-11-11)
+        float getInWorldspace(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inWorldspace(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -203,7 +209,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 28> sTable = { {
+        constexpr std::array<Entry, 29> sTable = { {
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
@@ -222,6 +228,7 @@ namespace game_skyrimse::conditions
             { 131, getPCIsSex },
             { 249, isInDialogueWithPlayer },
             { 286, isSneaking },
+            { 310, getInWorldspace },
             { 359, getInCurrentLoc },
             { 403, getRelationshipRank },
             { 426, getIsVoiceType },
