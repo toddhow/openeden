@@ -3,6 +3,7 @@
 #include <vsg/io/read.h>
 #include <vsg/utils/SharedObjects.h>
 
+#include <components/animation/animset.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/readnode.hpp>
@@ -41,7 +42,13 @@ namespace MWAnim
 
     vsg::ref_ptr<Anim::ControllerMap> Context::readAnimation(const std::string& file) const
     {
-        return vsg::read_cast<Anim::ControllerMap>(file, animOptions);
+        const vsg::ref_ptr<vsg::Object> object = vsg::read(file, animOptions);
+        // A reader may hand over a bare ControllerMap (a Morrowind .kf) or an AnimSet (a COLLADA model, task 0124
+        // stage C3). The set is what the options' shared cache keeps, so every actor that plays the file gets the same
+        // set from AnimSet::forSource and the clip made from it once. Its controllers are immutable once read.
+        if (const auto* set = dynamic_cast<const Anim::AnimSet*>(object.get()))
+            return vsg::ref_ptr<Anim::ControllerMap>(const_cast<Anim::ControllerMap*>(set->controllers.get()));
+        return object.cast<Anim::ControllerMap>();
     }
 
     std::vector<vsg::ref_ptr<Anim::ControllerMap>> Context::readAnimations(

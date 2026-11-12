@@ -158,7 +158,7 @@ add_component_dir (vsgadapters/nif
     )
 # openeden-vsg: COLLADA models through assimp (task 0010).
 add_component_dir (vsgadapters/dae
-    dae daeanim
+    dae daeclips
     )
 add_component_dir (vsgadapters
     # openeden-vsg: tangents for normal maps (task 0012, V4h).
@@ -818,7 +818,7 @@ target_include_directories(components PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(components SYSTEM BEFORE PUBLIC ${JOLT_INCLUDE_DIRS})
 # The vendored CreativeMotion physics interface (headers only, standard library only) that components/cmphysics implements.
 target_include_directories(components SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/components/creativemotion/physics/interface/include)
-# openeden-vsg: pugixml, compiled into the assimp library, reads COLLADA animation clips (vsgadapters/dae/daeanim.cpp).
+# openeden-vsg: pugixml, compiled into the assimp library, reads COLLADA animation clips (vsgadapters/dae/daeclips.cpp).
 target_include_directories(components SYSTEM PRIVATE ${OPENEDEN_PUGIXML_INCLUDE_DIR})
 # Slang's header (components/vsgutil/slangruntime.cpp, the one file that includes it) as a system header: third-party code
 # whose interfaces have non-virtual destructors and stray semicolons that CI's -Werror flags would reject (the gate of

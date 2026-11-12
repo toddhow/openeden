@@ -1,4 +1,4 @@
-#include "daeanim.hpp"
+#include "daeclips.hpp"
 
 #include <iostream>
 #include <iterator>
@@ -13,6 +13,7 @@
 
 #include <pugixml.hpp>
 
+#include <components/animation/animset.hpp>
 #include <components/animation/constant.hpp>
 #include <components/animation/controllermap.hpp>
 #include <components/animation/interpolate.hpp>
@@ -142,7 +143,7 @@ namespace vsgAdapters
         }
     }
 
-    vsg::ref_ptr<vsg::Object> daeAnimation::read(std::istream& stream, vsg::ref_ptr<const vsg::Options> options) const
+    vsg::ref_ptr<vsg::Object> daeClips::read(std::istream& stream, vsg::ref_ptr<const vsg::Options> options) const
     {
         if (!vsg::compatibleExtension(options.get(), ".dae"))
             return {};
@@ -221,16 +222,19 @@ namespace vsgAdapters
                 ctrl->scale = makeChannel(keys.mScales);
                 controllers->map.emplace(name, std::move(ctrl));
             }
-            return controllers;
+            // The set owns the controllers (until stage C5 they are still what writes a bone) and builds the group
+            // table from the text keys; AnimSet::forSource shares it with every actor that plays this file.
+            const vsg::ref_ptr<const Anim::AnimSet> set = Anim::AnimSet::forSource(controllers, filename);
+            return vsg::ref_ptr<vsg::Object>(const_cast<Anim::AnimSet*>(set.get()));
         }
         catch (std::exception& e)
         {
-            std::cerr << "!daeAnimation::read(" << filename << "): " << e.what() << std::endl;
+            std::cerr << "!daeClips::read(" << filename << "): " << e.what() << std::endl;
             return {};
         }
     }
 
-    bool daeAnimation::getFeatures(Features& features) const
+    bool daeClips::getFeatures(Features& features) const
     {
         features.extensionFeatureMap[".dae"] = READ_ISTREAM;
         return true;

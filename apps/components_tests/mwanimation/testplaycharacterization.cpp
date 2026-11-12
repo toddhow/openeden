@@ -24,7 +24,7 @@
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/vsgadapters/dae/daeanim.hpp>
+#include <components/vsgadapters/dae/daeclips.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgutil/name.hpp>
 
@@ -864,10 +864,13 @@ namespace
             auto options = vsg::Options::create();
             options->extensionHint = ".dae";
             options->setValue("filename", std::string("meshes/anim.dae"));
-            vsg::ref_ptr<vsgAdapters::daeAnimation> reader{ new vsgAdapters::daeAnimation(*mVfs) };
+            vsg::ref_ptr<vsgAdapters::daeClips> reader{ new vsgAdapters::daeClips(*mVfs) };
             std::istringstream stream(document);
             auto object = reader->read(stream, options);
-            return vsg::ref_ptr<Anim::ControllerMap>(dynamic_cast<Anim::ControllerMap*>(object.get()));
+            // The reader returns the AnimSet (task 0124, C3); Play is given the controllers inside it.
+            const auto* set = dynamic_cast<const Anim::AnimSet*>(object.get());
+            return set != nullptr ? vsg::ref_ptr<Anim::ControllerMap>(const_cast<Anim::ControllerMap*>(set->controllers.get()))
+                                  : vsg::ref_ptr<Anim::ControllerMap>();
         }
     };
 

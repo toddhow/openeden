@@ -98,7 +98,7 @@ file(GLOB UNITTEST_SRC_FILES
     resource/colladadocuments.hpp
     resource/testassimpscene.cpp
 
-    vsgadapters/testdaeanimation.cpp
+    vsgadapters/testdaeclips.cpp
     vsgadapters/testnifreader.cpp
     vsgadapters/testautomaps.cpp
     vsgadapters/testmaterialmaps.cpp

@@ -21,7 +21,7 @@
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vsgadapters/dae/dae.hpp>
-#include <components/vsgadapters/dae/daeanim.hpp>
+#include <components/vsgadapters/dae/daeclips.hpp>
 #include <components/vsgadapters/nif/kf.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 #include <components/vsgadapters/vfs.hpp>
@@ -198,7 +198,7 @@ namespace
     vsg::ref_ptr<const vsg::Options> createAnimationOptions(const VFS::Manager* vfs)
     {
         auto vfsReader = vsg::ref_ptr{ new vsgAdapters::vfs(
-            *vfs, { vsg::ref_ptr{ new vsgAdapters::kf }, vsg::ref_ptr{ new vsgAdapters::daeAnimation(*vfs) } }) };
+            *vfs, { vsg::ref_ptr{ new vsgAdapters::kf }, vsg::ref_ptr{ new vsgAdapters::daeClips(*vfs) } }) };
         auto options = vsg::Options::create();
         options->findFileCallback = [vfs](const vsg::Path& in_file, const vsg::Options* /*options*/) -> vsg::Path {
             VFS::Path::Normalized fileNorm(inMeshesDirectory(in_file));
