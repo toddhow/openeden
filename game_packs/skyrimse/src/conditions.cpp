@@ -425,6 +425,12 @@ namespace game_skyrimse::conditions
             return world.scriptVariable(c.mParam1, c.mString2);
         }
 
+        // 258 HasAssociationType(actor, association type) (CK wiki, toddhow 2026-11-11)
+        float hasAssociationType(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasAssociation(subject, c.mParam1, c.mParam2));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -433,7 +439,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 66> sTable = { {
+        constexpr std::array<Entry, 67> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -472,6 +478,7 @@ namespace game_skyrimse::conditions
             { 248, isScenePlaying },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
+            { 258, hasAssociationType },
             { 264, hasSpell },
             { 277, getBaseActorValue },
             { 286, isSneaking },

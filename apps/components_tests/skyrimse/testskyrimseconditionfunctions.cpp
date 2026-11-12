@@ -125,6 +125,10 @@ namespace
         bool mServices = true;
         bool mInterior = true;
         bool mAlarmed = true;
+        bool hasAssociation(Subject s, std::uint32_t o, std::uint32_t a) const override
+        {
+            return s == mSubject && o == 0x14 && a == 0x143CA;
+        }
         bool mGhost = true;
         bool isGhost(Subject s) const override { return s == mSubject && mGhost; }
         float scriptVariable(std::uint32_t o, const std::string& n) const override
@@ -614,6 +618,17 @@ namespace
         w.mGhost = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(237, kEq, 0.f), w));
+    }
+
+    // fn_258 HasAssociationType(actor, association type) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_258_has_the_association)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(258, kEq, 1.f, 0x14, 0x143CA), w));
+        EXPECT_TRUE(run(cond(258, kEq, 0.f, 0x14, 0x143CB), w));
+        EXPECT_TRUE(run(cond(258, kEq, 0.f, 0x15, 0x143CA), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(258, kEq, 0.f, 0x14, 0x143CA), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

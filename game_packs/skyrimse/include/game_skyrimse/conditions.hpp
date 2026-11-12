@@ -463,6 +463,13 @@ namespace game_skyrimse::conditions
             (void)object, (void)name;
             return 0.f;
         }
+        /// fn_258 HasAssociationType(actor, association type): do the subject and the actor have a relationship of
+        /// this ASTP (for example spouse)? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool hasAssociation(Subject subject, std::uint32_t other, std::uint32_t associationType) const
+        {
+            (void)subject, (void)other, (void)associationType;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
