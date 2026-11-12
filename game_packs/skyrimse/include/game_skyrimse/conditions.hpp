@@ -191,6 +191,30 @@ namespace game_skyrimse::conditions
             (void)subject, (void)target;
             return 0.f;
         }
+        /// fn_69 GetIsRace(race): is the subject's race this RACE? (toddhow, 2026-11-11)
+        virtual bool isRace(Subject subject, std::uint32_t race) const
+        {
+            (void)subject, (void)race;
+            return false;
+        }
+        /// fn_35 GetDisabled: is the subject reference disabled? (toddhow, 2026-11-11)
+        virtual bool isDisabled(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_286 IsSneaking: is the subject actor sneaking? (toddhow, 2026-11-11)
+        virtual bool isSneaking(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
+        virtual bool questRunning(std::uint32_t quest) const
+        {
+            (void)quest;
+            return false;
+        }
     };
 
     /// The CTDA subrecords of a record's (inflated) data, in order. False if the data is malformed (a subrecord

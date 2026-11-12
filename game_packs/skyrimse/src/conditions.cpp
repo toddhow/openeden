@@ -174,6 +174,27 @@ namespace game_skyrimse::conditions
             return world.keywordDataForLocation(c.mParam1, c.mParam2);
         }
 
+        // 69 GetIsRace(race), 35 GetDisabled, 286 IsSneaking, 56 GetQuestRunning(quest) (toddhow, 2026-11-11)
+        float getIsRace(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isRace(subject, c.mParam1));
+        }
+
+        float getDisabled(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isDisabled(subject));
+        }
+
+        float isSneaking(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isSneaking(subject));
+        }
+
+        float getQuestRunning(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return asFloat(world.questRunning(c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -182,13 +203,16 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 24> sTable = { {
+        constexpr std::array<Entry, 28> sTable = { {
             { 14, getActorValue },
+            { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
+            { 56, getQuestRunning },
             { 58, getStage },
             { 59, getStageDone },
             { 67, getInCell },
+            { 69, getIsRace },
             { 70, getIsSex },
             { 71, getInFaction },
             { 72, getIsId },
@@ -197,6 +221,7 @@ namespace game_skyrimse::conditions
             { 77, getRandomPercent },
             { 131, getPCIsSex },
             { 249, isInDialogueWithPlayer },
+            { 286, isSneaking },
             { 359, getInCurrentLoc },
             { 403, getRelationshipRank },
             { 426, getIsVoiceType },

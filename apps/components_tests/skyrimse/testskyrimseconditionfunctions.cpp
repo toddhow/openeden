@@ -116,6 +116,14 @@ namespace
         }
         std::uint32_t mTarget = 0x14;
         float mRank403 = 3.f;
+        std::uint32_t mRace = 0xB0;
+        bool mDisabled = true;
+        bool mSneaking = true;
+        bool mRunning = true;
+        bool isRace(Subject s, std::uint32_t r) const override { return s == mSubject && r == mRace; }
+        bool isDisabled(Subject s) const override { return s == mSubject && mDisabled; }
+        bool isSneaking(Subject s) const override { return s == mSubject && mSneaking; }
+        bool questRunning(std::uint32_t q) const override { return q == mQuest && mRunning; }
     };
 
     bool run(const Ctda& c, const World& w, Evaluator* out = nullptr)
@@ -181,6 +189,27 @@ namespace
         EXPECT_FALSE(run(cond(403, kGe, 0.f, 0x14), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(403, kEq, 0.f, 0x14), w));
+    }
+
+    // fn_69 GetIsRace(race), fn_35 GetDisabled, fn_286 IsSneaking, fn_56 GetQuestRunning(quest): meanings from
+    // toddhow's descriptions (2026-11-11). Nobody as subject is false, without asking the world.
+    TEST(SkyrimConditionFunctions, fn_69_35_286_56_race_disabled_sneaking_quest_running)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(69, kEq, 1.f, 0xB0), w));
+        EXPECT_TRUE(run(cond(69, kEq, 0.f, 0xB1), w));
+        EXPECT_TRUE(run(cond(35, kEq, 1.f), w));
+        EXPECT_TRUE(run(cond(286, kEq, 1.f), w));
+        EXPECT_TRUE(run(cond(56, kEq, 1.f, 9), w));
+        EXPECT_TRUE(run(cond(56, kEq, 0.f, 10), w));
+        w.mDisabled = false;
+        w.mSneaking = false;
+        w.mRunning = false;
+        EXPECT_TRUE(run(cond(35, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(286, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(56, kEq, 0.f, 9), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(69, kEq, 0.f, 0xB0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
