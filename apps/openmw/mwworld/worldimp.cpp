@@ -55,6 +55,7 @@
 #include <components/detournavigator/stats.hpp>
 #include "neutraldialogue.hpp"
 #include "neutralnavigation.hpp"
+#include "neutralrotation.hpp"
 #include <components/detournavigator/updateguard.hpp>
 
 #include <components/files/conversion.hpp>
@@ -1469,7 +1470,7 @@ namespace MWWorld
                 mPhysics->updatePosition(ptr);
             }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsTurned())
-                mRendering->rotateObject(ptr, Misc::Convert::makeQuaternion(ptr.getRefData().getPosition()));
+                mRendering->rotateObject(ptr, neutralActorQuaternion(ptr.getRefData().getPosition()));
             // Task 0148: the locomotion blend of a drawn neutral actor follows the speed it really moved at.
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())

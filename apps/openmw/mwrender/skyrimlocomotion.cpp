@@ -90,6 +90,13 @@ namespace MWRender::SkyrimLocomotion
         mState.mRunReady = mRun.ready();
 
         float target = mGroundSpeed.load(std::memory_order_relaxed);
+        // Developer aid: a constant ground speed for every actor, to look at a cycle on a standing NPC.
+        static const float sForced = [] {
+            const char* v = std::getenv("OPENEDEN_NEUTRAL_LOCO_FORCE");
+            return v ? static_cast<float>(std::atof(v)) : -1.f;
+        }();
+        if (sForced >= 0.f)
+            target = sForced;
         if (!std::isfinite(target) || target < 0.f)
             target = 0.f;
         float dt = 0.f;

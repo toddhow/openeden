@@ -4,7 +4,7 @@
 -- looking at LOOK. Started by "n5loco".
 local core = require('openmw.core')
 
-local VIEW = { 60, -250, 72 } -- the player's place: open floor south-west of the bar's end
+local VIEW = { -140, -250, 72 } -- the player's place: west of the route (the NPC walks through the player, so not on it)
 local LOOK = { 250, -340 } -- what it looks at: the middle of the route
 local SHOT_EVERY = 0.2
 local SHOTS = 40
@@ -24,7 +24,8 @@ return {
             if shot < SHOTS and t - placed >= 0.5 + shot * SHOT_EVERY then
                 shot = shot + 1
                 require('openmw.debug').takeScreenshot()
-                print('N5B loco shot ' .. shot)
+                local pos = require('openmw.self').position
+                print('N5B loco shot ' .. shot .. ' player ' .. pos.x .. ' ' .. pos.y .. ' ' .. pos.z)
             end
         end,
     },
