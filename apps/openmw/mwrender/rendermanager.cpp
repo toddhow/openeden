@@ -2574,7 +2574,7 @@ namespace MWRender
             coverage = mLodTerrain->update(camera);
             if (mNeutralExtentPending && mLodTerrain->stats().mUsable)
             {
-                // Task 0130: a neutral world has no ESM land to measure for `view distance = auto` with `map view`; the
+                // Task 0133: a neutral world has no ESM land to measure for `view distance = auto` with `map view`; the
                 // tiles of its pack say how far the land reaches.
                 mNeutralExtentPending = false;
                 const Lod::LandExtent extent = mLodTerrain->landExtent();

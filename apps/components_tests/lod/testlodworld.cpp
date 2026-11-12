@@ -1,4 +1,4 @@
-// Task 0130 (milestone M-S2): where a LOD pack lives for a game pack's neutral world, and the fingerprint a neutral
+// Task 0133 (milestone M-S2): where a LOD pack lives for a game pack's neutral world, and the fingerprint a neutral
 // pack is checked against. Pure code.
 #include <gtest/gtest.h>
 

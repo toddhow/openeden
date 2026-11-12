@@ -10,7 +10,7 @@
 #include "tilepack.hpp"
 #include "viewlimits.hpp"
 
-// Which world a LOD pack belongs to (task 0130, milestone M-S2 of docs/design/skyrim-se-implementation-plan.md).
+// Which world a LOD pack belongs to (task 0133, milestone M-S2 of docs/design/skyrim-se-implementation-plan.md).
 //
 // Morrowind's packs live where they always did: <user data>/openeden/lod/terrain.edenpak and objects.edenpak (an empty
 // game id selects them, and nothing about them changes). A game pack's neutral world gets a folder of its own, keyed by

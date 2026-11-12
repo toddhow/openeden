@@ -337,7 +337,7 @@ namespace MWRender
             return text;
         }
 
-        // Task 0130: reads the tiles of a pack that passed the neutral check (the Morrowind path below has its own loop).
+        // Task 0133: reads the tiles of a pack that passed the neutral check (the Morrowind path below has its own loop).
         // `far levels` (maxLevel, 0: every level) caps the levels in use.
         LoadResult readPackTiles(
             const Lod::TilePack& pack, std::uint32_t maxLevel, LoadResult result)
@@ -386,7 +386,7 @@ namespace MWRender
                 return result;
             }
 
-            // Task 0130: a game pack's neutral world. The land cannot be read again here (its cells are loaded by the
+            // Task 0133: a game pack's neutral world. The land cannot be read again here (its cells are loaded by the
             // main thread, a window at a time), so the pack is checked against the facts of the world its name carries
             // (Lod::neutralFingerprint) and the sizes; a bake made from other plugins reaches another fingerprint.
             if (!neutralWorldspaceName.empty())

@@ -144,7 +144,7 @@ namespace Lod
     {
         if (settings.mLevel > maxLevel || settings.mGridSize < minGridSize || settings.mGridSize > maxGridSize)
             return false;
-        // A cell has a power-of-two number of intervals, at least 2 (task 0130: 64 for Morrowind, 32 for Skyrim SE).
+        // A cell has a power-of-two number of intervals, at least 2 (task 0133: 64 for Morrowind, 32 for Skyrim SE).
         if (settings.mVerticesPerCell < 3 || settings.mVerticesPerCell > 1025
             || ((settings.mVerticesPerCell - 1) & (settings.mVerticesPerCell - 2)) != 0)
             return false;
@@ -259,7 +259,7 @@ namespace Lod
         hashU32(hasher, id.mY);
         hashU32(hasher, settings.mGridSize);
         hashU32(hasher, settings.mCellSize);
-        // Only a cell that is not Morrowind's adds to the digest, so Morrowind's packs keep theirs (task 0130).
+        // Only a cell that is not Morrowind's adds to the digest, so Morrowind's packs keep theirs (task 0133).
         if (settings.mVerticesPerCell != landVerticesPerCell)
             hashU32(hasher, settings.mVerticesPerCell);
         hashU32(hasher, bakerVersion);

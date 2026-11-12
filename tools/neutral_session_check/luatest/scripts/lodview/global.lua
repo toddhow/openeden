@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0130, far terrain tiles): leaves the Bannered Mare by its front door into
+-- tools/neutral_session_check (task 0133, far terrain tiles): leaves the Bannered Mare by its front door into
 -- WhiterunWorld, then visits places of the water map (a lake at 5100 below zero, a river that steps down by cells) and
 -- takes pictures from a static camera over each. Real seconds. The places are grid squares of Tamriel's land as
 -- WhiterunWorld borrows it; heights come from the pack (log lines "NWATER").
@@ -10,7 +10,7 @@ local start = nil
 local step = 0
 local doorBase = 'skyrimse:b152263'
 
--- { name, teleport x, y, camera x, y, z, yaw, pitch }  (task 0130: the far field from Whiterun's plain; yaw 0 looks north)
+-- { name, teleport x, y, camera x, y, z, yaw, pitch }  (task 0133: the far field from Whiterun's plain; yaw 0 looks north)
 local places = {
     { 'north-level', 25670, -7633, 25670, -7633, 0, 0, 0.0 },
     { 'north-down', 25670, -7633, 25670, -7633, 0, 0, 0.12 },

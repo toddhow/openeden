@@ -38,7 +38,7 @@ namespace OMW
         constexpr std::chrono::milliseconds sliceTime{ 10 };
         // The name Morrowind's one exterior world gets in the manifest (worldspace index 0).
         constexpr const char* worldspaceName = "Morrowind";
-        // Task 0130: the world a bake of a game pack's neutral world takes when OPENEDEN_LOD_BAKE_WORLD is not set.
+        // Task 0133: the world a bake of a game pack's neutral world takes when OPENEDEN_LOD_BAKE_WORLD is not set.
         constexpr const char* defaultNeutralWorld = "Tamriel";
         // How far from the origin (in cells) the scan for land looks. Skyrim's Tamriel spans about -60..60 by -45..50;
         // a larger world raises this (and the cache cap) on purpose.
@@ -57,7 +57,7 @@ namespace OMW
         std::filesystem::path mOut;
         Resource::ResourceSystem& mResources;
         // Morrowind: the ESM store's terrain storage. A game pack's neutral world: the neutral storage over a cache of
-        // its own that holds the whole land (task 0130). mStorage points at whichever is in use.
+        // its own that holds the whole land (task 0133). mStorage points at whichever is in use.
         std::unique_ptr<MWRender::TerrainStorage> mEsmStorage;
         std::shared_ptr<NeutralTerrain::CellCache> mNeutralCache;
         std::unique_ptr<NeutralTerrain::Storage> mNeutralStorage;
@@ -108,7 +108,7 @@ namespace OMW
                              << ").";
         }
 
-        // Task 0130: a session of a game pack with a neutral world source bakes that world's land. True when this is
+        // Task 0133: a session of a game pack with a neutral world source bakes that world's land. True when this is
         // such a session and the bake is set up (the scan of the land follows, slice by slice); false for Morrowind's;
         // with state.mFinished set when it IS such a session and cannot go on (the reason is logged).
         bool beginNeutral(LodTerrainBaker::State& state)
@@ -203,7 +203,7 @@ namespace OMW
 
         if (state.mScanning)
         {
-            // Task 0130: read the land of a neutral world a row of cells at a time (the source is main thread only).
+            // Task 0133: read the land of a neutral world a row of cells at a time (the source is main thread only).
             const auto scanEnd = std::chrono::steady_clock::now() + sliceTime;
             while (state.mScanRow <= neutralScanRadius && std::chrono::steady_clock::now() < scanEnd)
             {

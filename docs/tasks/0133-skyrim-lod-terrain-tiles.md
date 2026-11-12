@@ -1,4 +1,4 @@
-# Task 0130: Skyrim LOD terrain tiles from our baker (milestone M-S2, stage 1)
+# Task 0133: Skyrim LOD terrain tiles from our baker (milestone M-S2, stage 1)
 
 Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.3 (exteriors), 4.6 (LOD, option (b): our own baker on the neutral model), 5.2 (M-S2 "LOD tiles from our baker"). Related: tasks 0055, 0059, 0060, 0066, 0088 (the LOD system), 0120 and 0125 (neutral terrain), decision 0016.
 Status: stage 1 (terrain tiles) built; stage 2 (object clusters) not started, what it needs is recorded below.

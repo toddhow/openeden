@@ -1,4 +1,4 @@
-// Task 0130 (milestone M-S2): the terrain tile baker over land with 33 vertices a cell (Skyrim SE) instead of
+// Task 0133 (milestone M-S2): the terrain tile baker over land with 33 vertices a cell (Skyrim SE) instead of
 // Morrowind's 65. Pure code over a generated LandSource; no GPU, window or game data.
 #include <gtest/gtest.h>
 
@@ -237,7 +237,7 @@ namespace
     }
 
     // Morrowind's bake with the default settings must stay exactly what it was before mVerticesPerCell existed: the
-    // pinned values below were recorded by the code BEFORE the change (task 0130), on this generated land, and must
+    // pinned values below were recorded by the code BEFORE the change (task 0133), on this generated land, and must
     // never be edited to make this test pass.
     TEST(TileBakeMorrowindUnchanged, a_default_bake_has_the_digest_parameters_and_manifest_it_always_had)
     {

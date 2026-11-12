@@ -56,7 +56,7 @@ namespace Lod
             std::vector<std::uint8_t>& indices) const = 0;
 
         /// The vertex colours of the same square: n = (verticesPerCell - 1) * sizeInCells + 1 vertices a side (cells share their edge
-        /// vertices; 65 vertices a cell for Morrowind, 33 for Skyrim SE: task 0130), x fastest, south row first, 3 bytes (R, G, B) a vertex. `rgb` gets n * n * 3 bytes.
+        /// vertices; 65 vertices a cell for Morrowind, 33 for Skyrim SE: task 0133), x fastest, south row first, 3 bytes (R, G, B) a vertex. `rgb` gets n * n * 3 bytes.
         virtual void vertexColours(std::int32_t cellX, std::int32_t cellY, std::uint32_t sizeInCells,
             std::vector<std::uint8_t>& rgb) const = 0;
     };
