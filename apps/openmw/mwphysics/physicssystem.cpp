@@ -308,7 +308,7 @@ namespace MWPhysics
         // Task 0110 (neutral world stage N3a-4b): with the neutral world on, a Skyrim SE model gets a collision mesh
         // from its visual triangles. Set before any shape is requested; off, the manager is exactly what it was.
         if (Settings::game().mNeutralWorld)
-            mShapeManager->setSceneShapeReader(SkyrimShape::makeSceneShapeReader());
+            mShapeManager->setSceneShapeReader(SkyrimShape::makeSceneShapeReader(Settings::game().mNeutralHavokCollision));
 
         // Register allocation hook and callbacks
         JPH::RegisterDefaultAllocator();

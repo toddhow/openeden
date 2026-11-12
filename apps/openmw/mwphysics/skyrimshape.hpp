@@ -36,7 +36,7 @@ namespace MWPhysics::SkyrimShape
 
     /// The hook for PhysicsShapeManager: accepts Skyrim SE files (header 20.2.0.7), reads them as a Nif::Scene,
     /// flattens them, builds the collision mesh and the shape.
-    std::shared_ptr<const Resource::SceneShapeReader> makeSceneShapeReader();
+    std::shared_ptr<const Resource::SceneShapeReader> makeSceneShapeReader(bool useHavokCollision = false);
 
     /// Process-wide totals for the log line of a neutral cell. Relaxed atomics: a count, not a synchronisation.
     struct Counters
@@ -54,6 +54,14 @@ namespace MWPhysics::SkyrimShape
         std::atomic<std::uint64_t> mMaxMicroseconds{ 0 };
         std::atomic<std::uint64_t> mTrianglesDropped{ 0 };
         std::atomic<std::uint64_t> mBlendedShapesLeftOut{ 0 };
+        // Task 0144 (only with `[Game] neutral havok collision`): where a model's collision came from.
+        std::atomic<std::uint64_t> mHavokShapes{ 0 }; // models whose shape was built from bhk data
+        std::atomic<std::uint64_t> mHavokNoCollision{ 0 }; // models whose bhk bodies are all non-solid
+        std::atomic<std::uint64_t> mHavokNoData{ 0 }; // models with no bhk bodies: visual triangles used
+        std::atomic<std::uint64_t> mHavokUnusable{ 0 }; // bhk data this reader or Jolt could not use: visual triangles used
+        std::atomic<std::uint64_t> mHavokBodies{ 0 };
+        std::atomic<std::uint64_t> mHavokMicroseconds{ 0 };
+        std::atomic<std::uint64_t> mHavokMaxMicroseconds{ 0 };
     };
 
     Counters& counters();

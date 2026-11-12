@@ -313,7 +313,7 @@ add_component_dir (fuz
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene
-    build vertexdecode header flatten collision skinned skeleton facetint
+    build vertexdecode header flatten collision skinned skeleton facetint havok
     )
 
 # Task 0119 (research note 0054): the Havok packfile container, hkaSkeleton and hkaSplineCompressedAnimation, read

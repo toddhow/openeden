@@ -17,6 +17,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/istreamptr.hpp>
+#include "skyrimhavok.hpp"
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/flatten.hpp>
 #include <components/nifscene/header.hpp>
@@ -93,11 +94,11 @@ namespace MWPhysics::SkyrimShape
         return shape;
     }
 
-    std::shared_ptr<const Resource::SceneShapeReader> makeSceneShapeReader()
+    std::shared_ptr<const Resource::SceneShapeReader> makeSceneShapeReader(bool useHavokCollision)
     {
         auto reader = std::make_shared<Resource::SceneShapeReader>();
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
-        reader->read = [](std::string data, const std::string& filename) -> vsg::ref_ptr<Resource::PhysicsShape> {
+        reader->read = [useHavokCollision](std::string data, const std::string& filename) -> vsg::ref_ptr<Resource::PhysicsShape> {
             Counters& totals = counters();
             const auto begin = std::chrono::steady_clock::now();
             totals.mModels.fetch_add(1, std::memory_order_relaxed);
@@ -105,9 +106,57 @@ namespace MWPhysics::SkyrimShape
             try
             {
                 NifScene::SceneOptions sceneOptions;
+                sceneOptions.mReadHavok = useHavokCollision;
                 Files::IStreamPtr stream(new std::istringstream(std::move(data)));
                 const NifScene::Scene scene
                     = NifScene::readScene(std::move(stream), VFS::Path::Normalized(filename), sceneOptions);
+                if (useHavokCollision)
+                {
+                    const auto havokBegin = std::chrono::steady_clock::now();
+                    SkyrimHavok::BuildReport havokReport;
+                    std::string why;
+                    vsg::ref_ptr<Resource::PhysicsShape> havokShape;
+                    const SkyrimHavok::Outcome outcome = SkyrimHavok::makeShape(scene, havokShape, havokReport, why);
+                    const auto havokMicros = static_cast<std::uint64_t>(
+                        std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::steady_clock::now() - havokBegin)
+                            .count());
+                    totals.mHavokMicroseconds += havokMicros;
+                    raiseMax(totals.mHavokMaxMicroseconds, havokMicros);
+                    if (outcome == SkyrimHavok::Outcome::Shape)
+                    {
+                        totals.mHavokShapes.fetch_add(1, std::memory_order_relaxed);
+                        Log(Debug::Verbose) << "Skyrim havok collision for \"" << filename << "\": " << havokReport.mBodies
+                                            << " bodies, " << havokReport.mJoltShapes << " Jolt shapes";
+                        totals.mHavokBodies += havokReport.mBodies;
+                        totals.mShapes.fetch_add(1, std::memory_order_relaxed);
+                        totals.mBytes += havokShape->mCollisionShape->GetStats().mSizeBytes;
+                        totals.mMicroseconds += havokMicros;
+                        return havokShape;
+                    }
+                    if (outcome == SkyrimHavok::Outcome::NoCollision)
+                    {
+                        totals.mHavokNoCollision.fetch_add(1, std::memory_order_relaxed);
+                        {
+                            std::string layers;
+                            for (const auto& b : scene.mHavok.mBodies)
+                                layers += " " + std::to_string(b.mLayer);
+                            Log(Debug::Verbose) << "Skyrim havok collision for \"" << filename
+                                                << "\": no solid body (layers" << layers << "), no collision";
+                        }
+                        noteModelReadWithNoCollision(filename);
+                        totals.mMicroseconds += havokMicros;
+                        return {};
+                    }
+                    if (scene.mHavok.mBodies.empty())
+                        totals.mHavokNoData.fetch_add(1, std::memory_order_relaxed);
+                    else
+                    {
+                        totals.mHavokUnusable.fetch_add(1, std::memory_order_relaxed);
+                        Log(Debug::Verbose) << "Skyrim havok collision for \"" << filename << "\" not used (" << why
+                                            << "), using the visual triangles";
+                    }
+                }
                 const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene);
                 NifScene::Collision::Report report;
                 const NifScene::Collision::Mesh mesh = NifScene::Collision::buildMesh(flat, {}, &report);
@@ -196,6 +245,12 @@ namespace MWPhysics::SkyrimShape
             << " blended shapes and " << c.mTrianglesDropped.load() << " bad triangles, build time "
             << static_cast<double>(c.mMicroseconds.load()) / 1000.0 << " ms in all, "
             << static_cast<double>(c.mMaxMicroseconds.load()) / 1000.0 << " ms the slowest";
+        if (c.mHavokShapes.load() + c.mHavokNoCollision.load() + c.mHavokNoData.load() + c.mHavokUnusable.load() > 0)
+            out << "; havok: " << c.mHavokShapes.load() << " models from bhk data (" << c.mHavokBodies.load()
+                << " bodies), " << c.mHavokNoCollision.load() << " with no solid body, " << c.mHavokNoData.load()
+                << " without bhk data and " << c.mHavokUnusable.load() << " with unusable bhk data fell back to visual triangles, "
+                << static_cast<double>(c.mHavokMicroseconds.load()) / 1000.0 << " ms in all, "
+                << static_cast<double>(c.mHavokMaxMicroseconds.load()) / 1000.0 << " ms the slowest";
         return out.str();
     }
 }

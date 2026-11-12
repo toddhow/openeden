@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "havok.hpp"
+
 namespace NifScene
 {
     using Vec2 = std::array<float, 2>;
@@ -226,6 +228,8 @@ namespace NifScene
         std::vector<ShaderMaterial> mMaterials;
         std::vector<AlphaProperty> mAlphaProperties;
         std::vector<std::uint32_t> mRoots; // indices into mNodes
+        /// The bhk collision data (task 0144), only filled when SceneOptions::mReadHavok is set.
+        Havok::Collision mHavok;
         /// Things a consumer may want to log: a vertex layout that disagrees with its declared size, partition bone
         /// lists that are not the identity. Deterministic, in the order found.
         std::vector<std::string> mWarnings;

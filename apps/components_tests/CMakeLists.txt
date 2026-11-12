@@ -251,6 +251,8 @@ file(GLOB UNITTEST_SRC_FILES
     nifscene/testscenebuild.cpp
     nifscene/testscenematerial.cpp
     nifscene/testscenemorrowindskin.cpp
+    nifscene/testbhk.cpp
+    nifscene/testbhkreal.cpp
     nifscene/testscenereal.cpp
     nifscene/testscenerealmaterials.cpp
     nifscene/testvertexdecode.cpp

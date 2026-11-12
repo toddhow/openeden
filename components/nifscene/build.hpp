@@ -25,6 +25,8 @@ namespace NifScene
         }();
         /// Keep influences whose weight is exactly zero (the packed format pads every vertex to four).
         bool mKeepZeroWeights = false;
+        /// Also read the bhk collision shapes into Scene::mHavok (task 0144). Off: the scene is what it was.
+        bool mReadHavok = false;
     };
 
     /// The scene of a parsed file. Throws Nif::Exception, naming the file, for content it cannot represent (a triangle

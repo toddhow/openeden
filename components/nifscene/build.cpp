@@ -702,6 +702,8 @@ namespace NifScene
                 mScene.mBethVersion = mFile.mBethVersion;
                 buildNodes();
                 buildGeometries();
+                if (mOptions.mReadHavok)
+                    mScene.mHavok = Havok::readCollision(mFile);
                 return std::move(mScene);
             }
         };

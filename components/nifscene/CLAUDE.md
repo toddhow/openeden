@@ -2,7 +2,7 @@
 
 `Nif::Scene` (namespace `NifScene`): the content of a NIF file as plain arrays (task 0082, `docs/tasks/0082-nif-any-version-and-scene.md`).
 Formats layer (`CI/layer_rules.txt`): it may include `components/nif`, base utilities and nothing above. `scene.hpp`
-holds no NIF, VSG or Jolt type; only `build.*` and `vertexdecode.*` include `components/nif` headers.
+holds no NIF, VSG or Jolt type; only `build.*`, `vertexdecode.*` and `havok.cpp` include `components/nif` headers.
 
 Rules and pitfalls:
 
@@ -46,3 +46,5 @@ Rules and pitfalls:
 
 - **Tree sway (task 0136, `Limits::mTreeSway`, off):** a lighting shape with the Tree_Anim flag (F2 bit 29), Vertex_Colors and colours is marked `MaterialKey::mSway` (never merged with a still shape) and keeps the file's vertex alpha, which is its per-vertex flexibility (0 rigid, 1 free tip; 63 percent of the vertices of the vanilla tree shapes are at 0 to 0.1, 13 percent at 1: `testskyrimsetreesreal.cpp`, aggregates only). The host turns the alpha into the sway weight (`apps/openmw/mwrender/skyrimtreesway.*`). Skinned shapes (the trunks and branches of the 55 models with a BSTreeNode) are drawn at rest by `Limits::mSkinnedAtRest` (task 0136, skinned trunks: boneWorld * bind per bone, the skin transform not applied).
 - **Material mapping (task 0130, `[Game] neutral world materials`, off):** `Limits::mSurfaceMaps` makes `flatten` keep the normal map (slot 1) with turned tangents (`Shape::mTangents`), the glow map (slot 2, only with the Glow_Map flag F2 bit 6), specular colour times strength, glossiness, emissive and the shader type in `MaterialKey`; model-space normals (F1 bit 12) and shapes with a bad tangent get no normal map. Flag meanings, tangent convention and slot use are checked by `testskyrimmaterialsreal.cpp` (gated, aggregates only). Skinned shapes are not covered.
+
+- **Havok collision (task 0144, `havok.*`, `SceneOptions::mReadHavok`, off):** `Havok::readCollision` turns a node's `bhkCollisionObject` -> `bhkRigidBody(T)` -> shape tree into plain `Shape`s and `Body`s in Havok units (`Scene::mHavok`); the MOPP wrapper is transparent, compressed meshes are expanded to triangles (`decodeChunk`), unknown block types are `ShapeKind::Unsupported` and a consumer must refuse the model. `kHavokToGame`, the chunk vertex step and the two quaternion orders are settled on the user's files in `docs/research/0144-havok-collision-provenance.md`; do not change them from memory. `apps/components_tests/nifscene/testbhkreal.cpp` is the gated survey and vertex-correspondence check (aggregates only).
