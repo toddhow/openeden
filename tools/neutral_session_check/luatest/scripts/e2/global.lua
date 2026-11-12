@@ -8,7 +8,10 @@ local start = nil
 local step = 0
 local hops = 0
 local hourSet = false
+local DOORBASE = 'skyrimse:b152263'
 local probeAt = nil
+local shotAt = nil
+local shotAt2 = nil
 
 local function nearestDoor(cell, base, near)
     local best, bestD = nil, math.huge
@@ -36,6 +39,18 @@ return {
             if player == nil then return end
             start = start or core.getRealTime()
             local t = core.getRealTime() - start
+            if shotAt and t >= shotAt then
+                shotAt = nil
+                player:sendEvent('E2Wire')
+                shotAt2 = t + 1
+                player:sendEvent('E2Shot')
+                player:sendEvent('E2Down', 0)
+            end
+            if shotAt2 and t >= shotAt2 then
+                shotAt2 = nil
+                player:sendEvent('E2Shot')
+                player:sendEvent('E2Wire')
+            end
             if probeAt and t >= probeAt then
                 probeAt = nil
                 player:sendEvent('E2Probe')
@@ -60,6 +75,7 @@ return {
                 player:sendEvent('E2Probe')
             elseif step == 2 and t >= 18 then
                 step = 3
+                if os.getenv and false then end
                 player:sendEvent('E2Walk', true)
             elseif step == 3 and t >= 26 then
                 step = 4
@@ -76,11 +92,38 @@ return {
                 print(string.format('E2 hop %d to %.0f,%.0f,%.0f', hops, target.x, target.y, target.z))
                 player:teleport(player.cell, target, { onGround = true })
                 probeAt = t + 4 -- after it has settled onto the ground
-                if hops % 2 == 0 then player:sendEvent('E2Shot') end
+                if hops % 2 == 0 then shotAt = t + 4; player:sendEvent('E2Shot'); player:sendEvent('E2Down', 1.3) end
             elseif step == 12 and t >= 26 + 9 * 7 then
                 step = 13
                 report('end', t, player)
                 player:sendEvent('E2Shot')
+            elseif step == 13 and t >= 94 then
+                -- the way back: to the spot the front door put us on, then through the door we find there
+                step = 14
+                player:teleport(player.cell, util.vector3(25670, -7633, -3236), { onGround = true })
+            elseif step == 14 and t >= 98 then
+                step = 15
+                report('at the door', t, player)
+                local best, bestD = nil, 400
+                for _, obj in ipairs(player.cell:getAll()) do
+                    local ok, id = pcall(function() return obj.recordId end)
+                    if ok then
+                        local d = (obj.position - player.position):length()
+                        if d < 400 then print(string.format('E2 near %.0f %s', d, tostring(id))) end
+                    end
+                end
+            elseif step == 15 and t >= 99 then
+                step = 16
+                local door = nearestDoor(player.cell, DOORBASE, { 25670, -7633, -3236 })
+                if door == nil then print('E2 return door not found') else
+                    print('E2 activating the exterior door ' .. tostring(door.recordId))
+                    door:activateBy(player)
+                end
+            elseif step == 16 and t >= 108 then
+                step = 17
+                report('back inside', t, player)
+                player:sendEvent('E2Shot')
+                shotAt = t + 3
             end
         end,
     },

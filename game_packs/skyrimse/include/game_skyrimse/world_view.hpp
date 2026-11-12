@@ -197,6 +197,11 @@ namespace game_skyrimse
         /// call when nothing runs, and more than once. The destructor calls it. Not callable from the worker.
         void cancelAndJoin();
 
+        /// Task 0125: whether startLoad's worker built the terrain index (LAND, LTEX of every plugin) itself, right after
+        /// the cell index and after isReady() turned true, so that the first exterior door does not build it on the
+        /// main thread (it took 2.8 s). Any thread; true once the worker has finished that build.
+        [[nodiscard]] bool terrainBuiltOnWorker() const { return mTerrainFromWorker.load(std::memory_order_acquire); }
+
         /// How many queries had to wait for the worker, and the longest wait in milliseconds. Any thread.
         [[nodiscard]] std::uint64_t indexWaits() const { return mWaits.load(); }
         [[nodiscard]] std::uint64_t longestIndexWaitMillis() const { return mLongestWaitMillis.load(); }
@@ -332,7 +337,12 @@ namespace game_skyrimse
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;
-        mutable std::unique_ptr<SkyrimTerrainIndex> mTerrain; ///< built lazily by terrainIndex()
+        mutable std::unique_ptr<SkyrimTerrainIndex> mTerrain; ///< built by the worker after the cell index, else lazily
+        // Task 0125: 1 while startLoad's worker is building mTerrain after the cell index (set before mBuilding clears),
+        // 2 once it has. terrainIndex() waits for 1 to end (mBuildMutex, mBuildCv).
+        mutable std::atomic<int> mTerrainState{ 0 };
+        std::atomic<bool> mTerrainFromWorker{ false };
+        void buildTerrainIndex() const;
 
         // The worker (startLoad). mBuilding is set before the thread starts and cleared by the worker (under the
         // mutex, release order) after the index is complete; readers use acquire. mWorkerId lets the worker pass its

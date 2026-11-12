@@ -1,5 +1,7 @@
 #include "worldimp.hpp"
 
+#include <SDL_events.h>
+
 #include <array>
 #include <charconv>
 #include <vector>
@@ -1660,7 +1662,14 @@ namespace MWWorld
         if (mWorldScene->hasCellLoaded())
         {
             // vsgopenmw-fixme(find-my-place)
-            Loading::Listener dummy;
+            // Task 0125: a Skyrim exterior makes this wait seconds long; the listener keeps the window answering its
+            // messages (the old no-op listener did not, and the freeze monitor ended the game after 5 s).
+            struct PumpingListener final : Loading::Listener
+            {
+                void setProgress(size_t) override { SDL_PumpEvents(); }
+                void increaseProgress(size_t) override { SDL_PumpEvents(); }
+                void loadingOn() override { SDL_PumpEvents(); }
+            } dummy;
             Misc::LoadTrace::Scope trace("world.navigator.wait");
             mNavigator->wait(DetourNavigator::WaitConditionType::requiredTilesPresent, &dummy);
             mWorldScene->resetCellLoaded();

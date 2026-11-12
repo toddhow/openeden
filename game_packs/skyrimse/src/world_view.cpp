@@ -216,21 +216,30 @@ namespace game_skyrimse
 
     // ---- the worker -------------------------------------------------------------------------------------------------
 
+    void SkyrimWorldView::buildTerrainIndex() const
+    {
+        auto index = std::make_unique<SkyrimTerrainIndex>();
+        for (const PluginData& plugin : mPlugins)
+        {
+            std::string error;
+            if (!index->addPluginFile(plugin.mPath, mOrder, error) && mOptions.mNotice)
+                mOptions.mNotice("terrain index: " + error);
+        }
+        mTerrain = std::move(index);
+    }
+
     const SkyrimTerrainIndex* SkyrimWorldView::terrainIndex() const
     {
         if (!awaitIndex())
             return nullptr;
-        if (!mTerrain)
+        if (mTerrainState.load(std::memory_order_acquire) == 1)
         {
-            auto index = std::make_unique<SkyrimTerrainIndex>();
-            for (const PluginData& plugin : mPlugins)
-            {
-                std::string error;
-                if (!index->addPluginFile(plugin.mPath, mOrder, error) && mOptions.mNotice)
-                    mOptions.mNotice("terrain index: " + error);
-            }
-            mTerrain = std::move(index);
+            // The worker is on it (it started before the cell index was published): wait, it was going to be needed.
+            std::unique_lock<std::mutex> lock(mBuildMutex);
+            mBuildCv.wait(lock, [this] { return mTerrainState.load(std::memory_order_acquire) != 1; });
         }
+        if (!mTerrain)
+            buildTerrainIndex();
         return mTerrain.get();
     }
 
@@ -324,11 +333,34 @@ namespace game_skyrimse
                     mOptions.mNotice("the world index build failed with an unknown error");
             }
             mWorkerId.store(std::thread::id{}); // a finished thread's id may be handed to a new thread
+            // Task 0125: the terrain index (LAND and LTEX of every plugin, about 2.5 s on the five masters) is built
+            // here, after the cell index is published, so that the first exterior door finds it done instead of
+            // building it on the main thread.
+            const bool buildTerrain = !mFailed.load() && !mCancel.load();
+            if (buildTerrain)
+                mTerrainState.store(1, std::memory_order_release);
             {
                 std::lock_guard<std::mutex> lock(mBuildMutex);
                 mBuilding.store(false, std::memory_order_release);
             }
             mBuildCv.notify_all();
+            if (buildTerrain)
+            {
+                try
+                {
+                    buildTerrainIndex();
+                    mTerrainFromWorker.store(true, std::memory_order_release);
+                }
+                catch (...)
+                {
+                    mTerrain.reset(); // terrainIndex() builds it on demand, as before
+                }
+                {
+                    std::lock_guard<std::mutex> lock(mBuildMutex);
+                    mTerrainState.store(2, std::memory_order_release);
+                }
+                mBuildCv.notify_all();
+            }
         });
         return true;
     }

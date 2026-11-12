@@ -39,3 +39,35 @@ Frames (viewed): `I:\Projects\OpenEden-work\e2terrain\frames\screenshot000.png` 
 - Water, weather and sky (the engine's default sky shows), LOD, minimap and world map (none opened), groundcover, the weight-splat shader, saving, a Tamriel start, the way back through a door to the interior (only the exterior leg was run), the 0.2 percent of cell edges whose heights differ (the physics heightfield uses each cell's own array, the drawn terrain the floor rule).
 - Terrain chunks built by the preload thread for a predicted position outside the ensured window would read "no land" and stay cached; the window margin (batch + 2 cells) is meant to prevent it and the unloaded-read count was 0 in these runs.
 
+
+## Follow-up `e2fix` (2026-11-11): three findings of the first E2 report
+
+Same hand; Windows only; branch `e2fix`. Frames: `I:\Projects\OpenEden-work\e2terrain\frames2\` (run21: 000 and 001 outside the Mare, 002 down at the ground of a hop cell, 003 and 004 the city edge and the ground below it, 005 the hop cells, 016 back inside the Mare); earlier looks in `run14` and `run12`.
+
+### 1. The "white ground" was no terrain at all: the terrain vertex shader hard-codes 8192 unit cells
+- **Evidence:** the terrain preloader and view built chunks with correct heights for the hop cells (`NTERRAIN chunk ... heights -4584..-4184`, 0 unloaded reads, 94 entries in 16 batches), a forced blend layer changed nothing, and a camera looking straight down at a hop cell showed only the sky colour. In the city the "ground" of the first report was the Skyrim city's own static meshes; the terrain was never seen.
+- **Cause:** `files/shaders/terrain/main.vert` (and `terrain.vert.slang`) have `const float cellWorldSize = 8192` and compute `offset = (batch.origin - cameraPos / 8192) * 8192`, with `batch.origin` in cells (`Terrain::Builder::create`, `makeBatchUniform(bounds.min, ...)`). For Skyrim's 4096 unit cells every chunk was drawn at twice its distance from the camera's cell, far outside the view.
+- **Fix:** `Terrain::shaderBatchOrigin(origin, cellWorldSize)` (`components/terrain/batchdata.hpp`) rescales the origin to what it is in 8192 unit cells; `Builder::create` uses it. For 8192 it returns the origin unchanged (the same bits), so no shader, interface record or Morrowind frame changes. `Terrain::shaderCellWorldSize` names the shader's number.
+- **Tests first:** `TerrainBatchOrigin` (4 tests): 2 failed against the stub (the stub returned the origin), 2 pin Morrowind's bits and bad input; all pass now.
+- **Shown:** frames 002 to 005 of `frames2` show textured terrain continuous with the city wall and rocks at the city edge and in the hop cells (rock and grass layers). Not touched: the Slang twin keeps its own 8192 (same fix applies through the uniform).
+- **Also found, not fixed:** right after the door the terrain preloader asks for about 40 chunks at cells like (1928, -546) (about 8 million units away; they read "no land": `unloaded 9..359` in the trace). Cosmetic cost of reads; the source of those positions was not traced.
+
+### 2. The cold-cache first entry
+Trace (`[Cells] load trace = true`, `load-trace.jsonl`, timestamps in microseconds) of the one 5.5 s frame at the door (run15):
+| Where | Time |
+| --- | --- |
+| `Neutral::activate` -> `findNeutralCell` -> `source->worldInfo` -> `SkyrimWorldView::terrainIndex()` built the terrain index (LAND and LTEX of five plugins) on the main thread | 2,845 ms |
+| `Scene::changeCellGrid`, 25 cells, objects built | 1,210 ms |
+| `World::update` `world.navigator.wait` (`mNavigator->wait(requiredTilesPresent, &dummy)`: a no-op listener, nothing pumps the window) | 1,515 ms |
+- **Fixes:** (a) `SkyrimWorldView::startLoad`'s worker now builds the terrain index right after publishing the cell index (`mTerrainState`, `buildTerrainIndex`, `terrainBuiltOnWorker()`); `terrainIndex()` waits for it if it is still running, builds it on demand for a view with no worker as before. Door cost 2,845 ms -> 0.7 ms. (b) The main thread keeps answering its window: `SDL_PumpEvents()` after each cell of `Scene::changeCellGrid`, and the navigator wait's listener (`World::update`) pumps on every poll (`AsyncNavMeshUpdater::waitUntilJobsDoneForNotPresentTiles` now calls `setProgress` also when no job finished). The monitor is untouched.
+- **Tests first:** 4 `SkyrimSeAsyncIndex` tests (2 failed against the stub; 2 pin the on-demand path and a cancelled build). One of them failed after the code because it cancelled before the worker got to the terrain build (test fault, fixed by waiting for readiness first).
+- **Result:** the longest frame is 3.7 s in a warm run (was 5.6 s; its contents are now the 25-cell load and the navmesh wait, both pumping), the freeze monitor stays on (default crash catcher, exit 0). To show the pump works, a throw-away 500 ms sleep per cell (about 16 s of load, not committed) was run with the monitor on: no freeze, no dump. A true cold OS cache was not reproduced; the remaining stalls are single cell loads (at most 0.6 s) and single model reads.
+
+### 3. The way back
+`e2terrain` scenario, after the hops: the player is put at the arrival spot, the Mare's exterior door (`skyrimse:b152263`, 73 units away) is activated: `NDOOR 108276 in WhiterunPlainsDistrict04 (6, -2): teleport destination 'WhiterunBanneredMare' ... reused, base records 655, resident neutral cells 36`; the Mare is inserted again with the same 694 objects and 3 disabled, no crash, no error line (frame 016 shows the interior, lit). The first door said `built`.
+
+### Morrowind unchanged after the follow-up
+`worldobjects_check` dump equals the parent build (110 lines); fixed-frame Balmora SHA-256 `1ae72bec0459...` for this build as before. `openmw-tests` 2,019 and `components-tests` (`Terrain*:Neutral*:Skyrim*:*Navigator*:*NavMesh*:Lod*`) 1,519 pass.
+
+### Not run
+Linux gate, clang-format 14, clang-tidy, Lua tests, sanitizers, a fresh review, a real cold OS file cache, a hands-on walk across a cell border (hops only), water, sky, LOD, maps.

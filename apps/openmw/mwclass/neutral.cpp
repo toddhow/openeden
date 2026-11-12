@@ -6,6 +6,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esmbridge/util.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/loadtrace.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 #include <components/worldmodel/store.hpp>
@@ -158,8 +159,10 @@ namespace MWClass
         bool reused = false;
         const auto decision = MWWorld::decideNeutralDoor(*object, actor == MWMechanics::getPlayer(),
             unlockDoorsWanted(), [&](openeden::sdk::game::WorldId destinationCell) {
+                Misc::LoadTrace::Scope traceFind("neutral.door.find");
                 const MWWorld::NeutralCellLookup found
                     = worldModel->findNeutralCell(cell->neutralGameId(), destinationCell);
+                traceFind.end();
                 if (found.mStatus == MWWorld::NeutralCellStatus::Found)
                 {
                     destination = found.mStore;
@@ -175,6 +178,7 @@ namespace MWClass
                     const double cellSize = ESM::getCellSize(found.mWorldspace);
                     const ESM::ExteriorCellLocation location(static_cast<int>(std::floor(arrival.x / cellSize)),
                         static_cast<int>(std::floor(arrival.y / cellSize)), found.mWorldspace);
+                    Misc::LoadTrace::Scope traceExterior("neutral.door.exterior");
                     destination = &worldModel->getExterior(location);
                     reused = false;
                     return MWWorld::NeutralDestination::ExteriorWorld;

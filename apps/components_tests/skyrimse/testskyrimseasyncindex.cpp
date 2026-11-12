@@ -453,4 +453,60 @@ namespace
             t.join();
         EXPECT_EQ(wrong.load(), 0);
     }
+
+    // ---- task 0125: the terrain index is built by the worker, not by the first exterior query ----------------------
+
+    TEST(SkyrimSeAsyncIndex, theWorkerBuildsTheTerrainIndexAfterTheCellIndex)
+    {
+        Plugins plugins(false);
+        SkyrimWorldView view;
+        ASSERT_TRUE(view.configure(SkyrimWorldView::Options{}, nullptr));
+        ASSERT_TRUE(view.startLoad(plugins.paths, nullptr));
+        EXPECT_TRUE(eventually([&] { return view.isReady(); }));
+        EXPECT_TRUE(eventually([&] { return view.terrainBuiltOnWorker(); })) << "after the cell index, by the worker";
+        view.cancelAndJoin();
+        EXPECT_NE(view.terrainIndex(), nullptr);
+    }
+
+    TEST(SkyrimSeAsyncIndex, aQueryBeforeTheTerrainIndexIsDoneWaitsForItAndGetsTheSameIndex)
+    {
+        Plugins plugins(false);
+        SkyrimWorldView view;
+        ASSERT_TRUE(view.configure(SkyrimWorldView::Options{}, nullptr));
+        ASSERT_TRUE(view.startLoad(plugins.paths, nullptr));
+        ASSERT_TRUE(eventually([&] { return view.isReady(); }));
+        const SkyrimTerrainIndex* first = view.terrainIndex(); // may come while the worker is still on the terrain
+        ASSERT_NE(first, nullptr);
+        view.cancelAndJoin();
+        EXPECT_EQ(view.terrainIndex(), first) << "one index, whoever built it";
+        EXPECT_TRUE(view.terrainBuiltOnWorker());
+    }
+
+    TEST(SkyrimSeAsyncIndex, aViewLoadedWithoutAWorkerBuildsTheTerrainIndexOnDemandAsBefore)
+    {
+        Plugins plugins(false);
+        SkyrimWorldView view;
+        std::string error;
+        ASSERT_TRUE(view.addPlugin(plugins.paths[0], error)) << error;
+        view.finish();
+        EXPECT_FALSE(view.terrainBuiltOnWorker());
+        EXPECT_NE(view.terrainIndex(), nullptr);
+        EXPECT_FALSE(view.terrainBuiltOnWorker());
+    }
+
+    TEST(SkyrimSeAsyncIndex, aCancelledBuildBuildsNoTerrainIndex)
+    {
+        Plugins plugins(true);
+        GatedFiles files;
+        files.mTable = stringsTable(5, "Localised").str();
+        SkyrimWorldView view;
+        ASSERT_TRUE(view.configure(SkyrimWorldView::Options{}, &files));
+        ASSERT_TRUE(view.startLoad(plugins.paths, nullptr));
+        ASSERT_TRUE(files.waitReached(5000ms));
+        std::thread canceller([&] { view.cancelAndJoin(); });
+        std::this_thread::sleep_for(50ms);
+        files.open();
+        canceller.join();
+        EXPECT_FALSE(view.terrainBuiltOnWorker());
+    }
 }

@@ -417,6 +417,8 @@ namespace DetourNavigator
                 prevJobsLeft = jobsLeft;
                 listener->increaseProgress(newJobsDone);
             }
+            else
+                listener->setProgress(jobsDone); // OpenEden: a listener that keeps the window alive hears from us
         }
     }
 

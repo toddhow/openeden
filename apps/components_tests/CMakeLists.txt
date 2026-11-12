@@ -118,6 +118,7 @@ file(GLOB UNITTEST_SRC_FILES
     terrain/testchunkfadeinstance.cpp
     terrain/testheightranges.cpp
     terrain/testchunkinstancedecode.cpp
+    terrain/testbatchorigin.cpp
     terrain/testcoverage.cpp
     terrain/testindexstitch.cpp
     terrain/testlayermaps.cpp

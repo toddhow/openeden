@@ -680,7 +680,7 @@ namespace Terrain
         auto colorDescriptor
             = vsg::DescriptorImage::create(mSamplerOptions, data.colors, Pipeline::Descriptors::COLORMAP_BINDING);
 
-        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(makeBatchUniform(bounds.min,
+        auto batchData = vsg::Value<Pipeline::Data::Batch>::create(makeBatchUniform(shaderBatchOrigin(bounds.min, mStorage->cellWorldSize),
             static_cast<float>(mStorage->numVerts(bounds.size, lod)), mStorage->cellWorldSize * bounds.size));
         // Task 0087: a world LOD tile changes its fade every frame it dithers, so its uniform is uploaded again when
         // marked (the live terrain keeps the static copy).

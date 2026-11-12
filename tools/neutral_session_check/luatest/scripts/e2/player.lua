@@ -6,6 +6,7 @@ local nearby = require('openmw.nearby')
 local util = require('openmw.util')
 local debug = require('openmw.debug')
 local core = require('openmw.core')
+local camera = require('openmw.camera')
 
 local walking = false
 local frame = 0
@@ -25,6 +26,8 @@ local function line(tag)
     local land = ray(nearby.COLLISION_TYPE.HeightMap)
     local objects = ray(nearby.COLLISION_TYPE.World)
     local c = self.object.cell
+    local okr, rr = pcall(function() return nearby.castRenderingRay(p + util.vector3(0, 0, 20), p - util.vector3(0, 0, 600)) end)
+    print(string.format('E2 %s render_ray=%s', tag, okr and (rr.hit and string.format('%.2f', rr.hitPos.z) or 'none') or ('error ' .. tostring(rr))))
     -- the height the DRAWN terrain (the neutral storage) has under the player, against the physics heightfield's
     local ok, visual = pcall(function() return core.land.getHeightAt(p, c) end)
     local drawn = ok and visual or nil
@@ -34,7 +37,10 @@ end
 
 return {
     eventHandlers = {
+        E2Scene = function() debug.toggleRenderMode(debug.RENDER_MODE.Scene) end,
+        E2Wire = function() debug.toggleRenderMode(debug.RENDER_MODE.Wireframe) end,
         E2Shot = function() debug.takeScreenshot() end,
+        E2Down = function(p) camera.setMode(camera.MODE.FirstPerson); camera.setPitch(p) end,
         E2Probe = function() line('probe') end,
         E2Walk = function(on)
             walking = on

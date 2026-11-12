@@ -52,6 +52,8 @@
 #include "../mwworld/actionteleport.hpp"
 
 #include "cellstore.hpp"
+#include <SDL_events.h>
+
 #include <components/neutralterrain/window.hpp>
 #include <components/worldmodel/store.hpp>
 
@@ -770,6 +772,9 @@ namespace MWWorld
                     && (x != playerCellX || y != playerCellY);
                 const IncrementalLoad incrementalLoad{ pos, std::abs(x - playerCellX) + std::abs(y - playerCellY) };
                 loadCell(cell, changeEvent, navigatorUpdateGuard.get(), buildLater ? &incrementalLoad : nullptr);
+                // Task 0125: a whole grid of Skyrim cells takes seconds; the window must answer its messages meanwhile
+                // (the freeze monitor ends a game that does not for 5 s). Events stay queued for the next frame.
+                SDL_PumpEvents();
             }
         }
 
