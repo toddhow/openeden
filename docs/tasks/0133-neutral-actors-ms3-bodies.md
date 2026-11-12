@@ -72,7 +72,7 @@ Combat, magic, perks, inventory (decision 0017 open question 3: Skyrim inventori
 
 ### Stage log (2026-11-12; same hand wrote tests and code, no fresh reviewer; Windows only; branch `skyactors`, not pushed)
 
-Built in `I:\Projects\OpenEden-work\skyactorsuild` (RelWithDebInfo, no editor/launcher). The parent for Morrowind comparisons was built from the SAME tree with the five engine files taken from `main` (`parentdir`, the 5 files then restored), so it has every other recent change (including the `OPENEDEN_FORCE_ANIM_VARIANT` knob).
+Built in `I:\Projects\OpenEden-work\skyactors\build` (RelWithDebInfo, no editor/launcher). The parent for Morrowind comparisons was built from the SAME tree with the five engine files taken from `main` (`parentdir`, the 5 files then restored), so it has every other recent change (including the `OPENEDEN_FORCE_ANIM_VARIANT` knob).
 
 **Tests first, red.** `testneutralactor.cpp` (23 tests): against a stub 18 failed and 5 passed (they pin "unchanged" behaviour); after the code 21 passed and two shape tests failed for a test fault (Jolt local bounds and `Shape::CastRay` are centre-of-mass relative), fixed in the tests; 23 pass. Pack: 5 `SkyrimAppearanceHeight` tests, 3 failed against a stub that left the scale at 1 (the other two pin the default and the refused case), all pass with the code. Four mutations of `neutralactor.cpp` (settle comparison, terminal speed, navmesh marker, landing test): the first three each fail a named test; the fourth (`z < floor - 5`) is observably equivalent (the actor is snapped to the floor on the next frame) and was not caught. `openmw-tests` as a whole 2,130 pass, 2 skipped (real data, existing).
 
