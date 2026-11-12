@@ -135,6 +135,8 @@ namespace
         float attackDesire(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
         float actorValuePercent(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 0.45f : 1.f; }
         bool mIntimidate = true;
+        bool mBribe = true;
+        bool playerCanBribe(Subject s) const override { return s == mSubject && mBribe; }
         bool playerCanIntimidate(Subject s) const override { return s == mSubject && mIntimidate; }
         bool mTalked = true;
         bool talkedToPlayer(Subject s) const override { return s == mSubject && mTalked; }
@@ -471,6 +473,19 @@ namespace
         EXPECT_TRUE(run(cond(264, kEq, 0.f, 0x171), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(264, kEq, 0.f, 0x170), w));
+    }
+
+    // fn_654 GetBribeSuccess: no parameters, runs on the subject (CK condition dialog, toddhow 2026-11-11); meaning
+    // inferred from GetIntimidateSuccess.
+    TEST(SkyrimConditionFunctions, fn_654_is_bribe_success)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(654, kEq, 1.f), w));
+        w.mBribe = false;
+        EXPECT_TRUE(run(cond(654, kEq, 0.f), w));
+        w.mBribe = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(654, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

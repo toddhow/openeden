@@ -60,3 +60,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_49 GetSleeping (sleep state 0 to 4; CK wiki page toddhow showed). Red, then 59 of 59.
 - 2026-11-11: xEdit's names checked against UESP's 'Skyrim Mod:Function Indices' page (a saved copy toddhow supplied, not committed; 734 indices, 0 to 733): all 255 surveyed indices name the same function, 6 differ only in wording (327 IsRidingMount/IsRidingHorse, 339, 680, 681, 725, 732). UESP states the CTDA index is the console id minus 4096, which confirms the raw index the decoder reads.
 - 2026-11-11: fn_264 HasSpell(spell or shout) from the Papyrus Actor.HasSpell page toddhow showed (the condition page is empty): known, not merely in effect. Red, then 60 of 60.
+- 2026-11-11: fn_654 GetBribeSuccess: no parameters, runs on the subject (CK condition dialog toddhow showed; the wiki page is empty); meaning INFERRED from GetIntimidateSuccess. Red, then 61 of 61.

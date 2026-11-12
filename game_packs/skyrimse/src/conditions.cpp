@@ -347,6 +347,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.knowsSpell(subject, c.mParam1));
         }
 
+        // 654 GetBribeSuccess: meaning inferred from GetIntimidateSuccess (CK dialog, toddhow 2026-11-11)
+        float getBribeSuccess(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.playerCanBribe(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -355,7 +361,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 53> sTable = { {
+        constexpr std::array<Entry, 54> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -408,6 +414,7 @@ namespace game_skyrimse::conditions
             { 606, getKeywordDataForLocation },
             { 629, getVMQuestVariable },
             { 640, getActorValuePercent },
+            { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },
         } };
     }
