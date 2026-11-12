@@ -29,15 +29,16 @@ namespace MWAnim
             return settingOn && hasKeyframeFile && !hasAutoPlayController;
         }
 
-        /// The group to loop: "idle" when the file has it, else the first group in name order; empty for none.
+        /// The group to loop: "idle" when the file has it, else none. A placed Activator plays exactly that group and
+        /// nothing else (CharacterController::refreshIdleAnims with idleStateToAnimGroup, no weather rule; "idlestorm"
+        /// is an actor-only group, updateIdleStormState), so a copy that plays something else would move where the
+        /// near object is still.
         inline std::string chooseGroup(const Anim::Tags& tags)
         {
             const auto& groups = tags.getGroups();
-            if (groups.empty())
-                return {};
             if (groups.find(std::string_view("idle")) != groups.end())
                 return "idle";
-            return *groups.begin();
+            return {};
         }
 
         /// The starting point of the loop, 0 (inclusive) to 1 (exclusive), from the reference number alone: two

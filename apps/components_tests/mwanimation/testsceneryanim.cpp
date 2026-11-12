@@ -40,14 +40,16 @@ namespace
         EXPECT_EQ(SceneryKeyframes::chooseGroup(tags), "idle");
     }
 
-    TEST(SceneryKeyframesGroup, without_idle_the_first_group_by_name_is_chosen)
+    // A placed Activator plays "idle" and nothing else (CharacterController::refreshIdleAnims,
+    // idleStateToAnimGroup); a far copy must stay still where the near object is still.
+    TEST(SceneryKeyframesGroup, without_idle_nothing_is_chosen_as_a_near_object_plays_only_idle)
     {
         Anim::Tags tags;
         tags.emplace(0.f, "wave: start");
         tags.emplace(1.f, "wave: stop");
         tags.emplace(0.f, "flap: start");
         tags.emplace(1.f, "flap: stop");
-        EXPECT_EQ(SceneryKeyframes::chooseGroup(tags), "flap");
+        EXPECT_TRUE(SceneryKeyframes::chooseGroup(tags).empty());
     }
 
     TEST(SceneryKeyframesGroup, a_file_with_no_groups_gives_none)
