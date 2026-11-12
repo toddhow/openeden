@@ -1,5 +1,5 @@
-// Task 0143, milestone M-S4: the voice of a Skyrim SE conversation on the player's own masters. Prints counts only (lines
-// starting SKYRIMSE-VOICE), never a line of text or a file name. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
+// Task 0143, milestone M-S4: the voice of a Skyrim SE conversation on the player's own masters. Prints counts only
+// (lines starting SKYRIMSE-VOICE), never a line of text or a file name. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); "Skyrim - Voices_en0.bsa" is read from it
 //
@@ -82,7 +82,8 @@ namespace
         if (!fs::exists(archivePath))
             GTEST_SKIP() << "no Skyrim - Voices_en0.bsa";
 
-        // ---- 1. the container, over every file ------------------------------------------------------------------------
+        // ---- 1. the container, over every file
+        // ------------------------------------------------------------------------
         Bsa::CompressedBSAFile archive;
         archive.open(archivePath);
         std::set<std::string> voices; // "sound/voice/<plugin>/<voice type>/<file>"
@@ -118,7 +119,8 @@ namespace
         EXPECT_EQ(fuzOk, xwma);
         ASSERT_GT(files, 0u);
 
-        // ---- 2. the file name rule over every INFO response of the five masters --------------------------------------------
+        // ---- 2. the file name rule over every INFO response of the five masters
+        // --------------------------------------------
         LoadOrder order;
         std::vector<fs::path> paths;
         for (const char* name : kMasters)
@@ -158,13 +160,14 @@ namespace
             quests.add(std::move(q), FormIdResolver(file->header(), name, order));
         }
 
-        std::uint64_t responses = 0, found = 0, missing = 0, foundByOverride = 0, missingOverrideOfBase = 0, foundUnderOrigin = 0;
+        std::uint64_t responses = 0, found = 0, missing = 0, foundByOverride = 0, missingOverrideOfBase = 0,
+                      foundUnderOrigin = 0;
         for (FormId topicId : dialogue.topicIds())
         {
             const DialogTopic* topic = dialogue.topic(topicId);
             const QuestRecord* quest = quests.quest(topic->mQuest);
-            const std::string stem = voiceStem(quest != nullptr ? quest->mCommon.mEditorId : std::string(),
-                topic->mCommon.mEditorId);
+            const std::string stem
+                = voiceStem(quest != nullptr ? quest->mCommon.mEditorId : std::string(), topic->mCommon.mEditorId);
             for (const DialogInfo* info : dialogue.infosOf(topicId))
             {
                 for (const DialogResponse& response : info->mResponses)
@@ -198,12 +201,14 @@ namespace
             }
         }
         std::cout << "SKYRIMSE-VOICE names: info responses " << responses << " with a voice file " << found
-                  << " without " << missing << " (of those found, from a later plugin's override of a Skyrim.esm record: "
-                  << foundByOverride << "; missing for such overrides: " << missingOverrideOfBase
+                  << " without " << missing
+                  << " (of those found, from a later plugin's override of a Skyrim.esm record: " << foundByOverride
+                  << "; missing for such overrides: " << missingOverrideOfBase
                   << ", of which a file exists under skyrim.esm with the load order id: " << foundUnderOrigin << ")\n";
         EXPECT_GT(found, 0u);
 
-        // ---- 3. the Bannered Mare ----------------------------------------------------------------------------------------------
+        // ---- 3. the Bannered Mare
+        // ----------------------------------------------------------------------------------------------
         ListedVoiceFiles listed(data, voices);
         SkyrimWorldView view({}, &listed);
         std::vector<std::string> problems;

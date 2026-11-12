@@ -33,7 +33,8 @@ namespace Fuz
     Result split(std::string_view bytes, std::string_view name, const Limits& limits)
     {
         if (bytes.size() > limits.mMaxBytes)
-            return fail(name, 0, "the file is " + std::to_string(bytes.size()) + " bytes, over the limit of "
+            return fail(name, 0,
+                "the file is " + std::to_string(bytes.size()) + " bytes, over the limit of "
                     + std::to_string(limits.mMaxBytes));
         if (bytes.size() < kHeaderBytes)
             return fail(name, 0, "shorter than the 12 byte header");
@@ -44,7 +45,8 @@ namespace Fuz
             return fail(name, 4, "version " + std::to_string(version) + ", only 1 is known");
         const std::uint32_t lipSize = readLe32(bytes, 8);
         if (lipSize > limits.mMaxLipBytes)
-            return fail(name, 8, "the lip part is " + std::to_string(lipSize) + " bytes, over the limit of "
+            return fail(name, 8,
+                "the lip part is " + std::to_string(lipSize) + " bytes, over the limit of "
                     + std::to_string(limits.mMaxLipBytes));
         const std::size_t audioAt = kHeaderBytes + static_cast<std::size_t>(lipSize);
         if (audioAt > bytes.size())
@@ -57,7 +59,8 @@ namespace Fuz
             return fail(name, audioAt, "the audio part is not a RIFF file");
         const std::uint32_t riffSize = readLe32(audio, 4);
         if (riffSize < 4)
-            return fail(name, audioAt + 4, "the RIFF size is " + std::to_string(riffSize) + ", less than its form type");
+            return fail(
+                name, audioAt + 4, "the RIFF size is " + std::to_string(riffSize) + ", less than its form type");
         const std::uint64_t riffTotal = static_cast<std::uint64_t>(riffSize) + 8;
         if (riffTotal > audio.size())
             return fail(name, audioAt + 4,

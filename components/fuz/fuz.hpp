@@ -23,7 +23,8 @@ namespace Fuz
 {
     struct Limits
     {
-        std::uint64_t mMaxBytes = 64ull * 1024 * 1024; ///< the whole file; a voice line is under 1 MiB in the game's data
+        std::uint64_t mMaxBytes
+            = 64ull * 1024 * 1024; ///< the whole file; a voice line is under 1 MiB in the game's data
         std::uint32_t mMaxLipBytes = 4u * 1024 * 1024; ///< the largest .lip part in the game's data is 32 KiB
     };
 

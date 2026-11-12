@@ -20,7 +20,8 @@ namespace
     using namespace ContentTests;
     using namespace game_skyrimse;
 
-    // ---- the file name rules -----------------------------------------------------------------------------------------
+    // ---- the file name rules
+    // -----------------------------------------------------------------------------------------
 
     TEST(SkyrimVoiceNames, aShortQuestAndTopicAreJoinedWholeInLowerCase)
     {
@@ -70,7 +71,8 @@ namespace
         EXPECT_TRUE(voicePath("Skyrim.esm", "Male\nNord", "a_b", 1, 1).empty());
     }
 
-    // ---- a generated conversation --------------------------------------------------------------------------------------
+    // ---- a generated conversation
+    // --------------------------------------------------------------------------------------
 
     constexpr std::uint32_t kGrupTop = 0;
     constexpr std::uint32_t kGrupTopicChildren = 7;
@@ -165,7 +167,8 @@ namespace
     Bytes conversationPlugin()
     {
         Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44);
-        Bytes dials = topic(kTopicHello, "Hello", "", "HELO", 7, infoRecord(kInfoGreeting, { "Well met.", "Be quick." }));
+        Bytes dials
+            = topic(kTopicHello, "Hello", "", "HELO", 7, infoRecord(kInfoGreeting, { "Well met.", "Be quick." }));
         dials.append(topic(kTopicAsk, "AskAround", "Ask around", "CUST", 0, infoRecord(kInfoAnswer, { "No." })));
         bytes.append(top("DIAL", dials));
         Bytes npcs = npc(kNpcWithVoice, "Hulda", 0, kVoiceMale);
@@ -246,9 +249,10 @@ namespace
     /// other.esp (masters Skyrim.esm, test.esp) overrides the greeting INFO of test.esp with a new text.
     Bytes overridePlugin()
     {
-        Bytes bytes = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 }, { "filler.esp", 0 }, { "test.esp", 0 } }, 24, 44);
-        // Master 2 is test.esp here: 0x02000020 is the INFO test.esp made (it stores it as 0x01000020). Only the topic's
-        // group is given, not the DIAL record, so the topic stays test.esp's.
+        Bytes bytes
+            = tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 }, { "filler.esp", 0 }, { "test.esp", 0 } }, 24, 44);
+        // Master 2 is test.esp here: 0x02000020 is the INFO test.esp made (it stores it as 0x01000020). Only the
+        // topic's group is given, not the DIAL record, so the topic stays test.esp's.
         bytes.append(top("DIAL", group4(0x02000300, kGrupTopicChildren, infoRecord(0x02000020, { "Changed." }))));
         return bytes;
     }
@@ -315,7 +319,8 @@ namespace
         EXPECT_FALSE(talk.mDialogueIndex.voiceOriginOf(info).has_value());
     }
 
-    // ---- what the index keeps ---------------------------------------------------------------------------------------------
+    // ---- what the index keeps
+    // ---------------------------------------------------------------------------------------------
 
     TEST(SkyrimVoiceIndex, theIndexKeepsThePluginFileNameAndTheVoiceTypeEditorIds)
     {
@@ -342,7 +347,8 @@ namespace
         EXPECT_EQ(world.speakerVoiceType(), kNullFormId);
     }
 
-    // ---- the runtime ---------------------------------------------------------------------------------------------------------
+    // ---- the runtime
+    // ---------------------------------------------------------------------------------------------------------
 
     TEST(SkyrimVoiceRuntime, aGreetingNamesOneVoiceFilePerResponseLineThatExists)
     {
