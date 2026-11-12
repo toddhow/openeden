@@ -124,6 +124,16 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float weaponAnimType(Subject s) const override { return s == mSubject ? 108.f : 0.f; }
+        float flyingState(Subject s) const override { return s == mSubject ? 633.f : 0.f; }
+        float clothingValue(Subject s) const override { return s == mSubject ? 41.f : 0.f; }
+        float equippedItemType(Subject s, std::uint32_t p) const override { return s == mSubject && p == 1 ? 9.f : 0.f; }
+        bool wasKilledBy(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0x14; }
+        float refTypeAliveCount(std::uint32_t a, std::uint32_t b) const override { return a == 0x50 && b == 0x200 ? 6.f : 0.f; }
+        bool mHasDiseaseFlag = true;
+        bool hasDisease(Subject s) const override { return s == mSubject && mHasDiseaseFlag; }
+        bool mIsChildFlag = true;
+        bool isChild(Subject s) const override { return s == mSubject && mIsChildFlag; }
         float crimeGoldNonviolent(Subject s, std::uint32_t f) const override
         {
             return f == 0xA0 ? 20.f : (f == 0 && s == mSubject ? 5.f : 0.f);
@@ -1024,6 +1034,52 @@ namespace
         EXPECT_TRUE(run(cond(45, kEq, 0.f, 0x14), w));
         EXPECT_TRUE(run(cond(62, kEq, 1.f), w));
         EXPECT_TRUE(run(cond(561, kEq, 0.f, 0x200), w));
+    }
+
+    // fn_365 IsChild (CK wiki, toddhow 2026-11-11: the actor is a child).
+    TEST(SkyrimConditionFunctions, fn_365_isChild)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(365, kEq, 1.f), w));
+        w.mIsChildFlag = false;
+        EXPECT_TRUE(run(cond(365, kEq, 0.f), w));
+        w.mIsChildFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(365, kEq, 0.f), w));
+    }
+
+    // fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease).
+    TEST(SkyrimConditionFunctions, fn_39_getDisease)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(39, kEq, 1.f), w));
+        w.mHasDiseaseFlag = false;
+        EXPECT_TRUE(run(cond(39, kEq, 0.f), w));
+        w.mHasDiseaseFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(39, kEq, 0.f), w));
+    }
+
+    // fn_108 GetWeaponAnimType, fn_633 GetFlyingState, fn_41 GetClothingValue, fn_597 GetEquippedItemType(hand),
+    // fn_408 IsKiller(actor), fn_592 GetRefTypeAliveCount(location, ref type) (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, the_last_tail_of_functions)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(108, kEq, 108.f), w));
+        EXPECT_TRUE(run(cond(633, kEq, 633.f), w));
+        EXPECT_TRUE(run(cond(41, kEq, 41.f), w));
+        EXPECT_TRUE(run(cond(597, kEq, 9.f, 1), w));
+        EXPECT_TRUE(run(cond(597, kEq, 0.f, 0), w));
+        EXPECT_TRUE(run(cond(408, kEq, 1.f, 0x14), w));
+        EXPECT_TRUE(run(cond(408, kEq, 0.f, 0x15), w));
+        EXPECT_TRUE(run(cond(592, kEq, 6.f, 0x50, 0x200), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(108, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(633, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(41, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(597, kEq, 0.f, 1), w));
+        EXPECT_TRUE(run(cond(408, kEq, 0.f, 0x14), w));
+        EXPECT_TRUE(run(cond(592, kEq, 6.f, 0x50, 0x200), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

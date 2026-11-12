@@ -728,6 +728,54 @@ namespace game_skyrimse::conditions
             (void)subject, (void)refType;
             return false;
         }
+        /// fn_365 IsChild (CK wiki, toddhow 2026-11-11: the actor is a child).
+        virtual bool isChild(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease).
+        virtual bool hasDisease(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_108 GetWeaponAnimType: the actor's weapon animation type: 0 hand to hand, 1 one-hand sword, 2 dagger, 3 one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe (and warhammer), 7 bow, 8 staff, 12 crossbow (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float weaponAnimType(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_633 GetFlyingState: 0 none, 1 takeoff, 2 cruising, 3 hovering, 4 landing, 5 sitting (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float flyingState(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_41 GetClothingValue: the clothing value of worn clothing and armor, 0 to 100, each item scaled by the share of coverage its slot has (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float clothingValue(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_597 GetEquippedItemType: (hand, left or right as stored): 0 nothing, 1 one-hand sword, 2 dagger, 3 one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe or mace, 7 bow, 8 staff, 9 magic spell, 10 shield, 11 torch, 12 crossbow (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float equippedItemType(Subject subject, std::uint32_t hand) const
+        {
+            (void)subject, (void)hand;
+            return 0.f;
+        }
+        /// fn_408 IsKiller: (actor): was the subject, a dead actor, killed by this actor? (CK wiki, shown by toddhow, 2026-11-11).
+        virtual bool wasKilledBy(Subject subject, std::uint32_t actor) const
+        {
+            (void)subject, (void)actor;
+            return false;
+        }
+        /// fn_592 GetRefTypeAliveCount: (location, ref type): the number of currently alive references of the LCRT in the LCTN (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const
+        {
+            (void)location, (void)refType;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

@@ -681,6 +681,49 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.hasRefType(subject, c.mParam1));
         }
 
+        // 365 IsChild (CK wiki, toddhow 2026-11-11: the actor is a child)
+        float isChildFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isChild(subject));
+        }
+
+        // 39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease)
+        float getDiseaseFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasDisease(subject));
+        }
+
+        // 108, 633, 41, 597, 408, 592 (CK wiki, toddhow 2026-11-11)
+        float getWeaponAnimType(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.weaponAnimType(subject) : 0.f;
+        }
+
+        float getFlyingState(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.flyingState(subject) : 0.f;
+        }
+
+        float getClothingValue(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.clothingValue(subject) : 0.f;
+        }
+
+        float getEquippedItemType(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.equippedItemType(subject, c.mParam1) : 0.f;
+        }
+
+        float isKiller(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.wasKilledBy(subject, c.mParam1));
+        }
+
+        float getRefTypeAliveCount(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return world.refTypeAliveCount(c.mParam1, c.mParam2);
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -689,7 +732,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 110> sTable = { {
+        constexpr std::array<Entry, 118> sTable = { {
             { 1, getDistance },
             { 5, getLockedFn },
             { 14, getActorValue },
@@ -697,6 +740,8 @@ namespace game_skyrimse::conditions
             { 25, isMoving },
             { 32, getInSameCell },
             { 35, getDisabled },
+            { 39, getDiseaseFn },
+            { 41, getClothingValue },
             { 45, getDetected },
             { 46, getDead },
             { 47, getItemCount },
@@ -722,6 +767,7 @@ namespace game_skyrimse::conditions
             { 80, getLevel },
             { 84, getDeadCount },
             { 101, isWeaponMagicOut },
+            { 108, getWeaponAnimType },
             { 125, isGuardFn },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
@@ -754,12 +800,14 @@ namespace game_skyrimse::conditions
             { 314, isActorAVictim },
             { 359, getInCurrentLoc },
             { 360, getInCurrentLocAlias },
+            { 365, isChildFn },
             { 372, isInList },
             { 375, getCrimeGoldViolent },
             { 376, getCrimeGoldNonviolent },
             { 398, isWeaponInList },
             { 402, isBribedbyPlayerFn },
             { 403, getRelationshipRank },
+            { 408, isKiller },
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
             { 430, getHealthPercentage },
@@ -781,14 +829,17 @@ namespace game_skyrimse::conditions
             { 579, getEquippedShout },
             { 580, isBleedingOut },
             { 590, isInSceneFn },
+            { 592, getRefTypeAliveCount },
             { 594, getIsFlyingFn },
             { 596, spellHasKeyword },
+            { 597, getEquippedItemType },
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
             { 610, locAliasHasKeyword },
             { 624, getInContainer },
             { 629, getVMQuestVariable },
             { 630, getVMScriptVariable },
+            { 633, getFlyingState },
             { 635, isInFavorStateFn },
             { 638, isInFriendStateWithPlayerFn },
             { 640, getActorValuePercent },
