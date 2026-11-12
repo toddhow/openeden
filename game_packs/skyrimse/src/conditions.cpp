@@ -437,6 +437,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inFavorState(subject));
         }
 
+        // 18 GetCurrentTime: hour as a decimal, no subject (CK wiki, toddhow 2026-11-11)
+        float getCurrentTime(const survey::Ctda&, Subject, const ConditionWorld& world)
+        {
+            return world.gameHour();
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -445,9 +451,10 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 68> sTable = { {
+        constexpr std::array<Entry, 69> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
+            { 18, getCurrentTime },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },

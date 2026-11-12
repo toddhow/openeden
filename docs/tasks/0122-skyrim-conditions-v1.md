@@ -70,3 +70,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_237 GetIsGhost, fn_630 GetVMScriptVariable(object, "variable") (CK wiki pages toddhow showed; the parameter shape is taken from fn_629, RECALLED-VERIFY). Red, then 70 of 70.
 - 2026-11-11: fn_258 HasAssociationType(actor, association type) (CK wiki page toddhow showed). Red, then 71 of 71. Real data: 31,630 of 32,148 lists (98.4 percent); unknown conditions 573 (0.75 percent), 56 distinct functions.
 - 2026-11-11: fn_635 IsInFavorState (CK wiki page toddhow showed). Red, then 72 of 72.
+- 2026-11-11: fn_18 GetCurrentTime (game hour as a decimal; CK wiki page toddhow showed). Red, then 73 of 73.

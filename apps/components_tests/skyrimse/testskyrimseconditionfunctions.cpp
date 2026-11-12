@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float gameHour() const override { return 19.75f; }
         bool mInFavorStateFlag = true;
         bool inFavorState(Subject s) const override { return s == mSubject && mInFavorStateFlag; }
         bool mAlarmed = true;
@@ -643,6 +644,15 @@ namespace
         w.mInFavorStateFlag = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(635, kEq, 0.f), w));
+    }
+
+    // fn_18 GetCurrentTime: the game hour as a decimal, 7:45 pm = 19.75; no subject (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_18_is_the_game_hour)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(18, kEq, 19.75f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(18, kEq, 19.75f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -476,6 +476,9 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_18 GetCurrentTime: the game hour as a decimal, 4:30 am = 4.5, 7:45 pm = 19.75 (CK wiki, shown by toddhow,
+        /// 2026-11-11).
+        virtual float gameHour() const { return 0.f; }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {
