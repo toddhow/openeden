@@ -36,6 +36,13 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/testsamplemodule.cpp
     model/module/testsamplemodule12.cpp
     model/module/testsamplemodule13.cpp
+    model/module/testapi14.cpp
+    model/module/testtimelinemodel.cpp
+    model/module/face/testfacekeys.cpp
+    model/module/face/testmodelsfolder.cpp
+    model/module/face/testaudiopcm.cpp
+    model/module/face/testfacedocument.cpp
+    model/module/face/testfacemodule.cpp
     model/mesh/testanimationkeys.cpp
     model/mesh/testframemath.cpp
     model/mesh/testimagesize.cpp
@@ -92,12 +99,18 @@ target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:advancedbodies_editor_
 target_link_libraries(eden-studio-tests PRIVATE eden_body nlohmann_json::nlohmann_json)
 target_compile_definitions(eden-studio-tests PRIVATE
     "ADVANCEDBODIES_EDITOR_PATH=\"$<TARGET_FILE:advancedbodies_editor>\"")
+# The face editor module (task 0147): its sources without the entry point, and the built library.
+add_dependencies(eden-studio-tests face_editor)
+target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:face_editor_objects>)
+target_link_libraries(eden-studio-tests PRIVATE eden_face ${FFmpeg_LIBRARIES})
+target_compile_definitions(eden-studio-tests PRIVATE
+    "FACE_EDITOR_PATH=\"$<TARGET_FILE:face_editor>\"")
 target_compile_definitions(eden-studio-tests PRIVATE
     "SAMPLE_EDITOR_MODULE_PATH=\"$<TARGET_FILE:sample_editor_module>\"")
 
 # Modules built against the FROZEN headers of API 1.0, 1.1 and 1.2 (task 0091, 0065): each is a library of its own, so that two
 # definitions of openeden::editor::Gizmo never meet in one executable. The tests load them by path.
-foreach(old_api 1_0 1_1 1_2)
+foreach(old_api 1_0 1_1 1_2 1_3)
     set(old_target sample_editor_module_api${old_api})
     add_library(${old_target} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/oldapi/samplenotemoduleold.cpp)
     target_compile_features(${old_target} PRIVATE cxx_std_20)

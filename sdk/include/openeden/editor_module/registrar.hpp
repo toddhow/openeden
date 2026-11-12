@@ -123,6 +123,14 @@ namespace openeden::editor
         /// API 1.3. Studio's simulation sandbox (see SimulationSandbox), or null when the host has none (a host older
         /// than 1.3 never has one: its tables do not contain this function, and it refuses a module built for 1.3).
         virtual SimulationSandbox* simulationSandbox() { return nullptr; }
+
+        /// API 1.4. The timeline playhead in seconds (Studio owns it; clamped to the active tracks' length).
+        virtual double playheadSeconds() const { return 0.0; }
+        /// API 1.4. Moves the playhead; a change publishes EditorEventType::PlayheadChanged.
+        virtual void setPlayhead(double /*seconds*/) {}
+        /// API 1.4. Shows a modal dialog and returns the edited values (one per field) on OK, nothing on Cancel or when
+        /// the dialog is refused (the description is invalid, or the host cannot show one).
+        virtual std::optional<std::vector<PropertyValue>> showDialog(const DialogDesc& /*desc*/) { return std::nullopt; }
     };
 
     struct WorkspaceDesc

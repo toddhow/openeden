@@ -21,6 +21,7 @@
 #include <apps/opencs/model/module/eventbus.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/module/overlaypick.hpp>
+#include <apps/opencs/model/module/timelinemodel.hpp>
 #include <apps/opencs/model/module/taskrunner.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 #include <apps/opencs/model/physics/ownedsandbox.hpp>
@@ -101,6 +102,20 @@ namespace CSVModule
         void setSimulationSandbox(openeden::editor::SimulationSandbox* sandbox);
         openeden::editor::SimulationSandbox* simulationSandbox() override { return mOwnedSandbox.get(); }
 
+        // API 1.4 (task 0147): the playhead, dialogs and the curve and waveform tracks of the timeline canvas.
+        double playheadSeconds() const override { return mPlayhead.seconds(); }
+        /// Moves the playhead (clamped to the tracks' length); a change publishes PlayheadChanged and emits
+        /// playheadChanged().
+        void setPlayhead(double seconds) override;
+        std::optional<std::vector<openeden::editor::PropertyValue>> showDialog(
+            const openeden::editor::DialogDesc& desc) override;
+        /// What shows a dialog: Studio's Qt dialog by default; checks and tests replace it.
+        void setDialogRunner(CSMModule::DialogService::Runner runner) { mDialogs.setRunner(std::move(runner)); }
+        /// The curve and waveform tracks of the active asset and of the registered providers (those that apply).
+        CSMModule::TimelineTracks timelineTracks() const;
+        /// Brings the playhead's length up to date with the tracks (call after the asset or its tracks changed).
+        void syncPlayheadDuration();
+
         /// The format ID of the active asset's type, or empty.
         const std::string& activeFormat() const { return mActiveFormat; }
         /// The module that owns the active asset (the one whose asset type opened it), or empty with none open. A
@@ -178,6 +193,7 @@ namespace CSVModule
 
     signals:
         void assetOwnerFilterChanged();
+        void playheadChanged(double seconds);
 
         /// The active asset, or something in it, changed: panels, overlay and timeline redraw.
         void changed();
@@ -222,6 +238,8 @@ namespace CSVModule
         void postToUi(std::function<void()> work);
 
         CSMModule::TaskRunner mTasks;
+        CSMModule::Playhead mPlayhead;
+        CSMModule::DialogService mDialogs;
         std::optional<HandleRef> mPressed; ///< The handle under the button.
         CSMModule::PickRay mPressRay; ///< Meters.
         std::unique_ptr<CSMModule::DragSession> mDrag;

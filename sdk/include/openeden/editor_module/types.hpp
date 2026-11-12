@@ -39,7 +39,15 @@ namespace openeden::editor
     /// bodies' poses; Studio runs the simulation (Play, Pause, Step). Nothing a module implements and no struct that
     /// crossed the boundary before has changed, so 1.0 to 1.2 modules load as they did; a module built with these
     /// headers declares 1.3, so an older host refuses it.
-    inline constexpr openeden::sdk::Version kApiVersion{ 1, 3 };
+    ///
+    /// 1.4 (task 0147, toddhow 2026-11-12) adds what the face timeline needs: a curve track and a waveform track on
+    /// Studio's timeline (CurveTrack and WaveformTrack, optional interfaces a module's TimelineTrack may ALSO
+    /// implement; Studio finds them with dynamic_cast, so TimelineTrack itself is unchanged), a playhead Studio owns
+    /// (EditorContext::playheadSeconds, setPlayhead, EditorEventType::PlayheadChanged, appended at the end of the
+    /// enum) and a modal dialog (DialogDesc and EditorContext::showDialog). Only new types and new virtual functions at
+    /// the END of EditorContext, default bodies; nothing a 1.0 to 1.3 module implements has changed, so those load as
+    /// they did, and a module built with these headers declares 1.4, so an older host refuses it.
+    inline constexpr openeden::sdk::Version kApiVersion{ 1, 4 };
 
     /// Meters, Z up (CreativeMotion's convention). Studio converts to the world's unit at its overlay boundary.
     struct Vec3
@@ -137,7 +145,8 @@ namespace openeden::editor
         AssetOpened, ///< subject: the asset's id.
         SimulationStepped, ///< step: the physics world's step index. Published once per fixed step, while Playing and
                            ///< for each Step press.
-        ParameterChanged ///< subject: the property's id, detail: the asset's id.
+        ParameterChanged, ///< subject: the property's id, detail: the asset's id.
+        PlayheadChanged ///< API 1.4. step: unused; subject: the playhead in seconds as text with 3 decimals.
     };
 
     /// API 1.2. Plain data: no pointers into Studio.
@@ -252,6 +261,73 @@ namespace openeden::editor
         virtual std::string_view id() const = 0;
         virtual std::string_view title() const = 0;
         virtual std::vector<TimelineKey> keys() const = 0;
+    };
+
+    /// API 1.4. One key of a curve channel: a time and a value.
+    struct CurveKey
+    {
+        double timeSeconds = 0;
+        double value = 0;
+    };
+
+    /// API 1.4. What Studio needs to draw one channel of a CurveTrack.
+    struct CurveChannelInfo
+    {
+        std::string id; ///< Unique within the track, e.g. "jawopen".
+        std::string label;
+        double minValue = 0; ///< The range the canvas shows (and the keys may take).
+        double maxValue = 1;
+        Colour colour;
+        bool readOnly = false;
+    };
+
+    /// API 1.4 (task 0147). A timeline track of named channels of keys that the author edits on Studio's curve canvas.
+    /// A module's TimelineTrack implements this ALSO (class MyTrack : public CurveTrack): TimelineTrack is unchanged,
+    /// so older hosts see a plain track, and Studio finds this interface with dynamic_cast. Channel keys are sorted by
+    /// time. The make*Command functions only BUILD a command (null refuses: unknown channel, key out of range, a
+    /// time that is not finite); Studio pushes it, so every edit is one undo step. Studio checks the finite and range
+    /// rules before calling, too.
+    class CurveTrack : public TimelineTrack
+    {
+    public:
+        virtual std::vector<CurveChannelInfo> channels() const = 0;
+        virtual std::vector<CurveKey> channelKeys(std::string_view channelId) const = 0;
+        /// The track's length in seconds (the right edge of the canvas).
+        virtual double durationSeconds() const = 0;
+        virtual std::unique_ptr<Command> makeAddKeyCommand(std::string_view channelId, const CurveKey& key) = 0;
+        /// Moves key number  index (in channelKeys order) to a new time and value.
+        virtual std::unique_ptr<Command> makeMoveKeyCommand(
+            std::string_view channelId, std::size_t index, const CurveKey& newKey)
+            = 0;
+        virtual std::unique_ptr<Command> makeDeleteKeyCommand(std::string_view channelId, std::size_t index) = 0;
+    };
+
+    /// API 1.4. A mono PCM buffer. The pointer stays valid until the next call to the track that returned it or the
+    /// track's destruction.
+    struct WaveformData
+    {
+        const float* samples = nullptr; ///< mono, -1..1
+        std::size_t sampleCount = 0;
+        std::uint32_t sampleRate = 0;
+    };
+
+    /// API 1.4 (task 0147). A track that shows an audio waveform with Studio's playhead over it, and that Studio can
+    /// play. Same convention as CurveTrack: implemented in addition to TimelineTrack.
+    class WaveformTrack : public TimelineTrack
+    {
+    public:
+        virtual WaveformData waveform() const = 0;
+    };
+
+    /// API 1.4. A modal dialog with a small form (the property types of PropertyDesc; Vec3 is refused). Values are
+    /// edited in a copy and handed back only on OK.
+    struct DialogDesc
+    {
+        std::string title;
+        std::string message; ///< Optional text above the form.
+        std::vector<PropertyDesc> fields;
+        std::vector<PropertyValue> initial; ///< One per field, same order; a missing or mistyped one is the type's zero.
+        std::string okLabel = "OK";
     };
 
     /// An opened asset. Owns its gizmos and tracks; the pointers live as long as the document.

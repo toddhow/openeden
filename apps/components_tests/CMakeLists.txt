@@ -628,6 +628,7 @@ list(APPEND UNITTEST_SRC_FILES
 # Task 0071 (facial speech animation): opas.facecurves, importers and the sampler (eden_face, no dependencies).
 list(APPEND UNITTEST_SRC_FILES
     face/testfacecurves.cpp
+    face/testsha256.cpp
     face/testfacesample.cpp
     face/testfacespeech.cpp
 )

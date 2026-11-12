@@ -1,5 +1,7 @@
 #include "studioshell.hpp"
 
+#include "curvestrip.hpp"
+
 #include "../module/moduleui.hpp"
 #include "../render/physicshub.hpp"
 #include <apps/opencs/model/module/moduleregistry.hpp>
@@ -316,6 +318,15 @@ void CSVDoc::StudioShell::addModuleUi()
     if (QWidget* row = mTransport->widget())
         if (auto* layout = qobject_cast<QHBoxLayout*>(row->layout()))
             layout->addWidget(new TimelineStrip(*modules, row), 1);
+
+    // The curve and waveform canvas of Editor Module API 1.4 (task 0147): a dock that shows while the active asset has
+    // such a track.
+    auto* canvas = new CurveStrip(*modules, &mWindow);
+    QDockWidget* canvasDock = makeDock(tr("Timeline Canvas"), "moduleCurveDock", canvas);
+    mWindow.addDockWidget(Qt::BottomDockWidgetArea, canvasDock);
+    canvasDock->setVisible(canvas->hasTracks());
+    connect(modules, &CSVModule::ModuleUi::changed, canvasDock,
+        [canvas, canvasDock] { canvasDock->setVisible(canvas->hasTracks()); });
 }
 
 QDockWidget* CSVDoc::StudioShell::makeDock(const QString& title, const QString& objectName, QWidget* content)

@@ -66,7 +66,7 @@ opencs_units (model/extension
     )
 
 opencs_units (model/module
-    moduleregistry modulehost overlaybuffer eventbus overlaypick dragsession labelstroke modulesettings taskrunner managersettingsstore
+    moduleregistry modulehost overlaybuffer eventbus overlaypick dragsession labelstroke modulesettings taskrunner managersettingsstore timelinemodel
     )
 
 opencs_units (model/mesh
@@ -145,7 +145,7 @@ opencs_units (view/module
 opencs_units (view/doc
     viewmanager view operations operation subview startup filedialog newgame
     filewidget adjusterwidget loader globaldebugprofilemenu runlogsubview studioshell extensionmanager assetbrowser contextinspector outputlogpanel logtap
-    quietwindows
+    quietwindows curvestrip audioplayer
     )
 
 
@@ -452,4 +452,41 @@ endforeach()
 # Eden Studio loads it from editor-modules/ (the core list): build it with the editor.
 if (BUILD_OPENCS)
     add_dependencies(eden-studio advancedbodies_editor)
+endif()
+
+# The face editor module (task 0147, editor_modules/face_editor): the Facial Expression & Speech Timeline, a core
+# system's tools in a library of its own that only Eden Studio loads. As for the others, the sources without the entry
+# point are an object library the tests link as well. It reads the curve format with components/face (eden_face), the
+# .fuz container with components/fuz, and decodes voice audio with FFmpeg (already a dependency of the game).
+set(FACE_EDITOR_DIR ${CMAKE_SOURCE_DIR}/editor_modules/face_editor)
+add_library(face_editor_objects OBJECT
+    ${FACE_EDITOR_DIR}/facekeys.cpp ${FACE_EDITOR_DIR}/models_folder.cpp ${FACE_EDITOR_DIR}/audio_pcm.cpp
+    ${FACE_EDITOR_DIR}/audio_ffmpeg.cpp ${FACE_EDITOR_DIR}/face_document.cpp ${FACE_EDITOR_DIR}/face_editor_module.cpp
+    ${CMAKE_SOURCE_DIR}/components/fuz/fuz.cpp)
+target_compile_features(face_editor_objects PRIVATE cxx_std_20)
+target_link_libraries(face_editor_objects PUBLIC eden_face)
+target_include_directories(face_editor_objects PUBLIC ${CMAKE_SOURCE_DIR}
+    PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include ${FFmpeg_INCLUDE_DIRS})
+set_property(TARGET face_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_library(face_editor SHARED ${FACE_EDITOR_DIR}/face_editor_export.cpp $<TARGET_OBJECTS:face_editor_objects>)
+target_compile_features(face_editor PRIVATE cxx_std_20)
+target_include_directories(face_editor PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include)
+target_link_libraries(face_editor PRIVATE eden_face ${FFmpeg_LIBRARIES})
+set_target_properties(face_editor PROPERTIES
+    OUTPUT_NAME "face_editor"
+    DEBUG_POSTFIX ""
+    RELEASE_POSTFIX ""
+    RELWITHDEBINFO_POSTFIX ""
+    MINSIZEREL_POSTFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+foreach(config ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${config} config_upper)
+    set_target_properties(face_editor PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules"
+        LIBRARY_OUTPUT_DIRECTORY_${config_upper} "${CMAKE_BINARY_DIR}/editor-modules")
+endforeach()
+if (BUILD_OPENCS)
+    add_dependencies(eden-studio face_editor)
 endif()

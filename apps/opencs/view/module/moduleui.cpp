@@ -6,7 +6,13 @@
 #include <limits>
 #include <optional>
 
+#include <QApplication>
 #include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -290,6 +296,116 @@ namespace CSVModule
         std::weak_ptr<void> mAssetToken;
     };
 
+    namespace
+    {
+        /// Studio's modal dialog for EditorContext::showDialog: one editor widget per field, OK and Cancel. The
+        /// description was checked by CSMModule::DialogService, so every field has a supported type.
+        std::optional<std::vector<PropertyValue>> runQtDialog(
+            const DialogDesc& desc, const std::vector<PropertyValue>& start)
+        {
+            QDialog dialog(QApplication::activeWindow());
+            dialog.setObjectName("moduleDialog");
+            dialog.setWindowTitle(QString::fromStdString(desc.title));
+            auto* layout = new QVBoxLayout(&dialog);
+            if (!desc.message.empty())
+            {
+                auto* message = new QLabel(QString::fromStdString(desc.message), &dialog);
+                message->setWordWrap(true);
+                layout->addWidget(message);
+            }
+            auto* form = new QFormLayout();
+            layout->addLayout(form);
+            std::vector<QWidget*> widgets;
+            for (std::size_t i = 0; i < desc.fields.size(); ++i)
+            {
+                const PropertyDesc& field = desc.fields[i];
+                QWidget* editor = nullptr;
+                switch (field.type)
+                {
+                    case PropertyType::Bool:
+                    {
+                        auto* box = new QCheckBox(&dialog);
+                        box->setChecked(std::get<bool>(start[i]));
+                        editor = box;
+                        break;
+                    }
+                    case PropertyType::Int:
+                    {
+                        auto* spin = new QSpinBox(&dialog);
+                        spin->setRange(static_cast<int>(std::max(field.min, -2.0e9)),
+                            static_cast<int>(std::min(field.max, 2.0e9)));
+                        spin->setValue(static_cast<int>(std::get<std::int64_t>(start[i])));
+                        editor = spin;
+                        break;
+                    }
+                    case PropertyType::Float:
+                    {
+                        auto* spin = new QDoubleSpinBox(&dialog);
+                        spin->setDecimals(cSpinDecimals);
+                        spin->setRange(std::max(field.min, -cSpinLimit), std::min(field.max, cSpinLimit));
+                        spin->setValue(std::get<double>(start[i]));
+                        editor = spin;
+                        break;
+                    }
+                    case PropertyType::Choice:
+                    {
+                        auto* combo = new QComboBox(&dialog);
+                        for (const std::string& choice : field.choices)
+                            combo->addItem(QString::fromStdString(choice));
+                        combo->setCurrentText(QString::fromStdString(std::get<std::string>(start[i])));
+                        editor = combo;
+                        break;
+                    }
+                    case PropertyType::String:
+                    case PropertyType::Vec3:
+                    {
+                        auto* edit = new QLineEdit(QString::fromStdString(std::get<std::string>(start[i])), &dialog);
+                        edit->setMinimumWidth(320);
+                        editor = edit;
+                        break;
+                    }
+                }
+                editor->setObjectName(QString::fromStdString("dialogField_" + field.id));
+                if (!field.tooltip.empty())
+                    editor->setToolTip(QString::fromStdString(field.tooltip));
+                form->addRow(QString::fromStdString(field.label.empty() ? field.id : field.label), editor);
+                widgets.push_back(editor);
+            }
+            auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+            buttons->button(QDialogButtonBox::Ok)->setText(QString::fromStdString(desc.okLabel));
+            QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+            QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+            layout->addWidget(buttons);
+            if (dialog.exec() != QDialog::Accepted)
+                return std::nullopt;
+
+            std::vector<PropertyValue> values;
+            for (std::size_t i = 0; i < desc.fields.size(); ++i)
+            {
+                switch (desc.fields[i].type)
+                {
+                    case PropertyType::Bool:
+                        values.emplace_back(static_cast<QCheckBox*>(widgets[i])->isChecked());
+                        break;
+                    case PropertyType::Int:
+                        values.emplace_back(static_cast<std::int64_t>(static_cast<QSpinBox*>(widgets[i])->value()));
+                        break;
+                    case PropertyType::Float:
+                        values.emplace_back(static_cast<QDoubleSpinBox*>(widgets[i])->value());
+                        break;
+                    case PropertyType::Choice:
+                        values.emplace_back(static_cast<QComboBox*>(widgets[i])->currentText().toStdString());
+                        break;
+                    case PropertyType::String:
+                    case PropertyType::Vec3:
+                        values.emplace_back(static_cast<QLineEdit*>(widgets[i])->text().toStdString());
+                        break;
+                }
+            }
+            return values;
+        }
+    }
+
     ModuleUi::ModuleUi(CSMModule::ModuleRegistry& registry, std::function<CSMDoc::Document*()> documentProvider)
         : mRegistry(registry)
         , mDocumentProvider(std::move(documentProvider))
@@ -299,6 +415,7 @@ namespace CSVModule
         sInstance = this;
 
         connect(&mOwnStack, &QUndoStack::indexChanged, this, &ModuleUi::changed);
+        mDialogs.setRunner(&runQtDialog);
     }
 
     ModuleUi::~ModuleUi()
@@ -751,22 +868,68 @@ namespace CSVModule
         return data;
     }
 
+    namespace
+    {
+        std::vector<TimelineTrack*> collectTracks(
+            CSMModule::ModuleRegistry& registry, AssetDocument* active, const std::string& owner)
+        {
+            std::vector<TimelineTrack*> tracks;
+            if (active != nullptr)
+                tracks = active->tracks();
+            for (const auto& provider : registry.trackProviders())
+                if (CSMModule::ModuleRegistry::appliesTo(provider.mModule, owner))
+                    for (TimelineTrack* track : registry.tracksOf(provider.mDesc.id))
+                        tracks.push_back(track);
+            std::sort(tracks.begin(), tracks.end());
+            tracks.erase(std::unique(tracks.begin(), tracks.end()), tracks.end());
+            return tracks;
+        }
+    }
+
     std::vector<std::pair<std::string, TimelineKey>> ModuleUi::timelineKeys() const
     {
         std::vector<std::pair<std::string, TimelineKey>> keys;
-        std::vector<TimelineTrack*> tracks;
-        if (mActive)
-            tracks = mActive->tracks();
-        for (const auto& provider : mRegistry.trackProviders())
-            if (CSMModule::ModuleRegistry::appliesTo(provider.mModule, mActiveOwner))
-                for (TimelineTrack* track : mRegistry.tracksOf(provider.mDesc.id))
-                    tracks.push_back(track);
-        std::sort(tracks.begin(), tracks.end());
-        tracks.erase(std::unique(tracks.begin(), tracks.end()), tracks.end());
-        for (TimelineTrack* track : tracks)
+        for (TimelineTrack* track : collectTracks(mRegistry, mActive.get(), mActiveOwner))
             for (const TimelineKey& key : track->keys())
                 keys.emplace_back(std::string(track->title()), key);
         return keys;
+    }
+
+    CSMModule::TimelineTracks ModuleUi::timelineTracks() const
+    {
+        return CSMModule::classifyTracks(collectTracks(mRegistry, mActive.get(), mActiveOwner));
+    }
+
+    void ModuleUi::syncPlayheadDuration()
+    {
+        if (mPlayhead.setDuration(timelineTracks().duration()))
+        {
+            emit playheadChanged(mPlayhead.seconds());
+            EditorEvent event;
+            event.type = EditorEventType::PlayheadChanged;
+            event.subject = QString::number(mPlayhead.seconds(), 'f', 3).toStdString();
+            publish(event);
+        }
+    }
+
+    void ModuleUi::setPlayhead(double seconds)
+    {
+        syncPlayheadDuration();
+        if (!mPlayhead.set(seconds))
+            return;
+        emit playheadChanged(mPlayhead.seconds());
+        EditorEvent event;
+        event.type = EditorEventType::PlayheadChanged;
+        event.subject = QString::number(mPlayhead.seconds(), 'f', 3).toStdString();
+        publish(event);
+    }
+
+    std::optional<std::vector<PropertyValue>> ModuleUi::showDialog(const DialogDesc& desc)
+    {
+        auto answer = mDialogs.show(desc);
+        if (!answer && !mDialogs.lastRefusal().empty())
+            Log(Debug::Warning) << "An editor module's dialog was refused: " << mDialogs.lastRefusal();
+        return answer;
     }
 
     QWidget* ModuleUi::makePropertyForm(PropertySource& source, QWidget* parent)

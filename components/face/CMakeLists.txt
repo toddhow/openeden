@@ -4,6 +4,7 @@
 
 add_library(eden_face STATIC
     facecurves.cpp
+    sha256.cpp
     facesample.cpp
     facespeech.cpp
     faceimport.cpp
