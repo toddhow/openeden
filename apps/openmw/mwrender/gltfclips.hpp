@@ -21,7 +21,7 @@ namespace Anim
 
 namespace MWAnim
 {
-    class Context;
+    struct Context;
 }
 
 namespace MWRender

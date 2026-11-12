@@ -1,6 +1,6 @@
 # Task: CreativeMotion's glTF clips play in the engine
 
-Status: built on Windows, 2026-11-11; local commit on branch `gltfclips`, not pushed. The same hand wrote the tests and the code (tests first,
+Status: built and run on Windows, 2026-11-11; local commit on branch `gltfclips`, not pushed. The same hand wrote the tests and the code (tests first,
 run red against a stub); no fresh reviewer.
 
 Design doc section: `docs/design/inertial-locomotion.md` 3.3 (authored transitions); task 0108 ("What an authored clip needs").
@@ -59,7 +59,7 @@ missing (not invented). Every animation also exists as `<name>.001`: see the sta
 - [x] The retarget does not depend on the target's local axes: a skeleton with scrambled rest rotations gets the same model-space turn per bone.
 - [x] `Bip01` has a translation channel with forward (+Y) root motion in game units; every translation follows `unitsPerMeter`.
 - [x] A skeleton the profile cannot bind is refused with a reason, not a crash.
-- [ ] In game: the session log line of task 0108 lists the five as found, and a scripted walk start plays `walkstart` (see the stage log).
+- [x] In game: the session log line of task 0108 lists the five as found, and a scripted walk start plays `walkstart` (stage log, second entry).
 - [x] With `[Game] inertial locomotion` off, nothing is read and no source is added (`loadLocomotionClips` returns after one setting read).
 
 Out of scope: `walkstop` and `runstart` clips; the `animations/<skeleton>/` additional anim sources lookup and the Blender skeleton export
@@ -90,3 +90,46 @@ restore; (3) fix what the tests show (the +Y root motion axis and the rig-depend
 (4) build `openmw`, run `tools/footslip_check/check.sh` with `CELL=ToddTest` and `inertial` (base cfg `I:/Projects/OpenEden-work/face2/baseconfig/openmw.cfg`,
 `OPENEDEN_QUIET_WINDOW=1`, an empty work folder) and read the log for the 0108 line and the `CMTRACE` group `walkstart`; (5) compare
 `tools/worldobjects_check` and the Balmora frame with the parent build; (6) `CI/check_layer_rules.sh` (104) and the other `CI/check_*.sh`.
+
+### 2026-11-11: built, red and green, run in game
+
+Rebased onto main (`a8203e2cfb`), built in `I:\Projects\OpenEden-work\gltfclips\build`. Compile and link errors first: in the WIP test file
+(`OPENMW_PROJECT_SOURCE_DIR` is a `u8` literal; an `angleBetween` that clashed through ADL) and in `gltfclips.hpp` (`Context` forward-declared as
+`class`, defined as `struct`: a link error through the mangled name). Then three real faults, found in this order:
+
+1. **Facing.** `WalkStartCarriesForwardRootMotion...` failed (-12.6 units along Y). Measured on the glb (pure FK in a script): in WalkStart the pelvis and the
+   leading right foot move toward glTF -Z, i.e. -Y after the reader's glTF to Z-up conversion, with `LeftFoot` at +X: the clips face -Y, Morrowind's
+   actors face +Y. The retarget now turns the whole motion half a circle about Z (`sFacingFlip`: the model-space rotation deltas, the pelvis translation and the
+   root motion). In game the player's `walkstart` frames move along the facing.
+2. **`ClipBinding::create` refuses Morrowind's real skeleton** ("target skeleton: bone bip01, an ancestor of the root bone, rotates", seen in the first game run:
+   the five clips were reported missing). The binding now gets a copy of the skeleton in which the rotation above the root bone is folded into the root
+   bone's own rest (world rest unchanged); the pose itself is still transferred from the real rests. New test
+   `ARotatedBip01IsBakedAndThePelvisTranslationIsInItsFrame`.
+3. **Pelvis height doubled** (frames viewed: the whole figure about 80 units in the air, ankles at z -107 against -184 at rest). The real skeleton's
+   `Bip01 Pelvis` has a zero rest offset (a temporary log line showed rest 0,0,0 and a binding height of 1.10 m; the height comes from the translations
+   above it) and the binding's height is a world height, so the pelvis key now subtracts the parent's world rest translation and is expressed in the parent's
+   rotated frame. After: ankles at z -183.4 to -181.7 over the walk start (idle -184.2).
+
+**Red/green.** Red: `retarget` replaced by `error = "stub"; return {};`, `openmw-tests --gtest_filter=MWRenderGltfClips*`: 7 of 13 tests failed
+(the 12 of the WIP plus the new one, which was added after; at the red run there were 12 and 7 failed, 5 passed: the two parse tests, the refusal
+test, the group-left-out test and the `.001` test). Green: 13 of 13 after the fixes.
+
+**In game** (`tools/footslip_check/check.sh`, `CELL=ToddTest`, `inertial`, quiet window, base config copied with `resources=` pointed at the new build): the log says
+"glTF locomotion clips: baked for a skeleton of 86 bones" and the task 0108 line "authored transition clips found: walkstart, runstop, runskid, turnleft90,
+turnright90; missing: runstart, walkstop"; `CMTRACE` shows `g0=walkstart` for the first 24 or so frames of each walk start (238 player frames in the first run),
+speed rising 0 to 36 u/s with the position following the facing. Frames (`I:\Projects\OpenEden-work\gltfclips\run6\inertial\user\screenshots\screenshot003.png` and
+`screenshot008.png`, a side camera at foot height, so the head is out of frame): an upright figure, one foot lifting and the other planted, no twisted limb.
+Not judged: how natural the clip looks (head, arms and the whole body were not in a frame); `runstop`, `runskid` and the turns were not seen in a frame.
+
+**Morrowind unchanged (setting off):** `tools/worldobjects_check` (Balmora, `--random-seed 7`) 110 result lines identical to `integ2\build` (reference); the
+fixed-frame-time Balmora frame at 600 has the same SHA-256 (`1c5d47ad0b5dc32d...`) for both executables. Nothing is read with `inertial locomotion` off
+(`loadLocomotionClips` returns after one setting read), but the comparison was run with the setting at its default (off) only.
+
+**The `.001` clips**, checked in the glb: idle, wave, TurnRight90 and walk have the same keys as their `.001` (differences 1e-7 to 2e-3); WalkStart.001 and
+RunStop.001 have the same duration and pelvis path but a rotation key that differs by up to 1.41 in a component (not traced to a bone); TurnLeft90.001 is
+shorter (0.583 s against 0.625 s). Looks like a second export of the same actions; not used.
+
+**Not run:** the Linux gate (Docker down; GCC `-Werror` not checked), clang-format 14 (`CI/check_clang_format.sh` reports 255 differences here with the local
+version, so the changed lines were formatted by hand), clang-tidy, the Lua tests, the whole `openmw-tests` binary (only `MWRenderGltfClips*`), a fresh reviewer,
+`creativemotion animation` on with the clips, NPCs (only the player was traced), `runstop`/`runskid`/turn clips in game, the effect on the foot slip numbers
+(the check ran with the clips but was not compared with a build without them).

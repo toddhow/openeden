@@ -36,7 +36,7 @@ namespace
 
     std::string readFile(const std::string& relative)
     {
-        std::ifstream in(std::string(OPENMW_PROJECT_SOURCE_DIR) + "/" + relative, std::ios::binary);
+        std::ifstream in(std::string(reinterpret_cast<const char*>(OPENMW_PROJECT_SOURCE_DIR)) + "/" + relative, std::ios::binary);
         return std::string(std::istreambuf_iterator<char>(in), {});
     }
 
@@ -147,7 +147,7 @@ namespace
         return -1.f;
     }
 
-    double angleBetween(Quat a, Quat b)
+    double angDiff(Quat a, Quat b)
     {
         return opas::math::angleBetween(a, b);
     }
@@ -264,6 +264,33 @@ namespace
         EXPECT_FLOAT_EQ(end.z, begin.z); // height is not root motion
     }
 
+    TEST(MWRenderGltfClips, ARotatedBip01IsBakedAndThePelvisTranslationIsInItsFrame)
+    {
+        // Morrowind's real Bip01 has a rotating rest; ClipBinding refuses such an ancestor of the root bone, so the
+        // bake neutralises it for the binding only. The pelvis translation key lives in Bip01's frame.
+        std::string error;
+        const auto source = loadShipped(error);
+        ASSERT_TRUE(source.has_value()) << error;
+        const RigBones plain = makeBip01(false);
+        RigBones rotated = makeBip01(false);
+        const Quat turn = opas::math::fromAxisAngle({ 1.0, 0.0, 0.0 }, 0.5 * 3.14159265358979323846);
+        rotated.mSkeleton.bones[0].localRest.rotation = turn;
+        // The same model-space rest: the pelvis offset is expressed in the rotated Bip01's frame.
+        rotated.mSkeleton.bones[1].localRest.translation
+            = opas::math::rotate(opas::math::conjugate(turn), plain.mSkeleton.bones[1].localRest.translation);
+        const auto a = GltfClips::retarget(*source, plain, 70.0, GltfClips::sLocomotionGroups, error);
+        ASSERT_TRUE(a) << error;
+        const auto b = GltfClips::retarget(*source, rotated, 70.0, GltfClips::sLocomotionGroups, error);
+        ASSERT_TRUE(b) << error;
+        const float stop = tagTime(*a->tags, "walkstart: stop");
+        const vsg::vec3 p = translationAt(*a, "bip01 pelvis", stop * 0.5f);
+        const vsg::vec3 q = translationAt(*b, "bip01 pelvis", stop * 0.5f);
+        const opas::math::Vec3 back = opas::math::rotate(turn, { q.x, q.y, q.z });
+        EXPECT_NEAR(back.x, p.x, 1e-3);
+        EXPECT_NEAR(back.y, p.y, 1e-3);
+        EXPECT_NEAR(back.z, p.z, 1e-3);
+    }
+
     TEST(MWRenderGltfClips, TranslationsFollowTheUnitsPerMeter)
     {
         const Baked metres = bake(false, 1.0);
@@ -298,8 +325,8 @@ namespace
                     continue;
                 const Quat turnA = a[i] * opas::math::conjugate(restPlain[i].rotation);
                 const Quat turnB = b[i] * opas::math::conjugate(restScrambled[i].rotation);
-                EXPECT_NEAR(angleBetween(turnA, turnB), 0.0, 1e-4) << plain.mRig.mSkeleton.bones[i].name << " at " << time;
-                largest = std::max(largest, angleBetween(turnA, Quat{}));
+                EXPECT_NEAR(angDiff(turnA, turnB), 0.0, 1e-4) << plain.mRig.mSkeleton.bones[i].name << " at " << time;
+                largest = std::max(largest, angDiff(turnA, Quat{}));
             }
         }
         EXPECT_GT(largest, 0.05) << "the clip should move some bone by more than 3 degrees";

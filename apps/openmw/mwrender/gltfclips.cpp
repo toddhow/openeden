@@ -42,6 +42,9 @@ namespace MWRender::GltfClips
             return channel;
         }
 
+        // Half a circle about Z, applied to the whole retargeted motion (see the use in `retarget`).
+        const opas::math::Quat sFacingFlip = opas::math::fromAxisAngle({ 0.0, 0.0, 1.0 }, 3.14159265358979323846);
+
         struct BoneKeys
         {
             std::map<float, vsg::quat> mRotations;
@@ -132,7 +135,32 @@ namespace MWRender::GltfClips
             if (clip == nullptr)
                 continue;
             std::string bindError;
-            const auto binding = opas::anim::ClipBinding::create(*clip, skeleton, profile, &bindError);
+            // ClipBinding refuses a target whose bones above the clip's root bone have a rotating rest (Morrowind's
+            // Bip01 does). Those bones are only neutralised for the binding, which supplies timing, root yaw removal and
+            // root motion; the pose itself is transferred below from the real rests.
+            opas::rig::Skeleton bindSkeleton = skeleton;
+            for (const auto& mapping : profile.bones)
+            {
+                if (mapping.source != clip->rootBone)
+                    continue;
+                const auto top = targetIndex.find(mapping.target);
+                if (top == targetIndex.end())
+                    break;
+                // The rotation of the bones above is folded into the root bone's own rest, so that its world rest is
+                // unchanged and the binding's translations are model-space vectors.
+                Quat above{};
+                for (int up = skeleton.bones[static_cast<std::size_t>(top->second)].parent; up >= 0;
+                     up = skeleton.bones[static_cast<std::size_t>(up)].parent)
+                {
+                    above = opas::math::normalized(skeleton.bones[static_cast<std::size_t>(up)].localRest.rotation * above);
+                    bindSkeleton.bones[static_cast<std::size_t>(up)].localRest.rotation = Quat{};
+                }
+                opas::math::Transform& rootRest = bindSkeleton.bones[static_cast<std::size_t>(top->second)].localRest;
+                rootRest.translation = opas::math::rotate(above, rootRest.translation);
+                rootRest.rotation = opas::math::normalized(above * rootRest.rotation);
+                break;
+            }
+            const auto binding = opas::anim::ClipBinding::create(*clip, bindSkeleton, profile, &bindError);
             if (!binding)
             {
                 problems += std::string(group) + ": " + bindError + "; ";
@@ -195,9 +223,13 @@ namespace MWRender::GltfClips
                     Quat world;
                     if (s >= 0)
                     {
-                        const Quat turned
-                            = sourceWorld[static_cast<std::size_t>(s)]
-                            * opas::math::conjugate(sourceWorldRest[static_cast<std::size_t>(s)].rotation);
+                        // The shipped clips walk toward -Y of CreativeMotion's frame (measured: the pelvis and the
+                        // leading foot of WalkStart move to -Y after the reader's glTF conversion), while Morrowind's
+                        // actors face +Y: the whole motion is turned half a circle about Z (sFacingFlip).
+                        const Quat turned = sFacingFlip
+                            * (sourceWorld[static_cast<std::size_t>(s)]
+                                * opas::math::conjugate(sourceWorldRest[static_cast<std::size_t>(s)].rotation))
+                            * opas::math::conjugate(sFacingFlip);
                         world = opas::math::normalized(turned * worldRest);
                     }
                     else if (bone.parent < 0)
@@ -218,7 +250,20 @@ namespace MWRender::GltfClips
                     BoneKeys& keys = keysByBone[static_cast<int>(i)];
                     keys.mRotations[time] = toVsg(local);
                     if (static_cast<int>(i) == rootTarget)
-                        keys.mTranslations[time] = toUnits(pose[i].translation, unitsPerMeter);
+                    {
+                        // The binding's translation is a model-space vector (its Bip01 is neutralised): express it relative to and in the
+                        // frame of the bone's parent, which may be rotated in the real skeleton.
+                        opas::math::Vec3 inModel{ -pose[i].translation.x, -pose[i].translation.y, pose[i].translation.z };
+                        if (bone.parent >= 0)
+                        {
+                            // The binding's height is the pelvis's world height (the real skeleton hangs it from the
+                            // translations of the bones above it: its own rest offset is zero), so those come off first.
+                            inModel = inModel - targetWorldRest[static_cast<std::size_t>(bone.parent)].translation;
+                            inModel = opas::math::rotate(
+                                opas::math::conjugate(targetWorld[static_cast<std::size_t>(bone.parent)]), inModel);
+                        }
+                        keys.mTranslations[time] = toUnits(inModel, unitsPerMeter);
+                    }
                 }
 
                 // Root motion goes to the accumulation root, where the engine reads it (MWAnim::Play).
@@ -227,7 +272,7 @@ namespace MWRender::GltfClips
                     const opas::anim::RootMotionDelta motion = binding->rootMotion(0.0, t, opas::anim::TimeMode::Clamp);
                     const opas::math::Vec3 rest = skeleton.bones[static_cast<std::size_t>(accumRoot)].localRest.translation;
                     keysByBone[accumRoot].mTranslations[time]
-                        = toUnits({ rest.x + motion.translationM.x, rest.y + motion.translationM.y, rest.z }, unitsPerMeter);
+                        = toUnits({ rest.x - motion.translationM.x, rest.y - motion.translationM.y, rest.z }, unitsPerMeter);
                 }
             }
 
