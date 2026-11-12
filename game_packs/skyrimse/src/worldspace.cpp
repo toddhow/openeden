@@ -484,6 +484,14 @@ namespace game_skyrimse
                     }
                     break;
                 }
+                if (mLimits.mDiscardLandData)
+                {
+                    std::vector<float>().swap(land.mHeights);
+                    std::vector<std::int8_t>().swap(land.mNormals);
+                    std::vector<std::uint8_t>().swap(land.mColours);
+                    for (LandQuadrant& quadrant : land.mQuadrants)
+                        std::vector<LandLayer>().swap(quadrant.mLayers);
+                }
                 mOut.mLands.push_back(std::move(land));
             }
 

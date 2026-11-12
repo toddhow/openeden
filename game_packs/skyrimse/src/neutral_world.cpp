@@ -323,6 +323,33 @@ namespace game_skyrimse
         return info ? info->id : openeden::sdk::game::kNoWorldId;
     }
 
+    const SkyrimTerrainIndex* SkyrimCellSource::terrain() const
+    {
+        const auto* provider = dynamic_cast<const TerrainProvider*>(&mView);
+        return provider ? provider->terrainIndex() : nullptr;
+    }
+
+    bool SkyrimCellSource::worldInfo(openeden::sdk::game::WorldId world, openeden::sdk::game::WorldSpaceInfo& out) const
+    {
+        const SkyrimTerrainIndex* index = terrain();
+        return index && index->worldInfo(world, out);
+    }
+
+    openeden::sdk::game::TerrainResult SkyrimCellSource::buildTerrain(openeden::sdk::game::WorldId world,
+        std::int32_t x, std::int32_t y, openeden::sdk::game::TerrainCell& out, std::string& error)
+    {
+        const SkyrimTerrainIndex* index = terrain();
+        if (!index)
+            return openeden::sdk::game::TerrainResult::NotSupported;
+        return index->buildTerrain(world, x, y, out, error);
+    }
+
+    std::size_t SkyrimCellSource::listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const
+    {
+        const SkyrimTerrainIndex* index = terrain();
+        return index ? index->listGroundTextures(out) : 0;
+    }
+
     bool SkyrimCellSource::buildCell(
         openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error)
     {

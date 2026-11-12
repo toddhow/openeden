@@ -168,6 +168,24 @@ namespace game_skyrimse
 
     // ---- the worker -------------------------------------------------------------------------------------------------
 
+    const SkyrimTerrainIndex* SkyrimWorldView::terrainIndex() const
+    {
+        if (!awaitIndex())
+            return nullptr;
+        if (!mTerrain)
+        {
+            auto index = std::make_unique<SkyrimTerrainIndex>();
+            for (const PluginData& plugin : mPlugins)
+            {
+                std::string error;
+                if (!index->addPluginFile(plugin.mPath, mOrder, error) && mOptions.mNotice)
+                    mOptions.mNotice("terrain index: " + error);
+            }
+            mTerrain = std::move(index);
+        }
+        return mTerrain.get();
+    }
+
     bool SkyrimWorldView::awaitIndex() const
     {
         if (!mBuilding.load(std::memory_order_acquire))

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <openeden/game/world_model.hpp>
+#include <openeden/game/world_terrain.hpp>
 #include <openeden/version.hpp>
 
 // The pull interface through which a game pack feeds the core's neutral world store (decision 0016, task 0100 stage N1;
@@ -24,7 +25,7 @@ namespace openeden::sdk::game
     /// FROZEN at 1.0 by stage N2 (task 0102), together with world_model.hpp. Same version policy as world_model.hpp: a
     /// new virtual function goes at the END of WorldCellSource with a default that means "not supported" and raises the
     /// minor number; anything else is a major change.
-    inline constexpr Version kWorldSourceVersion{ 1, 0 };
+    inline constexpr Version kWorldSourceVersion{ 1, 1 };
 
     class WorldCellSource
     {
@@ -66,5 +67,23 @@ namespace openeden::sdk::game
         /// How many of the game's length units make a metre (adopted answer 9: per game). 0 when the source does not
         /// say; a consumer that needs metres must then refuse, not guess.
         [[nodiscard]] virtual double unitsPerMetre() const { return 0.0; }
+
+        // Terrain (added in 1.1, task 0120, stage E1 of docs/research/0053): exterior land as plain values. Each has a
+        // default that means "not supported", so a source written against 1.0 keeps working. Main thread only, like
+        // buildCell; the core copies what it gets into an immutable snapshot before any worker thread reads it.
+
+        /// A worldspace's description. False when the world is unknown or the source has no worlds.
+        [[nodiscard]] virtual bool worldInfo(WorldId /*world*/, WorldSpaceInfo& /*out*/) const { return false; }
+
+        /// Builds the land of one exterior cell of exactly this world (parent worlds are NOT consulted: the core
+        /// walks WorldSpaceInfo::parent). Never throws.
+        [[nodiscard]] virtual TerrainResult buildTerrain(
+            WorldId /*world*/, std::int32_t /*x*/, std::int32_t /*y*/, TerrainCell& /*out*/, std::string& /*error*/)
+        {
+            return TerrainResult::NotSupported;
+        }
+
+        /// Appends every ground texture, the default (id 0) first, in a fixed order. Returns how many.
+        virtual std::size_t listGroundTextures(std::vector<GroundTexture>& /*out*/) const { return 0; }
     };
 }

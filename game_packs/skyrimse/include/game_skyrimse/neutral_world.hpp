@@ -12,6 +12,7 @@
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -84,6 +85,15 @@ namespace game_skyrimse
 
     /// Gives the components of a placement of a cell the view has just loaded. The pointer is valid until the next
     /// loadCell on the same view.
+    /// Gives the cell source the terrain index of a view (task 0120, stage E1). Pack-internal, like ComponentSource.
+    class TerrainProvider
+    {
+    public:
+        virtual ~TerrainProvider() = default;
+        /// Null when the view cannot say (for example its index timed out).
+        [[nodiscard]] virtual const SkyrimTerrainIndex* terrainIndex() const = 0;
+    };
+
     class ComponentSource
     {
     public:
@@ -149,7 +159,14 @@ namespace game_skyrimse
         /// RECALLED-VERIFY.
         double unitsPerMetre() const override { return 69.99125109; }
 
+        // Terrain (world_source.hpp 1.1), through the view's SkyrimTerrainIndex when the view has one.
+        bool worldInfo(openeden::sdk::game::WorldId world, openeden::sdk::game::WorldSpaceInfo& out) const override;
+        openeden::sdk::game::TerrainResult buildTerrain(openeden::sdk::game::WorldId world, std::int32_t x,
+            std::int32_t y, openeden::sdk::game::TerrainCell& out, std::string& error) override;
+        std::size_t listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const override;
+
     private:
+        [[nodiscard]] const SkyrimTerrainIndex* terrain() const;
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
     };

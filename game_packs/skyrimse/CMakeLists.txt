@@ -8,6 +8,7 @@ openeden_add_game_pack(skyrimse
         src/actors.cpp
         src/land.cpp
         src/worldspace.cpp
+        src/terrain_source.cpp
         src/world_view.cpp
         src/neutral_world.cpp
         src/survey.cpp
@@ -22,6 +23,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/actors.hpp
         include/game_skyrimse/land.hpp
         include/game_skyrimse/worldspace.hpp
+        include/game_skyrimse/terrain_source.hpp
         include/game_skyrimse/world_view.hpp
         include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
@@ -52,6 +54,7 @@ add_library(game_skyrimse_world STATIC
     src/actors.cpp
     src/land.cpp
     src/worldspace.cpp
+    src/terrain_source.cpp
     src/world_view.cpp
     src/neutral_world.cpp
     src/survey.cpp

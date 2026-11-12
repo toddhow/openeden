@@ -120,6 +120,17 @@ for header in world_model world_source; do
     fi
 done
 
+# Task 0120 (stage E1): the terrain types of the neutral world model live in their own header, which states the same
+# version policy at major version 1. world_source.hpp 1.1 adds the terrain functions at the END of WorldCellSource.
+if ! grep -q 'Same version policy' sdk/include/openeden/game/world_terrain.hpp || ! grep -Eq 'kWorldTerrainVersion\{ 1, [0-9]+ \}' sdk/include/openeden/game/world_terrain.hpp; then
+    echo 'sdk/include/openeden/game/world_terrain.hpp must keep its version policy and kWorldTerrainVersion at major version 1'
+    exit 1
+fi
+if ! grep -q 'buildTerrain' sdk/include/openeden/game/world_source.hpp; then
+    echo 'sdk/include/openeden/game/world_source.hpp must keep the terrain functions (world_source 1.1, task 0120)'
+    exit 1
+fi
+
 # Task 0103 (stage N3a-1): the world source service a game pack registers its source through states its version policy,
 # and Host::getWorldSourceService() stays the LAST virtual function of Host (an additive change: a function anywhere
 # else would move the slots a pack built before it calls).

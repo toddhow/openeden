@@ -121,6 +121,12 @@ add_component_dir (worldmodel
     idtable validate store
     )
 
+# The terrain storage of the neutral world (task 0120, stage E1): a Terrain::Storage over land a game pack described.
+# Layer: engine.
+add_component_dir (neutralterrain
+    cellcache storage
+    )
+
 # World LOD tiles (task 0055): tile keys, selection by pixel error, the tile payload and the derived pack of tiles.
 # DRAFT layouts, kept behind this one folder. Depends on edenarchive.
 add_component_dir (lod

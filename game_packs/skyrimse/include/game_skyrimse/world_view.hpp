@@ -90,7 +90,7 @@ namespace game_skyrimse
         const openeden::sdk::VfsService& mVfs;
     };
 
-    class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource
+    class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource, public TerrainProvider
     {
     public:
         struct Options
@@ -208,6 +208,10 @@ namespace game_skyrimse
         [[nodiscard]] std::optional<openeden::sdk::game::CellLighting> findCellLighting(
             openeden::sdk::game::WorldId cell) const override;
 
+        /// The terrain index over the same plugins in the same order, built on the first call (task 0120). Waits for a
+        /// running startLoad() like a query. Null after that wait times out. Main thread only.
+        [[nodiscard]] const SkyrimTerrainIndex* terrainIndex() const override;
+
         [[nodiscard]] std::string_view gameId() const override { return "skyrimse"; }
         [[nodiscard]] std::size_t cellCount() const override;
         [[nodiscard]] std::size_t worldCount() const override;
@@ -309,6 +313,7 @@ namespace game_skyrimse
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;
+        mutable std::unique_ptr<SkyrimTerrainIndex> mTerrain; ///< built lazily by terrainIndex()
 
         // The worker (startLoad). mBuilding is set before the thread starts and cleared by the worker (under the
         // mutex, release order) after the index is complete; readers use acquire. mWorkerId lets the worker pass its

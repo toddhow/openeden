@@ -51,6 +51,9 @@ namespace game_skyrimse
         std::uint32_t mMaxGrassPerGroundTexture = 256; ///< GNAM entries of one LTEX
         std::uint32_t mMaxErrors = 256;
         std::uint64_t mMaxRecordsPerType = 4ull * 1024 * 1024;
+        /// Task 0120: the walk keeps each LAND's place (world, cell, grid, record offset) but drops its heights,
+        /// normals, colours and layers after decoding them, so an index of the whole load order stays small.
+        bool mDiscardLandData = false;
     };
 
     /// What the decoders counted and did not keep. Subrecords whose size or content did not fit the layout are
