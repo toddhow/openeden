@@ -54,4 +54,4 @@ Built in `I:\Projects\OpenEden-work\ms1\build` (RelWithDebInfo, OpenCS, launcher
 ### Not run
 
 The Linux gate and GCC `-Werror` (Docker is not used here), clang-format 14 (not installed here; lines wrapped by hand to the file's style), clang-tidy, the Lua integration tests, `components-tests`, sanitizers, a fresh reviewer, a locked container that has a key in game, other staircases, a real keypress (activation by `object:activateBy`).
-- 2026-11-12 (toddhow: yes): a lock of level 0 that names no key is not locked (the Angarvunde draugr chests); a level 0 lock with a key still needs it. Test red first, then 21 of 21 NeutralLock tests.
+- 2026-11-12 (toddhow: yes): a lock of level 0 that names no key is not locked (the Angarvunde draugr chests); a level 0 lock with a key still needs it. Test red first, then 20 of 20 NeutralLock tests.
