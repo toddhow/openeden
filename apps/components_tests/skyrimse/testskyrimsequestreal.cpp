@@ -277,6 +277,7 @@ namespace
             conditions::Evaluator e2;
             SelectionOptions o2;
             o2.mQuestRunning = [&](FormId q) { return !state.exists(q) || state.running(q); };
+            o2.mQuests = &quests;
             const Selection b = pickFromTopics(dialogue, "HELO", w2, s, o2, &e2);
             ++asked;
             const bool same1 = a.mInfo == b.mInfo;

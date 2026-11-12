@@ -514,6 +514,7 @@ namespace
         QuestLimits limits;
         limits.mMaxAliases = 3;
         EXPECT_TRUE(parse(questPlugin({ aliases }), "test.esp", limits).mRecords.mQuests.empty());
+        EXPECT_EQ(parse(questPlugin({ aliases })).mRecords.mQuests.at(0).mAliases.size(), 4u); // the control
 
         QuestSpec objectives;
         for (std::uint16_t i = 0; i < 4; ++i)
@@ -521,12 +522,14 @@ namespace
         limits = QuestLimits();
         limits.mMaxObjectives = 3;
         EXPECT_TRUE(parse(questPlugin({ objectives }), "test.esp", limits).mRecords.mQuests.empty());
+        EXPECT_EQ(parse(questPlugin({ objectives })).mRecords.mQuests.at(0).mObjectives.size(), 4u);
 
         QuestSpec entries;
         entries.mStages = stage(1, 0, { Entry(), Entry(), Entry() });
         limits = QuestLimits();
         limits.mMaxEntriesPerStage = 2;
         EXPECT_TRUE(parse(questPlugin({ entries }), "test.esp", limits).mRecords.mQuests.empty());
+        EXPECT_EQ(parse(questPlugin({ entries })).mRecords.mQuests.at(0).mStages.at(0).mEntries.size(), 3u);
     }
 
     TEST(SkyrimQuestParse, aDamagedConditionMarksTheListNotTheRecord)
@@ -1167,5 +1170,32 @@ namespace
         const Selection s = selectInfo(w.mDialogue, kTopicHello, *w.mWorld, speakerA(), options);
         ASSERT_NE(s.mInfo, nullptr);
         EXPECT_EQ(s.mInfo->mResponses.at(0).mText.mText, "Other.");
+    }
+
+    TEST(SkyrimQuestParse, anAliasWithBothAReferenceAndAnActorIsFilledByTheReference)
+    {
+        QuestSpec q;
+        q.mAliases = refAlias(1, "Both", fillActor(kNpcA).append(fillRef(kRefA)));
+        const Parsed p = parse(questPlugin({ q }));
+        const QuestAlias& a = p.mRecords.mQuests.at(0).mAliases.at(0);
+        EXPECT_EQ(a.mFill, AliasFillKind::SpecificReference);
+        EXPECT_EQ(a.mReference, kRefA);
+        EXPECT_EQ(a.mActor, kNpcA);
+    }
+
+    TEST(SkyrimQuestSelect, anInfoWithoutAQuestUsesItsTopicsQuestAsTheContext)
+    {
+        InfoSpec noQuest;
+        noQuest.mId = kSelf | 0x1001; // no QNAM: the topic's quest A, where alias 1 is NpcA
+        noQuest.mConditions.append(ctda(566, 0, 1.0f, 1));
+        noQuest.mText = "Topic quest.";
+        QWorld w({ simpleQuest(kQuestA, QuestFlags::StartGameEnabled, Bytes(), refAlias(1, "N", fillActor(kNpcA))) },
+            topicWithInfos(kTopicHello, 50.f, kQuestA, { noQuest }));
+        const Selection s = selectInfo(w.mDialogue, kTopicHello, *w.mWorld, speakerA(), SelectionOptions());
+        ASSERT_NE(s.mInfo, nullptr);
+        EXPECT_EQ(s.mInfo->mResponses.at(0).mText.mText, "Topic quest.");
+        EXPECT_EQ(s.mUncertainBefore, 0u);
+        const Selection other = selectInfo(w.mDialogue, kTopicHello, *w.mWorld, speakerB(), SelectionOptions());
+        EXPECT_EQ(other.mInfo, nullptr);
     }
 }
