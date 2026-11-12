@@ -5,6 +5,7 @@
 
 #include "../mwworld/action.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/neutralstore.hpp"
 #include "../mwworld/registeredclass.hpp"
 
 namespace MWClass
@@ -40,6 +41,13 @@ namespace MWClass
             MWRender::RenderingInterface& renderingInterface) const override;
         void insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const override;
+
+    private:
+        /// An actor object (task 0121): drawn through the pack's ActorAppearanceSource when [Game] neutral actors is on.
+        void insertActorRendering(const MWWorld::Ptr& ptr, const MWWorld::NeutralBase& base,
+            MWRender::RenderingInterface& renderingInterface) const;
+
+    public:
         void insertObjectPhysics(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,
             MWPhysics::PhysicsSystem& physics) const override;
     };

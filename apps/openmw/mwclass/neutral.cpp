@@ -5,12 +5,14 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
+#include <components/settings/values.hpp>
+#include <components/worldmodel/store.hpp>
+
+#include <openeden/game/actor_appearance.hpp>
 
 #include <vsg/maths/quat.h>
 
 #include <components/l10n/manager.hpp>
-
-#include <components/worldmodel/store.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
@@ -226,6 +228,11 @@ namespace MWClass
         // (MWRender::Scene::insertModel reads the component of a neutral base); a light with no model (Skyrim has
         // many) still gets a light-only object, and a light that is off by default is not created at all.
         const MWWorld::NeutralBase& base = baseOf(ptr);
+        if (base.mKind == ObjectKind::Actor)
+        {
+            insertActorRendering(ptr, base, renderingInterface);
+            return;
+        }
         const bool offByDefault = base.mLight && base.mLight->offByDefault;
         const bool wantsLight = base.mLight && !offByDefault;
         if (!model.empty())
@@ -237,6 +244,32 @@ namespace MWClass
         }
         else if (wantsLight)
             renderingInterface.getObjects().insertModel(ptr, model, true);
+    }
+
+    void Neutral::insertActorRendering(const MWWorld::Ptr& ptr, const MWWorld::NeutralBase& base,
+        MWRender::RenderingInterface& renderingInterface) const
+    {
+        // Task 0121 (decision 0017, stage N5-1): the game pack that owns the base describes how its actor looks through
+        // the optional ActorAppearanceSource of its registered world source. With the setting off, or a pack that has no
+        // such interface, an actor stays an inert reference as before.
+        if (!Settings::game().mNeutralActors)
+            return;
+        MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+        NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+        openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
+        auto* appearanceSource = dynamic_cast<openeden::sdk::game::ActorAppearanceSource*>(source);
+        if (appearanceSource == nullptr)
+            return;
+        openeden::sdk::game::ActorAppearance appearance;
+        std::string error;
+        // The variation is the placement's own number: a leveled template picks the same entry every time it is shown.
+        const std::uint32_t variation = static_cast<std::uint32_t>(ptr.getCellRef().getRefNum().mIndex);
+        if (!appearanceSource->describeActor(base.mBase, variation, appearance, error))
+        {
+            Log(Debug::Warning) << "Skyrim actor " << base.mEditorId << " has no appearance: " << error;
+            return;
+        }
+        renderingInterface.getObjects().insertNeutralActor(ptr, appearance);
     }
 
     void Neutral::insertObject(const MWWorld::Ptr& ptr, const std::string& model, const vsg::dquat& rotation,

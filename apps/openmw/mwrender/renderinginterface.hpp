@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include <openeden/game/actor_appearance.hpp>
+
 #include "../mwworld/ptr.hpp"
 
 namespace MWRender
@@ -12,6 +14,9 @@ namespace MWRender
         virtual void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) = 0;
         virtual void insertNPC(const MWWorld::Ptr& ptr) = 0;
         virtual void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) = 0;
+        /// Draws a game pack's actor (task 0121, decision 0017): its skeleton and skinned parts in the rest pose. The
+        /// default does nothing, so an implementation that has no neutral actors needs no change.
+        virtual void insertNeutralActor(const MWWorld::Ptr& /*ptr*/, const openeden::sdk::game::ActorAppearance& /*appearance*/) {}
         RenderingInterface& getObjects() { return *this; } // vsgopenmw-delete-me
         virtual ~RenderingInterface() {}
     };

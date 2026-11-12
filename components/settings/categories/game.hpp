@@ -94,6 +94,7 @@ namespace Settings
         SettingValue<bool> mExtensionDebugDraw{ mIndex, "Game", "extension debug draw" };
         SettingValue<bool> mExtensionProfiler{ mIndex, "Game", "extension profiler" };
         SettingValue<bool> mNeutralWorld{ mIndex, "Game", "neutral world" };
+        SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
     };
 }
 

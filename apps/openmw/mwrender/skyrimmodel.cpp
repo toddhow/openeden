@@ -15,6 +15,8 @@
 #include <vsg/state/DescriptorBuffer.h>
 #include <vsg/state/DescriptorImage.h>
 
+#include <components/animation/skin.hpp>
+#include <components/animation/transform.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/header.hpp>
 #include <components/pipeline/builder.hpp>
@@ -103,35 +105,13 @@ namespace MWRender::SkyrimModel
             return enabled;
         }
 
-        vsg::ref_ptr<vsg::Node> buildShape(
-            const NifScene::Flat::Shape& shape, const BuildContext& context, BuildResult& result, Counters& totals)
+        // The material side of a draw, shared by static and skinned shapes: the diffuse texture, the fixed state from
+        // the key (culling, blending, alpha test) and the material descriptor, added to `options` and `descriptors`.
+        void addSurface(const NifScene::Flat::MaterialKey& key, const BuildContext& context, BuildResult& result,
+            Counters& totals, Pipeline::Options& options, vsg::Descriptors& descriptors)
         {
-            const NifScene::Flat::MaterialKey& key = shape.mKey;
-            Pipeline::Options options;
             auto& shader = options.shader;
-
-            // Vertex streams, in the order the pipeline's attribute layout expects (VERTEX, NORMAL, COLOR, TEXCOORD).
-            vsg::DataList dataList;
-            shader.addMode(Pipeline::Mode::VERTEX);
-            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
-            shader.addMode(Pipeline::Mode::NORMAL);
-            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
-            vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
-            if (!shape.mColors.empty())
-            {
-                shader.addMode(Pipeline::Mode::COLOR);
-                dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
-                options.colorMode = 2; // the vertex colour is the ambient and diffuse colour, as NiVertexColorProperty
-            }
-            if (!shape.mUV.empty())
-            {
-                shader.addMode(Pipeline::Mode::TEXCOORD);
-                dataList.emplace_back(copyArray<vsg::vec2Array>(shape.mUV));
-                options.numUvSets = 1;
-            }
-
             // The diffuse texture, read through the VFS like every other model texture.
-            vsg::Descriptors descriptors;
             if (!key.mDiffuse.empty())
             {
                 vsgUtil::ImageUse use;
@@ -198,6 +178,139 @@ namespace MWRender::SkyrimModel
             vsgUtil::share_if(context.mSharedObjects, materialDescriptor);
             descriptors.emplace_back(materialDescriptor);
             shader.addMode(Pipeline::Mode::MATERIAL);
+        }
+
+        // A NIF transform (skin space to bone space) as the matrix Anim::Skin calls invBindMatrix, converted the way
+        // vsgAdapters::nif::convertTrafo does it (the file's rotation is row-major, Anim::Transform's is transposed).
+        vsg::mat4 toSkinMatrix(const NifScene::Transform& source)
+        {
+            Anim::Transform t;
+            t.translation = vsg::vec3(source.mTranslation[0], source.mTranslation[1], source.mTranslation[2]);
+            t.setScale(source.mScale);
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    t.rotation(j, i) = source.mRotation[static_cast<std::size_t>(i * 3 + j)];
+            return t.t_transform(vsg::mat4());
+        }
+
+        vsg::ref_ptr<vsg::Node> buildSkinnedShape(const NifScene::Skinned::Shape& shape, const BuildContext& context,
+            BuildResult& result, Counters& totals)
+        {
+            const NifScene::Flat::MaterialKey& key = shape.mKey;
+            Pipeline::Options options;
+            auto& shader = options.shader;
+            const auto count = static_cast<std::uint32_t>(shape.mPositions.size());
+
+            // Vertex streams, in the order of the default shader (nif.cpp handleGeometry): vertex, normal, bone
+            // indices and weights, texture coordinates.
+            shader.addMode(Pipeline::Mode::VERTEX);
+            shader.addMode(Pipeline::Mode::NORMAL);
+            shader.addMode(Pipeline::Mode::SKIN);
+            vsg::DataList dataList;
+            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
+            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
+            auto boneIndices = vsg::vec4Array::create(count);
+            auto boneWeights = vsg::vec4Array::create(count);
+            for (std::uint32_t v = 0; v < count; ++v)
+                for (int k = 0; k < 4; ++k)
+                {
+                    (*boneIndices)[v][k] = static_cast<float>(shape.mBoneIndices[v][static_cast<std::size_t>(k)]);
+                    (*boneWeights)[v][k] = shape.mBoneWeights[v][static_cast<std::size_t>(k)];
+                }
+            dataList.emplace_back(boneIndices);
+            dataList.emplace_back(boneWeights);
+            if (!shape.mUV.empty())
+            {
+                shader.addMode(Pipeline::Mode::TEXCOORD);
+                dataList.emplace_back(copyArray<vsg::vec2Array>(shape.mUV));
+                options.numUvSets = 1;
+            }
+
+            vsg::Descriptors descriptors;
+            addSurface(key, context, result, totals, options, descriptors);
+
+            // Bounds of the shape in its own space, and per bone the same sphere in that bone's space.
+            vsg::dvec3 lower(1e300, 1e300, 1e300);
+            vsg::dvec3 upper(-1e300, -1e300, -1e300);
+            for (const auto& p : shape.mPositions)
+                for (int k = 0; k < 3; ++k)
+                {
+                    lower[k] = std::min(lower[k], static_cast<double>(p[static_cast<std::size_t>(k)]));
+                    upper[k] = std::max(upper[k], static_cast<double>(p[static_cast<std::size_t>(k)]));
+                }
+            const vsg::dvec3 centre = (lower + upper) * 0.5;
+            const double radius = vsg::length(upper - lower) * 0.5;
+
+            auto skin = Anim::Skin::create();
+            skin->bones.reserve(shape.mBones.size());
+            for (const NifScene::Skinned::Bone& bone : shape.mBones)
+            {
+                const vsg::mat4 inverseBind = toSkinMatrix(bone.mInverseBind);
+                const vsg::dvec4 boneCentre = vsg::dmat4(inverseBind) * vsg::dvec4(centre.x, centre.y, centre.z, 1.0);
+                skin->bones.push_back({ inverseBind,
+                    vsg::dsphere(vsg::dvec3(boneCentre.x, boneCentre.y, boneCentre.z), radius), bone.mName });
+            }
+            if (shape.mHasSkinTransform)
+                skin->transform = toSkinMatrix(shape.mSkinTransform);
+            skin->boneIndices = boneIndices;
+            skin->boneWeights = boneWeights;
+            auto boneMatrices = vsg::mat4Array::create(
+                static_cast<std::uint32_t>(shape.mBones.size() * (Anim::Skin::keepPreviousMatrices ? 2 : 1)));
+            skin->attachTo(*boneMatrices);
+            descriptors.push_back(vsg::DescriptorBuffer::create(
+                boneMatrices, Pipeline::Descriptors::BONE_BINDING, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+
+            auto geometry = vsg::VertexIndexDraw::create();
+            geometry->assignArrays(dataList);
+            geometry->instanceCount = 1;
+            geometry->indexCount = static_cast<std::uint32_t>(shape.mIndices.size());
+            geometry->assignIndices(copyArray<vsg::uintArray>(shape.mIndices));
+
+            auto bindPipeline = context.mBuilder.graphics->getOrCreate(options);
+            vsg::ref_ptr<vsg::PipelineLayout> layout = bindPipeline->pipeline->layout;
+            // Not shared through SharedObjects: the bone matrices are this actor's own.
+            auto descriptorSet = vsg::DescriptorSet::create(layout->setLayouts[Pipeline::TEXTURE_SET], descriptors);
+            auto bindDescriptors = vsg::BindDescriptorSet::create(
+                VK_PIPELINE_BIND_POINT_GRAPHICS, layout, Pipeline::TEXTURE_SET, descriptorSet);
+
+            auto stateGroup = vsg::StateGroup::create();
+            stateGroup->children = { geometry };
+            stateGroup->stateCommands = { bindPipeline, bindDescriptors };
+            ++result.mDraws;
+            if (key.mBlend && !key.mNoSorter)
+                return vsg::DepthSorted::create(context.mDepthSortedBin, vsg::dsphere(centre, radius), stateGroup);
+            return vsg::CullNode::create(vsg::dsphere(centre, radius), stateGroup);
+        }
+
+        vsg::ref_ptr<vsg::Node> buildShape(
+            const NifScene::Flat::Shape& shape, const BuildContext& context, BuildResult& result, Counters& totals)
+        {
+            const NifScene::Flat::MaterialKey& key = shape.mKey;
+            Pipeline::Options options;
+            auto& shader = options.shader;
+
+            // Vertex streams, in the order the pipeline's attribute layout expects (VERTEX, NORMAL, COLOR, TEXCOORD).
+            vsg::DataList dataList;
+            shader.addMode(Pipeline::Mode::VERTEX);
+            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
+            shader.addMode(Pipeline::Mode::NORMAL);
+            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
+            vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
+            if (!shape.mColors.empty())
+            {
+                shader.addMode(Pipeline::Mode::COLOR);
+                dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
+                options.colorMode = 2; // the vertex colour is the ambient and diffuse colour, as NiVertexColorProperty
+            }
+            if (!shape.mUV.empty())
+            {
+                shader.addMode(Pipeline::Mode::TEXCOORD);
+                dataList.emplace_back(copyArray<vsg::vec2Array>(shape.mUV));
+                options.numUvSets = 1;
+            }
+
+            vsg::Descriptors descriptors;
+            addSurface(key, context, result, totals, options, descriptors);
 
             auto geometry = vsg::VertexIndexDraw::create();
             geometry->assignArrays(dataList);
@@ -277,6 +390,30 @@ namespace MWRender::SkyrimModel
         vsg::ref_ptr<vsg::Node> root = vsgUtil::createCullNode(nodes);
         vsgUtil::addLeafCullNodes(root, 2);
         result.mNode = root;
+        return result;
+    }
+
+    BuildResult buildSkinnedNode(const NifScene::Skinned::SkinnedModel& model, const BuildContext& context)
+    {
+        BuildResult result;
+        Counters& totals = counters();
+        totals.mModels.fetch_add(1, std::memory_order_relaxed);
+        totals.mTriangles += model.mReport.mTriangles;
+        totals.mVertices += model.mReport.mVertices;
+        totals.mDroppedTriangles += model.mReport.mDroppedTriangles;
+        vsg::Group::Children nodes;
+        nodes.reserve(model.mShapes.size());
+        for (const NifScene::Skinned::Shape& shape : model.mShapes)
+            nodes.emplace_back(buildSkinnedShape(shape, context, result, totals));
+        totals.mDraws += result.mDraws;
+        if (nodes.empty())
+        {
+            totals.mModelsEmpty.fetch_add(1, std::memory_order_relaxed);
+            return result;
+        }
+        auto group = vsg::Group::create();
+        group->children = std::move(nodes);
+        result.mNode = group;
         return result;
     }
 

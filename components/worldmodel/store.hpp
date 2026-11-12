@@ -65,6 +65,14 @@ namespace NeutralWorld
 
         [[nodiscard]] std::size_t sourceCount() const { return mSources.size(); }
 
+        /// The registered source of a game, or nullptr (task 0121: the engine asks it for optional interfaces, such as
+        /// openeden::sdk::game::ActorAppearanceSource, by dynamic_cast). Not owned.
+        [[nodiscard]] openeden::sdk::game::WorldCellSource* source(std::string_view gameId) const
+        {
+            const auto it = mSources.find(gameId);
+            return it == mSources.end() ? nullptr : it->second;
+        }
+
         /// The game ids of the registered sources, in the order of the map (alphabetical: deterministic).
         [[nodiscard]] std::vector<std::string> gameIds() const
         {

@@ -26,15 +26,20 @@
 #include <components/vsgutil/removechild.hpp>
 #include <components/vsgutil/updatethreads.hpp>
 
+#include <components/resource/resourcesystem.hpp>
+
+#include "../mwbase/environment.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/containerstore.hpp"
 #include "../mwworld/neutrallight.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
 
+#include "bin.hpp"
 #include "env.hpp"
 #include "mask.hpp"
 #include "npc.hpp"
+#include "skyrimactor.hpp"
 #include "switches.hpp"
 #include "wieldingcreature.hpp"
 
@@ -313,6 +318,36 @@ namespace MWRender
             return;
 
         addObject(ptr, std::move(anim), true);
+    }
+
+    void Scene::insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
+    {
+        // Task 0121 (decision 0017, stage N5-2): a game pack's actor, drawn in its rest pose. The object is the
+        // ordinary animation object a creature gets (bones plus skinned geometry under one root), so the engine's
+        // animation system links the skins; nothing moves it yet. Kept in the plain object group, not the actor group:
+        // Class::isActor() is false for a neutral object, and removeObject looks the cell up by that.
+        Misc::LoadTrace::Scope traceCreate("neutralactor.create");
+        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+        if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
+            return;
+        const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
+            Bin_DepthSorted, "actor" };
+        SkyrimActor::Report report;
+        vsg::ref_ptr<vsg::Node> node
+            = SkyrimActor::buildActorNode(appearance, *resources->getVFS(), buildContext, report);
+        if (!node)
+        {
+            Log(Debug::Warning) << "Skyrim actor " << ptr.getCellRef().getRefId() << " not drawn: " << report.mFailure;
+            return;
+        }
+        std::unique_ptr<MWAnim::ObjectAnimation> anim
+            = MWAnim::create<MWAnim::ObjectAnimation>(context, node, nullptr, true);
+        traceCreate.end();
+        loadTransform(ptr, *anim->transform());
+        Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
+        if (!context.compileContext->compile(anim->node()))
+            return;
+        addObject(ptr, std::move(anim), false);
     }
 
     bool Scene::removeObject(const MWWorld::Ptr& ptr)

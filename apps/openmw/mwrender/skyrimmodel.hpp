@@ -25,6 +25,7 @@
 #include <vsg/utils/SharedObjects.h>
 
 #include <components/nifscene/flatten.hpp>
+#include <components/nifscene/skinned.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
 
 namespace Pipeline
@@ -53,6 +54,12 @@ namespace MWRender::SkyrimModel
     };
 
     BuildResult buildNode(const NifScene::Flat::FlatModel& model, const BuildContext& context);
+
+    /// The skinned shapes of a model (task 0121, N5-2): one draw per shape, each with its own Anim::Skin (bones named
+    /// as the file names them) and bone matrix buffer, under a plain group. The result has NO Anim::Meta: the caller
+    /// that assembles the actor puts Skins | Controllers | DynamicBounds on the root. Main thread (the bone matrix
+    /// buffers and descriptor sets are the actor's own and are not shared through SharedObjects).
+    BuildResult buildSkinnedNode(const NifScene::Skinned::SkinnedModel& model, const BuildContext& context);
 
     /// The scene reader the host hands to the renderer's NIF reader (vsgAdapters::nif::sceneReader) when the neutral
     /// world is on: accepts Skyrim SE files (header 20.2.0.7), reads them as a Nif::Scene, flattens and builds them.

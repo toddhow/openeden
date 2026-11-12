@@ -78,6 +78,7 @@ namespace MWRender
     public:
 
         void insertNPC(const MWWorld::Ptr& ptr) override;
+        void insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
         /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of

@@ -225,6 +225,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Banners and flags wave* (`animate placed scenery keyframes`, task 0096 stage f): the keyframe files of placed scenery play, near and far (the far field needs `[WorldLod] animated objects`).
 - *Extension debug draw and profiler* (task 0017): `extension debug draw` draws what enabled extensions submit as lines in the world (the example extension draws a line over the player and a box, sphere, point, label and line ahead of him; labels show as small crosses), `extension profiler` fills the Extensions tab of the debug window (F10) with each extension's timings per phase. Nothing shows until an extension is enabled (`extension=example` in `openmw.cfg`).
 - *Neutral world* (0103, N3a-1): `neutral world` builds the core's neutral world store for game packs; nothing shows with Morrowind. With `game=skyrimse` the Skyrim SE pack registers its (still empty) world source and no longer refuses the session. Nothing reads the store yet.
+- *Neutral actors* (0121, N5-1 and N5-2): `neutral actors` draws a game pack's NPCs standing in their rest pose (Skyrim SE: the Bannered Mare's people, dressed, no animation). Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Ragdoll* (0035): `cmRagdoll` on the target. *Death ragdolls* (0106): kill an NPC (e.g. `"name"->SetHealth 0` in the console, or hit it) and watch it fall and settle.
 
 ## Video memory scale-back (task 0080)
