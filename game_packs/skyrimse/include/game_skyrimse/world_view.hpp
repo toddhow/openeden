@@ -349,9 +349,16 @@ namespace game_skyrimse
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         bool ensureActorIndex();
-        struct DialogueState; ///< the dialogue and quest indexes and the runtime (task 0140); defined in the .cpp
+        struct DialogueData; ///< the dialogue and quest indexes (task 0140); defined in the .cpp
+        struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;
         bool ensureDialogue();
+        void startDialoguePrefetch();
+        [[nodiscard]] static std::unique_ptr<DialogueData> buildDialogueData(
+            const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order);
+        std::thread mDialogueThread; ///< reads the conversation records after the first actor was described
+        std::unique_ptr<DialogueData> mPrefetched; ///< the thread's result; valid once mDialogueReady is set
+        std::atomic<bool> mDialogueReady{ false };
         LoadOrder mOrder;
         std::vector<PluginData> mPlugins;
         std::unordered_map<FormId, BaseRef> mBases;

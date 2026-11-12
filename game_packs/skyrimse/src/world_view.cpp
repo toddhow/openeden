@@ -164,15 +164,31 @@ namespace game_skyrimse
 
     // ---- construction ---------------------------------------------------------------------------------------------
 
-    struct SkyrimWorldView::DialogueState
+    /// The dialogue and quest records of a load order (task 0140). Built from the plugin files only, so a worker can
+    /// build it while the main thread goes on (the records of the five masters take several seconds).
+    struct SkyrimWorldView::DialogueData
     {
         DialogueIndex mDialogue;
         QuestIndex mQuests;
-        /// String tables by (plugin index, kind); a null entry is a table that could not be read (tried once).
+    };
+
+    struct SkyrimWorldView::DialogueState
+    {
+        std::unique_ptr<DialogueData> mData;
+        /// String tables by (plugin index, kind); an empty table is one that could not be read (tried once).
         std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mTables;
         std::unique_ptr<DialogueRuntime> mRuntime;
         std::uint64_t mTablesMissing = 0;
     };
+
+    namespace
+    {
+        struct PluginRef
+        {
+            std::filesystem::path mPath;
+            std::string mName;
+        };
+    }
 
     SkyrimWorldView::SkyrimWorldView() = default;
 
@@ -186,6 +202,8 @@ namespace game_skyrimse
     SkyrimWorldView::~SkyrimWorldView()
     {
         cancelAndJoin();
+        if (mDialogueThread.joinable())
+            mDialogueThread.join();
     }
 
     bool SkyrimWorldView::ensureActorIndex()
@@ -230,6 +248,7 @@ namespace game_skyrimse
             error = "the actor records are not available";
             return false;
         }
+        startDialoguePrefetch(); // task 0140: the conversation records are read while the cell loads
         FaceFileProbe probe;
         if (mFiles != nullptr)
         {
@@ -242,6 +261,47 @@ namespace game_skyrimse
 
     // ---- conversations (task 0140, M-S4 slice 1) -----------------------------------------------------------------
 
+    std::unique_ptr<SkyrimWorldView::DialogueData> SkyrimWorldView::buildDialogueData(
+        const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order)
+    {
+        auto data = std::make_unique<DialogueData>();
+        const DialogueLimits dialogueLimits;
+        const QuestLimits questLimits;
+        for (const auto& [path, name] : plugins)
+        {
+            Content::Error openError;
+            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(path, openError);
+            if (file == nullptr)
+            {
+                // Keep the plugin numbering of the index: an empty plugin takes the slot.
+                data->mDialogue.add(DialogueRecords(), FormIdResolver(Content::Header(), name, order));
+                data->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), name, order));
+                continue;
+            }
+            DialogueRecords dialogue;
+            (void)parseDialogueRecords(*file, order, dialogueLimits, dialogue);
+            data->mDialogue.add(std::move(dialogue), FormIdResolver(file->header(), name, order));
+            QuestRecords quests;
+            (void)parseQuestRecords(*file, order, questLimits, quests);
+            data->mQuests.add(std::move(quests), FormIdResolver(file->header(), name, order));
+        }
+        return data;
+    }
+
+    void SkyrimWorldView::startDialoguePrefetch()
+    {
+        if (mDialogue != nullptr || mDialogueThread.joinable())
+            return;
+        std::vector<std::pair<std::filesystem::path, std::string>> plugins;
+        for (const PluginData& plugin : mPlugins)
+            plugins.emplace_back(plugin.mPath, plugin.mName);
+        mDialogueThread = std::thread([this, plugins = std::move(plugins), order = mOrder]() {
+            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order);
+            mPrefetched = std::move(data);
+            mDialogueReady.store(true);
+        });
+    }
+
     bool SkyrimWorldView::ensureDialogue()
     {
         if (mDialogue != nullptr)
@@ -249,30 +309,23 @@ namespace game_skyrimse
         if (!ensureActorIndex())
             return false;
         auto state = std::make_unique<DialogueState>();
-        const DialogueLimits dialogueLimits;
-        const QuestLimits questLimits;
-        for (const PluginData& plugin : mPlugins)
+        if (mDialogueThread.joinable())
         {
-            Content::Error openError;
-            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
-            if (file == nullptr)
-            {
-                noteError(openError);
-                // Keep the plugin numbering of the index: an empty plugin takes the slot.
-                state->mDialogue.add(DialogueRecords(), FormIdResolver(Content::Header(), plugin.mName, mOrder));
-                state->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), plugin.mName, mOrder));
-                continue;
-            }
-            DialogueRecords dialogue;
-            (void)parseDialogueRecords(*file, mOrder, dialogueLimits, dialogue);
-            state->mDialogue.add(std::move(dialogue), FormIdResolver(file->header(), plugin.mName, mOrder));
-            QuestRecords quests;
-            (void)parseQuestRecords(*file, mOrder, questLimits, quests);
-            state->mQuests.add(std::move(quests), FormIdResolver(file->header(), plugin.mName, mOrder));
+            if (!mDialogueReady.load())
+                return false; // still being read: the caller may ask again; nothing blocks the main thread
+            mDialogueThread.join();
+            state->mData = std::move(mPrefetched);
+        }
+        else
+        {
+            std::vector<std::pair<std::filesystem::path, std::string>> plugins;
+            for (const PluginData& plugin : mPlugins)
+                plugins.emplace_back(plugin.mPath, plugin.mName);
+            state->mData = buildDialogueData(plugins, mOrder);
         }
         DialogueState* raw = state.get();
-        raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mDialogue, raw->mQuests,
-            QuestState::initial(raw->mQuests),
+        raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mData->mDialogue, raw->mData->mQuests,
+            QuestState::initial(raw->mData->mQuests),
             [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
                 if (!text.mPresent)
                     return std::string();

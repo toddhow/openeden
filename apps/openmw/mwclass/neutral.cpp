@@ -149,6 +149,8 @@ namespace MWClass
                         cell->neutralCell()->id, turn, error))
                 {
                     Log(Debug::Info) << "Neutral dialogue with " << base.mEditorId << ": " << error;
+                    MWBase::Environment::get().getWindowManager()->messageBox(
+                        MWBase::Environment::get().getL10nManager()->getMessage("OMWEngine", "NeutralDialogueNothing"));
                     return;
                 }
                 Log(Debug::Info) << "NTALK " << base.mEditorId << ": greeting of " << turn.text.size() << " bytes, "
