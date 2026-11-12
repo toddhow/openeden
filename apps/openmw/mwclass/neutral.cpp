@@ -124,7 +124,7 @@ namespace MWClass
             }
         };
 
-        // Task 0140: talking to a neutral actor. The pack that owns the actor's base runs the conversation through the
+        // Task 0141: talking to a neutral actor. The pack that owns the actor's base runs the conversation through the
         // optional DialogueSource of its registered world source; the engine only presents it (neutraldialogue.hpp).
         class TalkAction final : public MWWorld::Action
         {
@@ -191,7 +191,7 @@ namespace MWClass
     std::unique_ptr<MWWorld::Action> Neutral::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
     {
         const MWWorld::NeutralBase& base = baseOf(ptr);
-        // Task 0140: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
+        // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).
         if (base.mKind == ObjectKind::Actor && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
             return std::make_unique<TalkAction>(ptr);

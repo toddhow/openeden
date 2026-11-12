@@ -7,7 +7,7 @@
 #include <openeden/game/world_view.hpp>
 #include <openeden/version.hpp>
 
-// What the core needs to run a CONVERSATION with a game's actor (task 0140, milestone M-S4 "talk to an NPC",
+// What the core needs to run a CONVERSATION with a game's actor (task 0141, milestone M-S4 "talk to an NPC",
 // decision 0017): the greeting, the topics the player may choose, the response to a chosen topic. The rules (which
 // response passes, quests, say once) stay in the pack; only plain text and opaque topic ids cross.
 //

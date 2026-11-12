@@ -140,7 +140,7 @@ namespace OMW
         }
         ~Game()
         {
-            MWWorld::neutralDialogueSession().abandon(); // before the extension host stops (task 0140)
+            MWWorld::neutralDialogueSession().abandon(); // before the extension host stops (task 0141)
             // Extensions stop while the World they may hold IDs into still exists.
             if (mEngine.mExtensionHost)
                 mEngine.mExtensionHost->stop();
@@ -249,7 +249,7 @@ namespace OMW
                 // The game pack's window update (SDK 4.0), where the game's windows update, paused or not
                 mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::GameUpdateUi, dt);
 
-                MWWorld::neutralDialogueSession().update(); // task 0140: one poll a frame, nothing when idle
+                MWWorld::neutralDialogueSession().update(); // task 0141: one poll a frame, nothing when idle
 
                 Misc::LoadTrace::Scope traceTail("run.window.focus.sound");
                 mEngine.mWindowManager->update(dt);

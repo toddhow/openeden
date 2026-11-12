@@ -1,4 +1,4 @@
-# Task 0140: Talk to a Skyrim NPC, slice 1 (milestone M-S4)
+# Task 0141: Talk to a Skyrim NPC, slice 1 (milestone M-S4)
 
 Status: APPROVED under toddhow's blanket "go with your recommendations" (2026-11-12). Full loop (D13): the engine
 activation path, the SDK interface and the pack runtime are new code that decides what the player sees.

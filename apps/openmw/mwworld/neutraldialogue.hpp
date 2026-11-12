@@ -10,7 +10,7 @@
 
 #include <openeden/game/dialogue_source.hpp>
 
-// Talking to a neutral actor (task 0140, milestone M-S4 slice 1; docs/tasks/0140-neutral-dialogue-slice1.md).
+// Talking to a neutral actor (task 0141, milestone M-S4 slice 1; docs/tasks/0141-neutral-dialogue-slice1.md).
 //
 // The pack decides what is said (openeden::sdk::game::DialogueSource); this file only presents it. Slice 1 shows each
 // turn in the engine's interactive message box: the actor's line as the message, the topics as buttons, a "More

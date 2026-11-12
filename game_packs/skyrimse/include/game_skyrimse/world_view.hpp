@@ -260,7 +260,7 @@ namespace game_skyrimse
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
-        // ---- openeden::sdk::game::DialogueSource (task 0140, M-S4 slice 1) ----
+        // ---- openeden::sdk::game::DialogueSource (task 0141, M-S4 slice 1) ----
         /// The dialogue, quest and actor records of every plugin are read on the first call and kept (another read of
         /// each plugin file); string tables are read when a text needs them. One conversation at a time; main thread.
         bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
@@ -349,7 +349,7 @@ namespace game_skyrimse
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         bool ensureActorIndex();
-        struct DialogueData; ///< the dialogue and quest indexes (task 0140); defined in the .cpp
+        struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;
         bool ensureDialogue();

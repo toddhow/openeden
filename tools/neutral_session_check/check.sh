@@ -62,7 +62,7 @@ CFG
 # Task 0121: "n5actors" visits each neutral actor of the Bannered Mare and takes a picture of it (use at least 1500 frames).
 [ "$SHOT" = n5actors ] && echo "content=n5actors.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5idle ] && echo "content=n5idle.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0140: "n5talk" activates each neutral actor of the Bannered Mare and takes pictures of the conversation box; the presses come from OPENEDEN_NEUTRAL_DIALOGUE_PRESS (use at least 1500 frames).
+# Task 0141: "n5talk" activates each neutral actor of the Bannered Mare and takes pictures of the conversation box; the presses come from OPENEDEN_NEUTRAL_DIALOGUE_PRESS (use at least 1500 frames).
 [ "$SHOT" = n5talk ] && echo "content=n5talk.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135: "n5body" walks the player into each neutral actor of the Bannered Mare (use at least 3600 frames).
 [ "$SHOT" = n5body ] && echo "content=n5body.omwscripts" >> "$WORK/config/openmw.cfg"

@@ -1,4 +1,4 @@
-// Task 0140, M-S4 slice 1: the conversation with the actors of the Bannered Mare on the player's own Skyrim SE masters.
+// Task 0141, M-S4 slice 1: the conversation with the actors of the Bannered Mare on the player's own Skyrim SE masters.
 // Prints counts only (lines starting SKYRIMSE-TALK): whether a greeting was found, how many topics are offered, never a
 // response text. Skipped when OPENEDEN_SKYRIMSE_DATA is not set.
 //

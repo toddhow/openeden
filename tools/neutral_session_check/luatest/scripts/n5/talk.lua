@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0140): activates each neutral actor of the Bannered Mare in turn (object:activateBy),
+-- tools/neutral_session_check (task 0141): activates each neutral actor of the Bannered Mare in turn (object:activateBy),
 -- and takes pictures of the conversation box. The buttons are pressed by OPENEDEN_NEUTRAL_DIALOGUE_PRESS.
 -- Positions are those of n5/cam.lua; the actor is the object of the cell nearest to the position.
 local core = require('openmw.core')

@@ -343,7 +343,7 @@ namespace game_skyrimse
                         case Content::fourCC("ANAM"):
                             return formField(type, data, info.mSpeaker);
                         case Content::fourCC("VMAD"):
-                            info.mHasScript = true; // fragments are not read (task 0140): only noted
+                            info.mHasScript = true; // fragments are not read (task 0141): only noted
                             return true;
                         case Content::fourCC("RNAM"):
                             return lstring(type, data, info.mPrompt);

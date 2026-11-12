@@ -178,7 +178,7 @@ namespace game_skyrimse
         /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
-        /// Conversations (task 0140): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
+        /// Conversations (task 0141): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
         bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;

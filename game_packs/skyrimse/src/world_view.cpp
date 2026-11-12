@@ -164,7 +164,7 @@ namespace game_skyrimse
 
     // ---- construction ---------------------------------------------------------------------------------------------
 
-    /// The dialogue and quest records of a load order (task 0140). Built from the plugin files only, so a worker can
+    /// The dialogue and quest records of a load order (task 0141). Built from the plugin files only, so a worker can
     /// build it while the main thread goes on (the records of the five masters take several seconds).
     struct SkyrimWorldView::DialogueData
     {
@@ -248,7 +248,7 @@ namespace game_skyrimse
             error = "the actor records are not available";
             return false;
         }
-        startDialoguePrefetch(); // task 0140: the conversation records are read while the cell loads
+        startDialoguePrefetch(); // task 0141: the conversation records are read while the cell loads
         FaceFileProbe probe;
         if (mFiles != nullptr)
         {
@@ -259,7 +259,7 @@ namespace game_skyrimse
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
     }
 
-    // ---- conversations (task 0140, M-S4 slice 1) -----------------------------------------------------------------
+    // ---- conversations (task 0141, M-S4 slice 1) -----------------------------------------------------------------
 
     std::unique_ptr<SkyrimWorldView::DialogueData> SkyrimWorldView::buildDialogueData(
         const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order)

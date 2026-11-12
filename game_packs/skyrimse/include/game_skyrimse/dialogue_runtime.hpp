@@ -1,7 +1,7 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_DIALOGUE_RUNTIME_H
 #define OPENEDEN_GAME_SKYRIMSE_DIALOGUE_RUNTIME_H
 
-// Skyrim SE conversation state (task 0140, milestone M-S4 "talk to an NPC", slice 1). Pure pack code over the
+// Skyrim SE conversation state (task 0141, milestone M-S4 "talk to an NPC", slice 1). Pure pack code over the
 // dialogue, quest and actor indexes: opens a conversation with a speaker (the greeting the data gives, the topics the
 // player may choose) and answers a chosen topic. Text comes through a resolver (string tables); no engine, UI or Qt
 // type. Not thread safe; one conversation at a time.
