@@ -70,4 +70,28 @@ Combat, magic, perks, inventory (decision 0017 open question 3: Skyrim inventori
 
 ## Stage log
 
-(see the end of the file after the build and the in-game run)
+### Stage log (2026-11-12; same hand wrote tests and code, no fresh reviewer; Windows only; branch `skyactors`, not pushed)
+
+Built in `I:\Projects\OpenEden-work\skyactorsuild` (RelWithDebInfo, no editor/launcher). The parent for Morrowind comparisons was built from the SAME tree with the five engine files taken from `main` (`parentdir`, the 5 files then restored), so it has every other recent change (including the `OPENEDEN_FORCE_ANIM_VARIANT` knob).
+
+**Tests first, red.** `testneutralactor.cpp` (23 tests): against a stub 18 failed and 5 passed (they pin "unchanged" behaviour); after the code 21 passed and two shape tests failed for a test fault (Jolt local bounds and `Shape::CastRay` are centre-of-mass relative), fixed in the tests; 23 pass. Pack: 5 `SkyrimAppearanceHeight` tests, 3 failed against a stub that left the scale at 1 (the other two pin the default and the refused case), all pass with the code. Four mutations of `neutralactor.cpp` (settle comparison, terminal speed, navmesh marker, landing test): the first three each fail a named test; the fourth (`z < floor - 5`) is observably equivalent (the actor is snapped to the floor on the next frame) and was not caught. `openmw-tests` as a whole 2,130 pass, 2 skipped (real data, existing).
+
+**In game** (`tools/neutral_session_check/check.sh ... n5body`, new; the five Skyrim masters; quiet window; one game at a time; `OPENMW_DISABLE_CRASH_CATCHER=1` because the cold first run of a build trips the 5 s freeze monitor):
+- Standing: six actors, `NACTBODY` rest z 68 to 70.39 from start z 64 to 69.2, each grounded in frame 1 (the placements are nearly on their floor). Frames viewed.
+- Falling: `OPENEDEN_NEUTRAL_ACTOR_RAISE=300`: four actors fall 143 to 146 frames and land on the floor (rest z 68 to 69.2); two landed on the upstairs floor (z 347 and 318) because the raised start is inside it.
+- Collision: the player walks at each NPC for 300 frames from 200 units away (log `N5B`). Setting on against off: actor 3 moved 166 against 278 and ends facing the NPC 30.8 units from its surface; actor 4 106.7 against 200.5; actor 6 163 against 211 (slides round); actors 1, 2 and 5 are limited by furniture in both runs. So the capsule stops the player where the same walk with the setting off passes through.
+- The collision debug view (`n5bodydraw`) shows the capsule round the drawn NPC, feet on the floor (frame `run_draw/user/screenshots/screenshot000.png` viewed).
+
+**Morrowind unchanged** (parent `parentdir`): `worldobjects_check` 110 lines, OK; Balmora fixed-frame (`OPENEDEN_FIXED_FRAME_TIME`, seed 7, frame 600) SHA-256 `1c5d47ad0b5dc32d` for parent and new, `neutral world` off and on; the C2 player pose trace (`creativemotion_check ... cm`, `OPENEDEN_FORCE_ANIM_VARIANT=1`, `OPENEDEN_FIXED_FRAME_TIME`, player lines with `pos=` and `CMFEET` removed): 1,401 lines and the same MD5 for 3 runs of parent and 3 of new. (An earlier reference from another session's folder predated the knob and differed after the hit phase; it is not used.) `check_tests_registered`, `check_layer_rules` (104), `check_game_conventions` pass.
+
+**Not run:** the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua tests, the whole `components-tests`, sanitizers, a fresh review, a measurement of the real standing height against the skeleton (`kStandingHeight` 128 and `kRadius` 22 are estimates), female and non-human races in a frame, an exterior cell with terrain, frame-time cost with many actors (grounded actors cost one state test).
+
+**Limits found:** the player cannot push an NPC (static body); a teleport or script move does not re-settle an actor; actors placed on furniture drop to the floor; with `[Cells] incremental cell build` an actor can wait up to 180 frames for a floor that is not built (not exercised); `World::moveObject` is unusable for neutral refs (paging `mStore.find`), so the settle moves the render object and body directly.
+
+### Decisions for toddhow
+
+1. Body on `Layers::WORLD` as a static `Object` (first slice) against a kinematic body on a layer the player's solver reads as an actor (needed for S2, when NPCs move): recommended to decide at S2 with the movement design.
+2. `ActorAppearance::heightScale` as a trailing field (SDK 0.3, the 0.2 precedent) against a separate interface: taken the field; says so if you want the interface.
+3. The body is created in `Neutral::insertActorRendering` (no engine-wide change). If you prefer `Scene::addObject` to call `insertObject` for model-less objects with a `Class` virtual, it costs a full rebuild and touches every class.
+4. `kStandingHeight`/`kRadius` are estimates: approve measuring them from the skeleton (a small gated test) or keep them.
+5. Task number 0133 was the next free on this branch; another branch may have used it.

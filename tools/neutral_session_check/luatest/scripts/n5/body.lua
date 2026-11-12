@@ -20,7 +20,7 @@ local ACTORS = {
 }
 local DIST = 200
 local SETTLE = 40
-local WALK = 150
+local WALK = 300
 local START = 200
 
 local frame, index, phaseStart, state, startPos = 0, 0, 0, 'wait', nil
