@@ -7,6 +7,7 @@
 // Editing model: each channel is shown as keys (facekeys.hpp). A channel nobody edits keeps its original integers, so
 // opening and saving a file never changes it; an edited channel is resampled from its keys when the file is saved.
 
+#include "a2f_generate.hpp"
 #include "audio_pcm.hpp"
 #include "facekeys.hpp"
 
@@ -39,6 +40,15 @@ namespace face_editor
     bool createCurvesFile(const std::filesystem::path& audioPath, const std::filesystem::path& outPath,
         std::uint32_t frameRate, std::string& error);
 
+    /// What a generated set of curves records in the file's generator block.
+    struct GeneratedMeta
+    {
+        std::string mName; ///< generator.name
+        std::string mVersion; ///< generator.version
+        std::string mEmotion; ///< generator.emotion ("" = not recorded)
+        std::uint64_t mSeed = 0; ///< generator.seed
+    };
+
     class FaceDocument final : public openeden::editor::AssetDocument
     {
     public:
@@ -69,6 +79,15 @@ namespace face_editor
         openeden::editor::CurveTrack& curveTrack();
         /// Null without audio.
         openeden::editor::WaveformTrack* waveformTrack();
+
+        /// Task 0147 slice 2: replaces the curves of every channel that has a generated pose of the same name (lower
+        /// case) by the generated weights, resampled to this file's frame rate (linear between generated frames,
+        /// quantised like the file), and records \a meta as the generator. ONE undoable step; channels without a
+        /// generated pose (gaze) are left alone, and generated poses without a channel are not added (the file keeps
+        /// the channels it has). Null when no channel matches. \a written and \a skipped (may be null) get the names of
+        /// the channels written and of the generated poses that had no channel.
+        std::unique_ptr<openeden::editor::Command> makeGeneratedCommand(const GeneratedWeights& weights,
+            const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* skipped);
 
         /// The keys of a channel now (for tests and the canvas).
         std::vector<openeden::editor::CurveKey> keysOf(std::string_view channel) const;

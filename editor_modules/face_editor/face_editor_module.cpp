@@ -1,12 +1,14 @@
 #include "face_editor_module.hpp"
 
 #include "face_document.hpp"
+#include "generate_run.hpp"
 #include "models_folder.hpp"
 
 #include <openeden/editor_module/registrar.hpp>
 
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -289,16 +291,29 @@ namespace face_editor
 
             void generateCurves(EditorContext& context)
             {
+                FaceDocument* doc = faceOf(context.activeAsset());
+                if (doc == nullptr)
+                    return;
+                std::string why;
+                if (!generationAvailable(why))
+                {
+                    context.log(LogLevel::Error, why);
+                    return;
+                }
+                // v2.3 first: a quarter of v3.0's memory and the default of the task (toddhow, 2026-11-12).
                 std::vector<std::string> usable;
-                for (const auto& status : mModels->statuses())
-                    if (status.mId != "audio2emotion"
-                        && (status.mState == VariantState::Present || status.mState == VariantState::Verified))
-                        usable.push_back(status.mId);
+                for (const char* id : { "v2.3-mark", "v3.0" })
+                    for (const auto& status : mModels->statuses())
+                        if (status.mId == id
+                            && (status.mState == VariantState::Present || status.mState == VariantState::Verified))
+                            usable.push_back(status.mId);
                 DialogDesc dialog;
                 dialog.title = "Generate Curves";
                 dialog.message = usable.empty()
-                    ? "No Audio2Face model was found in the models folder (see its README.txt)."
-                    : "Settings for the generator.";
+                    ? "No Audio2Face model was found in the models folder (see its README.txt); generating needs a "
+                      "model and the ONNX runtime."
+                    : "Writes the curves of the channels this file has (replacing them) from the voice audio. One undo "
+                      "step.";
                 PropertyDesc variant;
                 variant.id = "variant";
                 variant.label = "Model";
@@ -307,13 +322,127 @@ namespace face_editor
                 PropertyDesc emotion;
                 emotion.id = "emotion";
                 emotion.label = "Use the emotion model";
+                emotion.tooltip = "Audio2Emotion is not wired yet: the neutral emotion is used.";
                 emotion.type = PropertyType::Bool;
-                dialog.fields = { variant, emotion };
+                PropertyDesc directMl;
+                directMl.id = "directml";
+                directMl.label = "Use DirectML (the GPU)";
+                directMl.tooltip = "Off runs on the CPU. DirectML falls back to the CPU on its own if it cannot be used.";
+                directMl.type = PropertyType::Bool;
+                dialog.fields = { variant, emotion, directMl };
+                dialog.initial = { usable.empty() ? std::string("none found") : usable.front(), false, true };
                 dialog.okLabel = "Generate";
                 auto answer = context.showDialog(dialog);
                 if (!answer)
                     return;
-                context.log(LogLevel::Warning, kGenerateNeedsRuntime);
+                if (usable.empty())
+                {
+                    context.log(LogLevel::Warning,
+                        "Generate Curves: no Audio2Face model was found in " + modelsRoot(context.userDataPath()).generic_string()
+                            + "; generating needs a model (see the README.txt there) and the ONNX runtime.");
+                    return;
+                }
+                auto text = [&](std::size_t i, const std::string& fallback) {
+                    return i < answer->size() && std::holds_alternative<std::string>((*answer)[i])
+                        ? std::get<std::string>((*answer)[i])
+                        : fallback;
+                };
+                auto flag = [&](std::size_t i, bool fallback) {
+                    return i < answer->size() && std::holds_alternative<bool>((*answer)[i])
+                        ? std::get<bool>((*answer)[i])
+                        : fallback;
+                };
+                const std::string variantId = text(0, usable.front());
+                if (std::find(usable.begin(), usable.end(), variantId) == usable.end())
+                    return;
+
+                const WaveformTrack* wave = doc->waveformTrack();
+                if (wave == nullptr || wave->waveform().sampleCount == 0)
+                {
+                    context.log(LogLevel::Error, "Generate Curves: this file has no voice audio loaded.");
+                    return;
+                }
+                const WaveformData wd = wave->waveform();
+                auto request = std::make_shared<GenerateRequest>();
+                request->mModelsRoot = modelsRoot(context.userDataPath());
+                request->mVariantId = variantId;
+                request->mUseEmotionModel = flag(1, false);
+                request->mAllowDirectMl = flag(2, true);
+                request->mAudio.assign(wd.samples, wd.samples + wd.sampleCount);
+                request->mAudioRate = wd.sampleRate;
+                for (const auto& status : mModels->statuses())
+                    if (status.mId == variantId && status.mState == VariantState::Verified)
+                        request->mAlreadyVerified = true;
+                auto result = std::make_shared<GenerateResult>();
+                auto failure = std::make_shared<std::string>();
+
+                ModelsSource* models = mModels.get();
+                TaskDesc task;
+                task.label = "Generate face curves (" + variantId + ")";
+                task.assetId = std::string(doc->assetId());
+                task.work = [request, result, failure](TaskControl& control) {
+                    std::string error;
+                    const bool ok = runGeneration(*request, [&](double f, std::string_view message) {
+                        control.reportProgress(f, message);
+                        return !control.cancelled();
+                    }, *result, error);
+                    if (!ok)
+                        *failure = error.empty() ? "unknown error" : error;
+                };
+                task.done = [this, &context, models, request, result, failure](TaskOutcome outcome, const std::string& error) {
+                    if (mContext == nullptr)
+                        return;
+                    if (outcome == TaskOutcome::Cancelled || *failure == "cancelled")
+                    {
+                        context.log(LogLevel::Info, "Generate Curves: cancelled.");
+                        return;
+                    }
+                    if (outcome == TaskOutcome::Failed || !failure->empty())
+                    {
+                        context.log(LogLevel::Error,
+                            "Generate Curves failed: " + (outcome == TaskOutcome::Failed ? error : *failure));
+                        return;
+                    }
+                    if (result->mVerified.mState == VariantState::Verified)
+                        models->noteVerified(result->mVerified);
+                    FaceDocument* target = faceOf(context.activeAsset());
+                    if (target == nullptr)
+                        return;
+                    GeneratedMeta meta;
+                    meta.mName = "audio2face-onnx";
+                    meta.mVersion = result->mVariantId + " ort " + result->mRuntimeVersion + " " + result->mProvider;
+                    meta.mEmotion = "neutral";
+                    meta.mSeed = result->mVariantId == "v3.0" ? request->mOptions.mNoiseSeed : 0;
+                    std::vector<std::string> written, skipped;
+                    auto command = target->makeGeneratedCommand(result->mWeights, meta, &written, &skipped);
+                    if (!command)
+                    {
+                        context.log(LogLevel::Warning, "Generate Curves: none of this file's channels has a generated pose.");
+                        return;
+                    }
+                    context.pushCommand(std::move(command));
+                    context.markDirty(target->assetId());
+                    for (const std::string& warning : result->mWarnings)
+                        context.log(LogLevel::Warning, warning);
+                    if (!result->mFallbackReason.empty())
+                        context.log(LogLevel::Warning, result->mFallbackReason + "; the CPU was used.");
+                    std::string skippedText;
+                    for (const std::string& name : skipped)
+                        skippedText += (skippedText.empty() ? "" : ", ") + name;
+                    char timing[240];
+                    std::snprintf(timing, sizeof(timing), "%.2f s of compute for %.2f s of audio (%.3f s per second; setup %.2f, network %.2f, solve %.2f), %.2f s in all",
+                        result->mComputeSeconds, result->mAudioSeconds,
+                        result->mAudioSeconds > 0 ? result->mComputeSeconds / result->mAudioSeconds : 0.0,
+                        result->mWeights.mSetupSeconds, result->mWeights.mNetworkSeconds, result->mWeights.mSolveSeconds,
+                        result->mTotalSeconds);
+                    context.log(LogLevel::Info,
+                        "Generated " + std::to_string(written.size()) + " channels with " + result->mVariantId + " on "
+                            + result->mProvider + " (ONNX Runtime " + result->mRuntimeVersion + "): " + timing
+                            + (skippedText.empty() ? "" : ". Poses without a channel in this file: " + skippedText));
+                    context.requestRedraw();
+                };
+                if (context.startTask(std::move(task)) == 0)
+                    context.log(LogLevel::Error, "Generate Curves: Studio could not start the task.");
             }
 
             void verifyModels(EditorContext& context)

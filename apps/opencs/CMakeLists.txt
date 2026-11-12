@@ -462,9 +462,17 @@ set(FACE_EDITOR_DIR ${CMAKE_SOURCE_DIR}/editor_modules/face_editor)
 add_library(face_editor_objects OBJECT
     ${FACE_EDITOR_DIR}/facekeys.cpp ${FACE_EDITOR_DIR}/models_folder.cpp ${FACE_EDITOR_DIR}/audio_pcm.cpp
     ${FACE_EDITOR_DIR}/audio_ffmpeg.cpp ${FACE_EDITOR_DIR}/face_document.cpp ${FACE_EDITOR_DIR}/face_editor_module.cpp
+    ${FACE_EDITOR_DIR}/a2f_npz.cpp ${FACE_EDITOR_DIR}/a2f_solve.cpp ${FACE_EDITOR_DIR}/a2f_generate.cpp
+    ${FACE_EDITOR_DIR}/generate_run.cpp
     ${CMAKE_SOURCE_DIR}/components/fuz/fuz.cpp)
+# ONNX Runtime (task 0147 slice 2, extern/CMakeLists.txt): the generator's network backend, Windows x64 for now. The
+# runtime is delay loaded, so the module and the editor start without its DLLs, which are copied beside the executables.
+if (OPENEDEN_FACE_GENERATOR_AVAILABLE)
+    target_sources(face_editor_objects PRIVATE ${FACE_EDITOR_DIR}/ort_backend.cpp)
+    target_link_libraries(face_editor_objects PUBLIC openeden_onnxruntime)
+endif()
 target_compile_features(face_editor_objects PRIVATE cxx_std_20)
-target_link_libraries(face_editor_objects PUBLIC eden_face)
+target_link_libraries(face_editor_objects PUBLIC eden_face PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(face_editor_objects PUBLIC ${CMAKE_SOURCE_DIR}
     PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include ${FFmpeg_INCLUDE_DIRS})
 set_property(TARGET face_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -481,6 +489,13 @@ set_target_properties(face_editor PROPERTIES
     MINSIZEREL_POSTFIX ""
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/editor-modules")
+if (OPENEDEN_FACE_GENERATOR_AVAILABLE)
+    target_link_libraries(face_editor PRIVATE openeden_onnxruntime)
+    # The editor and its tests load the module from the build folder and find the runtime DLLs next to their own exe.
+    add_custom_command(TARGET face_editor POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENEDEN_ORT_RUNTIME_FILES} ${CMAKE_BINARY_DIR}
+        COMMENT "Copying ONNX Runtime and DirectML next to the editor")
+endif()
 foreach(config ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${config} config_upper)
     set_target_properties(face_editor PROPERTIES

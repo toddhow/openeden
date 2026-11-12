@@ -249,6 +249,63 @@ namespace face_editor
             std::string mLabel;
         };
 
+        /// Task 0147 slice 2: several channels and the generator record in one undo step.
+        class GeneratedCommand final : public Command
+        {
+        public:
+            struct Change
+            {
+                std::size_t mChannel = 0;
+                std::vector<CurveKey> mBefore, mAfter;
+                bool mWasEdited = false;
+            };
+
+            GeneratedCommand(Impl& owner, std::vector<Change> changes, const GeneratedMeta& meta)
+                : mOwner(owner)
+                , mChanges(std::move(changes))
+                , mBeforeName(owner.mCurves.mGeneratorName)
+                , mBeforeVersion(owner.mCurves.mGeneratorVersion)
+                , mBeforeEmotion(owner.mCurves.mEmotion)
+                , mBeforeSeed(owner.mCurves.mSeed)
+                , mMeta(meta)
+            {
+            }
+            std::string_view label() const override { return "Generate face curves"; }
+            void redo() override
+            {
+                for (const Change& c : mChanges)
+                {
+                    mOwner.mChannels[c.mChannel].mKeys = c.mAfter;
+                    mOwner.mChannels[c.mChannel].mEdited = true;
+                }
+                mOwner.mCurves.mGeneratorName = mMeta.mName;
+                mOwner.mCurves.mGeneratorVersion = mMeta.mVersion;
+                mOwner.mCurves.mEmotion = mMeta.mEmotion;
+                mOwner.mCurves.mSeed = static_cast<std::int64_t>(mMeta.mSeed);
+                ++mOwner.mRevision;
+            }
+            void undo() override
+            {
+                for (const Change& c : mChanges)
+                {
+                    mOwner.mChannels[c.mChannel].mKeys = c.mBefore;
+                    mOwner.mChannels[c.mChannel].mEdited = c.mWasEdited;
+                }
+                mOwner.mCurves.mGeneratorName = mBeforeName;
+                mOwner.mCurves.mGeneratorVersion = mBeforeVersion;
+                mOwner.mCurves.mEmotion = mBeforeEmotion;
+                mOwner.mCurves.mSeed = mBeforeSeed;
+                --mOwner.mRevision;
+            }
+
+        private:
+            Impl& mOwner;
+            std::vector<Change> mChanges;
+            std::string mBeforeName, mBeforeVersion, mBeforeEmotion;
+            std::int64_t mBeforeSeed = 0;
+            GeneratedMeta mMeta;
+        };
+
         class Curve final : public CurveTrack
         {
         public:
@@ -619,6 +676,51 @@ namespace face_editor
     WaveformTrack* FaceDocument::waveformTrack()
     {
         return mImpl->mHasAudio ? &mImpl->mWave : nullptr;
+    }
+
+    std::unique_ptr<Command> FaceDocument::makeGeneratedCommand(const GeneratedWeights& weights,
+        const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* skipped)
+    {
+        if (weights.frameCount() == 0 || weights.mFrameRate == 0)
+            return nullptr;
+        std::vector<Impl::GeneratedCommand::Change> changes;
+        std::vector<std::string> wroteNames, skippedNames;
+        const Face::Curves& curves = mImpl->mCurves;
+        // Channels in the file's order, so the report and the command do not depend on the generator's pose order.
+        std::vector<bool> used(weights.mNames.size(), false);
+        for (std::size_t ch = 0; ch < mImpl->mChannels.size(); ++ch)
+        {
+            const auto& state = mImpl->mChannels[ch];
+            const auto pose = std::find(weights.mNames.begin(), weights.mNames.end(), state.mInfo.id);
+            if (pose == weights.mNames.end() || state.mKind != Face::ChannelKind::Weight)
+                continue;
+            const auto poseIndex = static_cast<std::size_t>(pose - weights.mNames.begin());
+            used[poseIndex] = true;
+            std::vector<std::int16_t> ints(curves.mFrameCount);
+            for (std::uint32_t j = 0; j < curves.mFrameCount; ++j)
+            {
+                const double w = std::clamp<double>(
+                    sampleWeight(weights, poseIndex, static_cast<double>(j) / curves.mFrameRate), 0.0, 1.0);
+                ints[j] = static_cast<std::int16_t>(std::lround(w * kQuantScale));
+            }
+            Impl::GeneratedCommand::Change change;
+            change.mChannel = ch;
+            change.mBefore = state.mKeys;
+            change.mAfter = sparsify(ints, curves.mFrameRate);
+            change.mWasEdited = state.mEdited;
+            changes.push_back(std::move(change));
+            wroteNames.push_back(state.mInfo.id);
+        }
+        for (std::size_t p = 0; p < used.size(); ++p)
+            if (!used[p])
+                skippedNames.push_back(weights.mNames[p]);
+        if (written != nullptr)
+            *written = wroteNames;
+        if (skipped != nullptr)
+            *skipped = skippedNames;
+        if (changes.empty())
+            return nullptr;
+        return std::make_unique<Impl::GeneratedCommand>(*mImpl, std::move(changes), meta);
     }
 
     std::vector<CurveKey> FaceDocument::keysOf(std::string_view channel) const

@@ -43,6 +43,12 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/module/face/testaudiopcm.cpp
     model/module/face/testfacedocument.cpp
     model/module/face/testfacemodule.cpp
+    model/module/face/testa2fnpz.cpp
+    model/module/face/testa2fresample.cpp
+    model/module/face/testa2fsolve.cpp
+    model/module/face/testa2fgenerate.cpp
+    model/module/face/testfacegenerated.cpp
+    model/module/face/testa2fort.cpp
     model/mesh/testanimationkeys.cpp
     model/mesh/testframemath.cpp
     model/mesh/testimagesize.cpp
@@ -103,6 +109,9 @@ target_compile_definitions(eden-studio-tests PRIVATE
 add_dependencies(eden-studio-tests face_editor)
 target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:face_editor_objects>)
 target_link_libraries(eden-studio-tests PRIVATE eden_face ${FFmpeg_LIBRARIES})
+if (OPENEDEN_FACE_GENERATOR_AVAILABLE)
+    target_link_libraries(eden-studio-tests PRIVATE openeden_onnxruntime)
+endif()
 target_compile_definitions(eden-studio-tests PRIVATE
     "FACE_EDITOR_PATH=\"$<TARGET_FILE:face_editor>\"")
 target_compile_definitions(eden-studio-tests PRIVATE
