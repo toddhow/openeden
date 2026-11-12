@@ -46,6 +46,8 @@ function M.run(steps)
                     -- Task 0138: puts the player on the ground at a spot of the cell it is in (to stand before a gate).
                     player:teleport(player.cell, util.vector3(step.pos[1], step.pos[2], step.pos[3]), { onGround = true })
                     print('N4D teleported within ' .. tostring(player.cell.name))
+                elseif step.what == 'trace' then
+                    player:sendEvent('N4DTrace', { on = step.on, step = step.step })
                 elseif step.what == 'near' then
                     -- Task 0128: lists the objects within 400 units of the player (record id, distance), to find a door's base.
                     local p = player.position

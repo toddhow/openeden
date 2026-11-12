@@ -76,7 +76,7 @@ CFG
 [ "$SHOT" = stairs ] && echo "content=n3a4bstairs.omwscripts" >> "$WORK/config/openmw.cfg"
 case "$SHOT" in keylocked|keycontainer) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task 0115 stage N4 (doors): "doorshop", "doorsexterior" and "doorslocked" run the door scenarios (use at least 2400 frames).
-case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
+case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate|doorsdrift|doorssweep) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task 0125 stage E2: "e2terrain" leaves the Mare by its front door into WhiterunWorld, walks, and hops across cell borders
 # (use at least 4000 frames).
 # Task 0134 (M-S3 stage 1): "navpath" runs path queries over the navmesh of the Mare and of Whiterun's street, with the

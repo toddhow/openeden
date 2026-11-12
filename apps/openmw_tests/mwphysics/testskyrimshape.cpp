@@ -250,6 +250,46 @@ TEST(SkyrimShape, a_blended_only_model_has_no_collision)
     EXPECT_EQ(MWPhysics::SkyrimShape::counters().mNoMesh.load(), before + 1);
 }
 
+// Task 0139: the stand-in box of a model with nothing to collide with threw the player 1,000 units in one frame.
+TEST(SkyrimShape, a_model_read_fine_with_nothing_to_collide_with_is_remembered_as_collision_free)
+{
+    ensureJoltInitialized();
+    MeshSpec glass = floorMesh();
+    glass.mAlphaFlags = 1; // every shape blended: nothing collides
+    const auto reader = MWPhysics::SkyrimShape::makeSceneShapeReader();
+    EXPECT_FALSE(MWPhysics::SkyrimShape::modelReadWithNoCollision("meshes/effects/glassonly.nif"));
+    EXPECT_EQ(reader->read(skyrimFile(glass), "meshes/effects/glassonly.nif"), nullptr);
+    EXPECT_TRUE(MWPhysics::SkyrimShape::modelReadWithNoCollision("meshes/effects/glassonly.nif"));
+    EXPECT_FALSE(MWPhysics::SkyrimShape::modelReadWithNoCollision("meshes/effects/other.nif"));
+}
+
+TEST(SkyrimShape, a_model_with_a_mesh_is_not_collision_free)
+{
+    ensureJoltInitialized();
+    const auto reader = MWPhysics::SkyrimShape::makeSceneShapeReader();
+    EXPECT_NE(reader->read(skyrimFile(floorMesh()), "meshes/architecture/solidfloor.nif"), nullptr);
+    EXPECT_FALSE(MWPhysics::SkyrimShape::modelReadWithNoCollision("meshes/architecture/solidfloor.nif"));
+}
+
+TEST(SkyrimShape, a_model_that_failed_to_read_is_not_collision_free)
+{
+    ensureJoltInitialized();
+    const std::string whole = skyrimFile(floorMesh());
+    const auto reader = MWPhysics::SkyrimShape::makeSceneShapeReader();
+    EXPECT_EQ(reader->read(whole.substr(0, whole.size() / 2), "meshes/architecture/cutfloor.nif"), nullptr);
+    EXPECT_FALSE(MWPhysics::SkyrimShape::modelReadWithNoCollision("meshes/architecture/cutfloor.nif"));
+}
+
+TEST(SkyrimShape, the_stand_in_box_is_only_for_a_missing_mesh_with_bounds_that_is_not_known_collision_free)
+{
+    using MWPhysics::SkyrimShape::standInBoxWanted;
+    EXPECT_TRUE(standInBoxWanted(false, true, false)); // read failed, over the cap, or no model: the old fallback
+    EXPECT_FALSE(standInBoxWanted(false, true, true)); // read fine, nothing to collide with: no collision
+    EXPECT_FALSE(standInBoxWanted(true, true, false)); // the mesh is the collision
+    EXPECT_FALSE(standInBoxWanted(false, false, false)); // no bounds, no box
+    EXPECT_FALSE(standInBoxWanted(true, false, true));
+}
+
 TEST(SkyrimShape, a_cutout_model_collides)
 {
     ensureJoltInitialized();

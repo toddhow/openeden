@@ -1,0 +1,2 @@
+GLOBAL: scripts/n4doors/driftsweep.lua
+PLAYER: scripts/n4doors/driftplayer.lua

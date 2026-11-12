@@ -89,9 +89,9 @@ masters only, frames viewed):
   `WhiterunExterior04` (4,-2), arrival 19243.5,-7427.34 (player 19244,-7427), Tamriel terrain built (144 cells); the Tamriel
   side is locked (key 888588): refused ("NLOCK ... -> 3") without the key, with `OPENEDEN_NEUTRAL_KEYS=skyrimse:D8F0C` it opens
   ("-> 2") and arrives in WhiterunWorld at 19516,-7428.37.
-- Not understood: after the second arrival the player drifted 1,271 units in y in 12 s and fell 200 (and after the
-  `tp` step the first time 1,000 units in x): physics on the slope at the foot of the gate, not a door fault (arrival
-  coordinates are exact); not investigated.
+- ~~Not understood: the drift of 1,271 units in y and 1,000 in x~~ **Explained and fixed in task 0139** (not slope
+  physics: `unstuck` threw the player out of a 3,300-unit stand-in box of a river effect volume,
+  `WRMainRoadPlainsRiver01ACT`).
 
 **Morrowind unchanged:** `tools/worldobjects_check` (new against `n4doors\parent`, an earlier main build, not one built
 from this commit's parent) 111 lines equal, OK; the Balmora fixed-frame hash `1c5d47ad0b5dc32d` is equal for the parent and

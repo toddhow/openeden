@@ -4,7 +4,10 @@
 #include <chrono>
 #include <exception>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
+#include <string>
+#include <unordered_set>
 #include <utility>
 
 #include <Jolt/Jolt.h>
@@ -24,6 +27,10 @@ namespace MWPhysics::SkyrimShape
     namespace
     {
         Counters sCounters;
+
+        // Task 0139: models read without a problem that have nothing to collide with (see modelReadWithNoCollision).
+        std::mutex sCollisionFreeMutex;
+        std::unordered_set<std::string> sCollisionFree;
 
         // The most the shape manager's hook asks of the scene reader's header: any Skyrim SE file is told apart by its
         // first bytes (NifScene::isSkyrimSeHeader).
@@ -115,7 +122,12 @@ namespace MWPhysics::SkyrimShape
                                         << " triangles, using the object's bounds instead";
                 }
                 if (mesh.empty())
+                {
                     totals.mNoMesh.fetch_add(1, std::memory_order_relaxed);
+                    // Nothing collidable and not because of the triangle cap: Skyrim gives such a model no collision.
+                    if (!report.mOverCap)
+                        noteModelReadWithNoCollision(filename);
+                }
                 else
                 {
                     std::string error;
@@ -150,6 +162,25 @@ namespace MWPhysics::SkyrimShape
             return shape;
         };
         return reader;
+    }
+
+    bool modelReadWithNoCollision(std::string_view path)
+    {
+        const std::string key = VFS::Path::Normalized(path).value();
+        std::scoped_lock lock(sCollisionFreeMutex);
+        return sCollisionFree.contains(key);
+    }
+
+    void noteModelReadWithNoCollision(std::string_view path)
+    {
+        std::string key = VFS::Path::Normalized(path).value();
+        std::scoped_lock lock(sCollisionFreeMutex);
+        sCollisionFree.insert(std::move(key));
+    }
+
+    bool standInBoxWanted(bool meshAdded, bool hasBounds, bool modelCollisionFree)
+    {
+        return !meshAdded && hasBounds && !modelCollisionFree;
     }
 
     std::string describeCounters()

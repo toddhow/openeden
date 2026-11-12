@@ -23,6 +23,7 @@
 #include "../mwbase/world.hpp"
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwphysics/physicssystem.hpp"
+#include "../mwphysics/skyrimshape.hpp"
 #include "../mwrender/renderinginterface.hpp"
 #include "../mwrender/skyrimmodel.hpp"
 #include "../mwworld/action.hpp"
@@ -405,7 +406,10 @@ namespace MWClass
                                     : base.mCollision.hasBounds ? " box"
                                                                 : " none");
         }
-        if (asMesh || !base.mCollision.hasBounds)
+        // Task 0139: a model that was read and has nothing to collide with (effects, water volumes, markers) gets no
+        // collision at all, not the box of its bounds: those bounds can be 3,000 units across.
+        if (!MWPhysics::SkyrimShape::standInBoxWanted(asMesh, base.mCollision.hasBounds,
+                !model.empty() && MWPhysics::SkyrimShape::modelReadWithNoCollision(VFS::Path::toNormalized(model).value())))
             return;
         const auto& lo = base.mCollision.boundsMin;
         const auto& hi = base.mCollision.boundsMax;

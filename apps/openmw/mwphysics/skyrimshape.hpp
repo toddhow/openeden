@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include <Jolt/Jolt.h>
 
@@ -56,6 +57,21 @@ namespace MWPhysics::SkyrimShape
     };
 
     Counters& counters();
+
+    /// Task 0139: a model the reader read without a problem and found nothing to collide with (every shape blended,
+    /// an effect or a marker: smoke, fire, water volumes, furniture markers). Skyrim gives such an object no collision,
+    /// so the engine must not stand its bounds in as a solid box: the bounds of an effect volume can be 3,000 units
+    /// across, and a player inside one was thrown out of it 1,000 units in a single frame. A model that failed to read,
+    /// went over the triangle cap or was refused by Jolt is NOT in this list (the box is the fallback for those).
+    /// `path` is the model path as the shape manager normalised it (VFS::Path::Normalized). Thread safe.
+    bool modelReadWithNoCollision(std::string_view path);
+
+    /// Records the answer above (called by the reader; public for tests). Forgets nothing: one entry per model file.
+    void noteModelReadWithNoCollision(std::string_view path);
+
+    /// Whether the engine stands the base's bounds in as a solid box for a neutral object: the model gave no mesh
+    /// (`meshAdded` false), the base has bounds, and the model was not found to be collision-free.
+    [[nodiscard]] bool standInBoxWanted(bool meshAdded, bool hasBounds, bool modelCollisionFree);
 
     /// "Skyrim collision: 207 models read, ...": one line for the log.
     std::string describeCounters();
