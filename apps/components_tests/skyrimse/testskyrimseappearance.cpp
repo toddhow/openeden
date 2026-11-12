@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -303,4 +305,170 @@ TEST(SkyrimAppearanceSource, the_cell_source_forwards_to_its_view_and_is_found_b
     std::string error;
     EXPECT_FALSE(appearance->describeActor(0x100, 1, a, error));
     EXPECT_NE(error.find("NPC"), std::string::npos) << error;
+}
+
+// ---- Task 0125: the NPC's facegen head ---------------------------------------------------------------------------
+
+namespace
+{
+    LoadOrder loadOrder()
+    {
+        LoadOrder order;
+        std::string error;
+        EXPECT_TRUE(order.add("Skyrim.esm", false, error));
+        EXPECT_TRUE(order.add("Dawnguard.esm", false, error));
+        EXPECT_TRUE(order.add("Dragonborn.esm", false, error));
+        EXPECT_TRUE(order.add("Light.esl", true, error));
+        return order;
+    }
+}
+
+TEST(SkyrimFacegenPath, a_form_of_the_first_master_names_its_folder_and_eight_hex_digits)
+{
+    const LoadOrder order = loadOrder();
+    EXPECT_EQ(faceGeometryPath(0x00013255, order),
+        "meshes\\actors\\character\\facegendata\\facegeom\\skyrim.esm\\00013255.nif");
+}
+
+TEST(SkyrimFacegenPath, the_load_order_byte_is_not_part_of_the_file_name)
+{
+    const LoadOrder order = loadOrder();
+    // The data holds meshes\...\facegeom\dragonborn.esm\0001773a.nif for the form 0x0201773a of this load order.
+    EXPECT_EQ(faceGeometryPath(0x0201773a, order),
+        "meshes\\actors\\character\\facegendata\\facegeom\\dragonborn.esm\\0001773a.nif");
+}
+
+TEST(SkyrimFacegenPath, a_light_plugin_form_uses_its_twelve_bit_local_id)
+{
+    const LoadOrder order = loadOrder();
+    EXPECT_EQ(faceGeometryPath(0xFE000abc, order),
+        "meshes\\actors\\character\\facegendata\\facegeom\\light.esl\\00000abc.nif");
+}
+
+TEST(SkyrimFacegenPath, an_id_no_plugin_owns_has_no_path)
+{
+    const LoadOrder order = loadOrder();
+    EXPECT_EQ(faceGeometryPath(0x0F000001, order), "");
+    EXPECT_EQ(faceGeometryPath(kNullFormId, order), "");
+}
+
+TEST(SkyrimLoadOrder, nameOfId_finds_normal_and_light_owners)
+{
+    const LoadOrder order = loadOrder();
+    EXPECT_EQ(order.nameOfId(0x01000001), std::optional<std::string>("dawnguard.esm"));
+    EXPECT_EQ(order.nameOfId(0xFE000123), std::optional<std::string>("light.esl"));
+    EXPECT_EQ(order.nameOfId(0x05000000), std::nullopt);
+}
+
+namespace
+{
+    FaceFileProbe probeFor(const LoadOrder& order, std::vector<std::string> existing, std::vector<std::string>* asked)
+    {
+        FaceFileProbe probe;
+        probe.mOrder = &order;
+        probe.mExists = [existing = std::move(existing), asked](const std::string& path) {
+            if (asked != nullptr)
+                asked->push_back(path);
+            for (const std::string& e : existing)
+                if (e == path)
+                    return true;
+            return false;
+        };
+        return probe;
+    }
+}
+
+TEST(SkyrimAppearance, an_npc_with_a_facegen_file_wears_the_face_instead_of_its_head_parts)
+{
+    const ActorIndex index = world();
+    const LoadOrder order = loadOrder();
+    const std::string path = faceGeometryPath(kNpc, order);
+    ASSERT_FALSE(path.empty());
+    const FaceFileProbe probe = probeFor(order, { path }, nullptr);
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, {}, &probe)) << error;
+    EXPECT_EQ(models(a, ActorPartKind::Face), (std::vector<std::string>{ path.substr(7) })); // relative to the mesh root
+    EXPECT_TRUE(models(a, ActorPartKind::HeadPart).empty());
+    // Skin, outfit, then the face.
+    ASSERT_EQ(a.parts.size(), 4u);
+    EXPECT_EQ(a.parts[0].kind, ActorPartKind::Skin);
+    EXPECT_EQ(a.parts[1].kind, ActorPartKind::Armor);
+    EXPECT_EQ(a.parts[2].kind, ActorPartKind::Armor);
+    EXPECT_EQ(a.parts[3].kind, ActorPartKind::Face);
+    EXPECT_EQ(a.parts[3].slotMask, 0u);
+}
+
+TEST(SkyrimAppearance, an_npc_without_a_facegen_file_keeps_its_head_parts)
+{
+    const ActorIndex index = world();
+    const LoadOrder order = loadOrder();
+    std::vector<std::string> asked;
+    const FaceFileProbe probe = probeFor(order, {}, &asked);
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, {}, &probe)) << error;
+    EXPECT_TRUE(models(a, ActorPartKind::Face).empty());
+    EXPECT_EQ(models(a, ActorPartKind::HeadPart),
+        (std::vector<std::string>{ "head\\malehead.nif", "head\\brow.nif", "head\\hair.nif" }));
+    EXPECT_EQ(asked, (std::vector<std::string>{ faceGeometryPath(kNpc, order) })); // asked for, exactly once
+}
+
+TEST(SkyrimAppearance, no_probe_means_no_face_and_the_old_result)
+{
+    const ActorIndex index = world();
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, {}, nullptr)) << error;
+    EXPECT_EQ(a.parts.size(), 6u);
+    EXPECT_TRUE(models(a, ActorPartKind::Face).empty());
+}
+
+TEST(SkyrimAppearance, a_probe_without_a_load_order_or_test_is_ignored)
+{
+    const ActorIndex index = world();
+    FaceFileProbe empty;
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, {}, &empty)) << error;
+    EXPECT_EQ(a.parts.size(), 6u);
+}
+
+TEST(SkyrimAppearance, a_templated_npc_looks_up_the_face_of_the_npc_its_traits_come_from)
+{
+    ActorRecords r;
+    RaceRecord race;
+    race.mCommon.mId = kRaceNord;
+    race.mSkeleton[0] = "skel.nif";
+    r.mRaces.push_back(race);
+    ActorNpc base = npc(0x700, kRaceNord, false);
+    r.mNpcs.push_back(base);
+    ActorNpc templated = npc(0x701, kRaceNord, false);
+    templated.mTemplate = 0x700;
+    templated.mTemplateFlags = TemplateFlags::Traits;
+    r.mNpcs.push_back(templated);
+    ActorIndex index;
+    index.add(r);
+
+    const LoadOrder order = loadOrder();
+    const std::string templatePath = faceGeometryPath(0x700, order);
+    const FaceFileProbe probe = probeFor(order, { templatePath }, nullptr);
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, 0x701, 1, a, error, {}, &probe)) << error;
+    EXPECT_EQ(models(a, ActorPartKind::Face), (std::vector<std::string>{ templatePath.substr(7) }));
+}
+
+TEST(SkyrimAppearance, a_facegen_path_over_the_limit_is_not_used)
+{
+    const ActorIndex index = world();
+    const LoadOrder order = loadOrder();
+    const std::string path = faceGeometryPath(kNpc, order);
+    const FaceFileProbe probe = probeFor(order, { path }, nullptr);
+    AppearanceLimits limits;
+    limits.mMaxPathBytes = 60; // the skeleton path (49 bytes) fits, the facegen path (70) does not
+    ActorAppearance a;
+    std::string error;
+    ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, limits, &probe)) << error;
+    EXPECT_TRUE(models(a, ActorPartKind::Face).empty());
 }

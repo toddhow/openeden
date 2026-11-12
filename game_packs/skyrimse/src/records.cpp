@@ -103,6 +103,16 @@ namespace game_skyrimse
         return it != mEntries.end() && it->second.mLight;
     }
 
+    std::optional<std::string> LoadOrder::nameOfId(FormId id) const
+    {
+        const bool light = (id >> 24) == 0xFEu;
+        const FormId prefix = light ? (id & 0xFFFFF000u) : (id & 0xFF000000u);
+        for (const auto& [name, entry] : mEntries)
+            if (entry.mLight == light && entry.mPrefix == prefix)
+                return name;
+        return std::nullopt;
+    }
+
     FormIdResolver::FormIdResolver(const Content::Header& header, std::string selfName, const LoadOrder& order)
     {
         for (const Content::MasterFile& master : header.mMasters)

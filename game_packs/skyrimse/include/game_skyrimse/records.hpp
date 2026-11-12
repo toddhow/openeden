@@ -60,6 +60,9 @@ namespace game_skyrimse
         /// The id prefix of a plugin's records: (index << 24), or 0xFE000000 | (light index << 12).
         [[nodiscard]] std::optional<FormId> prefixOf(std::string_view name) const;
         [[nodiscard]] bool isLight(std::string_view name) const;
+        /// The lower-case name of the plugin that owns a load-order form id (task 0125: facegen files are named by it);
+        /// nullopt when no plugin of this load order has that prefix.
+        [[nodiscard]] std::optional<std::string> nameOfId(FormId id) const;
         [[nodiscard]] std::size_t normalCount() const { return mNormal; }
         [[nodiscard]] std::size_t lightCount() const { return mLight; }
 

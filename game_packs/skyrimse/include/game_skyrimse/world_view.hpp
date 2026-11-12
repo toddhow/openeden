@@ -58,6 +58,12 @@ namespace game_skyrimse
     public:
         virtual ~FileSource() = default;
         [[nodiscard]] virtual bool read(std::string_view path, std::string& bytes) const = 0;
+        /// Whether a file exists. The default reads it (a source with a cheaper test overrides).
+        [[nodiscard]] virtual bool exists(std::string_view path) const
+        {
+            std::string bytes;
+            return read(path, bytes);
+        }
     };
 
     /// Loose files under a Data folder, then Skyrim - Interface.bsa, then the BSAs whose name starts with the plugin's
@@ -87,6 +93,7 @@ namespace game_skyrimse
         {
         }
         [[nodiscard]] bool read(std::string_view path, std::string& bytes) const override;
+        [[nodiscard]] bool exists(std::string_view path) const override;
 
     private:
         const openeden::sdk::VfsService& mVfs;

@@ -152,6 +152,13 @@ namespace game_skyrimse
         return true;
     }
 
+    bool VfsFileSource::exists(std::string_view path) const
+    {
+        std::string unified(path);
+        std::replace(unified.begin(), unified.end(), '\\', '/');
+        return mVfs.hasFile(unified);
+    }
+
     // ---- construction ---------------------------------------------------------------------------------------------
 
     SkyrimWorldView::SkyrimWorldView() = default;
@@ -197,7 +204,14 @@ namespace game_skyrimse
             }
             mActorIndex = std::move(index);
         }
-        return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error);
+        FaceFileProbe probe;
+        if (mFiles != nullptr)
+        {
+            probe.mOrder = &mOrder;
+            const FileSource* files = mFiles;
+            probe.mExists = [files](const std::string& path) { return files->exists(path); };
+        }
+        return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
     }
 
     // ---- the worker -------------------------------------------------------------------------------------------------

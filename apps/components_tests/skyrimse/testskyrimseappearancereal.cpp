@@ -1,7 +1,12 @@
 // Task 0121 (stages N5-1 and N5-2): the aggregate check of actor appearances on the player's own Skyrim SE masters. For
 // every NPC_ the pack describes the appearance; then the skeleton and part models are read from the installed archives,
-// the skinned shapes and the skeleton plan are made, and the REST POSE is checked: with the skeleton as the file stores
-// it, a skinned vertex must land (nearly) where the shape file has it. Prints counts and distances only (lines starting
+// the skinned shapes and the skeleton plan are made, and the REST POSE is checked the way the renderer skins
+// (apps/openmw/mwrender/skyrimmodel.cpp, task 0125): position = sum of weight * bone world * inverse bind * vertex, with
+// NO skin-data transform on top (Skyrim SE's binds already map shape space to bone space; the skin transform is only the
+// shape node's transform). A vertex is then expected at the inverse of that transform applied to the stored position
+// (the stored position itself when the skin has no transform); head parts are authored in head space and are not
+// meaningful by distance, so all kinds also print the skinned height range (a standing person is 0 to about 145). Also: how many NPCs have a facegen head, and whether those files read, have the face tint
+// shader, and name a tint texture that exists. Prints counts and distances only (lines starting
 // SKYRIMSE-APPEARANCE), never a name or path, and writes nothing. Skipped when the environment is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required)
@@ -12,6 +17,7 @@
 #include <game_skyrimse/records.hpp>
 
 #include <components/nifscene/build.hpp>
+#include <components/nifscene/facetint.hpp>
 #include <components/nifscene/skeleton.hpp>
 #include <components/nifscene/skinned.hpp>
 
@@ -216,8 +222,8 @@ namespace
         std::uint64_t vertices = 0, farVertices = 0, withSkinTransform = 0;
         double worst = 0, sum = 0;
         std::uint64_t badInfluences = 0, withoutInfluence = 0;
-        std::array<double, 3> kindSum{};
-        std::array<std::uint64_t, 3> kindCount{}, kindFar{}, kindParts{};
+        std::array<double, 4> kindSum{}, kindMinZ{ 1e9, 1e9, 1e9, 1e9 }, kindMaxZ{ -1e9, -1e9, -1e9, -1e9 };
+        std::array<std::uint64_t, 4> kindCount{}, kindFar{}, kindParts{};
         std::size_t done = 0;
         const std::size_t step = std::max<std::size_t>(1, firstSkeletonOfPart.size() / std::max<std::size_t>(1, limit));
         for (const auto& [path, skeletonPath] : firstSkeletonOfPart)
@@ -240,7 +246,7 @@ namespace
             if (model.mShapes.empty())
                 continue;
             ++withSkin;
-            const std::size_t kind = static_cast<std::size_t>(kindOfPart[path]) % 3;
+            const std::size_t kind = std::min<std::size_t>(static_cast<std::size_t>(kindOfPart[path]), 3);
             ++kindParts[kind];
             badInfluences += model.mReport.mBadInfluences;
             withoutInfluence += model.mReport.mVerticesWithoutInfluence;
@@ -286,18 +292,33 @@ namespace
                     }
                     if (used <= 0)
                         continue;
-                    // Anim::Skin::apply: the skin's own transform, when it has one, is applied last (outermost).
+                    // The renderer applies no skin-data transform (see the header comment); neither does this metric.
+                    kindMinZ[kind] = std::min(kindMinZ[kind], skinned[2] / used);
+                    kindMaxZ[kind] = std::max(kindMaxZ[kind], skinned[2] / used);
+                    // Where the data says the vertex belongs: a shape whose skin data carries a transform stores its
+                    // vertices in that transform's frame (Skyrim SE: the shape node's, a lift of about 120 units for
+                    // body, hands, feet), and the binds put them back; so the expected position is the inverse
+                    // transform of the stored one. Without a skin transform it is the stored position itself.
+                    std::array<double, 3> expected = p;
                     if (shape.mHasSkinTransform)
                     {
-                        const Pose pose = fromTransform(shape.mSkinTransform);
-                        const auto moved = applyPose(pose, { skinned[0] / used, skinned[1] / used, skinned[2] / used });
-                        for (std::size_t c = 0; c < 3; ++c)
-                            skinned[c] = moved[c] * used;
+                        Pose inverse;
+                        const Pose forward = fromTransform(shape.mSkinTransform);
+                        for (std::size_t row = 0; row < 3; ++row)
+                            for (std::size_t column = 0; column < 3; ++column)
+                                inverse.r[row * 3 + column] = forward.r[column * 3 + row];
+                        inverse.s = 1.0 / forward.s;
+                        const std::array<double, 3> t = forward.t;
+                        for (std::size_t row = 0; row < 3; ++row)
+                            inverse.t[row] = -inverse.s
+                                * (inverse.r[row * 3] * t[0] + inverse.r[row * 3 + 1] * t[1]
+                                    + inverse.r[row * 3 + 2] * t[2]);
+                        expected = applyPose(inverse, p);
                     }
                     double d2 = 0;
                     for (std::size_t c = 0; c < 3; ++c)
                     {
-                        const double e = skinned[c] / used - p[c];
+                        const double e = skinned[c] / used - expected[c];
                         d2 += e * e;
                     }
                     const double d = std::sqrt(d2);
@@ -320,8 +341,121 @@ namespace
         std::cout << "SKYRIMSE-APPEARANCE rest-pose vertices " << vertices << " mean-distance-from-file-position "
                   << (vertices ? sum / static_cast<double>(vertices) : 0.0) << " max " << worst
                   << " over-5-units " << farVertices << "\n";
-        for (std::size_t k = 0; k < 3; ++k)
-            std::cout << "SKYRIMSE-APPEARANCE rest-pose kind " << (k == 0 ? "skin" : k == 1 ? "armor" : "head") << " parts " << kindParts[k] << " vertices " << kindCount[k] << " mean " << (kindCount[k] ? kindSum[k] / static_cast<double>(kindCount[k]) : 0.0) << " over-5-units " << kindFar[k] << "\n";
+        for (std::size_t k = 0; k < 4; ++k)
+            std::cout << "SKYRIMSE-APPEARANCE rest-pose kind " << (k == 0 ? "skin" : k == 1 ? "armor" : k == 2 ? "head" : "face")
+                      << " parts " << kindParts[k] << " vertices " << kindCount[k] << " mean "
+                      << (kindCount[k] ? kindSum[k] / static_cast<double>(kindCount[k]) : 0.0) << " over-5-units "
+                      << kindFar[k] << " skinned-z " << (kindCount[k] ? kindMinZ[k] : 0.0) << ".."
+                      << (kindCount[k] ? kindMaxZ[k] : 0.0) << "\n";
         EXPECT_GT(withSkin, 0u);
+
+        // ---- facegen heads (task 0125) ----
+        std::map<std::string, fs::path> textures; // lower-case slashed texture names
+        for (const auto& entry : fs::directory_iterator(data))
+        {
+            if (!entry.is_regular_file() || lower(entry.path().extension().string()) != ".bsa")
+                continue;
+            if (lower(entry.path().filename().string()).find("textures") == std::string::npos)
+                continue;
+            ArchiveListing listing;
+            std::string error;
+            ASSERT_TRUE(readArchiveListing(entry.path(), listing, error)) << error;
+            for (const std::string& name : listing.mFiles)
+                textures[lower(name)] = entry.path();
+        }
+        FaceFileProbe probe;
+        probe.mOrder = &order;
+        probe.mExists = [&](const std::string& path) { return archives.mWhere.count(lower(path)) != 0; };
+        std::uint64_t faced = 0, notFaced = 0, tracked = 0;
+        std::set<std::string> facePaths;
+        std::uint64_t headPartsAlongsideFace = 0;
+        for (const FormId id : index.npcIds())
+        {
+            openeden::sdk::game::ActorAppearance a;
+            std::string error;
+            if (!makeActorAppearance(index, id, static_cast<std::uint32_t>(id), a, error, {}, &probe))
+                continue;
+            bool face = false, head = false;
+            for (const auto& part : a.parts)
+            {
+                if (part.kind == openeden::sdk::game::ActorPartKind::Face)
+                {
+                    face = true;
+                    facePaths.insert(part.modelPath);
+                }
+                if (part.kind == openeden::sdk::game::ActorPartKind::HeadPart)
+                    head = true;
+            }
+            ++tracked;
+            (face ? faced : notFaced)++;
+            if (face && head)
+                ++headPartsAlongsideFace;
+        }
+        std::cout << "SKYRIMSE-APPEARANCE facegen npcs-described " << tracked << " with-face-file " << faced
+                  << " without " << notFaced << " distinct-face-files " << facePaths.size()
+                  << " face-and-head-parts " << headPartsAlongsideFace << "\n";
+        EXPECT_EQ(headPartsAlongsideFace, 0u);
+        EXPECT_GT(faced, 1000u);
+
+        std::uint64_t facesRead = 0, facesUnreadable = 0, faceShapes = 0, tintShapes = 0, tintsPresent = 0,
+                      tintsMissing = 0, noSkinShapes = 0, diffuseMissing = 0;
+        std::map<std::uint32_t, std::uint64_t> shaderTypes; // BSLightingShaderType of the facegen materials
+        std::uint64_t hairTints = 0, hairTintsBlack = 0;
+        std::array<double, 3> hairTintSum{};
+        std::size_t faceDone = 0;
+        const std::size_t faceStep = std::max<std::size_t>(1, facePaths.size() / 300);
+        for (const std::string& path : facePaths)
+        {
+            if (faceDone++ % faceStep != 0)
+                continue;
+            NifScene::Scene scene;
+            if (!sceneOf(lower(path), scene)) // the part path is relative to the mesh root
+            {
+                ++facesUnreadable;
+                continue;
+            }
+            ++facesRead;
+            for (const NifScene::ShaderMaterial& material : scene.mMaterials)
+            {
+                ++shaderTypes[material.mShaderType];
+                if (material.mShaderType == 6)
+                {
+                    ++hairTints;
+                    if (material.mHairTintColor == NifScene::Vec3{ 0.f, 0.f, 0.f })
+                        ++hairTintsBlack;
+                    for (std::size_t c = 0; c < 3; ++c)
+                        hairTintSum[c] += material.mHairTintColor[c];
+                }
+            }
+            const NifScene::Skinned::SkinnedModel model = NifScene::Skinned::flattenSkinned(scene);
+            if (model.mShapes.empty())
+                ++noSkinShapes;
+            for (const NifScene::Skinned::Shape& shape : model.mShapes)
+            {
+                ++faceShapes;
+                if (shape.mShaderType == 4)
+                    ++tintShapes;
+                if (!shape.mTintTexture.empty())
+                    (textures.count(NifScene::FaceTint::normaliseTexturePath(shape.mTintTexture)) ? tintsPresent
+                                                                                                   : tintsMissing)++;
+                if (!shape.mKey.mDiffuse.empty()
+                    && textures.count(NifScene::FaceTint::normaliseTexturePath(shape.mKey.mDiffuse)) == 0)
+                    ++diffuseMissing;
+            }
+        }
+        std::cout << "SKYRIMSE-APPEARANCE facegen files-read " << facesRead << " unreadable " << facesUnreadable
+                  << " without-skinned-shapes " << noSkinShapes << " shapes " << faceShapes << " face-tint-shaders "
+                  << tintShapes << " tint-textures-present " << tintsPresent << " missing " << tintsMissing
+                  << " diffuse-missing-in-the-texture-archives " << diffuseMissing << "\n";
+        std::cout << "SKYRIMSE-APPEARANCE facegen shader-types";
+        for (const auto& [type, count] : shaderTypes)
+            std::cout << " " << type << ":" << count;
+        std::cout << " hair-tint-shaders " << hairTints << " all-black " << hairTintsBlack << " mean-colour "
+                  << (hairTints ? hairTintSum[0] / static_cast<double>(hairTints) : 0.0) << ","
+                  << (hairTints ? hairTintSum[1] / static_cast<double>(hairTints) : 0.0) << ","
+                  << (hairTints ? hairTintSum[2] / static_cast<double>(hairTints) : 0.0) << "\n";
+        EXPECT_GT(facesRead, 0u);
+        EXPECT_EQ(facesUnreadable, 0u);
+        EXPECT_EQ(noSkinShapes, 0u);
     }
 }

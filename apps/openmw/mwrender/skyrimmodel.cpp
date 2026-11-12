@@ -1,11 +1,13 @@
 #include "skyrimmodel.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <sstream>
 
+#include <vsg/core/MipmapLayout.h>
 #include <vsg/nodes/CullNode.h>
 #include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/Group.h>
@@ -18,6 +20,7 @@
 #include <components/animation/skin.hpp>
 #include <components/animation/transform.hpp>
 #include <components/nifscene/build.hpp>
+#include <components/nifscene/facetint.hpp>
 #include <components/nifscene/header.hpp>
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
@@ -26,6 +29,7 @@
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/cullnode.hpp>
 #include <components/vsgutil/group.hpp>
+#include <components/vsgutil/arraytexture.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/share.hpp>
@@ -78,12 +82,12 @@ namespace MWRender::SkyrimModel
         }
 
         // Skyrim texture paths use backslashes and may have upper case; the VFS wants its normalized form, which the
-        // texture options' file callback builds from a slash separated path.
+        // texture options' file callback builds from a slash separated path. A face's own texture slots name their
+        // files without the "textures" root ("Actors\\Character\\Male\\MaleHead.dds", task 0125); the game adds it
+        // itself, and so does the normaliser.
         std::string texturePath(const std::string& path)
         {
-            std::string out = path;
-            std::replace(out.begin(), out.end(), '\\', '/');
-            return out;
+            return NifScene::FaceTint::normaliseTexturePath(path);
         }
 
         using MaterialValue = vsg::Value<Pipeline::Data::Material>;
@@ -108,10 +112,11 @@ namespace MWRender::SkyrimModel
         // The material side of a draw, shared by static and skinned shapes: the diffuse texture, the fixed state from
         // the key (culling, blending, alpha test) and the material descriptor, added to `options` and `descriptors`.
         void addSurface(const NifScene::Flat::MaterialKey& key, const BuildContext& context, BuildResult& result,
-            Counters& totals, Pipeline::Options& options, vsg::Descriptors& descriptors)
+            Counters& totals, Pipeline::Options& options, vsg::Descriptors& descriptors,
+            vsg::ref_ptr<vsg::Data> diffuseOverride = {}, const std::array<float, 3>* tintColour = nullptr)
         {
             auto& shader = options.shader;
-            // The diffuse texture, read through the VFS like every other model texture.
+            // The diffuse texture, read through the VFS like every other model texture (or the face's tinted copy).
             if (!key.mDiffuse.empty())
             {
                 vsgUtil::ImageUse use;
@@ -119,7 +124,9 @@ namespace MWRender::SkyrimModel
                 use.kind = vsgUtil::TextureCap::Kind::Colour;
                 if (key.mTest)
                     use.alphaCutoff = key.mThreshold / 255.f;
-                auto data = vsgUtil::readOptionalImage(texturePath(key.mDiffuse), context.mImageOptions, use);
+                auto data = diffuseOverride
+                    ? diffuseOverride
+                    : vsgUtil::readOptionalImage(texturePath(key.mDiffuse), context.mImageOptions, use);
                 if (data)
                 {
                     auto sampler = context.mBuilder.createSampler();
@@ -171,6 +178,16 @@ namespace MWRender::SkyrimModel
             // The material: white, with the shader's alpha and the alpha test cutoff.
             auto material = MaterialValue::create(Pipeline::Material::createDefault());
             material->value().diffuse.a = key.mAlpha;
+            if (tintColour != nullptr)
+            {
+                // A hair tint shader's colour (task 0125): the grey hair map is multiplied by it, in the ambient and the
+                // diffuse term alike (the alpha of the ambient colour is the material's flag word and stays).
+                for (std::size_t c = 0; c < 3; ++c)
+                {
+                    material->value().diffuse[static_cast<int>(c)] = (*tintColour)[c];
+                    material->value().ambient[static_cast<int>(c)] = (*tintColour)[c];
+                }
+            }
             material->value().alphaTestCutoff = key.mTest ? key.mThreshold / 255.f : 1.f;
             vsgUtil::share_if(context.mSharedObjects, material);
             auto materialDescriptor = vsg::DescriptorBuffer::create(
@@ -178,6 +195,69 @@ namespace MWRender::SkyrimModel
             vsgUtil::share_if(context.mSharedObjects, materialDescriptor);
             descriptors.emplace_back(materialDescriptor);
             shader.addMode(Pipeline::Mode::MATERIAL);
+        }
+
+        // An RGBA8 image with a full mip chain (the chain is made by the engine's own integer resize, so it is the same on
+        // every platform). The layout is what vsgXchange gives a DDS with mips.
+        vsg::ref_ptr<vsg::Data> makeMippedRgba8(std::uint32_t width, std::uint32_t height, std::vector<std::uint8_t> level)
+        {
+            std::vector<std::vector<std::uint8_t>> chain;
+            std::vector<std::pair<std::uint32_t, std::uint32_t>> sizes;
+            chain.push_back(std::move(level));
+            sizes.emplace_back(width, height);
+            while (sizes.back().first > 1 || sizes.back().second > 1)
+            {
+                const std::uint32_t w = std::max(1u, sizes.back().first / 2);
+                const std::uint32_t h = std::max(1u, sizes.back().second / 2);
+                std::vector<std::uint8_t> next(static_cast<std::size_t>(w) * h * 4);
+                vsgUtil::RgbaResize::resize(
+                    chain.back().data(), sizes.back().first, sizes.back().second, next.data(), w, h);
+                chain.push_back(std::move(next));
+                sizes.emplace_back(w, h);
+            }
+            std::size_t total = 0;
+            for (const auto& l : chain)
+                total += l.size();
+            auto* memory = static_cast<vsg::ubvec4*>(vsg::allocate(total, vsg::ALLOCATOR_AFFINITY_DATA));
+            auto layout = vsg::MipmapLayout::create(static_cast<std::uint32_t>(chain.size()));
+            std::size_t offset = 0;
+            for (std::size_t i = 0; i < chain.size(); ++i)
+            {
+                std::memcpy(reinterpret_cast<std::uint8_t*>(memory) + offset, chain[i].data(), chain[i].size());
+                layout->set(i, vsg::uivec4(sizes[i].first, sizes[i].second, 1u, static_cast<std::uint32_t>(offset)));
+                offset += chain[i].size();
+            }
+            vsg::Data::Properties properties;
+            properties.format = VK_FORMAT_R8G8B8A8_UNORM;
+            properties.mipLevels = static_cast<std::uint8_t>(chain.size());
+            properties.allocatorType = vsg::ALLOCATOR_TYPE_VSG_ALLOCATOR;
+            return vsg::ubvec4Array2D::create(width, height, memory, properties, layout);
+        }
+
+        bool readRgba(const std::string& path, const BuildContext& context, NifScene::FaceTint::Image& out)
+        {
+            auto data = vsgUtil::readOptionalImage(texturePath(path), context.mImageOptions, vsgUtil::ImageUse{});
+            if (!data || isFallbackImage(*data))
+                return false;
+            return vsgUtil::detail::decodeToRgba8(*data, out.mRgba, out.mWidth, out.mHeight);
+        }
+
+        // The face's diffuse map multiplied by the actor's baked tint (NifScene::FaceTint), or null when either map
+        // cannot be read and decoded (the shape then draws its plain diffuse map, as before).
+        vsg::ref_ptr<vsg::Data> tintedDiffuse(const NifScene::Skinned::Shape& shape, const BuildContext& context)
+        {
+            if (shape.mTintTexture.empty() || shape.mKey.mDiffuse.empty())
+                return {};
+            NifScene::FaceTint::Image base, tint, product;
+            if (!readRgba(shape.mKey.mDiffuse, context, base) || !readRgba(shape.mTintTexture, context, tint))
+            {
+                std::cerr << "SkyrimModel: face tint of '" << context.mFilename << "' not applied (a map is missing or not decodable)\n";
+                return {};
+            }
+            std::string error;
+            if (!NifScene::FaceTint::composite(base, tint, product, error))
+                return {};
+            return makeMippedRgba8(product.mWidth, product.mHeight, std::move(product.mRgba));
         }
 
         // A NIF transform (skin space to bone space) as the matrix Anim::Skin calls invBindMatrix, converted the way
@@ -227,7 +307,8 @@ namespace MWRender::SkyrimModel
             }
 
             vsg::Descriptors descriptors;
-            addSurface(key, context, result, totals, options, descriptors);
+            addSurface(key, context, result, totals, options, descriptors, tintedDiffuse(shape, context),
+                shape.mHasTintColor ? &shape.mTintColor : nullptr);
 
             // Bounds of the shape in its own space, and per bone the same sphere in that bone's space.
             vsg::dvec3 lower(1e300, 1e300, 1e300);

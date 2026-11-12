@@ -63,6 +63,12 @@ namespace NifScene::Skinned
             return std::clamp(v, 0.f, 1.f);
         }
 
+        // BSLightingShaderType 4 (face tint) keeps the actor's baked facegen tint in texture slot 6 (verified on a
+        // vanilla facegen file: slot 6 is data\\Textures\\Actors\\Character\\FaceGenData\\FaceTint\\<plugin>\\<id>.dds).
+        constexpr std::uint32_t kFaceTintShaderType = 4;
+        constexpr std::size_t kFaceTintSlot = 6;
+        constexpr std::uint32_t kHairTintShaderType = 6;
+
         Flat::MaterialKey makeKey(
             const Scene& scene, const Geometry& geometry, const ShaderMaterial& material, bool hasUV, const Limits& limits)
         {
@@ -244,6 +250,21 @@ namespace NifScene::Skinned
                 }
             }
             shape.mKey = makeKey(scene, geometry, material, !shape.mUV.empty(), limits);
+            shape.mShaderType = material.mShaderType;
+            if (material.mShaderType == kHairTintShaderType && std::isfinite(material.mHairTintColor[0])
+                && std::isfinite(material.mHairTintColor[1]) && std::isfinite(material.mHairTintColor[2]))
+            {
+                shape.mHasTintColor = true;
+                for (std::size_t c = 0; c < 3; ++c)
+                    shape.mTintColor[c] = std::clamp(material.mHairTintColor[c], 0.f, 4.f);
+            }
+            if (material.mShaderType == kFaceTintShaderType && material.mTextureSet < scene.mTextureSets.size())
+            {
+                const auto& set = scene.mTextureSets[material.mTextureSet].mTextures;
+                if (set.size() > kFaceTintSlot && !set[kFaceTintSlot].empty()
+                    && set[kFaceTintSlot].size() <= limits.mMaxPathLength)
+                    shape.mTintTexture = set[kFaceTintSlot];
+            }
 
             // The skin's bones.
             shape.mBones.resize(boneCount);

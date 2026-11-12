@@ -49,6 +49,18 @@ namespace NifScene::Skinned
         std::vector<Bone> mBones;
         std::vector<std::array<std::uint32_t, 4>> mBoneIndices; // per vertex, into mBones; weight 0 slots hold 0
         std::vector<std::array<float, 4>> mBoneWeights; // per vertex, sum 1 (or 1 on bone 0 for a vertex with none)
+        /// BSLightingShaderType of the shape's shader (scene.hpp ShaderMaterial::mShaderType): 4 face tint, 5 skin tint,
+        /// 6 hair tint ...; 0 when the shape has none.
+        std::uint32_t mShaderType = 0;
+        /// Task 0125: for a face tint shader (type 4) the texture set's slot 6 (the file has 9 slots; 4 and 5 are empty), the actor's baked facegen tint
+        /// (`data\Textures\Actors\Character\FaceGenData\FaceTint\<plugin>\<id>.dds` in the vanilla files, as stored),
+        /// else empty. The renderer multiplies it into the diffuse map.
+        std::string mTintTexture;
+        /// Task 0125: the colour a hair tint shader (type 6: hair, brows, beards) multiplies its grey map by (the
+        /// facegen files store the NPC's hair colour there; mean over 1,077 hair shapes of the five masters 0.41,
+        /// 0.41, 0.39). Set only for type 6 with three finite numbers; the renderer multiplies it into the material.
+        bool mHasTintColor = false;
+        std::array<float, 3> mTintColor{ 1.f, 1.f, 1.f };
         bool mHasSkinTransform = false; // the skin's own transform is not the identity
         Transform mSkinTransform;
     };

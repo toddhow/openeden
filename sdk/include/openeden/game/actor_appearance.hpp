@@ -17,19 +17,22 @@
 // 1.0 by tests). A pack that does not implement it simply draws no actors. Plain values only: no engine, renderer,
 // Jolt or Qt type.
 //
-// Version policy: DRAFT 0.1. Additive changes (a new trailing virtual with a default meaning "not supported", a new
+// Version policy: DRAFT 0.2 (0.2, task 0125: ActorPartKind::Face, appended). Additive changes (a new trailing virtual with a default meaning "not supported", a new
 // trailing field of ActorPart or ActorAppearance that a consumer only reads) raise the minor number; anything else
 // raises the major number. Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorAppearanceVersion{ 0, 1 };
+    inline constexpr Version kActorAppearanceVersion{ 0, 2 };
 
     enum class ActorPartKind : std::uint8_t
     {
         Skin, ///< A body part of the race's naked skin (body, hands, feet)
         Armor, ///< A worn model of the default outfit
         HeadPart, ///< Head, eyes, hair, brows ...
+        /// The actor's own pre-built face (Skyrim SE: the NPC's facegen head, head parts already morphed and coloured).
+        /// When a Face part is present the head parts it contains are NOT listed as HeadPart parts.
+        Face,
     };
 
     struct ActorPart

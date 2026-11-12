@@ -390,3 +390,98 @@ TEST(NifSceneSkeleton, a_long_name_is_cut)
     limits.mMaxNameBytes = 16;
     EXPECT_EQ(Skeleton::plan(b.scene, limits).mNodes[0].mName.size(), 16u);
 }
+
+// ---- Task 0125: the facegen tint texture ---------------------------------------------------------------------------
+
+namespace
+{
+    // A material whose texture set has the nine Skyrim slots and whose shader has the given type.
+    std::uint32_t faceMaterial(Builder& b, std::uint32_t shaderType, std::size_t slots, const std::string& slot6)
+    {
+        TextureSet set;
+        set.mTextures.assign(slots, std::string());
+        set.mTextures[0] = "Actors\\Character\\Male\\MaleHead.dds";
+        if (slots > 6)
+            set.mTextures[6] = slot6;
+        b.scene.mTextureSets.push_back(set);
+        ShaderMaterial m;
+        m.mShaderType = shaderType;
+        m.mTextureSet = static_cast<std::uint32_t>(b.scene.mTextureSets.size() - 1);
+        b.scene.mMaterials.push_back(m);
+        return static_cast<std::uint32_t>(b.scene.mMaterials.size() - 1);
+    }
+}
+
+TEST(NifSceneSkinned, a_face_tint_shader_reports_its_slot_six_texture)
+{
+    Builder b;
+    const std::uint32_t root = b.node("root");
+    b.skinnedQuad(root,
+        faceMaterial(b, 4, 9, "data\\Textures\\Actors\\Character\\FaceGenData\\FaceTint\\Skyrim.esm\\00013255.dds"));
+    const Skinned::SkinnedModel model = Skinned::flattenSkinned(b.scene);
+    ASSERT_EQ(model.mShapes.size(), 1u);
+    EXPECT_EQ(model.mShapes[0].mShaderType, 4u);
+    EXPECT_EQ(model.mShapes[0].mTintTexture,
+        "data\\Textures\\Actors\\Character\\FaceGenData\\FaceTint\\Skyrim.esm\\00013255.dds");
+    EXPECT_EQ(model.mShapes[0].mKey.mDiffuse, "Actors\\Character\\Male\\MaleHead.dds");
+}
+
+TEST(NifSceneSkinned, only_a_face_tint_shader_has_a_tint_texture)
+{
+    Builder b;
+    const std::uint32_t root = b.node("root");
+    b.skinnedQuad(root, faceMaterial(b, 0, 9, "textures\\env.dds")); // slot 6 of a default shader is no tint
+    b.skinnedQuad(root, faceMaterial(b, 5, 9, "textures\\env.dds")); // a skin tint shader is not a face
+    const Skinned::SkinnedModel model = Skinned::flattenSkinned(b.scene);
+    ASSERT_EQ(model.mShapes.size(), 2u);
+    for (const Skinned::Shape& s : model.mShapes)
+        EXPECT_TRUE(s.mTintTexture.empty());
+    EXPECT_EQ(model.mShapes[0].mShaderType, 0u);
+    EXPECT_EQ(model.mShapes[1].mShaderType, 5u);
+}
+
+TEST(NifSceneSkinned, a_face_tint_shader_with_no_slot_six_or_a_too_long_path_has_no_tint)
+{
+    Builder b;
+    const std::uint32_t root = b.node("root");
+    b.skinnedQuad(root, faceMaterial(b, 4, 3, "")); // a texture set of three slots
+    b.skinnedQuad(root, faceMaterial(b, 4, 9, "")); // slot 6 empty
+    b.skinnedQuad(root, faceMaterial(b, 4, 9, std::string(300, 'x'))); // over the path limit
+    const Skinned::SkinnedModel model = Skinned::flattenSkinned(b.scene);
+    ASSERT_EQ(model.mShapes.size(), 3u);
+    for (const Skinned::Shape& s : model.mShapes)
+        EXPECT_TRUE(s.mTintTexture.empty());
+}
+
+TEST(NifSceneSkinned, a_hair_tint_shader_reports_its_colour)
+{
+    Builder b;
+    const std::uint32_t root = b.node("root");
+    const std::uint32_t m = b.material("textures/hair.dds");
+    b.scene.mMaterials[m].mShaderType = 6;
+    b.scene.mMaterials[m].mHairTintColor = { 0.5f, 0.25f, 0.125f };
+    b.skinnedQuad(root, m);
+    const Skinned::SkinnedModel model = Skinned::flattenSkinned(b.scene);
+    ASSERT_EQ(model.mShapes.size(), 1u);
+    EXPECT_TRUE(model.mShapes[0].mHasTintColor);
+    EXPECT_FLOAT_EQ(model.mShapes[0].mTintColor[0], 0.5f);
+    EXPECT_FLOAT_EQ(model.mShapes[0].mTintColor[1], 0.25f);
+    EXPECT_FLOAT_EQ(model.mShapes[0].mTintColor[2], 0.125f);
+}
+
+TEST(NifSceneSkinned, only_a_hair_tint_shader_has_a_tint_colour_and_a_bad_colour_is_ignored)
+{
+    Builder b;
+    const std::uint32_t root = b.node("root");
+    const std::uint32_t plain = b.material("textures/a.dds");
+    b.scene.mMaterials[plain].mHairTintColor = { 0.5f, 0.5f, 0.5f }; // stored, but the shader is not a hair tint
+    b.skinnedQuad(root, plain);
+    const std::uint32_t bad = b.material("textures/b.dds");
+    b.scene.mMaterials[bad].mShaderType = 6;
+    b.scene.mMaterials[bad].mHairTintColor = { notANumber, 0.5f, 0.5f };
+    b.skinnedQuad(root, bad);
+    const Skinned::SkinnedModel model = Skinned::flattenSkinned(b.scene);
+    ASSERT_EQ(model.mShapes.size(), 2u);
+    EXPECT_FALSE(model.mShapes[0].mHasTintColor);
+    EXPECT_FALSE(model.mShapes[1].mHasTintColor);
+}

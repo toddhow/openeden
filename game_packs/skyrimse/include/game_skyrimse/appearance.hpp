@@ -9,6 +9,9 @@
 
 #include <openeden/game/actor_appearance.hpp>
 
+#include <functional>
+#include <string>
+
 namespace game_skyrimse
 {
     struct AppearanceLimits
@@ -22,13 +25,30 @@ namespace game_skyrimse
     /// what level an actor is seen, and a leveled entry above it is not eligible.
     inline constexpr std::uint16_t kAppearanceLevel = 30;
 
+    /// Task 0125: where an NPC's pre-built face (facegen) is. The game stores it per NPC as
+    /// `meshes\actors\character\facegendata\facegeom\<plugin>\<form id as 8 hex digits>.nif` (the plugin that
+    /// owns the form id, lower case; the form id local to that plugin with the load-order byte zero). Verified on the
+    /// five official masters (all 3,158 files of Skyrim - Meshes0.bsa follow it); a LIGHT plugin's naming is
+    /// RECALLED-VERIFY (the low 12 bits are used). Empty when no plugin of `order` owns the id.
+    [[nodiscard]] std::string faceGeometryPath(FormId npc, const LoadOrder& order);
+
+    /// What makeActorAppearance needs to look for a facegen file: the load order that names the owning plugin and a
+    /// test for the file's existence (lower case, backslashes). Both must be set.
+    struct FaceFileProbe
+    {
+        const LoadOrder* mOrder = nullptr;
+        std::function<bool(const std::string&)> mExists;
+    };
+
     /// Body parts of a race's skin (or the NPC's WNAM skin), the default outfit's worn models and the head parts, with
     /// the skin parts the outfit covers left out (a skin part is dropped when its slot mask shares a bit with a worn
-    /// model). Order: skin, outfit, head parts. False with `error` when the NPC is unknown, its template chain does
+    /// model). Order: skin, outfit, then either the NPC's facegen head (a Face part, when `face` is given and the file of
+    /// the NPC whose traits are used exists) or its head parts. False with `error` when the NPC is unknown, its template chain does
     /// not resolve, its race is unknown or has no skeleton for its sex. `variation` picks leveled templates and
     /// outfit entries (ActorIndex::pickLeveled).
     [[nodiscard]] bool makeActorAppearance(const ActorIndex& index, FormId npc, std::uint32_t variation,
-        openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {});
+        openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {},
+        const FaceFileProbe* face = nullptr);
 }
 
 #endif

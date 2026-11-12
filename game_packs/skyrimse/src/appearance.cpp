@@ -1,6 +1,9 @@
 #include "game_skyrimse/appearance.hpp"
 
+#include <cstdio>
+#include <optional>
 #include <set>
+#include <string_view>
 
 namespace game_skyrimse
 {
@@ -9,6 +12,8 @@ namespace game_skyrimse
         using openeden::sdk::game::ActorAppearance;
         using openeden::sdk::game::ActorPart;
         using openeden::sdk::game::ActorPartKind;
+
+        constexpr std::string_view kMeshRoot = "meshes\\";
 
         bool fits(const std::string& path, const AppearanceLimits& limits)
         {
@@ -39,8 +44,22 @@ namespace game_skyrimse
         }
     }
 
+    std::string faceGeometryPath(FormId npc, const LoadOrder& order)
+    {
+        if (npc == kNullFormId)
+            return {};
+        const std::optional<std::string> plugin = order.nameOfId(npc);
+        if (!plugin)
+            return {};
+        const bool light = (npc >> 24) == 0xFEu;
+        const std::uint32_t local = light ? (npc & 0xFFFu) : (npc & 0xFFFFFFu);
+        char digits[9];
+        std::snprintf(digits, sizeof digits, "%08x", static_cast<unsigned>(local));
+        return "meshes\\actors\\character\\facegendata\\facegeom\\" + *plugin + "\\" + digits + ".nif";
+    }
+
     bool makeActorAppearance(const ActorIndex& index, FormId npc, std::uint32_t variation, ActorAppearance& out,
-        std::string& error, const AppearanceLimits& limits)
+        std::string& error, const AppearanceLimits& limits, const FaceFileProbe* face)
     {
         out = {};
         ActorIndex::Resolved resolved;
@@ -115,9 +134,28 @@ namespace game_skyrimse
         for (ActorPart& part : worn)
             out.parts.push_back(std::move(part));
 
-        std::set<FormId> seen;
-        for (FormId head : resolved.mHeadParts)
-            addHeadPart(index, head, 0, limits, seen, out);
+        // The NPC's own pre-built face (facegen) holds its head parts already morphed and coloured, so it replaces them.
+        // The file belongs to the NPC the looks come from (a template's, when the traits are templated).
+        bool faced = false;
+        if (face != nullptr && face->mOrder != nullptr && face->mExists && out.parts.size() < limits.mMaxParts)
+        {
+            const std::string path = faceGeometryPath(resolved.mTraitsFrom, *face->mOrder);
+            if (fits(path, limits) && face->mExists(path))
+            {
+                ActorPart part;
+                // Part models are named relative to the mesh root (as every other part), the existence test is not.
+                part.modelPath = path.substr(kMeshRoot.size());
+                part.kind = ActorPartKind::Face;
+                out.parts.push_back(std::move(part));
+                faced = true;
+            }
+        }
+        if (!faced)
+        {
+            std::set<FormId> seen;
+            for (FormId head : resolved.mHeadParts)
+                addHeadPart(index, head, 0, limits, seen, out);
+        }
 
         if (out.parts.size() > limits.mMaxParts)
             out.parts.resize(limits.mMaxParts);
