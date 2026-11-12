@@ -124,6 +124,10 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool hasPerk(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xC3680; }
+        float healthFraction(Subject s) const override { return s == mSubject ? 0.4f : 0.f; }
+        float mapMarkerState(Subject s) const override { return s == mSubject ? 2.f : 0.f; }
+        bool isParentOf(Subject s, std::uint32_t c) const override { return s == mSubject && c == 0x1E0; }
         float factionRelation(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 3.f : 0.f; }
         float moveDirection(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         bool mInFriendStateWithPlayerFlag = true;
@@ -779,6 +783,24 @@ namespace
         EXPECT_TRUE(run(cond(79, kEq, 0.f, 9, 1), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(449, kEq, 0.f, 0x14), w));
+    }
+
+    // fn_448 HasPerk(perk), fn_430 GetHealthPercentage (0 to 1), fn_491 GetMapMarkerVisible (0 to 2), fn_261
+    // HasParentRelationship(actor): the subject is the parent (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_448_perk_430_health_491_map_marker_261_parent)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(448, kEq, 1.f, 0xC3680), w));
+        EXPECT_TRUE(run(cond(448, kEq, 0.f, 0xC3681), w));
+        EXPECT_TRUE(run(cond(430, kEq, 0.4f), w));
+        EXPECT_TRUE(run(cond(491, kEq, 2.f), w));
+        EXPECT_TRUE(run(cond(261, kEq, 1.f, 0x1E0), w));
+        EXPECT_TRUE(run(cond(261, kEq, 0.f, 0x1E1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(448, kEq, 0.f, 0xC3680), w));
+        EXPECT_TRUE(run(cond(430, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(491, kEq, 0.f), w));
+        EXPECT_TRUE(run(cond(261, kEq, 0.f, 0x1E0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

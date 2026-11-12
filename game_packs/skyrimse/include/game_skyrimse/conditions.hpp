@@ -547,6 +547,32 @@ namespace game_skyrimse::conditions
             (void)subject, (void)target;
             return 0.f;
         }
+        /// fn_448 HasPerk(perk): has the subject the perk? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool hasPerk(Subject subject, std::uint32_t perk) const
+        {
+            (void)subject, (void)perk;
+            return false;
+        }
+        /// fn_430 GetHealthPercentage: the subject's health, 0 to 1 (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float healthFraction(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_491 GetMapMarkerVisible: 0 the subject is not a map marker or not visible on the map, 1 visible but not
+        /// yet a fast-travel target, 2 visible and a fast-travel target (CK wiki, shown by toddhow, 2026-11-11).
+        virtual float mapMarkerState(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
+        /// fn_261 HasParentRelationship(actor): is the subject the parent of the actor? (CK wiki, shown by toddhow,
+        /// 2026-11-11)
+        virtual bool isParentOf(Subject subject, std::uint32_t child) const
+        {
+            (void)subject, (void)child;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

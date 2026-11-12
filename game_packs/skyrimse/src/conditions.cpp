@@ -510,6 +510,28 @@ namespace game_skyrimse::conditions
             return 0.f;
         }
 
+        // 448 HasPerk(perk), 430 GetHealthPercentage, 491 GetMapMarkerVisible, 261 HasParentRelationship(actor)
+        // (CK wiki, toddhow 2026-11-11)
+        float hasPerk(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.hasPerk(subject, c.mParam1));
+        }
+
+        float getHealthPercentage(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.healthFraction(subject) : 0.f;
+        }
+
+        float getMapMarkerVisible(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.mapMarkerState(subject) : 0.f;
+        }
+
+        float hasParentRelationship(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isParentOf(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -518,7 +540,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 80> sTable = { {
+        constexpr std::array<Entry, 84> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -563,6 +585,7 @@ namespace game_skyrimse::conditions
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
             { 258, hasAssociationType },
+            { 261, hasParentRelationship },
             { 264, hasSpell },
             { 274, isSmallBumpFn },
             { 277, getBaseActorValue },
@@ -577,9 +600,12 @@ namespace game_skyrimse::conditions
             { 403, getRelationshipRank },
             { 415, getGroupMemberCount },
             { 426, getIsVoiceType },
+            { 430, getHealthPercentage },
+            { 448, hasPerk },
             { 449, getFactionRelation },
             { 453, getPlayerTeammate },
             { 459, getCrimeGold },
+            { 491, getMapMarkerVisible },
             { 543, getQuestCompleted },
             { 560, hasKeyword },
             { 562, locationHasKeyword },
