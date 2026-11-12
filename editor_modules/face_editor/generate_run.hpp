@@ -18,7 +18,12 @@ namespace face_editor
     {
         std::filesystem::path mModelsRoot; ///< <user data>/models/audio2face
         std::string mVariantId; ///< "v3.0" or "v2.3-mark"
-        bool mAllowDirectMl = true;
+        bool mAllowDirectMl = true; ///< the author asked for the GPU
+        /// The full path of the DirectML.dll the author installed (directml_install.hpp); empty = not installed, and a
+        /// request for DirectML then runs on the CPU and says why.
+        std::filesystem::path mDirectMlDll;
+        /// Subtract the model's measured rest offsets (a2f_rest.hpp, toddhow 2026-11-12). Off only for measuring.
+        bool mSubtractRest = true;
         bool mUseEmotionModel = false; ///< Audio2Emotion is not wired in this slice: neutral emotion is used and said
         bool mAlreadyVerified = false; ///< the network's SHA-256 was checked earlier in this session
         std::vector<float> mAudio; ///< mono
@@ -33,6 +38,7 @@ namespace face_editor
         std::string mProvider; ///< "DirectML" or "CPU"
         std::string mRuntimeVersion; ///< ONNX Runtime
         std::string mFallbackReason; ///< why DirectML was not used, empty when it was or was not wanted
+        bool mRestSubtracted = false;
         std::vector<std::string> mWarnings;
         VariantStatus mVerified; ///< the hash check, when it ran (mId empty otherwise)
         double mAudioSeconds = 0;

@@ -3,9 +3,14 @@
 // the stubbed pure parts; the mutations tried are in the task's stage log.
 #include "apps/opencs/model/module/moduleregistry.hpp"
 
+#include "editor_modules/face_editor/directml_install.hpp"
 #include "editor_modules/face_editor/face_document.hpp"
 #include "editor_modules/face_editor/face_editor_module.hpp"
+#include "editor_modules/face_editor/generate_run.hpp"
 #include "editor_modules/face_editor/models_folder.hpp"
+#include "editor_modules/face_editor/sha512.hpp"
+
+#include "ziphelper.hpp"
 
 #include <gtest/gtest.h>
 
@@ -128,7 +133,7 @@ TEST(FaceModule, registersItsWorkspacePanelsAssetTypeCommandsAndSetting)
     EXPECT_EQ(f.mRegistry.panels().size(), 2u);
     ASSERT_EQ(f.mRegistry.assetTypes().size(), 1u);
     EXPECT_EQ(f.mRegistry.assetTypes()[0].mDesc.fileExtension, ".facecurves.json");
-    for (const char* id : { "face.newCurves", "face.setAudio", "face.generate", "face.verifyModels" })
+    for (const char* id : { "face.newCurves", "face.setAudio", "face.generate", "face.verifyModels", "face.installDirectMl" })
         EXPECT_TRUE(hasCommand(f.mRegistry, id)) << id;
     // Every id carries the module's prefix.
     for (const auto& c : f.mRegistry.commands())
@@ -195,7 +200,7 @@ TEST(FaceModule, newCurvesWithAnUnreadableAudioFileLogsAnError)
     EXPECT_EQ(f.mContext.activeAsset(), nullptr);
 }
 
-TEST(FaceModule, generateSaysTheRuntimeIsNotThereYet)
+TEST(FaceModule, generateWithoutAnyModelLogsThatItNeedsAModelAndTheRuntime)
 {
     Fixture f("generate");
     const std::string wav = face_editor::encodeWav16(std::vector<float>(8000, 0.2f), 8000);
@@ -243,4 +248,137 @@ TEST(FaceModule, verifyModelsHashesACompleteVariantAsABackgroundTask)
     for (const auto& [level, text] : f.mContext.mLog)
         mismatch = mismatch || (level == LogLevel::Error && text.find("v2.3-mark") != std::string::npos);
     EXPECT_TRUE(mismatch);
+}
+
+// ---- task 0147 slice 3: DirectML is downloadable on request --------------------------------------------------------
+
+namespace
+{
+    /// A fake Microsoft.AI.DirectML package (a zip with the DLL) served from a file:/// URL, installed as the module's
+    /// package for the length of one test.
+    struct FakePackage
+    {
+        explicit FakePackage(const fs::path& dir, bool goodHash = true, const char* entry = "bin/x64-win/DirectML.dll")
+        {
+            const std::string zip = ziphelper::makeZip({ { "LICENSE.txt", "licence", false }, { entry, "MZ-fake-directml", true } });
+            const fs::path file = dir / "package.nupkg";
+            ziphelper::writeFile(file, zip);
+            mPackage.mVersion = "9.9.9";
+            mPackage.mUrl = "file:///" + file.generic_string();
+            mPackage.mSha512 = face_editor::sha512Hex(zip);
+            if (!goodHash)
+                mPackage.mSha512[5] = mPackage.mSha512[5] == 'a' ? 'b' : 'a';
+            mPackage.mSize = zip.size();
+            mPackage.mEntry = "bin/x64-win/DirectML.dll";
+            mPackage.mMaxEntryBytes = 1 << 20;
+            face_editor::setDirectMlPackageForTests(&mPackage);
+        }
+        ~FakePackage() { face_editor::setDirectMlPackageForTests(nullptr); }
+        face_editor::DirectMlPackage mPackage;
+    };
+
+    bool logged(const TestContext& c, LogLevel level, const std::string& needle)
+    {
+        for (const auto& [l, text] : c.mLog)
+            if (l == level && text.find(needle) != std::string::npos)
+                return true;
+        return false;
+    }
+}
+
+TEST(FaceModule, installingDirectMlShowsTheSizeAndLicenceAndWaitsForTheTick)
+{
+    Fixture f("dml_dialog");
+    FakePackage package(f.mDir);
+    f.mContext.mAnswer = std::nullopt; // the author closes the dialog
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    ASSERT_EQ(f.mContext.mDialogs.size(), 1u);
+    const DialogDesc& d = f.mContext.mDialogs[0];
+    EXPECT_NE(d.message.find("Microsoft Software License Terms"), std::string::npos) << d.message;
+    EXPECT_NE(d.message.find(std::to_string(package.mPackage.mSize)), std::string::npos) << d.message;
+    EXPECT_NE(d.message.find("CPU"), std::string::npos);
+    ASSERT_EQ(d.fields.size(), 1u);
+    EXPECT_EQ(d.fields[0].type, PropertyType::Bool);
+    EXPECT_EQ(std::get<bool>(d.initial[0]), false) << "the licence starts unaccepted";
+    EXPECT_EQ(f.mContext.mTasks, 0);
+    EXPECT_FALSE(face_editor::directMlInstalled(f.mContext.mUserData, package.mPackage));
+    // OK pressed with the box unticked is not an acceptance either.
+    f.mContext.mAnswer = std::vector<PropertyValue>{ false };
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    EXPECT_EQ(f.mContext.mTasks, 0);
+    EXPECT_TRUE(logged(f.mContext, LogLevel::Info, "not downloaded"));
+    EXPECT_FALSE(face_editor::directMlInstalled(f.mContext.mUserData, package.mPackage));
+}
+
+TEST(FaceModule, installingDirectMlDownloadsChecksAndKeepsOnlyTheDll)
+{
+    Fixture f("dml_ok");
+    FakePackage package(f.mDir);
+    f.mContext.mAnswer = std::vector<PropertyValue>{ true };
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    EXPECT_EQ(f.mContext.mTasks, 1);
+    EXPECT_TRUE(face_editor::directMlInstalled(f.mContext.mUserData, package.mPackage));
+    const fs::path dll = face_editor::directMlDllPath(f.mContext.mUserData, package.mPackage);
+    EXPECT_EQ(dll, f.mContext.mUserData / "openeden" / "directml" / "9.9.9" / "DirectML.dll");
+    std::size_t files = 0;
+    for (const auto& e : fs::directory_iterator(dll.parent_path()))
+        files += e.is_regular_file() ? 1 : 0;
+    EXPECT_EQ(files, 1u);
+    EXPECT_FALSE(f.mContext.mTaskProgress.empty());
+    EXPECT_TRUE(logged(f.mContext, LogLevel::Info, "installed"));
+    // A second run says it is there and asks nothing.
+    const std::size_t dialogs = f.mContext.mDialogs.size();
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    EXPECT_EQ(f.mContext.mDialogs.size(), dialogs);
+    EXPECT_TRUE(logged(f.mContext, LogLevel::Info, "already installed"));
+}
+
+TEST(FaceModule, aPackageWithTheWrongHashIsRefusedAndNothingIsKept)
+{
+    Fixture f("dml_bad");
+    FakePackage package(f.mDir, false);
+    f.mContext.mAnswer = std::vector<PropertyValue>{ true };
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    EXPECT_TRUE(logged(f.mContext, LogLevel::Error, "SHA-512"));
+    EXPECT_FALSE(face_editor::directMlInstalled(f.mContext.mUserData, package.mPackage));
+    EXPECT_FALSE(fs::exists(face_editor::directMlDllPath(f.mContext.mUserData, package.mPackage).parent_path()));
+}
+
+TEST(FaceModule, aPackageWithoutTheDllIsRefused)
+{
+    Fixture f("dml_nodll");
+    FakePackage package(f.mDir, true, "bin/x86-win/DirectML.dll");
+    f.mContext.mAnswer = std::vector<PropertyValue>{ true };
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    EXPECT_TRUE(logged(f.mContext, LogLevel::Error, "Install DirectML failed"));
+    EXPECT_FALSE(face_editor::directMlInstalled(f.mContext.mUserData, package.mPackage));
+}
+
+TEST(FaceModule, theGenerateDialogOffersDirectMlOnlyOnceItIsInstalled)
+{
+    Fixture f("dml_generate");
+    FakePackage package(f.mDir);
+    const std::string wav = face_editor::encodeWav16(std::vector<float>(8000, 0.2f), 8000);
+    std::ofstream(f.mDir / "line.wav", std::ios::binary) << wav;
+    std::string error;
+    ASSERT_TRUE(face_editor::createCurvesFile(f.mDir / "line.wav", f.mDir / "line.facecurves.json", 30, error));
+    ASSERT_NE(f.mContext.openAsset(f.mDir / "line.facecurves.json"), nullptr);
+    f.mContext.mAnswer = std::nullopt;
+    std::string why;
+    if (!face_editor::generationAvailable(why))
+        GTEST_SKIP() << "this build has no generator: " << why;
+    ASSERT_TRUE(f.mRegistry.runCommand("face.generate"));
+    ASSERT_EQ(f.mContext.mDialogs.size(), 1u);
+    const DialogDesc& before = f.mContext.mDialogs[0];
+    ASSERT_EQ(before.fields.size(), 3u);
+    EXPECT_EQ(before.fields[2].id, "directml");
+    EXPECT_EQ(std::get<bool>(before.initial[2]), false);
+    EXPECT_NE(before.fields[2].tooltip.find("Install DirectML"), std::string::npos);
+    // Install it, ask again.
+    f.mContext.mAnswer = std::vector<PropertyValue>{ true };
+    ASSERT_TRUE(f.mRegistry.runCommand("face.installDirectMl"));
+    f.mContext.mAnswer = std::nullopt;
+    ASSERT_TRUE(f.mRegistry.runCommand("face.generate"));
+    const DialogDesc& after = f.mContext.mDialogs.back();
+    EXPECT_EQ(std::get<bool>(after.initial[2]), true);
 }

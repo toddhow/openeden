@@ -1,5 +1,6 @@
 #include "face_editor_module.hpp"
 
+#include "directml_install.hpp"
 #include "face_document.hpp"
 #include "generate_run.hpp"
 #include "models_folder.hpp"
@@ -26,6 +27,13 @@ namespace face_editor
         constexpr int kMinFrameRate = 10;
         constexpr int kMaxFrameRate = 120;
         constexpr int kDefaultFrameRate = 30;
+
+        const DirectMlPackage* sPackageOverride = nullptr;
+
+        const DirectMlPackage& activeDirectMlPackage()
+        {
+            return sPackageOverride != nullptr ? *sPackageOverride : pinnedDirectMlPackage();
+        }
 
         FaceDocument* faceOf(AssetDocument* document)
         {
@@ -231,6 +239,13 @@ namespace face_editor
                 generate.enabledWhen = [this] { return mContext != nullptr && faceOf(mContext->activeAsset()); };
                 registrar.registerCommand(generate);
 
+                CommandDesc installDml;
+                installDml.id = "face.installDirectMl";
+                installDml.label = "Install DirectML...";
+                installDml.menuPath = "Face/Install DirectML...";
+                installDml.handler = [this](EditorContext& context) { installDirectMlRuntime(context); };
+                registrar.registerCommand(installDml);
+
                 CommandDesc verify;
                 verify.id = "face.verifyModels";
                 verify.label = "Verify Models";
@@ -324,13 +339,16 @@ namespace face_editor
                 emotion.label = "Use the emotion model";
                 emotion.tooltip = "Audio2Emotion is not wired yet: the neutral emotion is used.";
                 emotion.type = PropertyType::Bool;
+                const bool dmlInstalled = directMlInstalled(context.userDataPath(), activeDirectMlPackage());
                 PropertyDesc directMl;
                 directMl.id = "directml";
                 directMl.label = "Use DirectML (the GPU)";
-                directMl.tooltip = "Off runs on the CPU. DirectML falls back to the CPU on its own if it cannot be used.";
+                directMl.tooltip = dmlInstalled
+                    ? "Off runs on the CPU. DirectML falls back to the CPU on its own if it cannot be used."
+                    : "DirectML is not installed: the CPU is used. Face > Install DirectML... downloads it (optional).";
                 directMl.type = PropertyType::Bool;
                 dialog.fields = { variant, emotion, directMl };
-                dialog.initial = { usable.empty() ? std::string("none found") : usable.front(), false, true };
+                dialog.initial = { usable.empty() ? std::string("none found") : usable.front(), false, dmlInstalled };
                 dialog.okLabel = "Generate";
                 auto answer = context.showDialog(dialog);
                 if (!answer)
@@ -367,7 +385,9 @@ namespace face_editor
                 request->mModelsRoot = modelsRoot(context.userDataPath());
                 request->mVariantId = variantId;
                 request->mUseEmotionModel = flag(1, false);
-                request->mAllowDirectMl = flag(2, true);
+                request->mAllowDirectMl = flag(2, dmlInstalled);
+                if (dmlInstalled)
+                    request->mDirectMlDll = directMlDllPath(context.userDataPath(), activeDirectMlPackage());
                 request->mAudio.assign(wd.samples, wd.samples + wd.sampleCount);
                 request->mAudioRate = wd.sampleRate;
                 for (const auto& status : mModels->statuses())
@@ -410,14 +430,15 @@ namespace face_editor
                         return;
                     GeneratedMeta meta;
                     meta.mName = "audio2face-onnx";
-                    meta.mVersion = result->mVariantId + " ort " + result->mRuntimeVersion + " " + result->mProvider;
+                    meta.mVersion = result->mVariantId + " ort " + result->mRuntimeVersion + " " + result->mProvider
+                        + (result->mRestSubtracted ? " rest-offset-1" : "");
                     meta.mEmotion = "neutral";
                     meta.mSeed = result->mVariantId == "v3.0" ? request->mOptions.mNoiseSeed : 0;
-                    std::vector<std::string> written, skipped;
-                    auto command = target->makeGeneratedCommand(result->mWeights, meta, &written, &skipped);
+                    std::vector<std::string> written, added, skipped;
+                    auto command = target->makeGeneratedCommand(result->mWeights, meta, &written, &added, &skipped);
                     if (!command)
                     {
-                        context.log(LogLevel::Warning, "Generate Curves: none of this file's channels has a generated pose.");
+                        context.log(LogLevel::Warning, "Generate Curves: the generator made no curves.");
                         return;
                     }
                     context.pushCommand(std::move(command));
@@ -429,6 +450,9 @@ namespace face_editor
                     std::string skippedText;
                     for (const std::string& name : skipped)
                         skippedText += (skippedText.empty() ? "" : ", ") + name;
+                    std::string addedText;
+                    for (const std::string& name : added)
+                        addedText += (addedText.empty() ? "" : ", ") + name;
                     char timing[240];
                     std::snprintf(timing, sizeof(timing), "%.2f s of compute for %.2f s of audio (%.3f s per second; setup %.2f, network %.2f, solve %.2f), %.2f s in all",
                         result->mComputeSeconds, result->mAudioSeconds,
@@ -436,13 +460,80 @@ namespace face_editor
                         result->mWeights.mSetupSeconds, result->mWeights.mNetworkSeconds, result->mWeights.mSolveSeconds,
                         result->mTotalSeconds);
                     context.log(LogLevel::Info,
-                        "Generated " + std::to_string(written.size()) + " channels with " + result->mVariantId + " on "
-                            + result->mProvider + " (ONNX Runtime " + result->mRuntimeVersion + "): " + timing
-                            + (skippedText.empty() ? "" : ". Poses without a channel in this file: " + skippedText));
+                        "Generated " + std::to_string(written.size()) + " channels and added " + std::to_string(added.size())
+                            + " new ones with " + result->mVariantId + " on " + result->mProvider + " (ONNX Runtime "
+                            + result->mRuntimeVersion + (result->mRestSubtracted ? ", rest offset subtracted" : "")
+                            + "): " + timing + (addedText.empty() ? "" : ". Added: " + addedText)
+                            + (skippedText.empty() ? "" : ". Poses that could not be added: " + skippedText));
                     context.requestRedraw();
                 };
                 if (context.startTask(std::move(task)) == 0)
                     context.log(LogLevel::Error, "Generate Curves: Studio could not start the task.");
+            }
+
+            void installDirectMlRuntime(EditorContext& context)
+            {
+                const fs::path user = context.userDataPath();
+                const DirectMlPackage package = activeDirectMlPackage();
+                if (user.empty())
+                {
+                    context.log(LogLevel::Error, "Install DirectML: Studio has no user data folder to put it in.");
+                    return;
+                }
+                const fs::path dll = directMlDllPath(user, package);
+                if (directMlInstalled(user, package))
+                {
+                    context.log(LogLevel::Info, "DirectML " + package.mVersion + " is already installed: " + dll.generic_string());
+                    return;
+                }
+                DialogDesc dialog;
+                dialog.title = "Install DirectML";
+                dialog.message = directMlConfirmationText(user, package);
+                PropertyDesc accept;
+                accept.id = "accept";
+                accept.label = "I have read the licence above and accept it";
+                accept.type = PropertyType::Bool;
+                dialog.fields = { accept };
+                dialog.initial = { false };
+                dialog.okLabel = "Download";
+                auto answer = context.showDialog(dialog);
+                if (!answer)
+                    return;
+                if (answer->empty() || !std::holds_alternative<bool>((*answer)[0]) || !std::get<bool>((*answer)[0]))
+                {
+                    context.log(LogLevel::Info, "Install DirectML: not downloaded (the licence was not accepted).");
+                    return;
+                }
+                auto failure = std::make_shared<std::string>();
+                TaskDesc task;
+                task.label = "Download DirectML " + package.mVersion;
+                task.work = [package, dll, failure](TaskControl& control) {
+                    std::string error;
+                    const bool ok = installDirectMl(package, dll.parent_path(),
+                        [&](double f, std::string_view message) {
+                            control.reportProgress(f, message);
+                            return !control.cancelled();
+                        },
+                        error);
+                    if (!ok)
+                        *failure = error.empty() ? "unknown error" : error;
+                };
+                task.done = [this, &context, failure, package, dll](TaskOutcome outcome, const std::string& error) {
+                    if (mContext == nullptr)
+                        return;
+                    if (outcome == TaskOutcome::Cancelled || *failure == "cancelled")
+                        context.log(LogLevel::Info, "Install DirectML: cancelled; nothing was kept.");
+                    else if (outcome == TaskOutcome::Failed || !failure->empty())
+                        context.log(LogLevel::Error,
+                            "Install DirectML failed: " + (outcome == TaskOutcome::Failed ? error : *failure));
+                    else
+                        context.log(LogLevel::Info,
+                            "DirectML " + package.mVersion + " installed: " + dll.generic_string()
+                                + ". Generate Curves uses it when \"Use DirectML\" is ticked.");
+                    context.requestRedraw();
+                };
+                if (context.startTask(std::move(task)) == 0)
+                    context.log(LogLevel::Error, "Install DirectML: Studio could not start the task.");
             }
 
             void verifyModels(EditorContext& context)
@@ -517,5 +608,10 @@ namespace face_editor
     const EditorModuleDescriptor* moduleDescriptor()
     {
         return &sDescriptor;
+    }
+
+    void setDirectMlPackageForTests(const DirectMlPackage* package)
+    {
+        sPackageOverride = package;
     }
 }

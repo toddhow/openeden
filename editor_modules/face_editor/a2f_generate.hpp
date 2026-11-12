@@ -139,6 +139,9 @@ namespace face_editor
         /// the curve file's generator.seed.
         std::uint64_t mNoiseSeed = 20261112;
         int mSolveIterations = 100;
+        /// One value per pose (the solve's pose order), subtracted from every frame's weight and clamped at 0 (a2f_rest:
+        /// the model's weights on silence). Empty = nothing subtracted.
+        std::vector<float> mRestOffsets;
     };
 
     /// \a progress gets a fraction in [0, 1] and returns false to cancel (the run then returns false with "cancelled").
@@ -149,5 +152,8 @@ namespace face_editor
         const GenerateOptions& options, const A2FProgress& progress, GeneratedWeights& out, std::string& error);
 
     /// The weight of \a pose at \a seconds, linear between the two nearest generated frames, held beyond the ends.
+    /// weight = max(0, weight - offsets[pose]) for every frame;  offsets has one value per pose (else nothing happens).
+    void subtractRest(GeneratedWeights& weights, const std::vector<float>& offsets);
+
     float sampleWeight(const GeneratedWeights& weights, std::size_t pose, double seconds);
 }

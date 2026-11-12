@@ -368,7 +368,23 @@ namespace face_editor
             : runV23(model, backend, audio16k, options, progress, out, error);
         if (!ok)
             out = GeneratedWeights{};
+        else if (!options.mRestOffsets.empty())
+            subtractRest(out, options.mRestOffsets);
         return ok;
+    }
+
+    void subtractRest(GeneratedWeights& weights, const std::vector<float>& offsets)
+    {
+        const std::size_t poses = weights.mNames.size();
+        if (poses == 0 || offsets.size() != poses || weights.mWeights.size() % poses != 0)
+            return;
+        for (std::size_t i = 0; i < weights.mWeights.size(); ++i)
+        {
+            // A negative or non-finite offset is not a boost: it is treated as 0.
+            const float offset = offsets[i % poses];
+            const float cut = offset > 0.f ? offset : 0.f;
+            weights.mWeights[i] = std::max(0.f, weights.mWeights[i] - cut);
+        }
     }
 
     float sampleWeight(const GeneratedWeights& weights, std::size_t pose, double seconds)

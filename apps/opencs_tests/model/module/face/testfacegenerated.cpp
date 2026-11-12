@@ -108,11 +108,13 @@ namespace
     {
         auto doc = openSample("write");
         const GeneratedWeights w = sampleWeights();
-        std::vector<std::string> written, skipped;
-        auto cmd = doc->makeGeneratedCommand(w, meta(), &written, &skipped);
+        std::vector<std::string> written, added, skipped;
+        auto cmd = doc->makeGeneratedCommand(w, meta(), &written, &added, &skipped);
         ASSERT_TRUE(cmd != nullptr);
         EXPECT_EQ(written, (std::vector<std::string>{ "jawopen", "eyeblinkleft" }));
-        EXPECT_EQ(skipped, (std::vector<std::string>{ "cheekpuff" }));
+        // Slice 3 (toddhow 2026-11-12, "sure"): a pose without a channel becomes one instead of being dropped.
+        EXPECT_EQ(added, (std::vector<std::string>{ "cheekpuff" }));
+        EXPECT_TRUE(skipped.empty());
         EXPECT_FALSE(doc->isDirty());
         cmd->redo();
         EXPECT_TRUE(doc->isDirty());
@@ -126,7 +128,7 @@ namespace
     {
         auto doc = openSample("alone");
         const auto gazeBefore = doc->keysOf("gazex");
-        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr);
+        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr);
         ASSERT_TRUE(cmd != nullptr);
         cmd->redo();
         const auto gazeAfter = doc->keysOf("gazex");
@@ -142,7 +144,7 @@ namespace
     {
         auto doc = openSample("undo");
         const auto before = doc->keysOf("jawopen");
-        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr);
+        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr);
         ASSERT_TRUE(cmd != nullptr);
         cmd->redo();
         const auto after = doc->keysOf("jawopen");
@@ -162,7 +164,7 @@ namespace
     {
         auto doc = openSample("onestep");
         Ctx ctx;
-        ctx.pushCommand(doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr));
+        ctx.pushCommand(doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr));
         EXPECT_EQ(ctx.mSteps.size(), 1u);
         EXPECT_FALSE(ctx.mSteps[0]->label().empty());
     }
@@ -170,19 +172,23 @@ namespace
     TEST(FaceGenerated, nothingToWriteGivesNoCommand)
     {
         auto doc = openSample("none");
+        // Nothing to write: no frames (slice 3: a pose with no channel is now a new channel, so a lone unmatched pose
+        // is no longer "nothing"; this case was edited under toddhow's decision 4 of 2026-11-12).
         GeneratedWeights w;
         w.mNames = { "cheekpuff" };
         w.mFrameRate = 60;
+        EXPECT_TRUE(doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr) == nullptr);
         w.mWeights = { 1.f, 1.f };
-        EXPECT_TRUE(doc->makeGeneratedCommand(w, meta(), nullptr, nullptr) == nullptr);
-        EXPECT_TRUE(doc->makeGeneratedCommand(GeneratedWeights{}, meta(), nullptr, nullptr) == nullptr);
+        w.mFrameRate = 0;
+        EXPECT_TRUE(doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr) == nullptr);
+        EXPECT_TRUE(doc->makeGeneratedCommand(GeneratedWeights{}, meta(), nullptr, nullptr, nullptr) == nullptr);
     }
 
     TEST(FaceGenerated, saveWritesTheGeneratorRecordAndTheValuesAndRoundTrips)
     {
         auto doc = openSample("save");
         const GeneratedWeights w = sampleWeights();
-        auto cmd = doc->makeGeneratedCommand(w, meta(), nullptr, nullptr);
+        auto cmd = doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr);
         ASSERT_TRUE(cmd != nullptr);
         cmd->redo();
         std::string error;
@@ -201,7 +207,7 @@ namespace
     TEST(FaceGenerated, undoPutsTheGeneratorRecordBack)
     {
         auto doc = openSample("undometa");
-        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr);
+        auto cmd = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr);
         ASSERT_TRUE(cmd != nullptr);
         cmd->redo();
         cmd->undo();
@@ -211,5 +217,181 @@ namespace
         ASSERT_TRUE(again != nullptr) << error;
         EXPECT_EQ(again->curves().mGeneratorName, "manual");
         EXPECT_EQ(again->curves().mGeneratorVersion, "1");
+    }
+
+    // ---- slice 3: poses without a channel are added in the same step ----------------------------------------------
+
+    std::unique_ptr<FaceDocument> openWithChannels(const char* name, int count)
+    {
+        const fs::path dir = fs::temp_directory_path() / ("oe_face_gen3_" + std::string(name));
+        fs::remove_all(dir);
+        fs::create_directories(dir);
+        Face::Curves c;
+        c.mAudioName = "line.mp3";
+        c.mAudioDurationSeconds = 1.0;
+        c.mAudioSha256 = std::string(64, '0');
+        c.mGeneratorName = "manual";
+        c.mGeneratorVersion = "1";
+        c.mFrameRate = 30;
+        c.mFrameCount = 31;
+        for (int i = 0; i < count; ++i)
+        {
+            Face::Channel ch;
+            ch.mName = "extra" + std::to_string(i);
+            ch.mValues.assign(31, 0);
+            c.mChannels.push_back(ch);
+        }
+        const auto text = Face::writeJson(c);
+        EXPECT_TRUE(text.has_value());
+        const fs::path file = dir / "line.facecurves.json";
+        std::ofstream(file, std::ios::binary) << *text;
+        std::string error;
+        auto doc = FaceDocument::open(file, {}, error);
+        EXPECT_TRUE(doc != nullptr) << error;
+        return doc;
+    }
+
+    std::vector<std::string> channelIds(FaceDocument& doc)
+    {
+        std::vector<std::string> ids;
+        for (const auto& c : doc.curveTrack().channels())
+            ids.push_back(c.id);
+        return ids;
+    }
+
+    TEST(FaceGenerated, aPoseWithoutAChannelBecomesOneWithTheGeneratedCurve)
+    {
+        auto doc = openSample("addchannel");
+        const GeneratedWeights w = sampleWeights();
+        auto cmd = doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr);
+        ASSERT_TRUE(cmd != nullptr);
+        EXPECT_EQ(channelIds(*doc), (std::vector<std::string>{ "jawopen", "eyeblinkleft", "gazex" }));
+        cmd->redo();
+        EXPECT_EQ(channelIds(*doc), (std::vector<std::string>{ "jawopen", "eyeblinkleft", "gazex", "cheekpuff" }));
+        EXPECT_EQ(resample(doc->keysOf("cheekpuff"), 30, 31, 0, 255), expectedInts(w, 1, 30, 31));
+        const auto info = doc->curveTrack().channels().back();
+        EXPECT_EQ(info.minValue, 0.0);
+        EXPECT_EQ(info.maxValue, 1.0);
+        EXPECT_TRUE(doc->isDirty());
+    }
+
+    TEST(FaceGenerated, undoRemovesTheAddedChannelsAndRedoBringsThemBack)
+    {
+        auto doc = openSample("addundo");
+        const GeneratedWeights w = sampleWeights();
+        auto cmd = doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr);
+        ASSERT_TRUE(cmd != nullptr);
+        for (int round = 0; round < 3; ++round)
+        {
+            cmd->redo();
+            ASSERT_EQ(channelIds(*doc).size(), 4u) << round;
+            EXPECT_EQ(resample(doc->keysOf("cheekpuff"), 30, 31, 0, 255), expectedInts(w, 1, 30, 31)) << round;
+            cmd->undo();
+            EXPECT_EQ(channelIds(*doc), (std::vector<std::string>{ "jawopen", "eyeblinkleft", "gazex" })) << round;
+            EXPECT_TRUE(doc->keysOf("cheekpuff").empty()) << round;
+            EXPECT_FALSE(doc->isDirty()) << round;
+        }
+        EXPECT_EQ(doc->curves().mChannels.size(), 3u);
+    }
+
+    TEST(FaceGenerated, saveAfterUndoHasNoNewChannelAndSaveAfterRedoHasIt)
+    {
+        auto doc = openSample("addsave");
+        const GeneratedWeights w = sampleWeights();
+        auto cmd = doc->makeGeneratedCommand(w, meta(), nullptr, nullptr, nullptr);
+        ASSERT_TRUE(cmd != nullptr);
+        cmd->redo();
+        cmd->undo();
+        std::string error;
+        ASSERT_TRUE(doc->save(error)) << error;
+        EXPECT_EQ(doc->curves().mChannels.size(), 3u);
+        cmd->redo();
+        ASSERT_TRUE(doc->save(error)) << error;
+        auto again = FaceDocument::open(doc->path(), {}, error);
+        ASSERT_TRUE(again != nullptr) << error;
+        ASSERT_EQ(again->curves().mChannels.size(), 4u);
+        EXPECT_EQ(again->curves().mChannels[3].mName, "cheekpuff");
+        EXPECT_EQ(again->curves().mChannels[3].mValues, expectedInts(w, 1, 30, 31));
+        EXPECT_EQ(again->curves().mChannels[3].mKind, Face::ChannelKind::Weight);
+    }
+
+    TEST(FaceGenerated, theAddedChannelsAndTheReplacedOnesAreOneStepOnTheStack)
+    {
+        auto doc = openSample("addstack");
+        Ctx ctx;
+        ctx.pushCommand(doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr));
+        EXPECT_EQ(ctx.mSteps.size(), 1u);
+        EXPECT_EQ(channelIds(*doc).size(), 4u);
+    }
+
+    TEST(FaceGenerated, editsToAnAddedChannelUndoBeforeTheGenerateStepDoes)
+    {
+        auto doc = openSample("addedit");
+        auto gen = doc->makeGeneratedCommand(sampleWeights(), meta(), nullptr, nullptr, nullptr);
+        ASSERT_TRUE(gen != nullptr);
+        gen->redo();
+        const auto before = doc->keysOf("cheekpuff");
+        auto edit = doc->curveTrack().makeAddKeyCommand("cheekpuff", CurveKey{ 0.4, 0.77 });
+        ASSERT_TRUE(edit != nullptr);
+        edit->redo();
+        EXPECT_EQ(doc->keysOf("cheekpuff").size(), before.size() + 1);
+        edit->undo();
+        EXPECT_EQ(doc->keysOf("cheekpuff").size(), before.size());
+        gen->undo();
+        EXPECT_TRUE(doc->keysOf("cheekpuff").empty());
+        EXPECT_EQ(channelIds(*doc).size(), 3u);
+    }
+
+    TEST(FaceGenerated, aPoseOfAnotherCaseOrOddNameIsSkippedNotAdded)
+    {
+        auto doc = openSample("badname");
+        GeneratedWeights w;
+        w.mNames = { "jawopen", "Upper", "has space", "ok_name.1", "" };
+        w.mFrameRate = 30;
+        w.mWeights.assign(5 * 5, 0.25f);
+        std::vector<std::string> written, added, skipped;
+        auto cmd = doc->makeGeneratedCommand(w, meta(), &written, &added, &skipped);
+        ASSERT_TRUE(cmd != nullptr);
+        EXPECT_EQ(written, (std::vector<std::string>{ "jawopen" }));
+        EXPECT_EQ(added, (std::vector<std::string>{ "ok_name.1" }));
+        EXPECT_EQ(skipped, (std::vector<std::string>{ "Upper", "has space", "" }));
+        cmd->redo();
+        std::string error;
+        EXPECT_TRUE(doc->save(error)) << error;
+    }
+
+    TEST(FaceGenerated, theChannelLimitStopsTheAdditions)
+    {
+        auto doc = openWithChannels("cap", 126); // the limit is 128
+        GeneratedWeights w;
+        w.mNames = { "p1", "p2", "p3", "extra0" };
+        w.mFrameRate = 30;
+        w.mWeights.assign(4 * 4, 0.5f);
+        std::vector<std::string> written, added, skipped;
+        auto cmd = doc->makeGeneratedCommand(w, meta(), &written, &added, &skipped);
+        ASSERT_TRUE(cmd != nullptr);
+        EXPECT_EQ(written, (std::vector<std::string>{ "extra0" }));
+        EXPECT_EQ(added, (std::vector<std::string>{ "p1", "p2" }));
+        EXPECT_EQ(skipped, (std::vector<std::string>{ "p3" }));
+        cmd->redo();
+        EXPECT_EQ(channelIds(*doc).size(), 128u);
+        std::string error;
+        EXPECT_TRUE(doc->save(error)) << error;
+    }
+
+    TEST(FaceGenerated, aFileWithNoMatchingChannelStillGetsAllTheChannels)
+    {
+        auto doc = openWithChannels("nomatch", 1);
+        GeneratedWeights w;
+        w.mNames = { "jawopen", "cheekpuff" };
+        w.mFrameRate = 30;
+        w.mWeights.assign(31 * 2, 0.5f);
+        std::vector<std::string> written, added;
+        auto cmd = doc->makeGeneratedCommand(w, meta(), &written, &added, nullptr);
+        ASSERT_TRUE(cmd != nullptr);
+        EXPECT_TRUE(written.empty());
+        EXPECT_EQ(added, (std::vector<std::string>{ "jawopen", "cheekpuff" }));
+        cmd->redo();
+        EXPECT_EQ(channelIds(*doc), (std::vector<std::string>{ "extra0", "jawopen", "cheekpuff" }));
     }
 }

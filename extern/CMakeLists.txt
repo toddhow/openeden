@@ -630,12 +630,15 @@ if(OPENEDEN_BUILD_RMLUI)
     target_link_libraries(openeden_rmlui PRIVATE Freetype::Freetype)
 endif()
 
-# ONNX Runtime and DirectML for Eden Studio's face curve generator (task 0147 slice 2, toddhow 2026-11-12: "a pinned
-# official release", fetched at configure time for this dependency only; used by editor_modules/face_editor only, never
-# by the game or components/). Windows x64 only for now: Microsoft's own NuGet packages, pinned by version and SHA-512.
-# The DirectML build of ONNX Runtime also runs the CPU provider, so one package covers "DirectML first, CPU fallback".
-# Licences (docs/dependencies.md): ONNX Runtime MIT; DirectML.dll under the Microsoft DirectML licence, which allows
-# redistribution in applications. Nothing is extracted but the headers, the import library, the DLLs and the licences.
+# ONNX Runtime for Eden Studio's face curve generator (task 0147 slice 2, toddhow 2026-11-12: "a pinned official
+# release", fetched at configure time for this dependency only; used by editor_modules/face_editor only, never by the
+# game or components/). Windows x64 only for now: Microsoft's own NuGet package, pinned by version and SHA-512.
+# The DirectML build of ONNX Runtime also runs the CPU provider, and it delay loads DirectML.dll, so the CPU path needs
+# no other file. DirectML.dll itself is NOT fetched, copied or shipped (slice 3, toddhow 2026-11-12: "optional, we can
+# make it downloadable in the settings"): the face editor downloads the pinned Microsoft.AI.DirectML package on the
+# author's request (editor_modules/face_editor/directml_install.hpp holds its version, URL and SHA-512).
+# Licences (docs/dependencies.md): ONNX Runtime MIT. Nothing is extracted but the headers, the import library, the DLLs
+# and the licence.
 option(OPENEDEN_BUILD_FACE_GENERATOR "Eden Studio's Audio2Face curve generator (ONNX Runtime, Windows x64)" ON)
 set(OPENEDEN_DOWNLOAD_CACHE "" CACHE PATH "A folder holding the pinned NuGet packages already downloaded (optional)")
 if(OPENEDEN_BUILD_FACE_GENERATOR AND WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -643,32 +646,21 @@ if(OPENEDEN_BUILD_FACE_GENERATOR AND WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         message(FATAL_ERROR "OPENEDEN_BUILD_FACE_GENERATOR needs CMake 3.18 (file(ARCHIVE_EXTRACT))")
     endif()
     set(OPENEDEN_ORT_VERSION 1.24.4)
-    set(OPENEDEN_DML_VERSION 1.15.4)
     set(_ort_sha512 6633b2bf8f79be17d55e84c9a76bad4729fc8abd53148bc28f407d24ff106460574b4a05c7e958ed9099a927675528505fa12dc588b64f754eb585dc9814d5e0)
-    set(_dml_sha512 fde767f56904abc90fd53f65d8729c918ab7f6e3c5e1ecdd479908fc02b4535cf2b0860f7ab2acb9b731d6cb809b72c3d5d4d02853fb8f5ea022a47bc44ef285)
     if(OPENEDEN_DOWNLOAD_CACHE)
         set(_dl_dir "${OPENEDEN_DOWNLOAD_CACHE}")
     else()
         set(_dl_dir "${CMAKE_CURRENT_BINARY_DIR}/downloads")
     endif()
     set(_ort_pkg "${_dl_dir}/Microsoft.ML.OnnxRuntime.DirectML.${OPENEDEN_ORT_VERSION}.nupkg")
-    set(_dml_pkg "${_dl_dir}/Microsoft.AI.DirectML.${OPENEDEN_DML_VERSION}.nupkg")
     set(_ort_root "${CMAKE_CURRENT_BINARY_DIR}/fetched/onnxruntime-directml-${OPENEDEN_ORT_VERSION}")
-    set(_dml_root "${CMAKE_CURRENT_BINARY_DIR}/fetched/directml-${OPENEDEN_DML_VERSION}")
     # file(DOWNLOAD) skips the download when the file is there and the hash matches.
     file(DOWNLOAD
         "https://www.nuget.org/api/v2/package/Microsoft.ML.OnnxRuntime.DirectML/${OPENEDEN_ORT_VERSION}" "${_ort_pkg}"
         EXPECTED_HASH SHA512=${_ort_sha512} TLS_VERIFY ON)
-    file(DOWNLOAD
-        "https://www.nuget.org/api/v2/package/Microsoft.AI.DirectML/${OPENEDEN_DML_VERSION}" "${_dml_pkg}"
-        EXPECTED_HASH SHA512=${_dml_sha512} TLS_VERIFY ON)
     if(NOT EXISTS "${_ort_root}/runtimes/win-x64/native/onnxruntime.dll")
         file(ARCHIVE_EXTRACT INPUT "${_ort_pkg}" DESTINATION "${_ort_root}"
             PATTERNS "build/native/include/*" "runtimes/win-x64/native/*" "LICENSE" "ThirdPartyNotices.txt")
-    endif()
-    if(NOT EXISTS "${_dml_root}/bin/x64-win/DirectML.dll")
-        file(ARCHIVE_EXTRACT INPUT "${_dml_pkg}" DESTINATION "${_dml_root}"
-            PATTERNS "bin/x64-win/DirectML.dll" "LICENSE.txt" "ThirdPartyNotices.txt")
     endif()
     add_library(openeden_onnxruntime INTERFACE)
     target_include_directories(openeden_onnxruntime SYSTEM INTERFACE "${_ort_root}/build/native/include")
@@ -678,7 +670,6 @@ if(OPENEDEN_BUILD_FACE_GENERATOR AND WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     target_compile_definitions(openeden_onnxruntime INTERFACE OPENEDEN_FACE_GENERATOR=1)
     set(OPENEDEN_ORT_RUNTIME_FILES
         "${_ort_root}/runtimes/win-x64/native/onnxruntime.dll"
-        "${_ort_root}/runtimes/win-x64/native/onnxruntime_providers_shared.dll"
-        "${_dml_root}/bin/x64-win/DirectML.dll" PARENT_SCOPE)
+        "${_ort_root}/runtimes/win-x64/native/onnxruntime_providers_shared.dll" PARENT_SCOPE)
     set(OPENEDEN_FACE_GENERATOR_AVAILABLE ON PARENT_SCOPE)
 endif()

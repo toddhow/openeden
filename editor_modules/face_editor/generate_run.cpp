@@ -4,6 +4,8 @@
 #include "ort_backend.hpp"
 #endif
 
+#include "a2f_rest.hpp"
+
 #include <chrono>
 
 namespace face_editor
@@ -116,11 +118,14 @@ namespace face_editor
         if (!step(0.15, "loading the network"))
             return false;
         std::string fallback;
-        auto backend = OrtBackend::create(folder / "network.onnx", variant, request.mAllowDirectMl, fallback, error);
+        const fs::path directMl = request.mAllowDirectMl ? request.mDirectMlDll : fs::path();
+        auto backend = OrtBackend::create(folder / "network.onnx", variant, directMl, fallback, error);
         if (!backend)
             return false;
         result.mProvider = OrtBackend::providerName(backend->provider());
         result.mFallbackReason = fallback;
+        if (request.mAllowDirectMl && request.mDirectMlDll.empty())
+            result.mFallbackReason = "DirectML is not installed (Face > Install DirectML...)";
 
         if (!step(0.2, "resampling the audio"))
             return false;
@@ -133,8 +138,14 @@ namespace face_editor
             return false;
         }
 
+        GenerateOptions options = request.mOptions;
+        if (request.mSubtractRest)
+        {
+            options.mRestOffsets = restOffsetsFor(variant, model.mPoses.mNames);
+            result.mRestSubtracted = true;
+        }
         const auto computeStart = Clock::now();
-        const bool ok = generateWeights(model, *backend, audio16, request.mOptions,
+        const bool ok = generateWeights(model, *backend, audio16, options,
             [&](double f, std::string_view text) { return !progress || progress(0.2 + 0.8 * f, text); }, result.mWeights,
             error);
         result.mComputeSeconds = since(computeStart);

@@ -218,6 +218,22 @@ namespace face_editor
             bool mEdited = false;
         };
 
+        /// A channel's editing state with the colour its place in the file gives it.
+        static ChannelState makeState(const std::string& name, Face::ChannelKind kind, std::size_t place)
+        {
+            ChannelState state;
+            state.mKind = kind;
+            state.mInfo.id = name;
+            state.mInfo.label = name;
+            state.mInfo.minValue = rangeMin(kind);
+            state.mInfo.maxValue = 1.0;
+            // A stable colour per channel: the hue follows the channel's place.
+            const float hue = static_cast<float>(place % 12) / 12.f;
+            state.mInfo.colour = Colour{ 0.5f + 0.5f * std::sin(hue * 6.2832f),
+                0.5f + 0.5f * std::sin(hue * 6.2832f + 2.094f), 0.5f + 0.5f * std::sin(hue * 6.2832f + 4.188f), 1.f };
+            return state;
+        }
+
         class KeysCommand final : public Command
         {
         public:
@@ -260,9 +276,11 @@ namespace face_editor
                 bool mWasEdited = false;
             };
 
-            GeneratedCommand(Impl& owner, std::vector<Change> changes, const GeneratedMeta& meta)
+            GeneratedCommand(Impl& owner, std::vector<Change> changes, std::vector<ChannelState> added,
+                const GeneratedMeta& meta)
                 : mOwner(owner)
                 , mChanges(std::move(changes))
+                , mAdded(std::move(added))
                 , mBeforeName(owner.mCurves.mGeneratorName)
                 , mBeforeVersion(owner.mCurves.mGeneratorVersion)
                 , mBeforeEmotion(owner.mCurves.mEmotion)
@@ -278,6 +296,17 @@ namespace face_editor
                     mOwner.mChannels[c.mChannel].mKeys = c.mAfter;
                     mOwner.mChannels[c.mChannel].mEdited = true;
                 }
+                // New channels go at the end, so no existing channel's index moves (later steps on the undo stack
+                // refer to indices); undo takes exactly these off again.
+                for (const ChannelState& state : mAdded)
+                {
+                    mOwner.mChannels.push_back(state);
+                    Face::Channel channel;
+                    channel.mName = state.mInfo.id;
+                    channel.mKind = state.mKind;
+                    channel.mValues.assign(mOwner.mCurves.mFrameCount, 0); // rewritten from the keys on save
+                    mOwner.mCurves.mChannels.push_back(std::move(channel));
+                }
                 mOwner.mCurves.mGeneratorName = mMeta.mName;
                 mOwner.mCurves.mGeneratorVersion = mMeta.mVersion;
                 mOwner.mCurves.mEmotion = mMeta.mEmotion;
@@ -286,6 +315,11 @@ namespace face_editor
             }
             void undo() override
             {
+                for (std::size_t i = 0; i < mAdded.size(); ++i)
+                {
+                    mOwner.mChannels.pop_back();
+                    mOwner.mCurves.mChannels.pop_back();
+                }
                 for (const Change& c : mChanges)
                 {
                     mOwner.mChannels[c.mChannel].mKeys = c.mBefore;
@@ -301,6 +335,7 @@ namespace face_editor
         private:
             Impl& mOwner;
             std::vector<Change> mChanges;
+            std::vector<ChannelState> mAdded;
             std::string mBeforeName, mBeforeVersion, mBeforeEmotion;
             std::int64_t mBeforeSeed = 0;
             GeneratedMeta mMeta;
@@ -557,17 +592,7 @@ namespace face_editor
         impl->mCurves = std::move(*curves);
         for (const Face::Channel& channel : impl->mCurves.mChannels)
         {
-            Impl::ChannelState state;
-            state.mKind = channel.mKind;
-            state.mInfo.id = channel.mName;
-            state.mInfo.label = channel.mName;
-            state.mInfo.minValue = rangeMin(channel.mKind);
-            state.mInfo.maxValue = 1.0;
-            // A stable colour per channel: the hue follows the channel's place.
-            const std::size_t n = impl->mChannels.size();
-            const float hue = static_cast<float>(n % 12) / 12.f;
-            state.mInfo.colour = Colour{ 0.5f + 0.5f * std::sin(hue * 6.2832f),
-                0.5f + 0.5f * std::sin(hue * 6.2832f + 2.094f), 0.5f + 0.5f * std::sin(hue * 6.2832f + 4.188f), 1.f };
+            Impl::ChannelState state = Impl::makeState(channel.mName, channel.mKind, impl->mChannels.size());
             state.mKeys = sparsify(channel.mValues, impl->mCurves.mFrameRate);
             impl->mChannels.push_back(std::move(state));
         }
@@ -679,13 +704,25 @@ namespace face_editor
     }
 
     std::unique_ptr<Command> FaceDocument::makeGeneratedCommand(const GeneratedWeights& weights,
-        const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* skipped)
+        const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* added,
+        std::vector<std::string>* skipped)
     {
         if (weights.frameCount() == 0 || weights.mFrameRate == 0)
             return nullptr;
         std::vector<Impl::GeneratedCommand::Change> changes;
-        std::vector<std::string> wroteNames, skippedNames;
+        std::vector<Impl::ChannelState> newStates;
+        std::vector<std::string> wroteNames, addedNames, skippedNames;
         const Face::Curves& curves = mImpl->mCurves;
+        auto intsFor = [&](std::size_t poseIndex) {
+            std::vector<std::int16_t> ints(curves.mFrameCount);
+            for (std::uint32_t j = 0; j < curves.mFrameCount; ++j)
+            {
+                const double w = std::clamp<double>(
+                    sampleWeight(weights, poseIndex, static_cast<double>(j) / curves.mFrameRate), 0.0, 1.0);
+                ints[j] = static_cast<std::int16_t>(std::lround(w * kQuantScale));
+            }
+            return ints;
+        };
         // Channels in the file's order, so the report and the command do not depend on the generator's pose order.
         std::vector<bool> used(weights.mNames.size(), false);
         for (std::size_t ch = 0; ch < mImpl->mChannels.size(); ++ch)
@@ -696,31 +733,53 @@ namespace face_editor
                 continue;
             const auto poseIndex = static_cast<std::size_t>(pose - weights.mNames.begin());
             used[poseIndex] = true;
-            std::vector<std::int16_t> ints(curves.mFrameCount);
-            for (std::uint32_t j = 0; j < curves.mFrameCount; ++j)
-            {
-                const double w = std::clamp<double>(
-                    sampleWeight(weights, poseIndex, static_cast<double>(j) / curves.mFrameRate), 0.0, 1.0);
-                ints[j] = static_cast<std::int16_t>(std::lround(w * kQuantScale));
-            }
             Impl::GeneratedCommand::Change change;
             change.mChannel = ch;
             change.mBefore = state.mKeys;
-            change.mAfter = sparsify(ints, curves.mFrameRate);
+            change.mAfter = sparsify(intsFor(poseIndex), curves.mFrameRate);
             change.mWasEdited = state.mEdited;
             changes.push_back(std::move(change));
             wroteNames.push_back(state.mInfo.id);
         }
-        for (std::size_t p = 0; p < used.size(); ++p)
-            if (!used[p])
-                skippedNames.push_back(weights.mNames[p]);
+        // Slice 3 (toddhow 2026-11-12, "sure"): a pose without a channel becomes a channel, in the same step. A name the
+        // format would refuse, one the file already has (a signed channel of that name is left alone) and anything past
+        // the channel limit is reported as skipped.
+        auto validName = [](const std::string& name) {
+            if (name.empty() || name.size() > 64)
+                return false;
+            return std::all_of(name.begin(), name.end(), [](char c) {
+                return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.';
+            });
+        };
+        for (std::size_t p = 0; p < weights.mNames.size(); ++p)
+        {
+            if (used[p])
+                continue;
+            const std::string& name = weights.mNames[p];
+            const bool twice = std::any_of(newStates.begin(), newStates.end(),
+                [&](const Impl::ChannelState& other) { return other.mInfo.id == name; });
+            if (twice || !validName(name) || mImpl->indexOf(name) != Impl::kNone
+                || mImpl->mChannels.size() + newStates.size() >= Face::Limits::sMaxChannels)
+            {
+                skippedNames.push_back(name);
+                continue;
+            }
+            Impl::ChannelState state
+                = Impl::makeState(name, Face::ChannelKind::Weight, mImpl->mChannels.size() + newStates.size());
+            state.mKeys = sparsify(intsFor(p), curves.mFrameRate);
+            state.mEdited = true;
+            newStates.push_back(std::move(state));
+            addedNames.push_back(name);
+        }
         if (written != nullptr)
             *written = wroteNames;
+        if (added != nullptr)
+            *added = addedNames;
         if (skipped != nullptr)
             *skipped = skippedNames;
-        if (changes.empty())
+        if (changes.empty() && newStates.empty())
             return nullptr;
-        return std::make_unique<Impl::GeneratedCommand>(*mImpl, std::move(changes), meta);
+        return std::make_unique<Impl::GeneratedCommand>(*mImpl, std::move(changes), std::move(newStates), meta);
     }
 
     std::vector<CurveKey> FaceDocument::keysOf(std::string_view channel) const

@@ -37,6 +37,12 @@ EXT="${VOICE##*.}"
 cp "$VOICE" "$WORK/audio/line.$EXT"
 # A junction (no admin rights needed) so that the real models are used where they are.
 cmd //c "mklink /J $(native "$WORK" | sed 's#/#\\#g')\\user\\models\\audio2face $(native "$MODELS" | sed 's#/#\\#g')" > /dev/null
+# Slice 3: DirectML is not part of the build. With <directml> 1 and OPENEDEN_DML_DLL set to a DirectML.dll, that file is
+# placed where Face > Install DirectML... would keep it (the version folder of the pinned package) before the run.
+if [ "$DML" != "0" ] && [ -n "${OPENEDEN_DML_DLL:-}" ]; then
+    mkdir -p "$WORK/user/openeden/directml/1.15.4"
+    cp "$OPENEDEN_DML_DLL" "$WORK/user/openeden/directml/1.15.4/DirectML.dll"
+fi
 [ -d "$WORK/user/models/audio2face/$VARIANT" ] || { echo "FAIL: the models folder has no $VARIANT"; exit 1; }
 
 start=$(date +%s)

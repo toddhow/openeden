@@ -463,7 +463,8 @@ add_library(face_editor_objects OBJECT
     ${FACE_EDITOR_DIR}/facekeys.cpp ${FACE_EDITOR_DIR}/models_folder.cpp ${FACE_EDITOR_DIR}/audio_pcm.cpp
     ${FACE_EDITOR_DIR}/audio_ffmpeg.cpp ${FACE_EDITOR_DIR}/face_document.cpp ${FACE_EDITOR_DIR}/face_editor_module.cpp
     ${FACE_EDITOR_DIR}/a2f_npz.cpp ${FACE_EDITOR_DIR}/a2f_solve.cpp ${FACE_EDITOR_DIR}/a2f_generate.cpp
-    ${FACE_EDITOR_DIR}/generate_run.cpp
+    ${FACE_EDITOR_DIR}/generate_run.cpp ${FACE_EDITOR_DIR}/a2f_rest.cpp ${FACE_EDITOR_DIR}/sha512.cpp
+    ${FACE_EDITOR_DIR}/zip_entry.cpp ${FACE_EDITOR_DIR}/directml_install.cpp
     ${CMAKE_SOURCE_DIR}/components/fuz/fuz.cpp)
 # ONNX Runtime (task 0147 slice 2, extern/CMakeLists.txt): the generator's network backend, Windows x64 for now. The
 # runtime is delay loaded, so the module and the editor start without its DLLs, which are copied beside the executables.
@@ -472,7 +473,11 @@ if (OPENEDEN_FACE_GENERATOR_AVAILABLE)
     target_link_libraries(face_editor_objects PUBLIC openeden_onnxruntime)
 endif()
 target_compile_features(face_editor_objects PRIVATE cxx_std_20)
-target_link_libraries(face_editor_objects PUBLIC eden_face PRIVATE nlohmann_json::nlohmann_json)
+# zlib inflates the DirectML package's entry (zip_entry.cpp); WinHTTP fetches it (directml_install.cpp, Windows only).
+target_link_libraries(face_editor_objects PUBLIC eden_face PRIVATE nlohmann_json::nlohmann_json ZLIB::ZLIB)
+if (WIN32)
+    target_link_libraries(face_editor_objects PUBLIC winhttp)
+endif()
 target_include_directories(face_editor_objects PUBLIC ${CMAKE_SOURCE_DIR}
     PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include ${FFmpeg_INCLUDE_DIRS})
 set_property(TARGET face_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -480,7 +485,10 @@ set_property(TARGET face_editor_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
 add_library(face_editor SHARED ${FACE_EDITOR_DIR}/face_editor_export.cpp $<TARGET_OBJECTS:face_editor_objects>)
 target_compile_features(face_editor PRIVATE cxx_std_20)
 target_include_directories(face_editor PRIVATE ${CMAKE_SOURCE_DIR}/sdk/include)
-target_link_libraries(face_editor PRIVATE eden_face ${FFmpeg_LIBRARIES})
+target_link_libraries(face_editor PRIVATE eden_face ${FFmpeg_LIBRARIES} ZLIB::ZLIB)
+if (WIN32)
+    target_link_libraries(face_editor PRIVATE winhttp)
+endif()
 set_target_properties(face_editor PROPERTIES
     OUTPUT_NAME "face_editor"
     DEBUG_POSTFIX ""
@@ -494,7 +502,7 @@ if (OPENEDEN_FACE_GENERATOR_AVAILABLE)
     # The editor and its tests load the module from the build folder and find the runtime DLLs next to their own exe.
     add_custom_command(TARGET face_editor POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENEDEN_ORT_RUNTIME_FILES} ${CMAKE_BINARY_DIR}
-        COMMENT "Copying ONNX Runtime and DirectML next to the editor")
+        COMMENT "Copying ONNX Runtime next to the editor")
 endif()
 foreach(config ${CMAKE_CONFIGURATION_TYPES})
     string(TOUPPER ${config} config_upper)

@@ -87,7 +87,8 @@ namespace face_editor
         /// the channels it has). Null when no channel matches. \a written and \a skipped (may be null) get the names of
         /// the channels written and of the generated poses that had no channel.
         std::unique_ptr<openeden::editor::Command> makeGeneratedCommand(const GeneratedWeights& weights,
-            const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* skipped);
+            const GeneratedMeta& meta, std::vector<std::string>* written, std::vector<std::string>* added,
+            std::vector<std::string>* skipped);
 
         /// The keys of a channel now (for tests and the canvas).
         std::vector<openeden::editor::CurveKey> keysOf(std::string_view channel) const;

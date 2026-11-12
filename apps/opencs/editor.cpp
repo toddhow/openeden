@@ -771,6 +771,14 @@ namespace
             for (QWidget* widget : QApplication::topLevelWidgets())
                 if (auto* window = qobject_cast<QMainWindow*>(widget); window && window->isVisible())
                 {
+                    // A module command that asks something shows a MODAL dialog, which nobody answers in a check (the face
+                    // module's New Curves File and Install DirectML do): cancel them, and say so.
+                    CSVModule::ModuleUi::get()->setDialogRunner(
+                        [](const openeden::editor::DialogDesc& desc, const std::vector<openeden::editor::PropertyValue>&)
+                            -> std::optional<std::vector<openeden::editor::PropertyValue>> {
+                            Log(Debug::Info) << "UI check: module menu dialog '" << desc.title << "' cancelled";
+                            return std::nullopt;
+                        });
                     for (QAction* action : window->findChildren<QAction*>())
                         if (action->objectName().startsWith("moduleCommand_"))
                         {
@@ -778,6 +786,7 @@ namespace
                                              << action->objectName().toStdString() << ")";
                             action->trigger();
                         }
+                    CSVModule::ModuleUi::get()->resetDialogRunner();
                     for (QMenu* menu : window->findChildren<QMenu*>())
                         if (menu->objectName().startsWith("moduleMenu_"))
                             Log(Debug::Info) << "UI check: module menu " << menu->title().toStdString();
@@ -1699,6 +1708,7 @@ namespace
             if (tracks.mCurves.empty())
                 return;
             std::ostringstream text;
+            text << " channels " << tracks.mCurves.front()->channels().size() << ";";
             for (const char* channel : { "jawopen", "mouthclose", "mouthfunnel", "mouthpucker", "eyeblinkleft", "browinnerup" })
             {
                 const auto keys = tracks.mCurves.front()->channelKeys(channel);

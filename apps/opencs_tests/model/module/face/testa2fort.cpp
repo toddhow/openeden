@@ -5,7 +5,11 @@
 // silence, is repeatable on one provider, CPU and DirectML agree, progress and cancel work, the hash gate refuses a
 // damaged copy. Whether the curves look like the speech is a judgement made on frames, not here.
 #include "editor_modules/face_editor/audio_pcm.hpp"
+#include "editor_modules/face_editor/a2f_rest.hpp"
 #include "editor_modules/face_editor/generate_run.hpp"
+#ifdef OPENEDEN_FACE_GENERATOR
+#include "editor_modules/face_editor/ort_backend.hpp"
+#endif
 
 #include <gtest/gtest.h>
 
@@ -56,6 +60,10 @@ namespace
         r.mModelsRoot = root;
         r.mVariantId = variant;
         r.mAllowDirectMl = directMl;
+        // Slice 3: DirectML is optional; the tests that want it name an installed (or hand-placed) DirectML.dll.
+        if (directMl)
+            if (const char* dll = std::getenv("OPENEDEN_DML_DLL"))
+                r.mDirectMlDll = dll;
         r.mAudioRate = 22050;
         r.mAudio = speech ? speechLike(22050) : std::vector<float>(22050 * 3 / 2, 0.f);
         return r;
@@ -125,7 +133,8 @@ namespace
             gpu1.mProvider.c_str(), gpu1.mFallbackReason.c_str(), cpu.mComputeSeconds, gpu1.mComputeSeconds,
             gpu1.mProvider.c_str(), gpu1.mAudioSeconds);
         if (gpu1.mProvider != "DirectML")
-            GTEST_SKIP() << "DirectML was not used: " << gpu1.mFallbackReason;
+            GTEST_SKIP() << "DirectML was not used (OPENEDEN_DML_DLL names a DirectML.dll to use): "
+                         << gpu1.mFallbackReason;
         EXPECT_EQ(gpu1.mWeights.mWeights, gpu2.mWeights.mWeights); // same provider: identical
         ASSERT_EQ(cpu.mWeights.mWeights.size(), gpu1.mWeights.mWeights.size());
         double worst = 0;
@@ -167,6 +176,7 @@ namespace
         r.mModelsRoot = root;
         r.mVariantId = "v3.0";
         r.mAllowDirectMl = false;
+        r.mSubtractRest = false; // the recorded peaks are the raw solve
         r.mAudio = pcm.mSamples;
         r.mAudioRate = pcm.mRate;
         GenerateResult gate, overlapped;
@@ -239,4 +249,160 @@ namespace
         EXPECT_NE(error.find("SHA-256"), std::string::npos) << error;
         fs::remove_all(dir);
     }
+
+#ifdef OPENEDEN_FACE_GENERATOR
+    // ---- slice 3: DirectML is optional, the rest offset -----------------------------------------------------------
+
+    TEST(A2FOrt, withoutAnInstalledDirectMlTheCpuRunsAndSaysWhy)
+    {
+        fs::path root;
+        std::string why;
+        if (!modelsRoot(root) || !generationAvailable(why))
+            GTEST_SKIP() << why;
+        GenerateRequest r = request(root, "v2.3-mark", true);
+        r.mDirectMlDll.clear();
+        GenerateResult result;
+        std::string error;
+        ASSERT_TRUE(runGeneration(r, {}, result, error)) << error;
+        EXPECT_EQ(result.mProvider, "CPU");
+        EXPECT_NE(result.mFallbackReason.find("not installed"), std::string::npos) << result.mFallbackReason;
+        // Not asking for the GPU says nothing.
+        r.mAllowDirectMl = false;
+        ASSERT_TRUE(runGeneration(r, {}, result, error)) << error;
+        EXPECT_TRUE(result.mFallbackReason.empty());
+    }
+
+    TEST(A2FOrt, aMissingOrWrongDirectMlPathFallsBackToTheCpuWithAReason)
+    {
+        fs::path root;
+        std::string why;
+        if (!modelsRoot(root) || !generationAvailable(why))
+            GTEST_SKIP() << why;
+        GenerateRequest r = request(root, "v2.3-mark", true);
+        r.mDirectMlDll = fs::temp_directory_path() / "oe_no_such_dir" / "DirectML.dll";
+        GenerateResult result;
+        std::string error;
+        ASSERT_TRUE(runGeneration(r, {}, result, error)) << error;
+        EXPECT_EQ(result.mProvider, "CPU");
+        EXPECT_NE(result.mFallbackReason.find("DirectML"), std::string::npos);
+        // A file that is not a DLL.
+        const fs::path junk = fs::temp_directory_path() / "oe_fake_dml" / "DirectML.dll";
+        fs::create_directories(junk.parent_path());
+        std::ofstream(junk, std::ios::binary) << "this is not a dll";
+        r.mDirectMlDll = junk;
+        ASSERT_TRUE(runGeneration(r, {}, result, error)) << error;
+        EXPECT_EQ(result.mProvider, "CPU");
+        EXPECT_NE(result.mFallbackReason.find("could not"), std::string::npos) << result.mFallbackReason;
+    }
+
+    TEST(A2FOrt, theInstalledDirectMlDllIsTheOneLoadedByFullPath)
+    {
+        const char* dll = std::getenv("OPENEDEN_DML_DLL");
+        std::string why;
+        if (dll == nullptr || !generationAvailable(why))
+            GTEST_SKIP() << "OPENEDEN_DML_DLL (a DirectML.dll outside System32) is not set: " << why;
+        ASSERT_TRUE(ortLoadDirectMl(dll, why)) << why;
+        EXPECT_TRUE(ortLoadDirectMl(dll, why)) << "loading twice is fine: " << why;
+    }
+
+    /// Measures the rest table of a variant with the real network on the CPU: the options and silence the table's header
+    /// in a2f_rest_table.inc describes.
+    bool measureVariant(const fs::path& root, const char* id, A2FVariant variant, RestTable& table, std::string& error)
+    {
+        GeneratorModel model;
+        const fs::path folder = root / id;
+        if (!loadGeneratorModel(folder, variant, model, error))
+            return false;
+        std::string fallback;
+        auto backend = OrtBackend::create(folder / "network.onnx", variant, fs::path(), fallback, error);
+        if (!backend)
+            return false;
+        return measureRest(model, *backend, kRestSilenceSeconds, GenerateOptions{}, table, error);
+    }
+
+    std::string tableText(const char* symbol, const RestTable& table)
+    {
+        std::string text = std::string("static const RestEntry ") + symbol + "[] = {\n";
+        char line[96];
+        for (const auto& [name, value] : table)
+        {
+            std::snprintf(line, sizeof(line), "    { \"%s\", %.6ff },\n", name.c_str(), value);
+            text += line;
+        }
+        return text + "};\n";
+    }
+
+    // Prints the two tables for a2f_rest_table.inc (to the file OPENEDEN_A2F_REST_OUT when set, else stdout).
+    TEST(A2FOrt, printRestTable)
+    {
+        fs::path root;
+        std::string why;
+        if (!modelsRoot(root) || !generationAvailable(why) || std::getenv("OPENEDEN_A2F_PRINT_REST") == nullptr)
+            GTEST_SKIP() << "set OPENEDEN_A2F_MODELS and OPENEDEN_A2F_PRINT_REST=1 to measure";
+        RestTable v30, v23;
+        std::string error;
+        ASSERT_TRUE(measureVariant(root, "v3.0", A2FVariant::V30, v30, error)) << error;
+        ASSERT_TRUE(measureVariant(root, "v2.3-mark", A2FVariant::V23, v23, error)) << error;
+        const std::string text = tableText("sRestV30", v30) + tableText("sRestV23", v23);
+        if (const char* out = std::getenv("OPENEDEN_A2F_REST_OUT"))
+            std::ofstream(out, std::ios::binary) << text;
+        else
+            std::printf("%s", text.c_str());
+    }
+
+    // The constants in the source are what the networks give today on silence (the CPU provider is deterministic).
+    TEST(A2FOrt, theStoredRestTablesEqualAFreshMeasurement)
+    {
+        fs::path root;
+        std::string why;
+        if (!modelsRoot(root) || !generationAvailable(why))
+            GTEST_SKIP() << why;
+        for (auto [id, variant] : { std::pair{ "v2.3-mark", A2FVariant::V23 }, std::pair{ "v3.0", A2FVariant::V30 } })
+        {
+            RestTable fresh;
+            std::string error;
+            ASSERT_TRUE(measureVariant(root, id, variant, fresh, error)) << error;
+            const RestTable& stored = restTable(variant);
+            ASSERT_EQ(fresh.size(), stored.size()) << id;
+            for (std::size_t i = 0; i < fresh.size(); ++i)
+            {
+                EXPECT_EQ(fresh[i].first, stored[i].first) << id;
+                EXPECT_NEAR(fresh[i].second, stored[i].second, 1e-4) << id << " " << fresh[i].first;
+            }
+        }
+    }
+
+    TEST(A2FOrt, silenceGivesNearlyNothingOnceTheRestIsSubtracted)
+    {
+        fs::path root;
+        std::string why;
+        if (!modelsRoot(root) || !generationAvailable(why))
+            GTEST_SKIP() << why;
+        for (const char* id : { "v2.3-mark", "v3.0" })
+        {
+            GenerateRequest r = request(root, id, false, false);
+            r.mAudio.assign(22050 * 4, 0.f);
+            GenerateResult raw, cut;
+            std::string error;
+            r.mSubtractRest = false;
+            ASSERT_TRUE(runGeneration(r, {}, raw, error)) << error;
+            r.mSubtractRest = true;
+            ASSERT_TRUE(runGeneration(r, {}, cut, error)) << error;
+            EXPECT_TRUE(cut.mRestSubtracted);
+            EXPECT_FALSE(raw.mRestSubtracted);
+            EXPECT_GT(peak(raw.mWeights, "jawopen"), 0.03f) << id;
+            // The mean of the cut jaw on silence is near zero (the table was measured with ten seconds of it).
+            double sum = 0;
+            std::size_t n = 0;
+            for (std::size_t p = 0; p < cut.mWeights.mNames.size(); ++p)
+                if (cut.mWeights.mNames[p] == "jawopen")
+                    for (std::size_t f = 0; f < cut.mWeights.frameCount(); ++f, ++n)
+                        sum += cut.mWeights.at(f, p);
+            ASSERT_GT(n, 0u);
+            EXPECT_LT(sum / n, 0.04) << id;
+            std::printf("%s: jawopen on silence raw peak %.3f, after the subtraction mean %.4f peak %.3f\n", id,
+                peak(raw.mWeights, "jawopen"), sum / n, peak(cut.mWeights, "jawopen"));
+        }
+    }
+#endif
 }

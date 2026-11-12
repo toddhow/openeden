@@ -8,10 +8,19 @@
 
 namespace face_editor
 {
+    struct DirectMlPackage;
+}
+
+namespace face_editor
+{
     inline constexpr const char* kModuleId = "face_editor";
 
     /// The module's descriptor (the shared library's entry point returns it; tests use it directly).
     const openeden::editor::EditorModuleDescriptor* moduleDescriptor();
+
+    /// TEST SEAM: makes Face > Install DirectML... fetch \a package instead of the pinned Microsoft package (the
+    /// tests point it at a generated file:/// package). Null restores the pinned one. Nothing in Studio calls this.
+    void setDirectMlPackageForTests(const DirectMlPackage* package);
 
     /// What Generate says until the ONNX runtime is in (slice 2).
     inline constexpr const char* kGenerateNeedsRuntime

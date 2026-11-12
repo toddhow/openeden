@@ -42,6 +42,36 @@ namespace face_editor
 #endif
     }
 
+    bool ortLoadDirectMl(const fs::path& dll, std::string& why)
+    {
+#ifdef _WIN32
+        std::error_code ec;
+        if (dll.empty() || !dll.is_absolute() || !fs::is_regular_file(dll, ec))
+        {
+            why = "DirectML.dll is not installed at " + dll.generic_string();
+            return false;
+        }
+        // By full path; the DLL's own dependencies (d3d12, dxgi) come from System32.
+        HMODULE h = LoadLibraryExW(dll.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+        if (h == nullptr)
+        {
+            why = "DirectML.dll could not be loaded from " + dll.generic_string() + " (error "
+                + std::to_string(GetLastError()) + ")";
+            return false;
+        }
+        // The delay load of onnxruntime asks for "DirectML.dll" by name: it must find THIS module.
+        if (GetModuleHandleW(L"DirectML.dll") != h)
+        {
+            why = "another DirectML.dll is already loaded in this process, so the installed one cannot be used";
+            return false;
+        }
+        return true;
+#else
+        why = "DirectML is Windows only";
+        return false;
+#endif
+    }
+
     std::string ortRuntimeVersion()
     {
         std::string why;
@@ -123,7 +153,7 @@ namespace face_editor
         return provider == OrtProvider::DirectMl ? "DirectML" : "CPU";
     }
 
-    std::unique_ptr<OrtBackend> OrtBackend::create(const fs::path& network, A2FVariant, bool allowDirectMl,
+    std::unique_ptr<OrtBackend> OrtBackend::create(const fs::path& network, A2FVariant, const fs::path& directMlDll,
         std::string& fallbackReason, std::string& error)
     {
         fallbackReason.clear();
@@ -131,12 +161,15 @@ namespace face_editor
             return nullptr;
         try
         {
-            if (allowDirectMl)
+            if (!directMlDll.empty())
             {
-                auto dml = std::make_unique<Impl>();
                 std::string why;
-                if (dml->open(network, true, why))
-                    return std::unique_ptr<OrtBackend>(new OrtBackend(std::move(dml)));
+                if (ortLoadDirectMl(directMlDll, why))
+                {
+                    auto dml = std::make_unique<Impl>();
+                    if (dml->open(network, true, why))
+                        return std::unique_ptr<OrtBackend>(new OrtBackend(std::move(dml)));
+                }
                 fallbackReason = "DirectML could not be used (" + why + ")";
             }
             auto cpu = std::make_unique<Impl>();
