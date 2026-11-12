@@ -422,8 +422,23 @@ namespace MWRender
         // Task 0110 (neutral world, stage N3a-4): with the neutral world on, Skyrim SE models are read as scenes and drawn as
         // static shapes through the same node cache; off, the NIF reader refuses them as before.
         if (Settings::game().mNeutralWorld)
-            resourceSystem->nifReader->sceneReader = SkyrimModel::makeSceneReader(
-                *resourceSystem->builder, resourceSystem->textureOptions, Bin_DepthSorted);
+        {
+            // Task 0133: Skyrim trees bend in the weather's wind; the driver's one uniform is bound by every swaying shape.
+            if (Settings::game().mNeutralTreeSway)
+            {
+                mTreeSway = std::make_unique<SkyrimTreeSway::Driver>();
+                // A developer aid for frame checks: OPENEDEN_NEUTRAL_TREE_WIND (0 to 1) replaces the weather's wind speed.
+                if (const char* forced = std::getenv("OPENEDEN_NEUTRAL_TREE_WIND"); forced != nullptr && *forced)
+                {
+                    mTreeWindOverride = std::strtof(forced, nullptr);
+                    Log(Debug::Info) << "Skyrim tree sway: the wind speed is forced to " << *mTreeWindOverride
+                                     << " (OPENEDEN_NEUTRAL_TREE_WIND).";
+                }
+                Log(Debug::Info) << "Skyrim tree sway is on.";
+            }
+            resourceSystem->nifReader->sceneReader = SkyrimModel::makeSceneReader(*resourceSystem->builder,
+                resourceSystem->textureOptions, Bin_DepthSorted, mTreeSway ? mTreeSway->uniform() : nullptr);
+        }
         mCamera.reset(new Camera);
 
         mShadow = std::make_unique<Shadow>(*context, mEngine.getEnabledFeatures().depthClamp);
@@ -3594,6 +3609,9 @@ namespace MWRender
             Misc::LoadTrace::Scope traceClusters("render.update.lodclusters");
             updateLodClusters(cameraPosition, dt);
         }
+        if (mTreeSway)
+            mTreeSway->update(paused ? 0.0 : static_cast<double>(dt),
+                mTreeWindOverride ? *mTreeWindOverride : (mSky ? mSky->getBaseWindSpeed() : 0.f));
         traceDistant.end();
         if (mRenderModes[Render_Sky])
             mSky->update(dt);

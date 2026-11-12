@@ -472,19 +472,25 @@ namespace NifScene::Flat
             const bool wantColors = (material.mFlags2 & ShaderFlags::sVertexColors) != 0;
             const bool vertexAlpha = (material.mFlags1 & ShaderFlags::sVertexAlpha) != 0;
             std::vector<std::array<float, 4>> colors;
+            // Task 0133: a Tree_Anim shape keeps the file's vertex alpha, which is its per-vertex flexibility (the
+            // Vertex_Alpha flag is not what says so; see docs/tasks/0133-skyrim-tree-sway.md).
+            const bool treeSway = limits.mTreeSway && wantColors && geometry.mColors.size() == vertexCount
+                && (material.mFlags2 & ShaderFlags::sTreeAnim) != 0;
             if (wantColors && geometry.mColors.size() == vertexCount)
             {
                 colors.resize(vertexCount);
                 for (std::size_t v = 0; v < vertexCount; ++v)
                 {
                     const auto& c = geometry.mColors[v];
-                    colors[v] = { clamp01(c[0]), clamp01(c[1]), clamp01(c[2]), vertexAlpha ? clamp01(c[3]) : 1.f };
+                    colors[v] = { clamp01(c[0]), clamp01(c[1]), clamp01(c[2]),
+                        (vertexAlpha || treeSway) ? clamp01(c[3]) : 1.f };
                 }
             }
 
             MaterialKey key;
             key.mDoubleSided = (material.mFlags2 & ShaderFlags::sDoubleSided) != 0;
             key.mVertexColors = !colors.empty();
+            key.mSway = treeSway;
             key.mClampMode = static_cast<std::uint8_t>(material.mClampMode & 3u);
             key.mAlpha = std::isfinite(material.mAlpha) ? std::clamp(material.mAlpha, 0.f, 1.f) : 1.f;
             if (!uvs.empty() && material.mTextureSet < scene.mTextureSets.size())
@@ -555,6 +561,7 @@ namespace NifScene::Flat
             acceptedTriangles += fullTriangles;
             ++acceptedShapes;
             ++report.mDrawn;
+            report.mSwayShapes += treeSway ? 1u : 0u;
         }
 
         std::set<std::string> textures;

@@ -1,6 +1,7 @@
 #include "skyrimmodel.hpp"
 
 #include "skyrimmaterial.hpp"
+#include "skyrimtreesway.hpp"
 
 #include <algorithm>
 #include <array>
@@ -415,8 +416,8 @@ namespace MWRender::SkyrimModel
             return vsg::CullNode::create(vsg::dsphere(centre, radius), stateGroup);
         }
 
-        vsg::ref_ptr<vsg::Node> buildShape(
-            const NifScene::Flat::Shape& shape, const BuildContext& context, BuildResult& result, Counters& totals)
+        vsg::ref_ptr<vsg::Node> buildShape(const NifScene::Flat::Shape& shape, const BuildContext& context,
+            BuildResult& result, Counters& totals, float modelHeight)
         {
             const NifScene::Flat::MaterialKey& key = shape.mKey;
             Pipeline::Options options;
@@ -429,10 +430,22 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::NORMAL);
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
             vsgUtil::setID(*dataList.back(), static_cast<int>(Pipeline::Mode::NORMAL));
+            const bool swaying = key.mSway && context.mSwayUniform && !shape.mColors.empty();
             if (!shape.mColors.empty())
             {
                 shader.addMode(Pipeline::Mode::COLOR);
-                dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
+                // Task 0133: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own alpha,
+                // its flexibility, scaled by the model's height), and the shader draws it with alpha 1.
+                if (swaying)
+                {
+                    std::vector<std::array<float, 4>> weighted = shape.mColors;
+                    for (auto& colour : weighted)
+                        colour[3] = static_cast<float>(SkyrimTreeSway::weightByte(colour[3], modelHeight)) / 255.f;
+                    dataList.emplace_back(copyArray<vsg::vec4Array>(weighted));
+                    shader.addMode(Pipeline::Mode::LOD_SWAY);
+                }
+                else
+                    dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
                 options.colorMode = 2; // the vertex colour is the ambient and diffuse colour, as NiVertexColorProperty
             }
             // The tangent array goes before the texture coordinates (Pipeline::Graphics, lib/attributes.glsl); it is
@@ -447,6 +460,11 @@ namespace MWRender::SkyrimModel
 
             vsg::Descriptors descriptors;
             addSurface(key, context, result, totals, options, descriptors);
+            if (swaying)
+                totals.mSwayShapes.fetch_add(1, std::memory_order_relaxed);
+            if (swaying)
+                descriptors.push_back(vsg::DescriptorBuffer::create(context.mSwayUniform,
+                    Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
             if (shader.hasMode(Pipeline::Mode::NORMAL_MAP))
             {
                 if (shape.mTangents.size() == shape.mPositions.size())
@@ -507,7 +525,7 @@ namespace MWRender::SkyrimModel
             << c.mSkippedHidden.load() << " hidden, " << c.mDroppedTriangles.load() << " bad triangles; materials: "
             << c.mNormalMaps.load() << " normal maps, " << c.mGlowMaps.load() << " glow maps, "
             << c.mNormalMapsNoTangents.load() << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
-            << " model-space normal maps left out";
+            << " model-space normal maps left out, " << c.mSwayShapes.load() << " swaying tree shapes";
         return out.str();
     }
 
@@ -526,8 +544,9 @@ namespace MWRender::SkyrimModel
 
         vsg::Group::Children nodes;
         nodes.reserve(model.mShapes.size());
+        const float modelHeight = model.mBoundsMax[2] - model.mBoundsMin[2];
         for (const NifScene::Flat::Shape& shape : model.mShapes)
-            nodes.emplace_back(buildShape(shape, context, result, totals));
+            nodes.emplace_back(buildShape(shape, context, result, totals, modelHeight));
         totals.mDraws += result.mDraws;
         if (nodes.empty())
         {
@@ -564,13 +583,13 @@ namespace MWRender::SkyrimModel
         return result;
     }
 
-    std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(
-        const Pipeline::Builder& builder, vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin)
+    std::shared_ptr<const vsgAdapters::nif::SceneReader> makeSceneReader(const Pipeline::Builder& builder,
+        vsg::ref_ptr<const vsg::Options> imageOptions, int depthSortedBin, vsg::ref_ptr<vsg::mat4Value> swayUniform)
     {
         auto reader = std::make_shared<vsgAdapters::nif::SceneReader>();
         const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
-        reader->read = [&builder, imageOptions, depthSortedBin, surfaceMaps](std::string data, const std::string& filename,
+        reader->read = [&builder, imageOptions, depthSortedBin, surfaceMaps, swayUniform](std::string data, const std::string& filename,
                            vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
@@ -581,10 +600,12 @@ namespace MWRender::SkyrimModel
                     = NifScene::readScene(std::move(stream), VFS::Path::Normalized(filename), sceneOptions);
                 NifScene::Flat::Limits limits;
                 limits.mSurfaceMaps = surfaceMaps;
+                limits.mTreeSway = swayUniform != nullptr;
                 const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene, limits);
                 totals.mNormalMapsNoTangents += flat.mReport.mNormalMapsNoTangents;
                 totals.mNormalMapsModelSpace += flat.mReport.mNormalMapsModelSpace;
-                const BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename };
+                const BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename,
+                    swayUniform };
                 BuildResult built = buildNode(flat, context);
                 if (!built.mNode)
                     return vsg::Group::create(); // a model that draws nothing is still a model, not a missing one

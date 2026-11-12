@@ -100,6 +100,7 @@ namespace Settings
         SettingValue<bool> mNeutralActorIdles{ mIndex, "Game", "neutral actor idles" };
         SettingValue<bool> mNeutralWeather{ mIndex, "Game", "neutral weather" };
         SettingValue<bool> mNeutralWorldMaterials{ mIndex, "Game", "neutral world materials" };
+        SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };
     };
 }
 

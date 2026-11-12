@@ -1,0 +1,2 @@
+GLOBAL: scripts/trees/global.lua
+PLAYER: scripts/trees/player.lua

@@ -8,6 +8,7 @@
 #include "rain.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
+#include "skyrimtreesway.hpp"
 #include "waterripples.hpp"
 
 #include <array>
@@ -676,6 +677,9 @@ namespace MWRender
         // Task 0059: baked object clusters, only with `[WorldLod] object clusters`.
         std::filesystem::path mLodClusterPack;
         std::unique_ptr<LodClusters> mLodClusters;
+        // Task 0133: the wind of Skyrim trees, only with `[Game] neutral world` and `neutral tree sway`.
+        std::unique_ptr<SkyrimTreeSway::Driver> mTreeSway;
+        std::optional<float> mTreeWindOverride; // OPENEDEN_NEUTRAL_TREE_WIND, a developer aid
         bool mLodClustersAttached = false;
         std::uint64_t mLodClustersPushed = 0;
         ActiveCellGrid mActiveGrid;

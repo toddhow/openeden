@@ -47,6 +47,8 @@ namespace NifScene::Flat
         constexpr std::uint32_t sSpecular = 1u << 0; // flags 1
         constexpr std::uint32_t sModelSpaceNormals = 1u << 12; // flags 1
         constexpr std::uint32_t sGlowMap = 1u << 6; // flags 2
+        // Task 0133, checked against the installed meshes by testskyrimtreesreal.cpp: Tree_Anim (flags 2 bit 29).
+        constexpr std::uint32_t sTreeAnim = 1u << 29; // flags 2
     }
 
     struct Limits
@@ -62,6 +64,9 @@ namespace NifScene::Flat
         /// map (slot 2, only with the Glow_Map flag), the specular and emissive values and the shader type in the key.
         /// Off (the default) the key and the shapes are exactly what they were before the task.
         bool mSurfaceMaps = false;
+        /// Task 0133 (Skyrim tree sway): mark shapes with the Tree_Anim flag (MaterialKey::mSway) and keep the file's
+        /// per-vertex alpha on them whatever the Vertex_Alpha flag says. Off (the default) nothing changes.
+        bool mTreeSway = false;
     };
 
     /// What makes two shapes drawable by one StateGroup.
@@ -86,6 +91,9 @@ namespace NifScene::Flat
         float mGlossiness = 0.f; // Blinn-Phong exponent as stored, only with a specular colour
         std::array<float, 3> mEmissive{ 0.f, 0.f, 0.f }; // emissive colour * multiple
         std::uint32_t mShaderType = 0; // BSLightingShaderType
+        /// Task 0133: a Tree_Anim shape under Limits::mTreeSway. Its Shape::mColors alpha is the file's vertex alpha (the
+        /// vertex's flexibility); such a shape is never merged with a still one.
+        bool mSway = false;
         friend auto operator<=>(const MaterialKey&, const MaterialKey&) = default;
     };
 
@@ -126,6 +134,7 @@ namespace NifScene::Flat
         std::uint32_t mNormalMapsNoTangents = 0; // slot 1 named but the shape has no tangents: no normal map
         std::uint32_t mNormalMapsModelSpace = 0; // slot 1 named but the shader says model space normals: not used
         std::uint32_t mGlowMaps = 0; // keep a glow map
+        std::uint32_t mSwayShapes = 0; // task 0133 (only with Limits::mTreeSway): geometries marked as swaying
     };
 
     struct FlatModel
