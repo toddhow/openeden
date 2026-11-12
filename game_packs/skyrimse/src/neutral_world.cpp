@@ -377,6 +377,12 @@ namespace game_skyrimse
         return source->describeActor(base, variation, out, error);
     }
 
+    std::string SkyrimCellSource::displayNameOf(openeden::sdk::game::WorldId base)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::DisplayNameSource*>(&mView);
+        return source != nullptr ? source->displayNameOf(base) : std::string();
+    }
+
     bool SkyrimCellSource::beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
         openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {

@@ -27,6 +27,7 @@
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/dialogue_source.hpp>
+#include <openeden/game/display_name_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
@@ -108,6 +109,7 @@ namespace game_skyrimse
         public TerrainProvider,
         public openeden::sdk::game::ActorAppearanceSource,
         public openeden::sdk::game::DialogueSource,
+        public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::WeatherSource
     {
     public:
@@ -259,6 +261,11 @@ namespace game_skyrimse
         /// on the first call and kept (a second read of each plugin file, beside the world index); main thread only.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+
+        // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
+        /// FULL of the base form (NPC_, DOOR, CONT, ACTI ..., items), through the string tables of a localised plugin;
+        /// empty when the record has none. Main thread only.
+        std::string displayNameOf(openeden::sdk::game::WorldId base) override;
 
         // ---- openeden::sdk::game::DialogueSource (task 0141, M-S4 slice 1) ----
         /// The dialogue, quest and actor records of every plugin are read on the first call and kept (another read of

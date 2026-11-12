@@ -36,6 +36,7 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/failedaction.hpp"
 #include "../mwworld/neutraldialogue.hpp"
+#include "../mwworld/neutraldisplayname.hpp"
 #include "../mwworld/neutraldoor.hpp"
 #include "../mwworld/neutrallock.hpp"
 #include "../mwworld/neutralstore.hpp"
@@ -336,7 +337,15 @@ namespace MWClass
 
     std::string_view Neutral::getName(const MWWorld::ConstPtr& ptr) const
     {
-        return baseOf(ptr).mEditorId;
+        // Task 0150: the display name of the base (the pack's optional DisplayNameSource), else the editor id.
+        static MWWorld::NeutralDisplayNames names;
+        const MWWorld::NeutralBase& base = baseOf(ptr);
+        if (!MWBase::Environment::exists())
+            return names.nameOf(base, nullptr);
+        MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+        NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+        openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
+        return names.nameOf(base, dynamic_cast<openeden::sdk::game::DisplayNameSource*>(source));
     }
 
     bool Neutral::hasToolTip(const MWWorld::ConstPtr& ptr) const

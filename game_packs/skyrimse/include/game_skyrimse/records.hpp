@@ -383,6 +383,9 @@ namespace game_skyrimse
         std::string mModel; ///< MODL
         /// LIGH records only: DATA and FNAM.
         std::optional<LightData> mLight;
+        /// FULL: the display name (doors, containers, activators ...). Empty when the record has none; a localised name
+        /// is resolved by the view like the other names (task 0150).
+        LString mName;
     };
 
     namespace NpcFlags

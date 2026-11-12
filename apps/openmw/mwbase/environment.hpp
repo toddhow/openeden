@@ -138,6 +138,9 @@ namespace MWBase
 
         void setFrameDuration(float value) { mFrameDuration = value; }
 
+        /// True while an Environment exists (unit tests of classes that look at it only when there is one).
+        static bool exists() { return sThis != nullptr; }
+
         /// Return instance of this class.
         static const Environment& get()
         {

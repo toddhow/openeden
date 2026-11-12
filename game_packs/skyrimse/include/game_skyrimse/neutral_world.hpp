@@ -18,6 +18,7 @@
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
+#include <openeden/game/display_name_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -142,6 +143,7 @@ namespace game_skyrimse
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
         public openeden::sdk::game::ActorAppearanceSource,
         public openeden::sdk::game::DialogueSource,
+        public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::ActorRules,
         public openeden::sdk::game::CellWaterSource,
         public openeden::sdk::game::WeatherSource
@@ -154,6 +156,8 @@ namespace game_skyrimse
         }
 
         std::string_view gameId() const override { return "skyrimse"; }
+        /// Task 0150: forwards to the view's DisplayNameSource.
+        std::string displayNameOf(openeden::sdk::game::WorldId base) override;
         std::size_t cellCount() const override { return mView.cellCount(); }
         std::size_t listCells(
             std::size_t first, std::size_t maxCount, std::vector<openeden::sdk::game::WorldId>& out) const override;

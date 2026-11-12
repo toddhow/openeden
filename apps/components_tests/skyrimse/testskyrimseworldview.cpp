@@ -649,6 +649,58 @@ namespace
         EXPECT_EQ(c.unresolvedBases, 0u);
     }
 
+    // ---- display names (task 0150) -------------------------------------------------------------------------------
+
+    Bytes namedRecord(const char (&type)[5], std::uint32_t id, const std::string& editorId, const std::string& model,
+        const Bytes& full)
+    {
+        Bytes subs;
+        subs.append(edid(editorId));
+        subs.append(full);
+        subs.append(sub4("OBND", Bytes().u16(0xFFF6).u16(0xFFF6).u16(0).u16(10).u16(10).u16(20)));
+        subs.append(sub4("MODL", Bytes().zstring(model)));
+        return record4(type, 0, id, subs);
+    }
+
+    TEST(SkyrimWorldView, theDisplayNameOfAnActorADoorAndAContainerIsTheirFullAndNoFullGivesNothing)
+    {
+        Bytes bytes = header(Content::sRecMaster);
+        bytes.append(topGroup("DOOR", namedRecord("DOOR", 0x801, "DoorEd", "d.nif", sub4("FULL", Bytes().zstring("Front Door")))));
+        bytes.append(topGroup("CONT", namedRecord("CONT", 0x802, "StrongboxEd", "c.nif", Bytes())));
+        Bytes npc;
+        npc.append(edid("BanneredMareHulda")).append(sub4("FULL", Bytes().zstring("Hulda")));
+        bytes.append(topGroup("NPC_", record4("NPC_", 0, 0x809, npc)));
+        Bytes coin;
+        coin.append(edid("Coin")).append(sub4("FULL", Bytes().zstring("Gold"))).append(sub4("MODL", Bytes().zstring("coin.nif")));
+        coin.append(sub4("DATA", Bytes().u32(5).f32(0.5f)));
+        bytes.append(topGroup("MISC", record4("MISC", 0, 0x808, coin)));
+        Loaded l({ { "n.esm", bytes } });
+        ASSERT_TRUE(l.problems.empty());
+        EXPECT_EQ(l.view.displayNameOf(0x809), "Hulda");
+        EXPECT_EQ(l.view.displayNameOf(0x801), "Front Door");
+        EXPECT_EQ(l.view.displayNameOf(0x808), "Gold");
+        EXPECT_EQ(l.view.displayNameOf(0x802), ""); // a container with no FULL: the core shows its editor id
+        EXPECT_EQ(l.view.displayNameOf(0x7777), ""); // not a base form
+    }
+
+    TEST(SkyrimWorldView, aLocalisedDisplayNameComesFromTheStringTableOfItsPlugin)
+    {
+        Bytes bytes = header(Content::sRecMaster | Content::sRecLocalized);
+        bytes.append(topGroup("DOOR", namedRecord("DOOR", 0x801, "DoorEd", "d.nif", sub4("FULL", Bytes().u32(77)))));
+        Bytes npc;
+        npc.append(edid("Guard")).append(sub4("FULL", Bytes().u32(78)));
+        bytes.append(topGroup("NPC_", record4("NPC_", 0, 0x809, npc)));
+        MapFiles files;
+        files.mFiles["strings\\loc_english.strings"] = stringsTable({ { 77, "Whiterun Gate" }, { 78, "Hulda" } });
+        Loaded l({ { "loc.esm", bytes } }, {}, &files);
+        EXPECT_EQ(l.view.displayNameOf(0x801), "Whiterun Gate");
+        EXPECT_EQ(l.view.displayNameOf(0x809), "Hulda");
+
+        MapFiles none; // no table: the name is empty, never the number
+        Loaded m({ { "loc.esm", bytes } }, {}, &none);
+        EXPECT_EQ(m.view.displayNameOf(0x809), "");
+    }
+
     // ---- hostile and damaged input ---------------------------------------------------------------------------------
 
     TEST(SkyrimWorldView, aFileThatIsNotASkyrimPluginOrDoesNotExistIsRefusedWithItsName)

@@ -1051,6 +1051,7 @@ namespace game_skyrimse
                 bool hasLightData = false;
                 float lightFade = 1.0f;
                 bool hasLightFade = false;
+                LString fullName; // FULL of a model record (task 0150)
                 SubReader reader(bytes);
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
@@ -1062,6 +1063,9 @@ namespace game_skyrimse
                     {
                         case Content::fourCC("EDID"):
                             ok = zstring(type, data, s.mCommon.mEditorId);
+                            break;
+                        case Content::fourCC("FULL"):
+                            ok = lstring(type, data, fullName);
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
                             if (!isLight)
@@ -1125,6 +1129,7 @@ namespace game_skyrimse
                 else
                 {
                     ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt };
+                    model.mName = std::move(fullName);
                     if (hasLightData)
                     {
                         light.mFade = lightFade;

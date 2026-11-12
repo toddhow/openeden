@@ -712,6 +712,8 @@ namespace game_skyrimse
             resolve(c.mName);
         for (NpcRecord& n : p.mNpcs)
             resolve(n.mName);
+        for (ModelRecord& m : p.mModels)
+            resolve(m.mName);
         for (ItemRecord& i : p.mItems)
             resolve(i.mName);
     }
@@ -1071,6 +1073,33 @@ namespace game_skyrimse
             for (PlacedRef& r : *list)
                 out.push_back(std::move(r));
         return true;
+    }
+
+    std::string SkyrimWorldView::displayNameOf(sdkgame::WorldId base)
+    {
+        if (!awaitIndex())
+            return {};
+        const auto it = mBases.find(base);
+        if (it == mBases.end())
+            return {};
+        const ParsedPlugin& p = mPlugins[it->second.mPlugin].mParsed;
+        const LString* name = nullptr;
+        switch (it->second.mTable)
+        {
+            case BaseTable::Npc:
+                name = &p.mNpcs[it->second.mIndex].mName;
+                break;
+            case BaseTable::Model:
+                name = &p.mModels[it->second.mIndex].mName;
+                break;
+            case BaseTable::Item:
+                name = &p.mItems[it->second.mIndex].mName;
+                break;
+            default:
+                return {};
+        }
+        // A localised name that could not be looked up has no text: the core then shows the editor id.
+        return name->mPresent ? name->mText : std::string();
     }
 
     const LightData* SkyrimWorldView::lightOfBase(FormId base) const
