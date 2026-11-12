@@ -449,6 +449,20 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
+        /// fn_237 GetIsGhost: is the subject in the ghost state? (CK wiki, shown by toddhow, 2026-11-11)
+        virtual bool isGhost(Subject subject) const
+        {
+            (void)subject;
+            return false;
+        }
+        /// fn_630 GetVMScriptVariable(object, "variable"): the value of a Conditional property of a script on the
+        /// object (0 if none); the original does not work while the object is in a container (CK wiki, shown by
+        /// toddhow, 2026-11-11). The shape (object in parameter 1, name in CIS2) is taken from fn_629, RECALLED-VERIFY.
+        virtual float scriptVariable(std::uint32_t object, const std::string& name) const
+        {
+            (void)object, (void)name;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

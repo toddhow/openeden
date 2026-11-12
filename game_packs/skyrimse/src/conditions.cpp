@@ -413,6 +413,18 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.sitState(subject) : 0.f;
         }
 
+        // 237 GetIsGhost (CK wiki, toddhow 2026-11-11)
+        float getIsGhost(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isGhost(subject));
+        }
+
+        // 630 GetVMScriptVariable(object, "variable"): shape as 629, RECALLED-VERIFY (CK wiki, toddhow 2026-11-11)
+        float getVMScriptVariable(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return world.scriptVariable(c.mParam1, c.mString2);
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -421,7 +433,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 64> sTable = { {
+        constexpr std::array<Entry, 66> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -456,6 +468,7 @@ namespace game_skyrimse::conditions
             { 161, getIsCurrentPackage },
             { 182, getEquipped },
             { 214, hasMagicEffect },
+            { 237, getIsGhost },
             { 248, isScenePlaying },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
@@ -483,6 +496,7 @@ namespace game_skyrimse::conditions
             { 606, getKeywordDataForLocation },
             { 624, getInContainer },
             { 629, getVMQuestVariable },
+            { 630, getVMScriptVariable },
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },

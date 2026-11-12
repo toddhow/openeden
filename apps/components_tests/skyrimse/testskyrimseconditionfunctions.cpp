@@ -125,6 +125,12 @@ namespace
         bool mServices = true;
         bool mInterior = true;
         bool mAlarmed = true;
+        bool mGhost = true;
+        bool isGhost(Subject s) const override { return s == mSubject && mGhost; }
+        float scriptVariable(std::uint32_t o, const std::string& n) const override
+        {
+            return o == 0x1B0 && n == "::MyScript.MyInt" ? 7.f : 0.f;
+        }
         float sitState(Subject s) const override { return s == mSubject ? 13.f : 0.f; }
         bool isReference(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x1A0; }
         bool isAlarmed(Subject s) const override { return s == mSubject && mAlarmed; }
@@ -590,6 +596,24 @@ namespace
         EXPECT_TRUE(run(cond(159, kEq, 13.f), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(159, kEq, 0.f), w));
+    }
+
+    // fn_237 GetIsGhost; fn_630 GetVMScriptVariable(object, "variable") (CK wiki, toddhow 2026-11-11; the
+    // parameter shape is fn_629's, unchecked).
+    TEST(SkyrimConditionFunctions, fn_237_is_ghost_and_630_script_variable)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(237, kEq, 1.f), w));
+        Ctda v = cond(630, kEq, 7.f, 0x1B0);
+        v.mString2 = "::MyScript.MyInt";
+        EXPECT_TRUE(run(v, w));
+        v.mString2 = "::MyScript.Other";
+        EXPECT_FALSE(run(v, w));
+        w.mGhost = false;
+        EXPECT_TRUE(run(cond(237, kEq, 0.f), w));
+        w.mGhost = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(237, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
