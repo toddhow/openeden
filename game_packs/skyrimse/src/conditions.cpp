@@ -479,6 +479,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isSmallBump(subject));
         }
 
+        // 223 IsSpellTarget(magic item) (CK wiki, toddhow 2026-11-11)
+        float isSpellTarget(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isSpellTarget(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -487,7 +493,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 75> sTable = { {
+        constexpr std::array<Entry, 76> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -524,6 +530,7 @@ namespace game_skyrimse::conditions
             { 161, getIsCurrentPackage },
             { 182, getEquipped },
             { 214, hasMagicEffect },
+            { 223, isSpellTarget },
             { 237, getIsGhost },
             { 248, isScenePlaying },
             { 249, isInDialogueWithPlayer },

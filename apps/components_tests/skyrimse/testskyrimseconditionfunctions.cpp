@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool isSpellTarget(Subject s, std::uint32_t m) const override { return s == mSubject && m == 0x1D0; }
         bool mIsSmallBumpFlag = true;
         bool isSmallBump(Subject s) const override { return s == mSubject && mIsSmallBumpFlag; }
         bool mIsGuardClassFlag = true;
@@ -729,6 +730,17 @@ namespace
         w.mIsSmallBumpFlag = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(274, kEq, 0.f), w));
+    }
+
+    // fn_223 IsSpellTarget(spell, enchantment, ingredient or potion): the subject is being affected by it (CK wiki,
+    // toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_223_is_the_spell_target)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(223, kEq, 1.f, 0x1D0), w));
+        EXPECT_TRUE(run(cond(223, kEq, 0.f, 0x1D1), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(223, kEq, 0.f, 0x1D0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
