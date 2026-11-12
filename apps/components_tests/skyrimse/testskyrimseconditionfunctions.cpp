@@ -105,6 +105,11 @@ namespace
         bool hasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == mKeyword; }
         float factionRank(Subject s, std::uint32_t f) const override { return s == mSubject && f == mFaction ? mRank : -1.f; }
         bool locationHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == mKeyword; }
+        float keywordDataForLocation(std::uint32_t l, std::uint32_t k) const override
+        {
+            return l == mLocation && k == mKeyword ? mKeywordData : 0.f;
+        }
+        float mKeywordData = 2.5f;
     };
 
     bool run(const Ctda& c, const World& w, Evaluator* out = nullptr)
@@ -145,6 +150,18 @@ namespace
         EXPECT_TRUE(run(cond(77, kGe, 40.f), w));
         w.mRandom = 10.f;
         EXPECT_FALSE(run(cond(77, kGe, 40.f), w));
+    }
+
+    // fn_606 GetKeywordDataForLocation(location, keyword): the keyword's data value on that location, 0 when unset
+    // (toddhow, 2026-11-11). It names its location, so it needs no subject.
+    TEST(SkyrimConditionFunctions, fn_606_is_the_keyword_data_of_the_named_location)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(606, kEq, 2.5f, 0x50, 0x80), w));
+        EXPECT_TRUE(run(cond(606, kEq, 0.f, 0x51, 0x80), w));
+        EXPECT_TRUE(run(cond(606, kEq, 0.f, 0x50, 0x81), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(606, kEq, 2.5f, 0x50, 0x80), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

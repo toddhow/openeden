@@ -177,6 +177,13 @@ namespace game_skyrimse::conditions
             (void)subject, (void)keyword;
             return false;
         }
+        /// fn_606 GetKeywordDataForLocation(location, keyword): the data value scripts stored for that keyword on that
+        /// location (LCTN), 0 when none was set (toddhow, 2026-11-11).
+        virtual float keywordDataForLocation(std::uint32_t location, std::uint32_t keyword) const
+        {
+            (void)location, (void)keyword;
+            return 0.f;
+        }
     };
 
     /// The CTDA subrecords of a record's (inflated) data, in order. False if the data is malformed (a subrecord

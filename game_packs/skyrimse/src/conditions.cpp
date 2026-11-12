@@ -162,6 +162,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.locationHasKeyword(subject, c.mParam1));
         }
 
+        // 606 GetKeywordDataForLocation(location, keyword): names its location, so no subject (toddhow, 2026-11-11)
+        float getKeywordDataForLocation(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            return world.keywordDataForLocation(c.mParam1, c.mParam2);
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -170,7 +176,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 22> sTable = { {
+        constexpr std::array<Entry, 23> sTable = { {
             { 14, getActorValue },
             { 46, getDead },
             { 47, getItemCount },
@@ -192,6 +198,7 @@ namespace game_skyrimse::conditions
             { 562, locationHasKeyword },
             { 566, getIsAliasRef },
             { 579, getEquippedShout },
+            { 606, getKeywordDataForLocation },
             { 629, getVMQuestVariable },
         } };
     }
