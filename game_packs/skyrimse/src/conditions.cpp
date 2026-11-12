@@ -341,6 +341,12 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.sleepState(subject) : 0.f;
         }
 
+        // 264 HasSpell(spell or shout): known, not merely in effect (Papyrus Actor.HasSpell, toddhow 2026-11-11)
+        float hasSpell(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.knowsSpell(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -349,7 +355,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 52> sTable = { {
+        constexpr std::array<Entry, 53> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -379,6 +385,7 @@ namespace game_skyrimse::conditions
             { 182, getEquipped },
             { 249, isInDialogueWithPlayer },
             { 255, getOffersServicesNow },
+            { 264, hasSpell },
             { 277, getBaseActorValue },
             { 286, isSneaking },
             { 289, isInCombat },

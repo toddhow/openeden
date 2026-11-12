@@ -363,6 +363,13 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
+        /// fn_264 HasSpell(spell or shout): does the subject know it? Being under its effect is not enough (that is
+        /// HasMagicEffect) (CK wiki, Papyrus Actor.HasSpell, shown by toddhow, 2026-11-11).
+        virtual bool knowsSpell(Subject subject, std::uint32_t spellOrShout) const
+        {
+            (void)subject, (void)spellOrShout;
+            return false;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

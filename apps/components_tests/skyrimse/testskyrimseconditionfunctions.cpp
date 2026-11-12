@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool knowsSpell(Subject s, std::uint32_t sp) const override { return s == mSubject && sp == 0x170; }
         float sleepState(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         float crimeGold(Subject s, std::uint32_t f) const override
         {
@@ -460,6 +461,16 @@ namespace
         EXPECT_TRUE(run(cond(49, kEq, 3.f), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(49, kEq, 0.f), w));
+    }
+
+    // fn_264 HasSpell(spell or shout): the subject knows it (Papyrus Actor.HasSpell page, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_264_knows_the_spell)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(264, kEq, 1.f, 0x170), w));
+        EXPECT_TRUE(run(cond(264, kEq, 0.f, 0x171), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(264, kEq, 0.f, 0x170), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
