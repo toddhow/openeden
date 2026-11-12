@@ -1,6 +1,8 @@
 // Task 0121, stage N5-1 of decision 0017: the actor appearance the Skyrim SE pack hands the core, made from decoded
 // records held in an ActorIndex. Hand-built records; no plugin bytes, no game data.
 #include <game_skyrimse/appearance.hpp>
+#include <game_skyrimse/neutral_world.hpp>
+#include <game_skyrimse/world_view.hpp>
 
 #include <gtest/gtest.h>
 
@@ -274,4 +276,31 @@ TEST(SkyrimAppearance, overlong_model_paths_are_dropped)
     ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error)) << error;
     for (const auto& p : a.parts)
         EXPECT_LE(p.modelPath.size(), 512u);
+}
+
+// ---- through the world view and the cell source (task 0121, N5-1) -----------------------------------------------
+
+TEST(SkyrimAppearanceSource, a_view_with_no_plugins_knows_no_npc_and_says_so)
+{
+    SkyrimWorldView view;
+    view.finish();
+    ActorAppearance a;
+    std::string error;
+    EXPECT_FALSE(view.describeActor(0x100, 1, a, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_TRUE(a.parts.empty());
+}
+
+TEST(SkyrimAppearanceSource, the_cell_source_forwards_to_its_view_and_is_found_by_dynamic_cast)
+{
+    SkyrimWorldView view;
+    view.finish();
+    SkyrimCellSource source(view);
+    openeden::sdk::game::WorldCellSource& generic = source;
+    auto* appearance = dynamic_cast<openeden::sdk::game::ActorAppearanceSource*>(&generic);
+    ASSERT_NE(appearance, nullptr);
+    ActorAppearance a;
+    std::string error;
+    EXPECT_FALSE(appearance->describeActor(0x100, 1, a, error));
+    EXPECT_NE(error.find("NPC"), std::string::npos) << error;
 }

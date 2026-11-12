@@ -1,6 +1,8 @@
 #include "game_skyrimse/world_view.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/actors.hpp"
+#include "game_skyrimse/appearance.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -164,6 +166,38 @@ namespace game_skyrimse
     SkyrimWorldView::~SkyrimWorldView()
     {
         cancelAndJoin();
+    }
+
+    bool SkyrimWorldView::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        out = {};
+        if (!awaitIndex())
+        {
+            error = "the world index is not available";
+            return false;
+        }
+        if (mActorIndex == nullptr)
+        {
+            auto index = std::make_unique<ActorIndex>();
+            const ActorLimits limits;
+            for (const PluginData& plugin : mPlugins)
+            {
+                Content::Error openError;
+                const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+                if (file == nullptr)
+                {
+                    noteError(openError);
+                    continue;
+                }
+                ActorRecords records;
+                (void)parseActorRecords(*file, mOrder, limits, records);
+                index->add(records);
+                index->addLeveledLists(plugin.mParsed.mLeveledLists);
+            }
+            mActorIndex = std::move(index);
+        }
+        return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error);
     }
 
     // ---- the worker -------------------------------------------------------------------------------------------------

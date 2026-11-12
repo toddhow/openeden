@@ -14,6 +14,7 @@
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
+#include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
 #include <openeden/game/world_view.hpp>
@@ -133,7 +134,8 @@ namespace game_skyrimse
     /// The Skyrim SE side of the core's neutral world store (task 0100 stage N1): a WorldCellSource over any WorldView.
     /// Cell ids are the view's own ids (the load-order form ids), which are already stable for the session. It keeps a
     /// reference to the view, which must outlive it. Main thread only, like the view.
-    class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource
+    class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
+        public openeden::sdk::game::ActorAppearanceSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -164,6 +166,9 @@ namespace game_skyrimse
         openeden::sdk::game::TerrainResult buildTerrain(openeden::sdk::game::WorldId world, std::int32_t x,
             std::int32_t y, openeden::sdk::game::TerrainCell& out, std::string& error) override;
         std::size_t listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const override;
+        /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
+        bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
+            openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
     private:
         [[nodiscard]] const SkyrimTerrainIndex* terrain() const;

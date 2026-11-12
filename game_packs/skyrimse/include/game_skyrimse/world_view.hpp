@@ -25,6 +25,7 @@
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/records.hpp>
 
+#include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
 
@@ -49,6 +50,7 @@
 
 namespace game_skyrimse
 {
+    class ActorIndex;
     /// Where files that are not plugins (the string tables) come from. `path` is lower case with backslashes, as an
     /// archive names it (`strings\skyrim_english.strings`).
     class FileSource
@@ -91,6 +93,9 @@ namespace game_skyrimse
     };
 
     class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource, public TerrainProvider
+    class SkyrimWorldView final : public openeden::sdk::game::WorldView,
+        public ComponentSource,
+        public openeden::sdk::game::ActorAppearanceSource
     {
     public:
         struct Options
@@ -227,6 +232,12 @@ namespace game_skyrimse
         bool loadCell(
             openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCellContent& out, std::string& error) override;
 
+        // ---- openeden::sdk::game::ActorAppearanceSource (task 0121, N5-1) ----
+        /// The appearance of the NPC_ `base` (see makeActorAppearance). The actor records of every plugin are read
+        /// on the first call and kept (a second read of each plugin file, beside the world index); main thread only.
+        bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
+            openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+
     private:
         struct PluginData
         {
@@ -295,6 +306,7 @@ namespace game_skyrimse
 
         Options mOptions;
         const FileSource* mFiles = nullptr;
+        std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         LoadOrder mOrder;
         std::vector<PluginData> mPlugins;
         std::unordered_map<FormId, BaseRef> mBases;

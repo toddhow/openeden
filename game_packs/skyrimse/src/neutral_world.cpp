@@ -355,4 +355,17 @@ namespace game_skyrimse
     {
         return loadNeutralCell(mView, cell, out, error, mLimits);
     }
+
+    bool SkyrimCellSource::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::ActorAppearanceSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view cannot describe actors";
+            return false;
+        }
+        return source->describeActor(base, variation, out, error);
+    }
 }
