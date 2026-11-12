@@ -1,4 +1,4 @@
-// Task 0140: starting a neutral session at a spot of a world's exterior (`--start @<world>,<x>,<y>[,<z>]`).
+// Task 0142: starting a neutral session at a spot of a world's exterior (`--start @<world>,<x>,<y>[,<z>]`).
 // The pure parts: the start text, the bilinear ground height of a cell, and the land lookup through a pack's terrain
 // source (parent worlds, default height, every way there is no land). Written from the task spec before the
 // implementation; the first run was against a stub.

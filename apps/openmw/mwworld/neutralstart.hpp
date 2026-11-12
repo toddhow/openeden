@@ -8,7 +8,7 @@
 #include <openeden/game/world_source.hpp>
 #include <openeden/game/world_terrain.hpp>
 
-// Task 0140 (neutral world): where a neutral session starts. `--start <editor id>` names an interior (task 0109);
+// Task 0142 (neutral world): where a neutral session starts. `--start <editor id>` names an interior (task 0109);
 // `--start @<world editor id>,<x>,<y>[,<z>]` names a spot in a world's exterior, x and y in the game's units. The text
 // is parsed here (pure), and the ground height under the spot is read from the pack's terrain (a source, no engine
 // state). Main thread; no state.

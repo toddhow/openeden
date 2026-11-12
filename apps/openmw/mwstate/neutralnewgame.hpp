@@ -44,7 +44,7 @@ namespace MWState
         {
         }
 
-        // Task 0140: a spot in a world's exterior. The world is found by its editor id, the spot must have land (the
+        // Task 0142: a spot in a world's exterior. The world is found by its editor id, the spot must have land (the
         // pack's terrain), z comes from the land when not given, and the player is moved into the exterior cell of the
         // square the spot is in (the same path a door to an exterior takes).
         void startInExterior(MWBase::World& world, const MWWorld::NeutralStartTarget& target)

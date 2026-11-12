@@ -47,7 +47,7 @@ return {
                 pcall(function() world.mwscript.getGlobalVariables(player).gamehour = 12 end)
             elseif step == 1 and t >= 6 then
                 step = 2
-                -- task 0140: started in an exterior with --start @<world>,x,y: no door to take, search from here
+                -- task 0142: started in an exterior with --start @<world>,x,y: no door to take, search from here
                 local door = (not player.cell.isExterior) and nearestDoor(player.cell, 'skyrimse:b152263', { -128, -1152, 120 }) or nil
                 if player.cell.isExterior then print('TRUNKS started in an exterior, searching from the start position')
                 elseif door == nil then print('TRUNKS door not found') else door:activateBy(player) end
@@ -108,7 +108,7 @@ return {
                 local dir = util.vector3(p.x - tp.x, p.y - tp.y, 0):normalize()
                 if cn > 0 then dir = util.vector3(tp.x - cx / cn, tp.y - cy / cn, 0):normalize() end
                 local back, up = 500, 250
-                if player.cell.isExterior then back, up = 1100, 700 end -- task 0140: farther and higher, the tree stands on a slope
+                if player.cell.isExterior then back, up = 1100, 700 end -- task 0142: farther and higher, the tree stands on a slope
                 local cam = util.vector3(tp.x + dir.x * back, tp.y + dir.y * back, tp.z + up)
                 lookYaw = math.atan2(dir.x, -dir.y) -- OpenMW: forward is (-sin yaw, cos yaw)
                 lookPos = cam

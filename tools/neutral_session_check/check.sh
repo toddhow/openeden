@@ -117,7 +117,7 @@ printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 cd "$BUILD"
 set +e
 PROBE_CELL="$CELL"
-# Task 0140: a start text beginning with @ is an exterior spot (--start @<world>,<x>,<y>[,<z>]); the probe cell is then a fixed interior.
+# Task 0142: a start text beginning with @ is an exterior spot (--start @<world>,<x>,<y>[,<z>]); the probe cell is then a fixed interior.
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
