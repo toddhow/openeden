@@ -257,6 +257,24 @@ namespace MWClass
         return MWWorld::Ptr(cell.insert(ref), &cell);
     }
 
+    const std::string& Neutral::getInventoryIcon(const MWWorld::ConstPtr&) const
+    {
+        static const std::string empty;
+        return empty;
+    }
+
+    const ESM::RefId& Neutral::getUpSoundId(const MWWorld::ConstPtr&) const
+    {
+        static const ESM::RefId empty;
+        return empty;
+    }
+
+    const ESM::RefId& Neutral::getDownSoundId(const MWWorld::ConstPtr&) const
+    {
+        static const ESM::RefId empty;
+        return empty;
+    }
+
     std::string_view Neutral::getName(const MWWorld::ConstPtr& ptr) const
     {
         return baseOf(ptr).mEditorId;

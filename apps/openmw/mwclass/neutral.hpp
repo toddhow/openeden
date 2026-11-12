@@ -5,6 +5,7 @@
 
 #include "../mwworld/action.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/doorstate.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/registeredclass.hpp"
 
@@ -36,6 +37,26 @@ namespace MWClass
         std::unique_ptr<MWWorld::Action> activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const override;
 
         void getModelsToPreload(const MWWorld::ConstPtr&, std::vector<std::string_view>&) const override {}
+
+        // Task 0131 (stage N3a-6): a neutral object is an inert reference. These are the Class virtuals whose default is
+        // to throw and that a generic engine path (not guarded by isActor, isItem or isDoor) or the console can reach
+        // with any Ptr; here they answer with the neutral value (nothing, zero, idle) instead. What only an actor has
+        // (stats, movement, containers, inventories) keeps refusing: nothing generic calls those on a non-actor.
+        int getValue(const MWWorld::ConstPtr&) const override { return 0; }
+        float getWeight(const MWWorld::ConstPtr&) const override { return 0.f; }
+        float getCapacity(const MWWorld::Ptr&) const override { return 0.f; }
+        float getEncumbrance(const MWWorld::Ptr&) const override { return 0.f; }
+        bool isPersistent(const MWWorld::ConstPtr&) const override { return false; }
+        int getEnchantmentPoints(const MWWorld::ConstPtr&) const override { return 0; }
+        const std::string& getInventoryIcon(const MWWorld::ConstPtr&) const override;
+        int getItemMaxHealth(const MWWorld::ConstPtr&) const override { return 0; }
+        const ESM::RefId& getUpSoundId(const MWWorld::ConstPtr&) const override;
+        const ESM::RefId& getDownSoundId(const MWWorld::ConstPtr&) const override;
+        ESM::RefId getSoundIdFromSndGen(const MWWorld::Ptr&, std::string_view) const override { return {}; }
+        int getBaseGold(const MWWorld::ConstPtr&) const override { return 0; }
+        void setRemainingUsageTime(const MWWorld::Ptr&, float) const override {}
+        MWWorld::DoorState getDoorState(const MWWorld::ConstPtr&) const override { return MWWorld::DoorState::Idle; }
+        void setDoorState(const MWWorld::Ptr&, MWWorld::DoorState) const override {}
 
         void insertObjectRendering(const MWWorld::Ptr& ptr, const std::string& model,
             MWRender::RenderingInterface& renderingInterface) const override;
