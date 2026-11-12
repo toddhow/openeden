@@ -250,8 +250,13 @@ namespace MWRender::SkyrimModel
                 skin->bones.push_back({ inverseBind,
                     vsg::dsphere(vsg::dvec3(boneCentre.x, boneCentre.y, boneCentre.z), radius), bone.mName });
             }
-            if (shape.mHasSkinTransform)
-                skin->transform = toSkinMatrix(shape.mSkinTransform);
+            // The skin data's own transform (shape.mSkinTransform) is deliberately NOT applied, unlike Morrowind's
+            // (Anim::Skin::transform, nif.cpp): in Skyrim SE files the per-bone binds already map shape-local vertices
+            // to bone space, and the skin transform is the shape's node transform (a lift of about 120 units for the
+            // body, hands, feet and head-space clothing in the vanilla files, 302 of 605 sampled shapes). Applying it
+            // on top dropped every such part 120 units below the actor and left only hair, eyes and brows (no skin
+            // transform) standing as a floating head. Measured on the five masters: without it the skinned bodies span
+            // z 8 to 115, hands 59 to 79, boots 0 to 33, hair and eyes 105 to 135; with it they sit at -120 to -5.
             skin->boneIndices = boneIndices;
             skin->boneWeights = boneWeights;
             auto boneMatrices = vsg::mat4Array::create(

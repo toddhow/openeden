@@ -51,6 +51,8 @@ content=HearthFires.esm
 content=Dragonborn.esm
 content=n3a3save.omwscripts
 CFG
+# Task 0121: "n5actors" visits each neutral actor of the Bannered Mare and takes a picture of it (use at least 1500 frames).
+[ "$SHOT" = n5actors ] && echo "content=n5actors.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0110 stage N3a-4b: "collision" as the screenshot argument runs the player through the collision script (stands, then
 # walks four legs, logging height above the floor and what stops it); use at least 1000 frames.
@@ -65,7 +67,7 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout 170 ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|collision|colldraw|doors*|n5actors) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

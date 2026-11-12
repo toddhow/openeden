@@ -188,6 +188,26 @@ TEST_F(SkyrimActorTest, at_the_rest_pose_every_bone_matrix_is_the_identity)
     EXPECT_TRUE(near(m[3][0], 0.f) && near(m[3][1], 0.f) && near(m[3][2], 0.f)) << "no offset left over";
 }
 
+TEST_F(SkyrimActorTest, the_skin_datas_own_transform_is_not_applied_on_top_of_the_bone_bind)
+{
+    // Skyrim SE skin data carries a transform of its own (in the real files a lift of 120 units: the shape's node
+    // transform) next to the per-bone binds, which already include it. Applying it again (Anim::Skin::transform, the
+    // Morrowind rule) drops every such body, dress and glove 120 units below the actor, leaving hair, eyes and brows
+    // (no skin transform) floating as a head with no body. At the rest pose the bone matrices must stay the identity.
+    Skinned::SkinnedModel model = pelvisQuad();
+    model.mShapes[0].mHasSkinTransform = true;
+    model.mShapes[0].mSkinTransform.mTranslation = { 0.f, 1.5f, -120.f };
+    vsg::ref_ptr<vsg::Group> root;
+    std::unique_ptr<Anim::Bones> bones;
+    const Found found = link(root, model, bones);
+    ASSERT_NE(found.skin, nullptr);
+    ASSERT_NE(found.matrices, nullptr);
+    const_cast<Anim::Skin*>(found.skin)->apply(*found.matrices, 0.f);
+    const vsg::mat4& m = found.matrices->at(0);
+    EXPECT_TRUE(near(m[3][0], 0.f) && near(m[3][1], 0.f) && near(m[3][2], 0.f))
+        << "offset " << m[3][0] << "," << m[3][1] << "," << m[3][2];
+}
+
 TEST_F(SkyrimActorTest, moving_the_bone_moves_the_skin_by_the_same_amount)
 {
     vsg::ref_ptr<vsg::Group> root;

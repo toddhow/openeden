@@ -343,6 +343,9 @@ namespace MWRender
         std::unique_ptr<MWAnim::ObjectAnimation> anim
             = MWAnim::create<MWAnim::ObjectAnimation>(context, node, nullptr, true);
         traceCreate.end();
+        Log(Debug::Verbose) << "Skyrim actor " << ptr.getCellRef().getRefId() << ": " << report.mPartsDrawn << " of "
+                            << report.mPartsAsked << " parts drawn, " << report.mBones << " bones, " << report.mDraws
+                            << " draws | " << SkyrimActor::describeTotals();
         loadTransform(ptr, *anim->transform());
         Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
         if (!context.compileContext->compile(anim->node()))
