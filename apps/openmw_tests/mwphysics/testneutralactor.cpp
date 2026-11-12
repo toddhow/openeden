@@ -1,4 +1,4 @@
-// Task 0133 (decision 0017 stage N5-3): the capsule and the standing-on-the-floor rule of a neutral actor's physics body.
+// Task 0135 (decision 0017 stage N5-3): the capsule and the standing-on-the-floor rule of a neutral actor's physics body.
 // Written from the header before the implementation; the first run was against a stub (see the task's stage log).
 #include <components/misc/constants.hpp>
 #include <components/resource/physicsshape.hpp>

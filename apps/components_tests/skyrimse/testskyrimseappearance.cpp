@@ -473,7 +473,7 @@ TEST(SkyrimAppearance, a_facegen_path_over_the_limit_is_not_used)
     EXPECT_TRUE(models(a, ActorPartKind::Face).empty());
 }
 
-// Task 0133 (decision 0017 N5-3): the height scale the core sizes an actor's collision capsule from.
+// Task 0135 (decision 0017 N5-3): the height scale the core sizes an actor's collision capsule from.
 namespace
 {
     // One race with the given male and female heights, a male NPC and a female NPC with the given own heights.

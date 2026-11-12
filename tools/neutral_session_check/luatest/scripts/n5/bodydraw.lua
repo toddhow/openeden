@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0133): the collision debug view in front of three neutral actors of the Bannered Mare,
+-- tools/neutral_session_check (task 0135): the collision debug view in front of three neutral actors of the Bannered Mare,
 -- so a frame shows the capsule round the drawn NPC. Started when the check is given "n5bodydraw".
 local core = require('openmw.core')
 local self = require('openmw.self')

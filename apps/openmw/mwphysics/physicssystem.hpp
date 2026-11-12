@@ -191,14 +191,14 @@ namespace MWPhysics
             vsg::dquat rotation, int collisionType);
         void addActor(const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh);
 
-        /// Task 0133 (decision 0017, stage N5-3): adds the physics body of an actor of a neutral session, an upright
+        /// Task 0135 (decision 0017, stage N5-3): adds the physics body of an actor of a neutral session, an upright
         /// capsule (NeutralActor::capsuleFor(heightScale)) on the WORLD layer, so the player and every ray meet it. It
         /// is an Object, not an Actor: nothing about it needs CreatureStats. `raise` lifts the feet that many units
         /// above the placement first (a developer aid that shows the fall). Main thread only. Does nothing when the
         /// object already has a body or the shape cannot be made.
         void addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f);
 
-        /// Task 0133: one frame of standing the neutral actors on the floor (NeutralActor::stepFall, a ray cast down
+        /// Task 0135: one frame of standing the neutral actors on the floor (NeutralActor::stepFall, a ray cast down
         /// per actor that is not yet on the floor). Writes each new height into the object's position and appends the
         /// Ptr to `moved`; the caller moves the drawn object and calls updatePosition for each. Call before
         /// stepSimulation, on the main thread. A grounded actor costs one state test.
@@ -406,7 +406,7 @@ namespace MWPhysics
 
         ActorMap mActors;
 
-        // Task 0133: the neutral actors' fall states, in the order they were added (the order never matters to the
+        // Task 0135: the neutral actors' fall states, in the order they were added (the order never matters to the
         // result: every actor's ray ignores all of them). Main thread only.
         struct NeutralActorEntry
         {

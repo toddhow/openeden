@@ -1,7 +1,7 @@
 #ifndef OPENMW_MWPHYSICS_NEUTRALACTOR_H
 #define OPENMW_MWPHYSICS_NEUTRALACTOR_H
 
-// Task 0133 (decision 0017, stage N5-3): the physics body of an actor of a neutral (non-Morrowind) session, and the rule
+// Task 0135 (decision 0017, stage N5-3): the physics body of an actor of a neutral (non-Morrowind) session, and the rule
 // that stands it on the floor. Pure maths and shape building, no PhysicsSystem and no Ptr, so the tests reach it.
 //
 // A neutral actor is NOT an MWPhysics::Actor: that class is driven by CreatureStats and MovementSolver, which a neutral

@@ -1,6 +1,6 @@
 # Task: Neutral actors, milestone M-S3 design and first slice (a physics body for every Skyrim NPC)
 
-Status: **APPROVED** under toddhow's blanket "go with your recommendations" of 2026-11-11 (decision D3 of the implementation plan: option (a) `MWClass::Neutral` plus pack payload, with the (b) additions; decision 0017 option B). Full loop (D13). Branch `skyactors`. Task number chosen as the next free one on 2026-11-12; another branch may have taken 0133 too, renumber at merge.
+Status: **APPROVED** under toddhow's blanket "go with your recommendations" of 2026-11-11 (decision D3 of the implementation plan: option (a) `MWClass::Neutral` plus pack payload, with the (b) additions; decision 0017 option B). Full loop (D13). Branch `skyactors`. Task number chosen as the next free one on 2026-11-12; another branch may have taken 0135 too, renumber at merge.
 Design doc section: `docs/decisions/0017-neutral-actors-and-items.md` sections 2, 4, 5 (stage N5-3 row); `docs/design/neutral-world-model.md` N5; `docs/design/skyrim-se-implementation-plan.md` 4.10, 4.11, 4.19, 7 D3.
 Goal: (1) write down how a neutral actor becomes a physics actor and a mechanics actor without Morrowind records, in ordered stages up to wander/sandbox AI on navmesh paths; (2) build the first slice: a Jolt capsule for every neutral NPC (height from the race, radius a named constant) that stands on the floor under gravity and that the player collides with, behind the existing `[Game] neutral actors`. No AI, no movement.
 Inherited code touched: `apps/openmw/mwphysics/physicssystem.{hpp,cpp}` (new members `addNeutralActor`, `updateNeutralActors`, `getNeutralActorFall`; two lines in `remove` and the destructor's clear), `apps/openmw/mwworld/worldimp.cpp` (`World::doPhysics` calls the update before `stepSimulation`), `apps/openmw/mwclass/neutral.cpp` (`insertActorRendering` also adds the body). Nothing in `components/detournavigator` (a parallel agent works there on branch `skynav`).
@@ -94,4 +94,4 @@ Built in `I:\Projects\OpenEden-work\skyactors\build` (RelWithDebInfo, no editor/
 2. `ActorAppearance::heightScale` as a trailing field (SDK 0.3, the 0.2 precedent) against a separate interface: taken the field; says so if you want the interface.
 3. The body is created in `Neutral::insertActorRendering` (no engine-wide change). If you prefer `Scene::addObject` to call `insertObject` for model-less objects with a `Class` virtual, it costs a full rebuild and touches every class.
 4. `kStandingHeight`/`kRadius` are estimates: approve measuring them from the skeleton (a small gated test) or keep them.
-5. Task number 0133 was the next free on this branch; another branch may have used it.
+5. Task number 0135 was the next free on this branch; another branch may have used it.

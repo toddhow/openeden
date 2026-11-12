@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0133, decision 0017 stage N5-3): proves the physics body of the Bannered Mare's
+-- tools/neutral_session_check (task 0135, decision 0017 stage N5-3): proves the physics body of the Bannered Mare's
 -- Skyrim NPCs. For each actor of the cell the player is put DIST units from the actor's placement, on the side of the
 -- cell's middle, facing it, settles for SETTLE frames, then walks toward it at running speed for WALK frames. The script
 -- logs where the player started and ended and what the ray straight ahead hits (a body in the way is reported as the

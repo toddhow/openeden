@@ -59,7 +59,7 @@ CFG
 # Task 0121: "n5actors" visits each neutral actor of the Bannered Mare and takes a picture of it (use at least 1500 frames).
 [ "$SHOT" = n5actors ] && echo "content=n5actors.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5idle ] && echo "content=n5idle.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0133: "n5body" walks the player into each neutral actor of the Bannered Mare (use at least 3600 frames).
+# Task 0135: "n5body" walks the player into each neutral actor of the Bannered Mare (use at least 3600 frames).
 [ "$SHOT" = n5body ] && echo "content=n5body.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5bodydraw ] && echo "content=n5bodydraw.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
