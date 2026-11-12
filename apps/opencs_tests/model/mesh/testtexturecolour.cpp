@@ -227,8 +227,12 @@ namespace
                 b.resize(rng() % b.size());
             const auto c = averageColourOfDds(b);
             if (c)
+            {
                 for (float v : *c)
+                {
                     ASSERT_TRUE(v >= 0.f && v <= 1.f);
+                }
+            }
         }
     }
 
