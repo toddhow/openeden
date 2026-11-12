@@ -19,6 +19,17 @@
   "optional": [],
   "loadAfter": [],
   "data": "data",
-  "settings": [],
+  "settings": [
+    {
+      "key": "string table language",
+      "type": "string",
+      "default": "english"
+    },
+    {
+      "key": "actor test walk",
+      "type": "string",
+      "default": ""
+    }
+  ],
   "licence": "GPL-3.0-or-later"
 }
