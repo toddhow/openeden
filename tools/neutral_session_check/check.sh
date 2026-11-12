@@ -31,6 +31,7 @@ data="$B/resources/vfs-mw"
 data="$(native "$SKYRIM")"
 data="$(native "$WORK/luatest")"
 game=skyrimse
+fallback-archive=Skyrim - Animations.bsa
 fallback-archive=Skyrim - Interface.bsa
 fallback-archive=Skyrim - Meshes0.bsa
 fallback-archive=Skyrim - Meshes1.bsa

@@ -243,6 +243,7 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testanimationdata.cpp
     havokpack/testfloattracks.cpp
     havokpack/testexportmotion.cpp
+    havokpack/testidle.cpp
     nifscene/ssebuilder.hpp
     nifscene/shaderbuilder.hpp
     nifscene/testscenebuild.cpp

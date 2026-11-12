@@ -313,7 +313,7 @@ add_component_dir (nifscene
 # Task 0119 (research note 0054): the Havok packfile container, hkaSkeleton and hkaSplineCompressedAnimation, read
 # clean-room from the player's own .hkx files. Standard library only. Formats layer.
 add_component_dir (havokpack
-    packfile skeleton animation animationdata export
+    packfile skeleton animation animationdata export idle
     )
 
 # Task 0046: edits a Morrowind NIF as patches to named fields of the original bytes. Depends on nif.

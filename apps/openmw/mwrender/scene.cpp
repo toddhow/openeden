@@ -40,6 +40,9 @@
 #include "mask.hpp"
 #include "npc.hpp"
 #include "skyrimactor.hpp"
+#include "skyrimidle.hpp"
+
+#include <components/mwanimation/sceneryanim.hpp>
 #include "switches.hpp"
 #include "wieldingcreature.hpp"
 
@@ -320,6 +323,56 @@ namespace MWRender
         addObject(ptr, std::move(anim), true);
     }
 
+    namespace
+    {
+        // Task 0132: loops the idle clip of the actor's skeleton on its bones. Every failure leaves the rest pose and
+        // is logged (the loader caches failures, so a cell reads each file once).
+        void attachNeutralIdle(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance,
+            MWAnim::ObjectAnimation& anim, const VFS::Manager& vfs)
+        {
+            SkyrimIdle::LoadReport idleReport;
+            const std::shared_ptr<const HavokPack::BoundClip> clip
+                = SkyrimIdle::loadIdle(vfs, appearance.skeletonPath, idleReport);
+            if (!clip)
+            {
+                Log(Debug::Info) << "Skyrim actor " << ptr.getCellRef().getRefId() << " keeps its rest pose: "
+                                 << idleReport.mFailure;
+                return;
+            }
+            std::vector<vsg::ref_ptr<Anim::Transform>> targets;
+            targets.reserve(clip->mTrackBones.size());
+            std::size_t missing = 0;
+            for (const std::string& name : clip->mTrackBones)
+            {
+                Anim::Bone* bone = anim.searchBone(name);
+                if (bone == nullptr || bone->path.empty())
+                {
+                    targets.emplace_back();
+                    ++missing;
+                    continue;
+                }
+                targets.emplace_back(bone->path.back());
+            }
+            // Out of step with the next actor, and the same on every visit: from the reference alone.
+            const std::string id = ptr.getCellRef().getRefId().serializeText();
+            const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)))
+                * clip->mClip.mDuration;
+            auto controller = vsg::ref_ptr<SkyrimIdle::Controller>(
+                new SkyrimIdle::Controller(clip, std::move(targets), phase));
+            if (controller->boundTracks() == 0)
+            {
+                Log(Debug::Warning) << "Skyrim actor " << ptr.getCellRef().getRefId()
+                                    << ": no track of the idle clip names a bone of its skeleton";
+                return;
+            }
+            anim.addController(controller, anim.transform());
+            anim.keepAlive.push_back(controller);
+            Log(Debug::Info) << "Skyrim actor " << ptr.getCellRef().getRefId() << " idles: "
+                             << controller->boundTracks() << " of " << clip->mTrackBones.size() << " tracks bound ("
+                             << missing << " bones missing), " << clip->mClip.mDuration << " s";
+        }
+    }
+
     void Scene::insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
     {
         // Task 0121 (decision 0017, stage N5-2): a game pack's actor, drawn in its rest pose. The object is the
@@ -346,6 +399,8 @@ namespace MWRender
         Log(Debug::Verbose) << "Skyrim actor " << ptr.getCellRef().getRefId() << ": " << report.mPartsDrawn << " of "
                             << report.mPartsAsked << " parts drawn, " << report.mBones << " bones, " << report.mDraws
                             << " draws | " << SkyrimActor::describeTotals();
+        if (Settings::game().mNeutralActorIdles)
+            attachNeutralIdle(ptr, appearance, *anim, *resources->getVFS());
         loadTransform(ptr, *anim->transform());
         Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
         if (!context.compileContext->compile(anim->node()))
