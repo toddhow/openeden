@@ -57,6 +57,8 @@ export CCACHE_DIR=/ccache CCACHE_BASEDIR=/src
 cd /build
 case $stage in
 build)
+  # RmlUi needs FreeType, which the image predates
+  dpkg -s libfreetype-dev >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y -qq --no-install-recommends libfreetype-dev >/dev/null; }
   cmake -S /src -B /build -G Ninja -D CMAKE_BUILD_TYPE=RelWithDebInfo -D OPENMW_USE_SYSTEM_RECASTNAVIGATION=ON \
     -D USE_SYSTEM_TINYXML=ON -D BUILD_COMPONENTS_TESTS=ON -D BUILD_OPENMW_TESTS=ON -D BUILD_OPENCS_TESTS=ON \
     -D "OPENMW_CXX_FLAGS=-Werror -Werror=implicit-fallthrough" -D CMAKE_C_COMPILER_LAUNCHER=ccache \
