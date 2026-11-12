@@ -38,6 +38,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -48,6 +49,7 @@
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/documentmanager.hpp>
 #include <apps/opencs/view/doc/adjusterwidget.hpp>
+#include <apps/opencs/view/doc/curvestrip.hpp>
 #include <apps/opencs/view/doc/filedialog.hpp>
 #include <apps/opencs/view/doc/newgame.hpp>
 #include <apps/opencs/view/doc/startup.hpp>
@@ -1392,6 +1394,275 @@ namespace
         });
     }
 
+    /// OPENEDEN_CS_FACECHECK=<file prefix>;<voice audio file>: the face timeline in the real editor (task 0147). Makes
+    /// a curve file for the audio through the face editor module's New Curves File command (its dialog answered by the
+    /// check), fills three channels with keys from the audio's loudness, grabs the timeline canvas (waveform, curves, playhead), drags a key
+    /// with synthetic mouse events on the canvas (ONE undo step), adds a key with a double click, undoes both through
+    /// Edit > Undo, moves the playhead with a click on the ruler, plays the audio, shows the module's dialog, saves and
+    /// reads the file back. Everything is logged as "UI check: face ...".
+    void runFaceCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
+    {
+        const std::size_t semicolon = spec.find(';');
+        if (semicolon == std::string::npos)
+        {
+            Log(Debug::Error) << "UI check: face: OPENEDEN_CS_FACECHECK needs <prefix>;<voice audio file>";
+            return;
+        }
+        const std::string prefix = spec.substr(0, semicolon);
+        const std::filesystem::path audioPath = spec.substr(semicolon + 1);
+        std::filesystem::path curvesPath = audioPath;
+        curvesPath.replace_extension();
+        curvesPath += ".facecurves.json";
+        const int step = std::max(500, milliseconds / 16);
+
+        auto strip = []() -> CSVDoc::CurveStrip* {
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* found = top->findChild<CSVDoc::CurveStrip*>("moduleCurveStrip"))
+                    if (found->isVisibleTo(top))
+                        return found;
+            return nullptr;
+        };
+        auto grab = [=](const std::string& name, QWidget* widget) {
+            if (widget == nullptr)
+            {
+                Log(Debug::Info) << "UI check: face frame " << name << ": no widget";
+                return;
+            }
+            const std::string file = prefix + "_" + name + ".png";
+            Log(Debug::Info) << "UI check: face frame " << file << ": "
+                             << (widget->grab().save(QString::fromStdString(file)) ? "written" : "not written");
+        };
+        auto send = [](QWidget* target, QEvent::Type type, const QPoint& at, Qt::MouseButton button,
+                        Qt::MouseButtons buttons) {
+            QMouseEvent event(type, QPointF(at), QPointF(target->mapToGlobal(at)), button, buttons, Qt::NoModifier);
+            QApplication::sendEvent(target, &event);
+        };
+        auto keysText = [](const std::vector<openeden::editor::CurveKey>& keys) {
+            std::ostringstream text;
+            for (const auto& k : keys)
+                text << "(" << k.timeSeconds << "," << k.value << ")";
+            return text.str();
+        };
+        auto jawKeys = []() {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            const auto tracks = ui->timelineTracks();
+            return tracks.mCurves.empty() ? std::vector<openeden::editor::CurveKey>{}
+                                          : tracks.mCurves.front()->channelKeys("jawopen");
+        };
+        auto editMenuAction = [](const QString& itemPrefix) -> QAction* {
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* window = qobject_cast<QMainWindow*>(top); window && window->menuBar())
+                    for (QAction* menuAction : window->menuBar()->actions())
+                        if (menuAction->menu() && menuAction->text().remove('&') == "Edit")
+                            for (QAction* inner : menuAction->menu()->actions())
+                                if (inner->text().startsWith(itemPrefix))
+                                    return inner;
+            return nullptr;
+        };
+
+        QTimer::singleShot(step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            for (QWidget* top : QApplication::topLevelWidgets())
+                if (auto* tabs = top->findChild<QTabBar*>("workspaceTabs"))
+                    for (int i = 0; i < tabs->count(); ++i)
+                        if (tabs->tabText(i) == "Face")
+                            tabs->setCurrentIndex(i);
+            // The New Curves File command, its dialog answered with the audio file and 30 frames per second.
+            ui->setDialogRunner([=](const openeden::editor::DialogDesc& desc,
+                                    const std::vector<openeden::editor::PropertyValue>&)
+                -> std::optional<std::vector<openeden::editor::PropertyValue>> {
+                Log(Debug::Info) << "UI check: face dialog asked '" << desc.title << "' with " << desc.fields.size()
+                                 << " fields";
+                return std::vector<openeden::editor::PropertyValue>{ audioPath.generic_string(), std::int64_t{ 30 } };
+            });
+            const bool ran = ui->registry().runCommand("face.newCurves");
+            ui->resetDialogRunner();
+            Log(Debug::Info) << "UI check: face new curves command " << (ran ? "ran" : "failed") << ", file "
+                             << (std::filesystem::exists(curvesPath) ? "written" : "missing");
+            Log(Debug::Info) << "UI check: face opened " << (ui->activeAsset() ? "yes" : "no") << " " << ui->openError();
+            // Keys from the audio's loudness: jawopen follows the envelope, two blinks, funnel on the loud parts.
+            const auto filled = ui->timelineTracks();
+            if (!filled.mCurves.empty() && !filled.mWaves.empty())
+            {
+                const auto wave = filled.mWaves.front()->waveform();
+                CSMModule::CurveEditor editor(*ui, *filled.mCurves.front());
+                const double length = std::min(filled.mCurves.front()->durationSeconds(), 3.0);
+                int added = 0;
+                for (double t = 0.0; t <= length && wave.sampleRate != 0; t += 0.1)
+                {
+                    const std::size_t first = static_cast<std::size_t>(t * wave.sampleRate);
+                    const std::size_t last = std::min(wave.sampleCount, first + wave.sampleRate / 10);
+                    double sum = 0.0;
+                    for (std::size_t i = first; i < last; ++i)
+                        sum += static_cast<double>(wave.samples[i]) * wave.samples[i];
+                    const double rms = last > first ? std::sqrt(sum / (last - first)) : 0.0;
+                    const double jaw = std::clamp(rms * 4.0, 0.0, 1.0);
+                    added += editor.addKey("jawopen", { t, jaw });
+                    added += editor.addKey("mouthfunnel", { t, std::clamp(jaw * 0.5 * (std::fmod(t, 0.4) < 0.2 ? 1.0 : 0.2), 0.0, 1.0) });
+                }
+                for (double blink : { 0.8, 2.2 })
+                    if (blink < length)
+                    {
+                        added += editor.addKey("eyeblinkleft", { blink - 0.06, 0.0 });
+                        added += editor.addKey("eyeblinkleft", { blink, 1.0 });
+                        added += editor.addKey("eyeblinkleft", { blink + 0.08, 0.0 });
+                    }
+                Log(Debug::Info) << "UI check: face filled " << added << " keys from the loudness";
+            }
+            const auto tracks = ui->timelineTracks();
+            Log(Debug::Info) << "UI check: face tracks: curves " << tracks.mCurves.size() << ", waveforms "
+                             << tracks.mWaves.size() << ", duration " << tracks.duration();
+            if (!tracks.mCurves.empty())
+                Log(Debug::Info) << "UI check: face channels " << tracks.mCurves.front()->channels().size();
+            if (!tracks.mWaves.empty())
+            {
+                const auto wave = tracks.mWaves.front()->waveform();
+                Log(Debug::Info) << "UI check: face waveform " << wave.sampleCount << " samples at " << wave.sampleRate;
+            }
+        });
+        QTimer::singleShot(2 * step, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            Log(Debug::Info) << "UI check: face strip " << (s ? "visible" : "missing") << " with "
+                             << (s ? s->channelCount() : 0) << " channels";
+            if (s != nullptr)
+            {
+                // A floating, sized dock, so that a grab shows the whole canvas.
+                for (QWidget* up = s->parentWidget(); up != nullptr; up = up->parentWidget())
+                    if (auto* dock = qobject_cast<QDockWidget*>(up))
+                    {
+                        dock->setFloating(true);
+                        dock->resize(900, 360);
+                        break;
+                    }
+                s->selectChannel("jawopen");
+            }
+        });
+        QTimer::singleShot(3 * step, qApp, [=] { grab("waveform_and_curves", strip()); });
+        QTimer::singleShot(4 * step, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            if (s == nullptr)
+                return;
+            CSVDoc::CurveCanvas* canvas = s->canvas();
+            const auto keys = jawKeys();
+            Log(Debug::Info) << "UI check: face jawopen keys before " << keys.size() << " " << keysText(keys);
+            const int index = static_cast<int>(keys.size() / 2);
+            const QPoint start = canvas->keyPixel(index);
+            QUndoStack& moduleStack = document->getUndoRouting().moduleStack();
+            Log(Debug::Info) << "UI check: face drag key " << index << " from pixel " << start.x() << "," << start.y()
+                             << ", undo steps " << moduleStack.count();
+            send(canvas, QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+            for (int i = 1; i <= 8; ++i)
+                send(canvas, QEvent::MouseMove, start + QPoint(2 * i, -10 * i), Qt::NoButton, Qt::LeftButton);
+            Log(Debug::Info) << "UI check: face during drag: keys " << keysText(jawKeys()) << ", undo steps "
+                             << moduleStack.count();
+            send(canvas, QEvent::MouseButtonRelease, start + QPoint(16, -80), Qt::LeftButton, Qt::NoButton);
+            const auto after = jawKeys();
+            Log(Debug::Info) << "UI check: face drag released: undo steps " << moduleStack.count() << ", key "
+                             << index << " now (" << (after.size() > static_cast<std::size_t>(index) ? after[index].timeSeconds : -1)
+                             << "," << (after.size() > static_cast<std::size_t>(index) ? after[index].value : -1)
+                             << "), document modified " << ((document->getState() & CSMDoc::State_Modified) != 0)
+                             << ", asset dirty "
+                             << (CSVModule::ModuleUi::get()->activeAsset()->isDirty() ? "yes" : "no");
+        });
+        QTimer::singleShot(5 * step, qApp, [=] { grab("after_drag", strip()); });
+        QTimer::singleShot(6 * step, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            if (s == nullptr)
+                return;
+            CSVDoc::CurveCanvas* canvas = s->canvas();
+            QUndoStack& moduleStack = document->getUndoRouting().moduleStack();
+            const std::size_t before = jawKeys().size();
+            const QPoint at(canvas->width() / 5, canvas->height() - 30);
+            send(canvas, QEvent::MouseButtonDblClick, at, Qt::LeftButton, Qt::LeftButton);
+            Log(Debug::Info) << "UI check: face double click add: keys " << before << " -> " << jawKeys().size()
+                             << ", undo steps " << moduleStack.count();
+        });
+        QTimer::singleShot(7 * step, qApp, [=] {
+            QUndoStack& moduleStack = document->getUndoRouting().moduleStack();
+            QAction* undo = editMenuAction("Undo");
+            const std::size_t withBoth = jawKeys().size();
+            if (undo != nullptr)
+                undo->trigger();
+            const std::size_t afterOne = jawKeys().size();
+            if (undo != nullptr)
+                undo->trigger();
+            Log(Debug::Info) << "UI check: face Edit > Undo twice: keys " << withBoth << " -> " << afterOne << " -> "
+                             << jawKeys().size() << ", undo steps " << moduleStack.count() << ", index "
+                             << moduleStack.index() << ", keys now " << keysText(jawKeys());
+        });
+        QTimer::singleShot(8 * step, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            if (s == nullptr)
+                return;
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            CSVDoc::CurveCanvas* canvas = s->canvas();
+            const QPoint at = canvas->rulerPixel(0.6);
+            send(canvas, QEvent::MouseButtonPress, at, Qt::LeftButton, Qt::LeftButton);
+            send(canvas, QEvent::MouseButtonRelease, at, Qt::LeftButton, Qt::NoButton);
+            Log(Debug::Info) << "UI check: face playhead after a click on the ruler at 0.6 s: "
+                             << ui->playheadSeconds();
+        });
+        QTimer::singleShot(9 * step, qApp, [=] { grab("playhead", strip()); });
+        QTimer::singleShot(10 * step, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            if (s == nullptr)
+                return;
+            ui->setPlayhead(0.0);
+            const bool started = s->togglePlayback();
+            Log(Debug::Info) << "UI check: face play started " << (started ? "yes" : "no") << ", playing "
+                             << (s->playing() ? "yes" : "no");
+        });
+        QTimer::singleShot(10 * step + 700, qApp, [=] {
+            CSVDoc::CurveStrip* s = strip();
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            if (s == nullptr)
+                return;
+            Log(Debug::Info) << "UI check: face playhead while playing: " << ui->playheadSeconds() << ", playing "
+                             << (s->playing() ? "yes" : "no");
+            grab("playing", s);
+            s->togglePlayback();
+            Log(Debug::Info) << "UI check: face playing after stop " << (s->playing() ? "yes" : "no");
+        });
+        QTimer::singleShot(12 * step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            // The module's Generate dialog: grabbed while it is up, then accepted by the timer.
+            QTimer::singleShot(step / 2, qApp, [=] {
+                for (QWidget* widget : QApplication::topLevelWidgets())
+                    if (auto* dialog = qobject_cast<QDialog*>(widget); dialog && dialog->objectName() == "moduleDialog")
+                    {
+                        const std::string file = prefix + "_dialog.png";
+                        Log(Debug::Info) << "UI check: face dialog '" << dialog->windowTitle().toStdString() << "': "
+                                         << (dialog->grab().save(QString::fromStdString(file)) ? "written" : "not written");
+                        dialog->accept();
+                    }
+            });
+            const bool ran = ui->registry().runCommand("face.generate");
+            Log(Debug::Info) << "UI check: face generate command ran " << (ran ? "yes" : "no");
+        });
+        QTimer::singleShot(13 * step, qApp, [=] {
+            CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
+            // A real edit, then Save: the file is read back by the check script.
+            CSVDoc::CurveStrip* s = strip();
+            if (s != nullptr)
+            {
+                CSVDoc::CurveCanvas* canvas = s->canvas();
+                const QPoint at(canvas->width() / 2, canvas->height() - 40);
+                send(canvas, QEvent::MouseButtonDblClick, at, Qt::LeftButton, Qt::LeftButton);
+            }
+            std::string error;
+            const bool dirty = ui->activeAsset()->isDirty();
+            const bool saved = ui->activeAsset()->save(error);
+            Log(Debug::Info) << "UI check: face saved " << (saved ? "yes" : "no") << " " << error << ", dirty before "
+                             << (dirty ? "yes" : "no") << ", dirty after "
+                             << (ui->activeAsset()->isDirty() ? "yes" : "no");
+            if (auto* models = ui->registry().panelSource("face.models"))
+                for (const auto& row : models->describe())
+                    Log(Debug::Info) << "UI check: face models row " << row.id << " = "
+                                     << std::get<std::string>(models->get(row.id));
+        });
+    }
+
     /// The body package panel check (task 0069 stage f): OPENEDEN_CS_BODYCHECK=<prefix>;<source>[;<source>...], each
     /// source a module asset path (a body.json, a .edenpak or a merged cache's current), optionally followed by
     /// "|<race> <sex> <view>" to choose that body of a merged cache afterwards. For each source: opens it as a module
@@ -1730,6 +2001,9 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_HANDLECHECK=<prefix>;<rig>: selection, labels and handle dragging, see runHandleCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_HANDLECHECK"))
                 runHandleCheck(document, spec, milliseconds);
+            // OPENEDEN_CS_FACECHECK=<prefix>;<curves file>: the face timeline check, see runFaceCheck.
+            if (const char* spec = std::getenv("OPENEDEN_CS_FACECHECK"))
+                runFaceCheck(document, spec, milliseconds);
             // OPENEDEN_CS_PUSHCHECK=<prefix>;<rig>;<profile>[;<bone>]: the push sandbox check, see runPushCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_PUSHCHECK"))
                 runPushCheck(spec, milliseconds);

@@ -111,6 +111,8 @@ namespace CSVModule
             const openeden::editor::DialogDesc& desc) override;
         /// What shows a dialog: Studio's Qt dialog by default; checks and tests replace it.
         void setDialogRunner(CSMModule::DialogService::Runner runner) { mDialogs.setRunner(std::move(runner)); }
+        /// Puts Studio's Qt dialog back.
+        void resetDialogRunner();
         /// The curve and waveform tracks of the active asset and of the registered providers (those that apply).
         CSMModule::TimelineTracks timelineTracks() const;
         /// Brings the playhead's length up to date with the tracks (call after the asset or its tracks changed).

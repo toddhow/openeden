@@ -900,6 +900,11 @@ namespace CSVModule
         return CSMModule::classifyTracks(collectTracks(mRegistry, mActive.get(), mActiveOwner));
     }
 
+    void ModuleUi::resetDialogRunner()
+    {
+        mDialogs.setRunner(&runQtDialog);
+    }
+
     void ModuleUi::syncPlayheadDuration()
     {
         if (mPlayhead.setDuration(timelineTracks().duration()))

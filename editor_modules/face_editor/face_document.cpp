@@ -171,7 +171,9 @@ namespace face_editor
         c.mGeneratorName = "manual";
         c.mGeneratorVersion = "1";
         c.mFrameRate = frameRate;
-        const auto frames = static_cast<std::uint64_t>(std::llround(duration * frameRate)) + 1;
+        // Within one frame of the audio, as Face::validate requires (frameCount / frameRate against the duration): the
+        // smallest count that covers it. (A real Morrowind line with 45.6 frames failed with "round + 1".)
+        const auto frames = std::max<std::uint64_t>(1, static_cast<std::uint64_t>(std::ceil(duration * frameRate - 1e-9)));
         if (frames > Face::Limits::sMaxFrameCount)
         {
             error = "the audio is too long for one curve file";

@@ -375,7 +375,7 @@ TEST(FaceDocument, createsANewFileForAnAudioFile)
     auto c = Face::readJson(slurp(dir / "hello.facecurves.json"), "hello", le);
     ASSERT_TRUE(c) << le.format();
     EXPECT_EQ(c->mFrameRate, 30u);
-    EXPECT_EQ(c->mFrameCount, 46u); // 1.5 s * 30 + 1
+    EXPECT_EQ(c->mFrameCount, 45u); // ceil(1.5 s * 30): within one frame of the audio (Face::validate)
     EXPECT_EQ(c->mAudioSha256, Face::sha256Hex(wav));
     EXPECT_EQ(c->mChannels.size(), defaultChannelNames().size());
     EXPECT_FALSE(defaultChannelNames().empty());
@@ -387,6 +387,21 @@ TEST(FaceDocument, createsANewFileForAnAudioFile)
     ASSERT_TRUE(doc) << error;
     EXPECT_NE(doc->waveformTrack(), nullptr);
     EXPECT_EQ(doc->audioMatchText(), "matches");
+
+    // A length that is not a whole number of frames (45.6 frames): the count must still be within one frame of it.
+    const std::string odd = encodeWav16(std::vector<float>(12160, 0.3f), 8000); // 1.52 s
+    spit(dir / "odd.wav", odd);
+    ASSERT_TRUE(createCurvesFile(dir / "odd.wav", dir / "odd.facecurves.json", 30, error)) << error;
+    auto oddCurves = Face::readJson(slurp(dir / "odd.facecurves.json"), "odd", le);
+    ASSERT_TRUE(oddCurves) << le.format();
+    EXPECT_EQ(oddCurves->mFrameCount, 46u);
+    for (std::uint32_t fps : { 1u, 7u, 24u, 25u, 30u, 60u, 240u })
+        for (std::size_t samples : { std::size_t{ 1 }, std::size_t{ 333 }, std::size_t{ 8000 }, std::size_t{ 12345 } })
+        {
+            spit(dir / "sweep.wav", encodeWav16(std::vector<float>(samples, 0.1f), 8000));
+            EXPECT_TRUE(createCurvesFile(dir / "sweep.wav", dir / "sweep.facecurves.json", fps, error))
+                << fps << " fps, " << samples << " samples: " << error;
+        }
 
     EXPECT_FALSE(createCurvesFile(dir / "missing.wav", dir / "x.facecurves.json", 30, error));
     EXPECT_FALSE(createCurvesFile(dir / "hello.wav", dir / "x.facecurves.json", 0, error));
