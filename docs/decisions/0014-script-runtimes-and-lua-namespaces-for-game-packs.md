@@ -56,3 +56,7 @@ It builds nothing and changes no behaviour. The first follow-ups, each needing t
 7. The ObScript function table has no source in the plugin data; where it comes from (note 0046 open question 1) decides the licence position.
 
 Follow-up 1 of "What this decision does not do" (the Skyrim read-only survey) is done in note 0046 for Skyrim SE, Fallout 4 and Fallout New Vegas; follow-up 3 becomes task 0092 (ObScript first slice, draft).
+
+## Amendment, 2026-11-11 (toddhow): sources for what Skyrim functions do
+
+toddhow: "You're allowed to use xEdit, the Creation Kit wiki or CommonLibSSE to figure out what those functions do" (the Skyrim condition functions, task 0122). This relaxes the clean-room rule above for the meanings of Skyrim's condition and native functions: these three may be read and cited, one citation per fact. Code or tables are copied only with their licence notice, after the licence file has been read (xEdit is recalled as MPL-2.0 and CommonLibSSE as MIT; both GPL-compatible, to be confirmed from the files). From the Creation Kit wiki, whose content licence is not known here, only facts are taken, in our own words. Unchanged: no Havok SDK or SDK-derived material, and the Havok decoder's own source rules (task 0119).
