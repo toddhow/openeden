@@ -92,9 +92,9 @@ namespace game_skyrimse
         const openeden::sdk::VfsService& mVfs;
     };
 
-    class SkyrimWorldView final : public openeden::sdk::game::WorldView, public ComponentSource, public TerrainProvider
     class SkyrimWorldView final : public openeden::sdk::game::WorldView,
         public ComponentSource,
+        public TerrainProvider,
         public openeden::sdk::game::ActorAppearanceSource
     {
     public:
