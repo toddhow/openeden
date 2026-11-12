@@ -14,6 +14,7 @@
 #include <optional>
 #include <set>
 #include <string_view>
+#include <thread>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -176,7 +177,7 @@ namespace OMW
         struct NeutralCell
         {
             std::int32_t mX = 0, mY = 0;
-            std::uint64_t mId = 0;
+            openeden::sdk::game::WorldId mId = openeden::sdk::game::kNoWorldId;
         };
         bool mNeutral = false;
         std::string mGameId;
@@ -408,6 +409,18 @@ namespace OMW
                 return false;
             state.mWrite.get();
             state.mPhase = Phase::Done;
+            // Task 0133 stage 2: a Skyrim bake holds a gigabyte of clusters and the models; freeing them at quit took
+            // long enough for the freeze monitor (5 s) to end the game. They are freed on a thread of their own and
+            // the process exit does not wait for it.
+            std::thread([clusters = std::move(state.mClusters), objects = std::move(state.mObjects),
+                            models = std::move(state.mModels)]() mutable {
+                clusters.clear();
+                clusters.shrink_to_fit();
+                objects.clear();
+                objects.shrink_to_fit();
+                models.clear();
+                models.shrink_to_fit();
+            }).detach();
             return true;
         }
         const MWWorld::ESMStore* store = MWBase::Environment::get().getESMStore();

@@ -2791,7 +2791,10 @@ namespace MWRender
         camera.mViewDistance = mTileRange;
         camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
         // Without the live distant objects (object paging off) nothing else draws a cluster's statics (second review).
-        camera.mLiveObjectsPage = mDistantObjects != nullptr;
+        // Task 0133 stage 2: in a neutral world nothing pages distant objects (DistantObjects reads the ESM store), only
+        // the active grid's live cells draw statics, so a cluster has no fallback and is never given up.
+        const bool neutralExterior = camera.mEnabled && player.getCell()->isNeutral();
+        camera.mLiveObjectsPage = mDistantObjects != nullptr && !neutralExterior;
         // The drawn terrain tiles: the ground beneath a far cluster (far cluster eviction; empty without LodTerrain).
         if (mLodTerrain)
         {
@@ -2802,11 +2805,11 @@ namespace MWRender
         // so waiting for them would keep a cluster on screen in an interior: nothing to wait for there.
         const bool exterior = camera.mEnabled;
         mLodClusters->setWindSpeed(mSky ? mSky->getBaseWindSpeed() : 0.f);
-        mLodClusters->update(camera, dt, [this, exterior](const std::pair<int, int>& cell) {
-            return !exterior || !mDistantObjects || mDistantObjects->staticsReady(cell);
+        mLodClusters->update(camera, dt, [this, exterior, neutralExterior](const std::pair<int, int>& cell) {
+            return !exterior || neutralExterior || !mDistantObjects || mDistantObjects->staticsReady(cell);
         });
         // The live distant objects stop drawing the statics of the cells a cluster draws (and take them back).
-        if (mDistantObjects && mLodClusters->clusteredCellsVersion() != mLodClustersPushed)
+        if (mDistantObjects && !neutralExterior && mLodClusters->clusteredCellsVersion() != mLodClustersPushed)
         {
             mLodClustersPushed = mLodClusters->clusteredCellsVersion();
             mDistantObjects->setClusteredCells(mLodClusters->clusteredCells());
