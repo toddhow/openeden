@@ -335,6 +335,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inCombat(subject, c.mParam1 != 0));
         }
 
+        // 49 GetSleeping: state 0 to 4 (CK wiki, toddhow 2026-11-11)
+        float getSleeping(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.sleepState(subject) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -343,13 +349,14 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 51> sTable = { {
+        constexpr std::array<Entry, 52> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
             { 47, getItemCount },
             { 48, getGold },
+            { 49, getSleeping },
             { 50, getTalkedToPC },
             { 56, getQuestRunning },
             { 58, getStage },

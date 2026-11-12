@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float sleepState(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         float crimeGold(Subject s, std::uint32_t f) const override
         {
             return f == 0xA0 ? 40.f : (f == 0 && s == mSubject ? 15.f : 0.f);
@@ -450,6 +451,15 @@ namespace
         EXPECT_TRUE(run(cond(459, kEq, 40.f, 0xA0), w));
         EXPECT_TRUE(run(cond(459, kEq, 0.f, 0), w));
         EXPECT_TRUE(run(cond(289, kEq, 0.f, 0), w));
+    }
+
+    // fn_49 GetSleeping: the sleep state 0 to 4 (CK wiki, toddhow 2026-11-11). Nobody is not sleeping.
+    TEST(SkyrimConditionFunctions, fn_49_is_the_sleep_state)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(49, kEq, 3.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(49, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -355,6 +355,14 @@ namespace game_skyrimse::conditions
             (void)subject, (void)notIgnoring;
             return false;
         }
+        /// fn_49 GetSleeping: the subject's sleep state: 0 not sleeping, 1 loading the sleeping idle, 2 getting ready
+        /// to sleep, 3 sleeping, 4 getting ready to wake up. Also the player's sleep animation state (CK wiki, shown by
+        /// toddhow, 2026-11-11).
+        virtual float sleepState(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

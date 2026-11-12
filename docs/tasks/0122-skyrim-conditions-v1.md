@@ -57,3 +57,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_655 GetIntimidateSuccess (CK wiki page toddhow showed). Red, then 56 of 56.
 - 2026-11-11: fn_66 GetShouldAttack(target), fn_640 GetActorValuePercent(actor value) (CK wiki pages toddhow showed). Red, then 57 of 57.
 - 2026-11-11: fn_459 GetCrimeGold(faction, optional), fn_289 IsInCombat(flag) (CK wiki pages toddhow showed). Red, then 58 of 58. Real data: 31,128 of 32,148 lists (96.8 percent); unknown conditions 1,244 (1.6 percent).
+- 2026-11-11: fn_49 GetSleeping (sleep state 0 to 4; CK wiki page toddhow showed). Red, then 59 of 59.
