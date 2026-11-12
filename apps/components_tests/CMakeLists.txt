@@ -201,6 +201,7 @@ file(GLOB UNITTEST_SRC_FILES
     nif/testdefaultoptions.cpp
 
     fuz/testfuz.cpp
+    trimorph/testtrimorph.cpp
 
     contentsource/pluginbuilder.hpp
     contentsource/testplugin.cpp

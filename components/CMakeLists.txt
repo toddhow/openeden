@@ -310,6 +310,12 @@ add_component_dir (fuz
     fuz
     )
 
+# The FaceGen .tri morph file of Bethesda heads and a loudness-driven mouth (task 0146). Standard library only.
+# Formats layer.
+add_component_dir (trimorph
+    trimorph mouth
+    )
+
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene
