@@ -42,7 +42,7 @@ function M.run(steps)
                     local p = player.position
                     print(string.format('N4D report t=%.1f cell=%s pos=%.0f,%.0f,%.0f', t, tostring(player.cell.name), p.x, p.y, p.z))
                 elseif step.what == 'near' then
-                    -- Task 0127: lists the objects within 400 units of the player (record id, distance), to find a door's base.
+                    -- Task 0128: lists the objects within 400 units of the player (record id, distance), to find a door's base.
                     local p = player.position
                     for _, obj in ipairs(player.cell:getAll()) do
                         local ok, id = pcall(function() return obj.recordId end)

@@ -10,13 +10,13 @@
 
 #include <openeden/game/world_model.hpp>
 
-// Locks in a neutral cell (task 0127, milestone M-S1): the pure part.
+// Locks in a neutral cell (task 0128, milestone M-S1): the pure part.
 //
 // A placement's LockComponent says it is locked and which key form opens it. What the player may do about it is decided
 // here from three facts the engine supplies: whether the lock was already opened this session, whether the player holds
 // the key, and the developer aid that opens everything. Lock picking is NOT modelled: the engine's lock picking
 // (game_packs/morrowind security rules) reads Morrowind GMSTs, skills and probe items and cannot be applied to a Skyrim
-// lock, so a lock with no usable key stays locked (task 0127, decision 1).
+// lock, so a lock with no usable key stays locked (task 0128, decision 1).
 //
 // NeutralLockState is the session's memory: the keys held and the locks opened. Main thread only. Not saved (saving is
 // refused in a neutral session until stage N6).

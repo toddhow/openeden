@@ -1,4 +1,4 @@
-// Task 0127 (milestone M-S1): locks in a neutral session. The pure decision and the session's lock state. Written from
+// Task 0128 (milestone M-S1): locks in a neutral session. The pure decision and the session's lock state. Written from
 // the task spec before the implementation; the first run was against stubs.
 #include <gtest/gtest.h>
 

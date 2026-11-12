@@ -58,7 +58,7 @@ CFG
 # walks four legs, logging height above the floor and what stops it); use at least 1000 frames.
 [ "$SHOT" = collision ] && echo "content=n3a4bcollision.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = colldraw ] && echo "content=n3a4bdraw.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0127: "stairs" walks the player up and down the Bannered Mare stairs (use at least 1500 frames); "keylocked" and "keycontainer" are the lock scenarios (give the key with OPENEDEN_NEUTRAL_KEYS).
+# Task 0128: "stairs" walks the player up and down the Bannered Mare stairs (use at least 1500 frames); "keylocked" and "keycontainer" are the lock scenarios (give the key with OPENEDEN_NEUTRAL_KEYS).
 [ "$SHOT" = stairs ] && echo "content=n3a4bstairs.omwscripts" >> "$WORK/config/openmw.cfg"
 case "$SHOT" in keylocked|keycontainer) echo "content=n4$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 # Task 0115 stage N4 (doors): "doorshop", "doorsexterior" and "doorslocked" run the door scenarios (use at least 2400 frames).

@@ -1,4 +1,4 @@
--- tools/neutral_session_check (task 0127, milestone M-S1): the player walks up and down real stairs in a neutral
+-- tools/neutral_session_check (task 0128, milestone M-S1): the player walks up and down real stairs in a neutral
 -- Skyrim interior. Started when the check is given "stairs" as its screenshot argument (use at least 1500 frames).
 --
 -- Phase 0 (SCAN): prints a height map of the floor round each stair model (rays from above, World collision), so the

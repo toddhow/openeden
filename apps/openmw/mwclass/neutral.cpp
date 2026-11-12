@@ -155,7 +155,7 @@ namespace MWClass
         if (object == nullptr)
             return MWWorld::Class::activate(ptr, actor);
 
-        // Task 0127: a lock is opened by its key (the session's key ring) or refused; an opened lock stays open for the
+        // Task 0128: a lock is opened by its key (the session's key ring) or refused; an opened lock stays open for the
         // session. Lock picking is not applied (Morrowind's rules read Morrowind GMSTs and skills). Only the player
         // is judged here: a door still refuses anybody else below.
         bool lockOpen = false;
@@ -338,7 +338,7 @@ namespace MWClass
         if (doorTraceWanted() && (base.mKind == ObjectKind::Door || base.mKind == ObjectKind::Container)
             && ptr.getCell() != nullptr)
         {
-            // Task 0127 (developer trace): every locked door and container of a cell as it is inserted.
+            // Task 0128 (developer trace): every locked door and container of a cell as it is inserted.
             const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
             const openeden::sdk::game::WorldObject* object
                 = placement ? ptr.getCell()->neutralObject(*placement) : nullptr;

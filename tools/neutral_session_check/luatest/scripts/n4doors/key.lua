@@ -1,4 +1,4 @@
--- Task 0127: like locked.lua; run with OPENEDEN_NEUTRAL_KEYS=skyrimse:<hex key> and the locked door opens, then the way
+-- Task 0128: like locked.lua; run with OPENEDEN_NEUTRAL_KEYS=skyrimse:<hex key> and the locked door opens, then the way
 -- back is listed (step 'near') so its base can be given to the 'door' steps of the second half.
 local common = require('scripts.n4doors.common')
 return common.run({
