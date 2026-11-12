@@ -155,3 +155,20 @@ TEST(HavokIdleRealData, the_humanoid_idle_binds_to_the_humanoid_skeleton_and_sam
               << " duration " << bound.mClip.mDuration << " s, " << micros << " microseconds per sample of all tracks\n";
     EXPECT_GT(bound.mClip.mDuration, 1.0f);
 }
+
+// Task 0145: the calm ambient idle lives in a male or female sub-folder of the animations folder.
+TEST(HavokIdlePaths, a_sex_folder_goes_between_the_animations_folder_and_the_clip)
+{
+    EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "male"),
+        "meshes/actors/character/animations/male/mt_idle.hkx");
+    EXPECT_EQ(clipHkxPath("actors\\character\\character assets female\\skeleton_female.nif", "MT_Idle", "Female"),
+        "meshes/actors/character/animations/female/mt_idle.hkx");
+}
+
+TEST(HavokIdlePaths, no_sex_folder_keeps_the_old_path_and_a_bad_one_is_refused)
+{
+    EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", ""),
+        "meshes/actors/character/animations/mt_idle.hkx");
+    EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "../x"), "");
+    EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "a/b"), "");
+}

@@ -40,7 +40,7 @@ namespace HavokPack
         return "meshes/" + path;
     }
 
-    std::string clipHkxPath(std::string_view skeletonNifPath, std::string_view clipName)
+    std::string clipHkxPath(std::string_view skeletonNifPath, std::string_view clipName, std::string_view sexFolder)
     {
         const std::string path = normalise(skeletonNifPath);
         if (!endsWith(path, ".nif") || clipName.empty())
@@ -55,7 +55,20 @@ namespace HavokPack
         std::string name(clipName);
         std::transform(name.begin(), name.end(), name.begin(),
             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return "meshes/" + path.substr(0, folderSlash) + "/animations/" + name + ".hkx";
+        std::string folder;
+        if (!sexFolder.empty())
+        {
+            folder.assign(sexFolder);
+            // one plain folder name: no separators, no dots (a clip folder is never a way out of the animations folder)
+            for (char& c : folder)
+            {
+                if (c == '/' || c == '\\' || c == '.')
+                    return {};
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            folder += '/';
+        }
+        return "meshes/" + path.substr(0, folderSlash) + "/animations/" + folder + name + ".hkx";
     }
 
     BoundClip bindClip(const Skeleton& skeleton, Clip clip)

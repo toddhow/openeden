@@ -13,8 +13,11 @@
 // run() is called by the object's update (an update worker for some objects), one object at a time; the scratch
 // buffer belongs to the controller, which belongs to one actor.
 
+#include <future>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include <vsg/core/ref_ptr.h>
@@ -26,6 +29,10 @@
 
 namespace MWRender::SkyrimIdle
 {
+    /// The clip an ambient standing person loops (`animations/<male|female>/mt_idle.hkx` of the actor folder; chosen
+    /// from the archive listing of Skyrim - Animations.bsa, task 0145).
+    inline constexpr std::string_view sAmbientIdle = "mt_idle";
+
     /// What loading did, for the log and for tests.
     struct LoadReport
     {
@@ -41,6 +48,14 @@ namespace MWRender::SkyrimIdle
     [[nodiscard]] std::shared_ptr<const HavokPack::BoundClip> loadIdle(
         const VFS::Manager& vfs, const std::string& skeletonNifPath, LoadReport& report);
 
+    /// Task 0145: the same load on a worker thread, started at the first request for the (skeleton, sex, clip) and shared
+    /// by every later one (a ready future once decoded). The future holds null with the reason in the log when the files
+    /// are missing or damaged. `sexFolder` is "male" or "female" (the ambient idles' sub-folder); `clipName` has no
+    /// extension. Never throws; `vfs` must outlive the worker (the game's VFS does).
+    using ClipFuture = std::shared_future<std::shared_ptr<const HavokPack::BoundClip>>;
+    [[nodiscard]] ClipFuture loadIdleAsync(const VFS::Manager& vfs, const std::string& skeletonNifPath,
+        std::string_view sexFolder, std::string_view clipName);
+
     /// Writes one Havok transform into a scene graph transform (translation, rotation, scale). The scene transform
     /// stores the transposed rotation matrix; Anim::Transform::setAttitude takes care of it.
     void apply(const HavokPack::Transform& from, Anim::Transform& to);
@@ -52,16 +67,31 @@ namespace MWRender::SkyrimIdle
         Controller(std::shared_ptr<const HavokPack::BoundClip> clip, std::vector<vsg::ref_ptr<Anim::Transform>> targets,
             float phase);
 
+        /// Task 0145: the clip is still being decoded on a worker. Until the future is ready the bones stay as they are;
+        /// the first run after that names the targets from `bones` (lower-case bone name to its transform; moved from
+        /// the actor's bones when the controller is made) and starts `phaseFraction` (0..1) of the way into the clip.
+        using BoneMap = std::unordered_map<std::string, vsg::ref_ptr<Anim::Transform>>;
+        Controller(ClipFuture clip, BoneMap bones, float phaseFraction);
+
         void run(vsg::Object& target, float time) const override;
 
         std::size_t boundTracks() const { return mBound; }
+        /// False while the worker has not finished (always true for the synchronous constructor).
+        bool resolved() const { return !mPending; }
 
     private:
-        std::shared_ptr<const HavokPack::BoundClip> mClip;
-        std::vector<vsg::ref_ptr<Anim::Transform>> mTargets;
-        float mPhase;
-        std::size_t mBound = 0;
+        bool resolve() const;
+
+        mutable std::shared_ptr<const HavokPack::BoundClip> mClip;
+        mutable std::vector<vsg::ref_ptr<Anim::Transform>> mTargets;
+        mutable float mPhase = 0.f;
+        mutable std::size_t mBound = 0;
         mutable std::vector<HavokPack::Transform> mScratch;
+        // Only set by the asynchronous constructor; resolved on the first run after the future is ready.
+        mutable bool mPending = false;
+        mutable ClipFuture mFuture;
+        mutable BoneMap mBones;
+        float mPhaseFraction = 0.f;
     };
 }
 

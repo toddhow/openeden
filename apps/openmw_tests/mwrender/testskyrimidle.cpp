@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <future>
 #include <memory>
 
 // Task 0132: the idle controller writes decoded Havok transforms into the scene graph's named bones. Expected values are
@@ -120,4 +122,79 @@ TEST(SkyrimIdleLoad, a_skeleton_with_no_clip_path_fails_with_a_reason_and_throws
     EXPECT_EQ(MWRender::SkyrimIdle::loadIdle(vfs, "meshes/actors/nothing/character assets/skeleton.nif", report),
         nullptr);
     EXPECT_NE(report.mFailure.find("not found"), std::string::npos) << report.mFailure;
+}
+
+// Task 0145: the clip is decoded on a worker; the controller waits for it without blocking a frame.
+TEST(SkyrimIdleAsync, the_bones_stay_until_the_future_is_ready_then_the_named_bones_are_written)
+{
+    auto a = Anim::Transform::create();
+    auto b = Anim::Transform::create();
+    a->translation = { 7, 7, 7 };
+    std::promise<std::shared_ptr<const BoundClip>> promise;
+    MWRender::SkyrimIdle::Controller controller(
+        promise.get_future().share(), { { "a", a }, { "b", b } }, 0.5f);
+    EXPECT_TRUE(controller.hints.autoPlay);
+    EXPECT_FALSE(controller.resolved());
+    controller.run(*a, 0.3f);
+    EXPECT_FLOAT_EQ(a->translation[0], 7.0f);
+    EXPECT_FALSE(controller.resolved());
+    promise.set_value(makeBound());
+    controller.run(*a, 0.3f);
+    EXPECT_TRUE(controller.resolved());
+    EXPECT_EQ(controller.boundTracks(), 2u);
+    EXPECT_NEAR(a->translation[0], 1.0f, 1e-5f);
+    EXPECT_NEAR(mapPoint(*b, { 1, 0, 0 }).y, 1.0, 1e-5);
+}
+
+TEST(SkyrimIdleAsync, a_track_whose_bone_the_actor_lacks_is_skipped)
+{
+    auto b = Anim::Transform::create();
+    std::promise<std::shared_ptr<const BoundClip>> promise;
+    promise.set_value(makeBound());
+    MWRender::SkyrimIdle::Controller controller(promise.get_future().share(), { { "b", b } }, 0.f);
+    controller.run(*b, 0.1f);
+    EXPECT_EQ(controller.boundTracks(), 1u);
+    EXPECT_NEAR(mapPoint(*b, { 1, 0, 0 }).y, 1.0, 1e-5);
+}
+
+TEST(SkyrimIdleAsync, a_failed_load_resolves_to_nothing_and_changes_nothing)
+{
+    auto a = Anim::Transform::create();
+    a->translation = { 7, 7, 7 };
+    std::promise<std::shared_ptr<const BoundClip>> promise;
+    promise.set_value(nullptr);
+    MWRender::SkyrimIdle::Controller controller(promise.get_future().share(), { { "a", a } }, 0.f);
+    controller.run(*a, 0.1f);
+    EXPECT_TRUE(controller.resolved());
+    EXPECT_EQ(controller.boundTracks(), 0u);
+    EXPECT_FLOAT_EQ(a->translation[0], 7.0f);
+    controller.run(*a, 0.2f);
+    EXPECT_FLOAT_EQ(a->translation[0], 7.0f);
+}
+
+TEST(SkyrimIdleAsync, an_invalid_future_is_not_waited_for)
+{
+    auto a = Anim::Transform::create();
+    MWRender::SkyrimIdle::Controller controller(MWRender::SkyrimIdle::ClipFuture(), { { "a", a } }, 0.f);
+    controller.run(*a, 0.1f);
+    EXPECT_TRUE(controller.resolved());
+    EXPECT_EQ(controller.boundTracks(), 0u);
+}
+
+TEST(SkyrimIdleAsync, loading_from_a_vfs_without_the_files_gives_a_ready_null_clip_and_is_shared)
+{
+    VFS::Manager vfs;
+    const std::string skeleton = "meshes/actors/nothing/character assets/skeleton.nif";
+    auto first = MWRender::SkyrimIdle::loadIdleAsync(vfs, skeleton, "male", "mt_idle");
+    ASSERT_TRUE(first.valid());
+    EXPECT_EQ(first.get(), nullptr);
+    auto second = MWRender::SkyrimIdle::loadIdleAsync(vfs, skeleton, "male", "mt_idle");
+    ASSERT_TRUE(second.valid());
+    EXPECT_EQ(second.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    auto bad = MWRender::SkyrimIdle::loadIdleAsync(vfs, "skeleton.nif", "male", "mt_idle");
+    ASSERT_TRUE(bad.valid());
+    EXPECT_EQ(bad.get(), nullptr);
+    auto badSex = MWRender::SkyrimIdle::loadIdleAsync(vfs, skeleton, "../x", "mt_idle");
+    ASSERT_TRUE(badSex.valid());
+    EXPECT_EQ(badSex.get(), nullptr);
 }

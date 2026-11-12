@@ -325,51 +325,30 @@ namespace MWRender
 
     namespace
     {
-        // Task 0132: loops the idle clip of the actor's skeleton on its bones. Every failure leaves the rest pose and
-        // is logged (the loader caches failures, so a cell reads each file once).
+        // Tasks 0132 and 0145: loops the ambient idle clip of the actor's sex on its bones. The clip is decoded on a worker
+        // (started by the first actor of the skeleton and sex, shared by the rest); until it is ready, and when the files
+        // are missing or damaged, the actor stays in the rest pose (the loader logs a failure once). Nothing here waits.
         void attachNeutralIdle(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance,
             MWAnim::ObjectAnimation& anim, const VFS::Manager& vfs)
         {
-            SkyrimIdle::LoadReport idleReport;
-            const std::shared_ptr<const HavokPack::BoundClip> clip
-                = SkyrimIdle::loadIdle(vfs, appearance.skeletonPath, idleReport);
-            if (!clip)
-            {
-                Log(Debug::Info) << "Skyrim actor " << ptr.getCellRef().getRefId() << " keeps its rest pose: "
-                                 << idleReport.mFailure;
+            if (!anim.animation)
                 return;
-            }
-            std::vector<vsg::ref_ptr<Anim::Transform>> targets;
-            targets.reserve(clip->mTrackBones.size());
-            std::size_t missing = 0;
-            for (const std::string& name : clip->mTrackBones)
-            {
-                Anim::Bone* bone = anim.searchBone(name);
-                if (bone == nullptr || bone->path.empty())
-                {
-                    targets.emplace_back();
-                    ++missing;
-                    continue;
-                }
-                targets.emplace_back(bone->path.back());
-            }
+            // The ordinary standing idle of a person (task 0145: `mt_idle` in the male or female folder; the unarmed
+            // `h2h_idle` of the first slice is a fighting stance).
+            SkyrimIdle::ClipFuture future = SkyrimIdle::loadIdleAsync(
+                vfs, appearance.skeletonPath, appearance.female ? "female" : "male", SkyrimIdle::sAmbientIdle);
+            SkyrimIdle::Controller::BoneMap bones;
+            anim.animation->bones.forEach([&bones](const std::string& name, Anim::Bone& bone) {
+                if (!bone.path.empty())
+                    bones.emplace(name, bone.path.back());
+            });
             // Out of step with the next actor, and the same on every visit: from the reference alone.
             const std::string id = ptr.getCellRef().getRefId().serializeText();
-            const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)))
-                * clip->mClip.mDuration;
+            const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)));
             auto controller = vsg::ref_ptr<SkyrimIdle::Controller>(
-                new SkyrimIdle::Controller(clip, std::move(targets), phase));
-            if (controller->boundTracks() == 0)
-            {
-                Log(Debug::Warning) << "Skyrim actor " << ptr.getCellRef().getRefId()
-                                    << ": no track of the idle clip names a bone of its skeleton";
-                return;
-            }
+                new SkyrimIdle::Controller(std::move(future), std::move(bones), phase));
             anim.addController(controller, anim.transform());
             anim.keepAlive.push_back(controller);
-            Log(Debug::Info) << "Skyrim actor " << ptr.getCellRef().getRefId() << " idles: "
-                             << controller->boundTracks() << " of " << clip->mTrackBones.size() << " tracks bound ("
-                             << missing << " bones missing), " << clip->mClip.mDuration << " s";
         }
     }
 
