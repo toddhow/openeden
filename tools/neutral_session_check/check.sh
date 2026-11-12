@@ -134,6 +134,9 @@ case "$SHOT" in actactor|actdoor) echo "content=$SHOT.omwscripts" >> "$WORK/conf
 # Task skyext: "skyext" turns the camera through eight headings at a game hour (SKYEXT_HOUR in global.lua) from an exterior start
 # (CELL=@Tamriel,x,y) with a screenshot and a ray survey per heading (use at least 2500 frames).
 [ "$SHOT" = skyext ] && echo "content=skyext.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0152: "maredump" logs every object's model and position (MAREOBJ lines); "marecam" visits the camera spots of
+# luatest/scripts/mare/cam.lua and takes a picture at each (use at least 2500 frames).
+case "$SHOT" in maredump|marecam|floormap|landnormal) echo "content=$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -144,7 +147,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|n5pack|tlayers|n5loco) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|n5pack|tlayers|n5loco|maredump|marecam|floormap|landnormal) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

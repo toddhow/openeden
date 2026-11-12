@@ -387,6 +387,15 @@ namespace MWClass
         }
         const bool offByDefault = base.mLight && base.mLight->offByDefault;
         const bool wantsLight = base.mLight && !offByDefault;
+        // OPENEDEN_NEUTRAL_PLACE_TRACE=1 (developer aid, task 0152) logs where the engine puts every model.
+        static const bool placeTrace = std::getenv("OPENEDEN_NEUTRAL_PLACE_TRACE") != nullptr;
+        if (placeTrace && !model.empty())
+        {
+            const ESM::Position& p = ptr.getRefData().getPosition();
+            Log(Debug::Info) << "NPLACE " << model << " pos " << p.pos[0] << "," << p.pos[1] << "," << p.pos[2]
+                             << " rot " << p.rot[0] << "," << p.rot[1] << "," << p.rot[2] << " scale "
+                             << ptr.getCellRef().getScale() << " id " << ptr.getCellRef().getRefId().toDebugString();
+        }
         if (!model.empty())
         {
             MWRender::SkyrimModel::counters().mRequests.fetch_add(1, std::memory_order_relaxed);

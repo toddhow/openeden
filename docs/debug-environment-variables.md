@@ -30,3 +30,8 @@ OpenEden test aids (task 0017, for screenshots; not from vsgopenmw):
 | `OPENEDEN_NEUTRAL_DIALOGUE_PRESS` | `<polls>:<button>,...` presses that button of the conversation box at that poll (the first poll after a conversation starts is 1; one poll a frame; button indices as shown: the topics of the page, then "More topics..." when there is more than one page, then Goodbye). The stand-in for a mouse click in a quiet window. Not a setting (task 0141). |
 | `OPENEDEN_NEUTRAL_LOCO_TRACE` | `1` logs an `NLOCO` line every 10th frame of a moving neutral actor (task 0148): the target and smoothed ground speed, the idle, walk and run weights, the shared gait phase and the cycle rate. |
 | `OPENEDEN_NEUTRAL_LOCO_FORCE` | `<units/s>` makes every locomotion controller use that ground speed (task 0148), to look at the walk or run cycle on a standing NPC. |
+| `OPENEDEN_NIFSCENE_TRACE` | Any value: logs one `NIFSCENE` Info line per drawn Skyrim shape (model, texture, flags, counts), `NIFSCENE-SKIPS` per model that left shapes out (hidden, effect, skinned, no geometry) and `NIFSCENE missing texture` per texture not found (task 0152). Not a setting. |
+| `OPENEDEN_NIFSCENE_NOCULL` | Any value: every Skyrim shape draws double sided; a hole that fills is a face culled from behind (task 0152). Not a setting. |
+| `OPENEDEN_NIFSCENE_NOCULLNODES` | Any value: Skyrim models get a plain group instead of the culling nodes (task 0152). Not a setting. |
+| `OPENEDEN_NIFSCENE_TINT` | Any value: no textures, a flat colour per model on shapes without vertex colours (task 0152). Not a setting. |
+| `OPENEDEN_NEUTRAL_PLACE_TRACE` | Any value: logs one `NPLACE` line per neutral object with a model (model, position, angles, scale, id) as it is inserted (task 0152). Not a setting. |

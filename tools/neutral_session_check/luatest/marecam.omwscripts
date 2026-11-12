@@ -1,0 +1,2 @@
+GLOBAL: scripts/mare/cam.lua
+PLAYER: scripts/mare/shot.lua

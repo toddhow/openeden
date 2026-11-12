@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <sstream>
 
@@ -21,6 +22,7 @@
 #include <vsg/state/DescriptorImage.h>
 
 #include <components/animation/skin.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/animation/transform.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/facetint.hpp>
@@ -122,7 +124,9 @@ namespace MWRender::SkyrimModel
         {
             auto& shader = options.shader;
             // The diffuse texture, read through the VFS like every other model texture (or the face's tinted copy).
-            if (!key.mDiffuse.empty())
+            // OPENEDEN_NIFSCENE_TINT=1 (developer aid, task 0152): no textures, every model in a flat colour of its own
+            static const bool tintModels = std::getenv("OPENEDEN_NIFSCENE_TINT") != nullptr;
+            if (!key.mDiffuse.empty() && !tintModels)
             {
                 vsgUtil::ImageUse use;
                 use.category = vsgUtil::TextureCap::Category::Object;
@@ -148,6 +152,8 @@ namespace MWRender::SkyrimModel
                     {
                         ++result.mTexturesMissing;
                         ++totals.mTexturesMissing;
+                        if (traceEnabled())
+                            Log(Debug::Info) << "NIFSCENE missing texture '" << key.mDiffuse << "' in " << context.mFilename;
                     }
                     else
                     {
@@ -159,6 +165,8 @@ namespace MWRender::SkyrimModel
                 {
                     ++result.mTexturesMissing;
                     ++totals.mTexturesMissing;
+                    if (traceEnabled())
+                        Log(Debug::Info) << "NIFSCENE missing texture (no image) '" << key.mDiffuse << "' in " << context.mFilename;
                 }
             }
 
@@ -205,7 +213,10 @@ namespace MWRender::SkyrimModel
             }
 
             // Fixed state from the key.
-            options.cullMode = key.mDoubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+            // OPENEDEN_NIFSCENE_NOCULL=1 (a developer aid, task 0152) draws every shape double sided: a hole that fills
+            // up is a face culled from behind.
+            static const bool noCull = std::getenv("OPENEDEN_NIFSCENE_NOCULL") != nullptr;
+            options.cullMode = (key.mDoubleSided || noCull) ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
             if (key.mDoubleSided)
                 ++totals.mDoubleSidedShapes;
             options.blend = key.mBlend;
@@ -234,6 +245,20 @@ namespace MWRender::SkyrimModel
                 {
                     material->value().diffuse[static_cast<int>(c)] = (*tintColour)[c];
                     material->value().ambient[static_cast<int>(c)] = (*tintColour)[c];
+                }
+            }
+            if (tintModels)
+            {
+                const std::size_t h = std::hash<std::string>{}(context.mFilename);
+                const int hue = int((h >> 5) % 6);
+                const float r = (hue == 0 || hue == 2 || hue == 5) ? 1.f : 0.1f;
+                const float g = (hue == 1 || hue == 2 || hue == 3) ? 1.f : 0.1f;
+                const float b = (hue == 3 || hue == 4 || hue == 5) ? 1.f : 0.1f;
+                for (int c = 0; c < 3; ++c)
+                {
+                    const float v = c == 0 ? r : c == 1 ? g : b;
+                    material->value().diffuse[c] = v;
+                    material->value().ambient[c] = v;
                 }
             }
             material->value().alphaTestCutoff = key.mTest ? key.mThreshold / 255.f : 1.f;
@@ -502,12 +527,27 @@ namespace MWRender::SkyrimModel
             stateGroup->stateCommands = { bindPipeline, bindDescriptors };
             ++result.mDraws;
             if (traceEnabled())
-                std::cerr << "nifscene: " << context.mFilename << " shape '" << shape.mName << "' tex='" << key.mDiffuse
-                          << "' loaded=" << (shader.hasMode(Pipeline::Mode::DIFFUSE_MAP) ? 1 : 0)
-                          << " dbl=" << key.mDoubleSided << " blend=" << key.mBlend << " test=" << key.mTest
-                          << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
-                          << " f1=" << std::hex << shape.mFlags1 << " f2=" << shape.mFlags2 << std::dec
-                          << " merged=" << shape.mMergedFrom << '\n';
+            {
+                std::ostringstream line;
+                line << "NIFSCENE " << context.mFilename << " shape '" << shape.mName << "' tex='" << key.mDiffuse
+                     << "' loaded=" << (shader.hasMode(Pipeline::Mode::DIFFUSE_MAP) ? 1 : 0)
+                     << " dbl=" << key.mDoubleSided << " blend=" << key.mBlend << " test=" << key.mTest
+                     << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
+                     << " tris=" << shape.mIndices.size() / 3 << " box=" << [&shape] {
+                         std::ostringstream box;
+                         std::array<float, 3> lo{ 1e30f, 1e30f, 1e30f }, hi{ -1e30f, -1e30f, -1e30f };
+                         for (const auto& v : shape.mPositions)
+                             for (int c = 0; c < 3; ++c)
+                             {
+                                 lo[c] = std::min(lo[c], v[c]);
+                                 hi[c] = std::max(hi[c], v[c]);
+                             }
+                         box << lo[0] << "," << lo[1] << "," << lo[2] << ".." << hi[0] << "," << hi[1] << "," << hi[2];
+                         return box.str();
+                     }() << " f1=" << std::hex << shape.mFlags1
+                     << " f2=" << shape.mFlags2 << std::dec << " merged=" << shape.mMergedFrom;
+                Log(Debug::Info) << line.str();
+            }
             if (key.mBlend && !key.mNoSorter)
                 return vsg::DepthSorted::create(context.mDepthSortedBin, vsgUtil::getBounds(stateGroup), stateGroup);
             return stateGroup;
@@ -549,6 +589,18 @@ namespace MWRender::SkyrimModel
         if (model.mReport.mSkinnedAtRest != 0 && traceEnabled())
             std::cerr << "nifscene: " << context.mFilename << " has " << model.mReport.mSkinnedAtRest
                       << " skinned shapes drawn in their rest pose\n";
+        if (traceEnabled()
+            && (model.mReport.mSkippedHidden | model.mReport.mSkippedSkinned | model.mReport.mSkippedNoMaterial
+                | model.mReport.mSkippedEffect | model.mReport.mSkippedNoGeometry | model.mReport.mSkippedOverCap
+                | model.mReport.mDroppedTriangles | model.mReport.mBadVertices)
+                != 0)
+            Log(Debug::Info) << "NIFSCENE-SKIPS " << context.mFilename << " geometries " << model.mReport.mGeometries
+                             << " drawn " << model.mReport.mDrawn << " hidden " << model.mReport.mSkippedHidden
+                             << " skinned " << model.mReport.mSkippedSkinned << " nomaterial "
+                             << model.mReport.mSkippedNoMaterial << " effect " << model.mReport.mSkippedEffect
+                             << " nogeometry " << model.mReport.mSkippedNoGeometry << " overcap "
+                             << model.mReport.mSkippedOverCap << " droppedtris " << model.mReport.mDroppedTriangles
+                             << " badverts " << model.mReport.mBadVertices;
         totals.mSkippedEffect += model.mReport.mSkippedEffect;
         totals.mSkippedNoMaterial += model.mReport.mSkippedNoMaterial;
         totals.mSkippedHidden += model.mReport.mSkippedHidden;
@@ -565,6 +617,15 @@ namespace MWRender::SkyrimModel
         if (nodes.empty())
         {
             totals.mModelsEmpty.fetch_add(1, std::memory_order_relaxed);
+            return result;
+        }
+        // OPENEDEN_NIFSCENE_NOCULLNODES=1 (developer aid, task 0152): a plain group, no culling nodes of our own.
+        static const bool noCullNodes = std::getenv("OPENEDEN_NIFSCENE_NOCULLNODES") != nullptr;
+        if (noCullNodes)
+        {
+            auto group = vsg::Group::create();
+            group->children = nodes;
+            result.mNode = group;
             return result;
         }
         vsg::ref_ptr<vsg::Node> root = vsgUtil::createCullNode(nodes);
