@@ -119,6 +119,7 @@ namespace MWWorld
         World(const World&) = delete;
         World& operator=(const World&) = delete;
 
+        std::unique_ptr<MWWorld::WeatherManager> makeWeatherManager();
         void updateWeather(float duration, bool paused = false);
 
         void initObjectInCell(const Ptr& ptr, CellStore& cell, bool adjustPos);

@@ -95,6 +95,7 @@ namespace Settings
         SettingValue<bool> mExtensionProfiler{ mIndex, "Game", "extension profiler" };
         SettingValue<bool> mNeutralWorld{ mIndex, "Game", "neutral world" };
         SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
+        SettingValue<bool> mNeutralWeather{ mIndex, "Game", "neutral weather" };
     };
 }
 

@@ -10,6 +10,7 @@ openeden_add_game_pack(skyrimse
         src/land.cpp
         src/worldspace.cpp
         src/weather.cpp
+        src/weather_source.cpp
         src/terrain_source.cpp
         src/world_view.cpp
         src/neutral_world.cpp
@@ -30,6 +31,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/land.hpp
         include/game_skyrimse/worldspace.hpp
         include/game_skyrimse/weather.hpp
+        include/game_skyrimse/weather_source.hpp
         include/game_skyrimse/terrain_source.hpp
         include/game_skyrimse/world_view.hpp
         include/game_skyrimse/neutral_world.hpp
@@ -63,6 +65,7 @@ add_library(game_skyrimse_world STATIC
     src/land.cpp
     src/worldspace.cpp
     src/weather.cpp
+    src/weather_source.cpp
     src/terrain_source.cpp
     src/world_view.cpp
     src/neutral_world.cpp

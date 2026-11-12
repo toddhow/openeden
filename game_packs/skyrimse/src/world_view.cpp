@@ -3,6 +3,8 @@
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
+#include "game_skyrimse/weather.hpp"
+#include "game_skyrimse/weather_source.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -212,6 +214,61 @@ namespace game_skyrimse
             probe.mExists = [files](const std::string& path) { return files->exists(path); };
         }
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
+    }
+
+    bool SkyrimWorldView::ensureWeather()
+    {
+        if (!awaitIndex())
+            return false;
+        if (mWeatherTable != nullptr)
+            return true;
+        auto index = std::make_unique<WeatherIndex>();
+        const WeatherLimits limits;
+        for (const PluginData& plugin : mPlugins)
+        {
+            Content::Error openError;
+            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+            if (file == nullptr)
+            {
+                noteError(openError);
+                continue;
+            }
+            WeatherRecords records;
+            (void)parseWeatherRecords(*file, mOrder, limits, records);
+            index->add(records);
+        }
+        mWeatherIndex = std::move(index);
+        mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex);
+        return true;
+    }
+
+    bool SkyrimWorldView::describeWeathers(
+        std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error)
+    {
+        out.clear();
+        if (!ensureWeather())
+        {
+            error = "the world index is not available";
+            return false;
+        }
+        out = mWeatherTable->weathers();
+        if (out.empty())
+        {
+            error = "the plugins hold no weather";
+            return false;
+        }
+        return true;
+    }
+
+    bool SkyrimWorldView::describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out)
+    {
+        return ensureWeather() && game_skyrimse::describeTimeOfDay(*mWeatherIndex, out);
+    }
+
+    bool SkyrimWorldView::weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out)
+    {
+        out = {};
+        return ensureWeather() && mWeatherTable->listForCell(static_cast<FormId>(cell), out);
     }
 
     // ---- the worker -------------------------------------------------------------------------------------------------

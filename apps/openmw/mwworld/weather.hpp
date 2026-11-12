@@ -18,6 +18,8 @@
 
 #include "../mwrender/weatherdata.hpp"
 
+#include "weatherparams.hpp"
+
 namespace ESM
 {
     struct Region;
@@ -44,6 +46,7 @@ namespace Fallback
 namespace MWWorld
 {
     class TimeStamp;
+    class CellStore;
 
     enum NightDayMode
     {
@@ -135,6 +138,11 @@ namespace MWWorld
 
         Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
             float dlFactor, float dlOffset, const std::string& particleEffect);
+
+        // OpenEden (task 0127): the same weather from a plain description. The constructor above is this one with
+        // `weatherParamsFromFallback(name)`.
+        Weather(const ESM::RefId id, const int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
+            float dlFactor, float dlOffset, const std::string& particleEffect, const WeatherParams& params);
 
         ESM::RefId mId;
         int mScriptId;
@@ -254,6 +262,8 @@ namespace MWWorld
     public:
         explicit RegionWeather(const ESM::Region& region);
         explicit RegionWeather(const ESM::RegionWeatherState& state);
+        // OpenEden (task 0127): a region made of a neutral world's weather list (chances by table position).
+        explicit RegionWeather(std::vector<uint8_t> chances);
 
         operator ESM::RegionWeatherState() const;
 
@@ -309,8 +319,15 @@ namespace MWWorld
     {
     public:
         // Have to pass fallback and Store, can't use singleton since World isn't fully constructed yet at the time
-        WeatherManager(MWRender::RenderManager& rendering, MWWorld::ESMStore& store);
+        // OpenEden (task 0127): with `neutral` the weather table, the clock and the region lists come from a game
+        // pack (neutralweather.hpp) instead of Morrowind's INI keys and the store's regions.
+        WeatherManager(MWRender::RenderManager& rendering, MWWorld::ESMStore& store,
+            const NeutralWeatherSetup* neutral = nullptr);
         ~WeatherManager();
+
+        /// The weather region of a cell: its `ESM::Region`, or for a neutral world the provider's key (the region is
+        /// then created from the provider's list the first time it is asked for).
+        ESM::RefId regionOf(const CellStore& cell);
 
         /**
          * Change the weather in the specified region by id of the weather
@@ -375,8 +392,12 @@ namespace MWWorld
         void clear();
 
     private:
+        WeatherManager(MWRender::RenderManager& rendering, MWWorld::ESMStore& store, const NeutralWeatherSetup* neutral,
+            WeatherManagerParams params);
+
         MWWorld::ESMStore& mStore;
         MWRender::RenderManager& mRendering;
+        std::shared_ptr<RegionWeatherProvider> mRegionProvider; // null for Morrowind
         float mAtmosphereNightRoll = 0;
         float mSunriseTime;
         float mSunsetTime;
@@ -435,6 +456,7 @@ namespace MWWorld
 
         void addWeather(
             const std::string& name, float dlFactor, float dlOffset, const std::string& particleEffect = "");
+        void addWeather(const WeatherEntry& entry);
 
         void importRegions();
 

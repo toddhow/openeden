@@ -315,6 +315,11 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t climateCount() const { return mClimates.size(); }
         [[nodiscard]] std::size_t regionCount() const { return mRegions.size(); }
 
+        /// The form ids of all weathers (task 0127 stage W-S1) / climates, ascending: a fixed order whatever the hash
+        /// map holds, so a table built from them is the same on every run.
+        [[nodiscard]] std::vector<FormId> weatherIds() const;
+        [[nodiscard]] std::vector<FormId> climateIds() const;
+
         /// The climate of a worldspace: its own CNAM, else its parent's while PNAM says the climate is inherited
         /// (ParentUsage::Climate), up to 16 levels (a loop gives nullopt). The inheritance rule is VERIFIED on the
         /// installed data (WhiterunWorld, PNAM 127, takes Tamriel's climate); 42 of the 49 worlds end with a climate.

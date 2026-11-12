@@ -376,4 +376,35 @@ namespace game_skyrimse
         }
         return source->describeActor(base, variation, out, error);
     }
+
+    bool SkyrimCellSource::describeWeathers(
+        std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::WeatherSource*>(&mView);
+        if (source == nullptr)
+        {
+            out.clear();
+            error = "the world view cannot describe weather";
+            return false;
+        }
+        return source->describeWeathers(out, error);
+    }
+
+    bool SkyrimCellSource::describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::WeatherSource*>(&mView);
+        return source != nullptr && source->describeTimeOfDay(out);
+    }
+
+    bool SkyrimCellSource::weatherListForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::WeatherSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            return false;
+        }
+        return source->weatherListForCell(cell, out);
+    }
 }

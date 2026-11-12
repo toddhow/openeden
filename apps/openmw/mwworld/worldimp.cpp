@@ -101,6 +101,7 @@
 #include "inventorystore.hpp"
 #include "manualref.hpp"
 #include "neutralstub.hpp"
+#include "neutralweather.hpp"
 #include "player.hpp"
 #include "projectilemanager.hpp"
 #include "weather.hpp"
@@ -306,7 +307,7 @@ namespace MWWorld
         mStore.movePlayerRecord();
 
         mSwimHeightScale = mStore.get<ESM::GameSetting>().find("fSwimHeightScale")->mValue.getFloat();
-        mWeatherManager = std::make_unique<MWWorld::WeatherManager>(*mRendering, mStore);
+        mWeatherManager = makeWeatherManager();
 
         if (Settings::navigator().mEnable)
         {
@@ -349,7 +350,7 @@ namespace MWWorld
         // we don't want old weather to persist on a new game
         // Note that if reset later, the initial ChangeWeather that the chargen script calls will be lost.
         mWeatherManager.reset();
-        mWeatherManager = std::make_unique<MWWorld::WeatherManager>(*mRendering, mStore);
+        mWeatherManager = makeWeatherManager();
 
         if (!bypass)
         {
@@ -3368,6 +3369,14 @@ namespace MWWorld
         action.execute(ptr);
     }
 
+    std::unique_ptr<MWWorld::WeatherManager> World::makeWeatherManager()
+    {
+        // OpenEden (task 0127): a game pack's weather with [Game] neutral world and [Game] neutral weather; else
+        // Morrowind's, as always. The setup's tables are copied into the manager; its provider is shared.
+        const std::unique_ptr<NeutralWeatherSetup> neutral = makeSessionNeutralWeather();
+        return std::make_unique<MWWorld::WeatherManager>(*mRendering, mStore, neutral.get());
+    }
+
     void World::updateWeather(float duration, bool paused)
     {
         bool isExterior = isCellExterior() || isCellQuasiExterior();
@@ -3375,7 +3384,7 @@ namespace MWWorld
         {
             mPlayer->setTeleported(false);
 
-            const ESM::RefId& playerRegion = getPlayerPtr().getCell()->getCell()->getRegion();
+            const ESM::RefId playerRegion = mWeatherManager->regionOf(*getPlayerPtr().getCell());
             mWeatherManager->playerTeleported(playerRegion, isExterior);
         }
 

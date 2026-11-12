@@ -26,6 +26,7 @@
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
 
@@ -51,6 +52,8 @@
 namespace game_skyrimse
 {
     class ActorIndex;
+    class WeatherIndex;
+    class WeatherTable;
     /// Where files that are not plugins (the string tables) come from. `path` is lower case with backslashes, as an
     /// archive names it (`strings\skyrim_english.strings`).
     class FileSource
@@ -102,7 +105,8 @@ namespace game_skyrimse
     class SkyrimWorldView final : public openeden::sdk::game::WorldView,
         public ComponentSource,
         public TerrainProvider,
-        public openeden::sdk::game::ActorAppearanceSource
+        public openeden::sdk::game::ActorAppearanceSource,
+        public openeden::sdk::game::WeatherSource
     {
     public:
         struct Options
@@ -250,6 +254,13 @@ namespace game_skyrimse
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
+        // ---- openeden::sdk::game::WeatherSource (task 0127, stage W-S1) ----
+        /// The weather records of every plugin are read on the first call and kept (a second read of each plugin file,
+        /// as the actor index does); main thread only.
+        bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
+        bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
+        bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
+
     private:
         struct PluginData
         {
@@ -318,6 +329,9 @@ namespace game_skyrimse
 
         Options mOptions;
         const FileSource* mFiles = nullptr;
+        std::unique_ptr<WeatherIndex> mWeatherIndex; ///< built by the first weather ask; null before
+        std::unique_ptr<WeatherTable> mWeatherTable; ///< over mWeatherIndex
+        bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         LoadOrder mOrder;
         std::vector<PluginData> mPlugins;

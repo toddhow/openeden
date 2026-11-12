@@ -15,6 +15,7 @@
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
 #include <openeden/game/world_view.hpp>
@@ -137,7 +138,8 @@ namespace game_skyrimse
     /// reference to the view, which must outlive it. Main thread only, like the view.
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
         public openeden::sdk::game::ActorAppearanceSource,
-        public openeden::sdk::game::CellWaterSource
+        public openeden::sdk::game::CellWaterSource,
+        public openeden::sdk::game::WeatherSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -174,6 +176,10 @@ namespace game_skyrimse
         /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
+        bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
+        bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
+        bool weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out) override;
 
     private:
         [[nodiscard]] const SkyrimTerrainIndex* terrain() const;

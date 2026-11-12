@@ -28,6 +28,8 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0105 stage N3a-2: the neutral world's base records and the stub player.
     mwworld/testneutralstore.cpp
     mwworld/testneutralstub.cpp
+    mwworld/testneutralweather.cpp
+    mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp
     mwworld/testneutrallight.cpp
     mwworld/testneutrallightreal.cpp

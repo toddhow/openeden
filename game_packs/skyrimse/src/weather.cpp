@@ -822,6 +822,30 @@ namespace game_skyrimse
         put(mCells, records.mCells);
     }
 
+    namespace
+    {
+        template <class T>
+        std::vector<FormId> sortedKeys(const std::unordered_map<FormId, T>& map)
+        {
+            std::vector<FormId> ids;
+            ids.reserve(map.size());
+            for (const auto& entry : map)
+                ids.push_back(entry.first);
+            std::sort(ids.begin(), ids.end());
+            return ids;
+        }
+    }
+
+    std::vector<FormId> WeatherIndex::weatherIds() const
+    {
+        return sortedKeys(mWeathers);
+    }
+
+    std::vector<FormId> WeatherIndex::climateIds() const
+    {
+        return sortedKeys(mClimates);
+    }
+
     std::optional<FormId> WeatherIndex::climateOfWorld(FormId worldId) const
     {
         FormId id = worldId;
