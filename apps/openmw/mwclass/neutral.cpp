@@ -70,9 +70,11 @@ namespace MWClass
             return wanted;
         }
 
-        const MWWorld::NeutralBase& baseOf(const MWWorld::ConstPtr& ptr)
+        // A template over Ptr and ConstPtr: a ConstPtr parameter made GCC see a temporary behind the returned reference.
+        template <class PtrType>
+        const MWWorld::NeutralBase& baseOf(const PtrType& ptr)
         {
-            return *ptr.get<MWWorld::NeutralBase>()->mBase;
+            return *ptr.template get<MWWorld::NeutralBase>()->mBase;
         }
     }
 

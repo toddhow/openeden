@@ -237,7 +237,7 @@ namespace
         service.setSessionContent({ entry("Skyrim.esm", "TES4", 44) });
         service.setContentFilter(skyrimAccepts);
         openeden::sdk::game::WorldSourceService* base = &service;
-        auto* mirror = reinterpret_cast<MirrorService*>(base);
+        auto* mirror = static_cast<MirrorService*>(static_cast<void*>(base));
         EXPECT_TRUE(mirror->consumerEnabled());
         std::vector<SessionContentFile> out;
         EXPECT_EQ(mirror->sessionContent(out), 1u);

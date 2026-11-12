@@ -269,8 +269,12 @@ TEST(NifSceneSkeleton, parents_come_before_children_with_their_local_transforms)
     ASSERT_EQ(plan.mNodes.size(), 4u);
     EXPECT_EQ(plan.mNodes[0].mParent, sNone);
     for (std::uint32_t i = 0; i < plan.mNodes.size(); ++i)
+    {
         if (plan.mNodes[i].mParent != sNone)
+        {
             EXPECT_LT(plan.mNodes[i].mParent, i);
+        }
+    }
     const std::uint32_t pelvisAt = Skeleton::find(plan, "npc pelvis [pelv]");
     ASSERT_NE(pelvisAt, sNone);
     EXPECT_FLOAT_EQ(plan.mNodes[pelvisAt].mLocal.mTranslation[2], 68.f);

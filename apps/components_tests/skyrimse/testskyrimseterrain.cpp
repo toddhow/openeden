@@ -123,7 +123,9 @@ namespace
         EXPECT_TRUE(order.add("Skyrim.esm", false, err));
         EXPECT_TRUE(order.add("test.esp", false, err));
         if (second)
+        {
             EXPECT_TRUE(order.add("over.esp", false, err));
+        }
         return order;
     }
 
@@ -135,7 +137,9 @@ namespace
             std::string error;
             EXPECT_TRUE(mIndex.addPluginBytes(pluginA().str(), "test.esp", orderOf(both), error)) << error;
             if (both)
+            {
                 EXPECT_TRUE(mIndex.addPluginBytes(pluginB().str(), "over.esp", orderOf(true), error)) << error;
+            }
         }
     };
 

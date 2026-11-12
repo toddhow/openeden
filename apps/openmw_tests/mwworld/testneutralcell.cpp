@@ -168,7 +168,7 @@ namespace
     {
         ESM::RefNum refNum{ 5, 6 };
         EXPECT_FALSE(MWWorld::neutralRefNum(kNoWorldId, refNum));
-        EXPECT_FALSE(MWWorld::neutralRefNum(std::uint64_t{ 1 } << 32, refNum));
+        EXPECT_FALSE(MWWorld::neutralRefNum(static_cast<WorldId>(std::uint64_t{ 1 } << 32), refNum));
         EXPECT_EQ(refNum.mIndex, 5u);
         EXPECT_EQ(refNum.mContentFile, 6);
         EXPECT_TRUE(MWWorld::neutralRefNum(std::numeric_limits<std::uint32_t>::max(), refNum));
@@ -264,7 +264,7 @@ namespace
         EXPECT_FALSE(error.empty());
 
         error.clear();
-        EXPECT_FALSE(MWWorld::makeNeutralCellRef("skyrimse", sampleObject(std::uint64_t{ 1 } << 40, 3), ref, error));
+        EXPECT_FALSE(MWWorld::makeNeutralCellRef("skyrimse", sampleObject(static_cast<WorldId>(std::uint64_t{ 1 } << 40), 3), ref, error));
         EXPECT_FALSE(error.empty());
 
         WorldObject nanPosition = sampleObject(9, 42);

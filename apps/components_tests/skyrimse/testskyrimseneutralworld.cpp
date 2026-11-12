@@ -467,7 +467,9 @@ namespace
             ASSERT_TRUE(toNeutral(content.objects[i], expected, problem)) << problem;
             EXPECT_EQ(cell.objects[i], expected) << i;
             if (i > 0)
+            {
                 EXPECT_LT(cell.objects[i - 1].id, cell.objects[i].id);
+            }
         }
         // The furniture reference was scaled by 2 and the missing base keeps kind Unknown with its id as payload.
         EXPECT_EQ(cell.objects[1].kind, sdkgame::ObjectKind::Furniture);

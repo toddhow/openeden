@@ -33,7 +33,9 @@ namespace
         catch (const Error& e)
         {
             if (!part.empty())
+            {
                 EXPECT_NE(std::string(e.what()).find(part), std::string::npos) << e.what();
+            }
         }
     }
 

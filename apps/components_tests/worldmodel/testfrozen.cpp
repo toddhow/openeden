@@ -73,7 +73,8 @@ namespace
             .owner = owner,
             .lock = lock,
             .teleport = teleport,
-            .payload = payload };
+            .payload = payload,
+            .light = std::nullopt };
         const WorldCell cell{ .id = 3,
             .editorId = "E",
             .name = "N",
@@ -84,7 +85,8 @@ namespace
             .world = 6,
             .objects = { object },
             .unresolvedBases = 2,
-            .droppedObjects = 1 };
+            .droppedObjects = 1,
+            .lighting = std::nullopt };
         EXPECT_EQ(cell.objects.size(), 1u);
         EXPECT_EQ(cell.objects[0].teleport->flags, 1u);
         EXPECT_EQ(cell.objects[0].lock->key, 9u);
