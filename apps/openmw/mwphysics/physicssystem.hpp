@@ -219,6 +219,17 @@ namespace MWPhysics
         const std::vector<MWWorld::Ptr>& getNeutralActorsMoved() const { return mNeutralMoved; }
         const std::vector<MWWorld::Ptr>& getNeutralActorsTurned() const { return mNeutralTurned; }
 
+        /// Task 0148: the horizontal ground speed (units a second, measured over the last frame) of each neutral actor
+        /// whose measured speed changed in the last updateNeutralActors, or that walked in it; a stopped actor is
+        /// reported once with 0. The caller hands each to the renderer (locomotion blend). Reserved with the other
+        /// lists when an actor is added, so a frame does not allocate.
+        struct NeutralSpeedReport
+        {
+            MWWorld::Ptr mPtr;
+            float mSpeed;
+        };
+        const std::vector<NeutralSpeedReport>& getNeutralActorSpeeds() const { return mNeutralSpeeds; }
+
         /// Task 0135 stage S2: the movement the pack (stage S3) or a test seam wants of a neutral actor from now on:
         /// a velocity on the ground in units a second. A zero velocity stops it. The mover turns the actor to face the
         /// velocity. Ignored for an actor that has no neutral body. Main thread.
@@ -457,6 +468,8 @@ namespace MWPhysics
             std::uint32_t mWalkFrames = 0; ///< frames this actor was walked, for the trace
             NeutralActor::Capsule mCapsule; ///< for the navigator's agent size (stage S4)
             NeutralPath::Follower mFollow; ///< the go-to request, if any (stage S4)
+            float mMeasuredSpeed = 0.f; ///< ground speed over the last walk step (task 0148), 0 when it did not move
+            float mReportedSpeed = 0.f; ///< what getNeutralActorSpeeds last told
             float mFace = 0.f; ///< a heading request, applied once when the actor stands
             bool mFaceValid = false;
         };
@@ -486,6 +499,7 @@ namespace MWPhysics
         NeutralPathFinderFn mNeutralPathFinder;
         std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
         std::vector<MWWorld::Ptr> mNeutralTurned;
+        std::vector<NeutralSpeedReport> mNeutralSpeeds;
 
         using ProjectileMap = std::map<int, std::shared_ptr<Projectile>>;
         ProjectileMap mProjectiles;

@@ -1177,6 +1177,7 @@ namespace MWPhysics
         // Reserved here so that a frame that moves every actor does not allocate.
         mNeutralMoved.reserve(mNeutralActors.size());
         mNeutralTurned.reserve(mNeutralActors.size());
+        mNeutralSpeeds.reserve(mNeutralActors.size());
     }
 
     const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
@@ -1316,6 +1317,7 @@ namespace MWPhysics
     {
         mNeutralMoved.clear();
         mNeutralTurned.clear();
+        mNeutralSpeeds.clear();
         if (mNeutralActors.empty())
             return;
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
@@ -1327,11 +1329,13 @@ namespace MWPhysics
             mNeutralActors[walkAid.mIndex].mRequest = walkAid.mRequest;
         // Every actor's ray ignores every neutral actor's body, so the order of the entries cannot change a result.
         std::vector<MWWorld::ConstPtr> ignore;
+        const bool reportSpeeds = Settings::game().mNeutralActorLocomotion.get(); // task 0148: measured only when used
         for (NeutralActorEntry& entry : mNeutralActors)
         {
             const auto found = mObjects.find(entry.mRef);
             if (found == mObjects.end())
                 continue;
+            entry.mMeasuredSpeed = 0.f;
             if (entry.mFall.mState == NeutralActor::State::Grounded)
             {
                 // Stage S4: a go-to turns its path into this frame's velocity request first.
@@ -1354,6 +1358,12 @@ namespace MWPhysics
                         mNeutralMoved.push_back(ptr);
                         mNeutralTurned.push_back(ptr);
                     }
+                }
+                // Task 0148: tell the renderer how fast it really moved (0 when blocked or standing), once it changes.
+                if (reportSpeeds && entry.mMeasuredSpeed != entry.mReportedSpeed)
+                {
+                    entry.mReportedSpeed = entry.mMeasuredSpeed;
+                    mNeutralSpeeds.push_back({ found->second->getPtr(), entry.mMeasuredSpeed });
                 }
                 continue;
             }
@@ -1474,6 +1484,12 @@ namespace MWPhysics
         const bool turned = heading != pos.rot[2];
         if (turned)
             pos.rot[2] = heading;
+        if (result.mMoved && dt > 0.f && Settings::game().mNeutralActorLocomotion.get())
+        {
+            const float dx = result.mFeet.x - feet.x;
+            const float dy = result.mFeet.y - feet.y;
+            entry.mMeasuredSpeed = std::sqrt(dx * dx + dy * dy) / dt;
+        }
         if (result.mMoved)
         {
             pos.pos[0] = result.mFeet.x;

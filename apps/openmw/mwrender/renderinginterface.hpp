@@ -30,6 +30,11 @@ namespace MWRender
         /// (the head's morphs Aah, BigAah, BMP, ChJSh, DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W). Does nothing for an
         /// object that has no head morph. Main thread.
         virtual void setNeutralMouth(const MWWorld::Ptr& /*ptr*/, const std::array<float, 16>& /*visemes*/) {}
+
+        /// Task 0148 (`[Game] neutral actor locomotion`): the measured ground speed (units a second) of a drawn neutral
+        /// actor, from the physics side. Does nothing for an object without a locomotion controller. Main thread; no
+        /// allocation.
+        virtual void setNeutralActorSpeed(const MWWorld::Ptr& /*ptr*/, float /*unitsPerSecond*/) {}
     };
 }
 

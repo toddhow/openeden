@@ -42,6 +42,7 @@
 #include <cstdlib>
 #include "skyrimactor.hpp"
 #include "skyrimidle.hpp"
+#include "skyrimlocomotion.hpp"
 #include "skyrimlip.hpp"
 
 #include <components/mwanimation/sceneryanim.hpp>
@@ -347,6 +348,19 @@ namespace MWRender
             // Out of step with the next actor, and the same on every visit: from the reference alone.
             const std::string id = ptr.getCellRef().getRefId().serializeText();
             const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)));
+            if (Settings::game().mNeutralActorLocomotion)
+            {
+                // Task 0148: the idle, walk and run cycles blended by the ground speed the physics side reports.
+                const std::string_view sex = appearance.female ? "female" : "male";
+                auto controller = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(
+                    std::move(future),
+                    SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sWalkClip),
+                    SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sRunClip),
+                    std::move(bones), phase));
+                anim.addController(controller, anim.transform());
+                anim.keepAlive.push_back(controller);
+                return;
+            }
             auto controller = vsg::ref_ptr<SkyrimIdle::Controller>(
                 new SkyrimIdle::Controller(std::move(future), std::move(bones), phase));
             anim.addController(controller, anim.transform());
@@ -412,6 +426,22 @@ namespace MWRender
                         return s;
                     }();
                 }
+                return;
+            }
+    }
+
+    void Scene::setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* loco = dynamic_cast<SkyrimLocomotion::Controller*>(kept.get()))
+            {
+                loco->setGroundSpeed(unitsPerSecond);
                 return;
             }
     }

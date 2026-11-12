@@ -1470,6 +1470,10 @@ namespace MWWorld
             }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsTurned())
                 mRendering->rotateObject(ptr, Misc::Convert::makeQuaternion(ptr.getRefData().getPosition()));
+            // Task 0148: the locomotion blend of a drawn neutral actor follows the speed it really moved at.
+            if (Settings::game().mNeutralActorLocomotion.get())
+                for (const auto& report : mPhysics->getNeutralActorSpeeds())
+                    mRendering->getObjects().setNeutralActorSpeed(report.mPtr, report.mSpeed);
         }
         mPhysics->stepSimulation(duration, mDiscardMovements);
         mProjectileManager->processHits();
