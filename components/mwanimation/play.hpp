@@ -11,6 +11,7 @@
 
 namespace Anim
 {
+    class AnimSet;
     class ControllerMap;
     class Reset;
 }
@@ -79,6 +80,9 @@ namespace MWAnim
         // should be on the scale of 0 to 1.
         void setAccumulation(const vsg::vec3& accum);
 
+        /// The axes set by setAccumulation (default (1, 1, 0)); what a pose driver must mirror.
+        const vsg::vec3& accumulation() const { return mAccumulate; }
+
         /** Plays an animation.
          * \param groupname Name of the animation group to play.
          * \param priority Priority of the animation. The animation will play on
@@ -128,6 +132,9 @@ namespace MWAnim
         struct ActiveState
         {
             const Anim::ControllerMap* source = nullptr;
+            /// The source's shared AnimSet (task 0124, stage C2): its clip is what the pose driver plays. Null when
+            /// source is.
+            const Anim::AnimSet* set = nullptr;
             std::string_view groupname;
             float time = 0.f;
         };

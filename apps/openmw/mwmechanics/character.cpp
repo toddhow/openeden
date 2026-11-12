@@ -1187,6 +1187,7 @@ namespace MWMechanics
         mRagdollDriver.reset();
         if (mPoseDriver)
         {
+            reportPoseComparison();
             mPoseDriver.reset();
             mAnimation->updateBones = true;
         }
@@ -3014,6 +3015,8 @@ namespace MWMechanics
                 mRagdollRest = std::move(rest);
         }
 
+        if (mPoseDriver)
+            reportPoseComparison();
         mPoseDriver.reset();
         mPoseDriverApplies = false;
         mStyleCadence = 1.f;
@@ -3027,6 +3030,8 @@ namespace MWMechanics
             if (driver->isValid())
             {
                 mPoseDriver = std::move(driver);
+                // The same axes as Play's, so the pose takes the same movement out of the root bone.
+                mPoseDriver->setAccumulation(mAnimation->accumulation());
                 mPoseDriverApplies = features.mAnimation;
                 mAnimation->updateBones = !mPoseDriverApplies;
                 mPoseDriver->setRecordTargets(Settings::game().mCreativeMotionAnimationDebug);
@@ -3110,6 +3115,15 @@ namespace MWMechanics
         return MWRender::describeStyle(*profile, !mStyleSwitchedOff, MWRender::styleWeights(currentStyleState()));
     }
 
+    void CharacterController::reportPoseComparison() const
+    {
+        if (!mPoseDriver || mPoseDriverApplies)
+            return;
+        const std::string text = mPoseDriver->describeCompareExtremes();
+        if (!text.empty())
+            Log(Debug::Info) << "CMCOMPARE ref=\"" << mPtr.getCellRef().getRefId() << "\"" << text;
+    }
+
     void CharacterController::runPoseDriver(float duration)
     {
         // Differences the comparison mode reports (as the OSG build): 5 mm and about 1.1 degrees.
@@ -3123,17 +3137,21 @@ namespace MWMechanics
         for (std::size_t group = 0; group < active.size(); ++group)
         {
             const MWAnim::Play::ActiveState state = mAnimation->getActiveState(group);
-            if (state.source != nullptr && !mPoseDriver->registerSource(*state.source))
+            // The set's clip is shared by every actor that plays the source (task 0124, stage C2).
+            if (state.source != nullptr
+                && !(state.set != nullptr ? mPoseDriver->registerSource(*state.set)
+                                          : mPoseDriver->registerSource(*state.source)))
             {
                 // Falls back to vsgopenmw's animation for this actor; its bones catch up on the next frame.
                 Log(Debug::Warning) << "CreativeMotion cannot play the animation of " << mPtr.getCellRef().getRefId()
                                     << "; using the engine's animation for this actor";
+                reportPoseComparison();
                 mPoseDriver.reset();
                 mStyleCadence = 1.f;
                 mAnimation->updateBones = true;
                 return;
             }
-            active[group] = { state.source, state.groupname, state.time };
+            active[group] = { state.source, state.groupname, state.time, state.set };
         }
 
         // What the actor is doing, for the style layer. The speed is smoothed: root motion varies within a step.

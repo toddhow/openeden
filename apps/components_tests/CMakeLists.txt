@@ -34,6 +34,7 @@ file(GLOB UNITTEST_SRC_FILES
     misc/testmathutil.cpp
     misc/testquietwindow.cpp
     misc/testgameconventions.cpp
+    misc/testforcedvariant.cpp
     misc/testresourcehelpers.cpp
     misc/teststringops.cpp
 
@@ -291,12 +292,14 @@ file(GLOB UNITTEST_SRC_FILES
     inertialmotion/teststrideshape.cpp
 
     mwrender/test_creativemotion_runtime.cpp
+    mwrender/test_creativemotion_animset.cpp
     mwrender/test_creativemotion_style.cpp
     mwrender/test_creativemotion_intent.cpp
     mwrender/test_creativemotion_style_driver.cpp
     mwrender/test_game_conventions_sites.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotionstyle.cpp
     ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/creativemotiondriver.cpp
+    ${CMAKE_SOURCE_DIR}/apps/openmw/mwrender/animclip.cpp
 
     vsg/testcompilemutex.cpp
     vsg/testshadercompile.cpp

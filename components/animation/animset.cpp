@@ -1,6 +1,11 @@
 #include "animset.hpp"
 
+#include <algorithm>
+#include <map>
+#include <mutex>
 #include <utility>
+
+#include <vsg/core/observer_ptr.h>
 
 namespace Anim
 {
@@ -39,6 +44,34 @@ namespace Anim
             else if (marker == "loop stop")
                 group.loopStop = time;
         }
+    }
+
+    vsg::ref_ptr<const AnimSet> AnimSet::forSource(vsg::ref_ptr<const ControllerMap> controllers, std::string name)
+    {
+        if (controllers == nullptr)
+            return vsg::ref_ptr<const AnimSet>(new AnimSet(nullptr, std::move(name)));
+
+        // Keyed by the source's address. The set keeps its source alive, so the address cannot be taken by another
+        // source while any set made for it exists; a set nobody holds is gone (observer_ptr) and is made again.
+        static std::mutex sMutex;
+        static std::map<const ControllerMap*, vsg::observer_ptr<AnimSet>> sSets;
+        static std::size_t sPruneAt = 256;
+
+        const std::lock_guard<std::mutex> lock(sMutex);
+        const auto found = sSets.find(controllers.get());
+        if (found != sSets.end())
+            if (vsg::ref_ptr<AnimSet> live = found->second.ref_ptr())
+                return live;
+
+        vsg::ref_ptr<AnimSet> made(new AnimSet(controllers, std::move(name)));
+        sSets[controllers.get()] = vsg::observer_ptr<AnimSet>(made);
+        if (sSets.size() >= sPruneAt)
+        {
+            for (auto it = sSets.begin(); it != sSets.end();)
+                it = it->second.ref_ptr() == nullptr ? sSets.erase(it) : std::next(it);
+            sPruneAt = std::max<std::size_t>(256, sSets.size() * 2);
+        }
+        return made;
     }
 
     const AnimSet::Group* AnimSet::find(std::string_view group) const

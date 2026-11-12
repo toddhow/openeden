@@ -12,6 +12,7 @@
 // The rig: bone "bip01" (the root; group 0), under it "pelvis" (group 0) and "spine" (group 1). Every source animates
 // "bip01" as (100 t, 10 t, t) and "spine" as (t, 0, 0), so time and root motion can be read from the numbers.
 
+#include <components/animation/animset.hpp>
 #include <components/animation/bones.hpp>
 #include <components/animation/channel.hpp>
 #include <components/animation/controllermap.hpp>
@@ -609,23 +610,25 @@ namespace
         EXPECT_NEAR(rig.translation("bip01").z, 5.5f, 1e-4f);
     }
 
-    TEST(PlayCharacterization, setting_the_accumulated_axes_changes_what_stays_on_the_bone_but_not_the_movement)
+    TEST(PlayCharacterization, setting_the_accumulated_axes_changes_both_what_stays_on_the_bone_and_the_movement)
     {
-        // A quirk, pinned as it is: setAccumulation only changes the reset channel of the playing source
-        // (mResetAccum), not Play::mAccumulate, which updatePosition uses for the returned movement. So y is both
-        // left on the bone AND still returned as movement, until the next resetActiveGroups re-applies mAccumulate.
+        // CHANGED in task 0124, stage C2 (toddhow approved fixing the quirk; this edit is for his review). Before:
+        // setAccumulation changed only the reset channel of the playing source, not Play::mAccumulate, which
+        // updatePosition uses for the returned movement, so y was both left on the bone AND returned as movement
+        // (5), and a new arbitration restored the default axes (the idle's y came back to 0). Now the axes are one
+        // value: y is left on the bone and NOT returned, and a new arbitration keeps it (idle's y at 0.5 s is 5).
         PlayRig rig;
         rig.addMain();
         rig.playGroup("attack", 1, 3);
         rig.play().setAccumulation({ 1.f, 0.f, 0.f });
         const vsg::vec3 movement = rig.play().runAnimation(0.5f);
         EXPECT_NEAR(movement.x, 50.f, 1e-3f);
-        EXPECT_NEAR(movement.y, 5.f, 1e-3f) << "the movement still uses the default (1, 1, 0)";
+        EXPECT_NEAR(movement.y, 0.f, 1e-3f) << "the movement uses the axes that were set";
         EXPECT_NEAR(rig.translation("bip01").y, 55.f, 1e-3f) << "y is left on the bone now";
         EXPECT_NEAR(rig.translation("bip01").x, 0.f, 1e-4f);
-        rig.playGroup("idle", 2, 3); // a new arbitration restores the default axes from mAccumulate
+        rig.playGroup("idle", 2, 3); // a new arbitration keeps the axes
         rig.play().runAnimation(0.5f);
-        EXPECT_NEAR(rig.translation("bip01").y, 0.f, 1e-4f);
+        EXPECT_NEAR(rig.translation("bip01").y, 5.f, 1e-3f);
     }
 
     TEST(PlayCharacterization, only_a_state_that_is_active_on_bone_group_zero_contributes_root_motion)
@@ -885,6 +888,55 @@ namespace
                 + makeNode("bip01-id", "bip01", makeMatrix(makeTranslationMatrix(0, 0, 0)))
                 + makeNode("spine-id", "spine", makeMatrix(makeTranslationMatrix(0, 0, 0))));
         return makeColladaDocument(parts);
+    }
+
+    // --- Task 0124, stage C2: setAccumulation sets the axes the movement uses, and the active state names its AnimSet.
+
+    TEST(PlayCharacterization, the_accumulated_axes_default_to_x_and_y_and_are_the_ones_last_set)
+    {
+        PlayRig rig;
+        EXPECT_EQ(rig.play().accumulation(), vsg::vec3(1.f, 1.f, 0.f));
+        rig.play().setAccumulation({ 0.f, 0.f, 0.f });
+        EXPECT_EQ(rig.play().accumulation(), vsg::vec3(0.f, 0.f, 0.f));
+        rig.play().setAccumulation({ 1.f, 0.f, 1.f });
+        EXPECT_EQ(rig.play().accumulation(), vsg::vec3(1.f, 0.f, 1.f));
+    }
+
+    TEST(PlayCharacterization, axes_set_before_any_animation_plays_are_used_by_the_movement_and_the_reset)
+    {
+        // CharacterController sets them once, in its constructor, before anything plays; non-actors get (0, 0, 0).
+        PlayRig rig;
+        rig.addMain();
+        rig.play().setAccumulation({ 0.f, 0.f, 0.f });
+        rig.playGroup("attack", 1, 3);
+        const vsg::vec3 movement = rig.play().runAnimation(0.5f);
+        EXPECT_EQ(movement, vsg::vec3(0.f, 0.f, 0.f)) << "no axis accumulates: nothing is handed to the physics";
+        EXPECT_NEAR(rig.translation("bip01").x, 550.f, 1e-2f) << "the root keeps its whole motion on the bone";
+        EXPECT_NEAR(rig.translation("bip01").y, 55.f, 1e-3f);
+    }
+
+    TEST(PlayCharacterization, the_active_state_names_the_shared_anim_set_of_its_source)
+    {
+        PlayRig rig;
+        rig.addMain();
+        rig.playGroup("attack", 1, 3);
+        const MWAnim::Play::ActiveState state = rig.play().getActiveState(0);
+        ASSERT_NE(state.source, nullptr);
+        ASSERT_NE(state.set, nullptr);
+        EXPECT_EQ(state.set->controllers.get(), state.source);
+        EXPECT_TRUE(state.set->hasGroup("attack"));
+        EXPECT_EQ(rig.play().getActiveState(5).set, nullptr);
+    }
+
+    TEST(PlayCharacterization, two_plays_of_one_source_share_its_anim_set)
+    {
+        auto map = makeSource(mainKeys());
+        PlayRig a, b;
+        a.play().addSingleAnimSource(map, "shared");
+        b.play().addSingleAnimSource(map, "shared");
+        a.playGroup("attack", 1, 3);
+        b.playGroup("attack", 1, 3);
+        EXPECT_EQ(a.play().getActiveState(0).set, b.play().getActiveState(0).set);
     }
 
     TEST_F(PlayDaeFixture, a_generated_dae_with_a_text_key_file_gives_the_same_kind_of_group_table_and_plays)

@@ -18,11 +18,13 @@
 #include <string_view>
 #include <vector>
 
+#include "animclip.hpp"
 #include "blendmask.hpp"
 #include "creativemotionstyle.hpp"
 
 namespace Anim
 {
+    class AnimSet;
     class Bones;
     class ControllerMap;
     class Transform;
@@ -49,6 +51,10 @@ namespace MWRender
         const Anim::ControllerMap* mSource = nullptr;
         std::string_view mGroupName;
         float mTime = 0.f;
+        /// The source's shared AnimSet (task 0124, stage C2), when the caller has it (MWAnim::Play::getActiveState):
+        /// the driver then plays the set's one shared clip instead of converting the source itself. Must be last: the
+        /// struct is built with positional initializers.
+        const Anim::AnimSet* mSet = nullptr;
     };
 
     /// Developer trace (setting "creativemotion animation debug"): the local rotation of each named bone as a
@@ -77,7 +83,7 @@ namespace MWRender
     {
     public:
         /// Rate at which channels with no exact clip equivalent are resampled (task 0007, open question 5).
-        static constexpr float sResampleRate = 60.f;
+        static constexpr float sResampleRate = sClipResampleRate;
 
         /// Builds the skeleton from bones. The driver keeps pointers to the bones' transforms, so bones must outlive
         /// it. Invalid when there is no named bone or the skeleton fails opas::rig::validateSkeleton.
@@ -89,6 +95,11 @@ namespace MWRender
         /// Converts source to a clip, once; later calls return the cached result. Returns false when the driver is
         /// invalid or the source animates no bone of the skeleton.
         bool registerSource(const Anim::ControllerMap& source);
+
+        /// The same for a source's AnimSet (task 0124, stage C2): the clip is the set's, made once for every actor
+        /// that plays it; this driver only binds the clip's tracks to its own bones. Cached under the set's
+        /// ControllerMap, so it and the overload above answer for the same source alike.
+        bool registerSource(const Anim::AnimSet& set);
 
         /// Axes on which the accumulation root's movement is accumulated (taken out of the pose, as MWAnim::Play's
         /// reset does): each component that is not 0 sets that axis of the root's sampled translation to 0. The root is
@@ -164,18 +175,35 @@ namespace MWRender
         /// Developer comparison mode: the largest difference between the driver's pose and the bones' current local
         /// transforms over animated bones (translation in metres, rotation in radians), and that bone's name. False
         /// when the driver is invalid.
-        bool compareWithCurrentPose(float& outMaxTransDiff, float& outMaxRotDiff, std::string& outMaxDiffBone) const;
+        bool compareWithCurrentPose(float& outMaxTransDiff, float& outMaxRotDiff, std::string& outMaxDiffBone);
+
+        /// The largest differences compareWithCurrentPose has seen so far in one bone group, over every call (task
+        /// 0124, stage C2: the comparison over a whole scenario). mBone is empty until a group had an animated bone.
+        struct CompareExtremes
+        {
+            float mTranslation = 0.f; // metres
+            float mRotation = 0.f; // radians
+            std::string mBone; // the bone of the larger relative difference when it was seen
+        };
+        const CompareExtremes& compareExtremes(size_t group) const;
+
+        /// " g0=<m>m/<rad>rad(<bone>) g1=..." for the groups that have a difference, or empty (the CMCOMPARE line).
+        std::string describeCompareExtremes() const;
 
     private:
         struct BoundClip
         {
-            opas::anim::Clip mClip;
+            /// The (shared) clip this driver plays; its tracks are named by bone.
+            std::shared_ptr<const AnimClip> mShared;
+            const opas::anim::Clip& clip() const { return mShared->mClip; }
             std::vector<int> mTrackToBone;
             /// Per skeleton bone: 1 when the clip has a track for it.
             std::vector<char> mHasTrack;
         };
 
         bool buildSkeleton(Anim::Bones& bones);
+        /// Binds a clip to this skeleton under the source it came from; false when it animates none of the bones.
+        bool bind(const Anim::ControllerMap& source, std::shared_ptr<const AnimClip> clip);
         const BoundClip* findClip(const Anim::ControllerMap* source) const;
         void sampleClip(const BoundClip& clip, float timeS, std::vector<opas::math::Transform>& outPose) const;
 
@@ -211,6 +239,7 @@ namespace MWRender
             std::unique_ptr<BoundClip> mClip;
         };
         std::map<const Anim::ControllerMap*, CachedClip> mClips;
+        std::array<CompareExtremes, sNumBlendMasks> mCompareExtremes;
 
         // Last active source and group name per group, to detect changes.
         std::array<const Anim::ControllerMap*, sNumBlendMasks> mLastSources{};

@@ -2,8 +2,11 @@
 #define OPENEDEN_ANIMATION_ANIMSET_H
 
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <typeinfo>
 
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
@@ -42,6 +45,27 @@ namespace Anim
         /// A source with no tags has an empty table.
         explicit AnimSet(vsg::ref_ptr<const ControllerMap> controllers, std::string name = {});
 
+        /// The set of a source, shared by everything that asks for the same ControllerMap while any of them still
+        /// holds it (task 0124, stage C2): a creature type's animations are read once, and so are the clips made from
+        /// them, however many actors play them. Thread safe. `name` is only used if the set is made here.
+        static vsg::ref_ptr<const AnimSet> forSource(vsg::ref_ptr<const ControllerMap> controllers, std::string name = {});
+
+        /// The clip data derived from this source (stage C2), built by `build` on the first call and then shared:
+        /// `build` returns a shared_ptr<const T> (null for "nothing to play"), and every later call gets the same
+        /// one. Thread safe (call_once), so actors on several animation threads may ask at the same time. The set
+        /// knows nothing about T: CreativeMotion's clip type lives in the host layer (apps/openmw/mwrender/animclip.*)
+        /// and one set holds one T (asking with another type gives null).
+        template <class T, class Build>
+        std::shared_ptr<const T> clip(Build&& build) const
+        {
+            std::call_once(mClipOnce, [&] {
+                std::shared_ptr<const T> made = build();
+                mClip = std::shared_ptr<const void>(made, made.get());
+                mClipType = &typeid(T);
+            });
+            return mClipType != nullptr && *mClipType == typeid(T) ? std::static_pointer_cast<const T>(mClip) : nullptr;
+        }
+
         /// A name for logs: the file, or what made the source.
         const std::string name;
         const vsg::ref_ptr<const ControllerMap> controllers;
@@ -58,6 +82,9 @@ namespace Anim
 
     private:
         std::map<std::string, Group, std::less<>> mGroups;
+        mutable std::once_flag mClipOnce;
+        mutable std::shared_ptr<const void> mClip;
+        mutable const std::type_info* mClipType = nullptr;
     };
 }
 

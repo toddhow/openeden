@@ -429,6 +429,10 @@ namespace MWMechanics
         void updateStrideShape(float duration);
         /// Creates the IK controller and, when a CreativeMotion setting is on, the pose driver for mAnimation's bones.
         void createPoseControllers();
+        /// With the comparison mode on (the driver compares and Play writes the bones): logs one CMCOMPARE line with
+        /// the largest difference of each bone group over the driver's life (task 0124, stage C2). Called before the
+        /// driver goes.
+        void reportPoseComparison() const;
         /// Picks the actor's style (console choice, else the rules of task 0053) and gives it to the pose driver.
         void configureStyle();
         /// The style the rules or the console choice give this actor, or null (main thread: may read the VFS).

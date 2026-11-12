@@ -106,6 +106,11 @@ namespace MWAnim
 
     void Play::setAccumulation(const vsg::vec3& accum)
     {
+        // Task 0124, stage C2: one value for both uses. It used to reach only the playing source's reset channel,
+        // so the movement (updatePosition) and the velocity kept the previous axes while the bone showed the new ones,
+        // and the next arbitration put the old axes back. OpenMW 0.51's Animation::setAccumulation does the same as
+        // this.
+        mAccumulate = accum;
         if (mResetAccum)
             mResetAccum->setAccumulate(accum);
     }
@@ -147,7 +152,7 @@ namespace MWAnim
                 replaceAccumCtrl = resetCtrl;
             }
         }
-        anim->set = vsg::ref_ptr<const Anim::AnimSet>(new Anim::AnimSet(map, debugName));
+        anim->set = Anim::AnimSet::forSource(map, debugName);
         anim->tags = anim->set->tags; // never null: a source with no text keys has an empty table
         mAnimSources.emplace_back(std::move(anim));
     }
@@ -473,7 +478,8 @@ namespace MWAnim
         if (const float* time = mControllerGroups[boneGroup].time)
             for (const auto& [name, state] : mStates)
                 if (&state.time == time)
-                    return { state.source != nullptr ? state.source->ref.get() : nullptr, name, state.time };
+                    return { state.source != nullptr ? state.source->ref.get() : nullptr,
+                        state.source != nullptr ? state.source->set.get() : nullptr, name, state.time };
         return {};
     }
 
