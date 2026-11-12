@@ -485,6 +485,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isSpellTarget(subject, c.mParam1));
         }
 
+        // 638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting)
+        float isInFriendStateWithPlayerFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.inFriendStateWithPlayer(subject));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -493,7 +499,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 76> sTable = { {
+        constexpr std::array<Entry, 77> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 18, getCurrentTime },
@@ -567,6 +573,7 @@ namespace game_skyrimse::conditions
             { 629, getVMQuestVariable },
             { 630, getVMScriptVariable },
             { 635, isInFavorStateFn },
+            { 638, isInFriendStateWithPlayerFn },
             { 640, getActorValuePercent },
             { 654, getBribeSuccess },
             { 655, getIntimidateSuccess },

@@ -76,3 +76,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_415 GetGroupMemberCount (= GetCombatGroupMemberCount, combat group size), fn_594 GetIsFlying (CK wiki pages toddhow showed). Red, then 77 of 77.
 - 2026-11-11: fn_125 IsGuard, fn_274 IsSmallBump (CK wiki pages toddhow showed). Red, then 79 of 79.
 - 2026-11-11: fn_223 IsSpellTarget(spell, enchantment, ingredient or potion) (CK wiki page toddhow showed). Red, then 80 of 80.
+- 2026-11-11: fn_638 IsInFriendStateWithPlayer (CK wiki page toddhow showed: bribed, intimidated, or relationship at least iRelationshipFriendValue). Red, then 81 of 81. Real data: 31,837 of 32,148 lists (99.0 percent); unknown conditions 340 (0.44 percent), 46 distinct functions.

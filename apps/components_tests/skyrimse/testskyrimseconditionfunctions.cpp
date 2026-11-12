@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        bool mInFriendStateWithPlayerFlag = true;
+        bool inFriendStateWithPlayer(Subject s) const override { return s == mSubject && mInFriendStateWithPlayerFlag; }
         bool isSpellTarget(Subject s, std::uint32_t m) const override { return s == mSubject && m == 0x1D0; }
         bool mIsSmallBumpFlag = true;
         bool isSmallBump(Subject s) const override { return s == mSubject && mIsSmallBumpFlag; }
@@ -741,6 +743,18 @@ namespace
         EXPECT_TRUE(run(cond(223, kEq, 0.f, 0x1D1), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(223, kEq, 0.f, 0x1D0), w));
+    }
+
+    // fn_638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting).
+    TEST(SkyrimConditionFunctions, fn_638_isInFriendStateWithPlayer)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(638, kEq, 1.f), w));
+        w.mInFriendStateWithPlayerFlag = false;
+        EXPECT_TRUE(run(cond(638, kEq, 0.f), w));
+        w.mInFriendStateWithPlayerFlag = true;
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(638, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
