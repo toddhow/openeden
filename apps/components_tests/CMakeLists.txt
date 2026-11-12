@@ -520,6 +520,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actors.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/terrain_source.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey.cpp
