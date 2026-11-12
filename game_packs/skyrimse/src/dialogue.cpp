@@ -636,6 +636,12 @@ namespace game_skyrimse
         return ids;
     }
 
+    namespace
+    {
+        constexpr FormId kPlayerReference = 0x00000014;
+        constexpr FormId kPlayerBase = 0x00000007;
+    }
+
     // ---- SkyrimConditionWorld ------------------------------------------------------------------------------------
 
     SkyrimConditionWorld::SkyrimConditionWorld(const ActorIndex& actors, const DialogueIndex& dialogue)
@@ -675,6 +681,11 @@ namespace game_skyrimse
                 return true;
             case 149: // GetIsCurrentWeather
                 return mWeather != kNullFormId;
+            case 56: // GetQuestRunning
+            case 58: // GetStage
+            case 59: // GetStageDone
+            case 543: // GetQuestCompleted
+                return questKnown(c.mParam1);
             default:
                 break;
         }
@@ -684,9 +695,13 @@ namespace game_skyrimse
             case 0:
                 break;
             case 1:
-                return c.mFunction == 72;
+                return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
             case 2:
                 if (mSpeaker.mReference == kNullFormId || resolve(c.mReference) != mSpeaker.mReference)
+                    return false;
+                break;
+            case 5: // a quest alias: answerable when the alias is the speaker (the data fills it)
+                if (!aliasKnown(c.mParam3) || !aliasIsSpeaker(mContextQuest, c.mParam3))
                     return false;
                 break;
             default:
@@ -694,6 +709,8 @@ namespace game_skyrimse
         }
         switch (c.mFunction)
         {
+            case 566: // GetIsAliasRef
+                return aliasKnown(c.mParam1);
             case 69: // GetIsRace
             case 70: // GetIsSex
             case 71: // GetInFaction
@@ -711,6 +728,22 @@ namespace game_skyrimse
             default:
                 return false;
         }
+    }
+
+    bool SkyrimConditionWorld::aliasKnown(std::uint32_t alias) const
+    {
+        // answered only when the fact the comparison needs is given: a reference fill needs the speaker's reference,
+        // a unique actor his base; the player's alias needs neither
+        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+            return false;
+        const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+        if (!fill.mKnown)
+            return false;
+        if (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase)
+            return true;
+        if (fill.mReference != kNullFormId)
+            return mSpeaker.mReference != kNullFormId;
+        return mSpeaker.mBase != kNullFormId;
     }
 
     conditions::Subject SkyrimConditionWorld::resolveRunOn(std::uint32_t runOn, std::uint32_t reference) const
@@ -854,6 +887,71 @@ namespace game_skyrimse
         return isSpeaker(subject) && list != kNullFormId && inList(list, mSpeaker.mBase, 0);
     }
 
+    // ---- quests (task 0138) ----------------------------------------------------------------------------------
+
+    bool SkyrimConditionWorld::questKnown(std::uint32_t storedQuest) const
+    {
+        return mQuestState != nullptr && mQuestState->exists(resolve(storedQuest));
+    }
+
+    float SkyrimConditionWorld::questStage(std::uint32_t quest) const
+    {
+        return mQuestState != nullptr ? mQuestState->stage(resolve(quest)) : 0.f;
+    }
+
+    bool SkyrimConditionWorld::questStageDone(std::uint32_t quest, std::uint32_t stage) const
+    {
+        return mQuestState != nullptr && mQuestState->stageDone(resolve(quest), stage);
+    }
+
+    bool SkyrimConditionWorld::questRunning(std::uint32_t quest) const
+    {
+        return mQuestState != nullptr && mQuestState->running(resolve(quest));
+    }
+
+    bool SkyrimConditionWorld::questCompleted(std::uint32_t quest) const
+    {
+        return mQuestState != nullptr && mQuestState->completed(resolve(quest));
+    }
+
+    bool SkyrimConditionWorld::aliasIsSpeaker(FormId quest, std::uint32_t alias) const
+    {
+        if (mQuestState == nullptr || quest == kNullFormId)
+            return false;
+        const AliasFill fill = mQuestState->aliasFill(quest, alias);
+        if (!fill.mKnown)
+            return false;
+        if (fill.mReference != kNullFormId)
+            return mSpeaker.mReference != kNullFormId && fill.mReference == mSpeaker.mReference;
+        return fill.mActor != kNullFormId && mSpeaker.mBase != kNullFormId && fill.mActor == mSpeaker.mBase;
+    }
+
+    bool SkyrimConditionWorld::isAliasRef(conditions::Subject subject, std::uint32_t alias) const
+    {
+        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+            return false;
+        if (subject == kPlayer)
+        {
+            const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+            return fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase);
+        }
+        return isSpeaker(subject) && aliasIsSpeaker(mContextQuest, alias);
+    }
+
+    conditions::Subject SkyrimConditionWorld::resolveSubject(const survey::Ctda& c) const
+    {
+        if (c.mRunOn != 5) // quest alias: the alias id is in parameter 3
+            return resolveRunOn(c.mRunOn, c.mReference);
+        if (mQuestState == nullptr || mContextQuest == kNullFormId)
+            return 0;
+        if (aliasIsSpeaker(mContextQuest, c.mParam3))
+            return static_cast<conditions::Subject>(mSpeaker.mBase);
+        const AliasFill fill = mQuestState->aliasFill(mContextQuest, c.mParam3);
+        if (fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase))
+            return kPlayer;
+        return 0;
+    }
+
     // ---- selection -----------------------------------------------------------------------------------------------
 
     std::uint32_t unansweredConditions(const DialogInfo& info, const SkyrimConditionWorld& world)
@@ -889,10 +987,37 @@ namespace game_skyrimse
                 continue;
             if (!info->mConditionsOk)
                 continue;
+            world.setQuestContext(quest);
+            // the quest's own dialogue conditions gate all of its dialogue
+            bool questUncertain = false;
+            if (options.mQuests != nullptr)
+            {
+                if (const QuestRecord* record = options.mQuests->quest(quest))
+                {
+                    if (!record->mConditionsOk)
+                        continue;
+                    if (!record->mConditions.empty())
+                    {
+                        world.setPlugin(&options.mQuests->resolverOf(*record));
+                        const bool questPass = eval.evaluate(record->mConditions, world);
+                        for (const survey::Ctda& c : record->mConditions)
+                            questUncertain = questUncertain || !world.answers(c);
+                        world.setPlugin(nullptr);
+                        if (!questPass)
+                        {
+                            if (result.mInfo == nullptr && questUncertain)
+                                ++result.mUncertainBefore;
+                            continue;
+                        }
+                    }
+                }
+            }
             world.setPlugin(&index.resolverOf(*info));
             const bool pass = eval.evaluate(info->mConditions, world);
+            // counted with the INFO's plugin set: the answers resolve the stored ids through it
+            const bool uncertain = questUncertain || unansweredConditions(*info, world) > 0;
             world.setPlugin(nullptr);
-            if (result.mInfo == nullptr && unansweredConditions(*info, world) > 0)
+            if (result.mInfo == nullptr && uncertain)
                 ++result.mUncertainBefore;
             if (!pass)
                 continue;
@@ -906,6 +1031,7 @@ namespace game_skyrimse
             if ((info->mFlags & InfoFlags::Random) != 0)
                 randoms.push_back(info);
         }
+        world.setQuestContext(kNullFormId);
         if (!randoms.empty())
             result.mInfo = randoms[options.mPick % randoms.size()];
         return result;

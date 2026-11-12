@@ -34,6 +34,7 @@
 
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/conditions.hpp>
+#include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 
 #include <components/contentsource/plugin.hpp>
@@ -237,6 +238,16 @@ namespace game_skyrimse
 
         void setSpeaker(const DialogueSpeaker& speaker);
         void setCurrentWeather(FormId weather) { mWeather = weather; }
+        /// Quest data and state (task 0138). Both null (the default): no quest is known, every quest function keeps the
+        /// default answer (stage 0, nothing done, not running) and `answers` says so.
+        void setQuests(const QuestIndex* index, const QuestState* state)
+        {
+            mQuestIndex = index;
+            mQuestState = state;
+        }
+        /// The quest that owns the condition list being evaluated (GetIsAliasRef and run-on quest alias read it).
+        /// selectInfo sets it from the INFO's quest, else the topic's.
+        void setQuestContext(FormId quest) { mContextQuest = quest; }
         /// The plugin whose stored ids the next queries use (nullptr: ids are taken as load-order ids).
         void setPlugin(const FormIdResolver* resolver) { mResolver = resolver; }
 
@@ -247,8 +258,12 @@ namespace game_skyrimse
         // ConditionWorld
         conditions::Subject resolveRunOn(std::uint32_t runOn, std::uint32_t reference) const override;
         bool hasBaseId(conditions::Subject subject, std::uint32_t formId) const override;
-        float questStage(std::uint32_t) const override { return 0.f; }
-        bool questStageDone(std::uint32_t, std::uint32_t) const override { return false; }
+        float questStage(std::uint32_t quest) const override;
+        bool questStageDone(std::uint32_t quest, std::uint32_t stage) const override;
+        bool questRunning(std::uint32_t quest) const override;
+        bool questCompleted(std::uint32_t quest) const override;
+        bool isAliasRef(conditions::Subject subject, std::uint32_t alias) const override;
+        conditions::Subject resolveSubject(const survey::Ctda& condition) const override;
         bool inFaction(conditions::Subject subject, std::uint32_t faction) const override;
         float globalValue(std::uint32_t global) const override;
         bool hasVoiceType(conditions::Subject subject, std::uint32_t voiceOrList) const override;
@@ -275,16 +290,28 @@ namespace game_skyrimse
         bool mHasResolved = false;
         FormId mWeather = kNullFormId;
         const FormIdResolver* mResolver = nullptr;
+        const QuestIndex* mQuestIndex = nullptr;
+        const QuestState* mQuestState = nullptr;
+        FormId mContextQuest = kNullFormId;
+
+        [[nodiscard]] bool aliasIsSpeaker(FormId quest, std::uint32_t alias) const; ///< filled by data, with the speaker
+        [[nodiscard]] bool questKnown(std::uint32_t storedQuest) const;
+        [[nodiscard]] bool aliasKnown(std::uint32_t alias) const; ///< the context quest's alias is filled from data
     };
 
     // ---- choosing a response ------------------------------------------------------------------------------------
 
     struct SelectionOptions
     {
-        /// Is the topic's (or INFO's) quest running? Null: every quest counts as running (slice 1 loads no quests).
+        /// Is the topic's (or INFO's) quest running? Null: every quest counts as running. With a `QuestState`, give
+        /// `[&](FormId q) { return !state.exists(q) || state.running(q); }` (an unknown quest is not held back).
         std::function<bool(FormId quest)> mQuestRunning;
         /// Has this say-once INFO been said? Null: nothing has.
         std::function<bool(FormId info)> mSaid;
+        /// The quests, so that an INFO of a quest is skipped when the quest's own dialogue conditions fail (quest.hpp,
+        /// QuestRecord::mConditions; RECALLED-VERIFY: they gate all of the quest's dialogue). Null: not asked. The
+        /// world needs `setQuests` for the conditions that read quest state.
+        const QuestIndex* mQuests = nullptr;
         /// Chooses among INFOs with the Random flag that pass: index = pick % count (the caller draws it).
         std::uint32_t mPick = 0;
     };

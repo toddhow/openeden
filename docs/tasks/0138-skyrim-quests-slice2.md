@@ -1,0 +1,30 @@
+# Task: Skyrim SE quests (QUST), a pure quest state, and quest-aware dialogue conditions (M-S4, slice 2)
+
+Status: built (same hand wrote tests and code, tests first against stubs; no fresh reviewer; Windows only; see the stage log).
+Design doc section: `docs/design/skyrim-se-implementation-plan.md` sections 4.20 (dialogue and quests), 4.16 (conditions), milestone M-S4 "talk to an NPC"; decision 1 of `docs/tasks/0137-skyrim-dialogue-slice1.md` ("QUST next, the alias fill (fn_566) as its own step"). Approved under toddhow's blanket "go with your recommendations"; full loop, D13 (pack code that feeds rules; a lighter loop needs toddhow's marking).
+Goal: decode QUST from the five masters, keep a pure model of the quests' run-time state that starts from what the data alone says, and let the dialogue conditions world answer GetStage, GetStageDone, GetQuestRunning, GetQuestCompleted and GetIsAliasRef (and a condition run on a quest alias) from it, so that the response a Hello topic gives is decided by quest state instead of by "every quest runs at stage 0".
+Inherited code touched: none. New: `game_packs/skyrimse/{include/game_skyrimse,src}/quest.*`. Edited (pack side): `dialogue.hpp/.cpp` (`SkyrimConditionWorld` gains `setQuests`, `setQuestContext` and the quest overrides; `selectInfo` sets the quest context of each INFO), CMake lists of `game_packs/skyrimse` and `apps/components_tests`, `tools/skyrimse_quest_check/check.sh`, the pack's `CLAUDE.md`. Reuses `conditions.*` (`ConditionWorld`, `Evaluator`), `survey::decodeCtda` / `forEachSubrecord`, `records.*` (`LoadOrder`, `FormIdResolver`, `LString`, `RecordCommon`).
+Inputs / outputs: plugins in, `QuestRecords` / `QuestIndex` / `QuestState` (+ `InitialStateReport`) out; a `SkyrimConditionWorld` that is given `setQuests(index, state)` answers more.
+Constraints: pack side only (no UI, no scripts, no change to the engine's dialogue manager, no SDK change); nothing in the engine calls it, so Morrowind is unchanged by construction; hostile input capped and located like `dialogue.cpp`; deterministic (no clock, no randomness; iteration over sorted ids); `QuestState` is plain data, not thread safe.
+Acceptance criteria:
+- [x] QUST is decoded: flags, priority, type, event, filter, next alias id, the quest's dialogue conditions, stages with their log entries (flags, conditions, text, next quest), objectives with targets, aliases with their fill. Every layout fact VERIFIED on the user's data or marked RECALLED-VERIFY in `quest.hpp`.
+- [x] A load-order merge keeps one record per form id (a later plugin replaces the whole record, a deleted one is removed).
+- [x] `QuestState::initial`: start-game-enabled quests run, at their start up stage (lowest index) if they have one, else at stage 0; quests with the Completed flag are completed; specific-reference and unique-actor aliases are filled from data, every other alias is left empty and counted.
+- [x] `SkyrimConditionWorld` answers fn_58, fn_59, fn_56, fn_543 from the state, fn_566 from the alias fills (for the context quest: the INFO's, else the topic's), and a condition run on a quest alias (run-on 5) when the alias is the speaker; `answers()` says which of these come from data.
+- [x] Tests written first and shown red against stubs (generated plugins); mutations caught; a gated real-data run (aggregates) with an independent cross-check of the record counts.
+- [x] With the engine untouched nothing changes in Morrowind.
+Out of scope: running scripts (Papyrus fragments in VMAD and SCHR/SCTX are not read; fn_629 GetVMQuestVariable stays unanswered), starting quests from events or dialogue, filling conditional aliases (find matching reference, near alias, location aliases, created objects, events), the quest log or objective UI, scenes, favor and persuasion, save and load of the quest state, the engine's dialogue manager.
+
+## Decisions (RECALLED-VERIFY unless the data shows them)
+
+- **Running.** A quest that does not start enabled is not running. A start-enabled quest runs from the start. `setStage` starts a quest that does not run (the game does, RECALLED-VERIFY) and a completing log entry sets Completed; a shut down stage stops it. Completing does not stop it.
+- **Initial stage.** A start-enabled quest with a start up stage (INDX flag 0x2) begins at the lowest such stage, with it done (RECALLED-VERIFY that the game runs start up stages when a quest starts; the data has 108 start-enabled quests with exactly one, none with two, 3 other quests with two). Without one it is at stage 0 with nothing done.
+- **Aliases.** Only a specific reference (ALFR) and a unique actor (ALUA) are filled from data. A unique actor's fill is the NPC_: every reference of that base is the alias (the speaker's base is compared). A specific reference is compared with the speaker's reference. The player is `0x14` (reference) or `0x7` (NPC_). All aliases are filled in the initial state, also those of quests that do not run yet (a quest's aliases fill when it starts; a non-running quest's INFOs are skipped anyway).
+- **Context.** The condition list of an INFO belongs to the INFO's QNAM quest, else its topic's. `selectInfo` sets it before it evaluates and counts unanswered conditions, and clears it at the end. A caller that calls `answers()` itself sets it with `setQuestContext`.
+- **Run-on quest alias (5).** The alias id is in parameter 3 (xEdit's wbConditions, RECALLED-VERIFY). If the alias is the speaker the subject is the speaker; if it is the player, the player; otherwise nobody, and `answers()` says no.
+- **Unknown quests.** A quest id the index does not hold is not answered (`answers()` false); GetStage on it is 0, GetStageDone and GetQuestRunning false, as before. The `SelectionOptions::mQuestRunning` predicate the caller writes should not hold back a quest the index does not know.
+- **Stage ids.** A stage index is a u16 (INDX); `setStage` takes any number, only stages that exist carry flags.
+
+## Stage log
+
+(see below, filled in after the runs)
