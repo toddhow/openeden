@@ -54,6 +54,7 @@ content=n3a3save.omwscripts
 CFG
 # Task 0121: "n5actors" visits each neutral actor of the Bannered Mare and takes a picture of it (use at least 1500 frames).
 [ "$SHOT" = n5actors ] && echo "content=n5actors.omwscripts" >> "$WORK/config/openmw.cfg"
+[ "$SHOT" = n5idle ] && echo "content=n5idle.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0131 stage N3a-6: "ms0sweep" runs the Lua API sweep over the neutral cell (use at least 1500 frames).
 [ "$SHOT" = ms0sweep ] && echo "content=ms0sweep.omwscripts" >> "$WORK/config/openmw.cfg"
@@ -83,7 +84,7 @@ cd "$BUILD"
 set +e
 OPENEDEN_SKYRIMSE_PROBE_CELL="$CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

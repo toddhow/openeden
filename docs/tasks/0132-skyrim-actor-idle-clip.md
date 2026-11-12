@@ -12,7 +12,7 @@ behind the setting), `components/settings/categories/game.hpp` (one setting).
 
 New code:
 - `components/havokpack/idle.{hpp,cpp}` (formats layer, standard library only): `skeletonHkxPath`, `clipHkxPath`
-  (`<actor folder>/animations/mt_idle.hkx` from the skeleton model's path), `bindClip` (the lower-case bone name of every
+  (`<actor folder>/animations/h2h_idle.hkx` from the skeleton model's path), `bindClip` (the lower-case bone name of every
   track), `loopTime`, `samplePose`. No new format fact: it uses task 0119's decoder as it is (provenance F13 to F36; nothing
   outside was read, nothing decompiled).
 - `apps/openmw/mwrender/skyrimidle.{hpp,cpp}`: `loadIdle` (VFS read of the skeleton `.hkx` and the clip `.hkx`, decode, bind;
@@ -29,7 +29,7 @@ skeleton uses those nodes. When M-S3 proper brings Skyrim locomotion on Creative
 by the pose driver playing an `AnimSet`; the decoder, binding and paths stay.
 
 Inputs / outputs: reads `meshes/actors/character/character assets/skeleton.hkx` (and the female folder's) and
-`meshes/actors/character/animations/mt_idle.hkx` through the VFS (`Skyrim - Animations.bsa` must be in the archive list);
+`meshes/actors/character/animations/h2h_idle.hkx` through the VFS (`Skyrim - Animations.bsa` must be in the archive list);
 writes nothing (no cache file: decoding one skeleton and one clip is cheap, measured below). Root motion is not applied.
 
 Constraints:
@@ -37,7 +37,7 @@ Constraints:
 - Determinism: no random numbers, no clock. The start phase of each actor is a fixed hash of its reference id.
 - Hot path: `Controller::run` allocates nothing (sample into a scratch sized at construction).
 - Threads: `loadIdle` is called on the main thread; `run` on whichever thread updates that object, one at a time.
-- Failure policy: a missing or damaged file, a skeleton without the clip's bones, or a creature skeleton with no `mt_idle`
+- Failure policy: a missing or damaged file, a skeleton without the clip's bones, or a creature skeleton with no `h2h_idle`
   leaves the rest pose and logs one Info line per actor; nothing throws.
 
 Acceptance criteria:

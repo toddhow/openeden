@@ -2,7 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 #include <limits>
 
 #include "splinegen.hpp"
@@ -60,7 +65,7 @@ TEST(HavokIdlePaths, the_skeleton_hkx_replaces_the_extension)
 TEST(HavokIdlePaths, the_clip_is_in_the_animations_folder_of_the_actor_folder)
 {
     EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif"),
-        "meshes/actors/character/animations/mt_idle.hkx");
+        "meshes/actors/character/animations/h2h_idle.hkx");
     EXPECT_EQ(clipHkxPath("actors\\character\\character assets female\\skeleton_female.nif", "Idle"),
         "meshes/actors/character/animations/idle.hkx");
     EXPECT_EQ(clipHkxPath("skeleton.nif"), "");
@@ -119,4 +124,34 @@ TEST(HavokIdleSample, a_wrong_output_size_is_ignored_not_written)
     out[0].mTranslation = { 9, 9, 9 };
     samplePose(bound, 0.1f, out);
     EXPECT_FLOAT_EQ(out[0].mTranslation[0], 9.0f);
+}
+
+// Opt-in: OPENEDEN_HAVOK_IDLE_ROOT names a folder holding the extracted game files (it contains meshes/actors/character).
+// Decodes the humanoid skeleton and idle clip, binds them, and times one sample of all tracks.
+TEST(HavokIdleRealData, the_humanoid_idle_binds_to_the_humanoid_skeleton_and_samples_quickly)
+{
+    const char* root = std::getenv("OPENEDEN_HAVOK_IDLE_ROOT");
+    if (root == nullptr)
+        GTEST_SKIP() << "OPENEDEN_HAVOK_IDLE_ROOT is not set";
+    const std::string nif = "meshes/actors/character/character assets/skeleton.nif";
+    auto read = [&](const std::string& rel) {
+        std::ifstream in(std::string(root) + "/" + rel, std::ios::binary);
+        EXPECT_TRUE(in.good()) << rel;
+        return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    const auto skeletons = readSkeletons(Packfile::parse(read(skeletonHkxPath(nif))));
+    ASSERT_FALSE(skeletons.empty());
+    auto clips = readClips(Packfile::parse(read(clipHkxPath(nif))));
+    ASSERT_FALSE(clips.empty());
+    const BoundClip bound = bindClip(skeletons[0], std::move(clips[0]));
+    std::vector<Transform> out(bound.mClip.mNumTransformTracks);
+    const auto begin = std::chrono::steady_clock::now();
+    constexpr int runs = 20000;
+    for (int i = 0; i < runs; ++i)
+        samplePose(bound, 0.0013f * static_cast<float>(i), out);
+    const double micros
+        = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - begin).count() / runs;
+    std::cout << "IDLE tracks " << bound.mClip.mNumTransformTracks << " bones " << skeletons[0].mBoneNames.size()
+              << " duration " << bound.mClip.mDuration << " s, " << micros << " microseconds per sample of all tracks\n";
+    EXPECT_GT(bound.mClip.mDuration, 1.0f);
 }

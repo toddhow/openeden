@@ -23,7 +23,7 @@ namespace HavokPack
     // The clip file `clipName` beside the actor's skeleton folder: "<actor folder>/animations/<clipName>.hkx", with
     // the actor folder being the skeleton model's folder's parent. Lower case, forward slashes, "meshes/" first.
     // Empty when the path has no such parent.
-    std::string clipHkxPath(std::string_view skeletonNifPath, std::string_view clipName = "mt_idle");
+    std::string clipHkxPath(std::string_view skeletonNifPath, std::string_view clipName = "h2h_idle");
 
     // A clip with the lower-case name of the bone each track drives.
     struct BoundClip
