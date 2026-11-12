@@ -6,6 +6,7 @@ openeden_add_game_pack(skyrimse
         src/pack_core.cpp
         src/records.cpp
         src/actors.cpp
+        src/dialogue.cpp
         src/appearance.cpp
         src/land.cpp
         src/worldspace.cpp
@@ -27,6 +28,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/pack_core.hpp
         include/game_skyrimse/records.hpp
         include/game_skyrimse/actors.hpp
+        include/game_skyrimse/dialogue.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
         include/game_skyrimse/worldspace.hpp
@@ -61,6 +63,7 @@ add_library(game_skyrimse_world STATIC
     src/pack_core.cpp
     src/records.cpp
     src/actors.cpp
+    src/dialogue.cpp
     src/appearance.cpp
     src/land.cpp
     src/worldspace.cpp

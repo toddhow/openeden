@@ -519,6 +519,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseasyncindex.cpp
     skyrimse/testskyrimserecords.cpp
     skyrimse/testskyrimseactors.cpp
+    skyrimse/testskyrimsedialogue.cpp
+    skyrimse/testskyrimsedialoguereal.cpp
     skyrimse/testskyrimseappearance.cpp
     skyrimse/testskyrimseappearancereal.cpp
     skyrimse/testskyrimseactorsreal.cpp
@@ -549,6 +551,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pack_core.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/records.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actors.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dialogue.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp

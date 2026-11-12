@@ -1,0 +1,938 @@
+#include "game_skyrimse/dialogue.hpp"
+
+#include "game_skyrimse/pack_core.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <sstream>
+
+// Layout status of every subrecord read here: see the header (task 0137). VERIFIED on the five installed Skyrim SE
+// masters by tools/skyrimse_dialogue_check; RECALLED-VERIFY where the header says so. Nothing is copied from xEdit or
+// the Creation Kit wiki.
+
+namespace game_skyrimse
+{
+    namespace
+    {
+        template <class T>
+        T readLe(const std::byte* p)
+        {
+            T value;
+            std::memcpy(&value, p, sizeof(T));
+            return value;
+        }
+
+        std::string tag(std::uint32_t type)
+        {
+            return Content::fourCCToString(type);
+        }
+
+        Content::Error makeError(const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
+        {
+            Content::Error error;
+            error.mFile = file;
+            error.mOffset = offset;
+            error.mRecordType = type;
+            error.mMessage = std::move(message);
+            return error;
+        }
+
+        class DialogueParser final : public Content::Visitor
+        {
+        public:
+            DialogueParser(const Content::Plugin& plugin, const FormIdResolver& resolver, const DialogueLimits& limits,
+                DialogueRecords& out)
+                : mPlugin(plugin)
+                , mResolver(resolver)
+                , mLimits(limits)
+                , mOut(out)
+                , mLocalized(plugin.header().isLocalized())
+            {
+            }
+
+            bool onGroupBegin(const Content::GroupInfo& group) override
+            {
+                if (group.mType == 7)
+                {
+                    mInTopicGroup = true;
+                    mGroupTopic = resolved(group.mLabel);
+                }
+                return true;
+            }
+
+            bool onGroupEnd(const Content::GroupInfo& group) override
+            {
+                if (group.mType == 7)
+                {
+                    mInTopicGroup = false;
+                    mGroupTopic = kNullFormId;
+                }
+                return true;
+            }
+
+            bool onRecord(const Content::RawRecord& record) override
+            {
+                switch (record.mType)
+                {
+                    case Content::fourCC("DIAL"):
+                    case Content::fourCC("INFO"):
+                    case Content::fourCC("GLOB"):
+                    case Content::fourCC("FLST"):
+                        break;
+                    default:
+                        return true;
+                }
+                TypeCount& count = mOut.mCounts[record.mType];
+                ++count.mSeen;
+                if ((record.mFlags & RecordFlags::Deleted) != 0)
+                    ++count.mDeleted;
+                if (count.mParsed >= mLimits.mMaxRecordsPerType)
+                {
+                    fail(record, "more than " + std::to_string(mLimits.mMaxRecordsPerType) + " records of one type");
+                    return true;
+                }
+                std::span<const std::byte> bytes = record.mData;
+                if (record.isCompressed())
+                {
+                    if (record.mUncompressedSize > mLimits.mMaxRecordBytes)
+                    {
+                        fail(record, "the record inflates to " + std::to_string(record.mUncompressedSize)
+                                + " bytes, over the limit of " + std::to_string(mLimits.mMaxRecordBytes));
+                        return true;
+                    }
+                    Content::Error error;
+                    if (!inflateRecord(record, mPlugin.name(), mInflated, error))
+                    {
+                        addError(error, record.mType);
+                        return true;
+                    }
+                    bytes = mInflated;
+                }
+                else if (record.mDataSize > mLimits.mMaxRecordBytes)
+                {
+                    fail(record, "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
+                            + std::to_string(mLimits.mMaxRecordBytes));
+                    return true;
+                }
+
+                mWhy.clear();
+                mCurrentType = record.mType;
+                bool ok = false;
+                switch (record.mType)
+                {
+                    case Content::fourCC("DIAL"):
+                        ok = readTopic(record, bytes);
+                        break;
+                    case Content::fourCC("INFO"):
+                        ok = readInfo(record, bytes);
+                        break;
+                    case Content::fourCC("GLOB"):
+                        ok = readGlobal(record, bytes);
+                        break;
+                    default:
+                        ok = readFormList(record, bytes);
+                        break;
+                }
+                if (ok)
+                    ++count.mParsed;
+                else
+                    fail(record, mWhy);
+                return true;
+            }
+
+        private:
+            void addError(Content::Error error, std::uint32_t type)
+            {
+                ++mOut.mCounts[type].mFailed;
+                if (mOut.mErrors.size() < mLimits.mMaxErrors)
+                    mOut.mErrors.push_back(std::move(error));
+                else
+                    ++mOut.mErrorsDropped;
+            }
+
+            void fail(const Content::RawRecord& record, std::string message)
+            {
+                addError(makeError(mPlugin.name(), record.mOffset, record.mType, std::move(message)), record.mType);
+            }
+
+            void odd(std::uint32_t sub)
+            {
+                ++mOut.mOddSubrecords;
+                ++mOut.mOddBy[tag(mCurrentType) + "." + tag(sub)];
+            }
+
+            FormId resolved(std::uint32_t stored)
+            {
+                const std::optional<FormId> id = mResolver.resolve(stored);
+                if (!id)
+                {
+                    ++mOut.mUnresolvedFormIds;
+                    return kUnresolvedFormId;
+                }
+                return *id;
+            }
+
+            RecordCommon common(const Content::RawRecord& record)
+            {
+                RecordCommon c;
+                c.mStoredId = record.mFormId;
+                c.mId = resolved(record.mFormId);
+                c.mFlags = record.mFlags;
+                c.mOffset = record.mOffset;
+                return c;
+            }
+
+            bool zstring(std::uint32_t sub, std::span<const std::byte> data, std::string& out)
+            {
+                if (data.size() > mLimits.mMaxStringBytes)
+                {
+                    mWhy = "subrecord " + tag(sub) + " is " + std::to_string(data.size())
+                        + " bytes, over the string limit of " + std::to_string(mLimits.mMaxStringBytes);
+                    return false;
+                }
+                const char* begin = reinterpret_cast<const char*>(data.data());
+                const void* nul = data.empty() ? nullptr : std::memchr(begin, '\0', data.size());
+                out.assign(begin, nul != nullptr ? static_cast<const char*>(nul) : begin + data.size());
+                return true;
+            }
+
+            bool lstring(std::uint32_t sub, std::span<const std::byte> data, LString& out)
+            {
+                if (mLocalized)
+                {
+                    if (data.size() != 4)
+                    {
+                        odd(sub);
+                        return true;
+                    }
+                    out.mPresent = true;
+                    out.mLocalized = true;
+                    out.mId = readLe<std::uint32_t>(data.data());
+                    return true;
+                }
+                out.mPresent = true;
+                return zstring(sub, data, out.mText);
+            }
+
+            bool formField(std::uint32_t sub, std::span<const std::byte> data, FormId& out)
+            {
+                if (data.size() != 4)
+                {
+                    odd(sub);
+                    return true;
+                }
+                out = resolved(readLe<std::uint32_t>(data.data()));
+                return true;
+            }
+
+            /// Runs `each` over the subrecords; a framing fault fails the record.
+            template <class F>
+            bool walkSubs(std::span<const std::byte> bytes, F&& each)
+            {
+                bool good = true;
+                const bool wellFormed = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
+                    if (good)
+                        good = each(sub.mType, sub.mData);
+                });
+                if (!wellFormed && mWhy.empty())
+                {
+                    mWhy = "a subrecord is cut short or claims more bytes than the record holds";
+                    return false;
+                }
+                return good;
+            }
+
+            bool readTopic(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                DialogTopic t;
+                t.mCommon = common(record);
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            return zstring(type, data, t.mCommon.mEditorId);
+                        case Content::fourCC("FULL"):
+                            return lstring(type, data, t.mName);
+                        case Content::fourCC("PNAM"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            t.mPriority = readLe<float>(data.data());
+                            if (!std::isfinite(t.mPriority))
+                            {
+                                t.mPriority = 0.0f;
+                                odd(type);
+                            }
+                            return true;
+                        case Content::fourCC("QNAM"):
+                            return formField(type, data, t.mQuest);
+                        case Content::fourCC("BNAM"):
+                            return formField(type, data, t.mBranch);
+                        case Content::fourCC("DATA"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            t.mHasData = true;
+                            t.mFlags = static_cast<std::uint8_t>(data[0]);
+                            t.mCategory = static_cast<std::uint8_t>(data[1]);
+                            t.mSubtype = readLe<std::uint16_t>(data.data() + 2);
+                            return true;
+                        case Content::fourCC("SNAM"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            t.mSubtypeName.assign(reinterpret_cast<const char*>(data.data()), 4);
+                            return true;
+                        case Content::fourCC("TIFC"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            t.mInfoCount = readLe<std::uint32_t>(data.data());
+                            return true;
+                        default:
+                            return true;
+                    }
+                });
+                if (ok)
+                    mOut.mTopics.push_back(std::move(t));
+                return ok;
+            }
+
+            bool readInfo(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                DialogInfo info;
+                info.mCommon = common(record);
+                if (!mInTopicGroup)
+                    ++mOut.mInfosOutsideTopicGroup;
+                info.mTopic = mGroupTopic;
+                bool tooManyResponses = false;
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            return zstring(type, data, info.mCommon.mEditorId);
+                        case Content::fourCC("ENAM"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            info.mFlags = readLe<std::uint16_t>(data.data());
+                            info.mResetHours = readLe<std::uint16_t>(data.data() + 2);
+                            return true;
+                        case Content::fourCC("CNAM"):
+                            if (data.size() != 1)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            info.mFavorLevel = static_cast<std::uint8_t>(data[0]);
+                            return true;
+                        case Content::fourCC("QNAM"):
+                            return formField(type, data, info.mQuest);
+                        case Content::fourCC("ANAM"):
+                            return formField(type, data, info.mSpeaker);
+                        case Content::fourCC("RNAM"):
+                            return lstring(type, data, info.mPrompt);
+                        case Content::fourCC("TCLT"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            if (info.mLinksTo.size() >= mLimits.mMaxListEntries)
+                            {
+                                mWhy = "more than " + std::to_string(mLimits.mMaxListEntries) + " entries in TCLT";
+                                return false;
+                            }
+                            info.mLinksTo.push_back(resolved(readLe<std::uint32_t>(data.data())));
+                            return true;
+                        case Content::fourCC("TRDT"):
+                        {
+                            if (data.size() != 24)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            if (info.mResponses.size() >= mLimits.mMaxResponses)
+                            {
+                                tooManyResponses = true;
+                                mWhy = "more than " + std::to_string(mLimits.mMaxResponses) + " responses in one INFO";
+                                return false;
+                            }
+                            DialogResponse r;
+                            r.mEmotionType = readLe<std::uint32_t>(data.data());
+                            r.mEmotionValue = readLe<std::uint32_t>(data.data() + 4);
+                            r.mNumber = static_cast<std::uint8_t>(data[12]);
+                            r.mSound = resolved(readLe<std::uint32_t>(data.data() + 16));
+                            r.mUseEmotionAnimation = static_cast<std::uint8_t>(data[20]) != 0;
+                            info.mResponses.push_back(std::move(r));
+                            return true;
+                        }
+                        case Content::fourCC("NAM1"):
+                            if (info.mResponses.empty())
+                            {
+                                odd(type); // a text with no TRDT before it
+                                return true;
+                            }
+                            return lstring(type, data, info.mResponses.back().mText);
+                        default:
+                            return true;
+                    }
+                });
+                (void)tooManyResponses;
+                if (!ok)
+                    return false;
+                std::vector<survey::Ctda> conditions;
+                info.mConditionsOk = conditions::decodeConditions(bytes, conditions);
+                if (conditions.size() > mLimits.mMaxConditions)
+                {
+                    mWhy = "more than " + std::to_string(mLimits.mMaxConditions) + " conditions in one INFO";
+                    return false;
+                }
+                info.mConditions = std::move(conditions);
+                mOut.mInfos.push_back(std::move(info));
+                return true;
+            }
+
+            bool readGlobal(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                GlobalValue g;
+                g.mCommon = common(record);
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            return zstring(type, data, g.mCommon.mEditorId);
+                        case Content::fourCC("FNAM"):
+                            if (data.size() != 1)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            g.mType = static_cast<char>(data[0]);
+                            return true;
+                        case Content::fourCC("FLTV"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            g.mValue = readLe<float>(data.data());
+                            if (!std::isfinite(g.mValue))
+                            {
+                                g.mValue = 0.0f;
+                                odd(type);
+                            }
+                            return true;
+                        default:
+                            return true;
+                    }
+                });
+                if (ok)
+                    mOut.mGlobals.push_back(std::move(g));
+                return ok;
+            }
+
+            bool readFormList(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                FormListRecord f;
+                f.mCommon = common(record);
+                const bool ok = walkSubs(bytes, [&](std::uint32_t type, std::span<const std::byte> data) {
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            return zstring(type, data, f.mCommon.mEditorId);
+                        case Content::fourCC("LNAM"):
+                            if (data.size() != 4)
+                            {
+                                odd(type);
+                                return true;
+                            }
+                            if (f.mEntries.size() >= mLimits.mMaxListEntries)
+                            {
+                                mWhy = "more than " + std::to_string(mLimits.mMaxListEntries) + " entries in LNAM";
+                                return false;
+                            }
+                            f.mEntries.push_back(resolved(readLe<std::uint32_t>(data.data())));
+                            return true;
+                        default:
+                            return true;
+                    }
+                });
+                if (ok)
+                    mOut.mFormLists.push_back(std::move(f));
+                return ok;
+            }
+
+            const Content::Plugin& mPlugin;
+            const FormIdResolver& mResolver;
+            const DialogueLimits& mLimits;
+            DialogueRecords& mOut;
+            const bool mLocalized;
+            std::vector<std::byte> mInflated;
+            std::string mWhy;
+            std::uint32_t mCurrentType = 0;
+            bool mInTopicGroup = false;
+            FormId mGroupTopic = kNullFormId;
+        };
+    }
+
+    bool parseDialogueRecords(const Content::Plugin& plugin, const LoadOrder& order, const DialogueLimits& limits,
+        DialogueRecords& out)
+    {
+        out = DialogueRecords();
+        out.mName = plugin.name();
+        if (!isSkyrimSeHeader(plugin.header()))
+        {
+            out.mWalkError = makeError(plugin.name(), 0, 0, "this plugin is not a Skyrim Special Edition one");
+            return false;
+        }
+        const FormIdResolver resolver(plugin.header(), plugin.name(), order);
+        DialogueParser parser(plugin, resolver, limits, out);
+        const std::optional<Content::Error> error = plugin.walk(parser);
+        if (error)
+        {
+            out.mWalkError = *error;
+            return false;
+        }
+        return true;
+    }
+
+    bool parseDialogueRecordsBytes(const std::string& bytes, const std::string& name, const LoadOrder& order,
+        const DialogueLimits& limits, DialogueRecords& out, Content::Error& error)
+    {
+        const std::unique_ptr<Content::Plugin> plugin
+            = Content::Plugin::open(std::make_unique<std::istringstream>(bytes, std::ios::binary), name, error);
+        if (plugin == nullptr)
+            return false;
+        if (!parseDialogueRecords(*plugin, order, limits, out))
+        {
+            if (out.mWalkError)
+                error = *out.mWalkError;
+            return false;
+        }
+        return true;
+    }
+
+    // ---- DialogueIndex -------------------------------------------------------------------------------------------
+
+    namespace
+    {
+        bool usable(FormId id)
+        {
+            return id != kNullFormId && id != kUnresolvedFormId;
+        }
+    }
+
+    void DialogueIndex::add(DialogueRecords records, FormIdResolver resolver)
+    {
+        const std::uint32_t plugin = static_cast<std::uint32_t>(mResolvers.size());
+        mResolvers.push_back(std::move(resolver));
+        for (DialogTopic& t : records.mTopics)
+        {
+            if (!usable(t.mCommon.mId))
+                continue;
+            if (t.mCommon.deleted())
+            {
+                mTopics.erase(t.mCommon.mId);
+                continue;
+            }
+            t.mPlugin = plugin;
+            mTopics[t.mCommon.mId] = std::move(t);
+        }
+        for (DialogInfo& info : records.mInfos)
+        {
+            if (!usable(info.mCommon.mId) || !usable(info.mTopic))
+                continue;
+            Slot& slot = mSlots[info.mTopic];
+            const auto it = slot.mByInfo.find(info.mCommon.mId);
+            const bool deleted = info.mCommon.deleted();
+            info.mPlugin = plugin;
+            if (it != slot.mByInfo.end())
+            {
+                slot.mAlive[it->second] = !deleted;
+                if (!deleted)
+                    slot.mList[it->second] = std::move(info);
+                continue;
+            }
+            if (deleted)
+                continue;
+            slot.mByInfo[info.mCommon.mId] = slot.mList.size();
+            slot.mList.push_back(std::move(info));
+            slot.mAlive.push_back(true);
+        }
+        for (GlobalValue& g : records.mGlobals)
+        {
+            if (!usable(g.mCommon.mId))
+                continue;
+            if (g.mCommon.deleted())
+                mGlobals.erase(g.mCommon.mId);
+            else
+                mGlobals[g.mCommon.mId] = std::move(g);
+        }
+        for (FormListRecord& f : records.mFormLists)
+        {
+            if (!usable(f.mCommon.mId))
+                continue;
+            if (f.mCommon.deleted())
+                mFormLists.erase(f.mCommon.mId);
+            else
+                mFormLists[f.mCommon.mId] = std::move(f);
+        }
+        mInfoCount = 0;
+        for (const auto& [id, slot] : mSlots)
+            for (bool alive : slot.mAlive)
+                mInfoCount += alive ? 1 : 0;
+    }
+
+    const DialogTopic* DialogueIndex::topic(FormId id) const
+    {
+        const auto it = mTopics.find(id);
+        return it == mTopics.end() ? nullptr : &it->second;
+    }
+
+    const GlobalValue* DialogueIndex::global(FormId id) const
+    {
+        const auto it = mGlobals.find(id);
+        return it == mGlobals.end() ? nullptr : &it->second;
+    }
+
+    const FormListRecord* DialogueIndex::formList(FormId id) const
+    {
+        const auto it = mFormLists.find(id);
+        return it == mFormLists.end() ? nullptr : &it->second;
+    }
+
+    std::vector<const DialogInfo*> DialogueIndex::infosOf(FormId topic) const
+    {
+        std::vector<const DialogInfo*> out;
+        const auto it = mSlots.find(topic);
+        if (it == mSlots.end())
+            return out;
+        for (std::size_t i = 0; i < it->second.mList.size(); ++i)
+            if (it->second.mAlive[i])
+                out.push_back(&it->second.mList[i]);
+        return out;
+    }
+
+    std::vector<FormId> DialogueIndex::topicIds(const std::string& subtypeName) const
+    {
+        std::vector<FormId> ids;
+        for (const auto& [id, t] : mTopics)
+            if (subtypeName.empty() || t.mSubtypeName == subtypeName)
+                ids.push_back(id);
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    }
+
+    // ---- SkyrimConditionWorld ------------------------------------------------------------------------------------
+
+    SkyrimConditionWorld::SkyrimConditionWorld(const ActorIndex& actors, const DialogueIndex& dialogue)
+        : mActors(actors)
+        , mDialogue(dialogue)
+    {
+    }
+
+    void SkyrimConditionWorld::setSpeaker(const DialogueSpeaker& speaker)
+    {
+        mSpeaker = speaker;
+        mResolved = ActorIndex::Resolved();
+        mHasResolved = speaker.mBase != kNullFormId
+            && mActors.resolve(speaker.mBase, speaker.mLevel, 0, mResolved) == ActorIndex::ResolveStatus::Ok;
+    }
+
+    FormId SkyrimConditionWorld::resolve(std::uint32_t stored) const
+    {
+        if (stored == 0)
+            return kNullFormId;
+        if (mResolver == nullptr)
+            return stored;
+        const std::optional<FormId> id = mResolver->resolve(stored);
+        return id ? *id : kNullFormId;
+    }
+
+    bool SkyrimConditionWorld::isSpeaker(conditions::Subject subject) const
+    {
+        return mSpeaker.mBase != kNullFormId && subject == mSpeaker.mBase;
+    }
+
+    bool SkyrimConditionWorld::answers(const survey::Ctda& c) const
+    {
+        switch (c.mFunction)
+        {
+            case 74: // GetGlobalValue: no subject
+                return true;
+            case 149: // GetIsCurrentWeather
+                return mWeather != kNullFormId;
+            default:
+                break;
+        }
+        // The run-on: 0 the speaker; 1 the player, only for GetIsID; 2 a reference, only the speaker's own.
+        switch (c.mRunOn)
+        {
+            case 0:
+                break;
+            case 1:
+                return c.mFunction == 72;
+            case 2:
+                if (mSpeaker.mReference == kNullFormId || resolve(c.mReference) != mSpeaker.mReference)
+                    return false;
+                break;
+            default:
+                return false;
+        }
+        switch (c.mFunction)
+        {
+            case 69: // GetIsRace
+            case 70: // GetIsSex
+            case 71: // GetInFaction
+            case 72: // GetIsID
+            case 73: // GetFactionRank
+            case 136: // GetIsReference
+            case 372: // IsInList
+            case 426: // GetIsVoiceType
+            case 560: // HasKeyword
+                return true;
+            case 67: // GetInCell
+                return mSpeaker.mCell != kNullFormId;
+            case 310: // GetInWorldspace
+                return mSpeaker.mWorldspace != kNullFormId;
+            default:
+                return false;
+        }
+    }
+
+    conditions::Subject SkyrimConditionWorld::resolveRunOn(std::uint32_t runOn, std::uint32_t reference) const
+    {
+        switch (runOn)
+        {
+            case 0:
+                return mSpeaker.mBase;
+            case 1:
+                return kPlayer;
+            case 2:
+                return mSpeaker.mReference != kNullFormId && resolve(reference) == mSpeaker.mReference
+                    ? static_cast<conditions::Subject>(mSpeaker.mBase)
+                    : 0;
+            default:
+                return 0;
+        }
+    }
+
+    bool SkyrimConditionWorld::hasBaseId(conditions::Subject subject, std::uint32_t formId) const
+    {
+        const FormId id = resolve(formId);
+        if (id == kNullFormId)
+            return false;
+        if (subject == kPlayer)
+            return id == 0x00000007u;
+        if (!isSpeaker(subject))
+            return false;
+        return id == mSpeaker.mBase || (mSpeaker.mReference != kNullFormId && id == mSpeaker.mReference);
+    }
+
+    bool SkyrimConditionWorld::inFaction(conditions::Subject subject, std::uint32_t faction) const
+    {
+        const FormId id = resolve(faction);
+        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+            return false;
+        return std::any_of(mResolved.mFactions.begin(), mResolved.mFactions.end(),
+            [&](const FactionMembership& f) { return f.mFaction == id; });
+    }
+
+    float SkyrimConditionWorld::factionRank(conditions::Subject subject, std::uint32_t faction) const
+    {
+        const FormId id = resolve(faction);
+        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+            return -1.f;
+        for (const FactionMembership& f : mResolved.mFactions)
+            if (f.mFaction == id)
+                return static_cast<float>(f.mRank);
+        return -1.f;
+    }
+
+    float SkyrimConditionWorld::globalValue(std::uint32_t global) const
+    {
+        const GlobalValue* g = mDialogue.global(resolve(global));
+        return g != nullptr ? g->mValue : 0.f;
+    }
+
+    bool SkyrimConditionWorld::inList(FormId list, FormId value, int depth) const
+    {
+        const FormListRecord* l = mDialogue.formList(list);
+        if (l == nullptr)
+            return false;
+        for (FormId entry : l->mEntries)
+        {
+            if (entry == value)
+                return true;
+            if (depth < 4 && inList(entry, value, depth + 1))
+                return true;
+        }
+        return false;
+    }
+
+    bool SkyrimConditionWorld::hasVoiceType(conditions::Subject subject, std::uint32_t voiceOrList) const
+    {
+        const FormId target = resolve(voiceOrList);
+        if (!isSpeaker(subject) || !mHasResolved || target == kNullFormId)
+            return false;
+        const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
+        FormId voice = traits != nullptr ? traits->mVoiceType : kNullFormId;
+        if (voice == kNullFormId)
+        {
+            const RaceRecord* race = mActors.race(mResolved.mRace);
+            if (race != nullptr && traits != nullptr)
+                voice = race->mVoiceTypes[traits->female() ? 1 : 0];
+        }
+        return voice != kNullFormId && (voice == target || inList(target, voice, 0));
+    }
+
+    bool SkyrimConditionWorld::inCell(conditions::Subject subject, std::uint32_t cell) const
+    {
+        return isSpeaker(subject) && mSpeaker.mCell != kNullFormId && resolve(cell) == mSpeaker.mCell;
+    }
+
+    int SkyrimConditionWorld::sexOf(conditions::Subject subject) const
+    {
+        if (!isSpeaker(subject) || !mHasResolved)
+            return -1;
+        const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
+        return traits == nullptr ? -1 : (traits->female() ? 1 : 0);
+    }
+
+    bool SkyrimConditionWorld::hasKeyword(conditions::Subject subject, std::uint32_t keyword) const
+    {
+        const FormId id = resolve(keyword);
+        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+            return false;
+        // The NPC's own keywords (from its keyword template) and its race's (RECALLED-VERIFY: an actor has both).
+        if (const ActorNpc* n = mActors.npc(mResolved.mKeywordsFrom))
+            if (std::find(n->mKeywords.begin(), n->mKeywords.end(), id) != n->mKeywords.end())
+                return true;
+        if (const RaceRecord* r = mActors.race(mResolved.mRace))
+            if (std::find(r->mKeywords.begin(), r->mKeywords.end(), id) != r->mKeywords.end())
+                return true;
+        return false;
+    }
+
+    bool SkyrimConditionWorld::isRace(conditions::Subject subject, std::uint32_t race) const
+    {
+        const FormId id = resolve(race);
+        return isSpeaker(subject) && mHasResolved && id != kNullFormId && mResolved.mRace == id;
+    }
+
+    bool SkyrimConditionWorld::inWorldspace(conditions::Subject subject, std::uint32_t worldspace) const
+    {
+        return isSpeaker(subject) && mSpeaker.mWorldspace != kNullFormId && resolve(worldspace) == mSpeaker.mWorldspace;
+    }
+
+    bool SkyrimConditionWorld::isReference(conditions::Subject subject, std::uint32_t reference) const
+    {
+        return isSpeaker(subject) && mSpeaker.mReference != kNullFormId && resolve(reference) == mSpeaker.mReference;
+    }
+
+    bool SkyrimConditionWorld::isCurrentWeather(std::uint32_t weather) const
+    {
+        return mWeather != kNullFormId && resolve(weather) == mWeather;
+    }
+
+    bool SkyrimConditionWorld::baseInList(conditions::Subject subject, std::uint32_t formList) const
+    {
+        const FormId list = resolve(formList);
+        return isSpeaker(subject) && list != kNullFormId && inList(list, mSpeaker.mBase, 0);
+    }
+
+    // ---- selection -----------------------------------------------------------------------------------------------
+
+    std::uint32_t unansweredConditions(const DialogInfo& info, const SkyrimConditionWorld& world)
+    {
+        std::uint32_t n = 0;
+        for (const survey::Ctda& c : info.mConditions)
+            if (!world.answers(c))
+                ++n;
+        return n;
+    }
+
+    Selection selectInfo(const DialogueIndex& index, FormId topicId, SkyrimConditionWorld& world,
+        const DialogueSpeaker& speaker, const SelectionOptions& options, conditions::Evaluator* evaluator)
+    {
+        Selection result;
+        const DialogTopic* topic = index.topic(topicId);
+        result.mTopic = topic;
+        world.setSpeaker(speaker);
+        conditions::Evaluator local;
+        conditions::Evaluator& eval = evaluator != nullptr ? *evaluator : local;
+
+        const std::vector<const DialogInfo*> infos = index.infosOf(topicId);
+        std::vector<const DialogInfo*> randoms;
+        for (const DialogInfo* info : infos)
+        {
+            ++result.mConsidered;
+            const FormId quest = info->mQuest != kNullFormId ? info->mQuest : (topic != nullptr ? topic->mQuest : 0);
+            if (options.mQuestRunning && quest != kNullFormId && !options.mQuestRunning(quest))
+                continue;
+            if ((info->mFlags & InfoFlags::SayOnce) != 0 && options.mSaid && options.mSaid(info->mCommon.mId))
+                continue;
+            if (info->mSpeaker != kNullFormId && info->mSpeaker != speaker.mBase)
+                continue;
+            if (!info->mConditionsOk)
+                continue;
+            world.setPlugin(&index.resolverOf(*info));
+            const bool pass = eval.evaluate(info->mConditions, world);
+            world.setPlugin(nullptr);
+            if (result.mInfo == nullptr && unansweredConditions(*info, world) > 0)
+                ++result.mUncertainBefore;
+            if (!pass)
+                continue;
+            ++result.mPassing;
+            if (result.mInfo == nullptr)
+            {
+                result.mInfo = info;
+                if ((info->mFlags & InfoFlags::Random) == 0)
+                    break;
+            }
+            if ((info->mFlags & InfoFlags::Random) != 0)
+                randoms.push_back(info);
+        }
+        if (!randoms.empty())
+            result.mInfo = randoms[options.mPick % randoms.size()];
+        return result;
+    }
+
+    Selection pickFromTopics(const DialogueIndex& index, const std::string& subtypeName, SkyrimConditionWorld& world,
+        const DialogueSpeaker& speaker, const SelectionOptions& options, conditions::Evaluator* evaluator)
+    {
+        std::vector<FormId> ids = index.topicIds(subtypeName);
+        std::stable_sort(ids.begin(), ids.end(), [&](FormId a, FormId b) {
+            return index.topic(a)->mPriority > index.topic(b)->mPriority;
+        });
+        Selection total;
+        for (FormId id : ids)
+        {
+            Selection s = selectInfo(index, id, world, speaker, options, evaluator);
+            total.mConsidered += s.mConsidered;
+            total.mPassing += s.mPassing;
+            if (s.mInfo != nullptr)
+            {
+                total.mInfo = s.mInfo;
+                total.mTopic = s.mTopic;
+                total.mUncertainBefore += s.mUncertainBefore;
+                return total;
+            }
+            total.mUncertainBefore += s.mUncertainBefore;
+        }
+        return total;
+    }
+}
