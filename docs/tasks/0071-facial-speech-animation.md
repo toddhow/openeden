@@ -279,3 +279,69 @@ AMD and Intel (only an NVIDIA machine); any execution of onnxruntime; DirectML o
 2. Download the v2.3 Mark model too (75.8 MB), the proposed portable tier.
 3. Provide one voice line as WAV (Morrowind's are MP3 and no decoder is available) for the sanity checks.
 4. Run NVIDIA's SDK once on the same line to produce reference vertices or weights (item 2); its source also settles the window bookkeeping and the solver scaling.
+
+### Update, full gate run (2026-11-12, later the same day)
+
+The blocker above is gone: toddhow approved a Python 3.13.17 embeddable package (`I:\Projects\OpenEden-work\a2f\py313`, no system install) and the model v2.3 Mark. onnxruntime 1.31.1 (CPU) and onnxruntime-directml 1.24.4 were installed with pip into separate `--target` folders (`lib-cpu`, `lib-dml`). The earlier "NOT RUN" rows are superseded by this section; everything below was run on this machine (Windows 11, NVIDIA RTX 4070, so DirectML ran on that GPU: the adapter was not logged, I assume the default one). Scripts and raw outputs: `I:\Projects\OpenEden-work\a2f` (`run.py`, `analyze.py`, `an3.py`, `results.jsonl`, `analyze.txt`, `an3.txt`, `place_*.u8`), not committed.
+
+**Inputs.** v3.0 at `I:\Audio2Face-3D-v3.0`. v2.3 Mark at `I:\Audio2Face-3D-v2.3-Mark`, from `https://huggingface.co/nvidia/Audio2Face-3D-v2.3-Mark` (official nvidia repository, gated=false), `network.onnx` 75,751,144 bytes, SHA-256 `dcd16d3b1affb090d4da1ba88791faa6bcd755f97c853b3b667abad9be15cb4b` (recomputed here, matches). Its README terms: licence "other", the NVIDIA Open Model License (link in the card), "Use Case Restrictions: Abide by NVIDIA Open Model License"; same text as v3.0. Voice line: `Sound/Vo/a/m/bIdl_AM001.mp3` from the installed Morrowind, converted with ffmpeg to 16 kHz mono 16-bit WAV, 5.59 s (6 one-second windows, last zero-padded). Silence: 4 s of zeros. The line is one Bethesda audio file used locally; nothing derived from it is committed.
+
+**Item 1, loading and operators.** Both models load and run on the CPU provider and on DirectML with no error. v3.0 on DirectML: 803 nodes on DmlExecutionProvider, 233 on CPU (Gather 53, Unsqueeze 38, Concat 55, Slice 14, Cast 15, Sqrt 24, Div 14, Equal 6, Where 6, Sub 3, Squeeze 3, Mul 1, Split 1: shape plumbing, none of the compute ops); 14 inserted MemcpyFromHost nodes. v2.3 on DirectML: 378 nodes on DML, 298 on CPU (Gather 115, Unsqueeze 129, Concat 40, Mul 14), no memcpy nodes. So there are operator fallbacks but only of shape-arithmetic ops; the heavy ops (Conv, MatMul, GRU, Gemm, Softmax, Erf) all ran on DirectML. Whether DML on AMD or Intel places the same ops is untested.
+
+**Item 3, speed and memory** (this machine: the CPU provider uses all cores by default; median of 7 repeats; 1 s of audio per window; v3.0 noise tensors are generated outside the timed loop; v2.3 is run at 30 frames per second with the 8,320-sample window hopped by 533 samples and batched 30 per call).
+
+| Model | Provider | Priority | Audio | Median s of compute per s of audio | Peak working set |
+| --- | --- | --- | --- | --- | --- |
+| v3.0 | CPU | normal | voice | 0.143 | 1,863 MiB |
+| v3.0 | CPU | below normal | voice | 0.149 | 1,864 MiB |
+| v3.0 | CPU | normal | silence | 0.164 | 1,701 MiB |
+| v3.0 | DirectML | normal | voice | 0.033 | 1,165 MiB |
+| v3.0 | DirectML | below normal | voice | 0.040 | 1,193 MiB |
+| v3.0 | DirectML | normal | silence | 0.036 | 951 MiB |
+| v2.3 | CPU | normal | voice | 0.356 | 572 MiB |
+| v2.3 | CPU | below normal | voice | 0.361 | 571 MiB |
+| v2.3 | CPU | normal | silence | 0.344 | 557 MiB |
+| v2.3 | DirectML | normal | voice | 0.020 | 354 MiB |
+| v2.3 | DirectML | below normal | voice | 0.020 | 344 MiB |
+| v2.3 | DirectML | normal | silence | 0.021 | 375 MiB |
+
+Caveats: DirectML runs show occasional slow outliers (maximum of 7 repeats 0.06 to 0.12 s per second of audio against the 0.02 to 0.04 median); the machine was otherwise idle, so below-normal priority shows no cost here and says nothing about behaviour under game load; no GPU memory figure was taken (working set only); the first run of a process takes longer (model load 0.3 to 3 s). The 725 MB v3.0 model is faster than the 75 MB v2.3 on CPU in this run only because v2.3 is run in 30 small windows per second and v3.0 as one 1 s window; the figures are not like for like. The v3.0 noise input is 16 million floats per window (3 x 60 x 88,831); generating it with numpy costs 0.14 s per window, as much as the CPU inference, so a production front end needs a cheaper noise source (a fixed noise tensor reused, or a faster generator); whether a fixed noise tensor is acceptable quality-wise is not tested. The whole Morrowind voice set (about 16,800 s by the earlier estimate) would take, extrapolated linearly: v3.0 about 40 minutes on the CPU and 9 minutes on DirectML, v2.3 about 1.6 hours on the CPU and 6 minutes on DirectML; these are compute only, extrapolated linearly, on a fast desktop.
+
+**Item 2, sanity checks and CPU against DirectML.** All outputs are finite. CPU and DirectML outputs agree: maximum absolute difference 1.7e-5 (v3.0, voice) and 4.2e-5 (v2.3, voice) on outputs of magnitude up to 19 and 61, so the two providers are interchangeable here (same seed noise). Speech against silence:
+- v2.3: silence gives a static output (frame-to-frame change 0.0000, jaw weight a constant 0.105); speech moves (mean frame change 0.0078, jawOpen 0.18 mean, 0.39 max).
+- v3.0: silence 0.0005 mean frame change, jawOpen constant about 0.09; speech 0.0053, jawOpen 0.21 mean, 0.55 max, mouthClose 0.22 mean (0.86 max), 34 poses above 0.05 at some time.
+Both nets therefore react to speech and rest on silence. This is not a lip-sync quality judgement (no video, no reference). NVIDIA reference: pending.
+
+**Interpreting the raw outputs (inferred from the data; not documented in the published files).**
+- v3.0 `prediction [1,60,88831]`: skin (72,006 floats) is a displacement from `neutral_skin`, not positions (mean absolute value 0.08 on speech, 0.06 on silence; adding it to neutral gives 0.1 to 1.6 unit displacements). Frames 15 to 45 of each 60 form the 30 frames (30 fps) of that 1 s window (the config says left and right truncate 15, centre 30); with them the seams between consecutive windows jump 0.0075 against 0.0053 inside a window, and silence seams 0.0001, so stitching without the NVIDIA overlap looks acceptable but is not proven. Layout in order: skin 72,006, tongue 16,806, jaw 15, eyes 4. The state `output_latents` was carried to the next window; the noise seed per window was fixed.
+- v2.3 `result [1,301]` per 8,320-sample window: 272 skin shape coefficients (vertices = `shapes_mean_skin` + sum of coefficient x `shapes_matrix_skin`, 61,520 vertices), then tongue 10, jaw 15, eyes 4 (the order is my assumption, same as v3.0's; only the first 272 were used). The `emotion` input is 26 floats: 10 explicit (zeros) + 16 implicit (taken from the first row of the database spec named `g1a_neutral`, a choice of mine). The window hop of 1/30 s and the centring are my choice, not NVIDIA's.
+
+**Item 4 on real network output.** The inferred solve from `bssolve.py` (see earlier section; native units, the frontal mask, v3.0 uses Mark's `bs_skin_config_Mark.json`, v2.3 its own `bs_skin_config.json`) was run on every frame of the voice line, 52 weights per frame (`w_v3c_voice.wav.npy`, `w_v23_voice.wav.npy`; results in `an3.txt` and `analyze.txt`). Selected weights, voice line:
+
+| Pose | v3.0 mean / max | v2.3 mean / max |
+| --- | --- | --- |
+| jawOpen | 0.209 / 0.547 | 0.178 / 0.392 |
+| mouthClose | 0.223 / 0.860 | 0.002 / 0.103 |
+| mouthFunnel | 0.002 / 0.069 | 0.032 / 0.404 |
+| mouthPucker | 0.061 / 0.628 | 0.137 / 0.519 |
+| mouthSmileLeft | 0.007 / 0.094 | 0.066 / 0.131 |
+| eyeBlinkLeft | 0.075 / 0.146 | 0.062 / 0.074 |
+| browInnerUp | 0.129 / 0.224 | 0.069 / 0.100 |
+| poses above 0.05 at some frame | 34 of 52 | 30 of 52 |
+
+The two models agree on the main mouth opening (jaw 0.18 to 0.21 mean) and differ on mouth shapes, as expected for two different networks and identities; nothing is NaN or saturated, and silence gives small steady weights (v3.0 jawOpen 0.09, v2.3 0.105: a rest offset between each model's mean/neutral and the blendshape neutral, max difference 0.82 to 0.89 units, which a calibrated front end would subtract). The weights have not been compared with NVIDIA's solver, so the solve's scaling and the weights' absolute scale stay inferred (RECALLED-VERIFY).
+
+**Go / no-go evidence for architecture D.**
+- Item 1 (loads on CPU and DirectML, no unsupported-operator error): met for both models; fallbacks are shape-plumbing ops only.
+- Item 2 (matches NVIDIA's reference): pending the reference; the plausibility checks above pass, and CPU and DirectML agree to 4e-5.
+- Item 3 (time and memory): met on this machine, which is a fast desktop with an NVIDIA GPU: faster than real time everywhere (v3.0 0.14 s per second on the CPU, 0.03 on DirectML; v2.3 0.35 CPU, 0.02 DirectML), memory 0.35 to 1.9 GiB. Not tested: AMD, Intel, an integrated or weak GPU, a weak CPU, the game running at the same time.
+- Item 4: the solve produces plausible weights on real output and takes about 15 ms per frame in unoptimised numpy; the match to NVIDIA's weights is pending.
+- Overall: **a conditional go** for ONNX Runtime with DirectML (and the CPU provider as the portable floor) on this machine class; the remaining unknowns are the NVIDIA reference match, AMD/Intel, and behaviour while the game runs.
+
+**Not verified.** AMD and Intel hardware; the NVIDIA reference output; contention with a running game and the effect of below-normal priority under load (it had no effect on an idle machine); GPU memory use; cross-window stitching quality and the NVIDIA overlap scheme; the v3.0 identity one-hot, the noise meaning and the v2.3 output order (inferred); other providers (OpenVINO, ROCm); lip-sync quality by eye.
+
+**Decisions for toddhow.**
+1. Run NVIDIA's SDK once on `bIdl_AM001.mp3` (or any line) and give me the output, to settle item 2 and the weight scaling. Recommend: yes, it is the last gate item.
+2. Which network is the default: v2.3 is a quarter of the memory (0.35 GiB) and 0.02 s per audio second on DirectML; v3.0 is the higher-quality tier (1 to 1.9 GiB, 0.03 s on DirectML, 0.14 on CPU). Recommend: both, as the task proposed.
+3. The v3.0 noise tensor (16 million floats per window) must not be generated per window in production; decide whether a fixed tensor (repeatable, cheap) is acceptable. Recommend: fixed seeded tensor, check the look first.
+4. Authorise the next stage (the `edenface` front end). Recommend: yes after decision 1, since the gate is otherwise passed on this hardware.
