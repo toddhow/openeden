@@ -311,6 +311,18 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.playerCanIntimidate(subject));
         }
 
+        // 66 GetShouldAttack(target) (CK wiki, toddhow 2026-11-11)
+        float getShouldAttack(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.attackDesire(subject, c.mParam1) : 0.f;
+        }
+
+        // 640 GetActorValuePercent(actor value): 0 to 1 (CK wiki, toddhow 2026-11-11)
+        float getActorValuePercent(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.actorValuePercent(subject, c.mParam1) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -319,7 +331,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 47> sTable = { {
+        constexpr std::array<Entry, 49> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -330,6 +342,7 @@ namespace game_skyrimse::conditions
             { 56, getQuestRunning },
             { 58, getStage },
             { 59, getStageDone },
+            { 66, getShouldAttack },
             { 67, getInCell },
             { 69, getIsRace },
             { 70, getIsSex },
@@ -366,6 +379,7 @@ namespace game_skyrimse::conditions
             { 605, locAliasIsLocation },
             { 606, getKeywordDataForLocation },
             { 629, getVMQuestVariable },
+            { 640, getActorValuePercent },
             { 655, getIntimidateSuccess },
         } };
     }

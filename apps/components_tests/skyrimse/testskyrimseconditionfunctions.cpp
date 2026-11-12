@@ -124,6 +124,8 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float attackDesire(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
+        float actorValuePercent(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 0.45f : 1.f; }
         bool mIntimidate = true;
         bool playerCanIntimidate(Subject s) const override { return s == mSubject && mIntimidate; }
         bool mTalked = true;
@@ -411,6 +413,19 @@ namespace
         w.mIntimidate = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(655, kEq, 0.f), w));
+    }
+
+    // fn_66 GetShouldAttack(target): the subject's desire to attack, above 0 means it will; fn_640
+    // GetActorValuePercent(actor value): current over maximum, 0 to 1 (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_66_is_attack_desire_and_640_actor_value_percent)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(66, kEq, 2.f, 0x14), w));
+        EXPECT_TRUE(run(cond(66, kEq, 0.f, 0x15), w));
+        EXPECT_TRUE(run(cond(640, kEq, 0.45f, 24), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(66, kEq, 0.f, 0x14), w));
+        EXPECT_TRUE(run(cond(640, kEq, 0.f, 24), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

@@ -55,3 +55,4 @@ NOT built or tested yet (the machine was restarted before the first build finish
 - 2026-11-11: fn_277 GetBaseActorValue(actor value) (CK wiki page toddhow showed). Red, then 54 of 54.
 - 2026-11-11: fn_50 GetTalkedToPC (CK wiki page toddhow showed). Red, then 55 of 55.
 - 2026-11-11: fn_655 GetIntimidateSuccess (CK wiki page toddhow showed). Red, then 56 of 56.
+- 2026-11-11: fn_66 GetShouldAttack(target), fn_640 GetActorValuePercent(actor value) (CK wiki pages toddhow showed). Red, then 57 of 57.
