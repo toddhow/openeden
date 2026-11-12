@@ -34,7 +34,8 @@ namespace
     constexpr double kPi = 3.14159265358979323846;
     constexpr double kTolerance = 1e-12;
 
-    // ---- a reference rotation, built independently of the adapter: R = Rz * Ry * Rx, every angle negated
+    // ---- a reference rotation, built independently of the adapter: R = Rx * Ry * Rz (Z applied first), every angle
+    // negated (task 0151; the order was Rz * Ry * Rx before, approved change by toddhow 2026-11-12)
     // -------------
 
     using Mat3 = std::array<std::array<double, 3>, 3>;
@@ -64,7 +65,7 @@ namespace
 
     Mat3 reference(double x, double y, double z)
     {
-        return mul(rotZ(-z), mul(rotY(-y), rotX(-x)));
+        return mul(rotX(-x), mul(rotY(-y), rotZ(-z)));
     }
 
     // Rotates v by q (q v q^-1), written out so that the test does not share code with the adapter.

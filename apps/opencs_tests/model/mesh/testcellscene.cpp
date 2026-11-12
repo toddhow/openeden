@@ -76,20 +76,20 @@ namespace
         EXPECT_NEAR(m[5], 0.0, 1e-6);
     }
 
-    TEST(CellScenePlacement, rotationsComposeAsZYX)
+    TEST(CellScenePlacement, rotationsComposeAsXYZ)
     {
-        // Clockwise angles: Rx(-90) takes +Y to -Z, then Rz(-90) leaves Z alone: with Rz * Ry * Rx a vector turns about
-        // X first.
+        // Clockwise angles, Rx * Ry * Rz: a vector turns about Z first (task 0151; the test pinned Rz * Ry * Rx before,
+        // changed with toddhow's approval 2026-11-12). Rz(-90) takes +Y to +X, then Rx(-90) leaves X alone.
         const auto m
             = placementMatrix({ 0, 0, 0 }, { static_cast<float>(kPi / 2), 0, static_cast<float>(kPi / 2) }, 1.0);
-        // +Y goes to -Z under Rx, -Z stays under Rz.
-        EXPECT_NEAR(m[4], 0.0, 1e-6);
+        // +Y goes to +X under Rz, +X stays under Rx.
+        EXPECT_NEAR(m[4], 1.0, 1e-6);
         EXPECT_NEAR(m[5], 0.0, 1e-6);
-        EXPECT_NEAR(m[6], -1.0, 1e-6);
-        // +X stays under Rx, then goes to -Y under Rz.
+        EXPECT_NEAR(m[6], 0.0, 1e-6);
+        // +X goes to -Y under Rz, then to +Z under Rx.
         EXPECT_NEAR(m[0], 0.0, 1e-6);
-        EXPECT_NEAR(m[1], -1.0, 1e-6);
-        EXPECT_NEAR(m[2], 0.0, 1e-6);
+        EXPECT_NEAR(m[1], 0.0, 1e-6);
+        EXPECT_NEAR(m[2], 1.0, 1e-6);
     }
 
     TEST(CellScenePlacement, positiveXAndYAnglesTipTheUpAxisTowardPlusYAndMinusX)
