@@ -201,6 +201,19 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.inWorldspace(subject, c.mParam1));
         }
 
+        // 130 GetPCIsRace(race): GetIsRace of the player, whatever the condition runs on (CK wiki, 2026-11-11)
+        float getPCIsRace(const survey::Ctda& c, Subject, const ConditionWorld& world)
+        {
+            const Subject player = world.playerSubject();
+            return asFloat(player != 0 && world.isRace(player, c.mParam1));
+        }
+
+        // 182 GetEquipped(object) (CK wiki, 2026-11-11)
+        float getEquipped(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
+        {
+            return asFloat(subject != 0 && world.isEquipped(subject, c.mParam1));
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -209,7 +222,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 29> sTable = { {
+        constexpr std::array<Entry, 31> sTable = { {
             { 14, getActorValue },
             { 35, getDisabled },
             { 46, getDead },
@@ -225,7 +238,9 @@ namespace game_skyrimse::conditions
             { 73, getFactionRank },
             { 74, getGlobalValue },
             { 77, getRandomPercent },
+            { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 182, getEquipped },
             { 249, isInDialogueWithPlayer },
             { 286, isSneaking },
             { 310, getInWorldspace },

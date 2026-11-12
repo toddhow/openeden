@@ -121,8 +121,14 @@ namespace
         bool mSneaking = true;
         bool mRunning = true;
         std::uint32_t mWorldspace = 0xC0;
+        std::uint32_t mEquipped = 0xD0;
+        bool isEquipped(Subject s, std::uint32_t o) const override { return s == mSubject && o == mEquipped; }
         bool inWorldspace(Subject s, std::uint32_t w) const override { return s == mSubject && w == mWorldspace; }
-        bool isRace(Subject s, std::uint32_t r) const override { return s == mSubject && r == mRace; }
+        bool isRace(Subject s, std::uint32_t r) const override
+        {
+            return (s == mSubject && r == mRace) || (s == mPlayer && r == mPlayerRace);
+        }
+        std::uint32_t mPlayerRace = 0xB2;
         bool isDisabled(Subject s) const override { return s == mSubject && mDisabled; }
         bool isSneaking(Subject s) const override { return s == mSubject && mSneaking; }
         bool questRunning(std::uint32_t q) const override { return q == mQuest && mRunning; }
@@ -223,6 +229,21 @@ namespace
         EXPECT_TRUE(run(cond(310, kEq, 0.f, 0xC1), w));
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(310, kEq, 0.f, 0xC0), w));
+    }
+
+    // fn_130 GetPCIsRace(race): GetIsRace of the player, whatever the condition runs on; fn_182 GetEquipped(object)
+    // (CK wiki pages shown by toddhow, 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_130_is_the_player_race_and_182_is_equipped)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(130, kEq, 1.f, 0xB2), w));
+        EXPECT_TRUE(run(cond(130, kEq, 0.f, 0xB0), w));
+        EXPECT_TRUE(run(cond(182, kEq, 1.f, 0xD0), w));
+        EXPECT_TRUE(run(cond(182, kEq, 0.f, 0xD1), w));
+        w.mPlayer = 0;
+        EXPECT_TRUE(run(cond(130, kEq, 0.f, 0xB2), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(182, kEq, 0.f, 0xD0), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)
