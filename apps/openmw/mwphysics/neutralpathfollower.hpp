@@ -22,10 +22,13 @@
 
 namespace MWPhysics::NeutralPath
 {
-    /// Walking and running speeds of a go-to request, game units a second. Named estimates (Skyrim's walk is about
-    /// 1.7 m/s, its run about 4 m/s at 69.99 units a metre): RECALLED-VERIFY, to be measured from the animation clips.
-    inline constexpr float kWalkSpeed = 120.f;
-    inline constexpr float kRunSpeed = 280.f;
+    /// Walking and running speeds of a go-to request, game units a second: the speeds the Skyrim SE walk and run clips
+    /// cover by their own root motion, so the cycles play at their own rate (task 0148, measured on the installed
+    /// `Skyrim - Animations.bsa`: MT_WalkForward 93.448 units in 1.13333 s = 82.45 units/s, MT_RunForward 222.219 units in
+    /// 0.633333 s = 350.87 units/s, male and female; `HavokGaitRealData`). Task 0135's first estimates were 120 and 280.
+    /// HavokPack::Gait::Params defaults to the same two numbers (a test pins them equal).
+    inline constexpr float kWalkSpeed = 82.45f;
+    inline constexpr float kRunSpeed = 350.87f;
     /// A waypoint counts as reached when the actor is this close to it on the ground plane.
     inline constexpr float kWaypointRadius = 12.f;
     /// The goal counts as reached when the actor is within this on the ground plane and kArrivalHeight in height, or

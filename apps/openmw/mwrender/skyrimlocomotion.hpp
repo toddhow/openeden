@@ -60,6 +60,7 @@ namespace MWRender::SkyrimLocomotion
             HavokPack::Gait::Weights mWeights;
             float mSmoothedSpeed = 0.f;
             float mPhase = 0.f;
+            float mRunMix = 0.f; ///< 0 the walk cycle, 1 the run cycle (cross-fading)
             bool mIdleReady = false;
             bool mWalkReady = false;
             bool mRunReady = false;
@@ -91,6 +92,8 @@ namespace MWRender::SkyrimLocomotion
         mutable bool mIdleOffsetSet = false;
         mutable float mLastTime = 0.f;
         mutable bool mHaveTime = false;
+        mutable bool mHaveGait = false;
+        mutable bool mIsRun = false;
         mutable unsigned mTraceCounter = 0;
         mutable State mState;
     };

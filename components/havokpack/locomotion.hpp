@@ -6,7 +6,8 @@
 //
 // The cycles are driven by ONE shared phase p in [0, 1) that advances at (ground speed / stride) cycles a second, where
 // the stride is the distance one cycle of the clip covers according to its own root motion (anims_default*.txt, task
-// 0119) and is mixed between the walk's and the run's by the gait mix. A clip is sampled at fract(p + leftFoot) of its
+// 0119); the walk and the run are a hard switch (wantRun, hysteresis) with a short linear cross-fade (advanceRunMix),
+// so only the cycle being faded stride-mixes. A clip is sampled at fract(p + leftFoot) of its
 // duration, so the left foot lands at p = 0 in both clips and a mix of the two keeps the feet together. The clips'
 // root motion is only used to get the stride; it is never applied to the body.
 //
@@ -18,12 +19,12 @@ namespace HavokPack::Gait
 {
     struct Params
     {
-        // The ground speeds (units a second) at which the mix is pure walk and pure run: the mover's own speeds
-        // (NeutralPath::kWalkSpeed / kRunSpeed, estimates of task 0135).
-        float mWalkSpeed = 120.f;
-        float mRunSpeed = 280.f;
-        // Units one cycle covers, from the clips' root motion (male and female agree to 0.02 percent): MT_WalkForward
-        // 93.448 units in 1.13333 s (82.45 u/s), MT_RunForward 222.219 units in 0.633333 s (350.87 u/s).
+        // The ground speeds (units a second) the walk and run clips cover by their own root motion, which are also the
+        // speeds of the mover's walk and run (NeutralPath::kWalkSpeed / kRunSpeed, task 0148): measured on the user's own
+        // files, MT_WalkForward 93.448 units in 1.13333 s and MT_RunForward 222.219 units in 0.633333 s.
+        float mWalkSpeed = 82.45f;
+        float mRunSpeed = 350.87f;
+        // Units one cycle covers (the same measurement; male and female agree to 0.02 percent).
         float mWalkStride = 93.448f;
         float mRunStride = 222.219f;
         // Where in the clip (fraction of its duration) the left foot lands: FootLeft 0.2 s of 1.13333 s, 0 of 0.633333 s.
@@ -34,6 +35,11 @@ namespace HavokPack::Gait
         float mFullSpeed = 30.f;
         // Time constant of the smoothing of the measured speed (seconds).
         float mSmoothTau = 0.12f;
+        // One gait at a time: the run starts above the speed half way between the clips' speeds plus mSwitchBand (a share
+        // of it), the walk returns below it minus the band; in between the gait stays as it was (no flicker). The change
+        // is a linear cross-fade of mCrossFade seconds (12 frames at 60 a second).
+        float mSwitchBand = 0.1f;
+        float mCrossFade = 0.2f;
     };
 
     struct Weights
@@ -44,8 +50,17 @@ namespace HavokPack::Gait
         float mCyclesPerSecond = 0.f;
     };
 
-    // The blend for a ground speed (a non-finite or negative speed counts as 0). The three weights add up to 1.
-    Weights weights(float speed, const Params& params = {});
+    // The blend for a ground speed (a non-finite or negative speed counts as 0) and the run mix, 0 for the walk cycle and
+    // 1 for the run cycle (clamped; the cross-fade moves it, see advanceRunMix). The three weights add up to 1. The
+    // speed never mixes the gaits by itself.
+    Weights weights(float speed, float runMix, const Params& params = {});
+
+    // Whether the actor should be running at `speed`, given whether it was: a hysteresis band round the half way speed.
+    bool wantRun(float speed, bool wasRunning, const Params& params = {});
+
+    // The run mix moved towards 1 (run) or 0 (walk) by dt / crossFade, clamped. dt <= 0 or not finite keeps it;
+    // crossFade <= 0 gives the target at once.
+    float advanceRunMix(float runMix, bool run, float dt, float crossFade);
 
     // `current` moved towards `target` by an exponential of time constant `tau` over `dt` seconds. dt <= 0 or not
     // finite keeps `current`; tau <= 0 gives `target`.

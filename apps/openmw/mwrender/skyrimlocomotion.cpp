@@ -108,7 +108,16 @@ namespace MWRender::SkyrimLocomotion
         mLastTime = time;
         mState.mSmoothedSpeed = HavokPack::Gait::smoothSpeed(mState.mSmoothedSpeed, target, dt, mParams.mSmoothTau);
 
-        HavokPack::Gait::Weights w = HavokPack::Gait::weights(mState.mSmoothedSpeed, mParams);
+        // One gait at a time: the gait follows the speed with a hysteresis band and the cycles cross-fade over
+        // Params::mCrossFade. On the first frame the gait is simply the speed's (no fade from nothing).
+        const bool firstFrame = !mHaveGait;
+        mHaveGait = true;
+        mIsRun = HavokPack::Gait::wantRun(mState.mSmoothedSpeed, mIsRun, mParams);
+        if (firstFrame)
+            mState.mRunMix = mIsRun ? 1.f : 0.f;
+        else
+            mState.mRunMix = HavokPack::Gait::advanceRunMix(mState.mRunMix, mIsRun, dt, mParams.mCrossFade);
+        HavokPack::Gait::Weights w = HavokPack::Gait::weights(mState.mSmoothedSpeed, mState.mRunMix, mParams);
         // A gait whose clip is missing or not decoded yet hands its weight to the next slower one.
         if (!mRun.ready())
         {
@@ -170,9 +179,14 @@ namespace MWRender::SkyrimLocomotion
         const float played = w.mCyclesPerSecond
             * (gait > 0.f ? mParams.mWalkStride + (mParams.mRunStride - mParams.mWalkStride) * (w.mRun / gait)
                           : mParams.mWalkStride);
+        // The playback rate of the cycle shown (1.0 is the clip at its own speed).
+        const float walkSeconds = mWalk.ready() ? mWalk.mClip->mClip.mDuration : 1.f;
+        const float runSeconds = mRun.ready() ? mRun.mClip->mClip.mDuration : 1.f;
+        const float cycleSeconds = walkSeconds + (runSeconds - walkSeconds) * mState.mRunMix;
         if (sTrace && (mState.mSmoothedSpeed > 1.f || target > 0.f) && (++mTraceCounter % 10) == 0)
             Log(Debug::Info) << "NLOCO t=" << time << " target=" << target << " smoothed=" << mState.mSmoothedSpeed
                              << " idle=" << w.mIdle << " walk=" << w.mWalk << " run=" << w.mRun
-                             << " phase=" << mState.mPhase << " cps=" << w.mCyclesPerSecond << " played=" << played;
+                             << " phase=" << mState.mPhase << " cps=" << w.mCyclesPerSecond << " played=" << played
+                             << " mix=" << mState.mRunMix << " rate=" << w.mCyclesPerSecond * cycleSeconds;
     }
 }

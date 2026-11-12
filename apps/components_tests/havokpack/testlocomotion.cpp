@@ -26,85 +26,141 @@ namespace
 
     TEST(HavokGaitWeights, standing_still_only_idles)
     {
-        const Weights w = weights(0.f);
+        const Weights w = weights(0.f, 0.f);
         EXPECT_FLOAT_EQ(w.mIdle, 1.f);
         EXPECT_FLOAT_EQ(w.mWalk, 0.f);
         EXPECT_FLOAT_EQ(w.mRun, 0.f);
         EXPECT_FLOAT_EQ(w.mCyclesPerSecond, 0.f);
-        EXPECT_FLOAT_EQ(weights(5.f).mIdle, 1.f); // the stop speed itself
+        EXPECT_FLOAT_EQ(weights(5.f, 0.f).mIdle, 1.f); // the stop speed itself
     }
 
     TEST(HavokGaitWeights, the_idle_fades_out_linearly_between_stop_and_full_speed)
     {
-        const Weights w = weights(17.5f); // halfway between 5 and 30
+        const Weights w = weights(17.5f, 0.f); // halfway between 5 and 30
         EXPECT_NEAR(w.mIdle, 0.5f, 1e-6);
         EXPECT_NEAR(w.mWalk, 0.5f, 1e-6);
         EXPECT_NEAR(w.mRun, 0.f, 1e-6);
         EXPECT_NEAR(w.mCyclesPerSecond, 17.5f / 93.448f, 1e-5); // 0.187271
     }
 
-    TEST(HavokGaitWeights, walk_speed_is_a_pure_walk_at_the_walk_stride)
+    TEST(HavokGaitWeights, the_defaults_are_the_measured_clip_speeds)
     {
-        const Weights w = weights(120.f);
+        const Params p;
+        EXPECT_NEAR(p.mWalkSpeed, 82.45f, 0.01f); // 93.448 units in 1.13333 s
+        EXPECT_NEAR(p.mRunSpeed, 350.87f, 0.01f); // 222.219 units in 0.633333 s
+        EXPECT_NEAR(p.mWalkSpeed, p.mWalkStride / 1.13333f, 0.01f);
+        EXPECT_NEAR(p.mRunSpeed, p.mRunStride / 0.633333f, 0.01f);
+    }
+
+    TEST(HavokGaitWeights, the_walk_speed_is_a_pure_walk_at_the_clips_own_rate)
+    {
+        const Weights w = weights(82.45f, 0.f);
         EXPECT_NEAR(w.mIdle, 0.f, 1e-6);
         EXPECT_NEAR(w.mWalk, 1.f, 1e-6);
         EXPECT_NEAR(w.mRun, 0.f, 1e-6);
-        EXPECT_NEAR(w.mCyclesPerSecond, 120.f / 93.448f, 1e-5); // 1.284129
+        EXPECT_NEAR(w.mCyclesPerSecond, 82.45f / 93.448f, 1e-5); // 0.882; times the 1.13333 s clip: rate 1.0
+        EXPECT_NEAR(w.mCyclesPerSecond * 1.13333f, 1.f, 2e-3);
     }
 
-    TEST(HavokGaitWeights, run_speed_is_a_pure_run_at_the_run_stride)
+    TEST(HavokGaitWeights, the_run_speed_is_a_pure_run_at_the_clips_own_rate)
     {
-        const Weights w = weights(280.f);
+        const Weights w = weights(350.87f, 1.f);
         EXPECT_NEAR(w.mWalk, 0.f, 1e-6);
         EXPECT_NEAR(w.mRun, 1.f, 1e-6);
-        EXPECT_NEAR(w.mCyclesPerSecond, 280.f / 222.219f, 1e-5); // 1.260
+        EXPECT_NEAR(w.mCyclesPerSecond, 350.87f / 222.219f, 1e-5); // 1.579; times 0.633333 s: rate 1.0
+        EXPECT_NEAR(w.mCyclesPerSecond * 0.633333f, 1.f, 2e-3);
     }
 
-    TEST(HavokGaitWeights, halfway_between_walk_and_run_mixes_the_gaits_and_their_strides)
+    TEST(HavokGaitWeights, the_run_mix_splits_the_gait_weights_and_mixes_the_strides)
     {
-        const Weights w = weights(200.f); // u = (200 - 120) / 160 = 0.5, stride = 157.8335
+        const Weights w = weights(200.f, 0.5f); // stride = (93.448 + 222.219) / 2 = 157.8335
         EXPECT_NEAR(w.mWalk, 0.5f, 1e-6);
         EXPECT_NEAR(w.mRun, 0.5f, 1e-6);
+        EXPECT_NEAR(w.mIdle, 0.f, 1e-6);
         EXPECT_NEAR(w.mCyclesPerSecond, 200.f / 157.8335f, 1e-5); // 1.267177
     }
 
-    TEST(HavokGaitWeights, faster_than_the_run_speed_stays_a_run_and_the_cycle_speeds_up)
+    TEST(HavokGaitWeights, the_speed_alone_never_mixes_the_gaits)
     {
-        const Weights w = weights(400.f);
-        EXPECT_NEAR(w.mRun, 1.f, 1e-6);
-        EXPECT_NEAR(w.mCyclesPerSecond, 400.f / 222.219f, 1e-5);
+        // whatever the speed, a mix of 0 is a walk and a mix of 1 a run: the choice is made by wantRun and the cross-fade
+        for (float s : { 40.f, 100.f, 200.f, 300.f, 500.f })
+        {
+            EXPECT_NEAR(weights(s, 0.f).mRun, 0.f, 1e-6) << s;
+            EXPECT_NEAR(weights(s, 1.f).mWalk, 0.f, 1e-6) << s;
+        }
     }
 
-    TEST(HavokGaitWeights, bad_speeds_idle)
+    TEST(HavokGaitWeights, bad_speeds_idle_and_a_bad_mix_is_clamped)
     {
         for (float s : { -10.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
-            const Weights w = weights(s);
+            const Weights w = weights(s, 0.f);
             EXPECT_FLOAT_EQ(w.mIdle, 1.f) << s;
             EXPECT_FLOAT_EQ(w.mCyclesPerSecond, 0.f) << s;
         }
+        EXPECT_NEAR(weights(100.f, 7.f).mRun, 1.f, 1e-6);
+        EXPECT_NEAR(weights(100.f, -3.f).mWalk, 1.f, 1e-6);
+        EXPECT_NEAR(weights(100.f, std::numeric_limits<float>::quiet_NaN()).mWalk, 1.f, 1e-6);
     }
 
     TEST(HavokGaitWeights, the_weights_always_add_up_to_one_and_stay_in_range)
     {
-        for (float s = 0.f; s < 600.f; s += 0.7f)
+        for (float mix : { 0.f, 0.3f, 1.f })
+            for (float s = 0.f; s < 600.f; s += 0.7f)
+            {
+                const Weights w = weights(s, mix);
+                EXPECT_NEAR(w.mIdle + w.mWalk + w.mRun, 1.f, 1e-5) << s;
+                EXPECT_GE(w.mIdle, 0.f);
+                EXPECT_GE(w.mWalk, 0.f);
+                EXPECT_GE(w.mRun, 0.f);
+            }
+    }
+
+    TEST(HavokGaitSwitch, the_switch_speed_is_half_way_between_the_clips_and_has_a_band)
+    {
+        const Params p; // switch (82.45 + 350.87) / 2 = 216.66; band 10 percent: 194.99 and 238.33
+        EXPECT_FALSE(wantRun(82.45f, false, p));
+        EXPECT_TRUE(wantRun(350.87f, false, p));
+        EXPECT_TRUE(wantRun(350.87f, true, p));
+        EXPECT_FALSE(wantRun(82.45f, true, p));
+        EXPECT_FALSE(wantRun(238.0f, false, p)); // just under the upper edge: still a walk
+        EXPECT_TRUE(wantRun(238.7f, false, p));
+        EXPECT_TRUE(wantRun(195.5f, true, p)); // just over the lower edge: still a run
+        EXPECT_FALSE(wantRun(194.5f, true, p));
+    }
+
+    TEST(HavokGaitSwitch, inside_the_band_the_gait_stays_as_it_was)
+    {
+        const Params p;
+        for (float s : { 200.f, 216.f, 230.f })
         {
-            const Weights w = weights(s);
-            EXPECT_NEAR(w.mIdle + w.mWalk + w.mRun, 1.f, 1e-5) << s;
-            EXPECT_GE(w.mIdle, 0.f);
-            EXPECT_GE(w.mWalk, 0.f);
-            EXPECT_GE(w.mRun, 0.f);
+            EXPECT_FALSE(wantRun(s, false, p)) << s;
+            EXPECT_TRUE(wantRun(s, true, p)) << s;
         }
     }
 
-    TEST(HavokGaitWeights, other_parameters_move_the_thresholds)
+    TEST(HavokGaitSwitch, a_bad_speed_is_not_a_run)
     {
-        Params p;
-        p.mWalkSpeed = 82.f;
-        p.mRunSpeed = 350.f;
-        const Weights w = weights(82.f, p);
-        EXPECT_NEAR(w.mWalk, 1.f, 1e-6);
-        EXPECT_NEAR(w.mCyclesPerSecond, 82.f / 93.448f, 1e-5);
+        const Params p;
+        EXPECT_FALSE(wantRun(std::numeric_limits<float>::quiet_NaN(), true, p));
+        EXPECT_FALSE(wantRun(-5.f, true, p));
+    }
+
+    TEST(HavokGaitSwitch, the_cross_fade_moves_the_mix_at_one_over_its_length)
+    {
+        EXPECT_NEAR(advanceRunMix(0.f, true, 0.1f, 0.2f), 0.5f, 1e-6);
+        EXPECT_NEAR(advanceRunMix(1.f, false, 0.05f, 0.2f), 0.75f, 1e-6);
+        EXPECT_FLOAT_EQ(advanceRunMix(0.9f, true, 0.2f, 0.2f), 1.f); // clamped
+        EXPECT_FLOAT_EQ(advanceRunMix(0.1f, false, 0.5f, 0.2f), 0.f);
+        EXPECT_FLOAT_EQ(advanceRunMix(0.3f, true, 0.f, 0.2f), 0.3f); // no time, no change
+        EXPECT_FLOAT_EQ(advanceRunMix(0.3f, true, -1.f, 0.2f), 0.3f);
+        EXPECT_FLOAT_EQ(advanceRunMix(0.3f, true, 0.01f, 0.f), 1.f); // no fade: at once
+        EXPECT_FLOAT_EQ(advanceRunMix(0.3f, true, std::numeric_limits<float>::quiet_NaN(), 0.2f), 0.3f);
+    }
+
+    TEST(HavokGaitSwitch, the_default_cross_fade_is_a_fifth_of_a_second)
+    {
+        EXPECT_FLOAT_EQ(Params().mCrossFade, 0.2f);
     }
 
     TEST(HavokGaitSmooth, one_time_constant_covers_sixty_three_percent)

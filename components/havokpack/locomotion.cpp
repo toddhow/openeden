@@ -13,20 +13,42 @@ namespace HavokPack::Gait
         }
     }
 
-    Weights weights(float speed, const Params& p)
+    Weights weights(float speed, float runMix, const Params& p)
     {
         Weights w;
         if (!std::isfinite(speed) || speed <= p.mStopSpeed)
             return w; // only the idle
-        // Fade the idle out, then mix the gaits by the speed between the walk's and the run's.
+        // Fade the idle out; the gaits are mixed only by the run mix (the cross-fade), never by the speed.
+        const float mix = std::isfinite(runMix) ? clamp01(runMix) : 0.f;
         const float move = clamp01((speed - p.mStopSpeed) / std::max(p.mFullSpeed - p.mStopSpeed, 1e-6f));
-        const float run = clamp01((speed - p.mWalkSpeed) / std::max(p.mRunSpeed - p.mWalkSpeed, 1e-6f));
         w.mIdle = 1.f - move;
-        w.mWalk = move * (1.f - run);
-        w.mRun = move * run;
-        const float stride = p.mWalkStride + (p.mRunStride - p.mWalkStride) * run;
+        w.mWalk = move * (1.f - mix);
+        w.mRun = move * mix;
+        const float stride = p.mWalkStride + (p.mRunStride - p.mWalkStride) * mix;
         w.mCyclesPerSecond = stride > 0.f ? speed / stride : 0.f;
         return w;
+    }
+
+    bool wantRun(float speed, bool wasRunning, const Params& p)
+    {
+        if (!std::isfinite(speed) || speed < 0.f)
+            return false;
+        const float edge = 0.5f * (p.mWalkSpeed + p.mRunSpeed);
+        const float band = std::max(p.mSwitchBand, 0.f);
+        if (wasRunning)
+            return speed >= edge * (1.f - band);
+        return speed > edge * (1.f + band);
+    }
+
+    float advanceRunMix(float runMix, bool run, float dt, float crossFade)
+    {
+        const float target = run ? 1.f : 0.f;
+        if (!(crossFade > 0.f))
+            return target;
+        if (!(dt > 0.f) || !std::isfinite(dt))
+            return runMix;
+        const float step = dt / crossFade;
+        return run ? std::min(runMix + step, 1.f) : std::max(runMix - step, 0.f);
     }
 
     float smoothSpeed(float current, float target, float dt, float tau)
