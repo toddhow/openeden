@@ -64,6 +64,8 @@ CFG
 [ "$SHOT" = n5idle ] && echo "content=n5idle.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0141: "n5talk" activates each neutral actor of the Bannered Mare and takes pictures of the conversation box; the presses come from OPENEDEN_NEUTRAL_DIALOGUE_PRESS (use at least 1500 frames).
 [ "$SHOT" = n5talk ] && echo "content=n5talk.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0146: "n5lip" stands before Hulda, talks to her and takes a picture of her face every quarter second (use at least 6000 frames).
+[ "$SHOT" = n5lip ] && echo "content=n5lip.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135: "n5body" walks the player into each neutral actor of the Bannered Mare (use at least 3600 frames).
 [ "$SHOT" = n5body ] && echo "content=n5body.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5bodydraw ] && echo "content=n5bodydraw.omwscripts" >> "$WORK/config/openmw.cfg"
@@ -127,11 +129,11 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|poslog|n5walk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters|TRUNKS |POSLOG |NTALK|N5T " "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters|TRUNKS |POSLOG |NTALK|N5T|NLIP|Skyrim lip sync " "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

@@ -24,6 +24,10 @@ namespace MWRender
             const MWWorld::Ptr& /*ptr*/, const openeden::sdk::game::ActorAppearance& /*appearance*/)
         {
         }
+
+        /// Task 0146 (`[Game] neutral lip sync`): opens the mouth of a drawn neutral actor, `aah` and `bigAah` in 0..1 (the
+        /// head's "Aah" and "BigAah" morphs). Does nothing for an object that has no head morph. Main thread.
+        virtual void setNeutralMouth(const MWWorld::Ptr& /*ptr*/, float /*aah*/, float /*bigAah*/) {}
     };
 }
 

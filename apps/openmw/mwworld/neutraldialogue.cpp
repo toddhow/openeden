@@ -8,6 +8,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include <components/misc/resourcehelpers.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -136,6 +137,20 @@ namespace MWWorld
         return out;
     }
 
+    namespace
+    {
+        NeutralMouthSink& mouthSink()
+        {
+            static NeutralMouthSink sSink;
+            return sSink;
+        }
+    }
+
+    void setNeutralMouthSink(NeutralMouthSink sink)
+    {
+        mouthSink() = std::move(sink);
+    }
+
     NeutralDialogueSession& neutralDialogueSession()
     {
         static NeutralDialogueSession session;
@@ -203,6 +218,22 @@ namespace MWWorld
                          << (sound->sayActive(mSpeaker) ? "playing" : "did not start");
     }
 
+    void NeutralDialogueSession::driveMouth()
+    {
+        const NeutralMouthSink& sink = mouthSink();
+        if (!sink || mSpeaker.isEmpty())
+            return;
+        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+        if (sound == nullptr)
+            return;
+        const TriMorph::MouthWeights w = mMouth.step(sound->getSaySoundLoudness(mSpeaker));
+        const bool open = w.mAah > 0.f || w.mBigAah > 0.f;
+        if (!open && !mMouthOpen)
+            return; // closed and staying closed: nothing to send
+        sink(mSpeaker, w.mAah, w.mBigAah);
+        mMouthOpen = open;
+    }
+
     void NeutralDialogueSession::stopVoice()
     {
         mVoice.clear();
@@ -233,6 +264,8 @@ namespace MWWorld
         }
         ++mPolls;
         pollVoice();
+        if (Settings::game().mNeutralLipSync)
+            driveMouth();
         int pressed = MWBase::Environment::get().getWindowManager()->readPressedButton();
         for (const auto& [poll, button] : mScript)
         {
@@ -292,7 +325,11 @@ namespace MWWorld
         {
             Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";
             stopVoice();
+            if (mMouthOpen && mouthSink() && !mSpeaker.isEmpty())
+                mouthSink()(mSpeaker, 0.f, 0.f); // close the mouth of whoever was speaking
         }
+        mMouth.reset();
+        mMouthOpen = false;
         mSpeaker = Ptr();
         mActive = false;
         mInjected = -1;

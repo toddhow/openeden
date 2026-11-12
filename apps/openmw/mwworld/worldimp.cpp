@@ -51,6 +51,7 @@
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/detournavigator/stats.hpp>
+#include "neutraldialogue.hpp"
 #include "neutralnavigation.hpp"
 #include <components/detournavigator/updateguard.hpp>
 
@@ -263,6 +264,10 @@ namespace MWWorld
         , mSpellPreloadTimer(0.f)
     {
         mRendering = &render;
+        // Task 0146: the conversation's speaker moves its mouth through the renderer (cleared in ~World).
+        setNeutralMouthSink([this](const Ptr& speaker, float aah, float bigAah) {
+            mRendering->getObjects().setNeutralMouth(speaker, aah, bigAah);
+        });
         // As OpenMW 0.51's NifFileManager did, physics decodes NIF strings with the content encoder.
         mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(
             resourceSystem, encoder ? &encoder->getStatelessEncoder() : nullptr);
@@ -531,6 +536,7 @@ namespace MWWorld
 
     World::~World()
     {
+        setNeutralMouthSink({});
         // Must be cleared before mRendering is destroyed
         if (mProjectileManager)
             mProjectileManager->clear();

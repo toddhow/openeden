@@ -39,8 +39,10 @@
 #include "env.hpp"
 #include "mask.hpp"
 #include "npc.hpp"
+#include <cstdlib>
 #include "skyrimactor.hpp"
 #include "skyrimidle.hpp"
+#include "skyrimlip.hpp"
 
 #include <components/mwanimation/sceneryanim.hpp>
 #include "switches.hpp"
@@ -380,11 +382,32 @@ namespace MWRender
                             << " draws | " << SkyrimActor::describeTotals();
         if (Settings::game().mNeutralActorIdles)
             attachNeutralIdle(ptr, appearance, *anim, *resources->getVFS());
+        if (report.mLip)
+            anim->keepAlive.push_back(report.mLip); // found again by setNeutralMouth; dies with the object
         loadTransform(ptr, *anim->transform());
         Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
         if (!context.compileContext->compile(anim->node()))
             return;
         addObject(ptr, std::move(anim), false);
+    }
+
+    void Scene::setNeutralMouth(const MWWorld::Ptr& ptr, float aah, float bigAah)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* morph = dynamic_cast<SkyrimLip::HeadMorph*>(kept.get()))
+            {
+                static const bool trace = std::getenv("OPENEDEN_NEUTRAL_LIP_TRACE") != nullptr;
+                if (morph->setWeights({ TriMorph::quantise(aah), TriMorph::quantise(bigAah) }) && trace)
+                    Log(Debug::Info) << "NLIP aah=" << morph->weights().mAah << " bigaah=" << morph->weights().mBigAah
+                                     << " uploads=" << morph->uploads();
+                return;
+            }
     }
 
     bool Scene::removeObject(const MWWorld::Ptr& ptr)

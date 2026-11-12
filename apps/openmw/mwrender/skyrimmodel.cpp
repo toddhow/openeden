@@ -290,6 +290,9 @@ namespace MWRender::SkyrimModel
             return vsgUtil::detail::decodeToRgba8(*data, out.mRgba, out.mWidth, out.mHeight);
         }
 
+        // BSLightingShaderType of the face tint shader (the same number as in components/nifscene/skinned.cpp).
+        constexpr std::uint32_t kFaceTintShaderType = 4;
+
         // The face's diffuse map multiplied by the actor's baked tint (NifScene::FaceTint), or null when either map
         // cannot be read and decoded (the shape then draws its plain diffuse map, as before).
         vsg::ref_ptr<vsg::Data> tintedDiffuse(const NifScene::Skinned::Shape& shape, const BuildContext& context)
@@ -335,7 +338,13 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::NORMAL);
             shader.addMode(Pipeline::Mode::SKIN);
             vsg::DataList dataList;
-            dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mPositions));
+            auto positions = copyArray<vsg::vec3Array>(shape.mPositions);
+            if (context.mMorphableFace && shape.mShaderType == kFaceTintShaderType)
+            {
+                positions->properties.dataVariance = vsg::DYNAMIC_DATA;
+                result.mFaceShapes.push_back(positions);
+            }
+            dataList.emplace_back(positions);
             dataList.emplace_back(copyArray<vsg::vec3Array>(shape.mNormals));
             auto boneIndices = vsg::vec4Array::create(count);
             auto boneWeights = vsg::vec4Array::create(count);

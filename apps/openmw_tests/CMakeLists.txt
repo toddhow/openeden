@@ -64,6 +64,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testskyrimtreesway.cpp
     mwrender/testskyrimactor.cpp
     mwrender/testskyrimidle.cpp
+    mwrender/testskyrimlip.cpp
     mwrender/testragdollbonemath.cpp
     mwrender/testgltfclips.cpp
     mwrender/testactorragdolldriver.cpp

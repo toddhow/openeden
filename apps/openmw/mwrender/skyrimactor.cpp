@@ -14,6 +14,7 @@
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/skeleton.hpp>
 #include <components/nifscene/skinned.hpp>
+#include <components/settings/values.hpp>
 #include <components/vsgutil/name.hpp>
 
 namespace MWRender::SkyrimActor
@@ -116,6 +117,7 @@ namespace MWRender::SkyrimActor
 
         vsg::ref_ptr<vsg::Group> root = buildSkeletonNodes(plan);
 
+        const bool lipSync = Settings::game().mNeutralLipSync;
         for (const openeden::sdk::game::ActorPart& part : appearance.parts)
         {
             ++report.mPartsAsked;
@@ -134,7 +136,18 @@ namespace MWRender::SkyrimActor
             }
             SkyrimModel::BuildContext partContext = context;
             partContext.mFilename = part.modelPath;
+            partContext.mMorphableFace = lipSync;
             SkyrimModel::BuildResult built = SkyrimModel::buildSkinnedNode(skinned, partContext);
+            for (const vsg::ref_ptr<vsg::vec3Array>& face : built.mFaceShapes)
+            {
+                if (report.mLip)
+                    break;
+                // The head: the face shader's shape whose vertex count a race head file has. The file's morph deltas are
+                // added to the shape's own vertices, so the NPC's own face is kept (judged in frames, task 0146).
+                report.mLip = SkyrimLip::HeadMorph::make(SkyrimLip::headFileFor(vfs, face->size()), face);
+                if (!report.mLip)
+                    Log(Debug::Verbose) << "Skyrim lip sync: no head morph file for a face of " << face->size() << " vertices";
+            }
             if (!built.mNode)
             {
                 ++report.mPartsWithoutSkin;

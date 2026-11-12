@@ -3,10 +3,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <components/trimorph/mouth.hpp>
 
 #include <openeden/game/dialogue_source.hpp>
 
@@ -104,6 +107,11 @@ namespace MWWorld
         std::size_t mStarted = 0;
     };
 
+    /// Task 0146 (`[Game] neutral lip sync`): where the speaker's mouth weights go (Aah, BigAah, each 0..1). The world
+    /// sets it to the renderer while it exists; unset, the drive does nothing.
+    using NeutralMouthSink = std::function<void(const Ptr&, float, float)>;
+    void setNeutralMouthSink(NeutralMouthSink sink);
+
     /// Runs one conversation at a time through the window manager.
     class NeutralDialogueSession
     {
@@ -137,8 +145,12 @@ namespace MWWorld
         /// Once a poll: starts the next queued line when the one before has ended.
         void pollVoice();
         void stopVoice();
+        /// Task 0146: once a poll, with the setting on: the speaker's jaw follows the loudness of its voice line.
+        void driveMouth();
 
         Ptr mSpeaker;
+        TriMorph::MouthDrive mMouth;
+        bool mMouthOpen = false; ///< a nonzero weight was sent and not yet closed
         NeutralVoiceQueue mVoice;
         bool mActive = false;
         int mInjected = -1;

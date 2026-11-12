@@ -26,6 +26,7 @@
 
 #include <openeden/game/actor_appearance.hpp>
 
+#include "skyrimlip.hpp"
 #include "skyrimmodel.hpp"
 
 namespace MWRender::SkyrimActor
@@ -42,6 +43,9 @@ namespace MWRender::SkyrimActor
         std::uint32_t mTriangles = 0;
         std::uint32_t mSkeletonProblems = 0; // unreachable, non-finite and duplicate-name nodes of the skeleton plan
         std::string mFailure; // set when no node was made
+        /// Task 0146: with `[Game] neutral lip sync`, the morph of the head's mouth (null when off, or when no face shape or
+        /// no race head file matched). The caller keeps it alive with the actor.
+        vsg::ref_ptr<SkyrimLip::HeadMorph> mLip;
     };
 
     /// The hierarchy of named Anim::Transform nodes for a skeleton plan, in the rest pose. Roots become children of the
