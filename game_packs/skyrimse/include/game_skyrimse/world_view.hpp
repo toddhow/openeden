@@ -112,7 +112,6 @@ namespace game_skyrimse
         public openeden::sdk::game::ActorAppearanceSource,
         public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::DisplayNameSource,
-        public openeden::sdk::game::WeatherSource
         public openeden::sdk::game::WeatherSource,
         public PackageSource
     {
