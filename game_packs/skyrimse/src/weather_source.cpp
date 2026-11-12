@@ -87,6 +87,31 @@ namespace game_skyrimse
             d.windSpeed = w.mData->mWindSpeed / WeatherScale::kWindByteScale;
             d.glareView = w.mData->mSunGlare / WeatherScale::kGlareByteScale;
             d.transitionDelta = w.mData->mTransitionDelta * WeatherScale::kTransitionDeltaPerUnit;
+
+            // Task 0127 W-S2. The kind is the DATA flags' Snow or Rainy bit (snow wins when both are set) and only a
+            // weather that names precipitation particles (MNAM, an SPGD) falls at all: the installed data has rainy
+            // weathers without one (SoulCairnAmb01_Rain, TESTCloudyRain) that show nothing in the game. Byte 6 over 255
+            // is the share of a transition after which the precipitation has changed over (153 / 255 = 0.6, the same
+            // number as Morrowind's rain threshold; RECALLED-VERIFY).
+            using openeden::sdk::game::Precipitation;
+            if (w.mPrecipitation != kNullFormId)
+            {
+                if ((w.mData->mFlags & WeatherFlags::Snow) != 0)
+                    d.precipitation = Precipitation::Snow;
+                else if ((w.mData->mFlags & WeatherFlags::Rainy) != 0)
+                    d.precipitation = Precipitation::Rain;
+            }
+            d.precipitationThreshold = w.mData->mPrecipitationBegin / 255.f;
+
+            // Thunder exists when the frequency is below "none" and the end fade is not zero (the default weather has
+            // frequency 0 and both fades 0). Byte 8 over 255 is when it starts within a transition.
+            if (w.mData->mThunderFrequency < WeatherScale::kNoThunderByte && w.mData->mThunderEnd != 0)
+            {
+                d.thunderFrequency = std::min(WeatherScale::kThunderFrequencyMax,
+                    (WeatherScale::kNoThunderByte - w.mData->mThunderFrequency)
+                        * WeatherScale::kThunderFrequencyPerStep);
+                d.thunderThreshold = w.mData->mThunderBegin / 255.f;
+            }
         }
         d.cloudsMaximumPercent = 1.f;
         d.storm = false;

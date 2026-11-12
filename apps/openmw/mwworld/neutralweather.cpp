@@ -1,6 +1,7 @@
 #include "neutralweather.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <numeric>
 
@@ -41,6 +42,72 @@ namespace MWWorld
         }
     }
 
+    namespace
+    {
+        float clampShare(float value, float low, float high)
+        {
+            if (!std::isfinite(value))
+                return NeutralWeatherConstants::kThresholdDefault;
+            return std::clamp(value, low, high);
+        }
+
+        void applyPrecipitation(const openeden::sdk::game::WeatherDescription& w, WeatherEntry& entry)
+        {
+            using openeden::sdk::game::Precipitation;
+            WeatherParams& p = entry.params;
+            if (w.precipitation == Precipitation::None)
+                return;
+            p.rainThreshold = clampShare(w.precipitationThreshold, NeutralWeatherConstants::kThresholdMin,
+                NeutralWeatherConstants::kThresholdMax);
+            if (w.precipitation == Precipitation::Rain)
+            {
+                // The manager draws the rain when `usingPrecip` is set; a thunder storm gets the thunderstorm's density.
+                const bool storm = w.thunderFrequency > 0.f && std::isfinite(w.thunderFrequency);
+                p.usingPrecip = true;
+                p.rainEntranceSpeed
+                    = storm ? NeutralWeatherConstants::kStormEntranceSpeed : NeutralWeatherConstants::kRainEntranceSpeed;
+                p.rainMaxRaindrops
+                    = storm ? NeutralWeatherConstants::kStormMaxRaindrops : NeutralWeatherConstants::kRainMaxRaindrops;
+                p.rainDiameter = NeutralWeatherConstants::kRainDiameter;
+                p.rainMinHeight = NeutralWeatherConstants::kRainMinHeight;
+                p.rainMaxHeight = NeutralWeatherConstants::kRainMaxHeight;
+                // No rain sound yet: "None" is how the INI says "no loop" (the manager would default to "rain").
+                p.rainLoopSoundId = "None";
+            }
+            else
+            {
+                const auto& models = Settings::models();
+                const bool blizzard = w.windSpeed >= NeutralWeatherConstants::kBlizzardWind;
+                entry.particleEffect = blizzard ? models.mWeatherblizzard.get().value() : models.mWeathersnow.get().value();
+            }
+        }
+
+        void applyThunder(const openeden::sdk::game::WeatherDescription& w, WeatherEntry& entry)
+        {
+            if (!(w.thunderFrequency > 0.f) || !std::isfinite(w.thunderFrequency))
+                return;
+            WeatherParams& p = entry.params;
+            p.thunderFrequency = w.thunderFrequency;
+            p.thunderThreshold = std::clamp(std::isfinite(w.thunderThreshold) ? w.thunderThreshold : 0.f, 0.f,
+                NeutralWeatherConstants::kThresholdMax);
+            p.flashDecrement = NeutralWeatherConstants::kFlashDecrement;
+        }
+    }
+
+    int findWeatherByName(const std::vector<WeatherEntry>& weathers, const std::string& name)
+    {
+        const auto lower = [](std::string s)
+        {
+            std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return s;
+        };
+        const std::string wanted = lower(name);
+        for (std::size_t i = 0; i < weathers.size(); ++i)
+            if (lower(weathers[i].name) == wanted)
+                return static_cast<int>(i);
+        return -1;
+    }
+
     WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& w)
     {
         WeatherEntry entry;
@@ -63,7 +130,9 @@ namespace MWWorld
         p.cloudsMaximumPercent
             = std::max(w.cloudsMaximumPercent, NeutralWeatherConstants::kMinimumCloudsMaximumPercent);
         p.transitionDelta = w.transitionDelta;
-        // Precipitation, thunder, lightning and sound wait for stage W-S2: everything below stays at "none".
+        applyPrecipitation(w, entry);
+        applyThunder(w, entry);
+        // Sound and the game's own particle data wait for a later stage: the loop sound ids stay empty or "None".
         return entry;
     }
 

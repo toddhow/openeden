@@ -347,4 +347,86 @@ namespace
         ASSERT_EQ(t1.weathers().size(), 3u);
         EXPECT_EQ(t1.weathers(), t2.weathers());
     }
+
+    // ---- Stage W-S2: precipitation and thunder (task 0127). Expected values are written out by hand from the DATA
+    // bytes: flags 0x04 rainy, 0x08 snow (RECALLED-VERIFY, supported by the installed data), byte 6 / 255 the share of a
+    // transition after which the precipitation has changed over, byte 10 = 255 no thunder, (255 - byte) / 10 the
+    // engine's frequency.
+
+    WeatherRecord precipitating(std::uint8_t flags, bool particles, std::uint8_t begin = 153)
+    {
+        WeatherRecord w = weatherRecord(0x30, "Falling");
+        WeatherData d;
+        d.mFlags = flags;
+        d.mPrecipitationBegin = begin;
+        d.mThunderFrequency = 255;
+        w.mData = d;
+        w.mPrecipitation = particles ? 0x00ABCDEF : kNullFormId;
+        return w;
+    }
+
+    TEST(SkyrimWeatherSource, rainySnowyAndNeitherAreToldApartByTheFlagsWhenParticlesExist)
+    {
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Rainy, true)).precipitation, sdk::Precipitation::Rain);
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Snow, true)).precipitation, sdk::Precipitation::Snow);
+        // Both bits: snow wins (a snowy storm is also flagged as stormy).
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Rainy | WeatherFlags::Snow, true)).precipitation,
+            sdk::Precipitation::Snow);
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Pleasant, true)).precipitation, sdk::Precipitation::None);
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Cloudy, true)).precipitation, sdk::Precipitation::None);
+        // Other bits do not matter: aurora with rain is rain.
+        EXPECT_EQ(
+            describeWeather(precipitating(WeatherFlags::Rainy | WeatherFlags::AuroraPermanent, true)).precipitation,
+            sdk::Precipitation::Rain);
+    }
+
+    TEST(SkyrimWeatherSource, aRainyFlagWithoutPrecipitationParticlesFallsNothing)
+    {
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Rainy, false)).precipitation, sdk::Precipitation::None);
+        EXPECT_EQ(describeWeather(precipitating(WeatherFlags::Snow, false)).precipitation, sdk::Precipitation::None);
+        WeatherRecord noData = weatherRecord(0x31, "NoData");
+        noData.mPrecipitation = 0x1234;
+        EXPECT_EQ(describeWeather(noData).precipitation, sdk::Precipitation::None);
+    }
+
+    TEST(SkyrimWeatherSource, thePrecipitationThresholdIsTheBeginByteOver255)
+    {
+        EXPECT_FLOAT_EQ(describeWeather(precipitating(WeatherFlags::Rainy, true, 153)).precipitationThreshold, 0.6f);
+        EXPECT_FLOAT_EQ(describeWeather(precipitating(WeatherFlags::Rainy, true, 0)).precipitationThreshold, 0.f);
+        EXPECT_FLOAT_EQ(describeWeather(precipitating(WeatherFlags::Rainy, true, 255)).precipitationThreshold, 1.f);
+        // With no DATA the default stays.
+        EXPECT_FLOAT_EQ(describeWeather(weatherRecord(0x32, "None")).precipitationThreshold, 0.5f);
+    }
+
+    WeatherRecord thundering(std::uint8_t frequency, std::uint8_t begin, std::uint8_t end)
+    {
+        WeatherRecord w = weatherRecord(0x33, "Thunder");
+        WeatherData d;
+        d.mThunderFrequency = frequency;
+        d.mThunderBegin = begin;
+        d.mThunderEnd = end;
+        w.mData = d;
+        return w;
+    }
+
+    TEST(SkyrimWeatherSource, thunderFrequencyCountsDownFrom255AndNeedsAnEndFade)
+    {
+        // 246 (the stormy rain): nine steps below "none" give 9 * 0.05 = 0.45, about four and a half strikes a minute.
+        const sdk::WeatherDescription storm = describeWeather(thundering(246, 0, 255));
+        EXPECT_NEAR(storm.thunderFrequency, 0.45f, 1e-5f);
+        EXPECT_FLOAT_EQ(storm.thunderThreshold, 0.f);
+        // The magic storm: 240 steps would give 12, held at the maximum 1; its begin 128 gives 128 / 255.
+        const sdk::WeatherDescription magic = describeWeather(thundering(15, 128, 255));
+        EXPECT_FLOAT_EQ(magic.thunderFrequency, 1.f);
+        EXPECT_NEAR(magic.thunderThreshold, 128.f / 255.f, 1e-6f);
+        // The maximum is reached at 20 steps and not rounded up before it.
+        EXPECT_NEAR(describeWeather(thundering(235, 0, 255)).thunderFrequency, 1.f, 1e-5f);
+        EXPECT_NEAR(describeWeather(thundering(236, 0, 255)).thunderFrequency, 0.95f, 1e-5f);
+        // 255 is none whatever the fades say.
+        EXPECT_FLOAT_EQ(describeWeather(thundering(255, 0, 255)).thunderFrequency, 0.f);
+        // Frequency 0 with no end fade (the default weather): none.
+        EXPECT_FLOAT_EQ(describeWeather(thundering(0, 0, 0)).thunderFrequency, 0.f);
+        // No DATA: none.
+        EXPECT_FLOAT_EQ(describeWeather(weatherRecord(0x34, "NoData")).thunderFrequency, 0.f);
+    }
 }

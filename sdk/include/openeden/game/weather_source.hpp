@@ -20,13 +20,14 @@
 // Units: colours are linear-looking 0..1 floats exactly as the game stores them divided by 255 (no gamma conversion is
 // done here); fogDepth is the engine's own fraction (see WeatherDescription::fogDepth); hours are 0..24 floats.
 //
-// Version policy: DRAFT 0.1. Additive changes (a new trailing field with a default that means "not given", a new
+// Version policy: DRAFT 0.2 (0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
+// WeatherDescription, defaults mean "none"). Additive changes (a new trailing field with a default that means "not given", a new
 // trailing virtual with a "not supported" default) raise the minor number; anything else raises the major number.
 // Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kWeatherSourceVersion{ 0, 1 };
+    inline constexpr Version kWeatherSourceVersion{ 0, 2 };
 
     struct WeatherColour
     {
@@ -40,6 +41,15 @@ namespace openeden::sdk::game
     {
         T sunrise{}, day{}, sunset{}, night{};
         friend bool operator==(const PerTimeOfDay&, const PerTimeOfDay&) = default;
+    };
+
+    /// What falls from the sky. The engine draws its own rain and snow for these (the particle data of the game is not
+    /// decoded yet): Rain is the rain streaks and wets the ground, Snow is the snow effect and builds snow cover.
+    enum class Precipitation : std::uint8_t
+    {
+        None = 0,
+        Rain = 1,
+        Snow = 2,
     };
 
     struct WeatherDescription
@@ -63,6 +73,17 @@ namespace openeden::sdk::game
         float transitionDelta = 0.f; ///< fraction of a transition per real second
         float cloudsMaximumPercent = 1.f; ///< the share of a transition after which the clouds have changed
         bool storm = false; ///< an ash or blight style storm (wind direction and walking rules)
+
+        // Added in 0.2. Defaults mean "no precipitation, no thunder".
+        Precipitation precipitation = Precipitation::None;
+        /// The share of a transition into this weather after which the precipitation has changed over (0..1). The
+        /// engine keeps it between 0.1 and 0.9 itself.
+        float precipitationThreshold = 0.5f;
+        /// Thunder and lightning, in the engine's scale: 1 is about ten strikes a minute at the end of a transition. 0
+        /// for none.
+        float thunderFrequency = 0.f;
+        /// The share of a transition after which the thunder starts (0..1).
+        float thunderThreshold = 0.f;
 
         friend bool operator==(const WeatherDescription&, const WeatherDescription&) = default;
     };

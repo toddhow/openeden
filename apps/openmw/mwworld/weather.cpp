@@ -29,10 +29,12 @@
 
 #include "cellstore.hpp"
 #include "esmstore.hpp"
+#include "neutralweather.hpp"
 #include "player.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 
 namespace MWWorld
@@ -740,7 +742,15 @@ namespace MWWorld
             mWeatherSettings.reserve(neutral->weathers.size());
             for (const WeatherEntry& entry : neutral->weathers)
                 addWeather(entry);
-            forceWeather(0);
+            if (const char* forced = std::getenv("OPENEDEN_NEUTRAL_FORCE_WEATHER"); forced != nullptr && *forced != 0)
+            {
+                mForcedWeather = findWeatherByName(neutral->weathers, forced);
+                if (mForcedWeather < 0)
+                    Log(Debug::Warning) << "OPENEDEN_NEUTRAL_FORCE_WEATHER: no weather named " << forced;
+                else
+                    Log(Debug::Info) << "Neutral weather: every region starts in " << forced << " (developer aid)";
+            }
+            forceWeather(mForcedWeather >= 0 ? mForcedWeather : 0);
             return;
         }
 
@@ -1367,7 +1377,12 @@ namespace MWWorld
         {
             std::vector<uint8_t> chances;
             if (mRegionProvider->chancesOf(key, chances))
-                mRegions.insert(std::make_pair(key, RegionWeather(std::move(chances))));
+            {
+                auto inserted = mRegions.insert(std::make_pair(key, RegionWeather(std::move(chances))));
+                // Developer aid (OPENEDEN_NEUTRAL_FORCE_WEATHER): a new region starts in the forced weather.
+                if (mForcedWeather >= 0)
+                    inserted.first->second.setWeather(mForcedWeather);
+            }
             else
                 return ESM::RefId();
         }
@@ -1407,7 +1422,7 @@ namespace MWWorld
             auto it = mRegions.begin();
             for (; it != mRegions.end(); ++it)
             {
-                it->second.setWeather(invalidWeatherID);
+                it->second.setWeather(mForcedWeather >= 0 ? mForcedWeather : invalidWeatherID);
             }
 
             mWeatherUpdateTime += mHoursBetweenWeatherChanges;

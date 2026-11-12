@@ -40,6 +40,15 @@ namespace game_skyrimse
         inline constexpr float kCloudSpeedScale = 2.f;
         inline constexpr float kCloudSpeedFloor = 0.25f;
         inline constexpr std::uint8_t kCloudStillByte = 127;
+        /// DATA byte 10 (thunder/lightning frequency) is 255 for "none" and counts down for more thunder (VERIFIED on
+        /// the installed data: 164 of 177 weathers have 255 and only stormy ones differ, for example 246 on the stormy
+        /// rains, 15 on a magic storm; the unit is RECALLED-VERIFY). The engine's frequency is (255 - byte) times this,
+        /// at most kThunderFrequencyMax: 246 gives 0.45, about four and a half strikes a minute in the engine's formula
+        /// (Morrowind's thunderstorm has 0.4); a magic storm (15) and a snow storm (203) would give 12 and 2.6, which
+        /// the maximum holds at one strike in six seconds. GUESS for the unit.
+        inline constexpr std::uint8_t kNoThunderByte = 255;
+        inline constexpr float kThunderFrequencyPerStep = 0.05f;
+        inline constexpr float kThunderFrequencyMax = 1.f;
     }
 
     /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts as

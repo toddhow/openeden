@@ -3,11 +3,13 @@
 // Expectations are written out by hand.
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
 
 #include <components/esm3/readerscache.hpp>
+#include <components/settings/values.hpp>
 
 #include "apps/openmw/mwclass/neutral.hpp"
 #include "apps/openmw/mwworld/cellstore.hpp"
@@ -312,5 +314,124 @@ namespace
         } empty;
         EXPECT_FALSE(MWWorld::makeNeutralWeatherSetup(empty, setup, error));
         EXPECT_FALSE(error.empty());
+    }
+
+    // ---- Stage W-S2 (precipitation, snow and thunder). The numbers are Morrowind's own INI values for the weathers the
+    // engine's code was written for (files/openmw.cfg: Weather_Rain_*, Weather_Thunderstorm_*), written out by hand.
+
+    sdk::WeatherDescription rainy(float threshold = 0.6f)
+    {
+        sdk::WeatherDescription d = description();
+        d.precipitation = sdk::Precipitation::Rain;
+        d.precipitationThreshold = threshold;
+        return d;
+    }
+
+    TEST(MWWorldNeutralWeather, rain_uses_the_engines_rain_with_morrowinds_rain_numbers_and_no_loop_sound)
+    {
+        const MWWorld::WeatherEntry e = MWWorld::weatherEntryFromDescription(rainy());
+        const MWWorld::WeatherParams& p = e.params;
+        EXPECT_TRUE(p.usingPrecip);
+        EXPECT_FLOAT_EQ(p.rainEntranceSpeed, 7.f);
+        EXPECT_EQ(p.rainMaxRaindrops, 450);
+        EXPECT_FLOAT_EQ(p.rainDiameter, 600.f);
+        EXPECT_FLOAT_EQ(p.rainMinHeight, 200.f);
+        EXPECT_FLOAT_EQ(p.rainMaxHeight, 700.f);
+        EXPECT_FLOAT_EQ(p.rainThreshold, 0.6f);
+        // The game's own rain sound is not wired yet: "None" is how the INI says no loop.
+        EXPECT_EQ(p.rainLoopSoundId, "None");
+        EXPECT_TRUE(e.particleEffect.empty());
+        EXPECT_FLOAT_EQ(p.thunderFrequency, 0.f);
+    }
+
+    TEST(MWWorldNeutralWeather, the_precipitation_threshold_is_kept_between_a_tenth_and_nine_tenths)
+    {
+        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(0.f)).params.rainThreshold, 0.1f);
+        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(1.f)).params.rainThreshold, 0.9f);
+        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(0.3f)).params.rainThreshold, 0.3f);
+        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(std::numeric_limits<float>::quiet_NaN())).params.rainThreshold,
+            0.5f);
+    }
+
+    TEST(MWWorldNeutralWeather, rain_with_thunder_takes_the_thunderstorms_numbers)
+    {
+        sdk::WeatherDescription d = rainy();
+        d.thunderFrequency = 0.9f;
+        d.thunderThreshold = 0.25f;
+        const MWWorld::WeatherParams p = MWWorld::weatherEntryFromDescription(d).params;
+        EXPECT_TRUE(p.usingPrecip);
+        EXPECT_FLOAT_EQ(p.rainEntranceSpeed, 5.f);
+        EXPECT_EQ(p.rainMaxRaindrops, 650);
+        EXPECT_FLOAT_EQ(p.rainDiameter, 600.f);
+        EXPECT_FLOAT_EQ(p.thunderFrequency, 0.9f);
+        EXPECT_FLOAT_EQ(p.thunderThreshold, 0.25f);
+        EXPECT_FLOAT_EQ(p.flashDecrement, 4.f);
+        // The sound ids stay empty: the engine's sound lookup finds nothing for them and plays nothing.
+        for (const std::string& id : p.thunderSoundId)
+            EXPECT_TRUE(id.empty());
+    }
+
+    TEST(MWWorldNeutralWeather, thunder_without_rain_still_flashes_and_the_threshold_stays_below_one)
+    {
+        sdk::WeatherDescription d = description();
+        d.thunderFrequency = 2.4f;
+        d.thunderThreshold = 1.f; // would divide by zero in the strike chance
+        const MWWorld::WeatherParams p = MWWorld::weatherEntryFromDescription(d).params;
+        EXPECT_FALSE(p.usingPrecip);
+        EXPECT_FLOAT_EQ(p.thunderFrequency, 2.4f);
+        EXPECT_FLOAT_EQ(p.thunderThreshold, 0.9f);
+        EXPECT_FLOAT_EQ(p.flashDecrement, 4.f);
+    }
+
+    TEST(MWWorldNeutralWeather, a_weather_without_thunder_has_no_flash)
+    {
+        sdk::WeatherDescription d = description();
+        d.thunderThreshold = 0.5f; // a threshold alone does nothing
+        const MWWorld::WeatherParams p = MWWorld::weatherEntryFromDescription(d).params;
+        EXPECT_FLOAT_EQ(p.thunderFrequency, 0.f);
+        EXPECT_FLOAT_EQ(p.flashDecrement, 0.f);
+        EXPECT_FLOAT_EQ(p.thunderThreshold, 0.f);
+    }
+
+    TEST(MWWorldNeutralWeather, snow_is_the_snow_effect_and_a_hard_wind_makes_it_the_blizzard)
+    {
+        sdk::WeatherDescription d = description();
+        d.precipitation = sdk::Precipitation::Snow;
+        d.windSpeed = 0.3f;
+        const MWWorld::WeatherEntry snow = MWWorld::weatherEntryFromDescription(d);
+        EXPECT_EQ(snow.particleEffect, Settings::models().mWeathersnow.get().value());
+        EXPECT_FALSE(snow.params.usingPrecip);
+        EXPECT_TRUE(snow.params.rainLoopSoundId.empty());
+
+        d.windSpeed = 0.5f;
+        EXPECT_EQ(MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
+        d.windSpeed = 0.7f;
+        EXPECT_EQ(MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
+        // Its threshold is the same value the rain uses.
+        d.precipitationThreshold = 0.8f;
+        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(d).params.rainThreshold, 0.8f);
+    }
+
+    TEST(MWWorldNeutralWeather, a_forced_weather_is_found_by_its_name_whatever_the_case)
+    {
+        std::vector<MWWorld::WeatherEntry> table(3);
+        table[0].name = "SkyrimClear";
+        table[1].name = "SkyrimOvercastSnow";
+        table[2].name = "SkyrimStormRain";
+        EXPECT_EQ(MWWorld::findWeatherByName(table, "SkyrimOvercastSnow"), 1);
+        EXPECT_EQ(MWWorld::findWeatherByName(table, "skyrimstormrain"), 2);
+        EXPECT_EQ(MWWorld::findWeatherByName(table, "SkyrimNothing"), -1);
+        EXPECT_EQ(MWWorld::findWeatherByName(table, ""), -1);
+        EXPECT_EQ(MWWorld::findWeatherByName({}, "SkyrimClear"), -1);
+    }
+
+    TEST(MWWorldNeutralWeather, no_precipitation_leaves_every_precipitation_field_at_none)
+    {
+        const MWWorld::WeatherEntry e = MWWorld::weatherEntryFromDescription(description());
+        EXPECT_FALSE(e.params.usingPrecip);
+        EXPECT_TRUE(e.particleEffect.empty());
+        EXPECT_EQ(e.params.rainMaxRaindrops, 0);
+        EXPECT_FLOAT_EQ(e.params.rainEntranceSpeed, 0.f);
+        EXPECT_FLOAT_EQ(e.params.rainThreshold, 0.f);
     }
 }

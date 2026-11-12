@@ -398,6 +398,8 @@ namespace MWWorld
         MWWorld::ESMStore& mStore;
         MWRender::RenderManager& mRendering;
         std::shared_ptr<RegionWeatherProvider> mRegionProvider; // null for Morrowind
+        /// Developer aid (OPENEDEN_NEUTRAL_FORCE_WEATHER, a pack's weather only): the table index every region starts in.
+        int mForcedWeather = -1;
         float mAtmosphereNightRoll = 0;
         float mSunriseTime;
         float mSunsetTime;

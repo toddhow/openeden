@@ -24,9 +24,29 @@ namespace MWWorld
     namespace NeutralWeatherConstants
     {
         inline constexpr float kHoursBetweenWeatherChanges = 12.f;
-        inline constexpr float kRainSpeed = 575.f; ///< Morrowind's Weather_Precip_Gravity: no precipitation is shown yet
+        inline constexpr float kRainSpeed = 575.f; ///< Morrowind's Weather_Precip_Gravity (the rain fall speed)
         inline constexpr float kMinimumDuration = 1.f / 60.f; ///< hours; a phase never lasts less than a minute
         inline constexpr float kMinimumCloudsMaximumPercent = 0.01f; ///< it divides the transition ratio
+
+        // Stage W-S2. The game's particle data (SPGD) is not decoded yet (toddhow, 2026-11-12: later), so the engine's
+        // own rain, snow and lightning are drawn with Morrowind's numbers (files/openmw.cfg, Weather_Rain_* and
+        // Weather_Thunderstorm_*, whose engine code these are). Each is a named stand-in, pinned by a test.
+        inline constexpr float kRainEntranceSpeed = 7.f; ///< Weather_Rain_Rain_Entrance_Speed
+        inline constexpr int kRainMaxRaindrops = 450; ///< Weather_Rain_Max_Raindrops
+        inline constexpr float kStormEntranceSpeed = 5.f; ///< Weather_Thunderstorm_Rain_Entrance_Speed
+        inline constexpr int kStormMaxRaindrops = 650; ///< Weather_Thunderstorm_Max_Raindrops
+        inline constexpr float kRainDiameter = 600.f; ///< Weather_Rain_Rain_Diameter (also the thunderstorm's)
+        inline constexpr float kRainMinHeight = 200.f; ///< Weather_Rain_Rain_Height_Min
+        inline constexpr float kRainMaxHeight = 700.f; ///< Weather_Rain_Rain_Height_Max
+        inline constexpr float kFlashDecrement = 4.f; ///< Weather_Thunderstorm_Flash_Decrement
+        /// A snow weather with at least this wind (the SDK's scale) is a blizzard (Skyrim's snow storm has wind byte
+        /// 178 = 0.7, its plain snow 76 = 0.3). GUESS.
+        inline constexpr float kBlizzardWind = 0.5f;
+        /// The manager takes a precipitation or thunder share of a transition between these (the manager divides by
+        /// one minus the threshold and treats 0 as "unset").
+        inline constexpr float kThresholdMin = 0.1f;
+        inline constexpr float kThresholdMax = 0.9f;
+        inline constexpr float kThresholdDefault = 0.5f;
     }
 
     [[nodiscard]] WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& weather);
@@ -55,6 +75,11 @@ namespace MWWorld
         std::map<std::uint64_t, ESM::RefId> mCellKeys; ///< cell id -> region key ("" id: none)
         std::map<ESM::RefId, std::vector<std::uint8_t>> mChances;
     };
+
+    /// The index in `weathers` of the weather named `name` (case-insensitive), or -1. A developer aid:
+    /// OPENEDEN_NEUTRAL_FORCE_WEATHER=<editor id> makes the weather manager start the player's region in that weather
+    /// (docs/debug-environment-variables.md).
+    [[nodiscard]] int findWeatherByName(const std::vector<WeatherEntry>& weathers, const std::string& name);
 
     /// The setup for a pack's source. False with `error` when the pack describes no weather.
     [[nodiscard]] bool makeNeutralWeatherSetup(
