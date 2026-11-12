@@ -12,6 +12,7 @@
 #include <components/esm3/aisequence.hpp>
 #include <components/misc/coordinateconverter.hpp>
 #include <components/misc/pathgridutils.hpp>
+#include <components/misc/forcedvariant.hpp>
 #include <components/misc/rng.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -756,6 +757,13 @@ namespace MWMechanics
             = world->getStore().get<ESM::GameSetting>().find("fIdleChanceMultiplier")->mValue.getFloat();
         if (Misc::Rng::rollClosedProbability(world->getPrng()) > fIdleChanceMultiplier)
             return 0;
+
+        if (const int forced = Misc::forcedAnimVariant(); forced > 0)
+        {
+            // developer knob, see forcedvariant.hpp: the forced idle if the package allows it
+            const size_t index = std::min<size_t>(forced - 1, mIdle.size() - 1);
+            return mIdle[index] > 0 ? static_cast<unsigned short>(GroupIndex_MinIdle + index) : 0;
+        }
 
         unsigned short newIdle = 0;
         float maxRoll = 0.f;

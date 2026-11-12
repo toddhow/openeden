@@ -20,6 +20,7 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/misc/mathutil.hpp>
+#include <components/misc/forcedvariant.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
@@ -418,6 +419,8 @@ namespace MWMechanics
             ++numAnims;
 
         int roll = Misc::Rng::rollDice(numAnims, prng) + 1; // [1, numAnims]
+        if (const int forced = Misc::forcedAnimVariant(); forced > 0 && numAnims > 0)
+            roll = std::min(forced, numAnims); // developer knob, see forcedvariant.hpp
         if (num)
             *num = roll;
         return prefix + std::to_string(roll);

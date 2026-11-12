@@ -210,3 +210,9 @@ The Linux gate and GCC `-Werror` (Docker is not to be used), clang-format 14 (no
 2. The `setAccumulation` quirk above: pinned as it is; fixing it changes root motion in the cases that call it (a decision, not part of this task).
 3. `--random-seed` does not fix the player's random hit reaction or NPC idle choice; exact goldens exist only for the player before the hit phase. Do you want the hit variant forced (a developer-only knob) for later stages?
 4. 0123's gltf `ControllerMap` is not yet built into an `AnimSet` anywhere but `Play` (it needs no change), so "AnimSet builds from glTF" is true only through `Play::addSingleAnimSource`.
+
+### 2026-11-12: stage C2 starts; toddhow answered the C1 report ("yes to all")
+
+
+
+1. `AnimSet` owns the clips in C2 (the driver change), as the spec planned. 2. `Play::setAccumulation` is fixed in C2 (it changes root motion where `character.cpp` calls it; before/after to be measured and reported). 3. A developer-only knob forces the random variant choices: environment variable `OPENEDEN_FORCE_ANIM_VARIANT=<n>` (documented in `docs/debug-environment-variables.md`; not a setting). It covers `chooseRandomGroup` (hit, attack, death, swimattack numbers) and `AiWander::getRandomIdle`. Wander positions, attack type and other rolls stay random, so NPC traces are still not exact.
