@@ -378,6 +378,14 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
+        /// fn_144 GetTrespassWarningLevel: how many warnings the subject (on a guard package, or responding to
+        /// trespassing or an aggro radius violation) has given; it counts on the warner, not the trespasser (CK wiki,
+        /// shown by toddhow, 2026-11-11).
+        virtual float trespassWarnings(Subject subject) const
+        {
+            (void)subject;
+            return 0.f;
+        }
         /// fn_56 GetQuestRunning(quest): is the quest running (not stopped, completed or failed)? (toddhow, 2026-11-11)
         virtual bool questRunning(std::uint32_t quest) const
         {

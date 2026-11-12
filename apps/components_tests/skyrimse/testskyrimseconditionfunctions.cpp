@@ -124,6 +124,7 @@ namespace
         std::uint32_t mEquipped = 0xD0;
         bool mServices = true;
         bool mInterior = true;
+        float trespassWarnings(Subject s) const override { return s == mSubject ? 2.f : 0.f; }
         bool knowsSpell(Subject s, std::uint32_t sp) const override { return s == mSubject && sp == 0x170; }
         float sleepState(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         float crimeGold(Subject s, std::uint32_t f) const override
@@ -486,6 +487,15 @@ namespace
         w.mBribe = true;
         w.mSubject = 0;
         EXPECT_TRUE(run(cond(654, kEq, 0.f), w));
+    }
+
+    // fn_144 GetTrespassWarningLevel: warnings the subject has given (CK wiki, toddhow 2026-11-11).
+    TEST(SkyrimConditionFunctions, fn_144_is_the_warnings_given)
+    {
+        World w;
+        EXPECT_TRUE(run(cond(144, kEq, 2.f), w));
+        w.mSubject = 0;
+        EXPECT_TRUE(run(cond(144, kEq, 0.f), w));
     }
 
     TEST(SkyrimConditionFunctions, fn_47_is_the_item_count)

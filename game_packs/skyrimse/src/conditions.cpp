@@ -353,6 +353,12 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.playerCanBribe(subject));
         }
 
+        // 144 GetTrespassWarningLevel: counts on the warner (CK wiki, toddhow 2026-11-11)
+        float getTrespassWarningLevel(const survey::Ctda&, Subject subject, const ConditionWorld& world)
+        {
+            return subject != 0 ? world.trespassWarnings(subject) : 0.f;
+        }
+
         struct Entry
         {
             std::uint16_t mIndex;
@@ -361,7 +367,7 @@ namespace game_skyrimse::conditions
 
         // Names: xEdit's table (survey_names_xedit.cpp), the first five also upstream OpenMW's (survey_names.cpp).
         // Sorted by index.
-        constexpr std::array<Entry, 54> sTable = { {
+        constexpr std::array<Entry, 55> sTable = { {
             { 1, getDistance },
             { 14, getActorValue },
             { 35, getDisabled },
@@ -385,6 +391,7 @@ namespace game_skyrimse::conditions
             { 84, getDeadCount },
             { 130, getPCIsRace },
             { 131, getPCIsSex },
+            { 144, getTrespassWarningLevel },
             { 145, isTrespassing },
             { 149, getIsCurrentWeather },
             { 161, getIsCurrentPackage },
