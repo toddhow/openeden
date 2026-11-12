@@ -47,6 +47,7 @@ dir components/bsa formats
 dir components/contentsource formats
 dir components/fuz formats
 dir components/trimorph formats
+dir components/lip formats
 dir components/esmloader formats
 dir components/bgsm formats
 

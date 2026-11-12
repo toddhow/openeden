@@ -202,6 +202,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     fuz/testfuz.cpp
     trimorph/testtrimorph.cpp
+    lip/testlip.cpp
 
     contentsource/pluginbuilder.hpp
     contentsource/testplugin.cpp

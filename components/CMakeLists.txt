@@ -316,6 +316,11 @@ add_component_dir (trimorph
     trimorph mouth
     )
 
+# The .lip lip-sync file of Skyrim SE voice lines (task 0146 stage b). Standard library only. Formats layer.
+add_component_dir (lip
+    lip
+    )
+
 # Nif::Scene: a NIF file as plain arrays, with the packed vertex formats of Skyrim SE decoded (task 0082).
 # Depends on nif. Formats layer: no renderer, physics or game rule.
 add_component_dir (nifscene
