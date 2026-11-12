@@ -122,6 +122,46 @@ namespace
         EXPECT_LE(complete, 1.f);
     }
 
+    // The pose a near Activator has on its first frame (refreshIdleAnims: idle from phase 0, then runAnimation(0)).
+    TEST(SceneryKeyframesRest, poses_the_play_on_the_first_frame_of_idle)
+    {
+        auto source = vsg::ref_ptr<Anim::ControllerMap>(new Anim::ControllerMap);
+        source->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags);
+        source->tags->emplace(1.f, "idle: start");
+        source->tags->emplace(5.f, "idle: stop");
+        Play play;
+        play.addSingleAnimSource(source, "test");
+        ASSERT_TRUE(SceneryKeyframes::startAtRest(play));
+        float complete = -1.f;
+        ASSERT_TRUE(play.getInfo("idle", &complete));
+        EXPECT_FLOAT_EQ(complete, 0.f);
+        EXPECT_TRUE(play.isPlaying("idle"));
+    }
+
+    // The tavern banners' idle has one key time for start and stop: it never "plays", yet the pose is its frame.
+    TEST(SceneryKeyframesRest, an_idle_of_zero_length_still_poses)
+    {
+        auto source = vsg::ref_ptr<Anim::ControllerMap>(new Anim::ControllerMap);
+        source->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags);
+        source->tags->emplace(0.5f, "idle: start");
+        source->tags->emplace(0.5f, "idle: stop");
+        Play play;
+        play.addSingleAnimSource(source, "test");
+        EXPECT_TRUE(SceneryKeyframes::startAtRest(play));
+        EXPECT_TRUE(play.getInfo("idle"));
+    }
+
+    TEST(SceneryKeyframesRest, a_file_without_idle_is_not_posed)
+    {
+        auto source = vsg::ref_ptr<Anim::ControllerMap>(new Anim::ControllerMap);
+        source->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags);
+        source->tags->emplace(0.f, "wave: start");
+        source->tags->emplace(1.f, "wave: stop");
+        Play play;
+        play.addSingleAnimSource(source, "test");
+        EXPECT_FALSE(SceneryKeyframes::startAtRest(play));
+    }
+
     TEST(SceneryKeyframesDriver, advances_the_play_by_the_timer_difference_only)
     {
         Play play;

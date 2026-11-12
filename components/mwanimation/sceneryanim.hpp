@@ -62,6 +62,18 @@ namespace MWAnim
             return true;
         }
 
+        /// Poses `play` as a placed Activator is on its first frame: the `idle` group from its start, then one step of
+        /// zero time (CharacterController::refreshIdleAnims, then runAnimation(0)). False when there is no `idle`; an idle whose start and
+        /// stop are one time is posed too, though it never plays.
+        inline bool startAtRest(Play& play)
+        {
+            if (!play.hasAnimation("idle"))
+                return false;
+            play.play("idle", Play::Priority(1), 1, false, 1.f, "start", "stop", 0.f, 0xFFFFFFFFu, true);
+            play.runAnimation(0.f);
+            return play.getInfo("idle");
+        }
+
         /// An auto-play controller that advances a Play by the time that passed, so a group of auto-play controllers
         /// (near objects, far chunks) can run the keyframes: run() receives the group's timer, not a step.
         class Driver : public Anim::Controller

@@ -132,7 +132,7 @@ namespace MWRender
         // there; its skin controllers are returned apart, to be run after the others. Runs on an operation thread, like
         // the rest of buildChunk, and reads only the prototypes.
         AnimatedCopy makeAnimatedCopy(const MWAnim::Context& context, const vsg::ref_ptr<vsg::Node>& prototype,
-            const std::string& path, std::uint64_t id)
+            const std::string& path, std::uint64_t id, bool restOnly = false)
         {
             AnimatedCopy out;
             out.node = prototype;
@@ -140,8 +140,8 @@ namespace MWRender
             MWAnim::CloneResult result = MWAnim::cloneIfRequired(node);
             // Task 0096 stage f: a model with a keyframe file is read as an animated model even without a skin, so
             // that its keyframes have bones to move (the setting decides; the rule is SceneryKeyframes::applies).
-            const bool keyframes = Settings::game().mAnimatePlacedSceneryKeyframes && context.hasKeyframeFile
-                && context.hasKeyframeFile(path);
+            const bool keyframes = (restOnly || Settings::game().mAnimatePlacedSceneryKeyframes)
+                && context.hasKeyframeFile && context.hasKeyframeFile(path);
             if (result.controllers.empty() && result.clonedControllers.empty() && !keyframes)
             {
                 out.reason = "no controllers";
@@ -153,6 +153,12 @@ namespace MWRender
             const bool skinned = std::any_of(result.clonedControllers.begin(), result.clonedControllers.end(),
                 [&isSkin](const auto& pair) { return isSkin(pair.first); });
             std::optional<Anim::Bones> bones;
+            // Task 0096 stage g: the rest pose only (no controllers) is for skinned models alone.
+            if (restOnly && !skinned)
+            {
+                out.reason = "no skin";
+                return out;
+            }
             if (skinned || keyframes)
             {
                 vsg::ref_ptr<vsg::Node> actor;
@@ -196,6 +202,34 @@ namespace MWRender
                     found.emplace_back(
                         vsg::ref_ptr<const Anim::Controller>(controller), vsg::ref_ptr<vsg::Object>(target));
             });
+            if (restOnly)
+            {
+                // A model drawn in its bind pose lies folded flat (a flag); a placed Activator is posed by the first
+                // frame of its idle (refreshIdleAnims). Pose this copy the same way, once, and move nothing after.
+                if (!bones || skins.empty())
+                {
+                    out.reason = "no skin";
+                    return out;
+                }
+                MWAnim::Play play(*bones);
+                vsg::ref_ptr<Anim::ControllerMap> sources = context.readAnimation(path);
+                if (!sources)
+                {
+                    out.reason = "no keyframes";
+                    return out;
+                }
+                play.addSingleAnimSource(sources, path);
+                if (!MWAnim::SceneryKeyframes::startAtRest(play))
+                {
+                    out.reason = "no idle";
+                    return out;
+                }
+                for (const auto& [skin, target] : skins)
+                    skin->run(*target, 0.f);
+                out.node = node;
+                out.reason = "rest pose";
+                return out;
+            }
             if (found.empty() && keyframes && bones)
             {
                 // The model has a keyframe file and no animation of its own: loop its group, in a Play this copy owns.
@@ -308,6 +342,7 @@ namespace MWRender
             if (animate)
                 animated = AnimatedChunk::create();
             std::map<const vsg::Node*, bool> particleModels;
+            std::map<const vsg::Node*, vsg::ref_ptr<vsg::Node>> restModels;
             for (const auto& [refNum, ref] : collectReferences(cell, store))
             {
                 if (disabled.contains(refNum) || Misc::ResourceHelpers::isHiddenMarker(ref.mRefID))
@@ -375,6 +410,27 @@ namespace MWRender
                     }
                     else if (farAnimationCensus())
                         Log(Debug::Info) << "far animation census: " << model << " particles";
+                }
+                if (drawn == prototype)
+                {
+                    // Task 0096 stage g: a skinned model with a keyframe file would draw in its bind pose (a flag lies
+                    // folded flat); give it the pose its idle has on the first frame, once per model in this chunk.
+                    auto rest = restModels.find(prototype.get());
+                    if (rest == restModels.end())
+                    {
+                        vsg::ref_ptr<vsg::Node> posed = prototype;
+                        const std::string path(
+                            Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model)).value());
+                        if (context.hasKeyframeFile && context.hasKeyframeFile(path) && !hasParticles(*prototype))
+                        {
+                            AnimatedCopy copy = makeAnimatedCopy(context, prototype, path, 0, true);
+                            posed = copy.node;
+                            if (farAnimationCensus() && copy.reason != nullptr)
+                                Log(Debug::Info) << "far animation census: " << model << " rest: " << copy.reason;
+                        }
+                        rest = restModels.emplace(prototype.get(), posed).first;
+                    }
+                    drawn = rest->second;
                 }
                 lod->addChild(drawn);
                 transform->addChild(lod);
