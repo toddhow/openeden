@@ -14,6 +14,7 @@ openeden_add_game_pack(skyrimse
         src/voice.cpp
         src/appearance.cpp
         src/land.cpp
+        src/grass.cpp
         src/worldspace.cpp
         src/weather.cpp
         src/weather_source.cpp
@@ -42,6 +43,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/voice.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
+        include/game_skyrimse/grass.hpp
         include/game_skyrimse/worldspace.hpp
         include/game_skyrimse/weather.hpp
         include/game_skyrimse/weather_source.hpp
@@ -83,6 +85,7 @@ add_library(game_skyrimse_world STATIC
     src/voice.cpp
     src/appearance.cpp
     src/land.cpp
+    src/grass.cpp
     src/worldspace.cpp
     src/weather.cpp
     src/weather_source.cpp

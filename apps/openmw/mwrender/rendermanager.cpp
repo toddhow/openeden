@@ -126,6 +126,7 @@
 #include "env.hpp"
 #include "fogmanager.hpp"
 #include "groundcover.hpp"
+#include "neutralgrass.hpp"
 #include "intersect.hpp"
 #include "lodclusters.hpp"
 #include "lodterrain.hpp"
@@ -1874,6 +1875,8 @@ namespace MWRender
         mSceneRoot->addChild(mScene->getObjects());
         if (mGroundcover)
             mSceneRoot->addChild(mGroundcover->node());
+        if (mNeutralGrass)
+            mSceneRoot->addChild(mNeutralGrass->node());
         if (mDistantObjects)
             mSceneRoot->addChild(mDistantObjects->node());
         if (mLodClusters)
@@ -2504,7 +2507,42 @@ namespace MWRender
                          << (terrainLayers ? ", alpha layers on" : "");
         startNeutralLodTerrain(source);
         startNeutralLodClusters(source);
+        startNeutralGrass(source, world);
         return true;
+    }
+
+    void RenderManager::startNeutralGrass(openeden::sdk::game::WorldCellSource& source, std::uint64_t world)
+    {
+        // Task 0153: the old world's grass goes with its terrain (the destructor waits for its worker).
+        mNeutralGrass.reset();
+        if (!Settings::game().mNeutralGrass)
+            return;
+        auto* grass = dynamic_cast<openeden::sdk::game::GrassSource*>(&source);
+        if (grass == nullptr)
+        {
+            Log(Debug::Info) << "Neutral grass: the " << source.gameId() << " source has no grass";
+            return;
+        }
+        mNeutralGrass = std::make_unique<NeutralGrass>(mScene->context, *grass,
+            static_cast<openeden::sdk::game::WorldId>(world), mNeutralStorage->cellWorldSize,
+            Settings::groundcover().mRenderingDistance);
+        updateSceneChildren();
+        Log(Debug::Info) << "Neutral grass: on for " << source.gameId() << " world " << world << ", squares of "
+                         << mNeutralStorage->cellWorldSize << " units, rendering distance "
+                         << Settings::groundcover().mRenderingDistance;
+    }
+
+    void RenderManager::updateNeutralGrass(const vsg::vec3& cameraPosition)
+    {
+        if (!mNeutralGrass)
+            return;
+        // Only in a game pack's exterior: Morrowind's default worldspace and interiors have none.
+        const MWWorld::Ptr player = MWMechanics::getPlayer();
+        if (!player.isEmpty() && player.isInCell() && player.getCell()->isExterior()
+            && player.getCell()->getCell()->getWorldSpace() != ESM::Cell::sDefaultWorldspaceId)
+            mNeutralGrass->update(cameraPosition);
+        else
+            mNeutralGrass->hide();
     }
 
     void RenderManager::startNeutralLodClusters(openeden::sdk::game::WorldCellSource& source)
@@ -3668,6 +3706,7 @@ namespace MWRender
         {
             Misc::LoadTrace::Scope traceGroundcover("render.update.groundcover");
             updateGroundcover(cameraPosition);
+            updateNeutralGrass(cameraPosition);
         }
         {
             Misc::LoadTrace::Scope traceObjects("render.update.distantobjects");

@@ -1,5 +1,7 @@
 #include "groundcover.hpp"
 
+#include "groundcoverbuild.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <typeinfo>
@@ -125,6 +127,16 @@ namespace MWRender
                 return {};
 
             const vsg::vec3 origin(center.x * ESM::Land::REAL_SIZE, center.y * ESM::Land::REAL_SIZE, 0.f);
+            return buildGroundcoverChunk(context, instances, origin);
+        }
+    }
+
+    // Task 0153: the part of the chunk build that does not depend on where the instances come from (the Morrowind
+    // store, or a game pack's grass), moved out of buildChunk unchanged so the neutral grass shares it.
+    vsg::ref_ptr<vsg::Node> buildGroundcoverChunk(
+        const MWAnim::Context& context, const GroundcoverInstances& instances, const vsg::vec3& origin)
+    {
+        {
             auto models = vsg::Group::create();
             vsg::dbox bounds;
             for (const auto& [model, entries] : instances)
@@ -171,6 +183,28 @@ namespace MWRender
         }
     }
 
+    MWAnim::Context makeGroundcoverContext(const MWAnim::Context& base)
+    {
+        MWAnim::Context result = base;
+        auto override_ = vsg::ref_ptr{ new Pipeline::Override };
+        override_->pipelineOptions = [](Pipeline::Options& options) {
+            // Particle systems are not instanced (instantiate() leaves them out).
+            if (!options.shader.hasMode(Pipeline::Mode::PARTICLE))
+                options.shader.addMode(Pipeline::Mode::INSTANCE);
+            options.blend = false;
+            options.alphaTestMode = sAlphaTestGreaterEqual;
+        };
+        override_->materialData
+            = [](Pipeline::Data::Material& material) { material.alphaTestCutoff = sAlphaTestCutoff; };
+        auto nodeOptions = vsg::Options::create(*result.nodeOptions);
+        // Its own cache: VSG matches shared reads by comparing options, and every Pipeline::Override compares equal,
+        // so the first-person or inventory preview models (also read with an override) could otherwise be swapped.
+        nodeOptions->sharedObjects = vsg::SharedObjects::create();
+        override_->composite(*nodeOptions);
+        result.nodeOptions = nodeOptions;
+        return result;
+    }
+
     // One cell's chunk being built on an operation thread; the main thread reads chunk only once done is set.
     struct Groundcover::ChunkBuild : public vsgUtil::Operation
     {
@@ -206,7 +240,7 @@ namespace MWRender
 
     Groundcover::Groundcover(
         const MWAnim::Context& context, const MWWorld::GroundcoverStore& store, float density, float renderingDistance)
-        : mContext(context)
+        : mContext(makeGroundcoverContext(context))
         , mStore(store)
         , mDensity(density)
         , mRenderingDistance(renderingDistance)
@@ -214,22 +248,6 @@ namespace MWRender
         , mRoot(vsg::Group::create())
         , mTracker(sCachedChunks)
     {
-        auto override_ = vsg::ref_ptr{ new Pipeline::Override };
-        override_->pipelineOptions = [](Pipeline::Options& options) {
-            // Particle systems are not instanced (instantiate() leaves them out).
-            if (!options.shader.hasMode(Pipeline::Mode::PARTICLE))
-                options.shader.addMode(Pipeline::Mode::INSTANCE);
-            options.blend = false;
-            options.alphaTestMode = sAlphaTestGreaterEqual;
-        };
-        override_->materialData
-            = [](Pipeline::Data::Material& material) { material.alphaTestCutoff = sAlphaTestCutoff; };
-        auto nodeOptions = vsg::Options::create(*mContext.nodeOptions);
-        // Its own cache: VSG matches shared reads by comparing options, and every Pipeline::Override compares equal,
-        // so the first-person or inventory preview models (also read with an override) could otherwise be swapped.
-        nodeOptions->sharedObjects = vsg::SharedObjects::create();
-        override_->composite(*nodeOptions);
-        mContext.nodeOptions = nodeOptions;
     }
 
     Groundcover::~Groundcover()

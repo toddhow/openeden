@@ -50,7 +50,7 @@ add_openmw_dir (mwrender
     animcontext bodyparts bodylegacy mergedbody partslots partreaderrorlog skyrimmodel skyrimtreesway skyrimactor skyrimidle skyrimlocomotion skyrimlip wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map mapdepthrange worldmap preview shadow pointshadows
-    fogmanager water screenshotinterface bonepose footikmath actorikcontroller actorragdolldriver joltdebugdraw navmesh creativemotiondriver animclip gltfclips creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells animatedchunk distantobjects waterripples groundcoverinstances groundcover
+    fogmanager water screenshotinterface bonepose footikmath actorikcontroller actorragdolldriver joltdebugdraw navmesh creativemotiondriver animclip gltfclips creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells animatedchunk distantobjects waterripples groundcoverinstances groundcoverbuild groundcover neutralgrass
     )
 
 add_openmw_dir (mwinput

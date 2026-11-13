@@ -21,8 +21,10 @@
 // they may run on one thread at a time per object; the core calls them on the main thread.
 // Hostile input: everything is decoded by the E0 decoders under ExteriorLimits; nothing throws.
 
+#include "game_skyrimse/grass.hpp"
 #include "game_skyrimse/worldspace.hpp"
 
+#include <openeden/game/grass_source.hpp>
 #include <openeden/game/world_terrain.hpp>
 #include <openeden/game/world_water.hpp>
 
@@ -86,6 +88,13 @@ namespace game_skyrimse
         [[nodiscard]] bool cellWater(
             openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y, openeden::sdk::game::CellWater& out) const;
 
+        /// Task 0153: the grass of one grid square (grass_source.hpp). The land comes from the world itself or, where
+        /// the world has none and its parent lends its land, from the parent (the same walk as the water). False for an
+        /// unknown world, a square with no land or a land the pack could not read (`error` then says why).
+        [[nodiscard]] bool grassForCell(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
+            openeden::sdk::game::GrassCell& out, std::string& error) const;
+        [[nodiscard]] const GrassTables& grassTables() const { return mGrassTables; }
+
         [[nodiscard]] Stats stats() const { return mStats; }
         [[nodiscard]] const std::vector<Content::Error>& errors() const { return mErrors; }
 
@@ -117,6 +126,7 @@ namespace game_skyrimse
         std::map<LandKey, game_skyrimse::CellWater> mCellWaters; ///< by the cell's world and grid; later plugins replace
         std::map<FormId, GroundTextureRecord> mGround;
         std::map<FormId, TextureSetRecord> mSets;
+        GrassTables mGrassTables; ///< GRAS records by id and each ground texture's grass list, rebuilt per plugin
         std::vector<Content::Error> mErrors;
         mutable Stats mStats;
     };

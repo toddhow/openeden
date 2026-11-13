@@ -354,6 +354,17 @@ namespace game_skyrimse
         return index && index->cellWater(world, x, y, out);
     }
 
+    bool SkyrimCellSource::grassForCell(
+        openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y, openeden::sdk::game::GrassCell& out)
+    {
+        out = openeden::sdk::game::GrassCell();
+        const SkyrimTerrainIndex* index = terrain();
+        if (!index)
+            return false;
+        std::string error;
+        return index->grassForCell(world, x, y, out, error);
+    }
+
     std::size_t SkyrimCellSource::listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const
     {
         const SkyrimTerrainIndex* index = terrain();

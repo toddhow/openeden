@@ -35,6 +35,7 @@
 namespace Pipeline
 {
     class Builder;
+    class Override;
 }
 
 namespace MWRender::SkyrimModel
@@ -52,6 +53,9 @@ namespace MWRender::SkyrimModel
         /// Task 0146 (`[Game] neutral lip sync`): the position array of a skinned shape with the face tint shader (the NPC's
         /// head) is made DYNAMIC_DATA and handed back in BuildResult::mFaceShapes. False (the default): built as before.
         bool mMorphableFace = false;
+        /// Task 0153: the pipeline override of the options a model is read with (groundcover asks for instancing and
+        /// alpha testing this way, as it does for Morrowind's NIFs). Null (the default): shapes are built as before.
+        const Pipeline::Override* mOverride = nullptr;
     };
 
     /// What building one model did.

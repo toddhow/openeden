@@ -1,0 +1,93 @@
+#ifndef OPENEDEN_GAME_SKYRIMSE_GRASS_H
+#define OPENEDEN_GAME_SKYRIMSE_GRASS_H
+
+// Skyrim SE grass (task 0153, milestone M-S2): the GRAS record as plain data and the pure placement of grass tufts on
+// one cell's land. The ground textures name their grass (LTEX GNAM, land.hpp); a GRAS says which model, how dense, on
+// which slopes and heights relative to water. Pack types only; the SDK's plain values (grass_source.hpp,
+// world_terrain.hpp) are the interface to the core.
+//
+// Field layouts are marked VERIFIED (against the installed Skyrim SE masters by the gated real-data test
+// testskyrimsegrassreal.cpp, aggregates only) or RECALLED-VERIFY (UESP/xEdit field definitions as remembered; decision
+// 0014's amendment allows those sources). The inherited ESM4 reader (components/esm4/loadgras.cpp, remote
+// openmw-upstream) reads DATA as the same 32 bytes.
+//
+// Hostile input: sizes are checked against the bytes that remain before anything is allocated; nothing throws; the
+// placement is capped per square and per cell and is a pure function of its inputs (no clock, no unseeded random).
+
+#include "game_skyrimse/land.hpp"
+
+#include <openeden/game/grass_source.hpp>
+#include <openeden/game/world_terrain.hpp>
+#include <openeden/game/world_water.hpp>
+
+#include <cstdint>
+#include <map>
+#include <span>
+#include <string>
+#include <vector>
+
+namespace game_skyrimse
+{
+    namespace GrassFlags
+    {
+        inline constexpr std::uint8_t VertexLighting = 0x01; ///< RECALLED-VERIFY (UESP)
+        inline constexpr std::uint8_t UniformScaling = 0x02;
+        inline constexpr std::uint8_t FitToSlope = 0x04;
+    }
+
+    /// A GRAS record.
+    struct GrassRecord
+    {
+        RecordCommon mCommon;
+        std::string mModel; ///< MODL, as stored
+        bool mHasData = false;
+        std::uint8_t mDensity = 0; ///< DATA byte 0 (0 to 100)
+        std::uint8_t mMinSlope = 0; ///< degrees, byte 1
+        std::uint8_t mMaxSlope = 90; ///< degrees, byte 2
+        std::uint16_t mUnitsFromWater = 0; ///< bytes 4..5
+        std::uint32_t mUnitsFromWaterType = 0; ///< bytes 8..11
+        float mPositionRange = 0.0f; ///< bytes 12..15
+        float mHeightRange = 0.0f; ///< bytes 16..19
+        float mColorRange = 0.0f; ///< bytes 20..23
+        float mWavePeriod = 0.0f; ///< bytes 24..27
+        std::uint8_t mFlags = 0; ///< byte 28
+    };
+
+    [[nodiscard]] bool decodeGrass(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, GrassRecord& out, std::string& why);
+
+    /// The tables the placement reads: each ground texture's grass (LTEX GNAM, a LTEX form id to GRAS form ids) and the
+    /// GRAS records themselves. Ids are the load-order ids of the terrain cell's `texture` fields.
+    struct GrassTables
+    {
+        std::map<FormId, std::vector<FormId>> mGrassOfTexture;
+        std::map<FormId, GrassRecord> mKinds;
+    };
+
+    /// The tuning of the placement. Estimates, not measured against the game: named so they are findable.
+    struct GrassPlacementOptions
+    {
+        /// Tufts per 128 x 128 unit square for each point of GRAS density. 0.3 puts 27 tufts in a square at density 90 (about
+        /// one tuft per 22 units), an eyeballed estimate.
+        float mTuftsPerDensityPoint = 0.3f;
+        /// Tufts in one cell over which the density of every kind is scaled down together (a cell is 1,024 squares).
+        std::uint32_t mMaxInstancesPerCell = 30000;
+        /// A grass whose DATA is missing, or whose model path is empty, is not placed.
+        float mMinScale = 0.25f;
+        float mMaxScale = 4.0f;
+    };
+
+    /// The lowest opacity-weighted layer is the base texture; each layer is drawn over what lies under it. The weight
+    /// of the winning texture at a point of a quadrant (bilinear in the 17 x 17 opacity grid). Exposed for the tests.
+    /// `quadrant` is 0 SW, 1 SE, 2 NW, 3 NE; (u, v) in [0, 1] across the quadrant, u east and v north.
+    [[nodiscard]] openeden::sdk::game::WorldId dominantTexture(
+        const openeden::sdk::game::TerrainCell& cell, std::uint32_t quadrant, float u, float v);
+
+    /// Places the grass of one cell (a 4096 unit square whose south-west corner is at grid * cellSize). `water` is the
+    /// cell's water surface when it has one. Deterministic.
+    void placeGrass(const openeden::sdk::game::TerrainCell& cell, float cellSize, const GrassTables& tables,
+        const openeden::sdk::game::CellWater& water, const GrassPlacementOptions& options,
+        openeden::sdk::game::GrassCell& out);
+}
+
+#endif

@@ -5,6 +5,7 @@
 // the walker that collects them with LAND, LTEX and TXST from one plugin. Pack-own types only (SDK terrain types are
 // stage E1). See land.hpp for the hostile-input rules, which apply here too.
 
+#include "game_skyrimse/grass.hpp"
 #include "game_skyrimse/land.hpp"
 
 #include <array>
@@ -133,6 +134,7 @@ namespace game_skyrimse
         std::vector<LandRecord> mLands;
         std::vector<GroundTextureRecord> mGroundTextures;
         std::vector<TextureSetRecord> mTextureSets;
+        std::vector<GrassRecord> mGrass; ///< task 0153
         std::vector<WaterRecord> mWaters;
         DecodeNotes mNotes;
         std::map<std::uint32_t, TypeCount> mCounts; ///< by record type: seen, parsed, failed, deleted

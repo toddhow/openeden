@@ -79,6 +79,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testwaterripples.cpp
     mwrender/testgroundcoverinstances.cpp
     mwrender/testgroundcoverchunks.cpp
+    mwrender/testneutralgrass.cpp
     mwrender/testswitches.cpp
     mwrender/testextentsync.cpp
     mwrender/testmapdepthrange.cpp

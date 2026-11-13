@@ -40,8 +40,12 @@ namespace MWRender
 
     std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance)
     {
+        return groundcoverCellsInRange(x, y, distance, static_cast<float>(ESM::Land::REAL_SIZE));
+    }
+
+    std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance, float cellSize)
+    {
         std::vector<std::pair<int, int>> cells;
-        const float cellSize = static_cast<float>(ESM::Land::REAL_SIZE);
         // Every cell whose closed square reaches within the distance on each axis, including one only touched.
         const float reach = std::max(distance, 0.f);
         const int firstX = static_cast<int>(std::ceil((x - reach) / cellSize)) - 1;

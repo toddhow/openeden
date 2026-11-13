@@ -158,6 +158,23 @@ namespace game_skyrimse
             else
                 mSets[t.mCommon.mId] = t;
         }
+        for (const GrassRecord& g : data.mGrass)
+        {
+            if (g.mCommon.deleted())
+                mGrassTables.mKinds.erase(g.mCommon.mId);
+            else
+                mGrassTables.mKinds[g.mCommon.mId] = g;
+        }
+        mGrassTables.mGrassOfTexture.clear();
+        for (const auto& [id, ltex] : mGround)
+        {
+            if (ltex.mGrass.empty())
+                continue;
+            std::vector<FormId>& list = mGrassTables.mGrassOfTexture[id];
+            for (const FormId grass : ltex.mGrass)
+                if (grass != kNullFormId && grass != kUnresolvedFormId)
+                    list.push_back(grass);
+        }
         mStats.mWorlds = mWorlds.size();
         mStats.mLands = mLands.size();
         mStats.mGroundTextures = mGround.size();
@@ -425,5 +442,45 @@ namespace game_skyrimse
             }
         }
         return sdk::TerrainResult::Built;
+    }
+
+    bool SkyrimTerrainIndex::grassForCell(
+        sdk::WorldId world, std::int32_t x, std::int32_t y, sdk::GrassCell& out, std::string& error) const
+    {
+        out = sdk::GrassCell();
+        if (mGrassTables.mKinds.empty() || mGrassTables.mGrassOfTexture.empty())
+            return mWorlds.find(world) != mWorlds.end();
+        // The land: this world's own, else a parent's that lends it (the walk the core does for the terrain).
+        FormId current = world;
+        sdk::TerrainCell cell;
+        bool found = false;
+        for (int hops = 0; hops < 8 && current != kNullFormId; ++hops)
+        {
+            const auto w = mWorlds.find(current);
+            if (w == mWorlds.end())
+                return false;
+            const sdk::TerrainResult result = buildTerrain(current, x, y, cell, error);
+            if (result == sdk::TerrainResult::Failed)
+                return false;
+            if (result == sdk::TerrainResult::Built)
+            {
+                found = true;
+                break;
+            }
+            const WorldSpaceRecord& rec = w->second;
+            const bool lends = rec.mParent != kNullFormId && rec.mParent != kUnresolvedFormId
+                && (rec.mParentUsage.value_or(0) & ParentUsage::Land) != 0;
+            if (!lends)
+                break;
+            current = rec.mParent;
+        }
+        if (!found)
+            return false;
+        cell.world = world; // the seed follows the world the player is in, not the one that lent the land
+        sdk::CellWater water;
+        if (!cellWater(world, x, y, water))
+            water = sdk::CellWater();
+        placeGrass(cell, WorldConstants::kCellSizeUnits, mGrassTables, water, GrassPlacementOptions(), out);
+        return true;
     }
 }

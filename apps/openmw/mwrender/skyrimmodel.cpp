@@ -30,6 +30,7 @@
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/graphics.hpp>
 #include <components/pipeline/material.hpp>
+#include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgutil/cullnode.hpp>
@@ -514,6 +515,8 @@ namespace MWRender::SkyrimModel
             geometry->indexCount = static_cast<std::uint32_t>(shape.mIndices.size());
             geometry->assignIndices(copyArray<vsg::uintArray>(shape.mIndices));
 
+            if (context.mOverride && context.mOverride->pipelineOptions)
+                context.mOverride->pipelineOptions(options);
             auto bindPipeline = context.mBuilder.graphics->getOrCreate(options);
             vsg::ref_ptr<vsg::PipelineLayout> layout = bindPipeline->pipeline->layout;
             auto descriptorSet = vsg::DescriptorSet::create(layout->setLayouts[Pipeline::TEXTURE_SET], descriptors);
@@ -682,8 +685,9 @@ namespace MWRender::SkyrimModel
                 const NifScene::Flat::FlatModel flat = NifScene::Flat::flatten(scene, limits);
                 totals.mNormalMapsNoTangents += flat.mReport.mNormalMapsNoTangents;
                 totals.mNormalMapsModelSpace += flat.mReport.mNormalMapsModelSpace;
-                const BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename,
+                BuildContext context{ builder, imageOptions, options->sharedObjects, depthSortedBin, filename,
                     swayUniform };
+                context.mOverride = options ? Pipeline::Override::get(*options) : nullptr;
                 BuildResult built = buildNode(flat, context);
                 if (!built.mNode)
                     return vsg::Group::create(); // a model that draws nothing is still a model, not a missing one

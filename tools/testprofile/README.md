@@ -240,6 +240,7 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
 - *Neutral havok collision* (0144): `neutral havok collision` builds Skyrim SE collision from the `bhk` shapes in each NIF (compressed meshes, convex hulls, boxes) instead of the visual triangles; models without usable `bhk` data keep the visual-triangle collision. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Neutral tree sway* (0136): `neutral tree sway` makes Skyrim SE trees (shapes with the Tree_Anim flag) bend in the weather's wind: crowns move, feet stay. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Neutral terrain layers* (0149): `neutral terrain layers` draws the alpha layers (ATXT and VTXT) of each Skyrim SE terrain quadrant over its base texture, so roads, paths and ground transitions show. Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
+- *Neutral grass* (0153): `neutral grass` grows Skyrim SE grass on the exterior land: each ground texture names its grass (GRAS records), the pack places the tufts by the dominant texture, slope and water, and the engine draws them through the groundcover path within `[Groundcover] rendering distance` (6144 by default; it does not need `[Groundcover] enabled`). Needs `neutral world` and `game=skyrimse`; nothing shows with Morrowind.
 - *Ragdoll* (0035): `cmRagdoll` on the target. *Death ragdolls* (0106): kill an NPC (e.g. `"name"->SetHealth 0` in the console, or hit it) and watch it fall and settle.
 
 ## Video memory scale-back (task 0080)

@@ -141,6 +141,7 @@ namespace MWRender
     class Effects;
     class WeatherEffects;
     class Groundcover;
+    class NeutralGrass;
     class Projectiles;
     class FogManager;
     class Sky;
@@ -193,6 +194,7 @@ namespace MWRender
         void startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source);
         /// Task 0133 stage 2: the far object clusters of a neutral world, from its own pack (see startNeutralLodTerrain).
         void startNeutralLodClusters(openeden::sdk::game::WorldCellSource& source);
+        void startNeutralGrass(openeden::sdk::game::WorldCellSource& source, std::uint64_t world);
         /// The height and bounds the physics heightfield of a neutral cell needs; the world's cell size and vertices.
         float neutralTerrainCellSize() const;
         /// Task 0055: where the baked terrain tiles are (used only with `[WorldLod] enabled`). Call before setStore.
@@ -704,6 +706,9 @@ namespace MWRender
         std::atomic<const MWWorld::GroundcoverStore*> mGroundcoverStore{ nullptr };
         vsg::vec3 mGroundcoverPlayerPosition; // set in update(), read by updateSceneData()
         void updateGroundcover(const vsg::vec3& cameraPosition);
+        /// Task 0153 (`[Game] neutral grass`): the grass of a game pack's exterior, made by useNeutralTerrain.
+        std::unique_ptr<NeutralGrass> mNeutralGrass;
+        void updateNeutralGrass(const vsg::vec3& cameraPosition);
         const DetourNavigator::Navigator* mNavigator = nullptr;
         vsg::ref_ptr<vsgUtil::SuspendRenderPass> mSuspend;
         // The save thumbnail's copy (owned by the render engine; null without a window).

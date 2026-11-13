@@ -108,6 +108,7 @@ namespace Settings
         SettingValue<bool> mNeutralHavokCollision{ mIndex, "Game", "neutral havok collision" };
         SettingValue<bool> mNeutralTreeSway{ mIndex, "Game", "neutral tree sway" };
         SettingValue<bool> mNeutralTerrainLayers{ mIndex, "Game", "neutral terrain layers" };
+        SettingValue<bool> mNeutralGrass{ mIndex, "Game", "neutral grass" };
     };
 }
 

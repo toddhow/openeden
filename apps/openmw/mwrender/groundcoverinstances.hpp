@@ -61,6 +61,9 @@ namespace MWRender
      */
     std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance);
 
+    /// The same for cells of another size (task 0153: a game pack's exterior cells; Skyrim SE's are 4096 units).
+    std::vector<std::pair<int, int>> groundcoverCellsInRange(float x, float y, float distance, float cellSize);
+
     struct GroundcoverInstance
     {
         ESM::Position position;

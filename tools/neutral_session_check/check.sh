@@ -100,6 +100,8 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate|doorsdr
 [ "$SHOT" = e2terrain ] && echo "content=n4e2.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0149: "tlayers" leaves the Mare, visits spots of Whiterun's plains and takes a picture of the ground at each (use at least 3000 frames).
 [ "$SHOT" = tlayers ] && echo "content=terrainlayers.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0153: "grass" leaves the Mare, visits plains spots of Whiterun in first person and takes a picture at each after 14 s (use at least 8000 frames and CHECK_TIMEOUT=300; compare [Game] neutral grass off and on).
+[ "$SHOT" = grass ] && echo "content=grass.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0129: "e2water" visits a lake and a river of WhiterunWorld and takes pictures (use at least 4000 frames).
 [ "$SHOT" = e2water ] && echo "content=n4e2water.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0127 stage W-S1: "w1" leaves the Mare into WhiterunWorld, looks at the sky at several hours, then speeds the clock up and
@@ -151,11 +153,11 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|maredump|marecam|floormap|landnormal) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)
-grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters|TRUNKS |POSLOG |NTALK|N5T|N5A|ACTKEY|NLIP|Skyrim lip sync |SKYEXT |TRIM " "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
+grep -E "Session content|world view built|world source registered|probe cell|Starting a new game|Neutral start|Neutral cell|N3A3|Skyrim models|Skyrim collision|N4B|N4S|NDOOR|N4D|MS0|NLOCK|Neutral door|E2 |E2W|NWATER|Neutral terrain|Neutral grass|Neutral exterior|W1 |W2 |Neutral weather|LV |LOD terrain bake|World LOD|NAV |Navmesh|navmesh|N5B|NACT|TREES |Skyrim tree sway|LOD object bake|LOD clusters|TRUNKS |POSLOG |NTALK|N5T|N5A|ACTKEY|NLIP|Skyrim lip sync |SKYEXT |TRIM " "$WORK/log.txt" | sed 's/^\[[^]]*\] //'
 # The one expected error line is the refusal to save (a neutral session has no save support until stage N6).
 errors=$(grep -E " E\] " "$WORK/log.txt" | grep -vc "Saving refused" || true)
 echo "exit code $code, $dumps crash dumps, $errors unexpected error lines"

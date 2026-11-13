@@ -1,0 +1,2 @@
+GLOBAL: scripts/grass/global.lua
+PLAYER: scripts/grass/player.lua

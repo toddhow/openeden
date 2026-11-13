@@ -19,6 +19,7 @@
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
+#include <openeden/game/grass_source.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
@@ -149,7 +150,8 @@ namespace game_skyrimse
         public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::ActorRules,
         public openeden::sdk::game::CellWaterSource,
-        public openeden::sdk::game::WeatherSource
+        public openeden::sdk::game::WeatherSource,
+        public openeden::sdk::game::GrassSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -185,6 +187,9 @@ namespace game_skyrimse
         /// Task 0129: the water of a grid square, through the terrain index (world_water.hpp).
         bool cellWater(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
             openeden::sdk::game::CellWater& out) const override;
+        /// Task 0153: the grass of a grid square, through the terrain index (grass_source.hpp).
+        bool grassForCell(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
+            openeden::sdk::game::GrassCell& out) override;
         /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;

@@ -270,6 +270,7 @@ namespace game_skyrimse
                     case Content::fourCC("LTEX"):
                     case Content::fourCC("TXST"):
                     case Content::fourCC("WATR"):
+                    case Content::fourCC("GRAS"):
                         break;
                     case Content::fourCC("CELL"):
                         if (!inWorldGroup())
@@ -343,6 +344,14 @@ namespace game_skyrimse
                         ok = decodeGroundTexture(bytes, record, mContext, t, why);
                         if (ok)
                             mOut.mGroundTextures.push_back(std::move(t));
+                        break;
+                    }
+                    case Content::fourCC("GRAS"):
+                    {
+                        GrassRecord g;
+                        ok = decodeGrass(bytes, record, mContext, g, why);
+                        if (ok)
+                            mOut.mGrass.push_back(std::move(g));
                         break;
                     }
                     case Content::fourCC("TXST"):
