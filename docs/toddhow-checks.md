@@ -129,6 +129,12 @@ Each one was built and measured but never seen by you.
 - Games' UI will be replaced by the declarative component UI after its spike; MyGUI goes last with Morrowind.
 - Game packs are confirmed (decision 0013); Skyrim SE is the second game; ObScript and Papyrus runtimes go in the common pack.
 - Background agents run on Sonnet at default effort.
+- Decided 2026-11-13 (toddhow):
+  1. Gaps in Skyrim interiors (holes in Skyrim's own floor kit, task 0152) stay the cell's fog grey; no black clear colour.
+  2. The process levels for distant neutral NPCs (task 0154, `[Game] neutral actor process levels`, off by default) are kept, not removed.
+  3. The stand-in speech-check rules (task 0155: intimidate succeeds when the player's level is at least the speaker's; a bribe costs 20 gold per speaker level) are acceptable for now.
+  4. Fetch NVIDIA's Audio2Face-3D SDK tools (CUDA 12.9.1, TensorRT 10.13.3) to run its reference for task 0147.
+  5. Push main to GitHub (after the Linux gate is green).
 - Decided 2026-11-11 (toddhow, in answer to a question about research note 0054): **the Havok clip spike is a go.** (1) "Yes, spike it": a clean-room decoder written as a game-neutral library (`components/havokpack`), used first by a converter the user runs on their own `.hkx` files, with output kept outside the repository; 10 to 15 days, go/no-go after about a week. (2) On outside projects, "Licences/READMEs only": the spike reads only the licence files and READMEs of HavokLib, HKX2 and DSAnimStudio, uses HavokLib's source to cross-check only if its provenance is shown clean by those, never reads HKX2's or DSAnimStudio's source, and never uses the Havok SDK or anything derived from it. Built as task 0119: `docs/tasks/0119-havok-clip-spike.md`, provenance log `docs/research/0054-provenance.md`. Answers questions 1, 2 (recommendation) and 3 of the note.
 - Decided 2026-11-10 (toddhow: "Go with your recommendations" on the open list; recommendation in brackets was the reason):
   1. ObScript `%` truncates to integers (keep; matches the engine's integer semantics).
