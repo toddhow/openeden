@@ -73,6 +73,17 @@ namespace MWWorld
         bool actorIsPlayer, bool unlockAll,
         const std::function<NeutralDestination(openeden::sdk::game::WorldId)>& classify);
 
+    /// Task 0157: whether a door of a neutral interior is one that neutral actors walk through (the navigator gets an
+    /// off-mesh connection across it and the door swings open for a walker): it must not be a teleport (those lead to
+    /// another cell, an actor does not use them) and must not be locked, unless the player has unlocked it with its
+    /// key. A locked door stays a wall to actors (they have no keys yet).
+    [[nodiscard]] bool neutralDoorOpensForActors(const openeden::sdk::game::WorldObject& object, bool unlockedByKey);
+
+    class ConstPtr;
+    /// Task 0157: the same for a reference of a neutral cell: it is a door (the pack's kind), and
+    /// neutralDoorOpensForActors holds for its placement given the session's key ring. False for anything else.
+    [[nodiscard]] bool neutralDoorPtrOpensForActors(const ConstPtr& ptr);
+
     /// The key of the refusal's text in the OMWEngine l10n context; empty for an outcome that has no message.
     [[nodiscard]] std::string_view neutralDoorMessageKey(NeutralDoorOutcome outcome);
 

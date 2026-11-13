@@ -2,7 +2,12 @@
 
 #include <cmath>
 
+#include "cellstore.hpp"
+#include "livecellref.hpp"
 #include "neutralcell.hpp"
+#include "neutrallock.hpp"
+#include "neutralstore.hpp"
+#include "ptr.hpp"
 
 namespace MWWorld
 {
@@ -128,5 +133,34 @@ namespace MWWorld
                 return "teleport";
         }
         return "unknown";
+    }
+}
+
+namespace MWWorld
+{
+    bool neutralDoorOpensForActors(const openeden::sdk::game::WorldObject& object, bool unlockedByKey)
+    {
+        if (object.teleport)
+            return false;
+        return !(object.lock && object.lock->locked) || unlockedByKey;
+    }
+}
+
+namespace MWWorld
+{
+    bool neutralDoorPtrOpensForActors(const ConstPtr& ptr)
+    {
+        if (ptr.getType() != NeutralBase::sRecordId)
+            return false;
+        if (ptr.get<NeutralBase>()->mBase->mKind != openeden::sdk::game::ObjectKind::Door)
+            return false;
+        const CellStore* cell = ptr.getCell();
+        const auto placement = neutralPlacementOf(ptr.getCellRef().getRefNum());
+        if (cell == nullptr || !placement)
+            return false;
+        const openeden::sdk::game::WorldObject* object = cell->neutralObject(*placement);
+        if (object == nullptr)
+            return false;
+        return neutralDoorOpensForActors(*object, neutralLockState().isUnlocked(cell->neutralGameId(), *placement));
     }
 }

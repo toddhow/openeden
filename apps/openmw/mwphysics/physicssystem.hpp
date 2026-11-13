@@ -29,6 +29,7 @@
 
 #include "neutralactor.hpp"
 #include "neutralactorbridge.hpp"
+#include "neutraldoorswing.hpp"
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
 #include "neutralprocess.hpp"
@@ -211,6 +212,21 @@ namespace MWPhysics
         /// drawn object and calls updatePosition for each. Call before stepSimulation, on the main thread. A grounded
         /// actor with no request costs one state test and one request test; neither list allocates once reserved.
         void updateNeutralActors(float dt);
+
+        /// Task 0157: a door of a neutral interior that neutral actors walk through (the scene decides which:
+        /// MWWorld::neutralDoorPtrOpensForActors). From now on it swings open when a walking neutral actor comes
+        /// near and closes behind it (NeutralDoor::step). The door must already have a body (addModelObject).
+        void addNeutralDoor(const MWWorld::Ptr& ptr);
+
+        /// The doors whose opening changed in the last updateNeutralActors, with the height of the reference the caller
+        /// must give them (closed height minus NeutralDoor::sinkOffset): it moves the drawn object, the body and the
+        /// navigator's shape.
+        struct NeutralDoorMove
+        {
+            MWWorld::Ptr mPtr;
+            float mZ = 0.f;
+        };
+        const std::vector<NeutralDoorMove>& getNeutralDoorsMoved() const { return mNeutralDoorsMoved; }
 
         /// Task 0135 stage S5: the game clock the pack reads (ActorRequestWriter::clock()) in the next update. Main
         /// thread; call before updateNeutralActors.
@@ -514,6 +530,18 @@ namespace MWPhysics
         std::uint64_t mNeutralCostWalkNs = 0; ///< inside walkNeutralActor (swept capsule)
         std::uint64_t mNeutralCostActorFrames = 0;
         std::vector<NeutralActorEntry> mNeutralActors;
+        // Task 0157: doors that open for walking neutral actors.
+        struct NeutralDoorEntry
+        {
+            const MWWorld::LiveCellRefBase* mRef;
+            float mClosedZ = 0.f; ///< the reference's height while closed
+            float mCentreX = 0.f, mCentreY = 0.f, mCentreZ = 0.f; ///< world centre of the door's bounds while closed
+            NeutralDoor::State mState;
+            float mPublishedProgress = 0.f;
+        };
+        std::vector<NeutralDoorEntry> mNeutralDoors;
+        std::vector<NeutralDoorMove> mNeutralDoorsMoved;
+        void updateNeutralDoors(float dt);
         std::vector<NeutralPoseChange> mNeutralPoseChanges;
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
         class NeutralRequestApplier final : public NeutralRequestSink

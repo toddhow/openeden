@@ -1009,6 +1009,7 @@ namespace MWPhysics
             if (mNeutralBridge.size() != 0)
                 mNeutralBridge.remove(mNeutralRulesResolver ? mNeutralRulesResolver() : nullptr, ptr.mRef);
             std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
+            std::erase_if(mNeutralDoors, [&](const NeutralDoorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
 
             mObjects.erase(foundObject);
@@ -1383,6 +1384,7 @@ namespace MWPhysics
         mNeutralTurned.clear();
         mNeutralSpeeds.clear();
         mNeutralPoseChanges.clear();
+        mNeutralDoorsMoved.clear();
         if (mNeutralActors.empty())
             return;
         // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every 600
@@ -1566,6 +1568,75 @@ namespace MWPhysics
                 mNeutralCostFollowNs = 0;
                 mNeutralCostWalkNs = 0;
                 mNeutralCostActorFrames = 0;
+            }
+        }
+        updateNeutralDoors(dt);
+    }
+
+    void PhysicsSystem::addNeutralDoor(const MWWorld::Ptr& ptr)
+    {
+        const Object* object = getObject(ptr);
+        if (object == nullptr)
+            return;
+        for (const NeutralDoorEntry& existing : mNeutralDoors)
+            if (existing.mRef == ptr.mRef)
+                return;
+        const JPH::AABox bounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
+        if (!bounds.IsValid())
+            return;
+        // The centre of the bounds in the world while the door is closed: the object's transform (position, rotation
+        // and scale) applied to the local centre.
+        const JPH::Vec3 localCentre = bounds.GetCenter();
+        const vsg::dvec3 centre
+            = object->getTransform() * vsg::dvec3(localCentre.GetX(), localCentre.GetY(), localCentre.GetZ());
+        NeutralDoorEntry entry;
+        entry.mRef = ptr.mRef;
+        entry.mClosedZ = ptr.getRefData().getPosition().pos[2];
+        entry.mCentreX = static_cast<float>(centre.x);
+        entry.mCentreY = static_cast<float>(centre.y);
+        entry.mCentreZ = static_cast<float>(centre.z);
+        mNeutralDoors.push_back(entry);
+        mNeutralDoorsMoved.reserve(mNeutralDoors.size());
+    }
+
+    void PhysicsSystem::updateNeutralDoors(float dt)
+    {
+        if (mNeutralDoors.empty())
+            return;
+        for (NeutralDoorEntry& door : mNeutralDoors)
+        {
+            const auto doorObject = mObjects.find(door.mRef);
+            if (doorObject == mObjects.end())
+                continue;
+            bool near = false;
+            for (const NeutralActorEntry& actor : mNeutralActors)
+            {
+                if (actor.mSeated || actor.mFall.mState != NeutralActor::State::Grounded
+                    || !(actor.mFollow.active() || actor.mRequest.isMoving()))
+                    continue;
+                const auto actorObject = mObjects.find(actor.mRef);
+                if (actorObject == mObjects.end())
+                    continue;
+                const vsg::vec3 feet = actorObject->second->getPtr().getRefData().getPosition().asVec3();
+                if (NeutralDoor::isApproached(door.mCentreX, door.mCentreY, door.mCentreZ, feet.x, feet.y, feet.z))
+                {
+                    near = true;
+                    break;
+                }
+            }
+            const float before = door.mState.mProgress;
+            door.mState = NeutralDoor::step(door.mState, near, dt);
+            static const bool doorTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+            if (doorTrace && (before <= 0.f) != (door.mState.mProgress <= 0.f || false) && before != door.mState.mProgress
+                && (before <= 0.f || door.mState.mProgress <= 0.f))
+                Log(Debug::Info) << "NACTDOOR " << doorObject->second->getPtr().getCellRef().getRefId() << " "
+                                 << (before <= 0.f ? "opens" : "closed") << " at " << door.mCentreX << " "
+                                 << door.mCentreY << " " << door.mCentreZ;
+            if (door.mState.mProgress != door.mPublishedProgress)
+            {
+                door.mPublishedProgress = door.mState.mProgress;
+                mNeutralDoorsMoved.push_back(
+                    { doorObject->second->getPtr(), door.mClosedZ - NeutralDoor::sinkOffset(door.mState) });
             }
         }
     }

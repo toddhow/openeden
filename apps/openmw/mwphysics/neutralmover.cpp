@@ -94,14 +94,22 @@ namespace MWPhysics::NeutralMover
             const vsg::vec3 rest(landing.x, landing.y, landing.z - drop * down.mFraction);
             // The capsule's rim may rest on the corner of a step, whose normal is no floor normal: ask for the ground
             // under its centre. No ground there (a ledge) refuses the pass; a slope that is too steep does too.
-            const Sweep ground = world.probeDown(vsg::vec3(rest.x, rest.y, rest.z + kProbeLift), kProbeLift + kStepDown);
+            float probeDepth = kProbeLift + kStepDown;
+            Sweep ground = world.probeDown(vsg::vec3(rest.x, rest.y, rest.z + kProbeLift), probeDepth);
+            if (!ground.mHit && rest.z - pos.z > kRimMinClimb)
+            {
+                // Task 0157: a climbing capsule rests its rim on a stair's nosing, with the lower tread deeper below
+                // its centre than a ledge may be; a rim that carries the capsule up is support.
+                probeDepth += kRimReach;
+                ground = world.probeDown(vsg::vec3(rest.x, rest.y, rest.z + kProbeLift), probeDepth);
+            }
             if (!ground.mHit)
             {
                 result.mBlocked = true;
                 result.mEdge = true;
                 break;
             }
-            const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * (kProbeLift + kStepDown));
+            const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * probeDepth);
             if (ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack)
             {
                 result.mBlocked = true;
@@ -184,24 +192,57 @@ namespace MWPhysics::NeutralMover
         if (!finite(from) || !std::isfinite(depth) || !(depth > 0.f))
             return result;
 
-        const JPH::RRayCast ray(Misc::Convert::toJolt<JPH::RVec3>(from), JPH::Vec3(0.f, 0.f, -depth));
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
         JPH::IgnoreSingleBodyFilter ownBody(mSelf);
-        JPH::RayCastResult hit;
-        if (!mSystem.GetNarrowPhaseQuery().CastRay(ray, hit, allBroadPhaseLayers, objectLayers, ownBody))
+        // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by steep
+        // bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by five
+        // rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal is
+        // the most level one among the surfaces within kProbeNormalBand of that height (a bevel beside a shelf is
+        // a bevel, a slope that is steep all round stays steep).
+        constexpr float kOffsets[5][2] = { { 0.f, 0.f }, { kProbeSpread, 0.f }, { -kProbeSpread, 0.f },
+            { 0.f, kProbeSpread }, { 0.f, -kProbeSpread } };
+        struct Candidate
+        {
+            JPH::RayCastResult mHit;
+            JPH::RRayCast mRay;
+        };
+        Candidate candidates[5];
+        int count = 0;
+        for (const auto& offset : kOffsets)
+        {
+            const JPH::RRayCast ray(
+                Misc::Convert::toJolt<JPH::RVec3>(vsg::vec3(from.x + offset[0], from.y + offset[1], from.z)),
+                JPH::Vec3(0.f, 0.f, -depth));
+            JPH::RayCastResult hit;
+            if (mSystem.GetNarrowPhaseQuery().CastRay(ray, hit, allBroadPhaseLayers, objectLayers, ownBody))
+                candidates[count++] = { hit, ray };
+        }
+        if (count == 0)
             return result;
+        float bestFraction = candidates[0].mHit.mFraction;
+        for (int i = 1; i < count; ++i)
+            bestFraction = std::min(bestFraction, candidates[i].mHit.mFraction);
 
         result.mHit = true;
-        result.mFraction = std::clamp(hit.mFraction, 0.f, 1.f);
+        result.mFraction = std::clamp(bestFraction, 0.f, 1.f);
         // The surface normal needs the body: a failed lock leaves the default (up), which is the safe reading for a
         // body that was removed between the cast and the lock.
-        JPH::BodyLockRead lock(mSystem.GetBodyLockInterface(), hit.mBodyID);
-        if (lock.Succeeded())
+        bool haveNormal = false;
+        for (int i = 0; i < count; ++i)
         {
-            const JPH::Vec3 normal
-                = lock.GetBody().GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, ray.GetPointOnRay(hit.mFraction));
-            result.mNormal = vsg::vec3(normal.GetX(), normal.GetY(), normal.GetZ());
+            if ((candidates[i].mHit.mFraction - bestFraction) * depth > kProbeNormalBand)
+                continue;
+            JPH::BodyLockRead lock(mSystem.GetBodyLockInterface(), candidates[i].mHit.mBodyID);
+            if (!lock.Succeeded())
+                continue;
+            const JPH::Vec3 normal = lock.GetBody().GetWorldSpaceSurfaceNormal(
+                candidates[i].mHit.mSubShapeID2, candidates[i].mRay.GetPointOnRay(candidates[i].mHit.mFraction));
+            if (!haveNormal || normal.GetZ() > result.mNormal.z)
+            {
+                result.mNormal = vsg::vec3(normal.GetX(), normal.GetY(), normal.GetZ());
+                haveNormal = true;
+            }
         }
         return result;
     }

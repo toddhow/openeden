@@ -262,3 +262,49 @@ The S2 tests are unedited and pass (`NeutralMoverStep.a_slope_steeper_than_the_f
 2. Level rounding of `playerLevel x multiplier` (half up here; truncation and banker's rounding both give 22 for Hewnon's 22.5, only half-up gives 23) and the `hostileOnSight` rule for VeryAggressive (attacks neutrals): both RECALLED-VERIFY.
 3. Positive garbage DNAM totals (193 NPCs from 3000 to 32767, one placed): pass through (now), or reject above a cap such as 3000 and use race start + offset?
 4. Stand-in player level 1 (setting `player level`): read the real player's level once the player is a neutral actor (decision 0017 open question 7)?
+
+## Stage log: S6c, sleepers reach their beds (task 0157 follow-up of S6b)
+
+Branch `skyreach` (from `main` at `591826b211`), built in `I:\Projects\OpenEden-work\skyreach\build` (RelWithDebInfo). Same hand wrote tests and code; the tests of each fix were written first and run red (compile-red stubs for the door code, behavioural red for the mover); no fresh reviewer. Windows only. Settings used: `[Game] neutral actors / idles / locomotion` on, `[extension.skyrimse] actor packages = true`, `actor sleep snap = false`, `OPENEDEN_NEUTRAL_ACTOR_HOUR=0`, scenario `n5furn` (`I:\Projects\OpenEden-work\skyreach\run.sh`, work folders `mid*`, `final1`, `final2`).
+
+### Causes, with evidence
+
+1. **Doors were walls.** `Scene::addObject` gave the navigator a door's off-mesh connection only when `Class::isDoor()` held; `MWClass::Neutral` does not answer it, so every Skyrim interior door was an obstacle and the path ended beside it (`NACTGOTO path status 1 ... result no path`). The mover's sweeps also meet the door body.
+2. **The upstairs doors' connections started in the floor.** With doors given connections, the upstairs door at (-256, 512, 320) still failed: its west connection point was at z 215.5 (`NDOORNAV`), below the room. The single ray that finds the floor under a connection end fell through a seam between two floor meshes (a Lua ray scan along the line shows 319 everywhere except exactly at (-333, 417): 216, and (-218, 532): 68). The off-mesh connection then was not on the navmesh.
+3. **The stairs: the centre ground probe fell into gaps and stopped on nosings.** (a) On the first steps the capsule's rim rests on the next step's nosing (feet 4.8 above where it stood), the lower tread under the centre is 28.8 below the rest, the probe is 28 deep: `blocked edge` for ever at (-339.8, 148.0, 91.9). (b) Higher up the probe fell through a 0.3 unit gap between treads (`ground miss`; rays 0.25 apart differ). (c) On the dirt floor of the cellar, the centre ray landed on a 65 degree bevel (normal z 0.42, 3.0 to 3.45 above the capsule) between shelves and refused the pass as a slope.
+4. **The first report's "partial path ending on a chair top (z 102)"** was the closest reachable polygon to a goal at z 320 when no connection from the ground floor to the upper floor was usable (causes 1 and 2); it is not a fault of the stairs (stairs and agent size 22 were fine, as task 0134 found).
+
+### Fixes (all neutral only; Morrowind code paths unchanged)
+
+- `MWWorld::neutralDoorOpensForActors` / `neutralDoorPtrOpensForActors` (`neutraldoor.*`): a neutral door that is not a teleport and not locked (or unlocked by the player's key) is added to the navigator as a door (`scene.cpp`), and neutral go-to paths use `Flag_walk | Flag_openDoor` (`worldimp.cpp`). Locked doors stay walls; NPCs have no keys.
+- `MWWorld::chooseNeutralDoorFloor` (`neutralnavigation.*`): a neutral door's connection ends use five rays and the hit nearest the door's own height within 64 units (else the door height); Morrowind doors keep their single ray.
+- **Opening** (`mwphysics/neutraldoorswing.*`, `PhysicsSystem::addNeutralDoor`, `updateNeutralDoors`, applied in `World::doPhysics`): a walking neutral actor (go-to or moving request, not seated) within 160 units on the ground and 128 in height of the door's bounds centre opens it in 1 s; it stays open 2 s after the last walker and closes in 1 s. **The door does not swing: it sinks into the floor by 200 units** (drawn object, body and navigator shape all move). Reason: Skyrim doors are hinged leaves or double doors whose motion is a `NiControllerSequence` inside the NIF (`WRDoor02`: two leaf nodes with transform controllers, bounds centred on the origin, read with houseCARL's NIF inspector) and the neutral renderer draws a model as one static piece; a whole-object swing about the origin would be wrong for a double door. A frame (`doorwatch`, viewed) shows Mikael walking through the empty doorway.
+- `NeutralMover` (`neutralmover.*`): (a) a climbing capsule (rest more than `kRimMinClimb` 0.1 above where it stood) may have its centre ground up to `kRimReach` 24 deeper than a ledge may; (b) `JoltSweeper::probeDown` casts five rays (centre and 4 units to each side), takes the highest surface and the most level normal among those within 4 units of it (`kProbeSpread`, `kProbeNormalBand`).
+
+### Tests
+
+New files only (no existing test edited): `mwworld/testneutraldoornav.cpp` (8: door rule 4, floor choice 4), `mwphysics/testneutraldoorswing.cpp` (7), `mwphysics/testneutralmoverrim.cpp` (6; one red against the unchanged mover, the others pin unchanged behaviour: a level or descending rim is still a ledge, deep ground still an edge), `mwphysics/testneutralmovergap.cpp` (6, Jolt: three red; a real hole and a slope that is steep all round are unchanged). The door rule and floor choice tests and 5 of 7 swing tests failed against stubs first. `openmw-tests` (without Papyrus, ObScript, Slang) 2,393 pass, 2 skipped (real data).
+
+### In game (midnight, `actor sleep snap = false`, `n5furn`)
+
+Before this stage (snap off): Mikael, Saadia and Lucia stood at their anchors (`no path`). Now (`final1`, `final2`, `mid16`):
+
+| Sleeper | Result |
+| --- | --- |
+| Mikael (`b108144`, ground-floor bed) | walks through `WRDoor02` at (-128, 384) (`NACTDOOR opens` / `closed`), `arrived` at (130.9, 458.3), `NACTFURN use ... 157.033 554.318 68 clip bed_leftsleep` |
+| Saadia (`b80802`, upstairs double bed) | walks the stairs and the upstairs door (`NACTDOOR opens at -254 511.8 416.8`), `arrived` at (44.0, 257.9, 321.5), `NACTFURN use ... -49.5764 234.064 320 clip bed_rightsleep`; frame of her asleep viewed (`final2/user/screenshots/screenshot004.png`) |
+| Lucia (`b50347871`, west upstairs bed) | **still fails**: `blocked` at (-809.5, -517.9, 81.5) |
+
+Morrowind unchanged: `tools/worldobjects_check` against the build of `main` (`skyfurn`): 111 result lines each, OK; the fixed Balmora frame hash is `1c5d47ad0b5dc32d...`.
+
+### Lucia: what is known, and not fixed
+
+Her route goes from (-241, -1071) west through the cellar's dirt floor: down a bumpy ramp (triangles of 55 to 65 degrees) to z 32, a trench at x = -770 (floor 32 in a gap about 5 wide, 34 below the shelves either side), then to the west stairs. The navmesh (voxels of 6.8 units, max climb 34) accepts it; the mover does not: it refuses 65 degree normals (fixed here for bevels beside a shelf, not for the ramp itself: before the bevel fix she stopped at (-691, -537, 46), now she gets to the trench) and cannot cross a 34 unit deep step. Experiments that did NOT help and were removed: letting a path request ignore the slope check and climb and descend 34 (the capsule then rode up the trench wall by 0.35 units a frame to z 81.5 and stood in the air over the pit, `blocked edge`), and refusing a landing that starts in penetration (no change). Reading: the navmesh crosses a trench the mover cannot, because Recast's voxels average it away. Ways forward (not done): a finer navmesh cell size for neutral sessions (`[Navigator]` settings are global, so it needs a per-session value), or treating narrow deep steps as walls. Her first goal (a bed above (-482, -503)) gives a partial path that ends below it: the navmesh has no connection from there to the upper floor at that place (not investigated further).
+
+### Recommendation on `actor sleep snap`
+
+Keep the default `true` for now. Two of the three sleepers walk to their beds without it; Lucia still needs it (and any other NPC whose route crosses geometry the navmesh over-accepts). With the snap off, a sleeper that cannot reach its bed stands at its anchor all night. It could default to false once Lucia's route works.
+
+### Limits of this stage
+
+Doors sink instead of swinging (no animation); the player cannot open these doors (activating a non-teleport neutral door still does nothing, so the player is stopped by them while an NPC walks through); a door unlocked by the player's key stays a wall to the navigator until the cell is reloaded; doors close on a timer with no check that somebody stands in the doorway beyond the 160 unit trigger; `NDOORNAV` and `NACTDOOR` are trace lines (`OPENEDEN_NEUTRAL_DOOR_TRACE`, `OPENEDEN_NEUTRAL_ACTOR_TRACE`). Test aid: `tools/neutral_session_check` scenario `skyreach` (path queries by agent size, ray scans, navmesh view poses; the probe script has flags at its top). Not run: the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua tests, the whole `components-tests`, a fresh review, sanitizers.

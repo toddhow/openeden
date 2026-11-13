@@ -1,6 +1,10 @@
 #include "scene.hpp"
 #include "neutralnavigation.hpp"
 
+#include <array>
+#include <optional>
+#include <utility>
+
 #include "../mwrender/skyrimmodel.hpp"
 
 #include <atomic>
@@ -59,6 +63,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include "neutralcell.hpp"
+#include "neutraldoor.hpp"
 #include "neutralphysicswater.hpp"
 #include "neutralstore.hpp"
 #include "cellvisitors.hpp"
@@ -185,7 +190,10 @@ namespace
             const DetourNavigator::ObjectTransform objectTransform{ ptr.getRefData().getPosition(),
                 ptr.getCellRef().getScale() };
 
-            if (ptr.getClass().isDoor() && !ptr.getCellRef().getTeleport())
+            // Task 0157: a neutral interior door that is no teleport and not locked is crossed by neutral actors as
+            // Morrowind's doors are (an off-mesh connection; the door opens for the walker).
+            if ((ptr.getClass().isDoor() && !ptr.getCellRef().getTeleport())
+                || MWWorld::neutralDoorPtrOpensForActors(ptr))
             {
                 const JPH::AABox localBounds = object->getShapeInstance()->mCollisionShape->GetLocalBounds();
                 const float scale = ptr.getCellRef().getScale();
@@ -202,15 +210,50 @@ namespace
                     * Misc::VsgMath::toMatrix(Misc::Convert::makeQuaternion(ptr.getCellRef().getPosition()));
 
                 const vsg::vec3 start(closedDoorTransform * vsg::dvec3(center + toPoint));
-                const auto startPoint = physics.castRay(start, start - vsg::vec3(0, 0, 1000), { ptr }, {},
-                    MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::WATER);
-                const auto connectionStart = startPoint.mHit ? startPoint.mHitPos : start;
-
                 const vsg::vec3 end(closedDoorTransform * vsg::dvec3(center - toPoint));
-                const auto endPoint = physics.castRay(end, end - vsg::vec3(0, 0, 1000), { ptr }, {},
-                    MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::WATER);
-                const auto connectionEnd = endPoint.mHit ? endPoint.mHitPos : end;
-
+                const auto floorHit = [&](const vsg::vec3& from) {
+                    return physics.castRay(from, from - vsg::vec3(0, 0, 1000), { ptr }, {},
+                        MWPhysics::Layers::WORLD | MWPhysics::Layers::HEIGHTMAP | MWPhysics::Layers::WATER);
+                };
+                // A neutral door's ends are found from several rays and kept within reach of the door's own floor
+                // (task 0157: one ray can fall through a seam of the floor meshes); Morrowind's doors keep the one ray.
+                const bool neutralDoor = ptr.getType() == MWWorld::NeutralBase::sRecordId;
+                const auto connectionPoint = [&](const vsg::vec3& from) -> std::pair<vsg::vec3, bool> {
+                    const auto centreHit = floorHit(from);
+                    if (!neutralDoor)
+                        return { centreHit.mHit ? centreHit.mHitPos : from, centreHit.mHit };
+                    constexpr float spread = 8.f;
+                    const std::array<vsg::vec3, 5> offsets{ vsg::vec3(0, 0, 0), vsg::vec3(spread, 0, 0),
+                        vsg::vec3(-spread, 0, 0), vsg::vec3(0, spread, 0), vsg::vec3(0, -spread, 0) };
+                    std::array<std::optional<float>, 5> hits;
+                    for (std::size_t i = 0; i < offsets.size(); ++i)
+                    {
+                        const auto hit = i == 0 ? centreHit : floorHit(from + offsets[i]);
+                        if (hit.mHit)
+                            hits[i] = hit.mHitPos.z;
+                    }
+                    const auto doorZ = static_cast<float>(ptr.getRefData().getPosition().pos[2]);
+                    if (const auto z = MWWorld::chooseNeutralDoorFloor(doorZ, hits))
+                    {
+                        for (std::size_t i = 0; i < hits.size(); ++i)
+                            if (hits[i] && *hits[i] == *z)
+                                return { vsg::vec3(from.x, from.y, *z), true };
+                    }
+                    return { vsg::vec3(from.x, from.y, doorZ), false }; // the navmesh snaps to the floor near it
+                };
+                const auto [connectionStart, startHit] = connectionPoint(start);
+                const auto [connectionEnd, endHit] = connectionPoint(end);
+                static const bool doorNavTrace = std::getenv("OPENEDEN_NEUTRAL_DOOR_TRACE") != nullptr;
+                if (doorNavTrace && ptr.getType() == MWWorld::NeutralBase::sRecordId)
+                    Log(Debug::Info) << "NDOORNAV " << ptr.getCellRef().getRefId() << " at "
+                                     << ptr.getRefData().getPosition().asVec3().x << ","
+                                     << ptr.getRefData().getPosition().asVec3().y << ","
+                                     << ptr.getRefData().getPosition().asVec3().z << " bounds " << aabbMin.x << ","
+                                     << aabbMin.y << "," << aabbMin.z << " .. " << aabbMax.x << "," << aabbMax.y << ","
+                                     << aabbMax.z << " connection " << connectionStart.x << "," << connectionStart.y
+                                     << "," << connectionStart.z << (startHit ? "" : " (no floor)") << " -> "
+                                     << connectionEnd.x << "," << connectionEnd.y << "," << connectionEnd.z
+                                     << (endHit ? "" : " (no floor)");
                 navigator.addObject(DetourNavigator::ObjectId(object),
                     DetourNavigator::DoorShapes(
                         object->getShapeInstance(), objectTransform, connectionStart, connectionEnd),

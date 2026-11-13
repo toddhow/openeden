@@ -45,6 +45,17 @@ namespace MWPhysics::NeutralMover
     /// stage S4: a floor seam in the Bannered Mare stopped every NPC). A capsule of radius 22 resting on the rim of a
     /// 50 degree slope has the centre ground about 12 units lower, on a 38 degree slope about 6.
     inline constexpr float kBevelSlack = 3.f;
+    /// Task 0157: the ground under the centre is the highest surface found by five rays: at the centre and this many
+    /// units to each side (stair and floor meshes have thin gaps between planks that a single ray falls through).
+    inline constexpr float kProbeSpread = 4.f;
+    /// ... and its normal is the most level one among the surfaces hit within this height of the highest.
+    inline constexpr float kProbeNormalBand = 4.f;
+    /// Task 0157: stairs. A capsule that climbs rests its rim on the next step's nosing, and the ground under its centre
+    /// is the lower tread, which can be more than kStepDown below the resting feet. When the pass raised the feet by
+    /// more than kRimMinClimb, the ground under the centre may be this much deeper still (a rim that carries the
+    /// capsule up is support). A capsule that is level or going down keeps the plain rule (a ledge is a ledge).
+    inline constexpr float kRimReach = 24.f;
+    inline constexpr float kRimMinClimb = 0.1f;
     /// Horizontal distances under this are not moves.
     inline constexpr float kMinMove = 1e-4f;
 

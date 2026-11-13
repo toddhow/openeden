@@ -39,6 +39,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallightreal.cpp
     mwworld/testneutralcellstore.cpp
     mwworld/testneutraldoor.cpp
+    mwworld/testneutraldoornav.cpp
     mwworld/testneutralrotation.cpp
     mwworld/testneutralnavigation.cpp
     mwworld/testneutralexterior.cpp
@@ -172,9 +173,12 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorfurniture.cpp
     mwphysics/testneutralpathfollower.cpp
     mwphysics/testneutralprocess.cpp
+    mwphysics/testneutraldoorswing.cpp
     mwphysics/testneutralactorclock.cpp
     mwphysics/testneutralmover.cpp
     mwphysics/testneutralmoverbevel.cpp
+    mwphysics/testneutralmoverrim.cpp
+    mwphysics/testneutralmovergap.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp

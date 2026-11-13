@@ -41,4 +41,19 @@ namespace MWWorld
             return std::nullopt;
         return NeutralNavigatorWater{ cellSize, level };
     }
+
+    std::optional<float> chooseNeutralDoorFloor(float doorZ, std::span<const std::optional<float>> hits)
+    {
+        std::optional<float> best;
+        if (!std::isfinite(doorZ))
+            return best;
+        for (const std::optional<float>& hit : hits)
+        {
+            if (!hit || !std::isfinite(*hit) || std::abs(*hit - doorZ) > kNeutralDoorFloorBand)
+                continue;
+            if (!best || std::abs(*hit - doorZ) < std::abs(*best - doorZ))
+                best = *hit;
+        }
+        return best;
+    }
 }

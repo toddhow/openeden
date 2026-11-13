@@ -534,6 +534,10 @@ namespace MWClass
                                     : base.mCollision.hasBounds ? " box"
                                                                 : " none");
         }
+        // Task 0157: a door neutral actors walk through swings open for them (the scene gave the navigator the matching
+        // off-mesh connection).
+        if (asMesh && MWWorld::neutralDoorPtrOpensForActors(ptr))
+            physics.addNeutralDoor(ptr);
         // Task 0140: a model that was read and has nothing to collide with (effects, water volumes, markers) gets no
         // collision at all, not the box of its bounds: those bounds can be 3,000 units across.
         if (!MWPhysics::SkyrimShape::standInBoxWanted(asMesh, base.mCollision.hasBounds,
@@ -546,5 +550,7 @@ namespace MWClass
         const vsg::vec3 half(static_cast<float>((hi.x - lo.x) * 0.5), static_cast<float>((hi.y - lo.y) * 0.5),
             static_cast<float>((hi.z - lo.z) * 0.5));
         physics.addBoxObject(ptr, half, centre, rotation, MWPhysics::Layers::WORLD);
+        if (MWWorld::neutralDoorPtrOpensForActors(ptr))
+            physics.addNeutralDoor(ptr);
     }
 }

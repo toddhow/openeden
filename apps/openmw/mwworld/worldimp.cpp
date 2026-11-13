@@ -343,7 +343,9 @@ namespace MWWorld
             if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))
                 return MWPhysics::NeutralPath::FindStatus::NoPath;
             const DetourNavigator::Status status = DetourNavigator::findPath(*mNavigator, bounds, from, to,
-                DetourNavigator::Flag_walk, DetourNavigator::AreaCosts{}, MWPhysics::NeutralPath::kArrivalRadius, {},
+                static_cast<DetourNavigator::Flags>(DetourNavigator::Flag_walk | DetourNavigator::Flag_openDoor),
+                DetourNavigator::AreaCosts{},
+                MWPhysics::NeutralPath::kArrivalRadius, {},
                 std::back_inserter(out));
             switch (status)
             {
@@ -1472,6 +1474,18 @@ namespace MWWorld
             }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsTurned())
                 mRendering->rotateObject(ptr, neutralActorQuaternion(ptr.getRefData().getPosition()));
+            // Task 0157: doors that open for walking neutral actors sink into the floor and rise again (drawn object,
+            // body and navigator shape; see mwphysics/neutraldoorswing.hpp).
+            for (const auto& move : mPhysics->getNeutralDoorsMoved())
+            {
+                ESM::Position pos = move.mPtr.getRefData().getPosition();
+                pos.pos[2] = move.mZ;
+                move.mPtr.getRefData().setPosition(pos);
+                mRendering->moveObject(move.mPtr, pos.asVec3());
+                mPhysics->updatePosition(move.mPtr);
+                if (const auto object = mPhysics->getObject(move.mPtr))
+                    updateNavigatorObject(*object);
+            }
             // Task 0135 stage S6b: a sit or sleep pose starts or ends.
             for (const auto& change : mPhysics->getNeutralPoseChanges())
                 mRendering->getObjects().setNeutralActorPose(change.mPtr, change.mClip, change.mClipPerSex);

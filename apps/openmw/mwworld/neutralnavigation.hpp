@@ -2,6 +2,7 @@
 #define OPENMW_MWWORLD_NEUTRALNAVIGATION_H
 
 #include <optional>
+#include <span>
 
 #include <components/detournavigator/agentbounds.hpp>
 
@@ -55,6 +56,15 @@ namespace MWWorld
     /// unwalkable pillar of recast voxels. The box is the shape of a `Resource::makeBoxShape` (a Jolt box, perhaps
     /// shifted by a RotatedTranslatedShape); a model's own mesh is a mesh and never matches. Physics is not affected.
     [[nodiscard]] bool neutralShapeIsStandInBox(const JPH::Shape& shape);
+
+    /// Task 0157: the floor height under one end of a neutral door's off-mesh connection. A ray down from the point can
+    /// fall into a crack between two floor meshes (the Bannered Mare's upstairs floor has seams: a ray at (-333, 417)
+    /// reaches the ground floor 100 units lower, and the connection then started below the room it opens into and was
+    /// useless). The caller casts a few rays round the point; this picks the hit nearest to the door's own height
+    /// `doorZ` (a Skyrim door's origin is on its floor) among those within `kNeutralDoorFloorBand` of it, or nothing,
+    /// in which case the caller uses `doorZ` and lets the navmesh snap. Hits that are not finite are ignored.
+    inline constexpr float kNeutralDoorFloorBand = 64.f;
+    [[nodiscard]] std::optional<float> chooseNeutralDoorFloor(float doorZ, std::span<const std::optional<float>> hits);
 
     /// A water plane for the navigator: the side of the square it covers and its height.
     struct NeutralNavigatorWater
