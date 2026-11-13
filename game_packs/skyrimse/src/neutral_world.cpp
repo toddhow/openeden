@@ -390,6 +390,40 @@ namespace game_skyrimse
         return source->describeActor(base, variation, out, error);
     }
 
+    bool SkyrimCellSource::actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        std::uint16_t playerLevel, openeden::sdk::game::ActorStats& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::ActorMechanicsSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view has no actor numbers";
+            return false;
+        }
+        return source->actorStats(base, variation, playerLevel, out, error);
+    }
+
+    bool SkyrimCellSource::actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        openeden::sdk::game::ActorDisposition& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::ActorMechanicsSource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view has no actor relations";
+            return false;
+        }
+        return source->actorDisposition(base, variation, out, error);
+    }
+
+    openeden::sdk::game::ActorRelation SkyrimCellSource::relationBetween(openeden::sdk::game::WorldId baseA,
+        std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::ActorMechanicsSource*>(&mView);
+        return source != nullptr ? source->relationBetween(baseA, variationA, baseB, variationB)
+                                 : openeden::sdk::game::ActorRelation::Neutral;
+    }
+
     std::string SkyrimCellSource::displayNameOf(openeden::sdk::game::WorldId base)
     {
         auto* source = dynamic_cast<openeden::sdk::game::DisplayNameSource*>(&mView);

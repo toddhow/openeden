@@ -128,6 +128,7 @@ namespace game_skyrimse
                     case Content::fourCC("OTFT"):
                     case Content::fourCC("HDPT"):
                     case Content::fourCC("CLAS"):
+                    case Content::fourCC("FACT"):
                         break;
                     default:
                         return true;
@@ -190,6 +191,9 @@ namespace game_skyrimse
                         break;
                     case Content::fourCC("HDPT"):
                         ok = readHeadPart(record, bytes);
+                        break;
+                    case Content::fourCC("FACT"):
+                        ok = readFaction(record, bytes);
                         break;
                     default:
                         ok = readClass(record, bytes);
@@ -439,6 +443,11 @@ namespace game_skyrimse
                                 n.mCalcMin = readLe<std::uint16_t>(data.data() + 10);
                                 n.mCalcMax = readLe<std::uint16_t>(data.data() + 12);
                                 n.mTemplateFlags = readLe<std::uint16_t>(data.data() + 18);
+                                // Offsets 4, 6 and 20: VERIFIED to fit the stored DNAM totals (task 0154).
+                                n.mMagickaOffset = readLe<std::int16_t>(data.data() + 4);
+                                n.mStaminaOffset = readLe<std::int16_t>(data.data() + 6);
+                                if (data.size() >= 22)
+                                    n.mHealthOffset = readLe<std::int16_t>(data.data() + 20);
                                 if (data.size() != 24)
                                     oddType(type);
                             }
@@ -630,6 +639,16 @@ namespace game_skyrimse
                                     r.mWeight[i] = std::isfinite(w) ? w : 1.0f;
                                 }
                                 r.mFlags = readLe<std::uint32_t>(data.data() + 32);
+                                const auto start = [&](std::size_t at) {
+                                    const float v = readLe<float>(data.data() + at);
+                                    return std::isfinite(v) && v >= 0.0f ? v : 0.0f;
+                                };
+                                if (data.size() >= 48)
+                                {
+                                    r.mStartHealth = start(36);
+                                    r.mStartMagicka = start(40);
+                                    r.mStartStamina = start(44);
+                                }
                                 if (data.size() != 164)
                                     oddType(type);
                             }
@@ -1020,6 +1039,62 @@ namespace game_skyrimse
                 return true;
             }
 
+            // -- FACT (task 0154): the relations and the flags --
+
+            bool readFaction(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                FactionRecord f;
+                f.mCommon = common(record);
+                SubReader reader(bytes);
+                std::uint32_t type = 0;
+                std::span<const std::byte> data;
+                int status = 0;
+                while ((status = reader.next(type, data)) == 1)
+                {
+                    bool ok = true;
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            ok = zstring(type, data, f.mCommon.mEditorId);
+                            break;
+                        case Content::fourCC("FULL"):
+                            ok = lstring(type, data, f.mName);
+                            break;
+                        case Content::fourCC("DATA"): // VERIFIED size 4 (1,407 of 1,407)
+                            if (data.size() == 4)
+                                f.mFlags = readLe<std::uint32_t>(data.data());
+                            else
+                                oddType(type);
+                            break;
+                        case Content::fourCC("XNAM"): // VERIFIED size 12 (1,159 of 1,159): faction, modifier, reaction
+                            if (data.size() == 12)
+                            {
+                                if (f.mRelations.size() + 1 > mLimits.mMaxEntriesPerList)
+                                {
+                                    ok = tooMany(type);
+                                    break;
+                                }
+                                FactionRelation r;
+                                r.mOther = resolved(readLe<std::uint32_t>(data.data()));
+                                r.mModifier = readLe<std::int32_t>(data.data() + 4);
+                                r.mReaction = readLe<std::uint32_t>(data.data() + 8);
+                                f.mRelations.push_back(r);
+                            }
+                            else
+                                oddType(type);
+                            break;
+                        default:
+                            break;
+                    }
+                    if (!ok)
+                        return false;
+                }
+                if (status < 0)
+                    return damaged(reader);
+                mOut.mFactionRecords.push_back(std::move(f));
+                return true;
+            }
+
             const Content::Plugin& mPlugin;
             const FormIdResolver& mResolver;
             const ActorLimits& mLimits;
@@ -1105,6 +1180,7 @@ namespace game_skyrimse
         put(mOutfits, records.mOutfits);
         put(mHeadParts, records.mHeadParts);
         put(mClasses, records.mClasses);
+        put(mFactionTable, records.mFactionRecords);
     }
 
     void ActorIndex::addLeveledLists(const std::vector<LeveledList>& lists)

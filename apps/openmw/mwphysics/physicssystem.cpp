@@ -1371,6 +1371,12 @@ namespace MWPhysics
         mNeutralBridge.setClock({ hour, static_cast<std::int32_t>(day), true });
     }
 
+    void PhysicsSystem::setNeutralFocus(const vsg::vec3& position)
+    {
+        mNeutralFocus = position;
+        mNeutralFocusValid = std::isfinite(position.x) && std::isfinite(position.y);
+    }
+
     void PhysicsSystem::updateNeutralActors(float dt)
     {
         mNeutralMoved.clear();
@@ -1379,10 +1385,18 @@ namespace MWPhysics
         mNeutralPoseChanges.clear();
         if (mNeutralActors.empty())
             return;
+        // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every 600
+        // frames. Off, it costs one test of a static flag.
+        static const bool costTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_COST") != nullptr;
+        const auto costStart = costTrace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
         if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
+        const auto costAfterPack = costTrace ? std::chrono::steady_clock::now() : costStart;
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        const bool useLevels = Settings::game().mNeutralActorProcessLevels.get() && mNeutralFocusValid;
+        std::fill(std::begin(mNeutralProcessStats.mActors), std::end(mNeutralProcessStats.mActors), 0u);
+        std::size_t entryIndex = 0;
         static const WalkAid walkAid = readWalkAid();
         if (walkAid.mValid && walkAid.mIndex < mNeutralActors.size())
             mNeutralActors[walkAid.mIndex].mRequest = walkAid.mRequest;
@@ -1391,9 +1405,45 @@ namespace MWPhysics
         const bool reportSpeeds = Settings::game().mNeutralActorLocomotion.get(); // task 0148: measured only when used
         for (NeutralActorEntry& entry : mNeutralActors)
         {
+            const std::size_t index = entryIndex++;
             const auto found = mObjects.find(entry.mRef);
             if (found == mObjects.end())
                 continue;
+            // Task 0154: a grounded actor far from the player is stepped on a longer period with the time it skipped.
+            float stepDt = dt;
+            if (entry.mFall.mState == NeutralActor::State::Grounded)
+            {
+                if (useLevels)
+                {
+                    const ESM::Position& where = found->second->getPtr().getRefData().getPosition();
+                    const float dx = where.pos[0] - mNeutralFocus.x;
+                    const float dy = where.pos[1] - mNeutralFocus.y;
+                    const float distanceSquared = dx * dx + dy * dy;
+                    entry.mLevel = entry.mScheduleSeeded
+                        ? NeutralProcess::reclassify(entry.mLevel, distanceSquared, mNeutralProcessConfig)
+                        : NeutralProcess::classify(distanceSquared, mNeutralProcessConfig);
+                    if (!entry.mScheduleSeeded)
+                    {
+                        // Golden-ratio phases keep the actors of one level from all stepping in the same frame.
+                        const float phase = static_cast<float>(index) * 0.6180339887f;
+                        entry.mSchedule.seed(phase - std::floor(phase), entry.mLevel, mNeutralProcessConfig);
+                        entry.mScheduleSeeded = true;
+                    }
+                    const std::size_t level = static_cast<std::size_t>(entry.mLevel);
+                    ++mNeutralProcessStats.mActors[level];
+                    if (!entry.mSchedule.advance(entry.mLevel, dt, mNeutralProcessConfig, stepDt))
+                    {
+                        ++mNeutralProcessStats.mSkipped[level];
+                        continue; // keeps its request, its measured speed and its position until its next step
+                    }
+                    ++mNeutralProcessStats.mStepped[level];
+                }
+                else
+                {
+                    ++mNeutralProcessStats.mActors[0];
+                    ++mNeutralProcessStats.mStepped[0];
+                }
+            }
             entry.mMeasuredSpeed = 0.f;
             if (entry.mSeated)
             {
@@ -1410,11 +1460,21 @@ namespace MWPhysics
             {
                 // Stage S4: a go-to turns its path into this frame's velocity request first.
                 if (entry.mFollow.active())
-                    followNeutralGoal(entry, found->second->getPtr(), dt, trace);
+                {
+                    const auto followStart = costTrace ? std::chrono::steady_clock::now() : costStart;
+                    followNeutralGoal(entry, found->second->getPtr(), stepDt, trace);
+                    if (costTrace)
+                        mNeutralCostFollowNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::steady_clock::now() - followStart).count();
+                }
                 if (entry.mRequest.isMoving())
                 {
                     entry.mFaceValid = false; // a walking actor faces where it goes
-                    walkNeutralActor(entry, *found->second, dt, trace);
+                    const auto walkStart = costTrace ? std::chrono::steady_clock::now() : costStart;
+                    walkNeutralActor(entry, *found->second, stepDt, trace);
+                    if (costTrace)
+                        mNeutralCostWalkNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
+                            std::chrono::steady_clock::now() - walkStart).count();
                 }
                 else if (entry.mFaceValid)
                 {
@@ -1478,6 +1538,35 @@ namespace MWPhysics
                                  << (entry.mFall.mState == NeutralActor::State::Grounded ? "grounded" : "lost")
                                  << " start z " << entry.mStartZ << " rest z " << entry.mFall.mZ << " frames "
                                  << entry.mFall.mFrames;
+        }
+        if (costTrace)
+        {
+            const auto end = std::chrono::steady_clock::now();
+            mNeutralCostNs += std::chrono::duration_cast<std::chrono::nanoseconds>(end - costStart).count();
+            mNeutralCostPackNs += std::chrono::duration_cast<std::chrono::nanoseconds>(costAfterPack - costStart).count();
+            mNeutralCostActorFrames += mNeutralActors.size();
+            if (++mNeutralCostFrames % 600 == 0)
+            {
+                const double frames = 600.0;
+                const double actorFrames = static_cast<double>(mNeutralCostActorFrames);
+                Log(Debug::Info) << "NACTCOST frames " << mNeutralCostFrames << " actors " << mNeutralActors.size()
+                                 << " levels " << (useLevels ? "on" : "off") << " grounded high/middle/low "
+                                 << mNeutralProcessStats.mActors[0] << "/" << mNeutralProcessStats.mActors[1] << "/"
+                                 << mNeutralProcessStats.mActors[2] << " stepped " << mNeutralProcessStats.mStepped[0]
+                                 << "/" << mNeutralProcessStats.mStepped[1] << "/" << mNeutralProcessStats.mStepped[2]
+                                 << " skipped " << mNeutralProcessStats.mSkipped[0] << "/"
+                                 << mNeutralProcessStats.mSkipped[1] << "/" << mNeutralProcessStats.mSkipped[2]
+                                 << " avg frame us " << (static_cast<double>(mNeutralCostNs) / 1000.0 / frames)
+                                 << " of which pack us " << (static_cast<double>(mNeutralCostPackNs) / 1000.0 / frames)
+                                 << " follow us " << (static_cast<double>(mNeutralCostFollowNs) / 1000.0 / frames)
+                                 << " walk us " << (static_cast<double>(mNeutralCostWalkNs) / 1000.0 / frames)
+                                 << " per actor-frame ns " << (static_cast<double>(mNeutralCostNs) / actorFrames);
+                mNeutralCostNs = 0;
+                mNeutralCostPackNs = 0;
+                mNeutralCostFollowNs = 0;
+                mNeutralCostWalkNs = 0;
+                mNeutralCostActorFrames = 0;
+            }
         }
     }
 

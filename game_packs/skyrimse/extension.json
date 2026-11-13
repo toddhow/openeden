@@ -44,6 +44,11 @@
       "key": "actor sleep snap",
       "type": "bool",
       "default": true
+    },
+    {
+      "key": "player level",
+      "type": "int",
+      "default": 1
     }
   ],
   "licence": "GPL-3.0-or-later"

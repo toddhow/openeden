@@ -16,6 +16,7 @@
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
@@ -146,6 +147,7 @@ namespace game_skyrimse
     /// reference to the view, which must outlive it. Main thread only, like the view.
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
         public openeden::sdk::game::ActorAppearanceSource,
+        public openeden::sdk::game::ActorMechanicsSource,
         public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::ActorRules,
@@ -193,6 +195,13 @@ namespace game_skyrimse
         /// Forwards to the view when it can describe actors (SkyrimWorldView does), else refuses.
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
+        /// Actor numbers and relations (task 0154): forwarded to the view when it has them (SkyrimWorldView does).
+        bool actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation, std::uint16_t playerLevel,
+            openeden::sdk::game::ActorStats& out, std::string& error) override;
+        bool actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
+            openeden::sdk::game::ActorDisposition& out, std::string& error) override;
+        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA,
+            std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
         /// Conversations (task 0141): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
         bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;

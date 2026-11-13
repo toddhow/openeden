@@ -28,6 +28,7 @@
 #include <game_skyrimse/records.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/weather_source.hpp>
@@ -111,6 +112,7 @@ namespace game_skyrimse
         public ComponentSource,
         public TerrainProvider,
         public openeden::sdk::game::ActorAppearanceSource,
+        public openeden::sdk::game::ActorMechanicsSource,
         public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::WeatherSource,
@@ -284,6 +286,20 @@ namespace game_skyrimse
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
+        // ---- openeden::sdk::game::ActorMechanicsSource (task 0154, stage S7) ----
+        /// Numbers and relations from the actor index (FACT, RACE, CLAS, NPC_ of every plugin; read with the first
+        /// describeActor or the first of these asks). Main thread only.
+        bool actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation, std::uint16_t playerLevel,
+            openeden::sdk::game::ActorStats& out, std::string& error) override;
+        bool actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
+            openeden::sdk::game::ActorDisposition& out, std::string& error) override;
+        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA,
+            std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
+        /// The level an actor that scales with the player scales to when the caller passes 0 (the pack setting
+        /// `player level`; kStandInPlayerLevel by default).
+        void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
+        [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
+
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
         /// FULL of the base form (NPC_, DOOR, CONT, ACTI ..., items), through the string tables of a localised plugin;
         /// empty when the record has none. Main thread only.
@@ -377,6 +393,7 @@ namespace game_skyrimse
         std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
+        std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         bool ensureActorIndex();
         struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime

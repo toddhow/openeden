@@ -109,6 +109,11 @@ namespace game_skyrimse
         std::uint16_t mCalcMin = 0;
         std::uint16_t mCalcMax = 0;
         std::uint16_t mTemplateFlags = 0; ///< ACBS offset 18
+        /// ACBS offsets 4, 6 and 20 (i16 each): the NPC's own offset from the race's starting value (task 0154;
+        /// VERIFIED to fit the stored DNAM totals of the auto-calculated NPCs, see actor_mechanics.hpp).
+        std::int16_t mMagickaOffset = 0;
+        std::int16_t mStaminaOffset = 0;
+        std::int16_t mHealthOffset = 0;
         bool mHasStats = false; ///< DNAM
         std::array<std::uint8_t, 18> mSkills{};
         std::uint16_t mHealth = 0;
@@ -173,6 +178,11 @@ namespace game_skyrimse
         bool mHasData = false; ///< DATA (164 bytes, VERIFIED)
         std::array<float, 2> mHeight{ 1.0f, 1.0f }; ///< DATA at 16 (male), 20 (female)
         std::array<float, 2> mWeight{ 1.0f, 1.0f }; ///< DATA at 24, 28
+        /// DATA at 36, 40, 44 (task 0154): starting health, magicka and stamina. VERIFIED by the installed races (the
+        /// humanoids are 50, 50, 50 with carry weight 300 at offset 48; animals and creatures differ).
+        float mStartHealth = 0.0f;
+        float mStartMagicka = 0.0f;
+        float mStartStamina = 0.0f;
         std::uint32_t mFlags = 0; ///< DATA at 32, raw (bit 0 is "playable": set on 10 of 161 races, RECALLED-VERIFY)
         std::vector<FormId> mKeywords;
         std::vector<FormId> mSpells;
@@ -220,6 +230,31 @@ namespace game_skyrimse
         std::vector<FormId> mArmatures; ///< MODL (VERIFIED: all ARMA)
         FormId mTemplate = kNullFormId; ///< TNAM
         std::uint32_t mRating = 0; ///< DNAM, 100 times the armor rating (RECALLED-VERIFY)
+    };
+
+    /// One XNAM of a FACT (12 bytes, VERIFIED on all 1,159): another faction, a modifier (0 in the installed data) and
+    /// the group combat reaction.
+    struct FactionRelation
+    {
+        FormId mOther = kNullFormId;
+        std::int32_t mModifier = 0;
+        /// The combat reaction of this faction's members towards the other faction's. VERIFIED values 0 to 3 only
+        /// (neutral 70, enemy 314, ally 399, friend 376 over the five masters); the names are RECALLED-VERIFY.
+        std::uint32_t mReaction = 0;
+    };
+
+    namespace CombatReaction
+    {
+        inline constexpr std::uint32_t Neutral = 0, Enemy = 1, Ally = 2, Friend = 3;
+    }
+
+    /// FACT: the relations to other factions and the flags. Ranks, crime values, vendor data are not read.
+    struct FactionRecord
+    {
+        RecordCommon mCommon;
+        LString mName;
+        std::uint32_t mFlags = 0; ///< DATA, 4 bytes (VERIFIED size 4 on 1,407 of 1,407)
+        std::vector<FactionRelation> mRelations;
     };
 
     struct OutfitRecord
@@ -282,6 +317,7 @@ namespace game_skyrimse
         std::vector<OutfitRecord> mOutfits;
         std::vector<HeadPartRecord> mHeadParts;
         std::vector<ClassRecord> mClasses;
+        std::vector<FactionRecord> mFactionRecords; ///< FACT (task 0154)
 
         std::map<std::uint32_t, TypeCount> mCounts;
         std::uint64_t mUnresolvedFormIds = 0;
@@ -319,6 +355,7 @@ namespace game_skyrimse
         [[nodiscard]] const OutfitRecord* outfit(FormId id) const { return find(mOutfits, id); }
         [[nodiscard]] const HeadPartRecord* headPart(FormId id) const { return find(mHeadParts, id); }
         [[nodiscard]] const ClassRecord* classRecord(FormId id) const { return find(mClasses, id); }
+        [[nodiscard]] const FactionRecord* faction(FormId id) const { return find(mFactionTable, id); }
         [[nodiscard]] const LeveledList* leveledList(FormId id) const { return find(mLeveled, id); }
 
         [[nodiscard]] std::size_t npcCount() const { return mNpcs.size(); }
@@ -400,6 +437,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, OutfitRecord> mOutfits;
         std::unordered_map<FormId, HeadPartRecord> mHeadParts;
         std::unordered_map<FormId, ClassRecord> mClasses;
+        std::unordered_map<FormId, FactionRecord> mFactionTable;
         std::unordered_map<FormId, LeveledList> mLeveled;
     };
 }

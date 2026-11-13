@@ -12,6 +12,7 @@
 #include <components/worldmodel/store.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
+#include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 
@@ -442,6 +443,35 @@ namespace MWClass
                 return text != nullptr ? static_cast<float>(std::atof(text)) : 0.f;
             }();
             physics->addNeutralActor(ptr, appearance.heightScale, raise);
+
+            // Task 0154 (stage S7): the pack's numbers and relations for this actor, as a log line (a debug readout:
+            // nothing in the engine consumes them yet).
+            static const bool mechanicsTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+            if (mechanicsTrace)
+            {
+                if (auto* mechanics = dynamic_cast<openeden::sdk::game::ActorMechanicsSource*>(source))
+                {
+                    openeden::sdk::game::ActorStats stats;
+                    openeden::sdk::game::ActorDisposition disposition;
+                    std::string mechanicsError;
+                    if (mechanics->actorStats(base.mBase, variation, 0, stats, mechanicsError)
+                        && mechanics->actorDisposition(base.mBase, variation, disposition, mechanicsError))
+                    {
+                        std::string skills;
+                        for (const std::uint8_t skill : stats.skills)
+                            skills += (skills.empty() ? "" : ",") + std::to_string(skill);
+                        Log(Debug::Info) << "NACTVAL " << base.mEditorId << " level " << stats.level << " health "
+                                         << stats.health << " magicka " << stats.magicka << " stamina "
+                                         << stats.stamina << " skills " << skills << " scales "
+                                         << stats.scalesWithPlayer << " essential " << stats.essential << " unique "
+                                         << stats.unique << " relation " << static_cast<int>(disposition.relationToPlayer)
+                                         << " aggression " << static_cast<int>(disposition.aggression) << " hostile "
+                                         << disposition.hostileOnSight;
+                    }
+                    else
+                        Log(Debug::Info) << "NACTVAL " << base.mEditorId << " none: " << mechanicsError;
+                }
+            }
 
             // Stage S3 (actor hooks): a game whose source implements ActorRules is told about the actor and, once a
             // frame, asked what it wants. The resolver looks the source up each time it is used (the pack may have

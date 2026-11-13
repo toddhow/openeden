@@ -31,6 +31,7 @@
 #include "neutralactorbridge.hpp"
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
+#include "neutralprocess.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
 
@@ -214,6 +215,20 @@ namespace MWPhysics
         /// Task 0135 stage S5: the game clock the pack reads (ActorRequestWriter::clock()) in the next update. Main
         /// thread; call before updateNeutralActors.
         void setNeutralClock(float hour, int day);
+
+        /// Task 0154 (stage S7): where the player stands, for the process levels of `[Game] neutral actor process
+        /// levels` (NeutralProcess: actors far from here step their bodies less often). Main thread; call before
+        /// updateNeutralActors. Without a call (or with the setting off) every actor is High: stepped every frame.
+        void setNeutralFocus(const vsg::vec3& position);
+
+        /// Task 0154: counters of the last frames for the trace and the cost measurement.
+        struct NeutralProcessStats
+        {
+            std::uint32_t mActors[3] = { 0, 0, 0 }; ///< actors per level in the last frame (grounded ones)
+            std::uint64_t mStepped[3] = { 0, 0, 0 }; ///< body steps run per level, since the start
+            std::uint64_t mSkipped[3] = { 0, 0, 0 }; ///< frames a grounded actor was not stepped, per level
+        };
+        [[nodiscard]] const NeutralProcessStats& getNeutralProcessStats() const { return mNeutralProcessStats; }
 
         /// The actors the last updateNeutralActors changed the position of, and (a subset) those it turned.
         const std::vector<MWWorld::Ptr>& getNeutralActorsMoved() const { return mNeutralMoved; }
@@ -484,7 +499,20 @@ namespace MWPhysics
             float mFace = 0.f; ///< a heading request, applied once when the actor stands
             bool mFaceValid = false;
             bool mSeated = false; ///< on furniture (stage S6b): no fall, no walk, no goal until it leaves
+            NeutralProcess::Level mLevel = NeutralProcess::Level::High; ///< task 0154
+            NeutralProcess::Schedule mSchedule;
+            bool mScheduleSeeded = false;
         };
+        NeutralProcess::Config mNeutralProcessConfig;
+        NeutralProcessStats mNeutralProcessStats;
+        vsg::vec3 mNeutralFocus;
+        bool mNeutralFocusValid = false;
+        std::uint64_t mNeutralCostFrames = 0; ///< OPENEDEN_NEUTRAL_ACTOR_COST: frames, nanoseconds in the whole update
+        std::uint64_t mNeutralCostNs = 0;
+        std::uint64_t mNeutralCostPackNs = 0;
+        std::uint64_t mNeutralCostFollowNs = 0; ///< inside followNeutralGoal (the path finder is called from there)
+        std::uint64_t mNeutralCostWalkNs = 0; ///< inside walkNeutralActor (swept capsule)
+        std::uint64_t mNeutralCostActorFrames = 0;
         std::vector<NeutralActorEntry> mNeutralActors;
         std::vector<NeutralPoseChange> mNeutralPoseChanges;
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.

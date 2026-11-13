@@ -1,6 +1,7 @@
 #include "game_skyrimse/world_view.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/dialogue_runtime.hpp"
@@ -265,6 +266,44 @@ namespace game_skyrimse
             probe.mExists = [files](const std::string& path) { return files->exists(path); };
         }
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, {}, &probe);
+    }
+
+    // ---- actor numbers and relations (task 0154, stage S7) ---------------------------------------------------------
+
+    bool SkyrimWorldView::actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        std::uint16_t playerLevel, openeden::sdk::game::ActorStats& out, std::string& error)
+    {
+        out = {};
+        if (!awaitIndex() || !ensureActorIndex())
+        {
+            error = "the actor records are not available";
+            return false;
+        }
+        return computeActorStats(*mActorIndex, static_cast<FormId>(base), variation,
+            playerLevel != 0 ? playerLevel : mStandInPlayerLevel, out, error);
+    }
+
+    bool SkyrimWorldView::actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
+        openeden::sdk::game::ActorDisposition& out, std::string& error)
+    {
+        out = {};
+        if (!awaitIndex() || !ensureActorIndex())
+        {
+            error = "the actor records are not available";
+            return false;
+        }
+        MechanicsOptions options;
+        options.mPlayerLevel = mStandInPlayerLevel;
+        return computeActorDisposition(*mActorIndex, static_cast<FormId>(base), variation, options, out, error);
+    }
+
+    openeden::sdk::game::ActorRelation SkyrimWorldView::relationBetween(openeden::sdk::game::WorldId baseA,
+        std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB)
+    {
+        if (!awaitIndex() || !ensureActorIndex())
+            return openeden::sdk::game::ActorRelation::Neutral;
+        return relationBetweenActors(
+            *mActorIndex, static_cast<FormId>(baseA), variationA, static_cast<FormId>(baseB), variationB);
     }
 
     // ---- conversations (task 0141, M-S4 slice 1) -----------------------------------------------------------------

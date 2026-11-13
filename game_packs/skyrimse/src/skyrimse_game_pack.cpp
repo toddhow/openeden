@@ -1,5 +1,6 @@
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 
+#include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/world_view.hpp"
@@ -149,6 +150,15 @@ namespace game_skyrimse
                                 + "' is not <editor id>,<x>,<y>,<z>; the test go-to is off");
                     else if (!goer.empty())
                         say(openeden::sdk::LogLevel::Info, "actor test goto: " + goer);
+                    // Task 0154: the level an actor that scales with the player scales to (a new game's player is 1).
+                    const int standInLevel
+                        = settings->getInt(kPackId, kPlayerLevelKey, kStandInPlayerLevel);
+                    if (standInLevel >= 1 && standInLevel <= kMaxActorLevel)
+                        mWorldView.setStandInPlayerLevel(static_cast<std::uint16_t>(standInLevel));
+                    else
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kPlayerLevelKey) + "' is not 1 to 65535; using "
+                                + std::to_string(kStandInPlayerLevel));
                     // Stage S5: AI packages, off unless the setting says so (needs the world view, which is the
                     // packages' source).
                     if (settings->getBool(kPackId, kActorPackagesKey, false))

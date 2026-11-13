@@ -168,6 +168,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp
     mwphysics/testneutralpathfollower.cpp
+    mwphysics/testneutralprocess.cpp
     mwphysics/testneutralactorclock.cpp
     mwphysics/testneutralmover.cpp
     mwphysics/testneutralmoverbevel.cpp

@@ -1463,6 +1463,7 @@ namespace MWWorld
                 const MWWorld::TimeStamp now = getTimeStamp();
                 mPhysics->setNeutralClock(pinnedHour >= 0.f ? pinnedHour : now.getHour(), now.getDay());
             }
+            mPhysics->setNeutralFocus(getPlayerPtr().getRefData().getPosition().asVec3());
             mPhysics->updateNeutralActors(duration);
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsMoved())
             {
