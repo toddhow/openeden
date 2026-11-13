@@ -317,8 +317,9 @@ namespace OMW
         options.mGeneration = generation;
         options.mSourceDigest = digest;
         options.mThreads = 2;
-        // Stored, not compressed: the pack is small (a few MiB) and its bytes then depend only on the land data,
-        // on any machine and with any zstd version.
+        // Morrowind: stored, not compressed: the pack is small (a few MiB) and its bytes then depend only on the land
+        // data, on any machine and with any zstd version. A neutral world's pack (289 MB stored for WhiterunWorld) is
+        // compressed (task 0133 stage 3).
         options.mStoreOnly = Lod::terrainPackStored(state.mNeutral);
         if (const Lod::LodError error = Lod::writeTilePack(state.mManifest, state.mTiles, options, path))
         {
