@@ -172,6 +172,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp
     mwphysics/testneutralpathfollower.cpp
+    mwphysics/testneutralpathpartial.cpp
     mwphysics/testneutralprocess.cpp
     mwphysics/testneutraldoorswing.cpp
     mwphysics/testneutralactorclock.cpp

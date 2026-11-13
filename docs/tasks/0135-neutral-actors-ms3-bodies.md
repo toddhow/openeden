@@ -308,3 +308,30 @@ Keep the default `true` for now. Two of the three sleepers walk to their beds wi
 ### Limits of this stage
 
 Doors sink instead of swinging (no animation); the player cannot open these doors (activating a non-teleport neutral door still does nothing, so the player is stopped by them while an NPC walks through); a door unlocked by the player's key stays a wall to the navigator until the cell is reloaded; doors close on a timer with no check that somebody stands in the doorway beyond the 160 unit trigger; `NDOORNAV` and `NACTDOOR` are trace lines (`OPENEDEN_NEUTRAL_DOOR_TRACE`, `OPENEDEN_NEUTRAL_ACTOR_TRACE`). Test aid: `tools/neutral_session_check` scenario `skyreach` (path queries by agent size, ray scans, navmesh view poses; the probe script has flags at its top). Not run: the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua tests, the whole `components-tests`, a fresh review, sanitizers.
+
+## Stage log: S6d, Lucia (task 0158, follow-up of S6c)
+
+Branch `skylucia` from `main` at `10231248ad`, built in `I:\Projects\OpenEden-work\skylucia\build` (a junction to `C:\OpenEdenWork\skylucia\build`: I: was full). Same hand wrote tests and code; the follower tests were run red against the unchanged follower (2 of 3 failed); no fresh reviewer. Windows only. Settings as in S6c (`actor sleep snap = false`, midnight, scenario `n5furn`).
+
+### Causes, with evidence
+
+1. **The walk into the cellar was a follower fault, not a navmesh bridge.** `NeutralPath::Follower` accepted a PARTIAL path when its last point was within the arrival radius of the goal on the ground plane only. Lucia's beds are upstairs (z 318 to 320). The navmesh route from her start (probe `SKYPROF start3->bedL2`) is 9 nodes ending at (-1357, -291, 35) in the cellar, directly under the bed (z 318): a 2D match, so she was sent along a 1,000 unit route that never reaches her bed. Both candidate beds (`(-482, -503, 320)` and `(-1357, -291, 318)`) give such paths. The first goal's partial path ends at (-482, -503, 74.8): the same.
+2. **Neither upstairs bed is reachable on the navmesh.** A reachability map (path from the ground floor to every ray hit on a 50 unit grid, `SKYMAP`) shows the east upper floor reachable (Saadia's stairs) and the west upper floor not. The west route goes through the cellar and up the west stairs: flight A (x -1240 to -1160, z 102 to 193) and flight B (x -1100 to -1040, z 267 to 329, 20.5 unit risers on 20 unit treads, about 45 degrees) are reached, but at r = 22 the navmesh path up flight B stops at (-1074, -252, 292), 37 units short of the top. Why the last steps of flight B are lost was NOT established (Lua `findPath` cannot ask for other agent sizes: the navigator only has the agents the engine added, so r = 20, 18, 14 stay `NavMeshNotFound`).
+3. **The trench** at x = -770 on her cellar route (a 5 to 6 wide gap, floor z 39.5 between shelves at 67 to 79: ray scan) is smaller than a navmesh voxel (6.8 units), so the navmesh bridges it (a path node pair (-721, -537, 68) to (-1027, -476, 68) runs at the shelf height). The mover's centre probe finds the trench floor 28 below and refuses. This is a real disagreement, but it is only visible on a route that cannot reach her bed anyway.
+
+### Fix
+
+`Follower`: a partial path is followed only when its end is also within `kArrivalHeight` (64) of the goal's height. New `apps/openmw_tests/mwphysics/testneutralpathpartial.cpp` (3 tests; two red first). Lucia now gets `no path` for both beds at once and stays at her anchor; she no longer walks to the cellar and stands in the air over the trench. Mikael (arrives at (130.9, 458.3), bed), Saadia (arrives at (44.0, 257.9, 321.5), bed) and the other actors still arrive (`r3`: `NACTGOTO result ... arrived`, `NACTFURN use` lines). **Lucia still does not reach a bed.**
+
+### Tried and removed
+
+A neutral-session navmesh climb of the mover's step (24 instead of Morrowind's 34), with the recast voxel height 0.2 or 0.1 (`OPENEDEN_NAVEXP` experiment, removed): a real navmesh test on an open-riser stair (20.5 risers) and a 30 unit ledge passes at both, but in the Mare the stairs to Saadia's room vanish (her path ends at (27, 292, 75)), with cell size 0.1 and climb 34 also Mikael's door route fails. Recast's ledge filter rejects a span whose accessible neighbours differ by more than the climb, so a stair of 20.5 risers needs a climb close to two risers; a climb below the 34 trench cannot be had without losing stairs. Not kept.
+
+### Not done, and the recommendation
+
+- The navmesh and the mover still disagree about narrow deep trenches (cause 3); the cheapest honest fix is in the mover (a capsule wider than the gap is supported by its rim: probe a ring of rays and accept a centre hole narrower than about 12 units) rather than a navmesh setting. Not built, because it cannot reach her bed alone.
+- Why flight B's top steps are missing from the navmesh (cause 2) needs a probe with the engine's own agents (the Lua query cannot add one) or the navmesh debug view at the landing.
+- **`actor sleep snap` must stay `true`.** With it off two of three sleepers reach their beds and the third (and any bed behind a stair the navmesh loses) stands at its anchor all night.
+- Lucia's bed choice (c): both candidates are upstairs beds of the west wing; her own package has no bed and S6b's 2048 unit fallback finds only those. No reachable ground floor bed was among the candidates.
+
+Not run: the Linux gate and GCC `-Werror`, clang-format 14, clang-tidy, the Lua tests, the whole `openmw-tests` (`NeutralPath*`, `NeutralMover*`, `NeutralActor*` 126 pass), a fresh review; Morrowind comparison (`tools/worldobjects_check`, the Balmora frame): not run, the change is in the neutral follower only.

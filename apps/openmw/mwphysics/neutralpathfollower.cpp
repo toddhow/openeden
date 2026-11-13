@@ -85,7 +85,10 @@ namespace MWPhysics::NeutralPath
                 case FindStatus::NoPath:
                     return finish(Outcome::NoPath);
                 case FindStatus::Partial:
-                    if (mPath.empty() || groundDistance(mPath.back(), mTarget) > kArrivalRadius)
+                    // A path that stops short of the goal is no way to it, and neither is one that ends under or over it
+                    // on another floor (task 0158: Lucia's upstairs bed, the path ended on the cellar floor below it).
+                    if (mPath.empty() || groundDistance(mPath.back(), mTarget) > kArrivalRadius
+                        || std::fabs(mPath.back().z - mTarget.z) > kArrivalHeight)
                         return finish(Outcome::NoPath);
                     break;
                 case FindStatus::Success:
