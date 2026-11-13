@@ -8,6 +8,8 @@
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
+#include <components/script_papyrus/pexfile.hpp>
+
 #include <algorithm>
 #include <cctype>
 #include <span>
@@ -411,6 +413,34 @@ namespace game_skyrimse
             // whichever the session's VFS holds).
             const FileSource* files = mFiles;
             raw->mRuntime->setVoiceProbe([files](const std::string& path) { return files->exists("sound/" + path); });
+        }
+        {
+            // Task 0155: the stand-in player of the speech checks, and the reading of fragment scripts that names a
+            // service line (barter, training ...).
+            PlayerStandIn player;
+            player.mLevel = mStandInPlayerLevel;
+            player.mSkills[*skillSlotOfActorValue(kAvSpeechcraft)] = mStandInSpeech;
+            player.mGold = mStandInGold;
+            raw->mRuntime->setPlayer(player);
+            if (mFiles != nullptr)
+            {
+                const FileSource* files = mFiles;
+                raw->mRuntime->setScriptProbe([files](const std::string& script) {
+                    std::vector<std::string> names;
+                    std::string bytes;
+                    std::string path = "scripts/" + ScriptPapyrus::Pex::lowered(script) + ".pex";
+                    if (!files->read(path, bytes))
+                        return names;
+                    const ScriptPapyrus::Pex::ParseResult parsed = ScriptPapyrus::Pex::parse(
+                        { reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size() }, path);
+                    if (!parsed.mOk)
+                        return names;
+                    names.reserve(parsed.mFile.mStrings.size());
+                    for (const std::string& text : parsed.mFile.mStrings)
+                        names.push_back(ScriptPapyrus::Pex::lowered(text));
+                    return names;
+                });
+            }
         }
         raw->mPackageQuests = QuestState::initial(raw->mData->mQuests);
         raw->mPackageWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);

@@ -15,13 +15,13 @@
 // WorldCellSource, so the frozen WorldCellSource (world_source.hpp 1.x) is untouched. A pack that does not implement
 // it simply has actors that cannot be talked to.
 //
-// Version policy: DRAFT 0.2 (0.2, task 0143: DialogueTurn::voice, a trailing field). Additive changes (a new
+// Version policy: DRAFT 0.3 (0.2, task 0143: DialogueTurn::voice; 0.3, task 0155: DialogueTurn::service, trailing fields). Additive changes (a new
 // trailing virtual with a "not supported" default, a trailing field a consumer only reads) raise the minor number.
 // Threading: main thread only. Plain values only: no engine, renderer, UI or Qt type.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kDialogueSourceVersion{ 0, 2 };
+    inline constexpr Version kDialogueSourceVersion{ 0, 3 };
 
     /// A topic the player may choose. `id` is opaque to the core.
     struct DialogueTopicChoice
@@ -48,6 +48,10 @@ namespace openeden::sdk::game
         /// no voice for this speaker or none of the files exist. The core plays them one after the other; the subtitle
         /// stays `text`. Added in 0.2.
         std::vector<std::string> voice;
+        /// The response is a SERVICE the pack knows it cannot run yet (task 0155): a short name such as "barter",
+        /// "training" or "rent a room"; empty for an ordinary line. A turn with a service ends the conversation (the
+        /// service's own menu would replace the dialogue), and the core logs "service not implemented". Added in 0.3.
+        std::string service;
 
         friend bool operator==(const DialogueTurn&, const DialogueTurn&) = default;
     };

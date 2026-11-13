@@ -22,6 +22,14 @@
 
 namespace MWWorld
 {
+    std::string neutralServiceNote(const openeden::sdk::game::DialogueTurn& turn, const std::string& speakerName)
+    {
+        if (turn.service.empty())
+            return std::string();
+        const std::string& name = turn.speakerName.empty() ? speakerName : turn.speakerName;
+        return "service not implemented: " + turn.service + " with " + (name.empty() ? std::string("the speaker") : name);
+    }
+
     NeutralDialoguePager::NeutralDialoguePager(std::string goodbyeLabel, std::string moreLabel, std::size_t topicsPerPage)
         : mGoodbye(std::move(goodbyeLabel))
         , mMore(std::move(moreLabel))
@@ -353,6 +361,8 @@ namespace MWWorld
                     close();
                     return;
                 }
+                if (const std::string note = neutralServiceNote(turn, mName); !note.empty())
+                    Log(Debug::Warning) << "NTALK " << note;
                 mPager->setTurn(turn, mName);
                 show();
                 speak(turn);

@@ -13,6 +13,7 @@ openeden_add_game_pack(skyrimse
         src/furniture.cpp
         src/dialogue_runtime.cpp
         src/voice.cpp
+        src/speech.cpp
         src/appearance.cpp
         src/land.cpp
         src/grass.cpp
@@ -44,6 +45,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/furniture.hpp
         include/game_skyrimse/dialogue_runtime.hpp
         include/game_skyrimse/voice.hpp
+        include/game_skyrimse/speech.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
         include/game_skyrimse/grass.hpp
@@ -88,6 +90,7 @@ add_library(game_skyrimse_world STATIC
     src/furniture.cpp
     src/dialogue_runtime.cpp
     src/voice.cpp
+    src/speech.cpp
     src/appearance.cpp
     src/land.cpp
     src/grass.cpp

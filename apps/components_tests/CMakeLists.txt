@@ -538,6 +538,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsedialogueruntime.cpp
     skyrimse/testskyrimsedialogueruntimereal.cpp
     skyrimse/testskyrimsevoice.cpp
+    skyrimse/testskyrimsespeech.cpp
+    skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsepackages.cpp
@@ -589,6 +591,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/furniture.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dialogue_runtime.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/voice.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/speech.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/grass.cpp

@@ -50,6 +50,10 @@ namespace MWWorld
     /// Reads "polls:button,polls:button" (the developer aid OPENEDEN_NEUTRAL_DIALOGUE_PRESS): press `button` at the
     /// poll number `polls` (counted from the start of the conversation, the first poll is 1). Malformed entries are
     /// skipped; the result is sorted by poll.
+    /// The log line for a response that is a service the pack cannot run (task 0155), for example
+    /// "service not implemented: barter with Hulda"; empty when the turn has no service.
+    [[nodiscard]] std::string neutralServiceNote(const openeden::sdk::game::DialogueTurn& turn, const std::string& speakerName);
+
     [[nodiscard]] std::vector<std::pair<int, int>> parseNeutralDialoguePressScript(const std::string& text);
 
     class NeutralDialoguePager

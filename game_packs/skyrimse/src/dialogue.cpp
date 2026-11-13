@@ -1,8 +1,10 @@
 #include "game_skyrimse/dialogue.hpp"
 
+#include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/pack_core.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -14,6 +16,27 @@
 
 namespace game_skyrimse
 {
+    std::string findFragmentScriptName(std::span<const std::byte> vmad)
+    {
+        constexpr std::size_t kLength = 13; // "TIF__" + 8 hexadecimal digits
+        for (std::size_t i = 0; i + 2 + kLength <= vmad.size(); ++i)
+        {
+            std::uint16_t length;
+            std::memcpy(&length, vmad.data() + i, 2);
+            if (length != kLength)
+                continue;
+            const char* chars = reinterpret_cast<const char*>(vmad.data() + i + 2);
+            if (std::memcmp(chars, "TIF__", 5) != 0)
+                continue;
+            bool hex = true;
+            for (std::size_t k = 5; k < kLength; ++k)
+                hex = hex && std::isxdigit(static_cast<unsigned char>(chars[k])) != 0;
+            if (hex)
+                return std::string(chars, kLength);
+        }
+        return std::string();
+    }
+
     namespace
     {
         template <class T>
@@ -347,7 +370,8 @@ namespace game_skyrimse
                         case Content::fourCC("ANAM"):
                             return formField(type, data, info.mSpeaker);
                         case Content::fourCC("VMAD"):
-                            info.mHasScript = true; // fragments are not read (task 0141): only noted
+                            info.mHasScript = true; // fragments are not run (task 0141): only noted
+                            info.mFragmentScript = findFragmentScriptName(data); // task 0155
                             return true;
                         case Content::fourCC("RNAM"):
                             return lstring(type, data, info.mPrompt);
@@ -725,9 +749,70 @@ namespace game_skyrimse
     void SkyrimConditionWorld::setSpeaker(const DialogueSpeaker& speaker)
     {
         mSpeaker = speaker;
+        mStatsKnown = false;
         mResolved = ActorIndex::Resolved();
         mHasResolved = speaker.mBase != kNullFormId
             && mActors.resolve(speaker.mBase, speaker.mLevel, 0, mResolved) == ActorIndex::ResolveStatus::Ok;
+    }
+
+    // ---- the player and the speaker's numbers (task 0155) --------------------------------------------------------
+
+    bool SkyrimConditionWorld::speakerStats() const
+    {
+        if (!mStatsKnown)
+        {
+            mStatsKnown = true;
+            std::string error;
+            mStatsOk = mPlayer != nullptr && mSpeaker.mBase != kNullFormId
+                && computeActorStats(mActors, mSpeaker.mBase, mSpeaker.mReference, mPlayer->mLevel, mStats, error);
+        }
+        return mStatsOk;
+    }
+
+    float SkyrimConditionWorld::actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const
+    {
+        if (mPlayer == nullptr)
+            return 0.f;
+        if (subject == kPlayer)
+            return actorValueOfPlayer(*mPlayer, actorValueIndex);
+        return isSpeaker(subject) && speakerStats() ? actorValueOfActor(mStats, actorValueIndex) : 0.f;
+    }
+
+    float SkyrimConditionWorld::baseActorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const
+    {
+        return actorValue(subject, actorValueIndex); // no modifiers exist yet: the base is the current value
+    }
+
+    float SkyrimConditionWorld::levelOf(conditions::Subject subject) const
+    {
+        if (mPlayer == nullptr)
+            return 0.f;
+        if (subject == kPlayer)
+            return static_cast<float>(mPlayer->mLevel);
+        return isSpeaker(subject) && speakerStats() ? static_cast<float>(mStats.level) : 0.f;
+    }
+
+    float SkyrimConditionWorld::goldOf(conditions::Subject subject) const
+    {
+        return mPlayer != nullptr && subject == kPlayer ? mPlayer->mGold : 0.f;
+    }
+
+    float SkyrimConditionWorld::itemCount(conditions::Subject subject, std::uint32_t item) const
+    {
+        constexpr FormId kGold001 = 0x0000000F;
+        return mPlayer != nullptr && subject == kPlayer && resolve(item) == kGold001 ? mPlayer->mGold : 0.f;
+    }
+
+    bool SkyrimConditionWorld::playerCanIntimidate(conditions::Subject subject) const
+    {
+        return mPlayer != nullptr && isSpeaker(subject) && speakerStats()
+            && intimidateSucceeds(mPlayer->mLevel, mStats.level);
+    }
+
+    bool SkyrimConditionWorld::playerCanBribe(conditions::Subject subject) const
+    {
+        return mPlayer != nullptr && isSpeaker(subject) && speakerStats()
+            && bribeSucceeds(mPlayer->mGold, mStats.level);
     }
 
     FormId SkyrimConditionWorld::resolve(std::uint32_t stored) const
@@ -767,6 +852,11 @@ namespace game_skyrimse
             case 0:
                 break;
             case 1:
+                // fn_182 GetEquipped: the stand-in wears nothing (the Amulet of Articulation test is false)
+                if (mPlayer != nullptr
+                    && (c.mFunction == 14 || c.mFunction == 277 || c.mFunction == 80 || c.mFunction == 48
+                        || c.mFunction == 182 || c.mFunction == 47))
+                    return true;
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
             case 2:
                 if (mSpeaker.mReference == kNullFormId || resolve(c.mReference) != mSpeaker.mReference)
@@ -793,6 +883,12 @@ namespace game_skyrimse
             case 426: // GetIsVoiceType
             case 560: // HasKeyword
                 return true;
+            case 14: // GetActorValue
+            case 277: // GetBaseActorValue
+            case 80: // GetLevel
+            case 654: // GetBribeSuccess
+            case 655: // GetIntimidateSuccess
+                return mPlayer != nullptr && mSpeaker.mBase != kNullFormId;
             case 67: // GetInCell
                 return mSpeaker.mCell != kNullFormId;
             case 310: // GetInWorldspace

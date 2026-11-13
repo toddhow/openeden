@@ -36,6 +36,7 @@
 #include <game_skyrimse/conditions.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/speech.hpp>
 
 #include <components/contentsource/plugin.hpp>
 
@@ -44,6 +45,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -114,9 +116,17 @@ namespace game_skyrimse
         std::vector<FormId> mLinksTo; ///< TCLT
         std::vector<survey::Ctda> mConditions; ///< as stored (plugin-local form ids), see DialogueIndex::resolverOf
         bool mHasScript = false; ///< a VMAD subrecord is present (script fragments, not run; task 0141)
+        /// The name of the INFO's fragment script ("TIF__" plus 8 hex digits, the fileName of the VMAD fragment section),
+        /// empty when the VMAD names none (task 0155). Found by scanning the VMAD for that wstring, not by walking the
+        /// script and property tables.
+        std::string mFragmentScript;
         bool mConditionsOk = true; ///< false: the CTDA list was damaged, the INFO never passes
         std::uint32_t mPlugin = 0; ///< index into DialogueIndex's plugins
     };
+
+    /// The fragment script name inside a VMAD subrecord: a wstring (u16 length, then the characters) that reads
+    /// "TIF__" and eight hexadecimal digits, the first such. Empty when there is none.
+    [[nodiscard]] std::string findFragmentScriptName(std::span<const std::byte> vmad);
 
     struct GlobalValue
     {
@@ -262,6 +272,15 @@ namespace game_skyrimse
         SkyrimConditionWorld(const ActorIndex& actors, const DialogueIndex& dialogue);
 
         void setSpeaker(const DialogueSpeaker& speaker);
+        /// The stand-in player (task 0155). With it set the world answers GetActorValue / GetBaseActorValue (for the
+        /// player and for the speaker, whose numbers come from actor_mechanics), GetLevel, GetGold (the player's),
+        /// GetIntimidateSuccess and GetBribeSuccess; without it (the default) all of those keep the default answers.
+        /// The pointer must outlive the world.
+        void setPlayer(const PlayerStandIn* player)
+        {
+            mPlayer = player;
+            mStatsKnown = false;
+        }
         /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
         /// the race's voice type for its sex; kNullFormId when none (task 0143).
         [[nodiscard]] FormId speakerVoiceType() const;
@@ -305,6 +324,14 @@ namespace game_skyrimse
         bool isCurrentWeather(std::uint32_t weather) const override;
         bool baseInList(conditions::Subject subject, std::uint32_t formList) const override;
         conditions::Subject playerSubject() const override { return kPlayer; }
+        float actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
+        float baseActorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
+        float levelOf(conditions::Subject subject) const override;
+        float goldOf(conditions::Subject subject) const override;
+        /// fn_47 GetItemCount for the stand-in player: his gold for Gold001 (Skyrim.esm 0x0000000F), nothing else.
+        float itemCount(conditions::Subject subject, std::uint32_t item) const override;
+        bool playerCanIntimidate(conditions::Subject subject) const override;
+        bool playerCanBribe(conditions::Subject subject) const override;
 
     private:
         [[nodiscard]] FormId resolve(std::uint32_t stored) const; ///< kNullFormId when it cannot be resolved
@@ -321,6 +348,11 @@ namespace game_skyrimse
         const QuestIndex* mQuestIndex = nullptr;
         const QuestState* mQuestState = nullptr;
         FormId mContextQuest = kNullFormId;
+        const PlayerStandIn* mPlayer = nullptr;
+        mutable bool mStatsKnown = false;
+        mutable bool mStatsOk = false;
+        mutable openeden::sdk::game::ActorStats mStats;
+        [[nodiscard]] bool speakerStats() const; ///< the speaker's numbers, worked out once; false when unknown
 
         [[nodiscard]] bool aliasIsSpeaker(FormId quest, std::uint32_t alias) const; ///< filled by data, with the speaker
         [[nodiscard]] bool questKnown(std::uint32_t storedQuest) const;

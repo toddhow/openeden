@@ -299,6 +299,11 @@ namespace game_skyrimse
         /// `player level`; kStandInPlayerLevel by default).
         void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
+        /// The speech skill and the gold of the stand-in player the dialogue conditions read (task 0155; the pack
+        /// settings `player speech` and `player gold`). Applied when the dialogue runtime is built, the level is
+        /// `standInPlayerLevel()` then.
+        void setStandInPlayerSpeech(std::uint8_t speech) { mStandInSpeech = speech; }
+        void setStandInPlayerGold(float gold) { mStandInGold = gold; }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
         /// FULL of the base form (NPC_, DOOR, CONT, ACTI ..., items), through the string tables of a localised plugin;
@@ -394,6 +399,8 @@ namespace game_skyrimse
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
+        std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
+        float mStandInGold = 100.f; ///< kStandInGold
         bool ensureActorIndex();
         struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime

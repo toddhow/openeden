@@ -49,6 +49,16 @@
       "key": "player level",
       "type": "int",
       "default": 1
+    },
+    {
+      "key": "player speech",
+      "type": "int",
+      "default": 15
+    },
+    {
+      "key": "player gold",
+      "type": "int",
+      "default": 100
     }
   ],
   "licence": "GPL-3.0-or-later"

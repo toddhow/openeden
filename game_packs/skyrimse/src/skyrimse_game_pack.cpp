@@ -1,3 +1,4 @@
+#include "game_skyrimse/speech.hpp"
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
@@ -159,6 +160,21 @@ namespace game_skyrimse
                         say(openeden::sdk::LogLevel::Warning,
                             "the setting '" + std::string(kPlayerLevelKey) + "' is not 1 to 65535; using "
                                 + std::to_string(kStandInPlayerLevel));
+                    // Task 0155: the stand-in player of the speech checks.
+                    const int speech = settings->getInt(kPackId, kPlayerSpeechKey, kStandInSkill);
+                    if (speech >= 0 && speech <= 100)
+                        mWorldView.setStandInPlayerSpeech(static_cast<std::uint8_t>(speech));
+                    else
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kPlayerSpeechKey) + "' is not 0 to 100; using "
+                                + std::to_string(kStandInSkill));
+                    const int gold = settings->getInt(kPackId, kPlayerGoldKey, static_cast<int>(kStandInGold));
+                    if (gold >= 0 && gold <= 100000000)
+                        mWorldView.setStandInPlayerGold(static_cast<float>(gold));
+                    else
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kPlayerGoldKey) + "' is not 0 to 100000000; using "
+                                + std::to_string(static_cast<int>(kStandInGold)));
                     // Stage S5: AI packages, off unless the setting says so (needs the world view, which is the
                     // packages' source).
                     if (settings->getBool(kPackId, kActorPackagesKey, false))

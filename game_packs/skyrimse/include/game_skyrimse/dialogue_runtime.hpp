@@ -16,11 +16,13 @@
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/quest.hpp>
+#include <game_skyrimse/speech.hpp>
 
 #include <openeden/game/dialogue_source.hpp>
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <set>
 #include <string>
 #include <vector>
@@ -34,6 +36,10 @@ namespace game_skyrimse
 
     /// True when the VFS holds the file `path` (relative to the sound folder, lower case, '/' separators).
     using VoiceProbe = std::function<bool(const std::string& path)>;
+
+    /// The lower-case names a compiled fragment script refers to (the .pex string table); empty when it cannot be read.
+    /// `script` is the script's name as the VMAD gives it ("TIF__000A1B2C").
+    using ScriptNameProbe = std::function<std::vector<std::string>(const std::string& script)>;
 
     struct DialogueRuntimeLimits
     {
@@ -55,6 +61,7 @@ namespace game_skyrimse
             std::uint64_t mVoiceFound = 0; ///< response lines whose voice file exists (task 0143)
             std::uint64_t mVoiceMissing = 0; ///< response lines with a text and no voice file
             std::uint64_t mVoiceUnnamed = 0; ///< shown responses for which no voice path could be made
+            std::uint64_t mServices = 0; ///< shown responses that are a service the pack cannot run (task 0155)
         };
 
         DialogueRuntime(const DialogueRuntime&) = delete; // the world points at mState
@@ -77,6 +84,17 @@ namespace game_skyrimse
         /// Turns voice on: `probe` says which files exist. Without it no turn has voice.
         void setVoiceProbe(VoiceProbe probe) { mVoiceProbe = std::move(probe); }
 
+        /// The stand-in player the speech checks and level conditions read (task 0155); the default is a new game's.
+        void setPlayer(const PlayerStandIn& player)
+        {
+            mPlayer = player;
+            mWorld.setPlayer(&mPlayer);
+        }
+        [[nodiscard]] const PlayerStandIn& player() const { return mPlayer; }
+
+        /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a service.
+        void setScriptProbe(ScriptNameProbe probe) { mScriptProbe = std::move(probe); }
+
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] const QuestState& quests() const { return mState; }
@@ -95,6 +113,9 @@ namespace game_skyrimse
         DialogueTextResolver mResolver;
         DialogueRuntimeLimits mLimits;
         VoiceProbe mVoiceProbe;
+        ScriptNameProbe mScriptProbe;
+        std::map<std::string, std::string> mServiceOfScript; ///< fragment script -> service ("" for none), probed once
+        PlayerStandIn mPlayer;
         std::string mVoiceType; ///< editor id of the speaker's voice type, lower case; empty when unknown
         DialogueSpeaker mSpeaker;
         std::set<FormId> mSaid;

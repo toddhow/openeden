@@ -18,6 +18,7 @@ namespace game_skyrimse
         , mLimits(limits)
     {
         mWorld.setQuests(&mQuestIndex, &mState);
+        mWorld.setPlayer(&mPlayer);
     }
 
     SelectionOptions DialogueRuntime::options(std::uint32_t pick)
@@ -113,6 +114,22 @@ namespace game_skyrimse
             ++mStats.mLinksIgnored;
         if ((info.mFlags & InfoFlags::SayOnce) != 0)
             mSaid.insert(info.mCommon.mId);
+        // Task 0155: a response whose fragment script opens a menu we do not have is named, and the conversation ends
+        // (the menu would have replaced the dialogue). Cached per script: reading a .pex is not free.
+        out.service.clear();
+        if (mScriptProbe && !info.mFragmentScript.empty())
+        {
+            auto it = mServiceOfScript.find(info.mFragmentScript);
+            if (it == mServiceOfScript.end())
+                it = mServiceOfScript.emplace(info.mFragmentScript, classifyService(mScriptProbe(info.mFragmentScript)))
+                         .first;
+            if (!it->second.empty())
+            {
+                out.service = it->second;
+                out.endsConversation = true;
+                ++mStats.mServices;
+            }
+        }
     }
 
     void DialogueRuntime::offerTopics(openeden::sdk::game::DialogueTurn& out)
