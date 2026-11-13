@@ -283,9 +283,36 @@ namespace
         EXPECT_EQ(objectClusterLevels(false), (std::vector<std::uint32_t>{ 1, 2, 3, 4 }));
     }
 
-    TEST(LodWorldStage3, a_neutral_world_starts_at_level_two)
+    // toddhow, 2026-11-12: the draft's "neutral worlds start at level 2" left the 10,000 to 25,000 unit band bare and
+    // saved no held memory, so a neutral world keeps all four levels and only level 1's error is larger.
+    TEST(LodWorldStage3, a_neutral_world_keeps_all_four_levels)
     {
-        EXPECT_EQ(objectClusterLevels(true), (std::vector<std::uint32_t>{ 2, 3, 4 }));
+        EXPECT_EQ(objectClusterLevels(true), (std::vector<std::uint32_t>{ 1, 2, 3, 4 }));
+    }
+
+    TEST(LodWorldStage3, morrowinds_level_errors_are_the_frozen_ones)
+    {
+        EXPECT_EQ(objectClusterLevelError(1, false), 128.f);
+        EXPECT_EQ(objectClusterLevelError(2, false), 320.f);
+        EXPECT_EQ(objectClusterLevelError(3, false), 960.f);
+        EXPECT_EQ(objectClusterLevelError(4, false), 2900.f);
+    }
+
+    TEST(LodWorldStage3, a_neutral_worlds_first_level_error_is_192_and_the_others_are_morrowinds)
+    {
+        EXPECT_EQ(objectClusterLevelError(1, true), 192.f);
+        EXPECT_EQ(objectClusterLevelError(2, true), 320.f);
+        EXPECT_EQ(objectClusterLevelError(3, true), 960.f);
+        EXPECT_EQ(objectClusterLevelError(4, true), 2900.f);
+        EXPECT_EQ(objectClusterLevelError(0, true), 0.f);
+        EXPECT_EQ(objectClusterLevelError(5, true), 0.f);
+    }
+
+    TEST(LodWorldStage3, level_errors_grow_with_the_level_in_both_kinds_of_world)
+    {
+        for (const bool neutral : { false, true })
+            for (std::uint32_t level = 2; level <= 4; ++level)
+                EXPECT_GT(objectClusterLevelError(level, neutral), objectClusterLevelError(level - 1, neutral));
     }
 
     TEST(LodWorldStage3, only_morrowinds_terrain_pack_is_stored)

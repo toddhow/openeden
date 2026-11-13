@@ -764,7 +764,8 @@ namespace MWRender
             // The ground is counted every frame for every cluster (wanted or not), so one the selection chooses later
             // is already stable; it waits for its ground only while the budget presses (Lod::budgetIsPressing, from
             // the previous plan).
-            const bool groundRuleApplies = withBudget && setup.mEvictFar && camera.mLiveObjectsPage;
+            const bool groundRuleApplies = Lod::groundRuleApplies(
+                withBudget, setup.mEvictFar, camera.mLiveObjectsPage, setup.mEvictWithoutLiveObjects);
             const bool wholly = Lod::squareWithinRange(
                 camera.mEye.x, camera.mEye.y, bounds.mOriginX, bounds.mOriginY, bounds.mSide, camera.mPagingRange);
             if (groundRuleApplies && !wholly)

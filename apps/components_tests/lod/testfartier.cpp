@@ -354,4 +354,27 @@ namespace
         EXPECT_EQ(farTierSettings(FarTier::Minimal).mTerrainBudgetBytes, 16ull * 1024 * 1024);
         EXPECT_EQ(farTierSettings(FarTier::High).mTerrainBudgetBytes, 64ull * 1024 * 1024);
     }
+
+    TEST(LodFarTier, a_neutral_world_evicts_far_clusters_on_every_tier)
+    {
+        for (const FarTier tier : { FarTier::Minimal, FarTier::Low, FarTier::Medium, FarTier::High })
+            EXPECT_TRUE(evictFarClusters(farTierSettings(tier), true));
+    }
+
+    TEST(LodFarTier, an_esm_world_keeps_the_tiers_own_rule)
+    {
+        EXPECT_TRUE(evictFarClusters(farTierSettings(FarTier::Minimal), false));
+        EXPECT_TRUE(evictFarClusters(farTierSettings(FarTier::Low), false));
+        EXPECT_FALSE(evictFarClusters(farTierSettings(FarTier::Medium), false));
+        EXPECT_FALSE(evictFarClusters(farTierSettings(FarTier::High), false));
+    }
+
+    TEST(LodFarTier, a_neutral_worlds_cluster_budget_is_seven_eighths_of_the_setting)
+    {
+        constexpr std::uint64_t mib = 1024ull * 1024;
+        EXPECT_EQ(neutralClusterBudgetBytes(1024 * mib), 896 * mib);
+        EXPECT_EQ(neutralClusterBudgetBytes(800 * mib), 700 * mib);
+        EXPECT_EQ(neutralClusterBudgetBytes(0), 0u);
+        EXPECT_EQ(neutralClusterBudgetBytes(1), 1u); // never rounds a budget down to none
+    }
 }

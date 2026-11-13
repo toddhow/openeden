@@ -56,6 +56,17 @@ namespace Lod
 
     FarTierSettings farTierSettings(FarTier tier) noexcept;
 
+    /// Does the cluster planner give up far clusters under the budget (task 0133 stage 3, toddhow 2026-11-12)? The
+    /// tier says so for minimal and low. A neutral (Skyrim) world always does: its clusters have no live fallback and
+    /// a Skyrim exterior holds about 1.5 GiB of them, so the budget must be able to bind on every tier.
+    bool evictFarClusters(const FarTierSettings& tier, bool neutralWorld) noexcept;
+
+    /// The cluster budget a neutral world's planner works to, from the tier's or the user's (task 0133 stage 3). The
+    /// planner admits loads ahead of the evictions that pay for them, so the held bytes overshoot the budget by up to
+    /// about 10 percent for a moment (1,126 MiB against 1,024 measured); working to 7/8 keeps the peak under the
+    /// number the user set. 0 (no budget) stays 0.
+    std::uint64_t neutralClusterBudgetBytes(std::uint64_t budgetBytes) noexcept;
+
     /// `[WorldLod] tier`: `auto` (also empty; anything not understood is auto with mValid false) or one of minimal,
     /// low, medium, high in any case, with spaces and tabs around.
     struct FarTierSetting

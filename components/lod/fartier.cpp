@@ -290,4 +290,16 @@ namespace Lod
         }
         return addBytes <= budgetBytes && residentBytes <= budgetBytes - addBytes;
     }
+
+    bool evictFarClusters(const FarTierSettings& tier, bool neutralWorld) noexcept
+    {
+        return neutralWorld || tier.mEvictFarClusters;
+    }
+
+    std::uint64_t neutralClusterBudgetBytes(std::uint64_t budgetBytes) noexcept
+    {
+        if (budgetBytes == 0)
+            return 0;
+        return std::max<std::uint64_t>(1, budgetBytes - budgetBytes / 8);
+    }
 }

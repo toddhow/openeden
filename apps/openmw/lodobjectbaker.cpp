@@ -62,9 +62,9 @@ namespace OMW
             = 14; // 14: property controllers keep a model out (task 0096 a2); effects and scenery words in the digest
         // The largest simplification error of a level in world units (Lod::clusterLevelError: task 0059's values for
         // levels 1 to 3, level 4 from the same growth, task 0066 stage d).
-        std::uint32_t levelError(std::uint32_t level)
+        std::uint32_t levelError(std::uint32_t level, bool neutral)
         {
-            return static_cast<std::uint32_t>(Lod::clusterLevelError(level));
+            return static_cast<std::uint32_t>(Lod::objectClusterLevelError(level, neutral));
         }
         // An object smaller than this many errors is left out of the level (task 0059, "classification").
         constexpr float dropFactor = 0.75f;
@@ -465,7 +465,7 @@ namespace OMW
             // survey below), so the baker stops at level 4 (task 0066 stage d).
             state.mManifest.mLevels = Lod::objectClusterLevels(state.mNeutral);
             for (const std::uint32_t level : state.mManifest.mLevels)
-                state.mManifest.mErrors.push_back(levelError(level));
+                state.mManifest.mErrors.push_back(levelError(level, state.mNeutral));
             Log(Debug::Info) << "LOD object bake: "
                              << (state.mNeutral ? state.mNeutralCells.size() : state.mCells.size())
                              << " exterior cells (cluster layout version " << Lod::clusterLayoutVersion << ").";
@@ -647,7 +647,7 @@ namespace OMW
                         // A model whose largest placement is smaller than the first level's cut is left out by every
                         // level: do not keep its triangles (a Skyrim world has thousands of such small models).
                         if (entry.mFlat.mTraits.mRadius * entry.mMaxScale
-                            < dropFactor * levelError(state.mManifest.mLevels.front()))
+                            < dropFactor * levelError(state.mManifest.mLevels.front(), state.mNeutral))
                         {
                             entry.mOk = false;
                             entry.mTooSmall = true;
@@ -693,7 +693,7 @@ namespace OMW
             // errors continue the growth of three times a level); the numbers are the evidence for stopping at level 4.
             for (std::uint32_t level = 1; level <= 6; ++level)
             {
-                const float error = level <= Lod::maxClusterLevel ? Lod::clusterLevelError(level)
+                const float error = level <= Lod::maxClusterLevel ? Lod::objectClusterLevelError(level, state.mNeutral)
                                                                   : Lod::clusterLevelError(Lod::maxClusterLevel)
                         * std::pow(3.f, static_cast<float>(level - Lod::maxClusterLevel));
                 std::size_t kept = 0;
@@ -730,7 +730,7 @@ namespace OMW
             const std::size_t levelSlot = id.mLevel - 1;
             Lod::ClusterBuildInput input;
             input.mLevel.mLevel = id.mLevel;
-            input.mLevel.mError = static_cast<float>(levelError(id.mLevel));
+            input.mLevel.mError = static_cast<float>(levelError(id.mLevel, state.mNeutral));
             input.mLevel.mDropFactor = dropFactor;
             input.mCellSize = cellSize;
             std::int32_t originCellX = 0, originCellY = 0;
@@ -754,8 +754,9 @@ namespace OMW
             hashValue(hasher, id.mLevel);
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
-            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel, levelError(id.mLevel), cellSize,
-                state.mUvEffects, state.mScenery, state.mSway, state.mSwayModels, state.mSwayLean);
+            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel,
+                levelError(id.mLevel, state.mNeutral), cellSize, state.mUvEffects, state.mScenery, state.mSway,
+                state.mSwayModels, state.mSwayLean);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)
@@ -861,7 +862,7 @@ namespace OMW
                 continue;
             std::sort(totals.mGroups.begin(), totals.mGroups.end());
             Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error "
-                             << levelError(static_cast<std::uint32_t>(slot + 1)) << "): " << totals.mTiles
+                             << levelError(static_cast<std::uint32_t>(slot + 1), state.mNeutral) << "): " << totals.mTiles
                              << " clusters, objects included " << totals.mObjectsIncluded << " of "
                              << totals.mObjectsSeen << " (too small "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::TooSmall)]

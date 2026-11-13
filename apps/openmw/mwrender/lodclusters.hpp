@@ -91,6 +91,9 @@ namespace MWRender
             /// The tier evicts far clusters (FarTierSettings::mEvictFarClusters): under the budget, a cluster past the
             /// live paging range may be freed when the ground beneath it is drawn. Used only with a budget.
             bool mEvictFar = false;
+            /// A neutral (Skyrim) world: the ground rule applies although no live objects page past the active grid
+            /// (Lod::groundRuleApplies; task 0133 stage 3). The far objects are given up for the budget.
+            bool mEvictWithoutLiveObjects = false;
             /// Task 0096 stage b (`[WorldLod] object cluster effects`): play the effects (a texture scroll) of the
             /// groups of a version 2 pack. False: those groups are drawn as still as a version 1 group.
             bool mPlayEffects = false;

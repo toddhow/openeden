@@ -2529,8 +2529,10 @@ namespace MWRender
             : Settings::worldLod().mObjectClusterThreshold;
         setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
         setup.mFarTextureMaxSize = mFarTierActive ? mFarTextureSize : 0;
-        setup.mResidentBudgetBytes = mFarTierActive ? farMemoryBudgetBytes() : 0;
-        setup.mEvictFar = mFarTierActive && mFarTier.mEvictFarClusters;
+        setup.mResidentBudgetBytes = mFarTierActive ? Lod::neutralClusterBudgetBytes(farMemoryBudgetBytes()) : 0;
+        // A neutral world's clusters have no live fallback and hold about 1.5 GiB: the budget binds on every tier.
+        setup.mEvictFar = mFarTierActive && Lod::evictFarClusters(mFarTier, true);
+        setup.mEvictWithoutLiveObjects = true;
         setup.mFadeSeconds = Settings::worldLod().mObjectClusterFadeTime;
         setup.mPlayEffects = Settings::worldLod().mObjectClusterEffects;
         setup.mPlaySway = Settings::worldLod().mObjectClusterSway;

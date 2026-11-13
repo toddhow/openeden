@@ -335,6 +335,11 @@ namespace Lod
         return squareWithinRange(x, y, originX, originY, side, range - replaceableMargin(range));
     }
 
+    bool groundRuleApplies(bool withBudget, bool evictFar, bool liveObjectsPage, bool evictWithoutLiveObjects) noexcept
+    {
+        return withBudget && evictFar && (liveObjectsPage || evictWithoutLiveObjects);
+    }
+
     bool clusterReplaceable(bool previous, bool liveObjectsPage, double x, double y, double originX, double originY,
         double side, double range) noexcept
     {

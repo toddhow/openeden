@@ -2508,4 +2508,20 @@ namespace
             actions += loads.size();
         EXPECT_GT(actions, 10u);
     }
+
+    TEST(LodGroundRule, a_morrowind_world_needs_a_budget_an_evicting_tier_and_live_objects)
+    {
+        EXPECT_TRUE(groundRuleApplies(true, true, true, false));
+        EXPECT_FALSE(groundRuleApplies(false, true, true, false));
+        EXPECT_FALSE(groundRuleApplies(true, false, true, false));
+        EXPECT_FALSE(groundRuleApplies(true, true, false, false));
+    }
+
+    TEST(LodGroundRule, a_neutral_world_does_not_need_live_objects_but_still_a_budget_and_an_evicting_tier)
+    {
+        EXPECT_TRUE(groundRuleApplies(true, true, false, true));
+        EXPECT_TRUE(groundRuleApplies(true, true, true, true));
+        EXPECT_FALSE(groundRuleApplies(false, true, false, true));
+        EXPECT_FALSE(groundRuleApplies(true, false, false, true));
+    }
 }

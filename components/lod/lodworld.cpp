@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 
+#include "clusterbuild.hpp"
 #include "tilebake.hpp"
 
 namespace Lod
@@ -189,9 +190,15 @@ namespace Lod
 
     std::vector<std::uint32_t> objectClusterLevels(bool neutralWorld)
     {
-        if (neutralWorld)
-            return { 2, 3, 4 };
+        (void)neutralWorld; // the same for every world
         return { 1, 2, 3, 4 };
+    }
+
+    float objectClusterLevelError(std::uint32_t level, bool neutralWorld) noexcept
+    {
+        if (neutralWorld && level == 1)
+            return 192.f;
+        return clusterLevelError(level);
     }
 
     bool terrainPackStored(bool neutralWorld)

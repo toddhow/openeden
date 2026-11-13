@@ -223,6 +223,12 @@ namespace Lod
     // ResidencyItem::mReplaceable to (live objects draw it) || clusterGroundFallback(...), and passes the same flag to
     // cancelEviction, so an eviction in progress is cancelled the moment the ground beneath is lost.
 
+    /// Does the ground rule apply to the clusters at all (task 0133 stage 3)? It needs a budget and a tier that
+    /// evicts, and live objects that page (the fallback of a Morrowind cluster) unless the world is one whose clusters
+    /// never have live objects past the active grid (a neutral Skyrim world: `evictWithoutLiveObjects`), where the
+    /// ground is the only thing the rule can rest on and the far objects are given up for the budget.
+    bool groundRuleApplies(bool withBudget, bool evictFar, bool liveObjectsPage, bool evictWithoutLiveObjects) noexcept;
+
     /// A drawn terrain tile's square, in world units (LodTerrain's built tiles).
     struct GroundSquare
     {
