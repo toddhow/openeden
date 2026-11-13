@@ -254,6 +254,11 @@ namespace game_skyrimse
         FormId mCell = kNullFormId; ///< the CELL the speaker stands in, for GetInCell
         FormId mWorldspace = kNullFormId; ///< for GetInWorldspace
         std::uint16_t mLevel = 1;
+        /// Task 0156. Is the cell an interior? Unset: not known, IsInInterior stays unanswered.
+        std::optional<bool> mInterior;
+        /// The location (LCTN) the cell names with XLCN; kNullFormId with `mLocationKnown` means "the cell has none".
+        FormId mLocation = kNullFormId;
+        bool mLocationKnown = false;
     };
 
     /// Answers, from the records alone, the condition queries a data file can settle for a speaker: GetIsID,
@@ -264,6 +269,9 @@ namespace game_skyrimse
     ///
     /// Form ids in a CTDA are the plugin-local ones: the world resolves each query's id with `setPlugin`'s resolver.
     /// A stored id the load order cannot resolve matches nothing. NOT thread safe (it holds the current plugin).
+    class LocationIndex;
+    class QuestVariables;
+
     class SkyrimConditionWorld final : public conditions::ConditionWorld
     {
     public:
@@ -298,6 +306,27 @@ namespace game_skyrimse
         /// The plugin whose stored ids the next queries use (nullptr: ids are taken as load-order ids).
         void setPlugin(const FormIdResolver* resolver) { mResolver = resolver; }
 
+        // ---- task 0156: state a conversation and a fresh game can answer. Every setter is off by default, so a world
+        // that never calls one (the package brain's) answers exactly as before.
+        /// IsInDialogueWithPlayer for the speaker: the conversation runtime says it is open (true) or not (false).
+        void setConversationOpen(bool open)
+        {
+            mConversationKnown = true;
+            mConversationOpen = open;
+        }
+        /// GetTalkedToPC for the speaker (the runtime sets it after the first greeting). Default: not yet.
+        void setTalkedToPlayer(bool talked) { mTalked = talked; }
+        /// GetRandomPercent: a seeded generator (splitmix64); the world owns it. Unseeded: 0, unanswered.
+        void setRandomSeed(std::uint64_t seed)
+        {
+            mRandomState = seed;
+            mRandomSeeded = true;
+        }
+        /// The locations (LCTN); with them and `DialogueSpeaker::mLocationKnown` fn_359 and fn_562 are answered.
+        void setLocations(const LocationIndex* locations) { mLocations = locations; }
+        /// The quest scripts' values before any script ran (fn_629). Null: unanswered.
+        void setQuestVariables(const QuestVariables* variables) { mQuestVariables = variables; }
+
         /// True if the condition's answer comes from data, not from a default (for example a quest stage). Needs the
         /// facts given with setSpeaker / setCurrentWeather.
         [[nodiscard]] bool answers(const survey::Ctda& condition) const;
@@ -328,6 +357,16 @@ namespace game_skyrimse
         float baseActorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
         float levelOf(conditions::Subject subject) const override;
         float goldOf(conditions::Subject subject) const override;
+        // task 0156
+        bool isDead(conditions::Subject subject) const override;
+        bool inDialogueWithPlayer(conditions::Subject subject) const override;
+        float randomPercent() const override;
+        bool inInterior(conditions::Subject subject) const override;
+        bool inLocation(conditions::Subject subject, std::uint32_t location) const override;
+        bool locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const override;
+        bool talkedToPlayer(conditions::Subject subject) const override;
+        float actorValuePercent(conditions::Subject subject, std::uint32_t actorValueIndex) const override;
+        float questVariable(std::uint32_t quest, const std::string& name) const override;
         /// fn_47 GetItemCount for the stand-in player: his gold for Gold001 (Skyrim.esm 0x0000000F), nothing else.
         float itemCount(conditions::Subject subject, std::uint32_t item) const override;
         bool playerCanIntimidate(conditions::Subject subject) const override;
@@ -349,6 +388,18 @@ namespace game_skyrimse
         const QuestState* mQuestState = nullptr;
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
+        bool mConversationKnown = false;
+        bool mConversationOpen = false;
+        bool mTalked = false;
+        bool mRandomSeeded = false;
+        mutable std::uint64_t mRandomState = 0;
+        const LocationIndex* mLocations = nullptr;
+        const QuestVariables* mQuestVariables = nullptr;
+        /// The speaker or the player: the two subjects whose fresh-game state is known.
+        [[nodiscard]] bool isKnownActor(conditions::Subject subject) const
+        {
+            return isSpeaker(subject) || (mPlayer != nullptr && subject == kPlayer);
+        }
         mutable bool mStatsKnown = false;
         mutable bool mStatsOk = false;
         mutable openeden::sdk::game::ActorStats mStats;

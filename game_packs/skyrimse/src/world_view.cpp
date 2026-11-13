@@ -5,6 +5,8 @@
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/dialogue_runtime.hpp"
+#include "game_skyrimse/location.hpp"
+#include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
 
@@ -176,6 +178,8 @@ namespace game_skyrimse
         DialogueIndex mDialogue;
         QuestIndex mQuests;
         PackageIndex mPackages; ///< task 0135 stage S5
+        LocationIndex mLocations; ///< task 0156
+        QuestScriptIndex mQuestScripts; ///< task 0156
     };
 
     struct SkyrimWorldView::DialogueState
@@ -184,6 +188,7 @@ namespace game_skyrimse
         /// String tables by (plugin index, kind); an empty table is one that could not be read (tried once).
         std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mTables;
         std::unique_ptr<DialogueRuntime> mRuntime;
+        std::unique_ptr<QuestVariables> mQuestVariables; ///< task 0156: reads scripts/<name>.pex through the VFS
         std::uint64_t mTablesMissing = 0;
         // Task 0135 stage S5: the package conditions are evaluated against these (not the conversation's own).
         std::unique_ptr<SkyrimConditionWorld> mPackageWorld;
@@ -317,6 +322,8 @@ namespace game_skyrimse
         const DialogueLimits dialogueLimits;
         const QuestLimits questLimits;
         const PackageLimits packageLimits;
+        const LocationLimits locationLimits;
+        const QuestScriptLimits questScriptLimits;
         for (const auto& [path, name] : plugins)
         {
             Content::Error openError;
@@ -327,6 +334,8 @@ namespace game_skyrimse
                 data->mDialogue.add(DialogueRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mQuests.add(QuestRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mPackages.add(PackageRecords(), FormIdResolver(Content::Header(), name, order));
+                data->mLocations.add(LocationRecords());
+                data->mQuestScripts.add(QuestScriptRecords());
                 continue;
             }
             DialogueRecords dialogue;
@@ -338,6 +347,12 @@ namespace game_skyrimse
             PackageRecords packages;
             (void)parsePackageRecords(*file, order, packageLimits, packages);
             data->mPackages.add(std::move(packages), FormIdResolver(file->header(), name, order));
+            LocationRecords locations;
+            (void)parseLocationRecords(*file, order, locationLimits, locations);
+            data->mLocations.add(std::move(locations));
+            QuestScriptRecords questScripts;
+            (void)parseQuestScripts(*file, order, questScriptLimits, questScripts);
+            data->mQuestScripts.add(std::move(questScripts));
         }
         return data;
     }
@@ -421,7 +436,24 @@ namespace game_skyrimse
             player.mLevel = mStandInPlayerLevel;
             player.mSkills[*skillSlotOfActorValue(kAvSpeechcraft)] = mStandInSpeech;
             player.mGold = mStandInGold;
+            player.mFemale = mStandInFemale;
             raw->mRuntime->setPlayer(player);
+            // Task 0156: locations, and the quest scripts' values before any script ran (the .pex through the VFS).
+            raw->mRuntime->setLocations(&raw->mData->mLocations);
+            if (mFiles != nullptr)
+            {
+                const FileSource* files = mFiles;
+                raw->mQuestVariables = std::make_unique<QuestVariables>(raw->mData->mQuestScripts,
+                    [files](const std::string& script, std::vector<std::uint8_t>& bytes) {
+                        std::string text;
+                        if (!files->read("scripts/" + ScriptPapyrus::Pex::lowered(script) + ".pex", text))
+                            return false;
+                        bytes.assign(reinterpret_cast<const std::uint8_t*>(text.data()),
+                            reinterpret_cast<const std::uint8_t*>(text.data()) + text.size());
+                        return true;
+                    });
+                raw->mRuntime->setQuestVariables(raw->mQuestVariables.get());
+            }
             if (mFiles != nullptr)
             {
                 const FileSource* files = mFiles;
@@ -644,6 +676,21 @@ namespace game_skyrimse
         speaker.mBase = static_cast<FormId>(base);
         speaker.mReference = static_cast<FormId>(reference);
         speaker.mCell = static_cast<FormId>(cell);
+        // Task 0156: what the cell says about interior and location
+        if (const auto it = mCells.find(speaker.mCell); it != mCells.end())
+        {
+            speaker.mInterior = it->second.mInfo.interior;
+            speaker.mLocationKnown = true;
+            for (auto s = it->second.mSources.rbegin(); s != it->second.mSources.rend(); ++s)
+            {
+                const FormId location = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex].mLocation;
+                if (location != kNullFormId && location != kUnresolvedFormId)
+                {
+                    speaker.mLocation = location;
+                    break;
+                }
+            }
+        }
         return mDialogue->mRuntime->begin(speaker, out, error);
     }
 

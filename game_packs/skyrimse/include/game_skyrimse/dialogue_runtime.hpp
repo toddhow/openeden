@@ -92,6 +92,11 @@ namespace game_skyrimse
         }
         [[nodiscard]] const PlayerStandIn& player() const { return mPlayer; }
 
+        /// Locations (LCTN) and the quest scripts' initial values (task 0156); both must outlive the runtime. Without
+        /// them fn_359, fn_562 and fn_629 stay unanswered.
+        void setLocations(const LocationIndex* locations) { mWorld.setLocations(locations); }
+        void setQuestVariables(const QuestVariables* variables) { mWorld.setQuestVariables(variables); }
+
         /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a service.
         void setScriptProbe(ScriptNameProbe probe) { mScriptProbe = std::move(probe); }
 

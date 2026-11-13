@@ -304,6 +304,8 @@ namespace game_skyrimse
         /// `standInPlayerLevel()` then.
         void setStandInPlayerSpeech(std::uint8_t speech) { mStandInSpeech = speech; }
         void setStandInPlayerGold(float gold) { mStandInGold = gold; }
+        /// The stand-in player's sex (task 0156; the pack setting `player female`).
+        void setStandInPlayerFemale(bool female) { mStandInFemale = female; }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
         /// FULL of the base form (NPC_, DOOR, CONT, ACTI ..., items), through the string tables of a localised plugin;
@@ -398,6 +400,7 @@ namespace game_skyrimse
         std::function<bool(const std::string&)> mWeatherProbe; ///< does a texture exist (set with the table)
         bool ensureWeather();
         std::unique_ptr<ActorIndex> mActorIndex; ///< built by the first describeActor; null before
+        bool mStandInFemale = false;
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold

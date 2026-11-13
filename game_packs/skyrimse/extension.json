@@ -59,6 +59,11 @@
       "key": "player gold",
       "type": "int",
       "default": 100
+    },
+    {
+      "key": "player female",
+      "type": "bool",
+      "default": false
     }
   ],
   "licence": "GPL-3.0-or-later"

@@ -43,6 +43,7 @@ namespace game_skyrimse
 {
     inline constexpr std::string_view kPlayerSpeechKey = "player speech";
     inline constexpr std::string_view kPlayerGoldKey = "player gold";
+    inline constexpr std::string_view kPlayerFemaleKey = "player female";
 
     inline constexpr std::uint32_t kAvOneHanded = 6;
     inline constexpr std::uint32_t kAvEnchanting = 23;
@@ -69,6 +70,10 @@ namespace game_skyrimse
         float mHealth = kStandInVital;
         float mMagicka = kStandInVital;
         float mStamina = kStandInVital;
+        /// Sex and race (task 0156): the stand-in is a male Nord (Skyrim.esm NordRace); chargen would decide in a real
+        /// game. The pack setting `player female` changes the sex.
+        bool mFemale = false;
+        std::uint32_t mRace = 0x00013746;
     };
 
     /// The skill slot (index into ActorStats::skills) of an actor value index, if it is a skill.

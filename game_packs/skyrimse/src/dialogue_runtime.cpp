@@ -173,6 +173,11 @@ namespace game_skyrimse
         mOpen = false;
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
+        // Task 0156: the speaker is in dialogue with the player from the greeting on, has not talked to him yet, and any
+        // random number comes from a generator seeded by the placement (the same actor greets the same way).
+        mWorld.setConversationOpen(true);
+        mWorld.setTalkedToPlayer(false);
+        mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
         mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
         // The random pick is a function of the placement, so the same actor greets the same way in a session.
         const Selection greeting = pickFromTopics(
@@ -188,6 +193,7 @@ namespace game_skyrimse
             out.speakerName = npc->mName.mLocalized ? mResolver(npc->mName, npc->mPlugin, StringTableKind::Strings)
                                                     : npc->mName.mText;
         ++mStats.mConversations;
+        mWorld.setTalkedToPlayer(true);
         mOpen = true;
         offerTopics(out);
         return true;
@@ -216,6 +222,7 @@ namespace game_skyrimse
         if (out.endsConversation)
         {
             mOpen = false;
+            mWorld.setConversationOpen(false);
             mOffered.clear();
             return true;
         }
@@ -226,6 +233,7 @@ namespace game_skyrimse
     void DialogueRuntime::end()
     {
         mOpen = false;
+        mWorld.setConversationOpen(false);
         mOffered.clear();
     }
 }

@@ -175,6 +175,7 @@ namespace game_skyrimse
                         say(openeden::sdk::LogLevel::Warning,
                             "the setting '" + std::string(kPlayerGoldKey) + "' is not 0 to 100000000; using "
                                 + std::to_string(static_cast<int>(kStandInGold)));
+                    mWorldView.setStandInPlayerFemale(settings->getBool(kPackId, kPlayerFemaleKey, false));
                     // Stage S5: AI packages, off unless the setting says so (needs the world view, which is the
                     // packages' source).
                     if (settings->getBool(kPackId, kActorPackagesKey, false))

@@ -1,6 +1,8 @@
 #include "game_skyrimse/dialogue.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/location.hpp"
+#include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/pack_core.hpp"
 
 #include <algorithm>
@@ -803,6 +805,69 @@ namespace game_skyrimse
         return mPlayer != nullptr && subject == kPlayer && resolve(item) == kGold001 ? mPlayer->mGold : 0.f;
     }
 
+    // ---- task 0156: conversation and fresh-game state ----------------------------------------------------------
+
+    bool SkyrimConditionWorld::isDead(conditions::Subject subject) const
+    {
+        (void)subject;
+        return false; // a corpse does not talk, and the player is alive: nobody has died in this session
+    }
+
+    bool SkyrimConditionWorld::inDialogueWithPlayer(conditions::Subject subject) const
+    {
+        return mConversationOpen && isSpeaker(subject);
+    }
+
+    float SkyrimConditionWorld::randomPercent() const
+    {
+        if (!mRandomSeeded)
+            return 0.f;
+        // splitmix64: one draw per call, deterministic from the seed
+        mRandomState += 0x9E3779B97F4A7C15ull;
+        std::uint64_t z = mRandomState;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        z ^= z >> 31;
+        return static_cast<float>(z % 100u);
+    }
+
+    bool SkyrimConditionWorld::inInterior(conditions::Subject subject) const
+    {
+        return isSpeaker(subject) && mSpeaker.mInterior.value_or(false);
+    }
+
+    bool SkyrimConditionWorld::inLocation(conditions::Subject subject, std::uint32_t location) const
+    {
+        const FormId id = resolve(location);
+        return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown && id != kNullFormId
+            && mLocations->isWithin(mSpeaker.mLocation, id);
+    }
+
+    bool SkyrimConditionWorld::locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const
+    {
+        return mLocations != nullptr && isSpeaker(subject) && mSpeaker.mLocationKnown
+            && mLocations->hasKeyword(mSpeaker.mLocation, resolve(keyword));
+    }
+
+    bool SkyrimConditionWorld::talkedToPlayer(conditions::Subject subject) const
+    {
+        return mTalked && isSpeaker(subject);
+    }
+
+    float SkyrimConditionWorld::actorValuePercent(conditions::Subject subject, std::uint32_t actorValueIndex) const
+    {
+        // a fresh actor's health, magicka and stamina are full; no other value is guessed
+        return isKnownActor(subject) && actorValueIndex >= kAvHealth && actorValueIndex <= kAvStamina ? 1.f : 0.f;
+    }
+
+    float SkyrimConditionWorld::questVariable(std::uint32_t quest, const std::string& name) const
+    {
+        if (mQuestVariables == nullptr)
+            return 0.f;
+        const QuestVariableValue v = mQuestVariables->value(resolve(quest), name);
+        return v.mKnown ? v.mValue : 0.f;
+    }
+
     bool SkyrimConditionWorld::playerCanIntimidate(conditions::Subject subject) const
     {
         return mPlayer != nullptr && isSpeaker(subject) && speakerStats()
@@ -830,12 +895,49 @@ namespace game_skyrimse
         return mSpeaker.mBase != kNullFormId && subject == mSpeaker.mBase;
     }
 
+    namespace
+    {
+        /// The functions whose fresh-game answer is the same for the speaker and for the player.
+        bool isFreshStateFunction(std::uint16_t function)
+        {
+            switch (function)
+            {
+                case 46: // GetDead
+                case 145: // IsTrespassing
+                case 144:
+                case 402:
+                case 375:
+                case 376:
+                case 459:
+                case 289: // IsInCombat
+                case 49: // GetSleeping
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    }
+
     bool SkyrimConditionWorld::answers(const survey::Ctda& c) const
     {
         switch (c.mFunction)
         {
             case 74: // GetGlobalValue: no subject
                 return true;
+            case 77: // GetRandomPercent: answered by the seeded generator (task 0156)
+                return mRandomSeeded;
+            case 84: // GetDeadCount: nobody has been killed in a fresh game
+            case 606: // GetKeywordDataForLocation: no script has stored data yet
+            case 314: // IsActorAVictim: no crime is under way
+                return true;
+            case 131: // GetPCIsSex
+            case 130: // GetPCIsRace
+                return mPlayer != nullptr;
+            case 629: { // GetVMQuestVariable: the script's value before any script ran
+                if (mQuestVariables == nullptr)
+                    return false;
+                return mQuestVariables->value(resolve(c.mParam1), c.mString2).mKnown;
+            }
             case 149: // GetIsCurrentWeather
                 return mWeather != kNullFormId;
             case 56: // GetQuestRunning
@@ -856,6 +958,12 @@ namespace game_skyrimse
                 if (mPlayer != nullptr
                     && (c.mFunction == 14 || c.mFunction == 277 || c.mFunction == 80 || c.mFunction == 48
                         || c.mFunction == 182 || c.mFunction == 47))
+                    return true;
+                if (mPlayer != nullptr && isFreshStateFunction(c.mFunction))
+                    return true;
+                if (mPlayer != nullptr && (c.mFunction == 69 || c.mFunction == 70))
+                    return true; // the stand-in's race and sex
+                if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
                     return true;
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
             case 2:
@@ -891,8 +999,33 @@ namespace game_skyrimse
                 return mPlayer != nullptr && mSpeaker.mBase != kNullFormId;
             case 67: // GetInCell
                 return mSpeaker.mCell != kNullFormId;
-            case 310: // GetInWorldspace
-                return mSpeaker.mWorldspace != kNullFormId;
+            case 46: // GetDead
+            case 453: // GetPlayerTeammate
+            case 579: // GetEquippedShout
+            case 66: // GetShouldAttack
+                return true;
+            case 249: // IsInDialogueWithPlayer
+                return mConversationKnown;
+            case 50: // GetTalkedToPC
+                return true;
+            case 300: // IsInInterior
+                return mSpeaker.mInterior.has_value();
+            case 359: // GetInCurrentLoc
+            case 562: // LocationHasKeyword
+                return mLocations != nullptr && mSpeaker.mLocationKnown;
+            case 640: // GetActorValuePercent: the vitals are full, nothing else is guessed
+                return c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina;
+            case 145: // IsTrespassing, GetTrespassWarningLevel, IsBribedbyPlayer, GetCrimeGold*: a game with no crime
+            case 144:
+            case 402:
+            case 375:
+            case 376:
+            case 459:
+            case 289: // IsInCombat
+            case 49: // GetSleeping
+                return true;
+            case 310: // GetInWorldspace: never true in an interior (task 0156)
+                return mSpeaker.mWorldspace != kNullFormId || mSpeaker.mInterior.value_or(false);
             default:
                 return false;
         }
@@ -1000,6 +1133,8 @@ namespace game_skyrimse
 
     int SkyrimConditionWorld::sexOf(conditions::Subject subject) const
     {
+        if (mPlayer != nullptr && subject == kPlayer)
+            return mPlayer->mFemale ? 1 : 0;
         if (!isSpeaker(subject) || !mHasResolved)
             return -1;
         const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
@@ -1024,6 +1159,8 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::isRace(conditions::Subject subject, std::uint32_t race) const
     {
         const FormId id = resolve(race);
+        if (mPlayer != nullptr && subject == kPlayer)
+            return id != kNullFormId && id == mPlayer->mRace;
         return isSpeaker(subject) && mHasResolved && id != kNullFormId && mResolved.mRace == id;
     }
 
