@@ -96,6 +96,20 @@ namespace game_skyrimse
         std::int32_t mRadius = 0;
     };
 
+    /// The most Bool data inputs kept for one package.
+    inline constexpr std::size_t kMaxPackageBools = 64;
+
+    /// The Sandbox template's Bool inputs, in order (task 0135 stage S6b). RECALLED-VERIFY (the Creation Kit's order, not
+    /// settled by data): 0 allow eating, 1 allow sleeping, 2 allow conversation, 3 allow idle markers, 4 allow sitting.
+    /// The data agrees in kind: the 145 most common pattern allows everything but eating; mine-work packages allow only
+    /// idle markers and sitting (0,0,0,1,1,...). A package with fewer inputs allows nothing it does not list.
+    namespace SandboxBool
+    {
+        inline constexpr std::size_t Eating = 0;
+        inline constexpr std::size_t Sleeping = 1;
+        inline constexpr std::size_t Sitting = 4;
+    }
+
     struct PackageRecord
     {
         RecordCommon mCommon;
@@ -110,6 +124,7 @@ namespace game_skyrimse
         FormId mTemplate = kNullFormId;
         std::vector<std::string> mProcedures; ///< alphabetic PNAM, in tree order
         std::vector<PackageLocation> mLocations; ///< PLDT, in order (the first is the package's main location)
+        std::vector<std::uint8_t> mBools; ///< the Bool data inputs (ANAM "Bool" + 1 byte CNAM), in order
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
 

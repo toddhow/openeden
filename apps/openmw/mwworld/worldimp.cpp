@@ -1471,6 +1471,9 @@ namespace MWWorld
             }
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralActorsTurned())
                 mRendering->rotateObject(ptr, neutralActorQuaternion(ptr.getRefData().getPosition()));
+            // Task 0135 stage S6b: a sit or sleep pose starts or ends.
+            for (const auto& change : mPhysics->getNeutralPoseChanges())
+                mRendering->getObjects().setNeutralActorPose(change.mPtr, change.mClip, change.mClipPerSex);
             // Task 0148: the locomotion blend of a drawn neutral actor follows the speed it really moved at.
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())

@@ -219,6 +219,17 @@ namespace MWPhysics
         const std::vector<MWWorld::Ptr>& getNeutralActorsMoved() const { return mNeutralMoved; }
         const std::vector<MWWorld::Ptr>& getNeutralActorsTurned() const { return mNeutralTurned; }
 
+        /// Task 0135 stage S6b: furniture use. A change of an actor's furniture pose in the last updateNeutralActors:
+        /// an empty clip means "off the furniture" (the renderer goes back to the idle). `mClipPerSex` says the clip is
+        /// in the male/female sub-folder. Cleared at the start of every updateNeutralActors.
+        struct NeutralPoseChange
+        {
+            MWWorld::Ptr mPtr;
+            std::string mClip;
+            bool mClipPerSex = false;
+        };
+        const std::vector<NeutralPoseChange>& getNeutralPoseChanges() const { return mNeutralPoseChanges; }
+
         /// Task 0148: the horizontal ground speed (units a second, measured over the last frame) of each neutral actor
         /// whose measured speed changed in the last updateNeutralActors, or that walked in it; a stopped actor is
         /// reported once with 0. The caller hands each to the renderer (locomotion blend). Reserved with the other
@@ -472,8 +483,10 @@ namespace MWPhysics
             float mReportedSpeed = 0.f; ///< what getNeutralActorSpeeds last told
             float mFace = 0.f; ///< a heading request, applied once when the actor stands
             bool mFaceValid = false;
+            bool mSeated = false; ///< on furniture (stage S6b): no fall, no walk, no goal until it leaves
         };
         std::vector<NeutralActorEntry> mNeutralActors;
+        std::vector<NeutralPoseChange> mNeutralPoseChanges;
         // Stage S3: the pack's hooks. The sink turns a validated request into the entry's request.
         class NeutralRequestApplier final : public NeutralRequestSink
         {
@@ -486,6 +499,8 @@ namespace MWPhysics
             void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal) override;
             void cancelGoal(const void* key) override;
             void setHeading(const void* key, float heading) override;
+            void useFurniture(const void* key, const openeden::sdk::game::FurnitureUse& use) override;
+            void leaveFurniture(const void* key, double x, double y, double z) override;
 
         private:
             PhysicsSystem& mPhysics;

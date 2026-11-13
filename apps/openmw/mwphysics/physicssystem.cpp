@@ -1290,6 +1290,64 @@ namespace MWPhysics
         }
     }
 
+    void PhysicsSystem::NeutralRequestApplier::useFurniture(
+        const void* key, const openeden::sdk::game::FurnitureUse& use)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return;
+        entry->mFollow.cancel();
+        entry->mRequest = {};
+        entry->mFaceValid = false;
+        entry->mSeated = true;
+        const MWWorld::Ptr ptr = found->second->getPtr();
+        ESM::Position pos = ptr.getRefData().getPosition();
+        pos.pos[0] = static_cast<float>(use.x);
+        pos.pos[1] = static_cast<float>(use.y);
+        pos.pos[2] = static_cast<float>(use.z);
+        pos.rot[2] = use.heading;
+        ptr.getRefData().setPosition(pos);
+        entry->mFall.mZ = pos.pos[2];
+        entry->mFall.mVelocity = 0.f;
+        entry->mFall.mState = NeutralActor::State::Grounded;
+        mPhysics.mNeutralMoved.push_back(ptr);
+        mPhysics.mNeutralTurned.push_back(ptr);
+        mPhysics.mNeutralPoseChanges.push_back({ ptr, std::string(use.clip), use.clipPerSex });
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        if (trace)
+            Log(Debug::Info) << "NACTFURN use " << ptr.getCellRef().getRefId() << " at " << pos.pos[0] << " "
+                             << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2] << " clip " << use.clip;
+    }
+
+    void PhysicsSystem::NeutralRequestApplier::leaveFurniture(const void* key, double x, double y, double z)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr || !entry->mSeated)
+            return;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return;
+        entry->mSeated = false;
+        const MWWorld::Ptr ptr = found->second->getPtr();
+        ESM::Position pos = ptr.getRefData().getPosition();
+        pos.pos[0] = static_cast<float>(x);
+        pos.pos[1] = static_cast<float>(y);
+        pos.pos[2] = static_cast<float>(z);
+        ptr.getRefData().setPosition(pos);
+        // The floor rules take over: the actor is put on the floor under the exit point.
+        entry->mFall = NeutralActor::Fall{};
+        entry->mFall.mZ = pos.pos[2];
+        mPhysics.mNeutralMoved.push_back(ptr);
+        mPhysics.mNeutralPoseChanges.push_back({ ptr, std::string(), false });
+        static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        if (trace)
+            Log(Debug::Info) << "NACTFURN leave " << ptr.getCellRef().getRefId() << " to " << pos.pos[0] << " "
+                             << pos.pos[1] << " " << pos.pos[2];
+    }
+
     void PhysicsSystem::announceNeutralActor(const MWWorld::Ptr& ptr, openeden::sdk::game::WorldId reference,
         openeden::sdk::game::WorldId base, std::string_view editorId)
     {
@@ -1318,6 +1376,7 @@ namespace MWPhysics
         mNeutralMoved.clear();
         mNeutralTurned.clear();
         mNeutralSpeeds.clear();
+        mNeutralPoseChanges.clear();
         if (mNeutralActors.empty())
             return;
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
@@ -1336,6 +1395,17 @@ namespace MWPhysics
             if (found == mObjects.end())
                 continue;
             entry.mMeasuredSpeed = 0.f;
+            if (entry.mSeated)
+            {
+                // Stage S6b: on furniture. The body stays where the pack put it (a static object, so the furniture does
+                // not fight it); no fall, no walk. Only the locomotion blend is told it stands still.
+                if (reportSpeeds && entry.mReportedSpeed != 0.f)
+                {
+                    entry.mReportedSpeed = 0.f;
+                    mNeutralSpeeds.push_back({ found->second->getPtr(), 0.f });
+                }
+                continue;
+            }
             if (entry.mFall.mState == NeutralActor::State::Grounded)
             {
                 // Stage S4: a go-to turns its path into this frame's velocity request first.

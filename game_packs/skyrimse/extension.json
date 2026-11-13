@@ -39,6 +39,11 @@
       "key": "actor packages",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "actor sleep snap",
+      "type": "bool",
+      "default": true
     }
   ],
   "licence": "GPL-3.0-or-later"

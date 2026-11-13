@@ -8,7 +8,12 @@
 //   Sandbox / Wander: go to the package's location, then wander to random reachable points within its radius and
 //                     pause at each for a few seconds;
 //   Travel:           go to the location and stay;
-//   Sleep, Eat, Stand, Unsupported: stand at/near the location (no furniture use: not built).
+//   Sleep:            walk to a free bed near the location and lie on it (stage S6b), until the package ends;
+//   Eat:              walk to a free seat near the location and sit on it (stage S6b), until the package ends;
+//   Sandbox / Wander with the package's "allow sitting" input on: at a pause, sometimes sit on a free seat near the
+//                     location for a while, then get up and go on (stage S6b);
+//   Stand, Unsupported: stand at/near the location. Furniture needs a FurnitureSource; without one (or when it finds
+//   nothing) Sleep and Eat stand at the location as before.
 // Nothing here knows an engine, renderer or Jolt type. Main thread only. No clock (the game clock comes through the
 // writer), no unseeded randomness (a splitmix64 stream per actor, seeded from Options::mSeed and the placement id), no
 // iteration over unordered containers. update() allocates nothing once an actor's packages are resolved.
@@ -24,6 +29,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace game_skyrimse
@@ -56,6 +62,43 @@ namespace game_skyrimse
     /// Sunday; 9 Monday, Wednesday, Friday; 10 Tuesday, Thursday (RECALLED-VERIFY); other values never pass.
     [[nodiscard]] bool scheduleActive(const PackageSchedule& schedule, float hour, std::int32_t day, bool clockValid);
 
+    /// After a sandbox actor's pause it sits down with this chance (an estimate), for a time drawn from this range of
+    /// seconds of frame time (estimates).
+    inline constexpr float kSitChance = 0.6f;
+    inline constexpr float kSitMinSeconds = 45.f;
+    inline constexpr float kSitMaxSeconds = 150.f;
+    /// After a failed trip to furniture the actor tries the next seat/bed after this long.
+    inline constexpr float kFurnitureRetrySeconds = 4.f;
+    /// How far from the package location a seat or bed is looked for when the package gives a smaller radius.
+    inline constexpr float kMinFurnitureRadius = 512.f;
+    /// The most failed seats an actor remembers (until its package changes).
+    inline constexpr std::size_t kMaxBadSlots = 16;
+
+    /// One place an actor can use: a sit or sleep marker of a furniture placement.
+    struct FurnitureSlot
+    {
+        std::uint64_t mKey = 0; ///< unique per marker of a placement; stable
+        openeden::sdk::game::FurniturePose mPose = openeden::sdk::game::FurniturePose::Sit;
+        double mX = 0, mY = 0, mZ = 0; ///< where the actor's origin goes
+        float mHeading = 0.f;
+        double mEntryX = 0, mEntryY = 0, mEntryZ = 0; ///< where it walks to first, and steps off to
+        std::string mClip;
+        bool mClipPerSex = false;
+    };
+
+    /// The furniture the brain may use. The pack's view implements it; tests use a fake.
+    class FurnitureSource
+    {
+    public:
+        virtual ~FurnitureSource() = default;
+        /// The slots of `pose` within `radius` of (x, y, z) in the same cell as the actor placement `actorReference`,
+        /// nearest to (fromX, fromY, fromZ) first. Each slot's entry point is the one nearest to `from`. Replaces `out`.
+        virtual void slotsNear(FormId actorReference, double x, double y, double z, double radius,
+            openeden::sdk::game::FurniturePose pose, double fromX, double fromY, double fromZ,
+            std::vector<FurnitureSlot>& out)
+            = 0;
+    };
+
     /// What the brain asks of the world. The pack's view implements it; tests use a fake.
     class PackageSource
     {
@@ -84,6 +127,10 @@ namespace game_skyrimse
         {
             std::uint64_t mSeed = 0x5EED5EEDull;
             float mReevaluateSeconds = kPackageReevaluateSeconds;
+            /// A sleeper whose walk to the bed fails (no path, blocked: closed doors, stairs the navigator cannot use)
+            /// is put on the bed directly, as the game does for an actor whose package begins while its cell is not
+            /// loaded. Off by default; the pack turns it on (`[extension.skyrimse] actor sleep snap`).
+            bool mSnapSleepers = false;
         };
 
         struct Stats
@@ -99,6 +146,12 @@ namespace game_skyrimse
             std::uint64_t mWritesRefused = 0; ///< the core refused a request (stale handle)
             std::uint64_t mUnresolvedLocations = 0; ///< a location the brain could not place; the home was used
             std::uint64_t mUnsupported = 0; ///< times an actor started a package of kind Unsupported
+            std::uint64_t mFurnitureTrips = 0; ///< times an actor set out for a seat or bed
+            std::uint64_t mSeatings = 0; ///< times the core accepted a furniture use
+            std::uint64_t mStandUps = 0; ///< times an actor left its furniture
+            std::uint64_t mFurnitureFailed = 0; ///< trips that failed (no path, blocked, refused)
+            std::uint64_t mNoFurniture = 0; ///< searches that found no free slot
+            std::uint64_t mSnapped = 0; ///< sleepers put on their bed after a failed walk
         };
 
         enum class Phase : std::uint8_t
@@ -109,6 +162,8 @@ namespace game_skyrimse
             Pausing, ///< standing at a wander point until the timer ends
             Done, ///< arrived at a stand-or-travel anchor (or a sandbox with no room to wander)
             Failed, ///< the last trip failed; retries after kRetrySeconds
+            Approaching, ///< walking to a seat or bed (stage S6b)
+            Seated, ///< on furniture
         };
 
         /// What the tests and the trace see of one actor.
@@ -121,9 +176,14 @@ namespace game_skyrimse
             double mAnchorX = 0, mAnchorY = 0, mAnchorZ = 0;
             float mRadius = 0.f;
             std::size_t mPackages = 0;
+            bool mSeated = false;
+            std::uint64_t mSlotKey = 0; ///< the slot reserved (approaching or seated), else 0
         };
 
         PackageBrain(PackageSource& source, Options options = {});
+
+        /// Switches furniture use on (null switches it off). The source must outlive the brain.
+        void setFurnitureSource(FurnitureSource* source) { mFurniture = source; }
 
         void onActorAdded(const openeden::sdk::game::ActorInfo& info);
         void onActorRemoved(openeden::sdk::game::ActorHandle handle);
@@ -158,6 +218,14 @@ namespace game_skyrimse
             float mFaceHeading = 0.f;
             double mGoalX = 0, mGoalY = 0, mGoalZ = 0;
             std::uint64_t mRng = 0;
+            // Stage S6b
+            FurnitureSlot mSlot;
+            bool mHasSlot = false;
+            bool mToFurniture = false; ///< the goal out leads to mSlot's entry point
+            bool mUseNext = false; ///< write the furniture use at the next update
+            bool mSeated = false;
+            float mSeatTimer = -1.f; ///< seconds left on the furniture; negative: until the package ends
+            std::vector<std::uint64_t> mBadSlots;
         };
 
         void evaluate(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
@@ -168,10 +236,20 @@ namespace game_skyrimse
         void run(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
         void goTo(Actor& actor, double x, double y, double z, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] static float nextUnit(Actor& actor);
+        /// Stage S6b: reserves the nearest free slot of `pose` near the anchor and sets out for it. False (nothing
+        /// changed) when there is none.
+        bool tryFurniture(Actor& actor, openeden::sdk::game::FurniturePose pose, double radius,
+            openeden::sdk::game::ActorRequestWriter& writer);
+        void releaseFurniture(Actor& actor);
+        void standUp(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        [[nodiscard]] bool sitAllowed(const Actor& actor) const;
 
         PackageSource& mSource;
         Options mOptions;
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
+        FurnitureSource* mFurniture = nullptr;
+        std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
+        std::vector<FurnitureSlot> mScratch;
         Stats mStats;
     };
 }

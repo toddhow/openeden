@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string_view>
 
@@ -16,7 +17,8 @@
 // implement it simply has actors that stand where they were placed. No SDK major or minor change: the SDK stays 4.0.
 //
 // Version policy: DRAFT 0.3 (0.2, task 0135 stage S4: go-to requests with a result event, and a heading request; 0.3,
-// stage S5: the game clock through ActorRequestWriter::clock(); all additions have defaults, so a 0.1 pack or core
+// stage S5: the game clock through ActorRequestWriter::clock(); 0.4, stage S6b: furniture use (sit, sleep) through
+// useFurniture / leaveFurniture; all additions have defaults, so a 0.1 pack or core
 // keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field
 // a consumer only reads) raise the minor number.
 //
@@ -30,7 +32,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 3 };
+    inline constexpr Version kActorRulesVersion{ 0, 4 };
 
     struct ActorHandle
     {
@@ -72,6 +74,32 @@ namespace openeden::sdk::game
         float hour = 12.f; ///< game hours since midnight, [0, 24)
         std::int32_t day = 0; ///< whole game days since the session's start day (the core's day counter)
         bool valid = false;
+    };
+
+    /// (0.4) What an actor does on a piece of furniture. The core takes the body off the floor rules (no falling, no
+    /// walking) while the actor uses it, places it at the given spot and loops the named clip.
+    enum class FurniturePose : std::uint8_t
+    {
+        Sit = 1,
+        Sleep = 2,
+    };
+
+    /// Longest clip name accepted (letters, digits and underscores only).
+    inline constexpr std::size_t kMaxFurnitureClipName = 64;
+
+    struct FurnitureUse
+    {
+        /// Where the actor's origin goes: the furniture marker in the world, game units (the same axes as ActorInfo).
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
+        float heading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
+        FurniturePose pose = FurniturePose::Sit;
+        /// The animation clip to loop, a file name under the actor's animations folder without extension (for example
+        /// `chair_idlebasevar1`). Valid during the call only; the core copies it.
+        std::string_view clip;
+        /// True when the clip lives in the `male` / `female` sub-folder of the animations folder.
+        bool clipPerSex = false;
     };
 
     /// What the pack is told about an actor that appeared.
@@ -123,6 +151,29 @@ namespace openeden::sdk::game
         {
             (void)handle;
             (void)heading;
+            return false;
+        }
+
+        /// (0.4) Puts the actor on a piece of furniture: cancels its goal, places it at `use` (x, y, z, heading), keeps it
+        /// there (no fall, no walk) and loops `use.clip`. False (counted) for a stale handle, a value that is not
+        /// finite, a pose that is not one of FurniturePose, a clip name that is empty, too long or has characters other
+        /// than letters, digits and `_`, or a call outside update(). The default refuses.
+        virtual bool useFurniture(ActorHandle handle, const FurnitureUse& use)
+        {
+            (void)handle;
+            (void)use;
+            return false;
+        }
+
+        /// (0.4) Takes the actor off its furniture and stands it at (x, y, z), where the floor rules take over again (it
+        /// is put on the floor under that point) and the idle returns. A no-op for an actor that is not on furniture.
+        /// False as for useFurniture (and for a position that is not finite).
+        virtual bool leaveFurniture(ActorHandle handle, double x, double y, double z)
+        {
+            (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
             return false;
         }
 

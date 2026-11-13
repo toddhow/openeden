@@ -8,6 +8,8 @@
 #include "game_skyrimse/weather_source.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <span>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -452,6 +454,112 @@ namespace game_skyrimse
         y = it->second[1];
         z = it->second[2];
         return true;
+    }
+
+    const std::vector<FurnitureMarker>& SkyrimWorldView::markersOf(const std::string& model)
+    {
+        std::string key(model);
+        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+            return c == '/' ? '\\' : static_cast<char>(std::tolower(c));
+        });
+        const auto cached = mMarkerCache.find(key);
+        if (cached != mMarkerCache.end())
+            return cached->second;
+        std::vector<FurnitureMarker>& markers = mMarkerCache[key];
+        if (mFiles == nullptr || mMarkerCache.size() > 8192)
+            return markers;
+        std::string bytes;
+        if (!mFiles->read("meshes\\" + key, bytes))
+            return markers;
+        std::string error;
+        if (!readFurnitureMarkers(
+                std::span<const std::byte>(reinterpret_cast<const std::byte*>(bytes.data()), bytes.size()), markers,
+                error))
+            markers.clear();
+        return markers;
+    }
+
+    void SkyrimWorldView::slotsNear(FormId actorReference, double x, double y, double z, double radius,
+        sdkgame::FurniturePose pose, double fromX, double fromY, double fromZ, std::vector<FurnitureSlot>& out)
+    {
+        out.clear();
+        const auto cellIt = mActorCell.find(actorReference);
+        if (cellIt == mActorCell.end())
+            return;
+        const auto listIt = mFurnitureByCell.find(cellIt->second);
+        if (listIt == mFurnitureByCell.end())
+            return;
+        const std::uint16_t wanted = pose == sdkgame::FurniturePose::Sleep ? MarkerType::Sleep : MarkerType::Sit;
+        const double approach = pose == sdkgame::FurniturePose::Sleep ? kSleepApproachDistance : kSitApproachDistance;
+        struct Scored
+        {
+            double mScore;
+            FurnitureSlot mSlot;
+        };
+        std::vector<Scored> found;
+        for (const FurnitureRef& ref : listIt->second)
+        {
+            if (std::hypot(ref.mX - x, ref.mY - y) > radius)
+                continue;
+            std::string lowerModel(ref.mModel);
+            std::transform(lowerModel.begin(), lowerModel.end(), lowerModel.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            // Jarls' thrones are not seats for passers-by, and a counter's lean marker is a sit marker in the data
+            // (type 1, 32 units up) that people lean on, not sit on.
+            if (pose == sdkgame::FurniturePose::Sit
+                && (lowerModel.find("throne") != std::string::npos || lowerModel.find("leanmarker") != std::string::npos))
+                continue;
+            const std::vector<FurnitureMarker>& markers = markersOf(ref.mModel);
+            for (std::size_t i = 0; i < markers.size(); ++i)
+            {
+                const FurnitureMarker& m = markers[i];
+                if (m.mType != wanted)
+                    continue;
+                const FurniturePlacement placement{ ref.mX, ref.mY, ref.mZ, ref.mRotZ, ref.mScale };
+                const SeatPoint seat = markerInWorld(placement, m);
+                const std::vector<EntryPoint> entries = entryPoints(placement, seat, m.mEntry, approach);
+                const EntryPoint* best = nullptr;
+                double bestD = 0;
+                for (const EntryPoint& e : entries)
+                {
+                    const double d = std::hypot(e.mX - fromX, e.mY - fromY) + 2.0 * std::abs(e.mZ - fromZ);
+                    if (best == nullptr || d < bestD)
+                    {
+                        best = &e;
+                        bestD = d;
+                    }
+                }
+                if (best == nullptr)
+                    continue;
+                FurnitureSlot slot;
+                slot.mKey = (static_cast<std::uint64_t>(ref.mId) << 8) | static_cast<std::uint64_t>(i & 0xFF);
+                slot.mPose = pose;
+                slot.mX = seat.mX;
+                slot.mY = seat.mY;
+                slot.mZ = seat.mZ;
+                slot.mHeading = seat.mHeading;
+                slot.mEntryX = best->mX;
+                slot.mEntryY = best->mY;
+                slot.mEntryZ = best->mZ;
+                if (pose == sdkgame::FurniturePose::Sit)
+                {
+                    slot.mClip = "chair_idlebasevar1";
+                    slot.mClipPerSex = true;
+                }
+                else
+                {
+                    const bool roll = lowerModel.find("bedroll") != std::string::npos;
+                    const char* side = best->mSide == Side::Right ? "right" : (best->mSide == Side::Front && roll ? "front" : "left");
+                    slot.mClip = std::string(roll ? "bedroll_" : "bed_") + side + "sleep";
+                }
+                found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY) + 2.0 * std::abs(seat.mZ - fromZ), std::move(slot) });
+            }
+        }
+        std::sort(found.begin(), found.end(), [](const Scored& a, const Scored& b) {
+            return a.mScore != b.mScore ? a.mScore < b.mScore : a.mSlot.mKey < b.mSlot.mKey;
+        });
+        for (Scored& s : found)
+            out.push_back(std::move(s.mSlot));
     }
 
     bool SkyrimWorldView::beginConversation(sdkgame::WorldId base, sdkgame::WorldId reference, sdkgame::WorldId cell,
@@ -1427,6 +1535,21 @@ namespace game_skyrimse
             if (mPlacements.size() < 4u * 1024 * 1024)
                 for (const sdkgame::PlacedObject& o : content.objects)
                     mPlacements[static_cast<FormId>(o.id)] = { o.position.x, o.position.y, o.position.z };
+            // Task 0135 S6b: furniture and actors by cell (bounded: the cells a session loads are few).
+            if (mFurnitureByCell.size() < 4096)
+            {
+                std::vector<FurnitureRef>& furniture = mFurnitureByCell[cell];
+                furniture.clear();
+                for (const sdkgame::PlacedObject& o : content.objects)
+                {
+                    if (o.baseKind == sdkgame::BaseKind::Furniture && !o.initiallyDisabled && !o.modelPath.empty()
+                        && furniture.size() < 4096)
+                        furniture.push_back({ static_cast<FormId>(o.id), o.modelPath, o.position.x, o.position.y,
+                            o.position.z, o.rotation.z, static_cast<double>(o.scale) });
+                    else if (o.baseKind == sdkgame::BaseKind::Actor && mActorCell.size() < 1024 * 1024)
+                        mActorCell[static_cast<FormId>(o.id)] = cell;
+                }
+            }
             out = std::move(content);
             mLastCell = cell;
             mLastComponents = std::move(components);

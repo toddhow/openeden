@@ -33,6 +33,19 @@ namespace MWPhysics
         virtual void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal) { (void)key; (void)goal; }
         virtual void cancelGoal(const void* key) { (void)key; }
         virtual void setHeading(const void* key, float heading) { (void)key; (void)heading; }
+        // Stage S6b (furniture use): `use.clip` is valid during the call only, a sink that keeps it copies it.
+        virtual void useFurniture(const void* key, const openeden::sdk::game::FurnitureUse& use)
+        {
+            (void)key;
+            (void)use;
+        }
+        virtual void leaveFurniture(const void* key, double x, double y, double z)
+        {
+            (void)key;
+            (void)x;
+            (void)y;
+            (void)z;
+        }
     };
 
     class NeutralActorBridge
@@ -50,6 +63,8 @@ namespace MWPhysics
             std::uint64_t mGoals = 0; ///< go-to requests passed to the sink (stage S4)
             std::uint64_t mCancels = 0;
             std::uint64_t mHeadings = 0;
+            std::uint64_t mFurnitureUses = 0; ///< furniture-use requests passed to the sink (stage S6b)
+            std::uint64_t mFurnitureLeaves = 0;
             std::uint64_t mResultsDelivered = 0; ///< goal results told to the pack
             std::uint64_t mResultsDropped = 0; ///< goal results whose actor had gone by the time they were told
         };
@@ -113,6 +128,9 @@ namespace MWPhysics
             bool goTo(openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::ActorGoal& goal) override;
             bool cancelGoal(openeden::sdk::game::ActorHandle handle) override;
             bool setHeading(openeden::sdk::game::ActorHandle handle, float heading) override;
+            bool useFurniture(
+                openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::FurnitureUse& use) override;
+            bool leaveFurniture(openeden::sdk::game::ActorHandle handle, double x, double y, double z) override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 

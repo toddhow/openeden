@@ -43,6 +43,7 @@
 #include "skyrimactor.hpp"
 #include "skyrimidle.hpp"
 #include "skyrimlocomotion.hpp"
+#include "skyrimpose.hpp"
 #include "skyrimlip.hpp"
 
 #include <components/mwanimation/sceneryanim.hpp>
@@ -348,6 +349,13 @@ namespace MWRender
             // Out of step with the next actor, and the same on every visit: from the reference alone.
             const std::string id = ptr.getCellRef().getRefId().serializeText();
             const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)));
+            // Task 0135 stage S6b: the furniture pose controller, added after the idle so that it wins while it is on.
+            auto addPose = [&]() {
+                auto pose = vsg::ref_ptr<SkyrimPose::Controller>(
+                    new SkyrimPose::Controller(vfs, appearance.skeletonPath, appearance.female, bones));
+                anim.addController(pose, anim.transform());
+                anim.keepAlive.push_back(pose);
+            };
             if (Settings::game().mNeutralActorLocomotion)
             {
                 // Task 0148: the idle, walk and run cycles blended by the ground speed the physics side reports.
@@ -356,15 +364,17 @@ namespace MWRender
                     std::move(future),
                     SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sWalkClip),
                     SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sRunClip),
-                    std::move(bones), phase));
+                    bones, phase));
                 anim.addController(controller, anim.transform());
                 anim.keepAlive.push_back(controller);
+                addPose();
                 return;
             }
             auto controller = vsg::ref_ptr<SkyrimIdle::Controller>(
-                new SkyrimIdle::Controller(std::move(future), std::move(bones), phase));
+                new SkyrimIdle::Controller(std::move(future), bones, phase));
             anim.addController(controller, anim.transform());
             anim.keepAlive.push_back(controller);
+            addPose();
         }
     }
 
@@ -442,6 +452,22 @@ namespace MWRender
             if (auto* loco = dynamic_cast<SkyrimLocomotion::Controller*>(kept.get()))
             {
                 loco->setGroundSpeed(unitsPerSecond);
+                return;
+            }
+    }
+
+    void Scene::setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+            {
+                pose->setClip(clip, perSex);
                 return;
             }
     }

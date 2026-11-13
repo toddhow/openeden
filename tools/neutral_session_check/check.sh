@@ -78,6 +78,7 @@ CFG
 [ "$SHOT" = n5goto ] && echo "content=n5goto.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S5 (AI packages): "n5pack" takes pictures every 12 s of the Mare while the NPCs run their packages (set "[extension.skyrimse] actor packages = true" in SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1; use at least 6000 frames).
 [ "$SHOT" = n5pack ] && echo "content=n5pack.omwscripts" >> "$WORK/config/openmw.cfg"
+[ "$SHOT" = n5furn ] && echo "content=n5furn.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0148: "n5loco" is "n5goto" with a picture every 0.2 s (use at least 2400 frames; also set [Game] neutral actor locomotion).
 [ "$SHOT" = n5loco ] && echo "content=n5loco.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = look ] && echo "content=n3a4look.omwscripts" >> "$WORK/config/openmw.cfg"
@@ -153,7 +154,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

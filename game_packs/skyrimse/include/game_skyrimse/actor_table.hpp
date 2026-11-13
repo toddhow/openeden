@@ -29,6 +29,9 @@ namespace game_skyrimse
 
     /// The pack setting (bool, off by default) that makes the NPCs run their AI packages (stage S5).
     inline constexpr std::string_view kActorPackagesKey = "actor packages";
+    /// The pack setting (bool, on by default, read only with `actor packages`) that puts a sleeper on its bed when it
+    /// cannot walk there (task 0135 stage S6b).
+    inline constexpr std::string_view kActorSleepSnapKey = "actor sleep snap";
 
     /// The pack setting for the go-to test rule (stage S4): `<editor id>,<x>,<y>,<z>`; empty (the default) means off.
     inline constexpr std::string_view kActorTestGotoKey = "actor test goto";
@@ -84,7 +87,8 @@ namespace game_skyrimse
 
         /// Stage S5: turns the AI package scheduler on over `source` (which must outlive the table). Actors that are
         /// added from now on get their packages; off (no brain) is the default and costs nothing.
-        void enablePackages(PackageSource& source, std::uint64_t seed);
+        void enablePackages(PackageSource& source, std::uint64_t seed, FurnitureSource* furniture = nullptr,
+            bool snapSleepers = false);
         [[nodiscard]] const PackageBrain* packageBrain() const { return mBrain.get(); }
 
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override;

@@ -229,4 +229,49 @@ namespace MWPhysics
         mSink->setHeading(key, heading);
         return true;
     }
+
+    namespace
+    {
+        bool validClipName(std::string_view clip)
+        {
+            if (clip.empty() || clip.size() > openeden::sdk::game::kMaxFurnitureClipName)
+                return false;
+            return std::all_of(clip.begin(), clip.end(), [](char c) {
+                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+            });
+        }
+    }
+
+    bool NeutralActorBridge::Writer::useFurniture(ActorHandle handle, const openeden::sdk::game::FurnitureUse& use)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(use.x) || !std::isfinite(use.y) || !std::isfinite(use.z) || !std::isfinite(use.heading)
+            || (use.pose != openeden::sdk::game::FurniturePose::Sit
+                && use.pose != openeden::sdk::game::FurniturePose::Sleep)
+            || !validClipName(use.clip))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        ++mBridge.mStats.mFurnitureUses;
+        mSink->useFurniture(key, use);
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::leaveFurniture(ActorHandle handle, double x, double y, double z)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        ++mBridge.mStats.mFurnitureLeaves;
+        mSink->leaveFurniture(key, x, y, z);
+        return true;
+    }
 }

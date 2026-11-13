@@ -169,6 +169,7 @@ namespace game_skyrimse
                 p.mCommon.mFlags = record.mFlags;
                 p.mCommon.mOffset = record.mOffset;
                 bool seenPkcu = false;
+                bool lastInputIsBool = false;
                 mLastList = nullptr;
 
                 const bool wellFormed = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
@@ -268,6 +269,15 @@ namespace game_skyrimse
                                 loc.mRadius = readLe<std::int32_t>(data.data() + 8);
                                 p.mLocations.push_back(loc);
                             }
+                            return;
+                        case Content::fourCC("ANAM"):
+                            // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1 byte).
+                            lastInputIsBool = data.size() == 5 && std::memcmp(data.data(), "Bool", 5) == 0;
+                            return;
+                        case Content::fourCC("CNAM"):
+                            if (lastInputIsBool && data.size() == 1 && p.mBools.size() < kMaxPackageBools)
+                                p.mBools.push_back(static_cast<std::uint8_t>(data[0]));
+                            lastInputIsBool = false;
                             return;
                         case Content::fourCC("PNAM"):
                             // The alphabetic ones are procedure kinds; the others are padding (VERIFIED).

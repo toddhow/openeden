@@ -22,6 +22,7 @@
 // Deterministic (the same plugins give the same lists and the same objects), and nothing throws out of it: failures
 // are located Content::Error values or the `error` text of loadCell.
 
+#include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/records.hpp>
@@ -113,7 +114,8 @@ namespace game_skyrimse
         public openeden::sdk::game::DialogueSource,
         public openeden::sdk::game::DisplayNameSource,
         public openeden::sdk::game::WeatherSource,
-        public PackageSource
+        public PackageSource,
+        public FurnitureSource
     {
     public:
         struct Options
@@ -269,6 +271,13 @@ namespace game_skyrimse
         bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) override;
         [[nodiscard]] bool locate(FormId reference, double& x, double& y, double& z) const override;
 
+        // ---- FurnitureSource (task 0135, S6b) ----
+        // Sit and sleep markers of the furniture placements of the cells loadCell returned, read from the models
+        // (BSFurnitureMarkerNode, through the FileSource, cached per model). Main thread only.
+        void slotsNear(FormId actorReference, double x, double y, double z, double radius,
+            openeden::sdk::game::FurniturePose pose, double fromX, double fromY, double fromZ,
+            std::vector<FurnitureSlot>& out) override;
+
         // ---- openeden::sdk::game::ActorAppearanceSource (task 0121, N5-1) ----
         /// The appearance of the NPC_ `base` (see makeActorAppearance). The actor records of every plugin are read
         /// on the first call and kept (a second read of each plugin file, beside the world index); main thread only.
@@ -394,6 +403,19 @@ namespace game_skyrimse
         FormId mLastCell = kNullFormId; ///< the cell of the last successful loadCell
         /// Where every reference of every cell loadCell returned stands (task 0135 S5: package locations). Only grows.
         std::unordered_map<FormId, std::array<double, 3>> mPlacements;
+        /// Task 0135 S6b: the furniture placements of each cell loadCell returned (replaced on a reload), and the cell of
+        /// every actor placement. Main thread only.
+        struct FurnitureRef
+        {
+            FormId mId = kNullFormId;
+            std::string mModel; ///< as the data stores it
+            double mX = 0, mY = 0, mZ = 0, mRotZ = 0, mScale = 1;
+        };
+        std::unordered_map<FormId, std::vector<FurnitureRef>> mFurnitureByCell;
+        std::unordered_map<FormId, FormId> mActorCell;
+        /// Markers per lower-case model path; an empty list for a model that has none or cannot be read.
+        std::unordered_map<std::string, std::vector<FurnitureMarker>> mMarkerCache;
+        const std::vector<FurnitureMarker>& markersOf(const std::string& model);
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
         std::vector<Content::Error> mErrors;

@@ -2,6 +2,7 @@
 #define GAME_RENDERING_INTERFACE_H
 
 #include <array>
+#include <string_view>
 #include <string>
 
 #include <openeden/game/actor_appearance.hpp>
@@ -35,6 +36,11 @@ namespace MWRender
         /// actor, from the physics side. Does nothing for an object without a locomotion controller. Main thread; no
         /// allocation.
         virtual void setNeutralActorSpeed(const MWWorld::Ptr& /*ptr*/, float /*unitsPerSecond*/) {}
+
+        /// Task 0135 stage S6b: the pose of a drawn neutral actor on furniture: loops the named clip (a file under the
+        /// actor's animations folder, no extension; `perSex` when it is in the male/female sub-folder) over the idle, an
+        /// empty name takes the pose off. Does nothing for an object without a pose controller. Main thread.
+        virtual void setNeutralActorPose(const MWWorld::Ptr& /*ptr*/, std::string_view /*clip*/, bool /*perSex*/) {}
     };
 }
 

@@ -153,7 +153,8 @@ namespace game_skyrimse
                     // packages' source).
                     if (settings->getBool(kPackId, kActorPackagesKey, false))
                     {
-                        mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed);
+                        mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed, &mWorldView,
+                            settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
                     }
                 }

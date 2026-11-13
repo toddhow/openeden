@@ -540,6 +540,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsequest.cpp
     skyrimse/testskyrimsepackages.cpp
     skyrimse/testskyrimsepackagebrain.cpp
+    skyrimse/testskyrimsefurniture.cpp
     skyrimse/testskyrimsepackagesreal.cpp
     skyrimse/testskyrimsequestreal.cpp
     skyrimse/testskyrimseappearance.cpp
@@ -583,6 +584,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/package.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/package_brain.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/furniture.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/dialogue_runtime.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/voice.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp

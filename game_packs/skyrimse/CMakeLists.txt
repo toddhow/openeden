@@ -10,6 +10,7 @@ openeden_add_game_pack(skyrimse
         src/quest.cpp
         src/package.cpp
         src/package_brain.cpp
+        src/furniture.cpp
         src/dialogue_runtime.cpp
         src/voice.cpp
         src/appearance.cpp
@@ -39,6 +40,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/quest.hpp
         include/game_skyrimse/package.hpp
         include/game_skyrimse/package_brain.hpp
+        include/game_skyrimse/furniture.hpp
         include/game_skyrimse/dialogue_runtime.hpp
         include/game_skyrimse/voice.hpp
         include/game_skyrimse/appearance.hpp
@@ -81,6 +83,7 @@ add_library(game_skyrimse_world STATIC
     src/quest.cpp
     src/package.cpp
     src/package_brain.cpp
+    src/furniture.cpp
     src/dialogue_runtime.cpp
     src/voice.cpp
     src/appearance.cpp

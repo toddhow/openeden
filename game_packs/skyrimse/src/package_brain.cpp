@@ -124,7 +124,10 @@ namespace game_skyrimse
     {
         const auto it = mActors.find(handle.reference);
         if (it != mActors.end() && it->second.mHandle == handle)
+        {
+            releaseFurniture(it->second); // the core already forgot the actor: nothing to write
             mActors.erase(it);
+        }
     }
 
     void PackageBrain::onGoalFinished(sdkgame::ActorHandle handle, sdkgame::GoalResult result)
@@ -136,6 +139,36 @@ namespace game_skyrimse
         if (!actor.mGoalOut)
             return; // a result for a goal that was replaced
         actor.mGoalOut = false;
+        if (actor.mToFurniture && actor.mHasSlot)
+        {
+            if (result == sdkgame::GoalResult::Arrived)
+            {
+                ++mStats.mArrived;
+                actor.mX = actor.mSlot.mEntryX;
+                actor.mY = actor.mSlot.mEntryY;
+                actor.mZ = actor.mSlot.mEntryZ;
+                actor.mUseNext = true; // the writer is not open here: written at the next update
+                return;
+            }
+            if (result == sdkgame::GoalResult::NoPath)
+                ++mStats.mNoPath;
+            else
+                ++mStats.mBlocked;
+            if (mOptions.mSnapSleepers && actor.mBehavior == PackageBehavior::Sleep
+                && actor.mSlot.mPose == sdkgame::FurniturePose::Sleep)
+            {
+                ++mStats.mSnapped;
+                actor.mUseNext = true; // the bed stays reserved; the use puts the actor on it
+                return;
+            }
+            ++mStats.mFurnitureFailed;
+            if (actor.mBadSlots.size() < kMaxBadSlots)
+                actor.mBadSlots.push_back(actor.mSlot.mKey);
+            releaseFurniture(actor);
+            actor.mPhase = Phase::Failed;
+            actor.mTimer = kFurnitureRetrySeconds;
+            return;
+        }
         const bool wasLeg = !actor.mToAnchor;
         if (result == sdkgame::GoalResult::Arrived)
         {
@@ -189,8 +222,93 @@ namespace game_skyrimse
         ++mStats.mGoalsIssued;
     }
 
+    bool PackageBrain::sitAllowed(const Actor& actor) const
+    {
+        if (actor.mActive == nullptr || mFurniture == nullptr)
+            return false;
+        if (actor.mBehavior != PackageBehavior::Sandbox && actor.mBehavior != PackageBehavior::Wander)
+            return false;
+        const std::vector<std::uint8_t>& bools = actor.mActive->mBools;
+        return bools.size() > SandboxBool::Sitting && bools[SandboxBool::Sitting] != 0;
+    }
+
+    void PackageBrain::releaseFurniture(Actor& actor)
+    {
+        if (actor.mHasSlot)
+        {
+            const auto it = mReserved.find(actor.mSlot.mKey);
+            if (it != mReserved.end() && it->second == actor.mHandle.reference)
+                mReserved.erase(it);
+        }
+        actor.mHasSlot = false;
+        actor.mToFurniture = false;
+        actor.mUseNext = false;
+        actor.mSeated = false;
+        actor.mSeatTimer = -1.f;
+    }
+
+    void PackageBrain::standUp(Actor& actor, sdkgame::ActorRequestWriter& writer)
+    {
+        if (actor.mSeated && actor.mHasSlot)
+        {
+            if (!writer.leaveFurniture(actor.mHandle, actor.mSlot.mEntryX, actor.mSlot.mEntryY, actor.mSlot.mEntryZ))
+                ++mStats.mWritesRefused;
+            actor.mX = actor.mSlot.mEntryX;
+            actor.mY = actor.mSlot.mEntryY;
+            actor.mZ = actor.mSlot.mEntryZ;
+            ++mStats.mStandUps;
+        }
+        releaseFurniture(actor);
+    }
+
+    bool PackageBrain::tryFurniture(
+        Actor& actor, sdkgame::FurniturePose pose, double radius, sdkgame::ActorRequestWriter& writer)
+    {
+        if (mFurniture == nullptr)
+            return false;
+        mFurniture->slotsNear(actor.mHandle.reference, actor.mAnchorX, actor.mAnchorY, actor.mAnchorZ, radius, pose,
+            actor.mX, actor.mY, actor.mZ, mScratch);
+        for (const FurnitureSlot& slot : mScratch)
+        {
+            const auto held = mReserved.find(slot.mKey);
+            if (held != mReserved.end() && held->second != actor.mHandle.reference)
+                continue;
+            if (std::find(actor.mBadSlots.begin(), actor.mBadSlots.end(), slot.mKey) != actor.mBadSlots.end())
+                continue;
+            actor.mSlot = slot;
+            actor.mHasSlot = true;
+            actor.mToFurniture = true;
+            actor.mToAnchor = false;
+            mReserved[slot.mKey] = actor.mHandle.reference;
+            ++mStats.mFurnitureTrips;
+            goTo(actor, slot.mEntryX, slot.mEntryY, slot.mEntryZ, writer);
+            if (actor.mPhase == Phase::Walking)
+                actor.mPhase = Phase::Approaching;
+            else
+            {
+                ++mStats.mFurnitureFailed;
+                releaseFurniture(actor); // the core refused the goal; the phase is Failed
+            }
+            return true;
+        }
+        ++mStats.mNoFurniture;
+        return false;
+    }
+
     void PackageBrain::begin(Actor& actor, sdkgame::ActorRequestWriter& writer)
     {
+        if (mFurniture != nullptr && (actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat))
+        {
+            const sdkgame::FurniturePose pose
+                = actor.mBehavior == PackageBehavior::Sleep ? sdkgame::FurniturePose::Sleep : sdkgame::FurniturePose::Sit;
+            if (tryFurniture(actor, pose, std::max(actor.mRadius, kMinFurnitureRadius), writer))
+                return;
+            // A sleeper with no bed in range looks in the whole neighbourhood before it gives up (a package with a small
+            // radius, such as a squatter's, still means "go to bed").
+            if (actor.mBehavior == PackageBehavior::Sleep && std::max(actor.mRadius, kMinFurnitureRadius) < kMaxPackageRadius
+                && tryFurniture(actor, pose, kMaxPackageRadius, writer))
+                return;
+        }
         const double away = distance2d(actor.mX, actor.mY, actor.mAnchorX, actor.mAnchorY);
         if (wanders(actor))
         {
@@ -220,6 +338,11 @@ namespace game_skyrimse
     void PackageBrain::start(Actor& actor, const PackageRecord* package, sdkgame::ActorRequestWriter& writer)
     {
         ++mStats.mSwitches;
+        if (actor.mSeated)
+            standUp(actor, writer);
+        else if (actor.mHasSlot)
+            releaseFurniture(actor);
+        actor.mBadSlots.clear();
         if (actor.mGoalOut)
         {
             if (!writer.cancelGoal(actor.mHandle))
@@ -300,6 +423,36 @@ namespace game_skyrimse
 
     void PackageBrain::run(Actor& actor, float seconds, sdkgame::ActorRequestWriter& writer)
     {
+        if (actor.mUseNext)
+        {
+            actor.mUseNext = false;
+            const FurnitureSlot& slot = actor.mSlot;
+            const sdkgame::FurnitureUse use{ slot.mX, slot.mY, slot.mZ, slot.mHeading, slot.mPose, slot.mClip,
+                slot.mClipPerSex };
+            if (actor.mHasSlot && writer.useFurniture(actor.mHandle, use))
+            {
+                actor.mToFurniture = false;
+                actor.mSeated = true;
+                actor.mPhase = Phase::Seated;
+                actor.mX = slot.mX;
+                actor.mY = slot.mY;
+                actor.mZ = slot.mZ;
+                ++mStats.mSeatings;
+                const bool forever = actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat;
+                actor.mSeatTimer = forever ? -1.f : kSitMinSeconds + nextUnit(actor) * (kSitMaxSeconds - kSitMinSeconds);
+            }
+            else
+            {
+                ++mStats.mWritesRefused;
+                ++mStats.mFurnitureFailed;
+                if (actor.mHasSlot && actor.mBadSlots.size() < kMaxBadSlots)
+                    actor.mBadSlots.push_back(actor.mSlot.mKey);
+                releaseFurniture(actor);
+                actor.mPhase = Phase::Failed;
+                actor.mTimer = kFurnitureRetrySeconds;
+            }
+            return;
+        }
         if (actor.mFaceNext)
         {
             actor.mFaceNext = false;
@@ -313,11 +466,31 @@ namespace game_skyrimse
                 actor.mTimer -= seconds;
                 if (actor.mTimer > 0.f)
                     return;
+                if (sitAllowed(actor) && nextUnit(actor) < kSitChance
+                    && tryFurniture(actor, sdkgame::FurniturePose::Sit, std::max(actor.mRadius, kMinFurnitureRadius), writer))
+                    return;
                 const double angle = static_cast<double>(nextUnit(actor)) * kTwoPi;
                 const double reach = static_cast<double>(actor.mRadius) * std::sqrt(static_cast<double>(nextUnit(actor)));
                 actor.mToAnchor = false;
                 goTo(actor, actor.mAnchorX + std::cos(angle) * reach, actor.mAnchorY + std::sin(angle) * reach,
                     actor.mAnchorZ, writer);
+                return;
+            }
+            case Phase::Seated:
+            {
+                if (actor.mSeatTimer < 0.f)
+                    return; // sleeping or eating: until the package ends
+                actor.mSeatTimer -= seconds;
+                if (actor.mSeatTimer > 0.f)
+                    return;
+                standUp(actor, writer);
+                if (wanders(actor))
+                {
+                    actor.mPhase = Phase::Pausing;
+                    actor.mTimer = 2.f;
+                }
+                else
+                    actor.mPhase = Phase::Done;
                 return;
             }
             case Phase::Failed:
@@ -384,6 +557,8 @@ namespace game_skyrimse
         v.mAnchorZ = a.mAnchorZ;
         v.mRadius = a.mRadius;
         v.mPackages = a.mPackages.size();
+        v.mSeated = a.mSeated;
+        v.mSlotKey = a.mHasSlot ? a.mSlot.mKey : 0;
         return v;
     }
 }

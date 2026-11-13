@@ -92,11 +92,14 @@ namespace game_skyrimse
         return found == mRows.end() ? std::nullopt : found->second.mGoalResult;
     }
 
-    void SkyrimActorTable::enablePackages(PackageSource& source, std::uint64_t seed)
+    void SkyrimActorTable::enablePackages(
+        PackageSource& source, std::uint64_t seed, FurnitureSource* furniture, bool snapSleepers)
     {
         PackageBrain::Options options;
         options.mSeed = seed;
+        options.mSnapSleepers = snapSleepers;
         mBrain = std::make_unique<PackageBrain>(source, options);
+        mBrain->setFurnitureSource(furniture);
     }
 
     void SkyrimActorTable::onGoalFinished(
