@@ -256,7 +256,8 @@ namespace
             {
                 const std::uint32_t x0 = rng() % side;
                 const std::uint32_t y0 = rng() % side;
-                s.box(x0, y0, std::min(side, x0 + 1 + rng() % 8), std::min(side, y0 + 1 + rng() % 8),
+                s.box(x0, y0, std::min<std::uint32_t>(side, x0 + 1 + rng() % 8),
+                    std::min<std::uint32_t>(side, y0 + 1 + rng() % 8),
                     static_cast<float>(rng() % 100) * 0.5f);
             }
             const StaticFilterResult r = s.run();
@@ -301,7 +302,9 @@ namespace
             EXPECT_EQ(counted, r.mAccepted);
             EXPECT_LE(r.mAccepted, r.mCandidates);
             if (r.mAccepted > 0)
+            {
                 EXPECT_GE(r.mAccepted, staticMinAreaTexels);
+            }
         }
     }
 

@@ -38,7 +38,7 @@ namespace game_skyrimse
             return out;
         }
 
-        Content::Error makeError(const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
+        [[maybe_unused]] Content::Error makeError(const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
         {
             Content::Error e;
             e.mFile = file;

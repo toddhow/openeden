@@ -90,7 +90,9 @@ namespace
         EXPECT_TRUE(order.add("Skyrim.esm", false, err));
         EXPECT_TRUE(order.add("test.esp", false, err));
         if (second)
+        {
             EXPECT_TRUE(order.add("over.esp", false, err));
+        }
         return order;
     }
 
@@ -102,7 +104,9 @@ namespace
             std::string error;
             EXPECT_TRUE(mIndex.addPluginBytes(plugin().str(), "test.esp", orderOf(both), error)) << error;
             if (both)
+            {
                 EXPECT_TRUE(mIndex.addPluginBytes(overrider().str(), "over.esp", orderOf(true), error)) << error;
+            }
         }
         sdk::CellWater water(std::uint32_t world, std::int32_t x, std::int32_t y, bool* known = nullptr) const
         {

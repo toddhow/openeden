@@ -43,7 +43,9 @@ namespace
         catch (const Error& e)
         {
             if (!part.empty())
+            {
                 EXPECT_NE(std::string(e.what()).find(part), std::string::npos) << e.what();
+            }
             EXPECT_NE(std::string(e.what()).find("offset"), std::string::npos) << "error has no place: " << e.what();
         }
     }

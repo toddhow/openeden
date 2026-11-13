@@ -50,7 +50,7 @@ namespace
     TEST(NeutralValidate, aGoodCellPasses)
     {
         EXPECT_EQ(problemOf(cell()), "");
-        EXPECT_EQ(problemOf(WorldCell{ .id = 1 }), "");
+        EXPECT_EQ(problemOf(WorldCell{ .id = 1, .editorId = {}, .name = {}, .objects = {}, .lighting = {} }), "");
     }
 
     TEST(NeutralValidate, aCellWithNoIdIsRefused)

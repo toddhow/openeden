@@ -230,6 +230,12 @@ namespace
         virtual std::size_t sessionContent(std::vector<SessionContentFile>& out) const = 0; // the new slot
     };
 
+    // The reinterpreting cast below is the point of the test; GCC's -Wuninitialized takes the mirror for a different,
+    // never-constructed object, so the warning is silenced for this one test.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
     TEST(WorldSourceServiceContent, theNewFunctionIsTheLastSlot)
     {
         WorldSourceServiceImpl service;
@@ -237,9 +243,12 @@ namespace
         service.setSessionContent({ entry("Skyrim.esm", "TES4", 44) });
         service.setContentFilter(skyrimAccepts);
         openeden::sdk::game::WorldSourceService* base = &service;
-        auto* mirror = reinterpret_cast<MirrorService*>(base);
+        auto* mirror = static_cast<MirrorService*>(static_cast<void*>(base));
         EXPECT_TRUE(mirror->consumerEnabled());
         std::vector<SessionContentFile> out;
         EXPECT_EQ(mirror->sessionContent(out), 1u);
     }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }

@@ -59,7 +59,7 @@ namespace
         return false;
     }
 
-    std::size_t texel(const CellMap& c, int x, int y)
+    [[maybe_unused]] std::size_t texel(const CellMap& c, int x, int y)
     {
         return static_cast<std::size_t>(y) * c.mSide + x;
     }

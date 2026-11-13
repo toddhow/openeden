@@ -294,7 +294,9 @@ namespace
             ASSERT_NE(cell, nullptr) << error;
             EXPECT_EQ(cell->name, "Localised Hall") << bad;
             if (!bad.empty()) // an empty value is "not set", not a mistake
+            {
                 EXPECT_TRUE(s.log->has(openeden::sdk::LogLevel::Warning, "string table language")) << bad;
+            }
             manager.shutdown();
         }
     }

@@ -281,9 +281,9 @@ namespace
             events.addScript(result.mFile);
             {
                 // script naming: the text up to the first underscore when it is short (fragment scripts and the like)
-                const std::string base = lower(fs::path(name).stem().string());
-                const std::size_t us = base.find('_');
-                ++prefixes[us != std::string::npos && us <= 6 ? base.substr(0, us + 1) : std::string("(none)")];
+                const std::string stem = lower(fs::path(name).stem().string());
+                const std::size_t us = stem.find('_');
+                ++prefixes[us != std::string::npos && us <= 6 ? stem.substr(0, us + 1) : std::string("(none)")];
             }
             runtime->loadScript(bytes, name);
             return true;
