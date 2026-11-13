@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 
 #include <vsg/threading/OperationThreads.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/loadtrace.hpp>
+#include <components/pipeline/material.hpp>
+#include <components/pipeline/override.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/operation.hpp>
 
@@ -21,6 +24,44 @@ namespace MWRender
         constexpr std::size_t sCachedChunks = 48;
         // The camera moves this share of a square before the squares in range are worked out again.
         constexpr float sUpdateShareOfCell = 0.125f;
+
+        // OPENEDEN_NEUTRAL_GRASS_ALBEDO=<scale> (a developer aid, read once) replaces grassAlbedoScale() for a look.
+        float albedoOverride()
+        {
+            static const float value = [] {
+                const char* text = std::getenv("OPENEDEN_NEUTRAL_GRASS_ALBEDO");
+                return text ? static_cast<float>(std::atof(text)) : -1.f;
+            }();
+            return value;
+        }
+    }
+
+    float grassAlbedoScale()
+    {
+        const float override_ = albedoOverride();
+        return override_ >= 0.f ? override_ : kGrassAlbedoScale;
+    }
+
+    MWAnim::Context makeNeutralGrassContext(const MWAnim::Context& base)
+    {
+        MWAnim::Context result = makeGroundcoverContext(base);
+        const float scale = grassAlbedoScale();
+        if (scale != 1.f)
+        {
+            // The Skyrim model reader multiplies the shape's vertex colours (and its material) by this colour.
+            auto nodeOptions = vsg::Options::create(*result.nodeOptions);
+            auto tint = vsg::ref_ptr{ new Pipeline::Override };
+            tint->materialData = [scale](Pipeline::Data::Material& material) {
+                for (int c = 0; c < 3; ++c)
+                {
+                    material.diffuse[c] *= scale;
+                    material.ambient[c] *= scale;
+                }
+            };
+            tint->composite(*nodeOptions);
+            result.nodeOptions = nodeOptions;
+        }
+        return result;
     }
 
     GroundcoverInstances groundcoverFromGrass(const openeden::sdk::game::GrassCell& cell)
@@ -87,7 +128,7 @@ namespace MWRender
 
     NeutralGrass::NeutralGrass(const MWAnim::Context& context, openeden::sdk::game::GrassSource& source,
         openeden::sdk::game::WorldId world, float cellSize, float renderingDistance)
-        : mContext(makeGroundcoverContext(context))
+        : mContext(makeNeutralGrassContext(context))
         , mSource(source)
         , mWorld(world)
         , mCellSize(cellSize)

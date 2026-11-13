@@ -77,6 +77,14 @@ namespace game_skyrimse
         float mMaxScale = 4.0f;
     };
 
+    /// The density the pack ships (task 0153 follow-up): 0.35 of GrassPlacementOptions' first estimate. At that estimate
+    /// frames of Whiterun's plains showed a continuous carpet (tufts are 40 to 110 units wide and 35 to 70 high) where
+    /// Skyrim shows ground between its tufts; at 0.35, 0.5 and 0.2 of it the ground shows at 0.35 and the field is
+    /// still full (compared by eye, not measured against the game: RECALLED-VERIFY). The struct's own default is kept
+    /// (the first tests pin it); the pack builds its options through shippedGrassOptions().
+    inline constexpr float kShippedTuftsPerDensityPoint = 0.105f;
+    [[nodiscard]] GrassPlacementOptions shippedGrassOptions();
+
     /// The lowest opacity-weighted layer is the base texture; each layer is drawn over what lies under it. The weight
     /// of the winning texture at a point of a quadrant (bilinear in the 17 x 17 opacity grid). Exposed for the tests.
     /// `quadrant` is 0 SW, 1 SE, 2 NW, 3 NE; (u, v) in [0, 1] across the quadrant, u east and v north.

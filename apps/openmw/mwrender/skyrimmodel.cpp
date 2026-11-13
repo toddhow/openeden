@@ -117,6 +117,23 @@ namespace MWRender::SkyrimModel
             return enabled;
         }
 
+        // Task 0153 follow-up: a model read with a Pipeline::Override that has a materialData hook (the neutral grass's
+        // groundcover context) gets that hook applied to the shape's material, and the hook's diffuse colour also
+        // multiplies the shape's vertex colours, because the lit shader takes the vertex colour in place of the
+        // material's colour when a shape has them (colour mode 2). Without an override, or a hook, this is white and
+        // nothing changes. The hook's alpha test cutoff is NOT taken (the file's own threshold stays).
+        std::array<float, 3> overrideTint(const BuildContext& context)
+        {
+            std::array<float, 3> tint{ 1.f, 1.f, 1.f };
+            if (context.mOverride && context.mOverride->materialData)
+            {
+                Pipeline::Data::Material probe = Pipeline::Material::createDefault();
+                context.mOverride->materialData(probe);
+                tint = { probe.diffuse.r, probe.diffuse.g, probe.diffuse.b };
+            }
+            return tint;
+        }
+
         // The material side of a draw, shared by static and skinned shapes: the diffuse texture, the fixed state from
         // the key (culling, blending, alpha test) and the material descriptor, added to `options` and `descriptors`.
         void addSurface(const NifScene::Flat::MaterialKey& key, const BuildContext& context, BuildResult& result,
@@ -262,6 +279,8 @@ namespace MWRender::SkyrimModel
                     material->value().ambient[c] = v;
                 }
             }
+            if (context.mOverride && context.mOverride->materialData)
+                context.mOverride->materialData(material->value());
             material->value().alphaTestCutoff = key.mTest ? key.mThreshold / 255.f : 1.f;
             vsgUtil::share_if(context.mSharedObjects, material);
             auto materialDescriptor = vsg::DescriptorBuffer::create(
@@ -480,7 +499,19 @@ namespace MWRender::SkyrimModel
                     shader.addMode(Pipeline::Mode::LOD_SWAY);
                 }
                 else
-                    dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
+                {
+                    const std::array<float, 3> tint = overrideTint(context);
+                    if (tint[0] != 1.f || tint[1] != 1.f || tint[2] != 1.f)
+                    {
+                        std::vector<std::array<float, 4>> tinted = shape.mColors;
+                        for (auto& colour : tinted)
+                            for (std::size_t c = 0; c < 3; ++c)
+                                colour[c] *= tint[c];
+                        dataList.emplace_back(copyArray<vsg::vec4Array>(tinted));
+                    }
+                    else
+                        dataList.emplace_back(copyArray<vsg::vec4Array>(shape.mColors));
+                }
                 options.colorMode = 2; // the vertex colour is the ambient and diffuse colour, as NiVertexColorProperty
             }
             // The tangent array goes before the texture coordinates (Pipeline::Graphics, lib/attributes.glsl); it is
@@ -536,7 +567,24 @@ namespace MWRender::SkyrimModel
                      << "' loaded=" << (shader.hasMode(Pipeline::Mode::DIFFUSE_MAP) ? 1 : 0)
                      << " dbl=" << key.mDoubleSided << " blend=" << key.mBlend << " test=" << key.mTest
                      << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
-                     << " tris=" << shape.mIndices.size() / 3 << " box=" << [&shape] {
+                     << " tris=" << shape.mIndices.size() / 3 << " thr=" << key.mThreshold
+                     << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << "," << key.mEmissive[2]
+                     // Task 0153 follow-up: what the file's vertex colours and normals hold (mean rgb, mean normal z).
+                     << " vcol=" << [&shape] {
+                         std::ostringstream text;
+                         std::array<double, 3> sum{};
+                         for (const auto& c : shape.mColors)
+                             for (int i = 0; i < 3; ++i)
+                                 sum[i] += c[i];
+                         const double n = std::max<double>(1.0, static_cast<double>(shape.mColors.size()));
+                         text << sum[0] / n << "," << sum[1] / n << "," << sum[2] / n;
+                         return text.str();
+                     }() << " nz=" << [&shape] {
+                         double sum = 0.0;
+                         for (const auto& v : shape.mNormals)
+                             sum += v[2];
+                         return sum / std::max<double>(1.0, static_cast<double>(shape.mNormals.size()));
+                     }() << " box=" << [&shape] {
                          std::ostringstream box;
                          std::array<float, 3> lo{ 1e30f, 1e30f, 1e30f }, hi{ -1e30f, -1e30f, -1e30f };
                          for (const auto& v : shape.mPositions)

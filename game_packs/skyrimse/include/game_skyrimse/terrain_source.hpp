@@ -93,6 +93,10 @@ namespace game_skyrimse
         /// unknown world, a square with no land or a land the pack could not read (`error` then says why).
         [[nodiscard]] bool grassForCell(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
             openeden::sdk::game::GrassCell& out, std::string& error) const;
+        /// The same with the placement options given (the cell source passes shippedGrassOptions(); the overload above
+        /// uses GrassPlacementOptions' own defaults, which the first grass tests pin).
+        [[nodiscard]] bool grassForCell(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
+            openeden::sdk::game::GrassCell& out, std::string& error, const GrassPlacementOptions& options) const;
         [[nodiscard]] const GrassTables& grassTables() const { return mGrassTables; }
 
         [[nodiscard]] Stats stats() const { return mStats; }

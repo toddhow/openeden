@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <utility>
 
@@ -362,7 +363,14 @@ namespace game_skyrimse
         if (!index)
             return false;
         std::string error;
-        return index->grassForCell(world, x, y, out, error);
+        GrassPlacementOptions options = shippedGrassOptions();
+        // OPENEDEN_NEUTRAL_GRASS_DENSITY=<factor> (a developer aid, read once) multiplies the tufts per density point.
+        static const float densityFactor = [] {
+            const char* text = std::getenv("OPENEDEN_NEUTRAL_GRASS_DENSITY");
+            return text ? static_cast<float>(std::atof(text)) : 1.0f;
+        }();
+        options.mTuftsPerDensityPoint *= densityFactor;
+        return index->grassForCell(world, x, y, out, error, options);
     }
 
     std::size_t SkyrimCellSource::listGroundTextures(std::vector<openeden::sdk::game::GroundTexture>& out) const

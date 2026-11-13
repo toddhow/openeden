@@ -35,3 +35,5 @@ OpenEden test aids (task 0017, for screenshots; not from vsgopenmw):
 | `OPENEDEN_NIFSCENE_NOCULLNODES` | Any value: Skyrim models get a plain group instead of the culling nodes (task 0152). Not a setting. |
 | `OPENEDEN_NIFSCENE_TINT` | Any value: no textures, a flat colour per model on shapes without vertex colours (task 0152). Not a setting. |
 | `OPENEDEN_NEUTRAL_PLACE_TRACE` | Any value: logs one `NPLACE` line per neutral object with a model (model, position, angles, scale, id) as it is inserted (task 0152). Not a setting. |
+| `OPENEDEN_NEUTRAL_GRASS_ALBEDO` | A number: replaces the neutral grass's albedo scale (`MWRender::kGrassAlbedoScale`, 0.65) for a look; 1 is no scaling (task 0153 follow-up). Not a setting. |
+| `OPENEDEN_NEUTRAL_GRASS_DENSITY` | A number: multiplies the tufts per density point the Skyrim pack places (`kShippedTuftsPerDensityPoint`, 0.105); 2.857143 is the first estimate of 0.3 (task 0153 follow-up). Not a setting. |

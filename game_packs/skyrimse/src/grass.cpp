@@ -166,6 +166,13 @@ namespace game_skyrimse
         return true;
     }
 
+    GrassPlacementOptions shippedGrassOptions()
+    {
+        GrassPlacementOptions options;
+        options.mTuftsPerDensityPoint = kShippedTuftsPerDensityPoint;
+        return options;
+    }
+
     sdk::WorldId dominantTexture(const sdk::TerrainCell& cell, std::uint32_t quadrant, float u, float v)
     {
         if (quadrant >= 4)

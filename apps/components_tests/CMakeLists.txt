@@ -553,6 +553,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseland.cpp
     skyrimse/testskyrimsegrass.cpp
+    skyrimse/testskyrimsegrasstune.cpp
     skyrimse/testskyrimsegrassreal.cpp
     skyrimse/testskyrimseweather.cpp
     skyrimse/testskyrimseweathersource.cpp

@@ -24,6 +24,17 @@ namespace vsg
 
 namespace MWRender
 {
+    /// Skyrim's grass blade textures are authored about twice as bright as the ground textures they stand on
+    /// (task 0153 follow-up, measured on the installed data: over the 31 pairs of a ground texture and a grass model
+    /// its LTEX names, the median of the ground texture's mean luminance divided by the grass texture's opaque
+    /// luminance is 0.51, mean 0.53), and the grass models' vertex colours already dim them to about 0.8 (mean over
+    /// the six models traced). The lighting is the same for both, so the model reader multiplies each tuft's vertex
+    /// colours and material by 0.51 / 0.8, rounded, to bring the grass to the ground's tone. 1 changes nothing.
+    inline constexpr float kGrassAlbedoScale = 0.65f;
+    float grassAlbedoScale();
+    /// makeGroundcoverContext's context with the grass albedo scale applied through a Pipeline::Override materialData hook.
+    MWAnim::Context makeNeutralGrassContext(const MWAnim::Context& base);
+
     /// The tufts of one grid square as groundcover instances (task 0153): one list per model path, in the pack's order,
     /// each with the tuft's world position, its yaw as the Euler rotation about Z and its scale. Tufts naming a model
     /// the cell does not list, or with a position that is not finite, are dropped. Pure.

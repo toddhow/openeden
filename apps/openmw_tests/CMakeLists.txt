@@ -81,6 +81,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testgroundcoverinstances.cpp
     mwrender/testgroundcoverchunks.cpp
     mwrender/testneutralgrass.cpp
+    mwrender/testneutralgrasstint.cpp
+    mwrender/testskyrimmodeloverride.cpp
     mwrender/testswitches.cpp
     mwrender/testextentsync.cpp
     mwrender/testmapdepthrange.cpp

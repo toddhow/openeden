@@ -447,6 +447,12 @@ namespace game_skyrimse
     bool SkyrimTerrainIndex::grassForCell(
         sdk::WorldId world, std::int32_t x, std::int32_t y, sdk::GrassCell& out, std::string& error) const
     {
+        return grassForCell(world, x, y, out, error, GrassPlacementOptions());
+    }
+
+    bool SkyrimTerrainIndex::grassForCell(sdk::WorldId world, std::int32_t x, std::int32_t y, sdk::GrassCell& out,
+        std::string& error, const GrassPlacementOptions& options) const
+    {
         out = sdk::GrassCell();
         if (mGrassTables.mKinds.empty() || mGrassTables.mGrassOfTexture.empty())
             return mWorlds.find(world) != mWorlds.end();
@@ -480,7 +486,7 @@ namespace game_skyrimse
         sdk::CellWater water;
         if (!cellWater(world, x, y, water))
             water = sdk::CellWater();
-        placeGrass(cell, WorldConstants::kCellSizeUnits, mGrassTables, water, GrassPlacementOptions(), out);
+        placeGrass(cell, WorldConstants::kCellSizeUnits, mGrassTables, water, options, out);
         return true;
     }
 }
