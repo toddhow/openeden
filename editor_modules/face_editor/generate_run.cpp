@@ -17,7 +17,9 @@ namespace face_editor
 #ifdef OPENEDEN_FACE_GENERATOR
         return ortRuntimeAvailable(why);
 #else
-        why = "Generating curves needs the ONNX runtime, which is not part of this build (OPENEDEN_BUILD_FACE_GENERATOR).";
+        why
+            = "Generating curves needs the ONNX runtime, which is not part of this build "
+              "(OPENEDEN_BUILD_FACE_GENERATOR).";
         return false;
 #endif
     }
@@ -39,8 +41,8 @@ namespace face_editor
         }
     }
 
-    bool runGeneration(const GenerateRequest& request, const A2FProgress& progress, GenerateResult& result,
-        std::string& error)
+    bool runGeneration(
+        const GenerateRequest& request, const A2FProgress& progress, GenerateResult& result, std::string& error)
     {
         const auto started = Clock::now();
         result = GenerateResult{};
@@ -98,10 +100,9 @@ namespace face_editor
                 [&](double f) { return !progress || progress(0.1 * f, "checking the model files"); });
             if (result.mVerified.mState != VariantState::Verified)
             {
-                error = result.mVerified.mState == VariantState::Present
-                    ? "cancelled"
-                    : "the model " + request.mVariantId + " cannot be used: " + stateText(result.mVerified.mState) + " "
-                        + result.mVerified.mDetail;
+                error = result.mVerified.mState == VariantState::Present ? "cancelled"
+                                                                         : "the model " + request.mVariantId
+                        + " cannot be used: " + stateText(result.mVerified.mState) + " " + result.mVerified.mDetail;
                 return false;
             }
         }
@@ -129,8 +130,8 @@ namespace face_editor
 
         if (!step(0.2, "resampling the audio"))
             return false;
-        std::vector<float> audio16 = resampleMono(request.mAudio, request.mAudioRate,
-            static_cast<std::uint32_t>(A2FDims::sSampleRate), error);
+        std::vector<float> audio16
+            = resampleMono(request.mAudio, request.mAudioRate, static_cast<std::uint32_t>(A2FDims::sSampleRate), error);
         if (audio16.empty())
         {
             if (error.empty())
@@ -145,9 +146,10 @@ namespace face_editor
             result.mRestSubtracted = true;
         }
         const auto computeStart = Clock::now();
-        const bool ok = generateWeights(model, *backend, audio16, options,
-            [&](double f, std::string_view text) { return !progress || progress(0.2 + 0.8 * f, text); }, result.mWeights,
-            error);
+        const bool ok = generateWeights(
+            model, *backend, audio16, options,
+            [&](double f, std::string_view text) { return !progress || progress(0.2 + 0.8 * f, text); },
+            result.mWeights, error);
         result.mComputeSeconds = since(computeStart);
         result.mTotalSeconds = since(started);
         return ok;

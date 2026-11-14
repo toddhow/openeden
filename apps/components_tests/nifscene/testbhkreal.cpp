@@ -1,12 +1,13 @@
-// Task 0144 stage a: the gated real-data survey of the bhk collision blocks (docs/research/0144-havok-collision-provenance.md).
-// Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's Data folder it reads every .nif of the five
-// masters' BSAs and prints AGGREGATE numbers only (lines starting BHK-SURVEY): shape tree signatures, filter layers,
-// motion types, and the VERTEX CORRESPONDENCE check that settles the format questions: for every file with bhk data
-// and drawn geometry, the collision vertices are decoded under each candidate reading (quaternion order of chunk
-// transforms and bodies, the 4x4 layout of transform shapes, whether a plain rigid body places its shape, the unit
-// scale) and the share that land within half a game unit of a visual vertex is counted; the reading that scores far
-// above the others is the fact. No path or name is printed and nothing is written. OPENEDEN_BHK_SURVEY_MAX stops after
-// that many files; OPENEDEN_BHK_SURVEY_STRIDE (default 1) checks every n-th file with collision for the correspondence.
+// Task 0144 stage a: the gated real-data survey of the bhk collision blocks
+// (docs/research/0144-havok-collision-provenance.md). Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's
+// Data folder it reads every .nif of the five masters' BSAs and prints AGGREGATE numbers only (lines starting
+// BHK-SURVEY): shape tree signatures, filter layers, motion types, and the VERTEX CORRESPONDENCE check that settles the
+// format questions: for every file with bhk data and drawn geometry, the collision vertices are decoded under each
+// candidate reading (quaternion order of chunk transforms and bodies, the 4x4 layout of transform shapes, whether a
+// plain rigid body places its shape, the unit scale) and the share that land within half a game unit of a visual vertex
+// is counted; the reading that scores far above the others is the fact. No path or name is printed and nothing is
+// written. OPENEDEN_BHK_SURVEY_MAX stops after that many files; OPENEDEN_BHK_SURVEY_STRIDE (default 1) checks every
+// n-th file with collision for the correspondence.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/nif/physics.hpp>
@@ -39,7 +40,8 @@ namespace
 
     std::string lower(std::string s)
     {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::transform(
+            s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return s;
     }
 
@@ -155,9 +157,10 @@ namespace
         double mScale;
         std::string name() const
         {
-            return std::string("chunkquat=") + (mChunkXyzw ? "xyzw" : "wxyz") + " bodyquat=" + (mBodyXyzw ? "xyzw" : "wxyz")
-                + " matrix=" + (mMatrixLayout == 0 ? "rowvec-last-row" : "colvec-last-column") + " plainbody="
-                + (mPlainBodyPlaces ? "places" : "ignored") + " scale=" + std::to_string(mScale);
+            return std::string("chunkquat=") + (mChunkXyzw ? "xyzw" : "wxyz")
+                + " bodyquat=" + (mBodyXyzw ? "xyzw" : "wxyz")
+                + " matrix=" + (mMatrixLayout == 0 ? "rowvec-last-row" : "colvec-last-column")
+                + " plainbody=" + (mPlainBodyPlaces ? "places" : "ignored") + " scale=" + std::to_string(mScale);
         }
     };
 
@@ -264,8 +267,9 @@ namespace
                     std::array<std::uint32_t, 3> v{ shape.mIndices[t], shape.mIndices[t + 1], shape.mIndices[t + 2] };
                     std::array<std::uint32_t, 3> sorted = v;
                     std::sort(sorted.begin(), sorted.end());
-                    const int parity = (v == sorted || v == std::array<std::uint32_t, 3>{ sorted[1], sorted[2], sorted[0] }
-                                           || v == std::array<std::uint32_t, 3>{ sorted[2], sorted[0], sorted[1] })
+                    const int parity
+                        = (v == sorted || v == std::array<std::uint32_t, 3>{ sorted[1], sorted[2], sorted[0] }
+                              || v == std::array<std::uint32_t, 3>{ sorted[2], sorted[0], sorted[1] })
                         ? 0
                         : 1;
                     mTriangles[{ id, sorted[0], sorted[1], sorted[2] }] = parity;
@@ -336,7 +340,8 @@ namespace
         options.mReadHavok = true;
 
         std::uint64_t files = 0, failed = 0, withColl = 0, bodies = 0, bodiesT = 0, checked = 0;
-        std::map<std::string, std::uint64_t> sigBodies, sigFiles, motion, quality, response, layer, kinds, unsupportedTypes;
+        std::map<std::string, std::uint64_t> sigBodies, sigFiles, motion, quality, response, layer, kinds,
+            unsupportedTypes;
         std::map<std::string, std::uint64_t> flagsByLayer, layerClass;
         std::uint64_t layerMismatch = 0, noShape = 0, overCap = 0, droppedTris = 0, notFinite = 0, otherObjects = 0;
         std::uint64_t multiBody = 0, nonRootBody = 0, plainBodyMoved = 0, plainBodyRotated = 0, tBodyMoved = 0;
@@ -347,12 +352,15 @@ namespace
         std::map<std::string, std::uint64_t> xformElement15;
         std::uint64_t xformShapes = 0, xformLastRow = 0, xformLastColumn = 0, xformCorner1 = 0, xformBothZero = 0;
         std::map<std::string, Score> scores;
-        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> inBounds; // reading + body kind -> points, inside the drawn bounds plus 10 units
-        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> byCategory; // body signature -> points, matched (the best reading)
+        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>
+            inBounds; // reading + body kind -> points, inside the drawn bounds plus 10 units
+        std::map<std::string, std::pair<std::uint64_t, std::uint64_t>>
+            byCategory; // body signature -> points, matched (the best reading)
         const char* probeEnv = std::getenv("OPENEDEN_BHK_PROBE");
         const std::string probe = probeEnv ? lower(probeEnv) : std::string();
         // Compressed mesh decoding checks against the data's own bounds.
-        std::uint64_t cmsData = 0, cmsChunks = 0, cmsWithTransform = 0, cmsIdxBad = 0, cmsScaleNot1 = 0, cmsRadiusSet = 0;
+        std::uint64_t cmsData = 0, cmsChunks = 0, cmsWithTransform = 0, cmsIdxBad = 0, cmsScaleNot1 = 0,
+                      cmsRadiusSet = 0;
         std::map<std::string, std::uint64_t> variantInside, variantTotal, transformIdx;
 
         std::vector<Reading> readings;
@@ -404,9 +412,11 @@ namespace
                     if (!probe.empty() && name.find(probe) != std::string::npos)
                     {
                         for (const Body& b : coll.mBodies)
-                            line("probe body layer " + std::to_string(b.mLayer) + " flags " + std::to_string(b.mFilterFlags) + " motion "
-                                + std::to_string(b.mMotionType) + " response " + std::to_string(b.mResponseType) + " T " + std::to_string(b.mHasTransform)
-                                + " signature " + signature(coll, b.mShape) + " classified " + (bodyBlocksActors(b) ? "solid" : "not solid"));
+                            line("probe body layer " + std::to_string(b.mLayer) + " flags "
+                                + std::to_string(b.mFilterFlags) + " motion " + std::to_string(b.mMotionType)
+                                + " response " + std::to_string(b.mResponseType) + " T "
+                                + std::to_string(b.mHasTransform) + " signature " + signature(coll, b.mShape)
+                                + " classified " + (bodyBlocksActors(b) ? "solid" : "not solid"));
                     }
                     otherObjects += coll.mReport.mObjectsOfOtherKinds;
                     droppedTris += coll.mReport.mTrianglesDropped;
@@ -426,13 +436,18 @@ namespace
                         ++quality[std::to_string(b.mQuality)];
                         ++response[std::to_string(b.mResponseType)];
                         ++layer[std::to_string(b.mLayer)];
-                        ++flagsByLayer["layer " + std::to_string(b.mLayer) + " flags " + std::to_string(b.mFilterFlags)];
-                        ++layerClass["layer " + std::to_string(b.mLayer) + (bodyBlocksActors(b) ? " solid" : " not solid")];
+                        ++flagsByLayer["layer " + std::to_string(b.mLayer) + " flags "
+                            + std::to_string(b.mFilterFlags)];
+                        ++layerClass["layer " + std::to_string(b.mLayer)
+                            + (bodyBlocksActors(b) ? " solid" : " not solid")];
                         anySolid = anySolid || bodyBlocksActors(b);
                         if (b.mLayer != b.mWorldObjectLayer)
                             ++layerMismatch;
-                        const bool moved = std::abs(b.mTranslation[0]) + std::abs(b.mTranslation[1]) + std::abs(b.mTranslation[2]) > 1e-6f;
-                        const bool rotated = std::abs(b.mRotation[0]) + std::abs(b.mRotation[1]) + std::abs(b.mRotation[2]) > 1e-6f;
+                        const bool moved
+                            = std::abs(b.mTranslation[0]) + std::abs(b.mTranslation[1]) + std::abs(b.mTranslation[2])
+                            > 1e-6f;
+                        const bool rotated
+                            = std::abs(b.mRotation[0]) + std::abs(b.mRotation[1]) + std::abs(b.mRotation[2]) > 1e-6f;
                         if (!b.mHasTransform)
                         {
                             plainBodyMoved += moved;
@@ -459,8 +474,10 @@ namespace
                         if (s.mKind == ShapeKind::Transform)
                         {
                             ++xformShapes;
-                            const bool lastRow = s.mTransform[12] != 0.f || s.mTransform[13] != 0.f || s.mTransform[14] != 0.f;
-                            const bool lastCol = s.mTransform[3] != 0.f || s.mTransform[7] != 0.f || s.mTransform[11] != 0.f;
+                            const bool lastRow
+                                = s.mTransform[12] != 0.f || s.mTransform[13] != 0.f || s.mTransform[14] != 0.f;
+                            const bool lastCol
+                                = s.mTransform[3] != 0.f || s.mTransform[7] != 0.f || s.mTransform[11] != 0.f;
                             xformLastRow += lastRow;
                             xformLastColumn += lastCol;
                             xformBothZero += !lastRow && !lastCol;
@@ -468,7 +485,8 @@ namespace
                             bool identity = true;
                             for (int r = 0; r < 3; ++r)
                                 for (int cc = 0; cc < 3; ++cc)
-                                    identity = identity && std::abs(s.mTransform[r * 4 + cc] - (r == cc ? 1.f : 0.f)) < 1e-4f;
+                                    identity = identity
+                                        && std::abs(s.mTransform[r * 4 + cc] - (r == cc ? 1.f : 0.f)) < 1e-4f;
                             xformIdentityRotation += identity;
                             xformElement15[std::to_string(s.mTransform[15])]++;
                         }
@@ -527,12 +545,16 @@ namespace
                                         gather(variant, b.mShape, bodyPose, reading.mMatrixLayout, points, triangles);
                                         Pose world = nodeWorld(scene, n->second);
                                         auto toModel = [&](const V3& p) {
-                                            return applyPose(world, V3{ p[0] * reading.mScale, p[1] * reading.mScale, p[2] * reading.mScale });
+                                            return applyPose(world,
+                                                V3{ p[0] * reading.mScale, p[1] * reading.mScale,
+                                                    p[2] * reading.mScale });
                                         };
                                         const std::size_t step = std::max<std::size_t>(1, points.size() / 3000);
-                                        const bool best = reading.mChunkXyzw && reading.mBodyXyzw && reading.mMatrixLayout == 0
-                                            && !reading.mPlainBodyPlaces && reading.mScale == 69.99125;
-                                        const std::string category = std::string(b.mHasTransform ? "T:" : "") + signature(variant, b.mShape).substr(0, 60);
+                                        const bool best = reading.mChunkXyzw && reading.mBodyXyzw
+                                            && reading.mMatrixLayout == 0 && !reading.mPlainBodyPlaces
+                                            && reading.mScale == 69.99125;
+                                        const std::string category = std::string(b.mHasTransform ? "T:" : "")
+                                            + signature(variant, b.mShape).substr(0, 60);
                                         for (std::size_t i = 0; i < points.size(); i += step)
                                         {
                                             ++filePoints;
@@ -543,7 +565,12 @@ namespace
                                                 for (int axis = 0; axis < 3; ++axis)
                                                     in = in && modelPoint[axis] >= flat.mBoundsMin[axis] - 10.0
                                                         && modelPoint[axis] <= flat.mBoundsMax[axis] + 10.0;
-                                                auto& counter = inBounds[reading.name() + (b.mHasTransform ? " | T body" : " | plain body") + (signature(variant, b.mShape).find("Transform") != std::string::npos ? " | with transform shapes" : "")];
+                                                auto& counter = inBounds[reading.name()
+                                                    + (b.mHasTransform ? " | T body" : " | plain body")
+                                                    + (signature(variant, b.mShape).find("Transform")
+                                                                != std::string::npos
+                                                            ? " | with transform shapes"
+                                                            : "")];
                                                 ++counter.first;
                                                 counter.second += in;
                                             }
@@ -570,7 +597,8 @@ namespace
                                                         {
                                                             if (done || a.mShape != bb.mShape || a.mShape != c.mShape)
                                                                 continue;
-                                                            std::array<std::uint32_t, 3> v{ a.mIndex, bb.mIndex, c.mIndex };
+                                                            std::array<std::uint32_t, 3> v{ a.mIndex, bb.mIndex,
+                                                                c.mIndex };
                                                             std::array<std::uint32_t, 3> sorted = v;
                                                             std::sort(sorted.begin(), sorted.end());
                                                             const auto found = visual.mTriangles.find(
@@ -579,12 +607,17 @@ namespace
                                                                 continue;
                                                             const int parity
                                                                 = (v == sorted
-                                                                      || v == std::array<std::uint32_t, 3>{ sorted[1], sorted[2], sorted[0] }
-                                                                      || v == std::array<std::uint32_t, 3>{ sorted[2], sorted[0], sorted[1] })
+                                                                      || v
+                                                                          == std::array<std::uint32_t, 3>{ sorted[1],
+                                                                              sorted[2], sorted[0] }
+                                                                      || v
+                                                                          == std::array<std::uint32_t, 3>{ sorted[2],
+                                                                              sorted[0], sorted[1] })
                                                                 ? 0
                                                                 : 1;
                                                             ++score.mTriangles;
-                                                            (parity == found->second ? score.mSameWinding : score.mReversedWinding)++;
+                                                            (parity == found->second ? score.mSameWinding
+                                                                                     : score.mReversedWinding)++;
                                                             done = true;
                                                         }
                                             }
@@ -618,9 +651,11 @@ namespace
                         for (const Nif::bhkCMSChunk& stored : cms->mChunks)
                         {
                             ++cmsChunks;
-                            ++transformIdx[stored.mTransformIndex < cms->mChunkTransforms.size() ? "valid index" : "no/invalid index"];
+                            ++transformIdx[stored.mTransformIndex < cms->mChunkTransforms.size() ? "valid index"
+                                                                                                 : "no/invalid index"];
                             Chunk chunk;
-                            chunk.mTranslation = { stored.mTranslation.x, stored.mTranslation.y, stored.mTranslation.z, 0.f };
+                            chunk.mTranslation
+                                = { stored.mTranslation.x, stored.mTranslation.y, stored.mTranslation.z, 0.f };
                             chunk.mVertices = stored.mVertices;
                             chunk.mIndices = stored.mIndices;
                             chunk.mStrips = stored.mStrips;
@@ -632,8 +667,9 @@ namespace
                             const float eps = 0.05f;
                             bool inside = true;
                             for (const Vec3& p : v)
-                                if (p[0] < cms->mAabbMin.x - eps || p[1] < cms->mAabbMin.y - eps || p[2] < cms->mAabbMin.z - eps
-                                    || p[0] > cms->mAabbMax.x + eps || p[1] > cms->mAabbMax.y + eps || p[2] > cms->mAabbMax.z + eps)
+                                if (p[0] < cms->mAabbMin.x - eps || p[1] < cms->mAabbMin.y - eps
+                                    || p[2] < cms->mAabbMin.z - eps || p[0] > cms->mAabbMax.x + eps
+                                    || p[1] > cms->mAabbMax.y + eps || p[2] > cms->mAabbMax.z + eps)
                                     inside = false;
                             ++variantTotal["step 0.001 untransformed"];
                             variantInside["step 0.001 untransformed"] += inside;
@@ -649,17 +685,18 @@ namespace
 
         line("files " + std::to_string(files) + " failed " + std::to_string(failed) + " with collision objects "
             + std::to_string(withColl) + " bodies " + std::to_string(bodies) + " rigidBodyT " + std::to_string(bodiesT)
-            + " multi-body files " + std::to_string(multiBody) + " other collision objects " + std::to_string(otherObjects)
-            + " bodies without shape " + std::to_string(noShape) + " over cap files " + std::to_string(overCap)
-            + " triangles dropped " + std::to_string(droppedTris) + " shapes not finite " + std::to_string(notFinite)
-            + " body/worldobject layer mismatch " + std::to_string(layerMismatch));
+            + " multi-body files " + std::to_string(multiBody) + " other collision objects "
+            + std::to_string(otherObjects) + " bodies without shape " + std::to_string(noShape) + " over cap files "
+            + std::to_string(overCap) + " triangles dropped " + std::to_string(droppedTris) + " shapes not finite "
+            + std::to_string(notFinite) + " body/worldobject layer mismatch " + std::to_string(layerMismatch));
         line("bodies on a node whose world pose is not the identity " + std::to_string(nonRootBody)
             + "; plain (non-T) bodies with a translation " + std::to_string(plainBodyMoved) + " and a rotation "
             + std::to_string(plainBodyRotated) + "; T bodies with a translation " + std::to_string(tBodyMoved));
-        line("transform shapes " + std::to_string(xformShapes) + ": last-row translation nonzero " + std::to_string(xformLastRow)
-            + ", last-column translation nonzero " + std::to_string(xformLastColumn) + ", both zero "
-            + std::to_string(xformBothZero) + ", element 15 equals 1 " + std::to_string(xformCorner1));
-        line("transform shapes with an identity 3x3 " + std::to_string(xformIdentityRotation) + " of " + std::to_string(xformShapes));
+        line("transform shapes " + std::to_string(xformShapes) + ": last-row translation nonzero "
+            + std::to_string(xformLastRow) + ", last-column translation nonzero " + std::to_string(xformLastColumn)
+            + ", both zero " + std::to_string(xformBothZero) + ", element 15 equals 1 " + std::to_string(xformCorner1));
+        line("transform shapes with an identity 3x3 " + std::to_string(xformIdentityRotation) + " of "
+            + std::to_string(xformShapes));
         for (const auto& [k, n] : xformElement15)
             line("transform element 15 = " + k + ": " + std::to_string(n));
         auto dump = [](const std::string& label, const std::map<std::string, std::uint64_t>& m) {
@@ -678,22 +715,27 @@ namespace
         dump("unsupported block", unsupportedTypes);
         dump("model with no collidable visual triangles:", visualEmptyModels);
         for (const auto& [k, v] : byCategory)
-            line("best reading, points by body signature [" + k + "]: matched " + std::to_string(v.second) + " of " + std::to_string(v.first));
+            line("best reading, points by body signature [" + k + "]: matched " + std::to_string(v.second) + " of "
+                + std::to_string(v.first));
         for (const auto& [k, v] : inBounds)
             line("inside drawn bounds [" + k + "]: " + std::to_string(v.second) + " of " + std::to_string(v.first));
         line("correspondence checked on " + std::to_string(checked) + " files");
         for (const auto& [k, s] : scores)
-            line("reading [" + k + "]: points matched " + std::to_string(s.mMatched) + " of " + std::to_string(s.mPoints)
-                + ", files with 90 percent matched " + std::to_string(s.mGoodFiles) + " of " + std::to_string(s.mFiles)
-                + (s.mTriangles ? ", triangles matched to a visual triangle " + std::to_string(s.mTriangles) + " same winding "
-                          + std::to_string(s.mSameWinding) + " reversed " + std::to_string(s.mReversedWinding)
-                                : std::string()));
-        line("compressed mesh data " + std::to_string(cmsData) + " chunks " + std::to_string(cmsChunks) + " with transform "
-            + std::to_string(cmsWithTransform) + " bad indices " + std::to_string(cmsIdxBad) + " shape scale not 1 "
-            + std::to_string(cmsScaleNot1) + " shape radius set " + std::to_string(cmsRadiusSet));
+            line("reading [" + k + "]: points matched " + std::to_string(s.mMatched) + " of "
+                + std::to_string(s.mPoints) + ", files with 90 percent matched " + std::to_string(s.mGoodFiles) + " of "
+                + std::to_string(s.mFiles)
+                + (s.mTriangles
+                        ? ", triangles matched to a visual triangle " + std::to_string(s.mTriangles) + " same winding "
+                            + std::to_string(s.mSameWinding) + " reversed " + std::to_string(s.mReversedWinding)
+                        : std::string()));
+        line("compressed mesh data " + std::to_string(cmsData) + " chunks " + std::to_string(cmsChunks)
+            + " with transform " + std::to_string(cmsWithTransform) + " bad indices " + std::to_string(cmsIdxBad)
+            + " shape scale not 1 " + std::to_string(cmsScaleNot1) + " shape radius set "
+            + std::to_string(cmsRadiusSet));
         dump("chunk transform index", transformIdx);
         for (const auto& [k, n] : variantTotal)
-            line("chunk inside data bounds [" + k + "]: " + std::to_string(variantInside[k]) + " of " + std::to_string(n));
+            line("chunk inside data bounds [" + k + "]: " + std::to_string(variantInside[k]) + " of "
+                + std::to_string(n));
         SUCCEED();
     }
 }

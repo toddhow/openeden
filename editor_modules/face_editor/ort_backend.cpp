@@ -52,7 +52,8 @@ namespace face_editor
             return false;
         }
         // By full path; the DLL's own dependencies (d3d12, dxgi) come from System32.
-        HMODULE h = LoadLibraryExW(dll.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+        HMODULE h
+            = LoadLibraryExW(dll.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (h == nullptr)
         {
             why = "DirectML.dll could not be loaded from " + dll.generic_string() + " (error "
@@ -187,10 +188,10 @@ namespace face_editor
     namespace
     {
         template <std::size_t N>
-        Ort::Value tensor(const Ort::MemoryInfo& memory, const float* data, std::size_t count, const std::array<std::int64_t, N>& shape)
+        Ort::Value tensor(const Ort::MemoryInfo& memory, const float* data, std::size_t count,
+            const std::array<std::int64_t, N>& shape)
         {
-            return Ort::Value::CreateTensor<float>(
-                memory, const_cast<float*>(data), count, shape.data(), shape.size());
+            return Ort::Value::CreateTensor<float>(memory, const_cast<float*>(data), count, shape.data(), shape.size());
         }
     }
 
@@ -200,14 +201,16 @@ namespace face_editor
         try
         {
             const Ort::MemoryInfo& mem = mImpl->mMemory;
-            std::array<Ort::Value, 5> inputs{ tensor(mem, window, A2FDims::sV3Window, std::array<std::int64_t, 2>{ 1, 16000 }),
+            std::array<Ort::Value, 5> inputs{ tensor(mem, window, A2FDims::sV3Window,
+                                                  std::array<std::int64_t, 2>{ 1, 16000 }),
                 tensor(mem, identity, 3, std::array<std::int64_t, 2>{ 1, 3 }),
                 tensor(mem, emotion, A2FDims::sV3EmotionFloats, std::array<std::int64_t, 3>{ 1, 30, 10 }),
                 tensor(mem, latentsIn, A2FDims::sV3LatentFloats, std::array<std::int64_t, 4>{ 2, 2, 1, 256 }),
                 tensor(mem, noise, A2FDims::sV3NoiseFloats, std::array<std::int64_t, 4>{ 1, 3, 60, 88831 }) };
             const char* inNames[5] = { "window", "identity", "emotion", "input_latents", "noise" };
             const char* outNames[2] = { mImpl->mOutput0.c_str(), mImpl->mOutput1.c_str() };
-            auto outputs = mImpl->mSession->Run(Ort::RunOptions{ nullptr }, inNames, inputs.data(), inputs.size(), outNames, 2);
+            auto outputs
+                = mImpl->mSession->Run(Ort::RunOptions{ nullptr }, inNames, inputs.data(), inputs.size(), outNames, 2);
             const std::size_t predCount = outputs[0].GetTensorTypeAndShapeInfo().GetElementCount();
             const std::size_t latCount = outputs[1].GetTensorTypeAndShapeInfo().GetElementCount();
             if (predCount != A2FDims::sV3Frames * A2FDims::sV3Outputs || latCount != A2FDims::sV3LatentFloats)
@@ -227,8 +230,8 @@ namespace face_editor
         }
     }
 
-    bool OrtBackend::runV23(const float* windows, std::size_t count, const float* emotion, float* results,
-        std::string& error)
+    bool OrtBackend::runV23(
+        const float* windows, std::size_t count, const float* emotion, float* results, std::string& error)
     {
         try
         {
@@ -243,7 +246,8 @@ namespace face_editor
                 tensor(mem, emotions.data(), emotions.size(), std::array<std::int64_t, 3>{ n, 1, 26 }) };
             const char* inNames[2] = { "input", "emotion" };
             const char* outNames[1] = { mImpl->mOutput0.c_str() };
-            auto outputs = mImpl->mSession->Run(Ort::RunOptions{ nullptr }, inNames, inputs.data(), inputs.size(), outNames, 1);
+            auto outputs
+                = mImpl->mSession->Run(Ort::RunOptions{ nullptr }, inNames, inputs.data(), inputs.size(), outNames, 1);
             const std::size_t got = outputs[0].GetTensorTypeAndShapeInfo().GetElementCount();
             if (got != count * A2FDims::sV23Outputs)
             {

@@ -44,15 +44,15 @@
 // contributes, so plain ground behaves as in stage W-d. A pixel that fails stays with the old noise puddles (`covered`
 // is false, `loaded` stays true). A buffer without tops cannot test and covers the cell.
 //
-// The bake cannot see the micro relief of paving (the collision meshes of Morrowind's paved statics are flat: across the
-// whole world not one pond of 16 texels, and 14 of 4, lies on a static surface), so a flat static surface is "dry" in the
-// data only because the data cannot say otherwise. With `optionKeepStaticNoise` an OBJECT pixel in a column that is mostly
-// static (the static taps weigh at least half) and has no capacity keeps the noise puddles (`covered` false): the map then
-// only takes over where it found a pit.
+// The bake cannot see the micro relief of paving (the collision meshes of Morrowind's paved statics are flat: across
+// the whole world not one pond of 16 texels, and 14 of 4, lies on a static surface), so a flat static surface is "dry"
+// in the data only because the data cannot say otherwise. With `optionKeepStaticNoise` an OBJECT pixel in a column that
+// is mostly static (the static taps weigh at least half) and has no capacity keeps the noise puddles (`covered` false):
+// the map then only takes over where it found a pit.
 //
-// Stage W-e, the topographic fallback (`optionTopographic`): a covered pixel whose four taps hold no capacity used to be
-// dry (the map found no pit there: a road, a plateau, a field). With the option it gets SMALL, SHALLOW puddles from the
-// fine shape of the ground, read from the stored heights (the `top` channel, which holds the ground height of every
+// Stage W-e, the topographic fallback (`optionTopographic`): a covered pixel whose four taps hold no capacity used to
+// be dry (the map found no pit there: a road, a plateau, a field). With the option it gets SMALL, SHALLOW puddles from
+// the fine shape of the ground, read from the stored heights (the `top` channel, which holds the ground height of every
 // texel): the dip of a texel is the mean of its four neighbours' heights minus its own (positive in a hollow), blended
 // bilinearly like the capacity, and `dipFactor = smoothstep(topoDipFrom, topoDipTo, dip)` says how hollow the ground is
 // here. A noise of a finer cell than the old puddles (`topoNoiseCell`) plus `topoDipBias` times dipFactor is compared
@@ -127,8 +127,8 @@ namespace Render::PuddleMap
     inline constexpr float topoNoiseCell = 64.f;
     // The largest share of flat ground that is puddle (the old puddles reach 0.4) at strength 1.
     inline constexpr float topoMaxCoverage = 0.3f;
-    // The dip, in world units, below which the ground counts as flat and from which it counts as fully hollow. The land's
-    // heights are steps of 8 units, so an ordinary road shows dips of 0 to a few units.
+    // The dip, in world units, below which the ground counts as flat and from which it counts as fully hollow. The
+    // land's heights are steps of 8 units, so an ordinary road shows dips of 0 to a few units.
     inline constexpr float topoDipFrom = 0.4f;
     inline constexpr float topoDipTo = 4.f;
     // What a fully hollow place adds to the noise.
@@ -266,14 +266,15 @@ namespace Render::PuddleMap
             return false;
         const std::uint32_t cells = data[wordWindowSide] * data[wordWindowSide];
         const std::uint32_t local = static_cast<std::uint32_t>((gy - cy * side) * side + (gx - cx * side));
-        const std::uint32_t word
-            = data[topsBase + cells + static_cast<std::uint32_t>(slot) * static_cast<std::uint32_t>(side * side) + local];
+        const std::uint32_t word = data[topsBase + cells
+            + static_cast<std::uint32_t>(slot) * static_cast<std::uint32_t>(side * side) + local];
         z = Puddle::dequantiseHeight(static_cast<std::uint16_t>(word & 0xFFFFu), bitsFloat(data[topsBase + slot]));
         return true;
     }
 
-    // The height of texel (gx, gy) for the dip; `fallback` when the buffer has no tops or the texel's cell is not loaded
-    // (a texel with no data counts as level with its neighbour, so the edge of the window does not make hollows).
+    // The height of texel (gx, gy) for the dip; `fallback` when the buffer has no tops or the texel's cell is not
+    // loaded (a texel with no data counts as level with its neighbour, so the edge of the window does not make
+    // hollows).
     inline float heightOrElse(const std::uint32_t* data, std::int32_t gx, std::int32_t gy, float fallback)
     {
         float z = 0.f;
@@ -282,7 +283,8 @@ namespace Render::PuddleMap
 
     // The dip of the ground at world texel coordinates (px, py) (world position over the spacing), in world units: the
     // four texels round the point each have the mean of their four neighbours' heights minus their own, and the result
-    // is their bilinear blend. Positive in a hollow, negative on a mound, 0 when the buffer has no tops. 12 height reads.
+    // is their bilinear blend. Positive in a hollow, negative on a mound, 0 when the buffer has no tops. 12 height
+    // reads.
     inline float groundDip(const std::uint32_t* data, float px, float py)
     {
         if (data[wordTopsBase] == 0)
@@ -360,7 +362,8 @@ namespace Render::PuddleMap
     }
 
     // The share of the pixel that is puddle in the topographic fallback (see the header comment). `noiseValue` is the
-    // finer noise at the pixel, `normalZ` the surface normal's Z, `strength` the setting (a scale on the largest coverage).
+    // finer noise at the pixel, `normalZ` the surface normal's Z, `strength` the setting (a scale on the largest
+    // coverage).
     inline float topoCoverage(float ramp, float dipFactor, float noiseValue, float normalZ, float strength)
     {
         const float fill = topoMaxCoverage * std::clamp(strength, 0.f, 2.f) * std::clamp(ramp, 0.f, 1.f);
@@ -368,8 +371,7 @@ namespace Render::PuddleMap
             return 0.f;
         const float threshold = 1.f - fill;
         const float n = noiseValue + topoDipBias * dipFactor;
-        return Render::Wetness::flatness(normalZ)
-            * smoothstep(threshold - topoEdge, threshold + topoEdge, n);
+        return Render::Wetness::flatness(normalZ) * smoothstep(threshold - topoEdge, threshold + topoEdge, n);
     }
 
     // The finer noise of the fallback at a world position.
@@ -380,8 +382,7 @@ namespace Render::PuddleMap
 
     // The map at world (x, y, z) for the wetness `wet` (0 dry to 1 soaked, already times the strength and the cover),
     // for a surface whose normal has the Z component `normalZ`.
-    inline Shade shadeAt(
-        const std::uint32_t* data, float x, float y, float z, float wet, float normalZ, ShadeMode mode)
+    inline Shade shadeAt(const std::uint32_t* data, float x, float y, float z, float wet, float normalZ, ShadeMode mode)
     {
         Shade s;
         if (data[wordEnabled] == 0)
@@ -451,7 +452,8 @@ namespace Render::PuddleMap
         }
         else if (mode == ShadeMode::Object && !(normalZ >= objectMinNormalZ))
             s.covered = false;
-        // The bake cannot see the micro relief of paving: a flat static column keeps the noise puddles (see the header).
+        // The bake cannot see the micro relief of paving: a flat static column keeps the noise puddles (see the
+        // header).
         if (s.covered && mode == ShadeMode::Object && (data[wordOptions] & optionKeepStaticNoise) != 0
             && staticWeight >= 0.5f && !(capacity > 0.f))
             s.covered = false;

@@ -133,7 +133,8 @@ TEST(FaceModule, registersItsWorkspacePanelsAssetTypeCommandsAndSetting)
     EXPECT_EQ(f.mRegistry.panels().size(), 2u);
     ASSERT_EQ(f.mRegistry.assetTypes().size(), 1u);
     EXPECT_EQ(f.mRegistry.assetTypes()[0].mDesc.fileExtension, ".facecurves.json");
-    for (const char* id : { "face.newCurves", "face.setAudio", "face.generate", "face.verifyModels", "face.installDirectMl" })
+    for (const char* id :
+        { "face.newCurves", "face.setAudio", "face.generate", "face.verifyModels", "face.installDirectMl" })
         EXPECT_TRUE(hasCommand(f.mRegistry, id)) << id;
     // Every id carries the module's prefix.
     for (const auto& c : f.mRegistry.commands())
@@ -260,7 +261,8 @@ namespace
     {
         explicit FakePackage(const fs::path& dir, bool goodHash = true, const char* entry = "bin/x64-win/DirectML.dll")
         {
-            const std::string zip = ziphelper::makeZip({ { "LICENSE.txt", "licence", false }, { entry, "MZ-fake-directml", true } });
+            const std::string zip
+                = ziphelper::makeZip({ { "LICENSE.txt", "licence", false }, { entry, "MZ-fake-directml", true } });
             const fs::path file = dir / "package.nupkg";
             ziphelper::writeFile(file, zip);
             mPackage.mVersion = "9.9.9";

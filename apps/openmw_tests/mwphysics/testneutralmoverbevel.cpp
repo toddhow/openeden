@@ -1,5 +1,5 @@
-// Task 0135 stage S4: a floor seam or bevel under the capsule's centre is not a steep slope (found in game: the actors of
-// the Bannered Mare stopped dead on a 54 degree edge of a floor mesh that is flat on either side).
+// Task 0135 stage S4: a floor seam or bevel under the capsule's centre is not a steep slope (found in game: the actors
+// of the Bannered Mare stopped dead on a 54 degree edge of a floor mesh that is flat on either side).
 #include "apps/openmw/mwphysics/neutralmover.hpp"
 
 #include <gtest/gtest.h>
@@ -86,8 +86,8 @@ namespace
         }
     }
 
-    // A world whose floor is at z = 0 and reports any sweep that starts in contact with it (z <= 0) as a hit at fraction 0,
-    // in every direction, as Jolt does for a capsule that rests on a mesh.
+    // A world whose floor is at z = 0 and reports any sweep that starts in contact with it (z <= 0) as a hit at
+    // fraction 0, in every direction, as Jolt does for a capsule that rests on a mesh.
     class ContactFloor final : public Sweeper
     {
     public:

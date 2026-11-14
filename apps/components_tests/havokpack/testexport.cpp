@@ -86,7 +86,8 @@ TEST(HavokExport, pose_at_writes_tracks_over_the_reference_pose)
     ASSERT_EQ(pose.size(), 3u);
     EXPECT_FLOAT_EQ(pose[0].mTranslation[0], 1.0f); // track 0
     EXPECT_NEAR(pose[1].mRotation[2], 0.7071068f, 2e-3f); // track 1 rotates the Spine
-    EXPECT_FLOAT_EQ(pose[1].mTranslation[2], 0.0f); // track 1 stores no position: the track's default, not the reference
+    EXPECT_FLOAT_EQ(
+        pose[1].mTranslation[2], 0.0f); // track 1 stores no position: the track's default, not the reference
     EXPECT_FLOAT_EQ(pose[2].mTranslation[0], 5.0f); // no track: the reference pose
 }
 

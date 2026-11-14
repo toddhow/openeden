@@ -12,8 +12,8 @@
 // height. Nothing about the water's material crosses in 0.1 (colours, noise maps, waterfalls are follow-ups).
 //
 // ABI choice: a NEW interface found by dynamic_cast on the game's registered WorldCellSource, as ActorAppearanceSource
-// is (actor_appearance.hpp): not a new virtual on the pinned WorldCellSource and not a member added to a struct a shared
-// library fills. A pack that does not implement it has no water. Plain values only.
+// is (actor_appearance.hpp): not a new virtual on the pinned WorldCellSource and not a member added to a struct a
+// shared library fills. A pack that does not implement it has no water. Plain values only.
 //
 // Version policy: DRAFT 0.1. Additive changes (a new trailing virtual with a default meaning "not supported", a new
 // trailing field a consumer only reads) raise the minor number; anything else raises the major number.
@@ -39,8 +39,8 @@ namespace openeden::sdk::game
     public:
         virtual ~CellWaterSource() = default;
 
-        /// The water of the square (x, y) of `world` (parent worlds are consulted by the source). False when the world is
-        /// unknown to the source; `out` is then left empty. Never throws.
+        /// The water of the square (x, y) of `world` (parent worlds are consulted by the source). False when the world
+        /// is unknown to the source; `out` is then left empty. Never throws.
         [[nodiscard]] virtual bool cellWater(WorldId world, std::int32_t x, std::int32_t y, CellWater& out) const = 0;
     };
 }

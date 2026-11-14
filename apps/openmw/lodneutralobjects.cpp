@@ -52,11 +52,10 @@ namespace OMW::NeutralLod
         if (std::abs(length - 1.0) > quaternionTolerance)
             return false;
         const double qx = x / length, qy = y / length, qz = z / length, qw = w / length;
-        out = { scale * (1 - 2 * (qy * qy + qz * qz)), scale * 2 * (qx * qy - qz * qw),
-            scale * 2 * (qx * qz + qy * qw), position[0], scale * 2 * (qx * qy + qz * qw),
-            scale * (1 - 2 * (qx * qx + qz * qz)), scale * 2 * (qy * qz - qx * qw), position[1],
-            scale * 2 * (qx * qz - qy * qw), scale * 2 * (qy * qz + qx * qw),
-            scale * (1 - 2 * (qx * qx + qy * qy)), position[2] };
+        out = { scale * (1 - 2 * (qy * qy + qz * qz)), scale * 2 * (qx * qy - qz * qw), scale * 2 * (qx * qz + qy * qw),
+            position[0], scale * 2 * (qx * qy + qz * qw), scale * (1 - 2 * (qx * qx + qz * qz)),
+            scale * 2 * (qy * qz - qx * qw), position[1], scale * 2 * (qx * qz - qy * qw),
+            scale * 2 * (qy * qz + qx * qw), scale * (1 - 2 * (qx * qx + qy * qy)), position[2] };
         return true;
     }
 
@@ -153,8 +152,7 @@ namespace OMW::NeutralLod
         result.mTraits.mTriangleCount = triangles;
         if (any)
         {
-            const float centre[3]
-                = { 0.5f * (low[0] + high[0]), 0.5f * (low[1] + high[1]), 0.5f * (low[2] + high[2]) };
+            const float centre[3] = { 0.5f * (low[0] + high[0]), 0.5f * (low[1] + high[1]), 0.5f * (low[2] + high[2]) };
             float radiusSquared = 0;
             for (const Lod::SourcePiece& piece : result.mPieces)
                 for (const Lod::SourceVertex& v : piece.mVertices)

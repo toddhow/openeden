@@ -1,5 +1,5 @@
-// Task 0153 follow-up: the neutral grass's albedo scale. The grass context is groundcover's (a Pipeline::Override with the
-// INSTANCE mode) plus a material hook that scales the colour; Morrowind's groundcover context must not get it.
+// Task 0153 follow-up: the neutral grass's albedo scale. The grass context is groundcover's (a Pipeline::Override with
+// the INSTANCE mode) plus a material hook that scales the colour; Morrowind's groundcover context must not get it.
 #include "apps/openmw/mwrender/groundcoverbuild.hpp"
 #include "apps/openmw/mwrender/neutralgrass.hpp"
 

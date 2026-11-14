@@ -7,7 +7,8 @@
 // pbr.x (roughness) and pbr.z (reflectance) of the descriptor; both are "derive" markers (below zero) when a material
 // says nothing, and this mapping sets them from Skyrim's glossiness and specular colour with the engine's own tier 1
 // formulas (Render::Pbr), so a Skyrim surface is lit like a Morrowind surface that has a specular map of the same
-// shininess and colour. Without pbr the specular values do nothing: the lit shader reads no material specular, only a specular map.
+// shininess and colour. Without pbr the specular values do nothing: the lit shader reads no material specular, only a
+// specular map.
 
 #include <algorithm>
 
@@ -19,7 +20,8 @@ namespace MWRender::SkyrimMaterial
 {
     /// The material descriptor for a shape. Only what the engine's lit shader reads is set: the shader's alpha, the PBR
     /// roughness and reflectance (read with [Rendering] pbr; the shader reads no material specular or shininess, only
-    /// the specular map) and the emission. A key made without [Game] neutral world materials gives the default material.
+    /// the specular map) and the emission. A key made without [Game] neutral world materials gives the default
+    /// material.
     inline Pipeline::Data::Material makeMaterial(const NifScene::Flat::MaterialKey& key)
     {
         Pipeline::Data::Material m = Pipeline::Material::createDefault();
@@ -28,7 +30,8 @@ namespace MWRender::SkyrimMaterial
         const bool hasSpecular = specular.x > 0.f || specular.y > 0.f || specular.z > 0.f;
         if (hasSpecular)
         {
-            // The PBR-leaning remap (decision D10): Blinn-Phong exponent to GGX roughness, specular colour to reflectance.
+            // The PBR-leaning remap (decision D10): Blinn-Phong exponent to GGX roughness, specular colour to
+            // reflectance.
             m.pbr.x = Render::Pbr::roughnessFromShininess(key.mGlossiness);
             m.pbr.z = Render::Pbr::reflectanceFromSpecular(
                 vsg::vec3(std::min(specular.x, 1.f), std::min(specular.y, 1.f), std::min(specular.z, 1.f)));

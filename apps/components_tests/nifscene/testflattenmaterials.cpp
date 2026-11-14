@@ -138,7 +138,8 @@ TEST(NifSceneFlattenMaterials, a_normal_map_with_tangents_is_kept_and_the_tangen
     const Shape& shape = model.mShapes[0];
     EXPECT_EQ(shape.mKey.mNormal, "textures\\a_n.dds");
     ASSERT_EQ(shape.mTangents.size(), 4u);
-    EXPECT_TRUE(near(shape.mTangents[2][0], 1.f) && near(shape.mTangents[2][1], 0.f) && near(shape.mTangents[2][3], 1.f));
+    EXPECT_TRUE(
+        near(shape.mTangents[2][0], 1.f) && near(shape.mTangents[2][1], 0.f) && near(shape.mTangents[2][3], 1.f));
     EXPECT_EQ(model.mReport.mNormalMaps, 1u);
 }
 

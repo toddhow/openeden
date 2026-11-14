@@ -53,7 +53,8 @@ namespace face_editor
         }
         GenerateOptions plain = options;
         plain.mRestOffsets.clear();
-        const auto samples = static_cast<std::size_t>(std::llround(seconds * static_cast<double>(A2FDims::sSampleRate)));
+        const auto samples
+            = static_cast<std::size_t>(std::llround(seconds * static_cast<double>(A2FDims::sSampleRate)));
         const std::vector<float> silence(std::max<std::size_t>(samples, 1), 0.f);
         GeneratedWeights weights;
         if (!generateWeights(model, backend, silence, plain, {}, weights, error))

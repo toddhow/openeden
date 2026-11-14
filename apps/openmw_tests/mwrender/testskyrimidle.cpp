@@ -7,8 +7,8 @@
 #include <future>
 #include <memory>
 
-// Task 0132: the idle controller writes decoded Havok transforms into the scene graph's named bones. Expected values are
-// worked out by hand; the rotation convention is checked through the transform's effect on a point, not through the
+// Task 0132: the idle controller writes decoded Havok transforms into the scene graph's named bones. Expected values
+// are worked out by hand; the rotation convention is checked through the transform's effect on a point, not through the
 // stored matrix.
 namespace
 {
@@ -119,8 +119,8 @@ TEST(SkyrimIdleLoad, a_skeleton_with_no_clip_path_fails_with_a_reason_and_throws
     MWRender::SkyrimIdle::LoadReport report;
     EXPECT_EQ(MWRender::SkyrimIdle::loadIdle(vfs, "skeleton.nif", report), nullptr);
     EXPECT_FALSE(report.mFailure.empty());
-    EXPECT_EQ(MWRender::SkyrimIdle::loadIdle(vfs, "meshes/actors/nothing/character assets/skeleton.nif", report),
-        nullptr);
+    EXPECT_EQ(
+        MWRender::SkyrimIdle::loadIdle(vfs, "meshes/actors/nothing/character assets/skeleton.nif", report), nullptr);
     EXPECT_NE(report.mFailure.find("not found"), std::string::npos) << report.mFailure;
 }
 
@@ -131,8 +131,7 @@ TEST(SkyrimIdleAsync, the_bones_stay_until_the_future_is_ready_then_the_named_bo
     auto b = Anim::Transform::create();
     a->translation = { 7, 7, 7 };
     std::promise<std::shared_ptr<const BoundClip>> promise;
-    MWRender::SkyrimIdle::Controller controller(
-        promise.get_future().share(), { { "a", a }, { "b", b } }, 0.5f);
+    MWRender::SkyrimIdle::Controller controller(promise.get_future().share(), { { "a", a }, { "b", b } }, 0.5f);
     EXPECT_TRUE(controller.hints.autoPlay);
     EXPECT_FALSE(controller.resolved());
     controller.run(*a, 0.3f);

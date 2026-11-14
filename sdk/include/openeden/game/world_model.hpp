@@ -29,8 +29,8 @@
 
 namespace openeden::sdk::game
 {
-    /// This header's own version. FROZEN at major version 1 by stage N2 of the design document (task 0102): the policy below
-    /// applies from here on, and CI (CI/check_extension_sdk.sh and the layout pins in worldmodel/testfrozen.cpp)
+    /// This header's own version. FROZEN at major version 1 by stage N2 of the design document (task 0102): the policy
+    /// below applies from here on, and CI (CI/check_extension_sdk.sh and the layout pins in worldmodel/testfrozen.cpp)
     /// keeps it. 0.1 and 0.2 were drafts.
     ///
     /// Version policy. An additive change (a new member at the END of a struct that a consumer only reads, a new

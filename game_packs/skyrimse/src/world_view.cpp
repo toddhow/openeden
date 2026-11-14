@@ -1,11 +1,11 @@
 #include "game_skyrimse/world_view.hpp"
 
-#include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/dialogue_runtime.hpp"
 #include "game_skyrimse/location.hpp"
+#include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/weather.hpp"
 #include "game_skyrimse/weather_source.hpp"
@@ -14,10 +14,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <span>
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <span>
 #include <sstream>
 #include <system_error>
 
@@ -38,7 +38,8 @@ namespace game_skyrimse
             return out;
         }
 
-        [[maybe_unused]] Content::Error makeError(const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
+        [[maybe_unused]] Content::Error makeError(
+            const std::string& file, std::uint64_t offset, std::uint32_t type, std::string message)
         {
             Content::Error e;
             e.mFile = file;
@@ -438,8 +439,8 @@ namespace game_skyrimse
             });
         if (mFiles != nullptr)
         {
-            // Task 0143: a voice line is named only when its .fuz exists (loose, in a mod or in "Skyrim - Voices_*.bsa",
-            // whichever the session's VFS holds).
+            // Task 0143: a voice line is named only when its .fuz exists (loose, in a mod or in "Skyrim -
+            // Voices_*.bsa", whichever the session's VFS holds).
             const FileSource* files = mFiles;
             raw->mRuntime->setVoiceProbe([files](const std::string& path) { return files->exists("sound/" + path); });
         }
@@ -457,8 +458,8 @@ namespace game_skyrimse
             if (mFiles != nullptr)
             {
                 const FileSource* files = mFiles;
-                raw->mQuestVariables = std::make_unique<QuestVariables>(raw->mData->mQuestScripts,
-                    [files](const std::string& script, std::vector<std::uint8_t>& bytes) {
+                raw->mQuestVariables = std::make_unique<QuestVariables>(
+                    raw->mData->mQuestScripts, [files](const std::string& script, std::vector<std::uint8_t>& bytes) {
                         std::string text;
                         if (!files->read("scripts/" + ScriptPapyrus::Pex::lowered(script) + ".pex", text))
                             return false;
@@ -505,7 +506,8 @@ namespace game_skyrimse
 
     bool SkyrimWorldView::ready() const
     {
-        // ensureDialogue() joins the finished worker and builds the runtime: cheap, and it never waits for a running one.
+        // ensureDialogue() joins the finished worker and builds the runtime: cheap, and it never waits for a running
+        // one.
         SkyrimWorldView* self = const_cast<SkyrimWorldView*>(this);
         if (self->mDialogue == nullptr)
             self->startDialoguePrefetch(); // without a worker ensureDialogue() would read everything on this thread
@@ -648,9 +650,8 @@ namespace game_skyrimse
     const std::vector<FurnitureMarker>& SkyrimWorldView::markersOf(const std::string& model)
     {
         std::string key(model);
-        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
-            return c == '/' ? '\\' : static_cast<char>(std::tolower(c));
-        });
+        std::transform(key.begin(), key.end(), key.begin(),
+            [](unsigned char c) { return c == '/' ? '\\' : static_cast<char>(std::tolower(c)); });
         const auto cached = mMarkerCache.find(key);
         if (cached != mMarkerCache.end())
             return cached->second;
@@ -696,7 +697,8 @@ namespace game_skyrimse
             // Jarls' thrones are not seats for passers-by, and a counter's lean marker is a sit marker in the data
             // (type 1, 32 units up) that people lean on, not sit on.
             if (pose == sdkgame::FurniturePose::Sit
-                && (lowerModel.find("throne") != std::string::npos || lowerModel.find("leanmarker") != std::string::npos))
+                && (lowerModel.find("throne") != std::string::npos
+                    || lowerModel.find("leanmarker") != std::string::npos))
                 continue;
             const std::vector<FurnitureMarker>& markers = markersOf(ref.mModel);
             for (std::size_t i = 0; i < markers.size(); ++i)
@@ -738,12 +740,13 @@ namespace game_skyrimse
                     // The sit-down and get-up clips of the side the actor comes from (a stool's only side, behind, has
                     // none: the actor is placed on it, as before).
                     const char* side = best->mSide == Side::Front ? "front"
-                        : best->mSide == Side::Left ? "left"
-                        : best->mSide == Side::Right ? "right"
-                                                     : nullptr;
+                        : best->mSide == Side::Left               ? "left"
+                        : best->mSide == Side::Right              ? "right"
+                                                                  : nullptr;
                     if (side != nullptr)
                     {
-                        const std::string enter = std::string("chair_") + side + "enter" + (best->mSide == Side::Front ? "var1" : "");
+                        const std::string enter
+                            = std::string("chair_") + side + "enter" + (best->mSide == Side::Front ? "var1" : "");
                         const std::string exitName = std::string("chair_") + side + "exit";
                         const ClipMotion* enterMotion = mMotion.find(enter);
                         const ClipMotion* exitMotion = mMotion.find(exitName);
@@ -759,7 +762,9 @@ namespace game_skyrimse
                 else
                 {
                     const bool roll = lowerModel.find("bedroll") != std::string::npos;
-                    const char* side = best->mSide == Side::Right ? "right" : (best->mSide == Side::Front && roll ? "front" : "left");
+                    const char* side = best->mSide == Side::Right
+                        ? "right"
+                        : (best->mSide == Side::Front && roll ? "front" : "left");
                     slot.mClip = std::string(roll ? "bedroll_" : "bed_") + side + "sleep";
                     const std::string enter = std::string(roll ? "bedroll_" : "bed_") + side + "enter";
                     const std::string exitName = std::string(roll ? "bedroll_" : "bed_") + side + "exit";
@@ -779,7 +784,8 @@ namespace game_skyrimse
                         }
                     }
                 }
-                found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY) + 2.0 * std::abs(seat.mZ - fromZ), std::move(slot) });
+                found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY) + 2.0 * std::abs(seat.mZ - fromZ),
+                    std::move(slot) });
             }
         }
         std::sort(found.begin(), found.end(), [](const Scored& a, const Scored& b) {
@@ -917,7 +923,8 @@ namespace game_skyrimse
         return ensureWeather() && game_skyrimse::describeTimeOfDay(*mWeatherIndex, out, mWeatherProbe);
     }
 
-    bool SkyrimWorldView::weatherListForCell(openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out)
+    bool SkyrimWorldView::weatherListForCell(
+        openeden::sdk::game::WorldId cell, openeden::sdk::game::CellWeatherList& out)
     {
         out = {};
         return ensureWeather() && mWeatherTable->listForCell(static_cast<FormId>(cell), out);
@@ -1020,8 +1027,8 @@ namespace game_skyrimse
                 }
                 if (!report.mAborted)
                     finish();
-                report.mElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started);
+                report.mElapsed
+                    = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started);
                 if (report.mAborted)
                     mFailed.store(true); // no finish(): the lookups were never built
                 if (whenBuilt)

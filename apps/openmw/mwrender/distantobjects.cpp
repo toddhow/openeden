@@ -237,7 +237,8 @@ namespace MWRender
                 vsg::ref_ptr<Anim::ControllerMap> sources = context.readAnimation(path);
                 if (sources)
                     play->addSingleAnimSource(sources, path);
-                const std::string group = sources ? MWAnim::SceneryKeyframes::chooseGroup(*sources->tags) : std::string();
+                const std::string group
+                    = sources ? MWAnim::SceneryKeyframes::chooseGroup(*sources->tags) : std::string();
                 if (MWAnim::SceneryKeyframes::start(*play, group, id))
                 {
                     if (farAnimationCensus())

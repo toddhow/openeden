@@ -7,8 +7,8 @@
 // The runtime is delay loaded: Eden Studio and this module start without onnxruntime.dll, and runtimeAvailable() says
 // why generation cannot run. DirectML is optional (task 0147 slice 3): it is used only when the caller passes the full
 // path of a DirectML.dll the author installed (directml_install.hpp), which is loaded BY THAT PATH before the session
-// is made; the CPU provider is the fallback, with the reason returned to the caller. The input and output layouts below are the ones the feasibility gate inferred from
-// the networks (task 0071 "Stage a results"; RECALLED-VERIFY).
+// is made; the CPU provider is the fallback, with the reason returned to the caller. The input and output layouts below
+// are the ones the feasibility gate inferred from the networks (task 0071 "Stage a results"; RECALLED-VERIFY).
 
 #include "a2f_generate.hpp"
 
@@ -39,9 +39,9 @@ namespace face_editor
     {
     public:
         /// Loads \a network. With a non-empty \a directMlDll the DirectML provider is tried (after ortLoadDirectMl);
-        /// a failure of it falls back to the CPU provider and sets \a fallbackReason; a CPU failure is an error. An empty
-        /// \a directMlDll is the CPU provider with no reason given. Null with \a error set when the model cannot be
-        /// loaded.
+        /// a failure of it falls back to the CPU provider and sets \a fallbackReason; a CPU failure is an error. An
+        /// empty \a directMlDll is the CPU provider with no reason given. Null with \a error set when the model cannot
+        /// be loaded.
         static std::unique_ptr<OrtBackend> create(const std::filesystem::path& network, A2FVariant variant,
             const std::filesystem::path& directMlDll, std::string& fallbackReason, std::string& error);
 
@@ -51,8 +51,8 @@ namespace face_editor
 
         bool runV3(const float* window, const float* identity, const float* emotion, const float* latentsIn,
             const float* noise, float* prediction, float* latentsOut, std::string& error) override;
-        bool runV23(const float* windows, std::size_t count, const float* emotion, float* results,
-            std::string& error) override;
+        bool runV23(
+            const float* windows, std::size_t count, const float* emotion, float* results, std::string& error) override;
 
     private:
         class Impl;

@@ -1,8 +1,8 @@
 #include "creativemotiondriver.hpp"
 
+#include <components/animation/animset.hpp>
 #include <components/animation/bones.hpp>
 #include <components/animation/controllermap.hpp>
-#include <components/animation/animset.hpp>
 #include <components/animation/transform.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
@@ -507,8 +507,8 @@ namespace MWRender
             const CompareExtremes& e = mCompareExtremes[g];
             if (e.mBone.empty())
                 continue;
-            const int length = std::snprintf(buffer, sizeof(buffer), " g%zu=%.5fm/%.5frad(%s)", g, e.mTranslation,
-                e.mRotation, e.mBone.c_str());
+            const int length = std::snprintf(
+                buffer, sizeof(buffer), " g%zu=%.5fm/%.5frad(%s)", g, e.mTranslation, e.mRotation, e.mBone.c_str());
             if (length > 0)
                 text.append(buffer, std::min<std::size_t>(static_cast<std::size_t>(length), sizeof(buffer) - 1));
         }
@@ -550,7 +550,8 @@ namespace MWRender
             // The extremes of the bone's group over the whole run. The bone named is the one with the larger
             // difference when measured as a share of its group's thresholds (5 mm, about 1.1 degrees).
             CompareExtremes& extremes = mCompareExtremes[mBoneGroups[i] < sNumBlendMasks ? mBoneGroups[i] : 0];
-            const bool larger = transDiff / 0.005f + rotDiff / 0.02f > extremes.mTranslation / 0.005f + extremes.mRotation / 0.02f;
+            const bool larger
+                = transDiff / 0.005f + rotDiff / 0.02f > extremes.mTranslation / 0.005f + extremes.mRotation / 0.02f;
             if (larger || extremes.mBone.empty())
                 extremes.mBone = mSkeleton.bones[i].name;
             extremes.mTranslation = std::max(extremes.mTranslation, transDiff);

@@ -58,7 +58,9 @@ namespace MWPhysics::SkyrimShape
         std::atomic<std::uint64_t> mHavokShapes{ 0 }; // models whose shape was built from bhk data
         std::atomic<std::uint64_t> mHavokNoCollision{ 0 }; // models whose bhk bodies are all non-solid
         std::atomic<std::uint64_t> mHavokNoData{ 0 }; // models with no bhk bodies: visual triangles used
-        std::atomic<std::uint64_t> mHavokUnusable{ 0 }; // bhk data this reader or Jolt could not use: visual triangles used
+        std::atomic<std::uint64_t> mHavokUnusable{
+            0
+        }; // bhk data this reader or Jolt could not use: visual triangles used
         std::atomic<std::uint64_t> mHavokBodies{ 0 };
         std::atomic<std::uint64_t> mHavokMicroseconds{ 0 };
         std::atomic<std::uint64_t> mHavokMaxMicroseconds{ 0 };

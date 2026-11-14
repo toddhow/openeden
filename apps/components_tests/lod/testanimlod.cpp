@@ -31,8 +31,8 @@ namespace
     }
 
     // Runs the planner for one frame and returns the runs.
-    std::vector<AnimRun> runFrame(std::vector<AnimItem>& items, double dt, unsigned frameNumber,
-        unsigned budget = 1000000, float stop = kStop)
+    std::vector<AnimRun> runFrame(
+        std::vector<AnimItem>& items, double dt, unsigned frameNumber, unsigned budget = 1000000, float stop = kStop)
     {
         std::vector<AnimRun> runs;
         runs.reserve(items.size());

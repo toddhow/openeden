@@ -86,9 +86,9 @@ namespace MWWorld
 
     ESM::RefId neutralCellRecordId(std::string_view gameId, WorldId cell)
     {
-        if (gameId.empty()
-            || std::any_of(gameId.begin(), gameId.end(),
-                [](char c) { return c == ':' || static_cast<unsigned char>(c) < 0x20 || c == 0x7f; }))
+        if (gameId.empty() || std::any_of(gameId.begin(), gameId.end(), [](char c) {
+                return c == ':' || static_cast<unsigned char>(c) < 0x20 || c == 0x7f;
+            }))
             return ESM::RefId();
         std::string key(gameId);
         key += ":c";
@@ -100,9 +100,9 @@ namespace MWWorld
     {
         bool carriableGameId(std::string_view gameId)
         {
-            return !gameId.empty()
-                && std::none_of(gameId.begin(), gameId.end(),
-                    [](char c) { return c == ':' || static_cast<unsigned char>(c) < 0x20 || c == 0x7f; });
+            return !gameId.empty() && std::none_of(gameId.begin(), gameId.end(), [](char c) {
+                return c == ':' || static_cast<unsigned char>(c) < 0x20 || c == 0x7f;
+            });
         }
     }
 
@@ -188,7 +188,8 @@ namespace MWWorld
         if (!finite(p.x) || !finite(p.y) || !finite(p.z) || !finite(object.transform.scale)
             || !(object.transform.scale > 0.0))
         {
-            error = "neutral reference: placement " + std::to_string(object.id) + " has a position or scale that is not usable";
+            error = "neutral reference: placement " + std::to_string(object.id)
+                + " has a position or scale that is not usable";
             return false;
         }
         const std::array<float, 3> angles = neutralRotationAngles(object.transform.rotation);

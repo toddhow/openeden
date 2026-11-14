@@ -1,5 +1,5 @@
-// Task 0159: the navmesh agent of a walking neutral actor is a cylinder of the capsule's radius. Written before the code;
-// the first run was against a version that kept the session's (box) shape.
+// Task 0159: the navmesh agent of a walking neutral actor is a cylinder of the capsule's radius. Written before the
+// code; the first run was against a version that kept the session's (box) shape.
 #include <gtest/gtest.h>
 
 #include <cmath>

@@ -665,13 +665,16 @@ namespace
     TEST(SkyrimWorldView, theDisplayNameOfAnActorADoorAndAContainerIsTheirFullAndNoFullGivesNothing)
     {
         Bytes bytes = header(Content::sRecMaster);
-        bytes.append(topGroup("DOOR", namedRecord("DOOR", 0x801, "DoorEd", "d.nif", sub4("FULL", Bytes().zstring("Front Door")))));
+        bytes.append(topGroup(
+            "DOOR", namedRecord("DOOR", 0x801, "DoorEd", "d.nif", sub4("FULL", Bytes().zstring("Front Door")))));
         bytes.append(topGroup("CONT", namedRecord("CONT", 0x802, "StrongboxEd", "c.nif", Bytes())));
         Bytes npc;
         npc.append(edid("BanneredMareHulda")).append(sub4("FULL", Bytes().zstring("Hulda")));
         bytes.append(topGroup("NPC_", record4("NPC_", 0, 0x809, npc)));
         Bytes coin;
-        coin.append(edid("Coin")).append(sub4("FULL", Bytes().zstring("Gold"))).append(sub4("MODL", Bytes().zstring("coin.nif")));
+        coin.append(edid("Coin"))
+            .append(sub4("FULL", Bytes().zstring("Gold")))
+            .append(sub4("MODL", Bytes().zstring("coin.nif")));
         coin.append(sub4("DATA", Bytes().u32(5).f32(0.5f)));
         bytes.append(topGroup("MISC", record4("MISC", 0, 0x808, coin)));
         Loaded l({ { "n.esm", bytes } });

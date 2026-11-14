@@ -1,6 +1,6 @@
 // Task 0113, stage N3a-5: world_model.hpp 1.1 adds the light component and the cell lighting, at the END of their
-// structs. These tests pin the additions (version, defaults, field order) and that a 1.0 consumer's view of the types is
-// unchanged (a WorldObject and a WorldCell built without the new fields compare equal to a default one).
+// structs. These tests pin the additions (version, defaults, field order) and that a 1.0 consumer's view of the types
+// is unchanged (a WorldObject and a WorldCell built without the new fields compare equal to a default one).
 #include <openeden/game/world_model.hpp>
 
 #include <gtest/gtest.h>
@@ -57,11 +57,9 @@ namespace
             .negative = true,
             .offByDefault = true,
             .flags = 0x85u };
-        const CellLighting lighting{ .ambient = { 1, 2, 3 },
-            .directional = { 4, 5, 6 },
-            .fogColor = { 7, 8, 9 },
-            .fogNear = 10.0,
-            .fogFar = 20.0 };
+        const CellLighting lighting{
+            .ambient = { 1, 2, 3 }, .directional = { 4, 5, 6 }, .fogColor = { 7, 8, 9 }, .fogNear = 10.0, .fogFar = 20.0
+        };
         WorldObject object;
         object.light = light;
         WorldCell cell;

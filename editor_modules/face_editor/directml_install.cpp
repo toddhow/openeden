@@ -44,8 +44,9 @@ namespace face_editor
 
         bool isLowerHex(const std::string& s, std::size_t length)
         {
-            return s.size() == length
-                && std::all_of(s.begin(), s.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); });
+            return s.size() == length && std::all_of(s.begin(), s.end(), [](char c) {
+                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+            });
         }
 
         /// Where the package bytes come from; read() returns the count (0 = end) or -1 with \a error set.
@@ -121,8 +122,8 @@ namespace face_editor
                 path.append(parts.lpszExtraInfo, parts.dwExtraInfoLength);
                 const bool secure = parts.nScheme == INTERNET_SCHEME_HTTPS;
 
-                mSession = WinHttpOpen(L"OpenEden Eden Studio", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
-                    WINHTTP_NO_PROXY_BYPASS, 0);
+                mSession = WinHttpOpen(L"OpenEden Eden Studio", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                    WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
                 if (mSession == nullptr)
                     mSession = WinHttpOpen(L"OpenEden Eden Studio", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -181,7 +182,8 @@ namespace face_editor
 
         std::string lowerCase(std::string s)
         {
-            std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(
+                s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return s;
         }
 
@@ -271,8 +273,10 @@ namespace face_editor
             DirectMlPackage p;
             p.mVersion = "1.15.4";
             p.mUrl = "https://www.nuget.org/api/v2/package/Microsoft.AI.DirectML/1.15.4";
-            p.mSha512 = "fde767f56904abc90fd53f65d8729c918ab7f6e3c5e1ecdd479908fc02b4535cf2b0860f7ab2acb9b731d6cb809b72c3d5d4d"
-                        "02853fb8f5ea022a47bc44ef285";
+            p.mSha512
+                = "fde767f56904abc90fd53f65d8729c918ab7f6e3c5e1ecdd479908fc02b4535cf2b0860f7ab2acb9b731d6cb809b72c3d5d4"
+                  "d"
+                  "02853fb8f5ea022a47bc44ef285";
             p.mSize = 202292617;
             p.mEntry = "bin/x64-win/DirectML.dll";
             p.mMaxEntryBytes = 64u << 20; // the real DLL is 18.5 MB
@@ -327,8 +331,8 @@ namespace face_editor
             + ". By clicking Download you accept those terms.";
     }
 
-    bool installDirectMl(const DirectMlPackage& package, const fs::path& destDir, const InstallProgress& progress,
-        std::string& error)
+    bool installDirectMl(
+        const DirectMlPackage& package, const fs::path& destDir, const InstallProgress& progress, std::string& error)
     {
         error.clear();
         auto step = [&](double fraction, std::string_view text) {

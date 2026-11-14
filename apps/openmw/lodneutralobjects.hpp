@@ -22,7 +22,8 @@
 namespace OMW::NeutralLod
 {
     /// Kinds whose placed objects may be baked into a far cluster: Static and Tree. (Doors, activators, furniture,
-    /// containers, flora, lights, items, actors and movable statics are used, moved or owned by the game and stay live.)
+    /// containers, flora, lights, items, actors and movable statics are used, moved or owned by the game and stay
+    /// live.)
     [[nodiscard]] bool isFarStaticKind(openeden::sdk::game::ObjectKind kind) noexcept;
 
     /// The rule the live path applies to hide editor markers (MWClass::Neutral::getModel): a model path starting with
@@ -31,9 +32,10 @@ namespace OMW::NeutralLod
 
     /// The placement as a row-major 3 x 4 matrix, model space to world space (rows [m00 m01 m02 tx]): the rotation
     /// (the unit quaternion of the transform, active) times the uniform scale, then the position. False, with `out`
-    /// untouched, for a transform the bake refuses: a coordinate not finite or beyond 1e8, a scale not finite, not above
-    /// 0 or 1000 and over, a quaternion that is not finite or has a length that is not within 1e-3 of 1.
-    [[nodiscard]] bool placementMatrix(const openeden::sdk::game::WorldTransform& transform, std::array<double, 12>& out);
+    /// untouched, for a transform the bake refuses: a coordinate not finite or beyond 1e8, a scale not finite, not
+    /// above 0 or 1000 and over, a quaternion that is not finite or has a length that is not within 1e-3 of 1.
+    [[nodiscard]] bool placementMatrix(
+        const openeden::sdk::game::WorldTransform& transform, std::array<double, 12>& out);
 
     /// A model path as the data stores it ("Architecture\\Whiterun\\x.nif") as the VFS path of the mesh
     /// ("meshes/architecture/whiterun/x.nif"). Empty for an empty path.

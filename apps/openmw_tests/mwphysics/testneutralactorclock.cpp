@@ -63,8 +63,8 @@ namespace
         Reader pack;
         NullSink sink;
         bridge.add(&pack, &sKey, 7, 1, "A", 0, 0, 0, 0.f);
-        for (const float bad : { -1.f, 24.f, 100.f, std::numeric_limits<float>::quiet_NaN(),
-                 std::numeric_limits<float>::infinity() })
+        for (const float bad :
+            { -1.f, 24.f, 100.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
         {
             bridge.setClock({ bad, 1, true });
             bridge.update(&pack, 0.016f, sink);

@@ -1,7 +1,7 @@
-// OpenEden (task 0095, stage W-e): the topographic fallback of the puddle map. Where the map covers the ground and found
-// no pit, small shallow puddles come from the fine shape of the ground (the dip of the stored heights), the same supply
-// as the pits and a finer noise. The C++ twin is components/render/puddlemapgpu.hpp; this file also checks the packer's
-// words and that the GLSL and Slang twins carry the same constants. Generated cells only.
+// OpenEden (task 0095, stage W-e): the topographic fallback of the puddle map. Where the map covers the ground and
+// found no pit, small shallow puddles come from the fine shape of the ground (the dip of the stored heights), the same
+// supply as the pits and a finer noise. The C++ twin is components/render/puddlemapgpu.hpp; this file also checks the
+// packer's words and that the GLSL and Slang twins carry the same constants. Generated cells only.
 
 #include <gtest/gtest.h>
 
@@ -113,9 +113,9 @@ namespace
         f.pack();
         // At the hollow's texel the dip is the mean of the four level neighbours minus the floor: 4 units.
         EXPECT_NEAR(PM::groundDip(f.buffer.data(), 4.f, 4.f), 4.f, 1e-4f);
-        // Next to it the hollow is a neighbour of the texel, which sees a quarter of its depth as a rise... as a drop of
-        // a quarter: the neighbour's own height is level and one of its four neighbours is 4 units lower, so the mean is
-        // 1 unit below it: a mound of 1 unit.
+        // Next to it the hollow is a neighbour of the texel, which sees a quarter of its depth as a rise... as a drop
+        // of a quarter: the neighbour's own height is level and one of its four neighbours is 4 units lower, so the
+        // mean is 1 unit below it: a mound of 1 unit.
         EXPECT_NEAR(PM::groundDip(f.buffer.data(), 5.f, 4.f), -1.f, 1e-4f);
         // Between the two texels the blend is by distance.
         EXPECT_NEAR(PM::groundDip(f.buffer.data(), 4.5f, 4.f), 0.5f * 4.f + 0.5f * -1.f, 1e-4f);
@@ -376,7 +376,8 @@ namespace
         Fixture f;
         f.cells[{ 0, 0 }] = makeCell(0, 0);
         f.pack();
-        // Outside the window: not loaded, so not covered, and the fallback does not run (the shader draws the old noise).
+        // Outside the window: not loaded, so not covered, and the fallback does not run (the shader draws the old
+        // noise).
         const PM::Shade far = f.shade(atTexel(8) * 40.f, 0.f, 1.f);
         EXPECT_FALSE(far.loaded);
         EXPECT_FALSE(far.covered);
@@ -408,7 +409,8 @@ namespace
         f.pack();
         float best = 0.f;
         for (int i = 0; i < 200; ++i)
-            best = std::max(best, f.shade(atTexel(4) - 50.f + static_cast<float>(i) * 0.5f, atTexel(4), 1.f).rippleGate);
+            best
+                = std::max(best, f.shade(atTexel(4) - 50.f + static_cast<float>(i) * 0.5f, atTexel(4), 1.f).rippleGate);
         EXPECT_GT(best, 0.f);
         EXPECT_NEAR(best, PM::smoothstep(PM::rippleDepthFrom, PM::rippleDepthTo, PM::topoMaxDepth), 1e-5f);
         EXPECT_LT(best, 1.f);
@@ -449,8 +451,8 @@ namespace
     // The shader twins carry the same constants and the same structure.
     std::string readShader(const std::string& relative)
     {
-        const std::filesystem::path source = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".."
-            / "files" / "shaders" / relative;
+        const std::filesystem::path source
+            = std::filesystem::path(__FILE__).parent_path() / ".." / ".." / ".." / "files" / "shaders" / relative;
         std::ifstream in(source, std::ios::binary);
         std::stringstream text;
         text << in.rdbuf();

@@ -8,12 +8,12 @@
 #include <vector>
 
 #include <MyGUI_DataManager.h>
-#include <MyGUI_IRenderTarget.h>
-#include <MyGUI_IVertexBuffer.h>
-#include <MyGUI_RenderManager.h>
 #include <MyGUI_Gui.h>
+#include <MyGUI_IRenderTarget.h>
 #include <MyGUI_ITexture.h>
+#include <MyGUI_IVertexBuffer.h>
 #include <MyGUI_LogManager.h>
+#include <MyGUI_RenderManager.h>
 
 #include <components/lua/luastate.hpp>
 #include <components/lua_ui/element.hpp>

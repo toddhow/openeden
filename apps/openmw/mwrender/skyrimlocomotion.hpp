@@ -5,16 +5,16 @@
 // the walk and run cycles of its sex (mt_walkforward / mt_runforward, decoded on workers like the idle of task 0145) by
 // its measured ground speed. The maths is in components/havokpack/locomotion.hpp (Gait::weights and friends).
 //
-// Why not CreativeMotion's blend (task 0124)? CreativeMotion's runtime converts clips to opas::anim::Clip and drives them
-// from Morrowind's group table (MWAnim::Play); a Skyrim neutral actor is a bare MWAnim::ObjectAnimation with no Play and no
-// CharacterController, and its clips are Havok clips read by components/havokpack. Taking this slice through CM would
-// need the havok-to-opas clip conversion plus the AnimSet of task 0124 stage C1, neither of which exists. So this slice
-// extends the 0145 controller: the same clip futures, the same bone writes, three clips instead of one, and a pure blend
-// that a CM graph can replace later (Gait::weights is the whole decision).
+// Why not CreativeMotion's blend (task 0124)? CreativeMotion's runtime converts clips to opas::anim::Clip and drives
+// them from Morrowind's group table (MWAnim::Play); a Skyrim neutral actor is a bare MWAnim::ObjectAnimation with no
+// Play and no CharacterController, and its clips are Havok clips read by components/havokpack. Taking this slice
+// through CM would need the havok-to-opas clip conversion plus the AnimSet of task 0124 stage C1, neither of which
+// exists. So this slice extends the 0145 controller: the same clip futures, the same bone writes, three clips instead
+// of one, and a pure blend that a CM graph can replace later (Gait::weights is the whole decision).
 //
 // Threads: the controller is created on the main thread (Scene::insertNeutralActor); setGroundSpeed is called on the
-// main thread (World::doPhysics) and only stores a relaxed atomic float; run() is called by the object's update (an update
-// worker for some objects), one object at a time. run() allocates nothing once a clip is resolved: scratch and
+// main thread (World::doPhysics) and only stores a relaxed atomic float; run() is called by the object's update (an
+// update worker for some objects), one object at a time. run() allocates nothing once a clip is resolved: scratch and
 // accumulator buffers are sized when the clips are resolved. Nothing in it blocks (futures are polled with a zero
 // wait).
 

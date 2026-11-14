@@ -90,7 +90,8 @@ namespace game_skyrimse
         return true;
     }
 
-    bool SkyrimTerrainIndex::addPluginFile(const std::filesystem::path& path, const LoadOrder& order, std::string& error)
+    bool SkyrimTerrainIndex::addPluginFile(
+        const std::filesystem::path& path, const LoadOrder& order, std::string& error)
     {
         PluginSource source;
         source.mName = path.filename().string();
@@ -332,7 +333,8 @@ namespace game_skyrimse
         if (place == mLands.end())
             return sdk::TerrainResult::NoLand;
         const PluginSource& source = mPlugins[place->second.mPlugin];
-        const std::string where = source.mName + ": LAND of cell (" + std::to_string(x) + ", " + std::to_string(y) + ")";
+        const std::string where
+            = source.mName + ": LAND of cell (" + std::to_string(x) + ", " + std::to_string(y) + ")";
         const auto fail = [&](const std::string& why) {
             error = where + ": " + why;
             return sdk::TerrainResult::Failed;
@@ -435,7 +437,8 @@ namespace game_skyrimse
                 for (const LandOpacity& entry : layer->mOpacity)
                     if (entry.mPosition < converted.opacity.size())
                     {
-                        const float clamped = std::isfinite(entry.mOpacity) ? std::clamp(entry.mOpacity, 0.0f, 1.0f) : 0.0f;
+                        const float clamped
+                            = std::isfinite(entry.mOpacity) ? std::clamp(entry.mOpacity, 0.0f, 1.0f) : 0.0f;
                         converted.opacity[entry.mPosition] = static_cast<std::uint8_t>(std::lround(clamped * 255.0f));
                     }
                 out.layers[q].push_back(std::move(converted));

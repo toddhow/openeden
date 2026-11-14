@@ -94,7 +94,8 @@ namespace
                 return true;
             },
             true);
-        // The disabled object is listed too (includeDeleted only concerns deleted ones; a disabled one is enabled-flag).
+        // The disabled object is listed too (includeDeleted only concerns deleted ones; a disabled one is
+        // enabled-flag).
         ASSERT_EQ(byIndex.size(), source.objects.size());
 
         for (const WorldObject& o : source.objects)
@@ -168,7 +169,8 @@ namespace
     {
         const WorldCell source = cell();
         // Only some of the bases are in the store.
-        ASSERT_NE(mStore.getWritable<MWWorld::NeutralBase>().addFromObject("skyrimse", source.objects[0]).mBase, nullptr);
+        ASSERT_NE(
+            mStore.getWritable<MWWorld::NeutralBase>().addFromObject("skyrimse", source.objects[0]).mBase, nullptr);
         const ESM::Cell record = MWWorld::makeNeutralCellRecord("skyrimse", source);
         MWWorld::CellStore store{ MWWorld::Cell(record), mStore, mReaders };
         ASSERT_TRUE(store.setNeutralCell("skyrimse", source));
@@ -286,9 +288,9 @@ namespace
         ref.mScale = 1.f;
         MWWorld::LiveCellRef<MWWorld::NeutralBase> live(ref, &base);
         MWWorld::Ptr ptr(&live, nullptr);
-        for (const ObjectKind kind : { ObjectKind::Static, ObjectKind::MovableStatic, ObjectKind::Furniture,
-                 ObjectKind::Container, ObjectKind::Door, ObjectKind::Activator, ObjectKind::Flora, ObjectKind::Item,
-                 ObjectKind::Light })
+        for (const ObjectKind kind :
+            { ObjectKind::Static, ObjectKind::MovableStatic, ObjectKind::Furniture, ObjectKind::Container,
+                ObjectKind::Door, ObjectKind::Activator, ObjectKind::Flora, ObjectKind::Item, ObjectKind::Light })
         {
             base.mKind = kind;
             EXPECT_EQ(ptr.getClass().getModel(ptr), "clutter\\bowl01.nif") << static_cast<int>(kind);

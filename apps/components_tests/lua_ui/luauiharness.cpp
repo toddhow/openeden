@@ -128,9 +128,9 @@ namespace LuaUiTest
         {
             mLog = std::make_unique<MyGUI::LogManager>();
             mRender = std::make_unique<StubRenderManager>();
-            mData = std::make_unique<FolderDataManager>(std::vector<std::filesystem::path>{
-                sourceRoot() / "apps" / "components_tests" / "lua_ui" / "data", sourceRoot() / "files" / "data" / "mygui",
-                sourceRoot() / "files" / "data" / "fonts" });
+            mData = std::make_unique<FolderDataManager>(
+                std::vector<std::filesystem::path>{ sourceRoot() / "apps" / "components_tests" / "lua_ui" / "data",
+                    sourceRoot() / "files" / "data" / "mygui", sourceRoot() / "files" / "data" / "fonts" });
 
             mGui = std::make_unique<MyGUI::Gui>();
             mGui->initialise({});

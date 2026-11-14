@@ -40,7 +40,6 @@
 #include <components/vsgutil/readimage.hpp>
 
 #include "bodyanalyser.hpp"
-#include "uiinputscript.hpp"
 #include "bodybaker.hpp"
 #include "lodobjectbaker.hpp"
 #include "lodterrainbaker.hpp"
@@ -56,6 +55,7 @@
 #include "probebaker.hpp"
 #include "puddlebaker.hpp"
 #include "skyvisbaker.hpp"
+#include "uiinputscript.hpp"
 
 #include <components/render/defaultsampler.hpp>
 
@@ -123,8 +123,8 @@ namespace OMW
         Misc::LoadTrace::Scope traceInput("frame.input");
         try
         {
-            // Task 0111: the test aid pushes its synthetic SDL events just before the input is read (rmlui only). Its frame
-            // counter runs only while a game is running, so the loading time of a start does not move the script.
+            // Task 0111: the test aid pushes its synthetic SDL events just before the input is read (rmlui only). Its
+            // frame counter runs only while a game is running, so the loading time of a start does not move the script.
             if (mUiScript && mRmlUi && mStateManager->getState() == MWBase::StateManager::State_Running)
                 mUiScript->frame(
                     mUiScriptFrame++, [this](float factor) { mRmlUi->setGuiScale(factor); },
@@ -578,7 +578,8 @@ namespace OMW
                     const int button = UiRml::controllerButtonFromName(buttonName);
                     const int key = UiRml::scancodeFromName(keyName);
                     if (!buttonName.empty() && button < 0)
-                        Log(Debug::Warning) << "[UI] [GUI] rmlui focus button '" << buttonName << "' is not an SDL controller button";
+                        Log(Debug::Warning)
+                            << "[UI] [GUI] rmlui focus button '" << buttonName << "' is not an SDL controller button";
                     if (!keyName.empty() && key < 0)
                         Log(Debug::Warning) << "[UI] [GUI] rmlui focus key '" << keyName << "' is not an SDL key name";
                     mInputManager->setUiFocusEntry(button, key);

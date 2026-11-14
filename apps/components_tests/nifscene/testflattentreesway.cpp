@@ -1,7 +1,7 @@
 // Task 0136 (Skyrim tree sway): what flatten does with a Tree_Anim shape (shader flags 2 bit 29) when
-// Limits::mTreeSway is on: the shape is marked (MaterialKey::mSway), it is not merged with a still shape, and its vertex
-// alpha (the file's per-vertex flexibility, see docs/tasks/0136-skyrim-tree-sway.md) is kept whatever the Vertex_Alpha
-// flag says. Off (the default) nothing changes. Scenes are built by hand; no game asset is read.
+// Limits::mTreeSway is on: the shape is marked (MaterialKey::mSway), it is not merged with a still shape, and its
+// vertex alpha (the file's per-vertex flexibility, see docs/tasks/0136-skyrim-tree-sway.md) is kept whatever the
+// Vertex_Alpha flag says. Off (the default) nothing changes. Scenes are built by hand; no game asset is read.
 #include <gtest/gtest.h>
 
 #include <array>

@@ -2,7 +2,8 @@
 
 namespace MWWorld
 {
-    std::string_view NeutralDisplayNames::nameOf(const NeutralBase& base, openeden::sdk::game::DisplayNameSource* source)
+    std::string_view NeutralDisplayNames::nameOf(
+        const NeutralBase& base, openeden::sdk::game::DisplayNameSource* source)
     {
         // A placement with no base form, or no source: the editor id (what getName answered before this task).
         if (source == nullptr || base.mBase == openeden::sdk::game::kNoWorldId)

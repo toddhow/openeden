@@ -81,10 +81,11 @@ namespace
         }
     };
 
-    const char* const kNavPanel = "<rml><head><style>body { display: block; } div { display: block; }"
-                                  " button { display: block; tab-index: auto; width: 100px; height: 20px; }</style></head>"
-                                  "<body nav-capture=\"true\"><div>text</div><button id=\"first\">one</button>"
-                                  "<button id=\"second\">two</button></body></rml>";
+    const char* const kNavPanel
+        = "<rml><head><style>body { display: block; } div { display: block; }"
+          " button { display: block; tab-index: auto; width: 100px; height: 20px; }</style></head>"
+          "<body nav-capture=\"true\"><div>text</div><button id=\"first\">one</button>"
+          "<button id=\"second\">two</button></body></rml>";
 
     TEST_F(UiRmlContextTest, a_nav_capture_document_is_found)
     {
@@ -151,7 +152,9 @@ namespace
 
     TEST_F(UiRmlContextTest, a_focused_control_of_a_document_without_nav_capture_is_not_left_by_the_entry)
     {
-        load("<rml><head><style>button { display: block; tab-index: auto; }</style></head><body><button id=\"plain\">x</button></body></rml>");
+        load(
+            "<rml><head><style>button { display: block; tab-index: auto; }</style></head><body><button "
+            "id=\"plain\">x</button></body></rml>");
         load(kNavPanel);
         mContext->Update();
         mContext->GetDocument(0)->GetElementById("plain")->Focus();
@@ -162,9 +165,10 @@ namespace
 
     TEST_F(UiRmlContextTest, the_entry_skips_controls_that_cannot_take_focus)
     {
-        load("<rml><head><style>body { display: block; } button { display: block; tab-index: auto; }</style></head>"
-             "<body nav-capture=\"true\"><button id=\"off\" style=\"tab-index: none\">x</button>"
-             "<button id=\"on\">y</button></body></rml>");
+        load(
+            "<rml><head><style>body { display: block; } button { display: block; tab-index: auto; }</style></head>"
+            "<body nav-capture=\"true\"><button id=\"off\" style=\"tab-index: none\">x</button>"
+            "<button id=\"on\">y</button></body></rml>");
         mContext->Update();
         toggleControllerFocus(*mContext);
         EXPECT_EQ(idOfFocus(), "on");
@@ -185,8 +189,9 @@ namespace
 
     TEST_F(UiRmlContextTest, control_v_pastes_what_the_bridge_holds_into_a_text_input)
     {
-        load("<rml><head><style>body { display: block; } input { display: block; width: 200px; height: 20px; }"
-             "</style></head><body><input id=\"field\" type=\"text\" value=\"\"/></body></rml>");
+        load(
+            "<rml><head><style>body { display: block; } input { display: block; width: 200px; height: 20px; }"
+            "</style></head><body><input id=\"field\" type=\"text\" value=\"\"/></body></rml>");
         mContext->Update();
         Rml::Element* field = mContext->GetDocument(0)->GetElementById("field");
         ASSERT_NE(field, nullptr);
@@ -201,8 +206,9 @@ namespace
 
     TEST_F(UiRmlContextTest, control_c_after_select_all_copies_the_text_to_the_bridge)
     {
-        load("<rml><head><style>body { display: block; } input { display: block; width: 200px; height: 20px; }"
-             "</style></head><body><input id=\"field\" type=\"text\" value=\"hello\"/></body></rml>");
+        load(
+            "<rml><head><style>body { display: block; } input { display: block; width: 200px; height: 20px; }"
+            "</style></head><body><input id=\"field\" type=\"text\" value=\"hello\"/></body></rml>");
         mContext->Update();
         Rml::Element* field = mContext->GetDocument(0)->GetElementById("field");
         ASSERT_NE(field, nullptr);

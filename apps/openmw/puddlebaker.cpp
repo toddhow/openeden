@@ -243,8 +243,8 @@ namespace OMW
             Log(Debug::Info) << "Puddle statics: " << state.mCapturer->captured() << " cells captured, "
                              << state.mCapturer->reused() << " captures kept, " << state.mCapturer->empty()
                              << " cells without surfaces, " << state.mCapturer->failed() << " failed.";
-            state.mJob = std::make_unique<Puddle::BakeJob>(*state.mHeights, std::move(*state.mPendingConfig),
-                state.mSource.get());
+            state.mJob = std::make_unique<Puddle::BakeJob>(
+                *state.mHeights, std::move(*state.mPendingConfig), state.mSource.get());
             state.mPendingConfig.reset();
         }
 

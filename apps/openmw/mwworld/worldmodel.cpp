@@ -219,7 +219,8 @@ namespace MWWorld
             if (neutral != nullptr)
                 cellStore = findNeutralExterior(*neutral, location);
             if (cellStore == nullptr)
-                throw std::runtime_error("Neutral exterior cell is not available: " + location.mWorldspace.toDebugString());
+                throw std::runtime_error(
+                    "Neutral exterior cell is not available: " + location.mWorldspace.toDebugString());
         }
         else
             cellStore = getOrCreateExterior(location, mExteriors, mStore, mReaders, mCells, true);
@@ -250,8 +251,8 @@ namespace MWWorld
             const ESM::RefId worldspace = neutralWorldspaceId(gameId, world);
             if (worldspace.empty())
             {
-                result.mError = "the world '" + std::string(editorId) + "' of " + gameId
-                    + " cannot be carried by the engine";
+                result.mError
+                    = "the world '" + std::string(editorId) + "' of " + gameId + " cannot be carried by the engine";
                 return result;
             }
             mNeutralWorldspaces.emplace(worldspace, NeutralWorldspace{ gameId, world });
@@ -280,11 +281,13 @@ namespace MWWorld
             return nullptr;
         const std::string& gameId = world->mGameId;
 
-        // The pack's cell for the square, or an empty cell when it has none (the world's edge, a square no plugin lists).
+        // The pack's cell for the square, or an empty cell when it has none (the world's edge, a square no plugin
+        // lists).
         openeden::sdk::game::WorldCell empty;
         const openeden::sdk::game::WorldCell* cell = nullptr;
         ESM::RefId recordId;
-        const openeden::sdk::game::WorldId packCell = neutral.findCellByGrid(gameId, world->mWorld, location.mX, location.mY);
+        const openeden::sdk::game::WorldId packCell
+            = neutral.findCellByGrid(gameId, world->mWorld, location.mX, location.mY);
         if (packCell != openeden::sdk::game::kNoWorldId)
         {
             std::string error;
@@ -349,8 +352,8 @@ namespace MWWorld
         return store;
     }
 
-    CellStore* WorldModel::emplaceNeutralCellStore(std::string_view gameId, const openeden::sdk::game::WorldCell& cell,
-        std::string_view name, bool& reused) const
+    CellStore* WorldModel::emplaceNeutralCellStore(
+        std::string_view gameId, const openeden::sdk::game::WorldCell& cell, std::string_view name, bool& reused) const
     {
         reused = false;
         // A cell built earlier, by either route, is the same store (the "come back" path).
@@ -403,8 +406,8 @@ namespace MWWorld
         }();
         if (!knownGame || id == openeden::sdk::game::kNoWorldId)
         {
-            result.mError = !knownGame ? "no neutral world source for game '" + std::string(gameId) + "'"
-                                       : "the cell id is none";
+            result.mError
+                = !knownGame ? "no neutral world source for game '" + std::string(gameId) + "'" : "the cell id is none";
             return result;
         }
         const openeden::sdk::game::WorldCell* cell = neutral.cell(gameId, id, error);
@@ -434,8 +437,7 @@ namespace MWWorld
                     return result;
                 }
             }
-            result.mError
-                = "cell '" + cell->editorId + "' is an exterior of a world the game pack cannot describe";
+            result.mError = "cell '" + cell->editorId + "' is an exterior of a world the game pack cannot describe";
             return result;
         }
         if (cell->editorId.empty())

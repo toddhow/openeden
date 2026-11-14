@@ -10,9 +10,9 @@
 // shaders post/tonemap.frag and post/tonemap.slang repeat this maths under GRADE (a pipeline without the define is the
 // old pipeline): change them together; apps/components_tests/render/testimagespace.cpp pins both.
 //
-// The order (saturation, tint, contrast) and the tint rule are GUESSES made from what the data says: Skyrim's image space
-// has a saturation, a brightness (applied as exposure, before the tonemap: MWWorld::WeatherManager), a contrast and a tint
-// of an amount and a colour. The game's own formulas are not published; these are the plain versions.
+// The order (saturation, tint, contrast) and the tint rule are GUESSES made from what the data says: Skyrim's image
+// space has a saturation, a brightness (applied as exposure, before the tonemap: MWWorld::WeatherManager), a contrast
+// and a tint of an amount and a colour. The game's own formulas are not published; these are the plain versions.
 //   saturation: c = luma + saturation * (c - luma)
 //   tint: the picture's grey colourised by the tint colour at the tint's own brightness, blended by the amount:
 //         c = mix(c, luma(c) * tint / luma(tint), amount)   (a tint with no brightness is not a colour: skipped)

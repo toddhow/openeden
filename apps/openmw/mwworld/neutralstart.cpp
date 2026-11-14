@@ -54,7 +54,8 @@ namespace MWWorld
         }
         if (fields.size() < 3 || fields.size() > 4)
         {
-            target.mError = "the start place '" + std::string(text) + "' needs a world, x, y and optionally z: " + std::string(usage);
+            target.mError = "the start place '" + std::string(text)
+                + "' needs a world, x, y and optionally z: " + std::string(usage);
             return target;
         }
         const std::string_view world = trim(fields[0]);
@@ -64,7 +65,8 @@ namespace MWWorld
             return target;
         }
         double x = 0.0, y = 0.0, z = 0.0;
-        if (!parseNumber(fields[1], x) || !parseNumber(fields[2], y) || (fields.size() == 4 && !parseNumber(fields[3], z)))
+        if (!parseNumber(fields[1], x) || !parseNumber(fields[2], y)
+            || (fields.size() == 4 && !parseNumber(fields[3], z)))
         {
             target.mError = "the start place '" + std::string(text)
                 + "' has a coordinate that is not a number within +-10,000,000 units: " + std::string(usage);
@@ -133,7 +135,8 @@ namespace MWWorld
             }
             TerrainCell cell;
             std::string buildError;
-            switch (source.buildTerrain(current, static_cast<std::int32_t>(gx), static_cast<std::int32_t>(gy), cell, buildError))
+            switch (source.buildTerrain(
+                current, static_cast<std::int32_t>(gx), static_cast<std::int32_t>(gy), cell, buildError))
             {
                 case TerrainResult::Built:
                 {

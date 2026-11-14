@@ -17,10 +17,10 @@
 // 1.0 by tests). A pack that does not implement it simply draws no actors. Plain values only: no engine, renderer,
 // Jolt or Qt type.
 //
-// Version policy: DRAFT 0.3 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135: ActorAppearance::heightScale, a
-// trailing field the core only reads). Additive changes (a new trailing virtual with a default meaning "not supported", a new
-// trailing field of ActorPart or ActorAppearance that a consumer only reads) raise the minor number; anything else
-// raises the major number. Threading: main thread only, like WorldCellSource.
+// Version policy: DRAFT 0.3 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
+// ActorAppearance::heightScale, a trailing field the core only reads). Additive changes (a new trailing virtual with a
+// default meaning "not supported", a new trailing field of ActorPart or ActorAppearance that a consumer only reads)
+// raise the minor number; anything else raises the major number. Threading: main thread only, like WorldCellSource.
 
 namespace openeden::sdk::game
 {

@@ -321,8 +321,8 @@ namespace
     TEST(UiRmlRouter, a_key_release_follows_its_press_when_focus_changes)
     {
         InputRouter router;
-        router.keyDown(SDL_SCANCODE_A, kText);   // the overlay took it
-        router.keyDown(SDL_SCANCODE_W, kIdle);   // the game took it
+        router.keyDown(SDL_SCANCODE_A, kText); // the overlay took it
+        router.keyDown(SDL_SCANCODE_W, kIdle); // the game took it
         // Focus has moved away from the text input: the releases still go where the presses went.
         auto r = router.keyUp(SDL_SCANCODE_A);
         EXPECT_TRUE(r.mToUi);

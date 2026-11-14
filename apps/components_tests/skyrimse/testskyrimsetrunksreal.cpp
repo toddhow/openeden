@@ -1,18 +1,20 @@
-// Task 0136 stage log "skinned trunks": the gated real-data survey behind drawing the skinned shapes of static Skyrim SE
-// models (trees) in their rest pose. Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's Data folder it
-// reads every .nif of the five masters' mesh archives and prints AGGREGATE numbers only (lines starting SKYTRUNK-SURVEY).
+// Task 0136 stage log "skinned trunks": the gated real-data survey behind drawing the skinned shapes of static Skyrim
+// SE models (trees) in their rest pose. Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's Data folder
+// it reads every .nif of the five masters' mesh archives and prints AGGREGATE numbers only (lines starting
+// SKYTRUNK-SURVEY).
 //
 // The oracle: for each skinned shape the rest pose can be taken two ways, both in the model's frame:
-//   A. the shape node's world transform applied to the stored vertex (what the static path does for an unskinned shape);
-//   B. the skin's own rule with every bone at its node-tree world transform: sum_i w_i * boneWorld_i * bind_i * v.
+//   A. the shape node's world transform applied to the stored vertex (what the static path does for an unskinned
+//   shape); B. the skin's own rule with every bone at its node-tree world transform: sum_i w_i * boneWorld_i * bind_i *
+//   v.
 // Their distance (model units) says whether the node tree is in the bind pose. NOTHING here is a game file's content.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/contentsource/plugin.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/flatten.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/survey.hpp>
-#include <components/vfs/pathutil.hpp>
 
 #include <gtest/gtest.h>
 
@@ -105,7 +107,8 @@ namespace
 
     std::string lower(std::string s)
     {
-        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::transform(
+            s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return s;
     }
 
@@ -148,7 +151,8 @@ namespace
         std::uint64_t files = 0, filesWithSkinned = 0, skinnedShapes = 0, skinnedWithTreeAnim = 0, noBoneNodes = 0,
                       skinXformNonIdentity = 0, shapeNodeXformNonIdentity = 0;
         std::map<std::string, std::uint64_t> recordTypes, boneNodeTypes;
-        Acc meanAB, worstAB, worstAv, worstBv, bonesPerShape, weightSum, divergentToLeavesA, divergentToLeavesB, axisA, axisB, zminA, zminB;
+        Acc meanAB, worstAB, worstAv, worstBv, bonesPerShape, weightSum, divergentToLeavesA, divergentToLeavesB, axisA,
+            axisB, zminA, zminB;
         std::uint64_t divergent = 0, divergentFiles = 0;
     };
 
@@ -189,8 +193,8 @@ namespace
                     const std::string name = lower(std::string(entry.name()));
                     if (name.size() < 4 || name.compare(name.size() - 4, 4, ".nif") != 0)
                         continue;
-                    const bool actor = name.find("actors") != std::string::npos
-                        || name.find("character") != std::string::npos;
+                    const bool actor
+                        = name.find("actors") != std::string::npos || name.find("character") != std::string::npos;
                     try
                     {
                         auto stream = archive.getFile(&entry);
@@ -361,16 +365,17 @@ namespace
             line(n + ": per shape worst |A-stored| " + x.worstAv.text());
             line(n + ": per shape worst |B-stored| " + x.worstBv.text());
             line(n + ": shapes with worst |A-B| > 1 unit: " + std::to_string(x.divergent) + " in "
-                + std::to_string(x.divergentFiles) + " files; their centre's distance to the unskinned shapes' centre: A "
-                + x.divergentToLeavesA.text() + " ; B " + x.divergentToLeavesB.text());
+                + std::to_string(x.divergentFiles)
+                + " files; their centre's distance to the unskinned shapes' centre: A " + x.divergentToLeavesA.text()
+                + " ; B " + x.divergentToLeavesB.text());
             line(n + ": divergent shapes, centre distance from the model's vertical axis: A " + x.axisA.text() + " ; B "
                 + x.axisB.text() + " ; lowest vertex z: A " + x.zminA.text() + " ; B " + x.zminB.text());
         }
         line("files failed to read " + std::to_string(failed));
     }
 
-    // Local aid for the in-game check (prints form ids and model names of the user's own data; never commit its output):
-    // the TREE records of Skyrim.esm whose model has a BSTreeNode.
+    // Local aid for the in-game check (prints form ids and model names of the user's own data; never commit its
+    // output): the TREE records of Skyrim.esm whose model has a BSTreeNode.
     struct TreeModels final : Content::Visitor
     {
         std::string mFile;
@@ -388,20 +393,22 @@ namespace
                     return true;
                 data = mBuffer;
             }
-            static_cast<void>(game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
-                if (Content::fourCCToString(s.mType) == "MODL")
-                    mOut->emplace_back(record.mFormId,
-                        std::string(reinterpret_cast<const char*>(s.mData.data()),
-                            strnlen(reinterpret_cast<const char*>(s.mData.data()), s.mData.size())));
-            }));
+            static_cast<void>(
+                game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
+                    if (Content::fourCCToString(s.mType) == "MODL")
+                        mOut->emplace_back(record.mFormId,
+                            std::string(reinterpret_cast<const char*>(s.mData.data()),
+                                strnlen(reinterpret_cast<const char*>(s.mData.data()), s.mData.size())));
+                }));
             return true;
         }
     };
 
     std::string treeKey(std::string name);
 
-    // Local aid: writes the flattened vertices of a few tree models, without and with Limits::mSkinnedAtRest, to the file
-    // named by OPENEDEN_TRUNKS_DUMP (one line per vertex: model, mode, x, y, z), for a side view plotted outside the repository.
+    // Local aid: writes the flattened vertices of a few tree models, without and with Limits::mSkinnedAtRest, to the
+    // file named by OPENEDEN_TRUNKS_DUMP (one line per vertex: model, mode, x, y, z), for a side view plotted outside
+    // the repository.
     TEST(SkyrimTrunksReal, dump_a_few_tree_models_with_and_without_the_rest_pose_when_asked)
     {
         const char* data = std::getenv("OPENEDEN_SKYRIMSE_DATA");
@@ -409,8 +416,9 @@ namespace
         if (data == nullptr || dump == nullptr || !fs::is_directory(data))
             GTEST_SKIP() << "OPENEDEN_SKYRIMSE_DATA and OPENEDEN_TRUNKS_DUMP are not both set";
         std::ofstream out(dump);
-        const std::set<std::string> wanted{ "landscape\\trees\\treeaspen01.nif", "landscape\\trees\\treepineforest01.nif",
-            "landscape\\trees\\treepineforestdead01.nif", "landscape\\trees\\treepineforestsnow01.nif" };
+        const std::set<std::string> wanted{ "landscape\\trees\\treeaspen01.nif",
+            "landscape\\trees\\treepineforest01.nif", "landscape\\trees\\treepineforestdead01.nif",
+            "landscape\\trees\\treepineforestsnow01.nif" };
         for (const char* archiveName : { "Skyrim - Meshes0.bsa", "Skyrim - Meshes1.bsa" })
         {
             try
@@ -436,8 +444,9 @@ namespace
                             for (const auto& p : shape.mPositions)
                                 out << key << ' ' << (rest ? "rest" : "static") << ' ' << p[0] << ' ' << p[1] << ' '
                                     << p[2] << '\n';
-                        std::cout << "SKYTRUNK-LOCAL " << key << (rest ? " rest" : " static") << ": " << model.mReport.mVertices
-                                  << " vertices, skinned at rest " << model.mReport.mSkinnedAtRest << std::endl;
+                        std::cout << "SKYTRUNK-LOCAL " << key << (rest ? " rest" : " static") << ": "
+                                  << model.mReport.mVertices << " vertices, skinned at rest "
+                                  << model.mReport.mSkinnedAtRest << std::endl;
                     }
                 }
             }

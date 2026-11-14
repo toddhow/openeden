@@ -163,16 +163,16 @@ namespace
     TEST(NeutralExteriorDoorBothWays, an_opened_lock_lets_a_door_to_the_street_through)
     {
         const WorldObject front = door(7, 30, { 1.0, 2.0, 3.0 }, true);
-        const auto d = MWWorld::decideNeutralDoor(
-            front, true, true, [](WorldId) { return NeutralDestination::ExteriorWorld; });
+        const auto d
+            = MWWorld::decideNeutralDoor(front, true, true, [](WorldId) { return NeutralDestination::ExteriorWorld; });
         EXPECT_EQ(d.mOutcome, NeutralDoorOutcome::Teleport);
     }
 
     TEST(NeutralExteriorDoorBothWays, a_gate_to_another_world_is_a_teleport_like_any_exterior)
     {
         const WorldObject gate = door(9, 77, { -3000.0, 40000.0, 1200.0 });
-        const auto d = MWWorld::decideNeutralDoor(
-            gate, true, false, [](WorldId) { return NeutralDestination::ExteriorWorld; });
+        const auto d
+            = MWWorld::decideNeutralDoor(gate, true, false, [](WorldId) { return NeutralDestination::ExteriorWorld; });
         ASSERT_EQ(d.mOutcome, NeutralDoorOutcome::Teleport);
         EXPECT_EQ(d.mDestinationCell, 77u);
     }

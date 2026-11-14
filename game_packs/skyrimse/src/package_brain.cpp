@@ -29,7 +29,8 @@ namespace game_skyrimse
 
         /// Where an enter clip's motion starts, and the heading it starts with, for a seat at (x, y) facing `heading`:
         /// the motion ends on the seat with the seat's heading. The motion is in the actor's frame at the start of the
-        /// clip (x to its right, y forward); a counter-clockwise yaw (Havok) is a clockwise change of the engine's heading.
+        /// clip (x to its right, y forward); a counter-clockwise yaw (Havok) is a clockwise change of the engine's
+        /// heading.
         void enterStart(const ClipMotion& motion, double seatX, double seatY, float seatHeading, double& startX,
             double& startY, float& startHeading)
         {
@@ -55,7 +56,8 @@ namespace game_skyrimse
 
     sdkgame::ActorSpeed packageSpeed(const PackageRecord& package)
     {
-        if ((package.mFlags & kPreferredSpeedFlag) != 0 && (package.mPreferredSpeed == 1 || package.mPreferredSpeed == 2))
+        if ((package.mFlags & kPreferredSpeedFlag) != 0
+            && (package.mPreferredSpeed == 1 || package.mPreferredSpeed == 2))
             return sdkgame::ActorSpeed::Run;
         return sdkgame::ActorSpeed::Walk;
     }
@@ -124,8 +126,8 @@ namespace game_skyrimse
         return delta < duration;
     }
 
-    const PackageRecord* selectPackage(const std::vector<const PackageRecord*>& packages, float hour,
-        std::int32_t day, bool clockValid, PackageSource& source, FormId actorBase, FormId actorReference)
+    const PackageRecord* selectPackage(const std::vector<const PackageRecord*>& packages, float hour, std::int32_t day,
+        bool clockValid, PackageSource& source, FormId actorBase, FormId actorReference)
     {
         for (const PackageRecord* p : packages)
         {
@@ -361,8 +363,8 @@ namespace game_skyrimse
                     actor.mExitMotion = motion;
                     actor.mClipClock = 0.f;
                     float heading = 0.f;
-                    motionAt(*motion, motion->mDuration, slot.mX, slot.mY, slot.mHeading,
-                        actor.mExitX, actor.mExitY, heading);
+                    motionAt(*motion, motion->mDuration, slot.mX, slot.mY, slot.mHeading, actor.mExitX, actor.mExitY,
+                        heading);
                     actor.mExitHeading = heading;
                     actor.mExitZ = slot.mZ;
                     return false;
@@ -499,7 +501,8 @@ namespace game_skyrimse
     void PackageBrain::patrolNext(Actor& actor, sdkgame::ActorRequestWriter& writer)
     {
         FormId next = kNullFormId;
-        if (!mSource.linkedRef(actor.mPatrolMarker, kNullFormId, next) || next == kNullFormId || next == kUnresolvedFormId)
+        if (!mSource.linkedRef(actor.mPatrolMarker, kNullFormId, next) || next == kNullFormId
+            || next == kUnresolvedFormId)
         {
             if (actor.mPatrolMarker == actor.mPatrolFirst)
             {
@@ -689,15 +692,18 @@ namespace game_skyrimse
             beginFollow(actor, writer);
             return;
         }
-        if (mFurniture != nullptr && (actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat))
+        if (mFurniture != nullptr
+            && (actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat))
         {
-            const sdkgame::FurniturePose pose
-                = actor.mBehavior == PackageBehavior::Sleep ? sdkgame::FurniturePose::Sleep : sdkgame::FurniturePose::Sit;
+            const sdkgame::FurniturePose pose = actor.mBehavior == PackageBehavior::Sleep
+                ? sdkgame::FurniturePose::Sleep
+                : sdkgame::FurniturePose::Sit;
             if (tryFurniture(actor, pose, std::max(actor.mRadius, kMinFurnitureRadius), writer))
                 return;
-            // A sleeper with no bed in range looks in the whole neighbourhood before it gives up (a package with a small
-            // radius, such as a squatter's, still means "go to bed").
-            if (actor.mBehavior == PackageBehavior::Sleep && std::max(actor.mRadius, kMinFurnitureRadius) < kMaxPackageRadius
+            // A sleeper with no bed in range looks in the whole neighbourhood before it gives up (a package with a
+            // small radius, such as a squatter's, still means "go to bed").
+            if (actor.mBehavior == PackageBehavior::Sleep
+                && std::max(actor.mRadius, kMinFurnitureRadius) < kMaxPackageRadius
                 && tryFurniture(actor, pose, kMaxPackageRadius, writer))
                 return;
         }
@@ -716,8 +722,9 @@ namespace game_skyrimse
             }
             return;
         }
-        const double tolerance
-            = actor.mBehavior == PackageBehavior::Travel ? kArriveTolerance : std::max<double>(actor.mRadius, kArriveTolerance);
+        const double tolerance = actor.mBehavior == PackageBehavior::Travel
+            ? kArriveTolerance
+            : std::max<double>(actor.mRadius, kArriveTolerance);
         if (away > tolerance)
         {
             actor.mToAnchor = true;
@@ -777,7 +784,8 @@ namespace game_skyrimse
             ++mStats.mEscortsSkipped;
         if (actor.mBehavior == PackageBehavior::Unsupported && actor.mActivity == PackageActivity::None)
             ++mStats.mUnsupported;
-        const bool sandboxLike = actor.mBehavior == PackageBehavior::Sandbox || actor.mBehavior == PackageBehavior::Wander;
+        const bool sandboxLike
+            = actor.mBehavior == PackageBehavior::Sandbox || actor.mBehavior == PackageBehavior::Wander;
         actor.mAnchorX = actor.mHomeX;
         actor.mAnchorY = actor.mHomeY;
         actor.mAnchorZ = actor.mHomeZ;
@@ -863,11 +871,10 @@ namespace game_skyrimse
             const FurnitureSlot& slot = actor.mSlot;
             const bool clip = !actor.mSkipEnter && slot.mEnterMotion != nullptr && !slot.mEnterClip.empty();
             actor.mSkipEnter = false;
-            const sdkgame::FurnitureUse use = clip
-                ? sdkgame::FurnitureUse{ actor.mStartX, actor.mStartY, actor.mStartZ, actor.mStartHeading, slot.mPose,
-                    slot.mEnterClip, slot.mClipPerSex }
-                : sdkgame::FurnitureUse{ slot.mX, slot.mY, slot.mZ, slot.mHeading, slot.mPose, slot.mClip,
-                    slot.mClipPerSex };
+            const sdkgame::FurnitureUse use = clip ? sdkgame::FurnitureUse{ actor.mStartX, actor.mStartY, actor.mStartZ,
+                actor.mStartHeading, slot.mPose, slot.mEnterClip, slot.mClipPerSex }
+                                                   : sdkgame::FurnitureUse{ slot.mX, slot.mY, slot.mZ, slot.mHeading,
+                                                         slot.mPose, slot.mClip, slot.mClipPerSex };
             if (actor.mHasSlot && writer.useFurniture(actor.mHandle, use))
             {
                 actor.mToFurniture = false;
@@ -883,8 +890,10 @@ namespace game_skyrimse
                     ++mStats.mEnters;
                 }
                 ++mStats.mSeatings;
-                const bool forever = actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat;
-                actor.mSeatTimer = forever ? -1.f : kSitMinSeconds + nextUnit(actor) * (kSitMaxSeconds - kSitMinSeconds);
+                const bool forever
+                    = actor.mBehavior == PackageBehavior::Sleep || actor.mBehavior == PackageBehavior::Eat;
+                actor.mSeatTimer
+                    = forever ? -1.f : kSitMinSeconds + nextUnit(actor) * (kSitMaxSeconds - kSitMinSeconds);
             }
             else
             {
@@ -919,10 +928,12 @@ namespace game_skyrimse
                 if (actor.mTimer > 0.f)
                     return;
                 if (sitAllowed(actor) && nextUnit(actor) < kSitChance
-                    && tryFurniture(actor, sdkgame::FurniturePose::Sit, std::max(actor.mRadius, kMinFurnitureRadius), writer))
+                    && tryFurniture(
+                        actor, sdkgame::FurniturePose::Sit, std::max(actor.mRadius, kMinFurnitureRadius), writer))
                     return;
                 const double angle = static_cast<double>(nextUnit(actor)) * kTwoPi;
-                const double reach = static_cast<double>(actor.mRadius) * std::sqrt(static_cast<double>(nextUnit(actor)));
+                const double reach
+                    = static_cast<double>(actor.mRadius) * std::sqrt(static_cast<double>(nextUnit(actor)));
                 actor.mToAnchor = false;
                 goTo(actor, actor.mAnchorX + std::cos(angle) * reach, actor.mAnchorY + std::sin(angle) * reach,
                     actor.mAnchorZ, writer, actor.mSpeed);

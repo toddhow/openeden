@@ -48,10 +48,10 @@ namespace game_skyrimse
 
     /// Body parts of a race's skin (or the NPC's WNAM skin), the default outfit's worn models and the head parts, with
     /// the skin parts the outfit covers left out (a skin part is dropped when its slot mask shares a bit with a worn
-    /// model). Order: skin, outfit, then either the NPC's facegen head (a Face part, when `face` is given and the file of
-    /// the NPC whose traits are used exists) or its head parts. False with `error` when the NPC is unknown, its template chain does
-    /// not resolve, its race is unknown or has no skeleton for its sex. `variation` picks leveled templates and
-    /// outfit entries (ActorIndex::pickLeveled).
+    /// model). Order: skin, outfit, then either the NPC's facegen head (a Face part, when `face` is given and the file
+    /// of the NPC whose traits are used exists) or its head parts. False with `error` when the NPC is unknown, its
+    /// template chain does not resolve, its race is unknown or has no skeleton for its sex. `variation` picks leveled
+    /// templates and outfit entries (ActorIndex::pickLeveled).
     [[nodiscard]] bool makeActorAppearance(const ActorIndex& index, FormId npc, std::uint32_t variation,
         openeden::sdk::game::ActorAppearance& out, std::string& error, const AppearanceLimits& limits = {},
         const FaceFileProbe* face = nullptr);

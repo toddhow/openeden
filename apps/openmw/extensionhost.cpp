@@ -8,11 +8,11 @@
 #include <string_view>
 #include <system_error>
 
+#include <components/contentsource/sessiontag.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/extension/dependency_resolver.hpp>
 #include <components/extension/game_conventions.hpp>
-#include <components/contentsource/sessiontag.hpp>
 #include <components/extension/session_content.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
@@ -505,7 +505,8 @@ namespace OMW
         if (mNeutralWorldStore == nullptr)
             return;
         openeden::extension::SessionContentCollection collected = openeden::extension::collectSessionContent(
-            contentFiles, [&collections](const std::string& name) -> std::optional<std::filesystem::path> {
+            contentFiles,
+            [&collections](const std::string& name) -> std::optional<std::filesystem::path> {
                 if (!collections.doesExist(name))
                     return std::nullopt;
                 return collections.getPath(name);
@@ -559,8 +560,8 @@ namespace OMW
     bool ExtensionHost::startGamePack(MWPhysics::PhysicsSystem* physics)
     {
         // No game pack: nothing at all happens here, and start() is the single start it always was
-        const GamePackStartStep step = planGamePackStart({ mLoaded, mLifecycle.hasGamePack(), mRunning,
-            mGamePackStarted, physics != nullptr, mWorld != nullptr });
+        const GamePackStartStep step = planGamePackStart(
+            { mLoaded, mLifecycle.hasGamePack(), mRunning, mGamePackStarted, physics != nullptr, mWorld != nullptr });
         if (step == GamePackStartStep::AttachWorldOnly)
         {
             // The pack started earlier, before the World existed (startGamePackEarly); it gets the world now
@@ -748,8 +749,8 @@ namespace OMW
 
         Log(Debug::Info) << "Stopping extensions";
         mLifecycle.shutdown();
-        // Nothing of this session is drawn or shown after it ends (task 0017 stage 5): the renderer asks debugDrawFrame()
-        // each frame and gets null, and no hook points at this object any more
+        // Nothing of this session is drawn or shown after it ends (task 0017 stage 5): the renderer asks
+        // debugDrawFrame() each frame and gets null, and no hook points at this object any more
         mLifecycle.setFrameEndHook(nullptr, nullptr);
         mDebugDrawShown = false;
         mProfilerShown = false;

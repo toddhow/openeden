@@ -32,20 +32,20 @@ namespace MWWorld
     /// index are built.
     bool insertNeutralStubPlayer(ESMStore& store);
 
-    /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, the globals the World reads while it is
-    /// built and that a Morrowind-format master defines but a plugin of another game does not (today: "month", which
+    /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, the globals the World reads while it
+    /// is built and that a Morrowind-format master defines but a plugin of another game does not (today: "month", which
     /// World::fillGlobalVariables reads through DateTimeManager::setup; the rest of the date globals come from
     /// World::ensureNeededRecords). Returns how many it added. Call before World::fillGlobalVariables.
     std::size_t insertNeutralStubGlobals(ESMStore& store);
 
-    /// Task 0109 (stage N3a-3). Adds, as a static record and only where missing, the global the engine's new-game set-up
-    /// writes (`chargenstate`: World::startNewGame sets it to -1 when the start bypasses character generation, which a
-    /// neutral session always does). Returns how many it added. Call before World::fillGlobalVariables.
+    /// Task 0109 (stage N3a-3). Adds, as a static record and only where missing, the global the engine's new-game
+    /// set-up writes (`chargenstate`: World::startNewGame sets it to -1 when the start bypasses character generation,
+    /// which a neutral session always does). Returns how many it added. Call before World::fillGlobalVariables.
     std::size_t insertNeutralStubNewGameGlobals(ESMStore& store);
 
     /// Task 0107 (stage N3a-2b). Adds, as static records and only where missing, Morrowind's default values of the
-    /// numeric game settings (the table in components/esm3/defaultgmsts.hpp that OpenMW-CS also uses). The World and the
-    /// managers it builds read many of them by name, and a plugin of another game defines none, so without them the
+    /// numeric game settings (the table in components/esm3/defaultgmsts.hpp that OpenMW-CS also uses). The World and
+    /// the managers it builds read many of them by name, and a plugin of another game defines none, so without them the
     /// session cannot get past World::World. Returns how many it added. Call before ESMStore::setUp().
     std::size_t insertNeutralStubGameSettings(ESMStore& store);
 

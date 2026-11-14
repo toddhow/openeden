@@ -88,8 +88,8 @@ namespace
     TEST(NeutralPlaneLinks, aFloorTriangleIsNotAWall)
     {
         const PlaneWorld world;
-        const std::vector<Triangle> floor{ Triangle{ { vsg::vec3(-100, -100, 100), vsg::vec3(100, -100, 100),
-            vsg::vec3(100, 100, 100) } } };
+        const std::vector<Triangle> floor{ Triangle{
+            { vsg::vec3(-100, -100, 100), vsg::vec3(100, -100, 100), vsg::vec3(100, 100, 100) } } };
         EXPECT_TRUE(find(floor, world).empty());
     }
 

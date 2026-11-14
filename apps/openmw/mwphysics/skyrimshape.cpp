@@ -15,9 +15,9 @@
 #include <Jolt/Geometry/IndexedTriangle.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
+#include "skyrimhavok.hpp"
 #include <components/debug/debuglog.hpp>
 #include <components/files/istreamptr.hpp>
-#include "skyrimhavok.hpp"
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/flatten.hpp>
 #include <components/nifscene/header.hpp>
@@ -98,7 +98,8 @@ namespace MWPhysics::SkyrimShape
     {
         auto reader = std::make_shared<Resource::SceneShapeReader>();
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
-        reader->read = [useHavokCollision](std::string data, const std::string& filename) -> vsg::ref_ptr<Resource::PhysicsShape> {
+        reader->read = [useHavokCollision](
+                           std::string data, const std::string& filename) -> vsg::ref_ptr<Resource::PhysicsShape> {
             Counters& totals = counters();
             const auto begin = std::chrono::steady_clock::now();
             totals.mModels.fetch_add(1, std::memory_order_relaxed);
@@ -117,17 +118,18 @@ namespace MWPhysics::SkyrimShape
                     std::string why;
                     vsg::ref_ptr<Resource::PhysicsShape> havokShape;
                     const SkyrimHavok::Outcome outcome = SkyrimHavok::makeShape(scene, havokShape, havokReport, why);
-                    const auto havokMicros = static_cast<std::uint64_t>(
-                        std::chrono::duration_cast<std::chrono::microseconds>(
+                    const auto havokMicros
+                        = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
                             std::chrono::steady_clock::now() - havokBegin)
-                            .count());
+                                                         .count());
                     totals.mHavokMicroseconds += havokMicros;
                     raiseMax(totals.mHavokMaxMicroseconds, havokMicros);
                     if (outcome == SkyrimHavok::Outcome::Shape)
                     {
                         totals.mHavokShapes.fetch_add(1, std::memory_order_relaxed);
-                        Log(Debug::Verbose) << "Skyrim havok collision for \"" << filename << "\": " << havokReport.mBodies
-                                            << " bodies, " << havokReport.mJoltShapes << " Jolt shapes";
+                        Log(Debug::Verbose)
+                            << "Skyrim havok collision for \"" << filename << "\": " << havokReport.mBodies
+                            << " bodies, " << havokReport.mJoltShapes << " Jolt shapes";
                         totals.mHavokBodies += havokReport.mBodies;
                         totals.mShapes.fetch_add(1, std::memory_order_relaxed);
                         totals.mBytes += havokShape->mCollisionShape->GetStats().mSizeBytes;
@@ -248,7 +250,8 @@ namespace MWPhysics::SkyrimShape
         if (c.mHavokShapes.load() + c.mHavokNoCollision.load() + c.mHavokNoData.load() + c.mHavokUnusable.load() > 0)
             out << "; havok: " << c.mHavokShapes.load() << " models from bhk data (" << c.mHavokBodies.load()
                 << " bodies), " << c.mHavokNoCollision.load() << " with no solid body, " << c.mHavokNoData.load()
-                << " without bhk data and " << c.mHavokUnusable.load() << " with unusable bhk data fell back to visual triangles, "
+                << " without bhk data and " << c.mHavokUnusable.load()
+                << " with unusable bhk data fell back to visual triangles, "
                 << static_cast<double>(c.mHavokMicroseconds.load()) / 1000.0 << " ms in all, "
                 << static_cast<double>(c.mHavokMaxMicroseconds.load()) / 1000.0 << " ms the slowest";
         return out.str();

@@ -363,8 +363,8 @@ namespace
         const Bytes sub = vmad("MyQuest", props, 6);
         std::vector<QuestScriptRef> scripts;
         const std::string raw = sub.str().substr(6); // after the subrecord header
-        EXPECT_TRUE(parseVmadScripts({ reinterpret_cast<const std::byte*>(raw.data()), raw.size() },
-            QuestScriptLimits(), scripts));
+        EXPECT_TRUE(parseVmadScripts(
+            { reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, QuestScriptLimits(), scripts));
         ASSERT_EQ(scripts.size(), 1u);
         EXPECT_EQ(scripts[0].mName, "MyQuest");
         ASSERT_EQ(scripts[0].mProperties.size(), 6u);
@@ -383,8 +383,8 @@ namespace
         props.append(wstr("Counter")).u8(3).u8(1); // the value is missing
         const std::string raw = vmad("MyQuest", props, 1).str().substr(6, 20);
         std::vector<QuestScriptRef> scripts;
-        EXPECT_FALSE(parseVmadScripts({ reinterpret_cast<const std::byte*>(raw.data()), raw.size() },
-            QuestScriptLimits(), scripts));
+        EXPECT_FALSE(parseVmadScripts(
+            { reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, QuestScriptLimits(), scripts));
     }
 
     QuestScriptIndex parseQuests(const Bytes& records, QuestScriptRecords* keep = nullptr)
@@ -482,8 +482,7 @@ namespace
     {
         using namespace PexAsm;
         Scripts files;
-        files.mFiles["myquest"]
-            = ScriptBuilder("MyQuest").autoProperty("Counter", "Int", Int(5)).build().mBytes;
+        files.mFiles["myquest"] = ScriptBuilder("MyQuest").autoProperty("Counter", "Int", Int(5)).build().mBytes;
         QuestScriptProperty p;
         p.mName = "counter";
         p.mScalar = true;
@@ -536,8 +535,7 @@ namespace
     {
         Scripts files;
         files.mFiles["broken"] = { 1, 2, 3 };
-        const QuestScriptIndex index
-            = indexOf({ QuestScriptRef{ "Absent", {} }, QuestScriptRef{ "Broken", {} } });
+        const QuestScriptIndex index = indexOf({ QuestScriptRef{ "Absent", {} }, QuestScriptRef{ "Broken", {} } });
         const QuestVariables vars(index, files.loader());
         EXPECT_FALSE(vars.value(kQuest, "Anything").mKnown);
         EXPECT_EQ(vars.scriptsMissing(), 2u);

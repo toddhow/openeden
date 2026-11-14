@@ -20,9 +20,9 @@
 #include "../mwworld/neutralcell.hpp"
 #include "../mwworld/neutraldoor.hpp"
 #include "../mwworld/neutralstart.hpp"
+#include "../mwworld/worldmodel.hpp"
 #include <components/esmbridge/util.hpp>
 #include <components/worldmodel/store.hpp>
-#include "../mwworld/worldmodel.hpp"
 
 #include "error.hpp"
 #include "operation.hpp"
@@ -49,7 +49,8 @@ namespace MWState
         // square the spot is in (the same path a door to an exterior takes).
         void startInExterior(MWBase::World& world, const MWWorld::NeutralStartTarget& target)
         {
-            NeutralWorld::NeutralWorldStore* store = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+            NeutralWorld::NeutralWorldStore* store
+                = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
             if (store == nullptr)
                 throw std::runtime_error("no game pack provides a neutral world");
             MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
@@ -64,7 +65,8 @@ namespace MWState
             if (!land)
                 throw std::runtime_error("there is no land at (" + std::to_string(target.mX) + ", "
                     + std::to_string(target.mY) + ") in '" + target.mWorld + "': " + error);
-            const auto square = MWWorld::neutralExteriorSquare(target.mX, target.mY, ESM::getCellSize(found.mWorldspace));
+            const auto square
+                = MWWorld::neutralExteriorSquare(target.mX, target.mY, ESM::getCellSize(found.mWorldspace));
             if (!square)
                 throw std::runtime_error("the spot is not a place the exterior grid can hold");
             const double z = target.mZ ? *target.mZ : *land + kDropAboveLand;
@@ -93,8 +95,9 @@ namespace MWState
             try
             {
                 if (mStartCell.empty())
-                    throw std::runtime_error("a neutral world session needs a start place: pass --start <the "
-                                             "cell's editor id> or --start @<world>,<x>,<y>[,<z>]");
+                    throw std::runtime_error(
+                        "a neutral world session needs a start place: pass --start <the "
+                        "cell's editor id> or --start @<world>,<x>,<y>[,<z>]");
                 const MWWorld::NeutralStartTarget target = MWWorld::parseNeutralStart(mStartCell);
                 if (target.mKind == MWWorld::NeutralStartTarget::Kind::Invalid)
                     throw std::runtime_error(target.mError);
@@ -110,10 +113,12 @@ namespace MWState
 
                 MWWorld::CellStore& cell = MWBase::Environment::get().getWorldModel()->getInterior(mStartCell);
                 if (!cell.isNeutral())
-                    throw std::runtime_error("'" + mStartCell + "' is not an interior cell of a game pack's neutral world");
+                    throw std::runtime_error(
+                        "'" + mStartCell + "' is not an interior cell of a game pack's neutral world");
                 const auto start = MWWorld::neutralStartPosition(*cell.neutralCell());
                 if (!start)
-                    throw std::runtime_error("the neutral cell '" + mStartCell + "' has nothing that collides to stand on");
+                    throw std::runtime_error(
+                        "the neutral cell '" + mStartCell + "' has nothing that collides to stand on");
                 Log(Debug::Info) << "Neutral start: the player stands at (" << start->x << ", " << start->y << ", "
                                  << start->z << ") in '" << mStartCell << "'";
 

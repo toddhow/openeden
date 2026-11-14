@@ -1,6 +1,6 @@
 // Task 0113 (neutral world, stage N3a-5): lights in the engine. The conversion of the SDK's LightComponent to the
-// engine's own ESM::Light (the record its light path reads), the cell record's lighting, the light as a fact of the base
-// record, and the Morrowind projection of a light record.
+// engine's own ESM::Light (the record its light path reads), the cell record's lighting, the light as a fact of the
+// base record, and the Morrowind projection of a light record.
 #include <gtest/gtest.h>
 
 #include <array>
@@ -38,14 +38,18 @@ namespace
 
     TEST(NeutralLightColor, aFadeBelowOneDimsAndAboveOneBrightensWhileTheColourHasRoom)
     {
-        EXPECT_EQ(MWWorld::neutralLightColor(light(1, 200, 100, 50, 0.5)), (std::array<std::uint8_t, 3>{ 100, 50, 25 }));
-        EXPECT_EQ(MWWorld::neutralLightColor(light(1, 100, 50, 25, 2.0)), (std::array<std::uint8_t, 3>{ 200, 100, 50 }));
+        EXPECT_EQ(
+            MWWorld::neutralLightColor(light(1, 200, 100, 50, 0.5)), (std::array<std::uint8_t, 3>{ 100, 50, 25 }));
+        EXPECT_EQ(
+            MWWorld::neutralLightColor(light(1, 100, 50, 25, 2.0)), (std::array<std::uint8_t, 3>{ 200, 100, 50 }));
     }
 
     TEST(NeutralLightColor, aFadeThatWouldPassTheByteIsCappedAtTheBrightestChannelAndKeepsTheHue)
     {
-        // 240 * 10 would pass 255; the scale is cut to 255 / 240 = 17 / 16 (exact in binary), so the ratios stay: 255, 127.5 -> 128, 63.75 -> 64.
-        EXPECT_EQ(MWWorld::neutralLightColor(light(1, 240, 120, 60, 10.0)), (std::array<std::uint8_t, 3>{ 255, 128, 64 }));
+        // 240 * 10 would pass 255; the scale is cut to 255 / 240 = 17 / 16 (exact in binary), so the ratios stay: 255,
+        // 127.5 -> 128, 63.75 -> 64.
+        EXPECT_EQ(
+            MWWorld::neutralLightColor(light(1, 240, 120, 60, 10.0)), (std::array<std::uint8_t, 3>{ 255, 128, 64 }));
         // An already saturated colour cannot get brighter.
         EXPECT_EQ(MWWorld::neutralLightColor(light(1, 255, 0, 0, 3.0)), (std::array<std::uint8_t, 3>{ 255, 0, 0 }));
     }

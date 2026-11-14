@@ -252,8 +252,8 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_149 GetIsCurrentWeather(weather): 1 if the current weather is this WTHR, also from the moment a transition
-        /// into it starts (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_149 GetIsCurrentWeather(weather): 1 if the current weather is this WTHR, also from the moment a
+        /// transition into it starts (CK wiki, shown by toddhow, 2026-11-11).
         virtual bool isCurrentWeather(std::uint32_t weather) const
         {
             (void)weather;
@@ -514,7 +514,8 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger).
+        /// fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and
+        /// caused a stagger).
         virtual bool isSmallBump(Subject subject) const
         {
             (void)subject;
@@ -527,7 +528,9 @@ namespace game_skyrimse::conditions
             (void)subject, (void)magicItem;
             return false;
         }
-        /// fn_638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting).
+        /// fn_638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player,
+        /// intimidated by the player, or whose relationship rank with the player is at least the
+        /// iRelationshipFriendValue game setting).
         virtual bool inFriendStateWithPlayer(Subject subject) const
         {
             (void)subject;
@@ -608,7 +611,8 @@ namespace game_skyrimse::conditions
             (void)subject;
             return 0.f;
         }
-        /// fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
+        /// fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured
+        /// graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
         virtual bool isAllowedToFly(Subject subject) const
         {
             (void)subject;
@@ -620,14 +624,15 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date).
+        /// fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date
+        /// stamp with the current date).
         virtual bool isBribedByPlayer(Subject subject) const
         {
             (void)subject;
             return false;
         }
-        /// fn_32 GetInSameCell(reference): is the subject in the same cell as the reference? (CK wiki, shown by toddhow,
-        /// 2026-11-11)
+        /// fn_32 GetInSameCell(reference): is the subject in the same cell as the reference? (CK wiki, shown by
+        /// toddhow, 2026-11-11)
         virtual bool inSameCell(Subject subject, std::uint32_t reference) const
         {
             (void)subject, (void)reference;
@@ -660,7 +665,8 @@ namespace game_skyrimse::conditions
             (void)subject, (void)formList;
             return false;
         }
-        /// fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene).
+        /// fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning
+        /// INFERRED from the name: the subject is taking part in a scene).
         virtual bool isInScene(Subject subject) const
         {
             (void)subject;
@@ -675,7 +681,8 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest).
+        /// fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject;
+        /// meaning INFERRED from the name: the subject is the actor making the arrest).
         virtual bool isArrestingActor(Subject subject) const
         {
             (void)subject;
@@ -734,43 +741,52 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease).
+        /// fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of
+        /// type Disease).
         virtual bool hasDisease(Subject subject) const
         {
             (void)subject;
             return false;
         }
-        /// fn_108 GetWeaponAnimType: the actor's weapon animation type: 0 hand to hand, 1 one-hand sword, 2 dagger, 3 one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe (and warhammer), 7 bow, 8 staff, 12 crossbow (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_108 GetWeaponAnimType: the actor's weapon animation type: 0 hand to hand, 1 one-hand sword, 2 dagger, 3
+        /// one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe (and warhammer), 7 bow, 8 staff, 12 crossbow
+        /// (CK wiki, shown by toddhow, 2026-11-11).
         virtual float weaponAnimType(Subject subject) const
         {
             (void)subject;
             return 0.f;
         }
-        /// fn_633 GetFlyingState: 0 none, 1 takeoff, 2 cruising, 3 hovering, 4 landing, 5 sitting (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_633 GetFlyingState: 0 none, 1 takeoff, 2 cruising, 3 hovering, 4 landing, 5 sitting (CK wiki, shown by
+        /// toddhow, 2026-11-11).
         virtual float flyingState(Subject subject) const
         {
             (void)subject;
             return 0.f;
         }
-        /// fn_41 GetClothingValue: the clothing value of worn clothing and armor, 0 to 100, each item scaled by the share of coverage its slot has (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_41 GetClothingValue: the clothing value of worn clothing and armor, 0 to 100, each item scaled by the
+        /// share of coverage its slot has (CK wiki, shown by toddhow, 2026-11-11).
         virtual float clothingValue(Subject subject) const
         {
             (void)subject;
             return 0.f;
         }
-        /// fn_597 GetEquippedItemType: (hand, left or right as stored): 0 nothing, 1 one-hand sword, 2 dagger, 3 one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe or mace, 7 bow, 8 staff, 9 magic spell, 10 shield, 11 torch, 12 crossbow (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_597 GetEquippedItemType: (hand, left or right as stored): 0 nothing, 1 one-hand sword, 2 dagger, 3
+        /// one-hand axe, 4 one-hand mace, 5 two-hand sword, 6 two-hand axe or mace, 7 bow, 8 staff, 9 magic spell, 10
+        /// shield, 11 torch, 12 crossbow (CK wiki, shown by toddhow, 2026-11-11).
         virtual float equippedItemType(Subject subject, std::uint32_t hand) const
         {
             (void)subject, (void)hand;
             return 0.f;
         }
-        /// fn_408 IsKiller: (actor): was the subject, a dead actor, killed by this actor? (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_408 IsKiller: (actor): was the subject, a dead actor, killed by this actor? (CK wiki, shown by toddhow,
+        /// 2026-11-11).
         virtual bool wasKilledBy(Subject subject, std::uint32_t actor) const
         {
             (void)subject, (void)actor;
             return false;
         }
-        /// fn_592 GetRefTypeAliveCount: (location, ref type): the number of currently alive references of the LCRT in the LCTN (CK wiki, shown by toddhow, 2026-11-11).
+        /// fn_592 GetRefTypeAliveCount: (location, ref type): the number of currently alive references of the LCRT in
+        /// the LCTN (CK wiki, shown by toddhow, 2026-11-11).
         virtual float refTypeAliveCount(std::uint32_t location, std::uint32_t refType) const
         {
             (void)location, (void)refType;
@@ -788,13 +804,15 @@ namespace game_skyrimse::conditions
             (void)subject;
             return false;
         }
-        /// fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches).
+        /// fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a
+        /// guard approaches).
         virtual bool isUnderArrest(Subject subject) const
         {
             (void)subject;
             return false;
         }
-        /// fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting).
+        /// fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning
+        /// INFERRED from the name: the subject is casting).
         virtual bool isCasting(Subject subject) const
         {
             (void)subject;

@@ -67,8 +67,8 @@ namespace game_skyrimse
     /// The tuning of the placement. Estimates, not measured against the game: named so they are findable.
     struct GrassPlacementOptions
     {
-        /// Tufts per 128 x 128 unit square for each point of GRAS density. 0.3 puts 27 tufts in a square at density 90 (about
-        /// one tuft per 22 units), an eyeballed estimate.
+        /// Tufts per 128 x 128 unit square for each point of GRAS density. 0.3 puts 27 tufts in a square at density 90
+        /// (about one tuft per 22 units), an eyeballed estimate.
         float mTuftsPerDensityPoint = 0.3f;
         /// Tufts in one cell over which the density of every kind is scaled down together (a cell is 1,024 squares).
         std::uint32_t mMaxInstancesPerCell = 30000;
@@ -88,11 +88,11 @@ namespace game_skyrimse
     /// [kWaveSpeedMin, kWaveSpeedMax]; 1 for a period that is not finite or not positive.
     [[nodiscard]] float waveSpeedOf(float wavePeriod);
 
-    /// The density the pack ships (task 0153 follow-up): 0.35 of GrassPlacementOptions' first estimate. At that estimate
-    /// frames of Whiterun's plains showed a continuous carpet (tufts are 40 to 110 units wide and 35 to 70 high) where
-    /// Skyrim shows ground between its tufts; at 0.35, 0.5 and 0.2 of it the ground shows at 0.35 and the field is
-    /// still full (compared by eye, not measured against the game: RECALLED-VERIFY). The struct's own default is kept
-    /// (the first tests pin it); the pack builds its options through shippedGrassOptions().
+    /// The density the pack ships (task 0153 follow-up): 0.35 of GrassPlacementOptions' first estimate. At that
+    /// estimate frames of Whiterun's plains showed a continuous carpet (tufts are 40 to 110 units wide and 35 to 70
+    /// high) where Skyrim shows ground between its tufts; at 0.35, 0.5 and 0.2 of it the ground shows at 0.35 and the
+    /// field is still full (compared by eye, not measured against the game: RECALLED-VERIFY). The struct's own default
+    /// is kept (the first tests pin it); the pack builds its options through shippedGrassOptions().
     inline constexpr float kShippedTuftsPerDensityPoint = 0.105f;
     [[nodiscard]] GrassPlacementOptions shippedGrassOptions();
 

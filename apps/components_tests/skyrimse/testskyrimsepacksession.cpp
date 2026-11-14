@@ -178,7 +178,8 @@ namespace
         void setContent(const std::vector<std::string>& names)
         {
             auto collected = openeden::extension::collectSessionContent(
-                names, [this](const std::string& name) -> std::optional<fs::path> {
+                names,
+                [this](const std::string& name) -> std::optional<fs::path> {
                     const fs::path p = dir.mPath / name;
                     if (!fs::exists(p))
                         return std::nullopt;

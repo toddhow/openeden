@@ -78,7 +78,8 @@ namespace
 
         Source() { map->tags = vsg::ref_ptr<Anim::Tags>(new Anim::Tags); }
 
-        void add(const std::string& bone, Anim::channel_ptr<vsg::vec3> translate, Anim::channel_ptr<vsg::quat> rotate = {})
+        void add(
+            const std::string& bone, Anim::channel_ptr<vsg::vec3> translate, Anim::channel_ptr<vsg::quat> rotate = {})
         {
             vsg::ref_ptr<Anim::TransformController> controller(new Anim::TransformController);
             controller->translate = translate;
@@ -97,8 +98,8 @@ namespace
     vsg::ref_ptr<Anim::Linear<vsg::quat>> turn(float radians)
     {
         auto channel = Anim::make_channel<Anim::Linear<vsg::quat>>();
-        channel->keys = { { 0.f, vsg::quat(0.f, 0.f, 0.f, 1.f) },
-            { 1.f, vsg::quat(radians, vsg::vec3(0.f, 0.f, 1.f)) } };
+        channel->keys
+            = { { 0.f, vsg::quat(0.f, 0.f, 0.f, 1.f) }, { 1.f, vsg::quat(radians, vsg::vec3(0.f, 0.f, 1.f)) } };
         return channel;
     }
 

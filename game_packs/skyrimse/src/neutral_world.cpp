@@ -155,7 +155,8 @@ namespace game_skyrimse
         c.blue = light.mColor[2];
         if (light.mHasFade)
         {
-            if (std::isfinite(light.mFade) && light.mFade > 0.0f && static_cast<double>(light.mFade) <= limits.mMaxLightFade)
+            if (std::isfinite(light.mFade) && light.mFade > 0.0f
+                && static_cast<double>(light.mFade) <= limits.mMaxLightFade)
                 c.fade = static_cast<double>(light.mFade);
             else
                 ++stats.mLightFadesReset;
@@ -347,8 +348,8 @@ namespace game_skyrimse
         return index->buildTerrain(world, x, y, out, error);
     }
 
-    bool SkyrimCellSource::cellWater(openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y,
-        openeden::sdk::game::CellWater& out) const
+    bool SkyrimCellSource::cellWater(
+        openeden::sdk::game::WorldId world, std::int32_t x, std::int32_t y, openeden::sdk::game::CellWater& out) const
     {
         out = openeden::sdk::game::CellWater();
         const SkyrimTerrainIndex* index = terrain();
@@ -460,7 +461,8 @@ namespace game_skyrimse
         return begun;
     }
 
-    bool SkyrimCellSource::chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
+    bool SkyrimCellSource::chooseTopic(
+        std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
     {
         auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView);
         if (source == nullptr)

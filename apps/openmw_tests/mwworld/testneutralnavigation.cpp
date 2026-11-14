@@ -1,7 +1,7 @@
 #include <Jolt/Jolt.h>
 
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/RegisterTypes.h>
 
 #include <gtest/gtest.h>
@@ -58,8 +58,7 @@ namespace
         for (const BaseKind kind : { BaseKind::Flora, BaseKind::Tree, BaseKind::Item, BaseKind::Light })
             EXPECT_FALSE(neutralKindBlocksNavigation(kind)) << static_cast<int>(kind);
         for (const BaseKind kind : { BaseKind::Unknown, BaseKind::Static, BaseKind::MovableStatic, BaseKind::Furniture,
-                 BaseKind::Door, BaseKind::Activator, BaseKind::Container, BaseKind::Actor,
-                 BaseKind::Other })
+                 BaseKind::Door, BaseKind::Activator, BaseKind::Container, BaseKind::Actor, BaseKind::Other })
             EXPECT_TRUE(neutralKindBlocksNavigation(kind)) << static_cast<int>(kind);
     }
 

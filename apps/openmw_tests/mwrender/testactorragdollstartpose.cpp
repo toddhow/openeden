@@ -58,8 +58,8 @@ namespace
             const vsg::dvec3 rb = rotate(b, axis);
             if (std::abs(ra.x - rb.x) > tolerance || std::abs(ra.y - rb.y) > tolerance
                 || std::abs(ra.z - rb.z) > tolerance)
-                return ::testing::AssertionFailure() << "rotations differ on axis (" << axis.x << ", " << axis.y << ", "
-                                                     << axis.z << ")";
+                return ::testing::AssertionFailure()
+                    << "rotations differ on axis (" << axis.x << ", " << axis.y << ", " << axis.z << ")";
         }
         return ::testing::AssertionSuccess();
     }
@@ -351,9 +351,9 @@ namespace
                 = Misc::VsgMath::rotationOf(worldPose.getWorldRotation(worldPose.find(mapping.mEngineBone)));
         ASSERT_TRUE(driver.apply());
         for (const auto& mapping : MWRender::ragdollBoneMappings())
-            EXPECT_TRUE(sameRotation(
-                Misc::VsgMath::rotationOf(worldPose.getWorldRotation(worldPose.find(mapping.mEngineBone))),
-                before.at(mapping.mEngineBone), 2e-3))
+            EXPECT_TRUE(
+                sameRotation(Misc::VsgMath::rotationOf(worldPose.getWorldRotation(worldPose.find(mapping.mEngineBone))),
+                    before.at(mapping.mEngineBone), 2e-3))
                 << mapping.mEngineBone;
     }
 }

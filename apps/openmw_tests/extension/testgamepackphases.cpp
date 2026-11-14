@@ -397,8 +397,7 @@ namespace
         EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::Nothing)
             << "no physics given: nothing to attach";
         state.mPhysicsGiven = true;
-        EXPECT_EQ(
-            OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::AttachWorldOnly);
+        EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::AttachWorldOnly);
         state.mWorldAttached = true;
         EXPECT_EQ(OMW::ExtensionHost::planGamePackStart(state), OMW::ExtensionHost::GamePackStartStep::Nothing)
             << "the world is attached once";

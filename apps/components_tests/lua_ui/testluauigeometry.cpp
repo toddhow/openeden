@@ -57,7 +57,8 @@ namespace
 
     TEST_F(LuaUiGeometryTest, absolute_position_and_size_are_used_as_given)
     {
-        auto e = create(R"({ layer = 'Windows', props = { position = util.vector2(10, 20), size = util.vector2(300, 200) },
+        auto e = create(
+            R"({ layer = 'Windows', props = { position = util.vector2(10, 20), size = util.vector2(300, 200) },
             content = ui.content{ { props = { position = util.vector2(5, 6), size = util.vector2(50, 60) } } } })");
         EXPECT_THAT(rectAt(e->mRoot, {}), IsRect(10, 20, 300, 200));
         EXPECT_THAT(rectAt(e->mRoot, { 0 }), IsRect(5, 6, 50, 60));

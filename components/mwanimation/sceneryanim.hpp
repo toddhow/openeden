@@ -63,8 +63,8 @@ namespace MWAnim
         }
 
         /// Poses `play` as a placed Activator is on its first frame: the `idle` group from its start, then one step of
-        /// zero time (CharacterController::refreshIdleAnims, then runAnimation(0)). False when there is no `idle`; an idle whose start and
-        /// stop are one time is posed too, though it never plays.
+        /// zero time (CharacterController::refreshIdleAnims, then runAnimation(0)). False when there is no `idle`; an
+        /// idle whose start and stop are one time is posed too, though it never plays.
         inline bool startAtRest(Play& play)
         {
             if (!play.hasAnimation("idle"))

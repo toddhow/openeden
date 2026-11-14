@@ -3,9 +3,9 @@
 
 // Skyrim SE quests (task 0139, milestone M-S4 "talk to an NPC", slice 2; docs/design/skyrim-se-implementation-plan.md
 // sections 4.16 and 4.20). Pack side only: decode QUST (flags, stages with their log entries, objectives, aliases and
-// how each alias is filled, the quest's dialogue conditions and its start conditions), merge a load order, and keep a pure `QuestState`
-// (running, current stage, stages done, completed, alias fills) that starts from what the data alone says. Plain
-// structs; no engine, renderer, UI or Qt type. Nothing calls it from the engine yet.
+// how each alias is filled, the quest's dialogue conditions and its start conditions), merge a load order, and keep a
+// pure `QuestState` (running, current stage, stages done, completed, alias fills) that starts from what the data alone
+// says. Plain structs; no engine, renderer, UI or Qt type. Nothing calls it from the engine yet.
 //
 // Layout status of what is read. VERIFIED = checked on the five installed masters by throw-away walkers and by
 // tools/skyrimse_quest_check (aggregates in the task log: 2,391 QUST). RECALLED-VERIFY = from memory of xEdit's TES5
@@ -38,16 +38,18 @@
 //    (SCHR/SCTX/QNAM, left out). Stage ids repeat in one quest once (VERIFIED: 1 of the quests).
 //  - Objective: QOBJ u16 index, FNAM u32 flags, NNAM text, then targets QSTA (8 bytes: u32 alias id, u32 flags;
 //    VERIFIED to be the alias id, flag 1 on 13 of 2,785) each followed by its CTDA.
-//  - Alias: ALST (reference alias) or ALLS (location alias) u32 id (VERIFIED unique within a quest), ALID name, FNAM u32
+//  - Alias: ALST (reference alias) or ALLS (location alias) u32 id (VERIFIED unique within a quest), ALID name, FNAM
+//  u32
 //    flags (RECALLED-VERIFY names, see AliasFlags), then at most one kind of fill. Which subrecord shows the fill is
 //    from xEdit (RECALLED-VERIFY) but the combinations in the data fit: ALFR a specific placed reference (never 0:
 //    VERIFIED), ALUA a unique actor (an NPC_, never 0), ALFL a specific location, ALFA (+ ALRT) a reference found in a
-//    location alias (the value is an alias id of the same quest: VERIFIED 2,684 of 2,684), ALFI an alias to force the reference into when it is
-//    filled (an alias id of the same quest: VERIFIED 190 of 190; it comes beside ALFR, ALUA and conditions, so it is
-//    an extra, not a way of filling; the name is xEdit's, RECALLED-VERIFY), ALEQ + ALEA an alias of another quest, ALCO/ALCA/ALCL a
-//    created object, ALFE + ALFD from an event, ALNA + ALNT near another alias; no fill subrecord at all means "find a
-//    matching reference" by the alias's CTDA conditions. Other alias subrecords (ALFC factions, ALPC packages, ALSP
-//    spells, CNTO/COCT items, VTCK voice types, KNAM, ECOR, ALDN, ALEQ ...) are not used here.
+//    location alias (the value is an alias id of the same quest: VERIFIED 2,684 of 2,684), ALFI an alias to force the
+//    reference into when it is filled (an alias id of the same quest: VERIFIED 190 of 190; it comes beside ALFR, ALUA
+//    and conditions, so it is an extra, not a way of filling; the name is xEdit's, RECALLED-VERIFY), ALEQ + ALEA an
+//    alias of another quest, ALCO/ALCA/ALCL a created object, ALFE + ALFD from an event, ALNA + ALNT near another
+//    alias; no fill subrecord at all means "find a matching reference" by the alias's CTDA conditions. Other alias
+//    subrecords (ALFC factions, ALPC packages, ALSP spells, CNTO/COCT items, VTCK voice types, KNAM, ECOR, ALDN, ALEQ
+//    ...) are not used here.
 //
 // A form id stored in a QUST is a plugin-local id; the parser resolves the ones it stores as fields (ALFR, ALUA, ...)
 // with the plugin's resolver. The CTDA lists keep plugin-local ids (like dialogue.hpp), resolved at query time.
@@ -231,11 +233,11 @@ namespace game_skyrimse
         std::optional<Content::Error> mWalkError;
     };
 
-    [[nodiscard]] bool parseQuestRecords(const Content::Plugin& plugin, const LoadOrder& order,
-        const QuestLimits& limits, QuestRecords& out);
+    [[nodiscard]] bool parseQuestRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const QuestLimits& limits, QuestRecords& out);
 
-    [[nodiscard]] bool parseQuestRecordsBytes(const std::string& bytes, const std::string& name,
-        const LoadOrder& order, const QuestLimits& limits, QuestRecords& out, Content::Error& error);
+    [[nodiscard]] bool parseQuestRecordsBytes(const std::string& bytes, const std::string& name, const LoadOrder& order,
+        const QuestLimits& limits, QuestRecords& out, Content::Error& error);
 
     /// The quests of a whole load order: a later record replaces an earlier one with the same form id (a deleted one
     /// is removed).

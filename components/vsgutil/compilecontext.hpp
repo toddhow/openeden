@@ -22,8 +22,8 @@ namespace vsgUtil
      * a compile made by a loader thread (CompileContext::compile) must not overlap. VSG 1.1.16 lets both walk and grow
      * the same resource requirement and descriptor pool vectors, and the game died in DescriptorPools::reserve or
      * Objects::traverse (an access violation, or a hang) when a loader thread's compile was still running while the
-     * main thread started the viewer's compile. Loader compiles take it shared (they may overlap each other, as before),
-     * the viewer's compile takes it exclusively.
+     * main thread started the viewer's compile. Loader compiles take it shared (they may overlap each other, as
+     * before), the viewer's compile takes it exclusively.
      */
     std::shared_mutex& viewerCompileMutex();
 

@@ -47,8 +47,7 @@ namespace MWRender::SkyrimIdle
     namespace
     {
         // The files are read and decoded here; cached by (skeleton, clip) path, failures too. Never throws.
-        std::shared_ptr<const HavokPack::BoundClip> decodeIdle(
-            const VFS::Manager& vfs, LoadReport& report)
+        std::shared_ptr<const HavokPack::BoundClip> decodeIdle(const VFS::Manager& vfs, LoadReport& report)
         {
             const std::string key = report.mSkeletonPath + "|" + report.mClipPath;
             {
@@ -65,8 +64,7 @@ namespace MWRender::SkyrimIdle
             CacheEntry entry;
             try
             {
-                const HavokPack::Packfile skeletonFile
-                    = HavokPack::Packfile::parse(readAll(vfs, report.mSkeletonPath));
+                const HavokPack::Packfile skeletonFile = HavokPack::Packfile::parse(readAll(vfs, report.mSkeletonPath));
                 const std::vector<HavokPack::Skeleton> skeletons = HavokPack::readSkeletons(skeletonFile);
                 if (skeletons.empty())
                     throw HavokPack::Error("'" + report.mSkeletonPath + "' holds no skeleton");

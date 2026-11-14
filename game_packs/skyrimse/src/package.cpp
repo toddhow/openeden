@@ -55,7 +55,8 @@ namespace game_skyrimse
         bool isFormValued(std::int32_t locationType)
         {
             return locationType == PackageLocationType::NearReference || locationType == PackageLocationType::InCell
-                || locationType == PackageLocationType::ObjectId || locationType == PackageLocationType::NearLinkedReference;
+                || locationType == PackageLocationType::ObjectId
+                || locationType == PackageLocationType::NearLinkedReference;
         }
 
         class PackageParser final : public Content::Visitor
@@ -88,7 +89,8 @@ namespace game_skyrimse
                 {
                     if (record.mUncompressedSize > mLimits.mMaxRecordBytes)
                     {
-                        fail(record, "the record inflates to " + std::to_string(record.mUncompressedSize)
+                        fail(record,
+                            "the record inflates to " + std::to_string(record.mUncompressedSize)
                                 + " bytes, over the limit of " + std::to_string(mLimits.mMaxRecordBytes));
                         return true;
                     }
@@ -106,7 +108,8 @@ namespace game_skyrimse
                 }
                 else if (record.mDataSize > mLimits.mMaxRecordBytes)
                 {
-                    fail(record, "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
+                    fail(record,
+                        "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
                             + std::to_string(mLimits.mMaxRecordBytes));
                     return true;
                 }
@@ -225,7 +228,8 @@ namespace game_skyrimse
                                 return; // a branch's condition, not the package's
                             if (p.mConditions.size() >= mLimits.mMaxConditions)
                             {
-                                mWhy = "more than " + std::to_string(mLimits.mMaxConditions) + " conditions in one list";
+                                mWhy
+                                    = "more than " + std::to_string(mLimits.mMaxConditions) + " conditions in one list";
                                 return;
                             }
                             {
@@ -291,7 +295,8 @@ namespace game_skyrimse
                             }
                             return;
                         case Content::fourCC("ANAM"):
-                            // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1 byte).
+                            // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1
+                            // byte).
                             lastInputIsBool = data.size() == 5 && std::memcmp(data.data(), "Bool", 5) == 0;
                             return;
                         case Content::fourCC("CNAM"):
@@ -408,8 +413,8 @@ namespace game_skyrimse
         return PackageActivity::None;
     }
 
-    bool parsePackageRecords(const Content::Plugin& plugin, const LoadOrder& order, const PackageLimits& limits,
-        PackageRecords& out)
+    bool parsePackageRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const PackageLimits& limits, PackageRecords& out)
     {
         out = PackageRecords();
         out.mName = plugin.name();

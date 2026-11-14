@@ -16,8 +16,8 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
-#include <string_view>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace game_skyrimse
@@ -28,17 +28,17 @@ namespace game_skyrimse
         /// distance 7168). GUESS: the engine fogs linearly to the view distance, Skyrim fogs by pow(distance / far,
         /// power) up to a maximum, so the two cannot agree at every distance; they are made to agree here.
         inline constexpr float kFogReferenceDistance = 7168.f;
-        /// The wind byte (0..178 in the data) over this is the engine's wind scale (clear 25 -> 0.098, storm 102 -> 0.4;
-        /// Morrowind's clear is about 0.1). GUESS for the unit.
+        /// The wind byte (0..178 in the data) over this is the engine's wind scale (clear 25 -> 0.098, storm 102 ->
+        /// 0.4; Morrowind's clear is about 0.1). GUESS for the unit.
         inline constexpr float kWindByteScale = 255.f;
         /// The sun glare byte over this is the engine's glare view. GUESS for the unit.
         inline constexpr float kGlareByteScale = 255.f;
-        /// DATA byte 3 (125 in 134 of 177 records) times this is the fraction of a transition per real second: 125 gives
-        /// 0.015, Morrowind's clear-to-cloudy delta, so a transition takes about a minute. GUESS: Skyrim's own rule is
-        /// a game-time one.
+        /// DATA byte 3 (125 in 134 of 177 records) times this is the fraction of a transition per real second: 125
+        /// gives 0.015, Morrowind's clear-to-cloudy delta, so a transition takes about a minute. GUESS: Skyrim's own
+        /// rule is a game-time one.
         inline constexpr float kTransitionDeltaPerUnit = 0.00012f;
-        /// QNAM and RNAM (127 means still in the common case): the drift multiplier is the larger distance of a byte from
-        /// 127 over 127 times this, but never below the floor so that clouds always move a little. GUESS.
+        /// QNAM and RNAM (127 means still in the common case): the drift multiplier is the larger distance of a byte
+        /// from 127 over 127 times this, but never below the floor so that clouds always move a little. GUESS.
         inline constexpr float kCloudSpeedScale = 2.f;
         inline constexpr float kCloudSpeedFloor = 0.25f;
         inline constexpr std::uint8_t kCloudStillByte = 127;
@@ -51,20 +51,22 @@ namespace game_skyrimse
         inline constexpr std::uint8_t kNoThunderByte = 255;
         inline constexpr float kThunderFrequencyPerStep = 0.05f;
         inline constexpr float kThunderFrequencyMax = 1.f;
-        /// Extra cloud layers (task 0127 stage W-S3). A layer is drawn over the picture only when its largest alpha over
-        /// the four times of day reaches this (JNAM is 0 to 1 in the data; layers that are never visible are left out).
+        /// Extra cloud layers (task 0127 stage W-S3). A layer is drawn over the picture only when its largest alpha
+        /// over the four times of day reaches this (JNAM is 0 to 1 in the data; layers that are never visible are left
+        /// out).
         inline constexpr float kMinExtraLayerAlpha = 0.05f;
         /// A texture of this name (case-insensitive) is a blank picture the data uses as a placeholder layer (several
         /// installed weathers name Sky\Alpha.dds on layer 2): nothing is drawn for it.
         inline constexpr const char* kBlankCloudTexture = "alpha.dds";
-        /// A texture whose name holds this (case-insensitive) is a horizon strip (SkyrimCloudsHorizon01.dds): the game maps
-        /// it round the horizon, and on the engine's overhead cloud dome it came out as long straight streaks across the
-        /// whole sky (found by the first frame), so it is not drawn as an extra layer. GUESS (a look decision).
+        /// A texture whose name holds this (case-insensitive) is a horizon strip (SkyrimCloudsHorizon01.dds): the game
+        /// maps it round the horizon, and on the engine's overhead cloud dome it came out as long straight streaks
+        /// across the whole sky (found by the first frame), so it is not drawn as an extra layer. GUESS (a look
+        /// decision).
         inline constexpr const char* kHorizonCloudMarker = "horizon";
     }
 
-    /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts as
-    /// existing.
+    /// Whether a texture the data names exists (path as stored, "Sky\SkyrimClouds01.dds"). Empty: every texture counts
+    /// as existing.
     using TextureProbe = std::function<bool(const std::string&)>;
 
     /// The record a SNDR or SOUN form id names, or null (the index's `sound`).
@@ -74,14 +76,15 @@ namespace game_skyrimse
 
     namespace SoundScale
     {
-        /// The gain never goes below this however large the stored attenuation (65535 would be 655 dB): a floor of 20 dB.
+        /// The gain never goes below this however large the stored attenuation (65535 would be 655 dB): a floor of 20
+        /// dB.
         inline constexpr float kMinGain = 0.1f;
     }
 
     /// A sound file name as the data stores it, as the VFS path the engine plays ("sound/fx/amb/x.wav": lower case,
     /// forward slashes, rooted at "sound/"). The three shapes in the installed data are "Data\Sound\FX\...", "fx\..."
-    /// (relative to the Sound folder) and a leading backslash; a drive letter, a ".." component, a control character, no
-    /// file name or nothing at all gives "".
+    /// (relative to the Sound folder) and a leading backslash; a drive letter, a ".." component, a control character,
+    /// no file name or nothing at all gives "".
     [[nodiscard]] std::string normalizeSoundPath(std::string_view stored);
 
     /// The gain of a stored static attenuation (hundredths of a decibel): 10 ^ (-dB / 20), 1 for none or 0, never below
@@ -99,10 +102,9 @@ namespace game_skyrimse
         const TextureProbe& textureExists = {}, const ImageSpaceLookup& imageSpaces = {},
         const SoundLookup& sounds = {}, const SoundProbe& soundExists = {});
 
-    /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no climate
-    /// has a timing.
-    /// Also (stage W-S3) the sun and sun glare pictures of that climate when `textureExists` (if given) finds them, and
-    /// which moons the climate has.
+    /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no
+    /// climate has a timing. Also (stage W-S3) the sun and sun glare pictures of that climate when `textureExists` (if
+    /// given) finds them, and which moons the climate has.
     [[nodiscard]] bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out,
         const TextureProbe& textureExists = {});
 
@@ -111,8 +113,8 @@ namespace game_skyrimse
     class WeatherTable
     {
     public:
-        explicit WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists = {},
-            const SoundProbe& soundExists = {});
+        explicit WeatherTable(
+            const WeatherIndex& index, const TextureProbe& textureExists = {}, const SoundProbe& soundExists = {});
 
         [[nodiscard]] const std::vector<openeden::sdk::game::WeatherDescription>& weathers() const { return mWeathers; }
         /// The table position of a weather form id, or -1.

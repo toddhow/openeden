@@ -63,9 +63,11 @@ namespace
         NeutralDialoguePager pager("Goodbye", "More", 3);
         pager.setTurn(turnWithTopics(7), "H");
         EXPECT_EQ(pager.pageCount(), 3u);
-        EXPECT_EQ(pager.menu().buttons, (std::vector<std::string>{ "Topic 0", "Topic 1", "Topic 2", "More", "Goodbye" }));
+        EXPECT_EQ(
+            pager.menu().buttons, (std::vector<std::string>{ "Topic 0", "Topic 1", "Topic 2", "More", "Goodbye" }));
         EXPECT_EQ(pager.press(3).kind, NeutralDialogueChoice::Kind::MoreTopics);
-        EXPECT_EQ(pager.menu().buttons, (std::vector<std::string>{ "Topic 3", "Topic 4", "Topic 5", "More", "Goodbye" }));
+        EXPECT_EQ(
+            pager.menu().buttons, (std::vector<std::string>{ "Topic 3", "Topic 4", "Topic 5", "More", "Goodbye" }));
         EXPECT_EQ(pager.press(3).kind, NeutralDialogueChoice::Kind::MoreTopics);
         EXPECT_EQ(pager.menu().buttons, (std::vector<std::string>{ "Topic 6", "More", "Goodbye" }));
         const auto last = pager.press(0);

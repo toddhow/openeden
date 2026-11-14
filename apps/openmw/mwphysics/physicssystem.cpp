@@ -70,8 +70,8 @@
 #include "neutralplanelinks.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
-#include "skyrimshape.hpp"
 #include "ragdollhost.hpp"
+#include "skyrimshape.hpp"
 #include "water.hpp"
 
 #include "joltcallbacks.hpp"
@@ -309,7 +309,8 @@ namespace MWPhysics
         // Task 0110 (neutral world stage N3a-4b): with the neutral world on, a Skyrim SE model gets a collision mesh
         // from its visual triangles. Set before any shape is requested; off, the manager is exactly what it was.
         if (Settings::game().mNeutralWorld)
-            mShapeManager->setSceneShapeReader(SkyrimShape::makeSceneShapeReader(Settings::game().mNeutralHavokCollision));
+            mShapeManager->setSceneShapeReader(
+                SkyrimShape::makeSceneShapeReader(Settings::game().mNeutralHavokCollision));
 
         // Register allocation hook and callbacks
         JPH::RegisterDefaultAllocator();
@@ -458,9 +459,8 @@ namespace MWPhysics
         mRagdollHost->remove();
     }
 
-    bool PhysicsSystem::startActorRagdoll(
-        const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose,
-        const double* velocityUnits)
+    bool PhysicsSystem::startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message,
+        const ActorStartPose* pose, const double* velocityUnits)
     {
         if (!Settings::physics().mCreativeMotionRagdolls)
         {
@@ -1264,8 +1264,8 @@ namespace MWPhysics
         if (entry == nullptr)
             return;
         entry->mRequest = {};
-        const float speed = goal.speed == openeden::sdk::game::ActorSpeed::Run ? NeutralPath::kRunSpeed
-                                                                               : NeutralPath::kWalkSpeed;
+        const float speed
+            = goal.speed == openeden::sdk::game::ActorSpeed::Run ? NeutralPath::kRunSpeed : NeutralPath::kWalkSpeed;
         const vsg::vec3 target(static_cast<float>(goal.x), static_cast<float>(goal.y), static_cast<float>(goal.z));
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         if (trace)
@@ -1273,8 +1273,9 @@ namespace MWPhysics
             const auto actor = mPhysics.mObjects.find(entry->mRef);
             Log(Debug::Info) << "NACTGOTO goal " << target.x << " " << target.y << " " << target.z << " speed " << speed
                              << " actor "
-                             << (actor != mPhysics.mObjects.end() ? actor->second->getPtr().getCellRef().getRefId().toDebugString()
-                                                                  : std::string("?"));
+                             << (actor != mPhysics.mObjects.end()
+                                        ? actor->second->getPtr().getCellRef().getRefId().toDebugString()
+                                        : std::string("?"));
         }
         if (!entry->mFollow.setGoal(target, speed))
             mPhysics.mNeutralBridge.reportGoal(key, openeden::sdk::game::GoalResult::NoPath); // a float overflow
@@ -1330,8 +1331,7 @@ namespace MWPhysics
                              << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2] << " clip " << use.clip;
     }
 
-    bool PhysicsSystem::NeutralRequestApplier::placeSeated(
-        const void* key, double x, double y, double z, float heading)
+    bool PhysicsSystem::NeutralRequestApplier::placeSeated(const void* key, double x, double y, double z, float heading)
     {
         NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
         if (entry == nullptr || !entry->mSeated)
@@ -1407,8 +1407,8 @@ namespace MWPhysics
         if (!known)
             return;
         const ESM::Position& pos = ptr.getRefData().getPosition();
-        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.add(mNeutralRulesResolver(), ptr.mRef,
-            reference, base, editorId, pos.pos[0], pos.pos[1], pos.pos[2], pos.rot[2]);
+        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.add(mNeutralRulesResolver(), ptr.mRef, reference,
+            base, editorId, pos.pos[0], pos.pos[1], pos.pos[2], pos.rot[2]);
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         if (trace)
             Log(Debug::Info) << "NACTHOOK added " << ptr.getCellRef().getRefId() << " editor id " << editorId
@@ -1435,8 +1435,8 @@ namespace MWPhysics
         mNeutralDoorsMoved.clear();
         if (mNeutralActors.empty())
             return;
-        // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every 600
-        // frames. Off, it costs one test of a static flag.
+        // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every
+        // 600 frames. Off, it costs one test of a static flag.
         static const bool costTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_COST") != nullptr;
         const auto costStart = costTrace ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
@@ -1515,7 +1515,8 @@ namespace MWPhysics
                     followNeutralGoal(entry, found->second->getPtr(), stepDt, trace);
                     if (costTrace)
                         mNeutralCostFollowNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            std::chrono::steady_clock::now() - followStart).count();
+                            std::chrono::steady_clock::now() - followStart)
+                                                    .count();
                 }
                 if (entry.mRequest.isMoving())
                 {
@@ -1524,7 +1525,8 @@ namespace MWPhysics
                     walkNeutralActor(entry, *found->second, stepDt, trace);
                     if (costTrace)
                         mNeutralCostWalkNs += std::chrono::duration_cast<std::chrono::nanoseconds>(
-                            std::chrono::steady_clock::now() - walkStart).count();
+                            std::chrono::steady_clock::now() - walkStart)
+                                                  .count();
                 }
                 else if (entry.mFaceValid)
                 {
@@ -1593,7 +1595,8 @@ namespace MWPhysics
         {
             const auto end = std::chrono::steady_clock::now();
             mNeutralCostNs += std::chrono::duration_cast<std::chrono::nanoseconds>(end - costStart).count();
-            mNeutralCostPackNs += std::chrono::duration_cast<std::chrono::nanoseconds>(costAfterPack - costStart).count();
+            mNeutralCostPackNs
+                += std::chrono::duration_cast<std::chrono::nanoseconds>(costAfterPack - costStart).count();
             mNeutralCostActorFrames += mNeutralActors.size();
             if (++mNeutralCostFrames % 600 == 0)
             {
@@ -1675,8 +1678,8 @@ namespace MWPhysics
             const float before = door.mState.mProgress;
             door.mState = NeutralDoor::step(door.mState, near, dt);
             static const bool doorTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
-            if (doorTrace && (before <= 0.f) != (door.mState.mProgress <= 0.f || false) && before != door.mState.mProgress
-                && (before <= 0.f || door.mState.mProgress <= 0.f))
+            if (doorTrace && (before <= 0.f) != (door.mState.mProgress <= 0.f || false)
+                && before != door.mState.mProgress && (before <= 0.f || door.mState.mProgress <= 0.f))
                 Log(Debug::Info) << "NACTDOOR " << doorObject->second->getPtr().getCellRef().getRefId() << " "
                                  << (before <= 0.f ? "opens" : "closed") << " at " << door.mCentreX << " "
                                  << door.mCentreY << " " << door.mCentreZ;
@@ -1728,8 +1731,8 @@ namespace MWPhysics
         const vsg::dmat4 transform = object.getTransform();
         std::vector<NeutralPlaneLinks::Triangle> triangles;
         JPH::Shape::GetTrianglesContext context;
-        shape->GetTrianglesStart(context, shape->GetLocalBounds(), JPH::Vec3::sZero(), JPH::Quat::sIdentity(),
-            JPH::Vec3::sReplicate(1.0f));
+        shape->GetTrianglesStart(
+            context, shape->GetLocalBounds(), JPH::Vec3::sZero(), JPH::Quat::sIdentity(), JPH::Vec3::sReplicate(1.0f));
         constexpr int batch = 256;
         JPH::Float3 vertices[3 * batch];
         for (;;)
@@ -1798,12 +1801,12 @@ namespace MWPhysics
             return;
         using openeden::sdk::game::GoalResult;
         const GoalResult reported = result.mOutcome == NeutralPath::Outcome::Arrived ? GoalResult::Arrived
-            : result.mOutcome == NeutralPath::Outcome::NoPath                          ? GoalResult::NoPath
-                                                                                       : GoalResult::Blocked;
+            : result.mOutcome == NeutralPath::Outcome::NoPath                        ? GoalResult::NoPath
+                                                                                     : GoalResult::Blocked;
         mNeutralBridge.reportGoal(entry.mRef, reported);
         if (trace)
             Log(Debug::Info) << "NACTGOTO result " << ptr.getCellRef().getRefId() << " "
-                             << (reported == GoalResult::Arrived       ? "arrived"
+                             << (reported == GoalResult::Arrived         ? "arrived"
                                         : reported == GoalResult::NoPath ? "no path"
                                                                          : "blocked")
                              << " at " << feet.x << " " << feet.y << " " << feet.z;

@@ -45,7 +45,8 @@ namespace MWSound
             if (!result.mOk)
                 throw std::runtime_error(result.mError);
             Log(Debug::Info) << "Voice file " << name << ": lip " << result.mParts.mLip.size() << " bytes, audio "
-                             << result.mParts.mAudio.size() << " bytes" << (result.mParts.mAudioIsXwma ? " (xWMA)" : "");
+                             << result.mParts.mAudio.size() << " bytes"
+                             << (result.mParts.mAudioIsXwma ? " (xWMA)" : "");
             return std::make_unique<std::istringstream>(std::string(result.mParts.mAudio), std::ios::binary);
         }
     }

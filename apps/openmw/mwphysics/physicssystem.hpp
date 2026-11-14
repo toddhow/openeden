@@ -31,8 +31,8 @@
 #include "neutralactorbridge.hpp"
 #include "neutraldoorswing.hpp"
 #include "neutralmover.hpp"
-#include "neutralplanelinks.hpp"
 #include "neutralpathfollower.hpp"
+#include "neutralplanelinks.hpp"
 #include "neutralprocess.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
@@ -206,12 +206,13 @@ namespace MWPhysics
         /// object already has a body or the shape cannot be made.
         void addNeutralActor(const MWWorld::Ptr& ptr, float heightScale, float raise = 0.f);
 
-        /// Task 0135: one frame of the neutral actors: those not yet on the floor are stood on it (NeutralActor::stepFall,
-        /// a ray cast down per actor), those that are grounded and have a movement request are walked
-        /// (NeutralMover::step: swept capsule, step up, slide, floor snap). Writes each new position and heading into
-        /// the object's position and fills getNeutralActorsMoved() / getNeutralActorsTurned(); the caller moves the
-        /// drawn object and calls updatePosition for each. Call before stepSimulation, on the main thread. A grounded
-        /// actor with no request costs one state test and one request test; neither list allocates once reserved.
+        /// Task 0135: one frame of the neutral actors: those not yet on the floor are stood on it
+        /// (NeutralActor::stepFall, a ray cast down per actor), those that are grounded and have a movement request are
+        /// walked (NeutralMover::step: swept capsule, step up, slide, floor snap). Writes each new position and heading
+        /// into the object's position and fills getNeutralActorsMoved() / getNeutralActorsTurned(); the caller moves
+        /// the drawn object and calls updatePosition for each. Call before stepSimulation, on the main thread. A
+        /// grounded actor with no request costs one state test and one request test; neither list allocates once
+        /// reserved.
         void updateNeutralActors(float dt);
 
         /// Task 0157: a door of a neutral interior that neutral actors walk through (the scene decides which:
@@ -325,8 +326,7 @@ namespace MWPhysics
         /// Builds one at the actor's position and yaw, moving as the actor was. False and a message when the setting
         /// is off, the actor has no physics body, it already has one, or the host refuses (the table is full).
         bool startActorRagdoll(const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message,
-            const ActorStartPose* pose = nullptr,
-            const double* velocityUnits = nullptr);
+            const ActorStartPose* pose = nullptr, const double* velocityUnits = nullptr);
         /// The ragdoll's bones in game units, in actorRagdollBones() order; false for a stale handle.
         bool readActorRagdoll(ActorRagdollHandle handle, std::span<RagdollBoneState> out) const;
         bool hasActorRagdoll(ActorRagdollHandle handle) const;

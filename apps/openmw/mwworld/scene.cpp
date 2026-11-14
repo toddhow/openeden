@@ -62,14 +62,14 @@
 #include <components/neutralterrain/window.hpp>
 #include <components/worldmodel/store.hpp>
 
-#include "neutralcell.hpp"
-#include "neutraldoor.hpp"
-#include "neutralphysicswater.hpp"
-#include "neutralstore.hpp"
 #include "cellvisitors.hpp"
 #include "class.hpp"
 #include "esmstore.hpp"
 #include "localscripts.hpp"
+#include "neutralcell.hpp"
+#include "neutraldoor.hpp"
+#include "neutralphysicswater.hpp"
+#include "neutralstore.hpp"
 #include "player.hpp"
 #include "preloadcell.hpp"
 #include "worldimp.hpp"
@@ -625,13 +625,14 @@ namespace MWWorld
         MWBase::Environment::get().getWindowManager()->addCell(&cell);
         traceWindow.end();
         Misc::LoadTrace::Scope traceWater("load.water.ambient.sky");
-        // Task 0125: a neutral exterior has no water yet (Skyrim's water is a later stage); Morrowind's exterior always has.
-        // Task 0129: a neutral exterior draws its own cell-bounded surface (the game pack gave its height) and leaves
-        // the global water state alone; the infinite plane would flood every lower square of the world.
+        // Task 0125: a neutral exterior has no water yet (Skyrim's water is a later stage); Morrowind's exterior always
+        // has. Task 0129: a neutral exterior draws its own cell-bounded surface (the game pack gave its height) and
+        // leaves the global water state alone; the infinite plane would flood every lower square of the world.
         const bool neutralExterior = cell.isExterior() && cell.isNeutral();
         if (neutralExterior && cellVariant.hasWater())
         {
-            mRendering.setNeutralCellWater(cellX, cellY, static_cast<float>(ESM::getCellSize(worldspace)), cell.getWaterLevel());
+            mRendering.setNeutralCellWater(
+                cellX, cellY, static_cast<float>(ESM::getCellSize(worldspace)), cell.getWaterLevel());
             // Task 0134: the navigator gets the square's water as Morrowind's exteriors give it
             if (const auto navWater = neutralNavigatorWater(true, mPhysics->getHeightField(cellX, cellY) != nullptr,
                     cell.getWaterLevel(), ESM::getCellSize(worldspace)))
@@ -765,7 +766,8 @@ namespace MWWorld
             && mRendering.neutralTerrainWorld() == neutralWorld->mWorld)
             return;
         NeutralWorld::NeutralWorldStore* store = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
-        openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(neutralWorld->mGameId) : nullptr;
+        openeden::sdk::game::WorldCellSource* source
+            = store != nullptr ? store->source(neutralWorld->mGameId) : nullptr;
         if (source == nullptr)
         {
             Log(Debug::Error) << "Neutral terrain: no world source for game '" << neutralWorld->mGameId << "'";
@@ -1014,7 +1016,7 @@ namespace MWWorld
     {
         finishCell(cell);
         mHalfGridSize = (cell.getCell()->isEsm4() || cell.isNeutral()) ? Constants::ESM4CellGridRadius
-                                                                        : Constants::CellGridRadius;
+                                                                       : Constants::CellGridRadius;
         mCurrentCell = &cell;
         if (cell.isNeutral())
         {
@@ -1228,10 +1230,10 @@ namespace MWWorld
             if (cell.isNeutral())
                 Log(Debug::Info) << MWPhysics::SkyrimShape::describeCounters();
             if (cell.isNeutral())
-                Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId() << "' inserted into the scene: "
-                                 << neutralInserted.total() << " objects (" << neutralInserted.describe() << "), "
-                                 << cell.neutralSkipped() << " left out, " << cell.neutralDisabled()
-                                 << " initially disabled (loaded, not inserted)";
+                Log(Debug::Info) << "Neutral cell '" << cell.getCell()->getNameId()
+                                 << "' inserted into the scene: " << neutralInserted.total() << " objects ("
+                                 << neutralInserted.describe() << "), " << cell.neutralSkipped() << " left out, "
+                                 << cell.neutralDisabled() << " initially disabled (loaded, not inserted)";
         }
         Misc::LoadTrace::Scope trace("insert.navigator");
         insertVisitor.insert([&](const MWWorld::Ptr& ptr) {

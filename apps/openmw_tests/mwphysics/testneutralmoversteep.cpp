@@ -1,5 +1,6 @@
 // Task 0159: two things a real route of the Bannered Mare cellar needed (Lucia's way to her bed).
-// (1) A capsule that climbs rests its rim on the nosing of a steep dirt step, and the ground under its centre is a steep
+// (1) A capsule that climbs rests its rim on the nosing of a steep dirt step, and the ground under its centre is a
+// steep
 //     face (normal z 0.51): a pass that carries the capsule up is not refused for that steepness; a level one still is.
 // (2) A trench narrower than the capsule (5 units wide, 34 deep) has the capsule's rim on both sides; recast's voxels
 //     (6.8 units) average it away, so the navmesh crosses it. The centre probe sees only the drop. A gap with ground at
@@ -80,9 +81,9 @@ namespace
         EXPECT_TRUE(r.mBlocked);
     }
 
-    // Floor at z = 0 for x < gapStart and x > gapEnd, a deep floor (z = -deep) in the gap. The capsule (radius 22) rests at
-    // z = 0 when any floor lies within its radius of its centre, else on the deep floor; the centre probe sees the floor
-    // directly under it; nothing is ever in the way horizontally.
+    // Floor at z = 0 for x < gapStart and x > gapEnd, a deep floor (z = -deep) in the gap. The capsule (radius 22)
+    // rests at z = 0 when any floor lies within its radius of its centre, else on the deep floor; the centre probe sees
+    // the floor directly under it; nothing is ever in the way horizontally.
     class TrenchWorld final : public Sweeper
     {
     public:
@@ -173,8 +174,8 @@ namespace
     }
 
     // A capsule perched on the corner of a raised object: it rests 15 above the floor, over a trench 20 wide whose two
-    // sides are floor at z = 0. The ground 12 ahead and behind is 19 below the resting capsule: that is no support at the
-    // capsule's own floor, so it must not be bridged (Lucia hung by her rim over the cellar trench, task 0159).
+    // sides are floor at z = 0. The ground 12 ahead and behind is 19 below the resting capsule: that is no support at
+    // the capsule's own floor, so it must not be bridged (Lucia hung by her rim over the cellar trench, task 0159).
     class PerchWorld final : public Sweeper
     {
     public:

@@ -70,21 +70,23 @@ namespace MWWorld
     inline constexpr std::uint32_t kNeutralCellAmbient = 0x00606060;
 
     /// The interior ESM::Cell record that stands for the neutral cell: id, name = the editor id (what the console and
-    /// findInterior use), the Interior flag, no content, the flat ambient above, or the cell's own lighting (WorldCell::lighting) when it has one.
+    /// findInterior use), the Interior flag, no content, the flat ambient above, or the cell's own lighting
+    /// (WorldCell::lighting) when it has one.
     [[nodiscard]] ESM::Cell makeNeutralCellRecord(std::string_view gameId, const openeden::sdk::game::WorldCell& cell);
 
     /// The reference of one placement: the base id (neutralBaseId), the RefNum, the position, the stored angles, the
     /// scale. False (with `error`) when the object has no usable id or base, a RefNum that does not fit, or a value
     /// that is not finite.
-    [[nodiscard]] bool makeNeutralCellRef(std::string_view gameId, const openeden::sdk::game::WorldObject& object,
-        ESM::CellRef& ref, std::string& error);
+    [[nodiscard]] bool makeNeutralCellRef(
+        std::string_view gameId, const openeden::sdk::game::WorldObject& object, ESM::CellRef& ref, std::string& error);
 
-    /// Where a new game puts the player in a neutral interior (the pack gives no entry marker): the median x and y of the
-    /// objects that collide, and the top of the lowest of those objects that stand over that point (the floor, as far
-    /// as boxes of bounds can say), else the top of the nearest one. A heuristic, named as one: the player then falls
-    /// the last few units onto the floor when the engine adjusts the position. nullopt when nothing in the cell
+    /// Where a new game puts the player in a neutral interior (the pack gives no entry marker): the median x and y of
+    /// the objects that collide, and the top of the lowest of those objects that stand over that point (the floor, as
+    /// far as boxes of bounds can say), else the top of the nearest one. A heuristic, named as one: the player then
+    /// falls the last few units onto the floor when the engine adjusts the position. nullopt when nothing in the cell
     /// collides.
-    [[nodiscard]] std::optional<openeden::sdk::game::Vec3d> neutralStartPosition(const openeden::sdk::game::WorldCell& cell);
+    [[nodiscard]] std::optional<openeden::sdk::game::Vec3d> neutralStartPosition(
+        const openeden::sdk::game::WorldCell& cell);
 
     /// Objects of a neutral cell by kind (the enumeration of openeden::sdk::game::ObjectKind, in its order).
     struct NeutralKindCounts

@@ -282,7 +282,8 @@ TEST(BhkCollision, a_node_without_a_collision_object_gives_nothing)
     EXPECT_EQ(scene.mHavok.mReport.mCollisionObjects, 0u);
 }
 
-// ---- the compressed mesh chunk decoder -------------------------------------------------------------------------------
+// ---- the compressed mesh chunk decoder
+// -------------------------------------------------------------------------------
 
 TEST(BhkChunk, vertices_are_translation_plus_step_times_the_stored_value)
 {

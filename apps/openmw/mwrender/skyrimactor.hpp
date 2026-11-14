@@ -21,8 +21,8 @@
 #include <vsg/core/ref_ptr.h>
 #include <vsg/nodes/Node.h>
 
-#include <components/vfs/manager.hpp>
 #include <components/nifscene/skeleton.hpp>
+#include <components/vfs/manager.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
 
@@ -43,8 +43,8 @@ namespace MWRender::SkyrimActor
         std::uint32_t mTriangles = 0;
         std::uint32_t mSkeletonProblems = 0; // unreachable, non-finite and duplicate-name nodes of the skeleton plan
         std::string mFailure; // set when no node was made
-        /// Task 0146: with `[Game] neutral lip sync`, the morph of the head's mouth (null when off, or when no face shape or
-        /// no race head file matched). The caller keeps it alive with the actor.
+        /// Task 0146: with `[Game] neutral lip sync`, the morph of the head's mouth (null when off, or when no face
+        /// shape or no race head file matched). The caller keeps it alive with the actor.
         vsg::ref_ptr<SkyrimLip::HeadMorph> mLip;
     };
 

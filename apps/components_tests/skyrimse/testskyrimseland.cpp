@@ -40,7 +40,8 @@ namespace
     std::unique_ptr<Content::Plugin> openHeader(const Bytes& h)
     {
         Content::Error error;
-        return Content::Plugin::open(std::make_unique<std::istringstream>(h.str(), std::ios::binary), "test.esp", error);
+        return Content::Plugin::open(
+            std::make_unique<std::istringstream>(h.str(), std::ios::binary), "test.esp", error);
     }
 
     struct Fixture
@@ -281,8 +282,8 @@ namespace
         Fixture f;
         Bytes subs;
         subs.append(atxt(0x00000B01, 0, 0));
-        subs.append(vtxt({ { 289, 0.5f }, { 4, std::numeric_limits<float>::infinity() }, { 5, -0.5f },
-            { 6, 1.5f }, { 7, 0.5f } }));
+        subs.append(vtxt(
+            { { 289, 0.5f }, { 4, std::numeric_limits<float>::infinity() }, { 5, -0.5f }, { 6, 1.5f }, { 7, 0.5f } }));
         LandRecord land;
         std::string why;
         ASSERT_TRUE(decodeLand(view(subs), raw("LAND"), f.context(), land, why)) << why;
@@ -633,8 +634,8 @@ namespace
         const LoadOrder order = oneMaster();
         ExteriorData data;
         Content::Error error;
-        ASSERT_TRUE(parseExteriorBytes(exteriorPlugin(landRecord(kLandId, 3.0f)).str(), "test.esp", order,
-            ExteriorLimits(), data, error))
+        ASSERT_TRUE(parseExteriorBytes(
+            exteriorPlugin(landRecord(kLandId, 3.0f)).str(), "test.esp", order, ExteriorLimits(), data, error))
             << error.describe();
         ASSERT_EQ(data.mWorlds.size(), 1u);
         EXPECT_EQ(data.mWorlds[0].mCommon.mEditorId, "W");
@@ -688,8 +689,7 @@ namespace
         const LoadOrder order = oneMaster();
         ExteriorData data;
         Content::Error error;
-        ASSERT_TRUE(
-            parseExteriorBytes(exteriorPlugin(land).str(), "test.esp", order, ExteriorLimits(), data, error))
+        ASSERT_TRUE(parseExteriorBytes(exteriorPlugin(land).str(), "test.esp", order, ExteriorLimits(), data, error))
             << error.describe();
         ASSERT_EQ(data.mLands.size(), 1u);
         EXPECT_TRUE(data.mLands[0].mHasHeights);
@@ -716,10 +716,10 @@ namespace
     TEST(SkyrimExteriorWalk, groundTexturesTextureSetsAndWatersAreCollected)
     {
         Bytes top;
-        top.append(group4(Content::fourCC("LTEX"), 0,
-            record4("LTEX", 0, 0x01000C00, sub4("TNAM", Bytes().u32(0x01000C10)))));
-        top.append(group4(Content::fourCC("TXST"), 0,
-            record4("TXST", 0, 0x01000C10, sub4("TX00", Bytes().zstring("a.dds")))));
+        top.append(
+            group4(Content::fourCC("LTEX"), 0, record4("LTEX", 0, 0x01000C00, sub4("TNAM", Bytes().u32(0x01000C10)))));
+        top.append(
+            group4(Content::fourCC("TXST"), 0, record4("TXST", 0, 0x01000C10, sub4("TX00", Bytes().zstring("a.dds")))));
         top.append(group4(Content::fourCC("WATR"), 0, record4("WATR", 0, 0x01000C20, sub4("ANAM", Bytes().u8(9)))));
         Bytes bytes = header();
         bytes.append(top);

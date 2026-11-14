@@ -1,5 +1,6 @@
 // Task 0159: a waypoint counts as reached only within the mover's step height of it (a raised lip next to the waypoint
-// on the ground plane is not the waypoint). Written before the change; the first run was against the ground-plane-only rule.
+// on the ground plane is not the waypoint). Written before the change; the first run was against the ground-plane-only
+// rule.
 #include <gtest/gtest.h>
 
 #include <vector>

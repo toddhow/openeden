@@ -22,7 +22,10 @@ namespace HavokPackTest
         v.insert(v.end(), b, b + n);
     }
 
-    inline void putFloat(std::vector<std::uint8_t>& v, float f) { put(v, &f, 4); }
+    inline void putFloat(std::vector<std::uint8_t>& v, float f)
+    {
+        put(v, &f, 4);
+    }
 
     inline void padTo4(std::vector<std::uint8_t>& v, std::size_t blockStart)
     {
@@ -62,7 +65,13 @@ namespace HavokPackTest
         // per axis: constant value, or an animated axis with min, max and 16-bit control values
         struct Axis
         {
-            enum Kind { None, Constant, Spline } mKind = None;
+            enum Kind
+            {
+                None,
+                Constant,
+                Spline
+            } mKind
+                = None;
             float mValue = 0; // Constant
             float mMin = 0, mMax = 1; // Spline
             std::vector<std::uint16_t> mControl; // Spline: one per item
@@ -93,7 +102,13 @@ namespace HavokPackTest
 
     struct RotDesc
     {
-        enum Kind { Identity, Constant, Spline } mKind = Identity;
+        enum Kind
+        {
+            Identity,
+            Constant,
+            Spline
+        } mKind
+            = Identity;
         std::array<float, 4> mConstant{ 0, 0, 0, 1 };
         std::vector<std::array<float, 4>> mControl;
         std::uint8_t mDegree = 1;
@@ -112,7 +127,13 @@ namespace HavokPackTest
     // between a min and a max.
     struct FloatDesc
     {
-        enum Kind { Zero, Constant, Spline } mKind = Constant;
+        enum Kind
+        {
+            Zero,
+            Constant,
+            Spline
+        } mKind
+            = Constant;
         float mValue = 0; // Constant
         float mMin = 0, mMax = 1; // Spline
         std::vector<std::uint16_t> mControl; // Spline
@@ -127,9 +148,8 @@ namespace HavokPackTest
         }
     };
 
-    inline void writeSplineHeader(
-        std::vector<std::uint8_t>& d, std::size_t block, std::size_t items, std::uint8_t degree,
-        const std::vector<std::uint8_t>& knots)
+    inline void writeSplineHeader(std::vector<std::uint8_t>& d, std::size_t block, std::size_t items,
+        std::uint8_t degree, const std::vector<std::uint8_t>& knots)
     {
         padTo4(d, block);
         const std::uint16_t n = static_cast<std::uint16_t>(items - 1);
@@ -170,8 +190,8 @@ namespace HavokPackTest
     }
 
     // The data array of one block: masks, then the tracks; returns the offset where the float tracks would start.
-    inline std::size_t writeBlock(std::vector<std::uint8_t>& d, const std::vector<TrackDesc>& tracks, std::size_t maskSize,
-        const std::vector<FloatDesc>* floats = nullptr)
+    inline std::size_t writeBlock(std::vector<std::uint8_t>& d, const std::vector<TrackDesc>& tracks,
+        std::size_t maskSize, const std::vector<FloatDesc>* floats = nullptr)
     {
         const std::size_t block = d.size();
         for (const auto& t : tracks)
@@ -254,8 +274,10 @@ namespace HavokPackTest
     {
         const std::uint32_t tracks = static_cast<std::uint32_t>(c.mBlocks.front().size());
         const bool realFloats = !c.mFloats.empty();
-        const std::uint32_t floatTracks = realFloats ? static_cast<std::uint32_t>(c.mFloats.front().size()) : c.mFloatTracks;
-        const std::uint32_t maskSize = realFloats ? (4 * tracks + floatTracks + 3) / 4 * 4 : 4 * tracks + c.mFloatTracks;
+        const std::uint32_t floatTracks
+            = realFloats ? static_cast<std::uint32_t>(c.mFloats.front().size()) : c.mFloatTracks;
+        const std::uint32_t maskSize
+            = realFloats ? (4 * tracks + floatTracks + 3) / 4 * 4 : 4 * tracks + c.mFloatTracks;
         std::vector<std::uint8_t> data;
         std::vector<std::uint32_t> offsets, floatOffsets;
         for (std::size_t bi = 0; bi < c.mBlocks.size(); ++bi)
@@ -264,7 +286,8 @@ namespace HavokPackTest
             floatOffsets.push_back(static_cast<std::uint32_t>(
                 writeBlock(data, c.mBlocks[bi], maskSize, realFloats ? &c.mFloats[bi] : nullptr)));
             if (!realFloats)
-                data.resize(data.size() + 4 * c.mFloatTracks, 0); // the float tracks' bytes (unused by the legacy tests)
+                data.resize(
+                    data.size() + 4 * c.mFloatTracks, 0); // the float tracks' bytes (unused by the legacy tests)
             else
                 data.resize(data.size() + c.mFloatTailExtra, 0);
         }

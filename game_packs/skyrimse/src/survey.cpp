@@ -6,8 +6,8 @@
 #include <cstring>
 #include <functional>
 #include <optional>
-#include <type_traits>
 #include <ostream>
+#include <type_traits>
 
 namespace game_skyrimse::survey
 {
@@ -229,8 +229,9 @@ namespace game_skyrimse::survey
         result.reserve(mFunctions.size());
         for (const auto& [index, stats] : mFunctions)
             result.emplace_back(index, stats.mUses);
-        std::stable_sort(result.begin(), result.end(),
-            [](const auto& a, const auto& b) { return a.second != b.second ? a.second > b.second : a.first < b.first; });
+        std::stable_sort(result.begin(), result.end(), [](const auto& a, const auto& b) {
+            return a.second != b.second ? a.second > b.second : a.first < b.first;
+        });
         return result;
     }
 
@@ -268,7 +269,8 @@ namespace game_skyrimse::survey
                 else
                     rows.emplace_back(std::to_string(static_cast<std::uint64_t>(key)), count);
             }
-            std::stable_sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+            std::stable_sort(
+                rows.begin(), rows.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
             std::string text;
             for (std::size_t i = 0; i < rows.size() && i < limit; ++i)
                 text += (i ? ", " : "") + rows[i].first + " " + std::to_string(rows[i].second);
@@ -292,7 +294,8 @@ namespace game_skyrimse::survey
             if (!p.mSmallValues.empty())
             {
                 std::vector<std::pair<std::uint32_t, std::uint64_t>> top(p.mSmallValues.begin(), p.mSmallValues.end());
-                std::stable_sort(top.begin(), top.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+                std::stable_sort(
+                    top.begin(), top.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
                 text += " (";
                 for (std::size_t i = 0; i < top.size() && i < 3; ++i)
                     text += (i ? ", " : "") + std::to_string(top[i].first) + " x" + std::to_string(top[i].second);
@@ -313,9 +316,10 @@ namespace game_skyrimse::survey
         out << tag << "compare operators (type byte >> 5): " << joinCounts(s.mCompare, 10) << "\n";
         out << tag << "flags (type byte & 0x1f): " << joinCounts(s.mFlags, 16) << "\n";
         out << tag << "run-on: " << runOnText(s.mRunOn) << "\n";
-        out << tag << "padding non-zero " << s.mPaddingNonZero << " (bytes 1-3: "
-            << s.mPaddingAfterTypeNonZero << ", bytes 10-11: " << s.mPaddingAfterFunctionNonZero << "), non-finite comparison " << s.mNonFiniteComparison
-            << ", string params (CIS1/CIS2) " << s.mStringParams << ", CTDT " << s.mCtdtSubrecords << "\n";
+        out << tag << "padding non-zero " << s.mPaddingNonZero << " (bytes 1-3: " << s.mPaddingAfterTypeNonZero
+            << ", bytes 10-11: " << s.mPaddingAfterFunctionNonZero << "), non-finite comparison "
+            << s.mNonFiniteComparison << ", string params (CIS1/CIS2) " << s.mStringParams << ", CTDT "
+            << s.mCtdtSubrecords << "\n";
         for (const auto& [type, count] : s.mConditionsByRecordType)
         {
             const auto has = s.mRecordsWithConditions.find(type);
@@ -324,7 +328,8 @@ namespace game_skyrimse::survey
                 << (has != s.mRecordsWithConditions.end() ? has->second : 0) << " of "
                 << (total != s.mRecordsByType.end() ? total->second : 0) << "\n";
         }
-        // per record type: how many distinct functions it uses, how many cover 90 percent of its conditions, the top five
+        // per record type: how many distinct functions it uses, how many cover 90 percent of its conditions, the top
+        // five
         for (const auto& [type, count] : s.mConditionsByRecordType)
         {
             std::vector<std::pair<std::uint16_t, std::uint64_t>> uses;
@@ -341,8 +346,8 @@ namespace game_skyrimse::survey
             for (const auto& u : uses)
                 counts.push_back(u.second);
             const double ninety[] = { 0.9 };
-            out << tag << "record type " << fourCCText(type) << " functions: distinct " << uses.size() << ", for 90 percent "
-                << coverageCurve(counts, ninety)[0].mItems << ", top";
+            out << tag << "record type " << fourCCText(type) << " functions: distinct " << uses.size()
+                << ", for 90 percent " << coverageCurve(counts, ninety)[0].mItems << ", top";
             for (std::size_t i = 0; i < uses.size() && i < 5; ++i)
                 out << " " << functionName(uses[i].first) << " " << uses[i].second;
             out << "\n";
@@ -359,8 +364,8 @@ namespace game_skyrimse::survey
             out << tag << "function #" << rank << " " << describeFunction(index) << " uses " << uses << " records ["
                 << joinCounts(f.mByRecordType, 4) << "] run-on [" << runOnText(f.mRunOn) << "] compare ["
                 << joinCounts(f.mCompare, 6) << "] global " << f.mUseGlobal << " or " << f.mOrFlag << " p1 ["
-                << paramText(f.mParam1) << "] p2 [" << paramText(f.mParam2) << "] p3 [" << paramText(f.mParam3) << "] ref [" << paramText(f.mReference)
-                << "]\n";
+                << paramText(f.mParam1) << "] p2 [" << paramText(f.mParam2) << "] p3 [" << paramText(f.mParam3)
+                << "] ref [" << paramText(f.mReference) << "]\n";
         }
     }
 }

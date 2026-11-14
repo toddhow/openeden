@@ -145,8 +145,8 @@ TEST(NifSceneFaceTint, a_path_that_already_has_the_root_is_only_lowered_and_flip
 // archives as plain "textures\...", the 120th is in no archive.
 TEST(NifSceneFaceTint, the_skyrimhd_build_folder_is_stripped_to_the_plain_textures_path)
 {
-    EXPECT_EQ(
-        NifScene::FaceTint::normaliseTexturePath("textures\\SkyrimHD\\build\\pc\\data\\textures\\plants\\thistle01.dds"),
+    EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath(
+                  "textures\\SkyrimHD\\build\\pc\\data\\textures\\plants\\thistle01.dds"),
         "textures/plants/thistle01.dds");
     EXPECT_EQ(NifScene::FaceTint::normaliseTexturePath(
                   "Textures/skyrimhd/build/pc/data/textures/landscape/grass/swordfern_n.dds"),

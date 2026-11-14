@@ -10,12 +10,12 @@
 #include <vsg/nodes/Switch.h>
 
 #include <components/animation/transform.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
-#include <components/debug/debuglog.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/mwanimation/create.hpp>
 #include <components/mwanimation/sceneryanim.hpp>
@@ -39,16 +39,16 @@
 #include "env.hpp"
 #include "mask.hpp"
 #include "npc.hpp"
-#include <cstdlib>
 #include "skyrimactor.hpp"
 #include "skyrimidle.hpp"
+#include "skyrimlip.hpp"
 #include "skyrimlocomotion.hpp"
 #include "skyrimpose.hpp"
-#include "skyrimlip.hpp"
+#include <cstdlib>
 
-#include <components/mwanimation/sceneryanim.hpp>
 #include "switches.hpp"
 #include "wieldingcreature.hpp"
+#include <components/mwanimation/sceneryanim.hpp>
 
 namespace
 {
@@ -329,9 +329,10 @@ namespace MWRender
 
     namespace
     {
-        // Tasks 0132 and 0145: loops the ambient idle clip of the actor's sex on its bones. The clip is decoded on a worker
-        // (started by the first actor of the skeleton and sex, shared by the rest); until it is ready, and when the files
-        // are missing or damaged, the actor stays in the rest pose (the loader logs a failure once). Nothing here waits.
+        // Tasks 0132 and 0145: loops the ambient idle clip of the actor's sex on its bones. The clip is decoded on a
+        // worker (started by the first actor of the skeleton and sex, shared by the rest); until it is ready, and when
+        // the files are missing or damaged, the actor stays in the rest pose (the loader logs a failure once). Nothing
+        // here waits.
         void attachNeutralIdle(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance,
             MWAnim::ObjectAnimation& anim, const VFS::Manager& vfs)
         {
@@ -348,7 +349,8 @@ namespace MWRender
             });
             // Out of step with the next actor, and the same on every visit: from the reference alone.
             const std::string id = ptr.getCellRef().getRefId().serializeText();
-            const float phase = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)));
+            const float phase
+                = MWAnim::SceneryKeyframes::phase(static_cast<std::uint64_t>(std::hash<std::string>{}(id)));
             // Task 0135 stage S6b: the furniture pose controller, added after the idle so that it wins while it is on.
             auto addPose = [&]() {
                 auto pose = vsg::ref_ptr<SkyrimPose::Controller>(
@@ -360,18 +362,18 @@ namespace MWRender
             {
                 // Task 0148: the idle, walk and run cycles blended by the ground speed the physics side reports.
                 const std::string_view sex = appearance.female ? "female" : "male";
-                auto controller = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(
-                    std::move(future),
-                    SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sWalkClip),
-                    SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sRunClip),
-                    bones, phase));
+                auto controller
+                    = vsg::ref_ptr<SkyrimLocomotion::Controller>(new SkyrimLocomotion::Controller(std::move(future),
+                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sWalkClip),
+                        SkyrimIdle::loadIdleAsync(vfs, appearance.skeletonPath, sex, SkyrimLocomotion::sRunClip), bones,
+                        phase));
                 anim.addController(controller, anim.transform());
                 anim.keepAlive.push_back(controller);
                 addPose();
                 return;
             }
-            auto controller = vsg::ref_ptr<SkyrimIdle::Controller>(
-                new SkyrimIdle::Controller(std::move(future), bones, phase));
+            auto controller
+                = vsg::ref_ptr<SkyrimIdle::Controller>(new SkyrimIdle::Controller(std::move(future), bones, phase));
             anim.addController(controller, anim.transform());
             anim.keepAlive.push_back(controller);
             addPose();

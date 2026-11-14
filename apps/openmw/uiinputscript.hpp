@@ -40,7 +40,8 @@ namespace OMW
 
         UiInputScript(SDL_Window* window, std::vector<Command> commands);
 
-        /// Reads the file named by the environment variable, or returns an empty script when it is not set or unreadable.
+        /// Reads the file named by the environment variable, or returns an empty script when it is not set or
+        /// unreadable.
         static std::vector<Command> fromEnvironment();
 
         bool empty() const { return mCommands.empty(); }

@@ -21,8 +21,8 @@
 #include <apps/opencs/model/module/eventbus.hpp>
 #include <apps/opencs/model/module/overlaybuffer.hpp>
 #include <apps/opencs/model/module/overlaypick.hpp>
-#include <apps/opencs/model/module/timelinemodel.hpp>
 #include <apps/opencs/model/module/taskrunner.hpp>
+#include <apps/opencs/model/module/timelinemodel.hpp>
 #include <apps/opencs/model/physics/debuglinedrawer.hpp>
 #include <apps/opencs/model/physics/ownedsandbox.hpp>
 

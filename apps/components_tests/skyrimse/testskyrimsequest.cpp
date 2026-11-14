@@ -1,6 +1,6 @@
-// Task 0139, milestone M-S4 slice 2: Skyrim SE quests (QUST), the pure quest state, and the conditions world that answers
-// GetStage, GetStageDone, GetQuestRunning, GetQuestCompleted and GetIsAliasRef from them, on generated plugins. No
-// game data.
+// Task 0139, milestone M-S4 slice 2: Skyrim SE quests (QUST), the pure quest state, and the conditions world that
+// answers GetStage, GetStageDone, GetQuestRunning, GetQuestCompleted and GetIsAliasRef from them, on generated plugins.
+// No game data.
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/quest.hpp>
 
@@ -66,9 +66,8 @@ namespace
         return group4(Content::fourCC(type), kGrupTop, records);
     }
 
-    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0,
-        std::uint32_t runOn = 0, std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0,
-        std::uint32_t p3 = 0)
+    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0, std::uint32_t runOn = 0,
+        std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0, std::uint32_t p3 = 0)
     {
         Bytes b;
         b.u8(static_cast<std::uint8_t>((compare << 5) | flags)).u8(0).u8(0).u8(0).f32(value);
@@ -229,8 +228,8 @@ namespace
         Parsed p;
         Content::Error error;
         p.mOk = parseQuestRecordsBytes(bytes.str(), name, order(), limits, p.mRecords, error);
-        p.mPlugin = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name,
-            error);
+        p.mPlugin
+            = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name, error);
         return p;
     }
 
@@ -242,8 +241,8 @@ namespace
         return index;
     }
 
-    QuestSpec simpleQuest(std::uint32_t id, std::uint16_t flags, const Bytes& stages = Bytes(),
-        const Bytes& aliases = Bytes())
+    QuestSpec simpleQuest(
+        std::uint32_t id, std::uint16_t flags, const Bytes& stages = Bytes(), const Bytes& aliases = Bytes())
     {
         QuestSpec q;
         q.mId = id;
@@ -400,14 +399,15 @@ namespace
         q.mAliases.append(refAlias(1, "Ref", fillRef(kRefA), AliasFlags::Essential | AliasFlags::QuestObject));
         q.mAliases.append(refAlias(2, "Actor", fillActor(kNpcA)));
         q.mAliases.append(locAlias(3, "Loc", sub4("ALFL", Bytes().u32(kSelf | 0x900))));
-        q.mAliases.append(refAlias(4, "External",
-            sub4("ALEQ", Bytes().u32(kQuestB)).append(sub4("ALEA", Bytes().u32(9)))));
+        q.mAliases.append(
+            refAlias(4, "External", sub4("ALEQ", Bytes().u32(kQuestB)).append(sub4("ALEA", Bytes().u32(9)))));
         q.mAliases.append(refAlias(5, "Created", sub4("ALCO", Bytes().u32(kSelf | 0x950))));
-        q.mAliases.append(refAlias(6, "Event", sub4("ALFE", Bytes().text("ADIA")).append(sub4("ALFD", Bytes().text("FNAM")))));
-        q.mAliases.append(refAlias(7, "Near",
-            sub4("ALNA", Bytes().u32(2)).append(sub4("ALNT", Bytes().u32(kSelf | 0x960)))));
-        q.mAliases.append(refAlias(8, "InLoc",
-            sub4("ALFA", Bytes().u32(3)).append(sub4("ALRT", Bytes().u32(kSelf | 0x970)))));
+        q.mAliases.append(
+            refAlias(6, "Event", sub4("ALFE", Bytes().text("ADIA")).append(sub4("ALFD", Bytes().text("FNAM")))));
+        q.mAliases.append(
+            refAlias(7, "Near", sub4("ALNA", Bytes().u32(2)).append(sub4("ALNT", Bytes().u32(kSelf | 0x960)))));
+        q.mAliases.append(
+            refAlias(8, "InLoc", sub4("ALFA", Bytes().u32(3)).append(sub4("ALRT", Bytes().u32(kSelf | 0x970)))));
         q.mAliases.append(refAlias(9, "Forced", sub4("ALFI", Bytes().u32(1))));
         q.mAliases.append(refAlias(10, "Find", Bytes(), 0, ctda(72, 0, 1.0f, kNpcB)));
         q.mNextAlias = 11;
@@ -596,8 +596,8 @@ namespace
 
     TEST(SkyrimQuestState, enabledQuestsRunAtTheirStartUpStageOtherwiseAtZero)
     {
-        QuestSpec withStart = simpleQuest(kQuestA, QuestFlags::StartGameEnabled,
-            stage(5, 0, {}).append(stage(10, StageFlags::StartUp, {})));
+        QuestSpec withStart = simpleQuest(
+            kQuestA, QuestFlags::StartGameEnabled, stage(5, 0, {}).append(stage(10, StageFlags::StartUp, {})));
         QuestSpec noStart = simpleQuest(kQuestB, QuestFlags::StartGameEnabled, stage(5, 0, {}));
         QuestSpec idle = simpleQuest(kQuestC, 0, stage(10, StageFlags::StartUp, {}));
         const QuestIndex index = indexOf(questPlugin({ withStart, noStart, idle }));
@@ -669,7 +669,8 @@ namespace
 
     TEST(SkyrimQuestState, aScriptCanFillAnAliasAfterwards)
     {
-        const QuestIndex index = indexOf(questPlugin({ simpleQuest(kQuestA, 0, Bytes(), refAlias(3, "Find", Bytes())) }));
+        const QuestIndex index
+            = indexOf(questPlugin({ simpleQuest(kQuestA, 0, Bytes(), refAlias(3, "Find", Bytes())) }));
         QuestState state = QuestState::initial(index);
         AliasFill fill;
         fill.mKnown = true;
@@ -681,7 +682,8 @@ namespace
 
     TEST(SkyrimQuestState, settingAStageMakesItCurrentAndDoneAndStartsTheQuest)
     {
-        const QuestIndex index = indexOf(questPlugin({ simpleQuest(kQuestA, 0, stage(10, 0, {}).append(stage(20, 0, {}))) }));
+        const QuestIndex index
+            = indexOf(questPlugin({ simpleQuest(kQuestA, 0, stage(10, 0, {}).append(stage(20, 0, {}))) }));
         QuestState state = QuestState::initial(index);
         EXPECT_FALSE(state.running(kQuestA));
         state.setStage(index, kQuestA, 10);
@@ -809,12 +811,12 @@ namespace
         {
             const Bytes bytes = bytesOf(quests, dials);
             Content::Error error;
-            mPlugin = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary),
-                pluginName, error);
+            mPlugin = Content::Plugin::open(
+                std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), pluginName, error);
             EXPECT_TRUE(parseActorRecordsBytes(bytes.str(), pluginName, order(), ActorLimits(), mActorRecords, error));
             mActors.add(mActorRecords);
-            EXPECT_TRUE(parseDialogueRecordsBytes(bytes.str(), pluginName, order(), DialogueLimits(),
-                mDialogueRecords, error));
+            EXPECT_TRUE(
+                parseDialogueRecordsBytes(bytes.str(), pluginName, order(), DialogueLimits(), mDialogueRecords, error));
             mDialogue.add(mDialogueRecords, mResolver);
             QuestRecords qr;
             EXPECT_TRUE(parseQuestRecordsBytes(bytes.str(), pluginName, order(), QuestLimits(), qr, error));
@@ -841,8 +843,8 @@ namespace
         static FormIdResolver makeResolver(const Bytes& bytes, const std::string& pluginName)
         {
             Content::Error error;
-            const auto plugin = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(),
-                                                          std::ios::binary), pluginName, error);
+            const auto plugin = Content::Plugin::open(
+                std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), pluginName, error);
             return FormIdResolver(plugin->header(), pluginName, order());
         }
 
@@ -852,8 +854,8 @@ namespace
             mWorld->setQuestContext(context);
             std::vector<survey::Ctda> list;
             const std::string raw = condition.str();
-            EXPECT_TRUE(conditions::decodeConditions(
-                { reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
+            EXPECT_TRUE(
+                conditions::decodeConditions({ reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
             EXPECT_EQ(list.size(), 1u);
             conditions::Evaluator eval;
             return eval.evaluate(list, *mWorld) ? 1.f : 0.f;
@@ -865,8 +867,8 @@ namespace
             mWorld->setQuestContext(context);
             std::vector<survey::Ctda> list;
             const std::string raw = condition.str();
-            EXPECT_TRUE(conditions::decodeConditions(
-                { reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
+            EXPECT_TRUE(
+                conditions::decodeConditions({ reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
             return mWorld->answers(list.at(0));
         }
     };
@@ -889,8 +891,8 @@ namespace
 
     QuestSpec stagedQuest()
     {
-        QuestSpec q = simpleQuest(kQuestA, QuestFlags::StartGameEnabled,
-            stage(10, StageFlags::StartUp, {}).append(stage(20, 0, {})));
+        QuestSpec q = simpleQuest(
+            kQuestA, QuestFlags::StartGameEnabled, stage(10, StageFlags::StartUp, {}).append(stage(20, 0, {})));
         return q;
     }
 
@@ -1031,7 +1033,8 @@ namespace
         three.mQuest = kQuestA;
         three.mConditions.append(ctda(58, 0, 10.0f, kQuestA));
         three.mText = "Stage ten.";
-        QWorld w({ stagedQuest(), simpleQuest(kQuestB, 0) }, topicWithInfos(kTopicHello, 50.f, kQuestA, { one, two, three }));
+        QWorld w({ stagedQuest(), simpleQuest(kQuestB, 0) },
+            topicWithInfos(kTopicHello, 50.f, kQuestA, { one, two, three }));
         SelectionOptions options;
         options.mQuestRunning = [&](FormId q) { return !w.mState.exists(q) || w.mState.running(q); };
         const Selection s = selectInfo(w.mDialogue, kTopicHello, *w.mWorld, speakerA(), options);

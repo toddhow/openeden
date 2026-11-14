@@ -4,9 +4,9 @@
 // Skyrim SE weather, climate and the links that choose them, as plain data (task 0127, TBD-E of
 // docs/design/skyrim-se-implementation-plan.md section 8, milestone M-S2): WTHR (a weather), CLMT (a climate), REGN
 // (the weather list of a region), the worldspace's climate link (CNAM, already decoded by worldspace.hpp) and the
-// cell-side links XCLR (regions), XCCM (climate), XCWT (water) and XCIM (image space). Pack-own types only: no SDK type,
-// no engine, renderer, Jolt or Qt type. Nothing here is wired into the engine (the engine half is a proposal in the
-// task spec).
+// cell-side links XCLR (regions), XCCM (climate), XCWT (water) and XCIM (image space). Pack-own types only: no SDK
+// type, no engine, renderer, Jolt or Qt type. Nothing here is wired into the engine (the engine half is a proposal in
+// the task spec).
 //
 // Layout status of every field is marked in weather.cpp: VERIFIED (sizes, ranges and the record type each reference
 // resolves to, measured on the five installed Skyrim SE masters by tools/skyrimse_weather_check; aggregates in the task
@@ -53,9 +53,9 @@ namespace game_skyrimse
         friend bool operator==(const Rgba8&, const Rgba8&) = default;
     };
 
-    /// NAM0 colour types, in the order they are stored (type-major, then time of day). The names are RECALLED-VERIFY; the
-    /// data supports the order where it can be tested (stars and moon glare brightest at night, fog near and far alike,
-    /// sunlight brightest by day).
+    /// NAM0 colour types, in the order they are stored (type-major, then time of day). The names are RECALLED-VERIFY;
+    /// the data supports the order where it can be tested (stars and moon glare brightest at night, fog near and far
+    /// alike, sunlight brightest by day).
     namespace SkyColourType
     {
         enum Value : std::uint32_t
@@ -116,8 +116,8 @@ namespace game_skyrimse
     };
 
     /// WeatherData::mFlags bits. The installed data uses 0 to 50 (bits 0 to 5 only: VERIFIED); the names are
-    /// RECALLED-VERIFY (the data supports them: bit 1 is set on the clear, 2 on the cloudy, 4 on the rainy, 8 on the snowy
-    /// weathers the editor ids name).
+    /// RECALLED-VERIFY (the data supports them: bit 1 is set on the clear, 2 on the cloudy, 4 on the rainy, 8 on the
+    /// snowy weathers the editor ids name).
     namespace WeatherFlags
     {
         inline constexpr std::uint8_t Pleasant = 0x01;
@@ -150,8 +150,10 @@ namespace game_skyrimse
 
     struct WeatherSound
     {
-        FormId mSound = kNullFormId; ///< SNAM, 8 bytes: a SNDR or SOUN (VERIFIED types), kUnresolvedFormId if unresolved
-        std::uint32_t mType = 0; ///< 0 to 3 in the installed data (RECALLED-VERIFY: default, precipitation, wind, thunder)
+        FormId mSound
+            = kNullFormId; ///< SNAM, 8 bytes: a SNDR or SOUN (VERIFIED types), kUnresolvedFormId if unresolved
+        std::uint32_t mType
+            = 0; ///< 0 to 3 in the installed data (RECALLED-VERIFY: default, precipitation, wind, thunder)
     };
 
     struct WeatherRecord
@@ -159,17 +161,21 @@ namespace game_skyrimse
         RecordCommon mCommon;
         std::uint32_t mCloudSlots = 0; ///< the number of layer slots any array holds
         std::vector<CloudLayer> mCloudLayers; ///< mCloudSlots entries
-        std::optional<std::uint32_t> mLayerCount; ///< LNAM: 29 in 164 records, 4 in 13 (VERIFIED), meaning RECALLED-VERIFY
-        /// NAM1 as stored. NOT a "bit set means no texture" mask (tested: 142 of 176 records disagree); meaning unsettled.
+        std::optional<std::uint32_t>
+            mLayerCount; ///< LNAM: 29 in 164 records, 4 in 13 (VERIFIED), meaning RECALLED-VERIFY
+        /// NAM1 as stored. NOT a "bit set means no texture" mask (tested: 142 of 176 records disagree); meaning
+        /// unsettled.
         std::optional<std::uint32_t> mNam1;
         std::optional<WeatherData> mData;
         std::optional<WeatherFog> mFog;
-        /// NAM0: mColourTypes types of 4 times of day (VERIFIED: size / 16 = 17, 14 or 13); mColours[type][time of day].
+        /// NAM0: mColourTypes types of 4 times of day (VERIFIED: size / 16 = 17, 14 or 13); mColours[type][time of
+        /// day].
         std::uint32_t mColourTypes = 0;
         std::array<std::array<Rgba8, WeatherConstants::kTimesOfDay>, WeatherConstants::kMaxColourTypes> mColours{};
         std::vector<DirectionalAmbient> mDirectionalAmbient; ///< DALC, in file order: sunrise, day, sunset, night
         std::vector<WeatherSound> mSounds;
-        std::vector<FormId> mSkyStatics; ///< TNAM, one subrecord each (VERIFIED: STAT, up to several hundred per record)
+        std::vector<FormId>
+            mSkyStatics; ///< TNAM, one subrecord each (VERIFIED: STAT, up to several hundred per record)
         FormId mPrecipitation = kNullFormId; ///< MNAM, an SPGD (VERIFIED type), 0 in 141 of 177
         FormId mVisualEffect = kNullFormId; ///< NNAM, an RFCT (VERIFIED type), 0 in 172 of 177
         std::array<FormId, 4> mImageSpaces{}; ///< IMSP, four IMGS in time-of-day order
@@ -184,13 +190,13 @@ namespace game_skyrimse
         std::optional<std::array<std::uint8_t, 4>> mOnam;
     };
 
-    /// IMGS (task 0127 stage W-S3): the parts of an image space the engine can use. Sizes VERIFIED on the 268 records of
-    /// the five masters that have them: CNAM 12 bytes (three floats), TNAM 16 bytes (four floats), HNAM 36 bytes (nine
-    /// floats), DNAM 16 (or 12 in two records). The ORDER of the CNAM floats (saturation, brightness, contrast) is
-    /// RECALLED-VERIFY (xEdit's definition); the data supports it: the third value is 1.0 to 2.0 (a contrast never below
-    /// 1), the second 0.9 to 1.5 (brightness dims and brightens), the first 0.4 to 2.45. TNAM is amount then a colour
-    /// (all four 0 to 1: VERIFIED range). HNAM is kept raw: its meaning (eye adaptation, bloom) needs an auto-exposure
-    /// pass the engine does not have.
+    /// IMGS (task 0127 stage W-S3): the parts of an image space the engine can use. Sizes VERIFIED on the 268 records
+    /// of the five masters that have them: CNAM 12 bytes (three floats), TNAM 16 bytes (four floats), HNAM 36 bytes
+    /// (nine floats), DNAM 16 (or 12 in two records). The ORDER of the CNAM floats (saturation, brightness, contrast)
+    /// is RECALLED-VERIFY (xEdit's definition); the data supports it: the third value is 1.0 to 2.0 (a contrast never
+    /// below 1), the second 0.9 to 1.5 (brightness dims and brightens), the first 0.4 to 2.45. TNAM is amount then a
+    /// colour (all four 0 to 1: VERIFIED range). HNAM is kept raw: its meaning (eye adaptation, bloom) needs an
+    /// auto-exposure pass the engine does not have.
     struct ImageSpaceRecord
     {
         RecordCommon mCommon;
@@ -207,15 +213,16 @@ namespace game_skyrimse
         std::optional<std::array<float, 9>> mHdr;
     };
 
-    /// SNDR (a sound descriptor) and SOUN (the older sound record), task 0127 stage W-S4: the parts a weather's sound needs.
-    /// SNDR layouts VERIFIED on the 3,260 records of the five masters: ANAM file name, repeated for alternates (never
-    /// absent: 0 of 3,260 have none); BNAM 6 bytes (frequency shift, frequency variance, priority, dB variance, then the
-    /// static attenuation as an unsigned 16 bit number: RECALLED-VERIFY that it is hundredths of a decibel; the values 352
-    /// for thunder and 837 to 1498 for rain and snow loops make that reading plausible); LNAM 4 bytes whose byte 1 has
-    /// bit 3 set in 465 records, 447 of which have LP or Loop in their editor id (so bit 3 marks a loop, VERIFIED by that
-    /// correlation); the SNDR SNAM (an alternate descriptor, 247 records) is not followed because every descriptor has
-    /// its own files. The file names come in three shapes ("Data\Sound\FX\...", "fx\...", and two with a build
-    /// machine's drive letter) and are kept as stored; `normalizeSoundPath` turns them into VFS paths.
+    /// SNDR (a sound descriptor) and SOUN (the older sound record), task 0127 stage W-S4: the parts a weather's sound
+    /// needs. SNDR layouts VERIFIED on the 3,260 records of the five masters: ANAM file name, repeated for alternates
+    /// (never absent: 0 of 3,260 have none); BNAM 6 bytes (frequency shift, frequency variance, priority, dB variance,
+    /// then the static attenuation as an unsigned 16 bit number: RECALLED-VERIFY that it is hundredths of a decibel;
+    /// the values 352 for thunder and 837 to 1498 for rain and snow loops make that reading plausible); LNAM 4 bytes
+    /// whose byte 1 has bit 3 set in 465 records, 447 of which have LP or Loop in their editor id (so bit 3 marks a
+    /// loop, VERIFIED by that correlation); the SNDR SNAM (an alternate descriptor, 247 records) is not followed
+    /// because every descriptor has its own files. The file names come in three shapes ("Data\Sound\FX\...", "fx\...",
+    /// and two with a build machine's drive letter) and are kept as stored; `normalizeSoundPath` turns them into VFS
+    /// paths.
     struct SoundDescriptorRecord
     {
         RecordCommon mCommon;
@@ -234,8 +241,8 @@ namespace game_skyrimse
         FormId mGlobal = kNullFormId;
     };
 
-    /// CLMT TNAM, 6 bytes (VERIFIED size in all 9 climates). Bytes 0 to 3 are times in units of ten minutes (33, 60, 96,
-    /// 123 are 5:30, 10:00, 16:00, 20:30 in every installed climate that has them: VERIFIED values, RECALLED-VERIFY
+    /// CLMT TNAM, 6 bytes (VERIFIED size in all 9 climates). Bytes 0 to 3 are times in units of ten minutes (33, 60,
+    /// 96, 123 are 5:30, 10:00, 16:00, 20:30 in every installed climate that has them: VERIFIED values, RECALLED-VERIFY
     /// that they are sunrise begin and end and sunset begin and end).
     struct ClimateTiming
     {
@@ -274,8 +281,8 @@ namespace game_skyrimse
         std::vector<WeatherChance> mWeathers;
     };
 
-    /// Weather-related links of one CELL. Exterior cells carry XCLR (VERIFIED: 33,441 of the exterior cells, a list of 4
-    /// byte region ids, every one a REGN except 30 dangling) and XCWT (a WATR); interior cells carry XCCM (314 cells,
+    /// Weather-related links of one CELL. Exterior cells carry XCLR (VERIFIED: 33,441 of the exterior cells, a list of
+    /// 4 byte region ids, every one a REGN except 30 dangling) and XCWT (a WATR); interior cells carry XCCM (314 cells,
     /// VERIFIED: interior only, every one a REGN, so it is a region to take the sky and weather from, not a climate)
     /// and XCIM (an IMGS, in both kinds).
     struct CellWeatherLinks
@@ -375,10 +382,10 @@ namespace game_skyrimse
         /// installed data (WhiterunWorld, PNAM 127, takes Tamriel's climate); 42 of the 49 worlds end with a climate.
         [[nodiscard]] std::optional<FormId> climateOfWorld(FormId world) const;
 
-        /// The weather list that applies to a cell, and where it came from. RECALLED-VERIFY rule: the cell's XCCM region
-        /// if it has a weather list (interior cells); else, among the regions of the cell (XCLR) that have a weather list,
-        /// the one with the highest priority, ties to the earlier region; else the climate of the cell's world. Empty
-        /// `mWeathers` when nothing applies.
+        /// The weather list that applies to a cell, and where it came from. RECALLED-VERIFY rule: the cell's XCCM
+        /// region if it has a weather list (interior cells); else, among the regions of the cell (XCLR) that have a
+        /// weather list, the one with the highest priority, ties to the earlier region; else the climate of the cell's
+        /// world. Empty `mWeathers` when nothing applies.
         struct EffectiveList
         {
             enum class Source

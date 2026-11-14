@@ -1,6 +1,6 @@
-// Task 0135 stage S6f: what more a Skyrim NPC does with its package. Preferred speed, patrol over linked markers, follow
-// a target actor, talking to a seated or sleeping NPC, and the sit-down and get-up clips with their root motion. Pure
-// scheduler tests over a fake source and a fake writer. No game data.
+// Task 0135 stage S6f: what more a Skyrim NPC does with its package. Preferred speed, patrol over linked markers,
+// follow a target actor, talking to a seated or sleeping NPC, and the sit-down and get-up clips with their root motion.
+// Pure scheduler tests over a fake source and a fake writer. No game data.
 #include <game_skyrimse/package_brain.hpp>
 
 #include <gtest/gtest.h>
@@ -273,10 +273,7 @@ namespace
             brain = std::make_unique<PackageBrain>(src);
             brain->onActorAdded(infoOf(0x10, 1));
         }
-        void arrive()
-        {
-            brain->onGoalFinished(h, GoalResult::Arrived);
-        }
+        void arrive() { brain->onGoalFinished(h, GoalResult::Arrived); }
     };
 
     TEST(SkyrimNpcPatrol, theActorWalksToTheFirstMarkerThenAlongTheLinkedChainIdlingAtEach)
@@ -445,7 +442,8 @@ namespace
         ClipMotion enter = chairEnterMotion();
         ClipMotion exit = chairExitMotion();
 
-        explicit SeatRig(bool withMotion, PackageBehavior behavior = PackageBehavior::Eat, FurniturePose pose = FurniturePose::Sit)
+        explicit SeatRig(
+            bool withMotion, PackageBehavior behavior = PackageBehavior::Eat, FurniturePose pose = FurniturePose::Sit)
         {
             src.mLists[kBase] = { &pkg };
             src.mBehavior[3] = behavior;
@@ -498,8 +496,8 @@ namespace
         step(*rig.brain, rig.w, 3);
         const auto gotos = rig.w.of(Event::Goto);
         ASSERT_EQ(gotos.size(), 1u);
-        // Motion: 60 forward and +90 degrees counter-clockwise. The start heading is the seat's plus 90 degrees (faces +X)
-        // and the start is 60 units west of the seat.
+        // Motion: 60 forward and +90 degrees counter-clockwise. The start heading is the seat's plus 90 degrees (faces
+        // +X) and the start is 60 units west of the seat.
         EXPECT_NEAR(gotos[0].mX, 940, 1e-3);
         EXPECT_NEAR(gotos[0].mY, 1000, 1e-3);
         rig.arrive();

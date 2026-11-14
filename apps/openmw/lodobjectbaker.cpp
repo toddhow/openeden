@@ -8,11 +8,11 @@
 #include <cstring>
 #include <future>
 #include <iterator>
-#include <sstream>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string_view>
 #include <thread>
 #include <tuple>
@@ -28,19 +28,19 @@
 #include <components/files/conversion.hpp>
 #include <components/lod/clusterbuild.hpp>
 #include <components/lod/clusterpack.hpp>
-#include <components/lod/lodworld.hpp>
 #include <components/lod/clustersway.hpp>
+#include <components/lod/lodworld.hpp>
 #include <components/lod/nifflatten.hpp>
 #include <components/lod/sceneryscript.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/nifscene/build.hpp>
-#include <components/worldmodel/store.hpp>
-#include <openeden/game/world_source.hpp>
-#include <openeden/game/world_terrain.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/worldmodel/store.hpp>
+#include <openeden/game/world_source.hpp>
+#include <openeden/game/world_terrain.hpp>
 
 #include "lodneutralobjects.hpp"
 #include "mwbase/environment.hpp"
@@ -476,8 +476,8 @@ namespace OMW
 
         if (state.mPhase == Phase::Collect && state.mNeutral)
         {
-            // Task 0133 stage 2: the neutral store builds a cell on the main thread and keeps only a few; the objects we
-            // want are copied out at once.
+            // Task 0133 stage 2: the neutral store builds a cell on the main thread and keeps only a few; the objects
+            // we want are copied out at once.
             while (state.mNextCell < state.mNeutralCells.size() && timeLeft())
             {
                 const State::NeutralCell& entry = state.mNeutralCells[state.mNextCell++];
@@ -544,11 +544,10 @@ namespace OMW
                 return false;
             state.mPhase = Phase::Models;
             Log(Debug::Info) << "LOD object bake: " << state.mReferencesSeen << " references, " << state.mObjects.size()
-                             << " statics and trees with a model (" << state.mNotStatic
-                             << " of other kinds stay live, " << state.mDisabled << " initially disabled, "
-                             << state.mMarkers << " markers, " << state.mNoModel << " without a model, "
-                             << state.mBadReferences << " refused, " << state.mCellsFailed << " cells failed), "
-                             << state.mModels.size() << " distinct models.";
+                             << " statics and trees with a model (" << state.mNotStatic << " of other kinds stay live, "
+                             << state.mDisabled << " initially disabled, " << state.mMarkers << " markers, "
+                             << state.mNoModel << " without a model, " << state.mBadReferences << " refused, "
+                             << state.mCellsFailed << " cells failed), " << state.mModels.size() << " distinct models.";
             return false;
         }
 
@@ -717,8 +716,9 @@ namespace OMW
             state.mPhase = Phase::Build;
             Log(Debug::Info) << "LOD object bake: " << state.mModels.size() - state.mModelsFailed << " models read ("
                              << state.mModelsFailed << " failed"
-                             << (state.mNeutral ? ", " + std::to_string(state.mTooSmallModels) + " too small for every level"
-                                                : std::string())
+                             << (state.mNeutral
+                                        ? ", " + std::to_string(state.mTooSmallModels) + " too small for every level"
+                                        : std::string())
                              << "), " << state.mWork.size() << " tiles to build.";
             return false;
         }
@@ -754,9 +754,9 @@ namespace OMW
             hashValue(hasher, id.mLevel);
             hashValue(hasher, id.mX);
             hashValue(hasher, id.mY);
-            const std::vector<std::uint8_t> parameters = parameterBytes(id.mLevel,
-                levelError(id.mLevel, state.mNeutral), cellSize, state.mUvEffects, state.mScenery, state.mSway,
-                state.mSwayModels, state.mSwayLean);
+            const std::vector<std::uint8_t> parameters
+                = parameterBytes(id.mLevel, levelError(id.mLevel, state.mNeutral), cellSize, state.mUvEffects,
+                    state.mScenery, state.mSway, state.mSwayModels, state.mSwayLean);
             hasher.update(parameters.data(), parameters.size());
             std::set<std::pair<std::uint32_t, std::int32_t>> seen;
             for (const std::size_t index : ordered)
@@ -862,9 +862,9 @@ namespace OMW
                 continue;
             std::sort(totals.mGroups.begin(), totals.mGroups.end());
             Log(Debug::Info) << "LOD object bake: level " << slot + 1 << " (error "
-                             << levelError(static_cast<std::uint32_t>(slot + 1), state.mNeutral) << "): " << totals.mTiles
-                             << " clusters, objects included " << totals.mObjectsIncluded << " of "
-                             << totals.mObjectsSeen << " (too small "
+                             << levelError(static_cast<std::uint32_t>(slot + 1), state.mNeutral)
+                             << "): " << totals.mTiles << " clusters, objects included " << totals.mObjectsIncluded
+                             << " of " << totals.mObjectsSeen << " (too small "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::TooSmall)]
                              << ", animated "
                              << totals.mExcluded[static_cast<std::size_t>(Lod::ExcludeReason::Animated)]

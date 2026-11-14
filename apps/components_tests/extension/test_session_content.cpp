@@ -133,12 +133,15 @@ namespace
         dir.write("builtin.omwscripts", Bytes().zstring("not a plugin"));
         const std::vector<std::string> names{ "builtin.omwscripts", "morrowind.esm", "Skyrim.esm", "Odd.esp",
             "x.omwscripts", "Missing.esm" };
-        const auto result = collectSessionContent(names, [&](const std::string& name) -> std::optional<fs::path> {
-            const fs::path p = dir.mPath / name;
-            if (!fs::exists(p))
-                return std::nullopt;
-            return p;
-        }, SessionContentTest::readHeader);
+        const auto result = collectSessionContent(
+            names,
+            [&](const std::string& name) -> std::optional<fs::path> {
+                const fs::path p = dir.mPath / name;
+                if (!fs::exists(p))
+                    return std::nullopt;
+                return p;
+            },
+            SessionContentTest::readHeader);
         ASSERT_EQ(result.entries.size(), 3u);
         EXPECT_EQ(result.entries[0].name, "morrowind.esm");
         EXPECT_EQ(result.entries[0].gameTag, "TES3");

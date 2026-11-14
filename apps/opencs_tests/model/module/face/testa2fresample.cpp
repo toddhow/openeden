@@ -14,7 +14,8 @@ namespace
     {
         std::vector<float> v(static_cast<std::size_t>(seconds * rate));
         for (std::size_t i = 0; i < v.size(); ++i)
-            v[i] = static_cast<float>(amplitude * std::sin(2.0 * std::numbers::pi * hz * static_cast<double>(i) / rate));
+            v[i]
+                = static_cast<float>(amplitude * std::sin(2.0 * std::numbers::pi * hz * static_cast<double>(i) / rate));
         return v;
     }
 

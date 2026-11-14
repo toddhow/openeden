@@ -55,20 +55,20 @@ namespace Lod
     [[nodiscard]] std::string describeNeutralPackMismatch(const TileManifest& pack, const std::string& worldspaceName,
         std::uint32_t cellSize, std::uint32_t gridSize, std::uint32_t albedoSize);
 
-    /// Texels a side of the baked ground picture of a tile that has one, for a world whose cell is `cellSizeUnits` wide:
-    /// Morrowind's 256 at its 8192 units a cell, scaled so that a texel covers the same ground (128 units), rounded
-    /// down to a power of two and kept between 32 and 256. 8192 gives 256 (so Morrowind's plan is unchanged), Skyrim
-    /// SE's 4096 gives 128. Not a valid size (0 or above 100,000,000 units) gives 256.
+    /// Texels a side of the baked ground picture of a tile that has one, for a world whose cell is `cellSizeUnits`
+    /// wide: Morrowind's 256 at its 8192 units a cell, scaled so that a texel covers the same ground (128 units),
+    /// rounded down to a power of two and kept between 32 and 256. 8192 gives 256 (so Morrowind's plan is unchanged),
+    /// Skyrim SE's 4096 gives 128. Not a valid size (0 or above 100,000,000 units) gives 256.
     [[nodiscard]] std::uint32_t albedoSizeForCell(float cellSizeUnits);
 
-    /// The box of land cells the tiles of a pack cover (every tile's square of 2^level cells; the pack's tiles reach out
-    /// past the land by up to a tile, so the box is generous). Empty when no tile is valid. Used for the view limits of
-    /// a neutral world (`view distance = auto` with `map view`), which has no ESM land to measure.
+    /// The box of land cells the tiles of a pack cover (every tile's square of 2^level cells; the pack's tiles reach
+    /// out past the land by up to a tile, so the box is generous). Empty when no tile is valid. Used for the view
+    /// limits of a neutral world (`view distance = auto` with `map view`), which has no ESM land to measure.
     [[nodiscard]] LandExtent extentOfTiles(const std::vector<TileId>& tiles);
 
     /// Task 0133 stage 2: a neutral placement has a 64-bit id; a cluster lists the references it stands in for in two
-    /// 32-bit words (the layout is frozen at version 1), so the id travels in them as its low word (mIndex) and its high
-    /// word (mContentFile). The two functions are inverses for every id.
+    /// 32-bit words (the layout is frozen at version 1), so the id travels in them as its low word (mIndex) and its
+    /// high word (mContentFile). The two functions are inverses for every id.
     [[nodiscard]] ClusterRef clusterRefFromPlacement(std::uint64_t placementId) noexcept;
     [[nodiscard]] std::uint64_t placementFromClusterRef(const ClusterRef& ref) noexcept;
 
@@ -82,8 +82,9 @@ namespace Lod
     /// triangles; the objects between 192 and 320 stay in the band the live grid does not cover). A manifest value.
     [[nodiscard]] float objectClusterLevelError(std::uint32_t level, bool neutralWorld) noexcept;
 
-    /// Is the terrain tile pack of this kind of world written stored (not compressed)? Morrowind's is, so that its bytes
-    /// depend only on the land (byte-stable digests); a neutral world's is compressed with zstd (task 0133 stage 3).
+    /// Is the terrain tile pack of this kind of world written stored (not compressed)? Morrowind's is, so that its
+    /// bytes depend only on the land (byte-stable digests); a neutral world's is compressed with zstd (task 0133 stage
+    /// 3).
     [[nodiscard]] bool terrainPackStored(bool neutralWorld);
 
     /// The worldspace name written into a neutral pack's manifest: "<game>:<world editor id>:<fingerprint>".

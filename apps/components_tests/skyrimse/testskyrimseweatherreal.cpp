@@ -1,6 +1,6 @@
-// Task 0127 (TBD-E): the aggregate check of the Skyrim SE weather decoding on the player's own masters. It prints counts
-// only (lines starting SKYRIMSE-WEATHER), never a record name, id or mod path, and writes nothing. Skipped when the
-// environment is not set.
+// Task 0127 (TBD-E): the aggregate check of the Skyrim SE weather decoding on the player's own masters. It prints
+// counts only (lines starting SKYRIMSE-WEATHER), never a record name, id or mod path, and writes nothing. Skipped when
+// the environment is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required)
 //

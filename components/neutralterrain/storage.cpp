@@ -96,7 +96,8 @@ namespace NeutralTerrain
                 if (cell->hasNormals && index * 3 + 2 < cell->normals.size())
                 {
                     vsg::vec3 n(static_cast<float>(cell->normals[index * 3]),
-                        static_cast<float>(cell->normals[index * 3 + 1]), static_cast<float>(cell->normals[index * 3 + 2]));
+                        static_cast<float>(cell->normals[index * 3 + 1]),
+                        static_cast<float>(cell->normals[index * 3 + 2]));
                     const float length = vsg::length(n);
                     if (length > 1e-6f)
                         out.mNormal = n / length;
@@ -128,8 +129,7 @@ namespace NeutralTerrain
         auto heights = vsg::floatArray2D::create(count, count, vsg::Data::Properties{ VK_FORMAT_R32_SFLOAT });
         // RGBA rather than RGB: three-channel 32-bit float images are not sampleable on common Windows drivers (the
         // same choice as ESMTerrain::Storage).
-        auto normals
-            = vsg::vec4Array2D::create(count, count, vsg::Data::Properties{ VK_FORMAT_R32G32B32A32_SFLOAT });
+        auto normals = vsg::vec4Array2D::create(count, count, vsg::Data::Properties{ VK_FORMAT_R32G32B32A32_SFLOAT });
         auto colours = vsg::ubvec4Array2D::create(count, count, vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
 
         const std::int64_t intervals = static_cast<std::int64_t>(cellVertices) - 1;
@@ -158,13 +158,13 @@ namespace NeutralTerrain
             return (r != 0 && ((r < 0) != (b < 0))) ? r + b : r;
         }
 
-        // The splat blend map (splat.hpp) of one chunk. The chunk's quadrant slots are k x k whole quadrants, or one slot
-        // holding the part of a quadrant the chunk covers when it is smaller than a quadrant.
+        // The splat blend map (splat.hpp) of one chunk. The chunk's quadrant slots are k x k whole quadrants, or one
+        // slot holding the part of a quadrant the chunk covers when it is smaller than a quadrant.
         vsg::ref_ptr<vsg::Data> splatBlendmap(const Terrain::Bounds& bounds, const CellCache& cache)
         {
             const Splat::Layout layout = Splat::layoutFor(bounds.size);
-            auto image = vsg::ubvec4Array2D::create(layout.mWidth, layout.mHeight, vsg::ubvec4(),
-                vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+            auto image = vsg::ubvec4Array2D::create(
+                layout.mWidth, layout.mHeight, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
 
             // The chunk's first quadrant, and for a chunk inside one quadrant the vertex it starts at.
             const double qx = static_cast<double>(bounds.min.x) * 2.0;
@@ -202,7 +202,8 @@ namespace NeutralTerrain
                         std::vector<Splat::LayerIn> inputs;
                         for (const sdk::TerrainLayer& layer : cell->layers[static_cast<std::size_t>(quadrant)])
                             inputs.push_back({ indexOf(layer.texture), &layer.opacity });
-                        composed = Splat::composeQuadrant(indexOf(cell->baseTextures[static_cast<std::size_t>(quadrant)]), inputs);
+                        composed = Splat::composeQuadrant(
+                            indexOf(cell->baseTextures[static_cast<std::size_t>(quadrant)]), inputs);
                     }
                     else
                     {
@@ -229,8 +230,8 @@ namespace NeutralTerrain
         if (mLayerSplat && bounds.size <= Splat::kMaxChunkCells)
             return splatBlendmap(bounds, *mCache);
         const int size = std::max(1, static_cast<int>(std::lround(kBlendTexelsPerCell * bounds.size)));
-        auto image = vsg::ubvec4Array2D::create(
-            size, size, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
+        auto image
+            = vsg::ubvec4Array2D::create(size, size, vsg::ubvec4(), vsg::Data::Properties{ VK_FORMAT_R8G8B8A8_UNORM });
         const std::int64_t x0 = std::llround(static_cast<double>(bounds.min.x) * kBlendTexelsPerCell);
         const std::int64_t y0 = std::llround(static_cast<double>(bounds.min.y) * kBlendTexelsPerCell);
         Local local(*mCache);
@@ -295,12 +296,14 @@ namespace NeutralTerrain
         const int endY = std::min(startY + 1, verts - 1);
         const double xParam = nX - startX;
         const double yParam = nY - startY;
-        const auto h = [&](int x, int y) { return static_cast<double>(cell->heights[static_cast<std::size_t>(y) * verts + x]); };
+        const auto h
+            = [&](int x, int y) { return static_cast<double>(cell->heights[static_cast<std::size_t>(y) * verts + x]); };
         const double h0 = h(startX, startY);
         const double h1 = h(endX, startY);
         const double h2 = h(endX, endY);
         const double h3 = h(startX, endY);
-        // The two triangles of a quad, split along the diagonal from (end, start) to (start, end), as ESMTerrain::Storage.
+        // The two triangles of a quad, split along the diagonal from (end, start) to (start, end), as
+        // ESMTerrain::Storage.
         if ((1.0 - yParam) > xParam)
             return static_cast<float>(h0 + (h1 - h0) * xParam + (h3 - h0) * yParam);
         return static_cast<float>(h2 + (h3 - h2) * (1.0 - xParam) + (h1 - h2) * (1.0 - yParam));

@@ -67,9 +67,9 @@ namespace MWPhysics::NeutralMover
         for (int pass = 0; pass < kMaxSlidePasses; ++pass)
         {
             // Raise, so that a low ledge and the floor itself are not in the way of the sideways sweep.
-            // The capsule rests in contact with the floor (the last drop put it there), and a sweep that starts in contact
-            // reports a hit at fraction 0, in any direction: lift the start by the skin first (task 0135 stage S4: an
-            // actor in the Bannered Mare stood for ever with a rise of 0 and every sweep stopped at once).
+            // The capsule rests in contact with the floor (the last drop put it there), and a sweep that starts in
+            // contact reports a hit at fraction 0, in any direction: lift the start by the skin first (task 0135 stage
+            // S4: an actor in the Bannered Mare stood for ever with a rise of 0 and every sweep stopped at once).
             const vsg::vec3 base(pos.x, pos.y, pos.z + kSkin);
             const Sweep up = world.sweep(base, vsg::vec3(0.f, 0.f, kStepUp));
             const float rise = up.mHit ? std::max(0.f, up.mFraction * kStepUp - kSkin) : kStepUp;
@@ -114,8 +114,8 @@ namespace MWPhysics::NeutralMover
                 const float dx = remaining.x / len;
                 const float dy = remaining.y / len;
                 const auto groundAt = [&](float sign) {
-                    return world.probeDown(vsg::vec3(rest.x + sign * dx * kBridgeReach, rest.y + sign * dy * kBridgeReach,
-                                               rest.z + kProbeLift),
+                    return world.probeDown(vsg::vec3(rest.x + sign * dx * kBridgeReach,
+                                               rest.y + sign * dy * kBridgeReach, rest.z + kProbeLift),
                         probeDepth);
                 };
                 const Sweep ahead = groundAt(1.f);
@@ -136,8 +136,8 @@ namespace MWPhysics::NeutralMover
                 break;
             }
             const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * probeDepth);
-            // Task 0159: a pass that carries the capsule up (its rim on the nosing of a steep dirt step) is not refused for
-            // the steepness of the face under its centre; a level or descending pass is (a slope is a slope).
+            // Task 0159: a pass that carries the capsule up (its rim on the nosing of a steep dirt step) is not refused
+            // for the steepness of the face under its centre; a level or descending pass is (a slope is a slope).
             const bool climbing = rest.z - pos.z > kRimMinClimb;
             if (!bridged && ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack && !climbing)
             {
@@ -224,11 +224,11 @@ namespace MWPhysics::NeutralMover
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(mLayerMask);
         JPH::IgnoreSingleBodyFilter ownBody(mSelf);
-        // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by steep
-        // bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by five
-        // rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal is
-        // the most level one among the surfaces within kProbeNormalBand of that height (a bevel beside a shelf is
-        // a bevel, a slope that is steep all round stays steep).
+        // Task 0157: stair and floor meshes are made of planks with thin gaps between them and of shelves joined by
+        // steep bevels. A single ray under the centre can fall into a gap or land on a bevel, so the ground is found by
+        // five rays (the centre and kProbeSpread to each side): its height is the highest surface hit, and its normal
+        // is the most level one among the surfaces within kProbeNormalBand of that height (a bevel beside a shelf is a
+        // bevel, a slope that is steep all round stays steep).
         constexpr float kOffsets[5][2] = { { 0.f, 0.f }, { kProbeSpread, 0.f }, { -kProbeSpread, 0.f },
             { 0.f, kProbeSpread }, { 0.f, -kProbeSpread } };
         struct Candidate

@@ -12,8 +12,8 @@
 namespace
 {
     using namespace game_skyrimse::conditions;
-    using game_skyrimse::survey::Ctda;
     using ContentTests::Bytes;
+    using game_skyrimse::survey::Ctda;
 
     constexpr std::uint8_t kEq = 0, kNe = 1, kGt = 2, kGe = 3, kLt = 4, kLe = 5;
     constexpr std::uint8_t kOr = 0x01, kUseGlobal = 0x04;

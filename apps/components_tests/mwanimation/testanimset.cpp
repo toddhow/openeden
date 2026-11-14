@@ -13,9 +13,9 @@
 #include <components/animation/textkeys.hpp>
 #include <components/animation/transform.hpp>
 #include <components/animation/transformcontroller.hpp>
-#include <components/mwanimation/play.hpp>
 #include <components/archivekinds/archivekinds.hpp>
 #include <components/files/istreamptr.hpp>
+#include <components/mwanimation/play.hpp>
 #include <components/vfs/archive.hpp>
 #include <components/vfs/archivefactory.hpp>
 #include <components/vfs/file.hpp>
@@ -217,8 +217,8 @@ namespace
             EXPECT_FLOAT_EQ(map->tags->findGroup(name)->first, group.firstKey);
             rig.mPlay->endedAnimations.clear();
             rig.mPlay->play(name, MWAnim::Play::Priority(1), 1, true, 1.f, "start", "stop", 0.f, 0, false);
-            const bool playable
-                = group.start != Anim::AnimSet::sAbsent && group.stop != Anim::AnimSet::sAbsent && group.start <= group.stop;
+            const bool playable = group.start != Anim::AnimSet::sAbsent && group.stop != Anim::AnimSet::sAbsent
+                && group.start <= group.stop;
             EXPECT_EQ(rig.mPlay->getInfo(name), playable);
             if (!playable)
                 continue;
@@ -258,8 +258,8 @@ namespace
             Keys keys;
             const unsigned count = 2 + next(14);
             for (unsigned i = 0; i < count; ++i)
-                keys.emplace_back(static_cast<float>(next(40)) * 0.5f,
-                    std::string(groups[next(4)]) + ": " + markers[next(7)]);
+                keys.emplace_back(
+                    static_cast<float>(next(40)) * 0.5f, std::string(groups[next(4)]) + ": " + markers[next(7)]);
             SCOPED_TRACE("round " + std::to_string(round));
             expectPlayAgrees(keys);
         }
@@ -357,8 +357,8 @@ namespace
     {
         Anim::Tags tags;
         Anim::addTextKeys(tags, 1.5f, "Idle: Start\r\n  Idle: Loop Start \nSound: Foot\r\n\r\n");
-        EXPECT_EQ(keyTexts(tags), (std::vector<std::string>{ "1.500000 idle: start", "1.500000 idle: loop start",
-                                      "1.500000 sound: foot" }));
+        EXPECT_EQ(keyTexts(tags),
+            (std::vector<std::string>{ "1.500000 idle: start", "1.500000 idle: loop start", "1.500000 sound: foot" }));
         EXPECT_TRUE(tags.hasGroup("idle"));
         EXPECT_TRUE(tags.hasGroup("sound"));
     }
@@ -377,8 +377,9 @@ namespace
         EXPECT_TRUE(Anim::addTextKeyLine(tags, "Walkforward: Loop Start 2.5"));
         EXPECT_TRUE(Anim::addTextKeyLine(tags, "  idle: stop   2.033333  "));
         EXPECT_TRUE(Anim::addTextKeyLine(tags, "hit1 stop 101.5"));
-        EXPECT_EQ(keyTexts(tags), (std::vector<std::string>{ "2.033333 idle: stop", "2.500000 walkforward: loop start",
-                                      "101.500000 hit1 stop" }));
+        EXPECT_EQ(keyTexts(tags),
+            (std::vector<std::string>{
+                "2.033333 idle: stop", "2.500000 walkforward: loop start", "101.500000 hit1 stop" }));
         EXPECT_FALSE(tags.hasGroup("hit1")) << "no colon, no group";
     }
 

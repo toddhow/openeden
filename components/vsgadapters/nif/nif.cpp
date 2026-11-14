@@ -4,8 +4,8 @@
 #include <iostream>
 #include <iterator>
 #include <mutex>
-#include <sstream>
 #include <set>
+#include <sstream>
 #include <stack>
 
 #include <vsg/nodes/Switch.h>
@@ -1748,9 +1748,9 @@ namespace vsgAdapters
     {
         if (!vsg::compatibleExtension(options.get(), ".nif"))
             return {};
-        // Task 0110 (neutral world stage N3a-4): when the host gave a scene reader, a file it accepts (a Skyrim SE file)
-        // goes to it instead of the Morrowind reader. Without one the file reaches the Morrowind reader, which refuses
-        // it, exactly as before.
+        // Task 0110 (neutral world stage N3a-4): when the host gave a scene reader, a file it accepts (a Skyrim SE
+        // file) goes to it instead of the Morrowind reader. Without one the file reaches the Morrowind reader, which
+        // refuses it, exactly as before.
         std::string replay;
         if (sceneReader && sceneReader->accepts && sceneReader->read)
         {

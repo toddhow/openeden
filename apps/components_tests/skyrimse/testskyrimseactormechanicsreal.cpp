@@ -1,7 +1,8 @@
 // Task 0154 (stage S7): the actor numbers and relations on the player's own Skyrim SE masters. The expected values were
 // derived from the records by an independent Python walker (its own plugin reader and formulas, no C++ shared), see the
-// task's stage log, EXCEPT where a comment says otherwise (Hewnon's level 23 is the pack's own half-up rounding). Prints
-// aggregates (lines SKYRIMSE-MECHANICS) and checks a handful of named actors. Skipped when the environment is not set.
+// task's stage log, EXCEPT where a comment says otherwise (Hewnon's level 23 is the pack's own half-up rounding).
+// Prints aggregates (lines SKYRIMSE-MECHANICS) and checks a handful of named actors. Skipped when the environment is
+// not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/actor_mechanics.hpp>
@@ -135,15 +136,14 @@ namespace
         EXPECT_FLOAT_EQ(stats.health, 300.f);
         EXPECT_FLOAT_EQ(stats.magicka, 275.f);
         EXPECT_FLOAT_EQ(stats.stamina, 50.f);
-        ASSERT_TRUE(
-            computeActorDisposition(world.mIndex, base("DA09ShadeUnique"), 0, options, disposition, error))
+        ASSERT_TRUE(computeActorDisposition(world.mIndex, base("DA09ShadeUnique"), 0, options, disposition, error))
             << error;
         EXPECT_EQ(disposition.relationToPlayer, sdkgame::ActorRelation::Enemy);
         EXPECT_EQ(disposition.aggression, sdkgame::ActorAggression::VeryAggressive);
         EXPECT_TRUE(disposition.hostileOnSight);
 
-        // Drahff scales with the player: multiplier 0.5, calc min 6, calc max 25, class weights 3 0 2 (gain 11 / 0 / 4),
-        // stored totals 105 / 50 / 95 at level 6.
+        // Drahff scales with the player: multiplier 0.5, calc min 6, calc max 25, class weights 3 0 2 (gain 11 / 0 /
+        // 4), stored totals 105 / 50 / 95 at level 6.
         ASSERT_TRUE(computeActorStats(world.mIndex, base("Drahff"), 0, 1, stats, error)) << error;
         EXPECT_TRUE(stats.scalesWithPlayer);
         EXPECT_EQ(stats.level, 6);

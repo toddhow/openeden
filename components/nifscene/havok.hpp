@@ -66,8 +66,8 @@ namespace NifScene::Havok
         std::vector<Vec3> mVertices;
         std::vector<std::array<std::uint32_t, 3>> mTriangles; // into mVertices, all in range
         std::vector<std::uint32_t> mChildren; // indices into Collision::mShapes
-        /// A Transform shape's 4x4: the sixteen floats in the order the file stores them (element i = file float i). Which
-        /// elements are the rotation and the translation is settled by the provenance log (item U6).
+        /// A Transform shape's 4x4: the sixteen floats in the order the file stores them (element i = file float i).
+        /// Which elements are the rotation and the translation is settled by the provenance log (item U6).
         std::array<float, 16> mTransform{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
     };
 

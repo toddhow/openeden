@@ -35,7 +35,8 @@ namespace MWRender::SkyrimTreeSway
     {
         if (std::isfinite(seconds) && seconds > 0.0)
             mSeconds += seconds;
-        // The cloud volume's wind direction, so trees lean the way the clouds drift (the engine has no other wind direction).
+        // The cloud volume's wind direction, so trees lean the way the clouds drift (the engine has no other wind
+        // direction).
         const float push = lean * windScale(baseWindSpeed) * Lod::swayWeightScale;
         const float x = Render::CloudVolume::windDirection[0] * push;
         const float y = Render::CloudVolume::windDirection[1] * push;

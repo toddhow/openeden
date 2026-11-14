@@ -4,9 +4,9 @@
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required)
 //
-// It settles the RECALLED-VERIFY items of docs/research/0053: the row/column orientation of LAND heights (shared edges of
-// neighbouring cells), the quadrant numbering and the VTXT position layout (the same, for textures), the PNAM bits, the
-// XCLW sentinels, the null ATXT textures and why Solstheim has 34,383 LAND records. The conclusions are asserted at
+// It settles the RECALLED-VERIFY items of docs/research/0053: the row/column orientation of LAND heights (shared edges
+// of neighbouring cells), the quadrant numbering and the VTXT position layout (the same, for textures), the PNAM bits,
+// the XCLW sentinels, the null ATXT textures and why Solstheim has 34,383 LAND records. The conclusions are asserted at
 // the end so that a regression in the decoder shows.
 #include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/worldspace.hpp>
@@ -74,7 +74,7 @@ namespace
             merged.mOdd += d.mNotes.mOddSubrecords;
             for (const auto& [k, v] : d.mNotes.mOddBy)
                 merged.mOddBy[k] += v;
-            const auto count = [&](const char (&t)[5]) -> TypeCount& { return d.mCounts[Content::fourCC(t)]; };
+            const auto count = [&](const char(&t)[5]) -> TypeCount& { return d.mCounts[Content::fourCC(t)]; };
             merged.mLandSeen += count("LAND").mSeen;
             merged.mLandParsed += count("LAND").mParsed;
             for (WorldSpaceRecord& w : d.mWorlds)
@@ -116,10 +116,18 @@ namespace
         {
             switch (which)
             {
-                case 0: e[k] = l.mHeights[k * 33 + 0]; break;
-                case 1: e[k] = l.mHeights[k * 33 + 32]; break;
-                case 2: e[k] = l.mHeights[0 * 33 + k]; break;
-                default: e[k] = l.mHeights[32 * 33 + k]; break;
+                case 0:
+                    e[k] = l.mHeights[k * 33 + 0];
+                    break;
+                case 1:
+                    e[k] = l.mHeights[k * 33 + 32];
+                    break;
+                case 2:
+                    e[k] = l.mHeights[0 * 33 + k];
+                    break;
+                default:
+                    e[k] = l.mHeights[32 * 33 + k];
+                    break;
             }
         }
         return e;
@@ -217,8 +225,8 @@ namespace
             std::uint64_t n = 0;
             int bi = 0, bj = 0, br = 0;
             const std::string name = best(c, n, bi, bj, br);
-            std::cout << "SKYRIMSE-LAND edges " << (dir == 0 ? "east" : "north") << " pairs " << c.mPairs
-                      << " best " << name << " agree " << n << "\n";
+            std::cout << "SKYRIMSE-LAND edges " << (dir == 0 ? "east" : "north") << " pairs " << c.mPairs << " best "
+                      << name << " agree " << n << "\n";
             for (int i = 0; i < 4; ++i)
                 for (int j = 0; j < 4; ++j)
                     for (int r = 0; r < 2; ++r)
@@ -278,17 +286,21 @@ namespace
                 std::vector<std::pair<double, int>> ranked;
                 for (int qa = 0; qa < 4; ++qa)
                     for (int qb = 0; qb < 4; ++qb)
-                        ranked.push_back({ static_cast<double>(eq[qa][qb]) / static_cast<double>(tot[qa][qb]), qa * 4 + qb });
+                        ranked.push_back(
+                            { static_cast<double>(eq[qa][qb]) / static_cast<double>(tot[qa][qb]), qa * 4 + qb });
                 std::sort(ranked.rbegin(), ranked.rend());
                 const std::set<int> top = { ranked[0].second, ranked[1].second };
-                const std::set<int> expected = dir == 0 ? std::set<int>{ 1 * 4 + 0, 3 * 4 + 2 }
-                                                        : std::set<int>{ 2 * 4 + 0, 3 * 4 + 1 };
+                const std::set<int> expected
+                    = dir == 0 ? std::set<int>{ 1 * 4 + 0, 3 * 4 + 2 } : std::set<int>{ 2 * 4 + 0, 3 * 4 + 1 };
                 EXPECT_EQ(top, expected) << (dir == 0 ? "east" : "north");
             }
             for (int qa = 0; qa < 4; ++qa)
                 for (int qb = 0; qb < 4; ++qb)
                     if (tot[qa][qb] != 0)
-                        std::cout << "SKYRIMSE-LAND base " << (dir == 0 ? "east" : dir == 1 ? "north" : "same-cell")
+                        std::cout << "SKYRIMSE-LAND base "
+                                  << (dir == 0          ? "east"
+                                             : dir == 1 ? "north"
+                                                        : "same-cell")
                                   << " A.q" << qa << " B.q" << qb << " equal " << eq[qa][qb] << " of " << tot[qa][qb]
                                   << "\n";
         }
@@ -364,8 +376,9 @@ namespace
                     g.someLand += !w.mLands.empty();
                 }
             }
-            // A child that takes a kind of data from its parent has no record of its own for it: 0x04 map data (no MNAM),
-            // 0x08 water (no NAM2), 0x10 climate (no CNAM). Bits 0x01 and 0x02 are never apart in the installed data.
+            // A child that takes a kind of data from its parent has no record of its own for it: 0x04 map data (no
+            // MNAM), 0x08 water (no NAM2), 0x10 climate (no CNAM). Bits 0x01 and 0x02 are never apart in the installed
+            // data.
             EXPECT_EQ(set[2].map, 0);
             EXPECT_EQ(set[3].water, 0);
             EXPECT_EQ(set[4].climate, 0);
@@ -382,8 +395,8 @@ namespace
                     std::cout << "SKYRIMSE-LAND pnam bit 0x" << std::hex << (1 << bit) << std::dec
                               << (isSet != 0 ? " SET   " : " CLEAR ") << "worlds " << g.n << " with CNAM " << g.climate
                               << " NAM2 " << g.water << " NAM3/NAM4 " << g.lod << " MNAM " << g.map << " DNAM "
-                              << g.dnam << " own LAND >=90% of cells " << g.fullyLand << " any own LAND "
-                              << g.someLand << "\n";
+                              << g.dnam << " own LAND >=90% of cells " << g.fullyLand << " any own LAND " << g.someLand
+                              << "\n";
                 }
         }
 
@@ -401,8 +414,8 @@ namespace
                 {
                     const char* kind[] = { "absent", "default", "nowater", "height", "invalid" };
                     const bool hasLand = w.mLands.count(g) != 0;
-                    ++cross[std::string(kind[static_cast<int>(c.mWater.mKind)]) + " flag2=" + ((c.mFlags & 2) ? "1" : "0")
-                        + " land=" + (hasLand ? "1" : "0")];
+                    ++cross[std::string(kind[static_cast<int>(c.mWater.mKind)])
+                        + " flag2=" + ((c.mFlags & 2) ? "1" : "0") + " land=" + (hasLand ? "1" : "0")];
                     ++flagHist[c.mFlags];
                     if (c.mWater.mKind == CellWaterKind::NoWater || c.mWater.mKind == CellWaterKind::Invalid)
                         ++rawNoWater[c.mWater.mRaw];
@@ -438,7 +451,8 @@ namespace
                 std::cout << "SKYRIMSE-LAND xclw " << k << " " << n << "\n";
             for (const auto& [v, n] : rawNoWater)
                 std::cout << "SKYRIMSE-LAND xclw sentinel raw " << v << " cells " << n << "\n";
-            std::cout << "SKYRIMSE-LAND xclw height cells " << heightCells << " range " << minH << " to " << maxH << "\n";
+            std::cout << "SKYRIMSE-LAND xclw height cells " << heightCells << " range " << minH << " to " << maxH
+                      << "\n";
             std::cout << "SKYRIMSE-LAND xclw default cells with land " << defaultCells << " with flag 2 "
                       << defaultWithFlag << " terrain below the world default water " << belowDefault << "\n";
             for (const auto& [f, n] : flagHist)
@@ -522,7 +536,8 @@ namespace
                 }
             }
             // A null LTEX in ATXT is a real layer (almost always with opacity entries): it paints the default ground
-            // texture. A base texture of 0 is the same. One dangling id (no record in its plugin) is used by 101 layers.
+            // texture. A base texture of 0 is the same. One dangling id (no record in its plugin) is used by 101
+            // layers.
             EXPECT_GT(nullAtxt, 0u);
             EXPECT_GE(nullWithEntries * 100, nullAtxt * 99);
             EXPECT_EQ(unresolved, 0u);
@@ -531,8 +546,8 @@ namespace
             std::cout << "SKYRIMSE-LAND layers lands " << lands << " atxt " << atxt << " null " << nullAtxt
                       << " unresolved " << unresolved << " non-null not an LTEX " << notLtex << " layer index gaps "
                       << indexGaps << " max layers per cell " << maxPerCell << "\n";
-            std::cout << "SKYRIMSE-LAND non-null ATXT not an LTEX: distinct ids " << notLtexIds.size() << " base BTXT not an LTEX "
-                      << notLtexBase << "\n";
+            std::cout << "SKYRIMSE-LAND non-null ATXT not an LTEX: distinct ids " << notLtexIds.size()
+                      << " base BTXT not an LTEX " << notLtexBase << "\n";
             for (FormId id : notLtexIds)
             {
                 std::cout << "SKYRIMSE-LAND   the id is 0x" << std::hex << id << std::dec;
@@ -544,7 +559,8 @@ namespace
                     bool onRecord(const Content::RawRecord& r) override
                     {
                         if (r.mFormId == mWanted)
-                            mType = Content::fourCCToString(r.mType) + ((r.mFlags & RecordFlags::Deleted) ? " deleted" : "");
+                            mType = Content::fourCCToString(r.mType)
+                                + ((r.mFlags & RecordFlags::Deleted) ? " deleted" : "");
                         return true;
                     }
                 } finder;
@@ -564,12 +580,13 @@ namespace
                       << " opacity " << nullMin << " to " << nullMax << " alone in quadrant " << nullAlone << "\n";
             for (const auto& [i, n] : nullByIndex)
                 std::cout << "SKYRIMSE-LAND null atxt at layer index " << i << " " << n << "\n";
-            std::cout << "SKYRIMSE-LAND base quadrants " << baseTotal << " null " << baseNull << " lands with no base at all "
-                      << landsNoBase << "\n";
+            std::cout << "SKYRIMSE-LAND base quadrants " << baseTotal << " null " << baseNull
+                      << " lands with no base at all " << landsNoBase << "\n";
             for (const auto& [k, n] : layersPerQuadrant)
                 std::cout << "SKYRIMSE-LAND quadrants with " << k << " layers " << n << "\n";
             for (const auto& [k, n] : overlap)
-                std::cout << "SKYRIMSE-LAND vertices drawn from " << k << " textures (base + layers, null included) " << n << "\n";
+                std::cout << "SKYRIMSE-LAND vertices drawn from " << k << " textures (base + layers, null included) "
+                          << n << "\n";
             std::cout << "SKYRIMSE-LAND ltex " << m.mLtex.size() << " without a texture set " << ltexNoSet
                       << " set missing " << setMissing << " set without a diffuse path " << setNoDiffuse << "\n";
         }
@@ -579,8 +596,8 @@ namespace
         {
             if (w.mLands.size() < 100)
                 continue;
-            std::uint64_t flat = 0, withLayers = 0, withBase = 0, withNormals = 0, inMap = 0, inBounds = 0, noHeights = 0,
-                          atDefault = 0;
+            std::uint64_t flat = 0, withLayers = 0, withBase = 0, withNormals = 0, inMap = 0, inBounds = 0,
+                          noHeights = 0, atDefault = 0;
             float lo = 1e30f, hi = -1e30f;
             std::set<float> offsets;
             const WorldSpaceRecord& r = w.mRecord;
@@ -674,7 +691,8 @@ namespace
                 top.push_back({ n, h });
             std::sort(top.rbegin(), top.rend());
             for (std::size_t i = 0; i < std::min<std::size_t>(top.size(), 4); ++i)
-                std::cout << "SKYRIMSE-LAND solstheim flat height " << top[i].second << " cells " << top[i].first << "\n";
+                std::cout << "SKYRIMSE-LAND solstheim flat height " << top[i].second << " cells " << top[i].first
+                          << "\n";
             std::cout << "SKYRIMSE-LAND solstheim distinct flat heights " << flatHeights.size() << "\n";
             // The bulk of Solstheim's LAND is filler outside the map's usable rectangle, and a large part of it is flat
             // at the world's default land height (to the 8 unit step of the height scale).
@@ -702,7 +720,8 @@ namespace
                 ++archives;
                 for (std::string file : listing.mFiles)
                 {
-                    std::transform(file.begin(), file.end(), file.begin(), [](unsigned char c) { return std::tolower(c); });
+                    std::transform(
+                        file.begin(), file.end(), file.begin(), [](unsigned char c) { return std::tolower(c); });
                     found = found || file == "textures\\landscape\\dirt02.dds";
                     foundNormal = foundNormal || file == "textures\\landscape\\dirt02_n.dds";
                 }

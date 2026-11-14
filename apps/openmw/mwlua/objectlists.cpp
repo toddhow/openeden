@@ -4,7 +4,6 @@
 
 #include "../mwbase/environment.hpp"
 
-
 #include "../mwworld/class.hpp"
 #include "../mwworld/worldmodel.hpp"
 

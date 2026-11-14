@@ -165,9 +165,9 @@ namespace MWRender
     {
         waitForBuilds();
         setShownChunks({});
-        Log(Debug::Info) << "Neutral grass: asked the pack for " << mStats.mCellsAsked << " squares (" << mStats.mCellsWithGrass
-                         << " with grass), " << mStats.mTufts << " tufts of " << mStats.mTuftsRequested
-                         << " asked, pack time " << mStats.mPackMilliseconds << " ms (worst "
+        Log(Debug::Info) << "Neutral grass: asked the pack for " << mStats.mCellsAsked << " squares ("
+                         << mStats.mCellsWithGrass << " with grass), " << mStats.mTufts << " tufts of "
+                         << mStats.mTuftsRequested << " asked, pack time " << mStats.mPackMilliseconds << " ms (worst "
                          << mStats.mWorstPackMilliseconds << " ms)";
     }
 
@@ -202,8 +202,8 @@ namespace MWRender
                 const float dy = (static_cast<float>(c.second) + 0.5f) * mCellSize - camera.y;
                 return dx * dx + dy * dy;
             };
-            std::sort(mQueue.begin(), mQueue.end(),
-                [&](const auto& a, const auto& b) { return distance(a) < distance(b); });
+            std::sort(
+                mQueue.begin(), mQueue.end(), [&](const auto& a, const auto& b) { return distance(a) < distance(b); });
         }
 
         askPack(camera);

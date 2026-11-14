@@ -24,9 +24,9 @@ namespace MWPhysics::NeutralPath
 {
     /// Walking and running speeds of a go-to request, game units a second: the speeds the Skyrim SE walk and run clips
     /// cover by their own root motion, so the cycles play at their own rate (task 0148, measured on the installed
-    /// `Skyrim - Animations.bsa`: MT_WalkForward 93.448 units in 1.13333 s = 82.45 units/s, MT_RunForward 222.219 units in
-    /// 0.633333 s = 350.87 units/s, male and female; `HavokGaitRealData`). Task 0135's first estimates were 120 and 280.
-    /// HavokPack::Gait::Params defaults to the same two numbers (a test pins them equal).
+    /// `Skyrim - Animations.bsa`: MT_WalkForward 93.448 units in 1.13333 s = 82.45 units/s, MT_RunForward 222.219 units
+    /// in 0.633333 s = 350.87 units/s, male and female; `HavokGaitRealData`). Task 0135's first estimates were 120 and
+    /// 280. HavokPack::Gait::Params defaults to the same two numbers (a test pins them equal).
     inline constexpr float kWalkSpeed = 82.45f;
     inline constexpr float kRunSpeed = 350.87f;
     /// A waypoint counts as reached when the actor is this close to it on the ground plane.
@@ -63,8 +63,8 @@ namespace MWPhysics::NeutralPath
     {
     public:
         virtual ~PathFinder() = default;
-        [[nodiscard]] virtual FindStatus find(const vsg::vec3& from, const vsg::vec3& to, std::vector<vsg::vec3>& out) const
-            = 0;
+        [[nodiscard]] virtual FindStatus find(
+            const vsg::vec3& from, const vsg::vec3& to, std::vector<vsg::vec3>& out) const = 0;
     };
 
     enum class Outcome : std::uint8_t

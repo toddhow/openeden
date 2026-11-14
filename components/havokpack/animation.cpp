@@ -103,7 +103,8 @@ namespace HavokPack
         };
 
         // The spline header: item count minus one (u16), degree (u8), then the knots.
-        Spline readSplineHeader(Cursor& c, const ClipLimits& limits, std::uint32_t maxFramesPerBlock, std::uint32_t dims)
+        Spline readSplineHeader(
+            Cursor& c, const ClipLimits& limits, std::uint32_t maxFramesPerBlock, std::uint32_t dims)
         {
             c.align4();
             const std::uint32_t n = c.u16();
@@ -188,7 +189,8 @@ namespace HavokPack
         }
 
         // One float track (F38 to F40): a constant, or a one dimensional spline between a min and a max.
-        FloatTrackBlock readFloatTrack(Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
+        FloatTrackBlock readFloatTrack(
+            Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
         {
             FloatTrackBlock f;
             if (mask == 0)
@@ -214,7 +216,8 @@ namespace HavokPack
             return f;
         }
 
-        RotationTrack readRotation(Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
+        RotationTrack readRotation(
+            Cursor& c, std::uint8_t mask, const ClipLimits& limits, std::uint32_t maxFramesPerBlock)
         {
             RotationTrack r;
             if ((mask >> 4) != 0)
@@ -357,7 +360,8 @@ namespace HavokPack
                     bool stored = false;
                     for (std::uint32_t i = 0; i < clip.mNumFloatTracks; ++i)
                     {
-                        const std::uint8_t mask = bytes[start + 4 * static_cast<std::size_t>(clip.mNumTransformTracks) + i];
+                        const std::uint8_t mask
+                            = bytes[start + 4 * static_cast<std::size_t>(clip.mNumTransformTracks) + i];
                         floats[i] = readFloatTrack(c, mask, limits, clip.mMaxFramesPerBlock);
                         stored = stored || mask != 0;
                     }
@@ -400,9 +404,9 @@ namespace HavokPack
                 if (slots.mSize != 0)
                 {
                     if (slots.mSize != clips[i].mNumFloatTracks)
-                        throw Error("binding maps " + std::to_string(slots.mSize) + " float tracks but the animation has "
-                            + std::to_string(clips[i].mNumFloatTracks) + " (hkaAnimationBinding at offset "
-                            + std::to_string(at.mOffset) + ")");
+                        throw Error("binding maps " + std::to_string(slots.mSize)
+                            + " float tracks but the animation has " + std::to_string(clips[i].mNumFloatTracks)
+                            + " (hkaAnimationBinding at offset " + std::to_string(at.mOffset) + ")");
                     clips[i].mFloatTrackToSlot.resize(slots.mSize);
                     for (std::uint32_t k = 0; k < slots.mSize; ++k)
                     {
@@ -423,8 +427,8 @@ namespace HavokPack
                     clips[i].mTrackToBone.resize(map.mSize);
                     for (std::uint32_t k = 0; k < map.mSize; ++k)
                     {
-                        clips[i].mTrackToBone[k] = static_cast<std::int16_t>(
-                            file.u16({ map.mData->mSection, map.mData->mOffset + 2 * k }));
+                        clips[i].mTrackToBone[k]
+                            = static_cast<std::int16_t>(file.u16({ map.mData->mSection, map.mData->mOffset + 2 * k }));
                         if (clips[i].mTrackToBone[k] < 0)
                             throw Error("binding names a negative bone index (hkaAnimationBinding at offset "
                                 + std::to_string(at.mOffset) + ")");
@@ -483,8 +487,8 @@ namespace HavokPack
             return;
         const float frame = std::clamp(time, 0.0f, clip.mDuration) / clip.mFrameDuration;
         const float blockFrames = static_cast<float>(clip.mMaxFramesPerBlock - 1);
-        const std::uint32_t block = std::min(static_cast<std::uint32_t>(frame / blockFrames),
-            static_cast<std::uint32_t>(clip.mFloatBlocks.size() - 1));
+        const std::uint32_t block = std::min(
+            static_cast<std::uint32_t>(frame / blockFrames), static_cast<std::uint32_t>(clip.mFloatBlocks.size() - 1));
         const float u = frame - static_cast<float>(block) * blockFrames;
         const auto& tracks = clip.mFloatBlocks[block];
         const std::size_t n = std::min(out.size(), tracks.size());
@@ -506,8 +510,8 @@ namespace HavokPack
         const float clamped = std::clamp(time, 0.0f, clip.mDuration);
         const float frame = clamped / clip.mFrameDuration;
         const float blockFrames = static_cast<float>(clip.mMaxFramesPerBlock - 1);
-        const std::uint32_t block = std::min(static_cast<std::uint32_t>(frame / blockFrames),
-            static_cast<std::uint32_t>(clip.mBlocks.size() - 1));
+        const std::uint32_t block = std::min(
+            static_cast<std::uint32_t>(frame / blockFrames), static_cast<std::uint32_t>(clip.mBlocks.size() - 1));
         const float u = frame - static_cast<float>(block) * blockFrames;
         const auto& tracks = clip.mBlocks[block];
         const std::size_t n = std::min(out.size(), tracks.size());

@@ -23,15 +23,27 @@ namespace
     class FakeMouse final : public SDLUtil::MouseListener
     {
     public:
-        explicit FakeMouse(Calls& log) : mLog(log) {}
+        explicit FakeMouse(Calls& log)
+            : mLog(log)
+        {
+        }
         void mouseMoved(const SDLUtil::MouseMotionEvent& arg) override
         {
             mLog.mCalls.push_back("moved");
             mLog.mLastMotion = arg;
         }
-        void mousePressed(const SDL_MouseButtonEvent&, Uint8 id) override { mLog.mCalls.push_back("pressed" + std::to_string(id)); }
-        void mouseReleased(const SDL_MouseButtonEvent&, Uint8 id) override { mLog.mCalls.push_back("released" + std::to_string(id)); }
-        void mouseWheelMoved(const SDL_MouseWheelEvent& arg) override { mLog.mCalls.push_back("wheel" + std::to_string(arg.y)); }
+        void mousePressed(const SDL_MouseButtonEvent&, Uint8 id) override
+        {
+            mLog.mCalls.push_back("pressed" + std::to_string(id));
+        }
+        void mouseReleased(const SDL_MouseButtonEvent&, Uint8 id) override
+        {
+            mLog.mCalls.push_back("released" + std::to_string(id));
+        }
+        void mouseWheelMoved(const SDL_MouseWheelEvent& arg) override
+        {
+            mLog.mCalls.push_back("wheel" + std::to_string(arg.y));
+        }
 
     private:
         Calls& mLog;
@@ -40,15 +52,27 @@ namespace
     class FakeKeys final : public SDLUtil::KeyListener
     {
     public:
-        explicit FakeKeys(Calls& log) : mLog(log) {}
-        void textInput(const SDL_TextInputEvent& arg) override { mLog.mCalls.push_back(std::string("text:") + arg.text); }
+        explicit FakeKeys(Calls& log)
+            : mLog(log)
+        {
+        }
+        void textInput(const SDL_TextInputEvent& arg) override
+        {
+            mLog.mCalls.push_back(std::string("text:") + arg.text);
+        }
         void textEditing(const SDL_TextEditingEvent& arg) override
         {
             mLog.mCalls.push_back(std::string("edit:") + arg.text);
             mLog.mLastEdit = arg;
         }
-        void keyPressed(const SDL_KeyboardEvent& arg) override { mLog.mCalls.push_back("keydown" + std::to_string(arg.keysym.scancode)); }
-        void keyReleased(const SDL_KeyboardEvent& arg) override { mLog.mCalls.push_back("keyup" + std::to_string(arg.keysym.scancode)); }
+        void keyPressed(const SDL_KeyboardEvent& arg) override
+        {
+            mLog.mCalls.push_back("keydown" + std::to_string(arg.keysym.scancode));
+        }
+        void keyReleased(const SDL_KeyboardEvent& arg) override
+        {
+            mLog.mCalls.push_back("keyup" + std::to_string(arg.keysym.scancode));
+        }
 
     private:
         Calls& mLog;
@@ -57,7 +81,10 @@ namespace
     class FakeController final : public SDLUtil::ControllerListener
     {
     public:
-        explicit FakeController(Calls& log) : mLog(log) {}
+        explicit FakeController(Calls& log)
+            : mLog(log)
+        {
+        }
         void buttonPressed(int device, const SDL_ControllerButtonEvent& evt) override
         {
             mLog.mCalls.push_back("cdown" + std::to_string(device) + ":" + std::to_string(evt.button));
@@ -68,7 +95,8 @@ namespace
         }
         void axisMoved(int device, const SDL_ControllerAxisEvent& arg) override
         {
-            mLog.mCalls.push_back("axis" + std::to_string(device) + ":" + std::to_string(arg.axis) + ":" + std::to_string(arg.value));
+            mLog.mCalls.push_back(
+                "axis" + std::to_string(device) + ":" + std::to_string(arg.axis) + ":" + std::to_string(arg.value));
         }
         void controllerAdded(int, const SDL_ControllerDeviceEvent&) override { mLog.mCalls.push_back("added"); }
         void controllerRemoved(const SDL_ControllerDeviceEvent&) override { mLog.mCalls.push_back("removed"); }

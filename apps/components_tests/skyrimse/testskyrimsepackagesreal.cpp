@@ -4,8 +4,8 @@
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/dialogue.hpp>
-#include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/pack_core.hpp>
+#include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 
@@ -171,8 +171,8 @@ namespace
         }
         (void)wrongSizeLocations;
         std::cout << "SKYRIMSE-PACKAGES seen " << seen << " parsed " << parsed << " failed " << failed
-                  << " unresolved-ids " << unresolved << " odd-subrecords " << odd << " errors " << errors
-                  << " merged " << packages.packageCount() << std::endl;
+                  << " unresolved-ids " << unresolved << " odd-subrecords " << odd << " errors " << errors << " merged "
+                  << packages.packageCount() << std::endl;
         for (const auto& [k, v] : oddBy)
             std::cout << "SKYRIMSE-PACKAGES odd " << k << " " << v << std::endl;
         for (const auto& [t, v] : byType)

@@ -19,8 +19,8 @@
 
 #include <components/settings/values.hpp>
 
-#include <cstdlib>
 #include <cmath>
+#include <cstdlib>
 
 #include "mwbase/environment.hpp"
 #include "mwbase/extensionmanager.hpp"
@@ -82,7 +82,6 @@ namespace OMW
         std::chrono::steady_clock::time_point mStart;
     };
 
-
     namespace
     {
         // Plans the tiles of every level for the land cells found and the albedo source (both kinds of world).
@@ -103,9 +102,8 @@ namespace OMW
                 state.mStorage->getLayers(), state.mResources.textureOptions, state.mResources.getVFS());
             state.mManifest = Lod::makeTerrainManifest(state.mSettings, state.mPlan, true, state.mManifestName);
             state.mTiles.reserve(state.mWork.size());
-            Log(Debug::Info) << "LOD terrain bake: " << state.mLandCells.size() << " land cells, "
-                             << state.mWork.size() << " tiles in all (layout version " << Lod::tileKeyLayoutVersion
-                             << ").";
+            Log(Debug::Info) << "LOD terrain bake: " << state.mLandCells.size() << " land cells, " << state.mWork.size()
+                             << " tiles in all (layout version " << Lod::tileKeyLayoutVersion << ").";
         }
 
         // Task 0133: a session of a game pack with a neutral world source bakes that world's land. True when this is

@@ -1,6 +1,6 @@
-// hkxconvert (task 0119, research note 0054): reads the player's own Havok .hkx files (Skyrim Special Edition packfiles)
-// and writes what the clean-room decoder in components/havokpack makes of them. A developer tool, built only with
-// -DOPENEDEN_BUILD_HKXCONVERT=ON.
+// hkxconvert (task 0119, research note 0054): reads the player's own Havok .hkx files (Skyrim Special Edition
+// packfiles) and writes what the clean-room decoder in components/havokpack makes of them. A developer tool, built only
+// with -DOPENEDEN_BUILD_HKXCONVERT=ON.
 //
 //   hkxconvert info  <file.hkx>
 //   hkxconvert gltf  <clip.hkx> <skeleton.hkx> <out.gltf> [--clip N] [--skeleton N] [--sidecar <project.txt>]
@@ -170,14 +170,17 @@ int main(int argc, char** argv)
                 const auto world = HavokPack::toWorld(l.mSkeleton, HavokPack::poseAt(l.mSkeleton, l.mClip, t));
                 out << "time " << t << "\n";
                 for (std::size_t i = 0; i < world.size(); ++i)
-                    out << l.mSkeleton.mBoneNames[i] << "|" << l.mSkeleton.mParents[i] << "|" << world[i].mTranslation[0]
-                        << "|" << world[i].mTranslation[1] << "|" << world[i].mTranslation[2] << "\n";
+                    out << l.mSkeleton.mBoneNames[i] << "|" << l.mSkeleton.mParents[i] << "|"
+                        << world[i].mTranslation[0] << "|" << world[i].mTranslation[1] << "|"
+                        << world[i].mTranslation[2] << "\n";
             }
             return 0;
         }
-        std::cerr << "usage: hkxconvert info <file.hkx>\n"
-                     "       hkxconvert gltf <clip.hkx> <skeleton.hkx> <out.gltf> [--clip N] [--skeleton N] [--sidecar <project.txt>]\n"
-                     "       hkxconvert pose <clip.hkx> <skeleton.hkx> <out.txt> <t0,t1,...> [--clip N] [--skeleton N]\n";
+        std::cerr
+            << "usage: hkxconvert info <file.hkx>\n"
+               "       hkxconvert gltf <clip.hkx> <skeleton.hkx> <out.gltf> [--clip N] [--skeleton N] [--sidecar "
+               "<project.txt>]\n"
+               "       hkxconvert pose <clip.hkx> <skeleton.hkx> <out.txt> <t0,t1,...> [--clip N] [--skeleton N]\n";
         return 2;
     }
     catch (const std::exception& e)

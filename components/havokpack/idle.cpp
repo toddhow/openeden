@@ -53,8 +53,8 @@ namespace HavokPack
         if (folderSlash == std::string::npos || folderSlash == 0)
             return {};
         std::string name(clipName);
-        std::transform(name.begin(), name.end(), name.begin(),
-            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::transform(
+            name.begin(), name.end(), name.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         std::string folder;
         if (!sexFolder.empty())
         {
@@ -78,7 +78,7 @@ namespace HavokPack
         for (std::uint32_t track = 0; track < clip.mNumTransformTracks; ++track)
         {
             const std::int64_t bone = clip.mTrackToBone.empty() ? static_cast<std::int64_t>(track)
-                                                                 : static_cast<std::int64_t>(clip.mTrackToBone[track]);
+                                                                : static_cast<std::int64_t>(clip.mTrackToBone[track]);
             if (bone < 0 || bone >= static_cast<std::int64_t>(skeleton.mBoneNames.size()))
                 throw Error("idle clip: track " + std::to_string(track) + " names bone " + std::to_string(bone)
                     + ", which skeleton '" + skeleton.mName + "' (" + std::to_string(skeleton.mBoneNames.size())

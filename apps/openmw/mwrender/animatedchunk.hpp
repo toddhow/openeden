@@ -8,8 +8,8 @@
 #include <vsg/core/Inherit.h>
 #include <vsg/core/Object.h>
 #include <vsg/core/ref_ptr.h>
-#include <vsg/nodes/Node.h>
 #include <vsg/maths/vec3.h>
+#include <vsg/nodes/Node.h>
 
 #include <components/animation/autoplay.hpp>
 #include <components/animation/controller.hpp>

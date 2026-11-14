@@ -43,8 +43,8 @@ namespace Lip
     inline constexpr std::size_t kVisemeBase = 6;
     inline constexpr std::size_t kVisemes = 16;
     inline constexpr float kFramesPerSecond = 30.f;
-    inline constexpr std::array<std::string_view, kVisemes> kVisemeNames{ "Aah", "BigAah", "BMP", "ChJSh", "DST",
-        "Eee", "Eh", "FV", "I", "K", "N", "Oh", "OohQ", "R", "Th", "W" };
+    inline constexpr std::array<std::string_view, kVisemes> kVisemeNames{ "Aah", "BigAah", "BMP", "ChJSh", "DST", "Eee",
+        "Eh", "FV", "I", "K", "N", "Oh", "OohQ", "R", "Th", "W" };
 
     struct Limits
     {

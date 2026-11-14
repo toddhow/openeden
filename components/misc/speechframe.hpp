@@ -1,10 +1,10 @@
 #ifndef OPENEDEN_COMPONENTS_MISC_SPEECHFRAME_H
 #define OPENEDEN_COMPONENTS_MISC_SPEECHFRAME_H
 
-// OpenEden facial speech animation (task 0071): the per-frame result of sampling facial curves for a stock head, and how
-// it becomes the time of the head's one animation. Here, in the base layer, because MWAnim::Face (engine layer) and the
-// face library (formats layer, `Face::SpeechFrame` is an alias of this) both use it and the engine layer may include
-// only the base layer (CI/layer_rules.txt).
+// OpenEden facial speech animation (task 0071): the per-frame result of sampling facial curves for a stock head, and
+// how it becomes the time of the head's one animation. Here, in the base layer, because MWAnim::Face (engine layer) and
+// the face library (formats layer, `Face::SpeechFrame` is an alias of this) both use it and the engine layer may
+// include only the base layer (CI/layer_rules.txt).
 
 #include <algorithm>
 

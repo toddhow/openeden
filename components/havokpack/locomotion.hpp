@@ -20,14 +20,15 @@ namespace HavokPack::Gait
     struct Params
     {
         // The ground speeds (units a second) the walk and run clips cover by their own root motion, which are also the
-        // speeds of the mover's walk and run (NeutralPath::kWalkSpeed / kRunSpeed, task 0148): measured on the user's own
-        // files, MT_WalkForward 93.448 units in 1.13333 s and MT_RunForward 222.219 units in 0.633333 s.
+        // speeds of the mover's walk and run (NeutralPath::kWalkSpeed / kRunSpeed, task 0148): measured on the user's
+        // own files, MT_WalkForward 93.448 units in 1.13333 s and MT_RunForward 222.219 units in 0.633333 s.
         float mWalkSpeed = 82.45f;
         float mRunSpeed = 350.87f;
         // Units one cycle covers (the same measurement; male and female agree to 0.02 percent).
         float mWalkStride = 93.448f;
         float mRunStride = 222.219f;
-        // Where in the clip (fraction of its duration) the left foot lands: FootLeft 0.2 s of 1.13333 s, 0 of 0.633333 s.
+        // Where in the clip (fraction of its duration) the left foot lands: FootLeft 0.2 s of 1.13333 s, 0 of 0.633333
+        // s.
         float mWalkLeftFoot = 0.176471f;
         float mRunLeftFoot = 0.f;
         // The idle fades out between these speeds (below mStopSpeed the actor only idles).
@@ -35,9 +36,9 @@ namespace HavokPack::Gait
         float mFullSpeed = 30.f;
         // Time constant of the smoothing of the measured speed (seconds).
         float mSmoothTau = 0.12f;
-        // One gait at a time: the run starts above the speed half way between the clips' speeds plus mSwitchBand (a share
-        // of it), the walk returns below it minus the band; in between the gait stays as it was (no flicker). The change
-        // is a linear cross-fade of mCrossFade seconds (12 frames at 60 a second).
+        // One gait at a time: the run starts above the speed half way between the clips' speeds plus mSwitchBand (a
+        // share of it), the walk returns below it minus the band; in between the gait stays as it was (no flicker). The
+        // change is a linear cross-fade of mCrossFade seconds (12 frames at 60 a second).
         float mSwitchBand = 0.1f;
         float mCrossFade = 0.2f;
     };
@@ -50,8 +51,8 @@ namespace HavokPack::Gait
         float mCyclesPerSecond = 0.f;
     };
 
-    // The blend for a ground speed (a non-finite or negative speed counts as 0) and the run mix, 0 for the walk cycle and
-    // 1 for the run cycle (clamped; the cross-fade moves it, see advanceRunMix). The three weights add up to 1. The
+    // The blend for a ground speed (a non-finite or negative speed counts as 0) and the run mix, 0 for the walk cycle
+    // and 1 for the run cycle (clamped; the cross-fade moves it, see advanceRunMix). The three weights add up to 1. The
     // speed never mixes the gaits by itself.
     Weights weights(float speed, float runMix, const Params& params = {});
 

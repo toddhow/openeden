@@ -36,7 +36,8 @@ namespace
 
     std::string readFile(const std::string& relative)
     {
-        std::ifstream in(std::string(reinterpret_cast<const char*>(OPENMW_PROJECT_SOURCE_DIR)) + "/" + relative, std::ios::binary);
+        std::ifstream in(
+            std::string(reinterpret_cast<const char*>(OPENMW_PROJECT_SOURCE_DIR)) + "/" + relative, std::ios::binary);
         return std::string(std::istreambuf_iterator<char>(in), {});
     }
 
@@ -50,8 +51,8 @@ namespace
             error = "the shipped files are missing";
             return std::nullopt;
         }
-        return GltfClips::parse(
-            std::as_bytes(std::span(glb)), "humanoid-locomotion.glb", profile, "humanoid-to-eden.skeletonprofile.json", error);
+        return GltfClips::parse(std::as_bytes(std::span(glb)), "humanoid-locomotion.glb", profile,
+            "humanoid-to-eden.skeletonprofile.json", error);
     }
 
     Quat quatFrom(unsigned seed)
@@ -240,7 +241,8 @@ namespace
 
     TEST(MWRenderGltfClips, EveryMapHasAControllerForBip01BecauseThePlayerNeedsOne)
     {
-        // MWAnim::Play::addSingleAnimSource throws "!findCtrl" for a source with no controller on the accumulation root.
+        // MWAnim::Play::addSingleAnimSource throws "!findCtrl" for a source with no controller on the accumulation
+        // root.
         const Baked baked = bake(false);
         ASSERT_TRUE(baked.mMap);
         const auto bip01 = baked.mMap->map.find("bip01");

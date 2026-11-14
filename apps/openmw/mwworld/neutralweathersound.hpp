@@ -18,8 +18,9 @@
 
 namespace MWWorld::NeutralWeatherSound
 {
-    /// One of a weather's four sounds. `files` are VFS paths in the engine's normalised form ("sound/fx/..."); empty means
-    /// the weather has none of that kind. `volume` is 0 to 1 (the descriptor's attenuation turned into a gain by the pack).
+    /// One of a weather's four sounds. `files` are VFS paths in the engine's normalised form ("sound/fx/..."); empty
+    /// means the weather has none of that kind. `volume` is 0 to 1 (the descriptor's attenuation turned into a gain by
+    /// the pack).
     struct Slot
     {
         std::string name; ///< the descriptor's editor id (logs only)
@@ -47,7 +48,8 @@ namespace MWWorld::NeutralWeatherSound
     // The engine's strike rolls a distance index 0 (closest) to 3 (farthest) for its flash (weather.cpp,
     // Weather::lightningAndThunder). Thunder is heard after the flash: sound travels about 343 m/s, and one index step
     // is taken to be about 550 m (a GUESS, there is nothing to measure it against), so the delay is the time of the
-    // nearest strike (about 140 m) plus 1.6 s per step. A farther strike is also quieter by a fifth of the volume a step.
+    // nearest strike (about 140 m) plus 1.6 s per step. A farther strike is also quieter by a fifth of the volume a
+    // step.
     inline constexpr float kThunderBaseDelaySeconds = 0.4f;
     inline constexpr float kThunderDelayPerStepSeconds = 1.6f;
     inline constexpr float kThunderVolumePerStepFalloff = 0.2f;
@@ -76,7 +78,8 @@ namespace MWWorld::NeutralWeatherSound
         /// False when the queue is full (the thunder is dropped).
         bool push(float delaySeconds, std::uint32_t fileIndex, float volume, unsigned distanceIndex);
 
-        /// Moves time on and copies what became due into `out` (at most `capacity`), earliest due time first. Returns the count.
+        /// Moves time on and copies what became due into `out` (at most `capacity`), earliest due time first. Returns
+        /// the count.
         std::size_t advance(float seconds, Due* out, std::size_t capacity);
 
         void clear() { mCount = 0; }
@@ -107,7 +110,11 @@ namespace MWWorld::NeutralWeatherSound
         /// Advances by `seconds`; true when a gust is due (the timer then starts the next pause). The first gust comes
         /// one interval after `reset`.
         bool advance(float seconds, float wind);
-        void reset() { mElapsed = 0.f; mCount = 0; }
+        void reset()
+        {
+            mElapsed = 0.f;
+            mCount = 0;
+        }
         [[nodiscard]] std::uint32_t count() const { return mCount; }
 
     private:

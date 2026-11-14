@@ -130,8 +130,7 @@ namespace MWPhysics::SkyrimHavok
                 y = (m[5] + m[7]) / s;
                 z = 0.25 * s;
             }
-            return JPH::Quat(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z),
-                static_cast<float>(w))
+            return JPH::Quat(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z), static_cast<float>(w))
                 .Normalized();
         }
 

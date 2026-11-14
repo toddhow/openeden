@@ -70,8 +70,8 @@ namespace MWRender
     /// The pose a ragdoll for this actor should start in: the actor's mapped bones now, against their rest. False when
     /// the rest is invalid or the actor lacks its pelvis; then `out` is untouched. Per death, not per frame
     /// (BonePose::find allocates).
-    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
-        MWPhysics::ActorStartPose& out);
+    bool makeActorStartPose(
+        Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest, MWPhysics::ActorStartPose& out);
 
     /**
      * @brief Draws a dead NPC's skeleton from its CreativeMotion ragdoll (task 0106).

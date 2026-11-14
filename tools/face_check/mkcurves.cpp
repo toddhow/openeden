@@ -5,7 +5,8 @@
 //
 // jawopen: 0 until 0.3 s, then a triangle wave of period 0.4 s (0 -> 1 -> 0) until 1.9 s, then 0.
 // eyeblinkleft: 1.0 from 1.0 s to 1.2 s (a ramp of one frame each side), else 0. 30 frames per second.
-// Build (MSVC): cl /std:c++20 /EHsc /I <repo> mkcurves.cpp components/face/facecurves.cpp components/face/faceimport.cpp
+// Build (MSVC): cl /std:c++20 /EHsc /I <repo> mkcurves.cpp components/face/facecurves.cpp
+// components/face/faceimport.cpp
 #include <components/face/faceimport.hpp>
 
 #include <cmath>

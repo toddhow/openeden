@@ -1,7 +1,7 @@
-// Task 0127, stage W-S4: the sounds of a Skyrim SE weather. SNDR and SOUN records built by hand with the layouts measured on
-// the installed masters (tools/skyrimse_weather_check, aggregates in the task log: SNDR ANAM file names, BNAM 6 bytes with
-// the static attenuation at bytes 4 to 5, LNAM byte 1 bit 3 marks a loop; WTHR SNAM = SNDR id + type 0 default, 1
-// precipitation, 2 wind, 3 thunder). Expected numbers are written out by hand.
+// Task 0127, stage W-S4: the sounds of a Skyrim SE weather. SNDR and SOUN records built by hand with the layouts
+// measured on the installed masters (tools/skyrimse_weather_check, aggregates in the task log: SNDR ANAM file names,
+// BNAM 6 bytes with the static attenuation at bytes 4 to 5, LNAM byte 1 bit 3 marks a loop; WTHR SNAM = SNDR id + type
+// 0 default, 1 precipitation, 2 wind, 3 thunder). Expected numbers are written out by hand.
 #include <game_skyrimse/weather_source.hpp>
 
 #include <gtest/gtest.h>
@@ -73,7 +73,8 @@ namespace
         return Bytes().u8(4).u8(byte1).u8(0).u8(0);
     }
 
-    // ---- SNDR / SOUN decode ------------------------------------------------------------------------------------------
+    // ---- SNDR / SOUN decode
+    // ------------------------------------------------------------------------------------------
 
     TEST(SkyrimSoundDecode, filesAttenuationAndLoopAreRead)
     {
@@ -102,8 +103,8 @@ namespace
     {
         Fixture f;
         std::string why;
-        for (const auto& [value, expected] : { std::pair<int, bool>{ 0, false }, { 8, true }, { 16, false },
-                 { 32, false }, { 24, true }, { 9, true } })
+        for (const auto& [value, expected] :
+            { std::pair<int, bool>{ 0, false }, { 8, true }, { 16, false }, { 32, false }, { 24, true }, { 9, true } })
         {
             SoundDescriptorRecord r;
             Bytes subs = sub4("LNAM", lnam(static_cast<std::uint8_t>(value)));
@@ -161,14 +162,16 @@ namespace
         EXPECT_FALSE(why.empty());
     }
 
-    // ---- paths and gain ------------------------------------------------------------------------------------------------
+    // ---- paths and gain
+    // ------------------------------------------------------------------------------------------------
 
     TEST(SkyrimSoundPath, everyShapeSeenInTheDataBecomesAVfsPath)
     {
         EXPECT_EQ(normalizeSoundPath("Data\\Sound\\FX\\AMB\\Weather\\Rain\\A.wav"), "sound/fx/amb/weather/rain/a.wav");
         EXPECT_EQ(normalizeSoundPath("fx\\amb\\weather\\rain\\amb_weather_rain_light_lp.wav"),
             "sound/fx/amb/weather/rain/amb_weather_rain_light_lp.wav");
-        EXPECT_EQ(normalizeSoundPath("\\Data\\Sound\\FX\\XXX_Placeholder_Beep.wav"), "sound/fx/xxx_placeholder_beep.wav");
+        EXPECT_EQ(
+            normalizeSoundPath("\\Data\\Sound\\FX\\XXX_Placeholder_Beep.wav"), "sound/fx/xxx_placeholder_beep.wav");
         EXPECT_EQ(normalizeSoundPath("sound\\fx\\x.wav"), "sound/fx/x.wav");
         EXPECT_EQ(normalizeSoundPath("data\\Sound\\FX\\DLC02\\AMB\\x.wav"), "sound/fx/dlc02/amb/x.wav");
         EXPECT_EQ(normalizeSoundPath("fx/amb/x.wav"), "sound/fx/amb/x.wav");
@@ -194,10 +197,11 @@ namespace
         EXPECT_FLOAT_EQ(soundGain(65535), 0.1f); // never quieter than the floor
     }
 
-    // ---- the weather's four sounds ---------------------------------------------------------------------------------------
+    // ---- the weather's four sounds
+    // ---------------------------------------------------------------------------------------
 
-    SoundDescriptorRecord descriptor(FormId id, const char* editorId, std::vector<std::string> files, std::uint16_t att,
-        bool loop)
+    SoundDescriptorRecord descriptor(
+        FormId id, const char* editorId, std::vector<std::string> files, std::uint16_t att, bool loop)
     {
         SoundDescriptorRecord r;
         r.mCommon.mId = id;
@@ -223,8 +227,7 @@ namespace
         std::map<FormId, SoundDescriptorRecord> mRecords;
         SoundLookup lookup()
         {
-            return [this](FormId id) -> const SoundDescriptorRecord*
-            {
+            return [this](FormId id) -> const SoundDescriptorRecord* {
                 const auto it = mRecords.find(id);
                 return it == mRecords.end() ? nullptr : &it->second;
             };
@@ -236,8 +239,10 @@ namespace
         Library lib;
         lib.mRecords[0xA1] = descriptor(0xA1, "SnowLoop", { "Data\\Sound\\FX\\snow.wav" }, 1498, true);
         lib.mRecords[0xA2] = descriptor(0xA2, "RainLoop", { "fx\\rain.wav" }, 1410, true);
-        lib.mRecords[0xA3] = descriptor(0xA3, "Gust", { "Data\\Sound\\FX\\gust1.wav", "Data\\Sound\\FX\\gust2.wav" }, 0, false);
-        lib.mRecords[0xA4] = descriptor(0xA4, "Thunder", { "Data\\Sound\\FX\\t1.wav", "Data\\Sound\\FX\\t2.wav" }, 352, false);
+        lib.mRecords[0xA3]
+            = descriptor(0xA3, "Gust", { "Data\\Sound\\FX\\gust1.wav", "Data\\Sound\\FX\\gust2.wav" }, 0, false);
+        lib.mRecords[0xA4]
+            = descriptor(0xA4, "Thunder", { "Data\\Sound\\FX\\t1.wav", "Data\\Sound\\FX\\t2.wav" }, 352, false);
         const WeatherRecord w = weatherWith({ { 0xA1, 0 }, { 0xA2, 1 }, { 0xA3, 2 }, { 0xA4, 3 } });
         const sdk::WeatherDescription d = describeWeather(w, {}, {}, lib.lookup());
         EXPECT_EQ(d.ambientSound.name, "SnowLoop");
@@ -325,7 +330,8 @@ namespace
         EXPECT_EQ(describeWeather(w, {}, {}, lib.lookup()).thunderSound.files.size(), sdk::kMaxWeatherSoundFiles);
     }
 
-    // ---- the walk and the index ------------------------------------------------------------------------------------------
+    // ---- the walk and the index
+    // ------------------------------------------------------------------------------------------
 
     TEST(SkyrimWeatherSoundWalk, sndrAndSounRecordsReachTheIndex)
     {
@@ -336,7 +342,9 @@ namespace
                 .append(sub4("BNAM", bnam(1410)))
                 .append(sub4("LNAM", lnam(8))));
         Bytes soun = record4("SOUN", 0, 0x01000A01,
-            Bytes().append(sub4("EDID", Bytes().zstring("WindLP"))).append(sub4("FNAM", Bytes().zstring("fx\\wind.wav"))));
+            Bytes()
+                .append(sub4("EDID", Bytes().zstring("WindLP")))
+                .append(sub4("FNAM", Bytes().zstring("fx\\wind.wav"))));
         Bytes bytes = header();
         bytes.append(group4(Content::fourCC("SNDR"), 0, sndr));
         bytes.append(group4(Content::fourCC("SOUN"), 0, soun));

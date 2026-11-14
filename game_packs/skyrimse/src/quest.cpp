@@ -108,7 +108,8 @@ namespace game_skyrimse
                 {
                     if (record.mUncompressedSize > mLimits.mMaxRecordBytes)
                     {
-                        fail(record, "the record inflates to " + std::to_string(record.mUncompressedSize)
+                        fail(record,
+                            "the record inflates to " + std::to_string(record.mUncompressedSize)
                                 + " bytes, over the limit of " + std::to_string(mLimits.mMaxRecordBytes));
                         return true;
                     }
@@ -126,7 +127,8 @@ namespace game_skyrimse
                 }
                 else if (record.mDataSize > mLimits.mMaxRecordBytes)
                 {
-                    fail(record, "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
+                    fail(record,
+                        "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
                             + std::to_string(mLimits.mMaxRecordBytes));
                     return true;
                 }
@@ -276,8 +278,7 @@ namespace game_skyrimse
                             std::string text;
                             if (!zstring(type, data, text))
                                 return;
-                            (type == Content::fourCC("CIS1") ? mLastList->back().mString1
-                                                             : mLastList->back().mString2)
+                            (type == Content::fourCC("CIS1") ? mLastList->back().mString1 : mLastList->back().mString2)
                                 = std::move(text);
                         }
                         return;
@@ -617,8 +618,8 @@ namespace game_skyrimse
         return nullptr;
     }
 
-    bool parseQuestRecords(const Content::Plugin& plugin, const LoadOrder& order, const QuestLimits& limits,
-        QuestRecords& out)
+    bool parseQuestRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const QuestLimits& limits, QuestRecords& out)
     {
         out = QuestRecords();
         out.mName = plugin.name();
@@ -810,7 +811,8 @@ namespace game_skyrimse
         e.mStage = stage;
         e.mDone.insert(stage);
         const QuestRecord* record = index.quest(quest);
-        const QuestStage* s = record != nullptr && stage <= 0xFFFF ? record->stage(static_cast<std::uint16_t>(stage)) : nullptr;
+        const QuestStage* s
+            = record != nullptr && stage <= 0xFFFF ? record->stage(static_cast<std::uint16_t>(stage)) : nullptr;
         if (s == nullptr)
             return;
         if (s->completesQuest())

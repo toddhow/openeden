@@ -1,10 +1,11 @@
 #ifndef OPENMW_MWRENDER_SKYRIMPOSE_HPP
 #define OPENMW_MWRENDER_SKYRIMPOSE_HPP
 
-// Task 0135 stage S6b (furniture use, `[Game] neutral actor idles`): the pose a neutral Skyrim actor holds while it sits or
-// sleeps. One controller per drawn actor, added AFTER the idle (or locomotion) controller so that, while it is active, its
-// bone writes win. While inactive it does nothing (one mutex lock and a flag test a frame). The clip is a Havok clip
-// (components/havokpack) decoded on a worker through SkyrimIdle::loadIdleAsync, looped from the moment it became active.
+// Task 0135 stage S6b (furniture use, `[Game] neutral actor idles`): the pose a neutral Skyrim actor holds while it
+// sits or sleeps. One controller per drawn actor, added AFTER the idle (or locomotion) controller so that, while it is
+// active, its bone writes win. While inactive it does nothing (one mutex lock and a flag test a frame). The clip is a
+// Havok clip (components/havokpack) decoded on a worker through SkyrimIdle::loadIdleAsync, looped from the moment it
+// became active.
 //
 // Threads: setClip is called on the main thread (World::doPhysics, via Scene::setNeutralActorPose); run() is called by
 // the object's update (an update worker for some objects). The few members both touch are guarded by one mutex; run()
@@ -31,8 +32,8 @@ namespace MWRender::SkyrimPose
         /// `vfs` must outlive the controller (the game's VFS does). `skeletonNifPath` and `female` name the clip files.
         Controller(const VFS::Manager& vfs, std::string skeletonNifPath, bool female, BoneMap bones);
 
-        /// Main thread. Starts looping `clip` (a file name under the animations folder, no extension); `perSex` says it is
-        /// in the male/female sub-folder. An empty name switches the pose off (the idle shows again).
+        /// Main thread. Starts looping `clip` (a file name under the animations folder, no extension); `perSex` says it
+        /// is in the male/female sub-folder. An empty name switches the pose off (the idle shows again).
         void setClip(std::string_view clip, bool perSex);
 
         /// True between a setClip with a name and the next empty one.

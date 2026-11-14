@@ -50,8 +50,8 @@ namespace face_editor
         bool info(std::string_view name, NpyInfo& out, std::string& error) const;
 
         /// Reads [byteOffset, byteOffset + count) of the array's data into \a dst.
-        bool readBytes(const NpyInfo& info, std::uint64_t byteOffset, std::uint64_t count, void* dst,
-            std::string& error) const;
+        bool readBytes(
+            const NpyInfo& info, std::uint64_t byteOffset, std::uint64_t count, void* dst, std::string& error) const;
 
         /// The whole array as float32 / int32 (little-endian, C order). \a info is filled too.
         bool readFloats(std::string_view name, std::vector<float>& out, NpyInfo& info, std::string& error) const;

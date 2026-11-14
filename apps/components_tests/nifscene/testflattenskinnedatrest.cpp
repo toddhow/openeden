@@ -1,10 +1,10 @@
-// Task 0136 (skinned trunks): Limits::mSkinnedAtRest. A skinned shape of a static model (a tree's trunk and branches under
-// a BSTreeNode) is drawn as a static shape in its rest pose: each vertex is the weighted mean of
-// boneWorld_i * bind_i * vertex over its influences, with the bone nodes where the file's own node tree has them. The
-// survey (docs/tasks/0136-skyrim-tree-sway.md, stage log) found that for 37 of the 110 tree shapes the stored vertices
-// are NOT in the model frame (the lowest vertex 428 units below the ground on average) and the bone rule puts them on the
-// ground, so the node-transform-only rule is wrong. The skin data's own transform must NOT be applied (task a8203e2cfb).
-// Scenes are built by hand; no game asset is read.
+// Task 0136 (skinned trunks): Limits::mSkinnedAtRest. A skinned shape of a static model (a tree's trunk and branches
+// under a BSTreeNode) is drawn as a static shape in its rest pose: each vertex is the weighted mean of boneWorld_i *
+// bind_i * vertex over its influences, with the bone nodes where the file's own node tree has them. The survey
+// (docs/tasks/0136-skyrim-tree-sway.md, stage log) found that for 37 of the 110 tree shapes the stored vertices are NOT
+// in the model frame (the lowest vertex 428 units below the ground on average) and the bone rule puts them on the
+// ground, so the node-transform-only rule is wrong. The skin data's own transform must NOT be applied (task
+// a8203e2cfb). Scenes are built by hand; no game asset is read.
 #include <gtest/gtest.h>
 
 #include <array>
@@ -43,8 +43,8 @@ namespace
             }
         }
 
-        // A quad; skinned shapes use `bones` (node index, bind translation) and `weights` (per vertex: weight on bone 0,
-        // the rest on bone 1 when there are two bones).
+        // A quad; skinned shapes use `bones` (node index, bind translation) and `weights` (per vertex: weight on bone
+        // 0, the rest on bone 1 when there are two bones).
         std::uint32_t quad(std::uint32_t flags2 = ShaderFlags::sVertexColors, bool effect = false,
             const std::string& diffuse = "textures\\bark_d.dds")
         {
@@ -176,7 +176,8 @@ TEST(NifSceneFlattenSkinnedAtRest, two_bones_blend_by_weight)
     const FlatModel model = flatten(b.scene, on());
     ASSERT_EQ(model.mShapes.size(), 1u);
     const auto& p = model.mShapes[0].mPositions;
-    // vertex 0 at (10, 0, 5): full weight on boneA, no move; vertex 1 half, 2 a quarter on boneA: moved 2 and 3; 3 all B
+    // vertex 0 at (10, 0, 5): full weight on boneA, no move; vertex 1 half, 2 a quarter on boneA: moved 2 and 3; 3 all
+    // B
     EXPECT_FLOAT_EQ(p[0][0], 10.f);
     EXPECT_FLOAT_EQ(p[1][0], 11.f + 2.f);
     EXPECT_FLOAT_EQ(p[2][0], 11.f + 3.f);

@@ -154,7 +154,10 @@ TEST(HavokAnimData, malformed_clips_are_refused_with_the_line)
     expectError([] { readAnimationProject(project({ "1", "C", "1", "+1", "0", "0", "0", "" })); }, "(line 9)");
     // events
     expectError(
-        [] { readAnimationProject(project({ "1", "C", "1", "1", "0", "0", "1", "NoColon", "" })); }, "(line 13)");
+        [] {
+            readAnimationProject(project({ "1", "C", "1", "1", "0", "0", "1", "NoColon", "" }));
+        },
+        "(line 13)");
     expectError([] { readAnimationProject(project({ "1", "C", "1", "1", "0", "0", "1", ":1.0", "" })); }, "(line 13)");
     expectError([] { readAnimationProject(project({ "1", "C", "1", "1", "0", "0", "1", "A:x", "" })); }, "(line 13)");
     expectError([] { readAnimationProject(project({ "1", "C", "1", "1", "0", "0", "1", "A:nan", "" })); }, "(line 13)");
@@ -176,7 +179,10 @@ TEST(HavokAnimData, caps_are_checked_before_allocating)
         "clips");
     l = {};
     l.mMaxEventsPerClip = 1;
-    expectError([&] { readAnimationProject(project({ "1", "A", "1", "1", "0", "0", "2", "X:1", "Y:2", "" }), l); },
+    expectError(
+        [&] {
+            readAnimationProject(project({ "1", "A", "1", "1", "0", "0", "2", "X:1", "Y:2", "" }), l);
+        },
         "(line 12)");
     l = {};
     l.mMaxLineLength = 8;

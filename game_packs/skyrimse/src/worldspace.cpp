@@ -16,11 +16,13 @@
 // SETTLED by the installed masters (tools/skyrimse_land_check, five masters merged, 49 worldspaces):
 // - PNAM bits: 0x04 map, 0x08 water, 0x10 climate are certain (every child with the bit set has no MNAM, no NAM2, no
 //   CNAM; 0x08 clear: all 37 have NAM2). 0x01 (land) and 0x02 (LOD) are never apart in the data (7 worlds have both,
-//   37 neither), so their order is UESP's and cannot be told apart here. 0x20 and 0x40 have no matching subrecord in the
-//   fields decoded: RECALLED-VERIFY. Worlds with 0x01 set have little LAND of their own (none has 90 percent of its cells).
-// - XCLW: 72,117 exterior cells hold the maximum float (the world's default); 128 hold -FLT_MAX (23), -2^31 (77) or a value
-//   within a few steps of 2^32 (28): no water; 675 hold a real height (-17,000 to 12,608). The cell flag 0x02 is set in all
-//   but 5 exterior cells whatever the water, so it does not say whether water exists.
+//   37 neither), so their order is UESP's and cannot be told apart here. 0x20 and 0x40 have no matching subrecord in
+//   the fields decoded: RECALLED-VERIFY. Worlds with 0x01 set have little LAND of their own (none has 90 percent of its
+//   cells).
+// - XCLW: 72,117 exterior cells hold the maximum float (the world's default); 128 hold -FLT_MAX (23), -2^31 (77) or a
+// value
+//   within a few steps of 2^32 (28): no water; 675 hold a real height (-17,000 to 12,608). The cell flag 0x02 is set in
+//   all but 5 exterior cells whatever the water, so it does not say whether water exists.
 // - MNAM is 28 bytes (the 16 byte form plus camera min height, max height and initial pitch) in every record that has
 //   one (11 over the five masters; RECALLED-VERIFY the names of the last three floats).
 

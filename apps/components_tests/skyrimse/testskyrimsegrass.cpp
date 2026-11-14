@@ -37,9 +37,9 @@ namespace
         LoadOrder mOrder = oneMaster();
         std::unique_ptr<Content::Plugin> mPlugin = [] {
             Content::Error error;
-            return Content::Plugin::open(std::make_unique<std::istringstream>(
-                                             tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44).str(),
-                                             std::ios::binary),
+            return Content::Plugin::open(
+                std::make_unique<std::istringstream>(
+                    tes4Header(1.7f, 0, "A", "B", 1, { { "Skyrim.esm", 0 } }, 24, 44).str(), std::ios::binary),
                 "test.esp", error);
         }();
         ExteriorLimits mLimits;
@@ -436,11 +436,12 @@ namespace
         subs.append(sub4("EDID", Bytes().zstring("W")));
         subs.append(sub4("DNAM", Bytes().f32(0.0f).f32(-14000.0f)));
         Bytes land = record4("LAND", 0, 0x01000B00,
-            sub4("DATA", Bytes().u32(31)).append(vhgtFlat(5.0f)).append(
-                sub4("BTXT", Bytes().u32(kLtex).u8(0).u8(0).u16(0))).append(
-                sub4("BTXT", Bytes().u32(kLtex).u8(1).u8(0).u16(0))).append(
-                sub4("BTXT", Bytes().u32(kLtex).u8(2).u8(0).u16(0))).append(
-                sub4("BTXT", Bytes().u32(kLtex).u8(3).u8(0).u16(0))));
+            sub4("DATA", Bytes().u32(31))
+                .append(vhgtFlat(5.0f))
+                .append(sub4("BTXT", Bytes().u32(kLtex).u8(0).u8(0).u16(0)))
+                .append(sub4("BTXT", Bytes().u32(kLtex).u8(1).u8(0).u16(0)))
+                .append(sub4("BTXT", Bytes().u32(kLtex).u8(2).u8(0).u16(0)))
+                .append(sub4("BTXT", Bytes().u32(kLtex).u8(3).u8(0).u16(0))));
         Bytes cell = record4("CELL", 0, 0x01000A00,
             sub4("DATA", Bytes().u16(0x0002)).append(sub4("XCLC", Bytes().u32(1).u32(0).u32(0))));
         cell.append(group4(0x01000A00, kGrupCellChildren, group4(0x01000A00, kGrupTemporary, land)));
@@ -449,14 +450,16 @@ namespace
         bytes.append(group4(Content::fourCC("WRLD"), 0, world));
         bytes.append(group4(Content::fourCC("LTEX"), 0,
             record4("LTEX", 0, kLtex,
-                sub4("EDID", Bytes().zstring("Ground")).append(sub4("TNAM", Bytes().u32(kTxst))).append(
-                    sub4("GNAM", Bytes().u32(kGras))))));
+                sub4("EDID", Bytes().zstring("Ground"))
+                    .append(sub4("TNAM", Bytes().u32(kTxst)))
+                    .append(sub4("GNAM", Bytes().u32(kGras))))));
         bytes.append(group4(Content::fourCC("TXST"), 0,
             record4("TXST", 0, kTxst, sub4("TX00", Bytes().zstring("Landscape\\Ground.DDS")))));
         bytes.append(group4(Content::fourCC("GRAS"), 0,
             record4("GRAS", deleteGrass ? 0x20u : 0u, kGras,
-                sub4("EDID", Bytes().zstring("Fescue")).append(sub4("MODL", Bytes().zstring("Landscape\\Grass\\Fescue.nif"))).append(
-                    sub4("DATA", grassData(40, 0, 90, 0, 0, 0.0f, 0.1f, 0.0f, 0.0f, 0))))));
+                sub4("EDID", Bytes().zstring("Fescue"))
+                    .append(sub4("MODL", Bytes().zstring("Landscape\\Grass\\Fescue.nif")))
+                    .append(sub4("DATA", grassData(40, 0, 90, 0, 0, 0.0f, 0.1f, 0.0f, 0.0f, 0))))));
         return bytes;
     }
 

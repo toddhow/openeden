@@ -1,8 +1,8 @@
 // Task 0131 (neutral world, stage N3a-6): Lua and mechanics safety over a neutral cell. A neutral object is an inert
-// reference, so every MWWorld::Class virtual that a generic engine path (not guarded by isActor, isItem, isDoor or a Lua
-// objectIsInstance) can reach with it answers without throwing, for every ObjectKind; the virtuals that only make sense
-// for an actor or an item keep refusing (a runtime_error that Lua turns into a Lua error). Written from the task spec
-// before the overrides existed; the first run was against the unmodified class.
+// reference, so every MWWorld::Class virtual that a generic engine path (not guarded by isActor, isItem, isDoor or a
+// Lua objectIsInstance) can reach with it answers without throwing, for every ObjectKind; the virtuals that only make
+// sense for an actor or an item keep refusing (a runtime_error that Lua turns into a Lua error). Written from the task
+// spec before the overrides existed; the first run was against the unmodified class.
 #include <gtest/gtest.h>
 
 #include <stdexcept>
@@ -25,10 +25,10 @@ namespace
 {
     using namespace openeden::sdk::game;
 
-    constexpr ObjectKind kAllKinds[] = { ObjectKind::Unknown, ObjectKind::Static, ObjectKind::MovableStatic,
-        ObjectKind::Furniture, ObjectKind::Door, ObjectKind::Activator, ObjectKind::Container, ObjectKind::Flora,
-        ObjectKind::Tree, ObjectKind::Light, ObjectKind::Item, ObjectKind::Actor, ObjectKind::LeveledList,
-        ObjectKind::Other };
+    constexpr ObjectKind kAllKinds[]
+        = { ObjectKind::Unknown, ObjectKind::Static, ObjectKind::MovableStatic, ObjectKind::Furniture, ObjectKind::Door,
+              ObjectKind::Activator, ObjectKind::Container, ObjectKind::Flora, ObjectKind::Tree, ObjectKind::Light,
+              ObjectKind::Item, ObjectKind::Actor, ObjectKind::LeveledList, ObjectKind::Other };
 
     struct NeutralSafetyFixture : testing::Test
     {
@@ -135,8 +135,8 @@ namespace
         }
     }
 
-    // Things that only an actor has keep refusing: the refusal is a runtime_error that Lua turns into a Lua error, and no
-    // generic path calls these on an object that is not an actor (isActor() is false for every neutral kind).
+    // Things that only an actor has keep refusing: the refusal is a runtime_error that Lua turns into a Lua error, and
+    // no generic path calls these on an object that is not an actor (isActor() is false for every neutral kind).
     TEST_F(NeutralSafetyFixture, actor_only_properties_still_refuse_and_nothing_claims_to_be_an_actor)
     {
         for (const MWWorld::Ptr& ptr : loadAllKinds())
@@ -188,7 +188,8 @@ namespace
         for (const MWWorld::Ptr& ptr : ptrs)
         {
             const ObjectKind kind = ptr.get<MWWorld::NeutralBase>()->mBase->mKind;
-            const bool expected = kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container;
+            const bool expected
+                = kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container;
             SCOPED_TRACE(static_cast<int>(kind));
             EXPECT_EQ(ptr.getClass().hasToolTip(ptr), expected);
             // The HUD asks for the tooltip text of whatever has one; it must not throw.

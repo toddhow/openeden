@@ -50,8 +50,8 @@ namespace Render
             float sssStrength = 1.f;
             float sssWidth = 1.5f;
             float sssFocalPixels = 0.f;
-            // Task 0127 stage W-S4: the image space grade of a game's weather. `gradeShader` puts the GRADE define in the
-            // fragment stage (set before setSource, like the debug view); `gradeOn` says the values apply (off: the
+            // Task 0127 stage W-S4: the image space grade of a game's weather. `gradeShader` puts the GRADE define in
+            // the fragment stage (set before setSource, like the debug view); `gradeOn` says the values apply (off: the
             // shader's grade switch is 0 and the picture is what it would be without the define).
             bool gradeShader = false;
             bool gradeOn = false;
@@ -136,8 +136,8 @@ namespace Render
         /// pixels, w 0. Public for the unit tests.
         static vsg::vec4 sssPushConstants(float strength, float width, float focalPixels);
 
-        /// The grade's two push constants (after the debug view's): x saturation, y contrast, z tint amount, w 1 when the
-        /// grade applies (else 0); and the tint colour in xyz. Public for the unit tests.
+        /// The grade's two push constants (after the debug view's): x saturation, y contrast, z tint amount, w 1 when
+        /// the grade applies (else 0); and the tint colour in xyz. Public for the unit tests.
         static vsg::vec4 gradePushConstants(const Parameters& parameters);
         static vsg::vec4 gradeTintPushConstants(const Parameters& parameters);
 

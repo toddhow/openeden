@@ -11,8 +11,8 @@
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/esm3/aisequence.hpp>
 #include <components/misc/coordinateconverter.hpp>
-#include <components/misc/pathgridutils.hpp>
 #include <components/misc/forcedvariant.hpp>
+#include <components/misc/pathgridutils.hpp>
 #include <components/misc/rng.hpp>
 
 #include "../mwbase/environment.hpp"

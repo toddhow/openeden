@@ -1,11 +1,11 @@
-// Task 0113 stage N3a-5: the Morrowind projection of EVERY light of the user's real world against the engine's own light
-// data. It reads the folder named by OPENEDEN_TEST_MORROWIND_DATA ("Data Files": Morrowind, Tribunal and Bloodmoon),
-// loads every cell the way the game does, and for every placed light compares the neutral object's LightComponent with
-// the ESM::Light record the engine draws it from (radius, the three colour bytes, Negative, Off By Default, the raw flag
-// word, the animation the engine's light controller would run), and the light the engine would build from the component
-// (makeNeutralEsmLight) with the original record. Every interior cell's lighting must be the cell record's own ambient,
-// sunlight and fog colour. It prints aggregates only; with the variable unset it does nothing. No game data is in the
-// repository.
+// Task 0113 stage N3a-5: the Morrowind projection of EVERY light of the user's real world against the engine's own
+// light data. It reads the folder named by OPENEDEN_TEST_MORROWIND_DATA ("Data Files": Morrowind, Tribunal and
+// Bloodmoon), loads every cell the way the game does, and for every placed light compares the neutral object's
+// LightComponent with the ESM::Light record the engine draws it from (radius, the three colour bytes, Negative, Off By
+// Default, the raw flag word, the animation the engine's light controller would run), and the light the engine would
+// build from the component (makeNeutralEsmLight) with the original record. Every interior cell's lighting must be the
+// cell record's own ambient, sunlight and fog colour. It prints aggregates only; with the variable unset it does
+// nothing. No game data is in the repository.
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -147,7 +147,8 @@ namespace
                 {
                     ++interiorsWithLighting;
                     // Independent derivation from the cell record itself.
-                    const bool same = neutral.lighting->ambient == bytesOf(static_cast<std::uint32_t>(record->mAmbi.mAmbient))
+                    const bool same
+                        = neutral.lighting->ambient == bytesOf(static_cast<std::uint32_t>(record->mAmbi.mAmbient))
                         && neutral.lighting->directional == bytesOf(static_cast<std::uint32_t>(record->mAmbi.mSunlight))
                         && neutral.lighting->fogColor == bytesOf(static_cast<std::uint32_t>(record->mAmbi.mFog));
                     lightingMismatches += same ? 0 : 1;
@@ -161,8 +162,8 @@ namespace
             std::map<std::uint64_t, MWWorld::ConstPtr> engine;
             cell.forEachConst([&](const MWWorld::ConstPtr& ptr) {
                 const ESM::RefNum n = ptr.getCellRef().getRefNum();
-                engine.emplace((static_cast<std::uint64_t>(static_cast<std::uint32_t>(n.mContentFile)) << 32) | n.mIndex,
-                    ptr);
+                engine.emplace(
+                    (static_cast<std::uint64_t>(static_cast<std::uint32_t>(n.mContentFile)) << 32) | n.mIndex, ptr);
                 return true;
             });
 
@@ -208,9 +209,10 @@ namespace
 
                 // And what the engine builds from the component draws like the record: radius, colour, animation bit.
                 const ESM::Light back = MWWorld::makeNeutralEsmLight(*o.light);
-                const int bits = ESM::Light::Flicker | ESM::Light::FlickerSlow | ESM::Light::Pulse | ESM::Light::PulseSlow
-                    | ESM::Light::Negative;
-                const int expectedBits = (expected == LightAnimation::None ? 0 : (flags & bits)) | (flags & ESM::Light::Negative);
+                const int bits = ESM::Light::Flicker | ESM::Light::FlickerSlow | ESM::Light::Pulse
+                    | ESM::Light::PulseSlow | ESM::Light::Negative;
+                const int expectedBits
+                    = (expected == LightAnimation::None ? 0 : (flags & bits)) | (flags & ESM::Light::Negative);
                 const bool backSame = back.mData.mRadius == engineLight.mData.mRadius
                     && (static_cast<std::uint32_t>(back.mData.mColor) & 0xffffff) == (color & 0xffffff)
                     && (back.mData.mFlags & bits) == (expectedBits & bits);
@@ -228,8 +230,8 @@ namespace
                   << " interiorsWithLighting " << interiorsWithLighting << " placedLights " << placedLights
                   << " mismatches " << mismatches << " backMismatches " << backMismatches << " noComponent "
                   << noComponent << " componentOnNonLight " << componentOnNonLight << " lightingMismatches "
-                  << lightingMismatches << " negative " << negative << " offByDefault " << offByDefault
-                  << " radius " << radiusMin << ".." << radiusMax;
+                  << lightingMismatches << " negative " << negative << " offByDefault " << offByDefault << " radius "
+                  << radiusMin << ".." << radiusMax;
         for (const auto& [animation, count] : animations)
             std::cout << " anim" << animation << "=" << count;
         std::cout << std::endl;

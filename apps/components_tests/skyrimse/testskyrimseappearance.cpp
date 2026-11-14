@@ -388,7 +388,8 @@ TEST(SkyrimAppearance, an_npc_with_a_facegen_file_wears_the_face_instead_of_its_
     ActorAppearance a;
     std::string error;
     ASSERT_TRUE(makeActorAppearance(index, kNpc, 1, a, error, {}, &probe)) << error;
-    EXPECT_EQ(models(a, ActorPartKind::Face), (std::vector<std::string>{ path.substr(7) })); // relative to the mesh root
+    EXPECT_EQ(
+        models(a, ActorPartKind::Face), (std::vector<std::string>{ path.substr(7) })); // relative to the mesh root
     EXPECT_TRUE(models(a, ActorPartKind::HeadPart).empty());
     // Skin, outfit, then the face.
     ASSERT_EQ(a.parts.size(), 4u);

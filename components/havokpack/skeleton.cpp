@@ -50,7 +50,8 @@ namespace HavokPack
                 const Ref p{ parents.mData->mSection, parents.mData->mOffset + 2 * i };
                 s.mParents[i] = static_cast<std::int16_t>(file.u16(p));
                 if (s.mParents[i] < -1 || s.mParents[i] >= static_cast<std::int32_t>(i))
-                    bad(file, at, "bone " + std::to_string(i) + " has parent " + std::to_string(s.mParents[i])
+                    bad(file, at,
+                        "bone " + std::to_string(i) + " has parent " + std::to_string(s.mParents[i])
                             + ", which does not come before it");
 
                 const Ref b{ bones.mData->mSection, bones.mData->mOffset + BoneStride * i };

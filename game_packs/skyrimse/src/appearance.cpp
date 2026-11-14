@@ -146,8 +146,8 @@ namespace game_skyrimse
         for (ActorPart& part : worn)
             out.parts.push_back(std::move(part));
 
-        // The NPC's own pre-built face (facegen) holds its head parts already morphed and coloured, so it replaces them.
-        // The file belongs to the NPC the looks come from (a template's, when the traits are templated).
+        // The NPC's own pre-built face (facegen) holds its head parts already morphed and coloured, so it replaces
+        // them. The file belongs to the NPC the looks come from (a template's, when the traits are templated).
         bool faced = false;
         if (face != nullptr && face->mOrder != nullptr && face->mExists && out.parts.size() < limits.mMaxParts)
         {

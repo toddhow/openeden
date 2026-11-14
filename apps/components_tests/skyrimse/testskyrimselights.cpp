@@ -50,8 +50,8 @@ namespace
         return d;
     }
 
-    Bytes lighRecord(std::uint32_t id, const std::string& name, const Bytes& data, bool withFade, float fade,
-        bool withModel = true)
+    Bytes lighRecord(
+        std::uint32_t id, const std::string& name, const Bytes& data, bool withFade, float fade, bool withModel = true)
     {
         Bytes subs;
         subs.append(edid(name));

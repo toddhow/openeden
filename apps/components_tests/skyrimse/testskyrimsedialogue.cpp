@@ -63,8 +63,8 @@ namespace
         return group4(Content::fourCC(type), kGrupTop, records);
     }
 
-    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0,
-        std::uint32_t runOn = 0, std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0)
+    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0, std::uint32_t runOn = 0,
+        std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0)
     {
         Bytes b;
         b.u8(static_cast<std::uint8_t>((compare << 5) | flags)).u8(0).u8(0).u8(0).f32(value);
@@ -231,8 +231,8 @@ namespace
         Loaded l;
         Content::Error error;
         l.mOk = parseDialogueRecordsBytes(bytes.str(), name, order(), limits, l.mDialogue, error);
-        l.mPlugin = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name,
-            error);
+        l.mPlugin
+            = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name, error);
         Content::Error e2;
         EXPECT_TRUE(parseActorRecordsBytes(bytes.str(), name, order(), ActorLimits(), l.mActors, e2)) << e2.mMessage;
         return l;
@@ -247,7 +247,8 @@ namespace
 
     TEST(SkyrimDialogueParse, aTopicIsReadInFull)
     {
-        const Loaded l = load(pluginBytes(masters(), topicWithInfos(kTopicHello, "GenericHello", "HELO", 50.0f, kQuest, {})));
+        const Loaded l
+            = load(pluginBytes(masters(), topicWithInfos(kTopicHello, "GenericHello", "HELO", 50.0f, kQuest, {})));
         ASSERT_TRUE(l.mOk);
         ASSERT_EQ(l.mDialogue.mTopics.size(), 1u);
         const DialogTopic& t = l.mDialogue.mTopics[0];
@@ -437,7 +438,8 @@ namespace
     TEST(SkyrimDialogueIndex, infosKeepTheirFileOrder)
     {
         const Loaded l = load(pluginBytes(masters(),
-            topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest, { info(0x10, "a"), info(0x11, "b"), info(0x12, "c") })));
+            topicWithInfos(
+                kTopicHello, "H", "HELO", 1.0f, kQuest, { info(0x10, "a"), info(0x11, "b"), info(0x12, "c") })));
         const DialogueIndex idx = indexOf(l);
         const auto infos = idx.infosOf(kTopicHello);
         ASSERT_EQ(infos.size(), 3u);
@@ -451,7 +453,8 @@ namespace
     TEST(SkyrimDialogueIndex, aLaterPluginOverridesInPlaceDeletesAndAppends)
     {
         const Loaded base = load(pluginBytes(masters(),
-            topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest, { info(0x10, "a"), info(0x11, "b"), info(0x12, "c") })));
+            topicWithInfos(
+                kTopicHello, "H", "HELO", 1.0f, kQuest, { info(0x10, "a"), info(0x11, "b"), info(0x12, "c") })));
         // other.esp (index 2) lists test.esp as a master: ids 0x01xxxxxx are test.esp's, 0x02xxxxxx its own.
         InfoSpec over = info(0x11, "B2");
         over.mId = 0x01000011; // master index 1 = test.esp
@@ -517,8 +520,8 @@ namespace
             mWorld->setSpeaker(speaker);
             std::vector<survey::Ctda> list;
             const std::string raw = condition.str();
-            EXPECT_TRUE(conditions::decodeConditions(
-                { reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
+            EXPECT_TRUE(
+                conditions::decodeConditions({ reinterpret_cast<const std::byte*>(raw.data()), raw.size() }, list));
             EXPECT_EQ(list.size(), 1u);
             conditions::Evaluator eval;
             return eval.evaluate(list, *mWorld);
@@ -532,8 +535,8 @@ namespace
         npcs.append(npc(kNpcA, "Alice", NpcFlags::Female, 0, 0, { kKeywordNpc }, kVoice, fac));
         npcs.append(npc(kNpcB, "Bob", 0, 0, 0, {}, 0, Bytes()));
         // a templated NPC: takes traits (race, voice, sex) and factions from kNpcA
-        npcs.append(npc(kTemplateNpc, "Templated", 0, TemplateFlags::Traits | TemplateFlags::Factions, kNpcA, {}, 0,
-            Bytes()));
+        npcs.append(
+            npc(kTemplateNpc, "Templated", 0, TemplateFlags::Traits | TemplateFlags::Factions, kNpcA, {}, 0, Bytes()));
         Bytes extras = top("GLOB", globalRecord(kGlobal, 3.5f));
         extras.append(top("FLST", listRecord(kList, { kNpcA, kNpcB })));
         extras.append(top("FLST", listRecord(kVoiceList, { kVoice })));
@@ -649,7 +652,8 @@ namespace
         // another plugin's resolver: stored 0x01000200 there means a different load-order id
         const FormIdResolver other(w.mLoaded.mPlugin->header(), "other.esp", order());
         w.mWorld->setPlugin(&other);
-        EXPECT_FALSE(w.test(ctda(72, 0, 1.0f, 0x01000200), speaker(kNpcA))); // there index 1 is other.esp itself, load-order id 0x02000200
+        EXPECT_FALSE(w.test(ctda(72, 0, 1.0f, 0x01000200),
+            speaker(kNpcA))); // there index 1 is other.esp itself, load-order id 0x02000200
     }
 
     TEST(SkyrimConditionWorld, answersTellsWhatTheDataCanSettle)
@@ -717,8 +721,8 @@ namespace
     TEST(SkyrimDialogueSelect, theFirstInfoWhoseConditionsPassIsPicked)
     {
         Pick p(topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest,
-            { withCond(0x10, "for Bob", ctda(72, 0, 1.0f, kNpcB)), withCond(0x11, "for Alice", ctda(72, 0, 1.0f, kNpcA)),
-                info(0x12, "for anyone") }));
+            { withCond(0x10, "for Bob", ctda(72, 0, 1.0f, kNpcB)),
+                withCond(0x11, "for Alice", ctda(72, 0, 1.0f, kNpcA)), info(0x12, "for anyone") }));
         EXPECT_EQ(textOf(p.select(kTopicHello, kNpcA)), "for Alice");
         EXPECT_EQ(textOf(p.select(kTopicHello, kNpcB)), "for Bob");
         const Selection s = p.select(kTopicHello, kSelf | 0x299);
@@ -729,8 +733,8 @@ namespace
 
     TEST(SkyrimDialogueSelect, nothingPassingGivesNothing)
     {
-        Pick p(topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest,
-            { withCond(0x10, "for Bob", ctda(72, 0, 1.0f, kNpcB)) }));
+        Pick p(topicWithInfos(
+            kTopicHello, "H", "HELO", 1.0f, kQuest, { withCond(0x10, "for Bob", ctda(72, 0, 1.0f, kNpcB)) }));
         const Selection s = p.select(kTopicHello, kNpcA);
         EXPECT_EQ(s.mInfo, nullptr);
         EXPECT_EQ(s.mPassing, 0u);
@@ -741,7 +745,8 @@ namespace
     {
         Bytes cond = ctda(72, 0, 1.0f, kNpcA);
         cond.append(ctda(9999, 0, 1.0f)); // not a function this engine knows
-        Pick p(topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest, { withCond(0x10, "closed", cond), info(0x11, "open") }));
+        Pick p(topicWithInfos(
+            kTopicHello, "H", "HELO", 1.0f, kQuest, { withCond(0x10, "closed", cond), info(0x11, "open") }));
         conditions::Evaluator eval;
         const Selection s = selectInfo(p.mDialogue, kTopicHello, *p.mWorld, speaker(kNpcA), SelectionOptions(), &eval);
         EXPECT_EQ(textOf(s), "open");
@@ -792,8 +797,8 @@ namespace
     TEST(SkyrimDialogueSelect, randomInfosShareThePick)
     {
         Pick p(topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest,
-            { info(0x10, "r0", InfoFlags::Random), info(0x11, "r1", InfoFlags::Random), info(0x12, "r2", InfoFlags::Random),
-                info(0x13, "fixed") }));
+            { info(0x10, "r0", InfoFlags::Random), info(0x11, "r1", InfoFlags::Random),
+                info(0x12, "r2", InfoFlags::Random), info(0x13, "fixed") }));
         SelectionOptions o;
         std::set<std::string> seen;
         for (std::uint32_t k = 0; k < 6; ++k)
@@ -808,8 +813,8 @@ namespace
 
     TEST(SkyrimDialogueSelect, aNonRandomInfoAheadOfTheRandomOnesWins)
     {
-        Pick p(topicWithInfos(kTopicHello, "H", "HELO", 1.0f, kQuest,
-            { info(0x10, "fixed"), info(0x11, "r1", InfoFlags::Random) }));
+        Pick p(topicWithInfos(
+            kTopicHello, "H", "HELO", 1.0f, kQuest, { info(0x10, "fixed"), info(0x11, "r1", InfoFlags::Random) }));
         SelectionOptions o;
         o.mPick = 1;
         EXPECT_EQ(textOf(p.select(kTopicHello, kNpcA, o)), "fixed");
@@ -818,8 +823,8 @@ namespace
     TEST(SkyrimDialogueSelect, theTopicWithTheHighestPriorityGivingAnInfoWins)
     {
         Bytes dials = topicWithInfos(kTopicHello, "Low", "HELO", 10.0f, kQuest, { info(0x10, "low") });
-        dials.append(topicWithInfos(kTopicHigh, "High", "HELO", 90.0f, kQuest,
-            { withCond(0x20, "high for Bob", ctda(72, 0, 1.0f, kNpcB)) }));
+        dials.append(topicWithInfos(
+            kTopicHigh, "High", "HELO", 90.0f, kQuest, { withCond(0x20, "high for Bob", ctda(72, 0, 1.0f, kNpcB)) }));
         dials.append(topicWithInfos(kSelf | 0x302, "Bye", "GBYE", 99.0f, kQuest, { info(0x30, "bye") }));
         Pick p(dials);
         const Selection forBob = pickFromTopics(p.mDialogue, "HELO", *p.mWorld, speaker(kNpcB), SelectionOptions());

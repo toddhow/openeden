@@ -16,8 +16,8 @@ namespace NeutralTerrain
         }
     }
 
-    bool validateTerrainCell(const sdk::TerrainCell& cell, std::uint32_t expectedVerts, const CacheLimits& limits,
-        std::string& error)
+    bool validateTerrainCell(
+        const sdk::TerrainCell& cell, std::uint32_t expectedVerts, const CacheLimits& limits, std::string& error)
     {
         const auto fail = [&](const std::string& why) {
             error = where(cell) + ": " + why;
@@ -49,8 +49,8 @@ namespace NeutralTerrain
                     + " alpha layers, over the limit of " + std::to_string(limits.mMaxLayersPerQuadrant));
             for (const sdk::TerrainLayer& layer : cell.layers[q])
                 if (layer.opacity.size() != static_cast<std::size_t>(sdk::kTerrainLayerSide) * sdk::kTerrainLayerSide)
-                    return fail("a layer of quadrant " + std::to_string(q) + " has " + std::to_string(layer.opacity.size())
-                        + " opacity values, expected 289");
+                    return fail("a layer of quadrant " + std::to_string(q) + " has "
+                        + std::to_string(layer.opacity.size()) + " opacity values, expected 289");
         }
         return true;
     }
@@ -88,8 +88,8 @@ namespace NeutralTerrain
             id = (info.parentUsage & sdk::TerrainParentUsage::Land) != 0 ? info.parent : sdk::kNoWorldId;
         }
         mWorld = mInfos.at(world);
-        if (mWorld.vertsPerSide < 2 || mWorld.vertsPerSide > mLimits.mMaxVertsPerSide
-            || !(mWorld.cellSizeUnits > 0.f) || !std::isfinite(mWorld.cellSizeUnits))
+        if (mWorld.vertsPerSide < 2 || mWorld.vertsPerSide > mLimits.mMaxVertsPerSide || !(mWorld.cellSizeUnits > 0.f)
+            || !std::isfinite(mWorld.cellSizeUnits))
         {
             error = "world " + std::to_string(world) + " describes a cell of " + std::to_string(mWorld.vertsPerSide)
                 + " vertices and " + std::to_string(mWorld.cellSizeUnits) + " units";
@@ -206,7 +206,7 @@ namespace NeutralTerrain
                 break;
             // NoLand: the world may lend its parent's
             id = (info->second.parentUsage & sdk::TerrainParentUsage::Land) != 0 ? info->second.parent
-                                                                               : sdk::kNoWorldId;
+                                                                                 : sdk::kNoWorldId;
         }
         publish(key, std::move(found));
         return true;
@@ -216,8 +216,7 @@ namespace NeutralTerrain
     {
         if (!mHasWorld || x1 < x0 || y1 < y0)
             return 0;
-        const std::int64_t area
-            = (static_cast<std::int64_t>(x1) - x0 + 1) * (static_cast<std::int64_t>(y1) - y0 + 1);
+        const std::int64_t area = (static_cast<std::int64_t>(x1) - x0 + 1) * (static_cast<std::int64_t>(y1) - y0 + 1);
         if (area > mLimits.mMaxEnsureCells)
             return 0;
         std::size_t asked = 0;

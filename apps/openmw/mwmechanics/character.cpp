@@ -18,9 +18,9 @@
 #include <components/esmbridge/records.hpp>
 #include <components/esmbridge/util.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/forcedvariant.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/misc/mathutil.hpp>
-#include <components/misc/forcedvariant.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
@@ -1125,7 +1125,8 @@ namespace MWMechanics
                 const Files::IStreamPtr stream = vfs->find(VFS::Path::Normalized(path));
                 if (stream == nullptr)
                     return std::nullopt;
-                return std::vector<std::uint8_t>(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
+                return std::vector<std::uint8_t>(
+                    std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
             }
             catch (const std::exception& e)
             {
@@ -1161,8 +1162,7 @@ namespace MWMechanics
         std::string_view file;
         float seconds = 0.f;
         std::string warning;
-        const bool saying
-            = MWBase::Environment::get().getSoundManager()->getSayPlayback(mPtr, file, seconds);
+        const bool saying = MWBase::Environment::get().getSoundManager()->getSayPlayback(mPtr, file, seconds);
         const ::Face::SpeechFrame frame = mSpeech->update(
             speechCurveCache(), speechReader(), saying ? file : std::string_view(), seconds, &warning);
         if (!warning.empty())
@@ -3362,10 +3362,10 @@ namespace MWMechanics
         mCorpseRestDone = decision.mDone;
         if (!decision.mMove)
         {
-            Log(Debug::Info) << "Corpse of " << mPtr.getCellRef().getRefId() << " stays where it died (its ragdoll rests "
+            Log(Debug::Info) << "Corpse of " << mPtr.getCellRef().getRefId()
+                             << " stays where it died (its ragdoll rests "
                              << std::hypot(input.mPelvis[0] - input.mActor[0], input.mPelvis[1] - input.mActor[1])
-                             << " units away"
-                             << (input.mHasGround ? "" : ", no ground found below it") << ")";
+                             << " units away" << (input.mHasGround ? "" : ", no ground found below it") << ")";
             return;
         }
 
@@ -3373,12 +3373,13 @@ namespace MWMechanics
         const MWWorld::CellStore* cell = mPtr.getCell();
         if (cell != nullptr && cell->isExterior())
         {
-            const ESM::ExteriorCellLocation location = ESM::positionToExteriorCellLocation(
-                static_cast<float>(decision.mPosition[0]), static_cast<float>(decision.mPosition[1]),
-                cell->getCell()->getWorldSpace());
+            const ESM::ExteriorCellLocation location
+                = ESM::positionToExteriorCellLocation(static_cast<float>(decision.mPosition[0]),
+                    static_cast<float>(decision.mPosition[1]), cell->getCell()->getWorldSpace());
             if (location.mX != cell->getCell()->getGridX() || location.mY != cell->getCell()->getGridY())
             {
-                Log(Debug::Verbose) << "The corpse of " << mPtr.getCellRef().getRefId() << " lies in another cell: left";
+                Log(Debug::Verbose) << "The corpse of " << mPtr.getCellRef().getRefId()
+                                    << " lies in another cell: left";
                 return;
             }
         }

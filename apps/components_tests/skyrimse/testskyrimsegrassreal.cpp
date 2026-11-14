@@ -84,8 +84,8 @@ namespace
         line("GRAS records " + std::to_string(records) + " with DATA " + std::to_string(withData) + " with model "
             + std::to_string(withModel) + " odd subrecords " + std::to_string(odd));
         line("density " + std::to_string(densityMin) + ".." + std::to_string(densityMax) + " largest min slope "
-            + std::to_string(slopeMinMax) + " smallest max slope " + std::to_string(slopeMaxMin) + " largest units from water "
-            + std::to_string(unitsMax));
+            + std::to_string(slopeMinMax) + " smallest max slope " + std::to_string(slopeMaxMin)
+            + " largest units from water " + std::to_string(unitsMax));
         line("position range max " + std::to_string(posMax) + " height range max " + std::to_string(heightMax)
             + " colour range max " + std::to_string(colourMax) + " wave period " + std::to_string(waveMin) + ".."
             + std::to_string(waveMax));
@@ -149,8 +149,9 @@ namespace
                 cellsWithGrass += cell.instances.empty() ? 0 : 1;
             }
         line("Whiterun 8x8 block: cells with land " + std::to_string(cellsAsked) + " with grass "
-            + std::to_string(cellsWithGrass) + " tufts " + std::to_string(total) + " requested " + std::to_string(requested)
-            + " largest cell " + std::to_string(maxCell) + " cells over the cap " + std::to_string(capped) + " mean ms "
+            + std::to_string(cellsWithGrass) + " tufts " + std::to_string(total) + " requested "
+            + std::to_string(requested) + " largest cell " + std::to_string(maxCell) + " cells over the cap "
+            + std::to_string(capped) + " mean ms "
             + std::to_string(cellsAsked ? milliseconds / static_cast<double>(cellsAsked) : 0.0) + " worst ms "
             + std::to_string(worst));
         EXPECT_GT(cellsAsked, 0u);

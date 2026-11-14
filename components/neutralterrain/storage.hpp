@@ -48,7 +48,8 @@ namespace NeutralTerrain
         std::vector<Terrain::LayerInfo> getLayers() override;
         float getHeightAt(const vsg::vec3& worldPos, ESM::RefId worldspace) override;
 
-        /// The height of one vertex as getVertexData serves it: `gx`, `gy` are global fine vertex indices (cell * (verts
+        /// The height of one vertex as getVertexData serves it: `gx`, `gy` are global fine vertex indices (cell *
+        /// (verts
         /// - 1) + local). Exposed for the tests.
         [[nodiscard]] float vertexHeight(std::int64_t gx, std::int64_t gy) const;
 

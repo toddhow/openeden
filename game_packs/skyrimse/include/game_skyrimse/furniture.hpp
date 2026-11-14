@@ -1,23 +1,25 @@
 #ifndef OPENEDEN_GAME_SKYRIMSE_FURNITURE_H
 #define OPENEDEN_GAME_SKYRIMSE_FURNITURE_H
 
-// Skyrim SE furniture markers (task 0135 stage S6b). Pure code: reads the BSFurnitureMarkerNode extra data of a furniture
-// model (NIF 20.2.0.7), places a marker in the world and works out where an actor stands to approach it.
+// Skyrim SE furniture markers (task 0135 stage S6b). Pure code: reads the BSFurnitureMarkerNode extra data of a
+// furniture model (NIF 20.2.0.7), places a marker in the world and works out where an actor stands to approach it.
 //
 // What the data says (VERIFIED on Skyrim.esm with an independent Python walk, aggregates in the task log):
 //  - A FURN record has FNPR entries, 4 bytes each: u16 marker type (1 sit, 2 sleep; lean is 3 in FNPR) and u16 entry
 //    points, a flag set. The model's BSFurnitureMarkerNode holds the same markers with their positions: per marker a
 //    vec3 offset, a float heading, a u16 animation type (1 sit, 2 sleep) and a u16 entry point flag set. For the chair
-//    (FNPR 01 00 0d 00) the NIF marker is (type 1, entry 13); for a bed (02 00 0c 00) (type 2, entry 12); for the bar stool
-//    (01 00 02 00) (type 1, entry 2). So the NIF is the source of positions and the FNPR agrees on type and entry.
+//    (FNPR 01 00 0d 00) the NIF marker is (type 1, entry 13); for a bed (02 00 0c 00) (type 2, entry 12); for the bar
+//    stool (01 00 02 00) (type 1, entry 2). So the NIF is the source of positions and the FNPR agrees on type and
+//    entry.
 //  - Entry flags (RECALLED-VERIFY from the Creation Kit's names, consistent with the data): 1 front, 2 behind, 4 right,
 //    8 left, 16 up, all relative to the SITTER: a chair allows front, right, left (13) and not behind; a bar stool only
 //    behind (2); a bench front and behind (3); a bed right and left (12).
-//  - Offsets are in the furniture's own frame in game units (a chair's seat marker is 34 units above its origin, a bed's
+//  - Offsets are in the furniture's own frame in game units (a chair's seat marker is 34 units above its origin, a
+//  bed's
 //    sleep marker 37); the heading is added to the placement's Z rotation.
 //
-// Frame (the engine's, 0 faces +Y, positive angles turn clockwise seen from above): a heading h faces (sin h, cos h) and
-// its right is (cos h, -sin h). Only the placement's Z rotation is used (furniture is level); X and Y are ignored.
+// Frame (the engine's, 0 faces +Y, positive angles turn clockwise seen from above): a heading h faces (sin h, cos h)
+// and its right is (cos h, -sin h). Only the placement's Z rotation is used (furniture is level); X and Y are ignored.
 
 #include <cstddef>
 #include <cstdint>
@@ -68,8 +70,8 @@ namespace game_skyrimse
     };
 
     /// Reads the markers of every BSFurnitureMarker / BSFurnitureMarkerNode block of a NIF 20.2.0.7 (Skyrim). `out` is
-    /// cleared first. True when the file is a readable NIF of that version, whether or not it holds a marker; false with
-    /// `error` otherwise (`out` is then empty).
+    /// cleared first. True when the file is a readable NIF of that version, whether or not it holds a marker; false
+    /// with `error` otherwise (`out` is then empty).
     [[nodiscard]] bool readFurnitureMarkers(std::span<const std::byte> nif, std::vector<FurnitureMarker>& out,
         std::string& error, const FurnitureLimits& limits = {});
 
@@ -86,11 +88,11 @@ namespace game_skyrimse
     {
         double mX = 0.0;
         double mY = 0.0;
-        /// Where the ACTOR'S ORIGIN goes: the furniture's own height, not the marker's. Measured: the bed's sleep clip puts
-        /// the pelvis ("NPC COM") 53.2 units above the root and the chair's sit clip 39.0 above it, against marker
-        /// offsets of 37.1 (bed) and 34 (chair); a pelvis rests about 16 above a mattress and about 5 to 10 above a seat,
-        /// so the root belongs on the floor under the furniture (a root at the marker's height put the sleeper about 35
-        /// units above the mattress in a frame).
+        /// Where the ACTOR'S ORIGIN goes: the furniture's own height, not the marker's. Measured: the bed's sleep clip
+        /// puts the pelvis ("NPC COM") 53.2 units above the root and the chair's sit clip 39.0 above it, against marker
+        /// offsets of 37.1 (bed) and 34 (chair); a pelvis rests about 16 above a mattress and about 5 to 10 above a
+        /// seat, so the root belongs on the floor under the furniture (a root at the marker's height put the sleeper
+        /// about 35 units above the mattress in a frame).
         double mZ = 0.0;
         float mHeading = 0.f; ///< the sitter's facing, engine convention
         double mSurfaceZ = 0.0; ///< the marker's own height (seat or mattress surface); informational

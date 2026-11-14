@@ -2,8 +2,8 @@
 #define GAME_RENDERING_INTERFACE_H
 
 #include <array>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 #include <openeden/game/actor_appearance.hpp>
 
@@ -27,9 +27,9 @@ namespace MWRender
         {
         }
 
-        /// Task 0146 (`[Game] neutral lip sync`): moves the mouth of a drawn neutral actor: the 16 viseme weights in 0..1
-        /// (the head's morphs Aah, BigAah, BMP, ChJSh, DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W). Does nothing for an
-        /// object that has no head morph. Main thread.
+        /// Task 0146 (`[Game] neutral lip sync`): moves the mouth of a drawn neutral actor: the 16 viseme weights in
+        /// 0..1 (the head's morphs Aah, BigAah, BMP, ChJSh, DST, Eee, Eh, FV, I, K, N, Oh, OohQ, R, Th, W). Does
+        /// nothing for an object that has no head morph. Main thread.
         virtual void setNeutralMouth(const MWWorld::Ptr& /*ptr*/, const std::array<float, 16>& /*visemes*/) {}
 
         /// Task 0148 (`[Game] neutral actor locomotion`): the measured ground speed (units a second) of a drawn neutral
@@ -38,8 +38,8 @@ namespace MWRender
         virtual void setNeutralActorSpeed(const MWWorld::Ptr& /*ptr*/, float /*unitsPerSecond*/) {}
 
         /// Task 0135 stage S6b: the pose of a drawn neutral actor on furniture: loops the named clip (a file under the
-        /// actor's animations folder, no extension; `perSex` when it is in the male/female sub-folder) over the idle, an
-        /// empty name takes the pose off. Does nothing for an object without a pose controller. Main thread.
+        /// actor's animations folder, no extension; `perSex` when it is in the male/female sub-folder) over the idle,
+        /// an empty name takes the pose off. Does nothing for an object without a pose controller. Main thread.
         virtual void setNeutralActorPose(const MWWorld::Ptr& /*ptr*/, std::string_view /*clip*/, bool /*perSex*/) {}
     };
 }

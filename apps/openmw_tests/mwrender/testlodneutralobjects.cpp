@@ -10,10 +10,10 @@
 namespace
 {
     using namespace OMW::NeutralLod;
-    using openeden::sdk::game::ObjectKind;
-    using openeden::sdk::game::WorldTransform;
     using NifScene::Flat::FlatModel;
     using NifScene::Flat::Shape;
+    using openeden::sdk::game::ObjectKind;
+    using openeden::sdk::game::WorldTransform;
 
     TEST(NeutralLodKinds, only_statics_and_trees_may_stand_in_a_far_cluster)
     {
@@ -86,8 +86,8 @@ namespace
                 length += m[row * 4 + col] * m[row * 4 + col];
             EXPECT_NEAR(std::sqrt(length), 1.5, 1e-9);
         }
-        // Rodrigues: R[2][0] for axis n=(1,1,0)/sqrt2, angle 60: -n_y * sin(a) ... = 1/2 * (1 - cos a) * 0 + (-n_y) sin a
-        // R = I cos a + sin a [n]x + (1 - cos a) n n^T; entry (2,0) = sin a * (-n_y) = -sin(60)/sqrt2
+        // Rodrigues: R[2][0] for axis n=(1,1,0)/sqrt2, angle 60: -n_y * sin(a) ... = 1/2 * (1 - cos a) * 0 + (-n_y) sin
+        // a R = I cos a + sin a [n]x + (1 - cos a) n n^T; entry (2,0) = sin a * (-n_y) = -sin(60)/sqrt2
         EXPECT_NEAR(m[8] / 1.5, -std::sin(a) / std::sqrt(2.0), 1e-9);
     }
 
@@ -120,7 +120,8 @@ namespace
 
     TEST(NeutralLodPaths, a_mesh_path_becomes_the_vfs_path)
     {
-        EXPECT_EQ(meshVfsPath("Architecture\\Whiterun\\WRBuilding01.nif"), "meshes/architecture/whiterun/wrbuilding01.nif");
+        EXPECT_EQ(
+            meshVfsPath("Architecture\\Whiterun\\WRBuilding01.nif"), "meshes/architecture/whiterun/wrbuilding01.nif");
         EXPECT_EQ(meshVfsPath("a.nif"), "meshes/a.nif");
         EXPECT_EQ(meshVfsPath(""), "");
     }
@@ -269,8 +270,8 @@ namespace
         // x from 0 to 10 and y from 0 to 10 in one triangle; a second far shape stretches the box to x in [0, 110]
         Shape far = triangle("b.dds", 100.f); // x in [100, 110]
         const Lod::FlattenedModel out = toFlattenedModel(modelOf({ triangle("a.dds"), far }), true);
-        // box: x [0,110], y [0,10], z [0,0]; centre (55, 5, 0); farthest vertex (0, 0, 0) or (110, 0, 0): sqrt(55^2+5^2)
-        // and (0, 10) or (110, 10): the same.
+        // box: x [0,110], y [0,10], z [0,0]; centre (55, 5, 0); farthest vertex (0, 0, 0) or (110, 0, 0):
+        // sqrt(55^2+5^2) and (0, 10) or (110, 10): the same.
         EXPECT_NEAR(out.mTraits.mRadius, std::sqrt(55.f * 55.f + 5.f * 5.f), 1e-3);
         EXPECT_EQ(out.mTraits.mTriangleCount, 2u);
     }

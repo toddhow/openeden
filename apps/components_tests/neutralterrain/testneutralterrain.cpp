@@ -26,8 +26,8 @@ namespace
     constexpr WorldId kTexGrass = 100;
     constexpr WorldId kTexRock = 101;
 
-    // The synthetic land: a vertex (lx, ly) of cell (cx, cy) has height 1 * (cx * 32 + lx) + 1000 * (cy * 32 + ly) + the
-    // cell's own bias, so a wrong axis, a wrong cell or a wrong offset shows at once.
+    // The synthetic land: a vertex (lx, ly) of cell (cx, cy) has height 1 * (cx * 32 + lx) + 1000 * (cy * 32 + ly) +
+    // the cell's own bias, so a wrong axis, a wrong cell or a wrong offset shows at once.
     float expected(std::int32_t cx, std::int32_t cy, int lx, int ly, float bias = 0.f)
     {
         return static_cast<float>(cx * 32 + lx) + 1000.f * static_cast<float>(cy * 32 + ly) + bias;
@@ -485,7 +485,8 @@ namespace
     {
         Rig rig;
         rig.start();
-        rig.mCache->ensure(8, 8, 10, 10); // a chunk also reads its east and north cells, and the south-west ones when it has no land
+        rig.mCache->ensure(
+            8, 8, 10, 10); // a chunk also reads its east and north cells, and the south-west ones when it has no land
         const auto d = rig.mStorage->getVertexData(0, bounds(9.f, 9.f, 1.f));
         EXPECT_FLOAT_EQ((*d.heights)(10, 10), -500.f);
         EXPECT_FLOAT_EQ((*d.normals)(10, 10).z, 1.f);
@@ -570,7 +571,8 @@ namespace
         const float step = cell / 32.f;
         const float ox = 1 * cell;
         const float oy = 2 * cell;
-        EXPECT_NEAR(rig.mStorage->getHeightAt(vsg::vec3(ox + 5 * step, oy + 7 * step, 0), {}), expected(1, 2, 5, 7), 0.05f);
+        EXPECT_NEAR(
+            rig.mStorage->getHeightAt(vsg::vec3(ox + 5 * step, oy + 7 * step, 0), {}), expected(1, 2, 5, 7), 0.05f);
         // the synthetic land is a plane (slope 1 in x per vertex, 1000 in y per vertex): any triangle gives the plane
         const float x = ox + 5.25f * step;
         const float y = oy + 7.5f * step;

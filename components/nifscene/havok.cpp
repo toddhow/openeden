@@ -3,8 +3,8 @@
 #include <cmath>
 #include <unordered_map>
 
-#include <components/nif/node.hpp>
 #include <components/nif/niffile.hpp>
+#include <components/nif/node.hpp>
 #include <components/nif/physics.hpp>
 
 namespace NifScene::Havok
@@ -96,7 +96,8 @@ namespace NifScene::Havok
                     {
                         // The MOPP code is a query accelerator for the same shape: the mesh is built from the shape.
                         const auto& mopp = static_cast<const Nif::bhkMoppBvTreeShape&>(record);
-                        const std::uint32_t child = shape(mopp.mShape.empty() ? nullptr : mopp.mShape.getPtr(), depth + 1);
+                        const std::uint32_t child
+                            = shape(mopp.mShape.empty() ? nullptr : mopp.mShape.getPtr(), depth + 1);
                         if (child == sNone)
                             return unsupported(s);
                         s.mKind = ShapeKind::List;
@@ -299,7 +300,8 @@ namespace NifScene::Havok
                     if (stored.mTransformIndex < data.mChunkTransforms.size())
                     {
                         const Nif::bhkQsTransform& q = data.mChunkTransforms[stored.mTransformIndex];
-                        transform.mTranslation = { q.mTranslation.x, q.mTranslation.y, q.mTranslation.z, q.mTranslation.w };
+                        transform.mTranslation
+                            = { q.mTranslation.x, q.mTranslation.y, q.mTranslation.z, q.mTranslation.w };
                         transform.mRotation = quatFromFile(q.mRotation, mLimits.mChunkQuatXyzw);
                         use = &transform;
                     }

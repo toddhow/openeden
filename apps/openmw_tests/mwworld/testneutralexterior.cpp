@@ -89,7 +89,8 @@ namespace
     TEST(NeutralExteriorCell, the_cell_takes_the_given_worldspace_and_has_no_water)
     {
         const ESM::RefId worldspace = MWWorld::neutralWorldspaceId("skyrimse", 20);
-        const ESM::Cell record = MWWorld::makeNeutralExteriorCellRecord(ESM::RefId::stringRefId("skyrimse:c77"), "X", 6, -2);
+        const ESM::Cell record
+            = MWWorld::makeNeutralExteriorCellRecord(ESM::RefId::stringRefId("skyrimse:c77"), "X", 6, -2);
         const MWWorld::Cell cell(record, worldspace);
         EXPECT_TRUE(cell.isExterior());
         EXPECT_FALSE(cell.isQuasiExterior());
@@ -130,8 +131,8 @@ namespace
         t.destinationDoor = 8;
         t.destination.position = { 100.5, -200.25, 300.0 };
         door.teleport = t;
-        const auto d = MWWorld::decideNeutralDoor(
-            door, true, false, [](WorldId) { return NeutralDestination::ExteriorWorld; });
+        const auto d
+            = MWWorld::decideNeutralDoor(door, true, false, [](WorldId) { return NeutralDestination::ExteriorWorld; });
         EXPECT_EQ(d.mOutcome, NeutralDoorOutcome::Teleport);
         EXPECT_EQ(d.mDestinationCell, 42u);
         EXPECT_FLOAT_EQ(d.mArrival.pos[0], 100.5f);
@@ -169,8 +170,8 @@ namespace
         return o;
     }
 
-    // Cells: 10 an interior; 30 the exterior (2, 3) of world 20 with one object; 31 the exterior (2, 4) of world 20 with
-    // two; 32 the persistent exterior of world 20 (no grid); 40 an exterior of world 21 (no terrain support).
+    // Cells: 10 an interior; 30 the exterior (2, 3) of world 20 with one object; 31 the exterior (2, 4) of world 20
+    // with two; 32 the persistent exterior of world 20 (no grid); 40 an exterior of world 21 (no terrain support).
     class ExteriorSource final : public WorldCellSource
     {
     public:
@@ -293,7 +294,8 @@ namespace
     TEST_F(ExteriorFixture, no_other_worldspace_is_a_neutral_one)
     {
         EXPECT_EQ(mModel->neutralWorldspace(ESM::Cell::sDefaultWorldspaceId), nullptr);
-        EXPECT_EQ(mModel->neutralWorldspace(MWWorld::neutralWorldspaceId("fakegame", kWorld)), nullptr); // not yet found
+        EXPECT_EQ(
+            mModel->neutralWorldspace(MWWorld::neutralWorldspaceId("fakegame", kWorld)), nullptr); // not yet found
         const ESM::ExteriorCellLocation morrowind(0, 0, ESM::Cell::sDefaultWorldspaceId);
         EXPECT_EQ(mModel->findNeutralExterior(mNeutral, morrowind), nullptr);
     }

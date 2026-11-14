@@ -2,14 +2,15 @@
 // measured on the five Skyrim SE masters. Same harness as task 0156's SkyrimConditionStateRealData: INFO and PACK lists
 // fully answered, unanswered conditions by function, the Bannered Mare's greeting picks; plus the table's build time
 // and memory, and how NPC package choice changes when the package world sees locations, quest variables and other
-// references. Prints aggregates and function indexes only (lines SKYRIMSE-COND4). Skipped without OPENEDEN_SKYRIMSE_DATA.
+// references. Prints aggregates and function indexes only (lines SKYRIMSE-COND4). Skipped without
+// OPENEDEN_SKYRIMSE_DATA.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
+#include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/package.hpp>
 #include <game_skyrimse/package_brain.hpp>
-#include <game_skyrimse/pack_core.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_script.hpp>
@@ -30,8 +31,8 @@
 #include <vector>
 
 #ifdef _MSC_VER
-#include <windows.h>
 #include <psapi.h>
+#include <windows.h>
 #pragma comment(lib, "psapi.lib")
 #endif
 
@@ -69,15 +70,15 @@ namespace
             byCount.emplace_back(n, f);
         std::sort(byCount.rbegin(), byCount.rend());
         for (std::size_t i = 0; i < byCount.size() && i < top; ++i)
-            std::cout << "SKYRIMSE-COND4 " << label << " unanswered fn_" << byCount[i].second << " "
-                      << byCount[i].first << "\n";
+            std::cout << "SKYRIMSE-COND4 " << label << " unanswered fn_" << byCount[i].second << " " << byCount[i].first
+                      << "\n";
         for (const auto& [runOn, n] : t.mByRunOn)
             std::cout << "SKYRIMSE-COND4 " << label << " unanswered run-on " << runOn << ": " << n << "\n";
     }
 
     /// What `answers` said at the end of task 0156 (reconstructed: this task's additions that need no placed-reference
-    /// table are switched off): the speaker's own GetDisabled, IsSneaking, GetItemCount and GetEquipped, and a condition
-    /// run on the player's own reference (run-on 2 with 0x14).
+    /// table are switched off): the speaker's own GetDisabled, IsSneaking, GetItemCount and GetEquipped, and a
+    /// condition run on the player's own reference (run-on 2 with 0x14).
     bool baseline156(const SkyrimConditionWorld& w, const survey::Ctda& c)
     {
         if (!w.answers(c))
@@ -137,8 +138,9 @@ namespace
             placed.add(std::move(pr));
         }
         placed.finish();
-        const auto placedMillis = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - placedStart).count();
+        const auto placedMillis
+            = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - placedStart)
+                  .count();
         const std::uint64_t memoryAfter = workingSetBytes();
         std::uint64_t actorsPlaced = 0, dead = 0, disabled = 0;
         for (const PlacedEntry& r : placed.all())
@@ -193,7 +195,8 @@ namespace
         }
 
         std::vector<fs::path> archives;
-        for (const char* a : { "Dragonborn.bsa", "HearthFires.bsa", "Dawnguard.bsa", "Update.bsa", "Skyrim - Misc.bsa" })
+        for (const char* a :
+            { "Dragonborn.bsa", "HearthFires.bsa", "Dawnguard.bsa", "Update.bsa", "Skyrim - Misc.bsa" })
             if (fs::exists(data / a))
                 archives.push_back(data / a);
         QuestVariables variables(questScripts, [&](const std::string& script, std::vector<std::uint8_t>& bytes) {
@@ -383,8 +386,8 @@ namespace
         print("PACK after (wired)", pat, 20);
 
         // ---- the Bannered Mare's greeting, before and after, with the person's own reference ----------------------
-        for (const char* name : { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir",
-                 "Delphine" })
+        for (const char* name :
+            { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir", "Delphine" })
         {
             const auto it = npcByEditorId.find(name);
             if (it == npcByEditorId.end())
@@ -411,9 +414,8 @@ namespace
                 if (!afterRun || pick.mInfo == nullptr)
                     continue;
                 std::vector<FormId> ids = dialogue.topicIds("HELO");
-                std::stable_sort(ids.begin(), ids.end(), [&](FormId x, FormId y) {
-                    return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority;
-                });
+                std::stable_sort(ids.begin(), ids.end(),
+                    [&](FormId x, FormId y) { return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority; });
                 SkyrimConditionWorld oldW(actors, dialogue);
                 configure(oldW, false);
                 oldW.setSpeaker(s);
@@ -491,11 +493,11 @@ namespace
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         ASSERT_TRUE(ready) << "the dialogue worker did not finish";
-        std::cout << "SKYRIMSE-COND4 dialogue worker ready after "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start)
-                         .count()
-                  << " ms (the reading of every record family on the worker; the placed-reference part alone took "
-                  << view.placedRefsBuildMillis() << " ms of it)\n";
+        std::cout
+            << "SKYRIMSE-COND4 dialogue worker ready after "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count()
+            << " ms (the reading of every record family on the worker; the placed-reference part alone took "
+            << view.placedRefsBuildMillis() << " ms of it)\n";
         const PlacedRefIndex* placed = view.placedRefs();
         ASSERT_NE(placed, nullptr);
 

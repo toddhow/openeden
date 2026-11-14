@@ -18,11 +18,10 @@ namespace MWRender::SkyrimLip
             for (std::uint32_t i = 0; i < file.mMorphs.size(); ++i)
             {
                 const std::string& n = file.mMorphs[i].mName;
-                if (n.size() == name.size()
-                    && std::equal(n.begin(), n.end(), name.begin(), [](char a, char b) {
-                           return std::tolower(static_cast<unsigned char>(a))
-                               == std::tolower(static_cast<unsigned char>(b));
-                       }))
+                if (n.size() == name.size() && std::equal(n.begin(), n.end(), name.begin(), [](char a, char b) {
+                        return std::tolower(static_cast<unsigned char>(a))
+                            == std::tolower(static_cast<unsigned char>(b));
+                    }))
                     return i;
             }
             return ~0u;

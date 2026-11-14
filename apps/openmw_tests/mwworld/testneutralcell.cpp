@@ -264,7 +264,8 @@ namespace
         EXPECT_FALSE(error.empty());
 
         error.clear();
-        EXPECT_FALSE(MWWorld::makeNeutralCellRef("skyrimse", sampleObject(static_cast<WorldId>(std::uint64_t{ 1 } << 40), 3), ref, error));
+        EXPECT_FALSE(MWWorld::makeNeutralCellRef(
+            "skyrimse", sampleObject(static_cast<WorldId>(std::uint64_t{ 1 } << 40), 3), ref, error));
         EXPECT_FALSE(error.empty());
 
         WorldObject nanPosition = sampleObject(9, 42);

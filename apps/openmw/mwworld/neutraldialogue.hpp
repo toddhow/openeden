@@ -52,7 +52,8 @@ namespace MWWorld
     /// skipped; the result is sorted by poll.
     /// The log line for a response that is a service the pack cannot run (task 0155), for example
     /// "service not implemented: barter with Hulda"; empty when the turn has no service.
-    [[nodiscard]] std::string neutralServiceNote(const openeden::sdk::game::DialogueTurn& turn, const std::string& speakerName);
+    [[nodiscard]] std::string neutralServiceNote(
+        const openeden::sdk::game::DialogueTurn& turn, const std::string& speakerName);
 
     [[nodiscard]] std::vector<std::pair<int, int>> parseNeutralDialoguePressScript(const std::string& text);
 
@@ -62,7 +63,8 @@ namespace MWWorld
         static constexpr std::size_t kTopicsPerPage = 8;
 
         /// `goodbyeLabel` and `moreLabel` are already localised by the caller.
-        NeutralDialoguePager(std::string goodbyeLabel, std::string moreLabel, std::size_t topicsPerPage = kTopicsPerPage);
+        NeutralDialoguePager(
+            std::string goodbyeLabel, std::string moreLabel, std::size_t topicsPerPage = kTopicsPerPage);
 
         /// A new turn: the page goes back to the first.
         void setTurn(const openeden::sdk::game::DialogueTurn& turn, const std::string& speakerName);
@@ -93,7 +95,8 @@ namespace MWWorld
     class NeutralVoiceQueue
     {
     public:
-        static constexpr std::size_t kMaxLines = 64; ///< a response has few lines; the rest of a hostile list is dropped
+        static constexpr std::size_t kMaxLines
+            = 64; ///< a response has few lines; the rest of a hostile list is dropped
 
         /// A new turn: whatever was pending is dropped (the session stops the line that is playing).
         void set(std::vector<std::string> paths);

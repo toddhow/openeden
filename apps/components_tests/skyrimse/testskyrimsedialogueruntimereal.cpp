@@ -57,12 +57,14 @@ namespace
             sdkgame::DialogueTurn turn;
             const auto start = std::chrono::steady_clock::now();
             const bool ok = source.beginConversation(o.base, o.id, cellId, turn, error);
-            const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - start).count();
+            const auto ms
+                = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start)
+                      .count();
             if (!ok)
             {
                 ++noGreeting;
-                std::cout << "SKYRIMSE-TALK " << o.baseEditorId << ": no greeting (" << error << ") in " << ms << " ms\n";
+                std::cout << "SKYRIMSE-TALK " << o.baseEditorId << ": no greeting (" << error << ") in " << ms
+                          << " ms\n";
                 continue;
             }
             ++greeted;
@@ -80,8 +82,9 @@ namespace
             }
             source.endConversation();
         }
-        std::cout << "SKYRIMSE-TALK summary: actors " << actors << " greeted " << greeted << " no greeting " << noGreeting
-                  << " topics total " << totalTopics << " max " << maxTopics << " with a name " << withName << "\n";
+        std::cout << "SKYRIMSE-TALK summary: actors " << actors << " greeted " << greeted << " no greeting "
+                  << noGreeting << " topics total " << totalTopics << " max " << maxTopics << " with a name "
+                  << withName << "\n";
         EXPECT_GT(actors, 0u);
     }
 }

@@ -69,8 +69,8 @@ namespace MWRender
         mValid = mPresent[0]; // the pelvis is the first mapping
     }
 
-    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
-        MWPhysics::ActorStartPose& out)
+    bool makeActorStartPose(
+        Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest, MWPhysics::ActorStartPose& out)
     {
         if (!rest.isValid())
             return false;

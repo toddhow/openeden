@@ -114,7 +114,8 @@ namespace Lip
             break;
         }
         if (!found)
-            return fail(name, "no payload offset in the first " + std::to_string(limits.mMaxExtraHeaderBytes + 1)
+            return fail(name,
+                "no payload offset in the first " + std::to_string(limits.mMaxExtraHeaderBytes + 1)
                     + " gives a track of " + std::to_string(frames) + " frames");
 
         track.mFrames = static_cast<std::uint32_t>(rows);

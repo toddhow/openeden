@@ -185,8 +185,8 @@ namespace
             WorldObject o = doorObject(7, 42);
             o.kind = kind;
             for (bool player : { true, false })
-                EXPECT_EQ(MWWorld::decideNeutralDoor(o, player, true, alwaysInterior).mOutcome,
-                    NeutralDoorOutcome::NotADoor);
+                EXPECT_EQ(
+                    MWWorld::decideNeutralDoor(o, player, true, alwaysInterior).mOutcome, NeutralDoorOutcome::NotADoor);
         }
     }
 
@@ -235,8 +235,8 @@ namespace
     TEST(NeutralDoorArrival, gimbal_lock_poses_come_back_too)
     {
         const double s = std::sqrt(0.5);
-        for (const Quatd& q : { unit(0, s, 0, s), unit(0, -s, 0, s), unit(s, 0, 0, s), unit(0, 0, s, s),
-                 unit(0.5, 0.5, 0.5, 0.5) })
+        for (const Quatd& q :
+            { unit(0, s, 0, s), unit(0, -s, 0, s), unit(s, 0, 0, s), unit(0, 0, s, s), unit(0.5, 0.5, 0.5, 0.5) })
         {
             TeleportComponent t;
             t.destination.rotation = q;

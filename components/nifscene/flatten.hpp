@@ -68,11 +68,11 @@ namespace NifScene::Flat
         /// per-vertex alpha on them whatever the Vertex_Alpha flag says. Off (the default) nothing changes.
         bool mTreeSway = false;
         /// Task 0136 (skinned trunks): a skinned shape of a STATIC model (a tree's trunk and branches under a
-        /// BSTreeNode) is drawn as a static shape in its rest pose: each vertex is skinned by the bone nodes' world poses
-        /// in the file's own node tree (sum of weight * boneWorld * bind * vertex, the influences' weights renormalised;
-        /// the skin data's own transform is NOT applied). A vertex with no usable influence keeps its node's pose; a
-        /// shape whose bones are missing stays out. Off (the default) skinned shapes are left out as before. Actors do
-        /// not use this: their skinned shapes keep the Skinned path (skinned.hpp).
+        /// BSTreeNode) is drawn as a static shape in its rest pose: each vertex is skinned by the bone nodes' world
+        /// poses in the file's own node tree (sum of weight * boneWorld * bind * vertex, the influences' weights
+        /// renormalised; the skin data's own transform is NOT applied). A vertex with no usable influence keeps its
+        /// node's pose; a shape whose bones are missing stays out. Off (the default) skinned shapes are left out as
+        /// before. Actors do not use this: their skinned shapes keep the Skinned path (skinned.hpp).
         bool mSkinnedAtRest = false;
     };
 
@@ -91,15 +91,17 @@ namespace NifScene::Flat
         bool mNoSorter = false;
         std::uint8_t mClampMode = 3; // 0 clamp/clamp, 1 clamp S wrap T, 2 wrap S clamp T, 3 wrap/wrap
         float mAlpha = 1.f;
-        // Task 0130: filled only with Limits::mSurfaceMaps. Defaults are "nothing", so a key made without it is unchanged.
-        std::string mNormal; // slot 1 (tangent space), only when the shape has tangents; the shape's mTangents are then set
+        // Task 0130: filled only with Limits::mSurfaceMaps. Defaults are "nothing", so a key made without it is
+        // unchanged.
+        std::string
+            mNormal; // slot 1 (tangent space), only when the shape has tangents; the shape's mTangents are then set
         std::string mGlow; // slot 2 when the shader has the Glow_Map flag
         std::array<float, 3> mSpecularColor{ 0.f, 0.f, 0.f }; // colour * strength, zero without the Specular flag
         float mGlossiness = 0.f; // Blinn-Phong exponent as stored, only with a specular colour
         std::array<float, 3> mEmissive{ 0.f, 0.f, 0.f }; // emissive colour * multiple
         std::uint32_t mShaderType = 0; // BSLightingShaderType
-        /// Task 0136: a Tree_Anim shape under Limits::mTreeSway. Its Shape::mColors alpha is the file's vertex alpha (the
-        /// vertex's flexibility); such a shape is never merged with a still one.
+        /// Task 0136: a Tree_Anim shape under Limits::mTreeSway. Its Shape::mColors alpha is the file's vertex alpha
+        /// (the vertex's flexibility); such a shape is never merged with a still one.
         bool mSway = false;
         friend auto operator<=>(const MaterialKey&, const MaterialKey&) = default;
     };
@@ -112,7 +114,8 @@ namespace NifScene::Flat
         std::vector<std::array<float, 3>> mNormals; // one per vertex, unit length
         std::vector<std::array<float, 2>> mUV; // empty, or one per vertex
         std::vector<std::array<float, 4>> mColors; // empty, or one per vertex
-        std::vector<std::array<float, 4>> mTangents; // empty, or one per vertex (glTF-style: xyz unit, w sign); task 0130
+        std::vector<std::array<float, 4>>
+            mTangents; // empty, or one per vertex (glTF-style: xyz unit, w sign); task 0130
         std::vector<std::uint32_t> mIndices; // three per triangle, all below mPositions.size()
         std::uint32_t mMergedFrom = 1; // geometries that went into this shape
         std::uint32_t mFlags1 = 0; // the first geometry's shader flag words (diagnostics; not part of the key)
@@ -141,7 +144,8 @@ namespace NifScene::Flat
         std::uint32_t mNormalMapsNoTangents = 0; // slot 1 named but the shape has no tangents: no normal map
         std::uint32_t mNormalMapsModelSpace = 0; // slot 1 named but the shader says model space normals: not used
         std::uint32_t mGlowMaps = 0; // keep a glow map
-        std::uint32_t mSkinnedAtRest = 0; // task 0136 (only with Limits::mSkinnedAtRest): skinned geometries drawn as static
+        std::uint32_t mSkinnedAtRest
+            = 0; // task 0136 (only with Limits::mSkinnedAtRest): skinned geometries drawn as static
         std::uint32_t mSwayShapes = 0; // task 0136 (only with Limits::mTreeSway): geometries marked as swaying
     };
 

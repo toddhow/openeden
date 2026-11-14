@@ -10,23 +10,25 @@
 #include <sstream>
 
 // Layout status of every subrecord read here (task 0127). VERIFIED: the five installed Skyrim SE masters (Skyrim.esm,
-// Update.esm, Dawnguard.esm, HearthFires.esm, Dragonborn.esm) were walked by tools/skyrimse_weather_check/survey.py and by
-// the gated test (aggregates in docs/tasks/0127-skyrim-weather-source.md): sizes, value ranges and the record type each
-// reference resolves to. RECALLED-VERIFY: a meaning from memory of the Creation Kit wiki / xEdit definitions that no check
-// of ours settled. Nothing is copied from either; the layouts below were found by measuring.
+// Update.esm, Dawnguard.esm, HearthFires.esm, Dragonborn.esm) were walked by tools/skyrimse_weather_check/survey.py and
+// by the gated test (aggregates in docs/tasks/0127-skyrim-weather-source.md): sizes, value ranges and the record type
+// each reference resolves to. RECALLED-VERIFY: a meaning from memory of the Creation Kit wiki / xEdit definitions that
+// no check of ours settled. Nothing is copied from either; the layouts below were found by measuring.
 //
 // WTHR (177 records in the five masters):
-//   EDID zstring; DATA 19 (all 177); FNAM 32 (8 floats, all 177); NAM0 272, 224 or 208 (17, 14, 13 colour types x 4 times of
-//   day x 4 bytes: 165, 11, 1 records); PNAM 512 (176) or 64 (1); JNAM 512 (176; absent in 1); QNAM and RNAM 32 (176);
-//   LNAM 4 (29 in 164, 4 in 13); NAM1 4 (176); DALC 32 x4 (176 records) or 24 x4 (1); SNAM 8, repeated (55 records, 76 in
-//   all: SNDR 67, SOUN 5, 4 dangling); TNAM 4, repeated (150 records, 15,984 in all, every one a STAT); MNAM 4 (SPGD in 36,
-//   0 in 141); NNAM 4 (RFCT in 5, 0 in 172); IMSP 16 (four IMGS, all 177); HNAM 16 (four VOLI or 0, 93); NAM2 and NAM3 16
-//   (11 records, not form ids: bit patterns 0x00FFFFFF); ONAM 4 (1 record, not a form id); MODL zstring (59) with MODT;
-//   cloud textures as subrecords named c0TX, where c is the layer: '0' to '9', ':', ';' ... up to 'L' (layer 28).
+//   EDID zstring; DATA 19 (all 177); FNAM 32 (8 floats, all 177); NAM0 272, 224 or 208 (17, 14, 13 colour types x 4
+//   times of day x 4 bytes: 165, 11, 1 records); PNAM 512 (176) or 64 (1); JNAM 512 (176; absent in 1); QNAM and RNAM
+//   32 (176); LNAM 4 (29 in 164, 4 in 13); NAM1 4 (176); DALC 32 x4 (176 records) or 24 x4 (1); SNAM 8, repeated (55
+//   records, 76 in all: SNDR 67, SOUN 5, 4 dangling); TNAM 4, repeated (150 records, 15,984 in all, every one a STAT);
+//   MNAM 4 (SPGD in 36, 0 in 141); NNAM 4 (RFCT in 5, 0 in 172); IMSP 16 (four IMGS, all 177); HNAM 16 (four VOLI or 0,
+//   93); NAM2 and NAM3 16 (11 records, not form ids: bit patterns 0x00FFFFFF); ONAM 4 (1 record, not a form id); MODL
+//   zstring (59) with MODT; cloud textures as subrecords named c0TX, where c is the layer: '0' to '9', ':', ';' ... up
+//   to 'L' (layer 28).
 // CLMT (9): EDID; WLST 12 per entry (one entry in 8 climates, two in 1); FNAM, GNAM, MODL zstrings; TNAM 6.
 // REGN (389): WNAM 4, RDAT 8 (type u32, flags, priority, 2 pad; type 3 = weather in 91 of 198), RDWT 12 per entry (88
 //   subrecords, every one directly after an RDAT of type 3; chances add to 100 in 87 and to 85 in 1).
-// CELL: XCLR 4 per region (33,441 exterior cells), XCWT 4, XCCM 4 (314 cells, all interior, every one a REGN), XCIM 4, XCLC.
+// CELL: XCLR 4 per region (33,441 exterior cells), XCWT 4, XCCM 4 (314 cells, all interior, every one a REGN), XCIM 4,
+// XCLC.
 
 namespace game_skyrimse
 {
@@ -34,7 +36,10 @@ namespace game_skyrimse
 
     namespace
     {
-        constexpr std::uint32_t kLayerNameTail = Content::fourCC("\0" "0TX") & 0xFFFFFF00u;
+        constexpr std::uint32_t kLayerNameTail = Content::fourCC(
+                                                     "\0"
+                                                     "0TX")
+            & 0xFFFFFF00u;
         constexpr std::size_t kWeatherChanceBytes = 12;
 
         bool finite(float v)
@@ -102,7 +107,8 @@ namespace game_skyrimse
                     WeatherChance c;
                     c.mWeather = f.resolved(readLe<std::uint32_t>(p));
                     c.mChance = readLe<std::int32_t>(p + 4);
-                    c.mGlobal = readLe<std::uint32_t>(p + 8) == 0 ? kNullFormId : f.resolved(readLe<std::uint32_t>(p + 8));
+                    c.mGlobal
+                        = readLe<std::uint32_t>(p + 8) == 0 ? kNullFormId : f.resolved(readLe<std::uint32_t>(p + 8));
                     out.push_back(c);
                 }
                 return true;
@@ -216,8 +222,7 @@ namespace game_skyrimse
                         d.odd(type);
                     break;
                 case Content::fourCC("NAM0"):
-                    if (!data.empty() && data.size() % 16 == 0
-                        && data.size() / 16 <= WeatherConstants::kMaxColourTypes)
+                    if (!data.empty() && data.size() % 16 == 0 && data.size() / 16 <= WeatherConstants::kMaxColourTypes)
                     {
                         out.mColourTypes = static_cast<std::uint32_t>(data.size() / 16);
                         for (std::uint32_t t = 0; t < out.mColourTypes; ++t)
@@ -417,8 +422,8 @@ namespace game_skyrimse
                         d.odd(type);
                     break;
                 case Content::fourCC("LNAM"):
-                    // 4 bytes (VERIFIED on 3,197 of 3,197): byte 1 has the value 8 in 465 records, of which 447 have LP or
-                    // Loop in their editor id, 0 in 2,619, 16 in 112 and 32 in 1; so bit 3 of byte 1 marks a loop.
+                    // 4 bytes (VERIFIED on 3,197 of 3,197): byte 1 has the value 8 in 465 records, of which 447 have LP
+                    // or Loop in their editor id, 0 in 2,619, 16 in 112 and 32 in 1; so bit 3 of byte 1 marks a loop.
                     if (!marker && data.size() == 4)
                         out.mLoop = (std::to_integer<std::uint8_t>(data[1]) & 0x08) != 0;
                     else if (!marker)
@@ -456,8 +461,7 @@ namespace game_skyrimse
         std::span<const std::byte> data;
         int status = 0;
         // A float that is not finite is a damaged subrecord: counted as odd and left out.
-        const auto finite = [](const std::byte* p, std::size_t count)
-        {
+        const auto finite = [](const std::byte* p, std::size_t count) {
             for (std::size_t i = 0; i < count; ++i)
                 if (!std::isfinite(readLe<float>(p + i * 4)))
                     return false;
@@ -932,8 +936,8 @@ namespace game_skyrimse
         return true;
     }
 
-    bool parseWeatherRecordsFile(const std::filesystem::path& path, const LoadOrder& order,
-        const WeatherLimits& limits, WeatherRecords& out, Content::Error& error)
+    bool parseWeatherRecordsFile(const std::filesystem::path& path, const LoadOrder& order, const WeatherLimits& limits,
+        WeatherRecords& out, Content::Error& error)
     {
         const std::unique_ptr<Content::Plugin> plugin = Content::Plugin::openFile(path, error);
         if (!plugin)

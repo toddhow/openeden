@@ -68,42 +68,43 @@ namespace MWRender::SkyrimPose
             }
             else
             {
-            mPending = false;
-            mClip = mFuture.get();
-            mFuture = {};
-            if (mClip)
-            {
-                mTargets.assign(mClip->mClip.mNumTransformTracks, nullptr);
-                std::size_t bound = 0;
-                for (std::size_t i = 0; i < mTargets.size(); ++i)
+                mPending = false;
+                mClip = mFuture.get();
+                mFuture = {};
+                if (mClip)
                 {
-                    const auto it = mBones.find(mClip->mTrackBones[i]);
-                    if (it != mBones.end())
-                    {
-                        mTargets[i] = it->second;
-                        ++bound;
-                    }
-                }
-                mScratch.resize(mTargets.size());
-                if (bound == 0)
-                    mClip.reset();
-                static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
-                if (trace && mClip)
-                {
-                    // Developer trace: the clip's first pose for the root and centre-of-mass tracks, where the actor's
-                    // origin sits relative to the figure (task 0135 stage S6b).
-                    HavokPack::samplePose(*mClip, 0.f, mScratch);
+                    mTargets.assign(mClip->mClip.mNumTransformTracks, nullptr);
+                    std::size_t bound = 0;
                     for (std::size_t i = 0; i < mTargets.size(); ++i)
                     {
-                        const std::string& name = mClip->mTrackBones[i];
-                        if (name.find("com") != std::string::npos || name.find("root") != std::string::npos
-                            || name.find("pelvis") != std::string::npos)
-                            Log(Debug::Info) << "NPOSE " << name << " t " << mScratch[i].mTranslation[0] << " "
-                                             << mScratch[i].mTranslation[1] << " " << mScratch[i].mTranslation[2]
-                                             << " duration " << mClip->mClip.mDuration << (mTargets[i] ? "" : " (unbound)");
+                        const auto it = mBones.find(mClip->mTrackBones[i]);
+                        if (it != mBones.end())
+                        {
+                            mTargets[i] = it->second;
+                            ++bound;
+                        }
+                    }
+                    mScratch.resize(mTargets.size());
+                    if (bound == 0)
+                        mClip.reset();
+                    static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+                    if (trace && mClip)
+                    {
+                        // Developer trace: the clip's first pose for the root and centre-of-mass tracks, where the
+                        // actor's origin sits relative to the figure (task 0135 stage S6b).
+                        HavokPack::samplePose(*mClip, 0.f, mScratch);
+                        for (std::size_t i = 0; i < mTargets.size(); ++i)
+                        {
+                            const std::string& name = mClip->mTrackBones[i];
+                            if (name.find("com") != std::string::npos || name.find("root") != std::string::npos
+                                || name.find("pelvis") != std::string::npos)
+                                Log(Debug::Info)
+                                    << "NPOSE " << name << " t " << mScratch[i].mTranslation[0] << " "
+                                    << mScratch[i].mTranslation[1] << " " << mScratch[i].mTranslation[2] << " duration "
+                                    << mClip->mClip.mDuration << (mTargets[i] ? "" : " (unbound)");
+                        }
                     }
                 }
-            }
             }
         }
         if (!mClip)

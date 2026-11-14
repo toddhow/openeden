@@ -130,7 +130,10 @@ namespace openeden::editor
         virtual void setPlayhead(double /*seconds*/) {}
         /// API 1.4. Shows a modal dialog and returns the edited values (one per field) on OK, nothing on Cancel or when
         /// the dialog is refused (the description is invalid, or the host cannot show one).
-        virtual std::optional<std::vector<PropertyValue>> showDialog(const DialogDesc& /*desc*/) { return std::nullopt; }
+        virtual std::optional<std::vector<PropertyValue>> showDialog(const DialogDesc& /*desc*/)
+        {
+            return std::nullopt;
+        }
     };
 
     struct WorkspaceDesc

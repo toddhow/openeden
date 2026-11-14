@@ -80,12 +80,12 @@ namespace game_skyrimse
         std::optional<Content::Error> mWalkError;
     };
 
-    [[nodiscard]] bool parseQuestScripts(
-        const Content::Plugin& plugin, const LoadOrder& order, const QuestScriptLimits& limits, QuestScriptRecords& out);
+    [[nodiscard]] bool parseQuestScripts(const Content::Plugin& plugin, const LoadOrder& order,
+        const QuestScriptLimits& limits, QuestScriptRecords& out);
 
     /// The VMAD script list of one subrecord; false when it is damaged (what was read stays in `out`).
-    [[nodiscard]] bool parseVmadScripts(std::span<const std::byte> vmad, const QuestScriptLimits& limits,
-        std::vector<QuestScriptRef>& out);
+    [[nodiscard]] bool parseVmadScripts(
+        std::span<const std::byte> vmad, const QuestScriptLimits& limits, std::vector<QuestScriptRef>& out);
 
     /// A later plugin's QUST replaces an earlier one's scripts (a record without a VMAD has none).
     class QuestScriptIndex

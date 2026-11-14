@@ -7,8 +7,8 @@
 // ignored, so a plane of triangles that all face one way stops what comes from its front and lets through what comes
 // from its back. The Skyrim room shells and loft walls of the Bannered Mare are made of such planes (the west stairs
 // end at one: the player walks through it, from the stairs into the room, and is stopped coming back). Recast, which
-// builds the navigation mesh, has no notion of a side: it sees a solid wall, and the navmesh of the stairs ends in front
-// of it, so a path to anything behind it does not exist, although a walker gets there.
+// builds the navigation mesh, has no notion of a side: it sees a solid wall, and the navmesh of the stairs ends in
+// front of it, so a path to anything behind it does not exist, although a walker gets there.
 //
 // This module finds those crossings. For every wall triangle of an object it takes sample points along the wall's foot,
 // finds the floor a walker stands on each side (a ray down), and asks the mover's own sweeper whether the capsule gets
@@ -60,7 +60,8 @@ namespace MWPhysics::NeutralPlaneLinks
         vsg::vec3 mTo; ///< feet on the floor on the other side
     };
 
-    /// The world as this module sees it: the mover's sweeper, and whether the capsule stands somewhere with nothing in it.
+    /// The world as this module sees it: the mover's sweeper, and whether the capsule stands somewhere with nothing in
+    /// it.
     class World : public NeutralMover::Sweeper
     {
     public:

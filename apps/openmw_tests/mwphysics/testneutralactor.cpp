@@ -1,5 +1,5 @@
-// Task 0135 (decision 0017 stage N5-3): the capsule and the standing-on-the-floor rule of a neutral actor's physics body.
-// Written from the header before the implementation; the first run was against a stub (see the task's stage log).
+// Task 0135 (decision 0017 stage N5-3): the capsule and the standing-on-the-floor rule of a neutral actor's physics
+// body. Written from the header before the implementation; the first run was against a stub (see the task's stage log).
 #include <components/misc/constants.hpp>
 #include <components/resource/physicsshape.hpp>
 
@@ -85,8 +85,8 @@ TEST(NeutralActorCapsule, a_huge_actor_is_cut_to_the_maximum_height)
 TEST(NeutralActorCapsule, a_scale_that_is_not_a_positive_number_means_the_standard_one)
 {
     const Capsule standard = capsuleFor(1.f);
-    for (const float bad : { 0.f, -2.f, std::numeric_limits<float>::quiet_NaN(),
-             std::numeric_limits<float>::infinity() })
+    for (const float bad :
+        { 0.f, -2.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
     {
         const Capsule c = capsuleFor(bad);
         EXPECT_FLOAT_EQ(c.mCentreZ, standard.mCentreZ) << bad;
@@ -103,7 +103,8 @@ TEST(NeutralActorShape, the_shape_stands_on_the_feet_and_reaches_the_head)
     ASSERT_TRUE(shape->mCollisionShape);
     // Jolt reports local bounds relative to the shape's centre of mass; the feet are the shape's own origin.
     const JPH::Vec3 com = shape->mCollisionShape->GetCenterOfMass();
-    const JPH::AABox b(shape->mCollisionShape->GetLocalBounds().mMin + com, shape->mCollisionShape->GetLocalBounds().mMax + com);
+    const JPH::AABox b(
+        shape->mCollisionShape->GetLocalBounds().mMin + com, shape->mCollisionShape->GetLocalBounds().mMax + com);
     EXPECT_NEAR(b.mMin.GetZ(), 0.f, 1e-2f);
     EXPECT_NEAR(b.mMax.GetZ(), kStandingHeight, 1e-2f);
     EXPECT_NEAR(b.mMax.GetX(), kRadius, 1e-2f);
@@ -266,8 +267,8 @@ TEST(NeutralActorFall, a_grounded_or_lost_actor_is_never_changed)
 TEST(NeutralActorFall, a_time_step_that_is_not_positive_and_finite_changes_nothing)
 {
     const Fall f = at(600.f);
-    for (const float dt : { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(),
-             std::numeric_limits<float>::infinity() })
+    for (const float dt :
+        { 0.f, -1.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
     {
         const Fall r = stepFall(f, dt, floorAt(0.f));
         EXPECT_EQ(r.mState, State::Waiting) << dt;

@@ -22,7 +22,8 @@ namespace MWInput
                                 public SDLUtil::ControllerListener
     {
     public:
-        UiInputFilter(SDLUtil::MouseListener& mouse, SDLUtil::KeyListener& keys, SDLUtil::ControllerListener& controller);
+        UiInputFilter(
+            SDLUtil::MouseListener& mouse, SDLUtil::KeyListener& keys, SDLUtil::ControllerListener& controller);
 
         /// The overlay (not owned, must outlive the filter or be reset to null first); null switches the filter off.
         void setTarget(UiRml::InputTarget* target);

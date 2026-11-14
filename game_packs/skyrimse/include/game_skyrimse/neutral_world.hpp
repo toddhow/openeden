@@ -121,11 +121,11 @@ namespace game_skyrimse
     /// Skyrim's stored angles (radians about X, Y and Z) as a unit quaternion: R = Rx * Ry * Rz with every angle
     /// negated (clockwise for a positive angle): a vector is turned about Z first. The signs were settled by frame (Z)
     /// and by terrain normals (X, Y) in task 0086; the ORDER by task 0151: with Rz * Ry * Rx the object's up axis
-    /// depended on its yaw, and 26,397 tilted Tamriel placements near the ground then fit the terrain normal at 0.51 rad
-    /// on average against 0.26 rad with this order; the floating MountainTrim01 slab (b197124) lies on its slope with
-    /// it (docs/tasks/0151-floating-mountain-slabs.md). The engine drew exactly what the pack said (ray hits on the
-    /// slab lay on the old order's mesh to 0.2 units): the fault was the order, not the engine. A non-finite angle gives the identity (toNeutral refuses such an object before it gets
-    /// here).
+    /// depended on its yaw, and 26,397 tilted Tamriel placements near the ground then fit the terrain normal at 0.51
+    /// rad on average against 0.26 rad with this order; the floating MountainTrim01 slab (b197124) lies on its slope
+    /// with it (docs/tasks/0151-floating-mountain-slabs.md). The engine drew exactly what the pack said (ray hits on
+    /// the slab lay on the old order's mesh to 0.2 units): the fault was the order, not the engine. A non-finite angle
+    /// gives the identity (toNeutral refuses such an object before it gets here).
     [[nodiscard]] openeden::sdk::game::Quatd eulerToQuat(const openeden::sdk::game::WorldVec3& storedAngles);
 
     /// One placed object as a neutral object. False with `problem` when a value is not usable (not finite, a coordinate
@@ -146,14 +146,14 @@ namespace game_skyrimse
     /// Cell ids are the view's own ids (the load-order form ids), which are already stable for the session. It keeps a
     /// reference to the view, which must outlive it. Main thread only, like the view.
     class SkyrimCellSource final : public openeden::sdk::game::WorldCellSource,
-        public openeden::sdk::game::ActorAppearanceSource,
-        public openeden::sdk::game::ActorMechanicsSource,
-        public openeden::sdk::game::DialogueSource,
-        public openeden::sdk::game::DisplayNameSource,
-        public openeden::sdk::game::ActorRules,
-        public openeden::sdk::game::CellWaterSource,
-        public openeden::sdk::game::WeatherSource,
-        public openeden::sdk::game::GrassSource
+                                   public openeden::sdk::game::ActorAppearanceSource,
+                                   public openeden::sdk::game::ActorMechanicsSource,
+                                   public openeden::sdk::game::DialogueSource,
+                                   public openeden::sdk::game::DisplayNameSource,
+                                   public openeden::sdk::game::ActorRules,
+                                   public openeden::sdk::game::CellWaterSource,
+                                   public openeden::sdk::game::WeatherSource,
+                                   public openeden::sdk::game::GrassSource
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -200,8 +200,8 @@ namespace game_skyrimse
             openeden::sdk::game::ActorStats& out, std::string& error) override;
         bool actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorDisposition& out, std::string& error) override;
-        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA,
-            std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
+        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA, std::uint32_t variationA,
+            openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
         /// Conversations (task 0141): forwarded to the view when it can run them (SkyrimWorldView does), else refused.
         bool beginConversation(openeden::sdk::game::WorldId base, openeden::sdk::game::WorldId reference,
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;

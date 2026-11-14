@@ -2,13 +2,13 @@
 #define OPENMW_MWRENDER_SKYRIMLIP_HPP
 
 // Task 0146 (slice 2, `[Game] neutral lip sync`): a Skyrim NPC's face head moves its mouth. The facegen head of an NPC
-// is a BSDynamicTriShape whose vertex count equals the race head's `.tri` morph file (996 for the female and 898 for the
-// male Nord-like heads in the data, docs/tasks/0146-skyrim-lip-sync.md 2.2). HeadMorph keeps the head's own vertices as
-// the base and writes base + weighted morph deltas into the shape's vertex array, uploaded (VSG dirty) only when the
-// weights change. The other shapes of the head (teeth, tongue, eyes, brows) are not touched in this slice.
+// is a BSDynamicTriShape whose vertex count equals the race head's `.tri` morph file (996 for the female and 898 for
+// the male Nord-like heads in the data, docs/tasks/0146-skyrim-lip-sync.md 2.2). HeadMorph keeps the head's own
+// vertices as the base and writes base + weighted morph deltas into the shape's vertex array, uploaded (VSG dirty) only
+// when the weights change. The other shapes of the head (teeth, tongue, eyes, brows) are not touched in this slice.
 //
-// Threads: main thread (the array is also read by the render thread's transfer; VSG's dirty/transfer protocol covers it).
-// No allocation after construction.
+// Threads: main thread (the array is also read by the render thread's transfer; VSG's dirty/transfer protocol covers
+// it). No allocation after construction.
 
 #include <array>
 #include <cstdint>

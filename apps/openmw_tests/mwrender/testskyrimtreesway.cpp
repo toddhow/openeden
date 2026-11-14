@@ -5,12 +5,12 @@
 #include <apps/openmw/mwrender/skyrimtreesway.hpp>
 #include <components/lod/clustersway.hpp>
 #include <components/nif/niffile.hpp>
-#include <components/pipeline/builder.hpp>
 #include <components/pipeline/bindings.hpp>
+#include <components/pipeline/builder.hpp>
 #include <components/pipeline/sets.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/vsgutil/shaderpermutation.hpp>
 #include <components/vsgadapters/nif/nif.hpp>
+#include <components/vsgutil/shaderpermutation.hpp>
 
 #include <gtest/gtest.h>
 
@@ -64,7 +64,8 @@ namespace
         int draws = 0;
         std::vector<vsg::ref_ptr<vsg::vec4Array>> colourArrays;
         std::set<std::string> defines; // the GLSL defines of every stage of every pipeline bound
-        std::vector<vsg::ref_ptr<vsg::Data>> uniformData; // the data of every uniform buffer descriptor at TEXMAT_BINDING
+        std::vector<vsg::ref_ptr<vsg::Data>>
+            uniformData; // the data of every uniform buffer descriptor at TEXMAT_BINDING
         void apply(vsg::Object& object) override { object.traverse(*this); }
         void apply(vsg::BindGraphicsPipeline& bind) override
         {
@@ -127,9 +128,8 @@ namespace
 
     struct TreeSwayBuildTest : ::testing::Test
     {
-        vsg::ref_ptr<const vsg::Options> mShaderOptions
-            = Resource::createShaderOptions(
-                (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
+        vsg::ref_ptr<const vsg::Options> mShaderOptions = Resource::createShaderOptions(
+            (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
         vsg::ref_ptr<vsgAdapters::nif> mReader
             = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, vsg::Options::create(), 0, 0) };
@@ -185,7 +185,8 @@ TEST(SkyrimTreeSwayWeight, the_shader_squares_it_back_to_height_times_alpha_squa
         {
             const float decoded = Lod::swayDecodeWeight(Sway::weightByte(alpha, height));
             const float wanted = height * alpha * alpha;
-            // one byte step of the square root: at most 2 * sqrt(wanted * scale) / 255 * ... keep it simple: 3 percent + 8
+            // one byte step of the square root: at most 2 * sqrt(wanted * scale) / 255 * ... keep it simple: 3 percent
+            // + 8
             EXPECT_NEAR(decoded, wanted, 0.03f * wanted + 8.f) << height << " " << alpha;
         }
 }

@@ -35,7 +35,8 @@ namespace face_editor
             const auto size = fs::file_size(path, ec);
             if (ec || size > kMaxConfigBytes)
             {
-                error = path.generic_string() + ": cannot read the file" + (ec ? " (" + ec.message() + ")" : " (too large)");
+                error = path.generic_string() + ": cannot read the file"
+                    + (ec ? " (" + ec.message() + ")" : " (too large)");
                 return false;
             }
             std::ifstream in(path, std::ios::binary);
@@ -61,7 +62,8 @@ namespace face_editor
             double numPoses = 0;
             if (!readNumber(p, "numPoses", numPoses, why) || static_cast<std::size_t>(numPoses) != poses)
             {
-                error = path.generic_string() + ": numPoses is " + (why.empty() ? std::to_string(static_cast<long long>(numPoses)) : "missing")
+                error = path.generic_string() + ": numPoses is "
+                    + (why.empty() ? std::to_string(static_cast<long long>(numPoses)) : "missing")
                     + " but the poses file has " + std::to_string(poses);
                 return false;
             }
@@ -161,7 +163,8 @@ namespace face_editor
                 return false;
             if (pose.size() != set.mVertexCount * 3)
             {
-                error = (folder / npzName).generic_string() + ": pose " + set.mNames[p] + " has another size than neutral";
+                error = (folder / npzName).generic_string() + ": pose " + set.mNames[p]
+                    + " has another size than neutral";
                 return false;
             }
             for (std::size_t m = 0; m < set.mMask.size(); ++m)

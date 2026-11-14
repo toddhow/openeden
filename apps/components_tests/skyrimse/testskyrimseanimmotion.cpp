@@ -19,16 +19,18 @@ namespace
     constexpr double kPi = 3.14159265358979323846;
 
     // The shape of defaultmale.txt around two clips (names, numbers, the "1 0 0" and an event list), plus noise lines.
-    const std::string kProject = "Chair_FrontEnterVar1\n469\n1\n0\n0\n2\nSoundPlay:0\nChairIdle:2.63333\n\n"
-                                 "Chair_LeftEnter\n478\n1\n0\n0\n2\nSoundPlay:0\nChairIdle:1.56667\n\n"
-                                 "42\n43\n1\n0\n0\n";
+    const std::string kProject
+        = "Chair_FrontEnterVar1\n469\n1\n0\n0\n2\nSoundPlay:0\nChairIdle:2.63333\n\n"
+          "Chair_LeftEnter\n478\n1\n0\n0\n2\nSoundPlay:0\nChairIdle:1.56667\n\n"
+          "42\n43\n1\n0\n0\n";
 
     // The shape of anims_defaultmale.txt: number, duration, translation rows (t x y z), rotation rows (t qx qy qz qw).
-    const std::string kBound = "2\n"
-                               "469\n2.83333\n3\n0.5 -9 10 0\n1.5 -3 40 0\n2.83333 0 63.5 0\n"
-                               "2\n0 0 0 0 1\n2.83333 0 0 -1 0.000746564\n"
-                               "478\n1.76667\n2\n0.8 0 20 0\n1.76667 0 52 0\n"
-                               "2\n0 0 0 0 1\n1.76667 0 0 0.707107 0.707107\n";
+    const std::string kBound
+        = "2\n"
+          "469\n2.83333\n3\n0.5 -9 10 0\n1.5 -3 40 0\n2.83333 0 63.5 0\n"
+          "2\n0 0 0 0 1\n2.83333 0 0 -1 0.000746564\n"
+          "478\n1.76667\n2\n0.8 0 20 0\n1.76667 0 52 0\n"
+          "2\n0 0 0 0 1\n1.76667 0 0 0.707107 0.707107\n";
 
     TEST(SkyrimAnimMotion, clipNumbersComeFromTheNameLineBeforeTheNumber)
     {
@@ -48,7 +50,8 @@ namespace
         ASSERT_EQ(m.mTranslation.size(), 3u);
         EXPECT_NEAR(m.mTranslation[2].mY, 63.5, 1e-4);
         ASSERT_EQ(m.mRotation.size(), 2u);
-        EXPECT_NEAR(std::abs(m.mRotation[1].mYaw), kPi, 2e-3); // a half turn (the sign of an exact half turn is ambiguous)
+        EXPECT_NEAR(
+            std::abs(m.mRotation[1].mYaw), kPi, 2e-3); // a half turn (the sign of an exact half turn is ambiguous)
         ASSERT_EQ(blocks.count(478), 1u);
         EXPECT_NEAR(blocks.at(478).mRotation[1].mYaw, kPi / 2, 1e-4);
     }
@@ -66,7 +69,8 @@ namespace
         EXPECT_NEAR(y, 10, 1e-4);
         m.sample(1.28333f, x, y, yaw); // half way between the rows
         EXPECT_NEAR(y, 36, 1e-3);
-        EXPECT_NEAR(yaw, (kPi / 2) * (1.28333 / 1.76667), 1e-3); // the turn rows are 0 at t = 0 and a quarter circle at the end
+        EXPECT_NEAR(
+            yaw, (kPi / 2) * (1.28333 / 1.76667), 1e-3); // the turn rows are 0 at t = 0 and a quarter circle at the end
         m.sample(100.f, x, y, yaw);
         EXPECT_NEAR(y, 52, 1e-4);
         EXPECT_NEAR(yaw, kPi / 2, 1e-4);
@@ -89,8 +93,8 @@ namespace
         double z1, w1, z2, w2;
         q(a, z1, w1);
         q(b, z2, w2);
-        const std::string text = "7\n1\n1\n1 0 5 0\n3\n0 0 0 0 1\n1 0 0 " + std::to_string(z1) + " " + std::to_string(w1) + "\n2 0 0 "
-            + std::to_string(z2) + " " + std::to_string(w2) + "\n";
+        const std::string text = "7\n1\n1\n1 0 5 0\n3\n0 0 0 0 1\n1 0 0 " + std::to_string(z1) + " "
+            + std::to_string(w1) + "\n2 0 0 " + std::to_string(z2) + " " + std::to_string(w2) + "\n";
         const auto blocks = parseMotionBlocks(text);
         ASSERT_EQ(blocks.count(7), 1u);
         const ClipMotion& m = blocks.at(7);
@@ -138,7 +142,8 @@ namespace
         EXPECT_EQ(act({ "FollowTo", "Travel" }), PackageActivity::Follow);
         EXPECT_EQ(act({ "Escort", "Travel" }), PackageActivity::Escort);
         EXPECT_EQ(act({ "Travel", "UnlockDoors", "Sandbox" }), PackageActivity::None);
-        EXPECT_EQ(act({ "Patrol", "Follow", "Sandbox", "Guard" }), PackageActivity::None); // a sandbox package sandboxes
+        EXPECT_EQ(
+            act({ "Patrol", "Follow", "Sandbox", "Guard" }), PackageActivity::None); // a sandbox package sandboxes
         EXPECT_EQ(act({ "Patrol", "Sleep" }), PackageActivity::None);
         EXPECT_EQ(act({ "HoldPosition" }), PackageActivity::None);
         EXPECT_EQ(act({}), PackageActivity::None);

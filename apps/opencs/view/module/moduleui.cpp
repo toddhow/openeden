@@ -8,20 +8,20 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
-#include <QLabel>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMetaObject>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QUndoCommand>
+#include <QVBoxLayout>
 #include <QWidget>
 
 #include <components/debug/debuglog.hpp>

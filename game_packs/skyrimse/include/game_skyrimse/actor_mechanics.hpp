@@ -13,13 +13,15 @@
 //  * the per-level gain is health 5 + 10 * hw / (hw + mw + sw), magicka 10 * mw / sum, stamina 10 * sw / sum, with the
 //    class weights at CLAS DATA 32, 33, 34 (fits every class in the installed data, e.g. weights 3 0 2 give 11 0 4,
 //    1 1 1 give 8.33 3.33 3.33, 2 4 0 give 8.33 6.67 0);
-//  * for an NPC that scales with the player (ACBS flag 0x80, "level" = multiplier times 1000) the stored totals are those
+//  * for an NPC that scales with the player (ACBS flag 0x80, "level" = multiplier times 1000) the stored totals are
+//  those
 //    of its calc minimum level (369 of 375 within 1 point; the six misses all have calc min 0), so other levels add the
 //    gain for the difference;
-//  * the skill bytes (DNAM 0 to 17) are final values (the sum is never 0), the skill offsets (18 to 35) are non-zero in 22
+//  * the skill bytes (DNAM 0 to 17) are final values (the sum is never 0), the skill offsets (18 to 35) are non-zero in
+//  22
 //    of 6,362 NPCs and are not used.
-// RECALLED-VERIFY: the meaning of each ACBS flag bit (names from UESP / xEdit), the aggression levels, and the rule that
-// turns relation plus aggression into "hostile on sight".
+// RECALLED-VERIFY: the meaning of each ACBS flag bit (names from UESP / xEdit), the aggression levels, and the rule
+// that turns relation plus aggression into "hostile on sight".
 
 #include "game_skyrimse/actors.hpp"
 
@@ -68,8 +70,8 @@ namespace game_skyrimse
 
     /// How the factions of `a` feel about those of `b`: Enemy if any pair is enemies in either direction, else Ally if
     /// any pair is allies or shares a faction, else Friend if any pair is friends, else Neutral.
-    [[nodiscard]] openeden::sdk::game::ActorRelation relationOfFactions(const ActorIndex& index,
-        const std::vector<FactionMembership>& a, const std::vector<FactionMembership>& b);
+    [[nodiscard]] openeden::sdk::game::ActorRelation relationOfFactions(
+        const ActorIndex& index, const std::vector<FactionMembership>& a, const std::vector<FactionMembership>& b);
 
     /// The pack's rule: Unaggressive never; Aggressive attacks an enemy; VeryAggressive an enemy or a neutral; Frenzied
     /// anyone.

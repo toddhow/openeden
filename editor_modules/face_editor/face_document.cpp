@@ -276,8 +276,8 @@ namespace face_editor
                 bool mWasEdited = false;
             };
 
-            GeneratedCommand(Impl& owner, std::vector<Change> changes, std::vector<ChannelState> added,
-                const GeneratedMeta& meta)
+            GeneratedCommand(
+                Impl& owner, std::vector<Change> changes, std::vector<ChannelState> added, const GeneratedMeta& meta)
                 : mOwner(owner)
                 , mChanges(std::move(changes))
                 , mAdded(std::move(added))
@@ -741,15 +741,14 @@ namespace face_editor
             changes.push_back(std::move(change));
             wroteNames.push_back(state.mInfo.id);
         }
-        // Slice 3 (toddhow 2026-11-12, "sure"): a pose without a channel becomes a channel, in the same step. A name the
-        // format would refuse, one the file already has (a signed channel of that name is left alone) and anything past
-        // the channel limit is reported as skipped.
+        // Slice 3 (toddhow 2026-11-12, "sure"): a pose without a channel becomes a channel, in the same step. A name
+        // the format would refuse, one the file already has (a signed channel of that name is left alone) and anything
+        // past the channel limit is reported as skipped.
         auto validName = [](const std::string& name) {
             if (name.empty() || name.size() > 64)
                 return false;
-            return std::all_of(name.begin(), name.end(), [](char c) {
-                return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.';
-            });
+            return std::all_of(name.begin(), name.end(),
+                [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '.'; });
         };
         for (std::size_t p = 0; p < weights.mNames.size(); ++p)
         {

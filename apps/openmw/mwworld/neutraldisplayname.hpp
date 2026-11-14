@@ -12,11 +12,11 @@
 
 namespace MWWorld
 {
-    /// Task 0150: the name the player sees for a neutral object (tooltip, activation caption). The pack gives it through
-    /// the optional DisplayNameSource of its registered world source; without one, or when the base has no name, it is
-    /// the editor id as before. The answer is cached by (game, base) because `Class::getName` returns a view and is
-    /// asked every frame while a tooltip is up; cached strings never move (node based map, entries are only added).
-    /// Owned by the process (one static in MWClass::Neutral); safe from any thread.
+    /// Task 0150: the name the player sees for a neutral object (tooltip, activation caption). The pack gives it
+    /// through the optional DisplayNameSource of its registered world source; without one, or when the base has no
+    /// name, it is the editor id as before. The answer is cached by (game, base) because `Class::getName` returns a
+    /// view and is asked every frame while a tooltip is up; cached strings never move (node based map, entries are only
+    /// added). Owned by the process (one static in MWClass::Neutral); safe from any thread.
     class NeutralDisplayNames
     {
     public:

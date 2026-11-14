@@ -42,7 +42,8 @@ namespace
         /// A package file with the entry "bin/x64-win/DirectML.dll" holding \a dll (and a licence next to it).
         DirectMlPackage makePackage(const std::string& dll, bool deflate = true, const char* entry = kEntry)
         {
-            const std::string zip = ziphelper::makeZip({ { "LICENSE.txt", "licence text", false }, { entry, dll, deflate } });
+            const std::string zip
+                = ziphelper::makeZip({ { "LICENSE.txt", "licence text", false }, { entry, dll, deflate } });
             return packageFor(zip);
         }
 
@@ -85,10 +86,14 @@ namespace
         const DirectMlPackage p = f.makePackage(dll);
         std::vector<double> fractions;
         std::string error;
-        ASSERT_TRUE(installDirectMl(p, f.mDest, [&](double fr, std::string_view) {
-            fractions.push_back(fr);
-            return true;
-        }, error)) << error;
+        ASSERT_TRUE(installDirectMl(
+            p, f.mDest,
+            [&](double fr, std::string_view) {
+                fractions.push_back(fr);
+                return true;
+            },
+            error))
+            << error;
         EXPECT_EQ(f.destFiles(), (std::set<std::string>{ "DirectML.dll" }));
         EXPECT_EQ(readAll(f.mDest / "DirectML.dll"), dll);
         ASSERT_FALSE(fractions.empty());
@@ -134,7 +139,8 @@ namespace
         Fixture f("trunc");
         DirectMlPackage p = f.makePackage("MZ" + ziphelper::noise(200000, 6));
         const std::string whole = readAll(f.mRoot / "package.nupkg");
-        ziphelper::writeFile(f.mRoot / "package.nupkg", whole.substr(0, whole.size() / 2)); // hash and size stay the full ones
+        ziphelper::writeFile(
+            f.mRoot / "package.nupkg", whole.substr(0, whole.size() / 2)); // hash and size stay the full ones
         std::string error;
         EXPECT_FALSE(installDirectMl(p, f.mDest, {}, error));
         EXPECT_NE(error.find("ended"), std::string::npos) << error;
@@ -155,7 +161,8 @@ namespace
     TEST(DirectMlInstall, anArchiveWithoutTheDllIsRefusedEvenWithTheRightHash)
     {
         Fixture f("nodll");
-        const DirectMlPackage p = f.packageFor(ziphelper::makeZip({ { "LICENSE.txt", "x", false }, { "bin/x86-win/DirectML.dll", "MZ", false } }));
+        const DirectMlPackage p = f.packageFor(
+            ziphelper::makeZip({ { "LICENSE.txt", "x", false }, { "bin/x86-win/DirectML.dll", "MZ", false } }));
         std::string error;
         EXPECT_FALSE(installDirectMl(p, f.mDest, {}, error));
         EXPECT_NE(error.find("DirectML.dll"), std::string::npos) << error;
@@ -187,7 +194,8 @@ namespace
         const DirectMlPackage p = f.makePackage("MZ" + ziphelper::noise(6 << 20, 8), false);
         int calls = 0;
         std::string error;
-        EXPECT_FALSE(installDirectMl(p, f.mDest, [&](double, std::string_view) { return ++calls < 3; }, error));
+        EXPECT_FALSE(installDirectMl(
+            p, f.mDest, [&](double, std::string_view) { return ++calls < 3; }, error));
         EXPECT_EQ(error, "cancelled");
         EXPECT_GE(calls, 3);
         EXPECT_TRUE(f.destFiles().empty());
@@ -225,8 +233,9 @@ namespace
     {
         Fixture f("scheme");
         DirectMlPackage p = f.makePackage("MZ");
-        for (const char* url : { "ftp://example.com/p.nupkg", "http://example.com/p.nupkg", "http://127.0.0.1.evil.example/p.nupkg",
-                 "\\\\server\\share\\p.nupkg", "C:\\p.nupkg", "", "javascript:alert(1)" })
+        for (const char* url :
+            { "ftp://example.com/p.nupkg", "http://example.com/p.nupkg", "http://127.0.0.1.evil.example/p.nupkg",
+                "\\\\server\\share\\p.nupkg", "C:\\p.nupkg", "", "javascript:alert(1)" })
         {
             p.mUrl = url;
             std::string error;
@@ -261,7 +270,8 @@ namespace
         EXPECT_EQ(p.mVersion, "1.15.4");
         EXPECT_EQ(p.mUrl, "https://www.nuget.org/api/v2/package/Microsoft.AI.DirectML/1.15.4");
         EXPECT_EQ(p.mSha512,
-            "fde767f56904abc90fd53f65d8729c918ab7f6e3c5e1ecdd479908fc02b4535cf2b0860f7ab2acb9b731d6cb809b72c3d5d4d02853fb8f"
+            "fde767f56904abc90fd53f65d8729c918ab7f6e3c5e1ecdd479908fc02b4535cf2b0860f7ab2acb9b731d6cb809b72c3d5d4d02853"
+            "fb8f"
             "5ea022a47bc44ef285");
         EXPECT_EQ(p.mSize, 202292617u);
         EXPECT_EQ(p.mEntry, kEntry);
@@ -293,10 +303,14 @@ namespace
         p.mUrl = "file:///" + fs::path(path).generic_string();
         std::vector<double> fractions;
         std::string error;
-        ASSERT_TRUE(installDirectMl(p, f.mDest, [&](double fr, std::string_view) {
-            fractions.push_back(fr);
-            return true;
-        }, error)) << error;
+        ASSERT_TRUE(installDirectMl(
+            p, f.mDest,
+            [&](double fr, std::string_view) {
+                fractions.push_back(fr);
+                return true;
+            },
+            error))
+            << error;
         EXPECT_EQ(f.destFiles(), (std::set<std::string>{ "DirectML.dll" }));
         EXPECT_GT(fs::file_size(f.mDest / "DirectML.dll"), 10u << 20);
         EXPECT_GT(fractions.size(), 20u);

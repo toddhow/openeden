@@ -53,8 +53,8 @@ namespace MWRender::GltfClips
 
         vsg::quat toVsg(const opas::math::Quat& q)
         {
-            return vsg::quat(static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z),
-                static_cast<float>(q.w));
+            return vsg::quat(
+                static_cast<float>(q.x), static_cast<float>(q.y), static_cast<float>(q.z), static_cast<float>(q.w));
         }
 
         vsg::vec3 toUnits(const opas::math::Vec3& v, double unitsPerMeter)
@@ -77,8 +77,8 @@ namespace MWRender::GltfClips
         }
     }
 
-    std::optional<Source> parse(std::span<const std::byte> glb, std::string_view glbName,
-        std::string_view profileText, std::string_view profileName, std::string& error)
+    std::optional<Source> parse(std::span<const std::byte> glb, std::string_view glbName, std::string_view profileText,
+        std::string_view profileName, std::string& error)
     {
         Source source;
         opas::anim::GltfReadOptions options;
@@ -136,8 +136,8 @@ namespace MWRender::GltfClips
                 continue;
             std::string bindError;
             // ClipBinding refuses a target whose bones above the clip's root bone have a rotating rest (Morrowind's
-            // Bip01 does). Those bones are only neutralised for the binding, which supplies timing, root yaw removal and
-            // root motion; the pose itself is transferred below from the real rests.
+            // Bip01 does). Those bones are only neutralised for the binding, which supplies timing, root yaw removal
+            // and root motion; the pose itself is transferred below from the real rests.
             opas::rig::Skeleton bindSkeleton = skeleton;
             for (const auto& mapping : profile.bones)
             {
@@ -152,7 +152,8 @@ namespace MWRender::GltfClips
                 for (int up = skeleton.bones[static_cast<std::size_t>(top->second)].parent; up >= 0;
                      up = skeleton.bones[static_cast<std::size_t>(up)].parent)
                 {
-                    above = opas::math::normalized(skeleton.bones[static_cast<std::size_t>(up)].localRest.rotation * above);
+                    above = opas::math::normalized(
+                        skeleton.bones[static_cast<std::size_t>(up)].localRest.rotation * above);
                     bindSkeleton.bones[static_cast<std::size_t>(up)].localRest.rotation = Quat{};
                 }
                 opas::math::Transform& rootRest = bindSkeleton.bones[static_cast<std::size_t>(top->second)].localRest;
@@ -235,13 +236,15 @@ namespace MWRender::GltfClips
                     else if (bone.parent < 0)
                         world = worldRest;
                     else
-                        world = opas::math::normalized(targetWorld[static_cast<std::size_t>(bone.parent)] * bone.localRest.rotation);
+                        world = opas::math::normalized(
+                            targetWorld[static_cast<std::size_t>(bone.parent)] * bone.localRest.rotation);
                     targetWorld[i] = world;
                     if (s < 0)
                         continue;
                     Quat local = bone.parent < 0
                         ? world
-                        : opas::math::normalized(opas::math::conjugate(targetWorld[static_cast<std::size_t>(bone.parent)]) * world);
+                        : opas::math::normalized(
+                            opas::math::conjugate(targetWorld[static_cast<std::size_t>(bone.parent)]) * world);
                     // Keep neighbouring keys in one hemisphere so the interpolation takes the short way.
                     const auto previous = lastRotation.find(static_cast<int>(i));
                     if (previous != lastRotation.end() && opas::math::dot(previous->second, local) < 0.0)
@@ -251,13 +254,15 @@ namespace MWRender::GltfClips
                     keys.mRotations[time] = toVsg(local);
                     if (static_cast<int>(i) == rootTarget)
                     {
-                        // The binding's translation is a model-space vector (its Bip01 is neutralised): express it relative to and in the
-                        // frame of the bone's parent, which may be rotated in the real skeleton.
-                        opas::math::Vec3 inModel{ -pose[i].translation.x, -pose[i].translation.y, pose[i].translation.z };
+                        // The binding's translation is a model-space vector (its Bip01 is neutralised): express it
+                        // relative to and in the frame of the bone's parent, which may be rotated in the real skeleton.
+                        opas::math::Vec3 inModel{ -pose[i].translation.x, -pose[i].translation.y,
+                            pose[i].translation.z };
                         if (bone.parent >= 0)
                         {
                             // The binding's height is the pelvis's world height (the real skeleton hangs it from the
-                            // translations of the bones above it: its own rest offset is zero), so those come off first.
+                            // translations of the bones above it: its own rest offset is zero), so those come off
+                            // first.
                             inModel = inModel - targetWorldRest[static_cast<std::size_t>(bone.parent)].translation;
                             inModel = opas::math::rotate(
                                 opas::math::conjugate(targetWorld[static_cast<std::size_t>(bone.parent)]), inModel);
@@ -270,9 +275,10 @@ namespace MWRender::GltfClips
                 if (accumRoot >= 0)
                 {
                     const opas::anim::RootMotionDelta motion = binding->rootMotion(0.0, t, opas::anim::TimeMode::Clamp);
-                    const opas::math::Vec3 rest = skeleton.bones[static_cast<std::size_t>(accumRoot)].localRest.translation;
-                    keysByBone[accumRoot].mTranslations[time]
-                        = toUnits({ rest.x - motion.translationM.x, rest.y - motion.translationM.y, rest.z }, unitsPerMeter);
+                    const opas::math::Vec3 rest
+                        = skeleton.bones[static_cast<std::size_t>(accumRoot)].localRest.translation;
+                    keysByBone[accumRoot].mTranslations[time] = toUnits(
+                        { rest.x - motion.translationM.x, rest.y - motion.translationM.y, rest.z }, unitsPerMeter);
                 }
             }
 
@@ -326,7 +332,8 @@ namespace MWRender::GltfClips
                     const std::string profile = context.readFile(std::string(sProfileFile));
                     if (clips.empty() || profile.empty())
                         error = "animations/humanoid-locomotion.glb or its skeleton profile is not in the VFS";
-                    else if (auto parsed = parse(std::as_bytes(std::span(clips)), sClipFile, profile, sProfileFile, error))
+                    else if (auto parsed
+                        = parse(std::as_bytes(std::span(clips)), sClipFile, profile, sProfileFile, error))
                         sSource = std::make_shared<const Source>(std::move(*parsed));
                 }
                 catch (const std::exception& e)

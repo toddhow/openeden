@@ -52,8 +52,8 @@ namespace game_skyrimse::survey
 
         std::string versionText(std::uint32_t v)
         {
-            return std::to_string(v >> 24) + "." + std::to_string((v >> 16) & 0xFF) + "." + std::to_string((v >> 8) & 0xFF)
-                + "." + std::to_string(v & 0xFF);
+            return std::to_string(v >> 24) + "." + std::to_string((v >> 16) & 0xFF) + "."
+                + std::to_string((v >> 8) & 0xFF) + "." + std::to_string(v & 0xFF);
         }
     }
 

@@ -46,8 +46,8 @@ namespace
         return t;
     }
 
-    std::vector<double> solveOnce(const BlendshapeSet& s, const std::vector<float>& target,
-        std::vector<double> prev = {})
+    std::vector<double> solveOnce(
+        const BlendshapeSet& s, const std::vector<float>& target, std::vector<double> prev = {})
     {
         BlendshapeSolver solver(s);
         prev.resize(solver.poseCount(), 0.0);
@@ -215,14 +215,15 @@ namespace
         b[3 * 3 + 0] = -2.f; // vertex 3 x
         f.push_back({ "a", { 5, 3 }, a });
         f.push_back({ "b", { 5, 3 }, b });
-        const std::string bytes = buildNpz(f,
-            { { "frontalMask", { 2 }, { 1, badMask ? 9 : 3 } } }, { { "poseNames", { "neutral", "a", "b" } } });
+        const std::string bytes = buildNpz(
+            f, { { "frontalMask", { 2 }, { 1, badMask ? 9 : 3 } } }, { { "poseNames", { "neutral", "a", "b" } } });
         std::ofstream(dir / "bs.npz", std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-        const std::string json = breakConfig ? "{\"blendshape_params\": {\"numPoses\": 7}}"
-                                             : "{\"blendshape_params\": {\"strengthL2regularization\": 0.5, "
-                                               "\"strengthTemporalSmoothing\": 0.3, \"strengthL1regularization\": 0.25, "
-                                               "\"strengthSymmetry\": 100.0, \"numPoses\": 2, "
-                                               "\"bsSolveActivePoses\": [1, 0], \"bsSolveSymmetryPoses\": [-1, 3]}}";
+        const std::string json = breakConfig
+            ? "{\"blendshape_params\": {\"numPoses\": 7}}"
+            : "{\"blendshape_params\": {\"strengthL2regularization\": 0.5, "
+              "\"strengthTemporalSmoothing\": 0.3, \"strengthL1regularization\": 0.25, "
+              "\"strengthSymmetry\": 100.0, \"numPoses\": 2, "
+              "\"bsSolveActivePoses\": [1, 0], \"bsSolveSymmetryPoses\": [-1, 3]}}";
         std::ofstream(dir / "bs.json", std::ios::binary) << json;
         return dir;
     }
@@ -269,7 +270,8 @@ namespace
     {
         BlendshapeSet s;
         std::string error;
-        EXPECT_FALSE(loadBlendshapeSet(fs::temp_directory_path() / "oe_a2f_nonexistent", "bs.npz", "bs.json", s, error));
+        EXPECT_FALSE(
+            loadBlendshapeSet(fs::temp_directory_path() / "oe_a2f_nonexistent", "bs.npz", "bs.json", s, error));
         EXPECT_FALSE(error.empty());
     }
 }

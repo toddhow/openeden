@@ -173,8 +173,8 @@ TEST_F(AnimatedChunkTest, the_budget_limits_the_controllers_per_frame_over_all_c
     for (unsigned f = 0; f < 20; ++f)
     {
         Lod::AnimBudget budget{ 20, 20 };
-        const unsigned ran = a->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget)
-            + b->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget);
+        const unsigned ran
+            = a->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget) + b->update({ 0, 0, 0 }, 0.01, 1000.f, f, budget);
         EXPECT_LE(ran, 20u);
         EXPECT_GT(ran, 0u);
     }
@@ -310,7 +310,8 @@ TEST_F(AnimatedChunkTest, an_object_far_across_the_plane_still_stops_whatever_th
 }
 
 // Task 0096 stage e: skinned objects (banners and flags). The skin controllers run after the object's own controllers,
-// every time the object runs, are part of its cost, and the model the skin's bones belong to lives as long as the chunk.
+// every time the object runs, are part of its cost, and the model the skin's bones belong to lives as long as the
+// chunk.
 namespace
 {
     std::vector<int>* sOrder = nullptr;

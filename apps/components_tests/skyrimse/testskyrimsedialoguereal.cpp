@@ -147,9 +147,9 @@ namespace
             std::cout << "SKYRIMSE-DIALOGUE odd " << k << " " << v << "\n";
         std::cout << "SKYRIMSE-DIALOGUE merged topics " << topics << " with infos " << withInfos << " infos "
                   << dialogue.infoCount() << " topics whose TIFC differs from the merged count " << ticMismatch << "\n";
-        std::cout << "SKYRIMSE-DIALOGUE response texts localised " << localisedTexts << " found in ILSTRINGS " << ilFound
-                  << " of " << ilChecked << "; prompts " << promptsChecked << " found in ILSTRINGS " << promptsInIl
-                  << " in STRINGS " << promptsInStrings << "\n";
+        std::cout << "SKYRIMSE-DIALOGUE response texts localised " << localisedTexts << " found in ILSTRINGS "
+                  << ilFound << " of " << ilChecked << "; prompts " << promptsChecked << " found in ILSTRINGS "
+                  << promptsInIl << " in STRINGS " << promptsInStrings << "\n";
         for (const char* sub : { "HELO", "GBYE", "CUST", "SCEN", "IDAT" })
             std::cout << "SKYRIMSE-DIALOGUE subtype " << sub << " topics " << bySubtype[sub] << "\n";
 
@@ -191,8 +191,8 @@ namespace
             maxPerTopic = std::max(maxPerTopic, uncertain);
         }
         std::cout << "SKYRIMSE-DIALOGUE hello topics with infos " << helloTopicsWithInfos << " infos " << helloInfos
-                  << " of which depend on a query the data cannot answer " << helloUncertain
-                  << " (most in one topic " << maxPerTopic << ")\n";
+                  << " of which depend on a query the data cannot answer " << helloUncertain << " (most in one topic "
+                  << maxPerTopic << ")\n";
         {
             std::vector<std::pair<std::uint64_t, std::uint16_t>> top;
             for (const auto& [f, n] : unansweredBy)

@@ -116,25 +116,26 @@ namespace
                 data = mBuffer;
             }
             std::set<std::string> seen;
-            static_cast<void>(game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
-                const std::string name = Content::fourCCToString(s.mType);
-                seen.insert(name);
-                if (name == "MODL")
-                    mModels->insert(normalise(std::string(reinterpret_cast<const char*>(s.mData.data()),
-                        strnlen(reinterpret_cast<const char*>(s.mData.data()), s.mData.size()))));
-                if (name == "CNAM")
-                {
-                    ++mCnamSizes[std::to_string(s.mData.size())];
-                    if (s.mData.size() == 48)
-                        for (int i = 0; i < 12; ++i)
-                        {
-                            float f;
-                            std::memcpy(&f, s.mData.data() + 4 * i, 4);
-                            if (std::isfinite(f))
-                                mCnam[i].add(f);
-                        }
-                }
-            }));
+            static_cast<void>(
+                game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
+                    const std::string name = Content::fourCCToString(s.mType);
+                    seen.insert(name);
+                    if (name == "MODL")
+                        mModels->insert(normalise(std::string(reinterpret_cast<const char*>(s.mData.data()),
+                            strnlen(reinterpret_cast<const char*>(s.mData.data()), s.mData.size()))));
+                    if (name == "CNAM")
+                    {
+                        ++mCnamSizes[std::to_string(s.mData.size())];
+                        if (s.mData.size() == 48)
+                            for (int i = 0; i < 12; ++i)
+                            {
+                                float f;
+                                std::memcpy(&f, s.mData.data() + 4 * i, 4);
+                                if (std::isfinite(f))
+                                    mCnam[i].add(f);
+                            }
+                    }
+                }));
             for (const std::string& n : seen)
                 ++mSubrecordCounts[n];
             return true;
@@ -263,7 +264,8 @@ namespace
                                 continue;
                             }
                             anyAnim = true;
-                            if (m.mTextureSet < scene.mTextureSets.size() && !scene.mTextureSets[m.mTextureSet].mTextures.empty())
+                            if (m.mTextureSet < scene.mTextureSets.size()
+                                && !scene.mTextureSets[m.mTextureSet].mTextures.empty())
                                 swayTextures.insert(lower(scene.mTextureSets[m.mTextureSet].mTextures[0]));
                             ++g.animShapes;
                             ++g.animShaderType[m.mShaderType];
@@ -325,7 +327,8 @@ namespace
                                 const double span = zmax - zmin;
                                 double rmax = 1e-9;
                                 for (const auto& pt : geo.mPositions)
-                                    rmax = std::max(rmax, std::hypot(static_cast<double>(pt[0]), static_cast<double>(pt[1])));
+                                    rmax = std::max(
+                                        rmax, std::hypot(static_cast<double>(pt[0]), static_cast<double>(pt[1])));
                                 for (std::size_t v = 0; v < geo.mPositions.size(); ++v)
                                 {
                                     const double a = geo.mColors[v][3];
@@ -373,7 +376,8 @@ namespace
                     continue;
                 const std::string stem = lower(it->path().filename().string());
                 bool wanted = false;
-                for (const char* prefix : { "skyrim - textures", "_resourcepack", "update", "dawnguard", "hearthfires", "dragonborn" })
+                for (const char* prefix :
+                    { "skyrim - textures", "_resourcepack", "update", "dawnguard", "hearthfires", "dragonborn" })
                     wanted = wanted || stem.rfind(prefix, 0) == 0;
                 if (!wanted)
                     continue;
@@ -406,8 +410,8 @@ namespace
                     ++missingRoots[n.substr(0, n.find('\\', 9))];
                 }
             }
-            line("Tree_Anim diffuse textures: " + std::to_string(swayTextures.size()) + " distinct, " + std::to_string(missing)
-                + " not in the five masters' texture archives");
+            line("Tree_Anim diffuse textures: " + std::to_string(swayTextures.size()) + " distinct, "
+                + std::to_string(missing) + " not in the five masters' texture archives");
             for (auto& [root, count] : missingRoots)
                 line("  missing under " + root + ": " + std::to_string(count));
         }
@@ -421,9 +425,9 @@ namespace
                 + " with-BSTreeNode " + std::to_string(g.withTreeNode) + " both " + std::to_string(g.treeNodeAndAnim));
             line(p + "shapes " + std::to_string(g.shapes) + " with-colours " + std::to_string(g.shapesWithColours)
                 + " Tree_Anim shapes " + std::to_string(g.animShapes) + " under-BSTreeNode "
-                + std::to_string(g.animShapesUnderTreeNode) + " with-colours "
-                + std::to_string(g.animShapesWithColours) + " skinned " + std::to_string(g.animShapesSkinned)
-                + " alpha-test " + std::to_string(g.animShapesAlphaTest));
+                + std::to_string(g.animShapesUnderTreeNode) + " with-colours " + std::to_string(g.animShapesWithColours)
+                + " skinned " + std::to_string(g.animShapesSkinned) + " alpha-test "
+                + std::to_string(g.animShapesAlphaTest));
             std::string types = p + "Tree_Anim shader types";
             for (auto& [t, c] : g.animShaderType)
                 types += " " + std::to_string(t) + ":" + std::to_string(c);
@@ -440,11 +444,12 @@ namespace
             line(f1);
             line(f2);
             line(p + "Tree_Anim vertices per shape " + g.animVerts.text());
-            line(p + "alpha min " + g.alphaMin.text() + " | max " + g.alphaMax.text() + " | mean " + g.alphaMean.text());
+            line(
+                p + "alpha min " + g.alphaMin.text() + " | max " + g.alphaMax.text() + " | mean " + g.alphaMean.text());
             line(p + "rgb means R " + g.redMean.text() + " G " + g.greenMean.text() + " B " + g.blueMean.text());
-            line(p + "alpha varies in " + std::to_string(g.shapesAlphaVaries) + " shapes, more than 8 distinct values in "
-                + std::to_string(g.distinctAlphaOver8) + "; vertices with alpha 1: " + std::to_string(g.alpha255)
-                + " of " + std::to_string(g.alphaVertices));
+            line(p + "alpha varies in " + std::to_string(g.shapesAlphaVaries)
+                + " shapes, more than 8 distinct values in " + std::to_string(g.distinctAlphaOver8)
+                + "; vertices with alpha 1: " + std::to_string(g.alpha255) + " of " + std::to_string(g.alphaVertices));
             line(p + "correlation of alpha with: radius " + g.aRadius.text() + " radius (unskinned) "
                 + g.aRadiusStatic.text() + " R " + g.aR.text() + " G " + g.aG.text() + " B " + g.aB.text());
             {

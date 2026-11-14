@@ -18,8 +18,8 @@ namespace MWPhysics::NeutralPlaneLinks
             float mZ = 0.f;
         };
 
-        // The floor a walker stands on at (x, y) for a wall whose foot is at zLow: a ray from kFloorReach above the foot,
-        // reaching kFloorReach below it, on a surface level enough to walk on.
+        // The floor a walker stands on at (x, y) for a wall whose foot is at zLow: a ray from kFloorReach above the
+        // foot, reaching kFloorReach below it, on a surface level enough to walk on.
         Floor floorAt(const World& world, float x, float y, float zLow)
         {
             Floor result;
@@ -53,7 +53,8 @@ namespace MWPhysics::NeutralPlaneLinks
                 [&](const Link& have) { return near(have.mFrom, link.mFrom) && near(have.mTo, link.mTo); });
         }
 
-        // Lowest height of the triangle on the vertical plane at position `s` along the wall; false if it does not reach it.
+        // Lowest height of the triangle on the vertical plane at position `s` along the wall; false if it does not
+        // reach it.
         bool lowestAt(const Triangle& t, const float (&along)[3], float s, float& zLow)
         {
             bool found = false;
@@ -94,8 +95,7 @@ namespace MWPhysics::NeutralPlaneLinks
                 continue;
             const vsg::vec3 e1 = t.mV[1] - t.mV[0];
             const vsg::vec3 e2 = t.mV[2] - t.mV[0];
-            const vsg::vec3 n(
-                e1.y * e2.z - e1.z * e2.y, e1.z * e2.x - e1.x * e2.z, e1.x * e2.y - e1.y * e2.x);
+            const vsg::vec3 n(e1.y * e2.z - e1.z * e2.y, e1.z * e2.x - e1.x * e2.z, e1.x * e2.y - e1.y * e2.x);
             const float length = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
             const float horizontal = std::sqrt(n.x * n.x + n.y * n.y);
             if (!(length > 1e-6f) || !(horizontal > 1e-6f) || std::fabs(n.z) / length >= kWallMaxNormalZ)

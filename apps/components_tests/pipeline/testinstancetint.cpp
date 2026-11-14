@@ -63,8 +63,7 @@ namespace
         EXPECT_TRUE(contains(attributes, "INSTANCE_TINT_LOCATION"));
         EXPECT_TRUE(contains(attributes, "inInstanceTint"));
         const std::string vert = readSource("default/default.vert.slang");
-        EXPECT_TRUE(
-            contains(vert, "groundcoverTiltRotation(input.inInstanceRotation.xy, input.inInstanceRotation.z)"));
+        EXPECT_TRUE(contains(vert, "groundcoverTiltRotation(input.inInstanceRotation.xy, input.inInstanceRotation.z)"));
         EXPECT_TRUE(contains(vert, "output.io.color.rgb *= input.inInstanceTint.rgb"));
         EXPECT_TRUE(contains(vert, "scene.time * input.inInstanceTint.w"));
         EXPECT_TRUE(contains(readSource("lib/groundcover.slang"), "groundcoverTiltRotation"));

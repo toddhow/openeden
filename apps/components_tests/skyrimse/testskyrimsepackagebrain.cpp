@@ -366,8 +366,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 500, 600, 70 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -391,8 +391,8 @@ namespace
     TEST(SkyrimPackageBrain, travelWithTheActorAlreadyThereAsksForNothing)
     {
         Rig rig;
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -403,10 +403,10 @@ namespace
     TEST(SkyrimPackageBrain, anUnplaceableLocationFallsBackToTheHomeAndIsCounted)
     {
         Rig rig;
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, 0x777, 64), PackageBehavior::Travel);
-        const PackageRecord* alias
-            = rig.add(withLocation(makePackage(2), PackageLocationType::AliasReference, 3, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, 0x777, 64), PackageBehavior::Travel);
+        const PackageRecord* alias = rig.add(
+            withLocation(makePackage(2), PackageLocationType::AliasReference, 3, 64), PackageBehavior::Travel);
         rig.finish({ p, alias });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -433,8 +433,9 @@ namespace
     TEST(SkyrimPackageBrain, anAbsurdRadiusIsCut)
     {
         Rig rig;
-        const PackageRecord* p = rig.add(
-            withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 2000000000), PackageBehavior::Sandbox);
+        const PackageRecord* p
+            = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 2000000000),
+                PackageBehavior::Sandbox);
         const PackageRecord* n = rig.add(
             withLocation(makePackage(2), PackageLocationType::NearEditorLocation, 0, -50), PackageBehavior::Sandbox);
         rig.finish({ p });
@@ -515,8 +516,9 @@ namespace
     {
         auto walk = [](std::uint64_t seed) {
             Rig rig;
-            const PackageRecord* p = rig.add(
-                withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 300), PackageBehavior::Sandbox);
+            const PackageRecord* p
+                = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 300),
+                    PackageBehavior::Sandbox);
             rig.finish({ p }, seed);
             rig.mBrain->onActorAdded(infoOf(10, 1));
             rig.mBrain->onActorAdded(infoOf(11, 2, 50, 50, 66));
@@ -572,8 +574,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 1000, 1000, 66 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 200), PackageBehavior::Sandbox);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 200), PackageBehavior::Sandbox);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 1, 0, 0, 66));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -588,8 +590,9 @@ namespace
         for (const GoalResult failure : { GoalResult::NoPath, GoalResult::Blocked })
         {
             Rig rig;
-            const PackageRecord* p = rig.add(
-                withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 256), PackageBehavior::Sandbox);
+            const PackageRecord* p
+                = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 256),
+                    PackageBehavior::Sandbox);
             rig.finish({ p });
             rig.mBrain->onActorAdded(infoOf(10, 1));
             int firstGoal = -1;
@@ -628,8 +631,8 @@ namespace
 
     TEST(SkyrimPackageBrain, sleepEatAndStandHoldNearTheLocation)
     {
-        for (const PackageBehavior b : { PackageBehavior::Sleep, PackageBehavior::Eat, PackageBehavior::Stand,
-                 PackageBehavior::Unsupported })
+        for (const PackageBehavior b :
+            { PackageBehavior::Sleep, PackageBehavior::Eat, PackageBehavior::Stand, PackageBehavior::Unsupported })
         {
             Rig rig;
             rig.mSource.mPlaces[kMarker] = { 400, 0, 66 };
@@ -662,8 +665,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 400, 0, 66 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 100), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 100), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 1, 0, 0, 66));
         int first = -1, second = -1;
@@ -690,8 +693,9 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 900, 0, 66 };
-        const PackageRecord* night = rig.add(
-            withLocation(makePackage(1, 22, 480), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Sleep);
+        const PackageRecord* night
+            = rig.add(withLocation(makePackage(1, 22, 480), PackageLocationType::NearReference, kMarker, 64),
+                PackageBehavior::Sleep);
         const PackageRecord* day = rig.add(
             withLocation(makePackage(2), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Travel);
         rig.finish({ night, day });
@@ -719,10 +723,10 @@ namespace
     TEST(SkyrimPackageBrain, aConditionThatStopsPassingMovesTheActorToTheNextPackage)
     {
         Rig rig;
-        const PackageRecord* a
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Sandbox);
-        const PackageRecord* b
-            = rig.add(withLocation(makePackage(2), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Travel);
+        const PackageRecord* a = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Sandbox);
+        const PackageRecord* b = rig.add(
+            withLocation(makePackage(2), PackageLocationType::NearEditorLocation, 0, 64), PackageBehavior::Travel);
         rig.finish({ a, b });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -736,8 +740,8 @@ namespace
     TEST(SkyrimPackageBrain, whenNothingPassesAnyMoreTheActorStandsWhereItIs)
     {
         Rig rig;
-        const PackageRecord* a
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 256), PackageBehavior::Sandbox);
+        const PackageRecord* a = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearEditorLocation, 0, 256), PackageBehavior::Sandbox);
         rig.finish({ a });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -768,8 +772,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 500, 0, 66 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 1));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -800,8 +804,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 500, 0, 66 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mBrain->onActorAdded(infoOf(10, 2));
         run(*rig.mBrain, rig.mWriter, 3, 30);
@@ -814,8 +818,8 @@ namespace
     {
         Rig rig;
         rig.mSource.mPlaces[kMarker] = { 500, 0, 66 };
-        const PackageRecord* p
-            = rig.add(withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
+        const PackageRecord* p = rig.add(
+            withLocation(makePackage(1), PackageLocationType::NearReference, kMarker, 64), PackageBehavior::Travel);
         rig.finish({ p });
         rig.mWriter.mAccept = false;
         rig.mBrain->onActorAdded(infoOf(10, 1));

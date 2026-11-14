@@ -46,8 +46,8 @@ namespace NeutralTerrain
         std::int64_t mMaxEnsureCells = 4096; ///< one ensure() call's area
     };
 
-    /// Checks a cell a source built against the world it was asked for. Located message in `error` ("cell (x, y): ...").
-    /// Pure; exposed for the tests.
+    /// Checks a cell a source built against the world it was asked for. Located message in `error` ("cell (x, y):
+    /// ..."). Pure; exposed for the tests.
     [[nodiscard]] bool validateTerrainCell(const openeden::sdk::game::TerrainCell& cell, std::uint32_t expectedVerts,
         const CacheLimits& limits, std::string& error);
 

@@ -275,8 +275,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralActorBridge::Writer::placeFurniture(
-        ActorHandle handle, double x, double y, double z, float heading)
+    bool NeutralActorBridge::Writer::placeFurniture(ActorHandle handle, double x, double y, double z, float heading)
     {
         const void* key = keyOf(handle);
         if (key == nullptr)

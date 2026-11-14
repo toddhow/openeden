@@ -390,8 +390,8 @@ namespace
         StaticNoiseFixture off(false);
         EXPECT_EQ(off.buffer[PM::wordOptions], 0u);
         // A terrain pixel at the road's height is not an object: the option does not change it.
-        const PM::Shade t = PM::shadeAt(
-            on.buffer.data(), worldX(0, 5), worldX(0, 4), 103.f, 1.f, 1.f, PM::ShadeMode::Terrain);
+        const PM::Shade t
+            = PM::shadeAt(on.buffer.data(), worldX(0, 5), worldX(0, 4), 103.f, 1.f, 1.f, PM::ShadeMode::Terrain);
         EXPECT_TRUE(t.covered);
     }
 

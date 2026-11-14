@@ -46,7 +46,8 @@ namespace MWRender::SkyrimActor
         {
             try
             {
-                const VFS::Path::Normalized path = Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(model));
+                const VFS::Path::Normalized path
+                    = Misc::ResourceHelpers::correctMeshPath(VFS::Path::toNormalized(model));
                 Files::IStreamPtr stream = vfs.get(path);
                 if (!stream)
                 {
@@ -142,11 +143,12 @@ namespace MWRender::SkyrimActor
             {
                 if (report.mLip)
                     break;
-                // The head: the face shader's shape whose vertex count a race head file has. The file's morph deltas are
-                // added to the shape's own vertices, so the NPC's own face is kept (judged in frames, task 0146).
+                // The head: the face shader's shape whose vertex count a race head file has. The file's morph deltas
+                // are added to the shape's own vertices, so the NPC's own face is kept (judged in frames, task 0146).
                 report.mLip = SkyrimLip::HeadMorph::make(SkyrimLip::headFileFor(vfs, face->size()), face);
                 if (!report.mLip)
-                    Log(Debug::Verbose) << "Skyrim lip sync: no head morph file for a face of " << face->size() << " vertices";
+                    Log(Debug::Verbose) << "Skyrim lip sync: no head morph file for a face of " << face->size()
+                                        << " vertices";
             }
             if (!built.mNode)
             {
@@ -180,9 +182,9 @@ namespace MWRender::SkyrimActor
         const Totals& t = totals();
         std::ostringstream out;
         out << "Skyrim actors: " << t.mActors.load() << " built (" << t.mActorsFailed.load() << " failed), "
-            << t.mBones.load() << " bones, " << t.mPartsDrawn.load() << " of " << t.mParts.load()
-            << " parts drawn (" << t.mPartsUnreadable.load() << " unreadable, " << t.mPartsWithoutSkin.load()
-            << " with no skinned shape), " << t.mDraws.load() << " draws, " << t.mTriangles.load() << " triangles";
+            << t.mBones.load() << " bones, " << t.mPartsDrawn.load() << " of " << t.mParts.load() << " parts drawn ("
+            << t.mPartsUnreadable.load() << " unreadable, " << t.mPartsWithoutSkin.load() << " with no skinned shape), "
+            << t.mDraws.load() << " draws, " << t.mTriangles.load() << " triangles";
         return out.str();
     }
 }

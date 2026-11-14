@@ -337,10 +337,9 @@ namespace MWRender
             return text;
         }
 
-        // Task 0133: reads the tiles of a pack that passed the neutral check (the Morrowind path below has its own loop).
-        // `far levels` (maxLevel, 0: every level) caps the levels in use.
-        LoadResult readPackTiles(
-            const Lod::TilePack& pack, std::uint32_t maxLevel, LoadResult result)
+        // Task 0133: reads the tiles of a pack that passed the neutral check (the Morrowind path below has its own
+        // loop). `far levels` (maxLevel, 0: every level) caps the levels in use.
+        LoadResult readPackTiles(const Lod::TilePack& pack, std::uint32_t maxLevel, LoadResult result)
         {
             std::vector<Lod::TileId> ordered = Lod::orderTilesForTree(pack.tileIds());
             if (maxLevel > 0)
@@ -391,12 +390,13 @@ namespace MWRender
             // (Lod::neutralFingerprint) and the sizes; a bake made from other plugins reaches another fingerprint.
             if (!neutralWorldspaceName.empty())
             {
-                const std::string mismatch = Lod::describeNeutralPackMismatch(pack->manifest(), neutralWorldspaceName,
-                    base.mCellSize, base.mGridSize, plan.mAlbedoSize);
+                const std::string mismatch = Lod::describeNeutralPackMismatch(
+                    pack->manifest(), neutralWorldspaceName, base.mCellSize, base.mGridSize, plan.mAlbedoSize);
                 if (!mismatch.empty())
                 {
-                    result.mReason = "the pack was made for another world or other settings (stale); make a new one "
-                                     "with openmw --bake-lod-terrain. First difference: "
+                    result.mReason
+                        = "the pack was made for another world or other settings (stale); make a new one "
+                          "with openmw --bake-lod-terrain. First difference: "
                         + mismatch;
                     return result;
                 }

@@ -173,15 +173,15 @@ namespace game_skyrimse
         mOpen = false;
         mSpeaker = speaker;
         mWorld.setSpeaker(speaker);
-        // Task 0156: the speaker is in dialogue with the player from the greeting on, has not talked to him yet, and any
-        // random number comes from a generator seeded by the placement (the same actor greets the same way).
+        // Task 0156: the speaker is in dialogue with the player from the greeting on, has not talked to him yet, and
+        // any random number comes from a generator seeded by the placement (the same actor greets the same way).
         mWorld.setConversationOpen(true);
         mWorld.setTalkedToPlayer(false);
         mWorld.setRandomSeed(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase);
         mVoiceType = mDialogue.voiceTypeName(mWorld.speakerVoiceType());
         // The random pick is a function of the placement, so the same actor greets the same way in a session.
-        const Selection greeting = pickFromTopics(
-            mDialogue, "HELO", mWorld, mSpeaker, options(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase));
+        const Selection greeting = pickFromTopics(mDialogue, "HELO", mWorld, mSpeaker,
+            options(speaker.mReference != kNullFormId ? speaker.mReference : speaker.mBase));
         if (greeting.mInfo == nullptr)
         {
             error = "no greeting passes for this speaker";

@@ -56,8 +56,8 @@ namespace
         return o;
     }
 
-    survey::Ctda cond(std::uint16_t function, std::uint32_t p1 = 0, std::uint32_t runOn = 0, std::uint32_t reference = 0,
-        std::uint8_t compare = 0, float value = 1.f)
+    survey::Ctda cond(std::uint16_t function, std::uint32_t p1 = 0, std::uint32_t runOn = 0,
+        std::uint32_t reference = 0, std::uint8_t compare = 0, float value = 1.f)
     {
         survey::Ctda c;
         c.mFunction = function;
@@ -276,10 +276,13 @@ namespace
         PlacedRefRecords r;
         r.mRefs.push_back(ref(kRefDisabled, kNpcA, kCell, 0, 0, 0, PlacedFlags::Disabled));
         r.mRefs.push_back(ref(kRefA, kNpcA, kCell, 0, 0, 0, 0, kRefDisabled)); // follows: disabled
-        r.mRefs.push_back(ref(kRefFollower, kNpcA, kCell, 0, 0, 0, PlacedFlags::EnableOpposite, kRefDisabled)); // enabled
-        r.mRefs.push_back(ref(kRefB, kNpcB, kCell, 0, 0, 0, PlacedFlags::EnableOpposite, 0x14)); // the player: enabled, so opposite disables
+        r.mRefs.push_back(
+            ref(kRefFollower, kNpcA, kCell, 0, 0, 0, PlacedFlags::EnableOpposite, kRefDisabled)); // enabled
+        r.mRefs.push_back(ref(kRefB, kNpcB, kCell, 0, 0, 0, PlacedFlags::EnableOpposite,
+            0x14)); // the player: enabled, so opposite disables
         r.mRefs.push_back(ref(kRefA2, kNpcA, kCell, 0, 0, 0, 0, 0x14)); // follows the player: enabled
-        r.mRefs.push_back(ref(kRefFar, kNpcC, kCell, 0, 0, 0, PlacedFlags::EnableOpposite, kRefFollower)); // opposite of an enabled one
+        r.mRefs.push_back(ref(
+            kRefFar, kNpcC, kCell, 0, 0, 0, PlacedFlags::EnableOpposite, kRefFollower)); // opposite of an enabled one
         PlacedRefIndex index;
         index.add(std::move(r));
         index.finish();

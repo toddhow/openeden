@@ -48,10 +48,10 @@ namespace MWRender::SkyrimIdle
     [[nodiscard]] std::shared_ptr<const HavokPack::BoundClip> loadIdle(
         const VFS::Manager& vfs, const std::string& skeletonNifPath, LoadReport& report);
 
-    /// Task 0145: the same load on a worker thread, started at the first request for the (skeleton, sex, clip) and shared
-    /// by every later one (a ready future once decoded). The future holds null with the reason in the log when the files
-    /// are missing or damaged. `sexFolder` is "male" or "female" (the ambient idles' sub-folder); `clipName` has no
-    /// extension. Never throws; `vfs` must outlive the worker (the game's VFS does).
+    /// Task 0145: the same load on a worker thread, started at the first request for the (skeleton, sex, clip) and
+    /// shared by every later one (a ready future once decoded). The future holds null with the reason in the log when
+    /// the files are missing or damaged. `sexFolder` is "male" or "female" (the ambient idles' sub-folder); `clipName`
+    /// has no extension. Never throws; `vfs` must outlive the worker (the game's VFS does).
     using ClipFuture = std::shared_future<std::shared_ptr<const HavokPack::BoundClip>>;
     [[nodiscard]] ClipFuture loadIdleAsync(const VFS::Manager& vfs, const std::string& skeletonNifPath,
         std::string_view sexFolder, std::string_view clipName);
@@ -67,9 +67,10 @@ namespace MWRender::SkyrimIdle
         Controller(std::shared_ptr<const HavokPack::BoundClip> clip, std::vector<vsg::ref_ptr<Anim::Transform>> targets,
             float phase);
 
-        /// Task 0145: the clip is still being decoded on a worker. Until the future is ready the bones stay as they are;
-        /// the first run after that names the targets from `bones` (lower-case bone name to its transform; moved from
-        /// the actor's bones when the controller is made) and starts `phaseFraction` (0..1) of the way into the clip.
+        /// Task 0145: the clip is still being decoded on a worker. Until the future is ready the bones stay as they
+        /// are; the first run after that names the targets from `bones` (lower-case bone name to its transform; moved
+        /// from the actor's bones when the controller is made) and starts `phaseFraction` (0..1) of the way into the
+        /// clip.
         using BoneMap = std::unordered_map<std::string, vsg::ref_ptr<Anim::Transform>>;
         Controller(ClipFuture clip, BoneMap bones, float phaseFraction);
 

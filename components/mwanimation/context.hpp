@@ -49,8 +49,9 @@ namespace MWAnim
 
         vsg::ref_ptr<vsgUtil::CompileContext> compileContext;
 
-        /// Task 0096 stage f: true when a keyframe file (x<name>.kf, the one Misc::ResourceHelpers::correctActorModelPath
-        /// finds) exists for the mesh path. Unset in contexts that never ask.
+        /// Task 0096 stage f: true when a keyframe file (x<name>.kf, the one
+        /// Misc::ResourceHelpers::correctActorModelPath finds) exists for the mesh path. Unset in contexts that never
+        /// ask.
         std::function<bool(const std::string&)> hasKeyframeFile;
 
         /// Task 0123: the bytes of a VFS file, empty when it does not exist (may throw on an unreadable archive entry).

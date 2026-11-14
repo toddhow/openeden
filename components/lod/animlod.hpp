@@ -166,8 +166,8 @@ namespace Lod
             }
             if (item.sinceRun < 0xffff)
                 ++item.sinceRun;
-            const bool due = period == 1 || (frame + item.phase) % period == 0
-                || item.sinceRun >= animStarvationPeriods * period;
+            const bool due
+                = period == 1 || (frame + item.phase) % period == 0 || item.sinceRun >= animStarvationPeriods * period;
             if (!due)
                 continue;
             const unsigned cost = std::max<unsigned>(item.controllers, 1);

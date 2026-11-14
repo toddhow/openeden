@@ -174,25 +174,26 @@ namespace MWRender
         void setStore(const MWWorld::ESMStore& store);
 
         /// Task 0125 (stage E2 of docs/research/0053): draws the land of a game pack's neutral world instead of
-        /// Morrowind's. Builds the terrain cache and storage for `world` of `source` and points the terrain at them (the
-        /// terrain, its view and its chunk cache are rebuilt: call it behind the loading screen, with the terrain
+        /// Morrowind's. Builds the terrain cache and storage for `world` of `source` and points the terrain at them
+        /// (the terrain, its view and its chunk cache are rebuilt: call it behind the loading screen, with the terrain
         /// preloader's views released). The same game and world again does nothing. False with `error` when the source
         /// has no terrain for the world; the terrain is then left as it was. Main thread.
-        bool useNeutralTerrain(
-            openeden::sdk::game::WorldCellSource& source, std::uint64_t world, std::string& error);
+        bool useNeutralTerrain(openeden::sdk::game::WorldCellSource& source, std::uint64_t world, std::string& error);
         /// Whether the terrain draws a neutral world, and which one (game id, world id).
         bool neutralTerrainActive() const { return mNeutralStorage != nullptr; }
         const std::string& neutralTerrainGame() const { return mNeutralGame; }
         std::uint64_t neutralTerrainWorld() const { return mNeutralWorld; }
         /// The land of one cell of the active neutral world (own or a parent's); null with none, or when no neutral
         /// world is active. The cell must have been in the window ensureNeutralTerrain filled.
-        std::shared_ptr<const openeden::sdk::game::TerrainCell> neutralTerrainCell(std::int32_t x, std::int32_t y) const;
+        std::shared_ptr<const openeden::sdk::game::TerrainCell> neutralTerrainCell(
+            std::int32_t x, std::int32_t y) const;
         /// Loads the cells Terrain::Paging will read for a camera at `eye` into the cache (main thread). A window the
         /// last call already filled costs a comparison.
         void ensureNeutralTerrain(const vsg::dvec3& eye);
         /// Task 0133: the baked terrain tiles of the active neutral world, when its pack exists (main thread).
         void startNeutralLodTerrain(openeden::sdk::game::WorldCellSource& source);
-        /// Task 0133 stage 2: the far object clusters of a neutral world, from its own pack (see startNeutralLodTerrain).
+        /// Task 0133 stage 2: the far object clusters of a neutral world, from its own pack (see
+        /// startNeutralLodTerrain).
         void startNeutralLodClusters(openeden::sdk::game::WorldCellSource& source);
         void startNeutralGrass(openeden::sdk::game::WorldCellSource& source, std::uint64_t world);
         /// The height and bounds the physics heightfield of a neutral cell needs; the world's cell size and vertices.
@@ -257,9 +258,9 @@ namespace MWRender
         /// applied by the weather manager only with [Game] neutral weather image space). 0 is no change. Clamped to
         /// +-2 stops. Needs hdr; otherwise ignored.
         void setImageSpaceStops(float stops);
-        /// Task 0127 stage W-S4: the rest of a game pack's image space (saturation, contrast, tint amount and colour), on
-        /// the picture after the tonemap. `on` false (a weather without a grade) switches it off. Only has an effect when
-        /// [Game] neutral weather image space put the grade into the tonemap's shader at start (and hdr is on).
+        /// Task 0127 stage W-S4: the rest of a game pack's image space (saturation, contrast, tint amount and colour),
+        /// on the picture after the tonemap. `on` false (a weather without a grade) switches it off. Only has an effect
+        /// when [Game] neutral weather image space put the grade into the tonemap's shader at start (and hdr is on).
         void setImageSpaceGrade(bool on, float saturation, float contrast, float tintAmount, const vsg::vec3& tint);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;

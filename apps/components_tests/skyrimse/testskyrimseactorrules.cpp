@@ -1,5 +1,5 @@
-// Task 0135 stage S3: the Skyrim SE pack's side of the actor hooks (SkyrimActorTable and the pace rule). Written from the
-// header first. No game data: the writer is a recording fake.
+// Task 0135 stage S3: the Skyrim SE pack's side of the actor hooks (SkyrimActorTable and the pace rule). Written from
+// the header first. No game data: the writer is a recording fake.
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/world_view.hpp>

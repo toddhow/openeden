@@ -162,8 +162,9 @@ namespace
         EXPECT_EQ(host->actorRagdollCount(), 1u);
         // Not thrown across the map: the start shift is bounded (at most 2 m, 140 units).
         const RagdollBoneState pelvis = pelvisOf(*host, handle);
-        const double shift = std::sqrt(pelvis.mPosition[0] * pelvis.mPosition[0]
-            + pelvis.mPosition[1] * pelvis.mPosition[1] + (pelvis.mPosition[2] - 1000.0) * (pelvis.mPosition[2] - 1000.0));
+        const double shift
+            = std::sqrt(pelvis.mPosition[0] * pelvis.mPosition[0] + pelvis.mPosition[1] * pelvis.mPosition[1]
+                + (pelvis.mPosition[2] - 1000.0) * (pelvis.mPosition[2] - 1000.0));
         EXPECT_LE(shift, 140.5);
     }
 

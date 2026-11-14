@@ -113,7 +113,8 @@ namespace MWRender
     /// default ground where a far tile lies outside that window.
     Lod::TerrainBakePlan terrainBakePlan(float cellSizeUnits = 8192.f, bool neutralWorld = false);
     /// The settings the baker and the runtime agree on, for a storage with this cell size.
-    /// `verticesPerCell` is the storage's Terrain::Storage::cellVertices (65 for Morrowind, 33 for Skyrim SE: task 0133).
+    /// `verticesPerCell` is the storage's Terrain::Storage::cellVertices (65 for Morrowind, 33 for Skyrim SE: task
+    /// 0133).
     Lod::TileBakeSettings terrainBakeSettings(std::uint32_t cellSize, std::uint32_t verticesPerCell = 65);
 
     /// Task 0133: the facts a neutral world's pack is keyed and checked by (Lod::neutralFingerprint), from its source
@@ -207,8 +208,8 @@ namespace MWRender
         const std::vector<Lod::GroundSquare>& drawnGround() const;
         std::uint64_t groundVersion() const;
 
-        /// Task 0133: the box of land cells the pack's tiles cover, once the pack is adopted and usable (empty before). For
-        /// the view limits of a neutral world, which has no ESM land to measure. Main thread.
+        /// Task 0133: the box of land cells the pack's tiles cover, once the pack is adopted and usable (empty before).
+        /// For the view limits of a neutral world, which has no ESM land to measure. Main thread.
         Lod::LandExtent landExtent() const;
 
         /// Counts for the log and the viewer.

@@ -316,8 +316,9 @@ namespace
         EXPECT_FALSE(error.empty());
     }
 
-    // ---- Stage W-S2 (precipitation, snow and thunder). The numbers are Morrowind's own INI values for the weathers the
-    // engine's code was written for (files/openmw.cfg: Weather_Rain_*, Weather_Thunderstorm_*), written out by hand.
+    // ---- Stage W-S2 (precipitation, snow and thunder). The numbers are Morrowind's own INI values for the weathers
+    // the engine's code was written for (files/openmw.cfg: Weather_Rain_*, Weather_Thunderstorm_*), written out by
+    // hand.
 
     sdk::WeatherDescription rainy(float threshold = 0.6f)
     {
@@ -349,7 +350,8 @@ namespace
         EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(0.f)).params.rainThreshold, 0.1f);
         EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(1.f)).params.rainThreshold, 0.9f);
         EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(0.3f)).params.rainThreshold, 0.3f);
-        EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(rainy(std::numeric_limits<float>::quiet_NaN())).params.rainThreshold,
+        EXPECT_FLOAT_EQ(
+            MWWorld::weatherEntryFromDescription(rainy(std::numeric_limits<float>::quiet_NaN())).params.rainThreshold,
             0.5f);
     }
 
@@ -404,9 +406,11 @@ namespace
         EXPECT_TRUE(snow.params.rainLoopSoundId.empty());
 
         d.windSpeed = 0.5f;
-        EXPECT_EQ(MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
+        EXPECT_EQ(
+            MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
         d.windSpeed = 0.7f;
-        EXPECT_EQ(MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
+        EXPECT_EQ(
+            MWWorld::weatherEntryFromDescription(d).particleEffect, Settings::models().mWeatherblizzard.get().value());
         // Its threshold is the same value the rain uses.
         d.precipitationThreshold = 0.8f;
         EXPECT_FLOAT_EQ(MWWorld::weatherEntryFromDescription(d).params.rainThreshold, 0.8f);
@@ -450,7 +454,8 @@ namespace
     TEST(MWWorldNeutralWeather, extra_cloud_layers_are_carried_in_order_up_to_the_cap)
     {
         sdk::WeatherDescription d = description();
-        d.extraCloudLayers = { layer("Sky\\B.dds", 0.9f, 1.5f), layer("Sky\\C.dds", 0.8f, 2.f), layer("Sky\\D.dds", 0.7f, 3.f) };
+        d.extraCloudLayers
+            = { layer("Sky\\B.dds", 0.9f, 1.5f), layer("Sky\\C.dds", 0.8f, 2.f), layer("Sky\\D.dds", 0.7f, 3.f) };
         const MWWorld::WeatherEntry two = MWWorld::weatherEntryFromDescription(d, 2);
         ASSERT_EQ(two.params.extraClouds.size(), 2u);
         EXPECT_EQ(two.params.extraClouds[0].texture, "Sky\\B.dds");

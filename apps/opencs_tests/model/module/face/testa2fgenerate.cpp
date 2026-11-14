@@ -272,8 +272,8 @@ namespace
         int asked = 0;
         GeneratedWeights out;
         std::string error;
-        EXPECT_FALSE(generateWeights(model, net, ramp(40000), {}, [&](double, std::string_view) { return ++asked < 2; },
-            out, error));
+        EXPECT_FALSE(generateWeights(
+            model, net, ramp(40000), {}, [&](double, std::string_view) { return ++asked < 2; }, out, error));
         EXPECT_NE(error.find("cancelled"), std::string::npos) << error;
         EXPECT_LE(net.mCalls, 2);
         EXPECT_GE(asked, 2);
@@ -286,10 +286,14 @@ namespace
         std::vector<double> seen;
         GeneratedWeights out;
         std::string error;
-        ASSERT_TRUE(generateWeights(model, net, ramp(40000), {}, [&](double f, std::string_view) {
-            seen.push_back(f);
-            return true;
-        }, out, error)) << error;
+        ASSERT_TRUE(generateWeights(
+            model, net, ramp(40000), {},
+            [&](double f, std::string_view) {
+                seen.push_back(f);
+                return true;
+            },
+            out, error))
+            << error;
         ASSERT_FALSE(seen.empty());
         for (std::size_t i = 1; i < seen.size(); ++i)
             EXPECT_GE(seen[i], seen[i - 1]);
@@ -350,8 +354,8 @@ namespace
             return false;
         }
 
-        bool runV23(const float* windows, std::size_t count, const float* emotion, float* results,
-            std::string& error) override
+        bool runV23(
+            const float* windows, std::size_t count, const float* emotion, float* results, std::string& error) override
         {
             if (count == 0 || count > A2FDims::sV23Batch)
             {
@@ -425,7 +429,8 @@ namespace
         EXPECT_EQ(a.mWeights, b.mWeights);
     }
 
-    // ---- sampling ----------------------------------------------------------------------------------------------------
+    // ---- sampling
+    // ----------------------------------------------------------------------------------------------------
 
     TEST(A2FGenerate, sampleWeightIsLinearBetweenFramesAndHeldAtTheEnds)
     {
@@ -442,17 +447,19 @@ namespace
         EXPECT_FLOAT_EQ(sampleWeight(GeneratedWeights{}, 0, 1.0), 0.f);
     }
 
-    // ---- loading the model files ---------------------------------------------------------------------------------------
+    // ---- loading the model files
+    // ---------------------------------------------------------------------------------------
 
     void writeFile(const fs::path& p, const std::string& bytes)
     {
         std::ofstream(p, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     }
 
-    const char* kBsConfig = "{\"blendshape_params\": {\"strengthL2regularization\": 0.5, "
-                            "\"strengthTemporalSmoothing\": 0.3, \"strengthL1regularization\": 0.5, "
-                            "\"strengthSymmetry\": 100.0, \"numPoses\": 2, \"bsSolveActivePoses\": [1, 1], "
-                            "\"bsSolveSymmetryPoses\": [-1, -1]}}";
+    const char* kBsConfig
+        = "{\"blendshape_params\": {\"strengthL2regularization\": 0.5, "
+          "\"strengthTemporalSmoothing\": 0.3, \"strengthL1regularization\": 0.5, "
+          "\"strengthSymmetry\": 100.0, \"numPoses\": 2, \"bsSolveActivePoses\": [1, 1], "
+          "\"bsSolveSymmetryPoses\": [-1, -1]}}";
 
     std::string bsNpz(std::size_t vertices)
     {
@@ -498,7 +505,8 @@ namespace
         for (std::size_t i = 0; i < db.size(); ++i)
             db[i] = static_cast<float>(i);
         writeFile(dir / "implicit_emo_db.npz",
-            buildNpz({ { "emo_db", { 8, 16 }, db } }, { { "emo_spec_start", { 3 }, { 0, 2, 5 } }, { "emo_spec_size", { 3 }, { 2, 3, 3 } } },
+            buildNpz({ { "emo_db", { 8, 16 }, db } },
+                { { "emo_spec_start", { 3 }, { 0, 2, 5 } }, { "emo_spec_size", { 3 }, { 2, 3, 3 } } },
                 { { "emo_spec_names", { "a_happy", "b_neutral", "c_neutral" } } }));
         GeneratorModel m;
         std::string error;
@@ -545,7 +553,8 @@ namespace
         EXPECT_FALSE(error.empty());
     }
 
-    // ---- the real files (opt in) -----------------------------------------------------------------------------------------
+    // ---- the real files (opt in)
+    // -----------------------------------------------------------------------------------------
 
     TEST(A2FLoadModel, realDownloadsLoadWhenOpenedenA2fModelsPointsAtThem)
     {

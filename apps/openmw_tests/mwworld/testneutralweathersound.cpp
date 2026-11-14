@@ -1,5 +1,5 @@
-// Task 0127, stage W-S4: the pure rules of a game pack's weather sounds (thunder delay and volume, the file choice, wind
-// gusts, loops). Every expected number is written out by hand from the constants in the header's comments.
+// Task 0127, stage W-S4: the pure rules of a game pack's weather sounds (thunder delay and volume, the file choice,
+// wind gusts, loops). Every expected number is written out by hand from the constants in the header's comments.
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -183,7 +183,8 @@ namespace
         EXPECT_TRUE(s.any());
     }
 
-    // ---- the description to the weather's slots ------------------------------------------------------------------------
+    // ---- the description to the weather's slots
+    // ------------------------------------------------------------------------
 
     namespace sdk = openeden::sdk::game;
 

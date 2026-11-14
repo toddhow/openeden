@@ -13,9 +13,9 @@
 #include <vsg/maths/vec3.h>
 
 #include "../mwphysics/ragdolltypes.hpp"
-#include "ragdollvelocity.hpp"
 #include "../mwworld/movementdirection.hpp"
 #include "../mwworld/ptr.hpp"
+#include "ragdollvelocity.hpp"
 
 #include <components/animation/tags.hpp>
 #include <components/face/facespeech.hpp>

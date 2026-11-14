@@ -4,13 +4,13 @@
 #include <components/animation/controllermap.hpp>
 #include <components/animation/tags.hpp>
 #include <components/animation/transformcontroller.hpp>
-#include <components/testing/util.hpp>
 #include <components/mwanimation/context.hpp>
-#include <components/vsgutil/compilecontext.hpp>
+#include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vsgadapters/dae/daeclips.hpp>
 #include <components/vsgadapters/vfs.hpp>
+#include <components/vsgutil/compilecontext.hpp>
 
 #include <vsg/io/Options.h>
 #include <vsg/utils/SharedObjects.h>
@@ -158,7 +158,8 @@ namespace
         EXPECT_EQ(read(makeColladaDocument(parts)), nullptr);
     }
 
-    // Port of VsgAdaptersDaeAnimationTest.read_should_return_one_controller_per_animated_node_keyed_by_node_name (task 0124, stage C3).
+    // Port of VsgAdaptersDaeAnimationTest.read_should_return_one_controller_per_animated_node_keyed_by_node_name (task
+    // 0124, stage C3).
     TEST_F(VsgAdaptersDaeClipsTest, read_should_return_one_controller_per_animated_node_keyed_by_node_name)
     {
         DocumentParts parts;
@@ -228,7 +229,8 @@ namespace
         expectVec3(controller->translate->value(0.5f), 4, 5, 6);
     }
 
-    // Port of VsgAdaptersDaeAnimationTest.read_should_keep_underscores_in_node_names_without_skin (task 0124, stage C3).
+    // Port of VsgAdaptersDaeAnimationTest.read_should_keep_underscores_in_node_names_without_skin (task 0124, stage
+    // C3).
     TEST_F(VsgAdaptersDaeClipsTest, read_should_keep_underscores_in_node_names_without_skin)
     {
         DocumentParts parts;
@@ -244,7 +246,8 @@ namespace
         EXPECT_EQ(findController(*map, "Bip01 Spine"), nullptr);
     }
 
-    // Port of VsgAdaptersDaeAnimationTest.read_should_replace_underscores_with_spaces_in_node_names_with_skin (task 0124, stage C3).
+    // Port of VsgAdaptersDaeAnimationTest.read_should_replace_underscores_with_spaces_in_node_names_with_skin (task
+    // 0124, stage C3).
     TEST_F(VsgAdaptersDaeClipsTest, read_should_replace_underscores_with_spaces_in_node_names_with_skin)
     {
         const std::vector<std::string> joints = { "Bip01", "Bip01_Spine" };
@@ -571,8 +574,9 @@ namespace
             "walk-anim", "Bone-id", { 0, 1 }, { makeTranslationMatrix(1, 0, 0), makeTranslationMatrix(2, 0, 0) });
         parts.mAnimationClips = makeAnimationClip("walk", 10, 11, { "walk-anim" });
         parts.mNodes = makeStaticNodes(makeNode("Bone-id", "Bone", makeMatrix(makeTranslationMatrix(1, 0, 0))));
-        const std::string textKeys = "run: start 10\nrun: loop start 10.25\nrun: loop stop 10.75\nrun: stop 11\n"
-                                     "hit1 stop 11.5\nbroken: start 10\n";
+        const std::string textKeys
+            = "run: start 10\nrun: loop start 10.25\nrun: loop stop 10.75\nrun: stop 11\n"
+              "hit1 stop 11.5\nbroken: start 10\n";
 
         ASSERT_NE(read(makeColladaDocument(parts), { { textKeysPath, textKeys } }), nullptr);
 

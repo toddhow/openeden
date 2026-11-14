@@ -6,8 +6,8 @@
 #include <zlib.h>
 
 #include <cstdint>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -56,9 +56,10 @@ namespace ziphelper
         {
             const std::string body = e.mDeflate ? deflateRaw(e.mData) : e.mData;
             const std::uint32_t crc = static_cast<std::uint32_t>(
-                crc32(0, reinterpret_cast<const Bytef*>(e.mData.data()), static_cast<uInt>(e.mData.size())) + e.mCrcDelta);
-            const std::uint32_t method = e.mMethodOverride >= 0 ? static_cast<std::uint32_t>(e.mMethodOverride)
-                                                                : (e.mDeflate ? 8u : 0u);
+                crc32(0, reinterpret_cast<const Bytef*>(e.mData.data()), static_cast<uInt>(e.mData.size()))
+                + e.mCrcDelta);
+            const std::uint32_t method
+                = e.mMethodOverride >= 0 ? static_cast<std::uint32_t>(e.mMethodOverride) : (e.mDeflate ? 8u : 0u);
             const auto usize = static_cast<std::uint32_t>(static_cast<std::int64_t>(e.mData.size()) + e.mSizeDelta);
             const auto offset = static_cast<std::uint32_t>(file.size());
             put32(file, 0x04034b50);

@@ -1,5 +1,6 @@
-// Task 0153 follow-up 2: the neutral grass hands each tuft's tint, tilt and sway speed to the groundcover chunk, and its
-// context asks for the INSTANCE_TINT pipeline mode; Morrowind's groundcover context does not. Written before the code.
+// Task 0153 follow-up 2: the neutral grass hands each tuft's tint, tilt and sway speed to the groundcover chunk, and
+// its context asks for the INSTANCE_TINT pipeline mode; Morrowind's groundcover context does not. Written before the
+// code.
 #include "apps/openmw/mwrender/groundcoverbuild.hpp"
 #include "apps/openmw/mwrender/neutralgrass.hpp"
 

@@ -96,9 +96,9 @@ namespace
             }
         }
         const ComponentStats& stats = view.stats().mComponents;
-        std::cout << "SKYRIMSE-LIGHTS interiors " << interiors << " failed " << failed << " withLighting " << withLighting
-                  << " ambientAllZero " << ambientAllZero << " fogFarBeforeNear " << fogOrderBad << " lightObjects "
-                  << lightObjects << " withModel " << lightsWithModel << " lightKindWithoutLight "
+        std::cout << "SKYRIMSE-LIGHTS interiors " << interiors << " failed " << failed << " withLighting "
+                  << withLighting << " ambientAllZero " << ambientAllZero << " fogFarBeforeNear " << fogOrderBad
+                  << " lightObjects " << lightObjects << " withModel " << lightsWithModel << " lightKindWithoutLight "
                   << lightKindWithoutLight << " lightOnNonLightKind " << lightOnNonLightKind << " distinctLightBases "
                   << lightBases.size() << " offByDefault " << offByDefault << " negative " << negative << " radius "
                   << radiusMin << ".." << radiusMax << " fade " << fadeMin << ".." << fadeMax << " flagUnion 0x"

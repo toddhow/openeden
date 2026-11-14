@@ -17,7 +17,8 @@
 //   17 x 17 grid with the same axes: quadrant 0 column 16 matches quadrant 1 column 0 (69 percent of edge entries, the
 //   transposed reading 2.4 percent), quadrant 0 row 16 matches quadrant 2 row 0; base textures agree most across the
 //   same borders.
-// - A null texture (0) in ATXT is a real layer (99.9 percent carry opacity entries) and in BTXT "no base": both stand for
+// - A null texture (0) in ATXT is a real layer (99.9 percent carry opacity entries) and in BTXT "no base": both stand
+// for
 //   the game's default ground texture (textures\landscape\dirt02.dds, found in the archives; upstream
 //   components/esm4/loadland.cpp assignDefaultTextures names the same file). One id (0x844 of Skyrim.esm) used by 101
 //   layers is in no record of its plugin: a dangling reference, to be treated like null.

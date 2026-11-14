@@ -44,8 +44,7 @@ namespace MWPhysics::NeutralActor
         }
         // Jolt's capsule stands along Y; turn it upright (as actor.cpp does) and lift it so the feet are at the origin.
         const JPH::Quat upright = JPH::Quat::sRotation(JPH::Vec3::sAxisX(), JPH::DegreesToRadians(90.0f));
-        JPH::RotatedTranslatedShapeSettings placed(
-            JPH::Vec3(0.f, 0.f, capsule.mCentreZ), upright, capsuleResult.Get());
+        JPH::RotatedTranslatedShapeSettings placed(JPH::Vec3(0.f, 0.f, capsule.mCentreZ), upright, capsuleResult.Get());
         const JPH::ShapeSettings::ShapeResult placedResult = placed.Create();
         if (placedResult.HasError())
         {
@@ -74,7 +73,8 @@ namespace MWPhysics::NeutralActor
         if (!floor.mHit || !std::isfinite(floor.mZ))
         {
             // A fall that loses its floor, or a wait that has lasted long enough, ends here.
-            next.mState = (fall.mState == State::Falling || next.mFrames >= kMaxWaitFrames) ? State::Lost : State::Waiting;
+            next.mState
+                = (fall.mState == State::Falling || next.mFrames >= kMaxWaitFrames) ? State::Lost : State::Waiting;
             return next;
         }
 

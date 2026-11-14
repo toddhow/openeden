@@ -19,9 +19,9 @@
 // Version policy: DRAFT 0.3 (0.2, task 0135 stage S4: go-to requests with a result event, and a heading request; 0.3,
 // stage S5: the game clock through ActorRequestWriter::clock(); 0.4, stage S6b: furniture use (sit, sleep) through
 // useFurniture / leaveFurniture; 0.5, stage S6f: placeFurniture (move a seated actor, used for the enter and exit
-// clips' root motion) and actorPosition (where the core has an actor now); all additions have defaults, so a 0.1 pack or core
-// keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field
-// a consumer only reads) raise the minor number.
+// clips' root motion) and actorPosition (where the core has an actor now); all additions have defaults, so a 0.1 pack
+// or core keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field a
+// consumer only reads) raise the minor number.
 //
 // Threading: main thread only. The core calls onActorAdded / onActorRemoved when it creates or destroys the actor's
 // body (a cell loads or unloads) and update() once per frame before the physics step. A function must not keep the
@@ -68,8 +68,8 @@ namespace openeden::sdk::game
         Blocked = 2, ///< the actor made no progress along its path, also after the core asked for new paths
     };
 
-    /// (0.3) The game's clock as the core keeps it, for the schedules of AI packages. `valid` is false when the core has
-    /// no clock (an old core, a test): `hour` and `day` are then the defaults and a pack should not trust them.
+    /// (0.3) The game's clock as the core keeps it, for the schedules of AI packages. `valid` is false when the core
+    /// has no clock (an old core, a test): `hour` and `day` are then the defaults and a pack should not trust them.
     struct ActorClock
     {
         float hour = 12.f; ///< game hours since midnight, [0, 24)
@@ -155,8 +155,8 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (0.4) Puts the actor on a piece of furniture: cancels its goal, places it at `use` (x, y, z, heading), keeps it
-        /// there (no fall, no walk) and loops `use.clip`. False (counted) for a stale handle, a value that is not
+        /// (0.4) Puts the actor on a piece of furniture: cancels its goal, places it at `use` (x, y, z, heading), keeps
+        /// it there (no fall, no walk) and loops `use.clip`. False (counted) for a stale handle, a value that is not
         /// finite, a pose that is not one of FurniturePose, a clip name that is empty, too long or has characters other
         /// than letters, digits and `_`, or a call outside update(). The default refuses.
         virtual bool useFurniture(ActorHandle handle, const FurnitureUse& use)
@@ -166,9 +166,9 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (0.4) Takes the actor off its furniture and stands it at (x, y, z), where the floor rules take over again (it
-        /// is put on the floor under that point) and the idle returns. A no-op for an actor that is not on furniture.
-        /// False as for useFurniture (and for a position that is not finite).
+        /// (0.4) Takes the actor off its furniture and stands it at (x, y, z), where the floor rules take over again
+        /// (it is put on the floor under that point) and the idle returns. A no-op for an actor that is not on
+        /// furniture. False as for useFurniture (and for a position that is not finite).
         virtual bool leaveFurniture(ActorHandle handle, double x, double y, double z)
         {
             (void)handle;
@@ -178,10 +178,10 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// (0.5) Moves an actor that is on furniture (after useFurniture) to (x, y, z) facing `heading` without changing
-        /// its pose or clip: the way a pack plays the root motion of a sit-down or get-up clip. A no-op returning true
-        /// for a seated actor, false (counted) for a stale handle, a value that is not finite, an actor that is not on
-        /// furniture, or a call outside update(). The default refuses.
+        /// (0.5) Moves an actor that is on furniture (after useFurniture) to (x, y, z) facing `heading` without
+        /// changing its pose or clip: the way a pack plays the root motion of a sit-down or get-up clip. A no-op
+        /// returning true for a seated actor, false (counted) for a stale handle, a value that is not finite, an actor
+        /// that is not on furniture, or a call outside update(). The default refuses.
         virtual bool placeFurniture(ActorHandle handle, double x, double y, double z, float heading)
         {
             (void)handle;

@@ -1,6 +1,6 @@
-// Task 0127 (TBD-E): Skyrim SE weather, climate and region weather lists on generated records and plugins. No game data.
-// Every byte layout used here is the one measured on the installed masters (see weather.cpp); expected values are written
-// out by hand, not derived with the code under test.
+// Task 0127 (TBD-E): Skyrim SE weather, climate and region weather lists on generated records and plugins. No game
+// data. Every byte layout used here is the one measured on the installed masters (see weather.cpp); expected values are
+// written out by hand, not derived with the code under test.
 #include <game_skyrimse/weather.hpp>
 
 #include <gtest/gtest.h>
@@ -39,7 +39,8 @@ namespace
     std::unique_ptr<Content::Plugin> openHeader(const Bytes& h)
     {
         Content::Error error;
-        return Content::Plugin::open(std::make_unique<std::istringstream>(h.str(), std::ios::binary), "test.esp", error);
+        return Content::Plugin::open(
+            std::make_unique<std::istringstream>(h.str(), std::ios::binary), "test.esp", error);
     }
 
     struct Fixture
@@ -267,8 +268,9 @@ namespace
             std::string why;
             ASSERT_TRUE(decodeW(f, sub4("NAM0", colourTable(types)), w, why)) << why;
             EXPECT_EQ(w.mColourTypes, types);
-            EXPECT_EQ(w.mColours[types - 1][3], (Rgba8{ static_cast<std::uint8_t>(types - 1), 3,
-                                                    static_cast<std::uint8_t>((types - 1) * 4 + 3), 0xAA }));
+            EXPECT_EQ(w.mColours[types - 1][3],
+                (Rgba8{
+                    static_cast<std::uint8_t>(types - 1), 3, static_cast<std::uint8_t>((types - 1) * 4 + 3), 0xAA }));
             EXPECT_EQ(w.mColours[types][0], (Rgba8{})) << "a type the table does not hold stays zero";
             EXPECT_EQ(f.mNotes.mOddSubrecords, 0u);
         }
@@ -540,7 +542,14 @@ namespace
         ClimateRecord c;
         std::string why;
         Bytes subs = sub4("EDID", Bytes().zstring("TestClimate"));
-        subs.append(sub4("WLST", Bytes().u32(0x00000100).u32(60).u32(0).u32(0x01000200).u32(static_cast<std::uint32_t>(-5)).u32(0x00000300)));
+        subs.append(sub4("WLST",
+            Bytes()
+                .u32(0x00000100)
+                .u32(60)
+                .u32(0)
+                .u32(0x01000200)
+                .u32(static_cast<std::uint32_t>(-5))
+                .u32(0x00000300)));
         subs.append(sub4("FNAM", Bytes().zstring("Sky\\Sun.dds")));
         subs.append(sub4("GNAM", Bytes().zstring("Sky\\SunGlare.dds")));
         subs.append(sub4("MODL", Bytes().zstring("Sky\\Stars.nif")));
@@ -736,17 +745,22 @@ namespace
         Bytes bytes = header();
         bytes.append(group4(Content::fourCC("WTHR"), 0, wthrs));
         Bytes clmt = record4("CLMT", 0, 0x01000B00,
-            Bytes().append(sub4("EDID", Bytes().zstring("C"))).append(sub4("WLST", Bytes().u32(0x01000800).u32(100).u32(0))));
+            Bytes()
+                .append(sub4("EDID", Bytes().zstring("C")))
+                .append(sub4("WLST", Bytes().u32(0x01000800).u32(100).u32(0))));
         bytes.append(group4(Content::fourCC("CLMT"), 0, clmt));
         Bytes regn = record4("REGN", 0, 0x01000E00,
-            Bytes().append(sub4("EDID", Bytes().zstring("R"))).append(rdat(3, 0, 70)).append(
-                sub4("RDWT", Bytes().u32(0x01000800).u32(100).u32(0))));
+            Bytes()
+                .append(sub4("EDID", Bytes().zstring("R")))
+                .append(rdat(3, 0, 70))
+                .append(sub4("RDWT", Bytes().u32(0x01000800).u32(100).u32(0))));
         bytes.append(group4(Content::fourCC("REGN"), 0, regn));
         Bytes world = record4("WRLD", 0, kWorldId,
             Bytes().append(sub4("EDID", Bytes().zstring("W"))).append(sub4("CNAM", Bytes().u32(0x01000B00))));
         world.append(group4(kWorldId, kGrupWorld, group4(0, kGrupExtBlock, group4(0, kGrupExtSub, extCell()))));
         bytes.append(group4(Content::fourCC("WRLD"), 0, world));
-        bytes.append(group4(Content::fourCC("CELL"), 0, group4(0, kGrupInteriorBlock, group4(0, kGrupInteriorSub, intCell()))));
+        bytes.append(
+            group4(Content::fourCC("CELL"), 0, group4(0, kGrupInteriorBlock, group4(0, kGrupInteriorSub, intCell()))));
         return bytes;
     }
 
@@ -828,7 +842,8 @@ namespace
 
     // ---- the index -------------------------------------------------------------------------------------------------
 
-    WorldSpaceRecord worldRec(FormId id, FormId climate, FormId parent = kNullFormId, std::optional<std::uint16_t> usage = std::nullopt)
+    WorldSpaceRecord worldRec(
+        FormId id, FormId climate, FormId parent = kNullFormId, std::optional<std::uint16_t> usage = std::nullopt)
     {
         WorldSpaceRecord w;
         w.mCommon.mId = id;
@@ -913,7 +928,8 @@ namespace
         EXPECT_EQ(index.climateOfWorld(0x100 + 20), std::nullopt);
     }
 
-    RegionWeatherRecord regionRec(FormId id, std::uint8_t priority, std::vector<WeatherChance> weathers, bool has = true)
+    RegionWeatherRecord regionRec(
+        FormId id, std::uint8_t priority, std::vector<WeatherChance> weathers, bool has = true)
     {
         RegionWeatherRecord r;
         r.mCommon.mId = id;
@@ -1020,7 +1036,8 @@ namespace
         const auto list = index.effectiveWeatherList(cellRec(0x10, {}));
         EXPECT_EQ(list.mSource, WeatherIndex::EffectiveList::Source::None);
         EXPECT_EQ(list.mWeathers, nullptr);
-        EXPECT_EQ(index.effectiveWeatherList(cellRec(kNullFormId, {})).mSource, WeatherIndex::EffectiveList::Source::None);
+        EXPECT_EQ(
+            index.effectiveWeatherList(cellRec(kNullFormId, {})).mSource, WeatherIndex::EffectiveList::Source::None);
     }
 
     TEST(SkyrimWeatherPick, theRollSelectsByCumulativeShareOfTheSum)
@@ -1048,7 +1065,8 @@ namespace
         EXPECT_EQ(WeatherIndex::pickWeather(list, 0.0), std::optional<FormId>(0xC));
         EXPECT_EQ(WeatherIndex::pickWeather(list, 5.0), std::optional<FormId>(0xC));
         EXPECT_EQ(WeatherIndex::pickWeather(list, -1.0), std::optional<FormId>(0xC));
-        EXPECT_EQ(WeatherIndex::pickWeather(list, std::numeric_limits<double>::quiet_NaN()), std::optional<FormId>(0xC));
+        EXPECT_EQ(
+            WeatherIndex::pickWeather(list, std::numeric_limits<double>::quiet_NaN()), std::optional<FormId>(0xC));
     }
 
     TEST(SkyrimWeatherPick, anEmptyListOrAllZeroGivesNothing)

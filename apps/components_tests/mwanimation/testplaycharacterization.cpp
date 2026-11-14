@@ -78,7 +78,8 @@ namespace
         return map;
     }
 
-    // The main source: an idle (0 to 2), a walk with a loop section (2 to 4, loop 2.5 to 3.5) and an attack with a hit key.
+    // The main source: an idle (0 to 2), a walk with a loop section (2 to 4, loop 2.5 to 3.5) and an attack with a hit
+    // key.
     Keys mainKeys()
     {
         return { { 0.f, "idle: start" }, { 2.f, "idle: stop" }, { 2.f, "walkforward: start" },
@@ -188,8 +189,8 @@ namespace
     {
         PlayRig rig;
         rig.addMain();
-        rig.play().addSingleAnimSource(makeSource({ { 0.f, "zzz: start" }, { 1.f, "zzz: stop" }, { 1.f, "aaa: start" },
-                                           { 2.f, "aaa: stop" } }),
+        rig.play().addSingleAnimSource(
+            makeSource({ { 0.f, "zzz: start" }, { 1.f, "zzz: stop" }, { 1.f, "aaa: start" }, { 2.f, "aaa: stop" } }),
             "second");
         std::vector<std::string> groups;
         rig.play().listAnimationGroups([&](const std::string& name) { groups.push_back(name); });
@@ -409,8 +410,9 @@ namespace
         EXPECT_TRUE(rig.play().isPlaying("walkforward"));
         std::vector<std::string> fired = firedTexts(rig.play());
         // "idle: stop" shares time 2.0 with "walkforward: start" and fires with it (keys are not filtered by group).
-        EXPECT_EQ(fired, (std::vector<std::string>{ "idle: stop", "walkforward: start", "walkforward: loop start",
-                             "walkforward: loop stop", "walkforward: loop start" }));
+        EXPECT_EQ(fired,
+            (std::vector<std::string>{ "idle: stop", "walkforward: start", "walkforward: loop start",
+                "walkforward: loop stop", "walkforward: loop start" }));
         rig.play().runAnimation(1.f); // 2.5 to 3.5 again: the second loop
         EXPECT_FLOAT_EQ(rig.play().getCurrentTime("walkforward"), 2.5f);
         EXPECT_EQ(rig.play().getCurrentLoopCount("walkforward"), 0u);
@@ -829,7 +831,8 @@ namespace
         std::vector<std::string> texts;
         for (const auto& [time, text] : *map->tags)
             texts.push_back(std::to_string(static_cast<int>(time)) + " " + text);
-        EXPECT_EQ(texts, (std::vector<std::string>{ "0 idle: start", "0 idle: loop start", "1 idle: stop", "1 sound: foot" }));
+        EXPECT_EQ(texts,
+            (std::vector<std::string>{ "0 idle: start", "0 idle: loop start", "1 idle: stop", "1 sound: foot" }));
         EXPECT_TRUE(map->tags->hasGroup("idle"));
         EXPECT_TRUE(map->tags->hasGroup("sound"));
         EXPECT_EQ(map->map.size(), 2u);
@@ -869,8 +872,9 @@ namespace
             auto object = reader->read(stream, options);
             // The reader returns the AnimSet (task 0124, C3); Play is given the controllers inside it.
             const auto* set = dynamic_cast<const Anim::AnimSet*>(object.get());
-            return set != nullptr ? vsg::ref_ptr<Anim::ControllerMap>(const_cast<Anim::ControllerMap*>(set->controllers.get()))
-                                  : vsg::ref_ptr<Anim::ControllerMap>();
+            return set != nullptr
+                ? vsg::ref_ptr<Anim::ControllerMap>(const_cast<Anim::ControllerMap*>(set->controllers.get()))
+                : vsg::ref_ptr<Anim::ControllerMap>();
         }
     };
 
@@ -882,7 +886,7 @@ namespace
         DocumentParts parts;
         parts.mGeometries = makeUnitBoxGeometry("box");
         parts.mAnimations = makeMatrixAnimation("root-anim", "bip01-id", { 0, 1 },
-                                {makeTranslationMatrix(0, 0, 0), makeTranslationMatrix(100, 10, 1)})
+                                { makeTranslationMatrix(0, 0, 0), makeTranslationMatrix(100, 10, 1) })
             + makeMatrixAnimation(
                 "spine-anim", "spine-id", { 0, 1 }, { makeTranslationMatrix(0, 0, 0), makeTranslationMatrix(1, 0, 0) });
         parts.mAnimationClips = makeAnimationClip("walk", 10, 11, { "root-anim", "spine-anim" });

@@ -29,10 +29,10 @@ namespace Face
     inline constexpr std::string_view sBinaryExtension = ".facecurves";
     inline constexpr std::string_view sJsonExtension = ".facecurves.json";
 
-    // The frame type and the animation-time mapping live in the base layer (components/misc/speechframe.hpp) so that the
-    // engine's MWAnim::Face can use them; the face library re-exports them.
-    using Misc::SpeechFrame;
+    // The frame type and the animation-time mapping live in the base layer (components/misc/speechframe.hpp) so that
+    // the engine's MWAnim::Face can use them; the face library re-exports them.
     using Misc::speechAnimTime;
+    using Misc::SpeechFrame;
     inline constexpr float sBlinkOverridesTalk = Misc::sBlinkOverridesTalk;
 
     /// Cache size limit (entries, misses included).
@@ -66,7 +66,8 @@ namespace Face
     public:
         explicit SpeechCurveCache(std::size_t maxEntries = sDefaultCacheEntries);
         /// Cached lookup (a miss is cached too). `warning`, if given, receives the load warning of a fresh load.
-        std::shared_ptr<const Curves> find(std::string_view voicePath, const ReadFile& read, std::string* warning = nullptr);
+        std::shared_ptr<const Curves> find(
+            std::string_view voicePath, const ReadFile& read, std::string* warning = nullptr);
         std::size_t size() const { return mEntries.size(); }
         std::size_t loadCount() const { return mLoads; }
 

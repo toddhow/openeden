@@ -11,8 +11,8 @@ namespace VFS
 namespace vsgAdapters
 {
     /*
-     * openeden (task 0124, stage C3): reads the animations of a COLLADA (.dae) model as an Anim::AnimSet, with text keys
-     * from the .txt file of the same name. It replaces vsgAdapters::daeAnimation, which handed the engine a bare
+     * openeden (task 0124, stage C3): reads the animations of a COLLADA (.dae) model as an Anim::AnimSet, with text
+     * keys from the .txt file of the same name. It replaces vsgAdapters::daeAnimation, which handed the engine a bare
      * Anim::ControllerMap: the set is what the animation system shares between actors, and the group table and the
      * clip CreativeMotion plays are derived from it once.
      *

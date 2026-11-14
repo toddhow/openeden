@@ -12,7 +12,8 @@ namespace UiRml
     /// The focused element when it is a control inside a document (not the document itself or the root).
     Rml::Element* focusedControl(Rml::Context& context);
 
-    /// A visible document that asked for the controller (`nav-capture` on its `body`, which RmlUi makes the document element).
+    /// A visible document that asked for the controller (`nav-capture` on its `body`, which RmlUi makes the document
+    /// element).
     bool wantsController(Rml::ElementDocument& document);
     bool hasNavCaptureDocument(Rml::Context& context);
 

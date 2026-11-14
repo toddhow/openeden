@@ -313,7 +313,8 @@ namespace game_skyrimse
     void PlacedRefIndex::finish()
     {
         // later records of one id replace earlier ones: stable sort keeps the load order inside an id
-        std::stable_sort(mRefs.begin(), mRefs.end(), [](const PlacedEntry& a, const PlacedEntry& b) { return a.mId < b.mId; });
+        std::stable_sort(
+            mRefs.begin(), mRefs.end(), [](const PlacedEntry& a, const PlacedEntry& b) { return a.mId < b.mId; });
         std::size_t out = 0;
         for (std::size_t i = 0; i < mRefs.size();)
         {

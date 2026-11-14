@@ -9,8 +9,8 @@ namespace MWWorld
     using openeden::sdk::game::WorldId;
     using openeden::sdk::game::WorldObject;
 
-    NeutralLockOutcome decideNeutralLock(const WorldObject& object, bool unlockAll, bool alreadyUnlocked,
-        const std::function<bool(WorldId)>& hasKey)
+    NeutralLockOutcome decideNeutralLock(
+        const WorldObject& object, bool unlockAll, bool alreadyUnlocked, const std::function<bool(WorldId)>& hasKey)
     {
         if (!object.lock || !object.lock->locked)
             return NeutralLockOutcome::NotLocked;

@@ -341,8 +341,7 @@ namespace MWRender
         {
             if (!image || !mDrawGroup || !mQueryGroup)
                 return false;
-            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout,
-                Pipeline::TEXTURE_SET,
+            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout, Pipeline::TEXTURE_SET,
                 vsg::Descriptors{ vsg::DescriptorImage::create(mSunSampler, image), material.descriptor() });
             if (!compile.compile(bds))
                 return false;
@@ -355,8 +354,7 @@ namespace MWRender
         {
             if (!image || !mFlashGroup)
                 return false;
-            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout,
-                Pipeline::TEXTURE_SET,
+            auto bds = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, mLayout, Pipeline::TEXTURE_SET,
                 vsg::Descriptors{ vsg::DescriptorImage::create(mFlashSampler, image), sunFlashMaterial.descriptor() });
             if (!compile.compile(bds))
                 return false;
@@ -593,13 +591,13 @@ namespace MWRender
             mColour = vsg::vec3(color.x, color.y, color.z);
             material.value().emissive = vsg::vec4(color.x, color.y, color.z, material.value().emissive.a);
         }
-        // `lit`: task 0127 stage W-S4. The moon shader draws the phase picture times the material's emissive colour over
-        // the sky's colour, and `emissive.rgb` was never given a value (the shadow blend went into the alpha, which the
-        // shader does not read for the colour): the moons were drawn black, that is, invisible at night, in every game
-        // (found by drawing the quads magenta, then emissive.rgb as the colour: black). With `lit` the emissive colour is
-        // the moon's colour times the shadow blend, which is what the blend is for: 0 is a solid disc of the sky's colour
-        // (between moon set and rise), 1 the textured moon. Morrowind's weather does not set it (its frames stay as they
-        // were; toddhow decides whether it does).
+        // `lit`: task 0127 stage W-S4. The moon shader draws the phase picture times the material's emissive colour
+        // over the sky's colour, and `emissive.rgb` was never given a value (the shadow blend went into the alpha,
+        // which the shader does not read for the colour): the moons were drawn black, that is, invisible at night, in
+        // every game (found by drawing the quads magenta, then emissive.rgb as the colour: black). With `lit` the
+        // emissive colour is the moon's colour times the shadow blend, which is what the blend is for: 0 is a solid
+        // disc of the sky's colour (between moon set and rise), 1 the textured moon. Morrowind's weather does not set
+        // it (its frames stay as they were; toddhow decides whether it does).
         void setState(const MoonState state, bool lit = false)
         {
             if (lit)
@@ -805,8 +803,8 @@ namespace MWRender
             // Task 0127 stage W-S3: the pool of extra layers, only for a game pack's weather.
             if (Settings::game().mNeutralWorld.get() && Settings::game().mNeutralWeather.get())
             {
-                const std::size_t layers = static_cast<std::size_t>(
-                    std::clamp(Settings::game().mNeutralWeatherCloudLayers.get(), 0, static_cast<int>(kMaxExtraCloudLayers)));
+                const std::size_t layers = static_cast<std::size_t>(std::clamp(
+                    Settings::game().mNeutralWeatherCloudLayers.get(), 0, static_cast<int>(kMaxExtraCloudLayers)));
                 mExtraClouds.resize(layers);
                 mExtraCloudTimers.assign(layers, 0.f);
                 mExtraCloudSpeeds.assign(layers, 0.f);
@@ -1102,7 +1100,8 @@ namespace MWRender
                     layer.mTint.y * weather.mCloudTint.y, layer.mTint.z * weather.mCloudTint.z));
                 mExtraCloudSpeeds[i] = layer.mSpeed;
             }
-            mExtraClouds[i].setEnabled(used && mExtraClouds[i]->textureValid() && weather.mExtraClouds[i].mAlpha > 0.001f);
+            mExtraClouds[i].setEnabled(
+                used && mExtraClouds[i]->textureValid() && weather.mExtraClouds[i].mAlpha > 0.001f);
         }
     }
 

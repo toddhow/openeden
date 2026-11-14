@@ -90,8 +90,8 @@ namespace
         }
         const auto stats = index.stats();
         std::cout << "SKYRIMSE-TERRAIN index plugins " << stats.mPlugins << " worlds " << stats.mWorlds << " lands "
-                  << stats.mLands << " ground textures " << stats.mGroundTextures << " errors "
-                  << index.errors().size() << "\n";
+                  << stats.mLands << " ground textures " << stats.mGroundTextures << " errors " << index.errors().size()
+                  << "\n";
         EXPECT_EQ(stats.mPlugins, 5u);
         EXPECT_GT(stats.mLands, 50000u);
 
@@ -144,7 +144,8 @@ namespace
         {
             if (!land.mHasHeights)
                 continue;
-            const auto chunk = storage.getVertexData(0, bounds(static_cast<float>(grid.first), static_cast<float>(grid.second), 1.f));
+            const auto chunk = storage.getVertexData(
+                0, bounds(static_cast<float>(grid.first), static_cast<float>(grid.second), 1.f));
             chunks[grid] = chunk;
             ASSERT_EQ(chunk.heights->width(), 33u);
             for (int vy = 0; vy < 32; ++vy)
@@ -167,17 +168,21 @@ namespace
                         n = vsg::normalize(n);
                         const vsg::vec4 got = (*chunk.normals)(vx, vy);
                         ++normalsChecked;
-                        if (std::fabs(got.x - n.x) > 1e-5f || std::fabs(got.y - n.y) > 1e-5f || std::fabs(got.z - n.z) > 1e-5f)
+                        if (std::fabs(got.x - n.x) > 1e-5f || std::fabs(got.y - n.y) > 1e-5f
+                            || std::fabs(got.z - n.z) > 1e-5f)
                             ++normalMismatch;
                         if (got.z > 0.f)
                             ++normalsUp;
                         // the slope of the heights, by central differences inside the cell
                         if (vx >= 1 && vy >= 1 && vx < 31 && vy < 31)
                         {
-                            const float dzdx = (land.mHeights[vy * 33 + vx + 1] - land.mHeights[vy * 33 + vx - 1]) / 256.f;
-                            const float dzdy = (land.mHeights[(vy + 1) * 33 + vx] - land.mHeights[(vy - 1) * 33 + vx]) / 256.f;
+                            const float dzdx
+                                = (land.mHeights[vy * 33 + vx + 1] - land.mHeights[vy * 33 + vx - 1]) / 256.f;
+                            const float dzdy
+                                = (land.mHeights[(vy + 1) * 33 + vx] - land.mHeights[(vy - 1) * 33 + vx]) / 256.f;
                             const vsg::vec3 s = vsg::normalize(vsg::vec3(-dzdx, -dzdy, 1.f));
-                            const float dot = std::min(1.f, std::max(-1.f, vsg::dot(s, vsg::vec3(got.x, got.y, got.z))));
+                            const float dot
+                                = std::min(1.f, std::max(-1.f, vsg::dot(s, vsg::vec3(got.x, got.y, got.z))));
                             slopeErrorSum += std::acos(dot);
                             ++slopeSamples;
                         }
@@ -191,7 +196,8 @@ namespace
         // the normals face up and follow the terrain's slope (a wrong sign or axis would not)
         ASSERT_GT(normalsChecked, 0u);
         EXPECT_GT(static_cast<double>(normalsUp) / static_cast<double>(normalsChecked), 0.999);
-        const double meanSlopeErrorDegrees = slopeSamples ? slopeErrorSum / static_cast<double>(slopeSamples) * 57.29578 : 0;
+        const double meanSlopeErrorDegrees
+            = slopeSamples ? slopeErrorSum / static_cast<double>(slopeSamples) * 57.29578 : 0;
         EXPECT_LT(meanSlopeErrorDegrees, 12.0);
 
         // Neighbouring chunks share their edge vertices exactly; the stored edges of the two cells may differ.
@@ -204,7 +210,8 @@ namespace
                     ++edgesChecked;
                     if ((*a.heights)(32, vy) != (*east->second.heights)(0, vy))
                         ++edgesDiffer;
-                    if (lands.at(grid).mHeights[vy * 33 + 32] != lands.at({ grid.first + 1, grid.second }).mHeights[vy * 33])
+                    if (lands.at(grid).mHeights[vy * 33 + 32]
+                        != lands.at({ grid.first + 1, grid.second }).mHeights[vy * 33])
                         ++storedEdgeDiffers;
                 }
             const auto north = chunks.find({ grid.first, grid.second + 1 });
@@ -221,7 +228,8 @@ namespace
         EXPECT_GT(edgesChecked, 0u);
         EXPECT_EQ(edgesDiffer, 0u);
 
-        // A coarse chunk over four cells is continuous with the cell chunks: its (lod 2) vertex at a cell corner is that cell's.
+        // A coarse chunk over four cells is continuous with the cell chunks: its (lod 2) vertex at a cell corner is
+        // that cell's.
         {
             const auto big = storage.getVertexData(2, bounds(4.f, -3.f, 2.f));
             ASSERT_EQ(big.heights->width(), 17u);
@@ -264,17 +272,17 @@ namespace
                     else if (cell->world == tamriel)
                         ++borrowed;
                 }
-            std::cout << "SKYRIMSE-TERRAIN whiterun own " << own << " borrowed " << borrowed << " none " << none << "\n";
+            std::cout << "SKYRIMSE-TERRAIN whiterun own " << own << " borrowed " << borrowed << " none " << none
+                      << "\n";
             EXPECT_GE(own, 1u);
             EXPECT_GE(borrowed, 1u);
         }
 
         std::cout << "SKYRIMSE-TERRAIN heights checked " << heightsChecked << " mismatched " << heightMismatch
-                  << " colours mismatched " << colourMismatch << " normals checked " << normalsChecked
-                  << " mismatched " << normalMismatch << " facing up " << normalsUp << " mean slope error degrees "
-                  << meanSlopeErrorDegrees << " shared edge vertices " << edgesChecked << " differing "
-                  << edgesDiffer << " (stored edges that differ " << storedEdgeDiffers << ") cells "
-                  << lands.size() << " unloaded reads " << cache->unloadedReads() << " refused " << cache->refusedCells()
-                  << "\n";
+                  << " colours mismatched " << colourMismatch << " normals checked " << normalsChecked << " mismatched "
+                  << normalMismatch << " facing up " << normalsUp << " mean slope error degrees "
+                  << meanSlopeErrorDegrees << " shared edge vertices " << edgesChecked << " differing " << edgesDiffer
+                  << " (stored edges that differ " << storedEdgeDiffers << ") cells " << lands.size()
+                  << " unloaded reads " << cache->unloadedReads() << " refused " << cache->refusedCells() << "\n";
     }
 }

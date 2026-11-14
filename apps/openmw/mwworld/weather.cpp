@@ -158,8 +158,7 @@ namespace MWWorld
         const std::string p = "Weather_" + name;
         WeatherParams out;
         out.cloudTexture = std::string(Fallback::Map::getString(p + "_Cloud_Texture"));
-        const auto four = [&](const char* group)
-        {
+        const auto four = [&](const char* group) {
             return std::array<vsg::vec4, 4>{ Fallback::Map::getColour(p + "_" + group + "_Sunrise_Color"),
                 Fallback::Map::getColour(p + "_" + group + "_Day_Color"),
                 Fallback::Map::getColour(p + "_" + group + "_Sunset_Color"),
@@ -226,7 +225,7 @@ namespace MWWorld
     Weather::Weather(ESM::RefId id, int scriptId, const std::string& name, float stormWindSpeed, float rainSpeed,
         float dlFactor, float dlOffset, const std::string& particleEffect)
         : Weather(id, scriptId, name, stormWindSpeed, rainSpeed, dlFactor, dlOffset, particleEffect,
-              weatherParamsFromFallback(name))
+            weatherParamsFromFallback(name))
     {
     }
 
@@ -315,8 +314,7 @@ namespace MWWorld
                                  << " distance " << due[i].distanceIndex << " volume " << volume << " (" << mName
                                  << ")";
                 if (!file.empty())
-                    MWBase::Environment::get().getSoundManager()->playSound(
-                        VFS::Path::Normalized(file), volume, 1.0f);
+                    MWBase::Environment::get().getSoundManager()->playSound(VFS::Path::Normalized(file), volume, 1.0f);
             }
         }
         // When paused, the flash brightness remains the same and no new strikes can occur.
@@ -385,8 +383,8 @@ namespace MWWorld
             // A game pack's thunder is a file heard after the flash (NeutralWeatherSound::thunderDelaySeconds), and the
             // files take turns: no random number is drawn for them. Morrowind's weathers have none of this.
             const std::uint32_t counter = mStrikeCounter++;
-            if (!mDelayedThunder.push(NeutralWeatherSound::thunderDelaySeconds(distance), counter,
-                    mSounds.thunder.volume, distance))
+            if (!mDelayedThunder.push(
+                    NeutralWeatherSound::thunderDelaySeconds(distance), counter, mSounds.thunder.volume, distance))
                 Log(Debug::Verbose) << "Neutral weather sound: thunder dropped, " << mName << " has too much waiting";
         }
         else
@@ -708,7 +706,7 @@ namespace MWWorld
     WeatherManager::WeatherManager(
         MWRender::RenderManager& rendering, MWWorld::ESMStore& store, const NeutralWeatherSetup* neutral)
         : WeatherManager(
-              rendering, store, neutral, neutral != nullptr ? neutral->manager : weatherManagerParamsFromFallback())
+            rendering, store, neutral, neutral != nullptr ? neutral->manager : weatherManagerParamsFromFallback())
     {
     }
 
@@ -729,8 +727,8 @@ namespace MWWorld
         , mMasserAvailable(params.masser)
         , mSecundaAvailable(params.secunda)
         , mRainSpeed(params.rainSpeed)
-        , mUnderwaterFog(params.underwaterFog[0], params.underwaterFog[1], params.underwaterFog[2],
-              params.underwaterFog[3])
+        , mUnderwaterFog(
+              params.underwaterFog[0], params.underwaterFog[1], params.underwaterFog[2], params.underwaterFog[3])
         , mWeatherSettings()
         , mMasser("Masser")
         , mSecunda("Secunda")
@@ -1029,8 +1027,8 @@ namespace MWWorld
                 mFlasher.strike(mLightningTime, strength);
                 // Test aid of the neutral weather check (task 0127): the strikes can be counted in the log.
                 if (mRegionProvider != nullptr)
-                    Log(Debug::Info) << "Neutral weather: lightning strike " << mWeatherSettings[type].mName << " strength "
-                                     << strength << " at " << mLightningTime << " s";
+                    Log(Debug::Info) << "Neutral weather: lightning strike " << mWeatherSettings[type].mName
+                                     << " strength " << strength << " at " << mLightningTime << " s";
             }
         }
         const float setting = mRendering.lightningStrength();
@@ -1187,9 +1185,9 @@ namespace MWWorld
 
         mRendering.getSky()->setMasserState(mMasser.calculateState(time));
         mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
-        // Task 0127 stage W-S4 (a game pack's weather): where each moon is, once a game hour, so that a frame can be aimed
-        // at it. The direction is the one MWRender::Moon::setState makes: (-sin az, cos az cos el, cos az sin el) for
-        // el = the rotation from the horizon and az = the rotation from north, both in degrees.
+        // Task 0127 stage W-S4 (a game pack's weather): where each moon is, once a game hour, so that a frame can be
+        // aimed at it. The direction is the one MWRender::Moon::setState makes: (-sin az, cos az cos el, cos az sin el)
+        // for el = the rotation from the horizon and az = the rotation from north, both in degrees.
         if (mRegionProvider != nullptr && static_cast<int>(time.getHour()) != mMoonTraceHour)
         {
             mMoonTraceHour = static_cast<int>(time.getHour());
@@ -1204,8 +1202,8 @@ namespace MWWorld
                 const MWRender::MoonState state = moon.model.calculateState(time);
                 Log(Debug::Info) << "Neutral weather: moon " << moon.name << " hour " << time.getHour() << " day "
                                  << time.getDay() << " elevation " << state.mRotationFromHorizon << " azimuth "
-                                 << state.mRotationFromNorth << " phase " << static_cast<int>(state.mPhase)
-                                 << " alpha " << state.mMoonAlpha << " shadowBlend " << state.mShadowBlend
+                                 << state.mRotationFromNorth << " phase " << static_cast<int>(state.mPhase) << " alpha "
+                                 << state.mMoonAlpha << " shadowBlend " << state.mShadowBlend
                                  << (moon.available ? " available" : " not in this climate");
             }
         }
@@ -1232,8 +1230,8 @@ namespace MWWorld
         {
             mRendering.setImageSpaceStops(mResult.mHasGrade ? std::log2(std::max(mResult.mGrade.x, 0.25f)) : 0.f);
             // Stage W-S4: the grade grade.y saturation, grade.z contrast, grade.w tint amount (ImageSpaceParams).
-            mRendering.setImageSpaceGrade(mResult.mHasGrade, mResult.mGrade.y, mResult.mGrade.z, mResult.mGrade.w,
-                mResult.mGradeTint);
+            mRendering.setImageSpaceGrade(
+                mResult.mHasGrade, mResult.mGrade.y, mResult.mGrade.z, mResult.mGrade.w, mResult.mGradeTint);
         }
 
         // Play sounds
@@ -1283,8 +1281,8 @@ namespace MWWorld
         return (1 - mTransitionFactor) < threshold ? mCurrentWeather : mNextWeather;
     }
 
-    // Task 0127 stage W-S4: a game pack's loops and gusts. The sound manager gets files by VFS path; with no audio device
-    // it plays nothing, so the calls are logged here (Info), which is what a run without a device can show.
+    // Task 0127 stage W-S4: a game pack's loops and gusts. The sound manager gets files by VFS path; with no audio
+    // device it plays nothing, so the calls are logged here (Info), which is what a run without a device can show.
     void WeatherManager::updateNeutralSounds(const float duration, const bool paused)
     {
         using namespace NeutralWeatherSound;
@@ -1851,7 +1849,8 @@ namespace MWWorld
         // Task 0127 stage W-S3: the extra layers of the weather that is going fade out with the pictures, the next
         // one's fade in (the same blend as the first picture's). At most as many as the renderer has.
         {
-            blendExtraCloudLayers(current.mExtraClouds, other.mExtraClouds, mResult.mCloudBlendFactor, mResult.mExtraClouds);
+            blendExtraCloudLayers(
+                current.mExtraClouds, other.mExtraClouds, mResult.mCloudBlendFactor, mResult.mExtraClouds);
             mResult.mHasGrade = current.mHasGrade || other.mHasGrade;
             mResult.mGrade = lerp(current.mGrade, other.mGrade, factor);
             mResult.mGradeTint = vsg::vec3(lerp(current.mGradeTint.x, other.mGradeTint.x, factor),

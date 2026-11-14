@@ -99,7 +99,8 @@ namespace MWPhysics
         /// With a pose (task 0106, second slice) the rig is built in that pose instead of the standing rest pose: the
         /// pelvis at pose->mPelvisPosition, every named bone turned as given (the yaw added), the others turning with
         /// their parent. The joint limits stay the rig's, measured from the start pose (a bent elbow can bend the rig's
-        /// range further either way: they are not re-centred on anatomy). feetUnits is then used for the kill depth only.
+        /// range further either way: they are not re-centred on anatomy). feetUnits is then used for the kill depth
+        /// only.
         ActorRagdollHandle spawnActor(const JPH::RVec3& feetUnits, float yawRadians,
             const double linearVelocityUnits[3], std::string* error = nullptr, const ActorStartPose* pose = nullptr);
 

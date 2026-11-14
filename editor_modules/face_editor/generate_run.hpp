@@ -47,9 +47,10 @@ namespace face_editor
     };
 
     /// \a progress as in A2FProgress (false cancels). On failure \a error is set ("cancelled" for a cancel).
-    bool runGeneration(const GenerateRequest& request, const A2FProgress& progress, GenerateResult& result,
-        std::string& error);
+    bool runGeneration(
+        const GenerateRequest& request, const A2FProgress& progress, GenerateResult& result, std::string& error);
 
-    /// Whether this build can run the networks at all (ONNX Runtime linked in and loadable); \a why says what is missing.
+    /// Whether this build can run the networks at all (ONNX Runtime linked in and loadable); \a why says what is
+    /// missing.
     bool generationAvailable(std::string& why);
 }

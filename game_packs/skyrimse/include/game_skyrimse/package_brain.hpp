@@ -63,9 +63,9 @@ namespace game_skyrimse
     inline constexpr float kFollowRepathSeconds = 1.5f;
 
     /// The speed a package walks at (stage S6f): Run when the package sets its own speed (PKDT flag bit 13,
-    /// `kPreferredSpeedFlag`) and the byte is 1 (jog) or 2 (run), else Walk. There is no jog clip (task 0148 has walk and
-    /// run), so jog runs; fast walk (3) and walk (0) walk. The byte values' names are RECALLED-VERIFY (xEdit: Walk, Jog,
-    /// Run, Fast Walk); that bit 13 gates the byte is settled by the data (see `kPreferredSpeedFlag`).
+    /// `kPreferredSpeedFlag`) and the byte is 1 (jog) or 2 (run), else Walk. There is no jog clip (task 0148 has walk
+    /// and run), so jog runs; fast walk (3) and walk (0) walk. The byte values' names are RECALLED-VERIFY (xEdit: Walk,
+    /// Jog, Run, Fast Walk); that bit 13 gates the byte is settled by the data (see `kPreferredSpeedFlag`).
     [[nodiscard]] openeden::sdk::game::ActorSpeed packageSpeed(const PackageRecord& package);
 
     /// 0 Sunday .. 6 Saturday for a day counter that starts on the session's start day (RECALLED-VERIFY: a new game
@@ -100,8 +100,8 @@ namespace game_skyrimse
         double mEntryX = 0, mEntryY = 0, mEntryZ = 0; ///< where it walks to first, and steps off to
         std::string mClip;
         bool mClipPerSex = false;
-        // Stage S6f: the sit-down and get-up clips and their root motion (null: none, the actor is placed on the seat and
-        // put at the entry point as in stage S6b). The motion tables are owned by the source and outlive the brain.
+        // Stage S6f: the sit-down and get-up clips and their root motion (null: none, the actor is placed on the seat
+        // and put at the entry point as in stage S6b). The motion tables are owned by the source and outlive the brain.
         std::string mEnterClip;
         std::string mExitClip;
         const ClipMotion* mEnterMotion = nullptr;
@@ -117,7 +117,8 @@ namespace game_skyrimse
     public:
         virtual ~FurnitureSource() = default;
         /// The slots of `pose` within `radius` of (x, y, z) in the same cell as the actor placement `actorReference`,
-        /// nearest to (fromX, fromY, fromZ) first. Each slot's entry point is the one nearest to `from`. Replaces `out`.
+        /// nearest to (fromX, fromY, fromZ) first. Each slot's entry point is the one nearest to `from`. Replaces
+        /// `out`.
         virtual void slotsNear(FormId actorReference, double x, double y, double z, double radius,
             openeden::sdk::game::FurniturePose pose, double fromX, double fromY, double fromZ,
             std::vector<FurnitureSlot>& out)
@@ -261,8 +262,9 @@ namespace game_skyrimse
         void onActorRemoved(openeden::sdk::game::ActorHandle handle);
         void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result);
         /// Stage S6f: the player begins or ends a conversation with the actor of this placement (main thread, outside
-        /// update(): acted on at the next update). A sleeper wakes and stands; any actor stops where it is while it talks;
-        /// a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a bed).
+        /// update(): acted on at the next update). A sleeper wakes and stands; any actor stops where it is while it
+        /// talks; a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a
+        /// bed).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins);
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
 
@@ -312,7 +314,8 @@ namespace game_skyrimse
             bool mToFollow = false;
             float mFollowTimer = 0.f;
             int mTalkRequest = 0; ///< 1 begin, 2 end: acted on at the next update
-            bool mTalkEndPending = false; ///< the end came before the begin was acted on (the world is paused during a talk)
+            bool mTalkEndPending
+                = false; ///< the end came before the begin was acted on (the world is paused during a talk)
             bool mTalking = false;
             bool mWoken = false; ///< a conversation stood the actor up from a bed
             bool mSkipEnter = false; ///< the next furniture use is a snap: no clip, no motion

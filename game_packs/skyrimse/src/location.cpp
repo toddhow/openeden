@@ -83,7 +83,8 @@ namespace game_skyrimse
                 const bool wellFormed = survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
                     switch (sub.mType)
                     {
-                        case Content::fourCC("EDID"): {
+                        case Content::fourCC("EDID"):
+                        {
                             const char* b = reinterpret_cast<const char*>(sub.mData.data());
                             const void* nul = sub.mData.empty() ? nullptr : std::memchr(b, '\0', sub.mData.size());
                             loc.mCommon.mEditorId.assign(

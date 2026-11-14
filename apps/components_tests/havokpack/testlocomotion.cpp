@@ -6,10 +6,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
-#include <array>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -82,7 +82,8 @@ namespace
 
     TEST(HavokGaitWeights, the_speed_alone_never_mixes_the_gaits)
     {
-        // whatever the speed, a mix of 0 is a walk and a mix of 1 a run: the choice is made by wantRun and the cross-fade
+        // whatever the speed, a mix of 0 is a walk and a mix of 1 a run: the choice is made by wantRun and the
+        // cross-fade
         for (float s : { 40.f, 100.f, 200.f, 300.f, 500.f })
         {
             EXPECT_NEAR(weights(s, 0.f).mRun, 0.f, 1e-6) << s;
@@ -266,9 +267,9 @@ namespace
         {
             const AnimationProject project = readAnimationProject(read(std::string(dir) + "/" + sex + ".txt"));
             const MotionTable motion = readMotionTable(read(std::string(dir) + "/boundanims/anims_" + sex + ".txt"));
-            for (const auto& [name, stride, duration] : { std::tuple<const char*, float, float>{ "mt_walkforward",
-                                                              defaults.mWalkStride, 1.13333f },
-                     std::tuple<const char*, float, float>{ "mt_runforward", defaults.mRunStride, 0.633333f } })
+            for (const auto& [name, stride, duration] :
+                { std::tuple<const char*, float, float>{ "mt_walkforward", defaults.mWalkStride, 1.13333f },
+                    std::tuple<const char*, float, float>{ "mt_runforward", defaults.mRunStride, 0.633333f } })
             {
                 const SidecarClip* clip = nullptr;
                 for (const SidecarClip& c : project.mClips)
@@ -360,9 +361,9 @@ namespace
                         ++contact;
                     }
                 }
-                std::cout << "GAITSLIP " << sex << ' ' << name << " ground speed " << speed << " units/s, contact steps "
-                          << contact << " of " << 2 * steps << ", mean slip " << (contact ? slipSum / contact : -1.0)
-                          << " of the speed, max " << slipMax << std::endl;
+                std::cout << "GAITSLIP " << sex << ' ' << name << " ground speed " << speed
+                          << " units/s, contact steps " << contact << " of " << 2 * steps << ", mean slip "
+                          << (contact ? slipSum / contact : -1.0) << " of the speed, max " << slipMax << std::endl;
                 ASSERT_GT(contact, 20);
             }
     }

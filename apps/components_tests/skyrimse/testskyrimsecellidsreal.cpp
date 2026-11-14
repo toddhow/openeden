@@ -1,6 +1,7 @@
-// Task 0142 follow-up: every exterior cell the pack lists must come out of loadCell with placement ids that are strictly
-// ascending (the neutral store refuses a cell otherwise: "ids not strictly ascending"). On the user's own plugins; prints
-// counts and the first offending grid squares only (lines starting SKYIDS), no names. Skipped without the environment.
+// Task 0142 follow-up: every exterior cell the pack lists must come out of loadCell with placement ids that are
+// strictly ascending (the neutral store refuses a cell otherwise: "ids not strictly ascending"). On the user's own
+// plugins; prints counts and the first offending grid squares only (lines starting SKYIDS), no names. Skipped without
+// the environment.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five masters are loaded in order
 #include <game_skyrimse/world_view.hpp>
@@ -61,10 +62,10 @@ namespace
                     cellBad = true;
                     const auto& a = content.objects[i - 1];
                     const auto& b = content.objects[i];
-                    std::cout << "SKYIDS duplicate id " << a.id << ": base " << a.base << "/" << b.base << " persistent "
-                              << a.persistent << "/" << b.persistent << " pos (" << a.position.x << ", " << a.position.y
-                              << ")/(" << b.position.x << ", " << b.position.y << ") disabled " << a.initiallyDisabled << "/"
-                              << b.initiallyDisabled << std::endl;
+                    std::cout << "SKYIDS duplicate id " << a.id << ": base " << a.base << "/" << b.base
+                              << " persistent " << a.persistent << "/" << b.persistent << " pos (" << a.position.x
+                              << ", " << a.position.y << ")/(" << b.position.x << ", " << b.position.y << ") disabled "
+                              << a.initiallyDisabled << "/" << b.initiallyDisabled << std::endl;
                 }
                 else if (content.objects[i].id < content.objects[i - 1].id)
                 {

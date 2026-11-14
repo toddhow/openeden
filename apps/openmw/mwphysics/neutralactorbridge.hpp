@@ -30,9 +30,17 @@ namespace MWPhysics
         virtual ~NeutralRequestSink() = default;
         virtual void setRequest(const void* key, float velX, float velY) = 0;
         // Stage S4 (defaults do nothing, so a sink that only knows velocities still works):
-        virtual void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal) { (void)key; (void)goal; }
+        virtual void setGoal(const void* key, const openeden::sdk::game::ActorGoal& goal)
+        {
+            (void)key;
+            (void)goal;
+        }
         virtual void cancelGoal(const void* key) { (void)key; }
-        virtual void setHeading(const void* key, float heading) { (void)key; (void)heading; }
+        virtual void setHeading(const void* key, float heading)
+        {
+            (void)key;
+            (void)heading;
+        }
         // Stage S6b (furniture use): `use.clip` is valid during the call only, a sink that keeps it copies it.
         virtual void useFurniture(const void* key, const openeden::sdk::game::FurnitureUse& use)
         {
@@ -106,9 +114,9 @@ namespace MWPhysics
         /// counting up.
         void clear();
 
-        /// Stage S4: the core reports that the go-to of the actor behind `key` ended. It is told to the pack at the start
-        /// of the next update() (ActorRules::onGoalFinished), if the actor is still registered then. Does not allocate
-        /// while fewer than kMaxActors results wait (the list is reserved).
+        /// Stage S4: the core reports that the go-to of the actor behind `key` ended. It is told to the pack at the
+        /// start of the next update() (ActorRules::onGoalFinished), if the actor is still registered then. Does not
+        /// allocate while fewer than kMaxActors results wait (the list is reserved).
         void reportGoal(const void* key, openeden::sdk::game::GoalResult result);
 
         /// Calls rules->update(seconds, writer); every valid request goes to `sink`. Does nothing for null rules or
@@ -152,8 +160,7 @@ namespace MWPhysics
             bool leaveFurniture(openeden::sdk::game::ActorHandle handle, double x, double y, double z) override;
             bool placeFurniture(
                 openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
-            bool actorPosition(
-                openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
+            bool actorPosition(openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 

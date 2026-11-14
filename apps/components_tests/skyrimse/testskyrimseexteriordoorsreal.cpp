@@ -51,12 +51,13 @@ namespace
 
         const sdkgame::WorldId whiterunWorld = source.findWorldByEditorId("WhiterunWorld");
         const sdkgame::WorldId tamriel = source.findWorldByEditorId("Tamriel");
-        std::cout << "SKYRIMSE-EXTDOOR worlds: WhiterunWorld " << (whiterunWorld != sdkgame::kNoWorldId)
-                  << " Tamriel " << (tamriel != sdkgame::kNoWorldId) << "\n";
+        std::cout << "SKYRIMSE-EXTDOOR worlds: WhiterunWorld " << (whiterunWorld != sdkgame::kNoWorldId) << " Tamriel "
+                  << (tamriel != sdkgame::kNoWorldId) << "\n";
 
         // Every interior cell (the doors out of buildings) and every exterior cell of the two worlds the task names.
-        std::uint64_t interiorSamples = 0, cellsRead = 0, teleports = 0, toUnknown = 0, toInterior = 0, toExterior = 0, extNoWorldInfo = 0,
-                      extNoGrid = 0, gridDisagrees = 0, gridAgrees = 0, crossWorld = 0, builtFailed = 0;
+        std::uint64_t interiorSamples = 0, cellsRead = 0, teleports = 0, toUnknown = 0, toInterior = 0, toExterior = 0,
+                      extNoWorldInfo = 0, extNoGrid = 0, gridDisagrees = 0, gridAgrees = 0, crossWorld = 0,
+                      builtFailed = 0;
         std::set<sdkgame::WorldId> destinationsSeen;
         std::map<sdkgame::WorldId, sdkgame::WorldCell> built;
         auto cellOf = [&](sdkgame::WorldId id) -> const sdkgame::WorldCell* {
@@ -130,8 +131,7 @@ namespace
                         std::cout << "SKYRIMSE-EXTDOOR sample: from " << (cell.interior ? "interior" : "exterior")
                                   << " arrival " << t.destination.position.x << "," << t.destination.position.y
                                   << " square " << gx << "," << gy << " destination cell grid " << dest->gridX << ","
-                                  << dest->gridY << " world " << dest->world << " (Whiterun " << whiterunWorld
-                                  << ")\n";
+                                  << dest->gridY << " world " << dest->world << " (Whiterun " << whiterunWorld << ")\n";
                 }
             }
         };
@@ -152,8 +152,8 @@ namespace
         std::cout << "SKYRIMSE-EXTDOOR cells surveyed " << cellsRead << ", teleports " << teleports
                   << ", destination unknown " << toUnknown << ", build failed " << builtFailed << ", to interior "
                   << toInterior << ", to exterior " << toExterior << " (world not describable " << extNoWorldInfo
-                  << ", no grid " << extNoGrid << ", arrival square equals the cell's " << gridAgrees
-                  << ", differs " << gridDisagrees << ", to another world than the door's " << crossWorld << ")\n";
+                  << ", no grid " << extNoGrid << ", arrival square equals the cell's " << gridAgrees << ", differs "
+                  << gridDisagrees << ", to another world than the door's " << crossWorld << ")\n";
         EXPECT_GT(teleports, 0u);
         EXPECT_GT(toExterior, 0u);
         EXPECT_EQ(extNoWorldInfo, 0u);

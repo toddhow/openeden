@@ -21,12 +21,13 @@
 // Units: colours are linear-looking 0..1 floats exactly as the game stores them divided by 255 (no gamma conversion is
 // done here); fogDepth is the engine's own fraction (see WeatherDescription::fogDepth); hours are 0..24 floats.
 //
-// Version policy: DRAFT 0.4 (0.4, task 0127 stage W-S4: the weather's four sounds, trailing fields of WeatherDescription;
-// 0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
+// Version policy: DRAFT 0.4 (0.4, task 0127 stage W-S4: the weather's four sounds, trailing fields of
+// WeatherDescription; 0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
 // WeatherDescription, defaults mean "none"; 0.3, stage W-S3: extra cloud layers and the image space grade at the end of
-// WeatherDescription, the sun and moon fields at the end of TimeOfDayDescription, defaults mean "none given"). Additive changes (a new trailing field with a default that means "not given", a new
-// trailing virtual with a "not supported" default) raise the minor number; anything else raises the major number.
-// Threading: main thread only, like WorldCellSource.
+// WeatherDescription, the sun and moon fields at the end of TimeOfDayDescription, defaults mean "none given"). Additive
+// changes (a new trailing field with a default that means "not given", a new trailing virtual with a "not supported"
+// default) raise the minor number; anything else raises the major number. Threading: main thread only, like
+// WorldCellSource.
 
 namespace openeden::sdk::game
 {
@@ -79,9 +80,10 @@ namespace openeden::sdk::game
         friend bool operator==(const ImageSpaceGrade&, const ImageSpaceGrade&) = default;
     };
 
-    /// One sound of a weather (stage W-S4): a loop or a set of one-shots. `files` are VFS paths in the engine's normal form
-    /// ("sound/fx/amb/weather/rain/x.wav": lower case, forward slashes, the sound root first); the pack leaves out files
-    /// the VFS does not hold. Empty `files` means the weather has no such sound. `volume` is the gain, 0 to 1.
+    /// One sound of a weather (stage W-S4): a loop or a set of one-shots. `files` are VFS paths in the engine's normal
+    /// form
+    /// ("sound/fx/amb/weather/rain/x.wav": lower case, forward slashes, the sound root first); the pack leaves out
+    /// files the VFS does not hold. Empty `files` means the weather has no such sound. `volume` is the gain, 0 to 1.
     struct WeatherSoundDescription
     {
         std::string name; ///< the game's own name of the sound (for logs)

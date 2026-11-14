@@ -356,7 +356,8 @@ namespace face_editor
                 if (usable.empty())
                 {
                     context.log(LogLevel::Warning,
-                        "Generate Curves: no Audio2Face model was found in " + modelsRoot(context.userDataPath()).generic_string()
+                        "Generate Curves: no Audio2Face model was found in "
+                            + modelsRoot(context.userDataPath()).generic_string()
                             + "; generating needs a model (see the README.txt there) and the ONNX runtime.");
                     return;
                 }
@@ -402,14 +403,18 @@ namespace face_editor
                 task.assetId = std::string(doc->assetId());
                 task.work = [request, result, failure](TaskControl& control) {
                     std::string error;
-                    const bool ok = runGeneration(*request, [&](double f, std::string_view message) {
-                        control.reportProgress(f, message);
-                        return !control.cancelled();
-                    }, *result, error);
+                    const bool ok = runGeneration(
+                        *request,
+                        [&](double f, std::string_view message) {
+                            control.reportProgress(f, message);
+                            return !control.cancelled();
+                        },
+                        *result, error);
                     if (!ok)
                         *failure = error.empty() ? "unknown error" : error;
                 };
-                task.done = [this, &context, models, request, result, failure](TaskOutcome outcome, const std::string& error) {
+                task.done = [this, &context, models, request, result, failure](
+                                TaskOutcome outcome, const std::string& error) {
                     if (mContext == nullptr)
                         return;
                     if (outcome == TaskOutcome::Cancelled || *failure == "cancelled")
@@ -454,16 +459,19 @@ namespace face_editor
                     for (const std::string& name : added)
                         addedText += (addedText.empty() ? "" : ", ") + name;
                     char timing[240];
-                    std::snprintf(timing, sizeof(timing), "%.2f s of compute for %.2f s of audio (%.3f s per second; setup %.2f, network %.2f, solve %.2f), %.2f s in all",
+                    std::snprintf(timing, sizeof(timing),
+                        "%.2f s of compute for %.2f s of audio (%.3f s per second; setup %.2f, network %.2f, solve "
+                        "%.2f), %.2f s in all",
                         result->mComputeSeconds, result->mAudioSeconds,
                         result->mAudioSeconds > 0 ? result->mComputeSeconds / result->mAudioSeconds : 0.0,
-                        result->mWeights.mSetupSeconds, result->mWeights.mNetworkSeconds, result->mWeights.mSolveSeconds,
-                        result->mTotalSeconds);
+                        result->mWeights.mSetupSeconds, result->mWeights.mNetworkSeconds,
+                        result->mWeights.mSolveSeconds, result->mTotalSeconds);
                     context.log(LogLevel::Info,
-                        "Generated " + std::to_string(written.size()) + " channels and added " + std::to_string(added.size())
-                            + " new ones with " + result->mVariantId + " on " + result->mProvider + " (ONNX Runtime "
-                            + result->mRuntimeVersion + (result->mRestSubtracted ? ", rest offset subtracted" : "")
-                            + "): " + timing + (addedText.empty() ? "" : ". Added: " + addedText)
+                        "Generated " + std::to_string(written.size()) + " channels and added "
+                            + std::to_string(added.size()) + " new ones with " + result->mVariantId + " on "
+                            + result->mProvider + " (ONNX Runtime " + result->mRuntimeVersion
+                            + (result->mRestSubtracted ? ", rest offset subtracted" : "") + "): " + timing
+                            + (addedText.empty() ? "" : ". Added: " + addedText)
                             + (skippedText.empty() ? "" : ". Poses that could not be added: " + skippedText));
                     context.requestRedraw();
                 };
@@ -483,7 +491,8 @@ namespace face_editor
                 const fs::path dll = directMlDllPath(user, package);
                 if (directMlInstalled(user, package))
                 {
-                    context.log(LogLevel::Info, "DirectML " + package.mVersion + " is already installed: " + dll.generic_string());
+                    context.log(LogLevel::Info,
+                        "DirectML " + package.mVersion + " is already installed: " + dll.generic_string());
                     return;
                 }
                 DialogDesc dialog;
@@ -509,7 +518,8 @@ namespace face_editor
                 task.label = "Download DirectML " + package.mVersion;
                 task.work = [package, dll, failure](TaskControl& control) {
                     std::string error;
-                    const bool ok = installDirectMl(package, dll.parent_path(),
+                    const bool ok = installDirectMl(
+                        package, dll.parent_path(),
                         [&](double f, std::string_view message) {
                             control.reportProgress(f, message);
                             return !control.cancelled();

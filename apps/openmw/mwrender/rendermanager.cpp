@@ -31,8 +31,8 @@
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
-#include <components/fx/technique.hpp>
 #include <components/files/conversion.hpp>
+#include <components/fx/technique.hpp>
 #include <components/lod/fartier.hpp>
 #include <components/lod/lodworld.hpp>
 #include <components/lod/viewlimits.hpp>
@@ -45,6 +45,7 @@
 #include <components/pipeline/builder.hpp>
 #include <components/pipeline/gbufferblend.hpp>
 #include <components/pipeline/sets.hpp>
+#include <components/puddle/puddlegpu.hpp>
 #include <components/render/ambientocclusion.hpp>
 #include <components/render/aomath.hpp>
 #include <components/render/atmospheremath.hpp>
@@ -64,7 +65,6 @@
 #include <components/render/precipitationmath.hpp>
 #include <components/render/probedebug.hpp>
 #include <components/render/probegpu.hpp>
-#include <components/puddle/puddlegpu.hpp>
 #include <components/render/puddlemapgpu.hpp>
 #include <components/render/reflectiongpu.hpp>
 #include <components/render/screen.hpp>
@@ -119,20 +119,19 @@
 
 #include "animcontext.hpp"
 #include "bin.hpp"
-#include "skyrimmodel.hpp"
 #include "camera.hpp"
 #include "distantobjects.hpp"
 #include "effects.hpp"
 #include "env.hpp"
 #include "fogmanager.hpp"
 #include "groundcover.hpp"
-#include "neutralgrass.hpp"
 #include "intersect.hpp"
 #include "lodclusters.hpp"
 #include "lodterrain.hpp"
 #include "map.hpp"
 #include "mask.hpp"
 #include "navmesh.hpp"
+#include "neutralgrass.hpp"
 #include "player.hpp"
 #include "pointshadows.hpp"
 #include "postprocess.hpp"
@@ -145,6 +144,7 @@
 #include "scene.hpp"
 #include "screenshotinterface.hpp"
 #include "shadow.hpp"
+#include "skyrimmodel.hpp"
 #include "terrainstorage.hpp"
 #include "texturemipsdriver.hpp"
 #include "thumbnailstate.hpp"
@@ -422,15 +422,17 @@ namespace MWRender
         nifOptions.mAllowedVersions
             = Settings::models().mLoadUnsupportedNifFiles ? Nif::VersionSet::Any : Nif::VersionSet::Morrowind;
         Nif::Reader::setDefaultReadOptions(nifOptions);
-        // Task 0110 (neutral world, stage N3a-4): with the neutral world on, Skyrim SE models are read as scenes and drawn as
-        // static shapes through the same node cache; off, the NIF reader refuses them as before.
+        // Task 0110 (neutral world, stage N3a-4): with the neutral world on, Skyrim SE models are read as scenes and
+        // drawn as static shapes through the same node cache; off, the NIF reader refuses them as before.
         if (Settings::game().mNeutralWorld)
         {
-            // Task 0136: Skyrim trees bend in the weather's wind; the driver's one uniform is bound by every swaying shape.
+            // Task 0136: Skyrim trees bend in the weather's wind; the driver's one uniform is bound by every swaying
+            // shape.
             if (Settings::game().mNeutralTreeSway)
             {
                 mTreeSway = std::make_unique<SkyrimTreeSway::Driver>();
-                // A developer aid for frame checks: OPENEDEN_NEUTRAL_TREE_WIND (0 to 1) replaces the weather's wind speed.
+                // A developer aid for frame checks: OPENEDEN_NEUTRAL_TREE_WIND (0 to 1) replaces the weather's wind
+                // speed.
                 if (const char* forced = std::getenv("OPENEDEN_NEUTRAL_TREE_WIND"); forced != nullptr && *forced)
                 {
                     mTreeWindOverride = std::strtof(forced, nullptr);
@@ -2539,9 +2541,9 @@ namespace MWRender
             Log(Debug::Info) << "Neutral grass: the " << source.gameId() << " source has no grass";
             return;
         }
-        mNeutralGrass = std::make_unique<NeutralGrass>(mScene->context, *grass,
-            static_cast<openeden::sdk::game::WorldId>(world), mNeutralStorage->cellWorldSize,
-            Settings::groundcover().mRenderingDistance);
+        mNeutralGrass
+            = std::make_unique<NeutralGrass>(mScene->context, *grass, static_cast<openeden::sdk::game::WorldId>(world),
+                mNeutralStorage->cellWorldSize, Settings::groundcover().mRenderingDistance);
         updateSceneChildren();
         Log(Debug::Info) << "Neutral grass: on for " << source.gameId() << " world " << world << ", squares of "
                          << mNeutralStorage->cellWorldSize << " units, rendering distance "
@@ -2572,7 +2574,8 @@ namespace MWRender
         if (!std::filesystem::exists(pack, ec))
         {
             Log(Debug::Info) << "World LOD clusters: no pack for " << facts.mGameId << " world " << facts.mWorldEditorId
-                             << " (" << Files::pathToUnicodeString(pack) << "); make one with openmw --bake-lod-objects.";
+                             << " (" << Files::pathToUnicodeString(pack)
+                             << "); make one with openmw --bake-lod-objects.";
             return;
         }
         LodClusters::Setup setup;
@@ -2612,7 +2615,8 @@ namespace MWRender
         if (!std::filesystem::exists(pack, ec))
         {
             Log(Debug::Info) << "World LOD terrain: no pack for " << facts.mGameId << " world " << facts.mWorldEditorId
-                             << " (" << Files::pathToUnicodeString(pack) << "); make one with openmw --bake-lod-terrain.";
+                             << " (" << Files::pathToUnicodeString(pack)
+                             << "); make one with openmw --bake-lod-terrain.";
             return;
         }
         mLodTerrainAttached = false;
@@ -2620,8 +2624,9 @@ namespace MWRender
         LodTerrain::Setup setup;
         setup.mPack = pack;
         setup.mNeutralWorldspaceName = Lod::neutralWorldspaceName(facts);
-        setup.mThreshold = mFarTierActive ? Lod::effectiveTileThreshold(Settings::worldLod().mTerrainTileThreshold, mFarTier)
-                                          : Settings::worldLod().mTerrainTileThreshold;
+        setup.mThreshold = mFarTierActive
+            ? Lod::effectiveTileThreshold(Settings::worldLod().mTerrainTileThreshold, mFarTier)
+            : Settings::worldLod().mTerrainTileThreshold;
         setup.mMaxLevel = mFarTierActive ? mFarLevels : 0;
         setup.mResidentBudgetBytes = mFarTierActive ? farTerrainBudgetBytes() : 0;
         setup.mLive = mNeutralStorage.get();
@@ -2635,8 +2640,8 @@ namespace MWRender
         setup.mVfs = mResourceSystem->getVFS();
         setup.mFadeSeconds = Settings::worldLod().mTerrainFadeTime;
         mLodTerrain = std::make_unique<LodTerrain>(std::move(setup));
-        Log(Debug::Info) << "World LOD terrain: using " << Files::pathToUnicodeString(pack) << " for "
-                         << facts.mGameId << " world " << facts.mWorldEditorId;
+        Log(Debug::Info) << "World LOD terrain: using " << Files::pathToUnicodeString(pack) << " for " << facts.mGameId
+                         << " world " << facts.mWorldEditorId;
     }
 
     std::shared_ptr<const openeden::sdk::game::TerrainCell> RenderManager::neutralTerrainCell(
@@ -2654,8 +2659,8 @@ namespace MWRender
     {
         if (!mNeutralCache)
             return;
-        const NeutralTerrain::CellWindow window = NeutralTerrain::terrainEnsureWindow(
-            eye.x, eye.y, mViewDistance, mNeutralStorage->cellWorldSize);
+        const NeutralTerrain::CellWindow window
+            = NeutralTerrain::terrainEnsureWindow(eye.x, eye.y, mViewDistance, mNeutralStorage->cellWorldSize);
         if (window.empty() || window == mNeutralWindow)
             return;
         Misc::LoadTrace::Scope trace("terrain.neutral.ensure", window.count());
@@ -2857,8 +2862,8 @@ namespace MWRender
         camera.mViewDistance = mTileRange;
         camera.mPagingRange = mViewDistance; // what the live terrain and objects reach (task 0060)
         // Without the live distant objects (object paging off) nothing else draws a cluster's statics (second review).
-        // Task 0133 stage 2: in a neutral world nothing pages distant objects (DistantObjects reads the ESM store), only
-        // the active grid's live cells draw statics, so a cluster has no fallback and is never given up.
+        // Task 0133 stage 2: in a neutral world nothing pages distant objects (DistantObjects reads the ESM store),
+        // only the active grid's live cells draw statics, so a cluster has no fallback and is never given up.
         const bool neutralExterior = camera.mEnabled && player.getCell()->isNeutral();
         camera.mLiveObjectsPage = mDistantObjects != nullptr && !neutralExterior;
         // The drawn terrain tiles: the ground beneath a far cluster (far cluster eviction; empty without LodTerrain).

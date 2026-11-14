@@ -11,8 +11,9 @@ namespace game_skyrimse
     {
         namespace sdkgame = openeden::sdk::game;
 
-        // The level the pick for leveled templates uses: the SAME as the appearance's (task 0121), so the numbers belong
-        // to the leveled entry that is drawn. The pick therefore ignores the player's level (a limit, see the task log).
+        // The level the pick for leveled templates uses: the SAME as the appearance's (task 0121), so the numbers
+        // belong to the leveled entry that is drawn. The pick therefore ignores the player's level (a limit, see the
+        // task log).
         constexpr std::uint16_t kTemplateLevel = kAppearanceLevel;
 
         const char* resolveMessage(ActorIndex::ResolveStatus status)
@@ -63,7 +64,10 @@ namespace game_skyrimse
             return result;
         }
 
-        std::uint8_t clampSkill(std::uint8_t v) { return v; }
+        std::uint8_t clampSkill(std::uint8_t v)
+        {
+            return v;
+        }
     }
 
     LevelGain levelGainOf(const ClassRecord* classRecord)
@@ -228,7 +232,8 @@ namespace game_skyrimse
         if (const ActorNpc* aiOwner = index.npc(resolved.mAiFrom))
         {
             if (aiOwner->mAi)
-                out.aggression = static_cast<sdkgame::ActorAggression>(std::min<std::uint8_t>(aiOwner->mAi->mAggression, 3));
+                out.aggression
+                    = static_cast<sdkgame::ActorAggression>(std::min<std::uint8_t>(aiOwner->mAi->mAggression, 3));
         }
         out.hostileOnSight = wouldAttackOnSight(out.aggression, out.relationToPlayer);
         error.clear();

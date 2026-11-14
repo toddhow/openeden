@@ -56,7 +56,8 @@ namespace game_skyrimse
     [[nodiscard]] bool parseLocationRecords(
         const Content::Plugin& plugin, const LoadOrder& order, const LocationLimits& limits, LocationRecords& out);
 
-    /// The locations of a load order: a later record replaces an earlier one with the same id, a deleted one removes it.
+    /// The locations of a load order: a later record replaces an earlier one with the same id, a deleted one removes
+    /// it.
     class LocationIndex
     {
     public:

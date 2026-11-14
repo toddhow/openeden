@@ -40,26 +40,27 @@ namespace MWPhysics::NeutralMover
     /// The centre of the capsule must have floor within this much above to kStepDown below the feet; the normal of
     /// that floor, not the one the capsule's rim touched (a step's edge), decides whether the ground is walkable.
     inline constexpr float kProbeLift = 4.f;
-    /// A steep normal under the capsule's centre only refuses the pass when that ground is lower than the resting capsule
-    /// by more than this: a bevel or a seam in a floor mesh is steep for a few units and is not a slope (task 0135
-    /// stage S4: a floor seam in the Bannered Mare stopped every NPC). A capsule of radius 22 resting on the rim of a
-    /// 50 degree slope has the centre ground about 12 units lower, on a 38 degree slope about 6.
+    /// A steep normal under the capsule's centre only refuses the pass when that ground is lower than the resting
+    /// capsule by more than this: a bevel or a seam in a floor mesh is steep for a few units and is not a slope (task
+    /// 0135 stage S4: a floor seam in the Bannered Mare stopped every NPC). A capsule of radius 22 resting on the rim
+    /// of a 50 degree slope has the centre ground about 12 units lower, on a 38 degree slope about 6.
     inline constexpr float kBevelSlack = 3.f;
     /// Task 0157: the ground under the centre is the highest surface found by five rays: at the centre and this many
     /// units to each side (stair and floor meshes have thin gaps between planks that a single ray falls through).
     inline constexpr float kProbeSpread = 4.f;
     /// ... and its normal is the most level one among the surfaces hit within this height of the highest.
     inline constexpr float kProbeNormalBand = 4.f;
-    /// Task 0157: stairs. A capsule that climbs rests its rim on the next step's nosing, and the ground under its centre
-    /// is the lower tread, which can be more than kStepDown below the resting feet. When the pass raised the feet by
-    /// more than kRimMinClimb, the ground under the centre may be this much deeper still (a rim that carries the
-    /// capsule up is support). A capsule that is level or going down keeps the plain rule (a ledge is a ledge).
+    /// Task 0157: stairs. A capsule that climbs rests its rim on the next step's nosing, and the ground under its
+    /// centre is the lower tread, which can be more than kStepDown below the resting feet. When the pass raised the
+    /// feet by more than kRimMinClimb, the ground under the centre may be this much deeper still (a rim that carries
+    /// the capsule up is support). A capsule that is level or going down keeps the plain rule (a ledge is a ledge).
     inline constexpr float kRimReach = 24.f;
     inline constexpr float kRimMinClimb = 0.1f;
-    /// Task 0159: a trench is bridged when ground lies this far ahead and behind the capsule along the motion (the capsule's
-    /// rims span a gap narrower than its diameter).
+    /// Task 0159: a trench is bridged when ground lies this far ahead and behind the capsule along the motion (the
+    /// capsule's rims span a gap narrower than its diameter).
     inline constexpr float kBridgeReach = 12.f;
-    /// ... and that ground is at most this far below the resting capsule (its own floor, not a raised object it hangs from).
+    /// ... and that ground is at most this far below the resting capsule (its own floor, not a raised object it hangs
+    /// from).
     inline constexpr float kBridgeSupport = 6.f;
     /// Horizontal distances under this are not moves.
     inline constexpr float kMinMove = 1e-4f;

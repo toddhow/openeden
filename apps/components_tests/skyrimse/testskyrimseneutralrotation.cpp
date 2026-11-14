@@ -1,6 +1,7 @@
 // Task 0151: the ORDER of Skyrim's three stored placement angles. The floating MountainTrim01_LightSN slab
-// (skyrimse:b197124 at Tamriel 104403,18631) was placed with R = Rz * Ry * Rx; every object with a tilt and a yaw tipped
-// the wrong way. Skyrim turns a vector about Z first (R = Rx * Ry * Rz), every angle negated. Hand-built values only.
+// (skyrimse:b197124 at Tamriel 104403,18631) was placed with R = Rz * Ry * Rx; every object with a tilt and a yaw
+// tipped the wrong way. Skyrim turns a vector about Z first (R = Rx * Ry * Rz), every angle negated. Hand-built values
+// only.
 #include <game_skyrimse/neutral_world.hpp>
 
 #include <openeden/game/world_model.hpp>

@@ -117,9 +117,9 @@ namespace game_skyrimse
         std::vector<FormId> mLinksTo; ///< TCLT
         std::vector<survey::Ctda> mConditions; ///< as stored (plugin-local form ids), see DialogueIndex::resolverOf
         bool mHasScript = false; ///< a VMAD subrecord is present (script fragments, not run; task 0141)
-        /// The name of the INFO's fragment script ("TIF__" plus 8 hex digits, the fileName of the VMAD fragment section),
-        /// empty when the VMAD names none (task 0155). Found by scanning the VMAD for that wstring, not by walking the
-        /// script and property tables.
+        /// The name of the INFO's fragment script ("TIF__" plus 8 hex digits, the fileName of the VMAD fragment
+        /// section), empty when the VMAD names none (task 0155). Found by scanning the VMAD for that wstring, not by
+        /// walking the script and property tables.
         std::string mFragmentScript;
         bool mConditionsOk = true; ///< false: the CTDA list was damaged, the INFO never passes
         std::uint32_t mPlugin = 0; ///< index into DialogueIndex's plugins
@@ -180,8 +180,8 @@ namespace game_skyrimse
         std::optional<Content::Error> mWalkError;
     };
 
-    [[nodiscard]] bool parseDialogueRecords(const Content::Plugin& plugin, const LoadOrder& order,
-        const DialogueLimits& limits, DialogueRecords& out);
+    [[nodiscard]] bool parseDialogueRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const DialogueLimits& limits, DialogueRecords& out);
 
     [[nodiscard]] bool parseDialogueRecordsBytes(const std::string& bytes, const std::string& name,
         const LoadOrder& order, const DialogueLimits& limits, DialogueRecords& out, Content::Error& error);
@@ -198,8 +198,8 @@ namespace game_skyrimse
         [[nodiscard]] const GlobalValue* global(FormId id) const;
         [[nodiscard]] const FormListRecord* formList(FormId id) const;
 
-        /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the folder
-        /// of this plugin, named with that id. Nullopt when no plugin of the index owns the id.
+        /// The plugin that made an INFO and the id that plugin stores it with (task 0143): voice files are in the
+        /// folder of this plugin, named with that id. Nullopt when no plugin of the index owns the id.
         struct VoiceOrigin
         {
             std::string mPlugin;
@@ -218,7 +218,10 @@ namespace game_skyrimse
         /// Topic ids sorted by id (deterministic), optionally only those with this subtype name.
         [[nodiscard]] std::vector<FormId> topicIds(const std::string& subtypeName = std::string()) const;
 
-        [[nodiscard]] const FormIdResolver& resolverOf(const DialogInfo& info) const { return mResolvers[info.mPlugin]; }
+        [[nodiscard]] const FormIdResolver& resolverOf(const DialogInfo& info) const
+        {
+            return mResolvers[info.mPlugin];
+        }
         [[nodiscard]] const FormIdResolver& resolverOf(const DialogTopic& topic) const
         {
             return mResolvers[topic.mPlugin];
@@ -424,7 +427,13 @@ namespace game_skyrimse
         [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
         [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
         [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
-        enum class ItemState : std::uint8_t { Unknown, None, Carried, Worn };
+        enum class ItemState : std::uint8_t
+        {
+            Unknown,
+            None,
+            Carried,
+            Worn
+        };
         /// The initial inventory of an actor or a container reference: the count of `item` (or of the form list's
         /// entries), the state and whether the inventory is closed (no leveled entry, no death item to come).
         struct InventoryAnswer
@@ -473,7 +482,8 @@ namespace game_skyrimse
         mutable openeden::sdk::game::ActorStats mStats;
         [[nodiscard]] bool speakerStats() const; ///< the speaker's numbers, worked out once; false when unknown
 
-        [[nodiscard]] bool aliasIsSpeaker(FormId quest, std::uint32_t alias) const; ///< filled by data, with the speaker
+        [[nodiscard]] bool aliasIsSpeaker(
+            FormId quest, std::uint32_t alias) const; ///< filled by data, with the speaker
         [[nodiscard]] bool questKnown(std::uint32_t storedQuest) const;
         [[nodiscard]] bool aliasKnown(std::uint32_t alias) const; ///< the context quest's alias is filled from data
     };

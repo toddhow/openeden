@@ -51,7 +51,8 @@ namespace Resource
         JPH::Ref<JPH::Shape> shape = created.Get();
         if (centre.x != 0.f || centre.y != 0.f || centre.z != 0.f)
         {
-            JPH::RotatedTranslatedShapeSettings moved(JPH::Vec3(centre.x, centre.y, centre.z), JPH::Quat::sIdentity(), shape);
+            JPH::RotatedTranslatedShapeSettings moved(
+                JPH::Vec3(centre.x, centre.y, centre.z), JPH::Quat::sIdentity(), shape);
             JPH::ShapeSettings::ShapeResult movedResult = moved.Create();
             if (movedResult.HasError())
             {

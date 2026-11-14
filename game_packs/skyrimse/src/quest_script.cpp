@@ -28,9 +28,8 @@ namespace game_skyrimse
         std::string lower(std::string_view s)
         {
             std::string out(s);
-            std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
-                return static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
-            });
+            std::transform(out.begin(), out.end(), out.begin(),
+                [](unsigned char c) { return static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c); });
             return out;
         }
 
@@ -137,13 +136,15 @@ namespace game_skyrimse
                         if (!c.skip(8))
                             return false;
                         break;
-                    case 2: {
+                    case 2:
+                    {
                         std::string text;
                         if (!c.wstring(text))
                             return false;
                         break;
                     }
-                    case 3: {
+                    case 3:
+                    {
                         std::uint32_t v;
                         if (!c.u32(v))
                             return false;
@@ -156,7 +157,8 @@ namespace game_skyrimse
                             return false;
                         prop.mScalar = true;
                         break;
-                    case 5: {
+                    case 5:
+                    {
                         std::uint8_t v;
                         if (!c.u8(v))
                             return false;
@@ -168,7 +170,8 @@ namespace game_skyrimse
                     case 12:
                     case 13:
                     case 14:
-                    case 15: {
+                    case 15:
+                    {
                         std::uint32_t n;
                         if (!c.u32(n) || n > limits.mMaxArray)
                             return false;
@@ -180,7 +183,8 @@ namespace game_skyrimse
                                 case 11:
                                     ok = c.skip(8);
                                     break;
-                                case 12: {
+                                case 12:
+                                {
                                     std::string t;
                                     ok = c.wstring(t);
                                     break;
@@ -294,8 +298,8 @@ namespace game_skyrimse
         };
     }
 
-    bool parseQuestScripts(const Content::Plugin& plugin, const LoadOrder& order, const QuestScriptLimits& limits,
-        QuestScriptRecords& out)
+    bool parseQuestScripts(
+        const Content::Plugin& plugin, const LoadOrder& order, const QuestScriptLimits& limits, QuestScriptRecords& out)
     {
         out = QuestScriptRecords();
         out.mName = plugin.name();
@@ -446,7 +450,8 @@ namespace game_skyrimse
                         if (in.mFixedCount > 1 && isName(f, ops[1], names))
                             return true;
                         break;
-                    case Op::CallMethod: {
+                    case Op::CallMethod:
+                    {
                         if (in.mFixedCount > 2 && isName(f, ops[2], names))
                             return true;
                         if (in.mFixedCount > 1 && lower(f.str(ops[1].mString)) == "self")
@@ -511,8 +516,8 @@ namespace game_skyrimse
                 const Property* prop = nullptr;
                 for (const Property& p : object->mProperties)
                 {
-                    if (lower(f.str(p.mName)) == wanted || ((p.mFlags & Property::kAuto) != 0
-                            && lower(f.str(p.mAutoVariable)) == wanted))
+                    if (lower(f.str(p.mName)) == wanted
+                        || ((p.mFlags & Property::kAuto) != 0 && lower(f.str(p.mAutoVariable)) == wanted))
                     {
                         prop = &p;
                         propertyName = lower(f.str(p.mName));

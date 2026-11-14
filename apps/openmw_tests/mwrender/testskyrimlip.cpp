@@ -51,7 +51,8 @@ namespace
         auto morph = MWRender::SkyrimLip::HeadMorph::make(twoVertexFile(), positions);
         ASSERT_TRUE(morph);
         EXPECT_TRUE(morph->setWeights({ 1.f, 0.5f }));
-        // Aah x1: vertex 0 x += 0.5*2 = 1; vertex 1 y += 0.5*-4 = -2. BigAah x0.5: v0 y += 0.5*0.25*8 = 1; v1 z += 0.5*0.25*12 = 1.5
+        // Aah x1: vertex 0 x += 0.5*2 = 1; vertex 1 y += 0.5*-4 = -2. BigAah x0.5: v0 y += 0.5*0.25*8 = 1; v1 z +=
+        // 0.5*0.25*12 = 1.5
         EXPECT_FLOAT_EQ((*positions)[0].x, 2.f);
         EXPECT_FLOAT_EQ((*positions)[0].y, 2.f);
         EXPECT_FLOAT_EQ((*positions)[1].y, 0.f);

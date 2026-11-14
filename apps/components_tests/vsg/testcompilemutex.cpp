@@ -1,6 +1,6 @@
-// Task 0104: the viewer's compile and a loader thread's compile must not overlap (components/vsgutil/compilecontext.hpp).
-// The race itself needs a device; these tests pin the rule the fix is built on: loader compiles share the lock, the
-// viewer's compile excludes them, and there is one lock for the process.
+// Task 0104: the viewer's compile and a loader thread's compile must not overlap
+// (components/vsgutil/compilecontext.hpp). The race itself needs a device; these tests pin the rule the fix is built
+// on: loader compiles share the lock, the viewer's compile excludes them, and there is one lock for the process.
 #include <components/vsgutil/compilecontext.hpp>
 
 #include <gtest/gtest.h>
@@ -21,7 +21,11 @@ namespace
     {
         std::shared_lock first(vsgUtil::viewerCompileMutex());
         std::atomic<bool> second{ false };
-        std::thread other([&] { second = vsgUtil::viewerCompileMutex().try_lock_shared(); if (second) vsgUtil::viewerCompileMutex().unlock_shared(); });
+        std::thread other([&] {
+            second = vsgUtil::viewerCompileMutex().try_lock_shared();
+            if (second)
+                vsgUtil::viewerCompileMutex().unlock_shared();
+        });
         other.join();
         EXPECT_TRUE(second);
     }
@@ -30,7 +34,11 @@ namespace
     {
         std::shared_lock loader(vsgUtil::viewerCompileMutex());
         std::atomic<bool> got{ true };
-        std::thread viewer([&] { got = vsgUtil::viewerCompileMutex().try_lock(); if (got) vsgUtil::viewerCompileMutex().unlock(); });
+        std::thread viewer([&] {
+            got = vsgUtil::viewerCompileMutex().try_lock();
+            if (got)
+                vsgUtil::viewerCompileMutex().unlock();
+        });
         viewer.join();
         EXPECT_FALSE(got);
     }
@@ -39,7 +47,11 @@ namespace
     {
         std::unique_lock viewer(vsgUtil::viewerCompileMutex());
         std::atomic<bool> got{ true };
-        std::thread loader([&] { got = vsgUtil::viewerCompileMutex().try_lock_shared(); if (got) vsgUtil::viewerCompileMutex().unlock_shared(); });
+        std::thread loader([&] {
+            got = vsgUtil::viewerCompileMutex().try_lock_shared();
+            if (got)
+                vsgUtil::viewerCompileMutex().unlock_shared();
+        });
         loader.join();
         EXPECT_FALSE(got);
     }

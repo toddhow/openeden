@@ -11,8 +11,8 @@
 #include <components/fuz/fuz.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/vfs/manager.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -27,10 +27,12 @@ namespace MWWorld
         if (turn.service.empty())
             return std::string();
         const std::string& name = turn.speakerName.empty() ? speakerName : turn.speakerName;
-        return "service not implemented: " + turn.service + " with " + (name.empty() ? std::string("the speaker") : name);
+        return "service not implemented: " + turn.service + " with "
+            + (name.empty() ? std::string("the speaker") : name);
     }
 
-    NeutralDialoguePager::NeutralDialoguePager(std::string goodbyeLabel, std::string moreLabel, std::size_t topicsPerPage)
+    NeutralDialoguePager::NeutralDialoguePager(
+        std::string goodbyeLabel, std::string moreLabel, std::size_t topicsPerPage)
         : mGoodbye(std::move(goodbyeLabel))
         , mMore(std::move(moreLabel))
         , mPerPage(std::max<std::size_t>(1, topicsPerPage))
@@ -138,8 +140,9 @@ namespace MWWorld
             {
                 const std::string a = entry.substr(0, colon);
                 const std::string b = entry.substr(colon + 1);
-                const bool digits = std::all_of(a.begin(), a.end(), [](unsigned char c) { return c >= '0' && c <= '9'; })
-                    && std::all_of(b.begin(), b.end(), [](unsigned char c) { return c >= '0' && c <= '9'; });
+                const bool digits = std::all_of(a.begin(), a.end(), [](unsigned char c) {
+                    return c >= '0' && c <= '9';
+                }) && std::all_of(b.begin(), b.end(), [](unsigned char c) { return c >= '0' && c <= '9'; });
                 if (digits && a.size() < 7 && b.size() < 4)
                     out.emplace_back(std::atoi(a.c_str()), std::atoi(b.c_str()));
             }
@@ -175,7 +178,8 @@ namespace MWWorld
         {
             MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
             NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
-            return dynamic_cast<openeden::sdk::game::DialogueSource*>(store != nullptr ? store->source(gameId) : nullptr);
+            return dynamic_cast<openeden::sdk::game::DialogueSource*>(
+                store != nullptr ? store->source(gameId) : nullptr);
         }
     }
 
@@ -285,8 +289,8 @@ namespace MWWorld
             Lip::Result lip = Lip::read(parts.mParts.mLip, file);
             if (!lip.mOk || !lip.mTrack.mTimingKnown)
             {
-                Log(Debug::Info) << "NLIP lip data of " << file << " not used: "
-                                 << (lip.mOk ? "the timing is not known" : lip.mError);
+                Log(Debug::Info) << "NLIP lip data of " << file
+                                 << " not used: " << (lip.mOk ? "the timing is not known" : lip.mError);
                 return;
             }
             Log(Debug::Info) << "NLIP lip data of " << file << ": " << lip.mTrack.mFrames << " frames, first "

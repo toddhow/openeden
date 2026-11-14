@@ -93,7 +93,8 @@ namespace Pipeline
         // OpenEden (task 0096 stage c): far cluster foliage sways in the wind (default/main.vert). The vertex stage
         // reads the wind and the clock from the TEXMAT_BINDING uniform and each vertex's weight from its colour alpha.
         LOD_SWAY,
-        // OpenEden (task 0129): the water surface is one cell-sized quad placed by the node transform (water/main.vert).
+        // OpenEden (task 0129): the water surface is one cell-sized quad placed by the node transform
+        // (water/main.vert).
         WATER_CELL,
         // OpenEden (task 0153 follow-up 2): INSTANCE draws take a third per-instance input, a colour and a sway speed,
         // and read their rotation input as (tilt x, tilt y, yaw); used only by the neutral grass.

@@ -22,9 +22,9 @@
 // Deterministic (the same plugins give the same lists and the same objects), and nothing throws out of it: failures
 // are located Content::Error values or the `error` text of loadCell.
 
+#include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/neutral_world.hpp>
-#include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/records.hpp>
 
@@ -112,15 +112,15 @@ namespace game_skyrimse
     };
 
     class SkyrimWorldView final : public openeden::sdk::game::WorldView,
-        public ComponentSource,
-        public TerrainProvider,
-        public openeden::sdk::game::ActorAppearanceSource,
-        public openeden::sdk::game::ActorMechanicsSource,
-        public openeden::sdk::game::DialogueSource,
-        public openeden::sdk::game::DisplayNameSource,
-        public openeden::sdk::game::WeatherSource,
-        public PackageSource,
-        public FurnitureSource
+                                  public ComponentSource,
+                                  public TerrainProvider,
+                                  public openeden::sdk::game::ActorAppearanceSource,
+                                  public openeden::sdk::game::ActorMechanicsSource,
+                                  public openeden::sdk::game::DialogueSource,
+                                  public openeden::sdk::game::DisplayNameSource,
+                                  public openeden::sdk::game::WeatherSource,
+                                  public PackageSource,
+                                  public FurnitureSource
     {
     public:
         struct Options
@@ -215,13 +215,13 @@ namespace game_skyrimse
         /// call when nothing runs, and more than once. The destructor calls it. Not callable from the worker.
         void cancelAndJoin();
 
-        /// True once cancelAndJoin() has asked the worker to stop. Any thread (lets a test wait for the request instead of
-        /// sleeping).
+        /// True once cancelAndJoin() has asked the worker to stop. Any thread (lets a test wait for the request instead
+        /// of sleeping).
         [[nodiscard]] bool cancelRequested() const { return mCancel.load(); }
 
-        /// Task 0125: whether startLoad's worker built the terrain index (LAND, LTEX of every plugin) itself, right after
-        /// the cell index and after isReady() turned true, so that the first exterior door does not build it on the
-        /// main thread (it took 2.8 s). Any thread; true once the worker has finished that build.
+        /// Task 0125: whether startLoad's worker built the terrain index (LAND, LTEX of every plugin) itself, right
+        /// after the cell index and after isReady() turned true, so that the first exterior door does not build it on
+        /// the main thread (it took 2.8 s). Any thread; true once the worker has finished that build.
         [[nodiscard]] bool terrainBuiltOnWorker() const { return mTerrainFromWorker.load(std::memory_order_acquire); }
 
         /// How many queries had to wait for the worker, and the longest wait in milliseconds. Any thread.
@@ -301,8 +301,8 @@ namespace game_skyrimse
             openeden::sdk::game::ActorStats& out, std::string& error) override;
         bool actorDisposition(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorDisposition& out, std::string& error) override;
-        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA,
-            std::uint32_t variationA, openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
+        openeden::sdk::game::ActorRelation relationBetween(openeden::sdk::game::WorldId baseA, std::uint32_t variationA,
+            openeden::sdk::game::WorldId baseB, std::uint32_t variationB) override;
         /// The level an actor that scales with the player scales to when the caller passes 0 (the pack setting
         /// `player level`; kStandInPlayerLevel by default).
         void setStandInPlayerLevel(std::uint16_t level) { mStandInPlayerLevel = level; }
@@ -455,8 +455,8 @@ namespace game_skyrimse
         FormId mLastCell = kNullFormId; ///< the cell of the last successful loadCell
         /// Where every reference of every cell loadCell returned stands (task 0135 S5: package locations). Only grows.
         std::unordered_map<FormId, std::array<double, 3>> mPlacements;
-        /// Task 0135 S6b: the furniture placements of each cell loadCell returned (replaced on a reload), and the cell of
-        /// every actor placement. Main thread only.
+        /// Task 0135 S6b: the furniture placements of each cell loadCell returned (replaced on a reload), and the cell
+        /// of every actor placement. Main thread only.
         struct FurnitureRef
         {
             FormId mId = kNullFormId;
@@ -465,7 +465,8 @@ namespace game_skyrimse
         };
         std::unordered_map<FormId, std::vector<FurnitureRef>> mFurnitureByCell;
         // Stage S6f: XLKR links and XPRD idle times of the placements of every cell materialised so far (bounded), and
-        // the root motion of the furniture clips, read from the animation data files the first time a seat is asked for.
+        // the root motion of the furniture clips, read from the animation data files the first time a seat is asked
+        // for.
         std::unordered_map<FormId, std::vector<RefLink>> mRefLinks;
         std::unordered_map<FormId, float> mPatrolIdles;
         MotionTable mMotion;
@@ -481,8 +482,8 @@ namespace game_skyrimse
         Stats mStats;
         bool mFinished = false;
         mutable std::unique_ptr<SkyrimTerrainIndex> mTerrain; ///< built by the worker after the cell index, else lazily
-        // Task 0125: 1 while startLoad's worker is building mTerrain after the cell index (set before mBuilding clears),
-        // 2 once it has. terrainIndex() waits for 1 to end (mBuildMutex, mBuildCv).
+        // Task 0125: 1 while startLoad's worker is building mTerrain after the cell index (set before mBuilding
+        // clears), 2 once it has. terrainIndex() waits for 1 to end (mBuildMutex, mBuildCv).
         mutable std::atomic<int> mTerrainState{ 0 };
         std::atomic<bool> mTerrainFromWorker{ false };
         void buildTerrainIndex() const;

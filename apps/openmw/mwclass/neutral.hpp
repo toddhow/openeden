@@ -41,10 +41,10 @@ namespace MWClass
 
         void getModelsToPreload(const MWWorld::ConstPtr&, std::vector<std::string_view>&) const override {}
 
-        // Task 0131 (stage N3a-6): a neutral object is an inert reference. These are the Class virtuals whose default is
-        // to throw and that a generic engine path (not guarded by isActor, isItem or isDoor) or the console can reach
-        // with any Ptr; here they answer with the neutral value (nothing, zero, idle) instead. What only an actor has
-        // (stats, movement, containers, inventories) keeps refusing: nothing generic calls those on a non-actor.
+        // Task 0131 (stage N3a-6): a neutral object is an inert reference. These are the Class virtuals whose default
+        // is to throw and that a generic engine path (not guarded by isActor, isItem or isDoor) or the console can
+        // reach with any Ptr; here they answer with the neutral value (nothing, zero, idle) instead. What only an actor
+        // has (stats, movement, containers, inventories) keeps refusing: nothing generic calls those on a non-actor.
         int getValue(const MWWorld::ConstPtr&) const override { return 0; }
         float getWeight(const MWWorld::ConstPtr&) const override { return 0.f; }
         float getCapacity(const MWWorld::Ptr&) const override { return 0.f; }
@@ -67,7 +67,8 @@ namespace MWClass
             MWPhysics::PhysicsSystem& physics) const override;
 
     private:
-        /// An actor object (task 0121): drawn through the pack's ActorAppearanceSource when [Game] neutral actors is on.
+        /// An actor object (task 0121): drawn through the pack's ActorAppearanceSource when [Game] neutral actors is
+        /// on.
         void insertActorRendering(const MWWorld::Ptr& ptr, const MWWorld::NeutralBase& base,
             MWRender::RenderingInterface& renderingInterface) const;
 

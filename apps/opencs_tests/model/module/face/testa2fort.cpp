@@ -4,8 +4,8 @@
 // without a reference: the run completes, is finite and in range, reacts to speech-like input differently from
 // silence, is repeatable on one provider, CPU and DirectML agree, progress and cancel work, the hash gate refuses a
 // damaged copy. Whether the curves look like the speech is a judgement made on frames, not here.
-#include "editor_modules/face_editor/audio_pcm.hpp"
 #include "editor_modules/face_editor/a2f_rest.hpp"
+#include "editor_modules/face_editor/audio_pcm.hpp"
 #include "editor_modules/face_editor/generate_run.hpp"
 #ifdef OPENEDEN_FACE_GENERATOR
 #include "editor_modules/face_editor/ort_backend.hpp"
@@ -129,7 +129,8 @@ namespace
         ASSERT_TRUE(runGeneration(request(root, "v2.3-mark", false), {}, cpu, error)) << error;
         ASSERT_TRUE(runGeneration(request(root, "v2.3-mark", true), {}, gpu1, error)) << error;
         ASSERT_TRUE(runGeneration(request(root, "v2.3-mark", true), {}, gpu2, error)) << error;
-        std::printf("DirectML run used provider %s, fallback \"%s\"; compute %.3f s CPU, %.3f s %s for %.2f s of audio\n",
+        std::printf(
+            "DirectML run used provider %s, fallback \"%s\"; compute %.3f s CPU, %.3f s %s for %.2f s of audio\n",
             gpu1.mProvider.c_str(), gpu1.mFallbackReason.c_str(), cpu.mComputeSeconds, gpu1.mComputeSeconds,
             gpu1.mProvider.c_str(), gpu1.mAudioSeconds);
         if (gpu1.mProvider != "DirectML")
@@ -139,7 +140,8 @@ namespace
         ASSERT_EQ(cpu.mWeights.mWeights.size(), gpu1.mWeights.mWeights.size());
         double worst = 0;
         for (std::size_t i = 0; i < cpu.mWeights.mWeights.size(); ++i)
-            worst = std::max(worst, static_cast<double>(std::fabs(cpu.mWeights.mWeights[i] - gpu1.mWeights.mWeights[i])));
+            worst
+                = std::max(worst, static_cast<double>(std::fabs(cpu.mWeights.mWeights[i] - gpu1.mWeights.mWeights[i])));
         EXPECT_LT(worst, 0.02);
     }
 
@@ -168,7 +170,8 @@ namespace
         std::string why;
         const char* wav = std::getenv("OPENEDEN_A2F_VOICE_WAV");
         if (!modelsRoot(root) || wav == nullptr || !generationAvailable(why))
-            GTEST_SKIP() << "needs OPENEDEN_A2F_MODELS, OPENEDEN_A2F_VOICE_WAV (the gate's bIdl_AM001 as 16 kHz WAV) and the runtime";
+            GTEST_SKIP() << "needs OPENEDEN_A2F_MODELS, OPENEDEN_A2F_VOICE_WAV (the gate's bIdl_AM001 as 16 kHz WAV) "
+                            "and the runtime";
         Pcm pcm;
         std::string error;
         ASSERT_TRUE(loadVoiceFile(wav, pcm, error)) << error;
@@ -183,8 +186,10 @@ namespace
         ASSERT_TRUE(runGeneration(r, {}, gate, error)) << error;
         r.mOptions.mV3Layout = V3Layout::Overlapped;
         ASSERT_TRUE(runGeneration(r, {}, overlapped, error)) << error;
-        std::printf("v3.0 on the gate's line: Gate jaw %.3f close %.3f pucker %.3f (%zu frames at %u); Overlapped jaw %.3f close %.3f "
-                    "pucker %.3f (%zu frames at %u); the gate recorded 0.547 / 0.861 / 0.628\n",
+        std::printf(
+            "v3.0 on the gate's line: Gate jaw %.3f close %.3f pucker %.3f (%zu frames at %u); Overlapped jaw %.3f "
+            "close %.3f "
+            "pucker %.3f (%zu frames at %u); the gate recorded 0.547 / 0.861 / 0.628\n",
             peak(gate.mWeights, "jawopen"), peak(gate.mWeights, "mouthclose"), peak(gate.mWeights, "mouthpucker"),
             gate.mWeights.frameCount(), gate.mWeights.mFrameRate, peak(overlapped.mWeights, "jawopen"),
             peak(overlapped.mWeights, "mouthclose"), peak(overlapped.mWeights, "mouthpucker"),
@@ -205,16 +210,21 @@ namespace
         std::string error;
         double last = -1;
         bool monotonic = true;
-        ASSERT_TRUE(runGeneration(request(root, "v2.3-mark", false), [&](double f, std::string_view) {
-            monotonic = monotonic && f >= last;
-            last = f;
-            return true;
-        }, r, error)) << error;
+        ASSERT_TRUE(runGeneration(
+            request(root, "v2.3-mark", false),
+            [&](double f, std::string_view) {
+                monotonic = monotonic && f >= last;
+                last = f;
+                return true;
+            },
+            r, error))
+            << error;
         EXPECT_TRUE(monotonic);
         EXPECT_NEAR(last, 1.0, 1e-9);
         int calls = 0;
         GenerateResult c;
-        EXPECT_FALSE(runGeneration(request(root, "v2.3-mark", false), [&](double, std::string_view) { return ++calls < 6; }, c, error));
+        EXPECT_FALSE(runGeneration(
+            request(root, "v2.3-mark", false), [&](double, std::string_view) { return ++calls < 6; }, c, error));
         EXPECT_EQ(error, "cancelled");
     }
 
@@ -233,7 +243,8 @@ namespace
         for (const auto& entry : fs::directory_iterator(root / "v2.3-mark"))
             fs::copy_file(entry.path(), dir / "models" / "v2.3-mark" / entry.path().filename(), ec);
         {
-            std::fstream f(dir / "models" / "v2.3-mark" / "network.onnx", std::ios::in | std::ios::out | std::ios::binary);
+            std::fstream f(
+                dir / "models" / "v2.3-mark" / "network.onnx", std::ios::in | std::ios::out | std::ios::binary);
             ASSERT_TRUE(f.good());
             f.seekp(1000000);
             char c = 0;
@@ -305,8 +316,8 @@ namespace
         EXPECT_TRUE(ortLoadDirectMl(dll, why)) << "loading twice is fine: " << why;
     }
 
-    /// Measures the rest table of a variant with the real network on the CPU: the options and silence the table's header
-    /// in a2f_rest_table.inc describes.
+    /// Measures the rest table of a variant with the real network on the CPU: the options and silence the table's
+    /// header in a2f_rest_table.inc describes.
     bool measureVariant(const fs::path& root, const char* id, A2FVariant variant, RestTable& table, std::string& error)
     {
         GeneratorModel model;

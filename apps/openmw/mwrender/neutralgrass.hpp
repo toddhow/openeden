@@ -32,7 +32,8 @@ namespace MWRender
     /// colours and material by 0.51 / 0.8, rounded, to bring the grass to the ground's tone. 1 changes nothing.
     inline constexpr float kGrassAlbedoScale = 0.65f;
     float grassAlbedoScale();
-    /// makeGroundcoverContext's context with the grass albedo scale applied through a Pipeline::Override materialData hook.
+    /// makeGroundcoverContext's context with the grass albedo scale applied through a Pipeline::Override materialData
+    /// hook.
     MWAnim::Context makeNeutralGrassContext(const MWAnim::Context& base);
 
     /// The tufts of one grid square as groundcover instances (task 0153): one list per model path, in the pack's order,

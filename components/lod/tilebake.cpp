@@ -301,9 +301,8 @@ namespace Lod
         tileOriginCell(id, cellX, cellY);
         const std::uint32_t cells = 1u << settings.mLevel;
         EdenArchive::Hash inputs;
-        if (LodError error
-            = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs, &tile.mUsedLayers,
-                settings.mVerticesPerCell))
+        if (LodError error = albedoInputsDigest(*albedo, cellX, cellY, cells, settings.mAlbedoSize, inputs,
+                &tile.mUsedLayers, settings.mVerticesPerCell))
         {
             tile = {};
             return error;
@@ -320,7 +319,8 @@ namespace Lod
         if (settings.mDigestOnly)
             return {};
         std::vector<std::uint8_t> rgba;
-        if (LodError error = bakeAlbedoImage(*albedo, cellX, cellY, cells, settings.mAlbedoSize, rgba, settings.mVerticesPerCell))
+        if (LodError error
+            = bakeAlbedoImage(*albedo, cellX, cellY, cells, settings.mAlbedoSize, rgba, settings.mVerticesPerCell))
         {
             tile = {};
             return error;

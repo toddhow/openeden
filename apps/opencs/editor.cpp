@@ -771,10 +771,11 @@ namespace
             for (QWidget* widget : QApplication::topLevelWidgets())
                 if (auto* window = qobject_cast<QMainWindow*>(widget); window && window->isVisible())
                 {
-                    // A module command that asks something shows a MODAL dialog, which nobody answers in a check (the face
-                    // module's New Curves File and Install DirectML do): cancel them, and say so.
+                    // A module command that asks something shows a MODAL dialog, which nobody answers in a check (the
+                    // face module's New Curves File and Install DirectML do): cancel them, and say so.
                     CSVModule::ModuleUi::get()->setDialogRunner(
-                        [](const openeden::editor::DialogDesc& desc, const std::vector<openeden::editor::PropertyValue>&)
+                        [](const openeden::editor::DialogDesc& desc,
+                            const std::vector<openeden::editor::PropertyValue>&)
                             -> std::optional<std::vector<openeden::editor::PropertyValue>> {
                             Log(Debug::Info) << "UI check: module menu dialog '" << desc.title << "' cancelled";
                             return std::nullopt;
@@ -1405,10 +1406,10 @@ namespace
 
     /// OPENEDEN_CS_FACECHECK=<file prefix>;<voice audio file>: the face timeline in the real editor (task 0147). Makes
     /// a curve file for the audio through the face editor module's New Curves File command (its dialog answered by the
-    /// check), fills three channels with keys from the audio's loudness, grabs the timeline canvas (waveform, curves, playhead), drags a key
-    /// with synthetic mouse events on the canvas (ONE undo step), adds a key with a double click, undoes both through
-    /// Edit > Undo, moves the playhead with a click on the ruler, plays the audio, shows the module's dialog, saves and
-    /// reads the file back. Everything is logged as "UI check: face ...".
+    /// check), fills three channels with keys from the audio's loudness, grabs the timeline canvas (waveform, curves,
+    /// playhead), drags a key with synthetic mouse events on the canvas (ONE undo step), adds a key with a double
+    /// click, undoes both through Edit > Undo, moves the playhead with a click on the ruler, plays the audio, shows the
+    /// module's dialog, saves and reads the file back. Everything is logged as "UI check: face ...".
     void runFaceCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
     {
         const std::size_t semicolon = spec.find(';');
@@ -1479,7 +1480,7 @@ namespace
             // The New Curves File command, its dialog answered with the audio file and 30 frames per second.
             ui->setDialogRunner([=](const openeden::editor::DialogDesc& desc,
                                     const std::vector<openeden::editor::PropertyValue>&)
-                -> std::optional<std::vector<openeden::editor::PropertyValue>> {
+                                    -> std::optional<std::vector<openeden::editor::PropertyValue>> {
                 Log(Debug::Info) << "UI check: face dialog asked '" << desc.title << "' with " << desc.fields.size()
                                  << " fields";
                 return std::vector<openeden::editor::PropertyValue>{ audioPath.generic_string(), std::int64_t{ 30 } };
@@ -1488,7 +1489,8 @@ namespace
             ui->resetDialogRunner();
             Log(Debug::Info) << "UI check: face new curves command " << (ran ? "ran" : "failed") << ", file "
                              << (std::filesystem::exists(curvesPath) ? "written" : "missing");
-            Log(Debug::Info) << "UI check: face opened " << (ui->activeAsset() ? "yes" : "no") << " " << ui->openError();
+            Log(Debug::Info) << "UI check: face opened " << (ui->activeAsset() ? "yes" : "no") << " "
+                             << ui->openError();
             // Keys from the audio's loudness: jawopen follows the envelope, two blinks, funnel on the loud parts.
             const auto filled = ui->timelineTracks();
             if (!filled.mCurves.empty() && !filled.mWaves.empty())
@@ -1507,7 +1509,8 @@ namespace
                     const double rms = last > first ? std::sqrt(sum / (last - first)) : 0.0;
                     const double jaw = std::clamp(rms * 4.0, 0.0, 1.0);
                     added += editor.addKey("jawopen", { t, jaw });
-                    added += editor.addKey("mouthfunnel", { t, std::clamp(jaw * 0.5 * (std::fmod(t, 0.4) < 0.2 ? 1.0 : 0.2), 0.0, 1.0) });
+                    added += editor.addKey(
+                        "mouthfunnel", { t, std::clamp(jaw * 0.5 * (std::fmod(t, 0.4) < 0.2 ? 1.0 : 0.2), 0.0, 1.0) });
                 }
                 for (double blink : { 0.8, 2.2 })
                     if (blink < length)
@@ -1566,9 +1569,10 @@ namespace
                              << moduleStack.count();
             send(canvas, QEvent::MouseButtonRelease, start + QPoint(16, -80), Qt::LeftButton, Qt::NoButton);
             const auto after = jawKeys();
-            Log(Debug::Info) << "UI check: face drag released: undo steps " << moduleStack.count() << ", key "
-                             << index << " now (" << (after.size() > static_cast<std::size_t>(index) ? after[index].timeSeconds : -1)
-                             << "," << (after.size() > static_cast<std::size_t>(index) ? after[index].value : -1)
+            Log(Debug::Info) << "UI check: face drag released: undo steps " << moduleStack.count() << ", key " << index
+                             << " now ("
+                             << (after.size() > static_cast<std::size_t>(index) ? after[index].timeSeconds : -1) << ","
+                             << (after.size() > static_cast<std::size_t>(index) ? after[index].value : -1)
                              << "), document modified " << ((document->getState() & CSMDoc::State_Modified) != 0)
                              << ", asset dirty "
                              << (CSVModule::ModuleUi::get()->activeAsset()->isDirty() ? "yes" : "no");
@@ -1642,7 +1646,8 @@ namespace
                     {
                         const std::string file = prefix + "_dialog.png";
                         Log(Debug::Info) << "UI check: face dialog '" << dialog->windowTitle().toStdString() << "': "
-                                         << (dialog->grab().save(QString::fromStdString(file)) ? "written" : "not written");
+                                         << (dialog->grab().save(QString::fromStdString(file)) ? "written"
+                                                                                               : "not written");
                         dialog->accept();
                     }
             });
@@ -1672,17 +1677,18 @@ namespace
         });
     }
 
-    /// The curve generator check (task 0147 slice 2): OPENEDEN_CS_FACEGEN=<prefix>;<voice audio>;<variant>;<directml 0|1>.
-    /// Makes a curve file for the audio (the New Curves File command), runs Face > Generate Curves with the given model
-    /// (its dialog answered here), waits for the background task's undo step, and logs the time it took and what the
-    /// channels hold ("UI check: facegen ..."); frames before and after, then Undo and Redo of the ONE step, then Save.
-    /// The models must be in <user data>/models/audio2face.
+    /// The curve generator check (task 0147 slice 2): OPENEDEN_CS_FACEGEN=<prefix>;<voice audio>;<variant>;<directml
+    /// 0|1>. Makes a curve file for the audio (the New Curves File command), runs Face > Generate Curves with the given
+    /// model (its dialog answered here), waits for the background task's undo step, and logs the time it took and what
+    /// the channels hold ("UI check: facegen ..."); frames before and after, then Undo and Redo of the ONE step, then
+    /// Save. The models must be in <user data>/models/audio2face.
     void runFaceGenCheck(CSMDoc::Document* document, const std::string& spec, int milliseconds)
     {
         const QStringList parts = QString::fromStdString(spec).split(';');
         if (parts.size() < 4)
         {
-            Log(Debug::Error) << "UI check: facegen: OPENEDEN_CS_FACEGEN needs <prefix>;<audio>;<variant>;<directml 0|1>";
+            Log(Debug::Error)
+                << "UI check: facegen: OPENEDEN_CS_FACEGEN needs <prefix>;<audio>;<variant>;<directml 0|1>";
             return;
         }
         const std::string prefix = parts[0].toStdString();
@@ -1697,7 +1703,8 @@ namespace
                     {
                         const std::string file = prefix + "_" + name + ".png";
                         Log(Debug::Info) << "UI check: facegen frame " << file << ": "
-                                         << (found->grab().save(QString::fromStdString(file)) ? "written" : "not written");
+                                         << (found->grab().save(QString::fromStdString(file)) ? "written"
+                                                                                              : "not written");
                         return;
                     }
             Log(Debug::Info) << "UI check: facegen frame " << name << ": no strip";
@@ -1709,7 +1716,8 @@ namespace
                 return;
             std::ostringstream text;
             text << " channels " << tracks.mCurves.front()->channels().size() << ";";
-            for (const char* channel : { "jawopen", "mouthclose", "mouthfunnel", "mouthpucker", "eyeblinkleft", "browinnerup" })
+            for (const char* channel :
+                { "jawopen", "mouthclose", "mouthfunnel", "mouthpucker", "eyeblinkleft", "browinnerup" })
             {
                 const auto keys = tracks.mCurves.front()->channelKeys(channel);
                 double peak = 0;
@@ -1718,8 +1726,8 @@ namespace
                 text << " " << channel << " keys " << keys.size() << " peak " << peak << ";";
             }
             Log(Debug::Info) << "UI check: facegen " << label << ":" << text.str() << " dirty "
-                             << (ui->activeAsset() && ui->activeAsset()->isDirty() ? "yes" : "no") << ", module undo steps "
-                             << document->getUndoRouting().moduleStack().count();
+                             << (ui->activeAsset() && ui->activeAsset()->isDirty() ? "yes" : "no")
+                             << ", module undo steps " << document->getUndoRouting().moduleStack().count();
         };
 
         QTimer::singleShot(1000, qApp, [=] {
@@ -1729,8 +1737,9 @@ namespace
                     for (int i = 0; i < tabs->count(); ++i)
                         if (tabs->tabText(i) == "Face")
                             tabs->setCurrentIndex(i);
-            ui->setDialogRunner([=](const openeden::editor::DialogDesc&, const std::vector<openeden::editor::PropertyValue>&)
-                -> std::optional<std::vector<openeden::editor::PropertyValue>> {
+            ui->setDialogRunner([=](const openeden::editor::DialogDesc&,
+                                    const std::vector<openeden::editor::PropertyValue>&)
+                                    -> std::optional<std::vector<openeden::editor::PropertyValue>> {
                 return std::vector<openeden::editor::PropertyValue>{ audioPath.generic_string(), std::int64_t{ 30 } };
             });
             const bool ran = ui->registry().runCommand("face.newCurves");
@@ -1754,21 +1763,25 @@ namespace
                             break;
                         }
         });
-        QTimer::singleShot(3000, qApp, [=] { grab("before"); report("before"); });
+        QTimer::singleShot(3000, qApp, [=] {
+            grab("before");
+            report("before");
+        });
         auto started = std::make_shared<std::chrono::steady_clock::time_point>();
         QTimer::singleShot(4000, qApp, [=] {
             CSVModule::ModuleUi* ui = CSVModule::ModuleUi::get();
-            ui->setDialogRunner([=](const openeden::editor::DialogDesc& desc, const std::vector<openeden::editor::PropertyValue>&)
-                -> std::optional<std::vector<openeden::editor::PropertyValue>> {
-                Log(Debug::Info) << "UI check: facegen dialog '" << desc.title << "' fields " << desc.fields.size()
-                                 << " choices " << (desc.fields.empty() ? 0 : desc.fields[0].choices.size());
-                return std::vector<openeden::editor::PropertyValue>{ variant, false, directMl };
-            });
+            ui->setDialogRunner(
+                [=](const openeden::editor::DialogDesc& desc, const std::vector<openeden::editor::PropertyValue>&)
+                    -> std::optional<std::vector<openeden::editor::PropertyValue>> {
+                    Log(Debug::Info) << "UI check: facegen dialog '" << desc.title << "' fields " << desc.fields.size()
+                                     << " choices " << (desc.fields.empty() ? 0 : desc.fields[0].choices.size());
+                    return std::vector<openeden::editor::PropertyValue>{ variant, false, directMl };
+                });
             *started = std::chrono::steady_clock::now();
             const bool ran = ui->registry().runCommand("face.generate");
             ui->resetDialogRunner();
-            Log(Debug::Info) << "UI check: facegen generate command " << (ran ? "ran" : "failed") << " (variant " << variant
-                             << ", directml " << (directMl ? "yes" : "no") << ")";
+            Log(Debug::Info) << "UI check: facegen generate command " << (ran ? "ran" : "failed") << " (variant "
+                             << variant << ", directml " << (directMl ? "yes" : "no") << ")";
         });
         // Poll for the finished task: its command makes the asset dirty.
         auto poll = std::make_shared<std::function<void()>>();
@@ -1797,7 +1810,8 @@ namespace
                                             report("after redo");
                                             std::string error;
                                             const bool saved = u->activeAsset()->save(error);
-                                            Log(Debug::Info) << "UI check: facegen saved " << (saved ? "yes" : "no") << " " << error;
+                                            Log(Debug::Info)
+                                                << "UI check: facegen saved " << (saved ? "yes" : "no") << " " << error;
                                             return;
                                         }
                     Log(Debug::Info) << "UI check: facegen: no Undo action found";
@@ -2155,7 +2169,8 @@ void CS::Editor::startUiCheck()
             // OPENEDEN_CS_FACECHECK=<prefix>;<curves file>: the face timeline check, see runFaceCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_FACECHECK"))
                 runFaceCheck(document, spec, milliseconds);
-            // OPENEDEN_CS_FACEGEN=<prefix>;<audio>;<variant>;<directml 0|1>: the curve generator check, see runFaceGenCheck.
+            // OPENEDEN_CS_FACEGEN=<prefix>;<audio>;<variant>;<directml 0|1>: the curve generator check, see
+            // runFaceGenCheck.
             if (const char* spec = std::getenv("OPENEDEN_CS_FACEGEN"))
                 runFaceGenCheck(document, spec, milliseconds);
             // OPENEDEN_CS_PUSHCHECK=<prefix>;<rig>;<profile>[;<bone>]: the push sandbox check, see runPushCheck.

@@ -22,8 +22,8 @@ namespace TriMorph
 
         std::int16_t readLe16(std::string_view bytes, std::size_t at)
         {
-            const auto v = static_cast<std::uint16_t>(static_cast<unsigned char>(bytes[at])
-                | (static_cast<unsigned char>(bytes[at + 1]) << 8));
+            const auto v = static_cast<std::uint16_t>(
+                static_cast<unsigned char>(bytes[at]) | (static_cast<unsigned char>(bytes[at + 1]) << 8));
             return static_cast<std::int16_t>(v);
         }
 
@@ -46,8 +46,8 @@ namespace TriMorph
         }
     }
 
-    Result read(std::string_view bytes, std::string_view name, std::span<const std::string_view> wanted,
-        const Limits& limits)
+    Result read(
+        std::string_view bytes, std::string_view name, std::span<const std::string_view> wanted, const Limits& limits)
     {
         if (bytes.size() > limits.mMaxBytes)
             return fail(name, 0,
@@ -124,9 +124,9 @@ namespace TriMorph
                 return fail(name, pos, "the scale of morph " + std::to_string(m) + " is not a finite number");
             pos += 4;
 
-            const bool keep = wanted.empty()
-                || std::any_of(wanted.begin(), wanted.end(),
-                    [&](std::string_view w) { return equalNoCase(w, morphName); });
+            const bool keep = wanted.empty() || std::any_of(wanted.begin(), wanted.end(), [&](std::string_view w) {
+                return equalNoCase(w, morphName);
+            });
             if (keep)
             {
                 Morph morph;

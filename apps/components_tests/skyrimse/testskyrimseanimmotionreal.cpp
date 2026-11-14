@@ -1,7 +1,7 @@
 // Task 0135 stage S6f, gated: the root motion of the furniture clips read from the installed Skyrim SE animation data.
 // OPENEDEN_SKYRIMSE_ANIMDATA_DIR names a folder that holds `meshes/animationdata/defaultmale.txt` and
-// `meshes/animationdata/boundanims/anims_defaultmale.txt` (the user's own `Skyrim - Animations.bsa` extracted; never in the
-// repository). The expected numbers are the ones read independently by the Python walker of the stage log
+// `meshes/animationdata/boundanims/anims_defaultmale.txt` (the user's own `Skyrim - Animations.bsa` extracted; never in
+// the repository). The expected numbers are the ones read independently by the Python walker of the stage log
 // (`I:/Projects/OpenEden-work/skynpc/py/mot.py`), not by this reader.
 #include <game_skyrimse/anim_motion.hpp>
 
@@ -63,7 +63,8 @@ namespace
             ASSERT_NE(m, nullptr) << e.name;
             double dx = 0, dy = 0, yaw = 0;
             m->total(dx, dy, yaw);
-            std::cout << "[motion] " << e.name << " " << m->mDuration << " s, (" << dx << ", " << dy << ") yaw " << yaw << "\n";
+            std::cout << "[motion] " << e.name << " " << m->mDuration << " s, (" << dx << ", " << dy << ") yaw " << yaw
+                      << "\n";
             EXPECT_NEAR(m->mDuration, e.duration, 0.01) << e.name;
             EXPECT_NEAR(dx, e.dx, 0.5) << e.name;
             EXPECT_NEAR(dy, e.dy, 0.5) << e.name;

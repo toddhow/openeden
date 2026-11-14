@@ -2,8 +2,8 @@
 #define VSGOPENMW_MWRENDER_SCENE_H
 
 #include <cstdint>
-#include <memory>
 #include <map>
+#include <memory>
 
 #include <vsg/core/ref_ptr.h>
 #include <vsg/nodes/Group.h>
@@ -76,9 +76,9 @@ namespace MWRender
             const MWWorld::Ptr& ptr, const std::string& mesh, const ESM::Light* light, MWAnim::Context& ctx);
 
     public:
-
         void insertNPC(const MWWorld::Ptr& ptr) override;
-        void insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance) override;
+        void insertNeutralActor(
+            const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance) override;
         void setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes) override;
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;

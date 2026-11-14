@@ -64,7 +64,8 @@ namespace ESM
 
         // format 0 / legacy
         REC_ACTI = esm3Recname("ACTI"),
-        // The neutral world's base record (task 0109): never in a file or a save, only a type tag for MWWorld::NeutralBase.
+        // The neutral world's base record (task 0109): never in a file or a save, only a type tag for
+        // MWWorld::NeutralBase.
         REC_NEUT = esm3Recname("NEUT"),
         REC_ALCH = esm3Recname("ALCH"),
         REC_APPA = esm3Recname("APPA"),

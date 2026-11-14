@@ -126,8 +126,9 @@ TEST(HavokIdleSample, a_wrong_output_size_is_ignored_not_written)
     EXPECT_FLOAT_EQ(out[0].mTranslation[0], 9.0f);
 }
 
-// Opt-in: OPENEDEN_HAVOK_IDLE_ROOT names a folder holding the extracted game files (it contains meshes/actors/character).
-// Decodes the humanoid skeleton and idle clip, binds them, and times one sample of all tracks.
+// Opt-in: OPENEDEN_HAVOK_IDLE_ROOT names a folder holding the extracted game files (it contains
+// meshes/actors/character). Decodes the humanoid skeleton and idle clip, binds them, and times one sample of all
+// tracks.
 TEST(HavokIdleRealData, the_humanoid_idle_binds_to_the_humanoid_skeleton_and_samples_quickly)
 {
     const char* root = std::getenv("OPENEDEN_HAVOK_IDLE_ROOT");
@@ -152,7 +153,8 @@ TEST(HavokIdleRealData, the_humanoid_idle_binds_to_the_humanoid_skeleton_and_sam
     const double micros
         = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - begin).count() / runs;
     std::cout << "IDLE tracks " << bound.mClip.mNumTransformTracks << " bones " << skeletons[0].mBoneNames.size()
-              << " duration " << bound.mClip.mDuration << " s, " << micros << " microseconds per sample of all tracks\n";
+              << " duration " << bound.mClip.mDuration << " s, " << micros
+              << " microseconds per sample of all tracks\n";
     EXPECT_GT(bound.mClip.mDuration, 1.0f);
 }
 
@@ -173,8 +175,8 @@ TEST(HavokIdlePaths, no_sex_folder_keeps_the_old_path_and_a_bad_one_is_refused)
     EXPECT_EQ(clipHkxPath("meshes/actors/character/character assets/skeleton.nif", "mt_idle", "a/b"), "");
 }
 
-// Task 0145: how far the ambient idle moves the pelvis from the skeleton's reference pose (opt-in, real data). A pose that
-// lowers the pelvis puts the feet above or below the floor the actor's capsule stands on.
+// Task 0145: how far the ambient idle moves the pelvis from the skeleton's reference pose (opt-in, real data). A pose
+// that lowers the pelvis puts the feet above or below the floor the actor's capsule stands on.
 TEST(HavokIdleRealData, the_ambient_idle_keeps_the_pelvis_where_the_reference_pose_has_it)
 {
     const char* root = std::getenv("OPENEDEN_HAVOK_IDLE_ROOT");
@@ -190,7 +192,8 @@ TEST(HavokIdleRealData, the_ambient_idle_keeps_the_pelvis_where_the_reference_po
     ASSERT_FALSE(skeletons.empty());
     for (const char* name : { "mt_idle", "h2h_idle" })
     {
-        auto clips = readClips(Packfile::parse(read(clipHkxPath(nif, name, std::string_view(name) == "mt_idle" ? "male" : ""))));
+        auto clips = readClips(
+            Packfile::parse(read(clipHkxPath(nif, name, std::string_view(name) == "mt_idle" ? "male" : ""))));
         ASSERT_FALSE(clips.empty());
         const BoundClip bound = bindClip(skeletons[0], std::move(clips[0]));
         std::vector<Transform> out(bound.mClip.mNumTransformTracks);
@@ -219,9 +222,9 @@ TEST(HavokIdleRealData, the_ambient_idle_keeps_the_pelvis_where_the_reference_po
                 hi = std::max(hi, z);
                 sum += z;
             }
-            std::cout << "IDLEPELVIS " << name << " bone '" << bone << "' reference z " << ref.mTranslation[2] << " clip z min "
-                      << lo << " mean " << sum / steps << " max " << hi << " (ref xyz " << ref.mTranslation[0] << " "
-                      << ref.mTranslation[1] << " " << ref.mTranslation[2] << ")\n";
+            std::cout << "IDLEPELVIS " << name << " bone '" << bone << "' reference z " << ref.mTranslation[2]
+                      << " clip z min " << lo << " mean " << sum / steps << " max " << hi << " (ref xyz "
+                      << ref.mTranslation[0] << " " << ref.mTranslation[1] << " " << ref.mTranslation[2] << ")\n";
         }
     }
 }

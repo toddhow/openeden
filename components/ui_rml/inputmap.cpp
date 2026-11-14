@@ -29,54 +29,102 @@ namespace UiRml
             return static_cast<KeyIdentifier>(KI_NUMPAD1 + (key - SDLK_KP_1));
         switch (key)
         {
-            case SDLK_KP_0: return KI_NUMPAD0;
-            case SDLK_KP_ENTER: return KI_NUMPADENTER;
-            case SDLK_KP_MULTIPLY: return KI_MULTIPLY;
-            case SDLK_KP_PLUS: return KI_ADD;
-            case SDLK_KP_MINUS: return KI_SUBTRACT;
-            case SDLK_KP_PERIOD: return KI_DECIMAL;
-            case SDLK_KP_DIVIDE: return KI_DIVIDE;
-            case SDLK_RETURN: return KI_RETURN;
-            case SDLK_ESCAPE: return KI_ESCAPE;
-            case SDLK_BACKSPACE: return KI_BACK;
-            case SDLK_TAB: return KI_TAB;
-            case SDLK_SPACE: return KI_SPACE;
-            case SDLK_DELETE: return KI_DELETE;
-            case SDLK_INSERT: return KI_INSERT;
-            case SDLK_HOME: return KI_HOME;
-            case SDLK_END: return KI_END;
-            case SDLK_PAGEUP: return KI_PRIOR;
-            case SDLK_PAGEDOWN: return KI_NEXT;
-            case SDLK_LEFT: return KI_LEFT;
-            case SDLK_RIGHT: return KI_RIGHT;
-            case SDLK_UP: return KI_UP;
-            case SDLK_DOWN: return KI_DOWN;
-            case SDLK_SEMICOLON: return KI_OEM_1;
-            case SDLK_SLASH: return KI_OEM_2;
-            case SDLK_BACKQUOTE: return KI_OEM_3;
-            case SDLK_LEFTBRACKET: return KI_OEM_4;
-            case SDLK_BACKSLASH: return KI_OEM_5;
-            case SDLK_RIGHTBRACKET: return KI_OEM_6;
-            case SDLK_QUOTE: return KI_OEM_7;
-            case SDLK_EQUALS: return KI_OEM_PLUS;
-            case SDLK_COMMA: return KI_OEM_COMMA;
-            case SDLK_MINUS: return KI_OEM_MINUS;
-            case SDLK_PERIOD: return KI_OEM_PERIOD;
-            case SDLK_CAPSLOCK: return KI_CAPITAL;
-            case SDLK_NUMLOCKCLEAR: return KI_NUMLOCK;
-            case SDLK_SCROLLLOCK: return KI_SCROLL;
-            case SDLK_PAUSE: return KI_PAUSE;
-            case SDLK_PRINTSCREEN: return KI_SNAPSHOT;
-            case SDLK_LSHIFT: return KI_LSHIFT;
-            case SDLK_RSHIFT: return KI_RSHIFT;
-            case SDLK_LCTRL: return KI_LCONTROL;
-            case SDLK_RCTRL: return KI_RCONTROL;
-            case SDLK_LALT: return KI_LMENU;
-            case SDLK_RALT: return KI_RMENU;
-            case SDLK_LGUI: return KI_LMETA;
-            case SDLK_RGUI: return KI_RMETA;
-            case SDLK_APPLICATION: return KI_APPS;
-            default: return KI_UNKNOWN;
+            case SDLK_KP_0:
+                return KI_NUMPAD0;
+            case SDLK_KP_ENTER:
+                return KI_NUMPADENTER;
+            case SDLK_KP_MULTIPLY:
+                return KI_MULTIPLY;
+            case SDLK_KP_PLUS:
+                return KI_ADD;
+            case SDLK_KP_MINUS:
+                return KI_SUBTRACT;
+            case SDLK_KP_PERIOD:
+                return KI_DECIMAL;
+            case SDLK_KP_DIVIDE:
+                return KI_DIVIDE;
+            case SDLK_RETURN:
+                return KI_RETURN;
+            case SDLK_ESCAPE:
+                return KI_ESCAPE;
+            case SDLK_BACKSPACE:
+                return KI_BACK;
+            case SDLK_TAB:
+                return KI_TAB;
+            case SDLK_SPACE:
+                return KI_SPACE;
+            case SDLK_DELETE:
+                return KI_DELETE;
+            case SDLK_INSERT:
+                return KI_INSERT;
+            case SDLK_HOME:
+                return KI_HOME;
+            case SDLK_END:
+                return KI_END;
+            case SDLK_PAGEUP:
+                return KI_PRIOR;
+            case SDLK_PAGEDOWN:
+                return KI_NEXT;
+            case SDLK_LEFT:
+                return KI_LEFT;
+            case SDLK_RIGHT:
+                return KI_RIGHT;
+            case SDLK_UP:
+                return KI_UP;
+            case SDLK_DOWN:
+                return KI_DOWN;
+            case SDLK_SEMICOLON:
+                return KI_OEM_1;
+            case SDLK_SLASH:
+                return KI_OEM_2;
+            case SDLK_BACKQUOTE:
+                return KI_OEM_3;
+            case SDLK_LEFTBRACKET:
+                return KI_OEM_4;
+            case SDLK_BACKSLASH:
+                return KI_OEM_5;
+            case SDLK_RIGHTBRACKET:
+                return KI_OEM_6;
+            case SDLK_QUOTE:
+                return KI_OEM_7;
+            case SDLK_EQUALS:
+                return KI_OEM_PLUS;
+            case SDLK_COMMA:
+                return KI_OEM_COMMA;
+            case SDLK_MINUS:
+                return KI_OEM_MINUS;
+            case SDLK_PERIOD:
+                return KI_OEM_PERIOD;
+            case SDLK_CAPSLOCK:
+                return KI_CAPITAL;
+            case SDLK_NUMLOCKCLEAR:
+                return KI_NUMLOCK;
+            case SDLK_SCROLLLOCK:
+                return KI_SCROLL;
+            case SDLK_PAUSE:
+                return KI_PAUSE;
+            case SDLK_PRINTSCREEN:
+                return KI_SNAPSHOT;
+            case SDLK_LSHIFT:
+                return KI_LSHIFT;
+            case SDLK_RSHIFT:
+                return KI_RSHIFT;
+            case SDLK_LCTRL:
+                return KI_LCONTROL;
+            case SDLK_RCTRL:
+                return KI_RCONTROL;
+            case SDLK_LALT:
+                return KI_LMENU;
+            case SDLK_RALT:
+                return KI_RMENU;
+            case SDLK_LGUI:
+                return KI_LMETA;
+            case SDLK_RGUI:
+                return KI_RMETA;
+            case SDLK_APPLICATION:
+                return KI_APPS;
+            default:
+                return KI_UNKNOWN;
         }
     }
 
@@ -84,12 +132,18 @@ namespace UiRml
     {
         switch (button)
         {
-            case SDL_BUTTON_LEFT: return 0;
-            case SDL_BUTTON_RIGHT: return 1;
-            case SDL_BUTTON_MIDDLE: return 2;
-            case SDL_BUTTON_X1: return 3;
-            case SDL_BUTTON_X2: return 4;
-            default: return -1;
+            case SDL_BUTTON_LEFT:
+                return 0;
+            case SDL_BUTTON_RIGHT:
+                return 1;
+            case SDL_BUTTON_MIDDLE:
+                return 2;
+            case SDL_BUTTON_X1:
+                return 3;
+            case SDL_BUTTON_X2:
+                return 4;
+            default:
+                return -1;
         }
     }
 
@@ -115,22 +169,29 @@ namespace UiRml
     {
         switch (button)
         {
-            case SDL_CONTROLLER_BUTTON_DPAD_UP: return KI_UP;
-            case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return KI_DOWN;
-            case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return KI_LEFT;
-            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return KI_RIGHT;
-            case SDL_CONTROLLER_BUTTON_A: return KI_RETURN;
-            case SDL_CONTROLLER_BUTTON_B: return KI_ESCAPE;
-            default: return KI_UNKNOWN;
+            case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                return KI_UP;
+            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                return KI_DOWN;
+            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                return KI_LEFT;
+            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                return KI_RIGHT;
+            case SDL_CONTROLLER_BUTTON_A:
+                return KI_RETURN;
+            case SDL_CONTROLLER_BUTTON_B:
+                return KI_ESCAPE;
+            default:
+                return KI_UNKNOWN;
         }
     }
 
     bool isTextEntry(std::string_view tag, std::string_view type)
     {
         const auto equals = [](std::string_view a, std::string_view b) {
-            return a.size() == b.size()
-                && std::equal(a.begin(), a.end(), b.begin(),
-                    [](char x, char y) { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); });
+            return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+                return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y));
+            });
         };
         if (equals(tag, "textarea"))
             return true;

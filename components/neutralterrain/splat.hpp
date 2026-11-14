@@ -36,7 +36,8 @@ namespace NeutralTerrain::Splat
     struct LayerIn
     {
         std::uint8_t mIndex = 0; ///< the texture's index in the layer array
-        const std::vector<std::uint8_t>* mOpacity = nullptr; ///< kVertices values, or null/short: the layer adds nothing
+        const std::vector<std::uint8_t>* mOpacity
+            = nullptr; ///< kVertices values, or null/short: the layer adds nothing
     };
 
     /// One quadrant: the four array layers it uses (padded with the base layer) and, per vertex, their weights.

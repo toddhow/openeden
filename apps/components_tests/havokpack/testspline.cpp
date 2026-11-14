@@ -72,8 +72,8 @@ namespace
 
 TEST(HavokQuaternion40, decodes_the_identity_and_each_dropped_component)
 {
-    const std::array<std::array<float, 4>, 6> cases = { { { 0, 0, 0, 1 }, { 0, 0, 0, -1 }, { 1, 0, 0, 0 }, { 0, 1, 0, 0 },
-        { 0.5f, 0.5f, 0.5f, 0.5f }, { -0.1f, 0.2f, -0.3f, -0.927362f } } };
+    const std::array<std::array<float, 4>, 6> cases = { { { 0, 0, 0, 1 }, { 0, 0, 0, -1 }, { 1, 0, 0, 0 },
+        { 0, 1, 0, 0 }, { 0.5f, 0.5f, 0.5f, 0.5f }, { -0.1f, 0.2f, -0.3f, -0.927362f } } };
     for (const auto& q : cases)
     {
         const auto packed = packQuaternion40(q);
@@ -331,7 +331,8 @@ TEST(HavokSpline, an_axis_marked_both_constant_and_animated_is_refused)
     const Packfile p = Packfile::parse(bytes);
     const auto clip = p.objectsOfClass("hkaSplineCompressedAnimation")[0];
     const auto data = p.arrayAt({ clip->mSection, clip->mOffset + 152 });
-    bytes[static_cast<std::size_t>(p.sections()[2].mDataStart) + data.mData->mOffset + 1] = 0x11; // x constant and animated
+    bytes[static_cast<std::size_t>(p.sections()[2].mDataStart) + data.mData->mOffset + 1]
+        = 0x11; // x constant and animated
     const Packfile q = Packfile::parse(bytes);
     expectError([&] { readClips(q); }, "both constant and animated");
 }
@@ -449,11 +450,21 @@ TEST(HavokSpline, refuses_unsupported_quantisation_and_bad_headers)
             const auto anim = addSplineClip(g, d);
             switch (what)
             {
-                case 0: g.put32(anim + 16, 4); break; // not a spline animation
-                case 1: g.put32(anim + 24, 100000); break; // too many tracks
-                case 2: g.put32(anim + 60, 0); break; // no blocks
-                case 3: g.putF32(anim + 80, 0.0f); break; // frame duration zero
-                default: g.put32(anim + 64, 1); break; // one frame per block
+                case 0:
+                    g.put32(anim + 16, 4);
+                    break; // not a spline animation
+                case 1:
+                    g.put32(anim + 24, 100000);
+                    break; // too many tracks
+                case 2:
+                    g.put32(anim + 60, 0);
+                    break; // no blocks
+                case 3:
+                    g.putF32(anim + 80, 0.0f);
+                    break; // frame duration zero
+                default:
+                    g.put32(anim + 64, 1);
+                    break; // one frame per block
             }
             return g.build();
         }();
@@ -590,7 +601,8 @@ TEST(HavokRealData, every_clip_of_the_folder_decodes)
         }
     }
     std::cout << "havok real data: files " << files << ", skeletons " << skeletons << " (" << bones << " bones), clips "
-              << clips << " (" << blocks << " blocks), failed " << failed << ", non-finite floats replaced " << nonFinite << ", worst |q|^2-1 " << worstNorm << "\n";
+              << clips << " (" << blocks << " blocks), failed " << failed << ", non-finite floats replaced "
+              << nonFinite << ", worst |q|^2-1 " << worstNorm << "\n";
     for (const auto& [text, count] : errors)
         std::cout << "  " << count << " x " << text << "\n";
     EXPECT_EQ(failed, 0u);

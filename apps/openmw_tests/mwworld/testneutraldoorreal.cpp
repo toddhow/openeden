@@ -97,8 +97,8 @@ namespace
                         return NeutralDestination::Unavailable;
                     if (!known->second)
                         return seen = NeutralDestination::Exterior;
-                    return seen = (build(dest) != nullptr ? NeutralDestination::Interior
-                                                          : NeutralDestination::Unavailable);
+                    return seen
+                        = (build(dest) != nullptr ? NeutralDestination::Interior : NeutralDestination::Unavailable);
                 });
                 switch (d.mOutcome)
                 {

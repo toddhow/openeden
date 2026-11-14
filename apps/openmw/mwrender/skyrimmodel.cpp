@@ -22,8 +22,8 @@
 #include <vsg/state/DescriptorImage.h>
 
 #include <components/animation/skin.hpp>
-#include <components/debug/debuglog.hpp>
 #include <components/animation/transform.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/nifscene/facetint.hpp>
 #include <components/nifscene/header.hpp>
@@ -32,12 +32,12 @@
 #include <components/pipeline/material.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/pipeline/sets.hpp>
-#include <components/vfs/pathutil.hpp>
-#include <components/vsgutil/cullnode.hpp>
-#include <components/vsgutil/group.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <components/vsgadapters/nif/automaps.hpp>
 #include <components/vsgutil/arraytexture.hpp>
+#include <components/vsgutil/cullnode.hpp>
+#include <components/vsgutil/group.hpp>
 #include <components/vsgutil/id.hpp>
 #include <components/vsgutil/readimage.hpp>
 #include <components/vsgutil/share.hpp>
@@ -159,8 +159,8 @@ namespace MWRender::SkyrimModel
                     auto sampler = context.mBuilder.createSampler();
                     sampler->addressModeU = (key.mClampMode >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
                                                                   : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-                    sampler->addressModeV = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
-                                                                 : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                    sampler->addressModeV
+                        = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
                     descriptors.emplace_back(vsgUtil::sharedDescriptorImage(
                         context.mSharedObjects, sampler, data, Pipeline::Descriptors::DIFFUSE_UNIT));
                     shader.addMode(Pipeline::Mode::DIFFUSE_MAP);
@@ -171,7 +171,8 @@ namespace MWRender::SkyrimModel
                         ++result.mTexturesMissing;
                         ++totals.mTexturesMissing;
                         if (traceEnabled())
-                            Log(Debug::Info) << "NIFSCENE missing texture '" << key.mDiffuse << "' in " << context.mFilename;
+                            Log(Debug::Info)
+                                << "NIFSCENE missing texture '" << key.mDiffuse << "' in " << context.mFilename;
                     }
                     else
                     {
@@ -184,12 +185,13 @@ namespace MWRender::SkyrimModel
                     ++result.mTexturesMissing;
                     ++totals.mTexturesMissing;
                     if (traceEnabled())
-                        Log(Debug::Info) << "NIFSCENE missing texture (no image) '" << key.mDiffuse << "' in " << context.mFilename;
+                        Log(Debug::Info) << "NIFSCENE missing texture (no image) '" << key.mDiffuse << "' in "
+                                         << context.mFilename;
                 }
             }
 
-            // Task 0130: the normal map (tangent space; its tangents ride in the draw, see buildShape) and the glow map,
-            // each with the diffuse texture's clamp mode and UV set, as the Morrowind reader binds its maps.
+            // Task 0130: the normal map (tangent space; its tangents ride in the draw, see buildShape) and the glow
+            // map, each with the diffuse texture's clamp mode and UV set, as the Morrowind reader binds its maps.
             auto addMap = [&](const std::string& path, std::uint32_t binding, vsgUtil::TextureCap::Kind kind,
                               Pipeline::Mode mode) -> vsg::ref_ptr<vsg::Data> {
                 vsgUtil::ImageUse mapUse;
@@ -203,10 +205,10 @@ namespace MWRender::SkyrimModel
                     return {};
                 }
                 auto sampler = context.mBuilder.createSampler();
-                sampler->addressModeU = (key.mClampMode >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
-                                                              : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-                sampler->addressModeV = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT
-                                                             : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                sampler->addressModeU
+                    = (key.mClampMode >> 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                sampler->addressModeV
+                    = (key.mClampMode & 1) ? VK_SAMPLER_ADDRESS_MODE_REPEAT : VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
                 descriptors.emplace_back(vsgUtil::sharedDescriptorImage(context.mSharedObjects, sampler, map, binding));
                 shader.addMode(mode);
                 ++result.mTexturesLoaded;
@@ -257,8 +259,8 @@ namespace MWRender::SkyrimModel
             auto material = MaterialValue::create(SkyrimMaterial::makeMaterial(key));
             if (tintColour != nullptr)
             {
-                // A hair tint shader's colour (task 0125): the grey hair map is multiplied by it, in the ambient and the
-                // diffuse term alike (the alpha of the ambient colour is the material's flag word and stays).
+                // A hair tint shader's colour (task 0125): the grey hair map is multiplied by it, in the ambient and
+                // the diffuse term alike (the alpha of the ambient colour is the material's flag word and stays).
                 for (std::size_t c = 0; c < 3; ++c)
                 {
                     material->value().diffuse[static_cast<int>(c)] = (*tintColour)[c];
@@ -290,9 +292,10 @@ namespace MWRender::SkyrimModel
             shader.addMode(Pipeline::Mode::MATERIAL);
         }
 
-        // An RGBA8 image with a full mip chain (the chain is made by the engine's own integer resize, so it is the same on
-        // every platform). The layout is what vsgXchange gives a DDS with mips.
-        vsg::ref_ptr<vsg::Data> makeMippedRgba8(std::uint32_t width, std::uint32_t height, std::vector<std::uint8_t> level)
+        // An RGBA8 image with a full mip chain (the chain is made by the engine's own integer resize, so it is the same
+        // on every platform). The layout is what vsgXchange gives a DDS with mips.
+        vsg::ref_ptr<vsg::Data> makeMippedRgba8(
+            std::uint32_t width, std::uint32_t height, std::vector<std::uint8_t> level)
         {
             std::vector<std::vector<std::uint8_t>> chain;
             std::vector<std::pair<std::uint32_t, std::uint32_t>> sizes;
@@ -347,7 +350,8 @@ namespace MWRender::SkyrimModel
             NifScene::FaceTint::Image base, tint, product;
             if (!readRgba(shape.mKey.mDiffuse, context, base) || !readRgba(shape.mTintTexture, context, tint))
             {
-                std::cerr << "SkyrimModel: face tint of '" << context.mFilename << "' not applied (a map is missing or not decodable)\n";
+                std::cerr << "SkyrimModel: face tint of '" << context.mFilename
+                          << "' not applied (a map is missing or not decodable)\n";
                 return {};
             }
             std::string error;
@@ -369,8 +373,8 @@ namespace MWRender::SkyrimModel
             return t.t_transform(vsg::mat4());
         }
 
-        vsg::ref_ptr<vsg::Node> buildSkinnedShape(const NifScene::Skinned::Shape& shape, const BuildContext& context,
-            BuildResult& result, Counters& totals)
+        vsg::ref_ptr<vsg::Node> buildSkinnedShape(
+            const NifScene::Skinned::Shape& shape, const BuildContext& context, BuildResult& result, Counters& totals)
         {
             const NifScene::Flat::MaterialKey& key = shape.mKey;
             Pipeline::Options options;
@@ -488,8 +492,8 @@ namespace MWRender::SkyrimModel
             if (!shape.mColors.empty())
             {
                 shader.addMode(Pipeline::Mode::COLOR);
-                // Task 0136: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own alpha,
-                // its flexibility, scaled by the model's height), and the shader draws it with alpha 1.
+                // Task 0136: a swaying shape's alpha is the sway weight the vertex shader squares (the file's own
+                // alpha, its flexibility, scaled by the model's height), and the shader draws it with alpha 1.
                 if (swaying)
                 {
                     std::vector<std::array<float, 4>> weighted = shape.mColors;
@@ -529,15 +533,16 @@ namespace MWRender::SkyrimModel
             if (swaying)
                 totals.mSwayShapes.fetch_add(1, std::memory_order_relaxed);
             if (swaying)
-                descriptors.push_back(vsg::DescriptorBuffer::create(context.mSwayUniform,
-                    Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
+                descriptors.push_back(vsg::DescriptorBuffer::create(
+                    context.mSwayUniform, Pipeline::Descriptors::TEXMAT_BINDING, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
             if (shader.hasMode(Pipeline::Mode::NORMAL_MAP))
             {
                 if (shape.mTangents.size() == shape.mPositions.size())
                     dataList.insert(dataList.begin() + static_cast<std::ptrdiff_t>(tangentPosition),
                         copyArray<vsg::vec4Array>(shape.mTangents));
                 else
-                    shader.removeMode(Pipeline::Mode::NORMAL_MAP); // cannot happen: a key with a normal map has tangents
+                    shader.removeMode(
+                        Pipeline::Mode::NORMAL_MAP); // cannot happen: a key with a normal map has tangents
             }
 
             auto geometry = vsg::VertexIndexDraw::create();
@@ -568,35 +573,42 @@ namespace MWRender::SkyrimModel
                      << " dbl=" << key.mDoubleSided << " blend=" << key.mBlend << " test=" << key.mTest
                      << " colors=" << key.mVertexColors << " verts=" << shape.mPositions.size()
                      << " tris=" << shape.mIndices.size() / 3 << " thr=" << key.mThreshold
-                     << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << "," << key.mEmissive[2]
+                     << " emis=" << key.mEmissive[0] << "," << key.mEmissive[1] << ","
+                     << key.mEmissive[2]
                      // Task 0153 follow-up: what the file's vertex colours and normals hold (mean rgb, mean normal z).
-                     << " vcol=" << [&shape] {
-                         std::ostringstream text;
-                         std::array<double, 3> sum{};
-                         for (const auto& c : shape.mColors)
-                             for (int i = 0; i < 3; ++i)
-                                 sum[i] += c[i];
-                         const double n = std::max<double>(1.0, static_cast<double>(shape.mColors.size()));
-                         text << sum[0] / n << "," << sum[1] / n << "," << sum[2] / n;
-                         return text.str();
-                     }() << " nz=" << [&shape] {
-                         double sum = 0.0;
-                         for (const auto& v : shape.mNormals)
-                             sum += v[2];
-                         return sum / std::max<double>(1.0, static_cast<double>(shape.mNormals.size()));
-                     }() << " box=" << [&shape] {
-                         std::ostringstream box;
-                         std::array<float, 3> lo{ 1e30f, 1e30f, 1e30f }, hi{ -1e30f, -1e30f, -1e30f };
-                         for (const auto& v : shape.mPositions)
-                             for (int c = 0; c < 3; ++c)
-                             {
-                                 lo[c] = std::min(lo[c], v[c]);
-                                 hi[c] = std::max(hi[c], v[c]);
-                             }
-                         box << lo[0] << "," << lo[1] << "," << lo[2] << ".." << hi[0] << "," << hi[1] << "," << hi[2];
-                         return box.str();
-                     }() << " f1=" << std::hex << shape.mFlags1
-                     << " f2=" << shape.mFlags2 << std::dec << " merged=" << shape.mMergedFrom;
+                     << " vcol=" <<
+                    [&shape] {
+                        std::ostringstream text;
+                        std::array<double, 3> sum{};
+                        for (const auto& c : shape.mColors)
+                            for (int i = 0; i < 3; ++i)
+                                sum[i] += c[i];
+                        const double n = std::max<double>(1.0, static_cast<double>(shape.mColors.size()));
+                        text << sum[0] / n << "," << sum[1] / n << "," << sum[2] / n;
+                        return text.str();
+                    }()
+                     << " nz=" <<
+                    [&shape] {
+                        double sum = 0.0;
+                        for (const auto& v : shape.mNormals)
+                            sum += v[2];
+                        return sum / std::max<double>(1.0, static_cast<double>(shape.mNormals.size()));
+                    }()
+                     << " box=" <<
+                    [&shape] {
+                        std::ostringstream box;
+                        std::array<float, 3> lo{ 1e30f, 1e30f, 1e30f }, hi{ -1e30f, -1e30f, -1e30f };
+                        for (const auto& v : shape.mPositions)
+                            for (int c = 0; c < 3; ++c)
+                            {
+                                lo[c] = std::min(lo[c], v[c]);
+                                hi[c] = std::max(hi[c], v[c]);
+                            }
+                        box << lo[0] << "," << lo[1] << "," << lo[2] << ".." << hi[0] << "," << hi[1] << "," << hi[2];
+                        return box.str();
+                    }()
+                     << " f1=" << std::hex << shape.mFlags1 << " f2=" << shape.mFlags2 << std::dec
+                     << " merged=" << shape.mMergedFrom;
                 Log(Debug::Info) << line.str();
             }
             if (key.mBlend && !key.mNoSorter)
@@ -620,12 +632,12 @@ namespace MWRender::SkyrimModel
             << c.mFailed.load() << " failed), " << c.mDraws.load() << " draws, " << c.mTriangles.load()
             << " triangles, " << c.mVertices.load() << " vertices, textures " << c.mTexturesLoaded.load()
             << " loaded / " << c.mTexturesMissing.load() << " missing, double sided shapes "
-            << c.mDoubleSidedShapes.load() << ", left out: " << c.mSkippedSkinned.load() << " skinned (and " << c.mSkinnedAtRest.load()
-            << " skinned shapes drawn in their rest pose), "
-            << c.mSkippedEffect.load() << " effect, " << c.mSkippedNoMaterial.load() << " no shader, "
-            << c.mSkippedHidden.load() << " hidden, " << c.mDroppedTriangles.load() << " bad triangles; materials: "
-            << c.mNormalMaps.load() << " normal maps, " << c.mGlowMaps.load() << " glow maps, "
-            << c.mNormalMapsNoTangents.load() << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
+            << c.mDoubleSidedShapes.load() << ", left out: " << c.mSkippedSkinned.load() << " skinned (and "
+            << c.mSkinnedAtRest.load() << " skinned shapes drawn in their rest pose), " << c.mSkippedEffect.load()
+            << " effect, " << c.mSkippedNoMaterial.load() << " no shader, " << c.mSkippedHidden.load() << " hidden, "
+            << c.mDroppedTriangles.load() << " bad triangles; materials: " << c.mNormalMaps.load() << " normal maps, "
+            << c.mGlowMaps.load() << " glow maps, " << c.mNormalMapsNoTangents.load()
+            << " normal maps without tangents, " << c.mNormalMapsModelSpace.load()
             << " model-space normal maps left out, " << c.mSwayShapes.load() << " swaying tree shapes";
         return out.str();
     }
@@ -642,8 +654,8 @@ namespace MWRender::SkyrimModel
                       << " skinned shapes drawn in their rest pose\n";
         if (traceEnabled()
             && (model.mReport.mSkippedHidden | model.mReport.mSkippedSkinned | model.mReport.mSkippedNoMaterial
-                | model.mReport.mSkippedEffect | model.mReport.mSkippedNoGeometry | model.mReport.mSkippedOverCap
-                | model.mReport.mDroppedTriangles | model.mReport.mBadVertices)
+                   | model.mReport.mSkippedEffect | model.mReport.mSkippedNoGeometry | model.mReport.mSkippedOverCap
+                   | model.mReport.mDroppedTriangles | model.mReport.mBadVertices)
                 != 0)
             Log(Debug::Info) << "NIFSCENE-SKIPS " << context.mFilename << " geometries " << model.mReport.mGeometries
                              << " drawn " << model.mReport.mDrawn << " hidden " << model.mReport.mSkippedHidden
@@ -715,8 +727,9 @@ namespace MWRender::SkyrimModel
         auto reader = std::make_shared<vsgAdapters::nif::SceneReader>();
         const bool surfaceMaps = Settings::game().mNeutralWorldMaterials; // read once, as the neutral world switch is
         reader->accepts = [](std::string_view fileStart) { return NifScene::isSkyrimSeHeader(fileStart); };
-        reader->read = [&builder, imageOptions, depthSortedBin, surfaceMaps, swayUniform](std::string data, const std::string& filename,
-                           vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
+        reader->read
+            = [&builder, imageOptions, depthSortedBin, surfaceMaps, swayUniform](std::string data,
+                  const std::string& filename, vsg::ref_ptr<const vsg::Options> options) -> vsg::ref_ptr<vsg::Object> {
             Counters& totals = counters();
             try
             {

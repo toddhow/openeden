@@ -119,8 +119,10 @@ namespace HavokPack
                     p.fail("class name is too long", cs.mDataStart + q);
                 if (p.mClassNames.size() >= limits.mMaxClasses)
                     p.fail("too many classes", cs.mDataStart + q);
-                classAt.emplace_back(static_cast<std::uint32_t>(q + 5), static_cast<std::uint32_t>(p.mClassNames.size()));
-                p.mClassNames.emplace_back(reinterpret_cast<const char*>(f.data() + cs.mDataStart + q + 5), e - (q + 5));
+                classAt.emplace_back(
+                    static_cast<std::uint32_t>(q + 5), static_cast<std::uint32_t>(p.mClassNames.size()));
+                p.mClassNames.emplace_back(
+                    reinterpret_cast<const char*>(f.data() + cs.mDataStart + q + 5), e - (q + 5));
                 q = e + 1;
             }
         }
@@ -189,8 +191,8 @@ namespace HavokPack
                         p.fail("virtual fix-up names a section that holds no class names", base + q);
                     const auto it = std::lower_bound(classAt.begin(), classAt.end(), std::make_pair(name, 0u));
                     if (it == classAt.end() || it->first != name)
-                        p.fail("virtual fix-up names no class (class name offset " + std::to_string(name) + ")",
-                            base + q);
+                        p.fail(
+                            "virtual fix-up names no class (class name offset " + std::to_string(name) + ")", base + q);
                     p.mObjects.push_back({ si, src, 0, it->second });
                 }
             }
@@ -258,7 +260,8 @@ namespace HavokPack
         if (it != list.end() && it->mSource == slot.mOffset)
             return it->mTarget;
         if (u64(slot) != 0)
-            fail("pointer slot holds a value but has no fix-up", static_cast<std::size_t>(mSections[slot.mSection].mDataStart) + slot.mOffset);
+            fail("pointer slot holds a value but has no fix-up",
+                static_cast<std::size_t>(mSections[slot.mSection].mDataStart) + slot.mOffset);
         return std::nullopt;
     }
 
@@ -269,7 +272,8 @@ namespace HavokPack
         a.mData = pointerAt(slot);
         a.mSize = u32({ slot.mSection, slot.mOffset + 8 });
         if (!a.mData && a.mSize != 0)
-            fail("array has elements but no data pointer", static_cast<std::size_t>(mSections[slot.mSection].mDataStart) + slot.mOffset);
+            fail("array has elements but no data pointer",
+                static_cast<std::size_t>(mSections[slot.mSection].mDataStart) + slot.mOffset);
         return a;
     }
 
@@ -279,7 +283,10 @@ namespace HavokPack
         return { mFile.data() + mSections[at.mSection].mDataStart + at.mOffset, size };
     }
 
-    std::uint8_t Packfile::u8(Ref at) const { return bytes(at, 1)[0]; }
+    std::uint8_t Packfile::u8(Ref at) const
+    {
+        return bytes(at, 1)[0];
+    }
 
     std::uint16_t Packfile::u16(Ref at) const
     {
@@ -318,6 +325,7 @@ namespace HavokPack
         for (std::size_t i = 0; i < room; ++i)
             if (base[at.mOffset + i] == 0)
                 return { base + at.mOffset, i };
-        fail("string is not terminated inside its section (or is too long)", static_cast<std::size_t>(s.mDataStart) + at.mOffset);
+        fail("string is not terminated inside its section (or is too long)",
+            static_cast<std::size_t>(s.mDataStart) + at.mOffset);
     }
 }

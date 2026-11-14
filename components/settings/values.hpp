@@ -2,9 +2,9 @@
 #define OPENMW_COMPONENTS_SETTINGS_VALUES_H
 
 #include "categories/bodies.hpp"
-#include "categories/face.hpp"
 #include "categories/camera.hpp"
 #include "categories/cells.hpp"
+#include "categories/face.hpp"
 #include "categories/fog.hpp"
 #include "categories/game.hpp"
 #include "categories/general.hpp"

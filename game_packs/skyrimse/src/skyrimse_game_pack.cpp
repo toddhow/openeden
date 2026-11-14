@@ -1,5 +1,5 @@
-#include "game_skyrimse/speech.hpp"
 #include "game_skyrimse/skyrimse_game_pack.hpp"
+#include "game_skyrimse/speech.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/neutral_world.hpp"
@@ -152,8 +152,7 @@ namespace game_skyrimse
                     else if (!goer.empty())
                         say(openeden::sdk::LogLevel::Info, "actor test goto: " + goer);
                     // Task 0154: the level an actor that scales with the player scales to (a new game's player is 1).
-                    const int standInLevel
-                        = settings->getInt(kPackId, kPlayerLevelKey, kStandInPlayerLevel);
+                    const int standInLevel = settings->getInt(kPackId, kPlayerLevelKey, kStandInPlayerLevel);
                     if (standInLevel >= 1 && standInLevel <= kMaxActorLevel)
                         mWorldView.setStandInPlayerLevel(static_cast<std::uint16_t>(standInLevel));
                     else

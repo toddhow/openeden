@@ -233,7 +233,8 @@ namespace
         EXPECT_FALSE(r.mOk);
         EXPECT_NE(r.mError.find("x.lip"), std::string::npos);
         Header oneMore;
-        oneMore.frameDelta = -1; // the header counts one row less than the data fills: legal (two thirds of the real files)
+        oneMore.frameDelta
+            = -1; // the header counts one row less than the data fills: legal (two thirds of the real files)
         const Lip::Result more = Lip::read(makeLip(v, oneMore), "x.lip");
         ASSERT_TRUE(more.mOk) << more.mError;
         EXPECT_EQ(more.mTrack.mFrames, 2u);

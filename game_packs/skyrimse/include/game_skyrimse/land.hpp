@@ -6,8 +6,8 @@
 // SDK type, no engine type, no Jolt or Qt type (the SDK's terrain types are stage E1).
 //
 // Layout status of every field is marked in land.cpp: VERIFIED against the installed Skyrim SE masters by
-// tools/skyrimse_land_check (aggregates only), or RECALLED-VERIFY. The inherited ESM4 reader (components/esm4/loadland.hpp
-// and loadland.cpp) was read as a reference and agrees on every layout used here.
+// tools/skyrimse_land_check (aggregates only), or RECALLED-VERIFY. The inherited ESM4 reader
+// (components/esm4/loadland.hpp and loadland.cpp) was read as a reference and agrees on every layout used here.
 //
 // Hostile input: every size read from the file is checked against the bytes that remain, and against a cap, before
 // anything is allocated or reserved; nothing throws; a bad record is a located error and the walk goes on.

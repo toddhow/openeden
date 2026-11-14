@@ -82,7 +82,8 @@ namespace game_skyrimse
         std::string lowerAscii(std::string_view text)
         {
             std::string out(text);
-            std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(out.begin(), out.end(), out.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return out;
         }
     }
@@ -178,9 +179,12 @@ namespace game_skyrimse
                     ok = false;
                     break;
                 }
-                clip.mTranslation.push_back({ static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]) });
+                clip.mTranslation.push_back(
+                    { static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]) });
             }
-            if (ok && (j >= lines.size() || !toInt(lines[j], turns) || turns < 0 || turns > static_cast<long>(kMaxMotionRows)))
+            if (ok
+                && (j >= lines.size() || !toInt(lines[j], turns) || turns < 0
+                    || turns > static_cast<long>(kMaxMotionRows)))
                 ok = false;
             if (ok)
             {

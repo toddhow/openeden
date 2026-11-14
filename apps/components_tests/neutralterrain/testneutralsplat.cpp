@@ -240,9 +240,10 @@ namespace
         }
         std::size_t listGroundTextures(std::vector<sdk::GroundTexture>& out) const override
         {
-            for (const auto& [id, path] : { std::pair<sdk::WorldId, const char*>{ 0, "textures\\landscape\\dirt02.dds" },
-                     { kGrass, "textures\\landscape\\grass.dds" }, { kRock, "textures\\landscape\\rock.dds" },
-                     { kSand, "textures\\landscape\\sand.dds" } })
+            for (const auto& [id, path] :
+                { std::pair<sdk::WorldId, const char*>{ 0, "textures\\landscape\\dirt02.dds" },
+                    { kGrass, "textures\\landscape\\grass.dds" }, { kRock, "textures\\landscape\\rock.dds" },
+                    { kSand, "textures\\landscape\\sand.dds" } })
             {
                 sdk::GroundTexture t;
                 t.id = id;

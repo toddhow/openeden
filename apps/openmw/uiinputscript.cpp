@@ -2,9 +2,9 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <stdexcept>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 #include <SDL.h>
 
@@ -137,8 +137,8 @@ namespace OMW
             }
             commands.push_back(std::move(command));
         }
-        std::stable_sort(commands.begin(), commands.end(),
-            [](const Command& a, const Command& b) { return a.mFrame < b.mFrame; });
+        std::stable_sort(
+            commands.begin(), commands.end(), [](const Command& a, const Command& b) { return a.mFrame < b.mFrame; });
         return commands;
     }
 

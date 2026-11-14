@@ -1,8 +1,8 @@
 #ifndef OPENMW_MWPHYSICS_NEUTRALACTOR_H
 #define OPENMW_MWPHYSICS_NEUTRALACTOR_H
 
-// Task 0135 (decision 0017, stage N5-3): the physics body of an actor of a neutral (non-Morrowind) session, and the rule
-// that stands it on the floor. Pure maths and shape building, no PhysicsSystem and no Ptr, so the tests reach it.
+// Task 0135 (decision 0017, stage N5-3): the physics body of an actor of a neutral (non-Morrowind) session, and the
+// rule that stands it on the floor. Pure maths and shape building, no PhysicsSystem and no Ptr, so the tests reach it.
 //
 // A neutral actor is NOT an MWPhysics::Actor: that class is driven by CreatureStats and MovementSolver, which a neutral
 // object has not (Class::isActor() stays false, decision 0017 section 4). Its body is an MWPhysics::Object whose shape
@@ -80,9 +80,9 @@ namespace MWPhysics::NeutralActor
         float mZ = 0.f;
     };
 
-    /// Advances one frame of `dt` seconds. A Grounded or Lost actor is returned unchanged, as is any state for a dt that
-    /// is not positive and finite. Rules: a floor that is within kSettleDistance below the feet, or above them up to
-    /// kStepUp, puts the actor on it at once; a floor farther below makes it fall under gravity (the engine's, in
+    /// Advances one frame of `dt` seconds. A Grounded or Lost actor is returned unchanged, as is any state for a dt
+    /// that is not positive and finite. Rules: a floor that is within kSettleDistance below the feet, or above them up
+    /// to kStepUp, puts the actor on it at once; a floor farther below makes it fall under gravity (the engine's, in
     /// units a second squared) until the next position would be at or below the floor, where it lands; no floor makes
     /// it wait, and after kMaxWaitFrames it is Lost.
     [[nodiscard]] Fall stepFall(const Fall& fall, float dt, const FloorProbe& floor);

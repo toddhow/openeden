@@ -5,14 +5,14 @@
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/location.hpp"
-#include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/quest_script.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <limits>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <sstream>
 
@@ -128,7 +128,8 @@ namespace game_skyrimse
                 {
                     if (record.mUncompressedSize > mLimits.mMaxRecordBytes)
                     {
-                        fail(record, "the record inflates to " + std::to_string(record.mUncompressedSize)
+                        fail(record,
+                            "the record inflates to " + std::to_string(record.mUncompressedSize)
                                 + " bytes, over the limit of " + std::to_string(mLimits.mMaxRecordBytes));
                         return true;
                     }
@@ -142,7 +143,8 @@ namespace game_skyrimse
                 }
                 else if (record.mDataSize > mLimits.mMaxRecordBytes)
                 {
-                    fail(record, "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
+                    fail(record,
+                        "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
                             + std::to_string(mLimits.mMaxRecordBytes));
                     return true;
                 }
@@ -539,8 +541,8 @@ namespace game_skyrimse
         };
     }
 
-    bool parseDialogueRecords(const Content::Plugin& plugin, const LoadOrder& order, const DialogueLimits& limits,
-        DialogueRecords& out)
+    bool parseDialogueRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const DialogueLimits& limits, DialogueRecords& out)
     {
         out = DialogueRecords();
         out.mName = plugin.name();
@@ -947,7 +949,8 @@ namespace game_skyrimse
             case 131: // GetPCIsSex
             case 130: // GetPCIsRace
                 return mPlayer != nullptr;
-            case 629: { // GetVMQuestVariable: the script's value before any script ran
+            case 629:
+            { // GetVMQuestVariable: the script's value before any script ran
                 if (mQuestVariables == nullptr)
                     return false;
                 return mQuestVariables->value(resolve(c.mParam1), c.mString2).mKnown;
@@ -980,7 +983,8 @@ namespace game_skyrimse
                 if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
                     return true;
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
-            case 2: {
+            case 2:
+            {
                 const FormId ref = resolve(c.mReference);
                 if (mSpeaker.mReference != kNullFormId && ref == mSpeaker.mReference)
                     break;
@@ -1053,7 +1057,8 @@ namespace game_skyrimse
             case 286: // IsSneaking: nobody sneaks in a fresh game
                 return true;
             case 47: // GetItemCount of the speaker
-            case 182: { // GetEquipped
+            case 182:
+            { // GetEquipped
                 ActorView view;
                 view.mBase = mSpeaker.mBase;
                 view.mRef = mPlacedRefs != nullptr && mSpeaker.mReference != kNullFormId
@@ -1067,11 +1072,11 @@ namespace game_skyrimse
             case 403: // GetRelationshipRank
                 return relationKnown(static_cast<conditions::Subject>(mSpeaker.mBase), c.mParam1);
             case 161: // GetIsCurrentPackage
-            case 255: { // GetOffersServicesNow
+            case 255:
+            { // GetOffersServicesNow
                 if (!mCurrentPackage || mSpeaker.mReference == kNullFormId)
                     return false;
-                return mCurrentPackage(mSpeaker.mReference).has_value()
-                    && (c.mFunction == 161 || mPackages != nullptr);
+                return mCurrentPackage(mSpeaker.mReference).has_value() && (c.mFunction == 161 || mPackages != nullptr);
             }
             default:
                 return false;
@@ -1102,7 +1107,8 @@ namespace game_skyrimse
                 return mSpeaker.mBase;
             case 1:
                 return kPlayer;
-            case 2: {
+            case 2:
+            {
                 const FormId ref = resolve(reference);
                 if (mSpeaker.mReference != kNullFormId && ref == mSpeaker.mReference)
                     return static_cast<conditions::Subject>(mSpeaker.mBase);
@@ -1407,7 +1413,8 @@ namespace game_skyrimse
                 mResolvedCache.clear();
             ActorIndex::Resolved r;
             const bool ok = mActors.resolve(view.mBase, mSpeaker.mLevel, 0, r) == ActorIndex::ResolveStatus::Ok;
-            it = mResolvedCache.emplace(view.mBase, ok ? std::optional<ActorIndex::Resolved>(std::move(r)) : std::nullopt)
+            it = mResolvedCache
+                     .emplace(view.mBase, ok ? std::optional<ActorIndex::Resolved>(std::move(r)) : std::nullopt)
                      .first;
         }
         return it->second ? &*it->second : nullptr;
@@ -1605,7 +1612,8 @@ namespace game_skyrimse
                 return isActorBase;
             case 47: // GetItemCount
                 return inventoryOf(view, resolve(c.mParam1)).mKnown;
-            case 182: { // GetEquipped
+            case 182:
+            { // GetEquipped
                 const InventoryAnswer a = inventoryOf(view, resolve(c.mParam1));
                 return a.mKnown && (a.mInOutfit || a.mCount == 0.f);
             }
@@ -1614,7 +1622,8 @@ namespace game_skyrimse
             case 403:
                 return relationKnown(subject, c.mParam1);
             case 161:
-            case 255: {
+            case 255:
+            {
                 if (!mCurrentPackage || view.mRef == nullptr)
                     return false;
                 return mCurrentPackage(view.mRef->mId).has_value() && (c.mFunction == 161 || mPackages != nullptr);
@@ -1716,9 +1725,8 @@ namespace game_skyrimse
         const DialogueSpeaker& speaker, const SelectionOptions& options, conditions::Evaluator* evaluator)
     {
         std::vector<FormId> ids = index.topicIds(subtypeName);
-        std::stable_sort(ids.begin(), ids.end(), [&](FormId a, FormId b) {
-            return index.topic(a)->mPriority > index.topic(b)->mPriority;
-        });
+        std::stable_sort(ids.begin(), ids.end(),
+            [&](FormId a, FormId b) { return index.topic(a)->mPriority > index.topic(b)->mPriority; });
         Selection total;
         for (FormId id : ids)
         {

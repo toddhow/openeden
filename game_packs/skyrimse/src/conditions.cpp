@@ -473,7 +473,8 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isGuardClass(subject));
         }
 
-        // 274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger)
+        // 274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and
+        // caused a stagger)
         float isSmallBumpFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isSmallBump(subject));
@@ -485,7 +486,9 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isSpellTarget(subject, c.mParam1));
         }
 
-        // 638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting)
+        // 638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player,
+        // intimidated by the player, or whose relationship rank with the player is at least the
+        // iRelationshipFriendValue game setting)
         float isInFriendStateWithPlayerFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.inFriendStateWithPlayer(subject));
@@ -561,7 +564,8 @@ namespace game_skyrimse::conditions
             return subject != 0 ? world.daysInJail(subject) : 0.f;
         }
 
-        // 698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0)
+        // 698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured
+        // graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0)
         float isAllowedToFlyFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isAllowedToFly(subject));
@@ -573,7 +577,8 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isCommandedActor(subject));
         }
 
-        // 402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date)
+        // 402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp
+        // with the current date)
         float isBribedbyPlayerFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isBribedByPlayer(subject));
@@ -613,7 +618,8 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.locationInList(subject, c.mParam1));
         }
 
-        // 590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene)
+        // 590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED
+        // from the name: the subject is taking part in a scene)
         float isInSceneFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isInScene(subject));
@@ -631,7 +637,8 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isLocked(subject));
         }
 
-        // 657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest)
+        // 657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning
+        // INFERRED from the name: the subject is the actor making the arrest)
         float getArrestingActorFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isArrestingActor(subject));
@@ -687,7 +694,8 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.isChild(subject));
         }
 
-        // 39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease)
+        // 39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of
+        // type Disease)
         float getDiseaseFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.hasDisease(subject));
@@ -736,20 +744,22 @@ namespace game_skyrimse::conditions
             return asFloat(subject != 0 && world.hasLoaded3D(subject));
         }
 
-        // 656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches)
+        // 656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a
+        // guard approaches)
         float getArrestedStateFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isUnderArrest(subject));
         }
 
-        // 632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting)
+        // 632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED
+        // from the name: the subject is casting)
         float isCastingFn(const survey::Ctda&, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.isCasting(subject));
         }
 
-        // 699 HasMagicEffectKeyword(keyword) (CK wiki); 250 GetLocationCleared(location), 625 IsLocationLoaded(location)
-        // (CK dialog, meaning inferred) (toddhow 2026-11-11)
+        // 699 HasMagicEffectKeyword(keyword) (CK wiki); 250 GetLocationCleared(location), 625
+        // IsLocationLoaded(location) (CK dialog, meaning inferred) (toddhow 2026-11-11)
         float hasMagicEffectKeyword(const survey::Ctda& c, Subject subject, const ConditionWorld& world)
         {
             return asFloat(subject != 0 && world.hasMagicEffectKeyword(subject, c.mParam1));

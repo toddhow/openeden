@@ -21,13 +21,11 @@ namespace
         static void SetUpTestSuite()
         {
             std::map<std::string, std::string> m;
-            const auto colours = [&](const char* group, int base)
-            {
+            const auto colours = [&](const char* group, int base) {
                 const char* times[] = { "Sunrise", "Day", "Sunset", "Night" };
                 for (int i = 0; i < 4; ++i)
-                    m[std::string("Weather_Rain_") + group + "_" + times[i] + "_Color"]
-                        = std::to_string(base + i) + "," + std::to_string(base + i + 10) + ","
-                        + std::to_string(base + i + 20);
+                    m[std::string("Weather_Rain_") + group + "_" + times[i] + "_Color"] = std::to_string(base + i) + ","
+                        + std::to_string(base + i + 10) + "," + std::to_string(base + i + 20);
             };
             colours("Sky", 10);
             colours("Fog", 40);

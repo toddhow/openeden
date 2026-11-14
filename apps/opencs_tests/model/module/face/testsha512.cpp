@@ -18,7 +18,8 @@ namespace
     TEST(Sha512, abc)
     {
         EXPECT_EQ(sha512Hex("abc"),
-            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643"
+            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d442364"
+            "3"
             "ce80e2a9ac94fa54ca49f");
     }
 
@@ -26,14 +27,16 @@ namespace
     {
         EXPECT_EQ(sha512Hex("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlm"
                             "nopqrsmnopqrstnopqrstu"),
-            "8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018501d289e4900f7e4331b99dec4b5433ac7d329eeb6d"
+            "8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018501d289e4900f7e4331b99dec4b5433ac7d329eeb6"
+            "d"
             "d26545e96e55b874be909");
     }
 
     TEST(Sha512, aMillionAs)
     {
         EXPECT_EQ(sha512Hex(std::string(1000000, 'a')),
-            "e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973ebde0ff244877ea60a4cb0432ce577c31beb009c5c2c4"
+            "e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973ebde0ff244877ea60a4cb0432ce577c31beb009c5c2c"
+            "4"
             "9aa2e4eadb217ad8cc09b");
     }
 
@@ -43,7 +46,8 @@ namespace
         for (std::size_t i = 0; i < data.size(); ++i)
             data[i] = static_cast<char>((i * 7) % 251);
         const char* expected
-            = "9029cfe7fbc63001366ae9d2d34114346c645122c01a20c83aab2b2c71b2fc956bb4ee48120885facb9dbd9ade46b39ddc3cf38eb33"
+            = "9029cfe7fbc63001366ae9d2d34114346c645122c01a20c83aab2b2c71b2fc956bb4ee48120885facb9dbd9ade46b39ddc3cf38e"
+              "b33"
               "3be9ac74bafaba6149af1";
         EXPECT_EQ(sha512Hex(data), expected);
         for (std::size_t chunk : { std::size_t{ 1 }, std::size_t{ 3 }, std::size_t{ 127 }, std::size_t{ 128 },

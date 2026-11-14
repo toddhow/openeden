@@ -326,7 +326,8 @@ namespace openeden::editor
         std::string title;
         std::string message; ///< Optional text above the form.
         std::vector<PropertyDesc> fields;
-        std::vector<PropertyValue> initial; ///< One per field, same order; a missing or mistyped one is the type's zero.
+        std::vector<PropertyValue>
+            initial; ///< One per field, same order; a missing or mistyped one is the type's zero.
         std::string okLabel = "OK";
     };
 

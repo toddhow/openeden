@@ -12,9 +12,9 @@
 //
 // The engine already draws a light from an ESM::Light (MWAnim::createObject -> addLight: a point light whose radius is
 // ESM::Light::mData.mRadius and whose colour is mData.mColor, animated by the Flicker, FlickerSlow, Pulse and
-// PulseSlow bits, see components/mwanimation/light.cpp). A neutral light (openeden::sdk::game::LightComponent) is turned
-// into that record on the spot, so the engine's light path, its flicker and its point light shadows are used unchanged
-// and a neutral light behaves as a Morrowind light with the same flags does.
+// PulseSlow bits, see components/mwanimation/light.cpp). A neutral light (openeden::sdk::game::LightComponent) is
+// turned into that record on the spot, so the engine's light path, its flicker and its point light shadows are used
+// unchanged and a neutral light behaves as a Morrowind light with the same flags does.
 //
 // Pure functions, no engine state. Main thread, but nothing here needs it.
 
@@ -30,8 +30,8 @@ namespace MWWorld
 
     /// The ESM::Light that stands for the component: the radius (rounded, at least 0), the faded colour, the flag bits
     /// of the animation (the engine tests Flicker or FlickerSlow first, then Pulse or PulseSlow, so one bit is set) and
-    /// Negative; the Dynamic bit is always set. Off By Default is NOT a flag of the record: the class decides whether to
-    /// ask for the light at all (a light that is off by default is not created).
+    /// Negative; the Dynamic bit is always set. Off By Default is NOT a flag of the record: the class decides whether
+    /// to ask for the light at all (a light that is off by default is not created).
     [[nodiscard]] ESM::Light makeNeutralEsmLight(const openeden::sdk::game::LightComponent& light);
 }
 

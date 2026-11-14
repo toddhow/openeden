@@ -73,8 +73,8 @@ namespace game_skyrimse
 
         /// The greeting (subtype "HELO" through `pickFromTopics`) and the topic list. False with `error` when no
         /// greeting passes.
-        [[nodiscard]] bool begin(const DialogueSpeaker& speaker, openeden::sdk::game::DialogueTurn& out,
-            std::string& error);
+        [[nodiscard]] bool begin(
+            const DialogueSpeaker& speaker, openeden::sdk::game::DialogueTurn& out, std::string& error);
 
         /// The response to a topic offered by the last turn.
         [[nodiscard]] bool choose(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error);
@@ -105,7 +105,8 @@ namespace game_skyrimse
             mWorld.setCurrentPackageLookup(std::move(lookup));
         }
 
-        /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a service.
+        /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a
+        /// service.
         void setScriptProbe(ScriptNameProbe probe) { mScriptProbe = std::move(probe); }
 
         [[nodiscard]] bool open() const { return mOpen; }

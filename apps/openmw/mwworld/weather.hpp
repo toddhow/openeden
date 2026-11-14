@@ -332,8 +332,8 @@ namespace MWWorld
         // Have to pass fallback and Store, can't use singleton since World isn't fully constructed yet at the time
         // OpenEden (task 0127): with `neutral` the weather table, the clock and the region lists come from a game
         // pack (neutralweather.hpp) instead of Morrowind's INI keys and the store's regions.
-        WeatherManager(MWRender::RenderManager& rendering, MWWorld::ESMStore& store,
-            const NeutralWeatherSetup* neutral = nullptr);
+        WeatherManager(
+            MWRender::RenderManager& rendering, MWWorld::ESMStore& store, const NeutralWeatherSetup* neutral = nullptr);
         ~WeatherManager();
 
         /// The weather region of a cell: its `ESM::Region`, or for a neutral world the provider's key (the region is
@@ -409,7 +409,8 @@ namespace MWWorld
         MWWorld::ESMStore& mStore;
         MWRender::RenderManager& mRendering;
         std::shared_ptr<RegionWeatherProvider> mRegionProvider; // null for Morrowind
-        /// Developer aid (OPENEDEN_NEUTRAL_FORCE_WEATHER, a pack's weather only): the table index every region starts in.
+        /// Developer aid (OPENEDEN_NEUTRAL_FORCE_WEATHER, a pack's weather only): the table index every region starts
+        /// in.
         int mForcedWeather = -1;
         float mAtmosphereNightRoll = 0;
         float mSunriseTime;

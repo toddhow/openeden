@@ -1,9 +1,9 @@
-// Task 0157: a walker climbing stairs rests its capsule's rim on the next step's nosing, and the ground under its centre
-// is the lower tread, more than kStepDown below the resting feet (found in game: a sleeper of the Bannered Mare stood for
-// ever at the foot of the stairs with "blocked edge"; the nosing it rested on was 4.8 units above its feet and the
-// ground under its centre 28.8 below the rest). A rim that carries the capsule UP is support; the same distance below a
-// capsule that is level or going down is still a ledge. Written before the change; the first run was against the
-// unchanged mover (the climbing case failed).
+// Task 0157: a walker climbing stairs rests its capsule's rim on the next step's nosing, and the ground under its
+// centre is the lower tread, more than kStepDown below the resting feet (found in game: a sleeper of the Bannered Mare
+// stood for ever at the foot of the stairs with "blocked edge"; the nosing it rested on was 4.8 units above its feet
+// and the ground under its centre 28.8 below the rest). A rim that carries the capsule UP is support; the same distance
+// below a capsule that is level or going down is still a ledge. Written before the change; the first run was against
+// the unchanged mover (the climbing case failed).
 #include "apps/openmw/mwphysics/neutralmover.hpp"
 
 #include <gtest/gtest.h>
@@ -12,7 +12,8 @@ namespace
 {
     using namespace MWPhysics::NeutralMover;
 
-    // Free air everywhere except: a downward sweep rests on a rim at `rimZ`, and the ground under the centre is at `groundZ`.
+    // Free air everywhere except: a downward sweep rests on a rim at `rimZ`, and the ground under the centre is at
+    // `groundZ`.
     class NosingWorld final : public Sweeper
     {
     public:
@@ -63,7 +64,8 @@ namespace
 
 TEST(NeutralMoverRim, a_rim_that_carries_the_capsule_up_is_support_though_the_centre_ground_is_far_below)
 {
-    // rest 4.8 up, ground 28.8 below the rest: beyond the usual probe (kProbeLift + kStepDown = 28), within kRimReach more
+    // rest 4.8 up, ground 28.8 below the rest: beyond the usual probe (kProbeLift + kStepDown = 28), within kRimReach
+    // more
     const NosingWorld world(4.8f, 4.8f - 28.8f);
     const Result r = walk(world);
     EXPECT_TRUE(r.mMoved);

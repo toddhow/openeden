@@ -1,5 +1,6 @@
 // Task 0125 (stage E2 follow-up): the terrain vertex shader assumes 8192 unit cells; the batch origin of a storage with
-// other cells (Skyrim SE: 4096) has to be rescaled, or the terrain is drawn at the wrong place. Written before the code.
+// other cells (Skyrim SE: 4096) has to be rescaled, or the terrain is drawn at the wrong place. Written before the
+// code.
 #include <components/terrain/batchdata.hpp>
 
 #include <gtest/gtest.h>

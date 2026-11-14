@@ -1,8 +1,9 @@
-// Task 0130: the gated real-data survey behind the Skyrim SE material mapping (docs/tasks/0130-skyrim-material-mapping-v1.md).
-// Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's Data folder it reads every .nif of the five masters'
-// BSAs with the scene reader and prints AGGREGATE numbers only (lines starting SKYMAT-SURVEY): shader types, texture
-// slot use per shader type, shader flag bits, and the agreement of each flag with what the texture set contains. No
-// path, name or texture name is printed and nothing is written. OPENEDEN_SKYMAT_SURVEY_MAX stops after that many files.
+// Task 0130: the gated real-data survey behind the Skyrim SE material mapping
+// (docs/tasks/0130-skyrim-material-mapping-v1.md). Not run by default. With OPENEDEN_SKYRIMSE_DATA set to the game's
+// Data folder it reads every .nif of the five masters' BSAs with the scene reader and prints AGGREGATE numbers only
+// (lines starting SKYMAT-SURVEY): shader types, texture slot use per shader type, shader flag bits, and the agreement
+// of each flag with what the texture set contains. No path, name or texture name is printed and nothing is written.
+// OPENEDEN_SKYMAT_SURVEY_MAX stops after that many files.
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/nifscene/build.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -220,9 +221,9 @@ namespace
                             ++emitGlow[(m.mFlags2 >> 6) & 1][emitNonZero];
                             ++shapesByTypeAll[m.mShaderType];
                             emitByType[m.mShaderType] += emitNonZero;
-                            if (populated[1] && g.mTangents.size() == g.mPositions.size() && g.mUV0.size() == g.mPositions.size()
-                                && g.mNormals.size() == g.mPositions.size() && g.mPositions.size() < 65000
-                                && g.mSkin == NifScene::sNone)
+                            if (populated[1] && g.mTangents.size() == g.mPositions.size()
+                                && g.mUV0.size() == g.mPositions.size() && g.mNormals.size() == g.mPositions.size()
+                                && g.mPositions.size() < 65000 && g.mSkin == NifScene::sNone)
                             {
                                 std::vector<vsg::vec3> vertices, normals;
                                 std::vector<vsg::vec2> uvs;
@@ -233,7 +234,8 @@ namespace
                                     uvs.emplace_back(g.mUV0[v][0], g.mUV0[v][1]);
                                 }
                                 std::vector<std::uint16_t> tris(g.mTriangles.begin(), g.mTriangles.end());
-                                const auto generated = vsgAdapters::generateTangents(vertices, normals, uvs, { tris }, false);
+                                const auto generated
+                                    = vsgAdapters::generateTangents(vertices, normals, uvs, { tris }, false);
                                 if (generated.size() == g.mPositions.size())
                                 {
                                     ++tanShapes;
@@ -319,7 +321,7 @@ namespace
                 + std::to_string(t.emissiveNonZero));
             line(p + "alpha " + t.alpha.text());
         }
-        auto cross = [](const char* name, const std::uint64_t (&c)[2][2]) {
+        auto cross = [](const char* name, const std::uint64_t(&c)[2][2]) {
             line(std::string("agreement ") + name + ": flag0/absent " + std::to_string(c[0][0]) + " flag0/present "
                 + std::to_string(c[0][1]) + " flag1/absent " + std::to_string(c[1][0]) + " flag1/present "
                 + std::to_string(c[1][1]));
@@ -333,8 +335,8 @@ namespace
         cross("F1.22 own-emit flag vs emissive colour non-zero", emitOwn);
         cross("F2.6 glow-map flag vs emissive colour non-zero", emitGlow);
         for (const auto& [type, n] : shapesByTypeAll)
-            line("type " + std::to_string(type) + ": emissive colour non-zero " + std::to_string(emitByType[type]) + " of "
-                + std::to_string(n));
+            line("type " + std::to_string(type) + ": emissive colour non-zero " + std::to_string(emitByType[type])
+                + " of " + std::to_string(n));
         line("tangent convention (stored vs vsgAdapters::generateTangents on the shape's UVs): shapes "
             + std::to_string(tanShapes) + " vertices " + std::to_string(tanVerts) + " same-direction-same-sign "
             + std::to_string(tanSame) + " same-direction-opposite-sign " + std::to_string(tanSignFlipped)

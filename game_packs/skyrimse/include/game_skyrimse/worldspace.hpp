@@ -18,8 +18,8 @@ namespace game_skyrimse
 {
     namespace WorldConstants
     {
-        /// Skyrim SE has no per-world cell size field: an exterior cell is 4096 units (VERIFIED against the XCLC grid and the
-        /// object positions, task 0086).
+        /// Skyrim SE has no per-world cell size field: an exterior cell is 4096 units (VERIFIED against the XCLC grid
+        /// and the object positions, task 0086).
         inline constexpr float kCellSizeUnits = LandConstants::kCellSizeUnits;
     }
 

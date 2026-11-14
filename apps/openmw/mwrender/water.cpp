@@ -46,8 +46,9 @@ namespace MWRender
 
         mTransform->addChild(sg);
 
-        // The cell-bounded surface: the same shader and bump map with WATER_CELL, which places a unit quad by the node's
-        // transform (water/main.vert). The pipeline is made here so that it is compiled with the rest of the water.
+        // The cell-bounded surface: the same shader and bump map with WATER_CELL, which places a unit quad by the
+        // node's transform (water/main.vert). The pipeline is made here so that it is compiled with the rest of the
+        // water.
         Pipeline::Options cellOptions = pipelineOptions;
         cellOptions.shader = { "water", { Pipeline::modes({ Pipeline::Mode::BUMP_MAP, Pipeline::Mode::WATER_CELL }) } };
         auto cellPipeline = resourceSystem->builder->graphics->getOrCreate(cellOptions);
@@ -88,8 +89,8 @@ namespace MWRender
     {
         if (!mCells.set(x, y, size, height))
             return;
-        auto found = std::find_if(mCellNodes.begin(), mCellNodes.end(),
-            [&](const CellNode& n) { return n.mX == x && n.mY == y; });
+        auto found = std::find_if(
+            mCellNodes.begin(), mCellNodes.end(), [&](const CellNode& n) { return n.mX == x && n.mY == y; });
         if (found == mCellNodes.end())
         {
             CellNode node{ x, y, vsg::ref_ptr<Anim::Transform>(new Anim::Transform) };
@@ -107,8 +108,8 @@ namespace MWRender
     {
         if (!mCells.remove(x, y))
             return;
-        const auto found = std::find_if(mCellNodes.begin(), mCellNodes.end(),
-            [&](const CellNode& n) { return n.mX == x && n.mY == y; });
+        const auto found = std::find_if(
+            mCellNodes.begin(), mCellNodes.end(), [&](const CellNode& n) { return n.mX == x && n.mY == y; });
         if (found == mCellNodes.end())
             return;
         auto& children = mCellGroup->children;

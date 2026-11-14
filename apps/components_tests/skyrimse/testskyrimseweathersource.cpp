@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <map>
 #include <limits>
+#include <map>
 
 namespace
 {
@@ -23,7 +23,8 @@ namespace
         return w;
     }
 
-    void setColour(WeatherRecord& w, std::uint32_t type, std::uint32_t time, std::uint8_t r, std::uint8_t g, std::uint8_t b)
+    void setColour(
+        WeatherRecord& w, std::uint32_t type, std::uint32_t time, std::uint8_t r, std::uint8_t g, std::uint8_t b)
     {
         w.mColours[type][time] = Rgba8{ r, g, b, 0 };
     }
@@ -350,8 +351,8 @@ namespace
     }
 
     // ---- Stage W-S2: precipitation and thunder (task 0127). Expected values are written out by hand from the DATA
-    // bytes: flags 0x04 rainy, 0x08 snow (RECALLED-VERIFY, supported by the installed data), byte 6 / 255 the share of a
-    // transition after which the precipitation has changed over, byte 10 = 255 no thunder, (255 - byte) / 10 the
+    // bytes: flags 0x04 rainy, 0x08 snow (RECALLED-VERIFY, supported by the installed data), byte 6 / 255 the share of
+    // a transition after which the precipitation has changed over, byte 10 = 255 no thunder, (255 - byte) / 10 the
     // engine's frequency.
 
     WeatherRecord precipitating(std::uint8_t flags, bool particles, std::uint8_t begin = 153)
@@ -551,8 +552,9 @@ namespace
         table[0x2] = imageSpace(0x2, 1.5f, 1.05f, 1.75f, 0.5f);
         table[0x3] = imageSpace(0x3, 0.9f, 0.95f, 1.f);
         // 0x4 is not in the table
-        const ImageSpaceLookup lookup = [&](FormId id)
-        { return table.count(id) != 0 ? &table.at(id) : static_cast<const ImageSpaceRecord*>(nullptr); };
+        const ImageSpaceLookup lookup = [&](FormId id) {
+            return table.count(id) != 0 ? &table.at(id) : static_cast<const ImageSpaceRecord*>(nullptr);
+        };
         const sdk::WeatherDescription d = describeWeather(w, {}, lookup);
         ASSERT_TRUE(d.hasImageSpace);
         EXPECT_FLOAT_EQ(d.imageSpace.sunrise.saturation, 1.1f);

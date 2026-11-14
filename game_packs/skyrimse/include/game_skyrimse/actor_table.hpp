@@ -87,11 +87,12 @@ namespace game_skyrimse
 
         /// Stage S5: turns the AI package scheduler on over `source` (which must outlive the table). Actors that are
         /// added from now on get their packages; off (no brain) is the default and costs nothing.
-        void enablePackages(PackageSource& source, std::uint64_t seed, FurnitureSource* furniture = nullptr,
-            bool snapSleepers = false);
+        void enablePackages(
+            PackageSource& source, std::uint64_t seed, FurnitureSource* furniture = nullptr, bool snapSleepers = false);
         [[nodiscard]] const PackageBrain* packageBrain() const { return mBrain.get(); }
 
-        /// Stage S6f: the player begins or ends a conversation with the actor of this placement (forwarded to the brain).
+        /// Stage S6f: the player begins or ends a conversation with the actor of this placement (forwarded to the
+        /// brain).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins)
         {
             if (mBrain)

@@ -22,8 +22,8 @@
 // keys). They are now built in two steps: a function fills these structs (`weatherParamsFromFallback`,
 // `weatherManagerParamsFromFallback`: Morrowind, exactly the keys and defaults the constructors used), and the
 // constructors read the structs. A game pack's neutral weather (mwworld/neutralweather.hpp) fills the same structs from
-// the SDK's WeatherDescription, so both games run the same weather code. apps/openmw_tests/mwworld/testweatherparams.cpp
-// pins the Fallback path against the values the old constructors read.
+// the SDK's WeatherDescription, so both games run the same weather code.
+// apps/openmw_tests/mwworld/testweatherparams.cpp pins the Fallback path against the values the old constructors read.
 
 namespace MWWorld
 {
@@ -112,8 +112,8 @@ namespace MWWorld
         float starsPostSunsetStart = 0.f;
         float starsPreSunriseFinish = 0.f;
         float starsFadingDuration = 0.f;
-        // Stage W-S3 (a game pack's climate): the sun disc and glare pictures ("" keeps the engine's own) and which moons
-        // the sky has.
+        // Stage W-S3 (a game pack's climate): the sun disc and glare pictures ("" keeps the engine's own) and which
+        // moons the sky has.
         std::string sunTexture;
         std::string sunGlareTexture;
         bool masser = true;

@@ -122,8 +122,8 @@ namespace
 
     TEST(LodWorldFingerprint, pinned_value_so_a_change_of_the_recipe_is_noticed)
     {
-        // Computed independently in Python (FNV-1a 64 over length-prefixed text and little-endian numbers) and then checked
-        // against the implementation; changing the recipe makes every neutral pack stale on purpose.
+        // Computed independently in Python (FNV-1a 64 over length-prefixed text and little-endian numbers) and then
+        // checked against the implementation; changing the recipe makes every neutral pack stale on purpose.
         EXPECT_EQ(neutralFingerprint(skyrimFacts()), "3cc3a638b7464738");
     }
 
@@ -229,8 +229,8 @@ namespace
 
     TEST(LodWorldExtent, the_box_is_the_union_of_the_tile_squares)
     {
-        // A level 1 tile whose south-west cell is (-4, 6) covers cells -4..-3 by 6..7; a level 3 tile at (8, -16) covers
-        // 8..15 by -16..-9.
+        // A level 1 tile whose south-west cell is (-4, 6) covers cells -4..-3 by 6..7; a level 3 tile at (8, -16)
+        // covers 8..15 by -16..-9.
         const std::vector<TileId> tiles{ *tileContainingCell(0, 1, -4, 6), *tileContainingCell(0, 3, 8, -16) };
         const LandExtent extent = extentOfTiles(tiles);
         ASSERT_FALSE(extent.empty());
@@ -261,9 +261,9 @@ namespace
 
     TEST(LodWorldClusterRef, the_two_functions_are_inverses_for_every_kind_of_id)
     {
-        for (const std::uint64_t id : { std::uint64_t{ 0 }, std::uint64_t{ 1 }, std::uint64_t{ 0xFFFFFFFFull },
-                 std::uint64_t{ 0x100000000ull }, std::uint64_t{ 0x7FFFFFFFFFFFFFFFull },
-                 std::uint64_t{ 0x8000000000000000ull }, ~std::uint64_t{ 0 } })
+        for (const std::uint64_t id :
+            { std::uint64_t{ 0 }, std::uint64_t{ 1 }, std::uint64_t{ 0xFFFFFFFFull }, std::uint64_t{ 0x100000000ull },
+                std::uint64_t{ 0x7FFFFFFFFFFFFFFFull }, std::uint64_t{ 0x8000000000000000ull }, ~std::uint64_t{ 0 } })
             EXPECT_EQ(placementFromClusterRef(clusterRefFromPlacement(id)), id) << id;
     }
 

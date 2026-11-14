@@ -1,4 +1,5 @@
-// Task 0116: the Skyrim SE data survey (conditions, Papyrus events, NIF block types) on generated records. No game data.
+// Task 0116: the Skyrim SE data survey (conditions, Papyrus events, NIF block types) on generated records. No game
+// data.
 #include <game_skyrimse/survey.hpp>
 #include <game_skyrimse/survey_nif.hpp>
 #include <game_skyrimse/survey_scripts.hpp>
@@ -129,7 +130,8 @@ namespace
         data.fourCC("DATA").u16(0).text(std::string(40, 'z'));
         data.append(sub("ZZZZ", Bytes()));
         std::vector<std::pair<std::uint32_t, std::size_t>> seen;
-        EXPECT_TRUE(forEachSubrecord(view(data), [&](const SubrecordView& s) { seen.emplace_back(s.mType, s.mData.size()); }));
+        EXPECT_TRUE(
+            forEachSubrecord(view(data), [&](const SubrecordView& s) { seen.emplace_back(s.mType, s.mData.size()); }));
         ASSERT_EQ(seen.size(), 4u);
         EXPECT_EQ(seen[0], std::make_pair(cc("EDID"), std::size_t(2)));
         EXPECT_EQ(seen[1], std::make_pair(cc("CTDA"), std::size_t(32)));
@@ -184,8 +186,9 @@ namespace
     TEST(SkyrimSurveyConditions, counts_functions_by_record_type_and_orders_them)
     {
         ConditionSurvey s;
-        s.addRecord(cc("INFO"), view(record({ sub("CTDA", ctda(0x00, 1.0f, 72)), sub("CTDA", ctda(0x20, 0.0f, 72)),
-                                            sub("CTDA", ctda(0x61, 5.0f, 10, 0, 0, 1)) })));
+        s.addRecord(cc("INFO"),
+            view(record({ sub("CTDA", ctda(0x00, 1.0f, 72)), sub("CTDA", ctda(0x20, 0.0f, 72)),
+                sub("CTDA", ctda(0x61, 5.0f, 10, 0, 0, 1)) })));
         s.addRecord(cc("PACK"), view(record({ sub("CTDA", ctda(0x00, 1.0f, 72)) })));
         s.addRecord(cc("MISC"), view(record({ sub("EDID", Bytes().zstring("x")) })));
         EXPECT_EQ(s.mRecords, 3u);
@@ -227,9 +230,10 @@ namespace
     TEST(SkyrimSurveyConditions, odd_sizes_and_other_subrecords_are_counted_not_decoded)
     {
         ConditionSurvey s;
-        s.addRecord(cc("INFO"), view(record({ sub("CTDA", Bytes().text(std::string(28, '\0'))), sub("CIS1", Bytes().zstring("v")),
-                                            sub("CIS2", Bytes().zstring("w")), sub("CTDT", Bytes().text(std::string(20, '\0'))),
-                                            sub("CTDA", ctda(0, 0, 1)) })));
+        s.addRecord(cc("INFO"),
+            view(record({ sub("CTDA", Bytes().text(std::string(28, '\0'))), sub("CIS1", Bytes().zstring("v")),
+                sub("CIS2", Bytes().zstring("w")), sub("CTDT", Bytes().text(std::string(20, '\0'))),
+                sub("CTDA", ctda(0, 0, 1)) })));
         EXPECT_EQ(s.mConditions, 1u);
         EXPECT_EQ(s.mConditionsOddSize, 1u);
         EXPECT_EQ(s.mCtdaSizes[28], 1u);
@@ -306,7 +310,8 @@ namespace
     TEST(SkyrimSurveyConditions, report_lines_are_aggregates_with_fn_names)
     {
         ConditionSurvey s;
-        s.addRecord(cc("INFO"), view(record({ sub("CTDA", ctda(0, 0, 72)), sub("CTDA", ctda(0, 0, 72)), sub("CTDA", ctda(0, 0, 5)) })));
+        s.addRecord(cc("INFO"),
+            view(record({ sub("CTDA", ctda(0, 0, 72)), sub("CTDA", ctda(0, 0, 72)), sub("CTDA", ctda(0, 0, 5)) })));
         std::ostringstream out;
         writeConditionReport(s, out, 1);
         const std::string text = out.str();
@@ -331,7 +336,8 @@ namespace
         a.str()[1] = 1; // after the type byte
         Bytes b = ctda(0, 0, 9, 0, 0, 2, 20);
         b.str()[10] = 1; // after the function index
-        s.addRecord(cc("INFO"), view(record({ sub("CTDA", a), sub("CTDA", b), sub("CTDA", ctda(0, 0, 9, 0, 0, 2, 21)) })));
+        s.addRecord(
+            cc("INFO"), view(record({ sub("CTDA", a), sub("CTDA", b), sub("CTDA", ctda(0, 0, 9, 0, 0, 2, 21)) })));
         EXPECT_EQ(s.mPaddingNonZero, 2u);
         EXPECT_EQ(s.mPaddingAfterTypeNonZero, 1u);
         EXPECT_EQ(s.mPaddingAfterFunctionNonZero, 1u);

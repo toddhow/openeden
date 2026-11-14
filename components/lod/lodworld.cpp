@@ -180,7 +180,8 @@ namespace Lod
 
     ClusterRef clusterRefFromPlacement(std::uint64_t placementId) noexcept
     {
-        return { static_cast<std::uint32_t>(placementId & 0xFFFFFFFFull), static_cast<std::uint32_t>(placementId >> 32) };
+        return { static_cast<std::uint32_t>(placementId & 0xFFFFFFFFull),
+            static_cast<std::uint32_t>(placementId >> 32) };
     }
 
     std::uint64_t placementFromClusterRef(const ClusterRef& ref) noexcept

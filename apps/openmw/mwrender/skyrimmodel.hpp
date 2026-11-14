@@ -23,8 +23,8 @@
 #include <vsg/core/Array.h>
 #include <vsg/core/Data.h>
 #include <vsg/core/Value.h>
-#include <vsg/maths/mat4.h>
 #include <vsg/io/Options.h>
+#include <vsg/maths/mat4.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/utils/SharedObjects.h>
 
@@ -47,11 +47,12 @@ namespace MWRender::SkyrimModel
         vsg::ref_ptr<vsg::SharedObjects> mSharedObjects; // may be null
         int mDepthSortedBin = 0;
         std::string mFilename; // diagnostics only
-        /// Task 0136 (`[Game] neutral tree sway`): the process-wide sway uniform (SkyrimTreeSway::Driver::uniform). Null
-        /// (the default) means trees do not sway and are built exactly as before.
+        /// Task 0136 (`[Game] neutral tree sway`): the process-wide sway uniform (SkyrimTreeSway::Driver::uniform).
+        /// Null (the default) means trees do not sway and are built exactly as before.
         vsg::ref_ptr<vsg::mat4Value> mSwayUniform;
-        /// Task 0146 (`[Game] neutral lip sync`): the position array of a skinned shape with the face tint shader (the NPC's
-        /// head) is made DYNAMIC_DATA and handed back in BuildResult::mFaceShapes. False (the default): built as before.
+        /// Task 0146 (`[Game] neutral lip sync`): the position array of a skinned shape with the face tint shader (the
+        /// NPC's head) is made DYNAMIC_DATA and handed back in BuildResult::mFaceShapes. False (the default): built as
+        /// before.
         bool mMorphableFace = false;
         /// Task 0153: the pipeline override of the options a model is read with (groundcover asks for instancing and
         /// alpha testing this way, as it does for Morrowind's NIFs). Null (the default): shapes are built as before.
@@ -65,8 +66,8 @@ namespace MWRender::SkyrimModel
         std::uint32_t mTexturesLoaded = 0; // shapes whose diffuse texture was read
         std::uint32_t mTexturesMissing = 0; // shapes whose diffuse texture could not be read (drawn untextured)
         std::uint32_t mDraws = 0; // StateGroups made
-        /// Task 0146: with BuildContext::mMorphableFace, the position arrays of the skinned shapes that use the face tint
-        /// shader (BSLightingShaderType 4), in file order.
+        /// Task 0146: with BuildContext::mMorphableFace, the position arrays of the skinned shapes that use the face
+        /// tint shader (BSLightingShaderType 4), in file order.
         std::vector<vsg::ref_ptr<vsg::vec3Array>> mFaceShapes;
     };
 

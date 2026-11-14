@@ -69,15 +69,24 @@ namespace game_skyrimse
             const float u = static_cast<float>(kind.mUnitsFromWater);
             switch (kind.mUnitsFromWaterType)
             {
-                case 0: return d >= u;
-                case 1: return d >= 0.0f && d <= u;
-                case 2: return -d >= u;
-                case 3: return d <= 0.0f && -d <= u;
-                case 4: return std::fabs(d) >= u;
-                case 5: return std::fabs(d) <= u;
-                case 6: return d <= u;
-                case 7: return -d <= u;
-                default: return d >= 0.0f;
+                case 0:
+                    return d >= u;
+                case 1:
+                    return d >= 0.0f && d <= u;
+                case 2:
+                    return -d >= u;
+                case 3:
+                    return d <= 0.0f && -d <= u;
+                case 4:
+                    return std::fabs(d) >= u;
+                case 5:
+                    return std::fabs(d) <= u;
+                case 6:
+                    return d <= u;
+                case 7:
+                    return -d <= u;
+                default:
+                    return d >= 0.0f;
             }
         }
 
@@ -100,14 +109,17 @@ namespace game_skyrimse
             out[0] = out[1] = out[2] = 1.0f;
             if (!cell.hasColours || cell.colours.size() != static_cast<std::size_t>(side) * side * 3)
                 return;
-            const std::uint32_t c0 = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(fcol, 0.0f)), side - 2);
-            const std::uint32_t r0 = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(frow, 0.0f)), side - 2);
+            const std::uint32_t c0
+                = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(fcol, 0.0f)), side - 2);
+            const std::uint32_t r0
+                = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(frow, 0.0f)), side - 2);
             const float tu = std::clamp(fcol - static_cast<float>(c0), 0.0f, 1.0f);
             const float tv = std::clamp(frow - static_cast<float>(r0), 0.0f, 1.0f);
             for (int c = 0; c < 3; ++c)
             {
                 const auto at = [&](std::uint32_t r, std::uint32_t col) {
-                    return static_cast<float>(cell.colours[(static_cast<std::size_t>(r) * side + col) * 3 + c]) / 255.0f;
+                    return static_cast<float>(cell.colours[(static_cast<std::size_t>(r) * side + col) * 3 + c])
+                        / 255.0f;
                 };
                 const float south = at(r0, c0) * (1.0f - tu) + at(r0, c0 + 1) * tu;
                 const float north = at(r0 + 1, c0) * (1.0f - tu) + at(r0 + 1, c0 + 1) * tu;
@@ -245,8 +257,8 @@ namespace game_skyrimse
         return best == 0 ? cell.baseTextures[quadrant] : layers[best - 1].texture;
     }
 
-    void placeGrass(const sdk::TerrainCell& cell, float cellSize, const GrassTables& tables, const sdk::CellWater& water,
-        const GrassPlacementOptions& options, sdk::GrassCell& out)
+    void placeGrass(const sdk::TerrainCell& cell, float cellSize, const GrassTables& tables,
+        const sdk::CellWater& water, const GrassPlacementOptions& options, sdk::GrassCell& out)
     {
         out = sdk::GrassCell();
         const std::uint32_t side = cell.vertsPerSide;
@@ -271,9 +283,8 @@ namespace game_skyrimse
             const GrassRecord& g = found->second;
             return g.mHasData && g.mDensity > 0 && !g.mModel.empty() ? &g : nullptr;
         };
-        const auto quadrantOf = [&](std::uint32_t row, std::uint32_t col) {
-            return (row >= half ? 2u : 0u) + (col >= half ? 1u : 0u);
-        };
+        const auto quadrantOf
+            = [&](std::uint32_t row, std::uint32_t col) { return (row >= half ? 2u : 0u) + (col >= half ? 1u : 0u); };
 
         // The kinds a square may hold: those of the textures that dominate at its corners and middle.
         const auto candidates = [&](std::uint32_t row, std::uint32_t col, std::vector<Candidate>& list) {
@@ -293,13 +304,15 @@ namespace game_skyrimse
                     if (const GrassRecord* g = usable(id))
                         list.push_back({ id, g });
             }
-            std::sort(list.begin(), list.end(), [](const Candidate& a, const Candidate& b) { return a.mKind < b.mKind; });
+            std::sort(
+                list.begin(), list.end(), [](const Candidate& a, const Candidate& b) { return a.mKind < b.mKind; });
             list.erase(std::unique(list.begin(), list.end(),
                            [](const Candidate& a, const Candidate& b) { return a.mKind == b.mKind; }),
                 list.end());
         };
 
-        // Pass 1: how many tufts the data asks for, to scale every density down together when a cell would hold too many.
+        // Pass 1: how many tufts the data asks for, to scale every density down together when a cell would hold too
+        // many.
         std::vector<Candidate> list;
         double requested = 0.0;
         for (std::uint32_t row = 0; row < squares; ++row)
@@ -341,7 +354,8 @@ namespace game_skyrimse
                 for (const Candidate& c : list)
                 {
                     const GrassRecord& kind = *c.mRecord;
-                    if (slopeDegrees < static_cast<float>(kind.mMinSlope) || slopeDegrees > static_cast<float>(kind.mMaxSlope))
+                    if (slopeDegrees < static_cast<float>(kind.mMinSlope)
+                        || slopeDegrees > static_cast<float>(kind.mMaxSlope))
                         continue;
                     std::uint64_t state = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(cell.world)) << 32)
                         ^ (static_cast<std::uint64_t>(static_cast<std::uint32_t>(cell.gridX)) * 0x9E3779B1ull)
@@ -364,7 +378,8 @@ namespace game_skyrimse
                         const std::vector<FormId>* ids = grassOf(texture);
                         if (!ids || std::find(ids->begin(), ids->end(), c.mKind) == ids->end())
                             continue;
-                        const float z = (h00 * (1.0f - su) + h10 * su) * (1.0f - sv) + (h01 * (1.0f - su) + h11 * su) * sv;
+                        const float z
+                            = (h00 * (1.0f - su) + h10 * su) * (1.0f - sv) + (h01 * (1.0f - su) + h11 * su) * sv;
                         if (!waterAllows(kind, z, water))
                             continue;
                         auto found = modelIndex.find(c.mKind);
@@ -391,7 +406,8 @@ namespace game_skyrimse
                         if (kind.mColorRange > 0.0f)
                         {
                             std::uint64_t colourState = state ^ 0xC0105EEDC0FFEE11ull;
-                            brightness = 1.0f + (unit(colourState) * 2.0f - 1.0f) * std::clamp(kind.mColorRange, 0.0f, 1.0f);
+                            brightness
+                                = 1.0f + (unit(colourState) * 2.0f - 1.0f) * std::clamp(kind.mColorRange, 0.0f, 1.0f);
                         }
                         float land[3];
                         landColour(cell, static_cast<float>(col) + su, static_cast<float>(row) + sv, land);

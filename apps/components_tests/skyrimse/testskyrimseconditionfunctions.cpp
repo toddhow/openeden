@@ -14,8 +14,8 @@
 namespace
 {
     using namespace game_skyrimse::conditions;
-    using game_skyrimse::survey::Ctda;
     using ContentTests::Bytes;
+    using game_skyrimse::survey::Ctda;
 
     constexpr std::uint8_t kEq = 0, kGe = 3, kLt = 4;
     constexpr std::uint8_t kSwap = 0x10;
@@ -89,7 +89,10 @@ namespace
         }
         bool inLocation(Subject s, std::uint32_t l) const override { return s == mSubject && l == mLocation; }
         float randomPercent() const override { return mRandom; }
-        float itemCount(Subject s, std::uint32_t i) const override { return s == mSubject && i == mItem ? mItems : 0.f; }
+        float itemCount(Subject s, std::uint32_t i) const override
+        {
+            return s == mSubject && i == mItem ? mItems : 0.f;
+        }
         bool inCell(Subject s, std::uint32_t c) const override { return s == mSubject && c == mCell; }
         float actorValue(Subject s, std::uint32_t av) const override
         {
@@ -103,7 +106,10 @@ namespace
         bool hasEquippedShout(Subject s, std::uint32_t x) const override { return s == mSubject && x == mShout; }
         bool questCompleted(std::uint32_t q) const override { return q == mQuest && mCompleted; }
         bool hasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == mKeyword; }
-        float factionRank(Subject s, std::uint32_t f) const override { return s == mSubject && f == mFaction ? mRank : -1.f; }
+        float factionRank(Subject s, std::uint32_t f) const override
+        {
+            return s == mSubject && f == mFaction ? mRank : -1.f;
+        }
         bool locationHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == mKeyword; }
         float keywordDataForLocation(std::uint32_t l, std::uint32_t k) const override
         {
@@ -138,9 +144,15 @@ namespace
         float weaponAnimType(Subject s) const override { return s == mSubject ? 108.f : 0.f; }
         float flyingState(Subject s) const override { return s == mSubject ? 633.f : 0.f; }
         float clothingValue(Subject s) const override { return s == mSubject ? 41.f : 0.f; }
-        float equippedItemType(Subject s, std::uint32_t p) const override { return s == mSubject && p == 1 ? 9.f : 0.f; }
+        float equippedItemType(Subject s, std::uint32_t p) const override
+        {
+            return s == mSubject && p == 1 ? 9.f : 0.f;
+        }
         bool wasKilledBy(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0x14; }
-        float refTypeAliveCount(std::uint32_t a, std::uint32_t b) const override { return a == 0x50 && b == 0x200 ? 6.f : 0.f; }
+        float refTypeAliveCount(std::uint32_t a, std::uint32_t b) const override
+        {
+            return a == 0x50 && b == 0x200 ? 6.f : 0.f;
+        }
         bool mHasDiseaseFlag = true;
         bool hasDisease(Subject s) const override { return s == mSubject && mHasDiseaseFlag; }
         bool mIsChildFlag = true;
@@ -153,7 +165,10 @@ namespace
         float raininess() const override { return 1.f; }
         bool hasRefType(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0x200; }
         float weaponOutState(Subject s) const override { return s == mSubject ? 1.f : 0.f; }
-        float keywordDataForCurrentLocation(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80 ? 10.f : 0.f; }
+        float keywordDataForCurrentLocation(Subject s, std::uint32_t k) const override
+        {
+            return s == mSubject && k == 0x80 ? 10.f : 0.f;
+        }
         bool wornHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x81; }
         float snowiness() const override { return 0.25f; }
         bool mIsArrestingActorFlag = true;
@@ -178,7 +193,10 @@ namespace
         bool mIsAllowedToFlyFlag = true;
         bool isAllowedToFly(Subject s) const override { return s == mSubject && mIsAllowedToFlyFlag; }
         float daysInJail(Subject s) const override { return s == mSubject ? 4.f : 0.f; }
-        bool canPayCrimeGold(Subject s, std::uint32_t f) const override { return s == mSubject && (f == 0 || f == 0xA0); }
+        bool canPayCrimeGold(Subject s, std::uint32_t f) const override
+        {
+            return s == mSubject && (f == 0 || f == 0xA0);
+        }
         bool hasCombatTarget(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14; }
         bool combatTargetHasKeyword(Subject s, std::uint32_t k) const override { return s == mSubject && k == 0x80; }
         bool isObjectType(Subject s, std::uint32_t c) const override { return s == mSubject && c == 4; }
@@ -186,7 +204,10 @@ namespace
         float healthFraction(Subject s) const override { return s == mSubject ? 0.4f : 0.f; }
         float mapMarkerState(Subject s) const override { return s == mSubject ? 2.f : 0.f; }
         bool isParentOf(Subject s, std::uint32_t c) const override { return s == mSubject && c == 0x1E0; }
-        float factionRelation(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 3.f : 0.f; }
+        float factionRelation(Subject s, std::uint32_t t) const override
+        {
+            return s == mSubject && t == 0x14 ? 3.f : 0.f;
+        }
         float moveDirection(Subject s) const override { return s == mSubject ? 3.f : 0.f; }
         bool mInFriendStateWithPlayerFlag = true;
         bool inFriendStateWithPlayer(Subject s) const override { return s == mSubject && mInFriendStateWithPlayerFlag; }
@@ -233,16 +254,25 @@ namespace
             return f == 0xA0 ? 40.f : (f == 0 && s == mSubject ? 15.f : 0.f);
         }
         bool mIgnoring = false;
-        bool inCombat(Subject s, bool notIgnoring) const override { return s == mSubject && !(notIgnoring && mIgnoring); }
+        bool inCombat(Subject s, bool notIgnoring) const override
+        {
+            return s == mSubject && !(notIgnoring && mIgnoring);
+        }
         float attackDesire(Subject s, std::uint32_t t) const override { return s == mSubject && t == 0x14 ? 2.f : 0.f; }
-        float actorValuePercent(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 0.45f : 1.f; }
+        float actorValuePercent(Subject s, std::uint32_t av) const override
+        {
+            return s == mSubject && av == 24 ? 0.45f : 1.f;
+        }
         bool mIntimidate = true;
         bool mBribe = true;
         bool playerCanBribe(Subject s) const override { return s == mSubject && mBribe; }
         bool playerCanIntimidate(Subject s) const override { return s == mSubject && mIntimidate; }
         bool mTalked = true;
         bool talkedToPlayer(Subject s) const override { return s == mSubject && mTalked; }
-        float baseActorValue(Subject s, std::uint32_t av) const override { return s == mSubject && av == 24 ? 100.f : 0.f; }
+        float baseActorValue(Subject s, std::uint32_t av) const override
+        {
+            return s == mSubject && av == 24 ? 100.f : 0.f;
+        }
         bool locAliasIs(std::uint32_t a, std::uint32_t l) const override { return a == 5 && l == 0x150; }
         bool inLocationAlias(Subject s, std::uint32_t a) const override { return s == mSubject && a == 6; }
         bool isPlayerTeammate(Subject s) const override { return s == mSubject; }
@@ -260,7 +290,10 @@ namespace
         bool offersServicesNow(Subject s) const override { return s == mSubject && mServices; }
         bool runsPackage(Subject s, std::uint32_t p) const override { return s == mSubject && p == 0xF0; }
         float deadCount(std::uint32_t b) const override { return b == 0xF8 ? 6.f : 0.f; }
-        float distanceTo(Subject s, std::uint32_t r) const override { return s == mSubject && r == 0xE0 ? 512.f : 9000.f; }
+        float distanceTo(Subject s, std::uint32_t r) const override
+        {
+            return s == mSubject && r == 0xE0 ? 512.f : 9000.f;
+        }
         bool isEquipped(Subject s, std::uint32_t o) const override { return s == mSubject && o == mEquipped; }
         bool inWorldspace(Subject s, std::uint32_t w) const override { return s == mSubject && w == mWorldspace; }
         bool isRace(Subject s, std::uint32_t r) const override
@@ -786,7 +819,8 @@ namespace
         EXPECT_TRUE(run(cond(125, kEq, 0.f), w));
     }
 
-    // fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and caused a stagger).
+    // fn_274 IsSmallBump (CK wiki, toddhow 2026-11-11: an actor walked into the subject; false if they ran in and
+    // caused a stagger).
     TEST(SkyrimConditionFunctions, fn_274_isSmallBump)
     {
         World w;
@@ -809,7 +843,8 @@ namespace
         EXPECT_TRUE(run(cond(223, kEq, 0.f, 0x1D0), w));
     }
 
-    // fn_638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting).
+    // fn_638 IsInFriendStateWithPlayer (CK wiki, toddhow 2026-11-11: an actor that is bribed by the player, intimidated
+    // by the player, or whose relationship rank with the player is at least the iRelationshipFriendValue game setting).
     TEST(SkyrimConditionFunctions, fn_638_isInFriendStateWithPlayer)
     {
         World w;
@@ -871,8 +906,8 @@ namespace
         EXPECT_TRUE(run(cond(432, kEq, 0.f, 4), w));
     }
 
-    // fn_497 CanPayCrimeGold(faction, optional), fn_513 IsCombatTarget(actor), fn_707 GetCombatTargetHasKeyword(keyword)
-    // (CK wiki, toddhow 2026-11-11).
+    // fn_497 CanPayCrimeGold(faction, optional), fn_513 IsCombatTarget(actor), fn_707
+    // GetCombatTargetHasKeyword(keyword) (CK wiki, toddhow 2026-11-11).
     TEST(SkyrimConditionFunctions, fn_497_pay_crime_gold_513_combat_target_707_target_keyword)
     {
         World w;
@@ -897,7 +932,8 @@ namespace
         EXPECT_TRUE(run(cond(499, kEq, 0.f), w));
     }
 
-    // fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
+    // fn_698 IsAllowedToFly (CK wiki, toddhow 2026-11-11: false if not an actor, its race cannot fly, the Injured graph
+    // variable is set, allow-flying is cleared, flight is blocked, or health is exactly 0).
     TEST(SkyrimConditionFunctions, fn_698_isAllowedToFly)
     {
         World w;
@@ -921,7 +957,8 @@ namespace
         EXPECT_TRUE(run(cond(700, kEq, 0.f), w));
     }
 
-    // fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp with the current date).
+    // fn_402 IsBribedbyPlayer (CK wiki, toddhow 2026-11-11: bribed by the player; the original compares a date stamp
+    // with the current date).
     TEST(SkyrimConditionFunctions, fn_402_isBribedbyPlayer)
     {
         World w;
@@ -967,7 +1004,8 @@ namespace
         EXPECT_TRUE(run(cond(444, kEq, 0.f, 0x1F2), w));
     }
 
-    // fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is taking part in a scene).
+    // fn_590 IsInScene (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED
+    // from the name: the subject is taking part in a scene).
     TEST(SkyrimConditionFunctions, fn_590_isInScene)
     {
         World w;
@@ -1000,7 +1038,8 @@ namespace
         EXPECT_TRUE(run(cond(5, kEq, 0.f), w));
     }
 
-    // fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is the actor making the arrest).
+    // fn_657 GetArrestingActor (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning
+    // INFERRED from the name: the subject is the actor making the arrest).
     TEST(SkyrimConditionFunctions, fn_657_getArrestingActor)
     {
         World w;
@@ -1059,7 +1098,8 @@ namespace
         EXPECT_TRUE(run(cond(365, kEq, 0.f), w));
     }
 
-    // fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type Disease).
+    // fn_39 GetDisease (CK wiki, toddhow 2026-11-11: any of the actor's active magic effects comes from a spell of type
+    // Disease).
     TEST(SkyrimConditionFunctions, fn_39_getDisease)
     {
         World w;
@@ -1117,7 +1157,8 @@ namespace
         EXPECT_TRUE(run(cond(555, kEq, 0.f), w));
     }
 
-    // fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a guard approaches).
+    // fn_656 GetArrestedState (CK wiki, toddhow 2026-11-11: the actor is under arrest; for the player only while a
+    // guard approaches).
     TEST(SkyrimConditionFunctions, fn_656_getArrestedState)
     {
         World w;
@@ -1129,7 +1170,8 @@ namespace
         EXPECT_TRUE(run(cond(656, kEq, 0.f), w));
     }
 
-    // fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED from the name: the subject is casting).
+    // fn_632 IsCasting (CK condition dialog, toddhow 2026-11-11: no parameters, runs on the subject; meaning INFERRED
+    // from the name: the subject is casting).
     TEST(SkyrimConditionFunctions, fn_632_isCasting)
     {
         World w;

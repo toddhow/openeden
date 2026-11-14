@@ -84,9 +84,8 @@ namespace
 
     struct SkyrimOverrideTest : ::testing::Test
     {
-        vsg::ref_ptr<const vsg::Options> mShaderOptions
-            = Resource::createShaderOptions(
-                (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
+        vsg::ref_ptr<const vsg::Options> mShaderOptions = Resource::createShaderOptions(
+            (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders").string(), "");
         Pipeline::Builder mBuilder{ mShaderOptions, vsg::Sampler::create() };
         vsg::ref_ptr<vsgAdapters::nif> mReader
             = vsg::ref_ptr{ new vsgAdapters::nif(mBuilder, vsg::Options::create(), 0, 0) };

@@ -7,8 +7,8 @@
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required); the five official masters are read, in order
 #include <game_skyrimse/dialogue.hpp>
 #include <game_skyrimse/location.hpp>
-#include <game_skyrimse/package.hpp>
 #include <game_skyrimse/pack_core.hpp>
+#include <game_skyrimse/package.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_script.hpp>
 #include <game_skyrimse/records.hpp>
@@ -60,11 +60,33 @@ namespace
         switch (c.mFunction)
         {
             case 310: // GetInWorldspace: the measurement gives no worldspace, so the old world never answered it
-            case 77: case 84: case 606: case 314: case 131: case 130: case 629: // no subject
-            case 46: case 453: case 579: case 66: case 249: case 50: case 300: case 359: case 562: case 640:
-            case 145: case 144: case 402: case 375: case 376: case 289: case 49: // speaker and player state
+            case 77:
+            case 84:
+            case 606:
+            case 314:
+            case 131:
+            case 130:
+            case 629: // no subject
+            case 46:
+            case 453:
+            case 579:
+            case 66:
+            case 249:
+            case 50:
+            case 300:
+            case 359:
+            case 562:
+            case 640:
+            case 145:
+            case 144:
+            case 402:
+            case 375:
+            case 376:
+            case 289:
+            case 49: // speaker and player state
                 return false;
-            case 69: case 70: // the player's race and sex (run-on 1); the speaker's were answered before
+            case 69:
+            case 70: // the player's race and sex (run-on 1); the speaker's were answered before
                 return c.mRunOn != 1;
             default:
                 return true;
@@ -136,12 +158,12 @@ namespace
             questScripts.add(std::move(sr));
         }
         std::cout << "SKYRIMSE-COND3 LCTN parsed " << locationCount << " (merged " << locations.count()
-                  << "), QUST with a VMAD script " << questsWithScripts << " (merged " << questScripts.count()
-                  << ")\n";
+                  << "), QUST with a VMAD script " << questsWithScripts << " (merged " << questScripts.count() << ")\n";
 
         // the compiled scripts: the five masters' archives, the latest first
         std::vector<fs::path> archives;
-        for (const char* a : { "Dragonborn.bsa", "HearthFires.bsa", "Dawnguard.bsa", "Update.bsa", "Skyrim - Misc.bsa" })
+        for (const char* a :
+            { "Dragonborn.bsa", "HearthFires.bsa", "Dawnguard.bsa", "Update.bsa", "Skyrim - Misc.bsa" })
             if (fs::exists(data / a))
                 archives.push_back(data / a);
         QuestVariables variables(questScripts, [&](const std::string& script, std::vector<std::uint8_t>& bytes) {
@@ -313,8 +335,8 @@ namespace
         // "uncertain ahead": the infos the choice walks over before the pick (topics by priority, infos in order, the
         // skips of selectInfo) that hold a condition the world does not answer from data; counted with the old and
         // the new `answers`.
-        for (const char* name : { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir",
-                 "Delphine" })
+        for (const char* name :
+            { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir", "Delphine" })
         {
             const auto it = npcByEditorId.find(name);
             if (it == npcByEditorId.end())
@@ -333,9 +355,8 @@ namespace
             if (pick.mInfo != nullptr)
             {
                 std::vector<FormId> ids = dialogue.topicIds("HELO");
-                std::stable_sort(ids.begin(), ids.end(), [&](FormId x, FormId y) {
-                    return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority;
-                });
+                std::stable_sort(ids.begin(), ids.end(),
+                    [&](FormId x, FormId y) { return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority; });
                 w.setSpeaker(s);
                 bool reached = false;
                 for (FormId id : ids)
@@ -371,8 +392,8 @@ namespace
             std::cout << "SKYRIMSE-COND3 greeting " << name << ": topic "
                       << (pick.mInfo == nullptr ? std::string("none") : pick.mTopic->mCommon.mEditorId)
                       << " considered " << pick.mConsidered << " passing " << pick.mPassing
-                      << " infos ahead of the pick " << ahead << " of them uncertain: before " << oldAhead
-                      << " after " << newAhead << "\n";
+                      << " infos ahead of the pick " << ahead << " of them uncertain: before " << oldAhead << " after "
+                      << newAhead << "\n";
         }
     }
 }

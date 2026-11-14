@@ -23,7 +23,8 @@ namespace
     constexpr std::uint32_t kParent = 0x01000900, kChild = 0x01000901, kLandOnly = 0x01000902, kDry = 0x01000903;
     constexpr float kOcean = -14000.0f;
 
-    Bytes cell(std::uint32_t id, std::int32_t x, std::int32_t y, const std::vector<float>& xclw, std::uint32_t flags = 0)
+    Bytes cell(
+        std::uint32_t id, std::int32_t x, std::int32_t y, const std::vector<float>& xclw, std::uint32_t flags = 0)
     {
         Bytes subs = sub4("DATA", Bytes().u16(0x0002));
         subs.append(sub4("XCLC", Bytes().u32(static_cast<std::uint32_t>(x)).u32(static_cast<std::uint32_t>(y)).u32(0)));

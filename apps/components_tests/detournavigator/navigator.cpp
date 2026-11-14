@@ -271,9 +271,9 @@ namespace
             << mPath;
     }
 
-    // Task 0134: an open-riser stair of a game pack's interior, as a visual-triangle mesh (a Skyrim SE stair read in game:
-    // flat treads about 78 units wide and 18 deep, risers 20.5 high; docs/tasks/0134-skyrim-navmesh.md). The navmesh
-    // must lead over it for a narrow agent.
+    // Task 0134: an open-riser stair of a game pack's interior, as a visual-triangle mesh (a Skyrim SE stair read in
+    // game: flat treads about 78 units wide and 18 deep, risers 20.5 high; docs/tasks/0134-skyrim-navmesh.md). The
+    // navmesh must lead over it for a narrow agent.
     struct StairMesh
     {
         static constexpr int steps = 13;
@@ -295,7 +295,8 @@ namespace
                 settings.mIndexedTriangles.push_back(JPH::IndexedTriangle(base, base + 2, base + 3));
             };
             // landings, 300 wide, level with the first tread's foot and the last tread
-            quad(JPH::Vec3(x0 - 150, 106, 0), JPH::Vec3(x0, 106, 0), JPH::Vec3(x0, 406, 0), JPH::Vec3(x0 - 150, 406, 0));
+            quad(
+                JPH::Vec3(x0 - 150, 106, 0), JPH::Vec3(x0, 106, 0), JPH::Vec3(x0, 406, 0), JPH::Vec3(x0 - 150, 406, 0));
             const float xEnd = x0 + steps * tread;
             const float top = steps * rise;
             quad(JPH::Vec3(xEnd, 106, top), JPH::Vec3(xEnd + 150, 106, top), JPH::Vec3(xEnd + 150, 406, top),
@@ -311,7 +312,8 @@ namespace
             }
             JPH::Ref<JPH::Shape> shape = settings.Create().Get();
             JPH::Shape* raw = shape.GetPtr();
-            if (raw != nullptr) // GCC 13 -Werror=stringop-overflow reads the unchecked call as a write into a null shape
+            if (raw
+                != nullptr) // GCC 13 -Werror=stringop-overflow reads the unchecked call as a write into a null shape
                 raw->SetEmbedded(); // the instance below holds it by a raw pointer, as the other tests' shapes do
             return std::unique_ptr<JPH::Shape>(raw);
         }

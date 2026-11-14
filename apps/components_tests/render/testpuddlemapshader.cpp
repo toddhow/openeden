@@ -135,7 +135,8 @@ namespace
             std::string::npos);
     }
 
-    TEST(RenderPuddleMapShaderFiles, only_the_terrain_and_object_stages_include_the_map_and_only_under_the_puddle_define)
+    TEST(
+        RenderPuddleMapShaderFiles, only_the_terrain_and_object_stages_include_the_map_and_only_under_the_puddle_define)
     {
         // Stage W-c: the object shader reads the map too (under the height test), so a road takes the baked puddles.
         for (const char* file :

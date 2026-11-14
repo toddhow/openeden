@@ -309,7 +309,8 @@ TEST(LodClusterSwayBoost, the_boosted_reach_stays_inside_the_bound_the_renderer_
         for (double t = 0; t < 6; t += 0.1)
         {
             const Out o = sway(maxSwayLean, 1.f, swayWeightScale, swayWeightScale, 0.3f, t);
-            worst = std::max(worst, swayDistanceBoost(d, swayBoostReference) * std::sqrt(o.v[0] * o.v[0] + o.v[1] * o.v[1]));
+            worst = std::max(
+                worst, swayDistanceBoost(d, swayBoostReference) * std::sqrt(o.v[0] * o.v[0] + o.v[1] * o.v[1]));
         }
     EXPECT_LE(worst, swayBoostMax * maxSwayReach);
 }

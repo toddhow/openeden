@@ -5,8 +5,8 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/esmbridge/util.hpp>
-#include <components/misc/strings/algorithm.hpp>
 #include <components/misc/loadtrace.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/misc/vsgmath.hpp>
 #include <components/settings/values.hpp>
 #include <components/worldmodel/store.hpp>
@@ -77,7 +77,8 @@ namespace MWClass
             return wanted;
         }
 
-        // A template over Ptr and ConstPtr: a ConstPtr parameter made GCC see a temporary behind the returned reference.
+        // A template over Ptr and ConstPtr: a ConstPtr parameter made GCC see a temporary behind the returned
+        // reference.
         template <class PtrType>
         const MWWorld::NeutralBase& baseOf(const PtrType& ptr)
         {
@@ -117,8 +118,7 @@ namespace MWClass
             {
                 if (actor != MWMechanics::getPlayer())
                     return;
-                const std::string text
-                    = MWBase::Environment::get().getL10nManager()->getMessage("OMWEngine", mKey);
+                const std::string text = MWBase::Environment::get().getL10nManager()->getMessage("OMWEngine", mKey);
                 MWBase::Environment::get().getWindowManager()->messageBox(text);
             }
 
@@ -142,7 +142,8 @@ namespace MWClass
                     return;
                 const MWWorld::NeutralBase& base = baseOf(mTarget);
                 MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
-                NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+                NeutralWorld::NeutralWorldStore* store
+                    = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
                 openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
                 auto* dialogue = dynamic_cast<openeden::sdk::game::DialogueSource*>(source);
                 const MWWorld::CellStore* cell = mTarget.getCell();
@@ -188,9 +189,11 @@ namespace MWClass
                              << ptr.getCell()->getCell()->getDescription() << ": "
                              << MWWorld::neutralDoorOutcomeName(decision.mOutcome) << " destination '" << destination
                              << "' arrival " << decision.mArrival.pos[0] << "," << decision.mArrival.pos[1] << ","
-                             << decision.mArrival.pos[2] << (destination.empty() ? "" : reused ? " reused" : " built")
-                             << ", base records " << bases
-                             << ", resident neutral cells "
+                             << decision.mArrival.pos[2]
+                             << (destination.empty() ? ""
+                                        : reused     ? " reused"
+                                                     : " built")
+                             << ", base records " << bases << ", resident neutral cells "
                              << (neutral != nullptr ? neutral->stats().mResidentCells : 0);
         }
     }
@@ -220,9 +223,9 @@ namespace MWClass
         {
             MWWorld::NeutralLockState& locks = MWWorld::neutralLockState();
             const std::string& gameId = cell->neutralGameId();
-            const MWWorld::NeutralLockOutcome lockOutcome = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(),
-                locks.isUnlocked(gameId, *placement),
-                [&](openeden::sdk::game::WorldId key) { return locks.hasKey(gameId, key); });
+            const MWWorld::NeutralLockOutcome lockOutcome
+                = MWWorld::decideNeutralLock(*object, unlockDoorsWanted(), locks.isUnlocked(gameId, *placement),
+                    [&](openeden::sdk::game::WorldId key) { return locks.hasKey(gameId, key); });
             if (doorTraceWanted() && object->lock)
                 Log(Debug::Info) << "NLOCK " << *placement << " in " << cell->getCell()->getDescription()
                                  << ": locked=" << object->lock->locked << " key " << object->lock->key << " level "
@@ -266,8 +269,8 @@ namespace MWClass
                     // arrival stands in, in the worldspace's own cell size; the cell is built (or reused) and entered
                     // like any other store.
                     const auto& arrival = object->teleport->destination.position;
-                    const auto square = MWWorld::neutralExteriorSquare(
-                        arrival.x, arrival.y, ESM::getCellSize(found.mWorldspace));
+                    const auto square
+                        = MWWorld::neutralExteriorSquare(arrival.x, arrival.y, ESM::getCellSize(found.mWorldspace));
                     if (!square)
                     {
                         Log(Debug::Warning) << "Neutral door " << *placement
@@ -414,8 +417,8 @@ namespace MWClass
         MWRender::RenderingInterface& renderingInterface) const
     {
         // Task 0121 (decision 0017, stage N5-1): the game pack that owns the base describes how its actor looks through
-        // the optional ActorAppearanceSource of its registered world source. With the setting off, or a pack that has no
-        // such interface, an actor stays an inert reference as before.
+        // the optional ActorAppearanceSource of its registered world source. With the setting off, or a pack that has
+        // no such interface, an actor stays an inert reference as before.
         if (!Settings::game().mNeutralActors)
             return;
         MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
@@ -463,10 +466,10 @@ namespace MWClass
                         for (const std::uint8_t skill : stats.skills)
                             skills += (skills.empty() ? "" : ",") + std::to_string(skill);
                         Log(Debug::Info) << "NACTVAL " << base.mEditorId << " level " << stats.level << " health "
-                                         << stats.health << " magicka " << stats.magicka << " stamina "
-                                         << stats.stamina << " skills " << skills << " scales "
-                                         << stats.scalesWithPlayer << " essential " << stats.essential << " unique "
-                                         << stats.unique << " relation " << static_cast<int>(disposition.relationToPlayer)
+                                         << stats.health << " magicka " << stats.magicka << " stamina " << stats.stamina
+                                         << " skills " << skills << " scales " << stats.scalesWithPlayer
+                                         << " essential " << stats.essential << " unique " << stats.unique
+                                         << " relation " << static_cast<int>(disposition.relationToPlayer)
                                          << " aggression " << static_cast<int>(disposition.aggression) << " hostile "
                                          << disposition.hostileOnSight;
                     }
@@ -483,7 +486,8 @@ namespace MWClass
                 const std::string gameId = base.mGameId;
                 physics->setNeutralRulesResolver([gameId]() -> openeden::sdk::game::ActorRules* {
                     MWBase::ExtensionManager* manager = MWBase::Environment::get().getExtensionManager();
-                    NeutralWorld::NeutralWorldStore* worldStore = manager != nullptr ? manager->neutralWorldStore() : nullptr;
+                    NeutralWorld::NeutralWorldStore* worldStore
+                        = manager != nullptr ? manager->neutralWorldStore() : nullptr;
                     return dynamic_cast<openeden::sdk::game::ActorRules*>(
                         worldStore != nullptr ? worldStore->source(gameId) : nullptr);
                 });
@@ -514,9 +518,9 @@ namespace MWClass
             {
                 const auto& position = ptr.getRefData().getPosition().asVec3();
                 Log(Debug::Info) << "NLOCKED " << (base.mKind == ObjectKind::Door ? "door" : "container") << " "
-                                 << *placement << " " << ptr.getCellRef().getRefId() << " " << base.mEditorId
-                                 << " at " << position.x << "," << position.y << "," << position.z << " key "
-                                 << object->lock->key << " level " << object->lock->level;
+                                 << *placement << " " << ptr.getCellRef().getRefId() << " " << base.mEditorId << " at "
+                                 << position.x << "," << position.y << "," << position.z << " key " << object->lock->key
+                                 << " level " << object->lock->level;
             }
         }
         if (base.mCollision.source == CollisionSource::None)
@@ -532,9 +536,9 @@ namespace MWClass
             Log(Debug::Info) << "NCT " << ptr.getCellRef().getRefId() << " " << base.mEditorId << " model '" << model
                              << "' at " << position.x << "," << position.y << "," << position.z << " scale "
                              << ptr.getCellRef().getScale()
-                             << (asMesh                         ? " mesh"
-                                    : base.mCollision.hasBounds ? " box"
-                                                                : " none");
+                             << (asMesh                             ? " mesh"
+                                        : base.mCollision.hasBounds ? " box"
+                                                                    : " none");
         }
         // Task 0157: a door neutral actors walk through swings open for them (the scene gave the navigator the matching
         // off-mesh connection).
@@ -543,7 +547,8 @@ namespace MWClass
         // Task 0140: a model that was read and has nothing to collide with (effects, water volumes, markers) gets no
         // collision at all, not the box of its bounds: those bounds can be 3,000 units across.
         if (!MWPhysics::SkyrimShape::standInBoxWanted(asMesh, base.mCollision.hasBounds,
-                !model.empty() && MWPhysics::SkyrimShape::modelReadWithNoCollision(VFS::Path::toNormalized(model).value())))
+                !model.empty()
+                    && MWPhysics::SkyrimShape::modelReadWithNoCollision(VFS::Path::toNormalized(model).value())))
             return;
         const auto& lo = base.mCollision.boundsMin;
         const auto& hi = base.mCollision.boundsMax;

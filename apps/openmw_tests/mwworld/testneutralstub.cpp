@@ -12,9 +12,9 @@
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclas.hpp>
+#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadglob.hpp>
 #include <components/esm3/loadgmst.hpp>
-#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
@@ -228,10 +228,12 @@ namespace
         MWWorld::ESMStore store;
         const std::size_t added = MWWorld::insertNeutralStubGameSettings(store);
         EXPECT_EQ(added, 258u + 89u);
-        const ESM::GameSetting* swim = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("fSwimHeightScale"));
+        const ESM::GameSetting* swim
+            = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("fSwimHeightScale"));
         ASSERT_NE(swim, nullptr);
         EXPECT_FLOAT_EQ(swim->mValue.getFloat(), 0.9f);
-        const ESM::GameSetting* delta = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("i1stPersonSneakDelta"));
+        const ESM::GameSetting* delta
+            = store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("i1stPersonSneakDelta"));
         ASSERT_NE(delta, nullptr);
         EXPECT_EQ(delta->mValue.getInteger(), 10);
     }
@@ -288,7 +290,8 @@ namespace
         EXPECT_EQ(hash, 0xcc1e4ff9c6814b32ull);
     }
 
-    // --- Task 0109 (stage N3a-3): the string game settings and the skills ---------------------------------------------
+    // --- Task 0109 (stage N3a-3): the string game settings and the skills
+    // ---------------------------------------------
 
     // Task skyext: the skill-changed and prison messages are shown to the player through the l10n "gmst" lookup with
     // arguments ("NotifyMessage39" was shown raw in a Skyrim session): they get our own wording with the printf-style
@@ -338,8 +341,8 @@ namespace
         real.mRecordFlags = 0;
         store.insertStatic(real);
         EXPECT_EQ(MWWorld::insertNeutralStubGameSettingStrings(store), ESM::DefaultGmsts::StringCount - 1);
-        EXPECT_EQ(store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("sCancel"))->mValue.getString(),
-            "Abbrechen");
+        EXPECT_EQ(
+            store.get<ESM::GameSetting>().search(ESM::RefId::stringRefId("sCancel"))->mValue.getString(), "Abbrechen");
         EXPECT_EQ(MWWorld::insertNeutralStubGameSettingStrings(store), 0u);
     }
 

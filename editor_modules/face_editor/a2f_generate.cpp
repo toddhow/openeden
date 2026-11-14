@@ -50,7 +50,8 @@ namespace face_editor
         }
     }
 
-    // ----- model files -------------------------------------------------------------------------------------------------
+    // ----- model files
+    // -------------------------------------------------------------------------------------------------
 
     bool loadGeneratorModel(const fs::path& folder, A2FVariant variant, GeneratorModel& out, std::string& error)
     {
@@ -142,7 +143,8 @@ namespace face_editor
         return true;
     }
 
-    // ----- audio and noise ---------------------------------------------------------------------------------------------
+    // ----- audio and noise
+    // ---------------------------------------------------------------------------------------------
 
     std::vector<float> resampleMono(
         const std::vector<float>& in, std::uint32_t rateIn, std::uint32_t rateOut, std::string& error)
@@ -259,7 +261,8 @@ namespace face_editor
             const BlendshapeSolver solver(set);
             const std::size_t P = solver.poseCount();
             const auto starts = planV3Windows(audio.size(), options.mV3Layout);
-            const std::size_t rate = options.mV3Layout == V3Layout::Gate ? A2FDims::sV3RateGate : A2FDims::sV3RateOverlapped;
+            const std::size_t rate
+                = options.mV3Layout == V3Layout::Gate ? A2FDims::sV3RateGate : A2FDims::sV3RateOverlapped;
             const std::size_t totalFrames = (audio.size() * rate + A2FDims::sSampleRate - 1) / A2FDims::sSampleRate;
 
             std::vector<float> noise(A2FDims::sV3NoiseFloats);
@@ -315,7 +318,8 @@ namespace face_editor
             const auto setupStart = Clock::now();
             const BlendshapeSolver solver(set);
             const std::size_t P = solver.poseCount();
-            const LinearProjection linear(solver, model.mV23MeanMinusNeutral, model.mV23Basis, A2FDims::sV23Coefficients);
+            const LinearProjection linear(
+                solver, model.mV23MeanMinusNeutral, model.mV23Basis, A2FDims::sV23Coefficients);
             const auto starts = planV23Windows(audio.size());
 
             std::vector<float> windows(A2FDims::sV23Batch * A2FDims::sV23Window);
@@ -400,7 +404,6 @@ namespace face_editor
             return weights.at(frames - 1, pose);
         const auto i0 = static_cast<std::size_t>(std::floor(p));
         const double f = p - static_cast<double>(i0);
-        return static_cast<float>(
-            weights.at(i0, pose) * (1.0 - f) + weights.at(i0 + 1, pose) * f);
+        return static_cast<float>(weights.at(i0, pose) * (1.0 - f) + weights.at(i0 + 1, pose) * f);
     }
 }

@@ -34,8 +34,7 @@ namespace game_skyrimse
         {
             if (!(farD > 0.f) || !std::isfinite(farD) || !std::isfinite(nearD) || !(farD > nearD))
                 return 0.f;
-            const float share
-                = std::clamp((WeatherScale::kFogReferenceDistance - nearD) / (farD - nearD), 0.f, 1.f);
+            const float share = std::clamp((WeatherScale::kFogReferenceDistance - nearD) / (farD - nearD), 0.f, 1.f);
             const float amount = power > 0.f && std::isfinite(power) ? std::pow(share, power) : share;
             const float cap = std::isfinite(maxFog) ? std::clamp(maxFog, 0.f, 1.f) : 1.f;
             return std::clamp(std::min(amount, cap), 0.f, 1.f);
@@ -46,9 +45,11 @@ namespace game_skyrimse
             if (layer >= w.mCloudLayers.size())
                 return WeatherScale::kCloudSpeedFloor;
             const CloudLayer& l = w.mCloudLayers[layer];
-            const auto away = [](const std::optional<std::uint8_t>& b)
-            { return b ? std::abs(static_cast<int>(*b) - WeatherScale::kCloudStillByte) : 0; };
-            const float drift = static_cast<float>(std::max(away(l.mSpeedQ), away(l.mSpeedR))) / WeatherScale::kCloudStillByte;
+            const auto away = [](const std::optional<std::uint8_t>& b) {
+                return b ? std::abs(static_cast<int>(*b) - WeatherScale::kCloudStillByte) : 0;
+            };
+            const float drift
+                = static_cast<float>(std::max(away(l.mSpeedQ), away(l.mSpeedR))) / WeatherScale::kCloudStillByte;
             return std::max(WeatherScale::kCloudSpeedFloor, drift * WeatherScale::kCloudSpeedScale);
         }
     }
@@ -57,8 +58,9 @@ namespace game_skyrimse
     {
         bool sameTexture(const std::string& a, const std::string& b)
         {
-            return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y)
-                { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); });
+            return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char x, char y) {
+                return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y));
+            });
         }
 
         bool endsWithBlank(const std::string& path)
@@ -75,9 +77,9 @@ namespace game_skyrimse
         bool isHorizonStrip(const std::string& path)
         {
             const std::string marker = WeatherScale::kHorizonCloudMarker;
-            return std::search(path.begin(), path.end(), marker.begin(), marker.end(), [](char x, char y)
-                       { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); })
-                != path.end();
+            return std::search(path.begin(), path.end(), marker.begin(), marker.end(), [](char x, char y) {
+                return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y));
+            }) != path.end();
         }
 
         float cleanAlpha(float a)
@@ -115,11 +117,11 @@ namespace game_skyrimse
                     continue;
                 openeden::sdk::game::CloudLayerDescription layer;
                 layer.texture = l.mTexture;
-                layer.alpha = { cleanAlpha(alpha[0]), cleanAlpha(alpha[1]), cleanAlpha(alpha[2]), cleanAlpha(alpha[3]) };
+                layer.alpha
+                    = { cleanAlpha(alpha[0]), cleanAlpha(alpha[1]), cleanAlpha(alpha[2]), cleanAlpha(alpha[3]) };
                 if (l.mColour)
                 {
-                    const auto c = [&](std::size_t t)
-                    {
+                    const auto c = [&](std::size_t t) {
                         const Rgba8 v = (*l.mColour)[t];
                         return openeden::sdk::game::WeatherColour{ v.r / 255.f, v.g / 255.f, v.b / 255.f };
                     };
@@ -331,8 +333,8 @@ namespace game_skyrimse
         return d;
     }
 
-    bool describeTimeOfDay(const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out,
-        const TextureProbe& textureExists)
+    bool describeTimeOfDay(
+        const WeatherIndex& index, openeden::sdk::game::TimeOfDayDescription& out, const TextureProbe& textureExists)
     {
         using Key = std::tuple<unsigned, unsigned, unsigned, unsigned>;
         std::map<Key, std::pair<int, FormId>> votes; // timing -> (climates, lowest id)
@@ -345,8 +347,8 @@ namespace game_skyrimse
             // A climate with no day (all four zero) gives no timing.
             if (t.mSunriseBegin == 0 && t.mSunriseEnd == 0 && t.mSunsetBegin == 0 && t.mSunsetEnd == 0)
                 continue;
-            auto& v = votes[Key{ t.sunriseBeginMinutes(), t.sunriseEndMinutes(), t.sunsetBeginMinutes(),
-                t.sunsetEndMinutes() }];
+            auto& v = votes[Key{
+                t.sunriseBeginMinutes(), t.sunriseEndMinutes(), t.sunsetBeginMinutes(), t.sunsetEndMinutes() }];
             if (v.first == 0)
                 v.second = id;
             ++v.first;
@@ -385,7 +387,8 @@ namespace game_skyrimse
         return true;
     }
 
-    WeatherTable::WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists, const SoundProbe& soundExists)
+    WeatherTable::WeatherTable(
+        const WeatherIndex& index, const TextureProbe& textureExists, const SoundProbe& soundExists)
         : mIndex(&index)
         , mIds(index.weatherIds())
     {
@@ -393,8 +396,11 @@ namespace game_skyrimse
         for (const FormId id : mIds)
         {
             const WeatherRecord* w = index.weather(id);
-            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId imageSpaceId) { return mIndex->imageSpace(imageSpaceId); },
-                                             [this](FormId soundId) { return mIndex->sound(soundId); }, soundExists) : openeden::sdk::game::WeatherDescription{});
+            mWeathers.push_back(w != nullptr
+                    ? describeWeather(
+                        *w, textureExists, [this](FormId imageSpaceId) { return mIndex->imageSpace(imageSpaceId); },
+                        [this](FormId soundId) { return mIndex->sound(soundId); }, soundExists)
+                    : openeden::sdk::game::WeatherDescription{});
         }
     }
 

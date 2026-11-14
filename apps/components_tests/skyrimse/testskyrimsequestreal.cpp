@@ -258,8 +258,8 @@ namespace
         for (FormId id : actors.npcIds())
             npcByEditorId[actors.npc(id)->mCommon.mEditorId] = id;
         std::uint64_t asked = 0, same = 0, differ = 0, picked = 0;
-        for (const char* name : { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir",
-                 "Delphine", "Eorlund" })
+        for (const char* name :
+            { "Hulda", "Saadia", "Mikael", "JouaneManette", "Orgnar", "Ysolda", "Sinmir", "Delphine", "Eorlund" })
         {
             const auto it = npcByEditorId.find(name);
             if (it == npcByEditorId.end())
@@ -301,9 +301,8 @@ namespace
             {
                 // what is still unanswered ahead of the pick (topics by priority, infos in order, as the choice walks)
                 std::vector<FormId> ids = dialogue.topicIds("HELO");
-                std::stable_sort(ids.begin(), ids.end(), [&](FormId x, FormId y) {
-                    return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority;
-                });
+                std::stable_sort(ids.begin(), ids.end(),
+                    [&](FormId x, FormId y) { return dialogue.topic(x)->mPriority > dialogue.topic(y)->mPriority; });
                 std::map<std::uint16_t, std::uint64_t> left;
                 bool reached = false;
                 w2.setSpeaker(s);
@@ -334,7 +333,7 @@ namespace
                               << "\n";
             }
         }
-        std::cout << "SKYRIMSE-QUEST mare npcs asked " << asked << " with a hello " << picked << " same pick as slice 1 "
-                  << same << " different " << differ << "\n";
+        std::cout << "SKYRIMSE-QUEST mare npcs asked " << asked << " with a hello " << picked
+                  << " same pick as slice 1 " << same << " different " << differ << "\n";
     }
 }

@@ -1,16 +1,17 @@
 #ifndef OPENEDEN_COMPONENTS_TRIMORPH_MOUTH_H
 #define OPENEDEN_COMPONENTS_TRIMORPH_MOUTH_H
 
-// Task 0146 (slice 2): a mouth that follows the loudness of the voice: the fallback for a line that has no usable `.lip`
-// data (components/lip). The loudness of the line at its playback position opens the jaw. Pure, standard library only.
-// The numbers are named starting values (guesses, judged by frames), not measured facts.
+// Task 0146 (slice 2): a mouth that follows the loudness of the voice: the fallback for a line that has no usable
+// `.lip` data (components/lip). The loudness of the line at its playback position opens the jaw. Pure, standard library
+// only. The numbers are named starting values (guesses, judged by frames), not measured facts.
 
 #include <array>
 #include <cstdint>
 
 namespace TriMorph
 {
-    /// Weights of the two morphs the drive moves, each in 0..1, in steps of 1/kSteps so that a still mouth uploads nothing.
+    /// Weights of the two morphs the drive moves, each in 0..1, in steps of 1/kSteps so that a still mouth uploads
+    /// nothing.
     struct MouthWeights
     {
         float mAah = 0.f; ///< "Aah": a half open jaw

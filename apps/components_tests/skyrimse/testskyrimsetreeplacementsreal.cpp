@@ -1,5 +1,5 @@
-// Task 0142: where the 35 TREE records whose model has a BSTreeNode (task 0136) are placed in the exterior worlds, on the
-// user's own plugins. Prints the 12 exterior cells with the most such placements (lines starting SKYTREE-PLACED:
+// Task 0142: where the 35 TREE records whose model has a BSTreeNode (task 0136) are placed in the exterior worlds, on
+// the user's own plugins. Prints the 12 exterior cells with the most such placements (lines starting SKYTREE-PLACED:
 // world, grid square, count, one placement's position in units); aggregates only, no path or name. Skipped when the
 // environment is not set.
 //
@@ -87,8 +87,9 @@ namespace
         std::cout << "SKYTREE-PLACED exterior cells read " << cells << ", cells with such trees " << hits.size()
                   << ", placements " << placements << "\n";
         for (std::size_t i = 0; i < hits.size() && i < 12; ++i)
-            std::cout << "SKYTREE-PLACED world " << hits[i].world << " cell (" << hits[i].x << ", " << hits[i].y << ") count " << hits[i].count
-                      << " sample at " << hits[i].px << ", " << hits[i].py << ", " << hits[i].pz << "\n";
+            std::cout << "SKYTREE-PLACED world " << hits[i].world << " cell (" << hits[i].x << ", " << hits[i].y
+                      << ") count " << hits[i].count << " sample at " << hits[i].px << ", " << hits[i].py << ", "
+                      << hits[i].pz << "\n";
         SUCCEED();
     }
 }

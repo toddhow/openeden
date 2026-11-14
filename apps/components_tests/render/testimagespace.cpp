@@ -1,6 +1,6 @@
 // Task 0127, stage W-S4: the image space grade on the tonemapped picture. The CPU twin (Render::ImageSpace::apply) is
-// pinned with numbers worked out by hand; the push constants of Render::Tonemap and the shader twins are checked against
-// it. Written before the code.
+// pinned with numbers worked out by hand; the push constants of Render::Tonemap and the shader twins are checked
+// against it. Written before the code.
 #include <gtest/gtest.h>
 
 #include <components/render/imagespacemath.hpp>

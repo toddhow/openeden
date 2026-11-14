@@ -68,8 +68,7 @@ namespace
     float decodedHeight(const TerrainTile& tile, std::size_t i, std::size_t j)
     {
         const double range = static_cast<double>(tile.mMaxHeight) - tile.mMinHeight;
-        return static_cast<float>(
-            tile.mMinHeight + tile.mHeights[j * tile.mGridSize + i] / 65535.0 * range);
+        return static_cast<float>(tile.mMinHeight + tile.mHeights[j * tile.mGridSize + i] / 65535.0 * range);
     }
 
     TEST(TileBakeSmallCells, the_default_is_morrowinds_sixty_five_vertices)
@@ -121,8 +120,8 @@ namespace
         {
             for (std::size_t i = 0; i < 33; ++i)
             {
-                const float expected = landHeight(6 * 32 + 2 * static_cast<std::int64_t>(i),
-                    10 * 32 + 2 * static_cast<std::int64_t>(j));
+                const float expected
+                    = landHeight(6 * 32 + 2 * static_cast<std::int64_t>(i), 10 * 32 + 2 * static_cast<std::int64_t>(j));
                 EXPECT_NEAR(decodedHeight(tile.mData, i, j), expected, range / 65535.0 + 1e-3) << i << "," << j;
             }
         }
@@ -139,7 +138,8 @@ namespace
         const std::int64_t first = static_cast<std::int64_t>(std::lround(tile.mData.mOriginX / 4096.f)) * 32;
         // Every 64th vertex of a 2048-interval side: corner and the next sample.
         EXPECT_NEAR(decodedHeight(tile.mData, 1, 0),
-            landHeight(first + 64, static_cast<std::int64_t>(std::lround(tile.mData.mOriginY / 4096.f)) * 32), (static_cast<double>(tile.mData.mMaxHeight) - tile.mData.mMinHeight) / 65535.0 + 1e-3);
+            landHeight(first + 64, static_cast<std::int64_t>(std::lround(tile.mData.mOriginY / 4096.f)) * 32),
+            (static_cast<double>(tile.mData.mMaxHeight) - tile.mData.mMinHeight) / 65535.0 + 1e-3);
     }
 
     TEST(TileBakeSmallCells, a_source_with_the_wrong_cell_resolution_is_refused)
@@ -215,8 +215,8 @@ namespace
         const TerrainBakePlan plan;
         TileManifest manifest;
         std::vector<BakedTile> tiles;
-        ASSERT_FALSE(bakeTerrainLevels(land, nullptr, { { 0, 0 }, { 1, 0 }, { 5, 7 } }, base, plan, "skyrimse:X:y",
-            manifest, tiles));
+        ASSERT_FALSE(bakeTerrainLevels(
+            land, nullptr, { { 0, 0 }, { 1, 0 }, { 5, 7 } }, base, plan, "skyrimse:X:y", manifest, tiles));
         ASSERT_EQ(manifest.mWorldspaces.size(), 1u);
         EXPECT_EQ(manifest.mWorldspaces[0].mName, "skyrimse:X:y");
         EXPECT_EQ(manifest.mWorldspaces[0].mCellSize, 4096u);
@@ -246,16 +246,20 @@ namespace
         m.mLevel = 1;
         BakedTile tile;
         ASSERT_FALSE(bakeTerrainTile(land, TileId{ 0, 1, 0, 0 }, m, tile));
-        EXPECT_EQ(EdenArchive::toHex(tile.mSourceDigest), "a571d8f8a4bb70032fbbed248ea57de4c28b95e3b42b7fe80c26ca903888c606");
+        EXPECT_EQ(
+            EdenArchive::toHex(tile.mSourceDigest), "a571d8f8a4bb70032fbbed248ea57de4c28b95e3b42b7fe80c26ca903888c606");
         EXPECT_EQ(hexOf(tile.mParameters), "0200000001000000210000000020000000000000");
 
         const TerrainBakePlan plan{ { 1, 2 }, 2, 256 };
         TileManifest manifest;
         std::vector<BakedTile> tiles;
-        ASSERT_FALSE(bakeTerrainLevels(land, nullptr, { { 0, 0 }, { 1, 1 }, { 3, 2 } }, m, plan, "Morrowind", manifest,
-            tiles));
-        EXPECT_EQ(writeManifestJson(manifest), "{\"albedoSize\":0,\"bakerVersion\":2,\"gridSize\":33,\"layoutVersion\":1,\"levels\":[1,2],\"worldspaces\":[{\"cellSize\":8192,\"index\":0,\"name\":\"Morrowind\"}]}");
-        EXPECT_EQ(EdenArchive::toHex(contentDigest(manifest, tiles)), "46844f588232fe7d968b7fa8b312eb895aa1c9ecd4dc4fd92003e9bb46ab61ed");
+        ASSERT_FALSE(
+            bakeTerrainLevels(land, nullptr, { { 0, 0 }, { 1, 1 }, { 3, 2 } }, m, plan, "Morrowind", manifest, tiles));
+        EXPECT_EQ(writeManifestJson(manifest),
+            "{\"albedoSize\":0,\"bakerVersion\":2,\"gridSize\":33,\"layoutVersion\":1,\"levels\":[1,2],\"worldspaces\":"
+            "[{\"cellSize\":8192,\"index\":0,\"name\":\"Morrowind\"}]}");
+        EXPECT_EQ(EdenArchive::toHex(contentDigest(manifest, tiles)),
+            "46844f588232fe7d968b7fa8b312eb895aa1c9ecd4dc4fd92003e9bb46ab61ed");
         EXPECT_EQ(tiles.size(), 3u);
     }
 

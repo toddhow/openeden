@@ -64,13 +64,14 @@ namespace NifScene::Skinned
         }
 
         // BSLightingShaderType 4 (face tint) keeps the actor's baked facegen tint in texture slot 6 (verified on a
-        // vanilla facegen file: slot 6 is data\\Textures\\Actors\\Character\\FaceGenData\\FaceTint\\<plugin>\\<id>.dds).
+        // vanilla facegen file: slot 6 is
+        // data\\Textures\\Actors\\Character\\FaceGenData\\FaceTint\\<plugin>\\<id>.dds).
         constexpr std::uint32_t kFaceTintShaderType = 4;
         constexpr std::size_t kFaceTintSlot = 6;
         constexpr std::uint32_t kHairTintShaderType = 6;
 
-        Flat::MaterialKey makeKey(
-            const Scene& scene, const Geometry& geometry, const ShaderMaterial& material, bool hasUV, const Limits& limits)
+        Flat::MaterialKey makeKey(const Scene& scene, const Geometry& geometry, const ShaderMaterial& material,
+            bool hasUV, const Limits& limits)
         {
             Flat::MaterialKey key;
             key.mDoubleSided = (material.mFlags2 & Flat::ShaderFlags::sDoubleSided) != 0;
@@ -288,7 +289,8 @@ namespace NifScene::Skinned
                 if (startsOk)
                 {
                     const std::size_t first = geometry.mInfluenceStart[v];
-                    const std::size_t last = std::min<std::size_t>(geometry.mInfluenceStart[v + 1], geometry.mInfluences.size());
+                    const std::size_t last
+                        = std::min<std::size_t>(geometry.mInfluenceStart[v + 1], geometry.mInfluences.size());
                     for (std::size_t i = first; i < last; ++i)
                     {
                         const Influence& influence = geometry.mInfluences[i];

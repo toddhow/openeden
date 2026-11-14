@@ -10,7 +10,8 @@ namespace NeutralTerrain::Splat
     {
         constexpr double kEpsilon = 1e-6;
 
-        // Whole-number weights summing to 255 from float weights summing to 1 (largest remainder, ties to the lower slot).
+        // Whole-number weights summing to 255 from float weights summing to 1 (largest remainder, ties to the lower
+        // slot).
         std::array<std::uint8_t, kSlots> quantise(const std::array<double, kSlots>& w, std::size_t used)
         {
             std::array<int, kSlots> whole{};
@@ -58,7 +59,8 @@ namespace NeutralTerrain::Splat
             double rest = 1.0;
             for (std::size_t i = m - 1; i >= 1; --i)
             {
-                const double o = static_cast<double>((*used[i - 1]->mOpacity)[static_cast<std::size_t>(vertex)]) / 255.0;
+                const double o
+                    = static_cast<double>((*used[i - 1]->mOpacity)[static_cast<std::size_t>(vertex)]) / 255.0;
                 w[i] = o * rest;
                 rest *= 1.0 - o;
             }
@@ -79,7 +81,8 @@ namespace NeutralTerrain::Splat
             }
             std::vector<std::size_t> order(m);
             std::iota(order.begin(), order.end(), std::size_t{ 0 });
-            std::stable_sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return peak[a] > peak[b]; });
+            std::stable_sort(
+                order.begin(), order.end(), [&](std::size_t a, std::size_t b) { return peak[a] > peak[b]; });
             kept.assign(order.begin(), order.begin() + kSlots);
             std::sort(kept.begin(), kept.end());
         }

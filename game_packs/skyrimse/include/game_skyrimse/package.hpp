@@ -73,8 +73,8 @@ namespace game_skyrimse
         inline constexpr std::int32_t Self = 6;
     }
 
-    /// PTDA, 12 bytes (VERIFIED size): s32 type, u32 value, s32 count. The value is a form id for types 0, 1 and 3 (for 3
-    /// the keyword of the link, 0 = the unkeyworded one), a number otherwise.
+    /// PTDA, 12 bytes (VERIFIED size): s32 type, u32 value, s32 count. The value is a form id for types 0, 1 and 3 (for
+    /// 3 the keyword of the link, 0 = the unkeyworded one), a number otherwise.
     struct PackageTarget
     {
         std::int32_t mType = 0;
@@ -84,8 +84,8 @@ namespace game_skyrimse
 
     inline constexpr std::size_t kMaxPackageTargets = 16;
 
-    /// PKDT general flag bit 13 (stage S6f): the package sets its own preferred speed. VERIFIED by the data: where it is
-    /// clear the speed byte is 2 in 5,499 of 5,600 Travel packages (a placeholder), where it is set the byte spreads
+    /// PKDT general flag bit 13 (stage S6f): the package sets its own preferred speed. VERIFIED by the data: where it
+    /// is clear the speed byte is 2 in 5,499 of 5,600 Travel packages (a placeholder), where it is set the byte spreads
     /// over 0 to 3 (108, 274, 607, 343). The bit's name is not known (RECALLED-VERIFY: xEdit has no name I recall).
     inline constexpr std::uint32_t kPreferredSpeedFlag = 1u << 13;
 
@@ -142,10 +142,11 @@ namespace game_skyrimse
     /// The most Bool data inputs kept for one package.
     inline constexpr std::size_t kMaxPackageBools = 64;
 
-    /// The Sandbox template's Bool inputs, in order (task 0135 stage S6b). RECALLED-VERIFY (the Creation Kit's order, not
-    /// settled by data): 0 allow eating, 1 allow sleeping, 2 allow conversation, 3 allow idle markers, 4 allow sitting.
-    /// The data agrees in kind: the 145 most common pattern allows everything but eating; mine-work packages allow only
-    /// idle markers and sitting (0,0,0,1,1,...). A package with fewer inputs allows nothing it does not list.
+    /// The Sandbox template's Bool inputs, in order (task 0135 stage S6b). RECALLED-VERIFY (the Creation Kit's order,
+    /// not settled by data): 0 allow eating, 1 allow sleeping, 2 allow conversation, 3 allow idle markers, 4 allow
+    /// sitting. The data agrees in kind: the 145 most common pattern allows everything but eating; mine-work packages
+    /// allow only idle markers and sitting (0,0,0,1,1,...). A package with fewer inputs allows nothing it does not
+    /// list.
     namespace SandboxBool
     {
         inline constexpr std::size_t Eating = 0;
@@ -196,8 +197,8 @@ namespace game_skyrimse
         std::optional<Content::Error> mWalkError;
     };
 
-    [[nodiscard]] bool parsePackageRecords(const Content::Plugin& plugin, const LoadOrder& order,
-        const PackageLimits& limits, PackageRecords& out);
+    [[nodiscard]] bool parsePackageRecords(
+        const Content::Plugin& plugin, const LoadOrder& order, const PackageLimits& limits, PackageRecords& out);
 
     [[nodiscard]] bool parsePackageRecordsBytes(const std::string& bytes, const std::string& name,
         const LoadOrder& order, const PackageLimits& limits, PackageRecords& out, Content::Error& error);

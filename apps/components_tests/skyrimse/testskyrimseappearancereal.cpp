@@ -1,13 +1,14 @@
 // Task 0121 (stages N5-1 and N5-2): the aggregate check of actor appearances on the player's own Skyrim SE masters. For
 // every NPC_ the pack describes the appearance; then the skeleton and part models are read from the installed archives,
 // the skinned shapes and the skeleton plan are made, and the REST POSE is checked the way the renderer skins
-// (apps/openmw/mwrender/skyrimmodel.cpp, task 0125): position = sum of weight * bone world * inverse bind * vertex, with
-// NO skin-data transform on top (Skyrim SE's binds already map shape space to bone space; the skin transform is only the
-// shape node's transform). A vertex is then expected at the inverse of that transform applied to the stored position
-// (the stored position itself when the skin has no transform); head parts are authored in head space and are not
-// meaningful by distance, so all kinds also print the skinned height range (a standing person is 0 to about 145). Also: how many NPCs have a facegen head, and whether those files read, have the face tint
-// shader, and name a tint texture that exists. Prints counts and distances only (lines starting
-// SKYRIMSE-APPEARANCE), never a name or path, and writes nothing. Skipped when the environment is not set.
+// (apps/openmw/mwrender/skyrimmodel.cpp, task 0125): position = sum of weight * bone world * inverse bind * vertex,
+// with NO skin-data transform on top (Skyrim SE's binds already map shape space to bone space; the skin transform is
+// only the shape node's transform). A vertex is then expected at the inverse of that transform applied to the stored
+// position (the stored position itself when the skin has no transform); head parts are authored in head space and are
+// not meaningful by distance, so all kinds also print the skinned height range (a standing person is 0 to about 145).
+// Also: how many NPCs have a facegen head, and whether those files read, have the face tint shader, and name a tint
+// texture that exists. Prints counts and distances only (lines starting SKYRIMSE-APPEARANCE), never a name or path, and
+// writes nothing. Skipped when the environment is not set.
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder (required)
 //   OPENEDEN_SKYRIMSE_APPEARANCE_PARTS   how many distinct part models to read (default 400)
@@ -155,9 +156,9 @@ namespace
                 ++failures[error];
             }
         }
-        std::cout << "SKYRIMSE-APPEARANCE npcs " << npcs << " described " << ok << " refused " << failed
-                  << " parts " << partsTotal << " distinct-skeletons " << skeletons.size()
-                  << " distinct-part-models " << firstSkeletonOfPart.size() << "\n";
+        std::cout << "SKYRIMSE-APPEARANCE npcs " << npcs << " described " << ok << " refused " << failed << " parts "
+                  << partsTotal << " distinct-skeletons " << skeletons.size() << " distinct-part-models "
+                  << firstSkeletonOfPart.size() << "\n";
         for (const auto& [reason, count] : failures)
             std::cout << "SKYRIMSE-APPEARANCE refused " << count << " (" << reason << ")\n";
         EXPECT_GT(ok, 4000u);
@@ -188,7 +189,8 @@ namespace
             try
             {
                 Files::IStreamPtr stream(new std::istringstream(std::move(bytes)));
-                scene = NifScene::readScene(std::move(stream), VFS::Path::Normalized("meshes/" + path), NifScene::SceneOptions{});
+                scene = NifScene::readScene(
+                    std::move(stream), VFS::Path::Normalized("meshes/" + path), NifScene::SceneOptions{});
                 return true;
             }
             catch (const std::exception&)
@@ -285,7 +287,8 @@ namespace
                         const std::uint32_t b = shape.mBoneIndices[v][k];
                         if (boneNode[b] == NifScene::sNone)
                             continue;
-                        const auto q = applyPose(world[boneNode[b]], applyPose(fromTransform(shape.mBones[b].mInverseBind), p));
+                        const auto q
+                            = applyPose(world[boneNode[b]], applyPose(fromTransform(shape.mBones[b].mInverseBind), p));
                         for (std::size_t c = 0; c < 3; ++c)
                             skinned[c] += w * q[c];
                         used += w;
@@ -335,14 +338,19 @@ namespace
                 }
             }
         }
-        std::cout << "SKYRIMSE-APPEARANCE parts read " << read << " unreadable " << unreadable << " with-skinned-shapes "
-                  << withSkin << " shapes " << shapes << " skin-bones " << bones << " found-in-skeleton " << bonesFound
-                  << " with-skin-transform " << withSkinTransform << " bad-influences " << badInfluences << " vertices-without-influence " << withoutInfluence << "\n";
+        std::cout << "SKYRIMSE-APPEARANCE parts read " << read << " unreadable " << unreadable
+                  << " with-skinned-shapes " << withSkin << " shapes " << shapes << " skin-bones " << bones
+                  << " found-in-skeleton " << bonesFound << " with-skin-transform " << withSkinTransform
+                  << " bad-influences " << badInfluences << " vertices-without-influence " << withoutInfluence << "\n";
         std::cout << "SKYRIMSE-APPEARANCE rest-pose vertices " << vertices << " mean-distance-from-file-position "
-                  << (vertices ? sum / static_cast<double>(vertices) : 0.0) << " max " << worst
-                  << " over-5-units " << farVertices << "\n";
+                  << (vertices ? sum / static_cast<double>(vertices) : 0.0) << " max " << worst << " over-5-units "
+                  << farVertices << "\n";
         for (std::size_t k = 0; k < 4; ++k)
-            std::cout << "SKYRIMSE-APPEARANCE rest-pose kind " << (k == 0 ? "skin" : k == 1 ? "armor" : k == 2 ? "head" : "face")
+            std::cout << "SKYRIMSE-APPEARANCE rest-pose kind "
+                      << (k == 0          ? "skin"
+                                 : k == 1 ? "armor"
+                                 : k == 2 ? "head"
+                                          : "face")
                       << " parts " << kindParts[k] << " vertices " << kindCount[k] << " mean "
                       << (kindCount[k] ? kindSum[k] / static_cast<double>(kindCount[k]) : 0.0) << " over-5-units "
                       << kindFar[k] << " skinned-z " << (kindCount[k] ? kindMinZ[k] : 0.0) << ".."
@@ -392,8 +400,8 @@ namespace
                 ++headPartsAlongsideFace;
         }
         std::cout << "SKYRIMSE-APPEARANCE facegen npcs-described " << tracked << " with-face-file " << faced
-                  << " without " << notFaced << " distinct-face-files " << facePaths.size()
-                  << " face-and-head-parts " << headPartsAlongsideFace << "\n";
+                  << " without " << notFaced << " distinct-face-files " << facePaths.size() << " face-and-head-parts "
+                  << headPartsAlongsideFace << "\n";
         EXPECT_EQ(headPartsAlongsideFace, 0u);
         EXPECT_GT(faced, 1000u);
 
@@ -437,7 +445,7 @@ namespace
                     ++tintShapes;
                 if (!shape.mTintTexture.empty())
                     (textures.count(NifScene::FaceTint::normaliseTexturePath(shape.mTintTexture)) ? tintsPresent
-                                                                                                   : tintsMissing)++;
+                                                                                                  : tintsMissing)++;
                 if (!shape.mKey.mDiffuse.empty()
                     && textures.count(NifScene::FaceTint::normaliseTexturePath(shape.mKey.mDiffuse)) == 0)
                     ++diffuseMissing;

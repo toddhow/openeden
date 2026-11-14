@@ -142,9 +142,9 @@ namespace NifScene::Flat
             return info;
         }
 
-        // Per bone of a skin, the pose that takes a shape-local vertex to the model frame with every bone node where the
-        // node tree has it: boneWorld * bind (the bind maps shape space to bone space). False when the skin names a bone
-        // that is not a walked node or has no bind, or a pose is not finite.
+        // Per bone of a skin, the pose that takes a shape-local vertex to the model frame with every bone node where
+        // the node tree has it: boneWorld * bind (the bind maps shape space to bone space). False when the skin names a
+        // bone that is not a walked node or has no bind, or a pose is not finite.
         bool restPoses(const Scene& scene, const Skin& skin, const std::vector<NodeInfo>& nodes, std::vector<Pose>& out)
         {
             out.clear();
@@ -276,7 +276,8 @@ namespace NifScene::Flat
                             }
                             double r[3];
                             for (int row = 0; row < 3; ++row)
-                                r[row] = pose.r[row * 3] * t[0] + pose.r[row * 3 + 1] * t[1] + pose.r[row * 3 + 2] * t[2];
+                                r[row]
+                                    = pose.r[row * 3] * t[0] + pose.r[row * 3 + 1] * t[1] + pose.r[row * 3 + 2] * t[2];
                             bool ok = false;
                             const auto unit = normalized(r[0], r[1], r[2], ok);
                             if (!ok)
@@ -317,8 +318,8 @@ namespace NifScene::Flat
             }
 
             // A shape with a glow map gets its emission from the map (the engine adds the map's texels as they are; the
-            // shader's emissive colour times multiple, 2.3 on average for the glow shader type, is not applied: it would
-            // light the whole mesh). Others (lamps, candle flames without a map) emit their colour all over.
+            // shader's emissive colour times multiple, 2.3 on average for the glow shader type, is not applied: it
+            // would light the whole mesh). Others (lamps, candle flames without a map) emit their colour all over.
             if (key.mGlow.empty())
             {
                 const float multiple = std::clamp(finiteOr(material.mEmissiveMultiple, 0.f), 0.f, 16.f);
@@ -430,9 +431,8 @@ namespace NifScene::Flat
                     Vec3d sum{ 0, 0, 0 };
                     double total = 0.0;
                     if (geometry.mInfluenceStart.size() == vertexCount + 1)
-                        for (std::uint32_t k = geometry.mInfluenceStart[v]; k < geometry.mInfluenceStart[v + 1]
-                             && k < geometry.mInfluences.size();
-                             ++k)
+                        for (std::uint32_t k = geometry.mInfluenceStart[v];
+                             k < geometry.mInfluenceStart[v + 1] && k < geometry.mInfluences.size(); ++k)
                         {
                             const Influence& influence = geometry.mInfluences[k];
                             if (influence.mBone >= skinPoses.size() || !std::isfinite(influence.mWeight)
@@ -593,8 +593,10 @@ namespace NifScene::Flat
 
             // Task 0130: the maps and values beyond the diffuse texture, only on request.
             std::vector<std::array<float, 4>> tangents;
-            if (limits.mSurfaceMaps && !skinnedAtRest) // a skinned shape's tangents would need the blend too: no normal map
-                collectSurfaceMaps(scene, geometry, material, pose, vertexCount, !uvs.empty(), limits, key, tangents, report);
+            if (limits.mSurfaceMaps
+                && !skinnedAtRest) // a skinned shape's tangents would need the blend too: no normal map
+                collectSurfaceMaps(
+                    scene, geometry, material, pose, vertexCount, !uvs.empty(), limits, key, tangents, report);
 
             // Bounds of the vertices the kept triangles use.
             for (std::uint32_t index : indices)

@@ -30,8 +30,9 @@ namespace
     TEST(ZipEntry, readsAStoredEntryAmongOthers)
     {
         const fs::path p = tempZip("stored",
-            ziphelper::makeZip({ { "LICENSE.txt", "licence", false }, { "bin/x64-win/DirectML.dll", "MZ-stored", false },
-                { "bin/x86-win/DirectML.dll", "wrong one", false } }));
+            ziphelper::makeZip(
+                { { "LICENSE.txt", "licence", false }, { "bin/x64-win/DirectML.dll", "MZ-stored", false },
+                    { "bin/x86-win/DirectML.dll", "wrong one", false } }));
         std::vector<char> out;
         std::string error;
         ASSERT_TRUE(readZipEntry(p, "bin/x64-win/DirectML.dll", kCap, out, error)) << error;
@@ -41,7 +42,8 @@ namespace
     TEST(ZipEntry, readsADeflatedEntryOfSeveralMegabytes)
     {
         std::string data = ziphelper::noise(300000, 3) + std::string(2000000, 'x') + ziphelper::noise(100000, 4);
-        const fs::path p = tempZip("deflated", ziphelper::makeZip({ { "a.txt", "a", false }, { "big.bin", data, true } }));
+        const fs::path p
+            = tempZip("deflated", ziphelper::makeZip({ { "a.txt", "a", false }, { "big.bin", data, true } }));
         std::vector<char> out;
         std::string error;
         ASSERT_TRUE(readZipEntry(p, "big.bin", 8u << 20, out, error)) << error;
@@ -126,7 +128,8 @@ namespace
 
     TEST(ZipEntry, hostileHeaderFieldsDoNotCrashOrOverread)
     {
-        const std::string whole = ziphelper::makeZip({ { "f", ziphelper::noise(3000, 9), true }, { "g", "tail", false } });
+        const std::string whole
+            = ziphelper::makeZip({ { "f", ziphelper::noise(3000, 9), true }, { "g", "tail", false } });
         std::size_t refused = 0;
         // Flip every byte of the directory and headers in turn (and a few of the data): the result is a refusal or the
         // right bytes, never a crash. (CRC-32 makes a changed data byte a refusal.)

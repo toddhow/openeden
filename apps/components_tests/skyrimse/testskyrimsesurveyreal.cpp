@@ -232,7 +232,8 @@ namespace
                 for (const auto& entry : archive.getList())
                 {
                     const std::string name = lower(std::string(entry.name()));
-                    if (name.size() >= extension.size() && name.compare(name.size() - extension.size(), extension.size(), extension) == 0)
+                    if (name.size() >= extension.size()
+                        && name.compare(name.size() - extension.size(), extension.size(), extension) == 0)
                     {
                         auto stream = archive.getFile(&entry);
                         if (!visit(name, readAll(*stream)))
@@ -310,8 +311,8 @@ namespace
         }
         const openeden::script::LinkReport link = runtime->link();
         line("papyrus: script files " + std::to_string(files) + ", refused " + std::to_string(refused) + ", objects "
-            + std::to_string(events.mObjects) + ", functions " + std::to_string(events.mFunctions) + ", native functions declared "
-            + std::to_string(events.mNativeFunctions));
+            + std::to_string(events.mObjects) + ", functions " + std::to_string(events.mFunctions)
+            + ", native functions declared " + std::to_string(events.mNativeFunctions));
         line("papyrus: call sites " + std::to_string(link.callSites) + ", resolved to a script function "
             + std::to_string(link.resolvedScript) + ", to a native " + std::to_string(link.resolvedNative)
             + ", class not loaded " + std::to_string(link.missingClass) + ", function missing "
@@ -328,16 +329,19 @@ namespace
             counts.push_back(count);
             byClass[name.substr(0, name.find('.'))] += count;
         }
-        line("papyrus natives: distinct called " + std::to_string(natives.size()) + ", call sites " + std::to_string(total));
+        line("papyrus natives: distinct called " + std::to_string(natives.size()) + ", call sites "
+            + std::to_string(total));
         for (const CoveragePoint& p : coverageCurve(counts, standardFractions()))
-            line("papyrus natives: coverage " + std::to_string(static_cast<int>(p.mFraction * 100.0 + 0.5)) + " percent: "
-                + std::to_string(p.mItems) + " natives");
+            line("papyrus natives: coverage " + std::to_string(static_cast<int>(p.mFraction * 100.0 + 0.5))
+                + " percent: " + std::to_string(p.mItems) + " natives");
         std::uint64_t running = 0;
         for (std::size_t i = 0; i < natives.size() && i < 200; ++i)
         {
             running += natives[i].second;
-            line("papyrus native #" + std::to_string(i + 1) + " " + natives[i].first + " sites " + std::to_string(natives[i].second)
-                + " cumulative " + std::to_string(total ? 100.0 * static_cast<double>(running) / static_cast<double>(total) : 0.0) + " percent");
+            line("papyrus native #" + std::to_string(i + 1) + " " + natives[i].first + " sites "
+                + std::to_string(natives[i].second) + " cumulative "
+                + std::to_string(total ? 100.0 * static_cast<double>(running) / static_cast<double>(total) : 0.0)
+                + " percent");
         }
         std::vector<std::pair<std::string, std::uint64_t>> classes(byClass.begin(), byClass.end());
         std::sort(classes.begin(), classes.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
@@ -351,18 +355,19 @@ namespace
         std::uint64_t declaredRows = 0;
         for (const EventRow& r : rows)
             declaredRows += r.mDeclaredNative ? 1 : 0;
-        line("papyrus events: handled names that a native class file declares as a function " + std::to_string(declaredRows)
+        line("papyrus events: handled names that a native class file declares as a function "
+            + std::to_string(declaredRows)
             + " (the class files list no events: the set of events the game can send is not in the scripts)");
         std::vector<std::uint64_t> handlerCounts;
         for (const EventRow& r : rows)
             handlerCounts.push_back(r.mHandlers);
         for (const CoveragePoint& p : coverageCurve(handlerCounts, standardFractions()))
-            line("papyrus events: coverage of handlers " + std::to_string(static_cast<int>(p.mFraction * 100.0 + 0.5)) + " percent: "
-                + std::to_string(p.mItems) + " events");
+            line("papyrus events: coverage of handlers " + std::to_string(static_cast<int>(p.mFraction * 100.0 + 0.5))
+                + " percent: " + std::to_string(p.mItems) + " events");
         for (std::size_t i = 0; i < rows.size() && i < 120; ++i)
-            line("papyrus event #" + std::to_string(i + 1) + " " + rows[i].mName + " scripts " + std::to_string(rows[i].mScripts)
-                + " handlers " + std::to_string(rows[i].mHandlers) + " in-states " + std::to_string(rows[i].mInStates)
-                + (rows[i].mDeclaredNative ? " declared-by-a-native-class" : ""));
+            line("papyrus event #" + std::to_string(i + 1) + " " + rows[i].mName + " scripts "
+                + std::to_string(rows[i].mScripts) + " handlers " + std::to_string(rows[i].mHandlers) + " in-states "
+                + std::to_string(rows[i].mInStates) + (rows[i].mDeclaredNative ? " declared-by-a-native-class" : ""));
         EXPECT_GT(files, 0u);
         EXPECT_EQ(refused, 0u);
     }
@@ -392,7 +397,10 @@ namespace
                     VFS::Path::Normalized path("survey.nif");
                     Nif::NIFFile file(path);
                     Nif::Reader reader(file);
-                    reader.parse(std::make_unique<std::istringstream>(std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size()), std::ios::binary), options);
+                    reader.parse(
+                        std::make_unique<std::istringstream>(
+                            std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size()), std::ios::binary),
+                        options);
                     ++parseOk;
                 }
                 catch (const std::exception& error)
@@ -402,9 +410,10 @@ namespace
             }
             return survey.mFiles < limit;
         });
-        line("nif: files " + std::to_string(survey.mFiles) + ", header failures " + std::to_string(survey.mHeaderFailures)
-            + ", blocks " + std::to_string(survey.mBlocks) + ", distinct block types " + std::to_string(survey.mBlocksByType.size())
-            + ", reader parsed ok " + std::to_string(parseOk) + " of " + std::to_string(parsed) + ", reader failures "
+        line("nif: files " + std::to_string(survey.mFiles) + ", header failures "
+            + std::to_string(survey.mHeaderFailures) + ", blocks " + std::to_string(survey.mBlocks)
+            + ", distinct block types " + std::to_string(survey.mBlocksByType.size()) + ", reader parsed ok "
+            + std::to_string(parseOk) + " of " + std::to_string(parsed) + ", reader failures "
             + std::to_string(survey.mReaderFailures));
         for (const auto& [v, n] : survey.mVersions)
             line("nif: version " + v + ": " + std::to_string(n));
@@ -412,12 +421,15 @@ namespace
             line("nif: header error '" + e + "': " + std::to_string(n));
         for (const auto& [k, n] : survey.mReaderFailureKinds)
             line("nif: reader failure '" + k + "': " + std::to_string(n));
-        line("nif: unsupported block types (reader refused the file naming them) " + std::to_string(survey.mUnsupportedTypes.size()));
-        std::vector<std::pair<std::string, std::uint64_t>> rows(survey.mBlocksByType.begin(), survey.mBlocksByType.end());
+        line("nif: unsupported block types (reader refused the file naming them) "
+            + std::to_string(survey.mUnsupportedTypes.size()));
+        std::vector<std::pair<std::string, std::uint64_t>> rows(
+            survey.mBlocksByType.begin(), survey.mBlocksByType.end());
         std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
         for (const auto& [name, n] : rows)
         {
-            line("nif block " + name + " blocks " + std::to_string(n) + " files " + std::to_string(survey.mFilesByType[name])
+            line("nif block " + name + " blocks " + std::to_string(n) + " files "
+                + std::to_string(survey.mFilesByType[name])
                 + (survey.mUnsupportedTypes.count(name) ? " UNSUPPORTED" : ""));
         }
         EXPECT_GT(survey.mFiles, 0u);

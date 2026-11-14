@@ -79,10 +79,7 @@ namespace
             none.mCommon.mId = kClassNone;
             mRecords.mClasses.push_back(none);
         }
-        void finish()
-        {
-            mIndex.add(mRecords);
-        }
+        void finish() { mIndex.add(mRecords); }
         ActorRecords mRecords;
         ActorIndex mIndex;
     };
@@ -122,8 +119,8 @@ namespace
     TEST(SkyrimActorMechanicsStats, aFixedLevelNpcKeepsItsStoredTotals)
     {
         Fixture f;
-        f.mRecords.mNpcs.push_back(npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::Unique, 4, 0, 0, 75, 60, 60,
-            kClassCitizen));
+        f.mRecords.mNpcs.push_back(
+            npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::Unique, 4, 0, 0, 75, 60, 60, kClassCitizen));
         f.finish();
         sdkgame::ActorStats out;
         std::string error;
@@ -148,7 +145,8 @@ namespace
     {
         Fixture f;
         // level field 1000 = multiplier 1.0; the stored totals are those of calc min 5 (hand-built: 90 / 50 / 70).
-        f.mRecords.mNpcs.push_back(npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 1000, 5, 12, 90, 50, 70));
+        f.mRecords.mNpcs.push_back(
+            npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 1000, 5, 12, 90, 50, 70));
         f.finish();
         sdkgame::ActorStats out;
         std::string error;
@@ -176,8 +174,10 @@ namespace
     TEST(SkyrimActorMechanicsStats, theMultiplierScalesTheLevelAndNoCalcMaxMeansNoCap)
     {
         Fixture f;
-        f.mRecords.mNpcs.push_back(npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 500, 1, 0, 60, 50, 60));
-        f.mRecords.mNpcs.push_back(npc(0x101, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 1000, 0, 0, 60, 50, 60));
+        f.mRecords.mNpcs.push_back(
+            npc(0x100, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 500, 1, 0, 60, 50, 60));
+        f.mRecords.mNpcs.push_back(
+            npc(0x101, NpcFlags::AutoCalcStats | NpcFlags::PlayerLevelMult, 1000, 0, 0, 60, 50, 60));
         f.finish();
         sdkgame::ActorStats out;
         std::string error;
@@ -278,8 +278,9 @@ namespace
     TEST(SkyrimActorMechanicsStats, theFlagsComeFromTheRecord)
     {
         Fixture f;
-        f.mRecords.mNpcs.push_back(npc(0x100,
-            NpcFlags::Female | NpcFlags::Essential | NpcFlags::Protected | NpcFlags::Invulnerable, 2, 0, 0, 50, 50, 50));
+        f.mRecords.mNpcs.push_back(
+            npc(0x100, NpcFlags::Female | NpcFlags::Essential | NpcFlags::Protected | NpcFlags::Invulnerable, 2, 0, 0,
+                50, 50, 50));
         f.finish();
         sdkgame::ActorStats out;
         std::string error;
@@ -350,10 +351,13 @@ namespace
         f.mRecords.mFactionRecords.push_back(makeFaction(0x500, { { kPlayer, 0, CombatReaction::Enemy } }));
         f.mRecords.mFactionRecords.push_back(makeFaction(kPlayer, { { 0x501, 0, CombatReaction::Enemy } }));
         f.finish();
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Enemy);
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ kPlayer }), members({ 0x500 })), sdkgame::ActorRelation::Enemy);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Enemy);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ kPlayer }), members({ 0x500 })), sdkgame::ActorRelation::Enemy);
         // Stated only by the player faction's record:
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ 0x501 }), members({ kPlayer })), sdkgame::ActorRelation::Enemy);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ 0x501 }), members({ kPlayer })), sdkgame::ActorRelation::Enemy);
     }
 
     TEST(SkyrimActorMechanicsRelation, enemyBeatsAllyBeatsFriendBeatsNeutral)
@@ -380,7 +384,8 @@ namespace
     {
         Fixture f;
         f.finish();
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ 0x700, 0x701 }), members({ 0x701 })), sdkgame::ActorRelation::Ally);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ 0x700, 0x701 }), members({ 0x701 })), sdkgame::ActorRelation::Ally);
     }
 
     TEST(SkyrimActorMechanicsRelation, nullAndUnresolvedFactionsAreIgnored)
@@ -396,10 +401,11 @@ namespace
     TEST(SkyrimActorMechanicsRelation, aLaterEntryForTheSameFactionWins)
     {
         Fixture f;
-        f.mRecords.mFactionRecords.push_back(makeFaction(
-            0x500, { { kPlayer, 0, CombatReaction::Enemy }, { kPlayer, 0, CombatReaction::Friend } }));
+        f.mRecords.mFactionRecords.push_back(
+            makeFaction(0x500, { { kPlayer, 0, CombatReaction::Enemy }, { kPlayer, 0, CombatReaction::Friend } }));
         f.finish();
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Friend);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Friend);
     }
 
     TEST(SkyrimActorMechanicsRelation, aGroupCombatReactionAboveThreeIsNeutral)
@@ -407,7 +413,8 @@ namespace
         Fixture f;
         f.mRecords.mFactionRecords.push_back(makeFaction(0x500, { { kPlayer, 0, 77 } }));
         f.finish();
-        EXPECT_EQ(relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Neutral);
+        EXPECT_EQ(
+            relationOfFactions(f.mIndex, members({ 0x500 }), members({ kPlayer })), sdkgame::ActorRelation::Neutral);
     }
 
     // ---- the attack rule and the disposition -------------------------------------------------------------------
@@ -618,8 +625,17 @@ namespace
         Bytes acbs;
         // flags, magicka offset, stamina offset, level, calc min, calc max, speed, disposition, template flags,
         // health offset, bleedout
-        acbs.u32(0).u16(static_cast<std::uint16_t>(-25)).u16(20).u16(3).u16(1).u16(9).u16(100).u16(0).u16(0).u16(
-            static_cast<std::uint16_t>(-15)).u16(0);
+        acbs.u32(0)
+            .u16(static_cast<std::uint16_t>(-25))
+            .u16(20)
+            .u16(3)
+            .u16(1)
+            .u16(9)
+            .u16(100)
+            .u16(0)
+            .u16(0)
+            .u16(static_cast<std::uint16_t>(-15))
+            .u16(0);
         npcBytes.append(sub4("ACBS", acbs));
         const ActorRecords records = parseBytes(plugin("NPC_", record4("NPC_", 0, 0x01000100, npcBytes)));
         ASSERT_EQ(records.mNpcs.size(), 1u);

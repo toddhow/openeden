@@ -26,8 +26,8 @@ namespace MWRender
     class Water : public vsgUtil::Composite<vsg::Node>
     {
         vsg::ref_ptr<Anim::Transform> mTransform;
-        // Task 0129: the infinite plane is one child of a switch, and the cell-bounded surfaces hang under a state group of
-        // their own; Morrowind uses the first, a neutral exterior of a game pack the second.
+        // Task 0129: the infinite plane is one child of a switch, and the cell-bounded surfaces hang under a state
+        // group of their own; Morrowind uses the first, a neutral exterior of a game pack the second.
         vsg::ref_ptr<vsg::Switch> mGlobal;
         vsg::ref_ptr<vsg::StateGroup> mCellGroup;
         vsg::ref_ptr<vsg::Draw> mCellDraw;

@@ -19,8 +19,8 @@
 #include "gyromanager.hpp"
 #include "keyboardmanager.hpp"
 #include "mousemanager.hpp"
-#include "uiinputfilter.hpp"
 #include "sensormanager.hpp"
+#include "uiinputfilter.hpp"
 
 namespace MWInput
 {

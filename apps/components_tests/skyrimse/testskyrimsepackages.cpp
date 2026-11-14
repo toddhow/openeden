@@ -79,7 +79,10 @@ namespace
             pkdt = Bytes().u32(p.mFlags);
         b.append(sub4("PKDT", pkdt));
         Bytes psdt;
-        psdt.u8(0xFF).u8(static_cast<std::uint8_t>(p.mDow)).u8(0).u8(static_cast<std::uint8_t>(p.mHour))
+        psdt.u8(0xFF)
+            .u8(static_cast<std::uint8_t>(p.mDow))
+            .u8(0)
+            .u8(static_cast<std::uint8_t>(p.mHour))
             .u8(static_cast<std::uint8_t>(p.mMinute));
         if (p.mGarbageInPsdt)
             psdt.u8(0xAB).u8(0x74).u8(0x69);
@@ -93,7 +96,10 @@ namespace
         for (const auto& loc : p.mLocations)
         {
             b.append(sub4("ANAM", Bytes().zstring("Location")));
-            b.append(sub4("PLDT", Bytes().u32(static_cast<std::uint32_t>(loc[0])).u32(static_cast<std::uint32_t>(loc[1]))
+            b.append(sub4("PLDT",
+                Bytes()
+                    .u32(static_cast<std::uint32_t>(loc[0]))
+                    .u32(static_cast<std::uint32_t>(loc[1]))
                     .u32(static_cast<std::uint32_t>(loc[2]))));
         }
         b.append(sub4("ANAM", Bytes().zstring("Bool")));
@@ -377,11 +383,11 @@ namespace
         EXPECT_EQ(classify({ "Travel" }), PackageBehavior::Travel);
         EXPECT_EQ(classify({ "Travel", "UnlockDoors", "Sandbox" }), PackageBehavior::Sandbox);
         EXPECT_EQ(classify({ "Travel", "LockDoors", "Find", "Sandbox", "Sleep" }), PackageBehavior::Sleep);
-        EXPECT_EQ(classify({ "Travel", "UnlockDoors", "Find", "Sandbox", "Acquire", "Find", "Sandbox", "Sit", "Eat",
-                      "Sit" }),
+        EXPECT_EQ(
+            classify({ "Travel", "UnlockDoors", "Find", "Sandbox", "Acquire", "Find", "Sandbox", "Sit", "Eat", "Sit" }),
             PackageBehavior::Eat);
-        EXPECT_EQ(classify({ "Travel", "ForceGreet", "Travel", "ForceGreet", "Sandbox", "Travel" }),
-            PackageBehavior::Stand);
+        EXPECT_EQ(
+            classify({ "Travel", "ForceGreet", "Travel", "ForceGreet", "Sandbox", "Travel" }), PackageBehavior::Stand);
         EXPECT_EQ(classify({ "Patrol" }), PackageBehavior::Stand);
         EXPECT_EQ(classify({ "HoldPosition" }), PackageBehavior::Stand);
         EXPECT_EQ(classify({ "Find", "Travel", "Wander", "Sit", "Wait" }), PackageBehavior::Wander);

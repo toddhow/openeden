@@ -76,8 +76,8 @@ namespace
         return m;
     }
 
-    std::vector<std::int16_t> expectedInts(const GeneratedWeights& w, std::size_t pose, std::uint32_t rate,
-        std::uint32_t frames)
+    std::vector<std::int16_t> expectedInts(
+        const GeneratedWeights& w, std::size_t pose, std::uint32_t rate, std::uint32_t frames)
     {
         std::vector<std::int16_t> v;
         for (std::uint32_t j = 0; j < frames; ++j)

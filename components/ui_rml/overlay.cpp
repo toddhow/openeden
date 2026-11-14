@@ -713,7 +713,8 @@ namespace UiRml
             // MyGUI may have switched text input off meanwhile; keep it on while a field has the focus.
             if (SDL_IsTextInputActive() != SDL_TRUE)
                 SDL_StartTextInput();
-            SDL_Rect rect{ impl.mCaretX.load(), impl.mCaretY.load(), impl.mCaretWidth.load(), impl.mCaretHeight.load() };
+            SDL_Rect rect{ impl.mCaretX.load(), impl.mCaretY.load(), impl.mCaretWidth.load(),
+                impl.mCaretHeight.load() };
             SDL_SetTextInputRect(&rect);
         }
         else if (impl.mStartedTextInput)

@@ -232,9 +232,9 @@ namespace game_skyrimse
         std::uint32_t mFlags = 0;
     };
 
-    /// XLKR: a linked reference (task 0135 stage S6f). VERIFIED on the five masters (Python walk, aggregates): 8 bytes, a
-    /// keyword form id (null in all 863,173 placements scanned that patrol packages reach: the unkeyworded link is the
-    /// patrol chain) and the linked reference. 14 subrecords of 4 bytes exist and decode to nothing.
+    /// XLKR: a linked reference (task 0135 stage S6f). VERIFIED on the five masters (Python walk, aggregates): 8 bytes,
+    /// a keyword form id (null in all 863,173 placements scanned that patrol packages reach: the unkeyworded link is
+    /// the patrol chain) and the linked reference. 14 subrecords of 4 bytes exist and decode to nothing.
     struct RefLink
     {
         FormId mKeyword = kNullFormId; ///< resolved; kNullFormId for the unkeyworded link
@@ -285,10 +285,10 @@ namespace game_skyrimse
         std::int32_t y = 0;
     };
 
-    /// The first 20 bytes of XCLL: ambient colour (R G B A), directional colour, fog near colour, fog near distance f32,
-    /// fog far distance f32. Layout checked against the Whiterun inn's values (a dim warm ambient, fog 512 to 2000);
-    /// the rest of the record (directional rotation, fade, fog clip and power, the ambient cube, specular, fresnel, far
-    /// fog colour and maximum, light fade, inherit flags) is not decoded.
+    /// The first 20 bytes of XCLL: ambient colour (R G B A), directional colour, fog near colour, fog near distance
+    /// f32, fog far distance f32. Layout checked against the Whiterun inn's values (a dim warm ambient, fog 512 to
+    /// 2000); the rest of the record (directional rotation, fade, fog clip and power, the ambient cube, specular,
+    /// fresnel, far fog colour and maximum, light fade, inherit flags) is not decoded.
     struct CellLightingData
     {
         std::array<std::uint8_t, 3> mAmbient{};
@@ -306,8 +306,8 @@ namespace game_skyrimse
         std::optional<CellGrid> mGrid; ///< XCLC, exterior cells
         std::optional<float> mWaterHeight; ///< XCLW
         FormId mLocation = kNullFormId; ///< XLCN
-        /// XCLL, the interior lighting (64 or 92 bytes, VERIFIED on the five masters: 2,360 of 2,360). Only the part both
-        /// sizes share is decoded.
+        /// XCLL, the interior lighting (64 or 92 bytes, VERIFIED on the five masters: 2,360 of 2,360). Only the part
+        /// both sizes share is decoded.
         std::optional<CellLightingData> mLighting;
         /// The world whose children group held the cell, or 0 for an interior cell.
         FormId mWorld = kNullFormId;
@@ -341,11 +341,11 @@ namespace game_skyrimse
 
     namespace LightFlags
     {
-        /// LIGH DATA flag bits. The values below 0x200 agree with the CK documentation, upstream's ESM4 loader (97722d48f9,
-        /// a second reader) and the installed masters (every flag word of 1,740 lights uses only these and the bits
-        /// 0x400 to 0x2000). 0x400 and later are RECALLED-VERIFY: upstream lists 0x200 and 0x400 for the spot bits, but
-        /// 0x200 occurs in none of the 1,740 lights of the five masters, so the CK values (spot light 0x400, spot shadow
-        /// 0x800, hemisphere shadow 0x1000, omnidirectional shadow 0x2000) are used.
+        /// LIGH DATA flag bits. The values below 0x200 agree with the CK documentation, upstream's ESM4 loader
+        /// (97722d48f9, a second reader) and the installed masters (every flag word of 1,740 lights uses only these and
+        /// the bits 0x400 to 0x2000). 0x400 and later are RECALLED-VERIFY: upstream lists 0x200 and 0x400 for the spot
+        /// bits, but 0x200 occurs in none of the 1,740 lights of the five masters, so the CK values (spot light 0x400,
+        /// spot shadow 0x800, hemisphere shadow 0x1000, omnidirectional shadow 0x2000) are used.
         inline constexpr std::uint32_t Dynamic = 0x001;
         inline constexpr std::uint32_t Carryable = 0x002;
         inline constexpr std::uint32_t Negative = 0x004;

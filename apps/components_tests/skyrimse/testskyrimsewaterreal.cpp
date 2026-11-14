@@ -1,5 +1,5 @@
-// Task 0129: the water of the exterior grid squares on the player's own Skyrim SE masters. Prints aggregates and a small
-// map around Whiterun (lines starting SKYRIMSE-WATER), never a path; writes nothing. Skipped without
+// Task 0129: the water of the exterior grid squares on the player's own Skyrim SE masters. Prints aggregates and a
+// small map around Whiterun (lines starting SKYRIMSE-WATER), never a path; writes nothing. Skipped without
 //
 //   OPENEDEN_SKYRIMSE_DATA   the game's Data folder
 #include <game_skyrimse/terrain_source.hpp>

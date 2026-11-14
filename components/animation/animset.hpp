@@ -48,7 +48,8 @@ namespace Anim
         /// The set of a source, shared by everything that asks for the same ControllerMap while any of them still
         /// holds it (task 0124, stage C2): a creature type's animations are read once, and so are the clips made from
         /// them, however many actors play them. Thread safe. `name` is only used if the set is made here.
-        static vsg::ref_ptr<const AnimSet> forSource(vsg::ref_ptr<const ControllerMap> controllers, std::string name = {});
+        static vsg::ref_ptr<const AnimSet> forSource(
+            vsg::ref_ptr<const ControllerMap> controllers, std::string name = {});
 
         /// The clip data derived from this source (stage C2), built by `build` on the first call and then shared:
         /// `build` returns a shared_ptr<const T> (null for "nothing to play"), and every later call gets the same

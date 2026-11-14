@@ -64,7 +64,8 @@ namespace MWWorld
         return best;
     }
 
-    DetourNavigator::AgentBounds neutralActorAgentBounds(const DetourNavigator::AgentBounds& session, float capsuleRadius)
+    DetourNavigator::AgentBounds neutralActorAgentBounds(
+        const DetourNavigator::AgentBounds& session, float capsuleRadius)
     {
         return DetourNavigator::AgentBounds{ DetourNavigator::CollisionShapeType::Cylinder,
             MWPhysics::NeutralPath::agentHalfExtents(capsuleRadius, session.mHalfExtents) };

@@ -257,8 +257,7 @@ namespace
                 const std::uint32_t x0 = rng() % side;
                 const std::uint32_t y0 = rng() % side;
                 s.box(x0, y0, std::min<std::uint32_t>(side, x0 + 1 + rng() % 8),
-                    std::min<std::uint32_t>(side, y0 + 1 + rng() % 8),
-                    static_cast<float>(rng() % 100) * 0.5f);
+                    std::min<std::uint32_t>(side, y0 + 1 + rng() % 8), static_cast<float>(rng() % 100) * 0.5f);
             }
             const StaticFilterResult r = s.run();
             std::uint32_t counted = 0;

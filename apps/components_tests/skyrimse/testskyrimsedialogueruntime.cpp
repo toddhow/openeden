@@ -65,8 +65,8 @@ namespace
         return group4(Content::fourCC(type), kGrupTop, records);
     }
 
-    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0,
-        std::uint32_t runOn = 0, std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0)
+    Bytes ctda(std::uint16_t function, std::uint8_t compare, float value, std::uint32_t p1 = 0, std::uint32_t runOn = 0,
+        std::uint32_t reference = 0, std::uint8_t flags = 0, std::uint32_t p2 = 0)
     {
         Bytes b;
         b.u8(static_cast<std::uint8_t>((compare << 5) | flags)).u8(0).u8(0).u8(0).f32(value);
@@ -215,8 +215,8 @@ namespace
         Loaded l;
         Content::Error error;
         l.mOk = parseDialogueRecordsBytes(bytes.str(), name, order(), limits, l.mDialogue, error);
-        l.mPlugin = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name,
-            error);
+        l.mPlugin
+            = Content::Plugin::open(std::make_unique<std::istringstream>(bytes.str(), std::ios::binary), name, error);
         Content::Error e2;
         EXPECT_TRUE(parseActorRecordsBytes(bytes.str(), name, order(), ActorLimits(), l.mActors, e2)) << e2.mMessage;
         return l;
@@ -226,7 +226,6 @@ namespace
     {
         return FormIdResolver(l.mPlugin->header(), name, order());
     }
-
 
     // ---- the conversation ----------------------------------------------------------------------------------------
 
@@ -304,7 +303,8 @@ namespace
         Bytes dials;
         InfoSpec forBob = info(0x20, "Welcome, Bob.");
         forBob.mConditions = ctda(72, 0, 1.0f, kNpcB);
-        dials.append(topicWithInfos(kTopicHello, "Hello", "HELO", 1.0f, kQuest, { forBob, info(0x21, "Hello there.") }));
+        dials.append(
+            topicWithInfos(kTopicHello, "Hello", "HELO", 1.0f, kQuest, { forBob, info(0x21, "Hello there.") }));
         dials.append(playerTopic(kTopicRumors, "Rumors", { info(0x22, "Dragons, they say.") }));
         InfoSpec secret = info(0x23, "The cellar key is under the stone.");
         secret.mConditions = ctda(72, 0, 1.0f, kNpcB);
@@ -338,7 +338,8 @@ namespace
             mLoaded = load(bytes);
             mActors.add(mLoaded.mActors);
             mDialogue.add(mLoaded.mDialogue, resolverOf(mLoaded));
-            mRuntime = std::make_unique<DialogueRuntime>(mActors, mDialogue, mQuests, QuestState::initial(mQuests),
+            mRuntime = std::make_unique<DialogueRuntime>(
+                mActors, mDialogue, mQuests, QuestState::initial(mQuests),
                 [](const LString& text, std::uint32_t, StringTableKind) { return text.mText; }, limits);
         }
 

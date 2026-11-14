@@ -80,7 +80,7 @@ namespace Puddle
                 for (std::size_t i = 0; i < texels; ++i)
                 {
                     out[start + i] = pits ? PM::packTexel(cell->mCapacity[i], cell->mBasinMax[i], cell->mCatchment[i],
-                                                cell->mTexelFlags[i])
+                                         cell->mTexelFlags[i])
                                           : PM::packTexel(0, 0, 0, cell->mTexelFlags[i]);
                 }
                 ++result.mPacked;

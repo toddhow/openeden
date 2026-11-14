@@ -93,17 +93,17 @@ namespace face_editor
             = 0;
         /// v2.3: \a count windows of sV23Window samples and one emotion vector of 26 floats shared by all of them ->
         /// count * sV23Outputs.
-        virtual bool runV23(const float* windows, std::size_t count, const float* emotion, float* results,
-            std::string& error)
+        virtual bool runV23(
+            const float* windows, std::size_t count, const float* emotion, float* results, std::string& error)
             = 0;
     };
 
     // ----- pure pieces -------------------------------------------------------------------------------------------
 
-    /// Windowed-sinc resampling of mono audio (cutoff at the lower of the two Nyquist rates). Empty result with \a error
-    /// set for a rate of 0 or beyond 384,000.
-    std::vector<float> resampleMono(const std::vector<float>& in, std::uint32_t rateIn, std::uint32_t rateOut,
-        std::string& error);
+    /// Windowed-sinc resampling of mono audio (cutoff at the lower of the two Nyquist rates). Empty result with \a
+    /// error set for a rate of 0 or beyond 384,000.
+    std::vector<float> resampleMono(
+        const std::vector<float>& in, std::uint32_t rateIn, std::uint32_t rateOut, std::string& error);
 
     /// Standard normal noise from a splitmix64 stream and the Box-Muller transform: the same seed gives the same bytes
     /// on every platform and library.
@@ -139,8 +139,8 @@ namespace face_editor
         /// the curve file's generator.seed.
         std::uint64_t mNoiseSeed = 20261112;
         int mSolveIterations = 100;
-        /// One value per pose (the solve's pose order), subtracted from every frame's weight and clamped at 0 (a2f_rest:
-        /// the model's weights on silence). Empty = nothing subtracted.
+        /// One value per pose (the solve's pose order), subtracted from every frame's weight and clamped at 0
+        /// (a2f_rest: the model's weights on silence). Empty = nothing subtracted.
         std::vector<float> mRestOffsets;
     };
 
@@ -152,7 +152,8 @@ namespace face_editor
         const GenerateOptions& options, const A2FProgress& progress, GeneratedWeights& out, std::string& error);
 
     /// The weight of \a pose at \a seconds, linear between the two nearest generated frames, held beyond the ends.
-    /// weight = max(0, weight - offsets[pose]) for every frame;  offsets has one value per pose (else nothing happens).
+    /// weight = max(0, weight - offsets[pose]) for every frame;  offsets has one value per pose (else nothing
+    /// happens).
     void subtractRest(GeneratedWeights& weights, const std::vector<float>& offsets);
 
     float sampleWeight(const GeneratedWeights& weights, std::size_t pose, double seconds);

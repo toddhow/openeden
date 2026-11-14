@@ -251,7 +251,8 @@ namespace
                 {
                     s.mHit = true;
                     // Task 0159 (approved edit): the capsule lands level, where it started. The old 0.5 landed 0.125
-                    // higher, which the new rule reads as a climb over a rim; the test is about a slope that is no climb.
+                    // higher, which the new rule reads as a climb over a rim; the test is about a slope that is no
+                    // climb.
                     s.mFraction = (kStepUp + kSkin) / (kStepUp + kSkin + kStepDown);
                 }
                 return s;

@@ -62,7 +62,8 @@ namespace
     {
         Bytes cell = record4("CELL", 0, cellId,
             sub4("DATA", Bytes().u16(0x0002))
-                .append(sub4("XCLC", Bytes().u32(static_cast<std::uint32_t>(x)).u32(static_cast<std::uint32_t>(y)).u32(0))));
+                .append(sub4(
+                    "XCLC", Bytes().u32(static_cast<std::uint32_t>(x)).u32(static_cast<std::uint32_t>(y)).u32(0))));
         cell.append(group4(cellId, kGrupCellChildren, group4(cellId, kGrupTemporary, land)));
         return cell;
     }

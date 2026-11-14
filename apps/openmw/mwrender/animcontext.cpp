@@ -113,13 +113,14 @@ namespace MWRender
             .partBoneOptions = partBoneOptions(*baseNodeOptions),
             .animOptions = resourceSystem->animationOptions,
             .compileContext = in_compile,
-            .hasKeyframeFile = [resourceSystem](const std::string& mesh) {
-                VFS::Path::Normalized path(mesh);
-                if (!path.value().starts_with("meshes/"))
-                    path = Misc::ResourceHelpers::correctMeshPath(path);
-                return Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()).value()
-                    != path.value();
-            },
+            .hasKeyframeFile =
+                [resourceSystem](const std::string& mesh) {
+                    VFS::Path::Normalized path(mesh);
+                    if (!path.value().starts_with("meshes/"))
+                        path = Misc::ResourceHelpers::correctMeshPath(path);
+                    return Misc::ResourceHelpers::correctActorModelPath(path, resourceSystem->getVFS()).value()
+                        != path.value();
+                },
             .readFile = [resourceSystem](const std::string& file) -> std::string {
                 const VFS::Manager* vfs = resourceSystem->getVFS();
                 if (!vfs->exists(file))

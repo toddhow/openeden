@@ -71,7 +71,8 @@ namespace
     {
         Bytes cell = record4("CELL", 0, cellId,
             sub4("DATA", Bytes().u16(0x0002))
-                .append(sub4("XCLC", Bytes().u32(static_cast<std::uint32_t>(x)).u32(static_cast<std::uint32_t>(y)).u32(0))));
+                .append(sub4(
+                    "XCLC", Bytes().u32(static_cast<std::uint32_t>(x)).u32(static_cast<std::uint32_t>(y)).u32(0))));
         cell.append(group4(cellId, kGrupCellChildren, group4(cellId, kGrupTemporary, land)));
         return cell;
     }
@@ -98,11 +99,13 @@ namespace
         cells.append(cellWithLand(0x01000A01, 4, 4, landRecord(0x01000B01, 1.0f)));
         bytes.append(worldGroup(record4("WRLD", 0, kWorld, subs), cells));
         bytes.append(group4(Content::fourCC("LTEX"), 0,
-            record4("LTEX", 0, kLtexGrass, sub4("EDID", Bytes().zstring("Grass")).append(sub4("TNAM", Bytes().u32(kTxstGrass))))
+            record4("LTEX", 0, kLtexGrass,
+                sub4("EDID", Bytes().zstring("Grass")).append(sub4("TNAM", Bytes().u32(kTxstGrass))))
                 .append(record4("LTEX", 0, kLtexBroken, sub4("EDID", Bytes().zstring("Broken"))))));
         bytes.append(group4(Content::fourCC("TXST"), 0,
             record4("TXST", 0, kTxstGrass,
-                sub4("TX00", Bytes().zstring("Landscape\\Grass.DDS")).append(sub4("TX01", Bytes().zstring("landscape/grass_n.dds"))))));
+                sub4("TX00", Bytes().zstring("Landscape\\Grass.DDS"))
+                    .append(sub4("TX01", Bytes().zstring("landscape/grass_n.dds"))))));
         return bytes;
     }
 

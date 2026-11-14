@@ -1,7 +1,7 @@
-// Task 0157: the ground probe under a walker's centre falls into the thin gaps between the planks of a stair or floor mesh
-// (found in game: a sleeper of the Bannered Mare stopped on the stairs with "ground miss", the probe 0.25 units beside a
-// tread that was there). The probe now takes the highest of a few rays round the centre. Written before the change; the
-// first run was against the single-ray probe (the gap case failed).
+// Task 0157: the ground probe under a walker's centre falls into the thin gaps between the planks of a stair or floor
+// mesh (found in game: a sleeper of the Bannered Mare stopped on the stairs with "ground miss", the probe 0.25 units
+// beside a tread that was there). The probe now takes the highest of a few rays round the centre. Written before the
+// change; the first run was against the single-ray probe (the gap case failed).
 #include <components/misc/constants.hpp>
 #include <components/resource/physicsshape.hpp>
 
@@ -99,8 +99,8 @@ TEST_F(NeutralMoverGap, the_highest_surface_round_the_centre_is_the_ground)
 
 TEST_F(NeutralMoverGap, a_steep_bevel_at_the_centre_beside_a_walkable_shelf_reports_the_shelfs_normal)
 {
-    // the dirt floor of the Bannered Mare's cellar: shelves 3 to 10 units apart joined by steep bevels; a ray at the centre
-    // can land on a bevel (normal z 0.42) with a flat shelf at the same height a few units away
+    // the dirt floor of the Bannered Mare's cellar: shelves 3 to 10 units apart joined by steep bevels; a ray at the
+    // centre can land on a bevel (normal z 0.42) with a flat shelf at the same height a few units away
     addBox(JPH::Vec3(100, 100, 5), JPH::RVec3(0, 0, -5)); // flat, top at z = 0
     // a 65 degree face covering the centre column only: its top face is steep
     addTiltedBox(JPH::Vec3(2, 100, 0.5f), JPH::RVec3(0, 0, 0.3f), -65.f);

@@ -115,9 +115,9 @@ namespace MWWorld
         /// exterior of a supported world); null for any other worldspace, Morrowind's included.
         const NeutralWorldspace* neutralWorldspace(const ESM::RefId& worldspace) const;
 
-        /// The exterior cell of a registered neutral worldspace at a grid square, built from the pack's cell (or an empty
-        /// cell when the pack has none there) and kept; null when the worldspace is not a registered neutral one. The
-        /// first form takes the store explicitly (tests), getExterior uses the extension host's.
+        /// The exterior cell of a registered neutral worldspace at a grid square, built from the pack's cell (or an
+        /// empty cell when the pack has none there) and kept; null when the worldspace is not a registered neutral one.
+        /// The first form takes the store explicitly (tests), getExterior uses the extension host's.
         CellStore* findNeutralExterior(
             NeutralWorld::NeutralWorldStore& neutral, const ESM::ExteriorCellLocation& location) const;
 

@@ -61,11 +61,12 @@ namespace MWWorld
                 NeutralWeatherConstants::kThresholdMax);
             if (w.precipitation == Precipitation::Rain)
             {
-                // The manager draws the rain when `usingPrecip` is set; a thunder storm gets the thunderstorm's density.
+                // The manager draws the rain when `usingPrecip` is set; a thunder storm gets the thunderstorm's
+                // density.
                 const bool storm = w.thunderFrequency > 0.f && std::isfinite(w.thunderFrequency);
                 p.usingPrecip = true;
-                p.rainEntranceSpeed
-                    = storm ? NeutralWeatherConstants::kStormEntranceSpeed : NeutralWeatherConstants::kRainEntranceSpeed;
+                p.rainEntranceSpeed = storm ? NeutralWeatherConstants::kStormEntranceSpeed
+                                            : NeutralWeatherConstants::kRainEntranceSpeed;
                 p.rainMaxRaindrops
                     = storm ? NeutralWeatherConstants::kStormMaxRaindrops : NeutralWeatherConstants::kRainMaxRaindrops;
                 p.rainDiameter = NeutralWeatherConstants::kRainDiameter;
@@ -78,7 +79,8 @@ namespace MWWorld
             {
                 const auto& models = Settings::models();
                 const bool blizzard = w.windSpeed >= NeutralWeatherConstants::kBlizzardWind;
-                entry.particleEffect = blizzard ? models.mWeatherblizzard.get().value() : models.mWeathersnow.get().value();
+                entry.particleEffect
+                    = blizzard ? models.mWeatherblizzard.get().value() : models.mWeathersnow.get().value();
             }
         }
 
@@ -98,8 +100,8 @@ namespace MWWorld
     {
         // Stage W-S3. The layers keep the pack's order; those past the cap, past the SDK's maximum, or with no picture
         // are dropped. Alpha and tint are cleaned of values that are not finite.
-        void applyCloudLayersAndImageSpace(const openeden::sdk::game::WeatherDescription& w,
-            std::size_t maxExtraCloudLayers, WeatherParams& p)
+        void applyCloudLayersAndImageSpace(
+            const openeden::sdk::game::WeatherDescription& w, std::size_t maxExtraCloudLayers, WeatherParams& p)
         {
             const std::size_t cap = std::min(maxExtraCloudLayers, openeden::sdk::game::kMaxExtraCloudLayers);
             const auto alpha = [](float a) { return std::isfinite(a) ? std::clamp(a, 0.f, 1.f) : 0.f; };
@@ -159,9 +161,9 @@ namespace MWWorld
 
     int findWeatherByName(const std::vector<WeatherEntry>& weathers, const std::string& name)
     {
-        const auto lower = [](std::string s)
-        {
-            std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        const auto lower = [](std::string s) {
+            std::transform(
+                s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return s;
         };
         const std::string wanted = lower(name);
@@ -171,7 +173,8 @@ namespace MWWorld
         return -1;
     }
 
-    WeatherEntry weatherEntryFromDescription(const openeden::sdk::game::WeatherDescription& w, std::size_t maxExtraCloudLayers)
+    WeatherEntry weatherEntryFromDescription(
+        const openeden::sdk::game::WeatherDescription& w, std::size_t maxExtraCloudLayers)
     {
         WeatherEntry entry;
         entry.name = !w.editorId.empty() ? w.editorId : "weather" + hex(w.id);
@@ -323,8 +326,9 @@ namespace MWWorld
                 if (mChances.find(key) == mChances.end())
                 {
                     Log(Debug::Info) << "Neutral weather: region " << key.toDebugString() << " (first asked by cell "
-                                     << neutral->editorId << ") has " << std::count_if(chances.begin(), chances.end(),
-                                            [](std::uint8_t c) { return c != 0; })
+                                     << neutral->editorId << ") has "
+                                     << std::count_if(
+                                            chances.begin(), chances.end(), [](std::uint8_t c) { return c != 0; })
                                      << " weathers";
                     mChances.emplace(key, std::move(chances));
                 }
@@ -359,7 +363,8 @@ namespace MWWorld
         out = {};
         out.manager = neutralManagerParams(hasTiming ? &timing : nullptr);
         out.weathers.reserve(weathers.size());
-        const std::size_t layers = static_cast<std::size_t>(std::clamp(Settings::game().mNeutralWeatherCloudLayers.get(), 0, 8));
+        const std::size_t layers
+            = static_cast<std::size_t>(std::clamp(Settings::game().mNeutralWeatherCloudLayers.get(), 0, 8));
         for (const openeden::sdk::game::WeatherDescription& w : weathers)
             out.weathers.push_back(weatherEntryFromDescription(w, layers));
         out.regions = std::make_shared<NeutralRegionProvider>(source, out.weathers.size());

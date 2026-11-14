@@ -33,7 +33,8 @@ namespace openeden::sdk::game
 {
     /// Same version policy as world_model.hpp: a new type or a new member at the END of a struct raises the minor
     /// number; anything else is a major change. CI (CI/check_extension_sdk.sh) keeps this line and the number in place.
-    inline constexpr Version kWorldTerrainVersion{ 1, 1 }; // 1.1 (task 0149): TerrainLayer and TerrainCell::layers, appended
+    inline constexpr Version kWorldTerrainVersion{ 1,
+        1 }; // 1.1 (task 0149): TerrainLayer and TerrainCell::layers, appended
 
     /// The bit of WorldSpaceInfo::parentUsage that says the parent lends its land (Skyrim SE's PNAM bit 0x01 as UESP
     /// orders it; 0x01 and 0x02 are never apart in the installed data, so which of land and LOD it is stays unproven).

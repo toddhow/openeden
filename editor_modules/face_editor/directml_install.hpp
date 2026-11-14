@@ -48,8 +48,9 @@ namespace face_editor
     using InstallProgress = std::function<bool(double fraction, std::string_view message)>;
 
     /// Fetches \a package into \a destDir (created), checks size and SHA-512, extracts \a package.mEntry's file name
-    /// into \a destDir and removes the downloaded package. All or nothing: on any failure (including a cancel, "cancelled")
-    /// nothing is left in \a destDir that was not there before, and an existing DirectML.dll is not touched.
+    /// into \a destDir and removes the downloaded package. All or nothing: on any failure (including a cancel,
+    /// "cancelled") nothing is left in \a destDir that was not there before, and an existing DirectML.dll is not
+    /// touched.
     bool installDirectMl(const DirectMlPackage& package, const std::filesystem::path& destDir,
         const InstallProgress& progress, std::string& error);
 }

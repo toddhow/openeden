@@ -308,7 +308,8 @@ namespace face_editor
         const std::uint64_t size = mSize.find(name)->second;
         std::ifstream in(mPath, std::ios::binary);
         unsigned char magic[12] = {};
-        if (size < 10 || !readAt(in, start, magic, std::min<std::uint64_t>(size, 12)) || std::memcmp(magic, "\x93NUMPY", 6) != 0)
+        if (size < 10 || !readAt(in, start, magic, std::min<std::uint64_t>(size, 12))
+            || std::memcmp(magic, "\x93NUMPY", 6) != 0)
         {
             error = label + at("not an .npy array", start);
             return false;
@@ -438,8 +439,7 @@ namespace face_editor
         }
     }
 
-    bool NpzFile::readFloats(
-        std::string_view name, std::vector<float>& out, NpyInfo& info, std::string& error) const
+    bool NpzFile::readFloats(std::string_view name, std::vector<float>& out, NpyInfo& info, std::string& error) const
     {
         if (!this->info(name, info, error))
             return false;

@@ -364,8 +364,8 @@ namespace
         ASSERT_TRUE(driver->apply());
         for (const auto& mapping : MWRender::ragdollBoneMappings())
         {
-            EXPECT_TRUE(
-                sameRotation(worldRotationOf(f.mPose, mapping.mEngineBone), compose(turn, start.at(mapping.mEngineBone))))
+            EXPECT_TRUE(sameRotation(
+                worldRotationOf(f.mPose, mapping.mEngineBone), compose(turn, start.at(mapping.mEngineBone))))
                 << mapping.mEngineBone;
         }
     }

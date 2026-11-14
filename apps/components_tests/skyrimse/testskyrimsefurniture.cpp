@@ -21,7 +21,8 @@ namespace
     using namespace game_skyrimse;
     namespace sdk = openeden::sdk::game;
 
-    // ---- a generated NIF 20.2.0.7 with furniture marker blocks ---------------------------------------------------------
+    // ---- a generated NIF 20.2.0.7 with furniture marker blocks
+    // ---------------------------------------------------------
 
     struct Bytes
     {
@@ -47,8 +48,8 @@ namespace
         std::uint32_t mPlainSize = 8; // other blocks: that many zero bytes
     };
 
-    std::vector<std::byte> makeNif(const std::vector<NifBlock>& blocks, std::uint32_t version = 0x14020007u,
-        std::uint32_t userVersion2 = 100)
+    std::vector<std::byte> makeNif(
+        const std::vector<NifBlock>& blocks, std::uint32_t version = 0x14020007u, std::uint32_t userVersion2 = 100)
     {
         std::vector<std::string> types;
         for (const NifBlock& b : blocks)
@@ -96,7 +97,8 @@ namespace
             out.text(t);
         }
         for (const NifBlock& b : blocks)
-            out.put<std::uint16_t>(static_cast<std::uint16_t>(std::find(types.begin(), types.end(), b.mType) - types.begin()));
+            out.put<std::uint16_t>(
+                static_cast<std::uint16_t>(std::find(types.begin(), types.end(), b.mType) - types.begin()));
         for (const Bytes& b : bodies)
             out.put<std::uint32_t>(static_cast<std::uint32_t>(b.v.size()));
         out.put<std::uint32_t>(1); // one string
@@ -121,7 +123,8 @@ namespace
         return m;
     }
 
-    // ---- the reader --------------------------------------------------------------------------------------------------
+    // ---- the reader
+    // --------------------------------------------------------------------------------------------------
 
     TEST(SkyrimFurnitureReader, readsTheMarkersOfAChairLikeTheInstalledOne)
     {
@@ -199,7 +202,8 @@ namespace
     TEST(SkyrimFurnitureReader, aNonFiniteMarkerIsSkippedAndTheRestKept)
     {
         const float nan = std::numeric_limits<float>::quiet_NaN();
-        const auto nif = makeNif({ { "BSFurnitureMarkerNode", { marker(nan, 0, 0, 0, 1, 1), marker(1, 2, 3, 0, 1, 1) } } });
+        const auto nif
+            = makeNif({ { "BSFurnitureMarkerNode", { marker(nan, 0, 0, 0, 1, 1), marker(1, 2, 3, 0, 1, 1) } } });
         std::vector<FurnitureMarker> out;
         std::string error;
         ASSERT_TRUE(readFurnitureMarkers(nif, out, error));
@@ -217,7 +221,8 @@ namespace
         EXPECT_FALSE(readFurnitureMarkers(nif, out, error, limits));
     }
 
-    // ---- placement ------------------------------------------------------------------------------------------------------
+    // ---- placement
+    // ------------------------------------------------------------------------------------------------------
 
     constexpr double kPi = 3.14159265358979323846;
 
@@ -300,7 +305,8 @@ namespace
         EXPECT_NEAR(e[0].mY, 0.0, 1e-6);
     }
 
-    // ---- the brain's furniture use ----------------------------------------------------------------------------------------
+    // ---- the brain's furniture use
+    // ----------------------------------------------------------------------------------------
 
     constexpr FormId kBaseId = 0x00013BA7;
 
@@ -331,7 +337,10 @@ namespace
             const auto it = mBehavior.find(p.mCommon.mId);
             return it == mBehavior.end() ? PackageBehavior::Stand : it->second;
         }
-        bool conditionsPass(const PackageRecord& p, FormId, FormId) override { return mFailing.count(p.mCommon.mId) == 0; }
+        bool conditionsPass(const PackageRecord& p, FormId, FormId) override
+        {
+            return mFailing.count(p.mCommon.mId) == 0;
+        }
         bool locate(FormId, double&, double&, double&) const override { return false; }
         std::map<FormId, std::vector<const PackageRecord*>> mLists;
         std::map<FormId, PackageBehavior> mBehavior;
@@ -466,10 +475,7 @@ namespace
             for (int i = 0; i < n; ++i)
                 brain->update(dt, writer);
         }
-        void arrive(sdk::ActorHandle h)
-        {
-            brain->onGoalFinished(h, sdk::GoalResult::Arrived);
-        }
+        void arrive(sdk::ActorHandle h) { brain->onGoalFinished(h, sdk::GoalResult::Arrived); }
     };
 
     TEST(SkyrimFurnitureBrain, aSleepingActorWalksToTheBedsEntryThenLiesDown)
@@ -503,7 +509,8 @@ namespace
     TEST(SkyrimFurnitureBrain, twoSleepersNeverShareABed)
     {
         Rig rig(PackageBehavior::Sleep);
-        rig.furniture.mSlots = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
+        rig.furniture.mSlots
+            = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
         rig.brain->onActorAdded(infoOf(1, 1));
         rig.brain->onActorAdded(infoOf(2, 2));
         rig.step(30);
@@ -516,7 +523,8 @@ namespace
     TEST(SkyrimFurnitureBrain, aThirdSleeperWithTwoBedsStandsAsBefore)
     {
         Rig rig(PackageBehavior::Sleep);
-        rig.furniture.mSlots = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
+        rig.furniture.mSlots
+            = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
         for (std::uint32_t i = 1; i <= 3; ++i)
             rig.brain->onActorAdded(infoOf(i, i, 10.0 * i, 0));
         rig.step(30);
@@ -566,7 +574,8 @@ namespace
     TEST(SkyrimFurnitureBrain, aBlockedTripTriesTheNextBedAndNeverTheSameOneTwice)
     {
         Rig rig(PackageBehavior::Sleep);
-        rig.furniture.mSlots = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
+        rig.furniture.mSlots
+            = { slot(1, sdk::FurniturePose::Sleep, 500, 500), slot(2, sdk::FurniturePose::Sleep, 700, 500) };
         const sdk::ActorHandle h{ 1, 1 };
         rig.brain->onActorAdded(infoOf(1, 1));
         rig.step(30);
@@ -652,7 +661,8 @@ namespace
     TEST(SkyrimFurnitureBrain, anEaterSitsAndStaysLikeASleeper)
     {
         Rig rig(PackageBehavior::Eat);
-        rig.furniture.mSlots = { slot(3, sdk::FurniturePose::Sit, 100, 100), slot(4, sdk::FurniturePose::Sleep, 300, 300) };
+        rig.furniture.mSlots
+            = { slot(3, sdk::FurniturePose::Sit, 100, 100), slot(4, sdk::FurniturePose::Sleep, 300, 300) };
         rig.brain->onActorAdded(infoOf(1, 1));
         rig.step(30);
         ASSERT_EQ(rig.writer.of(Call::Goto).size(), 1u);

@@ -104,15 +104,16 @@ namespace
                 }
             }
         }
-        std::cout << "SKYRIMSE-SPEECH gates: INFOs gated by Speechcraft / GetBribeSuccess / GetIntimidateSuccess " << gated
-                  << ", fully answered by the stand-in " << gatedFullyAnswered << ", conditions left unanswered "
-                  << unansweredTotal << "\n";
+        std::cout << "SKYRIMSE-SPEECH gates: INFOs gated by Speechcraft / GetBribeSuccess / GetIntimidateSuccess "
+                  << gated << ", fully answered by the stand-in " << gatedFullyAnswered
+                  << ", conditions left unanswered " << unansweredTotal << "\n";
         std::vector<std::pair<std::uint64_t, std::uint16_t>> byCount;
         for (const auto& [f, n] : unansweredBy)
             byCount.emplace_back(n, f);
         std::sort(byCount.rbegin(), byCount.rend());
         for (std::size_t i = 0; i < byCount.size() && i < 12; ++i)
-            std::cout << "SKYRIMSE-SPEECH gates unanswered fn_" << byCount[i].second << " x" << byCount[i].first << "\n";
+            std::cout << "SKYRIMSE-SPEECH gates unanswered fn_" << byCount[i].second << " x" << byCount[i].first
+                      << "\n";
         EXPECT_GT(gated, 0u);
 
         // ---- 2. the fragment scripts ------------------------------------------------------------------------------
@@ -176,8 +177,8 @@ namespace
                 std::string bytes, e;
                 std::string refers;
                 if (!info->mFragmentScript.empty()
-                    && readArchiveEntry(misc, "scripts/" + ScriptPapyrus::Pex::lowered(info->mFragmentScript) + ".pex",
-                        bytes, e))
+                    && readArchiveEntry(
+                        misc, "scripts/" + ScriptPapyrus::Pex::lowered(info->mFragmentScript) + ".pex", bytes, e))
                 {
                     const auto parsed = ScriptPapyrus::Pex::parse(
                         { reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size() }, "x");
@@ -187,8 +188,8 @@ namespace
                     refers = classifyService(lowered);
                 }
                 std::cout << "SKYRIMSE-SPEECH rent topic " << topic->mCommon.mEditorId << " info script '"
-                          << info->mFragmentScript << "' service '" << refers << "' responses " << info->mResponses.size()
-                          << "\n";
+                          << info->mFragmentScript << "' service '" << refers << "' responses "
+                          << info->mResponses.size() << "\n";
             }
         }
         EXPECT_GT(read, 0u);

@@ -8,7 +8,8 @@ namespace UiRml
 {
     // The sequence is the one RmlUi's own SDL backend handles (Backends/RmlUi_Platform_SDL.cpp,
     // TextInputMethodEditor_SDL::HandleEdit, MIT): the composition range is [mStart, mEnd) in characters.
-    void ImeComposition::edit(Rml::TextInputContext& context, std::string_view text, int selectionStart, int selectionLength)
+    void ImeComposition::edit(
+        Rml::TextInputContext& context, std::string_view text, int selectionStart, int selectionLength)
     {
         const std::string string(text);
         const int length = static_cast<int>(Rml::StringUtilities::LengthUTF8(string));
