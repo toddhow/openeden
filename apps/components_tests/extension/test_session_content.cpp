@@ -223,22 +223,10 @@ namespace
     }
 
     // The new function is the LAST virtual of WorldSourceService (a pack built against 1.0 calls its earlier slots
-    // unchanged): the device that pins other contracts, a hand-written mirror called through a reinterpret_cast.
-    struct MirrorService
-    {
-        virtual ~MirrorService() = default;
-        virtual bool registerSource(void*, std::string&) = 0;
-        virtual void withdrawSource(void*) = 0;
-        virtual bool consumerEnabled() const = 0;
-        virtual std::size_t sessionContent(std::vector<SessionContentFile>& out) const = 0; // the new slot
-    };
-
-    // The reinterpreting cast below is the point of the test; GCC's -Wuninitialized takes the mirror for a different,
-    // never-constructed object, so the warning is silenced for this one test.
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wuninitialized"
-#endif
+    // unchanged). The slots are read from the vtable by hand: a call through a mirror class that the compiler can
+    // see no implementation of is turned into a pure virtual call by GCC's devirtualization (the contract pitfall in
+    // the root guide), which aborted this test on Linux. Slot order: [Itanium: complete and deleting destructor,
+    // MSVC: one destructor], registerSource, withdrawSource, consumerEnabled, sessionContent.
     TEST(WorldSourceServiceContent, theNewFunctionIsTheLastSlot)
     {
         WorldSourceServiceImpl service;
@@ -246,12 +234,18 @@ namespace
         service.setSessionContent({ entry("Skyrim.esm", "TES4", 44) });
         service.setContentFilter(skyrimAccepts);
         openeden::sdk::game::WorldSourceService* base = &service;
-        auto* mirror = static_cast<MirrorService*>(static_cast<void*>(base));
-        EXPECT_TRUE(mirror->consumerEnabled());
-        std::vector<SessionContentFile> out;
-        EXPECT_EQ(mirror->sessionContent(out), 1u);
-    }
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
+#if defined(_MSC_VER)
+        constexpr std::size_t destructorSlots = 1;
+#else
+        constexpr std::size_t destructorSlots = 2;
 #endif
+        void** vtable = *reinterpret_cast<void***>(base);
+        using ConsumerEnabled = bool (*)(const void*);
+        using SessionContent = std::size_t (*)(const void*, std::vector<SessionContentFile>&);
+        const auto consumerEnabled = reinterpret_cast<ConsumerEnabled>(vtable[destructorSlots + 2]);
+        const auto sessionContent = reinterpret_cast<SessionContent>(vtable[destructorSlots + 3]);
+        EXPECT_TRUE(consumerEnabled(base));
+        std::vector<SessionContentFile> out;
+        EXPECT_EQ(sessionContent(base, out), 1u);
+    }
 }
