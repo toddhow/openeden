@@ -1,0 +1,2 @@
+GLOBAL: scripts/w5/global.lua
+PLAYER: scripts/w5/player.lua

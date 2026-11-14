@@ -207,6 +207,24 @@ namespace game_skyrimse
         std::optional<std::array<float, 9>> mHdr;
     };
 
+    /// SNDR (a sound descriptor) and SOUN (the older sound record), task 0127 stage W-S4: the parts a weather's sound needs.
+    /// SNDR layouts VERIFIED on the 3,260 records of the five masters: ANAM file name, repeated for alternates (never
+    /// absent: 0 of 3,260 have none); BNAM 6 bytes (frequency shift, frequency variance, priority, dB variance, then the
+    /// static attenuation as an unsigned 16 bit number: RECALLED-VERIFY that it is hundredths of a decibel; the values 352
+    /// for thunder and 837 to 1498 for rain and snow loops make that reading plausible); LNAM 4 bytes whose byte 1 has
+    /// bit 3 set in 465 records, 447 of which have LP or Loop in their editor id (so bit 3 marks a loop, VERIFIED by that
+    /// correlation); the SNDR SNAM (an alternate descriptor, 247 records) is not followed because every descriptor has
+    /// its own files. The file names come in three shapes ("Data\Sound\FX\...", "fx\...", and two with a build
+    /// machine's drive letter) and are kept as stored; `normalizeSoundPath` turns them into VFS paths.
+    struct SoundDescriptorRecord
+    {
+        RecordCommon mCommon;
+        bool mIsMarker = false; ///< a SOUN (FNAM holds its one file) and not a SNDR
+        std::vector<std::string> mFiles; ///< as stored
+        std::optional<std::uint16_t> mAttenuation; ///< BNAM bytes 4 and 5, hundredths of a decibel
+        bool mLoop = false;
+    };
+
     /// One entry of a weather list (CLMT WLST, REGN RDWT): VERIFIED 12 bytes, a WTHR, a signed chance and a global
     /// (always 0 in the installed data).
     struct WeatherChance
@@ -292,6 +310,9 @@ namespace game_skyrimse
         const DecodeContext& context, const WeatherLimits& limits, ClimateRecord& out, std::string& why);
     [[nodiscard]] bool decodeImageSpace(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, const WeatherLimits& limits, ImageSpaceRecord& out, std::string& why);
+    /// SNDR and SOUN (told apart by `record.mType`).
+    [[nodiscard]] bool decodeSoundDescriptor(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, const WeatherLimits& limits, SoundDescriptorRecord& out, std::string& why);
     [[nodiscard]] bool decodeRegionWeather(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, const WeatherLimits& limits, RegionWeatherRecord& out, std::string& why);
 
@@ -306,6 +327,7 @@ namespace game_skyrimse
         std::vector<RegionWeatherRecord> mRegions;
         std::vector<CellWeatherLinks> mCells;
         std::vector<ImageSpaceRecord> mImageSpaces; ///< IMGS (task 0127 stage W-S3)
+        std::vector<SoundDescriptorRecord> mSounds; ///< SNDR and SOUN (stage W-S4)
         DecodeNotes mNotes;
         std::map<std::uint32_t, TypeCount> mCounts; ///< by record type: seen, parsed, failed, deleted
         std::vector<Content::Error> mErrors;
@@ -337,6 +359,7 @@ namespace game_skyrimse
         [[nodiscard]] const WorldSpaceRecord* world(FormId id) const { return find(mWorlds, id); }
         [[nodiscard]] const CellWeatherLinks* cell(FormId id) const { return find(mCells, id); }
         [[nodiscard]] const ImageSpaceRecord* imageSpace(FormId id) const { return find(mImageSpaces, id); }
+        [[nodiscard]] const SoundDescriptorRecord* sound(FormId id) const { return find(mSounds, id); }
 
         [[nodiscard]] std::size_t weatherCount() const { return mWeathers.size(); }
         [[nodiscard]] std::size_t climateCount() const { return mClimates.size(); }
@@ -389,6 +412,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, WorldSpaceRecord> mWorlds;
         std::unordered_map<FormId, CellWeatherLinks> mCells;
         std::unordered_map<FormId, ImageSpaceRecord> mImageSpaces;
+        std::unordered_map<FormId, SoundDescriptorRecord> mSounds;
     };
 }
 

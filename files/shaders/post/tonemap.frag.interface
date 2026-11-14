@@ -1,6 +1,6 @@
 # Recorded interface of the GLSL stage post/tonemap.frag per define set (task 0072, stage j). GOLDEN DATA: changes only in a pull request that says why,
 # reviewed by toddhow. Made by SlangInterfaceRecords.write_the_records_when_asked.
-defines AO BLOOM DEBUG_VIEW SSS
+defines AO BLOOM DEBUG_VIEW GRADE SSS
 set 
 capability 1
 descriptor set=0 binding=0 sampled_image(image(f32,dim1,arrayed0,ms0))

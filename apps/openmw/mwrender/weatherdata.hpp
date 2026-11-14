@@ -35,6 +35,9 @@ namespace MWRender
         std::string mSunGlareTexture;
         bool mMasserAvailable = true;
         bool mSecundaAvailable = true;
+        /// Task 0127 stage W-S4: the moons are lit (see Sky::setMasserState). Set only by a game pack's weather; the
+        /// moons of Morrowind's weather are drawn as they always were in this renderer.
+        bool mLitMoons = false;
 
         std::string mCloudTexture;
         std::string mNextCloudTexture;

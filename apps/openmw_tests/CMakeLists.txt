@@ -33,6 +33,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutraldisplayname.cpp
     mwworld/testneutralvoice.cpp
     mwworld/testneutralweather.cpp
+    mwworld/testneutralweathersound.cpp
     mwworld/testweatherparams.cpp
     mwworld/testneutralcell.cpp
     mwworld/testneutrallight.cpp

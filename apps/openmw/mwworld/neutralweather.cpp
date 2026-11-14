@@ -134,6 +134,29 @@ namespace MWWorld
         }
     }
 
+    namespace
+    {
+        // Stage W-S4: the pack's sounds as the weather's slots. Files are kept in order up to the SDK's maximum, empty
+        // names are dropped, the volume is cleaned to 0..1 (a value that is not a number is the full volume).
+        NeutralWeatherSound::Slot soundSlot(const openeden::sdk::game::WeatherSoundDescription& s)
+        {
+            NeutralWeatherSound::Slot slot;
+            for (const std::string& file : s.files)
+            {
+                if (slot.files.size() >= openeden::sdk::game::kMaxWeatherSoundFiles)
+                    break;
+                if (!file.empty())
+                    slot.files.push_back(file);
+            }
+            if (slot.files.empty())
+                return slot;
+            slot.name = s.name;
+            slot.volume = std::isfinite(s.volume) ? std::clamp(s.volume, 0.f, 1.f) : 1.f;
+            slot.loop = s.loop;
+            return slot;
+        }
+    }
+
     int findWeatherByName(const std::vector<WeatherEntry>& weathers, const std::string& name)
     {
         const auto lower = [](std::string s)
@@ -173,7 +196,12 @@ namespace MWWorld
         applyPrecipitation(w, entry);
         applyThunder(w, entry);
         applyCloudLayersAndImageSpace(w, maxExtraCloudLayers, p);
-        // Sound and the game's own particle data wait for a later stage: the loop sound ids stay empty or "None".
+        p.sounds.ambient = soundSlot(w.ambientSound);
+        p.sounds.precipitation = soundSlot(w.precipitationSound);
+        p.sounds.wind = soundSlot(w.windSound);
+        p.sounds.thunder = soundSlot(w.thunderSound);
+        // The sounds are files (WeatherParams::sounds, stage W-S4); the INI-style loop sound ids stay empty or "None".
+        // The game's own particle data waits for a later stage.
         return entry;
     }
 

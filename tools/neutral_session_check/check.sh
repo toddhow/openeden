@@ -27,6 +27,8 @@ else
     rm -rf "$WORK"; mkdir -p "$WORK/config" "$WORK/user" "$WORK/luatest"
 fi
 cp -r "$HERE/luatest/." "$WORK/luatest/"
+# Task 0127 W-S4: W5_PLAN=<file> replaces the w5 scenario's plan (scripts/w5/plan.lua) for this run.
+[ -n "${W5_PLAN:-}" ] && cp "$W5_PLAN" "$WORK/luatest/scripts/w5/plan.lua"
 B=$(native "$BUILD")
 grep -vE '^(content|data-local|resources|extension|user-data|config)=|vfs-mw|worldobjects_check|omwscripts' "$BASE/openmw.cfg" > "$WORK/config/openmw.cfg"
 cat >> "$WORK/config/openmw.cfg" <<CFG
@@ -110,6 +112,10 @@ case "$SHOT" in doorshop|doorsexterior|doorslocked|doorsstreet|doorsgate|doorsdr
 # Task 0127 stage W-S1: "w1" leaves the Mare into WhiterunWorld, looks at the sky at several hours, then speeds the clock up and
 # takes a picture at each weather change (use at least 4000 frames; set [Game] neutral weather = true through SETTINGS_EXTRA).
 [ "$SHOT" = w1 ] && echo "content=w1.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0127 stage W-S4: "w5" walks scripts/w5/plan.lua (game hour, yaw, pitch and wait of each picture, after leaving the Mare into
+# WhiterunWorld); it is the moons, the storm's sounds and the image space scenario (use at least 4000 frames; the sound
+# archive is a CFG_EXTRA line: fallback-archive=Skyrim - Sounds.bsa). The log lines are "Neutral weather sound:" and "moon".
+[ "$SHOT" = w5 ] && echo "content=w5.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0129 swimming follow-up: "e2swim" swims in the Whiterun lake and walks out (use at least 6000 frames).
 [ "$SHOT" = e2swim ] && echo "content=n4e2swim.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0127 stage W-S2: "w2" leaves the Mare into WhiterunWorld and takes pictures on a fast clock; force a weather with
@@ -156,7 +162,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

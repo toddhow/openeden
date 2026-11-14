@@ -1,5 +1,6 @@
 // The tonemap pass in Slang (task 0072, stage g): the twin of post/tonemap.frag, compiled for every combination of
-// AO, BLOOM, DEBUG_VIEW and SSS (Render::Tonemap::setSource). It must declare what the GLSL declares (checked by
+// AO, BLOOM, DEBUG_VIEW and SSS (Render::Tonemap::setSource) and, at run time, GRADE (task 0127 stage W-S4: not a built
+// permutation). It must declare what the GLSL declares (checked by
 // SlangPermutations): the C++ side builds the descriptor set layout and the push constant offsets by hand. The curves
 // and the constants repeat Render::Hdr (hdrmath.hpp), the occlusion filter Render::Ao (aomath.hpp) and the subsurface
 // scattering Render::Sss (sssmath.hpp); change them together.
@@ -39,6 +40,10 @@ struct Push
 #ifdef DEBUG_VIEW
     float4 debug; // x mode (1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface, 7 ao, 8 ambient,
                   // 9 sss), y depth range, z velocity scale
+#endif
+#ifdef GRADE
+    float4 grade; // x saturation, y contrast, z tint amount, w 1 when the grade applies
+    float4 gradeTint; // xyz the tint colour
 #endif
 };
 [[vk::push_constant]] ConstantBuffer<Push> push;
@@ -176,6 +181,25 @@ float3 sssApply(float2 uv, float3 centre)
 }
 #endif
 
+#ifdef GRADE
+// Task 0127 stage W-S4: the image space grade (twin of post/tonemap.frag's gradeApply and of Render::ImageSpace::apply in
+// imagespacemath.hpp): saturation about the luma, a tint (the picture's grey colourised at the tint's own brightness, by
+// an amount), then contrast about one half; the display value in, the display value out.
+float3 gradeApply(float3 c)
+{
+    const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
+    float saturation = max(push.grade.x, 0.0);
+    float contrast = max(push.grade.y, 0.0);
+    float amount = clamp(push.grade.z, 0.0, 1.0);
+    float l = dot(c, lumaWeights);
+    c = float3(l) + saturation * (c - float3(l));
+    float tintLuma = dot(push.gradeTint.xyz, lumaWeights);
+    if (amount > 0.0 && tintLuma > 1e-4)
+        c = c + (dot(c, lumaWeights) * push.gradeTint.xyz / tintLuma - c) * amount;
+    return clamp((c - float3(0.5)) * contrast + float3(0.5), float3(0.0), float3(1.0));
+}
+#endif
+
 struct FragmentInput
 {
     [[vk::location(0)]] float2 texCoord : V_TEXCOORD0;
@@ -254,5 +278,9 @@ float4 fragMain(FragmentInput input) : SV_Target0
     color = clamp(color, float3(0.0), float3(1.0));
     if (push.params.z > 0.5)
         color = pow(color, float3(1.0 / DISPLAY_GAMMA));
+#ifdef GRADE
+    if (push.grade.w > 0.5)
+        color = gradeApply(color);
+#endif
     return float4(color, 1.0);
 }

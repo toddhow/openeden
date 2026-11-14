@@ -2,7 +2,7 @@
 // The tonemap pass (components/render/tonemap.cpp, Render::Tonemap): the float scene to the display, with the
 // optional bloom, ambient occlusion, subsurface scattering and G-buffer debug view. Task 0072, stage g: it was a string
 // in tonemap.cpp, whose constants are now in post/tonemapconstants.glsl; the Slang twin is post/tonemap.slang.
-#pragma import_defines (AO, BLOOM, DEBUG_VIEW, SSS)
+#pragma import_defines (AO, BLOOM, DEBUG_VIEW, GRADE, SSS)
 #include "post/tonemapconstants.glsl"
 
 layout(set=0, binding=0) uniform sampler2D sceneColor;
@@ -37,6 +37,10 @@ layout(push_constant) uniform Push
 #endif
 #ifdef DEBUG_VIEW
     vec4 debug;  // x mode (1 normals, 2 depth, 3 velocity, 4 roughness, 5 material, 6 subsurface, 7 ao, 8 ambient, 9 sss), y depth range, z velocity scale
+#endif
+#ifdef GRADE
+    vec4 grade;     // x saturation, y contrast, z tint amount, w 1 when the grade applies
+    vec4 gradeTint; // xyz the tint colour
 #endif
 } push;
 layout(location=0) in vec2 texCoord;
@@ -173,6 +177,25 @@ vec3 sssApply(vec2 uv, vec3 centre)
 }
 #endif
 
+#ifdef GRADE
+// Task 0127 stage W-S4: the image space grade. The CPU twin is Render::ImageSpace::apply (imagespacemath.hpp): saturation
+// about the luma, a tint (the picture's grey colourised at the tint's own brightness, by an amount), then contrast about
+// one half; the display value in, the display value out.
+vec3 gradeApply(vec3 c)
+{
+    const vec3 lumaWeights = vec3(0.2126, 0.7152, 0.0722);
+    float saturation = max(push.grade.x, 0.0);
+    float contrast = max(push.grade.y, 0.0);
+    float amount = clamp(push.grade.z, 0.0, 1.0);
+    float l = dot(c, lumaWeights);
+    c = vec3(l) + saturation * (c - vec3(l));
+    float tintLuma = dot(push.gradeTint.xyz, lumaWeights);
+    if (amount > 0.0 && tintLuma > 1e-4)
+        c = c + (dot(c, lumaWeights) * push.gradeTint.xyz / tintLuma - c) * amount;
+    return clamp((c - vec3(0.5)) * contrast + vec3(0.5), vec3(0.0), vec3(1.0));
+}
+#endif
+
 void main()
 {
 #ifdef DEBUG_VIEW
@@ -247,5 +270,9 @@ void main()
     color = clamp(color, 0.0, 1.0);
     if (push.params.z > 0.5)
         color = pow(color, vec3(1.0 / DISPLAY_GAMMA));
+#ifdef GRADE
+    if (push.grade.w > 0.5)
+        color = gradeApply(color);
+#endif
     outColor = vec4(color, 1.0);
 }

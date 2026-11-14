@@ -15,6 +15,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -65,6 +67,27 @@ namespace game_skyrimse
     /// existing.
     using TextureProbe = std::function<bool(const std::string&)>;
 
+    /// The record a SNDR or SOUN form id names, or null (the index's `sound`).
+    using SoundLookup = std::function<const SoundDescriptorRecord*(FormId)>;
+    /// Whether a VFS sound path ("sound/fx/...") exists. Empty: every file counts as existing.
+    using SoundProbe = std::function<bool(const std::string&)>;
+
+    namespace SoundScale
+    {
+        /// The gain never goes below this however large the stored attenuation (65535 would be 655 dB): a floor of 20 dB.
+        inline constexpr float kMinGain = 0.1f;
+    }
+
+    /// A sound file name as the data stores it, as the VFS path the engine plays ("sound/fx/amb/x.wav": lower case,
+    /// forward slashes, rooted at "sound/"). The three shapes in the installed data are "Data\Sound\FX\...", "fx\..."
+    /// (relative to the Sound folder) and a leading backslash; a drive letter, a ".." component, a control character, no
+    /// file name or nothing at all gives "".
+    [[nodiscard]] std::string normalizeSoundPath(std::string_view stored);
+
+    /// The gain of a stored static attenuation (hundredths of a decibel): 10 ^ (-dB / 20), 1 for none or 0, never below
+    /// SoundScale::kMinGain. RECALLED-VERIFY for the unit (see SoundDescriptorRecord).
+    [[nodiscard]] float soundGain(std::optional<std::uint16_t> attenuation);
+
     /// One weather as the SDK describes it. NAM0 types used: SkyUpper (sky), FogFar (fog), Ambient, Sunlight (sun), Sun
     /// (the disc at sunset); the picture is the first cloud layer with a texture that exists (some weathers name a
     /// leftover Oblivion texture on layer 0 that the game does not ship: the first frame drew the engine's purple
@@ -73,7 +96,8 @@ namespace game_skyrimse
     using ImageSpaceLookup = std::function<const ImageSpaceRecord*(FormId)>;
 
     [[nodiscard]] openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& weather,
-        const TextureProbe& textureExists = {}, const ImageSpaceLookup& imageSpaces = {});
+        const TextureProbe& textureExists = {}, const ImageSpaceLookup& imageSpaces = {},
+        const SoundLookup& sounds = {}, const SoundProbe& soundExists = {});
 
     /// The sun hours of the climate timing most climates share (ties: the lowest climate form id). False when no climate
     /// has a timing.
@@ -87,7 +111,8 @@ namespace game_skyrimse
     class WeatherTable
     {
     public:
-        explicit WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists = {});
+        explicit WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists = {},
+            const SoundProbe& soundExists = {});
 
         [[nodiscard]] const std::vector<openeden::sdk::game::WeatherDescription>& weathers() const { return mWeathers; }
         /// The table position of a weather form id, or -1.

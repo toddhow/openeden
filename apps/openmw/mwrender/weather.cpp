@@ -590,10 +590,24 @@ namespace MWRender
         }
         void setColor(const vsg::vec4& color)
         {
+            mColour = vsg::vec3(color.x, color.y, color.z);
             material.value().emissive = vsg::vec4(color.x, color.y, color.z, material.value().emissive.a);
         }
-        void setState(const MoonState state)
+        // `lit`: task 0127 stage W-S4. The moon shader draws the phase picture times the material's emissive colour over
+        // the sky's colour, and `emissive.rgb` was never given a value (the shadow blend went into the alpha, which the
+        // shader does not read for the colour): the moons were drawn black, that is, invisible at night, in every game
+        // (found by drawing the quads magenta, then emissive.rgb as the colour: black). With `lit` the emissive colour is
+        // the moon's colour times the shadow blend, which is what the blend is for: 0 is a solid disc of the sky's colour
+        // (between moon set and rise), 1 the textured moon. Morrowind's weather does not set it (its frames stay as they
+        // were; toddhow decides whether it does).
+        void setState(const MoonState state, bool lit = false)
         {
+            if (lit)
+            {
+                material.update(material.value().emissive.r, state.mShadowBlend * mColour.x);
+                material.update(material.value().emissive.g, state.mShadowBlend * mColour.y);
+                material.update(material.value().emissive.b, state.mShadowBlend * mColour.z);
+            }
             float radsX = ((state.mRotationFromHorizon) * static_cast<float>(Misc::VsgMath::PI)) / 180.0f;
             float radsZ = ((state.mRotationFromNorth) * static_cast<float>(Misc::VsgMath::PI)) / 180.0f;
 
@@ -647,6 +661,7 @@ namespace MWRender
         vsg::ref_ptr<vsg::DescriptorImage> mCircleTex;
         vsg::ref_ptr<vsg::StateSwitch> mStateSwitch;
         vsg::ref_ptr<vsg::BindGraphicsPipeline> mPipeline;
+        vsg::vec3 mColour{ 1.f, 1.f, 1.f };
         Type mType;
         MoonState::Phase mPhase;
     };
@@ -1113,6 +1128,7 @@ namespace MWRender
         }
         mMasserAvailable = weather.mMasserAvailable;
         mSecundaAvailable = weather.mSecundaAvailable;
+        mLitMoons = weather.mLitMoons;
     }
 
     void Sky::sunEnable()
@@ -1167,7 +1183,7 @@ namespace MWRender
         MoonState shown = state;
         if (!mMasserAvailable)
             shown.mMoonAlpha = 0.f;
-        mMasser->setState(shown);
+        mMasser->setState(shown, mLitMoons);
         // mMasser.setEnabled(isBelowHorizon);
         // CullScreenSpaceQuad(
     }
@@ -1177,7 +1193,7 @@ namespace MWRender
         MoonState shown = state;
         if (!mSecundaAvailable)
             shown.mMoonAlpha = 0.f;
-        mSecunda->setState(shown);
+        mSecunda->setState(shown, mLitMoons);
         // mSecunda.setEnabled(isBelowHorizon);
     }
 

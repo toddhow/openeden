@@ -12,6 +12,8 @@
 #include <components/esm/refid.hpp>
 #include <components/misc/vsgmath.hpp>
 
+#include "neutralweathersound.hpp"
+
 #include <vsg/maths/vec4.h>
 
 // The plain description of a weather and of the weather manager's clock (OpenEden task 0127, stage W-S1).
@@ -74,6 +76,9 @@ namespace MWWorld
         // Stage W-S3. Morrowind's INI gives none of these: no extra layers, no image space.
         std::vector<ExtraCloudParams> extraClouds;
         std::optional<ImageSpaceParams> imageSpace;
+        // Stage W-S4. Morrowind's weathers play their sounds by record id (the three fields above); a game pack's play
+        // files, described here. Empty (any() false) for Morrowind.
+        NeutralWeatherSound::Set sounds;
     };
 
     /// One entry of the weather table: the weather's name (its script-visible id), its numbers and the three values the

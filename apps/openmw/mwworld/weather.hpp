@@ -193,6 +193,14 @@ namespace MWWorld
 
         std::array<ESM::RefId, 4> mThunderSoundID;
 
+        // Task 0127 stage W-S4 (a game pack's weather only): its sounds as files, and the thunder that has been struck
+        // and is not heard yet (it comes after the flash, NeutralWeatherSound::thunderDelaySeconds).
+        NeutralWeatherSound::Set mSounds;
+        NeutralWeatherSound::DelayedThunder mDelayedThunder;
+        std::uint32_t mStrikeCounter = 0;
+        /// Drops thunder waiting to be heard (the weather's sounds were stopped).
+        void clearPendingThunder() { mDelayedThunder.clear(); }
+
         // Is this an ash storm / blight storm? If so, the following will happen:
         // - The particles and clouds will be oriented so they appear to come from the Red Mountain.
         // - Characters will animate their hand to protect eyes from the storm when looking in its direction (idlestorm
@@ -463,6 +471,22 @@ namespace MWWorld
         ESM::RefId mPlayingAmbientSoundID;
         MWBase::Sound* mRainSound{ nullptr };
         ESM::RefId mPlayingRainSoundID;
+
+        // Task 0127 stage W-S4: a game pack's weather sounds are files. One loop each for the default, the
+        // precipitation and the wind (a wind that is not a loop is a gust now and then); `file` is what has been asked
+        // of the sound manager (also when it has no device: the calls are logged), `sound` the handle it gave.
+        struct NeutralLoop
+        {
+            std::string file;
+            MWBase::Sound* sound = nullptr;
+        };
+        NeutralLoop mNeutralLoops[3];
+        int mMoonTraceHour = -2; // the game hour of the last "moon" log line of a game pack's weather
+        NeutralWeatherSound::GustTimer mNeutralGusts;
+        void updateNeutralSounds(float duration, bool paused);
+        void stopNeutralSounds();
+        /// The weather whose sounds play now: the next one past the rain threshold of a transition, else the current.
+        [[nodiscard]] int soundWeather() const;
 
         void addWeather(
             const std::string& name, float dlFactor, float dlOffset, const std::string& particleEffect = "");

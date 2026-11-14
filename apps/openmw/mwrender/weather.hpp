@@ -164,6 +164,7 @@ namespace MWRender
         std::string mSunGlareTextureName;
         bool mMasserAvailable = true;
         bool mSecundaAvailable = true;
+        bool mLitMoons = false; // task 0127 stage W-S4, from the weather's result
         vsgUtil::Toggle<Sun> mSun;
         vsgUtil::Toggle<Moon> mMasser;
         vsgUtil::Toggle<Moon> mSecunda;

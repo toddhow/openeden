@@ -791,13 +791,17 @@ namespace game_skyrimse
         }
         mWeatherIndex = std::move(index);
         TextureProbe probe;
+        SoundProbe soundProbe;
         if (mFiles != nullptr)
         {
             const FileSource* files = mFiles;
             probe = [files](const std::string& path) { return files->exists("textures\\" + path); };
+            // Task 0127 stage W-S4: a weather sound is named only when its file is in the session's VFS (the sound
+            // archive of the game, or a loose file). The path is already the VFS's own ("sound/fx/...").
+            soundProbe = [files](const std::string& path) { return files->exists(path); };
         }
         mWeatherProbe = probe;
-        mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex, probe);
+        mWeatherTable = std::make_unique<WeatherTable>(*mWeatherIndex, probe, soundProbe);
         return true;
     }
 

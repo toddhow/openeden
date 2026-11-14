@@ -373,6 +373,76 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- SNDR and SOUN ---------------------------------------------------------------------------------------------
+
+    bool decodeSoundDescriptor(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, const WeatherLimits& limits, SoundDescriptorRecord& out, std::string& why)
+    {
+        const bool marker = record.mType == Content::fourCC("SOUN");
+        const Dec d{ context, limits, marker ? "SOUN" : "SNDR", why };
+        out = SoundDescriptorRecord();
+        out.mCommon = d.fields().common(record);
+        out.mIsMarker = marker;
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        while ((status = reader.next(type, data)) == 1)
+        {
+            switch (type)
+            {
+                case Content::fourCC("EDID"):
+                    if (!d.text(type, data, out.mCommon.mEditorId))
+                        return false;
+                    break;
+                case Content::fourCC("ANAM"): // SNDR: one file name, repeated for the alternates
+                case Content::fourCC("FNAM"): // SOUN: its one file
+                {
+                    if ((type == Content::fourCC("ANAM")) == marker)
+                        break; // ANAM of a SOUN and FNAM of a SNDR mean something else
+                    if (d.overCap(type, out.mFiles.size()))
+                        return false;
+                    std::string path;
+                    if (!d.text(type, data, path))
+                        return false;
+                    out.mFiles.push_back(std::move(path));
+                    break;
+                }
+                case Content::fourCC("BNAM"):
+                    // 6 bytes (VERIFIED on 3,260 of 3,260 SNDR): frequency shift, frequency variance, priority, dB
+                    // variance, then the static attenuation as an unsigned 16 bit number of hundredths of a decibel.
+                    if (!marker && data.size() == 6)
+                        out.mAttenuation = readLe<std::uint16_t>(data.data() + 4);
+                    else if (!marker)
+                        d.odd(type);
+                    break;
+                case Content::fourCC("LNAM"):
+                    // 4 bytes (VERIFIED on 3,197 of 3,197): byte 1 has the value 8 in 465 records, of which 447 have LP or
+                    // Loop in their editor id, 0 in 2,619, 16 in 112 and 32 in 1; so bit 3 of byte 1 marks a loop.
+                    if (!marker && data.size() == 4)
+                        out.mLoop = (std::to_integer<std::uint8_t>(data[1]) & 0x08) != 0;
+                    else if (!marker)
+                        d.odd(type);
+                    break;
+                default:
+                    break;
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        // A SOUN has no LNAM: only five weathers use one and its flags are not decoded, so the editor id's LP suffix
+        // (every loop of that kind in the data ends in LP, 'AMBWindLightLP') says it. A GUESS.
+        if (marker)
+        {
+            const std::string& id = out.mCommon.mEditorId;
+            out.mLoop = id.size() >= 2 && id.compare(id.size() - 2, 2, "LP") == 0;
+        }
+        return true;
+    }
+
     // ---- IMGS -----------------------------------------------------------------------------------------------------
 
     bool decodeImageSpace(std::span<const std::byte> bytes, const Content::RawRecord& record,
@@ -598,6 +668,8 @@ namespace game_skyrimse
                     case Content::fourCC("WRLD"):
                     case Content::fourCC("CELL"):
                     case Content::fourCC("IMGS"):
+                    case Content::fourCC("SNDR"):
+                    case Content::fourCC("SOUN"):
                         break;
                     default:
                         return true;
@@ -664,6 +736,15 @@ namespace game_skyrimse
                         ok = decodeImageSpace(bytes, record, mContext, mLimits, i, why);
                         if (ok)
                             mOut.mImageSpaces.push_back(std::move(i));
+                        break;
+                    }
+                    case Content::fourCC("SNDR"):
+                    case Content::fourCC("SOUN"):
+                    {
+                        SoundDescriptorRecord snd;
+                        ok = decodeSoundDescriptor(bytes, record, mContext, mLimits, snd, why);
+                        if (ok)
+                            mOut.mSounds.push_back(std::move(snd));
                         break;
                     }
                     case Content::fourCC("REGN"):
@@ -895,6 +976,7 @@ namespace game_skyrimse
         put(mWorlds, records.mWorlds);
         put(mCells, records.mCells);
         put(mImageSpaces, records.mImageSpaces);
+        put(mSounds, records.mSounds);
     }
 
     namespace

@@ -9,6 +9,7 @@
 #include <components/settings/values.hpp>
 
 #include <components/misc/rng.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -266,6 +267,7 @@ namespace MWWorld
         mDL.FogOffset = dlOffset;
         mExtraClouds = params.extraClouds;
         mImageSpace = params.imageSpace;
+        mSounds = params.sounds;
         for (size_t i = 0; i < mThunderSoundID.size(); ++i)
             mThunderSoundID[i] = ESM::RefId::stringRefId(params.thunderSoundId[i]);
 
@@ -299,6 +301,24 @@ namespace MWWorld
 
     float Weather::calculateThunder(const float transitionRatio, const float elapsedSeconds, const bool isPaused)
     {
+        // Thunder a game pack's weather struck earlier is heard when its delay is over.
+        if (!isPaused && mDelayedThunder.size() > 0)
+        {
+            NeutralWeatherSound::DelayedThunder::Due due[NeutralWeatherSound::kMaxPendingThunder];
+            const std::size_t count
+                = mDelayedThunder.advance(elapsedSeconds, due, NeutralWeatherSound::kMaxPendingThunder);
+            for (std::size_t i = 0; i < count; ++i)
+            {
+                const std::string& file = NeutralWeatherSound::pickFile(mSounds.thunder, due[i].fileIndex);
+                const float volume = NeutralWeatherSound::thunderVolume(due[i].volume, due[i].distanceIndex);
+                Log(Debug::Info) << "Neutral weather sound: thunder " << mSounds.thunder.name << " " << file
+                                 << " distance " << due[i].distanceIndex << " volume " << volume << " (" << mName
+                                 << ")";
+                if (!file.empty())
+                    MWBase::Environment::get().getSoundManager()->playSound(
+                        VFS::Path::Normalized(file), volume, 1.0f);
+            }
+        }
         // When paused, the flash brightness remains the same and no new strikes can occur.
         if (!isPaused)
         {
@@ -360,7 +380,17 @@ namespace MWWorld
         // Flash brightness appears additive, since if multiple strikes occur, it takes longer for it to decay to 0.
         mFlashBrightness += 1 - (distance * 0.25f);
         mPendingStrike = std::max(mPendingStrike, Render::Lightning::strikeStrength(distance));
-        MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
+        if (!mSounds.thunder.empty())
+        {
+            // A game pack's thunder is a file heard after the flash (NeutralWeatherSound::thunderDelaySeconds), and the
+            // files take turns: no random number is drawn for them. Morrowind's weathers have none of this.
+            const std::uint32_t counter = mStrikeCounter++;
+            if (!mDelayedThunder.push(NeutralWeatherSound::thunderDelaySeconds(distance), counter,
+                    mSounds.thunder.volume, distance))
+                Log(Debug::Verbose) << "Neutral weather sound: thunder dropped, " << mName << " has too much waiting";
+        }
+        else
+            MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
     }
 
     RegionWeather::RegionWeather(const ESM::Region& region)
@@ -1157,6 +1187,28 @@ namespace MWWorld
 
         mRendering.getSky()->setMasserState(mMasser.calculateState(time));
         mRendering.getSky()->setSecundaState(mSecunda.calculateState(time));
+        // Task 0127 stage W-S4 (a game pack's weather): where each moon is, once a game hour, so that a frame can be aimed
+        // at it. The direction is the one MWRender::Moon::setState makes: (-sin az, cos az cos el, cos az sin el) for
+        // el = the rotation from the horizon and az = the rotation from north, both in degrees.
+        if (mRegionProvider != nullptr && static_cast<int>(time.getHour()) != mMoonTraceHour)
+        {
+            mMoonTraceHour = static_cast<int>(time.getHour());
+            const struct
+            {
+                const char* name;
+                const MoonModel& model;
+                bool available;
+            } moons[2] = { { "Masser", mMasser, mMasserAvailable }, { "Secunda", mSecunda, mSecundaAvailable } };
+            for (const auto& moon : moons)
+            {
+                const MWRender::MoonState state = moon.model.calculateState(time);
+                Log(Debug::Info) << "Neutral weather: moon " << moon.name << " hour " << time.getHour() << " day "
+                                 << time.getDay() << " elevation " << state.mRotationFromHorizon << " azimuth "
+                                 << state.mRotationFromNorth << " phase " << static_cast<int>(state.mPhase)
+                                 << " alpha " << state.mMoonAlpha << " shadowBlend " << state.mShadowBlend
+                                 << (moon.available ? " available" : " not in this climate");
+            }
+        }
 
         // OpenEden (task 0034): with the atmosphere on, the colours handed to the renderer come from the model; the
         // weather's own result (mResult) is not changed. Off, rendered is mResult itself.
@@ -1177,7 +1229,12 @@ namespace MWWorld
         // Task 0127 stage W-S3: only with the setting (a game pack's image space brightness is a linear multiplier, so
         // its logarithm is the exposure in stops); otherwise the renderer is never told.
         if (Settings::game().mNeutralWeatherImageSpace.get())
+        {
             mRendering.setImageSpaceStops(mResult.mHasGrade ? std::log2(std::max(mResult.mGrade.x, 0.25f)) : 0.f);
+            // Stage W-S4: the grade grade.y saturation, grade.z contrast, grade.w tint amount (ImageSpaceParams).
+            mRendering.setImageSpaceGrade(mResult.mHasGrade, mResult.mGrade.y, mResult.mGrade.z, mResult.mGrade.w,
+                mResult.mGradeTint);
+        }
 
         // Play sounds
         if (mPlayingAmbientSoundID != mResult.mAmbientLoopSoundID)
@@ -1209,11 +1266,103 @@ namespace MWWorld
         }
         else if (mRainSound)
             mRainSound->setVolume(mResult.mAmbientSoundVolume);
+
+        if (mRegionProvider != nullptr)
+            updateNeutralSounds(duration, paused);
+    }
+
+    int WeatherManager::soundWeather() const
+    {
+        if (!inTransition())
+            return mCurrentWeather;
+        // The same split as calculateTransitionResult: the weather that is going keeps its sounds until the next one's
+        // rain threshold of the transition, then the next one's take over.
+        float threshold = mWeatherSettings[mNextWeather].mRainThreshold;
+        if (threshold <= 0.f)
+            threshold = 0.5f;
+        return (1 - mTransitionFactor) < threshold ? mCurrentWeather : mNextWeather;
+    }
+
+    // Task 0127 stage W-S4: a game pack's loops and gusts. The sound manager gets files by VFS path; with no audio device
+    // it plays nothing, so the calls are logged here (Info), which is what a run without a device can show.
+    void WeatherManager::updateNeutralSounds(const float duration, const bool paused)
+    {
+        using namespace NeutralWeatherSound;
+        const int index = soundWeather();
+        if (index < 0 || static_cast<std::size_t>(index) >= mWeatherSettings.size())
+        {
+            stopNeutralSounds();
+            return;
+        }
+        const Weather& weather = mWeatherSettings[index];
+        MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
+        const Slot* slots[3] = { &weather.mSounds.ambient, &weather.mSounds.precipitation, &weather.mSounds.wind };
+        const char* kinds[3] = { "ambient", "precipitation", "wind" };
+        for (int i = 0; i < 3; ++i)
+        {
+            NeutralLoop& loop = mNeutralLoops[i];
+            const LoopWish wish = loopWish(*slots[i], mResult.mAmbientSoundVolume);
+            if (wish.file != loop.file)
+            {
+                if (loop.sound != nullptr)
+                {
+                    sndMgr->stopSound(loop.sound);
+                    loop.sound = nullptr;
+                }
+                loop.file = wish.file;
+                if (!wish.file.empty())
+                {
+                    Log(Debug::Info) << "Neutral weather sound: " << kinds[i] << " loop " << slots[i]->name << " "
+                                     << wish.file << " volume " << wish.volume << " (" << weather.mName << ")";
+                    loop.sound = sndMgr->playSound(VFS::Path::Normalized(wish.file), wish.volume, 1.0f,
+                        MWSound::Type::Sfx, MWSound::PlayMode::Loop);
+                }
+            }
+            else if (loop.sound != nullptr)
+                loop.sound->setVolume(wish.volume);
+        }
+
+        // A wind that is not a loop blows a gust now and then, more often the stronger the weather's wind.
+        const Slot& wind = weather.mSounds.wind;
+        if (wind.empty() || wind.loop)
+        {
+            mNeutralGusts.reset();
+            return;
+        }
+        if (paused)
+            return;
+        if (mNeutralGusts.advance(duration, weather.mWindSpeed))
+        {
+            const std::string& file = pickFile(wind, mNeutralGusts.count() - 1);
+            const float volume = std::min(wind.volume * mResult.mAmbientSoundVolume, 1.f);
+            if (!file.empty() && volume > 0.f)
+            {
+                Log(Debug::Info) << "Neutral weather sound: wind gust " << wind.name << " " << file << " volume "
+                                 << volume << " (" << weather.mName << ")";
+                sndMgr->playSound(VFS::Path::Normalized(file), volume, 1.0f);
+            }
+        }
+    }
+
+    void WeatherManager::stopNeutralSounds()
+    {
+        MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
+        for (NeutralLoop& loop : mNeutralLoops)
+        {
+            if (loop.sound != nullptr)
+                sndMgr->stopSound(loop.sound);
+            loop.sound = nullptr;
+            loop.file.clear();
+        }
+        mNeutralGusts.reset();
+        for (Weather& weather : mWeatherSettings)
+            weather.clearPendingThunder();
     }
 
     void WeatherManager::stopSounds()
     {
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
+        stopNeutralSounds();
         if (mAmbientSound)
         {
             sndMgr->stopSound(mAmbientSound);
@@ -1654,6 +1803,7 @@ namespace MWWorld
         mResult.mSunGlareTexture = mSunGlareTexture;
         mResult.mMasserAvailable = mMasserAvailable;
         mResult.mSecundaAvailable = mSecundaAvailable;
+        mResult.mLitMoons = mRegionProvider != nullptr;
         mResult.mExtraClouds.resize(current.mExtraClouds.size());
         for (std::size_t i = 0; i < current.mExtraClouds.size(); ++i)
         {

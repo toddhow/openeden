@@ -165,8 +165,104 @@ namespace game_skyrimse
         }
     }
 
-    openeden::sdk::game::WeatherDescription describeWeather(
-        const WeatherRecord& w, const TextureProbe& textureExists, const ImageSpaceLookup& imageSpaces)
+    std::string normalizeSoundPath(std::string_view stored)
+    {
+        std::string path;
+        path.reserve(stored.size() + 6);
+        for (const char c : stored)
+        {
+            const unsigned char u = static_cast<unsigned char>(c);
+            if (u < 0x20 || u == 0x7f || c == ':')
+                return {}; // a control character or a drive letter
+            path.push_back(c == '\\' ? '/' : static_cast<char>(std::tolower(u)));
+        }
+        // Components: no empty one but the first, no "." or "..", a file name last.
+        std::vector<std::string> parts;
+        std::size_t begin = 0;
+        while (begin <= path.size())
+        {
+            const std::size_t end = path.find('/', begin);
+            std::string part = path.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
+            while (!part.empty() && part.back() == ' ')
+                part.pop_back();
+            while (!part.empty() && part.front() == ' ')
+                part.erase(part.begin());
+            if (part == "." || part == "..")
+                return {};
+            if (!part.empty())
+                parts.push_back(std::move(part));
+            if (end == std::string::npos)
+                break;
+            begin = end + 1;
+        }
+        if (parts.empty() || path.back() == '/')
+            return {};
+        // "data/sound/..." and "sound/..." name the sound root; anything else is relative to it.
+        std::size_t skip = 0;
+        if (parts.size() > 1 && parts[0] == "data")
+            skip = 1;
+        if (parts.size() > skip + 1 && parts[skip] == "sound")
+            ++skip;
+        std::string out = "sound";
+        for (std::size_t i = skip; i < parts.size(); ++i)
+        {
+            out.push_back('/');
+            out += parts[i];
+        }
+        return parts.size() > skip ? out : std::string();
+    }
+
+    float soundGain(std::optional<std::uint16_t> attenuation)
+    {
+        if (!attenuation || *attenuation == 0)
+            return 1.f;
+        const float decibels = static_cast<float>(*attenuation) / 100.f;
+        return std::max(SoundScale::kMinGain, std::pow(10.f, -decibels / 20.f));
+    }
+
+    namespace
+    {
+        // The four SNAM types of a WTHR (VERIFIED by what each descriptor holds in the installed data, task log).
+        void addSounds(const WeatherRecord& w, const SoundLookup& lookup, const SoundProbe& exists,
+            openeden::sdk::game::WeatherDescription& d)
+        {
+            if (!lookup)
+                return;
+            openeden::sdk::game::WeatherSoundDescription* slots[4]
+                = { &d.ambientSound, &d.precipitationSound, &d.windSound, &d.thunderSound };
+            bool taken[4] = {};
+            for (const WeatherSound& entry : w.mSounds)
+            {
+                if (entry.mType > 3 || entry.mSound == kNullFormId || entry.mSound == kUnresolvedFormId)
+                    continue;
+                const SoundDescriptorRecord* record = lookup(entry.mSound);
+                if (record == nullptr)
+                    continue;
+                openeden::sdk::game::WeatherSoundDescription& slot = *slots[entry.mType];
+                for (const std::string& stored : record->mFiles)
+                {
+                    if (slot.files.size() >= openeden::sdk::game::kMaxWeatherSoundFiles)
+                        break;
+                    const std::string path = normalizeSoundPath(stored);
+                    if (path.empty() || (exists && !exists(path))
+                        || std::find(slot.files.begin(), slot.files.end(), path) != slot.files.end())
+                        continue;
+                    slot.files.push_back(path);
+                }
+                // The first entry that gave a file names the sound and sets its volume and loop.
+                if (!taken[entry.mType] && !slot.files.empty())
+                {
+                    taken[entry.mType] = true;
+                    slot.name = record->mCommon.mEditorId;
+                    slot.volume = soundGain(record->mAttenuation);
+                    slot.loop = record->mLoop;
+                }
+            }
+        }
+    }
+
+    openeden::sdk::game::WeatherDescription describeWeather(const WeatherRecord& w, const TextureProbe& textureExists,
+        const ImageSpaceLookup& imageSpaces, const SoundLookup& sounds, const SoundProbe& soundExists)
     {
         openeden::sdk::game::WeatherDescription d;
         d.id = w.mCommon.mId;
@@ -229,6 +325,7 @@ namespace game_skyrimse
         }
         addExtraLayers(w, picture, textureExists, d);
         addImageSpace(w, imageSpaces, d);
+        addSounds(w, sounds, soundExists, d);
         d.cloudsMaximumPercent = 1.f;
         d.storm = false;
         return d;
@@ -288,7 +385,7 @@ namespace game_skyrimse
         return true;
     }
 
-    WeatherTable::WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists)
+    WeatherTable::WeatherTable(const WeatherIndex& index, const TextureProbe& textureExists, const SoundProbe& soundExists)
         : mIndex(&index)
         , mIds(index.weatherIds())
     {
@@ -296,7 +393,8 @@ namespace game_skyrimse
         for (const FormId id : mIds)
         {
             const WeatherRecord* w = index.weather(id);
-            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId id) { return mIndex->imageSpace(id); }) : openeden::sdk::game::WeatherDescription{});
+            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId id) { return mIndex->imageSpace(id); },
+                                             [this](FormId id) { return mIndex->sound(id); }, soundExists) : openeden::sdk::game::WeatherDescription{});
         }
     }
 

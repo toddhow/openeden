@@ -59,6 +59,8 @@ namespace Render
         , mPushDebug(vsg::vec4Value::create(debugPushConstants(GBuffer::DebugView::None, 0.f, 0.f)))
         , mPushAo(vsg::vec4Value::create(aoPushConstants(VkExtent2D{ 1, 1 }, 1.f)))
         , mPushSss(vsg::vec4Value::create(sssPushConstants(0.f, 1.f, 0.f)))
+        , mPushGrade(vsg::vec4Value::create(gradePushConstants(Parameters{})))
+        , mPushGradeTint(vsg::vec4Value::create(gradeTintPushConstants(Parameters{})))
     {
         mView->viewDependentState = nullptr;
     }
@@ -79,6 +81,17 @@ namespace Render
         return vsg::vec4(strength, width, focalPixels, 0.f);
     }
 
+    vsg::vec4 Tonemap::gradePushConstants(const Parameters& parameters)
+    {
+        return vsg::vec4(parameters.gradeSaturation, parameters.gradeContrast, parameters.gradeTintAmount,
+            parameters.gradeOn ? 1.f : 0.f);
+    }
+
+    vsg::vec4 Tonemap::gradeTintPushConstants(const Parameters& parameters)
+    {
+        return vsg::vec4(parameters.gradeTint[0], parameters.gradeTint[1], parameters.gradeTint[2], 0.f);
+    }
+
     Tonemap::~Tonemap() {}
 
     void Tonemap::setParameters(const Parameters& parameters)
@@ -88,6 +101,8 @@ namespace Render
         mPushDebug->set(debugPushConstants(parameters.debugView, parameters.depthRange, parameters.velocityScale));
         mPushAo->set(aoPushConstants(mAoExtent, parameters.aoStrength));
         mPushSss->set(sssPushConstants(parameters.sssStrength, parameters.sssWidth, parameters.sssFocalPixels));
+        mPushGrade->set(gradePushConstants(parameters));
+        mPushGradeTint->set(gradeTintPushConstants(parameters));
     }
 
     bool Tonemap::setSource(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> bloom,
@@ -109,6 +124,8 @@ namespace Render
         const bool debug = mParameters.debugView != GBuffer::DebugView::None;
         const bool ao = aoSources.valid();
         const bool sss = sssSources.valid();
+        // Task 0127 stage W-S4: the grade is a define of its own, so a pipeline without it is the pipeline of before.
+        const bool grade = mParameters.gradeShader;
         if (ao)
         {
             mAoExtent = aoSources.aoExtent;
@@ -117,7 +134,7 @@ namespace Render
         // Compiled once: a resize only changes the image, the viewport and the pipeline built around them. The
         // stages are post/fullscreen.vert and post/tonemap.frag (task 0072, stage g: they were strings here), the
         // fragment's constants in post/tonemapconstants.glsl.
-        auto& stages = mStages[(bloom ? 1 : 0) + (debug ? 2 : 0) + (ao ? 4 : 0) + (sss ? 8 : 0)];
+        auto& stages = mStages[(bloom ? 1 : 0) + (debug ? 2 : 0) + (ao ? 4 : 0) + (sss ? 8 : 0) + (grade ? 16 : 0)];
         if (stages.empty())
         {
             std::set<std::string> defines;
@@ -129,6 +146,8 @@ namespace Render
                 defines.insert("BLOOM");
             if (debug)
                 defines.insert("DEBUG_VIEW");
+            if (grade)
+                defines.insert("GRADE");
             std::string error;
             stages = vsgUtil::readPassStages(
                 { { "post/fullscreen.vert", {} }, { "post/tonemap.frag", defines } }, mShaderOptions, &error);
@@ -157,9 +176,11 @@ namespace Render
         const uint32_t aoOffset = sizeof(vsg::vec4);
         const uint32_t sssOffset = static_cast<uint32_t>(sizeof(vsg::vec4)) * (ao ? 2 : 1);
         const uint32_t debugOffset = static_cast<uint32_t>(sizeof(vsg::vec4)) * (1 + (ao ? 1 : 0) + (sss ? 1 : 0));
+        // The grade's two come after the debug view's (the shader declares them last).
+        const uint32_t gradeOffset = debugOffset + static_cast<uint32_t>(debug ? sizeof(vsg::vec4) : 0);
         auto layout = vsg::PipelineLayout::create(vsg::DescriptorSetLayouts{ setLayout },
             vsg::PushConstantRanges{ { VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                static_cast<uint32_t>(debugOffset + (debug ? sizeof(vsg::vec4) : 0)) } });
+                static_cast<uint32_t>(gradeOffset + (grade ? 2 * sizeof(vsg::vec4) : 0)) } });
 
         auto depthStencil = vsg::DepthStencilState::create();
         depthStencil->depthTestEnable = VK_FALSE;
@@ -244,6 +265,13 @@ namespace Render
         if (debug)
             commands->children.push_back(
                 vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, debugOffset, mPushDebug));
+        if (grade)
+        {
+            commands->children.push_back(
+                vsg::PushConstants::create(VK_SHADER_STAGE_FRAGMENT_BIT, gradeOffset, mPushGrade));
+            commands->children.push_back(vsg::PushConstants::create(
+                VK_SHADER_STAGE_FRAGMENT_BIT, gradeOffset + static_cast<uint32_t>(sizeof(vsg::vec4)), mPushGradeTint));
+        }
         commands->children.push_back(vsg::Draw::create(3, 1, 0, 0));
 
         // The tonemap pass has no view in its graph: it records under the view it was compiled for.

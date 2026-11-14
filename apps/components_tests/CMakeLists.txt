@@ -333,6 +333,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testgputiming.cpp
     render/testhdrmath.cpp
     render/testtonemap.cpp
+    render/testimagespace.cpp
     render/testvelocity.cpp
     render/testtaamath.cpp
     render/testtaapass.cpp
@@ -564,6 +565,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsegrassreal.cpp
     skyrimse/testskyrimseweather.cpp
     skyrimse/testskyrimseweathersource.cpp
+    skyrimse/testskyrimseweathersound.cpp
     skyrimse/testskyrimseweatherreal.cpp
     skyrimse/testskyrimseterrain.cpp
     skyrimse/testskyrimseterrainreal.cpp

@@ -273,6 +273,8 @@ namespace MWRender
             parameters.aoStrength = rendering.mAoStrength;
             parameters.sssStrength = rendering.mSssStrength;
             parameters.sssWidth = rendering.mSssWidth;
+            // Task 0127 stage W-S4: the grade is in the shader only when a game pack's image space is asked for.
+            parameters.gradeShader = Settings::game().mNeutralWeatherImageSpace.get();
             // Task 0026: the G-buffer's debug view (only with the G-buffer on; checked where the setting is read).
             if (rendering.mGBuffer)
             {
@@ -2007,6 +2009,20 @@ namespace MWRender
         mImageSpaceStops = std::isfinite(stops) ? std::clamp(stops, -2.f, 2.f) : 0.f;
     }
 
+    void RenderManager::setImageSpaceGrade(
+        bool on, float saturation, float contrast, float tintAmount, const vsg::vec3& tint)
+    {
+        const auto finite = [](float v, float fallback) { return std::isfinite(v) ? v : fallback; };
+        ImageSpaceGradeState state;
+        state.on = on;
+        state.saturation = std::clamp(finite(saturation, 1.f), 0.f, 4.f);
+        state.contrast = std::clamp(finite(contrast, 1.f), 0.f, 4.f);
+        state.tintAmount = std::clamp(finite(tintAmount, 0.f), 0.f, 1.f);
+        state.tint = { std::clamp(finite(tint.x, 1.f), 0.f, 1.f), std::clamp(finite(tint.y, 1.f), 0.f, 1.f),
+            std::clamp(finite(tint.z, 1.f), 0.f, 1.f) };
+        mImageSpaceGrade = state;
+    }
+
     void RenderManager::setWetness(float wetness)
     {
         mWetness = Render::Wetness::saturate(wetness);
@@ -3419,6 +3435,7 @@ namespace MWRender
                 mTonemapSteppedAside = steppedAside;
                 mTonemap->setParameters(tonemapParameters(steppedAside));
                 mImageSpaceStopsApplied = 0.f; // the parameters were rebuilt without the grade; the next frame adds it
+                mImageSpaceGradeApplied = ImageSpaceGradeState();
                 if (steppedAside)
                     Log(Debug::Info) << "HDR: a post-processing technique sets hdr, so the built-in tonemap only clips";
             }
@@ -3431,6 +3448,18 @@ namespace MWRender
             parameters.exposureStops += mImageSpaceStops - mImageSpaceStopsApplied;
             mTonemap->setParameters(parameters);
             mImageSpaceStopsApplied = mImageSpaceStops;
+        }
+        if (mTonemap && mTonemap->parameters().gradeShader && mImageSpaceGrade != mImageSpaceGradeApplied)
+        {
+            // The grade of a game pack's image space (task 0127 stage W-S4): only when the shader has it.
+            auto parameters = mTonemap->parameters();
+            parameters.gradeOn = mImageSpaceGrade.on;
+            parameters.gradeSaturation = mImageSpaceGrade.saturation;
+            parameters.gradeContrast = mImageSpaceGrade.contrast;
+            parameters.gradeTintAmount = mImageSpaceGrade.tintAmount;
+            parameters.gradeTint = mImageSpaceGrade.tint;
+            mTonemap->setParameters(parameters);
+            mImageSpaceGradeApplied = mImageSpaceGrade;
         }
         if (mSssEnabled && mTonemap && mHdrTarget)
         {

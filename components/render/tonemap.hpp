@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_RENDER_TONEMAP_H
 #define OPENEDEN_RENDER_TONEMAP_H
 
+#include <array>
 #include <cstdint>
 
 #include <vsg/app/RenderGraph.h>
@@ -49,6 +50,15 @@ namespace Render
             float sssStrength = 1.f;
             float sssWidth = 1.5f;
             float sssFocalPixels = 0.f;
+            // Task 0127 stage W-S4: the image space grade of a game's weather. `gradeShader` puts the GRADE define in the
+            // fragment stage (set before setSource, like the debug view); `gradeOn` says the values apply (off: the
+            // shader's grade switch is 0 and the picture is what it would be without the define).
+            bool gradeShader = false;
+            bool gradeOn = false;
+            float gradeSaturation = 1.f;
+            float gradeContrast = 1.f;
+            float gradeTintAmount = 0.f;
+            std::array<float, 3> gradeTint{ 1.f, 1.f, 1.f };
         };
 
         /// Task 0033: what the subsurface scattering step needs: the material output (its alpha marks skin), and the
@@ -126,6 +136,11 @@ namespace Render
         /// pixels, w 0. Public for the unit tests.
         static vsg::vec4 sssPushConstants(float strength, float width, float focalPixels);
 
+        /// The grade's two push constants (after the debug view's): x saturation, y contrast, z tint amount, w 1 when the
+        /// grade applies (else 0); and the tint colour in xyz. Public for the unit tests.
+        static vsg::vec4 gradePushConstants(const Parameters& parameters);
+        static vsg::vec4 gradeTintPushConstants(const Parameters& parameters);
+
     private:
         vsg::ref_ptr<vsgUtil::CompileContext> mCompile;
         vsg::ref_ptr<vsg::RenderGraph> mGraph;
@@ -135,10 +150,13 @@ namespace Render
         vsg::ref_ptr<vsg::vec4Value> mPushDebug;
         vsg::ref_ptr<vsg::vec4Value> mPushAo;
         vsg::ref_ptr<vsg::vec4Value> mPushSss;
+        vsg::ref_ptr<vsg::vec4Value> mPushGrade;
+        vsg::ref_ptr<vsg::vec4Value> mPushGradeTint;
         VkExtent2D mAoExtent{ 1, 1 };
-        // The vertex and fragment stage of each variant, indexed by bloom (1), debug view (2), ambient occlusion (4)
-        // and subsurface scattering (8); a variant takes the Slang twins of both stages or neither.
-        vsg::ShaderStages mStages[16];
+        // The vertex and fragment stage of each variant, indexed by bloom (1), debug view (2), ambient occlusion (4),
+        // subsurface scattering (8) and the image space grade (16); a variant takes the Slang twins of both stages or
+        // neither.
+        vsg::ShaderStages mStages[32];
         vsg::ref_ptr<vsg::Node> mDraw;
         Parameters mParameters;
     };

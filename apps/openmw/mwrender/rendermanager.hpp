@@ -257,6 +257,10 @@ namespace MWRender
         /// applied by the weather manager only with [Game] neutral weather image space). 0 is no change. Clamped to
         /// +-2 stops. Needs hdr; otherwise ignored.
         void setImageSpaceStops(float stops);
+        /// Task 0127 stage W-S4: the rest of a game pack's image space (saturation, contrast, tint amount and colour), on
+        /// the picture after the tonemap. `on` false (a weather without a grade) switches it off. Only has an effect when
+        /// [Game] neutral weather image space put the grade into the tonemap's shader at start (and hdr is on).
+        void setImageSpaceGrade(bool on, float saturation, float contrast, float tintAmount, const vsg::vec3& tint);
         void skySetDate(int day, int month);
         int skyGetMasserPhase() const;
         int skyGetSecundaPhase() const;
@@ -612,6 +616,17 @@ namespace MWRender
         void updateVelocity();
         float mImageSpaceStops = 0.f; // wanted (task 0127)
         float mImageSpaceStopsApplied = 0.f; // what the tonemap's parameters hold now
+        struct ImageSpaceGradeState
+        {
+            bool on = false;
+            float saturation = 1.f;
+            float contrast = 1.f;
+            float tintAmount = 0.f;
+            std::array<float, 3> tint{ 1.f, 1.f, 1.f };
+            friend bool operator==(const ImageSpaceGradeState&, const ImageSpaceGradeState&) = default;
+        };
+        ImageSpaceGradeState mImageSpaceGrade; // wanted (task 0127 stage W-S4)
+        ImageSpaceGradeState mImageSpaceGradeApplied; // what the tonemap's parameters hold now
         bool mTonemapSteppedAside = false; // a post-processing technique that sets `hdr` is enabled
         vsg::ref_ptr<vsg::RenderGraph> mTonemapGraph;
         vsg::ref_ptr<vsg::CommandGraph> mCommandGraph;

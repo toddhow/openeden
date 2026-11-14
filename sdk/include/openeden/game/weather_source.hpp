@@ -21,7 +21,8 @@
 // Units: colours are linear-looking 0..1 floats exactly as the game stores them divided by 255 (no gamma conversion is
 // done here); fogDepth is the engine's own fraction (see WeatherDescription::fogDepth); hours are 0..24 floats.
 //
-// Version policy: DRAFT 0.3 (0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
+// Version policy: DRAFT 0.4 (0.4, task 0127 stage W-S4: the weather's four sounds, trailing fields of WeatherDescription;
+// 0.2, task 0127 stage W-S2: precipitation and thunder fields added at the end of
 // WeatherDescription, defaults mean "none"; 0.3, stage W-S3: extra cloud layers and the image space grade at the end of
 // WeatherDescription, the sun and moon fields at the end of TimeOfDayDescription, defaults mean "none given"). Additive changes (a new trailing field with a default that means "not given", a new
 // trailing virtual with a "not supported" default) raise the minor number; anything else raises the major number.
@@ -29,7 +30,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kWeatherSourceVersion{ 0, 3 };
+    inline constexpr Version kWeatherSourceVersion{ 0, 4 };
 
     struct WeatherColour
     {
@@ -78,6 +79,21 @@ namespace openeden::sdk::game
         friend bool operator==(const ImageSpaceGrade&, const ImageSpaceGrade&) = default;
     };
 
+    /// One sound of a weather (stage W-S4): a loop or a set of one-shots. `files` are VFS paths in the engine's normal form
+    /// ("sound/fx/amb/weather/rain/x.wav": lower case, forward slashes, the sound root first); the pack leaves out files
+    /// the VFS does not hold. Empty `files` means the weather has no such sound. `volume` is the gain, 0 to 1.
+    struct WeatherSoundDescription
+    {
+        std::string name; ///< the game's own name of the sound (for logs)
+        std::vector<std::string> files;
+        float volume = 1.f;
+        bool loop = false;
+        friend bool operator==(const WeatherSoundDescription&, const WeatherSoundDescription&) = default;
+    };
+
+    /// The most files one sound may hold.
+    inline constexpr std::size_t kMaxWeatherSoundFiles = 8;
+
     /// The maximum number of extra cloud layers a description may carry.
     inline constexpr std::size_t kMaxExtraCloudLayers = 8;
 
@@ -119,6 +135,13 @@ namespace openeden::sdk::game
         std::vector<CloudLayerDescription> extraCloudLayers;
         bool hasImageSpace = false;
         PerTimeOfDay<ImageSpaceGrade> imageSpace;
+
+        // Added in 0.4. Defaults mean "no sound". The four kinds the game's weather record names: the default loop,
+        // the precipitation's, the wind's (gusts when it is not a loop) and the thunder.
+        WeatherSoundDescription ambientSound;
+        WeatherSoundDescription precipitationSound;
+        WeatherSoundDescription windSound;
+        WeatherSoundDescription thunderSound;
 
         friend bool operator==(const WeatherDescription&, const WeatherDescription&) = default;
     };
