@@ -34,6 +34,7 @@
 
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/conditions.hpp>
+#include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/speech.hpp>
@@ -271,6 +272,8 @@ namespace game_skyrimse
     /// A stored id the load order cannot resolve matches nothing. NOT thread safe (it holds the current plugin).
     class LocationIndex;
     class QuestVariables;
+    class PlacedRefIndex;
+    class PackageIndex;
 
     class SkyrimConditionWorld final : public conditions::ConditionWorld
     {
@@ -327,6 +330,24 @@ namespace game_skyrimse
         /// The quest scripts' values before any script ran (fn_629). Null: unanswered.
         void setQuestVariables(const QuestVariables* variables) { mQuestVariables = variables; }
 
+        // ---- task 0160: other references, relationships, positions and the current package.
+        /// Every placed reference of the load order (placed_refs.hpp). With it, a condition run on another reference
+        /// (run-on 2, a quest alias that names a reference or an actor) is answered from the data: the base's
+        /// factions, sex, race and inventory, the reference's initial disabled and dead state, GetDistance between
+        /// two references of one cell, GetRelationshipRank from the RELA records. Null (the default): as before.
+        void setPlacedRefs(const PlacedRefIndex* refs) { mPlacedRefs = refs; }
+        /// The packages (for GetOffersServicesNow). Null: unanswered.
+        void setPackages(const PackageIndex* packages) { mPackages = packages; }
+        /// What package an actor runs now, by the placed reference's id: nullopt when the caller does not know that
+        /// actor (the condition then stays unanswered), 0 for "none". Null function (the default): unanswered.
+        using CurrentPackageLookup = std::function<std::optional<FormId>(FormId reference)>;
+        void setCurrentPackageLookup(CurrentPackageLookup lookup) { mCurrentPackage = std::move(lookup); }
+
+        /// Subjects of other references: a placed reference (its load-order id in the low 32 bits) and an actor known
+        /// by its base only (a unique actor of an alias that has no single placed reference).
+        static constexpr conditions::Subject kPlacedTag = 0x200000000ull;
+        static constexpr conditions::Subject kBaseTag = 0x300000000ull;
+
         /// True if the condition's answer comes from data, not from a default (for example a quest stage). Needs the
         /// facts given with setSpeaker / setCurrentWeather.
         [[nodiscard]] bool answers(const survey::Ctda& condition) const;
@@ -371,8 +392,51 @@ namespace game_skyrimse
         float itemCount(conditions::Subject subject, std::uint32_t item) const override;
         bool playerCanIntimidate(conditions::Subject subject) const override;
         bool playerCanBribe(conditions::Subject subject) const override;
+        // task 0160
+        bool isDisabled(conditions::Subject subject) const override;
+        bool isSneaking(conditions::Subject subject) const override;
+        bool isEquipped(conditions::Subject subject, std::uint32_t object) const override;
+        float distanceTo(conditions::Subject subject, std::uint32_t reference) const override;
+        float relationshipRank(conditions::Subject subject, std::uint32_t target) const override;
+        bool runsPackage(conditions::Subject subject, std::uint32_t package) const override;
+        bool offersServicesNow(conditions::Subject subject) const override;
 
     private:
+        // ---- task 0160 helpers
+        struct ActorView
+        {
+            FormId mBase = kNullFormId;
+            const PlacedEntry* mRef = nullptr; ///< null: only the base is known
+        };
+        /// The actor or object a subject stands for (the speaker, a placed reference, a base). False for the player and
+        /// for anything unknown.
+        [[nodiscard]] bool viewOf(conditions::Subject subject, ActorView& out) const;
+        [[nodiscard]] static bool isOtherSubject(conditions::Subject subject)
+        {
+            const std::uint64_t tag = subject & 0xFFFFFFFF00000000ull;
+            return tag == kPlacedTag || tag == kBaseTag;
+        }
+        /// Is the NPC_ resolvable the same way every game (no leveled template in its chain)?
+        [[nodiscard]] bool actorStable(FormId base) const;
+        /// The template-resolved record facts of the NPC_ a subject stands for (the speaker's, or another actor's when
+        /// its resolution does not depend on a random leveled pick); null when they cannot be given.
+        [[nodiscard]] const ActorIndex::Resolved* resolvedOf(conditions::Subject subject) const;
+        [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
+        [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
+        [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
+        enum class ItemState : std::uint8_t { Unknown, None, Carried, Worn };
+        /// The initial inventory of an actor or a container reference: the count of `item` (or of the form list's
+        /// entries), the state and whether the inventory is closed (no leveled entry, no death item to come).
+        struct InventoryAnswer
+        {
+            bool mKnown = false;
+            float mCount = 0.f;
+            bool mInOutfit = false;
+        };
+        [[nodiscard]] InventoryAnswer inventoryOf(const ActorView& view, FormId item) const;
+        [[nodiscard]] bool otherAnswers(const survey::Ctda& c, conditions::Subject subject) const;
+        [[nodiscard]] FormId baseOfActorReference(FormId reference) const; ///< a placed actor or an NPC_ id; else 0
+
         [[nodiscard]] FormId resolve(std::uint32_t stored) const; ///< kNullFormId when it cannot be resolved
         [[nodiscard]] bool isSpeaker(conditions::Subject subject) const;
         [[nodiscard]] bool inList(FormId list, FormId value, int depth) const;
@@ -395,6 +459,10 @@ namespace game_skyrimse
         mutable std::uint64_t mRandomState = 0;
         const LocationIndex* mLocations = nullptr;
         const QuestVariables* mQuestVariables = nullptr;
+        const PlacedRefIndex* mPlacedRefs = nullptr;
+        const PackageIndex* mPackages = nullptr;
+        CurrentPackageLookup mCurrentPackage;
+        mutable std::unordered_map<FormId, std::optional<ActorIndex::Resolved>> mResolvedCache;
         /// The speaker or the player: the two subjects whose fresh-game state is known.
         [[nodiscard]] bool isKnownActor(conditions::Subject subject) const
         {

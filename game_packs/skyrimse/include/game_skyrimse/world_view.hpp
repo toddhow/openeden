@@ -58,6 +58,8 @@
 namespace game_skyrimse
 {
     class ActorIndex;
+    class PlacedRefIndex;
+    struct DialogueSpeaker;
     class WeatherIndex;
     class WeatherTable;
     /// Where files that are not plugins (the string tables) come from. `path` is lower case with backslashes, as an
@@ -307,6 +309,19 @@ namespace game_skyrimse
         /// The stand-in player's sex (task 0156; the pack setting `player female`).
         void setStandInPlayerFemale(bool female) { mStandInFemale = female; }
 
+        // ---- task 0160
+        /// What package an actor runs now (by the placed reference's id), nullopt when unknown, 0 for none. Used by
+        /// GetIsCurrentPackage and GetOffersServicesNow in a conversation. Set it before the first conversation (the
+        /// pack gives the package brain's answer); null: those conditions stay unanswered.
+        void setCurrentPackageLookup(std::function<std::optional<FormId>(FormId reference)> lookup);
+        /// Whether the package conditions (conditionsPass) see locations, quest variables and other placed references
+        /// (default true). False is the world of task 0135 / 0156: no cell, no location, no quest variable.
+        void setPackageConditionsWired(bool wired) { mPackageWired = wired; }
+        /// The placed-reference table, once the dialogue worker has built it (null before; main thread). Its build took
+        /// `placedRefsBuildMillis()`.
+        [[nodiscard]] const PlacedRefIndex* placedRefs() const;
+        [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
+
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
         /// FULL of the base form (NPC_, DOOR, CONT, ACTI ..., items), through the string tables of a localised plugin;
         /// empty when the record has none. Main thread only.
@@ -408,6 +423,10 @@ namespace game_skyrimse
         struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;
+        std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
+        bool mPackageWired = true;
+        std::atomic<std::uint64_t> mPlacedRefsMillis{ 0 };
+        void fillSpeakerCell(DialogueSpeaker& speaker, FormId cell) const; ///< interior flag and location of a cell
         bool ensureDialogue();
         void startDialoguePrefetch();
         [[nodiscard]] static std::unique_ptr<DialogueData> buildDialogueData(

@@ -96,6 +96,14 @@ namespace game_skyrimse
         /// them fn_359, fn_562 and fn_629 stay unanswered.
         void setLocations(const LocationIndex* locations) { mWorld.setLocations(locations); }
         void setQuestVariables(const QuestVariables* variables) { mWorld.setQuestVariables(variables); }
+        /// Task 0160: the placed references, the packages and where actors are in their packages (see
+        /// SkyrimConditionWorld).
+        void setPlacedRefs(const PlacedRefIndex* refs) { mWorld.setPlacedRefs(refs); }
+        void setPackages(const PackageIndex* packages) { mWorld.setPackages(packages); }
+        void setCurrentPackageLookup(SkyrimConditionWorld::CurrentPackageLookup lookup)
+        {
+            mWorld.setCurrentPackageLookup(std::move(lookup));
+        }
 
         /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a service.
         void setScriptProbe(ScriptNameProbe probe) { mScriptProbe = std::move(probe); }

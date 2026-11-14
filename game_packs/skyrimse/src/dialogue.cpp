@@ -1,5 +1,8 @@
 #include "game_skyrimse/dialogue.hpp"
 
+#include "game_skyrimse/package.hpp"
+#include "game_skyrimse/placed_refs.hpp"
+
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/location.hpp"
 #include "game_skyrimse/quest_script.hpp"
@@ -8,6 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <limits>
 #include <cstring>
 #include <memory>
 #include <sstream>
@@ -802,15 +806,25 @@ namespace game_skyrimse
     float SkyrimConditionWorld::itemCount(conditions::Subject subject, std::uint32_t item) const
     {
         constexpr FormId kGold001 = 0x0000000F;
-        return mPlayer != nullptr && subject == kPlayer && resolve(item) == kGold001 ? mPlayer->mGold : 0.f;
+        if (mPlayer != nullptr && subject == kPlayer)
+            return resolve(item) == kGold001 ? mPlayer->mGold : 0.f;
+        ActorView view;
+        if (!viewOf(subject, view))
+            return 0.f;
+        const InventoryAnswer answer = inventoryOf(view, resolve(item));
+        return answer.mKnown ? answer.mCount : 0.f;
     }
 
     // ---- task 0156: conversation and fresh-game state ----------------------------------------------------------
 
     bool SkyrimConditionWorld::isDead(conditions::Subject subject) const
     {
-        (void)subject;
-        return false; // a corpse does not talk, and the player is alive: nobody has died in this session
+        // a corpse does not talk, and the player is alive: nobody has died in this session; another reference is dead
+        // when its record says it starts dead (task 0160)
+        ActorView view;
+        if (isOtherSubject(subject) && viewOf(subject, view) && view.mRef != nullptr)
+            return (view.mRef->mFlags & PlacedFlags::Dead) != 0;
+        return false;
     }
 
     bool SkyrimConditionWorld::inDialogueWithPlayer(conditions::Subject subject) const
@@ -966,14 +980,22 @@ namespace game_skyrimse
                 if (mPlayer != nullptr && c.mFunction == 640 && c.mParam1 >= kAvHealth && c.mParam1 <= kAvStamina)
                     return true;
                 return c.mFunction == 72 || (c.mFunction == 566 && aliasKnown(c.mParam1));
-            case 2:
-                if (mSpeaker.mReference == kNullFormId || resolve(c.mReference) != mSpeaker.mReference)
-                    return false;
-                break;
-            case 5: // a quest alias: answerable when the alias is the speaker (the data fills it)
-                if (!aliasKnown(c.mParam3) || !aliasIsSpeaker(mContextQuest, c.mParam3))
-                    return false;
-                break;
+            case 2: {
+                const FormId ref = resolve(c.mReference);
+                if (mSpeaker.mReference != kNullFormId && ref == mSpeaker.mReference)
+                    break;
+                if (ref == kPlayerReference)
+                {
+                    survey::Ctda onPlayer = c; // the player's own reference is the player
+                    onPlayer.mRunOn = 1;
+                    return answers(onPlayer);
+                }
+                return otherAnswers(c, resolveRunOn(2, c.mReference)); // task 0160: another placed reference
+            }
+            case 5: // a quest alias: answerable when the alias is the speaker (the data fills it) or names a reference
+                if (aliasKnown(c.mParam3) && aliasIsSpeaker(mContextQuest, c.mParam3))
+                    break;
+                return otherAnswers(c, resolveSubject(c));
             default:
                 return false;
         }
@@ -1026,6 +1048,31 @@ namespace game_skyrimse
                 return true;
             case 310: // GetInWorldspace: never true in an interior (task 0156)
                 return mSpeaker.mWorldspace != kNullFormId || mSpeaker.mInterior.value_or(false);
+            // task 0160: the speaker's own initial state, from the placed-reference table and the records
+            case 35: // GetDisabled: a talking actor is enabled
+            case 286: // IsSneaking: nobody sneaks in a fresh game
+                return true;
+            case 47: // GetItemCount of the speaker
+            case 182: { // GetEquipped
+                ActorView view;
+                view.mBase = mSpeaker.mBase;
+                view.mRef = mPlacedRefs != nullptr && mSpeaker.mReference != kNullFormId
+                    ? mPlacedRefs->find(mSpeaker.mReference)
+                    : nullptr;
+                const InventoryAnswer a = inventoryOf(view, resolve(c.mParam1));
+                return a.mKnown && (c.mFunction == 47 || a.mInOutfit || a.mCount == 0.f);
+            }
+            case 1: // GetDistance
+                return distanceKnown(static_cast<conditions::Subject>(mSpeaker.mBase), c.mParam1);
+            case 403: // GetRelationshipRank
+                return relationKnown(static_cast<conditions::Subject>(mSpeaker.mBase), c.mParam1);
+            case 161: // GetIsCurrentPackage
+            case 255: { // GetOffersServicesNow
+                if (!mCurrentPackage || mSpeaker.mReference == kNullFormId)
+                    return false;
+                return mCurrentPackage(mSpeaker.mReference).has_value()
+                    && (c.mFunction == 161 || mPackages != nullptr);
+            }
             default:
                 return false;
         }
@@ -1055,10 +1102,16 @@ namespace game_skyrimse
                 return mSpeaker.mBase;
             case 1:
                 return kPlayer;
-            case 2:
-                return mSpeaker.mReference != kNullFormId && resolve(reference) == mSpeaker.mReference
-                    ? static_cast<conditions::Subject>(mSpeaker.mBase)
-                    : 0;
+            case 2: {
+                const FormId ref = resolve(reference);
+                if (mSpeaker.mReference != kNullFormId && ref == mSpeaker.mReference)
+                    return static_cast<conditions::Subject>(mSpeaker.mBase);
+                if (ref == kPlayerReference)
+                    return kPlayer;
+                if (mPlacedRefs != nullptr && ref != kNullFormId && mPlacedRefs->find(ref) != nullptr)
+                    return kPlacedTag | ref;
+                return 0;
+            }
             default:
                 return 0;
         }
@@ -1071,6 +1124,11 @@ namespace game_skyrimse
             return false;
         if (subject == kPlayer)
             return id == 0x00000007u;
+        if (isOtherSubject(subject))
+        {
+            ActorView view;
+            return viewOf(subject, view) && (id == view.mBase || (view.mRef != nullptr && id == view.mRef->mId));
+        }
         if (!isSpeaker(subject))
             return false;
         return id == mSpeaker.mBase || (mSpeaker.mReference != kNullFormId && id == mSpeaker.mReference);
@@ -1079,18 +1137,20 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::inFaction(conditions::Subject subject, std::uint32_t faction) const
     {
         const FormId id = resolve(faction);
-        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        if (r == nullptr || id == kNullFormId)
             return false;
-        return std::any_of(mResolved.mFactions.begin(), mResolved.mFactions.end(),
-            [&](const FactionMembership& f) { return f.mFaction == id; });
+        return std::any_of(
+            r->mFactions.begin(), r->mFactions.end(), [&](const FactionMembership& f) { return f.mFaction == id; });
     }
 
     float SkyrimConditionWorld::factionRank(conditions::Subject subject, std::uint32_t faction) const
     {
         const FormId id = resolve(faction);
-        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        if (r == nullptr || id == kNullFormId)
             return -1.f;
-        for (const FactionMembership& f : mResolved.mFactions)
+        for (const FactionMembership& f : r->mFactions)
             if (f.mFaction == id)
                 return static_cast<float>(f.mRank);
         return -1.f;
@@ -1135,23 +1195,25 @@ namespace game_skyrimse
     {
         if (mPlayer != nullptr && subject == kPlayer)
             return mPlayer->mFemale ? 1 : 0;
-        if (!isSpeaker(subject) || !mHasResolved)
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        if (r == nullptr)
             return -1;
-        const ActorNpc* traits = mActors.npc(mResolved.mTraitsFrom);
+        const ActorNpc* traits = mActors.npc(r->mTraitsFrom);
         return traits == nullptr ? -1 : (traits->female() ? 1 : 0);
     }
 
     bool SkyrimConditionWorld::hasKeyword(conditions::Subject subject, std::uint32_t keyword) const
     {
         const FormId id = resolve(keyword);
-        if (!isSpeaker(subject) || !mHasResolved || id == kNullFormId)
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        if (r == nullptr || id == kNullFormId)
             return false;
         // The NPC's own keywords (from its keyword template) and its race's (RECALLED-VERIFY: an actor has both).
-        if (const ActorNpc* n = mActors.npc(mResolved.mKeywordsFrom))
+        if (const ActorNpc* n = mActors.npc(r->mKeywordsFrom))
             if (std::find(n->mKeywords.begin(), n->mKeywords.end(), id) != n->mKeywords.end())
                 return true;
-        if (const RaceRecord* r = mActors.race(mResolved.mRace))
-            if (std::find(r->mKeywords.begin(), r->mKeywords.end(), id) != r->mKeywords.end())
+        if (const RaceRecord* race = mActors.race(r->mRace))
+            if (std::find(race->mKeywords.begin(), race->mKeywords.end(), id) != race->mKeywords.end())
                 return true;
         return false;
     }
@@ -1161,7 +1223,8 @@ namespace game_skyrimse
         const FormId id = resolve(race);
         if (mPlayer != nullptr && subject == kPlayer)
             return id != kNullFormId && id == mPlayer->mRace;
-        return isSpeaker(subject) && mHasResolved && id != kNullFormId && mResolved.mRace == id;
+        const ActorIndex::Resolved* r = resolvedOf(subject);
+        return r != nullptr && id != kNullFormId && r->mRace == id;
     }
 
     bool SkyrimConditionWorld::inWorldspace(conditions::Subject subject, std::uint32_t worldspace) const
@@ -1171,6 +1234,11 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::isReference(conditions::Subject subject, std::uint32_t reference) const
     {
+        if (isOtherSubject(subject))
+        {
+            ActorView view;
+            return viewOf(subject, view) && view.mRef != nullptr && resolve(reference) == view.mRef->mId;
+        }
         return isSpeaker(subject) && mSpeaker.mReference != kNullFormId && resolve(reference) == mSpeaker.mReference;
     }
 
@@ -1233,6 +1301,14 @@ namespace game_skyrimse
             const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
             return fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase);
         }
+        if (isOtherSubject(subject))
+        {
+            ActorView view;
+            const AliasFill fill = mQuestState->aliasFill(mContextQuest, alias);
+            return fill.mKnown && viewOf(subject, view)
+                && ((fill.mReference != kNullFormId && view.mRef != nullptr && fill.mReference == view.mRef->mId)
+                    || (fill.mActor != kNullFormId && fill.mActor == view.mBase));
+        }
         return isSpeaker(subject) && aliasIsSpeaker(mContextQuest, alias);
     }
 
@@ -1247,7 +1323,308 @@ namespace game_skyrimse
         const AliasFill fill = mQuestState->aliasFill(mContextQuest, c.mParam3);
         if (fill.mKnown && (fill.mReference == kPlayerReference || fill.mActor == kPlayerBase))
             return kPlayer;
+        if (!fill.mKnown || mPlacedRefs == nullptr)
+            return 0;
+        // task 0160: an alias that names a reference or an actor the data places
+        if (fill.mReference != kNullFormId)
+            return mPlacedRefs->find(fill.mReference) != nullptr ? (kPlacedTag | fill.mReference) : 0;
+        if (fill.mActor != kNullFormId)
+        {
+            const PlacedRefIndex::Range range = mPlacedRefs->byBase(fill.mActor);
+            if (range.size() == 1)
+                return kPlacedTag | (*range.mBegin)->mId;
+            return kBaseTag | fill.mActor;
+        }
         return 0;
+    }
+
+    // ---- task 0160: other references, inventories, relationships ---------------------------------------------------
+
+    bool SkyrimConditionWorld::viewOf(conditions::Subject subject, ActorView& out) const
+    {
+        out = ActorView();
+        if (isSpeaker(subject))
+        {
+            out.mBase = mSpeaker.mBase;
+            if (mPlacedRefs != nullptr && mSpeaker.mReference != kNullFormId)
+                out.mRef = mPlacedRefs->find(mSpeaker.mReference);
+            return true;
+        }
+        const std::uint64_t tag = subject & 0xFFFFFFFF00000000ull;
+        const FormId low = static_cast<FormId>(subject & 0xFFFFFFFFull);
+        if (tag == kPlacedTag && mPlacedRefs != nullptr)
+        {
+            out.mRef = mPlacedRefs->find(low);
+            if (out.mRef == nullptr)
+                return false;
+            out.mBase = out.mRef->mBase;
+            return out.mBase != kNullFormId && out.mBase != kUnresolvedFormId;
+        }
+        if (tag == kBaseTag)
+        {
+            out.mBase = low;
+            return low != kNullFormId;
+        }
+        return false;
+    }
+
+    FormId SkyrimConditionWorld::referenceOf(conditions::Subject subject) const
+    {
+        ActorView view;
+        return viewOf(subject, view) && view.mRef != nullptr ? view.mRef->mId : kNullFormId;
+    }
+
+    bool SkyrimConditionWorld::actorStable(FormId base) const
+    {
+        FormId id = base;
+        for (std::uint32_t depth = 0; depth <= ActorIndex::kMaxTemplateDepth; ++depth)
+        {
+            const ActorNpc* npc = mActors.npc(id);
+            if (npc == nullptr)
+                return false;
+            if (npc->mTemplate == kNullFormId)
+                return true;
+            if (mActors.leveledList(npc->mTemplate) != nullptr)
+                return false; // a random pick of a leveled list decides what this actor is
+            id = npc->mTemplate;
+        }
+        return false;
+    }
+
+    const ActorIndex::Resolved* SkyrimConditionWorld::resolvedOf(conditions::Subject subject) const
+    {
+        if (isSpeaker(subject))
+            return mHasResolved ? &mResolved : nullptr;
+        if (!isOtherSubject(subject))
+            return nullptr;
+        ActorView view;
+        if (!viewOf(subject, view) || !actorStable(view.mBase))
+            return nullptr;
+        auto it = mResolvedCache.find(view.mBase);
+        if (it == mResolvedCache.end())
+        {
+            if (mResolvedCache.size() > 8192)
+                mResolvedCache.clear();
+            ActorIndex::Resolved r;
+            const bool ok = mActors.resolve(view.mBase, mSpeaker.mLevel, 0, r) == ActorIndex::ResolveStatus::Ok;
+            it = mResolvedCache.emplace(view.mBase, ok ? std::optional<ActorIndex::Resolved>(std::move(r)) : std::nullopt)
+                     .first;
+        }
+        return it->second ? &*it->second : nullptr;
+    }
+
+    SkyrimConditionWorld::InventoryAnswer SkyrimConditionWorld::inventoryOf(const ActorView& view, FormId item) const
+    {
+        InventoryAnswer answer;
+        if (item == kNullFormId || item == kUnresolvedFormId || view.mBase == kNullFormId)
+            return answer;
+        const auto matches = [&](FormId entry) { return entry == item || inList(item, entry, 0); };
+        const auto leveled = [&](FormId entry) { return mActors.leveledList(entry) != nullptr; };
+        if (mActors.npc(view.mBase) != nullptr)
+        {
+            if (!actorStable(view.mBase))
+                return answer;
+            // the speaker's own resolution is the one setSpeaker made; another actor's comes from the cache
+            const ActorIndex::Resolved* r = nullptr;
+            if (view.mBase == mSpeaker.mBase && mHasResolved)
+                r = &mResolved;
+            else
+                r = resolvedOf(kBaseTag | view.mBase);
+            if (r == nullptr)
+                return answer;
+            if (view.mRef != nullptr && (view.mRef->mFlags & PlacedFlags::Dead) != 0)
+            {
+                // a corpse carries its death item as well, a leveled list
+                const ActorNpc* npc = mActors.npc(view.mBase);
+                if (npc != nullptr && npc->mDeathItem != kNullFormId)
+                    return answer;
+            }
+            for (const InventoryEntry& e : r->mInventory)
+            {
+                if (leveled(e.mItem))
+                    return answer;
+                if (matches(e.mItem))
+                    answer.mCount += static_cast<float>(e.mCount);
+            }
+            if (const OutfitRecord* outfit = mActors.outfit(r->mDefaultOutfit))
+                for (const FormId piece : outfit->mItems)
+                {
+                    if (leveled(piece))
+                        return answer;
+                    if (matches(piece))
+                    {
+                        answer.mCount += 1.f;
+                        answer.mInOutfit = true;
+                    }
+                }
+            answer.mKnown = true;
+            return answer;
+        }
+        if (mPlacedRefs != nullptr)
+            if (const ContainerRecord* container = mPlacedRefs->container(view.mBase))
+            {
+                for (const InventoryEntry& e : container->mItems)
+                {
+                    if (leveled(e.mItem))
+                        return answer;
+                    if (matches(e.mItem))
+                        answer.mCount += static_cast<float>(e.mCount);
+                }
+                answer.mKnown = true;
+            }
+        return answer;
+    }
+
+    bool SkyrimConditionWorld::isDisabled(conditions::Subject subject) const
+    {
+        ActorView view;
+        if (isSpeaker(subject) || !viewOf(subject, view) || view.mRef == nullptr || mPlacedRefs == nullptr)
+            return false; // a talking actor is enabled
+        return mPlacedRefs->initiallyDisabled(*view.mRef);
+    }
+
+    bool SkyrimConditionWorld::isSneaking(conditions::Subject subject) const
+    {
+        (void)subject;
+        return false; // nobody sneaks in a fresh game (no package of the five masters sets a sneak flag we know of)
+    }
+
+    bool SkyrimConditionWorld::isEquipped(conditions::Subject subject, std::uint32_t object) const
+    {
+        ActorView view;
+        if (!viewOf(subject, view))
+            return false; // the stand-in player wears nothing
+        const InventoryAnswer a = inventoryOf(view, resolve(object));
+        return a.mKnown && a.mInOutfit; // an outfit is worn when the actor appears; a carried item may or may not be
+    }
+
+    bool SkyrimConditionWorld::distanceKnown(conditions::Subject subject, std::uint32_t reference) const
+    {
+        ActorView view;
+        if (mPlacedRefs == nullptr || !viewOf(subject, view) || view.mRef == nullptr)
+            return false;
+        const PlacedEntry* other = mPlacedRefs->find(resolve(reference));
+        return other != nullptr && other->mCell != kNullFormId && other->mCell == view.mRef->mCell;
+    }
+
+    float SkyrimConditionWorld::distanceTo(conditions::Subject subject, std::uint32_t reference) const
+    {
+        if (!distanceKnown(subject, reference))
+            return std::numeric_limits<float>::max();
+        ActorView view;
+        (void)viewOf(subject, view);
+        const PlacedEntry* other = mPlacedRefs->find(resolve(reference));
+        const double dx = static_cast<double>(view.mRef->mX) - other->mX;
+        const double dy = static_cast<double>(view.mRef->mY) - other->mY;
+        const double dz = static_cast<double>(view.mRef->mZ) - other->mZ;
+        return static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz));
+    }
+
+    FormId SkyrimConditionWorld::baseOfActorReference(FormId reference) const
+    {
+        if (reference == kPlayerReference)
+            return kPlayerBase;
+        if (mPlacedRefs != nullptr)
+            if (const PlacedEntry* ref = mPlacedRefs->find(reference))
+                return mActors.npc(ref->mBase) != nullptr ? ref->mBase : kNullFormId;
+        return mActors.npc(reference) != nullptr ? reference : kNullFormId;
+    }
+
+    bool SkyrimConditionWorld::relationKnown(conditions::Subject subject, std::uint32_t target) const
+    {
+        if (mPlacedRefs == nullptr)
+            return false;
+        ActorView view;
+        const FormId a = subject == kPlayer ? kPlayerBase : (viewOf(subject, view) ? view.mBase : kNullFormId);
+        const FormId b = baseOfActorReference(resolve(target));
+        const bool aActor = a == kPlayerBase || (a != kNullFormId && mActors.npc(a) != nullptr);
+        return aActor && b != kNullFormId;
+    }
+
+    float SkyrimConditionWorld::relationshipRank(conditions::Subject subject, std::uint32_t target) const
+    {
+        ActorView view;
+        if (!relationKnown(subject, target))
+            return 0.f;
+        const FormId a = subject == kPlayer ? kPlayerBase : (viewOf(subject, view) ? view.mBase : kNullFormId);
+        const FormId b = baseOfActorReference(resolve(target));
+        const std::optional<std::uint8_t> rank = mPlacedRefs->relationRank(a, b);
+        return rank ? relationshipRankValue(*rank) : 0.f; // no record: acquaintances (0)
+    }
+
+    bool SkyrimConditionWorld::runsPackage(conditions::Subject subject, std::uint32_t package) const
+    {
+        if (!mCurrentPackage)
+            return false;
+        const FormId reference = isSpeaker(subject) ? mSpeaker.mReference : referenceOf(subject);
+        if (reference == kNullFormId)
+            return false;
+        const std::optional<FormId> current = mCurrentPackage(reference);
+        return current && *current != kNullFormId && *current == resolve(package);
+    }
+
+    bool SkyrimConditionWorld::offersServicesNow(conditions::Subject subject) const
+    {
+        if (!mCurrentPackage || mPackages == nullptr)
+            return false;
+        const FormId reference = isSpeaker(subject) ? mSpeaker.mReference : referenceOf(subject);
+        if (reference == kNullFormId)
+            return false;
+        const std::optional<FormId> current = mCurrentPackage(reference);
+        if (!current || *current == kNullFormId)
+            return false;
+        const PackageRecord* record = mPackages->package(*current);
+        // PKDT general flags bit 0 "offers services" (RECALLED-VERIFY from xEdit; the 85 packages of the five masters
+        // that set it are innkeepers, traders and shopkeepers)
+        return record != nullptr && (record->mFlags & 1u) != 0;
+    }
+
+    bool SkyrimConditionWorld::otherAnswers(const survey::Ctda& c, conditions::Subject subject) const
+    {
+        ActorView view;
+        if (subject == 0 || !isOtherSubject(subject) || !viewOf(subject, view))
+            return false;
+        const bool isActorBase = mActors.npc(view.mBase) != nullptr;
+        switch (c.mFunction)
+        {
+            case 71: // GetInFaction
+            case 73: // GetFactionRank
+            case 70: // GetIsSex
+            case 69: // GetIsRace
+            case 560: // HasKeyword
+                return resolvedOf(subject) != nullptr;
+            case 72: // GetIsID
+                return true;
+            case 136: // GetIsReference
+                return view.mRef != nullptr;
+            case 46: // GetDead
+                return view.mRef != nullptr && (view.mRef->mFlags & PlacedFlags::IsActor) != 0;
+            case 35: // GetDisabled
+                return view.mRef != nullptr && mPlacedRefs != nullptr;
+            case 286: // IsSneaking
+                return isActorBase;
+            case 47: // GetItemCount
+                return inventoryOf(view, resolve(c.mParam1)).mKnown;
+            case 182: { // GetEquipped
+                const InventoryAnswer a = inventoryOf(view, resolve(c.mParam1));
+                return a.mKnown && (a.mInOutfit || a.mCount == 0.f);
+            }
+            case 1:
+                return distanceKnown(subject, c.mParam1);
+            case 403:
+                return relationKnown(subject, c.mParam1);
+            case 161:
+            case 255: {
+                if (!mCurrentPackage || view.mRef == nullptr)
+                    return false;
+                return mCurrentPackage(view.mRef->mId).has_value() && (c.mFunction == 161 || mPackages != nullptr);
+            }
+            case 566: // GetIsAliasRef
+                return mQuestState != nullptr && mContextQuest != kNullFormId
+                    && mQuestState->aliasFill(mContextQuest, c.mParam1).mKnown;
+            default:
+                return false;
+        }
     }
 
     // ---- selection -----------------------------------------------------------------------------------------------

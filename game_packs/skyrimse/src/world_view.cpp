@@ -180,6 +180,8 @@ namespace game_skyrimse
         PackageIndex mPackages; ///< task 0135 stage S5
         LocationIndex mLocations; ///< task 0156
         QuestScriptIndex mQuestScripts; ///< task 0156
+        PlacedRefIndex mPlacedRefs; ///< task 0160
+        std::uint64_t mPlacedRefsMillis = 0; ///< the part of the build that read references (task 0160)
     };
 
     struct SkyrimWorldView::DialogueState
@@ -324,6 +326,8 @@ namespace game_skyrimse
         const PackageLimits packageLimits;
         const LocationLimits locationLimits;
         const QuestScriptLimits questScriptLimits;
+        const PlacedRefLimits placedLimits;
+        std::chrono::steady_clock::duration placedTime{};
         for (const auto& [path, name] : plugins)
         {
             Content::Error openError;
@@ -353,7 +357,17 @@ namespace game_skyrimse
             QuestScriptRecords questScripts;
             (void)parseQuestScripts(*file, order, questScriptLimits, questScripts);
             data->mQuestScripts.add(std::move(questScripts));
+            const auto placedStart = std::chrono::steady_clock::now();
+            PlacedRefRecords placed;
+            (void)parsePlacedRefs(*file, order, placedLimits, placed);
+            data->mPlacedRefs.add(std::move(placed));
+            placedTime += std::chrono::steady_clock::now() - placedStart;
         }
+        const auto finishStart = std::chrono::steady_clock::now();
+        data->mPlacedRefs.finish();
+        placedTime += std::chrono::steady_clock::now() - finishStart;
+        data->mPlacedRefsMillis
+            = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(placedTime).count());
         return data;
     }
 
@@ -477,6 +491,12 @@ namespace game_skyrimse
         raw->mPackageQuests = QuestState::initial(raw->mData->mQuests);
         raw->mPackageWorld = std::make_unique<SkyrimConditionWorld>(*mActorIndex, raw->mData->mDialogue);
         raw->mPackageWorld->setQuests(&raw->mData->mQuests, &raw->mPackageQuests);
+        // Task 0160: other references, packages, and the package brain's current package for a conversation
+        mPlacedRefsMillis.store(raw->mData->mPlacedRefsMillis);
+        raw->mRuntime->setPlacedRefs(&raw->mData->mPlacedRefs);
+        raw->mRuntime->setPackages(&raw->mData->mPackages);
+        if (mCurrentPackageLookup)
+            raw->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
         mDialogue = std::move(state);
         return true;
     }
@@ -541,6 +561,23 @@ namespace game_skyrimse
         speaker.mBase = actorBase;
         speaker.mReference = actorReference;
         SkyrimConditionWorld& world = *mDialogue->mPackageWorld;
+        // Task 0160 (decision 3 of task 0156): the package conditions may see the actor's cell and location, the quest
+        // scripts' values before any script ran and the other placed references; setPackageConditionsWired(false) is
+        // the world of before
+        if (mPackageWired)
+        {
+            if (const PlacedEntry* ref = mDialogue->mData->mPlacedRefs.find(actorReference))
+                fillSpeakerCell(speaker, ref->mCell);
+            world.setLocations(&mDialogue->mData->mLocations);
+            world.setQuestVariables(mDialogue->mQuestVariables.get());
+            world.setPlacedRefs(&mDialogue->mData->mPlacedRefs);
+        }
+        else
+        {
+            world.setLocations(nullptr);
+            world.setQuestVariables(nullptr);
+            world.setPlacedRefs(nullptr);
+        }
         world.setSpeaker(speaker);
         world.setPlugin(&mDialogue->mData->mPackages.resolverOf(package));
         return mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
@@ -663,6 +700,39 @@ namespace game_skyrimse
             out.push_back(std::move(s.mSlot));
     }
 
+    void SkyrimWorldView::fillSpeakerCell(DialogueSpeaker& speaker, FormId cell) const
+    {
+        if (cell == kNullFormId)
+            return;
+        const auto it = mCells.find(cell);
+        if (it == mCells.end())
+            return;
+        speaker.mCell = cell;
+        speaker.mInterior = it->second.mInfo.interior;
+        speaker.mLocationKnown = true;
+        for (auto s = it->second.mSources.rbegin(); s != it->second.mSources.rend(); ++s)
+        {
+            const FormId location = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex].mLocation;
+            if (location != kNullFormId && location != kUnresolvedFormId)
+            {
+                speaker.mLocation = location;
+                break;
+            }
+        }
+    }
+
+    void SkyrimWorldView::setCurrentPackageLookup(std::function<std::optional<FormId>(FormId reference)> lookup)
+    {
+        mCurrentPackageLookup = std::move(lookup);
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
+    }
+
+    const PlacedRefIndex* SkyrimWorldView::placedRefs() const
+    {
+        return mDialogue != nullptr && mDialogue->mData != nullptr ? &mDialogue->mData->mPlacedRefs : nullptr;
+    }
+
     bool SkyrimWorldView::beginConversation(sdkgame::WorldId base, sdkgame::WorldId reference, sdkgame::WorldId cell,
         sdkgame::DialogueTurn& out, std::string& error)
     {
@@ -677,20 +747,7 @@ namespace game_skyrimse
         speaker.mReference = static_cast<FormId>(reference);
         speaker.mCell = static_cast<FormId>(cell);
         // Task 0156: what the cell says about interior and location
-        if (const auto it = mCells.find(speaker.mCell); it != mCells.end())
-        {
-            speaker.mInterior = it->second.mInfo.interior;
-            speaker.mLocationKnown = true;
-            for (auto s = it->second.mSources.rbegin(); s != it->second.mSources.rend(); ++s)
-            {
-                const FormId location = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex].mLocation;
-                if (location != kNullFormId && location != kUnresolvedFormId)
-                {
-                    speaker.mLocation = location;
-                    break;
-                }
-            }
-        }
+        fillSpeakerCell(speaker, speaker.mCell);
         return mDialogue->mRuntime->begin(speaker, out, error);
     }
 

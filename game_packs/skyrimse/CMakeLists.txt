@@ -15,6 +15,7 @@ openeden_add_game_pack(skyrimse
         src/voice.cpp
         src/speech.cpp
         src/location.cpp
+        src/placed_refs.cpp
         src/quest_script.cpp
         src/appearance.cpp
         src/land.cpp
@@ -49,6 +50,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/voice.hpp
         include/game_skyrimse/speech.hpp
         include/game_skyrimse/location.hpp
+        include/game_skyrimse/placed_refs.hpp
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
@@ -96,6 +98,7 @@ add_library(game_skyrimse_world STATIC
     src/voice.cpp
     src/speech.cpp
     src/location.cpp
+    src/placed_refs.cpp
     src/quest_script.cpp
     src/appearance.cpp
     src/land.cpp

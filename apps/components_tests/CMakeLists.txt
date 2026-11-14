@@ -541,6 +541,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsespeech.cpp
     skyrimse/testskyrimseconditionstate.cpp
     skyrimse/testskyrimseconditionstatereal.cpp
+    skyrimse/testskyrimseplacedrefs.cpp
+    skyrimse/testskyrimseplacedrefsreal.cpp
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
@@ -596,6 +598,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/voice.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/speech.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/location.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/placed_refs.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp

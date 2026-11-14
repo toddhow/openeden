@@ -183,6 +183,16 @@ namespace game_skyrimse
                         mCellSource.actorTable().enablePackages(mWorldView, PackageBrain::Options().mSeed, &mWorldView,
                             settings->getBool(kPackId, kActorSleepSnapKey, true));
                         say(openeden::sdk::LogLevel::Info, "actor packages: NPCs run their AI packages");
+                        // Task 0160: GetIsCurrentPackage and GetOffersServicesNow in a conversation ask the brain
+                        mWorldView.setCurrentPackageLookup([this](FormId reference) -> std::optional<FormId> {
+                            const PackageBrain* brain = mCellSource.actorTable().packageBrain();
+                            if (brain == nullptr)
+                                return std::nullopt;
+                            const auto view = brain->view(reference);
+                            if (!view || view->mPhase == PackageBrain::Phase::Waiting)
+                                return std::nullopt; // not evaluated yet: not known
+                            return view->mActive != nullptr ? view->mActive->mCommon.mId : kNullFormId;
+                        });
                     }
                 }
                 if (const openeden::sdk::VfsService* vfs = host.getVfsService())
