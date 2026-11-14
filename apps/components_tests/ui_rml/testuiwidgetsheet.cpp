@@ -26,8 +26,8 @@ namespace
         return std::find(list.begin(), list.end(), value) != list.end();
     }
 
-    const char* const kNewTokens[] = { "--color-track", "--color-accent", "--color-tab", "--color-tab-active",
-        "--size-check" };
+    const char* const kNewTokens[]
+        = { "--color-track", "--color-accent", "--color-tab", "--color-tab-active", "--size-check" };
 
     TEST(UiWidgetSheet, theNewTokensAreRequired)
     {
@@ -52,9 +52,9 @@ namespace
         const auto used = tokensUsed(base);
         for (const char* token : kNewTokens)
             EXPECT_TRUE(has(used, token)) << token << " is declared but nothing reads it";
-        for (const char* selector : { ".checkbox", ".check-box", ".check-label", ".toggle", ".toggle-track",
-                 ".toggle-knob", ".toggle-label", "input.slider", ".progress", ".progress-fill", ".scrollview",
-                 ".tab-bar", ".tab-panel", ".tab " })
+        for (const char* selector :
+            { ".checkbox", ".check-box", ".check-label", ".toggle", ".toggle-track", ".toggle-knob", ".toggle-label",
+                "input.slider", ".progress", ".progress-fill", ".scrollview", ".tab-bar", ".tab-panel", ".tab " })
             EXPECT_NE(base.find(selector), std::string::npos) << selector;
         EXPECT_TRUE(validateStyleSheet(base, "ui/base.rcss").empty());
     }

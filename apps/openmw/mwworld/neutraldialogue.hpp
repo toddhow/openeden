@@ -175,8 +175,8 @@ namespace MWWorld
         /// passed (logged once), `start` runs (it begins the conversation). The wait ends without `start` when the
         /// speaker's cell is no longer loaded (the pack is told to cancel). One wait at a time: false when one is
         /// pending already.
-        bool startWhenReady(
-            std::string gameId, openeden::sdk::game::WorldId reference, const Ptr& speaker, std::function<void()> start);
+        bool startWhenReady(std::string gameId, openeden::sdk::game::WorldId reference, const Ptr& speaker,
+            std::function<void()> start);
         [[nodiscard]] bool waitingToTalk() const { return mWait.active(); }
 
         [[nodiscard]] bool active() const { return mActive; }

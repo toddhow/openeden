@@ -13,8 +13,6 @@
 #include <fstream>
 #include <iterator>
 
-
-
 namespace
 {
     using namespace UiRml;

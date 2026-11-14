@@ -1,6 +1,6 @@
-// Task 0166: the second slice of `openeden.ui` components (Checkbox, Toggle, Slider, ProgressBar, ScrollView, Tabs) over
-// the headless backend. Written from the spec (docs/tasks/0166-ui-followups-and-components.md) before the components
-// existed; they ran red against a library without them.
+// Task 0166: the second slice of `openeden.ui` components (Checkbox, Toggle, Slider, ProgressBar, ScrollView, Tabs)
+// over the headless backend. Written from the spec (docs/tasks/0166-ui-followups-and-components.md) before the
+// components existed; they ran red against a library without them.
 #include "uiluafixture.hpp"
 
 namespace

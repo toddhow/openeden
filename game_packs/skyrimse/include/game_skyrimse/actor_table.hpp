@@ -100,7 +100,10 @@ namespace game_skyrimse
         }
 
         /// Stage S6g: forwarded to the brain (no brain: ready at once).
-        bool prepareTalk(openeden::sdk::game::WorldId reference) { return mBrain ? mBrain->prepareTalk(reference) : true; }
+        bool prepareTalk(openeden::sdk::game::WorldId reference)
+        {
+            return mBrain ? mBrain->prepareTalk(reference) : true;
+        }
         [[nodiscard]] bool readyToTalk(openeden::sdk::game::WorldId reference) const
         {
             return mBrain ? mBrain->readyToTalk(reference) : true;

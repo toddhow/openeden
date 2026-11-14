@@ -16,8 +16,9 @@
 // it simply has actors that cannot be talked to.
 //
 // Version policy: DRAFT 0.4 (0.2, task 0143: DialogueTurn::voice; 0.3, task 0155: DialogueTurn::service, trailing
-// fields; 0.4, task 0135 stage S6g: the three "get ready to talk" virtuals at the end, default bodies). Additive changes (a new trailing virtual with a "not supported" default, a trailing field a consumer only
-// reads) raise the minor number. Threading: main thread only. Plain values only: no engine, renderer, UI or Qt type.
+// fields; 0.4, task 0135 stage S6g: the three "get ready to talk" virtuals at the end, default bodies). Additive
+// changes (a new trailing virtual with a "not supported" default, a trailing field a consumer only reads) raise the
+// minor number. Threading: main thread only. Plain values only: no engine, renderer, UI or Qt type.
 
 namespace openeden::sdk::game
 {

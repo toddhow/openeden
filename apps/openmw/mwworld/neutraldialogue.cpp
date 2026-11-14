@@ -342,8 +342,8 @@ namespace MWWorld
         return Result::Waiting;
     }
 
-    bool NeutralDialogueSession::startWhenReady(std::string gameId, openeden::sdk::game::WorldId reference,
-        const Ptr& speaker, std::function<void()> start)
+    bool NeutralDialogueSession::startWhenReady(
+        std::string gameId, openeden::sdk::game::WorldId reference, const Ptr& speaker, std::function<void()> start)
     {
         if (mWait.active() || !start)
             return false;
