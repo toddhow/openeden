@@ -232,6 +232,18 @@ namespace game_skyrimse
         std::uint32_t mFlags = 0;
     };
 
+    /// XLKR: a linked reference (task 0135 stage S6f). VERIFIED on the five masters (Python walk, aggregates): 8 bytes, a
+    /// keyword form id (null in all 863,173 placements scanned that patrol packages reach: the unkeyworded link is the
+    /// patrol chain) and the linked reference. 14 subrecords of 4 bytes exist and decode to nothing.
+    struct RefLink
+    {
+        FormId mKeyword = kNullFormId; ///< resolved; kNullFormId for the unkeyworded link
+        FormId mRef = kNullFormId; ///< resolved; kUnresolvedFormId when its plugin is not in the load order
+    };
+
+    /// The most links kept for one placement.
+    inline constexpr std::size_t kMaxRefLinks = 16;
+
     struct PlacedRef
     {
         RefKind mKind = RefKind::Placed;
@@ -246,6 +258,10 @@ namespace game_skyrimse
         std::optional<RefOwner> mOwner; ///< XOWN (+ XRNK)
         std::optional<RefLock> mLock; ///< XLOC
         std::optional<RefTeleport> mTeleport; ///< XTEL
+        std::vector<RefLink> mLinks; ///< XLKR (stage S6f), file order
+        /// XPRD (stage S6f): the seconds a patrolling actor idles at this marker. VERIFIED size 4 (a float: 10.0, 3.0,
+        /// 6.0 in the data) on 4,340 placements; negative means none.
+        float mPatrolIdle = -1.f;
 
         [[nodiscard]] bool persistent() const { return (mCommon.mFlags & RecordFlags::Persistent) != 0; }
         [[nodiscard]] bool initiallyDisabled() const { return (mCommon.mFlags & RecordFlags::InitiallyDisabled) != 0; }

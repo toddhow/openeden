@@ -448,7 +448,16 @@ namespace game_skyrimse
             error = "the world view cannot run conversations";
             return false;
         }
-        return source->beginConversation(base, reference, cell, out, error);
+        const bool begun = source->beginConversation(base, reference, cell, out, error);
+        if (begun)
+        {
+            // Stage S6f: the package brain stops the actor (a sleeper wakes) while the player talks to it.
+            if (mTalkingTo != openeden::sdk::game::kNoWorldId && mTalkingTo != reference)
+                mActors.onConversation(mTalkingTo, false);
+            mTalkingTo = reference;
+            mActors.onConversation(reference, true);
+        }
+        return begun;
     }
 
     bool SkyrimCellSource::chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error)
@@ -467,6 +476,11 @@ namespace game_skyrimse
     {
         if (auto* source = dynamic_cast<openeden::sdk::game::DialogueSource*>(&mView))
             source->endConversation();
+        if (mTalkingTo != openeden::sdk::game::kNoWorldId)
+        {
+            mActors.onConversation(mTalkingTo, false);
+            mTalkingTo = openeden::sdk::game::kNoWorldId;
+        }
     }
 
     bool SkyrimCellSource::describeWeathers(

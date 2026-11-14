@@ -10,6 +10,7 @@ openeden_add_game_pack(skyrimse
         src/quest.cpp
         src/package.cpp
         src/package_brain.cpp
+        src/anim_motion.cpp
         src/furniture.cpp
         src/dialogue_runtime.cpp
         src/voice.cpp
@@ -93,6 +94,7 @@ add_library(game_skyrimse_world STATIC
     src/quest.cpp
     src/package.cpp
     src/package_brain.cpp
+    src/anim_motion.cpp
     src/furniture.cpp
     src/dialogue_runtime.cpp
     src/voice.cpp

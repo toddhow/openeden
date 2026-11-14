@@ -60,6 +60,45 @@ namespace game_skyrimse
         inline constexpr std::int32_t NearSelf = 12;
     }
 
+    /// PTDA target types (stage S6f; names RECALLED-VERIFY from xEdit, the data's counts fit: Patrol targets are 296
+    /// type 0 and 101 type 3, Follow 95 type 0 and 60 type 4, Escort 59 type 0).
+    namespace PackageTargetType
+    {
+        inline constexpr std::int32_t SpecificReference = 0;
+        inline constexpr std::int32_t ObjectId = 1;
+        inline constexpr std::int32_t ObjectType = 2;
+        inline constexpr std::int32_t LinkedReference = 3;
+        inline constexpr std::int32_t ReferenceAlias = 4;
+        inline constexpr std::int32_t InterruptData = 5;
+        inline constexpr std::int32_t Self = 6;
+    }
+
+    /// PTDA, 12 bytes (VERIFIED size): s32 type, u32 value, s32 count. The value is a form id for types 0, 1 and 3 (for 3
+    /// the keyword of the link, 0 = the unkeyworded one), a number otherwise.
+    struct PackageTarget
+    {
+        std::int32_t mType = 0;
+        std::uint32_t mValue = 0;
+        std::int32_t mCount = 0;
+    };
+
+    inline constexpr std::size_t kMaxPackageTargets = 16;
+
+    /// PKDT general flag bit 13 (stage S6f): the package sets its own preferred speed. VERIFIED by the data: where it is
+    /// clear the speed byte is 2 in 5,499 of 5,600 Travel packages (a placeholder), where it is set the byte spreads
+    /// over 0 to 3 (108, 274, 607, 343). The bit's name is not known (RECALLED-VERIFY: xEdit has no name I recall).
+    inline constexpr std::uint32_t kPreferredSpeedFlag = 1u << 13;
+
+    /// What a package makes an actor DO beyond the classification (stage S6f). Only for Stand and Unsupported packages:
+    /// an actor that sleeps, eats or sandboxes does that first.
+    enum class PackageActivity : std::uint8_t
+    {
+        None,
+        Patrol, ///< a patrol procedure: walk a chain of linked markers, idling at each
+        Follow, ///< a Follow or FollowTo procedure: stay near a target actor
+        Escort, ///< recognised, not run (the target follows the actor to a place)
+    };
+
     /// What an actor does while a package runs (S5 implements the first four; the rest stand where they are told).
     enum class PackageBehavior : std::uint8_t
     {
@@ -76,6 +115,10 @@ namespace game_skyrimse
     /// ForceGreet/DialogueActivate (Stand) before Sleep before Eat before Sandbox before Wander before Travel; only
     /// Travel names give Travel; no name gives Stand. Names are compared case-insensitively.
     [[nodiscard]] PackageBehavior classifyProcedures(std::span<const std::string> names);
+
+    /// Stage S6f: the activity of a list of procedure names, or None when a sleep, eat, sandbox, wander, force-greet or
+    /// dialogue procedure is in it (those are classifyProcedures' business). Patrol before Follow before Escort.
+    [[nodiscard]] PackageActivity classifyActivity(std::span<const std::string> names);
 
     struct PackageSchedule
     {
@@ -124,6 +167,7 @@ namespace game_skyrimse
         FormId mTemplate = kNullFormId;
         std::vector<std::string> mProcedures; ///< alphabetic PNAM, in tree order
         std::vector<PackageLocation> mLocations; ///< PLDT, in order (the first is the package's main location)
+        std::vector<PackageTarget> mTargets; ///< PTDA, in order (stage S6f)
         std::vector<std::uint8_t> mBools; ///< the Bool data inputs (ANAM "Bool" + 1 byte CNAM), in order
         std::uint32_t mPlugin = 0; ///< index into PackageIndex's plugins: the plugin whose record won
     };
@@ -176,6 +220,11 @@ namespace game_skyrimse
         /// What the package does: the classification of its own procedures, or of its template's when it has a
         /// template (followed up to 8 links; a missing or cyclic template gives Stand).
         [[nodiscard]] PackageBehavior behaviorOf(const PackageRecord& package) const;
+
+        /// Stage S6f: the activity of the package's own procedures, or its template's (same walk as behaviorOf).
+        [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const;
+        /// Stage S6f: the first target of the package, or of its template when it has none of its own.
+        [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const;
 
     private:
         std::vector<FormIdResolver> mResolvers;

@@ -229,6 +229,8 @@ namespace game_skyrimse
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
+        /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
+        openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };
 }
 

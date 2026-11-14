@@ -22,6 +22,7 @@
 // settled by the data: the day-of-week numbering, the one hour window of an hour with no duration, the pause lengths,
 // the re-evaluation period, the default sandbox radius, walking pace for every package whatever its preferred speed.
 
+#include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/package.hpp>
 
 #include <openeden/game/actor_rules.hpp>
@@ -51,6 +52,21 @@ namespace game_skyrimse
     inline constexpr float kFailurePauseSeconds = 8.f;
     /// After a failed trip to the anchor it waits this long before asking again.
     inline constexpr float kRetrySeconds = 30.f;
+
+    /// Stage S6f constants. Estimates unless marked.
+    /// A patrol marker without an XPRD idles this long (seconds of frame time).
+    inline constexpr float kPatrolDefaultIdleSeconds = 2.f;
+    /// A follower stays within this many units of its target (and walks to a point kFollowStandOff from it).
+    inline constexpr double kFollowDistance = 260.0;
+    inline constexpr double kFollowStandOff = 140.0;
+    /// How often a follower looks again where its target is.
+    inline constexpr float kFollowRepathSeconds = 1.5f;
+
+    /// The speed a package walks at (stage S6f): Run when the package sets its own speed (PKDT flag bit 13,
+    /// `kPreferredSpeedFlag`) and the byte is 1 (jog) or 2 (run), else Walk. There is no jog clip (task 0148 has walk and
+    /// run), so jog runs; fast walk (3) and walk (0) walk. The byte values' names are RECALLED-VERIFY (xEdit: Walk, Jog,
+    /// Run, Fast Walk); that bit 13 gates the byte is settled by the data (see `kPreferredSpeedFlag`).
+    [[nodiscard]] openeden::sdk::game::ActorSpeed packageSpeed(const PackageRecord& package);
 
     /// 0 Sunday .. 6 Saturday for a day counter that starts on the session's start day (RECALLED-VERIFY: a new game
     /// starts on Morndas, weekday 1).
@@ -84,6 +100,15 @@ namespace game_skyrimse
         double mEntryX = 0, mEntryY = 0, mEntryZ = 0; ///< where it walks to first, and steps off to
         std::string mClip;
         bool mClipPerSex = false;
+        // Stage S6f: the sit-down and get-up clips and their root motion (null: none, the actor is placed on the seat and
+        // put at the entry point as in stage S6b). The motion tables are owned by the source and outlive the brain.
+        std::string mEnterClip;
+        std::string mExitClip;
+        const ClipMotion* mEnterMotion = nullptr;
+        const ClipMotion* mExitMotion = nullptr;
+        /// The short get-up (a bed's quick exit, about 1 s) used when the player wakes a sleeper to talk. Empty: none.
+        std::string mQuickExitClip;
+        const ClipMotion* mQuickExitMotion = nullptr;
     };
 
     /// The furniture the brain may use. The pack's view implements it; tests use a fake.
@@ -114,6 +139,32 @@ namespace game_skyrimse
         virtual bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) = 0;
         /// Where a placed reference stands, if the source knows (only references of cells it has loaded).
         [[nodiscard]] virtual bool locate(FormId reference, double& x, double& y, double& z) const = 0;
+        // Stage S6f (defaults: nothing known, so a source that only knows packages runs as before):
+        [[nodiscard]] virtual PackageActivity activityOf(const PackageRecord& package) const
+        {
+            (void)package;
+            return PackageActivity::None;
+        }
+        [[nodiscard]] virtual bool targetOf(const PackageRecord& package, PackageTarget& out) const
+        {
+            (void)package;
+            (void)out;
+            return false;
+        }
+        /// The reference `reference` is linked to with `keyword` (0 = the unkeyworded link).
+        [[nodiscard]] virtual bool linkedRef(FormId reference, FormId keyword, FormId& out) const
+        {
+            (void)reference;
+            (void)keyword;
+            (void)out;
+            return false;
+        }
+        /// Seconds a patrolling actor idles at this marker; negative when the marker says nothing.
+        [[nodiscard]] virtual float patrolIdle(FormId reference) const
+        {
+            (void)reference;
+            return -1.f;
+        }
     };
 
     /// The first package of `packages` in force now, or null.
@@ -152,6 +203,18 @@ namespace game_skyrimse
             std::uint64_t mFurnitureFailed = 0; ///< trips that failed (no path, blocked, refused)
             std::uint64_t mNoFurniture = 0; ///< searches that found no free slot
             std::uint64_t mSnapped = 0; ///< sleepers put on their bed after a failed walk
+            // Stage S6f
+            std::uint64_t mRuns = 0; ///< goals issued at the run speed
+            std::uint64_t mPatrolLegs = 0; ///< goals issued to a patrol marker
+            std::uint64_t mPatrolUnresolved = 0; ///< a patrol package whose first marker could not be found
+            std::uint64_t mFollowLegs = 0; ///< goals issued towards a follow target
+            std::uint64_t mFollowUnresolved = 0; ///< a follow package whose target is not an actor of the brain
+            std::uint64_t mEscortsSkipped = 0; ///< escort packages started (run as Stand)
+            std::uint64_t mConversations = 0; ///< conversations with an actor of the brain
+            std::uint64_t mWakeUps = 0; ///< sleepers a conversation stood up
+            std::uint64_t mResumes = 0; ///< actors a finished conversation set back on their package
+            std::uint64_t mEnters = 0; ///< sit-downs and lie-downs played with a clip and its motion
+            std::uint64_t mExits = 0; ///< get-ups played with a clip and its motion
         };
 
         enum class Phase : std::uint8_t
@@ -164,6 +227,8 @@ namespace game_skyrimse
             Failed, ///< the last trip failed; retries after kRetrySeconds
             Approaching, ///< walking to a seat or bed (stage S6b)
             Seated, ///< on furniture
+            Patrolling, ///< waiting at, or walking between, patrol markers (stage S6f)
+            Following, ///< keeping near a target actor (stage S6f)
         };
 
         /// What the tests and the trace see of one actor.
@@ -178,6 +243,12 @@ namespace game_skyrimse
             std::size_t mPackages = 0;
             bool mSeated = false;
             std::uint64_t mSlotKey = 0; ///< the slot reserved (approaching or seated), else 0
+            PackageActivity mActivity = PackageActivity::None;
+            openeden::sdk::game::ActorSpeed mSpeed = openeden::sdk::game::ActorSpeed::Walk;
+            bool mTalking = false;
+            bool mEntering = false; ///< a sit-down or lie-down clip is playing
+            bool mExiting = false; ///< a get-up clip is playing
+            FormId mPatrolMarker = kNullFormId; ///< the marker the actor walks to or waits at
         };
 
         PackageBrain(PackageSource& source, Options options = {});
@@ -188,6 +259,10 @@ namespace game_skyrimse
         void onActorAdded(const openeden::sdk::game::ActorInfo& info);
         void onActorRemoved(openeden::sdk::game::ActorHandle handle);
         void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result);
+        /// Stage S6f: the player begins or ends a conversation with the actor of this placement (main thread, outside
+        /// update(): acted on at the next update). A sleeper wakes and stands; any actor stops where it is while it talks;
+        /// a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a bed).
+        void onConversation(openeden::sdk::game::WorldId reference, bool begins);
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
 
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
@@ -226,6 +301,31 @@ namespace game_skyrimse
             bool mSeated = false;
             float mSeatTimer = -1.f; ///< seconds left on the furniture; negative: until the package ends
             std::vector<std::uint64_t> mBadSlots;
+            // Stage S6f
+            PackageActivity mActivity = PackageActivity::None;
+            openeden::sdk::game::ActorSpeed mSpeed = openeden::sdk::game::ActorSpeed::Walk;
+            FormId mPatrolFirst = kNullFormId;
+            FormId mPatrolMarker = kNullFormId;
+            bool mToPatrol = false; ///< the goal out leads to mPatrolMarker
+            FormId mFollowTarget = kNullFormId; ///< placement id of the actor followed
+            bool mToFollow = false;
+            float mFollowTimer = 0.f;
+            int mTalkRequest = 0; ///< 1 begin, 2 end: acted on at the next update
+            bool mTalkEndPending = false; ///< the end came before the begin was acted on (the world is paused during a talk)
+            bool mTalking = false;
+            bool mWoken = false; ///< a conversation stood the actor up from a bed
+            bool mSkipEnter = false; ///< the next furniture use is a snap: no clip, no motion
+            bool mEntering = false;
+            bool mExiting = false;
+            const ClipMotion* mExitMotion = nullptr; ///< the get-up clip's motion being played
+            float mClipClock = 0.f; ///< seconds into the enter or exit clip
+            double mStartX = 0, mStartY = 0, mStartZ = 0; ///< where the enter clip's motion begins
+            float mStartHeading = 0.f;
+            double mExitX = 0, mExitY = 0, mExitZ = 0; ///< where the exit clip's motion ends
+            float mExitHeading = 0.f;
+            const PackageRecord* mDeferred = nullptr; ///< the package to start when the get-up ends
+            bool mHasDeferred = false;
+            bool mAfterExitPause = false; ///< after the get-up a wanderer pauses (the timer ran out), else is Done
         };
 
         void evaluate(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
@@ -234,14 +334,25 @@ namespace game_skyrimse
         void begin(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] bool wanders(const Actor& actor) const;
         void run(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
-        void goTo(Actor& actor, double x, double y, double z, openeden::sdk::game::ActorRequestWriter& writer);
+        void goTo(Actor& actor, double x, double y, double z, openeden::sdk::game::ActorRequestWriter& writer,
+            openeden::sdk::game::ActorSpeed speed = openeden::sdk::game::ActorSpeed::Walk);
         [[nodiscard]] static float nextUnit(Actor& actor);
         /// Stage S6b: reserves the nearest free slot of `pose` near the anchor and sets out for it. False (nothing
         /// changed) when there is none.
         bool tryFurniture(Actor& actor, openeden::sdk::game::FurniturePose pose, double radius,
             openeden::sdk::game::ActorRequestWriter& writer);
         void releaseFurniture(Actor& actor);
-        void standUp(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        /// True when the actor is standing (nothing seated, or no get-up clip); false while the exit clip plays.
+        bool standUp(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer, bool quick = false);
+        // Stage S6f
+        void beginPatrol(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void patrolNext(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void beginFollow(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void runFollow(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        void handleTalk(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void beginUse(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
+        void runClip(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        void finishExit(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] bool sitAllowed(const Actor& actor) const;
 
         PackageSource& mSource;

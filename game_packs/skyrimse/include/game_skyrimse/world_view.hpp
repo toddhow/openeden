@@ -24,6 +24,7 @@
 
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/neutral_world.hpp>
+#include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/package_brain.hpp>
 #include <game_skyrimse/records.hpp>
 
@@ -274,6 +275,11 @@ namespace game_skyrimse
         [[nodiscard]] PackageBehavior behaviorOf(const PackageRecord& package) const override;
         bool conditionsPass(const PackageRecord& package, FormId actorBase, FormId actorReference) override;
         [[nodiscard]] bool locate(FormId reference, double& x, double& y, double& z) const override;
+        // Stage S6f: activities (patrol, follow), the linked references and patrol idles of placements.
+        [[nodiscard]] PackageActivity activityOf(const PackageRecord& package) const override;
+        [[nodiscard]] bool targetOf(const PackageRecord& package, PackageTarget& out) const override;
+        [[nodiscard]] bool linkedRef(FormId reference, FormId keyword, FormId& out) const override;
+        [[nodiscard]] float patrolIdle(FormId reference) const override;
 
         // ---- FurnitureSource (task 0135, S6b) ----
         // Sit and sleep markers of the furniture placements of the cells loadCell returned, read from the models
@@ -458,6 +464,13 @@ namespace game_skyrimse
             double mX = 0, mY = 0, mZ = 0, mRotZ = 0, mScale = 1;
         };
         std::unordered_map<FormId, std::vector<FurnitureRef>> mFurnitureByCell;
+        // Stage S6f: XLKR links and XPRD idle times of the placements of every cell materialised so far (bounded), and
+        // the root motion of the furniture clips, read from the animation data files the first time a seat is asked for.
+        std::unordered_map<FormId, std::vector<RefLink>> mRefLinks;
+        std::unordered_map<FormId, float> mPatrolIdles;
+        MotionTable mMotion;
+        bool mMotionTried = false;
+        void ensureMotion();
         std::unordered_map<FormId, FormId> mActorCell;
         /// Markers per lower-case model path; an empty list for a model that has none or cannot be read.
         std::unordered_map<std::string, std::vector<FurnitureMarker>> mMarkerCache;

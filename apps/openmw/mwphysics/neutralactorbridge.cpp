@@ -274,4 +274,32 @@ namespace MWPhysics
         mSink->leaveFurniture(key, x, y, z);
         return true;
     }
+
+    bool NeutralActorBridge::Writer::placeFurniture(
+        ActorHandle handle, double x, double y, double z, float heading)
+    {
+        const void* key = keyOf(handle);
+        if (key == nullptr)
+            return false;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(heading))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        if (!mSink->placeSeated(key, x, y, z, heading))
+            return false;
+        ++mBridge.mStats.mPlacements;
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::actorPosition(ActorHandle handle, double& x, double& y, double& z) const
+    {
+        // A read: no counters, no refusal count. Only while update() runs (the sink is set), only for a live handle.
+        if (mSink == nullptr || !handle.valid())
+            return false;
+        for (const Entry& entry : mBridge.mEntries)
+            if (entry.mHandle == handle)
+                return mSink->positionOf(entry.mKey, x, y, z);
+        return false;
+    }
 }

@@ -81,6 +81,10 @@ CFG
 # Task 0135 stage S5 (AI packages): "n5pack" takes pictures every 12 s of the Mare while the NPCs run their packages (set "[extension.skyrimse] actor packages = true" in SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1; use at least 6000 frames).
 [ "$SHOT" = n5pack ] && echo "content=n5pack.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5furn ] && echo "content=n5furn.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0135 stage S6f: "n5wake" activates a sleeper (luatest/scripts/n5/wakeglobal.lua) and takes pictures before, during and after the talk (use at least 6000 frames, midnight).
+[ "$SHOT" = n5wake ] && echo "content=n5wake.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0135 stage S6f: "n5follow" follows three actors with the camera, one picture a second (luatest/scripts/n5/followglobal.lua; use at least 40000 frames).
+[ "$SHOT" = n5follow ] && echo "content=n5follow.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0157: "skyreach" runs path queries with several agent sizes between the Mare's ground floor, stairs and beds (NAV lines).
 [ "$SHOT" = skyreach ] && echo "content=skyreach.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0148: "n5loco" is "n5goto" with a picture every 0.2 s (use at least 2400 frames; also set [Game] neutral actor locomotion).
@@ -152,6 +156,8 @@ case "$SHOT" in maredump|marecam|floormap|landnormal) echo "content=$SHOT.omwscr
 [ "$SHOT" = trim ] && echo "content=trim.omwscripts" >> "$WORK/config/openmw.cfg"
 # TRIM_VARIANT=old|fix re-applies the slab's rotation from Lua with the pack's old (Rz*Ry*Rx) or the new (Rx*Ry*Rz) order; default none.
 echo "return '${TRIM_VARIANT:-none}'" > "$WORK/luatest/scripts/trim/variant.lua"
+# Task 0135 stage S6f ("n5follow"): FOLLOW_TARGETS="'b108144','b80802'" FOLLOW_WINDOW=36 FOLLOW_STEP=1.0 FOLLOW_DIST=190 FOLLOW_OFFSET=0.9
+echo "return { targets = { ${FOLLOW_TARGETS:-'b108144','b80802','b80807'} }, window = ${FOLLOW_WINDOW:-36}, step = ${FOLLOW_STEP:-1.0}, dist = ${FOLLOW_DIST:-190}, offset = ${FOLLOW_OFFSET:-0.9} }" > "$WORK/luatest/scripts/n5/followcfg.lua"
 printf '[Game]\nneutral world = true\n' > "$WORK/config/settings.cfg"
 # Optional extra settings text (for example "[Rendering]\nframe counters = true\n"), appended as given.
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"
@@ -162,7 +168,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

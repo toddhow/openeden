@@ -25,8 +25,13 @@ namespace MWRender::SkyrimPose
             future = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
         const std::lock_guard lock(mMutex);
         mActive = !clip.empty();
-        mClip.reset();
-        mTargets.clear();
+        if (clip.empty())
+        {
+            mClip.reset();
+            mTargets.clear();
+        }
+        // Switching from one clip to another (the sit-down to the sitting loop, task 0135 stage S6f) keeps the old clip
+        // playing until the new one is decoded and bound: no frame of the idle pose in between.
         mFuture = std::move(future);
         mPending = mActive;
         mNeedStart = mActive;
@@ -57,7 +62,12 @@ namespace MWRender::SkyrimPose
                 return;
             }
             if (mFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-                return;
+            {
+                if (!mClip)
+                    return;
+            }
+            else
+            {
             mPending = false;
             mClip = mFuture.get();
             mFuture = {};
@@ -94,10 +104,11 @@ namespace MWRender::SkyrimPose
                     }
                 }
             }
+            }
         }
         if (!mClip)
             return;
-        if (mNeedStart)
+        if (mNeedStart && !mPending)
         {
             mNeedStart = false;
             mStart = time;

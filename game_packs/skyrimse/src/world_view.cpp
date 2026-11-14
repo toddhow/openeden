@@ -583,6 +583,57 @@ namespace game_skyrimse
         return mDialogue->mPackageEvaluator.evaluate(package.mConditions, world);
     }
 
+    PackageActivity SkyrimWorldView::activityOf(const PackageRecord& package) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return PackageActivity::None;
+        return mDialogue->mData->mPackages.activityOf(package);
+    }
+
+    bool SkyrimWorldView::targetOf(const PackageRecord& package, PackageTarget& out) const
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return false;
+        return mDialogue->mData->mPackages.targetOf(package, out);
+    }
+
+    bool SkyrimWorldView::linkedRef(FormId reference, FormId keyword, FormId& out) const
+    {
+        const auto it = mRefLinks.find(reference);
+        if (it == mRefLinks.end())
+            return false;
+        for (const RefLink& link : it->second)
+        {
+            if (link.mKeyword == keyword && link.mRef != kNullFormId && link.mRef != kUnresolvedFormId)
+            {
+                out = link.mRef;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    float SkyrimWorldView::patrolIdle(FormId reference) const
+    {
+        const auto it = mPatrolIdles.find(reference);
+        return it == mPatrolIdles.end() ? -1.f : it->second;
+    }
+
+    void SkyrimWorldView::ensureMotion()
+    {
+        if (mMotionTried)
+            return;
+        mMotionTried = true;
+        if (mFiles == nullptr)
+            return;
+        // The male project's clips and motion: the furniture clips of a female actor have the same names and (measured
+        // on the chair and bed clips) the same displacement to within a unit, so one table serves both.
+        std::string project, bound;
+        if (mFiles->read("meshes\\animationdata\\defaultmale.txt", project)
+            && mFiles->read("meshes\\animationdata\\boundanims\\anims_defaultmale.txt", bound))
+            mMotion.add(project, bound);
+    }
+
     bool SkyrimWorldView::locate(FormId reference, double& x, double& y, double& z) const
     {
         const auto it = mPlacements.find(reference);
@@ -679,16 +730,54 @@ namespace game_skyrimse
                 slot.mEntryX = best->mX;
                 slot.mEntryY = best->mY;
                 slot.mEntryZ = best->mZ;
+                ensureMotion();
                 if (pose == sdkgame::FurniturePose::Sit)
                 {
                     slot.mClip = "chair_idlebasevar1";
                     slot.mClipPerSex = true;
+                    // The sit-down and get-up clips of the side the actor comes from (a stool's only side, behind, has
+                    // none: the actor is placed on it, as before).
+                    const char* side = best->mSide == Side::Front ? "front"
+                        : best->mSide == Side::Left ? "left"
+                        : best->mSide == Side::Right ? "right"
+                                                     : nullptr;
+                    if (side != nullptr)
+                    {
+                        const std::string enter = std::string("chair_") + side + "enter" + (best->mSide == Side::Front ? "var1" : "");
+                        const std::string exitName = std::string("chair_") + side + "exit";
+                        const ClipMotion* enterMotion = mMotion.find(enter);
+                        const ClipMotion* exitMotion = mMotion.find(exitName);
+                        if (enterMotion != nullptr && exitMotion != nullptr)
+                        {
+                            slot.mEnterClip = enter;
+                            slot.mExitClip = exitName;
+                            slot.mEnterMotion = enterMotion;
+                            slot.mExitMotion = exitMotion;
+                        }
+                    }
                 }
                 else
                 {
                     const bool roll = lowerModel.find("bedroll") != std::string::npos;
                     const char* side = best->mSide == Side::Right ? "right" : (best->mSide == Side::Front && roll ? "front" : "left");
                     slot.mClip = std::string(roll ? "bedroll_" : "bed_") + side + "sleep";
+                    const std::string enter = std::string(roll ? "bedroll_" : "bed_") + side + "enter";
+                    const std::string exitName = std::string(roll ? "bedroll_" : "bed_") + side + "exit";
+                    const ClipMotion* enterMotion = mMotion.find(enter);
+                    const ClipMotion* exitMotion = mMotion.find(exitName);
+                    if (enterMotion != nullptr && exitMotion != nullptr)
+                    {
+                        slot.mEnterClip = enter;
+                        slot.mExitClip = exitName;
+                        slot.mEnterMotion = enterMotion;
+                        slot.mExitMotion = exitMotion;
+                        const std::string quick = std::string(roll ? "bedroll_" : "bed_") + side + "quickexit";
+                        if (const ClipMotion* quickMotion = mMotion.find(quick))
+                        {
+                            slot.mQuickExitClip = quick;
+                            slot.mQuickExitMotion = quickMotion;
+                        }
+                    }
                 }
                 found.push_back({ std::hypot(seat.mX - fromX, seat.mY - fromY) + 2.0 * std::abs(seat.mZ - fromZ), std::move(slot) });
             }
@@ -1593,6 +1682,17 @@ namespace game_skyrimse
                     merged.erase(id);
                 else
                     merged[id] = std::move(r);
+            }
+        }
+
+        for (const auto& [id, ref] : merged)
+        {
+            if ((!ref.mLinks.empty() || ref.mPatrolIdle >= 0.f) && mRefLinks.size() < 1024u * 1024u)
+            {
+                if (!ref.mLinks.empty())
+                    mRefLinks[id] = ref.mLinks;
+                if (ref.mPatrolIdle >= 0.f)
+                    mPatrolIdles[id] = ref.mPatrolIdle;
             }
         }
 

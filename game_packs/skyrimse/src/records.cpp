@@ -894,6 +894,23 @@ namespace game_skyrimse
                                 r.mTeleport = t;
                             }
                             break;
+                        case Content::fourCC("XLKR"):
+                            if (data.size() != 8 || r.mLinks.size() >= kMaxRefLinks)
+                                odd("XLKR");
+                            else
+                            {
+                                RefLink link;
+                                link.mKeyword = resolved(readLe<std::uint32_t>(data.data()));
+                                link.mRef = resolved(readLe<std::uint32_t>(data.data() + 4));
+                                r.mLinks.push_back(link);
+                            }
+                            break;
+                        case Content::fourCC("XPRD"):
+                            if (data.size() != 4)
+                                odd("XPRD");
+                            else
+                                r.mPatrolIdle = readLe<float>(data.data());
+                            break;
                         case Content::fourCC(
                             "XESP"): // parent form, flags, 3 unused; VERIFIED size 8 (tool), flag bits CONFIRMED by
                                      // upstream components/esm4/reference.hpp EnableParent (Flag_Inversed 0x1,

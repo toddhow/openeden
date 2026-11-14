@@ -18,7 +18,8 @@
 //
 // Version policy: DRAFT 0.3 (0.2, task 0135 stage S4: go-to requests with a result event, and a heading request; 0.3,
 // stage S5: the game clock through ActorRequestWriter::clock(); 0.4, stage S6b: furniture use (sit, sleep) through
-// useFurniture / leaveFurniture; all additions have defaults, so a 0.1 pack or core
+// useFurniture / leaveFurniture; 0.5, stage S6f: placeFurniture (move a seated actor, used for the enter and exit
+// clips' root motion) and actorPosition (where the core has an actor now); all additions have defaults, so a 0.1 pack or core
 // keeps working). Additive changes (a new trailing virtual with a "not supported" default, a trailing field
 // a consumer only reads) raise the minor number.
 //
@@ -32,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorRulesVersion{ 0, 4 };
+    inline constexpr Version kActorRulesVersion{ 0, 5 };
 
     struct ActorHandle
     {
@@ -169,6 +170,31 @@ namespace openeden::sdk::game
         /// is put on the floor under that point) and the idle returns. A no-op for an actor that is not on furniture.
         /// False as for useFurniture (and for a position that is not finite).
         virtual bool leaveFurniture(ActorHandle handle, double x, double y, double z)
+        {
+            (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
+            return false;
+        }
+
+        /// (0.5) Moves an actor that is on furniture (after useFurniture) to (x, y, z) facing `heading` without changing
+        /// its pose or clip: the way a pack plays the root motion of a sit-down or get-up clip. A no-op returning true
+        /// for a seated actor, false (counted) for a stale handle, a value that is not finite, an actor that is not on
+        /// furniture, or a call outside update(). The default refuses.
+        virtual bool placeFurniture(ActorHandle handle, double x, double y, double z, float heading)
+        {
+            (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
+
+        /// (0.5) Where the core has the actor now (game units). False for a stale handle or an unknown actor (the
+        /// outputs are left alone). The default refuses. Valid during update() only.
+        virtual bool actorPosition(ActorHandle handle, double& x, double& y, double& z) const
         {
             (void)handle;
             (void)x;

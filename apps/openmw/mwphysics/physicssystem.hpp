@@ -562,6 +562,8 @@ namespace MWPhysics
             void setHeading(const void* key, float heading) override;
             void useFurniture(const void* key, const openeden::sdk::game::FurnitureUse& use) override;
             void leaveFurniture(const void* key, double x, double y, double z) override;
+            bool placeSeated(const void* key, double x, double y, double z, float heading) override;
+            bool positionOf(const void* key, double& x, double& y, double& z) const override;
 
         private:
             PhysicsSystem& mPhysics;

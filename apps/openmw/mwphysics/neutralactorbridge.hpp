@@ -46,6 +46,24 @@ namespace MWPhysics
             (void)y;
             (void)z;
         }
+        // Stage S6f: moves an actor that is on furniture without changing its pose; where an actor is now.
+        virtual bool placeSeated(const void* key, double x, double y, double z, float heading)
+        {
+            (void)key;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
+        virtual bool positionOf(const void* key, double& x, double& y, double& z) const
+        {
+            (void)key;
+            (void)x;
+            (void)y;
+            (void)z;
+            return false;
+        }
     };
 
     class NeutralActorBridge
@@ -65,6 +83,7 @@ namespace MWPhysics
             std::uint64_t mHeadings = 0;
             std::uint64_t mFurnitureUses = 0; ///< furniture-use requests passed to the sink (stage S6b)
             std::uint64_t mFurnitureLeaves = 0;
+            std::uint64_t mPlacements = 0; ///< placeFurniture requests the sink accepted (stage S6f)
             std::uint64_t mResultsDelivered = 0; ///< goal results told to the pack
             std::uint64_t mResultsDropped = 0; ///< goal results whose actor had gone by the time they were told
         };
@@ -131,6 +150,10 @@ namespace MWPhysics
             bool useFurniture(
                 openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::FurnitureUse& use) override;
             bool leaveFurniture(openeden::sdk::game::ActorHandle handle, double x, double y, double z) override;
+            bool placeFurniture(
+                openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
+            bool actorPosition(
+                openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 

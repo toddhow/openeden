@@ -270,6 +270,26 @@ namespace game_skyrimse
                                 p.mLocations.push_back(loc);
                             }
                             return;
+                        case Content::fourCC("PTDA"):
+                            if (data.size() != 12)
+                            {
+                                odd(type);
+                                return;
+                            }
+                            if (p.mTargets.size() < kMaxPackageTargets)
+                            {
+                                PackageTarget target;
+                                target.mType = readLe<std::int32_t>(data.data());
+                                const std::uint32_t value = readLe<std::uint32_t>(data.data() + 4);
+                                target.mValue = (target.mType == PackageTargetType::SpecificReference
+                                                    || target.mType == PackageTargetType::ObjectId
+                                                    || target.mType == PackageTargetType::LinkedReference)
+                                    ? resolved(value)
+                                    : value;
+                                target.mCount = readLe<std::int32_t>(data.data() + 8);
+                                p.mTargets.push_back(target);
+                            }
+                            return;
                         case Content::fourCC("ANAM"):
                             // A data input's type name; a Bool input's value is the CNAM that follows (VERIFIED: 1 byte).
                             lastInputIsBool = data.size() == 5 && std::memcmp(data.data(), "Bool", 5) == 0;
@@ -363,6 +383,31 @@ namespace game_skyrimse
         return PackageBehavior::Stand;
     }
 
+    PackageActivity classifyActivity(std::span<const std::string> names)
+    {
+        bool patrol = false, follow = false, escort = false;
+        for (const std::string& raw : names)
+        {
+            const std::string name = lowerAscii(raw);
+            if (name == "forcegreet" || name == "dialogueactivate" || name == "sleep" || name == "eat"
+                || name == "sandbox" || name == "wander")
+                return PackageActivity::None;
+            if (name == "patrol")
+                patrol = true;
+            else if (name == "follow" || name == "followto")
+                follow = true;
+            else if (name == "escort")
+                escort = true;
+        }
+        if (patrol)
+            return PackageActivity::Patrol;
+        if (follow)
+            return PackageActivity::Follow;
+        if (escort)
+            return PackageActivity::Escort;
+        return PackageActivity::None;
+    }
+
     bool parsePackageRecords(const Content::Plugin& plugin, const LoadOrder& order, const PackageLimits& limits,
         PackageRecords& out)
     {
@@ -450,5 +495,38 @@ namespace game_skyrimse
             current = next;
         }
         return PackageBehavior::Stand;
+    }
+
+    PackageActivity PackageIndex::activityOf(const PackageRecord& package) const
+    {
+        const PackageRecord* current = &package;
+        std::set<FormId> seen;
+        for (int depth = 0; depth < 8 && current != nullptr; ++depth)
+        {
+            if (!current->mProcedures.empty() || current->mTemplate == kNullFormId
+                || current->mTemplate == kUnresolvedFormId || !seen.insert(current->mTemplate).second)
+                return classifyActivity(current->mProcedures);
+            current = this->package(current->mTemplate);
+        }
+        return PackageActivity::None;
+    }
+
+    bool PackageIndex::targetOf(const PackageRecord& package, PackageTarget& out) const
+    {
+        const PackageRecord* current = &package;
+        std::set<FormId> seen;
+        for (int depth = 0; depth < 8 && current != nullptr; ++depth)
+        {
+            if (!current->mTargets.empty())
+            {
+                out = current->mTargets.front();
+                return true;
+            }
+            if (current->mTemplate == kNullFormId || current->mTemplate == kUnresolvedFormId
+                || !seen.insert(current->mTemplate).second)
+                return false;
+            current = this->package(current->mTemplate);
+        }
+        return false;
     }
 }

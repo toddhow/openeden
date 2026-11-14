@@ -91,6 +91,13 @@ namespace game_skyrimse
             bool snapSleepers = false);
         [[nodiscard]] const PackageBrain* packageBrain() const { return mBrain.get(); }
 
+        /// Stage S6f: the player begins or ends a conversation with the actor of this placement (forwarded to the brain).
+        void onConversation(openeden::sdk::game::WorldId reference, bool begins)
+        {
+            if (mBrain)
+                mBrain->onConversation(reference, begins);
+        }
+
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override;
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override;

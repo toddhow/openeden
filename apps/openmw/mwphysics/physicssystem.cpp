@@ -1269,7 +1269,13 @@ namespace MWPhysics
         const vsg::vec3 target(static_cast<float>(goal.x), static_cast<float>(goal.y), static_cast<float>(goal.z));
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         if (trace)
-            Log(Debug::Info) << "NACTGOTO goal " << target.x << " " << target.y << " " << target.z << " speed " << speed;
+        {
+            const auto actor = mPhysics.mObjects.find(entry->mRef);
+            Log(Debug::Info) << "NACTGOTO goal " << target.x << " " << target.y << " " << target.z << " speed " << speed
+                             << " actor "
+                             << (actor != mPhysics.mObjects.end() ? actor->second->getPtr().getCellRef().getRefId().toDebugString()
+                                                                  : std::string("?"));
+        }
         if (!entry->mFollow.setGoal(target, speed))
             mPhysics.mNeutralBridge.reportGoal(key, openeden::sdk::game::GoalResult::NoPath); // a float overflow
     }
@@ -1322,6 +1328,47 @@ namespace MWPhysics
         if (trace)
             Log(Debug::Info) << "NACTFURN use " << ptr.getCellRef().getRefId() << " at " << pos.pos[0] << " "
                              << pos.pos[1] << " " << pos.pos[2] << " heading " << pos.rot[2] << " clip " << use.clip;
+    }
+
+    bool PhysicsSystem::NeutralRequestApplier::placeSeated(
+        const void* key, double x, double y, double z, float heading)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr || !entry->mSeated)
+            return false;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return false;
+        const MWWorld::Ptr ptr = found->second->getPtr();
+        ESM::Position pos = ptr.getRefData().getPosition();
+        pos.pos[0] = static_cast<float>(x);
+        pos.pos[1] = static_cast<float>(y);
+        pos.pos[2] = static_cast<float>(z);
+        pos.rot[2] = heading;
+        ptr.getRefData().setPosition(pos);
+        entry->mFall.mZ = pos.pos[2];
+        entry->mFall.mVelocity = 0.f;
+        mPhysics.mNeutralMoved.push_back(ptr);
+        mPhysics.mNeutralTurned.push_back(ptr);
+        return true;
+    }
+
+    bool PhysicsSystem::NeutralRequestApplier::positionOf(const void* key, double& x, double& y, double& z) const
+    {
+        for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        {
+            if (static_cast<const void*>(entry.mRef) != key)
+                continue;
+            const auto found = mPhysics.mObjects.find(entry.mRef);
+            if (found == mPhysics.mObjects.end())
+                return false;
+            const ESM::Position& pos = found->second->getPtr().getRefData().getPosition();
+            x = pos.pos[0];
+            y = pos.pos[1];
+            z = pos.pos[2];
+            return true;
+        }
+        return false;
     }
 
     void PhysicsSystem::NeutralRequestApplier::leaveFurniture(const void* key, double x, double y, double z)
