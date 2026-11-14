@@ -165,14 +165,22 @@ namespace
 #endif
         void** vtable = *reinterpret_cast<void***>(base);
         const auto slot = [&](std::size_t index) { return vtable[destructorSlots + index]; };
-        using GameId = std::string_view (*)(const void*);
         using CellCount = std::size_t (*)(const void*);
         using ListCells = std::size_t (*)(const void*, std::size_t, std::size_t, std::vector<WorldId>&);
         using BuildCell = bool (*)(void*, WorldId, WorldCell&, std::string&);
         using FindByEditorId = WorldId (*)(const void*, std::string_view);
         using FindByGrid = WorldId (*)(const void*, WorldId, std::int32_t, std::int32_t);
         using UnitsPerMetre = double (*)(const void*);
+#if defined(_MSC_VER)
+        // MSVC passes the address of the result right after `this` for a member function that returns a class.
+        using GameId = std::string_view* (*)(const void*, std::string_view*);
+        std::string_view gameId;
+        reinterpret_cast<GameId>(slot(0))(base, &gameId);
+        EXPECT_EQ(gameId, "full");
+#else
+        using GameId = std::string_view (*)(const void*);
         EXPECT_EQ(reinterpret_cast<GameId>(slot(0))(base), "full");
+#endif
         EXPECT_EQ(reinterpret_cast<CellCount>(slot(1))(base), 41u);
         std::vector<WorldId> ids;
         EXPECT_EQ(reinterpret_cast<ListCells>(slot(2))(base, 0, 1, ids), 1u);
