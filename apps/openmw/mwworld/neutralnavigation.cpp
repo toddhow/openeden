@@ -5,6 +5,8 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 
+#include <apps/openmw/mwphysics/neutralpathfollower.hpp>
+
 #include <cmath>
 
 namespace MWWorld
@@ -18,6 +20,11 @@ namespace MWWorld
         if (physicsActor.has_value())
             return *physicsActor;
         return configuredDefault;
+    }
+
+    bool neutralKindBlocksNavigationIn(openeden::sdk::game::BaseKind kind, bool interior)
+    {
+        return neutralKindBlocksNavigation(kind) || (interior && kind == openeden::sdk::game::BaseKind::Item);
     }
 
     bool neutralKindBlocksNavigation(openeden::sdk::game::BaseKind kind)
@@ -55,5 +62,11 @@ namespace MWWorld
                 best = *hit;
         }
         return best;
+    }
+
+    DetourNavigator::AgentBounds neutralActorAgentBounds(const DetourNavigator::AgentBounds& session, float capsuleRadius)
+    {
+        return DetourNavigator::AgentBounds{ DetourNavigator::CollisionShapeType::Cylinder,
+            MWPhysics::NeutralPath::agentHalfExtents(capsuleRadius, session.mHalfExtents) };
     }
 }

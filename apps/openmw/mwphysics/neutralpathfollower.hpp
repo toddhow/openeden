@@ -31,6 +31,8 @@ namespace MWPhysics::NeutralPath
     inline constexpr float kRunSpeed = 350.87f;
     /// A waypoint counts as reached when the actor is this close to it on the ground plane.
     inline constexpr float kWaypointRadius = 12.f;
+    /// ... and within this in height (the mover's step height, NeutralMover::kStepUp: task 0159).
+    inline constexpr float kWaypointHeight = 24.f;
     /// The goal counts as reached when the actor is within this on the ground plane and kArrivalHeight in height, or
     /// when every waypoint has been reached.
     inline constexpr float kArrivalRadius = 24.f;

@@ -336,8 +336,8 @@ namespace MWWorld
                                            const MWPhysics::NeutralActor::Capsule& capsule,
                                            std::vector<vsg::vec3>& out) {
             const DetourNavigator::AgentBounds sessionAgent = getPathfindingAgentBounds(getPlayerConstPtr());
-            const DetourNavigator::AgentBounds bounds{ sessionAgent.mShapeType,
-                MWPhysics::NeutralPath::agentHalfExtents(capsule.mRadius, sessionAgent.mHalfExtents) };
+            // Task 0159: a round capsule is a cylinder agent (a box agent's corner is 1.41 times as wide).
+            const DetourNavigator::AgentBounds bounds = neutralActorAgentBounds(sessionAgent, capsule.mRadius);
             // The first path of an agent size the navigator does not know yet adds it (a navmesh of its own is then
             // built on the worker threads, so the first answers are NavMeshNotFound and the follower asks again).
             if (bounds != sessionAgent && mNeutralPathAgents.insert(bounds).second && !mNavigator->addAgent(bounds))

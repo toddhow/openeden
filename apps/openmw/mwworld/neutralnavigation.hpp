@@ -48,6 +48,12 @@ namespace MWWorld
     /// as before. Physics is not affected.
     [[nodiscard]] bool neutralKindBlocksNavigation(openeden::sdk::game::BaseKind kind);
 
+    /// Task 0159: the same for a given kind of cell. In an INTERIOR the carried things (items: crates, plates, bottles
+    /// on the floor) stop a walking capsule as much as a chair does (the mover steps onto them and is left perched on
+    /// top: Lucia on a crate in the Bannered Mare cellar), so they are obstacles for the navmesh too; plants, trees and
+    /// lights stay out. Exteriors are as `neutralKindBlocksNavigation` says.
+    [[nodiscard]] bool neutralKindBlocksNavigationIn(openeden::sdk::game::BaseKind kind, bool interior);
+
     /// Whether a neutral object's physics shape is the stand-in box (`Neutral::insertObjectPhysics`: the box of the
     /// bounds an object gets when its model gives no collision triangles, such as an effect or marker model with no
     /// surface). That box is only a guess for the physics body: it is not a surface that an actor walks on or is
@@ -77,6 +83,15 @@ namespace MWWorld
     /// heightfield (Morrowind's rule: water without ground gets none) with a finite level and a positive size.
     [[nodiscard]] std::optional<NeutralNavigatorWater> neutralNavigatorWater(
         bool hasWater, bool hasHeightfield, float level, int cellSize);
+
+    /// Task 0159: the navmesh agent of a walking neutral actor whose capsule has radius `capsuleRadius`. The capsule is
+    /// round, so the agent is a CYLINDER of that radius (recast's radius is then the capsule's own). The session's
+    /// shape type (an axis aligned box by default) takes the box's corner, radius times the square root of two: for the
+    /// 22 unit capsule 31 units, which erodes the 72 unit wide open stairs of the Bannered Mare to a single cell and
+    /// loses the last steps of the west flight. The horizontal size is the larger of the capsule and the session's
+    /// agent, as `MWPhysics::NeutralPath::agentHalfExtents` says.
+    [[nodiscard]] DetourNavigator::AgentBounds neutralActorAgentBounds(
+        const DetourNavigator::AgentBounds& session, float capsuleRadius);
 }
 
 #endif

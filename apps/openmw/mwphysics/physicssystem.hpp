@@ -31,6 +31,7 @@
 #include "neutralactorbridge.hpp"
 #include "neutraldoorswing.hpp"
 #include "neutralmover.hpp"
+#include "neutralplanelinks.hpp"
 #include "neutralpathfollower.hpp"
 #include "neutralprocess.hpp"
 #include "ragdolltypes.hpp"
@@ -226,6 +227,10 @@ namespace MWPhysics
             MWWorld::Ptr mPtr;
             float mZ = 0.f;
         };
+        /// Task 0159: the crossings of one-sided walls of a neutral object that the mover can make (see
+        /// neutralplanelinks.hpp). Main thread, after the cell's objects have bodies.
+        std::vector<NeutralPlaneLinks::Link> findNeutralPlaneLinks(const Object& object) const;
+
         const std::vector<NeutralDoorMove>& getNeutralDoorsMoved() const { return mNeutralDoorsMoved; }
 
         /// Task 0135 stage S5: the game clock the pack reads (ActorRequestWriter::clock()) in the next update. Main

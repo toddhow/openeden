@@ -9,6 +9,7 @@ local util = require('openmw.util')
 local TARGETS = { 'b108144', 'b80802', 'b50347871' }
 local DIST = 150
 local STEP = 4
+local START = 45 -- seconds before the first picture (45 shows the sleepers in bed)
 local SHOTS = 18
 local start, nextAt, shotAt, shot = nil, nil, nil, 0
 
@@ -34,7 +35,7 @@ return {
                 end
                 return
             end
-            if t < 8 or shot >= SHOTS then return end
+            if t < START or shot >= SHOTS then return end
             nextAt = nextAt or t
             if t < nextAt then return end
             nextAt = t + STEP

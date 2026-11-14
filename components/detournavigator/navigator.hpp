@@ -121,6 +121,18 @@ namespace DetourNavigator
             = 0;
 
         /**
+         * @brief addOffMeshConnection adds a one-way ground connection from start to end (game units), owned by an
+         * object: removeObject(id) removes it. Task 0159: links through one-sided walls of neutral (game pack) cells.
+         * The default does nothing (the stub and tools).
+         */
+        virtual void addOffMeshConnection(const ObjectId id, const vsg::vec3& start, const vsg::vec3& end)
+        {
+            (void)id;
+            (void)start;
+            (void)end;
+        }
+
+        /**
          * @brief updateObject replace object geometry by given data.
          * @param id is used to find object.
          * @param shape members must live until object is updated by another shape removed from Navigator.

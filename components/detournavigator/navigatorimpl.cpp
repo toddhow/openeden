@@ -80,6 +80,12 @@ namespace DetourNavigator
         }
     }
 
+    void NavigatorImpl::addOffMeshConnection(const ObjectId id, const vsg::vec3& start, const vsg::vec3& end)
+    {
+        mNavMeshManager.addOffMeshConnection(id, toNavMeshCoordinates(mSettings.mRecast, start),
+            toNavMeshCoordinates(mSettings.mRecast, end), AreaType_ground);
+    }
+
     void NavigatorImpl::updateObject(
         const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform, const UpdateGuard* guard)
     {

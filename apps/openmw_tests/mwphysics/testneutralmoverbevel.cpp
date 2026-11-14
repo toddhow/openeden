@@ -27,7 +27,9 @@ namespace
             if (delta.z < 0.f)
             {
                 s.mHit = true;
-                s.mFraction = 0.5f; // rests at the middle of the drop
+                // Task 0159 (approved edit): rests level, where the capsule started (the old 0.5 rested 0.125 higher,
+                // which the new rule reads as a climb over a rim).
+                s.mFraction = (kStepUp + kSkin) / (kStepUp + kSkin + kStepDown);
             }
             return s;
         }

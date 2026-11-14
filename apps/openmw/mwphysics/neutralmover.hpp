@@ -56,6 +56,11 @@ namespace MWPhysics::NeutralMover
     /// capsule up is support). A capsule that is level or going down keeps the plain rule (a ledge is a ledge).
     inline constexpr float kRimReach = 24.f;
     inline constexpr float kRimMinClimb = 0.1f;
+    /// Task 0159: a trench is bridged when ground lies this far ahead and behind the capsule along the motion (the capsule's
+    /// rims span a gap narrower than its diameter).
+    inline constexpr float kBridgeReach = 12.f;
+    /// ... and that ground is at most this far below the resting capsule (its own floor, not a raised object it hangs from).
+    inline constexpr float kBridgeSupport = 6.f;
     /// Horizontal distances under this are not moves.
     inline constexpr float kMinMove = 1e-4f;
 

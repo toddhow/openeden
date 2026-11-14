@@ -19,7 +19,7 @@ return {
                     ok, model = pcall(function() return types.Static.record(o).model end)
                 end
                 local p = o.position
-                print(string.format('MAREOBJ %s %s %.1f,%.1f,%.1f', tostring(o.recordId), ok and tostring(model) or tostring(model), p.x, p.y, p.z))
+                print(string.format('MAREOBJ %s %s %.1f,%.1f,%.1f', tostring(o.recordId) .. ' T=' .. tostring(o.type) .. ' R=' .. string.format('%.2f', o.rotation:getAnglesZYX()) .. ' E=' .. tostring(o.enabled), ok and tostring(model) or tostring(model), p.x, p.y, p.z))
             end
         end,
     },

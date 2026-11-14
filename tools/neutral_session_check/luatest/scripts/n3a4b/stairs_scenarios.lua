@@ -8,5 +8,11 @@ return {
     scenarios = {
         { "stairs B up (+x)", -1340, -252, 70, math.pi / 2 },
         { "stairs B down (-x)", -1070, -252, 305, -math.pi / 2 },
+        -- Task 0159: from the top of the west stairs' second flight (z 328): east into the wall, south along the strip.
+        { "stairs B top east", -1052, -258, 334, math.pi / 2 },
+        { "stairs B top south", -1040, -262, 334, math.pi },
+        { "east block west (-x) at y -258", -1000, -258, 334, -math.pi / 2 },
+        { "east block west (-x) at y -300", -1000, -300, 334, -math.pi / 2 },
+        { "stairs B top east y -230", -1052, -230, 334, math.pi / 2 },
     },
 }

@@ -38,6 +38,8 @@ namespace DetourNavigator
         void addObject(const ObjectId id, const DoorShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 
+        void addOffMeshConnection(const ObjectId id, const vsg::vec3& start, const vsg::vec3& end) override;
+
         void updateObject(const ObjectId id, const ObjectShapes& shapes, const vsg::dmat4& transform,
             const UpdateGuard* guard) override;
 

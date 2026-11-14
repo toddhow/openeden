@@ -180,6 +180,10 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralmoverbevel.cpp
     mwphysics/testneutralmoverrim.cpp
     mwphysics/testneutralmovergap.cpp
+    mwphysics/testneutralplanelinks.cpp
+    mwphysics/testneutralpathwaypointz.cpp
+    mwphysics/testneutralmoversteep.cpp
+    mwworld/testneutralactoragent.cpp
     mwphysics/testragdollscale.cpp
     mwphysics/testragdollsleep.cpp
     mwphysics/testactorragdolls.cpp

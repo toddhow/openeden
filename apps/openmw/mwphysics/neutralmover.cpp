@@ -103,14 +103,43 @@ namespace MWPhysics::NeutralMover
                 probeDepth += kRimReach;
                 ground = world.probeDown(vsg::vec3(rest.x, rest.y, rest.z + kProbeLift), probeDepth);
             }
+            bool bridged = false;
             if (!ground.mHit)
+            {
+                // Task 0159: a trench narrower than the capsule (the Bannered Mare cellar has one 5 units wide and 34
+                // deep) has the capsule's rim on both sides, and recast's voxels average it away so the navmesh crosses
+                // it. The centre probe sees only the drop. Ground within kBridgeReach ahead AND behind along the motion
+                // is a gap the rims span; a ledge has ground behind only.
+                const float len = length2d(remaining.x, remaining.y);
+                const float dx = remaining.x / len;
+                const float dy = remaining.y / len;
+                const auto groundAt = [&](float sign) {
+                    return world.probeDown(vsg::vec3(rest.x + sign * dx * kBridgeReach, rest.y + sign * dy * kBridgeReach,
+                                               rest.z + kProbeLift),
+                        probeDepth);
+                };
+                const Sweep ahead = groundAt(1.f);
+                const Sweep behind = groundAt(-1.f);
+                // Real support on both sides: the ground there is no more than kBridgeSupport below the resting
+                // capsule, i.e. its own floor (a capsule hanging by the rim of a raised object has the floor 15 or
+                // more below it and is not bridged).
+                const auto supported = [&](const Sweep& s) {
+                    return s.mHit && s.mNormal.z >= kMinFloorNormalZ
+                        && s.mFraction * probeDepth - kProbeLift <= kBridgeSupport;
+                };
+                bridged = supported(ahead) && supported(behind);
+            }
+            if (!ground.mHit && !bridged)
             {
                 result.mBlocked = true;
                 result.mEdge = true;
                 break;
             }
             const float groundBelowRest = rest.z - (rest.z + kProbeLift - ground.mFraction * probeDepth);
-            if (ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack)
+            // Task 0159: a pass that carries the capsule up (its rim on the nosing of a steep dirt step) is not refused for
+            // the steepness of the face under its centre; a level or descending pass is (a slope is a slope).
+            const bool climbing = rest.z - pos.z > kRimMinClimb;
+            if (!bridged && ground.mNormal.z < kMinFloorNormalZ && groundBelowRest > kBevelSlack && !climbing)
             {
                 result.mBlocked = true;
                 break;

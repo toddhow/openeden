@@ -37,6 +37,11 @@ end
 local index, nextTry, t0, started = 1, 0, nil, nil
 local RUN_QUERIES = false -- the picture run does not need them
 local RUN_MAP = false
+local RUN_RAYS = false
+local RUN_HOLE = false
+local RUN_OBJ = false
+local RUN_RAMP = false
+local RUN_SEG = true
 local RUN_SCAN = false
 -- A map of what the navmesh reaches from START (Mare ground floor): for each cell of a grid, the first floor hit by a
 -- ray from z 420 down, and whether a path from START reaches it (U/L upper/lower floor reached, u/l not reached).
@@ -66,6 +71,10 @@ local function fmt(v) return string.format('%.0f,%.0f,%.0f', v.x, v.y, v.z) end
 return {
     eventHandlers = {
         SRWire = function() debug.toggleRenderMode(debug.RENDER_MODE.NavMesh) end,
+        SRView = function(v)
+            local m = { col = debug.RENDER_MODE.CollisionDebug, nav = debug.RENDER_MODE.NavMesh, recast = debug.RENDER_MODE.RecastMesh }
+            if m[v] then debug.toggleRenderMode(m[v]) end
+        end,
         SRShot = function() debug.takeScreenshot() end,
         SRLook = function(d) camera.setMode(camera.MODE.FirstPerson); camera.setPitch(d.pitch); camera.setYaw(d.yaw) end,
     },
@@ -88,6 +97,93 @@ return {
                         if d < 60 then objs[#objs + 1] = o.recordId .. '@' .. string.format('%.0f,%.0f,%.0f', o.position.x, o.position.y, o.position.z) end
                     end
                     print('SKYSCAN near activators: ' .. table.concat(objs, ' '))
+                end
+                return
+            end
+
+            if RUN_RAYS and not mapDone and now - started > 6 then
+                mapDone = true
+                local self = require('openmw.self')
+                local function cast(a, b)
+                    local hit = nearby.castRay(a, b, { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World })
+                    return hit.hit and string.format('hit %.1f,%.1f,%.1f', hit.hitPos.x, hit.hitPos.y, hit.hitPos.z) or 'none'
+                end
+                for _, y in ipairs({ -240, -258, -275 }) do
+                    for _, z in ipairs({ 340, 360, 400, 450, 500 }) do
+                        print(string.format('SKYRAY y=%d z=%d W->E %s | E->W %s', y, z,
+                            cast(util.vector3(-1050, y, z), util.vector3(-990, y, z)),
+                            cast(util.vector3(-990, y, z), util.vector3(-1050, y, z))))
+                    end
+                end
+                return
+            end
+
+            if RUN_HOLE and not mapDone and now - started > 6 then
+                mapDone = true
+                local self = require('openmw.self')
+                for _, y in ipairs({ -300, -320, -340, -360 }) do
+                    for _, x in ipairs({ -1100, -1080, -1060, -1045 }) do
+                        local ph = nearby.castRay(util.vector3(x, y, 480), util.vector3(x, y, 150),
+                            { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World })
+                        local ok, rh = pcall(nearby.castRenderingRay, util.vector3(x, y, 480), util.vector3(x, y, 150))
+                        local rtxt = 'n/a'
+                        if ok and rh and rh.hit then rtxt = string.format('%.1f', rh.hitPos.z) elseif ok then rtxt = 'none' end
+                        print(string.format('SKYHOLE x=%d y=%d physics %s render %s', x, y,
+                            ph.hit and string.format('%.1f', ph.hitPos.z) or 'none', rtxt))
+                    end
+                end
+                return
+            end
+
+            if RUN_OBJ and not mapDone and now - started > 6 then
+                mapDone = true
+                local self = require('openmw.self')
+                for _, y in ipairs({ -200, -240, -258, -275, -300, -340 }) do
+                    for _, z in ipairs({ 340, 400, 470 }) do
+                        local hit = nearby.castRay(util.vector3(-1050, y, z), util.vector3(-990, y, z),
+                            { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World })
+                        local id = 'none'
+                        if hit.hit and hit.hitObject then id = hit.hitObject.recordId .. '@' .. fmt(hit.hitObject.position) end
+                        print(string.format('SKYOBJ y=%d z=%d %s %s', y, z, hit.hit and fmt(hit.hitPos) or 'none', id))
+                    end
+                end
+                return
+            end
+
+            if RUN_RAMP and not mapDone and now - started > 6 then
+                mapDone = true
+                local self = require('openmw.self')
+                for y = -498, -522, -3 do
+                    local row = {}
+                    for x = -796, -836, -3 do
+                        local hit = nearby.castRay(util.vector3(x, y, 130), util.vector3(x, y, -20),
+                            { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World })
+                        row[#row + 1] = hit.hit and string.format('%3.0f', hit.hitPos.z) or ' --'
+                    end
+                    print('SKYRAMP y=' .. y .. ' ' .. table.concat(row, ' '))
+                end
+                return
+            end
+
+            if RUN_SEG and not mapDone and now - started > 6 then
+                mapDone = true
+                local self = require('openmw.self')
+                local a, b = util.vector2(-720.8, -530.4), util.vector2(-1026.8, -469.2)
+                local len = (b - a):length()
+                local pts = {}
+                for d = 0, len, 8 do pts[#pts + 1] = a + (b - a) * (d / len) end
+                pts[#pts + 1] = util.vector2(-810.7, -485.8)
+                for _, p in ipairs(pts) do
+                    local z, out = 130, {}
+                    for k = 1, 3 do
+                        local hit = nearby.castRay(util.vector3(p.x, p.y, z), util.vector3(p.x, p.y, -20),
+                            { ignore = self.object, collisionType = nearby.COLLISION_TYPE.World })
+                        if not hit.hit then break end
+                        local id = hit.hitObject and (hit.hitObject.recordId .. '@' .. string.format('%.0f,%.0f,%.0f', hit.hitObject.position.x, hit.hitObject.position.y, hit.hitObject.position.z)) or '?'
+                        out[#out + 1] = string.format('%.1f(%s)', hit.hitPos.z, id)
+                        z = hit.hitPos.z - 3
+                    end
+                    print(string.format('SKYSEG %.1f,%.1f %s', p.x, p.y, table.concat(out, ' ')))
                 end
                 return
             end

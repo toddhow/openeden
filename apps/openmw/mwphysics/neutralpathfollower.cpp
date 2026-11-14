@@ -113,7 +113,9 @@ namespace MWPhysics::NeutralPath
         // Close enough to the goal itself (and on its floor): done, whatever waypoints are left.
         if (groundDistance(feet, mTarget) <= kArrivalRadius && std::fabs(feet.z - mTarget.z) <= kArrivalHeight)
             return finish(Outcome::Arrived);
-        while (mIndex < mPath.size() && groundDistance(feet, mPath[mIndex]) <= kWaypointRadius)
+        // Task 0159: and within the mover's step height of it (a raised lip beside the waypoint is not the waypoint).
+        while (mIndex < mPath.size() && groundDistance(feet, mPath[mIndex]) <= kWaypointRadius
+            && std::fabs(feet.z - mPath[mIndex].z) <= kWaypointHeight)
             ++mIndex;
         if (mIndex >= mPath.size())
             return finish(Outcome::Arrived);

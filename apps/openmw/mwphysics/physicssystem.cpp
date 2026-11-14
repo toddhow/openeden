@@ -67,6 +67,7 @@
 #include "mtphysics.hpp"
 #include "neutralactor.hpp"
 #include "neutralmover.hpp"
+#include "neutralplanelinks.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
 #include "skyrimshape.hpp"
@@ -1639,6 +1640,69 @@ namespace MWPhysics
                     { doorObject->second->getPtr(), door.mClosedZ - NeutralDoor::sinkOffset(door.mState) });
             }
         }
+    }
+
+    namespace
+    {
+        // The world as NeutralPlaneLinks sees it: the mover's sweeper, and a capsule that must stand free.
+        class JoltPlaneWorld final : public NeutralPlaneLinks::World
+        {
+        public:
+            JoltPlaneWorld(const JPH::PhysicsSystem& system, JPH::RefConst<JPH::Shape> shape)
+                : mSweeper(system, std::move(shape), JPH::BodyID(), Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR)
+            {
+            }
+            NeutralMover::Sweep sweep(const vsg::vec3& from, const vsg::vec3& delta) const override
+            {
+                return mSweeper.sweep(from, delta);
+            }
+            NeutralMover::Sweep probeDown(const vsg::vec3& from, float depth) const override
+            {
+                return mSweeper.probeDown(from, depth);
+            }
+            bool fits(const vsg::vec3& feet) const override
+            {
+                // A short move straight up from a little above the floor: a capsule with something inside hits at once.
+                return !mSweeper.sweep(vsg::vec3(feet.x, feet.y, feet.z + 2.f), vsg::vec3(0.f, 0.f, 0.05f)).mHit;
+            }
+
+        private:
+            NeutralMover::JoltSweeper mSweeper;
+        };
+    }
+
+    std::vector<NeutralPlaneLinks::Link> PhysicsSystem::findNeutralPlaneLinks(const Object& object) const
+    {
+        const JPH::Shape* shape = object.getShapeInstance()->mCollisionShape.GetPtr();
+        const auto capsule = NeutralActor::makeShape(NeutralActor::capsuleFor(1.f));
+        if (shape == nullptr || capsule == nullptr)
+            return {};
+
+        const vsg::dmat4 transform = object.getTransform();
+        std::vector<NeutralPlaneLinks::Triangle> triangles;
+        JPH::Shape::GetTrianglesContext context;
+        shape->GetTrianglesStart(context, shape->GetLocalBounds(), JPH::Vec3::sZero(), JPH::Quat::sIdentity(),
+            JPH::Vec3::sReplicate(1.0f));
+        constexpr int batch = 256;
+        JPH::Float3 vertices[3 * batch];
+        for (;;)
+        {
+            const int count = shape->GetTrianglesNext(context, batch, vertices);
+            if (count <= 0)
+                break;
+            for (int i = 0; i < count; ++i)
+            {
+                NeutralPlaneLinks::Triangle triangle;
+                for (int k = 0; k < 3; ++k)
+                {
+                    const JPH::Float3& v = vertices[3 * i + k];
+                    triangle.mV[k] = vsg::vec3(transform * vsg::dvec3(v.x, v.y, v.z));
+                }
+                triangles.push_back(triangle);
+            }
+        }
+        const JoltPlaneWorld world(mPhysicsSystem, capsule->mCollisionShape);
+        return NeutralPlaneLinks::find(triangles, world);
     }
 
     void PhysicsSystem::followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace)

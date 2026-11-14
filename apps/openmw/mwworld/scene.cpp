@@ -260,7 +260,7 @@ namespace
                     object->getTransform(), navigatorUpdateGuard);
             }
             else if (ptr.getType() == MWWorld::NeutralBase::sRecordId
-                && !MWWorld::neutralKindBlocksNavigation(ptr.get<MWWorld::NeutralBase>()->mBase->mKind))
+                && !MWWorld::neutralKindBlocksNavigationIn(ptr.get<MWWorld::NeutralBase>()->mBase->mKind, isInterior))
             {
                 // Task 0134: flora, items and lights of a neutral cell are physics objects but not navmesh obstacles
             }
@@ -275,6 +275,12 @@ namespace
                 navigator.addObject(DetourNavigator::ObjectId(object),
                     DetourNavigator::ObjectShapes(object->getShapeInstance(), objectTransform), object->getTransform(),
                     navigatorUpdateGuard);
+                // Task 0159: the mover passes a one-sided wall from its back, the navmesh sees a solid wall: the
+                // crossings the mover can make become one-way off-mesh connections (neutral interiors, with actors).
+                if (isInterior && ptr.getType() == MWWorld::NeutralBase::sRecordId
+                    && Settings::game().mNeutralActors.get())
+                    for (const auto& link : physics.findNeutralPlaneLinks(*object))
+                        navigator.addOffMeshConnection(DetourNavigator::ObjectId(object), link.mFrom, link.mTo);
             }
         }
         else if (physics.getActor(ptr))
