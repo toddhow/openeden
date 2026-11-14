@@ -31,10 +31,10 @@ namespace UiLua
 
     /// Task 0164: the engine-side per-frame hook. A session's `setUpdater(fn)` (the library registers its `ui.update`
     /// when it is required) puts `fn` here, and the engine calls `runAll` once a frame on the Lua thread, so a script
-    /// need not call `ui.update()` itself (a manual call stays harmless: a second flush in one frame has nothing to do).
-    /// Updaters run in registration order. A failing one is reported through `onError` the first time and again only
-    /// when its message changes; it never stops the others. `clear` forgets every updater (the engine calls it when
-    /// scripts are unloaded: an updater holds its session's Lua function). Main (Lua) thread only.
+    /// need not call `ui.update()` itself (a manual call stays harmless: a second flush in one frame has nothing to
+    /// do). Updaters run in registration order. A failing one is reported through `onError` the first time and again
+    /// only when its message changes; it never stops the others. `clear` forgets every updater (the engine calls it
+    /// when scripts are unloaded: an updater holds its session's Lua function). Main (Lua) thread only.
     class UpdateRegistry
     {
     public:

@@ -1,14 +1,15 @@
-// Task 0162: the cost of a frame in which nothing changed, and the whole path script -> queue -> engine thread -> events
-// back. Written from the spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against stubs first.
+// Task 0162: the cost of a frame in which nothing changed, and the whole path script -> queue -> engine thread ->
+// events back. Written from the spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against stubs
+// first.
 #include "uiluafixture.hpp"
 
 #include <components/ui/commandqueue.hpp>
 
 namespace
 {
-    using UiTest::UiLuaFixture;
     using Ui::ElementId;
     using Ui::EventKind;
+    using UiTest::UiLuaFixture;
 
     struct UiFrame : UiLuaFixture
     {
@@ -89,9 +90,8 @@ namespace
         lua["package"]["path"]
             = (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data").generic_string() + "/?.lua";
         auto queue = std::make_shared<Ui::CommandQueue>();
-        lua["package"]["loaded"]["openeden.uibackend"] = UiLua::makeBackendPackage(lua, [queue] {
-            return std::shared_ptr<Ui::Backend>(queue->openSession());
-        });
+        lua["package"]["loaded"]["openeden.uibackend"]
+            = UiLua::makeBackendPackage(lua, [queue] { return std::shared_ptr<Ui::Backend>(queue->openSession()); });
         sol::protected_function_result r = lua.safe_script(R"(
             ui = require('openeden.ui')
             clicks, typed = 0, nil
@@ -101,7 +101,8 @@ namespace
                     ui.Text{ text = v }, ui.TextInput{ value = ui.Value(''), onChange = function(s) typed = s end } }
             end }
             ui.update()
-        )", sol::script_pass_on_error);
+        )",
+            sol::script_pass_on_error);
         ASSERT_TRUE(r.valid()) << r.get<sol::error>().what();
 
         Ui::HeadlessBackend engine{ 0 };

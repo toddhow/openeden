@@ -25,15 +25,16 @@ namespace
         lua["package"]["path"]
             = (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data").generic_string() + "/?.lua";
         auto queue = std::make_shared<Ui::CommandQueue>();
-        lua["package"]["loaded"]["openeden.uibackend"] = UiLua::makeBackendPackage(
-            lua, [queue] { return std::shared_ptr<Ui::Backend>(queue->openSession()); });
+        lua["package"]["loaded"]["openeden.uibackend"]
+            = UiLua::makeBackendPackage(lua, [queue] { return std::shared_ptr<Ui::Backend>(queue->openSession()); });
         sol::protected_function_result built = lua.safe_script(R"(
             ui = require('openeden.ui')
             v = ui.Value('a')
             doc = ui.Hud{ name = 'h', build = function() return ui.Column{ ui.Text{ text = v }, ui.Button{ text = 'b', onClick = function() end } } end }
             update = ui.update
             ui.update(); ui.update()
-        )", sol::script_pass_on_error);
+        )",
+            sol::script_pass_on_error);
         ASSERT_TRUE(built.valid()) << built.get<sol::error>().what();
         Ui::HeadlessBackend engine{ 0 };
         queue->drain(engine);

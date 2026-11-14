@@ -211,8 +211,8 @@ namespace UiRml
         auto vertexData = vsg::ubyteArray::create(std::uint32_t(packed.size() * sizeof(GpuVertex)));
         // Task 0164: "updated during the record traversal": VSG's TransferTask uploads such data after the record
         // traversal of the SAME frame and the frame's submission waits for it. With the default (static) variance the
-        // upload came in the next frame's early transfer, so geometry was drawable one frame after it was compiled and a
-        // text that changes every frame (RmlUi builds new geometry for each change) was never drawn.
+        // upload came in the next frame's early transfer, so geometry was drawable one frame after it was compiled and
+        // a text that changes every frame (RmlUi builds new geometry for each change) was never drawn.
         vertexData->properties.dataVariance = vsg::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
         std::memcpy(vertexData->dataPointer(), packed.data(), packed.size() * sizeof(GpuVertex));
         auto indexData = vsg::uintArray::create(std::uint32_t(packedIndices.size()));

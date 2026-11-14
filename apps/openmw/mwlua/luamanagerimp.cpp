@@ -10,8 +10,8 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/extension/bindings_store.hpp>
-#include <components/ui_lua/backendpackage.hpp>
 #include <components/mwanimation/groups.hpp>
+#include <components/ui_lua/backendpackage.hpp>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>

@@ -23,7 +23,8 @@ namespace
 
     TEST(UiEventKinds, NamesRoundTrip)
     {
-        for (EventKind kind : { EventKind::Click, EventKind::Change, EventKind::Focus, EventKind::Blur, EventKind::Scroll })
+        for (EventKind kind :
+            { EventKind::Click, EventKind::Change, EventKind::Focus, EventKind::Blur, EventKind::Scroll })
         {
             const auto back = eventKindFromName(eventKindName(kind));
             ASSERT_TRUE(back.has_value());
@@ -246,8 +247,8 @@ namespace
         s1->commit();
         queue->drain(consumer);
         EXPECT_EQ(consumer.node(a)->mText, "two");
-        EXPECT_EQ(consumer.calls(), (std::vector<std::string>{ "create #1 div", "setText #1 one", "create #1 div",
-                                        "setText #1 two" }));
+        EXPECT_EQ(consumer.calls(),
+            (std::vector<std::string>{ "create #1 div", "setText #1 one", "create #1 div", "setText #1 two" }));
         EXPECT_NE(sessionOf(a), sessionOf(c));
     }
 

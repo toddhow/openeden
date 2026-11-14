@@ -13,8 +13,8 @@ namespace Rml
 namespace UiRml
 {
     /// The panel's document is `ui/debugpanel.rml` in the data files (task 0163: it was inline here before): sizes in
-    /// `dp`, looks from the tokens of `ui/base.rcss`, no shadows, filters, gradients or rounded clipping (decision 0015:
-    /// forbidden in the first themes). The `body` carries `nav-capture`: while a control in it has the focus the
+    /// `dp`, looks from the tokens of `ui/base.rcss`, no shadows, filters, gradients or rounded clipping (decision
+    /// 0015: forbidden in the first themes). The `body` carries `nav-capture`: while a control in it has the focus the
     /// controller drives it (inputrouter.hpp).
     inline constexpr const char* kDebugPanelDocument = "ui/debugpanel.rml";
 

@@ -4,15 +4,12 @@
 
 namespace
 {
-    using UiTest::UiLuaFixture;
     using Ui::EventKind;
+    using UiTest::UiLuaFixture;
 
     struct UiBinding : UiLuaFixture
     {
-        UiBinding()
-        {
-            EXPECT_TRUE(run("session = require('openeden.uibackend').open()"));
-        }
+        UiBinding() { EXPECT_TRUE(run("session = require('openeden.uibackend').open()")); }
     };
 
     TEST_F(UiBinding, EachFunctionReachesTheBackendWithItsArguments)
@@ -74,8 +71,8 @@ namespace
         for (const char* call : { "session.create(5)", "session.setText('x', 'y')", "session.setProperty(1, 2, 3)",
                  "session.listen(1, 'hover', true)", "session.insertBefore(1)", "session.poll(5)", "session.create()" })
         {
-            sol::protected_function_result r = lua.safe_script(std::string("return pcall(function() ") + call + " end)",
-                sol::script_pass_on_error);
+            sol::protected_function_result r
+                = lua.safe_script(std::string("return pcall(function() ") + call + " end)", sol::script_pass_on_error);
             ASSERT_TRUE(r.valid()) << call;
             EXPECT_FALSE(r.get<bool>(0)) << call << " should raise";
         }
@@ -97,7 +94,8 @@ namespace
 
     TEST_F(UiBinding, TwoSessionsAreTwoBackends)
     {
-        ASSERT_TRUE(run("other = require('openeden.uibackend').open(); x = other.create('div'); y = session.create('div')"));
+        ASSERT_TRUE(
+            run("other = require('openeden.uibackend').open(); x = other.create('div'); y = session.create('div')"));
         EXPECT_EQ(backend.callCount(), 2u); // the fixture's opener hands out the same backend; both writes arrive
     }
 }

@@ -59,7 +59,8 @@ namespace
     {
         return { { "ui/themes/neutral/theme.rcss", fullTheme("#111111") },
             { "ui/themes/other/theme.rcss", fullTheme("#222222") },
-            { "ui/variants/big.rcss", "body { --font-size-md: 30dp; }\n" }, { "ui/base.rcss", "body { color: var(--color-text); }\n" } };
+            { "ui/variants/big.rcss", "body { --font-size-md: 30dp; }\n" },
+            { "ui/base.rcss", "body { color: var(--color-text); }\n" } };
     }
 
     std::string readFileText(const std::filesystem::path& path)
@@ -77,7 +78,8 @@ namespace
 
     TEST(UiThemeValidator, a_plain_sheet_has_no_problems)
     {
-        EXPECT_TRUE(validateStyleSheet("body { color: #fff; padding: 4dp 8dp; }\n.btn:hover { background-color: red; }\n", "a.rcss")
+        EXPECT_TRUE(validateStyleSheet(
+            "body { color: #fff; padding: 4dp 8dp; }\n.btn:hover { background-color: red; }\n", "a.rcss")
                         .empty());
     }
 
@@ -110,7 +112,9 @@ namespace
 
     TEST(UiThemeValidator, the_straight_gradients_are_drawn_from_vertex_colours_and_stay_allowed)
     {
-        EXPECT_TRUE(validateStyleSheet("a { decorator: horizontal-gradient(#fff #000); }\nb { decorator: vertical-gradient(#fff #000); }", "s.rcss")
+        EXPECT_TRUE(validateStyleSheet(
+            "a { decorator: horizontal-gradient(#fff #000); }\nb { decorator: vertical-gradient(#fff #000); }",
+            "s.rcss")
                         .empty());
     }
 
@@ -127,10 +131,12 @@ namespace
         for (const char* overflow : { "overflow: hidden", "overflow-y: scroll", "overflow-x: auto" })
         {
             // either order of the two declarations
-            const auto first = validateStyleSheet(std::string(".a {\n border-radius: 4dp;\n ") + overflow + ";\n}\n", "r.rcss");
+            const auto first
+                = validateStyleSheet(std::string(".a {\n border-radius: 4dp;\n ") + overflow + ";\n}\n", "r.rcss");
             ASSERT_FALSE(first.empty()) << overflow;
             EXPECT_EQ(first[0].mLine, 2) << overflow;
-            const auto second = validateStyleSheet(std::string(".a { ") + overflow + "; border-top-left-radius: var(--r); }\n", "r.rcss");
+            const auto second = validateStyleSheet(
+                std::string(".a { ") + overflow + "; border-top-left-radius: var(--r); }\n", "r.rcss");
             EXPECT_FALSE(second.empty()) << overflow;
         }
         // another rule's overflow does not count
@@ -139,7 +145,8 @@ namespace
 
     TEST(UiThemeValidator, comments_and_strings_are_not_looked_into)
     {
-        const std::string text = "/* box-shadow: 1px; filter: blur(2px) */\na { font-family: \"filter: blur(2px)\"; }\n";
+        const std::string text
+            = "/* box-shadow: 1px; filter: blur(2px) */\na { font-family: \"filter: blur(2px)\"; }\n";
         EXPECT_TRUE(validateStyleSheet(text, "c.rcss").empty());
     }
 
@@ -152,13 +159,16 @@ namespace
 
     TEST(UiThemeValidator, every_problem_in_a_sheet_is_reported)
     {
-        const auto problems = validateStyleSheet("a { filter: blur(1px); }\nb { box-shadow: 1px 1px #000; }\n", "m.rcss");
+        const auto problems
+            = validateStyleSheet("a { filter: blur(1px); }\nb { box-shadow: 1px 1px #000; }\n", "m.rcss");
         EXPECT_GE(problems.size(), 2u);
     }
 
     TEST(UiThemeValidator, the_style_blocks_of_a_document_are_checked_with_the_documents_lines)
     {
-        const std::string rml = "<rml>\n<head>\n<style>\nbody { color: red; }\ndiv { box-shadow: 1px 1px #000; }\n</style>\n</head>\n<body/>\n</rml>\n";
+        const std::string rml
+            = "<rml>\n<head>\n<style>\nbody { color: red; }\ndiv { box-shadow: 1px 1px #000; "
+              "}\n</style>\n</head>\n<body/>\n</rml>\n";
         const auto problems = validateMarkupStyles(rml, "d.rml");
         ASSERT_EQ(problems.size(), 1u);
         EXPECT_EQ(problems[0].mFile, "d.rml");
@@ -170,7 +180,8 @@ namespace
 
     TEST(UiThemeTokens, defined_and_used_tokens_are_listed_in_first_use_order)
     {
-        const std::string text = "body { --a: 1dp; --b: var(--a); }\n.x { color: var(--c, red); width: var(--a); --a: 2dp; }";
+        const std::string text
+            = "body { --a: 1dp; --b: var(--a); }\n.x { color: var(--c, red); width: var(--a); --a: 2dp; }";
         EXPECT_EQ(tokensDefined(text), (std::vector<std::string>{ "--a", "--b" }));
         EXPECT_EQ(tokensUsed(text), (std::vector<std::string>{ "--a", "--c" }));
         EXPECT_TRUE(tokensDefined("/* --x: 1 */ a { }").empty());
@@ -182,7 +193,8 @@ namespace
         for (const char* token : { "--font-family", "--font-size-md", "--space-4", "--radius-md", "--border-width",
                  "--color-surface", "--color-text", "--color-control-focus", "--scrollbar-width" })
             EXPECT_TRUE(has(required, token)) << token;
-        EXPECT_FALSE(std::any_of(required.begin(), required.end(), [](const std::string& t) { return !t.starts_with("--"); }));
+        EXPECT_FALSE(
+            std::any_of(required.begin(), required.end(), [](const std::string& t) { return !t.starts_with("--"); }));
     }
 
     TEST(UiThemeNames, a_name_is_a_safe_path_component)
@@ -219,7 +231,8 @@ namespace
         EXPECT_EQ(a.mThemeUsed, "neutral");
         EXPECT_EQ(a.mVariantsUsed, (std::vector<std::string>{ "big" }));
         EXPECT_EQ(a.mSources,
-            (std::vector<std::string>{ "ui/themes/neutral/theme.rcss", "ui/variants/big.rcss", "ui/base.rcss", "ui/overrides.rcss" }));
+            (std::vector<std::string>{
+                "ui/themes/neutral/theme.rcss", "ui/variants/big.rcss", "ui/base.rcss", "ui/overrides.rcss" }));
         const std::size_t theme = a.mText.find("#111111");
         const std::size_t variant = a.mText.find("30dp");
         const std::size_t base = a.mText.find("color: var(--color-text)");
@@ -346,7 +359,8 @@ namespace
     TEST(UiThemeAssembly, assembling_twice_gives_the_same_bytes)
     {
         const auto files = basicFiles();
-        EXPECT_EQ(assembleTheme(readerOf(files), { "other", { "big" } }).mText, assembleTheme(readerOf(files), { "other", { "big" } }).mText);
+        EXPECT_EQ(assembleTheme(readerOf(files), { "other", { "big" } }).mText,
+            assembleTheme(readerOf(files), { "other", { "big" } }).mText);
     }
 
     // a mod's folder that holds the same path wins by VFS order

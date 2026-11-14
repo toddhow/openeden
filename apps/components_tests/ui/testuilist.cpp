@@ -4,9 +4,9 @@
 
 namespace
 {
-    using UiTest::UiLuaFixture;
     using Ui::ElementId;
     using Ui::EventKind;
+    using UiTest::UiLuaFixture;
 
     struct UiList : UiLuaFixture
     {
@@ -24,7 +24,8 @@ namespace
             ASSERT_TRUE(run(R"(
                 ui = require('openeden.ui')
                 items = {}
-                for i = 1, )" + std::to_string(count) + R"( do items[i] = { id = i, name = 'item ' .. i } end
+                for i = 1, )"
+                + std::to_string(count) + R"( do items[i] = { id = i, name = 'item ' .. i } end
                 renders = 0
                 doc = ui.Document{ name = 'inv', build = function()
                     return ui.List{ items = items, key = function(it) return it.id end, rowHeight = 20, height = 100,
@@ -99,8 +100,8 @@ namespace
         backend.emit(listElement(), EventKind::Scroll, "100");
         ASSERT_TRUE(run("ui.update()"));
         EXPECT_EQ(withClass("list-row").size(), 9u); // rows 3..11
-        EXPECT_EQ(countCalls("destroy "), 3u);       // rows 0..2 left
-        EXPECT_EQ(get<int>("renders"), 7 + 9 - 4);   // 4 rows entered... 8..11
+        EXPECT_EQ(countCalls("destroy "), 3u); // rows 0..2 left
+        EXPECT_EQ(get<int>("renders"), 7 + 9 - 4); // 4 rows entered... 8..11
     }
 
     TEST_F(UiList, AFarScrollShowsTheRowsThere)

@@ -176,13 +176,15 @@ namespace UiRml
 
         const char* forbiddenFunction(const std::string& text)
         {
-            for (const char* needle : { "linear-gradient(", "radial-gradient(", "conic-gradient(", "shader(", "blur(", "drop-shadow(" })
+            for (const char* needle :
+                { "linear-gradient(", "radial-gradient(", "conic-gradient(", "shader(", "blur(", "drop-shadow(" })
                 if (text.find(needle) != std::string::npos)
                     return needle;
             return nullptr;
         }
 
-        std::vector<StyleDiagnostic> validate(std::string_view text, std::string_view fileName, int firstLine, int firstColumn)
+        std::vector<StyleDiagnostic> validate(
+            std::string_view text, std::string_view fileName, int firstLine, int firstColumn)
         {
             std::vector<StyleDiagnostic> problems;
             auto report = [&](const Statement& at, std::string message) {
@@ -202,10 +204,13 @@ namespace UiRml
                     case Statement::Kind::Prelude:
                     {
                         const std::string prelude = lower(s.mText);
-                        if (prelude.find("linear-gradient") != std::string::npos || prelude.find("radial-gradient") != std::string::npos
+                        if (prelude.find("linear-gradient") != std::string::npos
+                            || prelude.find("radial-gradient") != std::string::npos
                             || prelude.find("conic-gradient") != std::string::npos
                             || (prelude.starts_with("@decorator") && prelude.find("shader") != std::string::npos))
-                            report(s, "gradients and shaders are not drawn by the renderer (no layers or shaders; decision 0015)");
+                            report(s,
+                                "gradients and shaders are not drawn by the renderer (no layers or shaders; decision "
+                                "0015)");
                         blocks.emplace_back();
                         break;
                     }
@@ -215,7 +220,8 @@ namespace UiRml
                             const Block& block = blocks.back();
                             if (block.mHasRadius && block.mClips)
                                 report(block.mRadius,
-                                    "a rounded corner with a clipping overflow needs a clip mask, which the renderer lacks");
+                                    "a rounded corner with a clipping overflow needs a clip mask, which the renderer "
+                                    "lacks");
                             blocks.pop_back();
                         }
                         break;
@@ -225,15 +231,20 @@ namespace UiRml
                         std::string value;
                         if (!splitDeclaration(s.mText, name, value))
                             break;
-                        if (name == "box-shadow" || name == "filter" || name == "backdrop-filter" || name == "mask-image")
+                        if (name == "box-shadow" || name == "filter" || name == "backdrop-filter"
+                            || name == "mask-image")
                         {
-                            report(s, "'" + name + "' needs layers, filters or masks, which the renderer lacks (decision 0015)");
+                            report(s,
+                                "'" + name
+                                    + "' needs layers, filters or masks, which the renderer lacks (decision 0015)");
                             break;
                         }
                         if (const char* function = forbiddenFunction(value))
                         {
-                            report(s, "'" + std::string(function) + ")' in '" + name
-                                    + "' needs gradients, shaders or filters, which the renderer lacks (decision 0015)");
+                            report(s,
+                                "'" + std::string(function) + ")' in '" + name
+                                    + "' needs gradients, shaders or filters, which the renderer lacks (decision "
+                                      "0015)");
                             break;
                         }
                         if (!blocks.empty())
@@ -315,7 +326,8 @@ namespace UiRml
         {
             std::string name;
             std::string value;
-            if (s.mKind == Statement::Kind::Declaration && splitDeclaration(s.mText, name, value) && name.starts_with("--"))
+            if (s.mKind == Statement::Kind::Declaration && splitDeclaration(s.mText, name, value)
+                && name.starts_with("--"))
                 result = pushUnique(std::move(result), name);
         }
         return result;
@@ -344,12 +356,12 @@ namespace UiRml
     const std::vector<std::string>& requiredTokens()
     {
         static const std::vector<std::string> sTokens = { "--font-family", "--font-size-sm", "--font-size-md",
-            "--font-size-lg", "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6", "--space-7", "--space-8", "--radius-sm",
-            "--radius-md", "--border-width", "--control-height", "--scrollbar-width", "--color-surface",
-            "--color-surface-sunken", "--color-text", "--color-text-strong", "--color-text-muted", "--color-text-ok",
-            "--color-text-info", "--color-control", "--color-control-hover", "--color-control-focus",
-            "--color-control-text-focus", "--color-input", "--color-input-focus", "--color-input-text", "--color-border",
-            "--color-focus-border", "--color-scrollbar-track", "--color-scrollbar-thumb" };
+            "--font-size-lg", "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6", "--space-7",
+            "--space-8", "--radius-sm", "--radius-md", "--border-width", "--control-height", "--scrollbar-width",
+            "--color-surface", "--color-surface-sunken", "--color-text", "--color-text-strong", "--color-text-muted",
+            "--color-text-ok", "--color-text-info", "--color-control", "--color-control-hover", "--color-control-focus",
+            "--color-control-text-focus", "--color-input", "--color-input-focus", "--color-input-text",
+            "--color-border", "--color-focus-border", "--color-scrollbar-track", "--color-scrollbar-thumb" };
         return sTokens;
     }
 
@@ -357,9 +369,8 @@ namespace UiRml
     {
         if (name.empty() || name.size() > 64)
             return false;
-        return std::all_of(name.begin(), name.end(), [](char c) {
-            return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
-        });
+        return std::all_of(name.begin(), name.end(),
+            [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_'; });
     }
 
     std::vector<std::string> parseNameList(std::string_view list)
@@ -402,7 +413,8 @@ namespace UiRml
             Ok,
         };
 
-        Layer readLayer(const ReadFile& read, const std::string& path, std::string& text, std::vector<StyleDiagnostic>& problems)
+        Layer readLayer(
+            const ReadFile& read, const std::string& path, std::string& text, std::vector<StyleDiagnostic>& problems)
         {
             if (!read(path, text))
                 return Layer::Missing;
@@ -419,7 +431,8 @@ namespace UiRml
         }
 
         // Reads one theme sheet; true when it is usable. A refusal is added to `problems`.
-        bool readTheme(const ReadFile& read, const std::string& name, std::string& text, std::vector<StyleDiagnostic>& problems)
+        bool readTheme(
+            const ReadFile& read, const std::string& name, std::string& text, std::vector<StyleDiagnostic>& problems)
         {
             if (!isValidThemeName(name))
             {
@@ -442,7 +455,8 @@ namespace UiRml
             for (const std::string& token : requiredTokens())
                 if (std::find(defined.begin(), defined.end(), token) == defined.end())
                 {
-                    problems.push_back({ path, 0, 0, "theme '" + name + "' does not declare the required token " + token });
+                    problems.push_back(
+                        { path, 0, 0, "theme '" + name + "' does not declare the required token " + token });
                     complete = false;
                 }
             return complete;
@@ -496,7 +510,8 @@ namespace UiRml
         switch (readLayer(read, kBaseSheetPath, text, result.mProblems))
         {
             case Layer::Missing:
-                result.mProblems.push_back({ kBaseSheetPath, 0, 0, std::string("style sheet ") + kBaseSheetPath + " not found" });
+                result.mProblems.push_back(
+                    { kBaseSheetPath, 0, 0, std::string("style sheet ") + kBaseSheetPath + " not found" });
                 break;
             case Layer::Refused:
                 break;

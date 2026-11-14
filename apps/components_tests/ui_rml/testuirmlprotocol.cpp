@@ -93,8 +93,9 @@ namespace
     TEST_F(UiRmlProtocolTest, ADocumentIsLoadedFromTheTemplateFileWhenThereIsOne)
     {
         RmlProtocol::Options options;
-        options.mDocumentFile = (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "ui" / "document.rml")
-                                    .generic_string();
+        options.mDocumentFile
+            = (std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data" / "ui" / "document.rml")
+                  .generic_string();
         RmlProtocol protocol(*mContext, std::move(options));
         protocol.createDocument(kDoc, "from-file");
         ASSERT_EQ(mContext->GetNumDocuments(), 1);

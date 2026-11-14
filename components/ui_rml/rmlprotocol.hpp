@@ -15,9 +15,9 @@ namespace Rml
 namespace UiRml
 {
     /// The element protocol (components/ui/elementprotocol.hpp) over an RmlUi context: the RmlUi implementation of
-    /// decision 0015's backend (task 0162). One `createDocument` is one `Rml::ElementDocument` (the unit of layout, note
-    /// 0045 13.5); elements are RmlUi elements made detached and attached later; ids map to elements and nothing else
-    /// leaks out. Events RmlUi delivers (click, change, focus, blur, scroll) go to `Options::mEventSink`.
+    /// decision 0015's backend (task 0162). One `createDocument` is one `Rml::ElementDocument` (the unit of layout,
+    /// note 0045 13.5); elements are RmlUi elements made detached and attached later; ids map to elements and nothing
+    /// else leaks out. Events RmlUi delivers (click, change, focus, blur, scroll) go to `Options::mEventSink`.
     ///
     /// Thread: RmlUi's, that is the one that records the GUI command graph. Owner: the Overlay, which creates it after
     /// the context and destroys it before `Rml::Shutdown`. The context must outlive it. A document the script did not

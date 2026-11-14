@@ -11,13 +11,13 @@
 namespace Ui
 {
     /// The bridge between the thread that runs the scripts and the thread that owns the UI engine (task 0162). Scripts
-    /// write through a `Backend` session (batched, committed once a frame); the engine thread calls `drain` to apply the
-    /// committed batches, in order, to its `ElementProtocol`, and `pushEvent` to send an event back to the session that
-    /// owns the target element.
+    /// write through a `Backend` session (batched, committed once a frame); the engine thread calls `drain` to apply
+    /// the committed batches, in order, to its `ElementProtocol`, and `pushEvent` to send an event back to the session
+    /// that owns the target element.
     ///
-    /// Threads: `Backend` calls from the session's own thread; `drain` and `pushEvent` from the engine thread; the queue
-    /// is the only shared state and holds one mutex, taken briefly (to hand over a batch or an inbox, never while a
-    /// command is applied). A commit of an empty batch takes no lock and allocates nothing. Owner: shared; a session
+    /// Threads: `Backend` calls from the session's own thread; `drain` and `pushEvent` from the engine thread; the
+    /// queue is the only shared state and holds one mutex, taken briefly (to hand over a batch or an inbox, never while
+    /// a command is applied). A commit of an empty batch takes no lock and allocates nothing. Owner: shared; a session
     /// keeps the queue alive. A session destroyed with documents still open destroys them (one batch).
     class CommandQueue : public std::enable_shared_from_this<CommandQueue>
     {

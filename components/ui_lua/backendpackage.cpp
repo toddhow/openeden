@@ -214,8 +214,7 @@ namespace UiLua
         return t;
     }
 
-    sol::table makeBackendPackage(
-        sol::state_view lua, BackendOpener opener, std::shared_ptr<UpdateRegistry> registry)
+    sol::table makeBackendPackage(sol::state_view lua, BackendOpener opener, std::shared_ptr<UpdateRegistry> registry)
     {
         sol::table package(lua, sol::create);
         package["open"] = [lua, opener = std::move(opener), registry]() mutable {

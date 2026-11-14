@@ -1,5 +1,5 @@
-// Task 0162: the reactive model of `openeden.ui` (Value, Computed, Effect, Scope, one flush per frame). Written from the
-// spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against a stub library first.
+// Task 0162: the reactive model of `openeden.ui` (Value, Computed, Effect, Scope, one flush per frame). Written from
+// the spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against a stub library first.
 #include "uiluafixture.hpp"
 
 namespace

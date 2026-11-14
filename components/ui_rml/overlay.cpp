@@ -27,9 +27,9 @@
 #include "fileinterface.hpp"
 #include "fontengine.hpp"
 #include "ime.hpp"
-#include "rmlprotocol.hpp"
 #include "inputmap.hpp"
 #include "renderinterface.hpp"
+#include "rmlprotocol.hpp"
 #include "systeminterface.hpp"
 #include "themehost.hpp"
 #include "themesheet.hpp"
@@ -140,7 +140,7 @@ namespace UiRml
         struct FrameTimes
         {
             std::uint64_t mFrames = 0;
-            double mDrain = 0.0;  // applying the scripts' commands
+            double mDrain = 0.0; // applying the scripts' commands
             double mUpdate = 0.0; // panel, Context::Update, publish
             double mRender = 0.0; // Context::Render and recording the draw list
         } mTimes;
@@ -173,8 +173,10 @@ namespace UiRml
             mThemeReloadSeconds = config.mThemeReloadSeconds;
             mTheme.setRequest({ config.mTheme.empty() ? std::string(kDefaultThemeName) : config.mTheme,
                 parseNameList(config.mThemeVariants) });
-            mFiles.setGenerator([this](const std::string& path, std::vector<char>& out) { return mTheme.generate(path, out); });
-            mFiles.setGuard([](const std::string& path, const std::vector<char>& bytes) { return styleSheetAllowed(path, bytes); });
+            mFiles.setGenerator(
+                [this](const std::string& path, std::vector<char>& out) { return mTheme.generate(path, out); });
+            mFiles.setGuard(
+                [](const std::string& path, const std::vector<char>& bytes) { return styleSheetAllowed(path, bytes); });
             mQueue.reserve(sMaxQueuedEvents);
             mWork.reserve(sMaxQueuedEvents);
             mRender.setExtent(width, height);
@@ -211,7 +213,8 @@ namespace UiRml
                 // Task 0163: scripts' documents are loaded from this VFS file, so a theme change reloads their sheets.
                 if (mFiles.readAll("ui/document.rml", probe))
                     protocolOptions.mDocumentFile = "ui/document.rml";
-                protocolOptions.mEventSink = [queue = mUiQueue](Ui::Event&& event) { queue->pushEvent(std::move(event)); };
+                protocolOptions.mEventSink
+                    = [queue = mUiQueue](Ui::Event&& event) { queue->pushEvent(std::move(event)); };
                 mProtocol = std::make_unique<RmlProtocol>(*mContext, std::move(protocolOptions));
             }
             if (!config.mDebugPanel)
@@ -526,8 +529,9 @@ namespace UiRml
         {
             if (mTimes.mFrames > 0)
                 Log(Debug::Info) << "[UI] overlay frame cost over " << mTimes.mFrames
-                                 << " frames (mean microseconds): drain " << mTimes.mDrain / mTimes.mFrames << ", update "
-                                 << mTimes.mUpdate / mTimes.mFrames << ", render " << mTimes.mRender / mTimes.mFrames;
+                                 << " frames (mean microseconds): drain " << mTimes.mDrain / mTimes.mFrames
+                                 << ", update " << mTimes.mUpdate / mTimes.mFrames << ", render "
+                                 << mTimes.mRender / mTimes.mFrames;
             mClipboard.pump();
             if (mStartedTextInput && !mTextInputWasActive)
                 SDL_StopTextInput();

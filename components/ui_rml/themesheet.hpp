@@ -26,11 +26,12 @@ namespace UiRml
     };
 
     /// Refuses what the render interface cannot draw (decision 0015, note 0045 14.9 decision 3): the properties
-    /// `box-shadow`, `filter`, `backdrop-filter` and `mask-image`, any gradient or `shader(` value (also in `decorator`,
-    /// `background-image` and custom properties), the filter functions `blur(` and `drop-shadow(`, and a
+    /// `box-shadow`, `filter`, `backdrop-filter` and `mask-image`, any gradient or `shader(` value (also in
+    /// `decorator`, `background-image` and custom properties), the filter functions `blur(` and `drop-shadow(`, and a
     /// `border-radius` (or corner radius) in a rule whose `overflow` is not `visible` (rounded clipping needs a clip
     /// mask). Comments and quoted strings are skipped. Lines count from `firstLine`.
-    std::vector<StyleDiagnostic> validateStyleSheet(std::string_view text, std::string_view fileName, int firstLine = 1);
+    std::vector<StyleDiagnostic> validateStyleSheet(
+        std::string_view text, std::string_view fileName, int firstLine = 1);
 
     /// The same for the `<style>` blocks of an RML document; lines are the document's own.
     std::vector<StyleDiagnostic> validateMarkupStyles(std::string_view rml, std::string_view fileName);
@@ -51,7 +52,7 @@ namespace UiRml
     /// `ui/base.rcss`: the one path documents link and the file interface generates.
     inline constexpr const char* kBaseSheetPath = "ui/base.rcss";
     inline constexpr const char* kOverridesPath = "ui/overrides.rcss";
-    std::string themePath(std::string_view name);   // ui/themes/<name>/theme.rcss
+    std::string themePath(std::string_view name); // ui/themes/<name>/theme.rcss
     std::string variantPath(std::string_view name); // ui/variants/<name>.rcss
 
     struct ThemeRequest

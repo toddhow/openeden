@@ -25,9 +25,8 @@ namespace UiTest
             lua.open_libraries(sol::lib::base, sol::lib::package, sol::lib::table, sol::lib::string, sol::lib::math);
             const std::filesystem::path data = std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data";
             lua["package"]["path"] = data.generic_string() + "/?.lua";
-            lua["package"]["loaded"]["openeden.uibackend"] = UiLua::makeBackendPackage(lua, [this] {
-                return std::shared_ptr<Ui::Backend>(&backend, [](Ui::Backend*) {});
-            });
+            lua["package"]["loaded"]["openeden.uibackend"] = UiLua::makeBackendPackage(
+                lua, [this] { return std::shared_ptr<Ui::Backend>(&backend, [](Ui::Backend*) {}); });
         }
 
         /// Runs a chunk; a Lua error is a test failure with its message.
@@ -46,8 +45,7 @@ namespace UiTest
         template <class T>
         T get(const std::string& expression)
         {
-            sol::protected_function_result result
-                = lua.safe_script("return " + expression, sol::script_pass_on_error);
+            sol::protected_function_result result = lua.safe_script("return " + expression, sol::script_pass_on_error);
             if (!result.valid())
             {
                 sol::error error = result;

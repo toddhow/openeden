@@ -66,8 +66,8 @@ namespace UiRml
         Overlay(const Overlay&) = delete;
         Overlay& operator=(const Overlay&) = delete;
 
-        /// The queue the Lua UI library (`openeden.ui`) writes its documents into; the overlay applies it at the start of
-        /// every frame (task 0162). Shared: a script session keeps it alive.
+        /// The queue the Lua UI library (`openeden.ui`) writes its documents into; the overlay applies it at the start
+        /// of every frame (task 0162). Shared: a script session keeps it alive.
         std::shared_ptr<Ui::CommandQueue> commandQueue() const;
 
         /// The node to put last in the GUI render graph.

@@ -279,8 +279,8 @@ namespace MWLua
 
         openeden::extension::BindingsStore* mPackBindings = nullptr; // not owned (task 0097)
         std::shared_ptr<Ui::CommandQueue> mUiQueue; // task 0162
-        // Task 0164: the per-frame `ui.update()` of every script that required `openeden.ui`. Player scripts go away with
-        // the game (`clear`), menu scripts only when all scripts are reloaded.
+        // Task 0164: the per-frame `ui.update()` of every script that required `openeden.ui`. Player scripts go away
+        // with the game (`clear`), menu scripts only when all scripts are reloaded.
         std::shared_ptr<UiLua::UpdateRegistry> mUiPlayerUpdates;
         std::shared_ptr<UiLua::UpdateRegistry> mUiMenuUpdates;
     };

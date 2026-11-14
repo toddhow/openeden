@@ -221,7 +221,8 @@ namespace UiRml
             if (document != nullptr)
                 document->SetTitle(str(name));
             else
-                mImpl->warnOnce("documentfile", "RmlUi could not load " + mImpl->mOptions.mDocumentFile
+                mImpl->warnOnce("documentfile",
+                    "RmlUi could not load " + mImpl->mOptions.mDocumentFile
                         + ": scripts' documents are made from memory (no theme reload)");
         }
         if (document == nullptr)
@@ -235,7 +236,8 @@ namespace UiRml
         }
         if (document == nullptr)
         {
-            mImpl->warnOnce("document:" + std::string(name), "RmlUi could not load the document '" + std::string(name) + "'");
+            mImpl->warnOnce(
+                "document:" + std::string(name), "RmlUi could not load the document '" + std::string(name) + "'");
             return;
         }
         document->Show();

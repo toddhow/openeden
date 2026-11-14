@@ -1,12 +1,12 @@
-// Task 0162: the protocol calls the base components of `openeden.ui` produce, over the headless backend. Written from the
-// spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against a stub library first.
+// Task 0162: the protocol calls the base components of `openeden.ui` produce, over the headless backend. Written from
+// the spec (docs/tasks/0162-ui-element-protocol-and-lua-library.md) and run red against a stub library first.
 #include "uiluafixture.hpp"
 
 namespace
 {
-    using UiTest::UiLuaFixture;
     using Ui::ElementId;
     using Ui::EventKind;
+    using UiTest::UiLuaFixture;
     using UiComponents = UiLuaFixture;
 
     TEST_F(UiComponents, AHudWithOneTextMakesExactlyTheseCalls)
@@ -17,8 +17,8 @@ namespace
             ui.update()
         )"));
         EXPECT_EQ(backend.calls(),
-            (std::vector<std::string>{ "createDocument #1 h", "setClass #1 hud", "setProperty #1 pointer-events none", "create #2 div",
-                "setClass #2 text", "setText #2 hi", "insertBefore #1 #2 #0" }));
+            (std::vector<std::string>{ "createDocument #1 h", "setClass #1 hud", "setProperty #1 pointer-events none",
+                "create #2 div", "setClass #2 text", "setText #2 hi", "insertBefore #1 #2 #0" }));
         EXPECT_EQ(backend.commitCount(), 1u);
     }
 
@@ -136,8 +136,8 @@ namespace
         EXPECT_EQ(backend.node(frames[0])->mClass, "frame item selected");
         backend.clearCalls();
         ASSERT_TRUE(run("w:set(12); ui.update()"));
-        EXPECT_EQ(backend.calls(), (std::vector<std::string>{ "setProperty #" + std::to_string(frames[0] & 0xffffff)
-                                       + " width 12dp" }));
+        EXPECT_EQ(backend.calls(),
+            (std::vector<std::string>{ "setProperty #" + std::to_string(frames[0] & 0xffffff) + " width 12dp" }));
     }
 
     TEST_F(UiComponents, VisibleTogglesDisplay)
@@ -205,7 +205,9 @@ namespace
         ASSERT_EQ(buttons.size(), 2u);
         for (ElementId id : buttons)
             backend.emit(id, EventKind::Click);
-        ASSERT_TRUE(run("local ok, err = pcall(ui.update); assert(not ok and tostring(err):find('handler failed'), tostring(err))"));
+        ASSERT_TRUE(
+            run("local ok, err = pcall(ui.update); assert(not ok and tostring(err):find('handler failed'), "
+                "tostring(err))"));
         EXPECT_EQ(get<int>("second"), 1);
     }
 
