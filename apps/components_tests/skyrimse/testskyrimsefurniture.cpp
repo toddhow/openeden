@@ -396,12 +396,12 @@ namespace
         bool setMovement(sdk::ActorHandle, float, float) override { return true; }
         bool goTo(sdk::ActorHandle h, const sdk::ActorGoal& g) override
         {
-            mCalls.push_back({ Call::Goto, h, g.x, g.y, g.z });
+            mCalls.push_back({ Call::Goto, h, g.x, g.y, g.z, {} });
             return mAccept;
         }
         bool cancelGoal(sdk::ActorHandle h) override
         {
-            mCalls.push_back({ Call::Cancel, h });
+            mCalls.push_back({ Call::Cancel, h, 0, 0, 0, {} });
             return true;
         }
         bool setHeading(sdk::ActorHandle, float) override { return true; }
@@ -412,7 +412,7 @@ namespace
         }
         bool leaveFurniture(sdk::ActorHandle h, double x, double y, double z) override
         {
-            mCalls.push_back({ Call::Leave, h, x, y, z });
+            mCalls.push_back({ Call::Leave, h, x, y, z, {} });
             return true;
         }
         sdk::ActorClock clock() const override { return mClock; }

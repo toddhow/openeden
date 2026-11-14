@@ -388,12 +388,12 @@ namespace
                     return true;
                 data = mBuffer;
             }
-            game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
+            static_cast<void>(game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
                 if (Content::fourCCToString(s.mType) == "MODL")
                     mOut->emplace_back(record.mFormId,
                         std::string(reinterpret_cast<const char*>(s.mData.data()),
                             strnlen(reinterpret_cast<const char*>(s.mData.data()), s.mData.size())));
-            });
+            }));
             return true;
         }
     };

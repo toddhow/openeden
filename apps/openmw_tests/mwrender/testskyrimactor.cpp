@@ -69,7 +69,7 @@ namespace
 
         MWRender::SkyrimModel::BuildContext context() const
         {
-            return { mBuilder, vsg::Options::create(), nullptr, 0, "test" };
+            return { mBuilder, vsg::Options::create(), nullptr, 0, "test", {} };
         }
 
         // One skinned quad whose vertices all follow the pelvis, with the pelvis' rest pose as its bind (the inverse of

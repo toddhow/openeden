@@ -116,7 +116,7 @@ namespace
                 data = mBuffer;
             }
             std::set<std::string> seen;
-            game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
+            static_cast<void>(game_skyrimse::survey::forEachSubrecord(data, [&](const game_skyrimse::survey::SubrecordView& s) {
                 const std::string name = Content::fourCCToString(s.mType);
                 seen.insert(name);
                 if (name == "MODL")
@@ -134,7 +134,7 @@ namespace
                                 mCnam[i].add(f);
                         }
                 }
-            });
+            }));
             for (const std::string& n : seen)
                 ++mSubrecordCounts[n];
             return true;

@@ -1145,7 +1145,7 @@ namespace game_skyrimse
                     mOut.mStatics.push_back(std::move(s));
                 else
                 {
-                    ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt };
+                    ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt, {} };
                     model.mName = std::move(fullName);
                     if (hasLightData)
                     {

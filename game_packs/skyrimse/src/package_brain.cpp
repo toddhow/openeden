@@ -137,6 +137,11 @@ namespace game_skyrimse
         return nullptr;
     }
 
+    PackageBrain::PackageBrain(PackageSource& source)
+        : PackageBrain(source, Options{})
+    {
+    }
+
     PackageBrain::PackageBrain(PackageSource& source, Options options)
         : mSource(source)
         , mOptions(options)

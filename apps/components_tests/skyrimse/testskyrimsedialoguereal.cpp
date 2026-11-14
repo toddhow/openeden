@@ -91,12 +91,16 @@ namespace
                 Content::Error te;
                 if (readArchiveEntry(data / "Skyrim - Interface.bsa",
                         stringTablePath(n, "english", StringTableKind::IlStrings), bytes, e))
+                {
                     ASSERT_TRUE(StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() },
                         StringTableKind::IlStrings, n, il, te));
+                }
                 if (readArchiveEntry(data / "Skyrim - Interface.bsa",
                         stringTablePath(n, "english", StringTableKind::Strings), bytes, e))
+                {
                     ASSERT_TRUE(StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() },
                         StringTableKind::Strings, n, st, te));
+                }
                 for (const DialogInfo& info : dr.mInfos)
                 {
                     for (const DialogResponse& r : info.mResponses)

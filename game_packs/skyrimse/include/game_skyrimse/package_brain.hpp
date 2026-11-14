@@ -251,7 +251,8 @@ namespace game_skyrimse
             FormId mPatrolMarker = kNullFormId; ///< the marker the actor walks to or waits at
         };
 
-        PackageBrain(PackageSource& source, Options options = {});
+        explicit PackageBrain(PackageSource& source);
+        PackageBrain(PackageSource& source, Options options);
 
         /// Switches furniture use on (null switches it off). The source must outlive the brain.
         void setFurnitureSource(FurnitureSource* source) { mFurniture = source; }

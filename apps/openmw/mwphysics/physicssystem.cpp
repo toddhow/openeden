@@ -1465,7 +1465,7 @@ namespace MWPhysics
             {
                 if (useLevels)
                 {
-                    const ESM::Position& where = found->second->getPtr().getRefData().getPosition();
+                    const ESM::Position where = found->second->getPtr().getRefData().getPosition();
                     const float dx = where.pos[0] - mNeutralFocus.x;
                     const float dy = where.pos[1] - mNeutralFocus.y;
                     const float distanceSquared = dx * dx + dy * dy;

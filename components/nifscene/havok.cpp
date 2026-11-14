@@ -82,7 +82,9 @@ namespace NifScene::Havok
 
             void notFinite(Shape& s)
             {
-                s = Shape{ ShapeKind::Unsupported, s.mTypeName };
+                Shape unsupported;
+                unsupported.mTypeName = s.mTypeName;
+                s = std::move(unsupported);
                 ++mOut.mReport.mShapesNotFinite;
             }
 

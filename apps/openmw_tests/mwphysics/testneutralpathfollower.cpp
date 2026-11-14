@@ -319,7 +319,7 @@ namespace
         FakeFinder finder = lPath();
         Follower follower;
         follower.setGoal({ 100.f, 100.f, 0.f }, kWalkSpeed);
-        follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder);
+        static_cast<void>(follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder));
         follower.cancel();
         EXPECT_FALSE(follower.active());
         const StepResult r = follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder);
@@ -327,10 +327,10 @@ namespace
         EXPECT_EQ(r.mOutcome, Outcome::None);
 
         follower.setGoal({ 100.f, 100.f, 0.f }, kWalkSpeed);
-        follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder);
+        static_cast<void>(follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder));
         EXPECT_EQ(finder.mCalls, 2u);
         follower.setGoal({ -50.f, 0.f, 0.f }, kWalkSpeed); // replaced: no result for the first
-        follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder);
+        static_cast<void>(follower.step({ 0.f, 0.f, 0.f }, 0.016f, finder));
         EXPECT_EQ(finder.mCalls, 3u);
         EXPECT_EQ(finder.mLastTo.x, -50.f);
     }

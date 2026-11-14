@@ -393,8 +393,8 @@ namespace game_skyrimse
         for (const FormId id : mIds)
         {
             const WeatherRecord* w = index.weather(id);
-            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId id) { return mIndex->imageSpace(id); },
-                                             [this](FormId id) { return mIndex->sound(id); }, soundExists) : openeden::sdk::game::WeatherDescription{});
+            mWeathers.push_back(w != nullptr ? describeWeather(*w, textureExists, [this](FormId imageSpaceId) { return mIndex->imageSpace(imageSpaceId); },
+                                             [this](FormId soundId) { return mIndex->sound(soundId); }, soundExists) : openeden::sdk::game::WeatherDescription{});
         }
     }
 

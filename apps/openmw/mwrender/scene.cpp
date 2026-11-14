@@ -389,7 +389,7 @@ namespace MWRender
         if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
             return;
         const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
-            Bin_DepthSorted, "actor" };
+            Bin_DepthSorted, "actor", {} };
         SkyrimActor::Report report;
         vsg::ref_ptr<vsg::Node> node
             = SkyrimActor::buildActorNode(appearance, *resources->getVFS(), buildContext, report);
