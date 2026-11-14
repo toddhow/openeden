@@ -12,12 +12,11 @@ namespace Rml
 
 namespace UiRml
 {
-    /// The RML document of the test panel (task 0104, extended in task 0111): a title, a frame rate line, two buttons,
-    /// a text field and a scrolling list, in the font family `fontFamily`. Sizes are in `dp` so the panel follows the
-    /// GUI scaling factor. Only plain style (colours, padding, positions): no shadows, filters, gradients or rounded
-    /// clipping (decision 0015: forbidden in the first themes). The `body` carries `nav-capture`: while a control in
-    /// it has the focus the controller drives it (inputrouter.hpp).
-    std::string debugPanelMarkup(std::string_view fontFamily);
+    /// The panel's document is `ui/debugpanel.rml` in the data files (task 0163: it was inline here before): sizes in
+    /// `dp`, looks from the tokens of `ui/base.rcss`, no shadows, filters, gradients or rounded clipping (decision 0015:
+    /// forbidden in the first themes). The `body` carries `nav-capture`: while a control in it has the focus the
+    /// controller drives it (inputrouter.hpp).
+    inline constexpr const char* kDebugPanelDocument = "ui/debugpanel.rml";
 
     /// "FPS: 59.9" for `frames` frames in `seconds` seconds (0 seconds: "FPS: --").
     std::string formatFps(unsigned frames, double seconds);

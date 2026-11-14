@@ -40,6 +40,10 @@ namespace UiRml
         ToUTF8::FromType mEncoding = ToUTF8::WINDOWS_1252;
         /// `[GUI] scaling factor`: the density-independent pixel ratio of the context (task 0111; uiscale.hpp).
         float mGuiScale = 1.f;
+        /// Task 0163: `[GUI] rmlui theme`, `rmlui theme variants` (comma separated) and `rmlui theme reload interval`.
+        std::string mTheme = "neutral";
+        std::string mThemeVariants;
+        float mThemeReloadSeconds = 0.f;
     };
 
     /// One RmlUi context drawn over the game with the debug panel of this slice in it.
@@ -66,6 +70,10 @@ namespace UiRml
 
         /// The GUI scaling factor (main thread); applied at the start of the next frame.
         void setGuiScale(float factor);
+
+        /// Task 0163: the theme and its variants (comma separated names); any thread, applied at the start of the
+        /// next frame to every document without a restart. Asking for what is already in use changes nothing.
+        void setTheme(const std::string& name, const std::string& variants);
 
         UiState state() const override;
         void mouseMoved(int x, int y, int sdlMods) override;

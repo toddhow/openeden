@@ -1,0 +1,14 @@
+/* The debug panel's own layout (tasks 0104, 0111, 0163): position and size of this one document. Looks come from the
+ * tokens of ui/base.rcss. */
+body {
+    position: absolute;
+    left: var(--space-8);
+    top: var(--space-8);
+    width: 260dp;
+    padding: var(--space-6) var(--space-7);
+    background-color: var(--color-surface);
+}
+#title { color: var(--color-text-strong); margin-bottom: var(--space-4); }
+#fps { color: var(--color-text-ok); margin-bottom: var(--space-5); }
+#list { height: 52dp; margin-top: var(--space-4); }
+#list div { padding: var(--space-1) var(--space-5); }

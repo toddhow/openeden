@@ -130,7 +130,19 @@ namespace OMW
             mInputManager->update(dt, gameState->disableControls, gameState->disableEvents);
             // Task 0111: SDL's text input follows the overlay's text field focus.
             if (mRmlUi)
+            {
                 mRmlUi->syncTextInput();
+                // Task 0163: the theme follows the settings while the game runs. Two string compares a frame; the
+                // overlay is only called (and allocates) when one of them changed.
+                const std::string& theme = Settings::gui().mRmluiTheme.get();
+                const std::string& variants = Settings::gui().mRmluiThemeVariants.get();
+                if (theme != mRmluiThemeSeen || variants != mRmluiVariantsSeen)
+                {
+                    mRmluiThemeSeen = theme;
+                    mRmluiVariantsSeen = variants;
+                    mRmlUi->setTheme(theme, variants);
+                }
+            }
         }
         catch (const std::exception& e)
         {
@@ -543,6 +555,11 @@ namespace OMW
                 overlayConfig.mBitmapFont = std::string(Fallback::Map::getString("Fonts_Font_0"));
                 overlayConfig.mEncoding = args.encoding;
                 overlayConfig.mGuiScale = Settings::gui().mScalingFactor;
+                overlayConfig.mTheme = Settings::gui().mRmluiTheme.get();
+                overlayConfig.mThemeVariants = Settings::gui().mRmluiThemeVariants.get();
+                overlayConfig.mThemeReloadSeconds = Settings::gui().mRmluiThemeReloadInterval;
+                mRmluiThemeSeen = overlayConfig.mTheme;
+                mRmluiVariantsSeen = overlayConfig.mThemeVariants;
                 const VkExtent2D extent = mRenderEngine->extent2D();
                 mRmlUi = std::make_unique<UiRml::Overlay>(
                     compile, mResourceSystem->shaderOptions, *mVFS, overlayConfig, extent.width, extent.height);

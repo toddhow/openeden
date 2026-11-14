@@ -702,6 +702,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testuifocusclipboard.cpp
         ui_rml/testuigeometry.cpp
         ui_rml/testuiinput.cpp
+        ui_rml/testuitheme.cpp
     )
 endif()
 

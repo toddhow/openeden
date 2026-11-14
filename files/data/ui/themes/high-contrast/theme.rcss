@@ -1,0 +1,41 @@
+/* OpenEden UI theme "high-contrast" (task 0163): opaque black, white text, yellow focus, 2dp outlines, larger text. */
+body {
+    --font-family: Morrowind;
+    --font-size-sm: 14dp;
+    --font-size-md: 18dp;
+    --font-size-lg: 22dp;
+
+    --space-1: 1dp;
+    --space-2: 2dp;
+    --space-3: 3dp;
+    --space-4: 4dp;
+    --space-5: 6dp;
+    --space-6: 8dp;
+    --space-7: 12dp;
+    --space-8: 16dp;
+
+    --radius-sm: 0dp;
+    --radius-md: 0dp;
+    --border-width: 2dp;
+    --control-height: 26dp;
+    --scrollbar-width: 10dp;
+
+    --color-surface: #000000ff;
+    --color-surface-sunken: #000000ff;
+    --color-text: #ffffff;
+    --color-text-strong: #ffff00;
+    --color-text-muted: #ffffff;
+    --color-text-ok: #00ff00;
+    --color-text-info: #00ffff;
+    --color-control: #000000ff;
+    --color-control-hover: #333333ff;
+    --color-control-focus: #ffff00;
+    --color-control-text-focus: #000000;
+    --color-input: #000000ff;
+    --color-input-focus: #1a1a1aff;
+    --color-input-text: #ffffff;
+    --color-border: #ffffff;
+    --color-focus-border: #ffff00;
+    --color-scrollbar-track: #333333ff;
+    --color-scrollbar-thumb: #ffffff;
+}

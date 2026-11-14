@@ -1,0 +1,62 @@
+/* OpenEden UI base style sheet (task 0163, decision 0015).
+ *
+ * Documents link this one file. The engine serves it as: the chosen theme's tokens, the chosen variants, THIS file,
+ * then ui/overrides.rcss when a mod provides one. So this file uses design tokens (`var(--name)`) and never a colour or
+ * size literal; the tokens are declared in ui/themes/<name>/theme.rcss. The renderer has no clip masks, layers, filters
+ * or shaders: no box-shadow, filter, backdrop-filter, mask-image, gradients or rounded clipping (the validator refuses
+ * them). RmlUi has no default style sheet, so block elements are declared here.
+ */
+
+div, body, p, h1, h2, h3, h4, ul, ol, li, section, header, footer { display: block; }
+
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size-md);
+    color: var(--color-text);
+}
+
+h1 { font-size: var(--font-size-lg); color: var(--color-text-strong); margin-bottom: var(--space-4); }
+h2 { font-size: var(--font-size-md); color: var(--color-text-strong); margin-bottom: var(--space-4); }
+
+.panel { background-color: var(--color-surface); padding: var(--space-6) var(--space-7); }
+.sunken { background-color: var(--color-surface-sunken); }
+.title { color: var(--color-text-strong); margin-bottom: var(--space-4); }
+.muted { color: var(--color-text-muted); }
+.ok { color: var(--color-text-ok); }
+.info { color: var(--color-text-info); font-size: var(--font-size-sm); }
+.indent { padding-left: var(--space-7); }
+
+.btn {
+    tab-index: auto;
+    nav: auto;
+    display: block;
+    padding: var(--space-3) var(--space-6);
+    margin: var(--space-4) 0dp;
+    background-color: var(--color-control);
+    color: var(--color-text);
+    border-width: var(--border-width);
+    border-color: var(--color-border);
+    border-radius: var(--radius-md);
+}
+.btn:hover { background-color: var(--color-control-hover); }
+.btn:focus { background-color: var(--color-control-focus); color: var(--color-control-text-focus); border-color: var(--color-focus-border); }
+
+input.text {
+    display: block;
+    width: 200dp;
+    height: var(--control-height);
+    margin: var(--space-4) 0dp;
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--color-input);
+    color: var(--color-input-text);
+    border-width: var(--border-width);
+    border-color: var(--color-border);
+    border-radius: var(--radius-sm);
+}
+input.text:focus { background-color: var(--color-input-focus); border-color: var(--color-focus-border); }
+
+.scroll { overflow-y: scroll; background-color: var(--color-surface-sunken); }
+
+scrollbarvertical { width: var(--scrollbar-width); background-color: var(--color-scrollbar-track); }
+scrollbarvertical sliderbar { width: var(--scrollbar-width); min-height: var(--space-7); background-color: var(--color-scrollbar-thumb); }
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { width: 0dp; height: 0dp; }

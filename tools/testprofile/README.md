@@ -172,6 +172,12 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   Shift+Insert work with the system clipboard. Wrong: Back/F9 does something in the game's menu while the panel is shown, the
   focus does not enter, or paste puts old text.
 
+- *New UI system, themes* (0163): with the `rmlui` variant set `rmlui theme = high-contrast` (opaque black, white text, yellow
+  focus and 2 px outlines) or `rmlui theme variants = large-text` (or `small-text`) in the copied settings. The panel changes
+  look only; the layout stays readable at every scale. While the game runs, saving a change to a `ui/*.rcss` file in a data
+  folder shows within a second (the variant sets the reload interval to 1). Wrong: unstyled (white or inline) text, a
+  theme that does not apply, text that is cut off, or a crash on a bad style sheet (a bad sheet must only log an error).
+
 **World**
 - *Whole-map view* (0055, 0059, 0066): `tcl`, `tgm`, then `player->setpos z 25000` over Balmora: land, towers and trees out
   to the horizon with a blue haze, no draw edge. Wrong: holes in the land, a pop when you rise, or clusters that

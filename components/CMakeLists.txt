@@ -572,7 +572,7 @@ add_component_dir (fontloader
 if (TARGET openeden_rmlui)
     add_component_dir (ui_rml
         bitmapfont codepage fontengine fileinterface renderinterface systeminterface uigeometry overlay debugpanel
-        uiscale inputmap inputrouter ime clipboard controllerfocus
+        uiscale inputmap inputrouter ime clipboard controllerfocus themesheet themehost
         )
 endif()
 

@@ -1,0 +1,43 @@
+/* OpenEden UI theme "neutral" (task 0163): the dark panel look of the first debug panel. A theme declares EVERY
+ * required token (components/ui_rml/themesheet.cpp, requiredTokens()) on body; variants and ui/overrides.rcss may
+ * declare some of them again. Sizes are in dp so they follow [GUI] scaling factor. */
+body {
+    --font-family: Morrowind;
+    --font-size-sm: 12dp;
+    --font-size-md: 16dp;
+    --font-size-lg: 20dp;
+
+    --space-1: 1dp;
+    --space-2: 2dp;
+    --space-3: 3dp;
+    --space-4: 4dp;
+    --space-5: 6dp;
+    --space-6: 8dp;
+    --space-7: 12dp;
+    --space-8: 16dp;
+
+    --radius-sm: 0dp;
+    --radius-md: 0dp;
+    --border-width: 0dp;
+    --control-height: 22dp;
+    --scrollbar-width: 8dp;
+
+    --color-surface: #000000b4;
+    --color-surface-sunken: #00000060;
+    --color-text: #dfc99a;
+    --color-text-strong: #ffffff;
+    --color-text-muted: #a89878;
+    --color-text-ok: #a8d8a0;
+    --color-text-info: #9ec3d8;
+    --color-control: #3a2f20;
+    --color-control-hover: #5a4a30;
+    --color-control-focus: #7a6030;
+    --color-control-text-focus: #ffffff;
+    --color-input: #101010;
+    --color-input-focus: #302818;
+    --color-input-text: #ffffff;
+    --color-border: #dfc99a;
+    --color-focus-border: #ffffff;
+    --color-scrollbar-track: #00000080;
+    --color-scrollbar-thumb: #dfc99a;
+}

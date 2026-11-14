@@ -56,6 +56,15 @@ set(BUILTIN_DATA_FILES
     # Default animation blending config
     animations/animation-config.yaml
 
+    # The new UI's base style sheet, themes, variants and the debug panel document (task 0163)
+    ui/base.rcss
+    ui/debugpanel.rcss
+    ui/debugpanel.rml
+    ui/themes/neutral/theme.rcss
+    ui/themes/high-contrast/theme.rcss
+    ui/variants/large-text.rcss
+    ui/variants/small-text.rcss
+
     # CreativeMotion example styles (task 0053)
     styles/cm_default.style.json
     styles/cm_heavy_test.style.json

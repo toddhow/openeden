@@ -28,3 +28,11 @@ The context is in framebuffer pixels. `[GUI] scaling factor` becomes the density
 - A text change re-lays out its whole document: give live values their own small elements.
 - Vertex data stays unwritten unless the compiled buffers go through `CompileContext::onCompiled`.
 - `vsgUtil::viewerCompileMutex()` keeps `Viewer::compile` and loader compiles apart; do not compile on another thread without it.
+
+## Themes (task 0163, spec `docs/tasks/0163-ui-theme-system.md`)
+
+- A document links `ui/base.rcss` and nothing else for its looks. `VfsFileInterface` serves that path from `ThemeHost`: the chosen theme's tokens (`ui/themes/<name>/theme.rcss`), the variants (`ui/variants/<name>.rcss`), the real `ui/base.rcss` file, then `ui/overrides.rcss` if a mod has one. A mod's data folder replaces any of them by VFS order.
+- Tokens are RCSS custom properties declared on `body` (RmlUi 6.3 `--name` / `var(--name)`); `requiredTokens()` is the set every theme must declare and the base sheet may read. Add a token in three places: that list, every shipped theme, and a test that already checks the base sheet against the list.
+- Every `.rcss` and `.rml` read through the file interface is checked by `validateStyleSheet` / `validateMarkupStyles` (the guard): no `box-shadow`, `filter`, `backdrop-filter`, `mask-image`, linear/radial/conic gradients, `shader(`, `blur(`, `drop-shadow(`, and no corner radius in a rule with a clipping `overflow` (the renderer has no clip mask, layers or shaders). `horizontal-gradient` and `vertical-gradient` are vertex colours and allowed. A refused file is not opened and the reasons are logged as `[UI] style refused: file:line:column: ...`. Not checked: `style="..."` attributes and a radius on a parent that clips its children.
+- Reload: the frame thread polls every `[GUI] rmlui theme reload interval` seconds (0 = off), and applies `Overlay::setTheme` requests. Both end in `Factory::ClearStyleSheetCache()` and `ElementDocument::ReloadStyleSheet()` for every document, so a document must be loaded from a VFS file (`LoadDocument`): a document made from memory cannot reload its sheets. A file that did not exist at start is not seen (the VFS index is built once); a loose file saved later is.
+- The panel font family is the token `--font-family` (`Morrowind`, the name `Overlay` registers the face under).

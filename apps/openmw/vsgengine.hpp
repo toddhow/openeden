@@ -108,6 +108,8 @@ namespace OMW
         // in). Declared before the render manager so that it is destroyed after the graph that holds its node, and
         // after the render engine's other members that its Vulkan objects are released through.
         std::unique_ptr<UiRml::Overlay> mRmlUi;
+        std::string mRmluiThemeSeen; // the last `[GUI] rmlui theme` and `rmlui theme variants` given to mRmlUi
+        std::string mRmluiVariantsSeen;
         // Task 0111: the synthetic input of OPENEDEN_RMLUI_INPUT_SCRIPT (a test aid), and its frame counter.
         std::unique_ptr<UiInputScript> mUiScript;
         std::uint64_t mUiScriptFrame = 0;

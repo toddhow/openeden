@@ -1,0 +1,8 @@
+/* OpenEden UI variant "large-text" (task 0163): text and controls 1.25 times larger, on top of [GUI] scaling factor. */
+body {
+    --font-size-sm: 15dp;
+    --font-size-md: 20dp;
+    --font-size-lg: 25dp;
+    --control-height: 28dp;
+    --scrollbar-width: 10dp;
+}

@@ -27,6 +27,9 @@ namespace Settings
         SettingValue<MyGUI::Colour> mColorBackgroundOwned{ mIndex, "GUI", "color background owned" };
         SettingValue<MyGUI::Colour> mColorCrosshairOwned{ mIndex, "GUI", "color crosshair owned" };
         SettingValue<bool> mRmlui{ mIndex, "GUI", "rmlui" };
+        SettingValue<std::string> mRmluiTheme{ mIndex, "GUI", "rmlui theme" };
+        SettingValue<std::string> mRmluiThemeVariants{ mIndex, "GUI", "rmlui theme variants" };
+        SettingValue<float> mRmluiThemeReloadInterval{ mIndex, "GUI", "rmlui theme reload interval", makeClampSanitizerFloat(0, 3600) };
         SettingValue<std::string> mRmluiFocusButton{ mIndex, "GUI", "rmlui focus button" };
         SettingValue<std::string> mRmluiFocusKey{ mIndex, "GUI", "rmlui focus key" };
         SettingValue<bool> mKeyboardNavigation{ mIndex, "GUI", "keyboard navigation" };

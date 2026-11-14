@@ -1,0 +1,21 @@
+<rml>
+<head>
+<title>OpenEden UI debug panel</title>
+<link type="text/rcss" href="base.rcss"/>
+<link type="text/rcss" href="debugpanel.rcss"/>
+</head>
+<body nav-capture="true">
+<div id="title">OpenEden UI</div>
+<div id="fps">FPS: --</div>
+<div class="indent">RmlUi on VSG</div>
+<div class="indent">Bitmap font engine</div>
+<div id="btn1" class="btn">Button one</div>
+<div id="btn2" class="btn">Button two</div>
+<input id="field" class="text" type="text" value=""/>
+<div id="clicks" class="info">clicks: 0</div>
+<div id="echo" class="info">text: </div>
+<div id="focus" class="info">focus: none</div>
+<div id="scrollpos" class="info">scroll: 0</div>
+<div id="list" class="scroll"><div>List 1</div><div>List 2</div><div>List 3</div><div>List 4</div><div>List 5</div><div>List 6</div><div>List 7</div><div>List 8</div><div>List 9</div><div>List 10</div><div>List 11</div><div>List 12</div></div>
+</body>
+</rml>

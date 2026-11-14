@@ -2,6 +2,7 @@
 #define OPENEDEN_COMPONENTS_UI_RML_FILEINTERFACE_H
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -38,6 +39,20 @@ namespace UiRml
         size_t Tell(Rml::FileHandle file) override;
         size_t Length(Rml::FileHandle file) override;
 
+        /// Task 0163: a file the theme system makes up. Asked first for every Open with the normalised path (lower
+        /// case, forward slashes); true means `out` is the whole file.
+        using Generator = std::function<bool(const std::string& path, std::vector<char>& out)>;
+        void setGenerator(Generator generator);
+
+        /// Task 0163: asked for every `.rcss` and `.rml` read from the VFS (not for generated files) with its bytes;
+        /// false refuses the file (Open returns the null handle). The guard logs why.
+        using Guard = std::function<bool(const std::string& path, const std::vector<char>& bytes)>;
+        void setGuard(Guard guard);
+
+        /// Task 0163: true when a `.rcss` file that was opened from the VFS reads differently now than when it was
+        /// last served or reported here (the new content is remembered, so the next call is false again).
+        bool watchedFilesChanged();
+
         /// Number of files opened and not closed (for tests and leak checks).
         std::size_t openCount() const;
 
@@ -51,6 +66,9 @@ namespace UiRml
 
         const VFS::Manager& mVfs;
         mutable std::mutex mMutex;
+        Generator mGenerator;
+        Guard mGuard;
+        std::unordered_map<std::string, std::size_t> mWatched; // path -> hash of the bytes last served
         std::unordered_map<std::uintptr_t, std::unique_ptr<Open_>> mOpen;
         std::uintptr_t mNext = 1;
     };

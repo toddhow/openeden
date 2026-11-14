@@ -9,6 +9,7 @@
 #include <SDL.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/settings/values.hpp>
 
 namespace OMW
 {
@@ -272,6 +273,12 @@ namespace OMW
         {
             if (mWindow != nullptr)
                 SDL_SetWindowSize(mWindow, std::atoi(arg(a, 0).c_str()), std::atoi(arg(a, 1).c_str()));
+        }
+        else if (name == "theme")
+        {
+            // Task 0163: sets the settings the engine polls, as an edit of settings.cfg would: THEME [VARIANTS].
+            Settings::gui().mRmluiTheme.set(arg(a, 0));
+            Settings::gui().mRmluiThemeVariants.set(a.size() > 1 ? a[1] : std::string());
         }
         else if (name == "log")
             Log(Debug::Info) << "[UI] input script: " << arg(a, 0);

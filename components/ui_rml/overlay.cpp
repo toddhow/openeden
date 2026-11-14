@@ -29,6 +29,8 @@
 #include "inputmap.hpp"
 #include "renderinterface.hpp"
 #include "systeminterface.hpp"
+#include "themehost.hpp"
+#include "themesheet.hpp"
 #include "uiscale.hpp"
 
 namespace UiRml
@@ -93,6 +95,8 @@ namespace UiRml
         ClipboardBridge mClipboard{ mClipboardBackend };
         SystemInterface mSystem{ &mClipboard };
         VfsFileInterface mFiles;
+        // Task 0163: the theme of the documents; serves `ui/base.rcss` through mFiles.
+        ThemeHost mTheme;
         RenderInterface mRender;
         TextInputTracker mTracker;
         std::unique_ptr<BitmapFontEngine> mFonts;
@@ -121,6 +125,13 @@ namespace UiRml
         std::atomic<int> mCaretWidth{ 0 };
         std::atomic<int> mCaretHeight{ 0 };
 
+        // Theme changes asked for by any thread, applied by the frame thread.
+        std::mutex mThemeMutex;
+        ThemeRequest mThemeWanted;
+        bool mThemeDirty = false;
+        float mThemeReloadSeconds = 0.f;
+        double mLastThemePoll = -1.0;
+
         std::atomic<float> mRequestedScale;
         float mAppliedRatio = 1.f;
         std::atomic<int> mStickValue{ 0 };
@@ -134,11 +145,23 @@ namespace UiRml
         Impl(vsg::ref_ptr<vsgUtil::CompileContext> compile, vsg::ref_ptr<const vsg::Options> shaderOptions,
             const VFS::Manager& vfs, const OverlayConfig& config, std::uint32_t width, std::uint32_t height)
             : mFiles(vfs)
+            , mTheme([this](const std::string& path, std::string& out) {
+                std::vector<char> bytes;
+                if (!mFiles.readAll(path, bytes))
+                    return false;
+                out.assign(bytes.begin(), bytes.end());
+                return true;
+            })
             , mRender(std::move(compile), std::move(shaderOptions), mFiles)
             , mWidth(width)
             , mHeight(height)
             , mRequestedScale(config.mGuiScale)
         {
+            mThemeReloadSeconds = config.mThemeReloadSeconds;
+            mTheme.setRequest({ config.mTheme.empty() ? std::string(kDefaultThemeName) : config.mTheme,
+                parseNameList(config.mThemeVariants) });
+            mFiles.setGenerator([this](const std::string& path, std::vector<char>& out) { return mTheme.generate(path, out); });
+            mFiles.setGuard([](const std::string& path, const std::vector<char>& bytes) { return styleSheetAllowed(path, bytes); });
             mQueue.reserve(sMaxQueuedEvents);
             mWork.reserve(sMaxQueuedEvents);
             mRender.setExtent(width, height);
@@ -165,7 +188,9 @@ namespace UiRml
                 throw std::runtime_error("RmlUi could not create its context");
             mAppliedRatio = dpRatioFor(config.mGuiScale);
             mContext->SetDensityIndependentPixelRatio(mAppliedRatio);
-            if (Rml::ElementDocument* document = mContext->LoadDocumentFromMemory(debugPanelMarkup(sFontFamily)))
+            mTheme.refresh();
+            logTheme("loaded");
+            if (Rml::ElementDocument* document = mContext->LoadDocument(kDebugPanelDocument))
             {
                 document->Show();
                 mPanel = std::make_unique<DebugPanel>(document);
@@ -173,6 +198,63 @@ namespace UiRml
             else
                 Log(Debug::Error) << "[UI] the debug panel document could not be loaded";
             mHasDocuments = mContext->GetNumDocuments() > 0;
+        }
+
+        // Refuses a style sheet (or the style blocks of a document) that uses what the renderer cannot draw; logs why.
+        static bool styleSheetAllowed(const std::string& path, const std::vector<char>& bytes)
+        {
+            const bool sheet = path.ends_with(".rcss");
+            if (!sheet && !path.ends_with(".rml"))
+                return true;
+            const std::string_view text(bytes.data(), bytes.size());
+            const auto problems = sheet ? validateStyleSheet(text, path) : validateMarkupStyles(text, path);
+            for (const StyleDiagnostic& problem : problems)
+                Log(Debug::Error) << "[UI] style refused: " << problem.text();
+            return problems.empty();
+        }
+
+        void logTheme(const char* what)
+        {
+            const ThemeAssembly assembly = mTheme.assembly();
+            Log(Debug::Info) << "[UI] theme " << what << ": '" << assembly.mThemeUsed << "'"
+                             << (assembly.mFellBack ? " (fell back)" : "") << ", " << assembly.mVariantsUsed.size()
+                             << " variant(s), " << assembly.mSources.size() << " sheet(s)";
+            for (const StyleDiagnostic& problem : assembly.mProblems)
+                Log(Debug::Error) << "[UI] theme problem: " << problem.text();
+        }
+
+        // Frame thread: takes a theme request, polls the style sheet files, and when anything changed makes every
+        // document read its sheets again.
+        void applyThemeChanges(double now)
+        {
+            bool changed = false;
+            bool requested = false;
+            {
+                std::lock_guard lock(mThemeMutex);
+                if (mThemeDirty)
+                {
+                    mTheme.setRequest(mThemeWanted);
+                    mThemeDirty = false;
+                    requested = true;
+                }
+            }
+            if (requested)
+                changed = mTheme.refresh();
+            else if (mThemeReloadSeconds > 0.f && (mLastThemePoll < 0.0 || now - mLastThemePoll >= mThemeReloadSeconds))
+            {
+                mLastThemePoll = now;
+                const bool filesChanged = mFiles.watchedFilesChanged();
+                const bool themeChanged = mTheme.refresh();
+                changed = filesChanged || themeChanged;
+                if (changed)
+                    Log(Debug::Info) << "[UI] style sheets changed on disk, reloading";
+            }
+            if (!changed)
+                return;
+            logTheme(requested ? "changed" : "reloaded");
+            Rml::Factory::ClearStyleSheetCache();
+            for (int i = 0; i < mContext->GetNumDocuments(); ++i)
+                mContext->GetDocument(i)->ReloadStyleSheet();
         }
 
         void loadFonts(const OverlayConfig& config)
@@ -389,6 +471,7 @@ namespace UiRml
                     mDropped = 0;
                 }
             }
+            applyThemeChanges(now);
             for (const QueuedEvent& event : mWork)
                 apply(event);
             mWork.clear();
@@ -454,6 +537,16 @@ namespace UiRml
     void Overlay::setGuiScale(float factor)
     {
         mImpl->mRequestedScale = factor;
+    }
+
+    void Overlay::setTheme(const std::string& name, const std::string& variants)
+    {
+        ThemeRequest request{ name.empty() ? std::string(kDefaultThemeName) : name, parseNameList(variants) };
+        std::lock_guard lock(mImpl->mThemeMutex);
+        if (!mImpl->mThemeDirty && request == mImpl->mTheme.request())
+            return;
+        mImpl->mThemeWanted = std::move(request);
+        mImpl->mThemeDirty = true;
     }
 
     UiState Overlay::state() const
