@@ -310,8 +310,10 @@ namespace
                     JPH::Vec3(xa, yMin, z));
             }
             JPH::Ref<JPH::Shape> shape = settings.Create().Get();
-            shape->SetEmbedded(); // the instance below holds it by a raw pointer, as the other tests' shapes do
-            return std::unique_ptr<JPH::Shape>(shape.GetPtr());
+            JPH::Shape* raw = shape.GetPtr();
+            if (raw != nullptr) // GCC 13 -Werror=stringop-overflow reads the unchecked call as a write into a null shape
+                raw->SetEmbedded(); // the instance below holds it by a raw pointer, as the other tests' shapes do
+            return std::unique_ptr<JPH::Shape>(raw);
         }
     };
 
