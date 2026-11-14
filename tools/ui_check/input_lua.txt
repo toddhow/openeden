@@ -1,0 +1,34 @@
+# Task 0166: clicks and typing in the Lua panels of tools/ui_check/mod, in GUI mode (Escape opens the main menu), scale 1,
+# 1280x720. The Lua side logs every event it gets as "[uipanel] ..." lines: click one/two, change <text>, checkbox,
+# toggle, slider, tab. Run: INPUT=tools/ui_check/input_lua.txt tools/ui_check/check.sh <name> lua --quit 900 --shot 880
+200 key Escape down
+202 key Escape up
+250 mouse 150 125
+254 down L 150 125
+256 up L 150 125
+270 mouse 150 157
+274 down L 150 157
+276 up L 150 157
+290 mouse 130 190
+294 down L 130 190
+296 up L 130 190
+300 text hello
+310 key BackSpace down
+311 key BackSpace up
+320 text !
+340 shot
+# the widgets document (second slice): Checkbox, Toggle, Slider (a click on the track), then the List tab
+350 mouse 345 88
+354 down L 345 88
+356 up L 345 88
+370 mouse 345 114
+374 down L 345 114
+376 up L 345 114
+390 mouse 450 140
+394 down L 450 140
+396 up L 450 140
+410 shot
+420 mouse 413 59
+424 down L 413 59
+426 up L 413 59
+450 shot

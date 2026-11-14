@@ -62,6 +62,12 @@ namespace UiRml
         /// The default style every document gets (before the base sheet); public for tests.
         static std::string documentDefaults(const std::string& fontFamily);
 
+        /// The sizes of the scrollbar parts, on one line (files/data/ui/document.rml carries the same text). RmlUi has
+        /// no default style sheet and an unstyled scrollbar takes the whole width of its scroll container, so every
+        /// block inside a list or a ScrollView that shows a scrollbar was 0 wide (task 0166). The theme's base sheet
+        /// comes after and sets the same properties from its tokens.
+        static const std::string& scrollbarDefaults();
+
     private:
         struct Impl;
         std::unique_ptr<Impl> mImpl;

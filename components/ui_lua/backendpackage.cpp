@@ -15,6 +15,7 @@ namespace UiLua
         {
             std::shared_ptr<Ui::Backend> mBackend;
             bool mDirty = false; // something was written since the last commit
+            std::uint64_t mUpdaterId = 0; // this session's entry in the UpdateRegistry (0 = none yet)
             std::vector<Ui::Event> mEvents;
         };
 
@@ -49,6 +50,7 @@ namespace UiLua
 
     struct UpdateRegistry::Entry
     {
+        std::uint64_t mId = 0;
         sol::main_protected_function mFunction;
         std::string mLastError; // the message last reported for this updater; empty after a good run
     };
@@ -56,11 +58,27 @@ namespace UiLua
     UpdateRegistry::UpdateRegistry() = default;
     UpdateRegistry::~UpdateRegistry() = default;
 
-    void UpdateRegistry::add(sol::object function)
+    std::uint64_t UpdateRegistry::add(sol::object function)
     {
         if (function.get_type() != sol::type::function)
             fail("setUpdater", "fn must be a function");
-        mEntries.push_back(Entry{ sol::main_protected_function(function), std::string() });
+        const std::uint64_t id = mNextId++;
+        mEntries.push_back(Entry{ id, sol::main_protected_function(function), std::string() });
+        return id;
+    }
+
+    bool UpdateRegistry::replace(std::uint64_t id, sol::object function)
+    {
+        if (function.get_type() != sol::type::function)
+            fail("setUpdater", "fn must be a function");
+        for (Entry& entry : mEntries)
+            if (entry.mId == id)
+            {
+                entry.mFunction = sol::main_protected_function(function);
+                entry.mLastError.clear();
+                return true;
+            }
+        return false;
     }
 
     void UpdateRegistry::runAll(const std::function<void(const std::string&)>& onError)
@@ -170,11 +188,14 @@ namespace UiLua
             state->mBackend->focus(idArg(id, "focus", "id"));
             state->mDirty = true;
         };
-        t["setUpdater"] = [registry](sol::object function) {
+        t["setUpdater"] = [registry, state](sol::object function) {
             if (function.get_type() != sol::type::function)
                 fail("setUpdater", "fn must be a function");
-            if (registry != nullptr)
-                registry->add(function);
+            if (registry == nullptr)
+                return;
+            // One updater per session: a second call replaces the first (task 0166).
+            if (state->mUpdaterId == 0 || !registry->replace(state->mUpdaterId, function))
+                state->mUpdaterId = registry->add(function);
         };
         t["commit"] = [state]() {
             if (!state->mDirty)

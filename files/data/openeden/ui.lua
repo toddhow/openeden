@@ -336,6 +336,244 @@ function ui.TextInput(props)
   return node
 end
 
+-- ---- the second slice (task 0166): Checkbox, Toggle, Slider, ProgressBar, ScrollView, Tabs ----
+
+-- A class string made of the component's own name, a state word that follows reactive values (`checked`, `active`) and
+-- the user's class. Written once when nothing is reactive; otherwise one effect that writes only a changed string.
+local function bindClasses(scope, id, base, userClass, state)
+  if state == nil and not isReactive(userClass) then
+    backend.setClass(id, (userClass ~= nil and userClass ~= '') and (base .. ' ' .. tostring(userClass)) or base)
+    return
+  end
+  local last
+  R.EffectIn(scope, function()
+    local cls = base
+    local word = state and state()
+    if word and word ~= '' then cls = cls .. ' ' .. word end
+    local user = userClass
+    if isReactive(user) then user = user:get() end
+    if user ~= nil and user ~= '' then cls = cls .. ' ' .. tostring(user) end
+    if cls ~= last then
+      last = cls
+      backend.setClass(id, cls)
+    end
+  end)
+end
+
+-- A boolean property that is two-way when it is a Value and local state when it is a plain value.
+local function boolState(value)
+  if isReactive(value) then return value end
+  return R.Value(value and true or false)
+end
+
+local switchProps = { value = true, label = true, onChange = true }
+
+-- Checkbox and Toggle share everything but their parts: a clickable element with a state class, a mark and a label.
+-- `markClass` is the mark element's class and `innerClass` (optional) a child of the mark (the toggle's knob).
+local function switchLike(kind, stateWord, markClass, innerClass, labelClass)
+  local who = 'ui.' .. kind:sub(1, 1):upper() .. kind:sub(2)
+  return function(props)
+    props = props or {}
+    checkProps(who, props, switchProps)
+    local scope = requireScope(who)
+    local node = makeNode(who, scope, kind, 'div', props)
+    local id = node.id
+    local state = boolState(props.value)
+    bindClasses(scope, id, kind, props.class, function() return state:get() and stateWord or '' end)
+    applyStyle(node, scope, props)
+    applyVisible(node, scope, props, 'block')
+    local markId = backend.create('div')
+    backend.setClass(markId, markClass)
+    backend.insertBefore(id, markId, 0)
+    if innerClass then
+      local innerId = backend.create('div')
+      backend.setClass(innerId, innerClass)
+      backend.insertBefore(markId, innerId, 0)
+    end
+    local labelId = backend.create('div')
+    backend.setClass(labelId, labelClass)
+    backend.insertBefore(id, labelId, 0)
+    if props.label ~= nil then
+      R.bind(scope, props.label, function(x) backend.setText(labelId, textOf(x)) end)
+    end
+    local onChange = props.onChange
+    local userOnClick = props.onClick
+    local behaviour = { focusable = true, nav = props.nav, onFocus = props.onFocus, onBlur = props.onBlur,
+      autofocus = props.autofocus, onClick = function(v)
+        local nextValue = not state:peek()
+        state:set(nextValue)
+        if onChange then onChange(nextValue) end
+        if userOnClick then userOnClick(v) end
+      end }
+    applyBehaviour(who, node, scope, behaviour, true)
+    return node
+  end
+end
+
+ui.Checkbox = switchLike('checkbox', 'checked', 'check-box', nil, 'check-label')
+ui.Toggle = switchLike('toggle', 'on', 'toggle-track', 'toggle-knob', 'toggle-label')
+
+local sliderProps = { value = true, min = true, max = true, step = true, onChange = true, width = true }
+
+function ui.Slider(props)
+  props = props or {}
+  checkProps('ui.Slider', props, sliderProps)
+  local lo, hi = props.min or 0, props.max or 1
+  if type(lo) ~= 'number' or type(hi) ~= 'number' or not (hi > lo) then
+    error('ui.Slider: min and max must be numbers with max above min', 2)
+  end
+  local scope = requireScope('ui.Slider')
+  local node = makeNode('ui.Slider', scope, 'slider', 'input', props)
+  local id = node.id
+  bindClasses(scope, id, 'slider', props.class)
+  applyStyle(node, scope, props)
+  applyVisible(node, scope, props, 'inline-block')
+  if props.width ~= nil then
+    R.bind(scope, props.width, function(x) backend.setProperty(id, 'width', cssValue('width', x)) end)
+  end
+  backend.setAttribute(id, 'type', 'range')
+  backend.setAttribute(id, 'min', tostring(lo))
+  backend.setAttribute(id, 'max', tostring(hi))
+  if props.step ~= nil then backend.setAttribute(id, 'step', tostring(props.step)) end
+  local value = props.value
+  local lastKnown
+  local first = true
+  R.bind(scope, value == nil and lo or value, function(x)
+    x = tonumber(x) or lo
+    if first or x ~= lastKnown then
+      first = false
+      lastKnown = x
+      backend.setAttribute(id, 'value', tostring(x))
+    end
+  end)
+  local onChange = props.onChange
+  listen(id, 'change', function(text)
+    local n = tonumber(text)
+    if n == nil then return end
+    lastKnown = n
+    if isReactive(value) and value.set then value:set(n) end
+    if onChange then onChange(n) end
+  end)
+  applyBehaviour('ui.Slider', node, scope, props, true)
+  return node
+end
+
+local progressProps = { value = true, max = true }
+
+function ui.ProgressBar(props)
+  props = props or {}
+  checkProps('ui.ProgressBar', props, progressProps)
+  local scope = requireScope('ui.ProgressBar')
+  local node = makeNode('ui.ProgressBar', scope, 'progress', 'div', props)
+  local id = node.id
+  bindClasses(scope, id, 'progress', props.class)
+  applyStyle(node, scope, props)
+  applyVisible(node, scope, props, 'block')
+  local fillId = backend.create('div')
+  backend.setClass(fillId, 'progress-fill')
+  backend.insertBefore(id, fillId, 0)
+  R.bind(scope, R.Computed(function()
+    local v = props.value
+    if isReactive(v) then v = v:get() end
+    local m = props.max
+    if isReactive(m) then m = m:get() end
+    v, m = tonumber(v) or 0, tonumber(m) or 1
+    local fraction = m > 0 and v / m or 0
+    if fraction < 0 then fraction = 0 elseif fraction > 1 then fraction = 1 end
+    return string.format('%g%%', math.floor(fraction * 10000 + 0.5) / 100)
+  end), function(x) backend.setProperty(fillId, 'width', x) end)
+  applyBehaviour('ui.ProgressBar', node, scope, props)
+  return node
+end
+
+local scrollViewProps = { height = true, width = true }
+
+function ui.ScrollView(props)
+  props = props or {}
+  checkProps('ui.ScrollView', props, scrollViewProps)
+  if type(props.height) ~= 'number' or props.height <= 0 then
+    error('ui.ScrollView: height (a positive number of dp) is required', 2)
+  end
+  local scope = requireScope('ui.ScrollView')
+  local node = makeNode('ui.ScrollView', scope, 'scrollview', 'div', props)
+  local id = node.id
+  bindClasses(scope, id, 'scrollview scroll', props.class)
+  backend.setProperty(id, 'height', cssValue('height', props.height))
+  backend.setProperty(id, 'overflow-y', 'auto')
+  if props.width ~= nil then backend.setProperty(id, 'width', cssValue('width', props.width)) end
+  applyStyle(node, scope, props)
+  applyVisible(node, scope, props, 'block')
+  applyBehaviour('ui.ScrollView', node, scope, props)
+  attachChildren('ui.ScrollView', node, props)
+  return node
+end
+
+local tabsProps = { value = true, tabs = true, onChange = true }
+
+-- Tabs{ value = Value('id') (optional), tabs = { { id, label, content = function() return node end }, ... } }.
+-- Every tab's content is built once, when the Tabs are; only the selected panel is displayed.
+function ui.Tabs(props)
+  props = props or {}
+  checkProps('ui.Tabs', props, tabsProps)
+  local list = props.tabs
+  if type(list) ~= 'table' or #list == 0 then error('ui.Tabs: tabs must be a non-empty list', 2) end
+  local seen = {}
+  for i, tab in ipairs(list) do
+    if type(tab) ~= 'table' or tab.id == nil or type(tab.content) ~= 'function' then
+      error('ui.Tabs: tab ' .. i .. ' needs an id and a content function', 2)
+    end
+    if seen[tab.id] then error('ui.Tabs: duplicate tab id ' .. tostring(tab.id), 2) end
+    seen[tab.id] = true
+  end
+  local scope = requireScope('ui.Tabs')
+  local selected = props.value
+  if selected == nil then
+    selected = R.Value(list[1].id)
+  elseif not isReactive(selected) then
+    selected = R.Value(selected)
+  end
+  if not seen[selected:peek()] then error('ui.Tabs: value ' .. tostring(selected:peek()) .. ' is not a tab id', 2) end
+
+  local node = makeNode('ui.Tabs', scope, 'tabs', 'div', props)
+  bindClasses(scope, node.id, 'tabs', props.class)
+  applyStyle(node, scope, props)
+  applyVisible(node, scope, props, 'block')
+  local bar = backend.create('div')
+  backend.setClass(bar, 'tab-bar')
+  backend.setProperty(bar, 'display', 'flex')
+  backend.setProperty(bar, 'flex-direction', 'row')
+  backend.insertBefore(node.id, bar, 0)
+  local onChange = props.onChange
+  for _, tab in ipairs(list) do
+    local tabId = backend.create('div')
+    backend.insertBefore(bar, tabId, 0)
+    backend.setText(tabId, textOf(tab.label))
+    backend.setAttribute(tabId, 'tabindex', 'auto')
+    bindClasses(scope, tabId, 'tab', nil, function() return selected:get() == tab.id and 'active' or '' end)
+    scope:onCleanup(function() handlers[tabId] = nil end)
+    listen(tabId, 'click', function()
+      if selected:peek() ~= tab.id then
+        selected:set(tab.id)
+        if onChange then onChange(tab.id) end
+      end
+    end)
+  end
+  for _, tab in ipairs(list) do
+    local panel = backend.create('div')
+    backend.setClass(panel, 'tab-panel')
+    backend.insertBefore(node.id, panel, 0)
+    local content = tab.content()
+    if content ~= nil then
+      if not isNode(content) then error('ui.Tabs: content must return a component node', 2) end
+      content.owned = true
+      backend.insertBefore(panel, content.id, 0)
+    end
+    R.bind(scope, R.Computed(function() return selected:get() == tab.id end),
+      function(x) backend.setProperty(panel, 'display', x and 'block' or 'none') end)
+  end
+  return node
+end
+
 -- ---- List: keyed rows, virtualised from the start ----
 
 local listProps = { items = true, key = true, render = true, rowHeight = true, height = true, overscan = true, width = true }

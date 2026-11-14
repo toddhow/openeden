@@ -15,6 +15,7 @@ local fps = ui.Value('FPS: --')
 local frameText = ui.Value('frame 0')
 local clicks = ui.Value(0)
 local field = ui.Value('')
+local sound, fog, volume, tab = ui.Value(true), ui.Value(false), ui.Value(40), ui.Value('controls')
 local frames, since, frameNo = 0, 0, 0
 local built = false
 local lastTime
@@ -36,14 +37,38 @@ local function build()
         ui.Frame{ style = { height = 22 } }, -- room for the frame rate Hud
         ui.Text{ text = 'openeden.ui on RmlUi', class = 'indent' },
         ui.Text{ text = 'Reactive values, one effect each', class = 'indent' },
-        ui.Button{ text = 'Button one', onClick = function() clicks:set(clicks:peek() + 1) end },
-        ui.Button{ text = 'Button two', onClick = function() clicks:set(clicks:peek() + 1) end },
-        ui.TextInput{ value = field },
+        ui.Button{ text = 'Button one', onClick = function() clicks:set(clicks:peek() + 1); print('[uipanel] click one') end },
+        ui.Button{ text = 'Button two', onClick = function() clicks:set(clicks:peek() + 1); print('[uipanel] click two') end },
+        ui.TextInput{ value = field, onChange = function(t) print('[uipanel] change ' .. t) end },
         ui.Text{ text = ui.Computed(function() return 'clicks: ' .. clicks:get() end), class = 'info' },
         ui.Text{ text = ui.Computed(function() return 'text: ' .. field:get() end), class = 'info' },
-        ui.List{ items = items, key = function(it) return it.id end, rowHeight = 16, height = 52, width = 236,
+        ui.List{ items = items, key = function(it) return it.id end, rowHeight = 16, height = 52,
           style = { ['margin-top'] = 4 },
           render = function(it) return ui.Text{ text = it.name, style = { ['padding-left'] = 6 } } end },
+      }
+    end }
+  -- The second component slice (task 0166), a document of its own on the right of the first.
+  ui.Document{ name = 'lua-widgets', class = 'panel',
+    style = { position = 'absolute', left = 300, top = 16, width = 260 },
+    build = function()
+      return ui.Column{
+        ui.Text{ text = 'Widgets', class = 'title' },
+        ui.Tabs{ value = tab, tabs = {
+          { id = 'controls', label = 'Controls', content = function()
+            return ui.Column{
+              ui.Checkbox{ value = sound, label = 'Sound', onChange = function(v) print('[uipanel] checkbox ' .. tostring(v)) end },
+              ui.Toggle{ value = fog, label = 'Fog', onChange = function(v) print('[uipanel] toggle ' .. tostring(v)) end },
+              ui.Slider{ value = volume, min = 0, max = 100, step = 5,
+                onChange = function(v) print('[uipanel] slider ' .. tostring(v)) end },
+              ui.Text{ text = ui.Computed(function() return string.format('volume: %d', volume:get()) end), class = 'info' },
+              ui.ProgressBar{ value = volume, max = 100 },
+            } end },
+          { id = 'list', label = 'List', content = function()
+            return ui.ScrollView{ height = 60,
+              ui.Text{ text = 'Scroll item 1' }, ui.Text{ text = 'Scroll item 2' }, ui.Text{ text = 'Scroll item 3' },
+              ui.Text{ text = 'Scroll item 4' }, ui.Text{ text = 'Scroll item 5' }, ui.Text{ text = 'Scroll item 6' },
+              ui.Text{ text = 'Scroll item 7' }, ui.Text{ text = 'Scroll item 8' } } end },
+        }, onChange = function(id) print('[uipanel] tab ' .. id) end },
       }
     end }
   -- Documents draw in creation order: the small ones come after the panel so that its background does not dim them.

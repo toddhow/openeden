@@ -1,6 +1,7 @@
 <rml>
 <head>
 <title>OpenEden UI document</title>
+<style>scrollbarvertical { width: 8dp; } scrollbarvertical sliderbar { width: 8dp; min-height: 12dp; } scrollbarhorizontal { height: 8dp; } scrollbarhorizontal sliderbar { height: 8dp; min-width: 12dp; } sliderarrowdec, sliderarrowinc { width: 0dp; height: 0dp; }</style>
 <link type="text/rcss" href="base.rcss"/>
 </head>
 <body>

@@ -24,7 +24,7 @@ The context is in framebuffer pixels. `[GUI] scaling factor` becomes the density
 
 ## Pitfalls
 
-- RmlUi has no default style sheet: `div` is inline until a sheet says otherwise; scrollbar elements have no size until styled.
+- RmlUi has no default style sheet: `div` is inline until a sheet says otherwise; scrollbar elements have no size until styled, and an unstyled scrollbar takes the whole width of its scroll container (every block inside it is 0 wide): `RmlProtocol::scrollbarDefaults()` gives the parts a size in the in-memory document and in `ui/document.rml` (task 0166), so keep that `<style>` ahead of the base sheet link.
 - A text change re-lays out its whole document: give live values their own small elements.
 - **Geometry is uploaded in the frame that compiles it** (task 0164): the vertex and index data are `DYNAMIC_DATA_TRANSFER_AFTER_RECORD` ("updated during the record traversal"), so the viewer's `TransferTask` copies them after this frame's record traversal and the frame's submission waits for that copy (`RecordAndSubmitTask::finish`, the late transfer). With the default static variance the copy came in the NEXT frame's early transfer, so geometry was drawable one frame after it was compiled and a text that changes every frame (RmlUi builds new geometry for each change) was never drawn. VSG 1.1.16 has no immediate staging path for buffers (`Context::createBufferAndTransferData` only reserves device memory and queues the copy for a transfer task, `Context::record` warns "Need to implement copying of data" without one), so a compile traversal with no transfer task cannot upload by itself: do not try that.
 - `vsgUtil::viewerCompileMutex()` keeps `Viewer::compile` and loader compiles apart; do not compile on another thread without it.

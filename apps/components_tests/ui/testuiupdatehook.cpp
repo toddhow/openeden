@@ -137,6 +137,50 @@ namespace
         EXPECT_EQ(registry->size(), 0u);
     }
 
+    TEST_F(UiUpdateHook, ASecondSetUpdaterOfTheSameSessionReplacesTheFirst)
+    {
+        ASSERT_TRUE(run(R"(
+            ranA, ranB = 0, 0
+            local s = require('openeden.uibackend').open()
+            s.setUpdater(function() ranA = ranA + 1 end)
+            s.setUpdater(function() ranB = ranB + 1 end)
+        )"));
+        EXPECT_EQ(registry->size(), 1u);
+        runHook();
+        runHook();
+        EXPECT_EQ(get<int>("ranA"), 0);
+        EXPECT_EQ(get<int>("ranB"), 2);
+    }
+
+    TEST_F(UiUpdateHook, ReplacingKeepsThePlaceInTheOrderAndOtherSessionsAreUntouched)
+    {
+        ASSERT_TRUE(run(R"(
+            order = {}
+            local b = require('openeden.uibackend')
+            local s1, s2 = b.open(), b.open()
+            s1.setUpdater(function() order[#order + 1] = 'a1' end)
+            s2.setUpdater(function() order[#order + 1] = 'b' end)
+            s1.setUpdater(function() order[#order + 1] = 'a2' end)
+        )"));
+        EXPECT_EQ(registry->size(), 2u);
+        runHook();
+        EXPECT_EQ(get<std::string>("table.concat(order, ',')"), "a2,b");
+    }
+
+    TEST_F(UiUpdateHook, ASessionThatRegistersAgainAfterClearRunsAgain)
+    {
+        ASSERT_TRUE(run(R"(
+            n = 0
+            s = require('openeden.uibackend').open()
+            s.setUpdater(function() n = n + 1 end)
+        )"));
+        registry->clear();
+        ASSERT_TRUE(run("s.setUpdater(function() n = n + 10 end)"));
+        EXPECT_EQ(registry->size(), 1u);
+        runHook();
+        EXPECT_EQ(get<int>("n"), 10);
+    }
+
     TEST_F(UiUpdateHook, AnUpdaterThatIsNotAFunctionIsALuaError)
     {
         sol::protected_function_result result

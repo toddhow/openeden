@@ -24,6 +24,7 @@ file(GLOB UNITTEST_SRC_FILES
     lua_ui/luauiharness.cpp
     ui/testuibinding.cpp
     ui/testuicomponents.cpp
+    ui/testuicomponents2.cpp
     ui/testuiframe.cpp
     ui/testuilist.cpp
     ui/testuiqueue.cpp
@@ -708,9 +709,11 @@ if (TARGET openeden_rmlui)
         ui_rml/testuicontrollerfocus.cpp
         ui_rml/testuifocusclipboard.cpp
         ui_rml/testuigeometry.cpp
+        ui_rml/testuirmllistlayout.cpp
         ui_rml/testuirmlprotocol.cpp
         ui_rml/testuiinput.cpp
         ui_rml/testuitheme.cpp
+        ui_rml/testuiwidgetsheet.cpp
     )
 endif()
 

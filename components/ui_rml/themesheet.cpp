@@ -361,7 +361,8 @@ namespace UiRml
             "--color-surface", "--color-surface-sunken", "--color-text", "--color-text-strong", "--color-text-muted",
             "--color-text-ok", "--color-text-info", "--color-control", "--color-control-hover", "--color-control-focus",
             "--color-control-text-focus", "--color-input", "--color-input-focus", "--color-input-text",
-            "--color-border", "--color-focus-border", "--color-scrollbar-track", "--color-scrollbar-thumb" };
+            "--color-border", "--color-focus-border", "--color-scrollbar-track", "--color-scrollbar-thumb", "--color-track", "--color-accent",
+            "--color-tab", "--color-tab-active", "--size-check" };
         return sTokens;
     }
 

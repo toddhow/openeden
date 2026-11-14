@@ -7,6 +7,7 @@
 #            none : [GUI] rmlui on, C++ panel off, no script (the overlay's own cost with nothing in it)
 #            off  : [GUI] rmlui off (the game as before)
 #   MODDIR (optional) replaces tools/ui_check/mod, e.g. a copy of the panel with a manual ui.update() for a build without the hook
+#   INPUT (optional) a synthetic input script (OPENEDEN_RMLUI_INPUT_SCRIPT, tools/rmlui_input_check) run during the game
 #   needs: BUILD (the build folder with openmw.exe), WORK (a folder under I:/Projects/OpenEden-work),
 #          MORROWIND_DATA (default "I:\GOG Galaxy\Games\Morrowind\Data Files"), PROFILE_CFG (an openmw.cfg to take the
 #          content lines from; default the main test profile of the work folder)
@@ -41,7 +42,7 @@ W=$WORK/runs/$NAME
 rm -rf "$W"; mkdir -p "$W/config" "$W/user"
 grep -v "^data=\|^data-local=\|^resources=\|^extension=\|^content=.*omwscripts" "$PROFILE_CFG" > "$W/config/openmw.cfg"
 { echo "data=\"$(cygpath -m "$BUILD")/resources/vfs-mw\""; echo "data=\"$MW\""; echo "resources=$(cygpath -m "$BUILD")/resources"
-  if [ "$MOD" = 1 ]; then echo "data=\"$(cygpath -m "$HERE/mod")\""; echo "content=uipanel.omwscripts"; fi; } >> "$W/config/openmw.cfg"
+  if [ "$MOD" = 1 ]; then echo "data=\"$(cygpath -m "${MODDIR:-$HERE/mod}")\""; echo "content=uipanel.omwscripts"; fi; } >> "$W/config/openmw.cfg"
 printf '[Saves]\ncharacter = Refn\n\n[Video]\nantialiasing = 0\nresolution x = %s\nresolution y = %s\nvsync mode = 0\n\n[GUI]\nrmlui = %s\nrmlui debug panel = %s\n' \
     "${RES%x*}" "${RES#*x}" "$RML" "$PANEL" > "$W/config/settings.cfg"
 VCPKG_BIN=${VCPKG_BIN:-/i/Projects/OpenEden/deps/vcpkg-x64-windows-2022-2026-02-24/installed/x64-windows}
@@ -51,6 +52,7 @@ export OPENMW_DISABLE_CRASH_CATCHER=${OPENMW_DISABLE_CRASH_CATCHER:-1}
 export OPENEDEN_FIXED_FRAME_TIME=0.0166667
 export OPENEDEN_FRAME_STATS_FILE="$(cygpath -m "$W/frames.txt")"
 export OPENEDEN_SHADER_CACHE="$(cygpath -m "$WORK/shadercache")"
+[ -n "$INPUT" ] && export OPENEDEN_RMLUI_INPUT_SCRIPT="$(cygpath -m "$INPUT")"
 cd "$BUILD"
 timeout 420 "${OPENMW_EXE:-./openmw.exe}" --replace=config --config "$(cygpath -m "$W/config")" --user-data "$(cygpath -m "$W/user")" \
     --skip-menu --new-game --no-grab --no-sound --random-seed 1 --auto-screenshot "$SHOT" --auto-quit "$QUIT" > "$W/log.txt" 2>&1 < /dev/null || echo "exit $?"

@@ -61,7 +61,18 @@ namespace UiRml
             css += " font-family: " + fontFamily + ";";
         css += " }\n";
         css += "input { display: inline-block; }\nimg { display: inline-block; }\n";
+        css += scrollbarDefaults();
+        css += "\n";
         return css;
+    }
+
+    const std::string& RmlProtocol::scrollbarDefaults()
+    {
+        static const std::string sText
+            = "scrollbarvertical { width: 8dp; } scrollbarvertical sliderbar { width: 8dp; min-height: 12dp; } "
+              "scrollbarhorizontal { height: 8dp; } scrollbarhorizontal sliderbar { height: 8dp; min-width: 12dp; } "
+              "sliderarrowdec, sliderarrowinc { width: 0dp; height: 0dp; }";
+        return sText;
     }
 
     struct RmlProtocol::Impl final : public Rml::EventListener

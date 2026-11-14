@@ -40,4 +40,10 @@ body {
     --color-focus-border: #ffffff;
     --color-scrollbar-track: #00000080;
     --color-scrollbar-thumb: #dfc99a;
+
+    --color-track: #2a2418;
+    --color-accent: #a08040;
+    --color-tab: #2a2012;
+    --color-tab-active: #6a5428;
+    --size-check: 14dp;
 }

@@ -1,6 +1,7 @@
 #ifndef OPENEDEN_COMPONENTS_UI_LUA_BACKENDPACKAGE_H
 #define OPENEDEN_COMPONENTS_UI_LUA_BACKENDPACKAGE_H
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -20,7 +21,8 @@ namespace UiLua
     ///   insertBefore(parent, child [, before])                        detach(child)
     ///   setText(id, s)  setClass(id, s)  setProperty(id, name, s)    setAttribute(id, name, s)
     ///   listen(id, kind, on)   focus(id)   commit()   poll(fn)       (fn(id, kindName, value) per event)
-    ///   setUpdater(fn)   (task 0164: the engine calls fn once a frame, see UpdateRegistry; call it once per session)
+    ///   setUpdater(fn)   (task 0164: the engine calls fn once a frame, see UpdateRegistry; a second call of the same
+    ///                     session replaces the first, task 0166)
     ///
     /// Ids are numbers. A bad argument raises a Lua error naming the function. `poll` with no events and `commit` with
     /// nothing written allocate nothing. The session lives as long as its table (it is released by Lua's collector).
@@ -47,12 +49,18 @@ namespace UiLua
         void clear();
         std::size_t size() const;
 
-        /// For the session table: adds an updater (a Lua function, held as a protected function).
-        void add(sol::object function);
+        /// For the session table: adds an updater (a Lua function, held as a protected function) and returns its id
+        /// (never 0).
+        std::uint64_t add(sol::object function);
+
+        /// Replaces the function of the updater `id`, keeping its place in the order. Returns false when there is no
+        /// such updater (never added, or forgotten by `clear`): the caller then adds a new one.
+        bool replace(std::uint64_t id, sol::object function);
 
     private:
         struct Entry;
         std::vector<Entry> mEntries;
+        std::uint64_t mNextId = 1;
     };
 
     /// With a registry, sessions of this package register their updaters in it; without one `setUpdater` is accepted

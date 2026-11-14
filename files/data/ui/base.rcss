@@ -60,3 +60,57 @@ input.text:focus { background-color: var(--color-input-focus); border-color: var
 scrollbarvertical { width: var(--scrollbar-width); background-color: var(--color-scrollbar-track); }
 scrollbarvertical sliderbar { width: var(--scrollbar-width); min-height: var(--space-7); background-color: var(--color-scrollbar-thumb); }
 scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { width: 0dp; height: 0dp; }
+
+/* Second component slice (task 0166): Checkbox, Toggle, Slider, ProgressBar, ScrollView, Tabs. */
+
+.checkbox, .toggle { display: flex; flex-direction: row; align-items: center; margin: var(--space-3) 0dp; tab-index: auto; nav: auto; }
+.check-box {
+    width: var(--size-check);
+    height: var(--size-check);
+    margin-right: var(--space-5);
+    background-color: var(--color-track);
+    border-width: var(--border-width);
+    border-color: var(--color-border);
+    border-radius: var(--radius-sm);
+}
+.checkbox.checked .check-box { background-color: var(--color-accent); }
+.checkbox:focus .check-box, .toggle:focus .toggle-track { border-color: var(--color-focus-border); }
+.check-label, .toggle-label { color: var(--color-text); }
+
+.toggle-track {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: var(--size-check);
+    padding-right: var(--size-check);
+    margin-right: var(--space-5);
+    background-color: var(--color-track);
+    border-width: var(--border-width);
+    border-color: var(--color-border);
+    border-radius: var(--radius-md);
+}
+.toggle-knob { width: var(--size-check); height: var(--size-check); background-color: var(--color-text-muted); border-radius: var(--radius-md); }
+.toggle.on .toggle-track { background-color: var(--color-accent); padding-right: 0dp; padding-left: var(--size-check); }
+
+input.slider { display: block; width: 200dp; height: var(--control-height); margin: var(--space-4) 0dp; }
+input.slider slidertrack { height: var(--control-height); background-color: var(--color-track); }
+input.slider sliderbar { width: var(--space-7); height: var(--control-height); background-color: var(--color-accent); }
+input.slider sliderarrowdec, input.slider sliderarrowinc { width: 0dp; height: 0dp; }
+
+.progress { display: block; height: var(--size-check); margin: var(--space-3) 0dp; background-color: var(--color-track); border-width: var(--border-width); border-color: var(--color-border); }
+.progress-fill { display: block; height: 100%; width: 0%; background-color: var(--color-accent); }
+
+.scrollview { display: block; }
+
+.tab-bar { margin-bottom: var(--space-3); }
+.tab {
+    padding: var(--space-3) var(--space-6);
+    margin-right: var(--space-3);
+    background-color: var(--color-tab);
+    color: var(--color-text);
+    tab-index: auto;
+    nav: auto;
+}
+.tab:hover { background-color: var(--color-control-hover); }
+.tab.active { background-color: var(--color-tab-active); color: var(--color-text-strong); }
+.tab-panel { display: block; }
