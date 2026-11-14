@@ -9,7 +9,7 @@
 --   local ui = require('openeden.ui')
 --   local fps = ui.Value('FPS: --')
 --   local hud = ui.Hud{ name = 'fps', build = function() return ui.Text{ text = fps } end }
---   -- once per frame:  ui.update()
+--   -- the engine calls ui.update() once per frame by itself (task 0164); calling it yourself is harmless
 --
 -- A component must be built inside the `build` function of a Document/Hud (or inside ui.withScope): the scope owns its
 -- effects and handlers and is destroyed with the document.
@@ -70,6 +70,13 @@ function ui.update()
     firstError = nil
     error(err, 0)
   end
+end
+
+-- Task 0164: the engine calls ui.update() once a frame for every script that required this library (after the script's
+-- own onFrame, so what onFrame changed is flushed in the same frame). A manual ui.update() stays harmless: a second
+-- flush in one frame finds nothing to do. Packages without the hook (a headless test backend) are left as they are.
+if backend.setUpdater then
+  backend.setUpdater(function() return ui.update() end)
 end
 
 function ui.focus(node)

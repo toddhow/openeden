@@ -204,11 +204,15 @@ namespace MWLua
             // own session on the overlay's queue. Player and menu scripts only.
             if (mUiQueue != nullptr)
             {
-                sol::table uiBackend = LuaUtil::makeReadOnly(UiLua::makeBackendPackage(view.sol(), [queue = mUiQueue] {
-                    return std::shared_ptr<Ui::Backend>(queue->openSession());
-                }));
-                mPlayerPackages["openeden.uibackend"] = uiBackend;
-                mMenuScripts.addPackage("openeden.uibackend", uiBackend);
+                // Task 0164: one registry for each of the two script lifetimes, so that an updater is forgotten with
+                // the scripts it belongs to.
+                mUiPlayerUpdates = std::make_shared<UiLua::UpdateRegistry>();
+                mUiMenuUpdates = std::make_shared<UiLua::UpdateRegistry>();
+                const auto opener = [queue = mUiQueue] { return std::shared_ptr<Ui::Backend>(queue->openSession()); };
+                mPlayerPackages["openeden.uibackend"]
+                    = LuaUtil::makeReadOnly(UiLua::makeBackendPackage(view.sol(), opener, mUiPlayerUpdates));
+                mMenuScripts.addPackage("openeden.uibackend",
+                    LuaUtil::makeReadOnly(UiLua::makeBackendPackage(view.sol(), opener, mUiMenuUpdates)));
             }
 
             mPlayerStorage.setActive(true);
@@ -382,6 +386,7 @@ namespace MWLua
             mMenuScripts.onFrame(frameDuration);
             if (playerScripts)
                 playerScripts->onFrame(frameDuration);
+            runUiUpdaters();
         }
 
         for (const auto& [message, mode] : mUIMessages)
@@ -412,6 +417,17 @@ namespace MWLua
         }
     }
 
+    void LuaManager::runUiUpdaters()
+    {
+        // Task 0164: `ui.update()` of every script that required `openeden.ui`, once a frame, after the scripts' own
+        // onFrame (what onFrame changed is flushed in the same frame). Menu scripts first, as in onFrame.
+        const auto report = [](const std::string& message) { Log(Debug::Error) << "[UI] update hook: " << message; };
+        if (mUiMenuUpdates != nullptr)
+            mUiMenuUpdates->runAll(report);
+        if (mUiPlayerUpdates != nullptr)
+            mUiPlayerUpdates->runAll(report);
+    }
+
     void LuaManager::applyDelayedActions()
     {
         BoolScopeGuard applyingGuard(mApplyingDelayedActions);
@@ -436,6 +452,8 @@ namespace MWLua
         mMenuInputEvents.clear();
         mObjectLists.clear();
         mGlobalScripts.removeAllScripts();
+        if (mUiPlayerUpdates != nullptr)
+            mUiPlayerUpdates->clear(); // the player's scripts go below; their sessions' updaters with them
         mGlobalScriptsStarted = false;
         mNewGameStarted = false;
         mDelayedUiModeChangedArg = std::nullopt;
@@ -876,6 +894,10 @@ namespace MWLua
         initConfiguration(true);
 
         mMenuScripts.removeAllScripts();
+        if (mUiMenuUpdates != nullptr)
+            mUiMenuUpdates->clear();
+        if (mUiPlayerUpdates != nullptr)
+            mUiPlayerUpdates->clear(); // the player's local scripts are loaded again below and register again
 
         mPlayerStorage.clearTemporaryAndRemoveCallbacks();
 

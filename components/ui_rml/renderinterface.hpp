@@ -134,7 +134,6 @@ namespace UiRml
         std::shared_ptr<Texture> mWhite;
         std::vector<Item> mItems;
         std::vector<std::shared_ptr<Geometry>> mPendingGeometry;
-        std::vector<std::shared_ptr<Geometry>> mJustCompiled;
         std::vector<std::shared_ptr<Texture>> mPendingTextures;
 
         bool mScissorEnabled = false;

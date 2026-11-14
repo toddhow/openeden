@@ -12,6 +12,7 @@
 #include <components/lua_ui/resources.hpp>
 #include <components/misc/color.hpp>
 #include <components/ui/commandqueue.hpp>
+#include <components/ui_lua/backendpackage.hpp>
 
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -205,6 +206,7 @@ namespace MWLua
         LocalScripts* createLocalScripts(const MWWorld::Ptr& ptr,
             std::optional<LuaUtil::ScriptIdsWithInitializationData> autoStartConf = std::nullopt);
         void reloadAllScriptsImpl();
+        void runUiUpdaters(); // task 0164
         void synchronizedUpdateUnsafe();
 
         bool mInitialized = false;
@@ -277,6 +279,10 @@ namespace MWLua
 
         openeden::extension::BindingsStore* mPackBindings = nullptr; // not owned (task 0097)
         std::shared_ptr<Ui::CommandQueue> mUiQueue; // task 0162
+        // Task 0164: the per-frame `ui.update()` of every script that required `openeden.ui`. Player scripts go away with
+        // the game (`clear`), menu scripts only when all scripts are reloaded.
+        std::shared_ptr<UiLua::UpdateRegistry> mUiPlayerUpdates;
+        std::shared_ptr<UiLua::UpdateRegistry> mUiMenuUpdates;
     };
 
 }

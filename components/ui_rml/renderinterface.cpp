@@ -109,7 +109,7 @@ namespace UiRml
         std::uint32_t mVertexCount = 0;
         std::uint32_t mIndexCount = 0;
         bool mCompiled = false;
-        bool mDrawable = false; // compiled in an earlier frame: the viewer has uploaded its buffers
+        bool mDrawable = false; // compiled, and its upload is queued for this frame's transfer (task 0164)
         ~Geometry()
         {
             if (mCompiled)
@@ -209,8 +209,14 @@ namespace UiRml
             return 0;
         }
         auto vertexData = vsg::ubyteArray::create(std::uint32_t(packed.size() * sizeof(GpuVertex)));
+        // Task 0164: "updated during the record traversal": VSG's TransferTask uploads such data after the record
+        // traversal of the SAME frame and the frame's submission waits for it. With the default (static) variance the
+        // upload came in the next frame's early transfer, so geometry was drawable one frame after it was compiled and a
+        // text that changes every frame (RmlUi builds new geometry for each change) was never drawn.
+        vertexData->properties.dataVariance = vsg::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
         std::memcpy(vertexData->dataPointer(), packed.data(), packed.size() * sizeof(GpuVertex));
         auto indexData = vsg::uintArray::create(std::uint32_t(packedIndices.size()));
+        indexData->properties.dataVariance = vsg::DYNAMIC_DATA_TRANSFER_AFTER_RECORD;
         std::memcpy(indexData->dataPointer(), packedIndices.data(), packedIndices.size() * sizeof(std::uint32_t));
 
         auto geometry = std::make_shared<Geometry>();
@@ -367,11 +373,12 @@ namespace UiRml
                 continue;
             mCompileTraversal->apply(*geometry->mDraw);
             geometry->mCompiled = true;
-            // This compile traversal has no transfer task of its own: the viewer uploads the buffers in its next
-            // update (what onCompiled hands over), so the geometry is drawn from the next frame on.
+            // This compile traversal has no transfer task of its own: onCompiled hands the buffers to the viewer's
+            // TransferTask, whose late transfer (they are DYNAMIC_DATA_TRANSFER_AFTER_RECORD) runs after this frame's
+            // record traversal, and the frame's submission waits for it: the draws below are valid in this frame.
             result.dynamicData.bufferInfos.push_back(geometry->mDraw->arrays.front());
             result.dynamicData.bufferInfos.push_back(geometry->mDraw->indices);
-            mJustCompiled.push_back(geometry);
+            geometry->mDrawable = true;
             ++mLastFrame.mCompiledGeometries;
             any = true;
         }
@@ -396,11 +403,7 @@ namespace UiRml
     void RenderInterface::draw(vsg::CommandBuffer& commandBuffer)
     {
         mLastFrame = Stats{};
-        // Geometry compiled in an earlier frame has been uploaded by now.
-        for (auto& geometry : mJustCompiled)
-            geometry->mDrawable = true;
-        mJustCompiled.clear();
-        compilePending();
+        compilePending(); // geometry and textures new this frame are drawable below (task 0164)
 
         const std::uint32_t width = mWidth.load();
         const std::uint32_t height = mHeight.load();
@@ -421,7 +424,7 @@ namespace UiRml
         for (const Item& item : mItems)
         {
             if (!item.mGeometry->mDrawable || !item.mTexture->mCompiled)
-                continue; // not uploaded yet (compiled this frame) or a failed compile: skipped, the frame goes on
+                continue; // a failed compile: skipped, the frame goes on
             if (item.mScissor != scissorOn || (item.mScissor && !(item.mScissorRegion == lastRegion)))
             {
                 VkRect2D rect = full;

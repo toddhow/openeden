@@ -28,6 +28,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testuilist.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
+    ui/testuiupdatehook.cpp
     lua_ui/testluauigeometry.cpp
 
     misc/compression.cpp

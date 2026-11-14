@@ -6,6 +6,7 @@
 #            lua  : [GUI] rmlui on, the C++ panel off, the debug panel as `openeden.ui` documents (tools/ui_check/mod)
 #            none : [GUI] rmlui on, C++ panel off, no script (the overlay's own cost with nothing in it)
 #            off  : [GUI] rmlui off (the game as before)
+#   MODDIR (optional) replaces tools/ui_check/mod, e.g. a copy of the panel with a manual ui.update() for a build without the hook
 #   needs: BUILD (the build folder with openmw.exe), WORK (a folder under I:/Projects/OpenEden-work),
 #          MORROWIND_DATA (default "I:\GOG Galaxy\Games\Morrowind\Data Files"), PROFILE_CFG (an openmw.cfg to take the
 #          content lines from; default the main test profile of the work folder)

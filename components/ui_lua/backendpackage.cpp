@@ -47,7 +47,57 @@ namespace UiLua
         }
     }
 
-    sol::table makeSessionTable(sol::state_view lua, std::shared_ptr<Ui::Backend> backend)
+    struct UpdateRegistry::Entry
+    {
+        sol::main_protected_function mFunction;
+        std::string mLastError; // the message last reported for this updater; empty after a good run
+    };
+
+    UpdateRegistry::UpdateRegistry() = default;
+    UpdateRegistry::~UpdateRegistry() = default;
+
+    void UpdateRegistry::add(sol::object function)
+    {
+        if (function.get_type() != sol::type::function)
+            fail("setUpdater", "fn must be a function");
+        mEntries.push_back(Entry{ sol::main_protected_function(function), std::string() });
+    }
+
+    void UpdateRegistry::runAll(const std::function<void(const std::string&)>& onError)
+    {
+        // By index and up to the count at the start: an updater may open a session and register another one.
+        const std::size_t count = mEntries.size();
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            sol::protected_function_result result = mEntries[i].mFunction();
+            if (result.valid())
+            {
+                mEntries[i].mLastError.clear();
+                continue;
+            }
+            sol::error error = result;
+            std::string message = error.what();
+            if (message != mEntries[i].mLastError)
+            {
+                mEntries[i].mLastError = message;
+                if (onError)
+                    onError(message);
+            }
+        }
+    }
+
+    void UpdateRegistry::clear()
+    {
+        mEntries.clear();
+    }
+
+    std::size_t UpdateRegistry::size() const
+    {
+        return mEntries.size();
+    }
+
+    sol::table makeSessionTable(
+        sol::state_view lua, std::shared_ptr<Ui::Backend> backend, std::shared_ptr<UpdateRegistry> registry)
     {
         if (backend == nullptr)
             throw std::runtime_error("openeden.uibackend: no backend");
@@ -120,6 +170,12 @@ namespace UiLua
             state->mBackend->focus(idArg(id, "focus", "id"));
             state->mDirty = true;
         };
+        t["setUpdater"] = [registry](sol::object function) {
+            if (function.get_type() != sol::type::function)
+                fail("setUpdater", "fn must be a function");
+            if (registry != nullptr)
+                registry->add(function);
+        };
         t["commit"] = [state]() {
             if (!state->mDirty)
                 return;
@@ -158,14 +214,15 @@ namespace UiLua
         return t;
     }
 
-    sol::table makeBackendPackage(sol::state_view lua, BackendOpener opener)
+    sol::table makeBackendPackage(
+        sol::state_view lua, BackendOpener opener, std::shared_ptr<UpdateRegistry> registry)
     {
         sol::table package(lua, sol::create);
-        package["open"] = [lua, opener = std::move(opener)]() mutable {
+        package["open"] = [lua, opener = std::move(opener), registry]() mutable {
             std::shared_ptr<Ui::Backend> backend = opener ? opener() : nullptr;
             if (backend == nullptr)
                 throw std::runtime_error("openeden.uibackend.open: no UI backend is available");
-            return makeSessionTable(lua, std::move(backend));
+            return makeSessionTable(lua, std::move(backend), registry);
         };
         return package;
     }

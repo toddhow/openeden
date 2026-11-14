@@ -1,8 +1,10 @@
 -- tools/ui_check (task 0162): the debug panel of components/ui_rml/debugpanel.cpp rewritten as `openeden.ui` documents.
 -- Needs `[GUI] rmlui = true` (without it the package openeden.uibackend does not exist and this script does nothing).
 -- Two documents, by the rule of research note 0045 13.5: the panel itself, and one small Hud for each value that changes
--- often (the frame rate line twice a second, a frame counter every frame).
+-- often (the frame rate line twice a second, a frame counter EVERY frame: it proves that a value that changes every
+-- frame is drawn in every frame, task 0164). The script never calls ui.update(): the engine does, once a frame.
 local core = require('openmw.core')
+local debug = require('openmw.debug')
 local ok, ui = pcall(require, 'openeden.ui')
 if not ok then
   print('[uipanel] openeden.ui is not available: ' .. tostring(ui))
@@ -16,6 +18,9 @@ local field = ui.Value('')
 local frames, since, frameNo = 0, 0, 0
 local built = false
 local lastTime
+-- Consecutive screenshots for the per-frame counter check (task 0164): frames SHOT_FROM .. SHOT_FROM + SHOT_COUNT - 1
+-- of this script's own count. The names screenshotNNN.png are given in request order.
+local SHOT_FROM, SHOT_COUNT = 600, 6
 
 local items = {}
 for i = 1, 12 do items[i] = { id = i, name = 'List ' .. i } end
@@ -46,7 +51,7 @@ local function build()
   ui.Hud{ name = 'lua-fps', style = { position = 'absolute', left = 28, top = 42, width = 240 },
     build = function() return ui.Text{ text = fps, class = 'ok' } end }
   -- A value that changes often: also its own document.
-  ui.Hud{ name = 'lua-frame', style = { position = 'absolute', left = 28, top = 300, width = 240 },
+  ui.Hud{ name = 'lua-frame', style = { position = 'absolute', left = 28, top = 316, width = 240 },
     build = function() return ui.Text{ text = frameText, class = 'info' } end }
 end
 
@@ -64,8 +69,8 @@ return {
         frames, since = 0, 0
       end
       frameNo = frameNo + 1
-      if frameNo % 8 == 0 then frameText:set('frame ' .. frameNo) end
-      ui.update()
+      frameText:set('frame ' .. frameNo) -- every frame
+      if frameNo >= SHOT_FROM and frameNo < SHOT_FROM + SHOT_COUNT then debug.takeScreenshot() end
     end,
   },
 }
