@@ -31,8 +31,10 @@
 #include <vector>
 
 #ifdef _MSC_VER
-#include <psapi.h>
+// clang-format off: psapi.h needs windows.h before it
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 #pragma comment(lib, "psapi.lib")
 #endif
 
