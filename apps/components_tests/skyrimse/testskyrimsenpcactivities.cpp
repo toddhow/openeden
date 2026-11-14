@@ -131,7 +131,7 @@ namespace
         }
         bool cancelGoal(ActorHandle h) override
         {
-            mEvents.push_back({ Event::Cancel, h });
+            mEvents.push_back({ Event::Cancel, h, 0, 0, 0, 0.f, ActorSpeed::Walk, {} });
             return true;
         }
         bool setHeading(ActorHandle, float) override { return true; }
@@ -142,12 +142,12 @@ namespace
         }
         bool leaveFurniture(ActorHandle h, double x, double y, double z) override
         {
-            mEvents.push_back({ Event::Leave, h, x, y, z });
+            mEvents.push_back({ Event::Leave, h, x, y, z, 0.f, ActorSpeed::Walk, {} });
             return true;
         }
         bool placeFurniture(ActorHandle h, double x, double y, double z, float heading) override
         {
-            mEvents.push_back({ Event::Place, h, x, y, z, heading });
+            mEvents.push_back({ Event::Place, h, x, y, z, heading, ActorSpeed::Walk, {} });
             return true;
         }
         bool actorPosition(ActorHandle h, double& x, double& y, double& z) const override
