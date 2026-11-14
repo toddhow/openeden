@@ -1801,7 +1801,7 @@ namespace MWWorld
         mResult.mSunGlareTexture = mSunGlareTexture;
         mResult.mMasserAvailable = mMasserAvailable;
         mResult.mSecundaAvailable = mSecundaAvailable;
-        mResult.mLitMoons = mRegionProvider != nullptr;
+        mResult.mLitMoons = moonsAreLit(mRegionProvider != nullptr, Settings::rendering().mLitMoons.get());
         mResult.mExtraClouds.resize(current.mExtraClouds.size());
         for (std::size_t i = 0; i < current.mExtraClouds.size(); ++i)
         {

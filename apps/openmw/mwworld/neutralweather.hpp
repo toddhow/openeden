@@ -50,6 +50,14 @@ namespace MWWorld
         inline constexpr float kThresholdDefault = 0.5f;
     }
 
+    /// Task 0167: whether the sky draws the moons' phase pictures. A game pack's weather always does (stage W-S4);
+    /// Morrowind's weathers only with `[Rendering] lit moons`, because `sky/moon/main.frag` multiplies the picture by
+    /// the material's emissive colour, which nothing set, so the moons were black on the night sky.
+    [[nodiscard]] constexpr bool moonsAreLit(bool gamePackWeather, bool litMoonsSetting)
+    {
+        return gamePackWeather || litMoonsSetting;
+    }
+
     /// `maxExtraCloudLayers`: how many of the description's extra cloud layers are kept (stage W-S3; 0 keeps none, the
     /// single picture of W-S1). The image space is always carried; the manager applies it only when asked to.
     [[nodiscard]] WeatherEntry weatherEntryFromDescription(

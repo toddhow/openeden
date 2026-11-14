@@ -577,4 +577,18 @@ namespace
         EXPECT_TRUE(r.mSunTexture.empty());
         EXPECT_FLOAT_EQ(r.mGrade.x, 1.f);
     }
+
+    // Task 0167: the moons are lit (their phase picture is drawn over the sky) for a game pack's weather as before, and
+    // for Morrowind's weathers only when `[Rendering] lit moons` is on.
+    TEST(MWWorldNeutralWeather, moons_are_lit_for_a_game_pack_whatever_the_setting)
+    {
+        EXPECT_TRUE(MWWorld::moonsAreLit(true, false));
+        EXPECT_TRUE(MWWorld::moonsAreLit(true, true));
+    }
+
+    TEST(MWWorldNeutralWeather, morrowind_moons_are_lit_only_when_the_setting_is_on)
+    {
+        EXPECT_FALSE(MWWorld::moonsAreLit(false, false));
+        EXPECT_TRUE(MWWorld::moonsAreLit(false, true));
+    }
 }

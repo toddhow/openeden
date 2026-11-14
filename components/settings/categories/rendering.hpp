@@ -224,6 +224,8 @@ namespace Settings
         SettingValue<float> mVolumetricCloudsPlanetRadius{ mIndex, "Rendering", "volumetric clouds planet radius",
             makeClampSanitizerFloat(100, 1000000) };
         SettingValue<bool> mVolumetricCloudsVariety{ mIndex, "Rendering", "volumetric clouds variety" };
+        // OpenEden (task 0167): Morrowind's moons drawn (their phase pictures were black on the night sky).
+        SettingValue<bool> mLitMoons{ mIndex, "Rendering", "lit moons" };
         // OpenEden (task 0079): the cirrus layer (read at start; needs hdr and atmosphere).
         SettingValue<bool> mCirrus{ mIndex, "Rendering", "cirrus" };
         SettingValue<float> mCirrusCoverage{ mIndex, "Rendering", "cirrus coverage", makeClampSanitizerFloat(0, 2) };
