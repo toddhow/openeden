@@ -84,41 +84,12 @@ namespace
     }
 
     // The accessor is the LAST virtual function of Host (additive, like getBindingsService and getWorldViewService):
-    // a module built against the earlier Host calls the earlier slots unchanged. The device that pins ObScriptContract:
-    // a hand-written mirror of the interface called through a reinterpret_cast.
-    struct MirrorHost
-    {
-        virtual ~MirrorHost() = default;
-        virtual const openeden::sdk::HostInfo& getHostInfo() const = 0;
-        virtual void* getEventBus() { return nullptr; }
-        virtual void* getEntityManager() { return nullptr; }
-        virtual void* getSettingsService() { return nullptr; }
-        virtual void* getVfsService() { return nullptr; }
-        virtual void* getPhysicsQueryService() { return nullptr; }
-        virtual void* getLoggingService() { return nullptr; }
-        virtual void* getProfilerService() { return nullptr; }
-        virtual void* getScratchMemoryService() { return nullptr; }
-        virtual void* getDebugDrawService() { return nullptr; }
-        virtual void* getSaveChunkService() { return nullptr; }
-        virtual void* getRecordService() { return nullptr; }
-        virtual void* getContentService() { return nullptr; }
-        virtual void* getScriptHostService() { return nullptr; }
-        virtual void* getUiService() { return nullptr; }
-        virtual void* getBindingsService() { return nullptr; }
-        virtual void* getWorldViewService() { return nullptr; }
-        virtual void* getWorldSourceService() { return nullptr; } // the new slot, after every earlier one
-    };
-
-    // GCC sees that nothing derives from MirrorHost and, trusting the static type, turns the reinterpreted calls below
-    // into direct calls of the default bodies (the test then reads nullptr on Linux). A second implementation that the
-    // test really calls keeps the calls virtual; the cast stays the point of the test.
-    struct MirrorHostOther final : MirrorHost
-    {
-        const openeden::sdk::HostInfo& getHostInfo() const override { return mInfo; }
-        void* getWorldSourceService() override { return this; }
-        void* getWorldViewService() override { return &mInfo; }
-        openeden::sdk::HostInfo mInfo;
-    };
+    // a module built against the earlier Host calls the earlier slots unchanged. The slots are read from the vtable by
+    // hand: a call through a hand-written mirror class is turned by GCC's devirtualization into a direct call of the
+    // mirror's default body (this test read nullptr on Linux, and crashed when a second mirror type was added).
+    // Slot order: the destructor (Itanium: two slots, MSVC: one), getHostInfo, then the service accessors in
+    // declaration order, getWorldViewService second to last and getWorldSourceService last.
+    constexpr std::size_t kServiceAccessorsBeforeWorldView = 15; // getEventBus ... getBindingsService
 
     class MarkedHost final : public Host
     {
@@ -138,12 +109,19 @@ namespace
     {
         MarkedHost host;
         Host* base = &host;
-        MirrorHostOther other;
-        MirrorHost& otherBase = other;
-        EXPECT_EQ(otherBase.getWorldSourceService(), &other);
-        auto* mirror = reinterpret_cast<MirrorHost*>(base);
-        EXPECT_EQ(mirror->getWorldSourceService(), &host.mMarker);
-        EXPECT_EQ(mirror->getWorldViewService(), &host.mViewMarker);
+#if defined(_MSC_VER)
+        constexpr std::size_t destructorSlots = 1;
+#else
+        constexpr std::size_t destructorSlots = 2;
+#endif
+        void** vtable = *reinterpret_cast<void***>(base);
+        using Accessor = void* (*)(Host*);
+        const std::size_t firstAccessor = destructorSlots + 1; // after getHostInfo
+        const auto worldView = reinterpret_cast<Accessor>(vtable[firstAccessor + kServiceAccessorsBeforeWorldView]);
+        const auto worldSource
+            = reinterpret_cast<Accessor>(vtable[firstAccessor + kServiceAccessorsBeforeWorldView + 1]);
+        EXPECT_EQ(worldSource(base), &host.mMarker);
+        EXPECT_EQ(worldView(base), &host.mViewMarker);
     }
 
     TEST(WorldSourceService, theVersionIsOneZero)
