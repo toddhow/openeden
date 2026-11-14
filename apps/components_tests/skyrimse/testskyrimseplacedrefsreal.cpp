@@ -31,7 +31,8 @@
 #include <vector>
 
 #ifdef _MSC_VER
-// clang-format off: psapi.h needs windows.h before it
+// psapi.h needs windows.h before it
+// clang-format off
 #include <windows.h>
 #include <psapi.h>
 // clang-format on
