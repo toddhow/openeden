@@ -1338,10 +1338,22 @@ namespace game_skyrimse
         for (const auto& [id, entry] : mCells)
         {
             mCellOrder.push_back(id);
+            // Two cells can share an editor id or a grid square (two plugins, two form ids). mCells is an
+            // unordered_map, so the visiting order is the library's: the cell of the LATER plugin (the larger form id:
+            // the load order index is its top byte) wins, whatever the order here.
             if (!entry.mInfo.editorId.empty())
-                mCellByEditorId[lowerAscii(entry.mInfo.editorId)] = id;
+            {
+                const auto [pos, inserted] = mCellByEditorId.try_emplace(lowerAscii(entry.mInfo.editorId), id);
+                if (!inserted && id > pos->second)
+                    pos->second = id;
+            }
             if (!entry.mInfo.interior && entry.mInfo.hasGrid)
-                mCellByGrid[{ entry.mInfo.world, entry.mInfo.gridX, entry.mInfo.gridY }] = id;
+            {
+                const auto [pos, inserted] = mCellByGrid.try_emplace(
+                    std::make_tuple(entry.mInfo.world, entry.mInfo.gridX, entry.mInfo.gridY), id);
+                if (!inserted && id > pos->second)
+                    pos->second = id;
+            }
         }
         std::sort(mCellOrder.begin(), mCellOrder.end(), [this](FormId a, FormId b) {
             const sdkgame::WorldCellInfo& x = mCells.at(a).mInfo;

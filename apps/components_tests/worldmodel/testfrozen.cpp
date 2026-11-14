@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -118,22 +119,6 @@ namespace
         EXPECT_EQ(c.world, kNoWorldId);
     }
 
-    // The 1.0 layout of the source interface, written out by hand. It is called through a reinterpret_cast of the real
-    // base, so a reordered, removed or inserted virtual function changes what is called and fails here.
-    class MirrorV10
-    {
-    public:
-        virtual ~MirrorV10() = default;
-        virtual std::string_view gameId() const = 0;
-        virtual std::size_t cellCount() const = 0;
-        virtual std::size_t listCells(std::size_t first, std::size_t maxCount, std::vector<WorldId>& out) const = 0;
-        virtual bool buildCell(WorldId cell, WorldCell& out, std::string& error) = 0;
-        virtual WorldId findCellByEditorId(std::string_view editorId) const = 0;
-        virtual WorldId findCellByGrid(WorldId world, std::int32_t x, std::int32_t y) const = 0;
-        virtual WorldId findWorldByEditorId(std::string_view editorId) const = 0;
-        virtual double unitsPerMetre() const = 0;
-    };
-
     class FullSource final : public WorldCellSource
     {
     public:
@@ -164,24 +149,42 @@ namespace
         double unitsPerMetre() const override { return 70.5; }
     };
 
+    // The 1.0 layout of the source interface: the virtual functions are called through their vtable slots, in the order
+    // 1.0 declared them, so a reordered, removed or inserted virtual function changes what is called and fails here.
+    // (A hand-written mirror class called through a reinterpret_cast was turned by GCC's devirtualization into pure
+    // virtual calls, which aborted the test on Linux.) Slots: the destructor (Itanium: two, MSVC: one), gameId,
+    // cellCount, listCells, buildCell, findCellByEditorId, findCellByGrid, findWorldByEditorId, unitsPerMetre.
     TEST(WorldSourceFrozen, theVirtualFunctionOrderOfVersionOnePointZero)
     {
         FullSource real;
         WorldCellSource* base = &real;
-        MirrorV10* mirror = reinterpret_cast<MirrorV10*>(base);
-        EXPECT_EQ(mirror->gameId(), "full");
-        EXPECT_EQ(mirror->cellCount(), 41u);
+#if defined(_MSC_VER)
+        constexpr std::size_t destructorSlots = 1;
+#else
+        constexpr std::size_t destructorSlots = 2;
+#endif
+        void** vtable = *reinterpret_cast<void***>(base);
+        const auto slot = [&](std::size_t index) { return vtable[destructorSlots + index]; };
+        using GameId = std::string_view (*)(const void*);
+        using CellCount = std::size_t (*)(const void*);
+        using ListCells = std::size_t (*)(const void*, std::size_t, std::size_t, std::vector<WorldId>&);
+        using BuildCell = bool (*)(void*, WorldId, WorldCell&, std::string&);
+        using FindByEditorId = WorldId (*)(const void*, std::string_view);
+        using FindByGrid = WorldId (*)(const void*, WorldId, std::int32_t, std::int32_t);
+        using UnitsPerMetre = double (*)(const void*);
+        EXPECT_EQ(reinterpret_cast<GameId>(slot(0))(base), "full");
+        EXPECT_EQ(reinterpret_cast<CellCount>(slot(1))(base), 41u);
         std::vector<WorldId> ids;
-        EXPECT_EQ(mirror->listCells(0, 1, ids), 1u);
+        EXPECT_EQ(reinterpret_cast<ListCells>(slot(2))(base, 0, 1, ids), 1u);
         EXPECT_EQ(ids.front(), 5u);
         WorldCell cell;
         std::string error;
-        EXPECT_TRUE(mirror->buildCell(77, cell, error));
+        EXPECT_TRUE(reinterpret_cast<BuildCell>(slot(3))(base, 77, cell, error));
         EXPECT_EQ(cell.id, 77u);
-        EXPECT_EQ(mirror->findCellByEditorId("cell"), 101u);
-        EXPECT_EQ(mirror->findCellByGrid(3, 4, 5), 3045u);
-        EXPECT_EQ(mirror->findWorldByEditorId("world"), 202u);
-        EXPECT_EQ(mirror->unitsPerMetre(), 70.5);
+        EXPECT_EQ(reinterpret_cast<FindByEditorId>(slot(4))(base, "cell"), 101u);
+        EXPECT_EQ(reinterpret_cast<FindByGrid>(slot(5))(base, 3, 4, 5), 3045u);
+        EXPECT_EQ(reinterpret_cast<FindByEditorId>(slot(6))(base, "world"), 202u);
+        EXPECT_EQ(reinterpret_cast<UnitsPerMetre>(slot(7))(base), 70.5);
     }
 
     // A source written against the first four functions (the 0.1 draft) still compiles and answers "not supported" to
