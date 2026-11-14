@@ -77,6 +77,17 @@ namespace game_skyrimse
         float mMaxScale = 4.0f;
     };
 
+    /// The wave period at which the sway runs at the engine's own speed (task 0153 follow-up 2). The 58 GRAS records of
+    /// the five masters have wave periods from 0.0001 to 600 with a median of 240 (aggregates, Python walker); the unit
+    /// is not known (RECALLED-VERIFY: seconds), so the reference is the data's median and the speed only orders the
+    /// kinds: slower sway for longer periods, clamped to a factor of two either way.
+    inline constexpr float kWaveReferencePeriod = 240.0f;
+    inline constexpr float kWaveSpeedMin = 0.5f;
+    inline constexpr float kWaveSpeedMax = 2.0f;
+    /// The sway speed, relative to the engine's, of a GRAS wave period: kWaveReferencePeriod / period clamped to
+    /// [kWaveSpeedMin, kWaveSpeedMax]; 1 for a period that is not finite or not positive.
+    [[nodiscard]] float waveSpeedOf(float wavePeriod);
+
     /// The density the pack ships (task 0153 follow-up): 0.35 of GrassPlacementOptions' first estimate. At that estimate
     /// frames of Whiterun's plains showed a continuous carpet (tufts are 40 to 110 units wide and 35 to 70 high) where
     /// Skyrim shows ground between its tufts; at 0.35, 0.5 and 0.2 of it the ground shows at 0.35 and the field is

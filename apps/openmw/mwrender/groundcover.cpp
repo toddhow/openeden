@@ -47,6 +47,8 @@ namespace MWRender
         {
             vsg::ref_ptr<vsg::vec4Array> offsets; // position relative to the chunk, and scale
             vsg::ref_ptr<vsg::vec3Array> rotations;
+            // Only for tinted instances (Pipeline::Mode::INSTANCE_TINT, task 0153 follow-up 2): colour and sway speed.
+            vsg::ref_ptr<vsg::vec4Array> tints;
             uint32_t count = 0;
         };
 
@@ -73,7 +75,9 @@ namespace MWRender
                 auto texcoords = std::find_if(copy->arrays.begin(), copy->arrays.end(),
                     [](const auto& array) { return array && dynamic_cast<const vsg::vec2Array*>(array->data.get()); });
                 const auto at = copy->arrays.insert(texcoords, vsg::BufferInfo::create(instances.offsets));
-                copy->arrays.insert(at + 1, vsg::BufferInfo::create(instances.rotations));
+                const auto afterRotations = copy->arrays.insert(at + 1, vsg::BufferInfo::create(instances.rotations));
+                if (instances.tints)
+                    copy->arrays.insert(afterRotations + 1, vsg::BufferInfo::create(instances.tints));
                 copy->instanceCount = instances.count;
                 return copy;
             }
@@ -158,6 +162,9 @@ namespace MWRender
                 arrays.count = static_cast<uint32_t>(entries.size());
                 arrays.offsets = vsg::vec4Array::create(arrays.count);
                 arrays.rotations = vsg::vec3Array::create(arrays.count);
+                // The grass context's pipelines read a third per-instance input; every instance of a model has it.
+                if (std::any_of(entries.begin(), entries.end(), [](const GroundcoverInstance& e) { return e.tinted; }))
+                    arrays.tints = vsg::vec4Array::create(arrays.count);
                 const double radius = vsgUtil::getBounds(prototype).radius;
                 for (uint32_t i = 0; i < arrays.count; ++i)
                 {
@@ -165,6 +172,8 @@ namespace MWRender
                     const vsg::vec3 offset = vsg::vec3(position.pos[0], position.pos[1], position.pos[2]) - origin;
                     (*arrays.offsets)[i] = vsg::vec4(offset, entries[i].scale);
                     (*arrays.rotations)[i] = vsg::vec3(position.rot[0], position.rot[1], position.rot[2]);
+                    if (arrays.tints)
+                        (*arrays.tints)[i] = entries[i].tinted ? entries[i].tint : vsg::vec4(1.f, 1.f, 1.f, 1.f);
                     const double instanceRadius = radius * entries[i].scale * sInstanceRadiusMargin;
                     bounds.add(vsg::dvec3(offset) - vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));
                     bounds.add(vsg::dvec3(offset) + vsg::dvec3(instanceRadius, instanceRadius, instanceRadius));

@@ -94,12 +94,15 @@ namespace Pipeline
         // reads the wind and the clock from the TEXMAT_BINDING uniform and each vertex's weight from its colour alpha.
         LOD_SWAY,
         // OpenEden (task 0129): the water surface is one cell-sized quad placed by the node transform (water/main.vert).
-        WATER_CELL
+        WATER_CELL,
+        // OpenEden (task 0153 follow-up 2): INSTANCE draws take a third per-instance input, a colour and a sway speed,
+        // and read their rotation input as (tilt x, tilt y, yaw); used only by the neutral grass.
+        INSTANCE_TINT
     };
 
     const std::vector<Mode> vertexModes{ Mode::VERTEX, Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE,
         Mode::BILLBOARD, Mode::MORPH, Mode::SKIN, Mode::TEXMAT, Mode::ENV_MAP, Mode::INSTANCE, Mode::NORMAL_MAP,
-        Mode::SOFT_PARTICLE, Mode::LOD_SWAY, Mode::WATER_CELL };
+        Mode::SOFT_PARTICLE, Mode::LOD_SWAY, Mode::WATER_CELL, Mode::INSTANCE_TINT };
     const std::vector<Mode> fragmentModes{ Mode::NORMAL, Mode::COLOR, Mode::TEXCOORD, Mode::PARTICLE /*_TEXCOORD*/,
         Mode::DIFFUSE_MAP, Mode::DARK_MAP, Mode::DETAIL_MAP, Mode::DECAL_MAP, Mode::GLOW_MAP, Mode::BUMP_MAP,
         Mode::ENV_MAP, Mode::MATERIAL, Mode::NORMAL_MAP, Mode::PARALLAX, Mode::RECONSTRUCT_NORMAL_Z, Mode::SPECULAR_MAP,

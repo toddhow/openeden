@@ -25,7 +25,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kGrassSourceVersion{ 0, 1 };
+    inline constexpr Version kGrassSourceVersion{ 0, 2 };
 
     /// One kind of grass the square uses: a model and how to draw it.
     struct GrassModel
@@ -45,6 +45,17 @@ namespace openeden::sdk::game
         float z = 0.0f;
         float yaw = 0.0f; ///< radians about Z
         float scale = 1.0f;
+        // Version 0.2 (task 0153 follow-up 2): trailing fields a consumer only reads; the defaults are "no change".
+        /// The unit normal's x and y components the tuft is tilted to (GRAS "fit to slope"); 0, 0 stands upright.
+        float tiltX = 0.0f;
+        float tiltY = 0.0f;
+        /// A colour the tuft's own colours are multiplied by: the land colour under it times the GRAS colour range's
+        /// random variation. 1, 1, 1 changes nothing.
+        float tintR = 1.0f;
+        float tintG = 1.0f;
+        float tintB = 1.0f;
+        /// Speed of the sway relative to the engine's own wind cycle (1 = the engine's); from the GRAS wave period.
+        float waveSpeed = 1.0f;
     };
 
     /// The grass of one exterior grid square.

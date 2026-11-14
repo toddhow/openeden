@@ -58,4 +58,21 @@ float4x4 groundcoverRotation(float3 angle)
         sin_z * sin_y - cos_z * sin_x * cos_y, 0.0, -sin_y * cos_x, sin_x, cos_x * cos_y, 0.0, 0.0, 0.0, 0.0, 1.0));
 }
 
+// OpenEden (task 0153 follow-up 2): the neutral grass's rotation (see the GLSL twin): a yaw about Z, then the turn that
+// takes +Z to the ground normal whose x and y are `tilt`. mul(M, v) is the usual M * v here, so the rows are written
+// as they are (the matrix above is written column-major and transposed).
+float4x4 groundcoverTiltRotation(float2 tilt, float yaw)
+{
+    float cy = cos(yaw);
+    float sy = sin(yaw);
+    float3x3 yawRotation = float3x3(cy, -sy, 0.0, sy, cy, 0.0, 0.0, 0.0, 1.0);
+    float3 n = float3(tilt, sqrt(max(0.0, 1.0 - dot(tilt, tilt))));
+    float3 k = float3(-n.y, n.x, 0.0);
+    float3x3 K = float3x3(0.0, -k.z, k.y, k.z, 0.0, -k.x, -k.y, k.x, 0.0);
+    float3x3 identity = float3x3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+    float3x3 tiltRotation = identity + K + mul(K, K) / (1.0 + n.z);
+    float3x3 m = mul(tiltRotation, yawRotation);
+    return float4x4(float4(m[0], 0.0), float4(m[1], 0.0), float4(m[2], 0.0), float4(0.0, 0.0, 0.0, 1.0));
+}
+
 #endif

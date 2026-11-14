@@ -91,6 +91,29 @@ namespace game_skyrimse
         {
             return cell.heights[static_cast<std::size_t>(row) * cell.vertsPerSide + col];
         }
+
+        // The land's vertex colour (VCLR, 0 to 1 per channel) at the vertex coordinates (fcol, frow), interpolated
+        // between the four vertices around it. White when the cell has no colours.
+        void landColour(const sdk::TerrainCell& cell, float fcol, float frow, float out[3])
+        {
+            const std::uint32_t side = cell.vertsPerSide;
+            out[0] = out[1] = out[2] = 1.0f;
+            if (!cell.hasColours || cell.colours.size() != static_cast<std::size_t>(side) * side * 3)
+                return;
+            const std::uint32_t c0 = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(fcol, 0.0f)), side - 2);
+            const std::uint32_t r0 = std::min<std::uint32_t>(static_cast<std::uint32_t>(std::max(frow, 0.0f)), side - 2);
+            const float tu = std::clamp(fcol - static_cast<float>(c0), 0.0f, 1.0f);
+            const float tv = std::clamp(frow - static_cast<float>(r0), 0.0f, 1.0f);
+            for (int c = 0; c < 3; ++c)
+            {
+                const auto at = [&](std::uint32_t r, std::uint32_t col) {
+                    return static_cast<float>(cell.colours[(static_cast<std::size_t>(r) * side + col) * 3 + c]) / 255.0f;
+                };
+                const float south = at(r0, c0) * (1.0f - tu) + at(r0, c0 + 1) * tu;
+                const float north = at(r0 + 1, c0) * (1.0f - tu) + at(r0 + 1, c0 + 1) * tu;
+                out[c] = south * (1.0f - tv) + north * tv;
+            }
+        }
     }
 
     bool decodeGrass(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,
@@ -164,6 +187,13 @@ namespace game_skyrimse
             return false;
         }
         return true;
+    }
+
+    float waveSpeedOf(float wavePeriod)
+    {
+        if (!std::isfinite(wavePeriod) || !(wavePeriod > 0.0f))
+            return 1.0f;
+        return std::clamp(kWaveReferencePeriod / wavePeriod, kWaveSpeedMin, kWaveSpeedMax);
     }
 
     GrassPlacementOptions shippedGrassOptions()
@@ -304,6 +334,10 @@ namespace game_skyrimse
                 const float gx = ((h10 - h00) + (h11 - h01)) * 0.5f / squareSize;
                 const float gy = ((h01 - h00) + (h11 - h10)) * 0.5f / squareSize;
                 const float slopeDegrees = std::atan(std::sqrt(gx * gx + gy * gy)) / kRadiansPerDegree;
+                // The ground normal's x and y (unit normal of the plane with this gradient), for "fit to slope".
+                const float normalScale = 1.0f / std::sqrt(1.0f + gx * gx + gy * gy);
+                const float normalX = -gx * normalScale;
+                const float normalY = -gy * normalScale;
                 for (const Candidate& c : list)
                 {
                     const GrassRecord& kind = *c.mRecord;
@@ -350,6 +384,26 @@ namespace game_skyrimse
                         instance.yaw = yaw;
                         instance.scale = std::clamp(1.0f + variation * std::clamp(kind.mHeightRange, 0.0f, 1.0f),
                             options.mMinScale, options.mMaxScale);
+                        // Task 0153 follow-up 2. The brightness comes from a COPY of the stream (a hash of the state
+                        // this tuft ended on), so the draws above, and with them every position and the real-data
+                        // counts, are exactly what they were.
+                        float brightness = 1.0f;
+                        if (kind.mColorRange > 0.0f)
+                        {
+                            std::uint64_t colourState = state ^ 0xC0105EEDC0FFEE11ull;
+                            brightness = 1.0f + (unit(colourState) * 2.0f - 1.0f) * std::clamp(kind.mColorRange, 0.0f, 1.0f);
+                        }
+                        float land[3];
+                        landColour(cell, static_cast<float>(col) + su, static_cast<float>(row) + sv, land);
+                        instance.tintR = land[0] * brightness;
+                        instance.tintG = land[1] * brightness;
+                        instance.tintB = land[2] * brightness;
+                        if ((kind.mFlags & GrassFlags::FitToSlope) != 0)
+                        {
+                            instance.tiltX = normalX;
+                            instance.tiltY = normalY;
+                        }
+                        instance.waveSpeed = waveSpeedOf(kind.mWavePeriod);
                         out.instances.push_back(instance);
                     }
                 }

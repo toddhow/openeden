@@ -10,6 +10,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/pipeline/material.hpp>
+#include <components/pipeline/options.hpp>
 #include <components/pipeline/override.hpp>
 #include <components/vsgutil/compilecontext.hpp>
 #include <components/vsgutil/operation.hpp>
@@ -24,6 +25,8 @@ namespace MWRender
         constexpr std::size_t sCachedChunks = 48;
         // The camera moves this share of a square before the squares in range are worked out again.
         constexpr float sUpdateShareOfCell = 0.125f;
+        // The longest (x, y) of a tilt normal the shader is given: sin of about 64 degrees.
+        constexpr float kMaxTiltLength = 0.9f;
 
         // OPENEDEN_NEUTRAL_GRASS_ALBEDO=<scale> (a developer aid, read once) replaces grassAlbedoScale() for a look.
         float albedoOverride()
@@ -46,11 +49,16 @@ namespace MWRender
     {
         MWAnim::Context result = makeGroundcoverContext(base);
         const float scale = grassAlbedoScale();
+        auto nodeOptions = vsg::Options::create(*result.nodeOptions);
+        auto tint = vsg::ref_ptr{ new Pipeline::Override };
+        // Each tuft carries a colour and a sway speed (the third per-instance input, task 0153 follow-up 2).
+        tint->pipelineOptions = [](Pipeline::Options& options) {
+            if (options.shader.hasMode(Pipeline::Mode::INSTANCE))
+                options.shader.addMode(Pipeline::Mode::INSTANCE_TINT);
+        };
         if (scale != 1.f)
         {
             // The Skyrim model reader multiplies the shape's vertex colours (and its material) by this colour.
-            auto nodeOptions = vsg::Options::create(*result.nodeOptions);
-            auto tint = vsg::ref_ptr{ new Pipeline::Override };
             tint->materialData = [scale](Pipeline::Data::Material& material) {
                 for (int c = 0; c < 3; ++c)
                 {
@@ -58,9 +66,9 @@ namespace MWRender
                     material.ambient[c] *= scale;
                 }
             };
-            tint->composite(*nodeOptions);
-            result.nodeOptions = nodeOptions;
         }
+        tint->composite(*nodeOptions);
+        result.nodeOptions = nodeOptions;
         return result;
     }
 
@@ -71,7 +79,9 @@ namespace MWRender
         for (const openeden::sdk::game::GrassInstance& tuft : cell.instances)
         {
             if (tuft.model >= cell.models.size() || !std::isfinite(tuft.x) || !std::isfinite(tuft.y)
-                || !std::isfinite(tuft.z) || !std::isfinite(tuft.yaw) || !std::isfinite(tuft.scale))
+                || !std::isfinite(tuft.z) || !std::isfinite(tuft.yaw) || !std::isfinite(tuft.scale)
+                || !std::isfinite(tuft.tiltX) || !std::isfinite(tuft.tiltY) || !std::isfinite(tuft.tintR)
+                || !std::isfinite(tuft.tintG) || !std::isfinite(tuft.tintB) || !std::isfinite(tuft.waveSpeed))
                 continue;
             auto& slot = byModel[tuft.model];
             if (slot == out.end())
@@ -83,10 +93,22 @@ namespace MWRender
             instance.position.pos[0] = tuft.x;
             instance.position.pos[1] = tuft.y;
             instance.position.pos[2] = tuft.z;
-            instance.position.rot[0] = 0.f;
-            instance.position.rot[1] = 0.f;
+            // With INSTANCE_TINT the rotation input is (tilt x, tilt y, yaw): the ground normal's x and y, cut to a
+            // length below 1 (at most 64 degrees of tilt) so the shader's normal z stays real.
+            float tiltX = tuft.tiltX;
+            float tiltY = tuft.tiltY;
+            const float tiltLength = std::sqrt(tiltX * tiltX + tiltY * tiltY);
+            if (tiltLength > kMaxTiltLength)
+            {
+                tiltX *= kMaxTiltLength / tiltLength;
+                tiltY *= kMaxTiltLength / tiltLength;
+            }
+            instance.position.rot[0] = tiltX;
+            instance.position.rot[1] = tiltY;
             instance.position.rot[2] = tuft.yaw;
             instance.scale = tuft.scale;
+            instance.tinted = true;
+            instance.tint = vsg::vec4(tuft.tintR, tuft.tintG, tuft.tintB, tuft.waveSpeed);
             slot->second.push_back(instance);
         }
         return out;

@@ -128,6 +128,8 @@ namespace Pipeline
                 return "LOD_SWAY";
             case Mode::WATER_CELL:
                 return "WATER_CELL";
+            case Mode::INSTANCE_TINT:
+                return "INSTANCE_TINT";
         }
         return "";
     }
@@ -493,6 +495,14 @@ namespace Pipeline
                 { vertexBindingIndex, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_INSTANCE });
             vertexAttributeDescriptions.push_back(
                 { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32_SFLOAT, 0 });
+            // Task 0153 follow-up 2: colour and sway speed (the rotation input is then tilt and yaw).
+            if (key.shader.hasMode(Mode::INSTANCE_TINT))
+            {
+                vertexBindingsDescriptions.push_back(
+                    { vertexBindingIndex, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_INSTANCE });
+                vertexAttributeDescriptions.push_back(
+                    { vertexBindingIndex, vertexBindingIndex++, VK_FORMAT_R32G32B32A32_SFLOAT, 0 });
+            }
         }
         static_assert(static_cast<int>(Mode::TEXCOORD) == 4);
         if (key.shader.hasMode(Mode::TEXCOORD))

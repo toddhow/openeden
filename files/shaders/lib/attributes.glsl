@@ -45,11 +45,20 @@ const int INSTANCE_OFFSET_LOCATION=TANGENT_LOCATION+1;
 layout(location=INSTANCE_OFFSET_LOCATION) in vec4 inInstanceOffset;
 const int INSTANCE_ROTATION_LOCATION=INSTANCE_OFFSET_LOCATION+1;
 layout(location=INSTANCE_ROTATION_LOCATION) in vec3 inInstanceRotation;
+// OpenEden (task 0153 follow-up 2): a third per-instance input, a colour (rgb) and a sway speed (w); with it the
+// rotation input holds (tilt x, tilt y, yaw). Used only by the neutral grass.
+ #ifdef INSTANCE_TINT
+const int INSTANCE_TINT_LOCATION=INSTANCE_ROTATION_LOCATION+1;
+layout(location=INSTANCE_TINT_LOCATION) in vec4 inInstanceTint;
+ #else
+const int INSTANCE_TINT_LOCATION=INSTANCE_ROTATION_LOCATION;
+ #endif
 #else
 const int INSTANCE_ROTATION_LOCATION=TANGENT_LOCATION;
+const int INSTANCE_TINT_LOCATION=INSTANCE_ROTATION_LOCATION;
 #endif
 
 #ifdef TEXCOORD
-const int TEXCOORD_LOCATION=INSTANCE_ROTATION_LOCATION+1;
+const int TEXCOORD_LOCATION=INSTANCE_TINT_LOCATION+1;
 layout(location=TEXCOORD_LOCATION) in vec2 inTexCoord[numUvSets];
 #endif

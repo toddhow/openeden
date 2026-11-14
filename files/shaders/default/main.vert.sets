@@ -36,4 +36,7 @@ COLOR GBUFFER_MOTION NORMAL NORMAL_MAP SKIN TEXCOORD UVSETS_1 VERTEX
 # Task 0072, stage j (2026-11-06): skinned objects with an environment map, the same scene (a traced set of the test profile).
 ENV_MAP GBUFFER_MOTION NORMAL SKIN TEXCOORD UVSETS_1 VERTEX
 #
+# Task 0153 follow-up 2 (2026-11-13): the Skyrim neutral grass (instances with a colour and a sway speed), a traced set.
+COLOR INSTANCE INSTANCE_TINT NORMAL TEXCOORD UVSETS_1 VERTEX
+#
 # Not listed on purpose: COLOR NORMAL TEXCOORD TEXMAT UVSETS_1 VERTEX (a test of the run-time compiler, SlangRuntimeLibrary.sets_the_build_never_listed_pass_through_the_production_check_with_an_exact_count, needs it unlisted; the profile makes it, so it compiles at run time).

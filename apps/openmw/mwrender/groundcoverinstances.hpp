@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <vsg/maths/vec2.h>
+#include <vsg/maths/vec4.h>
 
 #include <components/esm/position.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -68,6 +69,11 @@ namespace MWRender
     {
         ESM::Position position;
         float scale = 1.f;
+        // Task 0153 follow-up 2 (neutral grass only): the colour the tuft's colours are multiplied by (rgb) and the
+        // sway speed (w). When `tinted`, position.rot holds (tilt x, tilt y, yaw) and the chunk's draws use
+        // Pipeline::Mode::INSTANCE_TINT.
+        bool tinted = false;
+        vsg::vec4 tint{ 1.f, 1.f, 1.f, 1.f };
     };
 
     /// Groundcover instances of one chunk, by model.

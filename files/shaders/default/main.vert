@@ -1,4 +1,4 @@
-#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, NORMAL_MAP, SOFT_PARTICLE, GBUFFER_MOTION, LOD_SWAY)
+#pragma import_defines (PARTICLE, BILLBOARD, MORPH, SKIN, TEXMAT, VERTEX, NORMAL, COLOR, TEXCOORD, ENV_MAP, INSTANCE, INSTANCE_TINT, NORMAL_MAP, SOFT_PARTICLE, GBUFFER_MOTION, LOD_SWAY)
 
 #include "lib/pushconstants.glsl"
 #include "lib/material/descriptors_vert.glsl"
@@ -106,7 +106,11 @@ void main()
 #ifdef INSTANCE
     // OpenEden: OpenMW's groundcover instance transform: rotate, scale, then offset within the chunk.
     float instanceHeight = vertex.z;
+#ifdef INSTANCE_TINT
+    mat4 instanceRotation = groundcoverTiltRotation(inInstanceRotation.xy, inInstanceRotation.z);
+#else
     mat4 instanceRotation = groundcoverRotation(inInstanceRotation);
+#endif
     vertex = vec4((instanceRotation * vec4(vertex.xyz * inInstanceOffset.w, 1.0)).xyz + inInstanceOffset.xyz, 1.0);
  #ifdef NORMAL
     normal = mat3(instanceRotation) * normal;
@@ -127,7 +131,12 @@ void main()
 #ifdef INSTANCE
     // Wind and stomping move the vertex in the world's XY plane; beyond the fade-out distance the instance is dropped.
     vec3 worldPos = (scene.invView * viewPos).xyz;
-    vec2 displacement = groundcoverDisplacement(worldPos, instanceHeight, scene.time, scene.groundcoverPlayer.xyz,
+#ifdef INSTANCE_TINT
+    float groundcoverTime = scene.time * inInstanceTint.w; // the grass record's wave period
+#else
+    float groundcoverTime = scene.time;
+#endif
+    vec2 displacement = groundcoverDisplacement(worldPos, instanceHeight, groundcoverTime, scene.groundcoverPlayer.xyz,
         scene.groundcoverPlayer.w, int(scene.groundcoverParams.y), int(scene.groundcoverParams.z));
     viewPos.xyz += transpose(mat3(scene.invView)) * vec3(displacement, 0.0);
 #endif
@@ -194,6 +203,9 @@ void main()
     vert_out.color = vec4(inColor.rgb, 1.0); // the alpha byte carried the sway weight
  #else
     vert_out.color = inColor;
+ #endif
+ #ifdef INSTANCE_TINT
+    vert_out.color.rgb *= inInstanceTint.rgb; // the land colour and the grass record's colour range
  #endif
 #endif
 }

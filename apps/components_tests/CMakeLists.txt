@@ -349,6 +349,7 @@ file(GLOB UNITTEST_SRC_FILES
     render/testpointshadowshader.cpp
     render/testpointshadowmemory.cpp
     render/testgbuffermath.cpp
+    render/testgroundcovertilt.cpp
     render/testdepthmath.cpp
     render/testmaterialmath.cpp
     render/testmaterialoverrides.cpp
@@ -453,6 +454,7 @@ file(GLOB UNITTEST_SRC_FILES
     pipeline/testcoveragemodes.cpp
     pipeline/testgbufferblend.cpp
     pipeline/testgbufferstates.cpp
+    pipeline/testinstancetint.cpp
     pipeline/testoverlaydepthbias.cpp
     pipeline/testterraindefines.cpp
 
@@ -558,6 +560,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseland.cpp
     skyrimse/testskyrimsegrass.cpp
     skyrimse/testskyrimsegrasstune.cpp
+    skyrimse/testskyrimsegrassvariation.cpp
     skyrimse/testskyrimsegrassreal.cpp
     skyrimse/testskyrimseweather.cpp
     skyrimse/testskyrimseweathersource.cpp

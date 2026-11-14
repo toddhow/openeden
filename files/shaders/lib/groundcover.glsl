@@ -58,3 +58,20 @@ mat4 groundcoverRotation(in vec3 angle)
         -sin_y*cos_x, sin_x, cos_x*cos_y, 0.0,
         0.0, 0.0, 0.0, 1.0);
 }
+
+// OpenEden (task 0153 follow-up 2): the neutral grass's rotation: a yaw about Z, then the turn that takes +Z to the
+// ground normal whose x and y are `tilt` (Rodrigues' formula; the normal's z is the rest of a unit vector).
+mat4 groundcoverTiltRotation(in vec2 tilt, float yaw)
+{
+    float cy = cos(yaw);
+    float sy = sin(yaw);
+    // Column-major: columns (cy, sy, 0), (-sy, cy, 0), (0, 0, 1).
+    mat3 yawRotation = mat3(cy, sy, 0.0, -sy, cy, 0.0, 0.0, 0.0, 1.0);
+    vec3 n = vec3(tilt, sqrt(max(0.0, 1.0 - dot(tilt, tilt))));
+    // k = z x n; the cross product matrix [k]x has columns (0, kz, -ky), (-kz, 0, kx), (ky, -kx, 0).
+    vec3 k = vec3(-n.y, n.x, 0.0);
+    mat3 K = mat3(0.0, k.z, -k.y, -k.z, 0.0, k.x, k.y, -k.x, 0.0);
+    mat3 tiltRotation = mat3(1.0) + K + (K * K) / (1.0 + n.z);
+    mat3 m = tiltRotation * yawRotation;
+    return mat4(vec4(m[0], 0.0), vec4(m[1], 0.0), vec4(m[2], 0.0), vec4(0.0, 0.0, 0.0, 1.0));
+}

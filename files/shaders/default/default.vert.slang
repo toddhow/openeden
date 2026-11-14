@@ -110,7 +110,11 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
 #ifdef INSTANCE
     // OpenMW's groundcover instance transform: rotate, scale, then offset within the chunk.
     float instanceHeight = vertex.z;
+#ifdef INSTANCE_TINT
+    float4x4 instanceRotation = groundcoverTiltRotation(input.inInstanceRotation.xy, input.inInstanceRotation.z);
+#else
     float4x4 instanceRotation = groundcoverRotation(input.inInstanceRotation);
+#endif
     vertex = float4(mul(instanceRotation, float4(vertex.xyz * input.inInstanceOffset.w, 1.0)).xyz
             + input.inInstanceOffset.xyz,
         1.0);
@@ -131,7 +135,12 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
 #ifdef INSTANCE
     // Wind and stomping move the vertex in the world's XY plane; beyond the fade-out distance the instance is dropped.
     float3 worldPos = mul(scene.invView, viewPos).xyz;
-    float2 displacement = groundcoverDisplacement(worldPos, instanceHeight, scene.time, scene.groundcoverPlayer.xyz,
+#ifdef INSTANCE_TINT
+    float groundcoverTime = scene.time * input.inInstanceTint.w; // the grass record's wave period
+#else
+    float groundcoverTime = scene.time;
+#endif
+    float2 displacement = groundcoverDisplacement(worldPos, instanceHeight, groundcoverTime, scene.groundcoverPlayer.xyz,
         scene.groundcoverPlayer.w, int(scene.groundcoverParams.y), int(scene.groundcoverParams.z));
     viewPos.xyz += mul(transpose((float3x3)scene.invView), float3(displacement, 0.0));
 #endif
@@ -197,6 +206,9 @@ VertexOutput vertMain(VertexAttributes input, uint vertexIndexU : SV_VulkanVerte
     output.io.color = float4(input.inColor.rgb, 1.0); // the alpha byte carried the sway weight
 #else
     output.io.color = input.inColor;
+#endif
+#ifdef INSTANCE_TINT
+    output.io.color.rgb *= input.inInstanceTint.rgb; // the land colour and the grass record's colour range
 #endif
 #endif
     return output;

@@ -50,12 +50,19 @@
 #ifdef INSTANCE
 #define INSTANCE_OFFSET_LOCATION (TANGENT_LOCATION + 1)
 #define INSTANCE_ROTATION_LOCATION (INSTANCE_OFFSET_LOCATION + 1)
+// Task 0153 follow-up 2: a colour (rgb) and sway speed (w) per instance; the rotation input is then (tilt x, tilt y, yaw).
+#ifdef INSTANCE_TINT
+#define INSTANCE_TINT_LOCATION (INSTANCE_ROTATION_LOCATION + 1)
+#else
+#define INSTANCE_TINT_LOCATION INSTANCE_ROTATION_LOCATION
+#endif
 #else
 #define INSTANCE_ROTATION_LOCATION TANGENT_LOCATION
+#define INSTANCE_TINT_LOCATION INSTANCE_ROTATION_LOCATION
 #endif
 
 #ifdef TEXCOORD
-#define TEXCOORD_LOCATION (INSTANCE_ROTATION_LOCATION + 1)
+#define TEXCOORD_LOCATION (INSTANCE_TINT_LOCATION + 1)
 #endif
 
 struct VertexAttributes
@@ -79,6 +86,9 @@ struct VertexAttributes
 #ifdef INSTANCE
     [[vk::location(INSTANCE_OFFSET_LOCATION)]] float4 inInstanceOffset : A_INSTANCEOFFSET;
     [[vk::location(INSTANCE_ROTATION_LOCATION)]] float3 inInstanceRotation : A_INSTANCEROTATION;
+#ifdef INSTANCE_TINT
+    [[vk::location(INSTANCE_TINT_LOCATION)]] float4 inInstanceTint : A_INSTANCETINT;
+#endif
 #endif
 #ifdef TEXCOORD
 #ifdef NUM_UV_SETS
