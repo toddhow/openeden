@@ -81,7 +81,7 @@ CFG
 # Task 0135 stage S5 (AI packages): "n5pack" takes pictures every 12 s of the Mare while the NPCs run their packages (set "[extension.skyrimse] actor packages = true" in SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1; use at least 6000 frames).
 [ "$SHOT" = n5pack ] && echo "content=n5pack.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5furn ] && echo "content=n5furn.omwscripts" >> "$WORK/config/openmw.cfg"
-# Task 0135 stage S6f: "n5wake" activates a sleeper (luatest/scripts/n5/wakeglobal.lua) and takes pictures before, during and after the talk (use at least 6000 frames, midnight).
+# Task 0135 stages S6f and S6g: "n5wake" activates a sleeper (luatest/scripts/n5/wakeglobal.lua) and takes pictures before, while it gets up (the box opens only once it stands), during and after the talk (midnight; needs [GUI] rmlui = true and OPENEDEN_RMLUI_INPUT_SCRIPT with a click on Goodbye after the box opened, frame 16500 on the author's machine; use at least 36000 frames).
 [ "$SHOT" = n5wake ] && echo "content=n5wake.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S6f: "n5follow" follows three actors with the camera, one picture a second (luatest/scripts/n5/followglobal.lua; use at least 40000 frames).
 [ "$SHOT" = n5follow ] && echo "content=n5follow.omwscripts" >> "$WORK/config/openmw.cfg"

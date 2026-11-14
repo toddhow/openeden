@@ -485,6 +485,21 @@ namespace game_skyrimse
         }
     }
 
+    bool SkyrimCellSource::prepareConversation(openeden::sdk::game::WorldId reference)
+    {
+        return mActors.prepareTalk(reference);
+    }
+
+    bool SkyrimCellSource::readyForConversation(openeden::sdk::game::WorldId reference)
+    {
+        return mActors.readyToTalk(reference);
+    }
+
+    void SkyrimCellSource::cancelPreparedConversation(openeden::sdk::game::WorldId reference)
+    {
+        mActors.onConversation(reference, false);
+    }
+
     bool SkyrimCellSource::describeWeathers(
         std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error)
     {

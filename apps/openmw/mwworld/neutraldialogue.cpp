@@ -1,6 +1,7 @@
 #include "neutraldialogue.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 #include <components/debug/debuglog.hpp>
@@ -19,6 +20,7 @@
 #include "../mwbase/extensionmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+#include "cellstore.hpp"
 
 namespace MWWorld
 {
@@ -321,8 +323,71 @@ namespace MWWorld
                          << " buttons, message of " << menu.message.size() << " bytes";
     }
 
-    void NeutralDialogueSession::update()
+    NeutralTalkWait::Result NeutralTalkWait::step(float seconds, bool ready)
     {
+        if (!mActive)
+            return Result::Waiting;
+        if (ready)
+        {
+            mActive = false;
+            return Result::Ready;
+        }
+        if (seconds > 0.f && std::isfinite(seconds))
+            mElapsed += seconds;
+        if (mElapsed >= kMaxSeconds)
+        {
+            mActive = false;
+            return Result::TimedOut;
+        }
+        return Result::Waiting;
+    }
+
+    bool NeutralDialogueSession::startWhenReady(std::string gameId, openeden::sdk::game::WorldId reference,
+        const Ptr& speaker, std::function<void()> start)
+    {
+        if (mWait.active() || !start)
+            return false;
+        mWaitGameId = std::move(gameId);
+        mWaitReference = reference;
+        mWaitSpeaker = speaker;
+        mWaitStart = std::move(start);
+        mWait.begin();
+        return true;
+    }
+
+    void NeutralDialogueSession::updatePendingTalk(float seconds)
+    {
+        if (!mWait.active())
+            return;
+        openeden::sdk::game::DialogueSource* source = findSource(mWaitGameId);
+        const CellStore* cell = mWaitSpeaker.isEmpty() ? nullptr : mWaitSpeaker.getCell();
+        if (source == nullptr || cell == nullptr || cell->getState() != CellStore::State_Loaded)
+        {
+            // The pack is gone or the actor's cell was unloaded under the wait: no talk.
+            if (source != nullptr)
+                source->cancelPreparedConversation(mWaitReference);
+            mWait.clear();
+            mWaitSpeaker = Ptr();
+            mWaitStart = nullptr;
+            return;
+        }
+        const NeutralTalkWait::Result result = mWait.step(seconds, source->readyForConversation(mWaitReference));
+        if (result == NeutralTalkWait::Result::Waiting)
+            return;
+        if (result == NeutralTalkWait::Result::TimedOut)
+            Log(Debug::Warning) << "NTALK the actor was not ready after " << NeutralTalkWait::kMaxSeconds
+                                << " s: talking anyway";
+        else
+            Log(Debug::Info) << "NTALK the actor is ready after " << mWait.elapsed() << " s";
+        std::function<void()> start = std::move(mWaitStart);
+        mWaitStart = nullptr;
+        mWaitSpeaker = Ptr();
+        start();
+    }
+
+    void NeutralDialogueSession::update(float seconds)
+    {
+        updatePendingTalk(seconds);
         if (!mActive)
             return;
         openeden::sdk::game::DialogueSource* source = findSource(mGameId);
@@ -392,6 +457,9 @@ namespace MWWorld
 
     void NeutralDialogueSession::abandon()
     {
+        mWait.clear();
+        mWaitSpeaker = Ptr();
+        mWaitStart = nullptr;
         if (mActive)
         {
             Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";

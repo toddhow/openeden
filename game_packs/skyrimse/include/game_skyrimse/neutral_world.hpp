@@ -207,6 +207,10 @@ namespace game_skyrimse
             openeden::sdk::game::WorldId cell, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         bool chooseTopic(std::uint32_t topicId, openeden::sdk::game::DialogueTurn& out, std::string& error) override;
         void endConversation() override;
+        /// Stage S6g: a sleeper is asked to stand up before the conversation box (which pauses the world) opens.
+        bool prepareConversation(openeden::sdk::game::WorldId reference) override;
+        bool readyForConversation(openeden::sdk::game::WorldId reference) override;
+        void cancelPreparedConversation(openeden::sdk::game::WorldId reference) override;
         /// Actor hooks (task 0135, stage S3): handled by the pack's own table.
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override { mActors.onActorAdded(info); }
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override { mActors.onActorRemoved(handle); }

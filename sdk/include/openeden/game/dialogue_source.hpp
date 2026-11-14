@@ -15,13 +15,13 @@
 // WorldCellSource, so the frozen WorldCellSource (world_source.hpp 1.x) is untouched. A pack that does not implement
 // it simply has actors that cannot be talked to.
 //
-// Version policy: DRAFT 0.3 (0.2, task 0143: DialogueTurn::voice; 0.3, task 0155: DialogueTurn::service, trailing
-// fields). Additive changes (a new trailing virtual with a "not supported" default, a trailing field a consumer only
+// Version policy: DRAFT 0.4 (0.2, task 0143: DialogueTurn::voice; 0.3, task 0155: DialogueTurn::service, trailing
+// fields; 0.4, task 0135 stage S6g: the three "get ready to talk" virtuals at the end, default bodies). Additive changes (a new trailing virtual with a "not supported" default, a trailing field a consumer only
 // reads) raise the minor number. Threading: main thread only. Plain values only: no engine, renderer, UI or Qt type.
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kDialogueSourceVersion{ 0, 3 };
+    inline constexpr Version kDialogueSourceVersion{ 0, 4 };
 
     /// A topic the player may choose. `id` is opaque to the core.
     struct DialogueTopicChoice
@@ -75,5 +75,27 @@ namespace openeden::sdk::game
 
         /// Ends the conversation; safe to call when none is open.
         virtual void endConversation() = 0;
+
+        /// Stage S6g (added in 0.4): the player activated the actor placed as `reference`, BEFORE beginConversation.
+        /// The conversation box pauses the world, so an actor that must get ready first (a sleeper stands up) has to be
+        /// asked while the world still runs. Returns true when the actor can talk now (the default); false when it is
+        /// getting ready: the core then polls readyForConversation once a frame and calls beginConversation when it
+        /// says true, or after its own time limit. Main thread only.
+        [[nodiscard]] virtual bool prepareConversation(WorldId reference)
+        {
+            (void)reference;
+            return true;
+        }
+
+        /// True when the actor asked by prepareConversation can talk (also true for an unknown actor). Added in 0.4.
+        [[nodiscard]] virtual bool readyForConversation(WorldId reference)
+        {
+            (void)reference;
+            return true;
+        }
+
+        /// The core will not begin the conversation after all (nothing to say, the player left): the actor goes back
+        /// to what it was doing. Safe to call without a prepare. Added in 0.4.
+        virtual void cancelPreparedConversation(WorldId reference) { (void)reference; }
     };
 }

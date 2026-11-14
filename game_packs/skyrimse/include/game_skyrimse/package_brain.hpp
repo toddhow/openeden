@@ -266,6 +266,12 @@ namespace game_skyrimse
         /// talks; a seated one stays seated; afterwards the actor takes up its package again (a sleeper looks for a
         /// bed).
         void onConversation(openeden::sdk::game::WorldId reference, bool begins);
+        /// Stage S6g: the player activated the actor and the conversation has not begun (the world still runs). A
+        /// sleeper starts getting up with the quick exit clip; the actor then holds still like a talking one. True
+        /// when the actor can talk at once (anything but a sleeper), false while it gets up. Idempotent.
+        bool prepareTalk(openeden::sdk::game::WorldId reference);
+        /// True when the actor can talk: not in a sleeping pose and no get-up clip playing (unknown actor: true).
+        [[nodiscard]] bool readyToTalk(openeden::sdk::game::WorldId reference) const;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
 
         [[nodiscard]] std::size_t size() const { return mActors.size(); }
@@ -356,6 +362,7 @@ namespace game_skyrimse
         void handleTalk(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void beginUse(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         void runClip(Actor& actor, float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+        [[nodiscard]] static bool needsWakeToTalk(const Actor& actor);
         void finishExit(Actor& actor, openeden::sdk::game::ActorRequestWriter& writer);
         [[nodiscard]] bool sitAllowed(const Actor& actor) const;
 

@@ -115,6 +115,41 @@ namespace MWWorld
         std::size_t mStarted = 0;
     };
 
+    /// Task 0135 stage S6g: the wait between "the player activated an actor" and "the conversation box opens", while
+    /// the pack gets the actor ready (a sleeper stands up; the box pauses the world, so it must be done first).
+    /// Pure: the session tells it each frame whether the pack says the actor can talk.
+    class NeutralTalkWait
+    {
+    public:
+        /// The longest wait. The quick get-up clip is 1 s (`bed_leftquickexit`); the bound only keeps a clip that never
+        /// ends from blocking the talk for good.
+        static constexpr float kMaxSeconds = 5.f;
+
+        enum class Result
+        {
+            Waiting, ///< not ready yet (or nothing is being waited for)
+            Ready, ///< the pack says the actor can talk: begin the conversation
+            TimedOut, ///< kMaxSeconds passed: begin the conversation anyway
+        };
+
+        void begin()
+        {
+            mActive = true;
+            mElapsed = 0.f;
+        }
+        void clear() { mActive = false; }
+        [[nodiscard]] bool active() const { return mActive; }
+        [[nodiscard]] float elapsed() const { return mElapsed; }
+
+        /// One frame of unpaused time. A non-positive or non-finite `seconds` counts as 0. Ready wins over a timeout in
+        /// the same step. A Ready or TimedOut result ends the wait.
+        [[nodiscard]] Result step(float seconds, bool ready);
+
+    private:
+        bool mActive = false;
+        float mElapsed = 0.f;
+    };
+
     /// Task 0146 (`[Game] neutral lip sync`): where the speaker's mouth weights go (Aah, BigAah, each 0..1). The world
     /// sets it to the renderer while it exists; unset, the drive does nothing.
     using NeutralMouthSink = std::function<void(const Ptr&, const TriMorph::VisemeWeights&)>;
@@ -131,8 +166,18 @@ namespace MWWorld
         void start(std::string gameId, const openeden::sdk::game::DialogueTurn& first, const std::string& speakerName,
             const Ptr& speaker = Ptr());
 
-        /// One poll a frame: reads the pressed button and shows the next turn, or closes. Cheap when idle.
-        void update();
+        /// One poll a frame: reads the pressed button and shows the next turn, or closes. Cheap when idle. `seconds` is
+        /// this frame's UNPAUSED time (0 while the game is paused); it only counts down a pending talk (stage S6g).
+        void update(float seconds = 0.f);
+
+        /// Stage S6g: the pack was asked to get the actor `reference` ready (DialogueSource::prepareConversation said
+        /// not yet). Every update asks readyForConversation; when it says true, or NeutralTalkWait::kMaxSeconds have
+        /// passed (logged once), `start` runs (it begins the conversation). The wait ends without `start` when the
+        /// speaker's cell is no longer loaded (the pack is told to cancel). One wait at a time: false when one is
+        /// pending already.
+        bool startWhenReady(
+            std::string gameId, openeden::sdk::game::WorldId reference, const Ptr& speaker, std::function<void()> start);
+        [[nodiscard]] bool waitingToTalk() const { return mWait.active(); }
 
         [[nodiscard]] bool active() const { return mActive; }
         /// Ends the conversation and tells the source (if it is still there).
@@ -157,6 +202,14 @@ namespace MWWorld
         void driveMouth();
         /// Reads the `.lip` part of the voice file `file` (a VFS path) into mLip, or leaves it empty (logged).
         void loadLip(const std::string& file);
+
+        void updatePendingTalk(float seconds);
+
+        NeutralTalkWait mWait;
+        std::string mWaitGameId;
+        openeden::sdk::game::WorldId mWaitReference = openeden::sdk::game::kNoWorldId;
+        Ptr mWaitSpeaker;
+        std::function<void()> mWaitStart;
 
         Ptr mSpeaker;
         TriMorph::MouthDrive mMouth;

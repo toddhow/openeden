@@ -706,4 +706,130 @@ namespace
         step(*rig.brain, rig.w, 3);
         EXPECT_EQ(rig.brain->stats().mConversations, 0u);
     }
+
+    // ---- getting ready before the conversation box opens (stage S6g) -----------------------------------------------
+
+    namespace
+    {
+        // A sleeper in its bed with the quick exit clip (1 s), the world still running.
+        struct WakeRig
+        {
+            SeatRig rig{ true, PackageBehavior::Sleep, FurniturePose::Sleep };
+            ClipMotion quick;
+            WakeRig()
+            {
+                quick.mDuration = 1.f;
+                quick.mTranslation = { { 1.f, -80.f, 0.f } };
+                rig.src.mSlots[0].mQuickExitClip = "bed_leftquickexit";
+                rig.src.mSlots[0].mQuickExitMotion = &quick;
+                step(*rig.brain, rig.w, 3);
+                rig.arrive();
+                step(*rig.brain, rig.w, 40); // the lie-down clip is over
+            }
+        };
+    }
+
+    TEST(SkyrimNpcWakeFirst, aSleeperIsNotReadyUntilItsGetUpClipHasEnded)
+    {
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        ASSERT_TRUE(brain.view(0x10)->mSeated);
+        EXPECT_FALSE(brain.readyToTalk(0x10)); // asleep
+        EXPECT_FALSE(brain.prepareTalk(0x10)); // asked to get up: not ready yet
+        EXPECT_FALSE(brain.readyToTalk(0x10)); // the request is acted on at the next update
+        step(brain, wake.rig.w, 3);
+        EXPECT_EQ(wake.rig.w.of(Event::Use).back().mClip, "bed_leftquickexit");
+        EXPECT_FALSE(brain.readyToTalk(0x10)); // the clip plays
+        EXPECT_TRUE(wake.rig.w.of(Event::Leave).empty());
+        step(brain, wake.rig.w, 12); // 1 s of clip
+        EXPECT_EQ(wake.rig.w.of(Event::Leave).size(), 1u);
+        EXPECT_TRUE(brain.readyToTalk(0x10)); // standing
+        EXPECT_EQ(brain.stats().mWakeUps, 1u);
+    }
+
+    TEST(SkyrimNpcWakeFirst, theStandingActorStaysWhileTheConversationBeginsAndGoesBackToBedAfterwards)
+    {
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        ASSERT_FALSE(brain.prepareTalk(0x10));
+        step(brain, wake.rig.w, 20);
+        ASSERT_TRUE(brain.readyToTalk(0x10));
+        const std::size_t gotos = wake.rig.w.of(Event::Goto).size();
+        step(brain, wake.rig.w, 100); // the core has not begun yet: the actor holds still
+        EXPECT_EQ(wake.rig.w.of(Event::Goto).size(), gotos);
+        const std::size_t uses = wake.rig.w.of(Event::Use).size();
+        brain.onConversation(0x10, true); // the box opens
+        step(brain, wake.rig.w, 3);
+        EXPECT_EQ(brain.stats().mWakeUps, 1u); // the begin is not a second wake
+        EXPECT_EQ(brain.stats().mConversations, 1u); // prepare and begin are one conversation
+        EXPECT_EQ(wake.rig.w.of(Event::Use).size(), uses); // no second clip
+        brain.onConversation(0x10, false);
+        step(brain, wake.rig.w, 3);
+        EXPECT_GT(wake.rig.w.of(Event::Goto).size(), gotos); // back to the bed
+        EXPECT_EQ(brain.stats().mResumes, 1u);
+    }
+
+    TEST(SkyrimNpcWakeFirst, aBeginDuringTheGetUpLetsItFinishInsteadOfSnappingToTheEntryPoint)
+    {
+        // The core's time limit passed and it begins the conversation while the clip still plays.
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        ASSERT_FALSE(brain.prepareTalk(0x10));
+        step(brain, wake.rig.w, 4);
+        ASSERT_FALSE(brain.readyToTalk(0x10));
+        brain.onConversation(0x10, true);
+        step(brain, wake.rig.w, 3);
+        EXPECT_TRUE(wake.rig.w.of(Event::Leave).empty()); // no snap
+        EXPECT_EQ(brain.stats().mWakeUps, 1u);
+        step(brain, wake.rig.w, 12);
+        ASSERT_EQ(wake.rig.w.of(Event::Leave).size(), 1u);
+        EXPECT_NEAR(wake.rig.w.of(Event::Leave)[0].mX, 920, 1e-3); // the clip's own end
+        EXPECT_TRUE(brain.readyToTalk(0x10));
+    }
+
+    TEST(SkyrimNpcWakeFirst, preparingTwiceStartsOneGetUp)
+    {
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        EXPECT_FALSE(brain.prepareTalk(0x10));
+        EXPECT_FALSE(brain.prepareTalk(0x10));
+        step(brain, wake.rig.w, 20);
+        EXPECT_EQ(brain.stats().mWakeUps, 1u);
+        EXPECT_EQ(wake.rig.w.of(Event::Leave).size(), 1u);
+        EXPECT_TRUE(brain.prepareTalk(0x10)); // already standing
+    }
+
+    TEST(SkyrimNpcWakeFirst, aCancelledPrepareSendsTheSleeperBackToBed)
+    {
+        WakeRig wake;
+        PackageBrain& brain = *wake.rig.brain;
+        ASSERT_FALSE(brain.prepareTalk(0x10));
+        step(brain, wake.rig.w, 20);
+        const std::size_t gotos = wake.rig.w.of(Event::Goto).size();
+        brain.onConversation(0x10, false); // the core's cancel
+        step(brain, wake.rig.w, 3);
+        EXPECT_GT(wake.rig.w.of(Event::Goto).size(), gotos);
+        EXPECT_FALSE(brain.view(0x10)->mTalking);
+    }
+
+    TEST(SkyrimNpcWakeFirst, aSitterAWalkerAndAnUnknownActorAreReadyAtOnce)
+    {
+        SeatRig seat(false);
+        step(*seat.brain, seat.w, 3);
+        seat.arrive();
+        step(*seat.brain, seat.w, 5);
+        ASSERT_TRUE(seat.brain->view(0x10)->mSeated);
+        EXPECT_TRUE(seat.brain->prepareTalk(0x10));
+        step(*seat.brain, seat.w, 5);
+        EXPECT_TRUE(seat.brain->view(0x10)->mSeated); // a sitter talks seated
+        EXPECT_TRUE(seat.w.of(Event::Leave).empty());
+
+        PatrolRig walker;
+        step(*walker.brain, walker.w, 3);
+        EXPECT_TRUE(walker.brain->prepareTalk(0x10));
+        step(*walker.brain, walker.w, 3);
+        EXPECT_TRUE(walker.w.of(Event::Cancel).empty()); // a walker stops at the begin, not before
+        EXPECT_TRUE(walker.brain->prepareTalk(0x999));
+        EXPECT_TRUE(walker.brain->readyToTalk(0x999));
+    }
 }

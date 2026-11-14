@@ -249,7 +249,8 @@ namespace OMW
                 // The game pack's window update (SDK 4.0), where the game's windows update, paused or not
                 mEngine.mExtensionHost->runPhase(openeden::sdk::Phase::GameUpdateUi, dt);
 
-                MWWorld::neutralDialogueSession().update(); // task 0141: one poll a frame, nothing when idle
+                MWWorld::neutralDialogueSession().update(
+                    paused ? 0.f : dt); // task 0141: one poll a frame, nothing when idle; S6g: counts a pending talk
 
                 Misc::LoadTrace::Scope traceTail("run.window.focus.sound");
                 mEngine.mWindowManager->update(dt);

@@ -136,26 +136,23 @@ namespace MWClass
         {
             MWWorld::Ptr mTarget;
 
-            void executeImp(const MWWorld::Ptr& actor) override
+            // Opens the conversation (the pack's greeting, then the box). The player's own state does not matter here.
+            static void begin(const MWWorld::Ptr& target)
             {
-                if (actor != MWMechanics::getPlayer())
-                    return;
-                const MWWorld::NeutralBase& base = baseOf(mTarget);
-                MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
-                NeutralWorld::NeutralWorldStore* store
-                    = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
-                openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
-                auto* dialogue = dynamic_cast<openeden::sdk::game::DialogueSource*>(source);
-                const MWWorld::CellStore* cell = mTarget.getCell();
+                const MWWorld::NeutralBase& base = baseOf(target);
+                openeden::sdk::game::DialogueSource* dialogue = dialogueOf(base);
+                const MWWorld::CellStore* cell = target.getCell();
                 if (dialogue == nullptr || cell == nullptr || cell->neutralCell() == nullptr)
                     return;
-                const auto placement = MWWorld::neutralPlacementOf(mTarget.getCellRef().getRefNum());
+                const auto placement = MWWorld::neutralPlacementOf(target.getCellRef().getRefNum());
                 openeden::sdk::game::DialogueTurn turn;
                 std::string error;
                 if (!dialogue->beginConversation(base.mBase, placement ? *placement : openeden::sdk::game::kNoWorldId,
                         cell->neutralCell()->id, turn, error))
                 {
                     Log(Debug::Info) << "Neutral dialogue with " << base.mEditorId << ": " << error;
+                    if (placement)
+                        dialogue->cancelPreparedConversation(*placement); // a sleeper made ready goes back to bed
                     MWBase::Environment::get().getWindowManager()->messageBox(
                         MWBase::Environment::get().getL10nManager()->getMessage("OMWEngine", "NeutralDialogueNothing"));
                     return;
@@ -163,7 +160,43 @@ namespace MWClass
                 Log(Debug::Info) << "NTALK " << base.mEditorId << ": greeting of " << turn.text.size() << " bytes, "
                                  << turn.topics.size() << " topics";
                 MWWorld::neutralDialogueSession().start(
-                    base.mGameId, turn, turn.speakerName.empty() ? base.mEditorId : turn.speakerName, mTarget);
+                    base.mGameId, turn, turn.speakerName.empty() ? base.mEditorId : turn.speakerName, target);
+            }
+
+            static openeden::sdk::game::DialogueSource* dialogueOf(const MWWorld::NeutralBase& base)
+            {
+                MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+                NeutralWorld::NeutralWorldStore* store
+                    = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+                return dynamic_cast<openeden::sdk::game::DialogueSource*>(
+                    store != nullptr ? store->source(base.mGameId) : nullptr);
+            }
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                MWWorld::NeutralDialogueSession& session = MWWorld::neutralDialogueSession();
+                if (session.active() || session.waitingToTalk())
+                    return; // a conversation is open, or the last activation is still waiting for its actor
+                const MWWorld::NeutralBase& base = baseOf(mTarget);
+                openeden::sdk::game::DialogueSource* dialogue = dialogueOf(base);
+                const MWWorld::CellStore* cell = mTarget.getCell();
+                if (dialogue == nullptr || cell == nullptr || cell->neutralCell() == nullptr)
+                    return;
+                // Stage S6g: the conversation box pauses the world, so an actor that has to get ready (a sleeper gets
+                // up) is asked first, while the world runs; the box opens when the pack says it is ready (or after
+                // NeutralTalkWait::kMaxSeconds).
+                const auto placement = MWWorld::neutralPlacementOf(mTarget.getCellRef().getRefNum());
+                if (placement && !dialogue->prepareConversation(*placement))
+                {
+                    Log(Debug::Info) << "NTALK " << base.mEditorId << ": waiting for it to get ready";
+                    const MWWorld::Ptr target = mTarget;
+                    if (session.startWhenReady(base.mGameId, *placement, target, [target] { begin(target); }))
+                        return;
+                    dialogue->cancelPreparedConversation(*placement);
+                }
+                begin(mTarget);
             }
 
         public:

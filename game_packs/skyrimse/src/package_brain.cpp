@@ -81,6 +81,32 @@ namespace game_skyrimse
             actor.mTalkRequest = 2;
     }
 
+    bool PackageBrain::needsWakeToTalk(const Actor& actor)
+    {
+        return actor.mSeated && actor.mHasSlot && actor.mSlot.mPose == sdkgame::FurniturePose::Sleep;
+    }
+
+    bool PackageBrain::readyToTalk(sdkgame::WorldId reference) const
+    {
+        const auto it = mActors.find(reference);
+        if (it == mActors.end())
+            return true;
+        return !needsWakeToTalk(it->second) && !it->second.mExiting;
+    }
+
+    bool PackageBrain::prepareTalk(sdkgame::WorldId reference)
+    {
+        const auto it = mActors.find(reference);
+        if (it == mActors.end())
+            return true;
+        Actor& actor = it->second;
+        // Only a sleeper has to get up first: anyone else is ready (a sitter talks seated, a walker stops at the
+        // begin). The request is the one a begun conversation makes, so the wake itself is the existing code.
+        if (needsWakeToTalk(actor) && !actor.mTalking && actor.mTalkRequest != 1)
+            onConversation(reference, true);
+        return readyToTalk(reference);
+    }
+
     int weekdayOfDay(std::int32_t day)
     {
         const std::int64_t d = static_cast<std::int64_t>(day);
@@ -585,16 +611,21 @@ namespace game_skyrimse
         actor.mTalkEndPending = false;
         if (request == 1)
         {
-            ++mStats.mConversations;
+            if (!actor.mTalking) // the core's prepare (stage S6g) and its begin are one conversation
+                ++mStats.mConversations;
             actor.mTalking = true;
             if (actor.mSeated)
             {
+                // A get-up already under way (stage S6g: the core asked for it before the conversation began) goes on.
                 if (actor.mSlot.mPose == sdkgame::FurniturePose::Sleep)
                 {
-                    ++mStats.mWakeUps;
                     actor.mWoken = true;
-                    if (standUp(actor, writer, true))
-                        actor.mPhase = Phase::Done;
+                    if (!actor.mExiting)
+                    {
+                        ++mStats.mWakeUps;
+                        if (standUp(actor, writer, true))
+                            actor.mPhase = Phase::Done;
+                    }
                 }
                 // A sitter stays where it is.
                 if (endToo)

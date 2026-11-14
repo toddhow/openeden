@@ -99,6 +99,13 @@ namespace game_skyrimse
                 mBrain->onConversation(reference, begins);
         }
 
+        /// Stage S6g: forwarded to the brain (no brain: ready at once).
+        bool prepareTalk(openeden::sdk::game::WorldId reference) { return mBrain ? mBrain->prepareTalk(reference) : true; }
+        [[nodiscard]] bool readyToTalk(openeden::sdk::game::WorldId reference) const
+        {
+            return mBrain ? mBrain->readyToTalk(reference) : true;
+        }
+
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override;
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override;
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override;

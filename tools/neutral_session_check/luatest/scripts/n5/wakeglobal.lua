@@ -1,7 +1,9 @@
 -- tools/neutral_session_check (task 0135 stage S6f): the global half of "n5wake". After WAIT seconds (the sleepers are in
 -- bed by then) it stands the player 150 units in front of a sleeper (TARGET, a number in its record id), takes a picture,
--- activates it (object:activateBy, the same call "n5talk" uses), takes pictures while the conversation box is open and
--- after it was closed (OPENEDEN_NEUTRAL_DIALOGUE_PRESS presses Goodbye), and prints the actor's position each time.
+-- activates it (object:activateBy, the same call "n5talk" uses), takes pictures while the sleeper gets up (stage S6g:
+-- the actor stands BEFORE the box opens, about 1 s after the activation), while the conversation box is open and after
+-- it was closed (a real click on Goodbye from OPENEDEN_RMLUI_INPUT_SCRIPT, needs [GUI] rmlui = true), and prints the
+-- actor's position each time.
 -- To try another actor change TARGET (b108144 Mikael, b80802 Saadia; a chair sitter: n5furn lists the ids).
 local core = require('openmw.core')
 local world = require('openmw.world')
@@ -10,8 +12,9 @@ local util = require('openmw.util')
 local TARGET = 'b108144'
 local WAIT = 50
 local DIST = 150
-local SCHEDULE = { { 0, 'place' }, { 2, 'shot' }, { 3, 'activate' }, { 6, 'shot' }, { 10, 'shot' }, { 16, 'shot' },
-    { 24, 'shot' }, { 34, 'shot' }, { 46, 'shot' }, { 60, 'shot' } }
+local SCHEDULE = { { 0, 'place' }, { 2, 'shot' }, { 3, 'activate' }, { 3.3, 'shot' }, { 3.7, 'shot' }, { 4.1, 'shot' },
+    { 4.6, 'shot' }, { 6, 'shot' }, { 10, 'shot' }, { 16, 'shot' }, { 24, 'shot' }, { 34, 'shot' }, { 46, 'shot' },
+    { 60, 'shot' } }
 local start, index, base = nil, 1, nil
 
 local function find(cell, tag)
