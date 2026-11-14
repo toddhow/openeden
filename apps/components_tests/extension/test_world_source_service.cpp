@@ -109,6 +109,17 @@ namespace
         virtual void* getWorldSourceService() { return nullptr; } // the new slot, after every earlier one
     };
 
+    // GCC sees that nothing derives from MirrorHost and, trusting the static type, turns the reinterpreted calls below
+    // into direct calls of the default bodies (the test then reads nullptr on Linux). A second implementation that the
+    // test really calls keeps the calls virtual; the cast stays the point of the test.
+    struct MirrorHostOther final : MirrorHost
+    {
+        const openeden::sdk::HostInfo& getHostInfo() const override { return mInfo; }
+        void* getWorldSourceService() override { return this; }
+        void* getWorldViewService() override { return &mInfo; }
+        openeden::sdk::HostInfo mInfo;
+    };
+
     class MarkedHost final : public Host
     {
     public:
@@ -127,6 +138,9 @@ namespace
     {
         MarkedHost host;
         Host* base = &host;
+        MirrorHostOther other;
+        MirrorHost& otherBase = other;
+        EXPECT_EQ(otherBase.getWorldSourceService(), &other);
         auto* mirror = reinterpret_cast<MirrorHost*>(base);
         EXPECT_EQ(mirror->getWorldSourceService(), &host.mMarker);
         EXPECT_EQ(mirror->getWorldViewService(), &host.mViewMarker);

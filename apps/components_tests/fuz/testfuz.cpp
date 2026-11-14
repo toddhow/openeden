@@ -49,7 +49,8 @@ namespace
     TEST(Fuz, anEmptyLipPartIsLegal)
     {
         const std::string audio = riff("XWMA", "x");
-        const Fuz::Result r = Fuz::split(fuz("", audio));
+        const std::string bytes = fuz("", audio);
+        const Fuz::Result r = Fuz::split(bytes);
         ASSERT_TRUE(r.mOk) << r.mError;
         EXPECT_TRUE(r.mParts.mLip.empty());
         EXPECT_EQ(r.mParts.mAudio, audio);
@@ -74,7 +75,8 @@ namespace
     TEST(Fuz, bytesAfterTheDeclaredRiffSizeAreDroppedAndCounted)
     {
         const std::string audio = riff("XWMA", "abcd");
-        const Fuz::Result r = Fuz::split(fuz("", audio + "JUNK!"));
+        const std::string bytes = fuz("", audio + "JUNK!");
+        const Fuz::Result r = Fuz::split(bytes);
         ASSERT_TRUE(r.mOk) << r.mError;
         EXPECT_EQ(r.mParts.mAudio, audio);
         EXPECT_EQ(r.mParts.mTrailingBytes, 5u);
