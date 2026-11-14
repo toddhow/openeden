@@ -206,6 +206,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwlua/testpackbindings.cpp
     mwlua/testpackbindingsb.cpp
+    ui/testuiallocation.cpp
 )
 
 # Task 0063 (AdvancedBodies B1): the legacy adapter's tests need the game's store, bodyparts.cpp and bodylegacy.cpp

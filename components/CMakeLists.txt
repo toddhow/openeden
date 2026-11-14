@@ -567,12 +567,21 @@ add_component_dir (fontloader
     fontloader
     )
 
+# The element protocol of the new UI system and its Lua binding (decision 0015, task 0162): engine-independent, no UI
+# engine named.
+add_component_dir (ui
+    elementprotocol headless commandqueue
+    )
+add_component_dir (ui_lua
+    backendpackage
+    )
+
 # The RmlUi UI backend (decision 0015, task 0104): the VSG render interface, the VFS file interface, the Morrowind
 # bitmap font engine and the overlay the game draws over its GUI. Compiled only when extern/ built openeden_rmlui.
 if (TARGET openeden_rmlui)
     add_component_dir (ui_rml
         bitmapfont codepage fontengine fileinterface renderinterface systeminterface uigeometry overlay debugpanel
-        uiscale inputmap inputrouter ime clipboard controllerfocus themesheet themehost
+        uiscale inputmap inputrouter ime clipboard controllerfocus themesheet themehost rmlprotocol
         )
 endif()
 

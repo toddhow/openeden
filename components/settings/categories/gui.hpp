@@ -30,6 +30,7 @@ namespace Settings
         SettingValue<std::string> mRmluiTheme{ mIndex, "GUI", "rmlui theme" };
         SettingValue<std::string> mRmluiThemeVariants{ mIndex, "GUI", "rmlui theme variants" };
         SettingValue<float> mRmluiThemeReloadInterval{ mIndex, "GUI", "rmlui theme reload interval", makeClampSanitizerFloat(0, 3600) };
+        SettingValue<bool> mRmluiDebugPanel{ mIndex, "GUI", "rmlui debug panel" };
         SettingValue<std::string> mRmluiFocusButton{ mIndex, "GUI", "rmlui focus button" };
         SettingValue<std::string> mRmluiFocusKey{ mIndex, "GUI", "rmlui focus key" };
         SettingValue<bool> mKeyboardNavigation{ mIndex, "GUI", "keyboard navigation" };

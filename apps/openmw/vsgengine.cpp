@@ -560,6 +560,7 @@ namespace OMW
                 overlayConfig.mThemeReloadSeconds = Settings::gui().mRmluiThemeReloadInterval;
                 mRmluiThemeSeen = overlayConfig.mTheme;
                 mRmluiVariantsSeen = overlayConfig.mThemeVariants;
+                overlayConfig.mDebugPanel = Settings::gui().mRmluiDebugPanel;
                 const VkExtent2D extent = mRenderEngine->extent2D();
                 mRmlUi = std::make_unique<UiRml::Overlay>(
                     compile, mResourceSystem->shaderOptions, *mVFS, overlayConfig, extent.width, extent.height);
@@ -568,6 +569,7 @@ namespace OMW
                 group->addChild(mRmlUi->node());
                 guiRoot = group;
                 mInputManager->setUiInputTarget(mRmlUi.get());
+                mLuaManager->setUiQueue(mRmlUi->commandQueue());
                 {
                     const std::string& buttonName = Settings::gui().mRmluiFocusButton.get();
                     const std::string& keyName = Settings::gui().mRmluiFocusKey.get();

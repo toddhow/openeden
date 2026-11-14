@@ -11,6 +11,7 @@
 #include <components/lua/storage.hpp>
 #include <components/lua_ui/resources.hpp>
 #include <components/misc/color.hpp>
+#include <components/ui/commandqueue.hpp>
 
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -51,6 +52,11 @@ namespace MWLua
         /// The namespaces the game pack declared (task 0097). Call before init(); the packages are built in
         /// initPostLoad. Null (the default) adds none. The store must outlive this manager.
         void setPackBindings(openeden::extension::BindingsStore* store) { mPackBindings = store; }
+
+        /// The queue of the new UI system's overlay (task 0162): with one, player and menu scripts get the package
+        /// `openeden.uibackend` that the Lua library `openeden.ui` uses. Call before init(). Null (the default, and
+        /// whenever `[GUI] rmlui` is off) adds nothing.
+        void setUiQueue(std::shared_ptr<Ui::CommandQueue> queue) { mUiQueue = std::move(queue); }
 
         void init(MWRender::RenderManager* renderManager);
         void initPreLoad();
@@ -270,6 +276,7 @@ namespace MWLua
         LuaUtil::ScriptTracker mScriptTracker;
 
         openeden::extension::BindingsStore* mPackBindings = nullptr; // not owned (task 0097)
+        std::shared_ptr<Ui::CommandQueue> mUiQueue; // task 0162
     };
 
 }

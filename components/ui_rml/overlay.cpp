@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <mutex>
 #include <stdexcept>
@@ -26,6 +27,7 @@
 #include "fileinterface.hpp"
 #include "fontengine.hpp"
 #include "ime.hpp"
+#include "rmlprotocol.hpp"
 #include "inputmap.hpp"
 #include "renderinterface.hpp"
 #include "systeminterface.hpp"
@@ -102,6 +104,9 @@ namespace UiRml
         std::unique_ptr<BitmapFontEngine> mFonts;
         Rml::Context* mContext = nullptr;
         std::unique_ptr<DebugPanel> mPanel;
+        // Task 0162: what the Lua UI library wrote, applied on this (the GUI) thread at the start of each frame.
+        std::shared_ptr<Ui::CommandQueue> mUiQueue = std::make_shared<Ui::CommandQueue>();
+        std::unique_ptr<RmlProtocol> mProtocol;
         std::atomic<std::uint32_t> mWidth;
         std::atomic<std::uint32_t> mHeight;
         std::uint32_t mContextWidth = 0;
@@ -131,6 +136,14 @@ namespace UiRml
         bool mThemeDirty = false;
         float mThemeReloadSeconds = 0.f;
         double mLastThemePoll = -1.0;
+        // Task 0162: what the overlay's frame costs on the GUI thread, summed; logged at the end of the run.
+        struct FrameTimes
+        {
+            std::uint64_t mFrames = 0;
+            double mDrain = 0.0;  // applying the scripts' commands
+            double mUpdate = 0.0; // panel, Context::Update, publish
+            double mRender = 0.0; // Context::Render and recording the draw list
+        } mTimes;
 
         std::atomic<float> mRequestedScale;
         float mAppliedRatio = 1.f;
@@ -190,7 +203,21 @@ namespace UiRml
             mContext->SetDensityIndependentPixelRatio(mAppliedRatio);
             mTheme.refresh();
             logTheme("loaded");
-            if (Rml::ElementDocument* document = mContext->LoadDocument(kDebugPanelDocument))
+            {
+                RmlProtocol::Options protocolOptions;
+                protocolOptions.mFontFamily = sFontFamily;
+                std::vector<char> probe;
+                protocolOptions.mLoadBaseSheet = mFiles.readAll("ui/base.rcss", probe);
+                // Task 0163: scripts' documents are loaded from this VFS file, so a theme change reloads their sheets.
+                if (mFiles.readAll("ui/document.rml", probe))
+                    protocolOptions.mDocumentFile = "ui/document.rml";
+                protocolOptions.mEventSink = [queue = mUiQueue](Ui::Event&& event) { queue->pushEvent(std::move(event)); };
+                mProtocol = std::make_unique<RmlProtocol>(*mContext, std::move(protocolOptions));
+            }
+            if (!config.mDebugPanel)
+            {
+            }
+            else if (Rml::ElementDocument* document = mContext->LoadDocument(kDebugPanelDocument))
             {
                 document->Show();
                 mPanel = std::make_unique<DebugPanel>(document);
@@ -477,21 +504,36 @@ namespace UiRml
             mWork.clear();
             applyStick(dt);
 
+            using Clock = std::chrono::steady_clock;
+            const auto t0 = Clock::now();
+            mUiQueue->drain(*mProtocol);
+            const auto t1 = Clock::now();
             if (mPanel)
                 mPanel->frame(now);
             mContext->Update();
             publish();
+            const auto t2 = Clock::now();
             mContext->Render();
             mRender.draw(commandBuffer);
+            const auto t3 = Clock::now();
+            ++mTimes.mFrames;
+            mTimes.mDrain += std::chrono::duration<double, std::micro>(t1 - t0).count();
+            mTimes.mUpdate += std::chrono::duration<double, std::micro>(t2 - t1).count();
+            mTimes.mRender += std::chrono::duration<double, std::micro>(t3 - t2).count();
         }
 
         ~Impl()
         {
+            if (mTimes.mFrames > 0)
+                Log(Debug::Info) << "[UI] overlay frame cost over " << mTimes.mFrames
+                                 << " frames (mean microseconds): drain " << mTimes.mDrain / mTimes.mFrames << ", update "
+                                 << mTimes.mUpdate / mTimes.mFrames << ", render " << mTimes.mRender / mTimes.mFrames;
             mClipboard.pump();
             if (mStartedTextInput && !mTextInputWasActive)
                 SDL_StopTextInput();
             // The panel's listeners come off the document before RmlUi releases it.
             mPanel.reset();
+            mProtocol.reset();
             if (mInitialised)
             {
                 // Releases the contexts, documents and fonts, through the interfaces above (all still alive).
@@ -520,6 +562,11 @@ namespace UiRml
     {
         mImpl.reset();
         sExists = false;
+    }
+
+    std::shared_ptr<Ui::CommandQueue> Overlay::commandQueue() const
+    {
+        return mImpl->mUiQueue;
     }
 
     vsg::ref_ptr<vsg::Node> Overlay::node()

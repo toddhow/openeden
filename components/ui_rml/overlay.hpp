@@ -8,6 +8,7 @@
 #include <vsg/core/ref_ptr.h>
 
 #include <components/toutf8/toutf8.hpp>
+#include <components/ui/commandqueue.hpp>
 
 #include "inputtarget.hpp"
 
@@ -44,6 +45,9 @@ namespace UiRml
         std::string mTheme = "neutral";
         std::string mThemeVariants;
         float mThemeReloadSeconds = 0.f;
+        /// `[GUI] rmlui debug panel`: draw the C++ debug panel of task 0104 (true, the default) or leave the context to
+        /// the scripts' documents (task 0162).
+        bool mDebugPanel = true;
     };
 
     /// One RmlUi context drawn over the game with the debug panel of this slice in it.
@@ -61,6 +65,10 @@ namespace UiRml
         ~Overlay();
         Overlay(const Overlay&) = delete;
         Overlay& operator=(const Overlay&) = delete;
+
+        /// The queue the Lua UI library (`openeden.ui`) writes its documents into; the overlay applies it at the start of
+        /// every frame (task 0162). Shared: a script session keeps it alive.
+        std::shared_ptr<Ui::CommandQueue> commandQueue() const;
 
         /// The node to put last in the GUI render graph.
         vsg::ref_ptr<vsg::Node> node();

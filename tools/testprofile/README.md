@@ -166,6 +166,11 @@ picture: switch one on by hand in `config\settings.cfg` with the game closed, an
   game's own Morrowind font over the game and its HUD. Wrong: no panel, garbled or missing letters, a panel that moves or
   flickers, a black or white box, or any change to the game's own windows and HUD. Off (the default) must look exactly as
   before. (Input, scaling and resize came with task 0111: see the next lines.)
+- *New UI system, Lua library* (0162): the same panel written with `openeden.ui` (`tools/ui_check/mod`, `tools/ui_check/check.sh`;
+  needs `rmlui debug panel = false` and the content file `uipanel.omwscripts`): a panel with two buttons that count clicks, a text field
+  that echoes, a 12 row list, the frame rate line and a frame counter each in its own small document. Wrong: a missing or doubled
+  panel, a counter that stops or flickers, clicks that do nothing, a field that does not echo, any difference from the C++ panel other
+  than the title.
 - *New UI system, input* (0111 and its follow-ups): with the `rmlui` variant, open a game menu (Escape), then press the Back button of a
   gamepad (or F9) with no mouse touched: the first button of the panel lights up; the d-pad moves between the buttons and the text
   field, A presses, B or Back/F9 again gives the controller back to the game. In the text field Ctrl+C, Ctrl+X, Ctrl+V and

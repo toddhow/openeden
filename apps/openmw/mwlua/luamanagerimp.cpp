@@ -10,6 +10,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/extension/bindings_store.hpp>
+#include <components/ui_lua/backendpackage.hpp>
 #include <components/mwanimation/groups.hpp>
 
 #include <components/esm3/esmreader.hpp>
@@ -197,6 +198,17 @@ namespace MWLua
                 }
                 for (const auto& [name, package] : initPackPackages(view.sol(), *mPackBindings, PackContext::Menu))
                     mMenuScripts.addPackage(name, package);
+            }
+
+            // The new UI system's backend (task 0162, `[GUI] rmlui`): each script that requires `openeden.ui` opens its
+            // own session on the overlay's queue. Player and menu scripts only.
+            if (mUiQueue != nullptr)
+            {
+                sol::table uiBackend = LuaUtil::makeReadOnly(UiLua::makeBackendPackage(view.sol(), [queue = mUiQueue] {
+                    return std::shared_ptr<Ui::Backend>(queue->openSession());
+                }));
+                mPlayerPackages["openeden.uibackend"] = uiBackend;
+                mMenuScripts.addPackage("openeden.uibackend", uiBackend);
             }
 
             mPlayerStorage.setActive(true);

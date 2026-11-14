@@ -60,6 +60,7 @@ set(BUILTIN_DATA_FILES
     ui/base.rcss
     ui/debugpanel.rcss
     ui/debugpanel.rml
+    ui/document.rml
     ui/themes/neutral/theme.rcss
     ui/themes/high-contrast/theme.rcss
     ui/variants/large-text.rcss
@@ -135,6 +136,10 @@ set(BUILTIN_DATA_FILES
     openmw_aux/calendar.lua
     openmw_aux/calendarconfig.lua
     openmw_aux/ui.lua
+
+    # The UI component library (task 0162, decision 0015)
+    openeden/ui.lua
+    openeden/ui/reactive.lua
 
     builtin.omwscripts
 

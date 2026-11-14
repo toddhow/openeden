@@ -22,6 +22,12 @@ file(GLOB UNITTEST_SRC_FILES
     lua/testutilpackage.cpp
     lua/testyaml.cpp
     lua_ui/luauiharness.cpp
+    ui/testuibinding.cpp
+    ui/testuicomponents.cpp
+    ui/testuiframe.cpp
+    ui/testuilist.cpp
+    ui/testuiqueue.cpp
+    ui/testuireactive.cpp
     lua_ui/testluauigeometry.cpp
 
     misc/compression.cpp
@@ -701,6 +707,7 @@ if (TARGET openeden_rmlui)
         ui_rml/testuicontrollerfocus.cpp
         ui_rml/testuifocusclipboard.cpp
         ui_rml/testuigeometry.cpp
+        ui_rml/testuirmlprotocol.cpp
         ui_rml/testuiinput.cpp
         ui_rml/testuitheme.cpp
     )
