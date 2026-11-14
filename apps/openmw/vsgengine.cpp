@@ -1,5 +1,7 @@
 #include "vsgengine.hpp"
 
+#include "mwstate/autoframes.hpp"
+
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -710,8 +712,7 @@ namespace OMW
 
                   // openeden-vsg: loading and cell changes are game states of their own here (the OSG build loaded
                   // inside one frame), so frames under a loading screen or an operation do not count.
-                  if (mStateManager->getState() == MWBase::StateManager::State_Running && state->requiresScene
-                      && state->updateLua)
+                  if (MWState::countsAsAutoFrame(mStateManager->getState(), state->requiresScene, state->updateLua))
                   {
                       ++runningFrame;
                       if (probeBaker && probeBaker->update() && !autoQuitFired)

@@ -202,6 +202,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testgamerules.cpp
     extension/testneutralworldhost.cpp
     extension/testneutralworldsaving.cpp
+    mwstate/testautoframes.cpp
     mwstate/testgamepackchunks.cpp
 
     mwlua/testpackbindings.cpp
