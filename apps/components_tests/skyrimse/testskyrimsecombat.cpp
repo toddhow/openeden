@@ -25,7 +25,7 @@ namespace
     {
     public:
         void onClipEvent(const ClipEvent&) override { ++mEvents; }
-        void onSweepResult(ActorHandle, std::uint32_t, const SweepHit*, std::size_t) override { ++mSweeps; }
+        void onSweepResult(CombatSubject, std::uint32_t, const SweepHit*, std::size_t) override { ++mSweeps; }
         void combatUpdate(float, CombatRequestWriter&) override { ++mUpdates; }
         int mEvents = 0;
         int mSweeps = 0;
@@ -77,10 +77,35 @@ namespace
         EXPECT_FALSE(report.victim.valid());
     }
 
+    TEST(CombatSubjectType, anActorOrThePlayerButNeverNothing)
+    {
+        EXPECT_FALSE(CombatSubject{}.valid());
+        EXPECT_TRUE(CombatSubject::ofPlayer().valid());
+        EXPECT_TRUE(CombatSubject::of({ 5, 1 }).valid());
+        EXPECT_FALSE(CombatSubject::of({ 5, 0 }).valid()); // session 0 is no handle
+        EXPECT_FALSE(CombatSubject::of({}).valid());
+        EXPECT_EQ(CombatSubject::ofPlayer(), CombatSubject::ofPlayer());
+        EXPECT_NE(CombatSubject::ofPlayer(), CombatSubject::of({ 5, 1 }));
+        EXPECT_EQ(CombatSubject::of({ 5, 1 }), CombatSubject::of({ 5, 1 }));
+    }
+
+    TEST(CombatContract, thePlayerCanBeTheSubjectOfEveryRequest)
+    {
+        DefaultWriter writer;
+        const CombatSubject player = CombatSubject::ofPlayer();
+        ClipRequest request;
+        request.slot = ClipSlot::Attack;
+        request.clip = "attack_one";
+        // The defaults refuse for the player too; the point is that the call exists for a subject with no handle.
+        EXPECT_FALSE(writer.playClip(player, request));
+        EXPECT_FALSE(writer.stopClip(player));
+        EXPECT_FALSE(writer.requestSweep(player, SweepRequest{}));
+    }
+
     TEST(CombatContract, theWriterDefaultsRefuseEverything)
     {
         DefaultWriter writer;
-        const ActorHandle actor{ 5, 1 };
+        const CombatSubject actor = CombatSubject::of({ 5, 1 });
         ClipRequest request;
         request.slot = ClipSlot::Attack;
         request.clip = "attack_one";
@@ -88,14 +113,15 @@ namespace
         EXPECT_FALSE(writer.stopClip(actor));
         EXPECT_FALSE(writer.requestSweep(actor, SweepRequest{}));
         EXPECT_FALSE(writer.reportDamage(DamageReport{}));
-        EXPECT_FALSE(writer.reportDeath(actor));
+        EXPECT_FALSE(writer.reportDeath(ActorHandle{ 5, 1 }));
     }
 
     TEST(CombatContract, onClipFinishedHasADefaultThatIgnoresTheCall)
     {
         MinimalRules rules;
         CombatRules& base = rules;
-        base.onClipFinished({ 1, 1 }, 7, ClipEnd::Completed);
+        base.onClipFinished(CombatSubject::of({ 1, 1 }), 7, ClipEnd::Completed);
+        base.onPlayerAttack(true);
         EXPECT_EQ(rules.mEvents, 0);
         EXPECT_EQ(rules.mSweeps, 0);
         EXPECT_EQ(rules.mUpdates, 0);
@@ -120,18 +146,19 @@ namespace
         EXPECT_EQ(combat.updates(), 2u);
 
         ClipEvent event;
-        event.actor = { 3, 1 };
+        event.subject = CombatSubject::ofPlayer();
         event.kind = ClipEventKind::Hit;
         combat.onClipEvent(event);
         EXPECT_EQ(combat.refusedEvents(), 1u);
 
         const SweepHit hit;
-        combat.onSweepResult({ 3, 1 }, 9, &hit, 1);
-        combat.onSweepResult({ 3, 1 }, 10, nullptr, 0);
+        combat.onSweepResult(CombatSubject::of({ 3, 1 }), 9, &hit, 1);
+        combat.onSweepResult(CombatSubject::ofPlayer(), 10, nullptr, 0);
         EXPECT_EQ(combat.refusedSweepResults(), 2u);
 
         // Finished clips are ignored without counting (the default of the contract).
-        combat.onClipFinished({ 3, 1 }, 9, ClipEnd::Interrupted);
+        combat.onClipFinished(CombatSubject::of({ 3, 1 }), 9, ClipEnd::Interrupted);
+        combat.onPlayerAttack(false);
         EXPECT_EQ(combat.refusedEvents(), 1u);
     }
 
@@ -139,17 +166,17 @@ namespace
     {
         struct Recording final : CombatRequestWriter
         {
-            bool playClip(ActorHandle, const ClipRequest&) override
+            bool playClip(CombatSubject, const ClipRequest&) override
             {
                 ++mCalls;
                 return true;
             }
-            bool stopClip(ActorHandle) override
+            bool stopClip(CombatSubject) override
             {
                 ++mCalls;
                 return true;
             }
-            bool requestSweep(ActorHandle, const SweepRequest&) override
+            bool requestSweep(CombatSubject, const SweepRequest&) override
             {
                 ++mCalls;
                 return true;

@@ -8,10 +8,10 @@ namespace game_skyrimse
         ++mRefusedEvents;
     }
 
-    void SkyrimCombat::onSweepResult(openeden::sdk::game::ActorHandle actor, std::uint32_t token,
+    void SkyrimCombat::onSweepResult(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
         const openeden::sdk::game::SweepHit* hits, std::size_t count)
     {
-        (void)actor;
+        (void)subject;
         (void)token;
         (void)hits;
         (void)count;

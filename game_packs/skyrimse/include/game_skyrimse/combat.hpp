@@ -38,7 +38,7 @@ namespace game_skyrimse
     {
     public:
         void onClipEvent(const openeden::sdk::game::ClipEvent& event) override;
-        void onSweepResult(openeden::sdk::game::ActorHandle actor, std::uint32_t token,
+        void onSweepResult(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
             const openeden::sdk::game::SweepHit* hits, std::size_t count) override;
         void combatUpdate(float seconds, openeden::sdk::game::CombatRequestWriter& writer) override;
 

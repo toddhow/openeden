@@ -26,13 +26,28 @@
 // a request. A writer is valid during one combatUpdate() call only; a request written outside it is dropped and counted.
 //
 // Handles are those of actor_rules.hpp (ActorHandle: placement id and a session number, never a pointer). The PLAYER
-// has no ActorHandle: where the player can be a target the structs carry a `player` flag instead of a handle.
+// has no ActorHandle: requests and events name a CombatSubject (an actor or the player), and the structs where the
+// player can be a victim carry a `player` flag.
 //
 // Units: game units and radians about Z as the engine stores them (0 faces +Y), like ActorInfo. Times are seconds.
 
 namespace openeden::sdk::game
 {
     inline constexpr Version kCombatRulesVersion{ 0, 1 };
+
+    /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
+    /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
+    /// player) can be written against 0.1.
+    struct CombatSubject
+    {
+        bool player = false;
+        ActorHandle actor; ///< valid when !player
+
+        [[nodiscard]] bool valid() const { return player || actor.valid(); }
+        static CombatSubject ofPlayer() { return { true, {} }; }
+        static CombatSubject of(ActorHandle handle) { return { false, handle }; }
+        friend bool operator==(const CombatSubject&, const CombatSubject&) = default;
+    };
 
     /// What a clip request is for. The pack owns the table slot -> clip name (SlotTable in the pack); the core only
     /// carries the slot back in events so the pack knows which request an event belongs to.
@@ -100,7 +115,7 @@ namespace openeden::sdk::game
     /// One event of a playing clip, in clip-time order. Delivered by CombatRules::onClipEvent.
     struct ClipEvent
     {
-        ActorHandle actor;
+        CombatSubject subject;
         ClipSlot slot = ClipSlot::None;
         std::uint32_t token = 0;
         ClipEventKind kind = ClipEventKind::Other;
@@ -176,28 +191,28 @@ namespace openeden::sdk::game
         /// Plays a clip on the actor (see ClipRequest). False (counted by the core) for a stale handle, a request whose
         /// slot is None, a name that is empty, longer than kMaxCombatClipName or has characters other than letters,
         /// digits and `_`, a blend that is negative or not finite, or a call outside combatUpdate(). The default refuses.
-        virtual bool playClip(ActorHandle actor, const ClipRequest& request)
+        virtual bool playClip(CombatSubject subject, const ClipRequest& request)
         {
-            (void)actor;
+            (void)subject;
             (void)request;
             return false;
         }
 
         /// Stops the actor's combat clip; its onClipFinished says Interrupted. A no-op returning true when none plays.
         /// False as for playClip. The default refuses.
-        virtual bool stopClip(ActorHandle actor)
+        virtual bool stopClip(CombatSubject subject)
         {
-            (void)actor;
+            (void)subject;
             return false;
         }
 
-        /// Asks for a sweep from `actor` (it must exist; the actor's own body is not hit). The result arrives in a LATER
+        /// Asks for a sweep from `subject` (an actor must exist; the subject's own body is not hit). The result arrives in a LATER
         /// frame through CombatRules::onSweepResult, once per request. False for a stale handle, a value that is not
         /// finite, a reach, angle or height outside the ranges of SweepRequest, or a call outside combatUpdate(). The
         /// default refuses.
-        virtual bool requestSweep(ActorHandle actor, const SweepRequest& request)
+        virtual bool requestSweep(CombatSubject subject, const SweepRequest& request)
         {
-            (void)actor;
+            (void)subject;
             (void)request;
             return false;
         }
@@ -230,15 +245,20 @@ namespace openeden::sdk::game
 
         /// The sweep of `token` finished: `count` hits (at most kMaxSweepHits, nearest first, possibly 0), valid during
         /// the call only. Called just before combatUpdate(), at most once per request, not for an actor that has gone.
-        virtual void onSweepResult(ActorHandle actor, std::uint32_t token, const SweepHit* hits, std::size_t count) = 0;
+        virtual void onSweepResult(CombatSubject subject, std::uint32_t token, const SweepHit* hits, std::size_t count) = 0;
 
         /// Once per frame after ActorRules::update(); `seconds` is the frame time as the engine's loop gives it.
         virtual void combatUpdate(float seconds, CombatRequestWriter& writer) = 0;
 
+        /// The player pressed the attack control (core to pack): the pack decides whether and with which slot to answer
+        /// with playClip(CombatSubject::ofPlayer(), ...) in the next combatUpdate(). `power` is true for a held attack.
+        /// Called just before combatUpdate(). The default ignores it.
+        virtual void onPlayerAttack(bool power) { (void)power; }
+
         /// A clip of `token` ended. Called just before combatUpdate(). The default ignores it.
-        virtual void onClipFinished(ActorHandle actor, std::uint32_t token, ClipEnd how)
+        virtual void onClipFinished(CombatSubject subject, std::uint32_t token, ClipEnd how)
         {
-            (void)actor;
+            (void)subject;
             (void)token;
             (void)how;
         }

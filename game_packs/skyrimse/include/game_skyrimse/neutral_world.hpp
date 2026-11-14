@@ -228,10 +228,10 @@ namespace game_skyrimse
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Combat hooks (task 0168, stage S5-0): the pack's skeleton, which refuses and counts; nothing calls it yet.
         void onClipEvent(const openeden::sdk::game::ClipEvent& event) override { mCombat.onClipEvent(event); }
-        void onSweepResult(openeden::sdk::game::ActorHandle actor, std::uint32_t token,
+        void onSweepResult(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
             const openeden::sdk::game::SweepHit* hits, std::size_t count) override
         {
-            mCombat.onSweepResult(actor, token, hits, count);
+            mCombat.onSweepResult(subject, token, hits, count);
         }
         void combatUpdate(float seconds, openeden::sdk::game::CombatRequestWriter& writer) override
         {

@@ -27,10 +27,15 @@ Out of scope: any behaviour, engine calls, slot table contents (S5-2), formulas 
 
 ## Results
 
-(filled in below)
+- `components-tests` (built in `I:\Projects\OpenEden-work\combat0`, 2,513 steps; filter `Combat*:SkyrimSlotTable*:SkyrimCombat*:SkyrimCellSourceCombat*`): 11 of 11 pass; the wider `Skyrim*:*Extension*:*Frozen*:*WorldModel*:*Compat*` 1,129 pass. Pack targets `skyrimse` and `game_skyrimse_world` build (73 steps).
+- **Red evidence is by mutation, not red-first** (the skeleton is itself refusals; no stub run was captured): with `++mUpdates` removed, `stopClip` defaulting to true, the run failed 4 tests (`theWriterDefaultsRefuseEverything`, `thePlayerCanBeTheSubjectOfEveryRequest`, `SkyrimCombat.theSkeletonRefusesAndCounts`, `SkyrimCellSourceCombat.theRegisteredSourceIsFoundByDynamicCast`: it counts updates), reverted. Removing `CombatRules` as a base of `SkyrimCellSource` was not built (the forwarding functions would stop overriding: a compile error).
+- Checks: `CI/check_tests_registered.sh` ok; `CI/check_layer_rules.sh` 104; `CI/check_extension_sdk.sh` ok, and with `kCombatRulesVersion{ 1, 0 }` it exits 1 with the new message (reverted); `tools/testprofile/coverage.sh` ok.
+- **Contract change after the first commit:** an advisor review noted that the player has no `ActorHandle`, so S5-3 (NPC against player) could not be written. `CombatSubject` (actor or player) now replaces the handle in `ClipEvent`, `playClip`, `stopClip`, `requestSweep`, `onSweepResult`, `onClipFinished`, and `CombatRules::onPlayerAttack(power)` was added (default ignores).
+- Morrowind and Skyrim gameplay cannot change: no engine file changed and nothing calls the interface.
+- Not run: the Linux gate, GCC, clang-format 14, clang-tidy, the Lua tests, `openmw-tests` (no `apps/openmw` file touched), a fresh review.
 
 ## Decisions for toddhow to confirm
 
 1. `ClipSlot`/`ClipEventKind` lists (14 slots, 15 kinds) are my reading of note 0056 section 6.2; names of the window events are RECALLED-VERIFY.
-2. The player has no `ActorHandle`: structs carry `player` flags (`SweepTarget::Player`, `DamageReport::*IsPlayer`). Alternative: give the player a reserved handle.
+2. The player has no `ActorHandle`: requests and events use `CombatSubject` (actor or player), victims carry `player` flags (`SweepTarget::Player`, `DamageReport::*IsPlayer`), and `onPlayerAttack(power)` tells the pack the player attacked. Alternative: a reserved player handle.
 3. Sweep is a forward arc (reach, half angle, heights) rather than a swept capsule along the weapon; a later minor version can add a shape kind.
