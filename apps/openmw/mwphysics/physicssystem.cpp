@@ -1362,7 +1362,7 @@ namespace MWPhysics
             const auto found = mPhysics.mObjects.find(entry.mRef);
             if (found == mPhysics.mObjects.end())
                 return false;
-            const ESM::Position& pos = found->second->getPtr().getRefData().getPosition();
+            const ESM::Position pos = found->second->getPtr().getRefData().getPosition();
             x = pos.pos[0];
             y = pos.pos[1];
             z = pos.pos[2];
