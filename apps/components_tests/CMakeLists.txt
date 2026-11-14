@@ -532,6 +532,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseactorrules.cpp
     skyrimse/testskyrimsecombat.cpp
     skyrimse/testskyrimsecombatslots.cpp
+    skyrimse/testskyrimsecombatstats.cpp
+    skyrimse/testskyrimsecombatstatsreal.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp
     skyrimse/testskyrimseactorgoto.cpp
