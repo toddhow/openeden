@@ -20,6 +20,9 @@
 #include <components/animation/controller.hpp>
 #include <components/animation/transform.hpp>
 
+#include <components/havokpack/clipevents.hpp>
+
+#include "skyrimclipmeta.hpp"
 #include "skyrimidle.hpp"
 
 namespace MWRender::SkyrimPose
@@ -35,6 +38,14 @@ namespace MWRender::SkyrimPose
         /// Main thread. Starts looping `clip` (a file name under the animations folder, no extension); `perSex` says it
         /// is in the male/female sub-folder. An empty name switches the pose off (the idle shows again).
         void setClip(std::string_view clip, bool perSex);
+
+        /// Task 0170 (combat): plays `clip` ONCE (no loop) from the moment it is decoded and holds its last pose until
+        /// setClip("") ends it; the events and length of the clip arrive through meta(). Main thread.
+        void playOnce(std::string_view clip, bool perSex);
+
+        /// The one-shot clip's meta (null until the worker has read it, after a clip that failed to decode and while none
+        /// is set), whether sampling of the decoded clip has begun and the playback time of the last sample. Main thread.
+        [[nodiscard]] HavokPack::ClipProgress progress() const;
 
         /// True between a setClip with a name and the next empty one.
         [[nodiscard]] bool active() const;
@@ -55,6 +66,11 @@ namespace MWRender::SkyrimPose
         mutable float mStart = 0.f;
         mutable SkyrimIdle::ClipFuture mFuture;
         mutable bool mPending = false;
+        bool mOnce = false; ///< the clip plays once and holds its end (combat)
+        mutable SkyrimClipMeta::MetaFuture mMetaFuture;
+        mutable std::shared_ptr<const HavokPack::ClipMeta> mMeta;
+        mutable bool mSampled = false; ///< a one-shot clip has been sampled at least once
+        mutable float mPlaybackTime = 0.f; ///< playback seconds of the last sample of a one-shot clip
         mutable std::shared_ptr<const HavokPack::BoundClip> mClip;
         mutable std::vector<vsg::ref_ptr<Anim::Transform>> mTargets;
         mutable std::vector<HavokPack::Transform> mScratch;

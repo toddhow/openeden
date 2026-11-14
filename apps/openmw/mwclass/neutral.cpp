@@ -14,6 +14,7 @@
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 
 #include <vsg/maths/quat.h>
@@ -524,6 +525,15 @@ namespace MWClass
                     return dynamic_cast<openeden::sdk::game::ActorRules*>(
                         worldStore != nullptr ? worldStore->source(gameId) : nullptr);
                 });
+                // Task 0170 (combat stage S5-2): the same source may also implement the combat hooks.
+                if (dynamic_cast<openeden::sdk::game::CombatRules*>(source) != nullptr)
+                    physics->setNeutralCombatResolver([gameId]() -> openeden::sdk::game::CombatRules* {
+                        MWBase::ExtensionManager* manager = MWBase::Environment::get().getExtensionManager();
+                        NeutralWorld::NeutralWorldStore* worldStore
+                            = manager != nullptr ? manager->neutralWorldStore() : nullptr;
+                        return dynamic_cast<openeden::sdk::game::CombatRules*>(
+                            worldStore != nullptr ? worldStore->source(gameId) : nullptr);
+                    });
                 if (const auto reference = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum()))
                     physics->announceNeutralActor(ptr, *reference, base.mBase, base.mEditorId);
             }

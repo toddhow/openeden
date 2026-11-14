@@ -82,6 +82,8 @@ namespace MWRender
         void setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes) override;
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
+        void playNeutralActorClip(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
+        HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& ptr) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
         /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of

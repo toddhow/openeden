@@ -254,6 +254,7 @@ file(GLOB UNITTEST_SRC_FILES
     havokpack/testspline.cpp
     havokpack/testexport.cpp
     havokpack/testanimationdata.cpp
+    havokpack/testclipevents.cpp
     havokpack/testfloattracks.cpp
     havokpack/testexportmotion.cpp
     havokpack/testidle.cpp
@@ -530,6 +531,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimseactorrules.cpp
     skyrimse/testskyrimsecombat.cpp
+    skyrimse/testskyrimsecombatslots.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp
     skyrimse/testskyrimseactorgoto.cpp

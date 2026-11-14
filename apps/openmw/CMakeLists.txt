@@ -47,7 +47,7 @@ source_group(apps/openmw FILES main.cpp androidmain.cpp ${OPENMW_SOURCES} ${OPEN
 
 add_openmw_dir (mwrender
     mask bin rendermode renderinginterface renderpass intersect rendermanager texturemipsdriver terrainstorage landmanager lodterrain lodclusters puddlemap
-    animcontext bodyparts bodylegacy mergedbody partslots partreaderrorlog skyrimmodel skyrimtreesway skyrimactor skyrimidle skyrimpose skyrimlocomotion skyrimlip wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
+    animcontext bodyparts bodylegacy mergedbody partslots partreaderrorlog skyrimmodel skyrimtreesway skyrimactor skyrimidle skyrimpose skyrimclipmeta skyrimlocomotion skyrimlip wieldingcreature npc player scene camera itemlight autoplaytrace effect effects projectiles spellcastglow transparency
     env weather weatherdata
     map mapdepthrange worldmap preview shadow pointshadows
     fogmanager water screenshotinterface bonepose footikmath actorikcontroller actorragdolldriver joltdebugdraw navmesh creativemotiondriver animclip gltfclips creativemotionstyle weathereffects switches rain postprocess occlusionbox precipitationoccluder distantobjectcells animatedchunk distantobjects waterripples groundcoverinstances groundcoverbuild groundcover neutralgrass
@@ -113,7 +113,7 @@ add_openmw_dir (mwphysics
     physicssystem trace collisiontype actor convert object heightfield closestnotmerayresultcallback
     contacttestresultcallback stepper movementsolver projectile
     actorconvexcallback raycasting mtphysics water contacttestwrapper projectileconvexcallback
-    ragdollhost ragdollrigdata skyrimshape skyrimhavok neutralactor neutralmover neutralactorbridge neutralpathfollower neutralplanelinks neutralprocess neutraldoorswing
+    ragdollhost ragdollrigdata skyrimshape skyrimhavok neutralactor neutralmover neutralactorbridge neutralcombatbridge neutralpathfollower neutralplanelinks neutralprocess neutraldoorswing
     )
 
 add_openmw_dir (mwclass

@@ -29,6 +29,7 @@
 
 #include "neutralactor.hpp"
 #include "neutralactorbridge.hpp"
+#include "neutralcombatbridge.hpp"
 #include "neutraldoorswing.hpp"
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
@@ -288,6 +289,24 @@ namespace MWPhysics
         /// never cached, so a pack that stops cannot be called. Set it before announcing actors.
         using NeutralRulesResolver = std::function<openeden::sdk::game::ActorRules*()>;
         void setNeutralRulesResolver(NeutralRulesResolver resolver) { mNeutralRulesResolver = std::move(resolver); }
+
+        /// Task 0170 (combat stage S5-2): the game's CombatRules (null when it has none or the pack is gone), resolved on
+        /// every use like the actor rules. Only used with `[Game] neutral combat`.
+        using NeutralCombatResolver = std::function<openeden::sdk::game::CombatRules*()>;
+        void setNeutralCombatResolver(NeutralCombatResolver resolver) { mNeutralCombatResolver = std::move(resolver); }
+        /// Where the clip meta of an actor comes from (the renderer); null while it is still being read.
+        using NeutralClipMetaProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&)>;
+        void setNeutralClipMetaProvider(NeutralClipMetaProvider provider);
+        /// The clips the combat hooks started (a clip name) or stopped (empty) in the last updateNeutralActors; the
+        /// caller hands them to the renderer. Reserved with the other lists, so a frame does not allocate.
+        struct NeutralClipOp
+        {
+            MWWorld::Ptr mPtr;
+            std::string mClip;
+            bool mPerSex = false;
+        };
+        const std::vector<NeutralClipOp>& getNeutralClipOps() const { return mNeutralClipOps; }
+        [[nodiscard]] const NeutralCombatBridge::Stats& neutralCombatStats() const { return mNeutralCombat.stats(); }
 
         /// Tells the pack about a neutral actor that already has a body (addNeutralActor): `reference` is the
         /// placement id and `base` the base id in the pack's terms. Does nothing without a body, a resolver or rules.
@@ -570,6 +589,25 @@ namespace MWPhysics
         };
         NeutralRulesResolver mNeutralRulesResolver;
         NeutralActorBridge mNeutralBridge;
+        // Task 0170: the combat hooks' clips. The sink turns a clip request into an op for the renderer.
+        class NeutralClipApplier final : public NeutralClipSink
+        {
+        public:
+            explicit NeutralClipApplier(PhysicsSystem& physics)
+                : mPhysics(physics)
+            {
+            }
+            void playClip(const void* key, std::string_view clip, bool perSex) override;
+            void stopClip(const void* key) override;
+
+        private:
+            PhysicsSystem& mPhysics;
+        };
+        NeutralCombatResolver mNeutralCombatResolver;
+        NeutralClipMetaFn mNeutralClipMeta;
+        NeutralCombatBridge mNeutralCombat{ mNeutralBridge };
+        NeutralClipApplier mNeutralClipApplier{ *this };
+        std::vector<NeutralClipOp> mNeutralClipOps;
         NeutralRequestApplier mNeutralApplier{ *this };
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
         void followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace);

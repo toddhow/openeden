@@ -156,6 +156,17 @@ namespace MWPhysics
         return {};
     }
 
+    const void* NeutralActorBridge::keyOfHandle(ActorHandle handle) const
+    {
+        if (handle.session == 0)
+            return nullptr;
+        const auto found = std::lower_bound(mEntries.begin(), mEntries.end(), handle.session,
+            [](const Entry& entry, std::uint32_t session) { return entry.mHandle.session < session; });
+        if (found == mEntries.end() || found->mHandle != handle)
+            return nullptr;
+        return found->mKey;
+    }
+
     const void* NeutralActorBridge::Writer::keyOf(ActorHandle handle)
     {
         if (mSink == nullptr)

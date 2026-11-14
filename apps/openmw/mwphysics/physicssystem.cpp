@@ -379,6 +379,7 @@ namespace MWPhysics
         mHeightFields.clear();
         mObjects.clear();
         mNeutralBridge.clear(); // silently: the pack may be unloaded already
+        mNeutralCombat.clear();
         mNeutralActors.clear();
         mActors.clear();
         mProjectiles.clear();
@@ -1238,6 +1239,42 @@ namespace MWPhysics
         }
     }
 
+    void PhysicsSystem::setNeutralClipMetaProvider(NeutralClipMetaProvider provider)
+    {
+        mNeutralClipMeta = [this, provider = std::move(provider)](const void* key) {
+            const auto entry = std::find_if(mNeutralActors.begin(), mNeutralActors.end(),
+                [&](const NeutralActorEntry& e) { return e.mRef == key; });
+            if (entry == mNeutralActors.end())
+                return HavokPack::ClipProgress();
+            const auto found = mObjects.find(entry->mRef);
+            if (found == mObjects.end())
+                return HavokPack::ClipProgress();
+            return provider(found->second->getPtr());
+        };
+    }
+
+    void PhysicsSystem::NeutralClipApplier::playClip(const void* key, std::string_view clip, bool perSex)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return;
+        mPhysics.mNeutralClipOps.push_back({ found->second->getPtr(), std::string(clip), perSex });
+    }
+
+    void PhysicsSystem::NeutralClipApplier::stopClip(const void* key)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return;
+        mPhysics.mNeutralClipOps.push_back({ found->second->getPtr(), std::string(), false });
+    }
+
     PhysicsSystem::NeutralActorEntry* PhysicsSystem::findNeutralActor(const void* key)
     {
         for (NeutralActorEntry& entry : mNeutralActors)
@@ -1433,6 +1470,7 @@ namespace MWPhysics
         mNeutralSpeeds.clear();
         mNeutralPoseChanges.clear();
         mNeutralDoorsMoved.clear();
+        mNeutralClipOps.clear();
         if (mNeutralActors.empty())
             return;
         // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every
@@ -1442,6 +1480,12 @@ namespace MWPhysics
         // Stage S3: the pack writes its movement requests first; the developer aid below, if set, still wins.
         if (mNeutralBridge.size() != 0 && mNeutralRulesResolver)
             mNeutralBridge.update(mNeutralRulesResolver(), dt, mNeutralApplier);
+        // Task 0170: the combat hooks run right after the actor rules (clip events first, then combatUpdate).
+        if (mNeutralCombatResolver && Settings::game().mNeutralCombat.get())
+        {
+            mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
+            mNeutralCombat.update(mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta);
+        }
         const auto costAfterPack = costTrace ? std::chrono::steady_clock::now() : costStart;
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
         const bool useLevels = Settings::game().mNeutralActorProcessLevels.get() && mNeutralFocusValid;

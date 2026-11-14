@@ -172,6 +172,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testskyrimhavok.cpp
     mwphysics/testneutralactor.cpp
     mwphysics/testneutralactorbridge.cpp
+    mwphysics/testneutralcombatbridge.cpp
+    mwrender/testskyrimcombatclips.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp
     mwphysics/testneutralpathfollower.cpp

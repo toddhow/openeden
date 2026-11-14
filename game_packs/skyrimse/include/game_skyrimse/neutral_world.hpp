@@ -215,8 +215,16 @@ namespace game_skyrimse
         bool readyForConversation(openeden::sdk::game::WorldId reference) override;
         void cancelPreparedConversation(openeden::sdk::game::WorldId reference) override;
         /// Actor hooks (task 0135, stage S3): handled by the pack's own table.
-        void onActorAdded(const openeden::sdk::game::ActorInfo& info) override { mActors.onActorAdded(info); }
-        void onActorRemoved(openeden::sdk::game::ActorHandle handle) override { mActors.onActorRemoved(handle); }
+        void onActorAdded(const openeden::sdk::game::ActorInfo& info) override
+        {
+            mActors.onActorAdded(info);
+            mCombat.onActorAdded(info);
+        }
+        void onActorRemoved(openeden::sdk::game::ActorHandle handle) override
+        {
+            mActors.onActorRemoved(handle);
+            mCombat.onActorRemoved(handle);
+        }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
         {
             mActors.update(seconds, writer);

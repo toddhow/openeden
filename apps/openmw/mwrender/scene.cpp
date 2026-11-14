@@ -474,6 +474,36 @@ namespace MWRender
             }
     }
 
+    void Scene::playNeutralActorClip(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+            {
+                pose->playOnce(clip, perSex);
+                return;
+            }
+    }
+
+    HavokPack::ClipProgress Scene::neutralActorClipProgress(const MWWorld::Ptr& ptr)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return {};
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return {};
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+                return pose->progress();
+        return {};
+    }
+
     bool Scene::removeObject(const MWWorld::Ptr& ptr)
     {
         auto cell = getCell(ptr, ptr.getClass().isActor());

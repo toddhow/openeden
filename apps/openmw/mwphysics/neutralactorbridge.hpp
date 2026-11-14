@@ -137,6 +137,10 @@ namespace MWPhysics
         /// The handle registered for `key`; invalid when there is none.
         [[nodiscard]] openeden::sdk::game::ActorHandle handleOf(const void* key) const;
 
+        /// Task 0170: the key behind a handle, or null when the handle is not (or no longer) registered. Unlike the
+        /// writer's lookup it counts nothing and works outside update().
+        [[nodiscard]] const void* keyOfHandle(openeden::sdk::game::ActorHandle handle) const;
+
     private:
         struct Entry
         {

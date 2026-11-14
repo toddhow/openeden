@@ -1,5 +1,6 @@
 #include "skyrimpose.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 
@@ -24,6 +25,11 @@ namespace MWRender::SkyrimPose
         if (!clip.empty())
             future = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
         const std::lock_guard lock(mMutex);
+        mOnce = false;
+        mSampled = false;
+        mPlaybackTime = 0.f;
+        mMetaFuture = {};
+        mMeta.reset();
         mActive = !clip.empty();
         if (clip.empty())
         {
@@ -35,6 +41,36 @@ namespace MWRender::SkyrimPose
         mFuture = std::move(future);
         mPending = mActive;
         mNeedStart = mActive;
+    }
+
+    void Controller::playOnce(std::string_view clip, bool perSex)
+    {
+        if (clip.empty())
+        {
+            setClip({}, false);
+            return;
+        }
+        SkyrimIdle::ClipFuture future
+            = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
+        SkyrimClipMeta::MetaFuture metaFuture = SkyrimClipMeta::loadAsync(mVfs, mFemale, std::string(clip), future);
+        const std::lock_guard lock(mMutex);
+        mOnce = true;
+        mSampled = false;
+        mPlaybackTime = 0.f;
+        mMetaFuture = std::move(metaFuture);
+        mMeta.reset();
+        mActive = true;
+        mFuture = std::move(future);
+        mPending = true;
+        mNeedStart = true;
+    }
+
+    HavokPack::ClipProgress Controller::progress() const
+    {
+        const std::lock_guard lock(mMutex);
+        if (!mMeta && mMetaFuture.valid() && mMetaFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            mMeta = mMetaFuture.get();
+        return { mMeta, mOnce && mSampled, mPlaybackTime };
     }
 
     bool Controller::active() const
@@ -114,7 +150,21 @@ namespace MWRender::SkyrimPose
             mNeedStart = false;
             mStart = time;
         }
-        HavokPack::samplePose(*mClip, time - mStart, mScratch);
+        float at = time - mStart;
+        if (mOnce)
+        {
+            // Combat clips play once at the generator's speed and hold their last pose (samplePose wraps).
+            if (!mMeta && mMetaFuture.valid() && mMetaFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                mMeta = mMetaFuture.get();
+            const float speed = mMeta ? mMeta->speed() : 1.f;
+            const float duration = mClip->mClip.mDuration;
+            mSampled = true;
+            mPlaybackTime = std::max(0.f, at);
+            at = std::max(0.f, at) * speed;
+            if (duration > 0.f)
+                at = std::min(at, duration - 1e-4f);
+        }
+        HavokPack::samplePose(*mClip, at, mScratch);
         for (std::size_t i = 0; i < mTargets.size(); ++i)
             if (mTargets[i])
                 SkyrimIdle::apply(mScratch[i], *mTargets[i]);

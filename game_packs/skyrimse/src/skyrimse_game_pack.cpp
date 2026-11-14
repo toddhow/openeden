@@ -143,6 +143,13 @@ namespace game_skyrimse
                             "the setting '" + std::string(kActorTestWalkKey) + "' is too long; the test walk is off");
                     else if (!walker.empty())
                         say(openeden::sdk::LogLevel::Info, "actor test walk: actors named " + walker + " pace");
+                    // Task 0170 (combat stage S5-2): the test swing, off unless the setting names an editor id.
+                    const std::string swinger = settings->getString(kPackId, kCombatTestSwingKey, "");
+                    if (!mCellSource.combat().setTestSwing(swinger))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestSwingKey) + "' is too long; the test swing is off");
+                    else if (!swinger.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test swing: actors named " + swinger + " swing");
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
                     if (!mCellSource.actorTable().setTestGoto(goer))

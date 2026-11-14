@@ -2,8 +2,11 @@
 #define GAME_RENDERING_INTERFACE_H
 
 #include <array>
+#include <memory>
 #include <string>
 #include <string_view>
+
+#include <components/havokpack/clipevents.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
 
@@ -41,6 +44,14 @@ namespace MWRender
         /// actor's animations folder, no extension; `perSex` when it is in the male/female sub-folder) over the idle,
         /// an empty name takes the pose off. Does nothing for an object without a pose controller. Main thread.
         virtual void setNeutralActorPose(const MWWorld::Ptr& /*ptr*/, std::string_view /*clip*/, bool /*perSex*/) {}
+
+        /// Task 0170 (combat): plays the named clip ONCE on a drawn neutral actor, over the idle, and holds its last pose
+        /// until it is stopped; an empty name stops it (the idle shows again). Does nothing without a pose controller.
+        virtual void playNeutralActorClip(const MWWorld::Ptr& /*ptr*/, std::string_view /*clip*/, bool /*perSex*/) {}
+
+        /// Task 0170: the meta of the clip playNeutralActorClip started and how far its sampling has got (empty for an
+        /// actor with no such clip).
+        virtual HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& /*ptr*/) { return {}; }
     };
 }
 

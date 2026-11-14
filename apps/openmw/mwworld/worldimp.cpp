@@ -82,6 +82,8 @@
 #include "../mwmechanics/spellutil.hpp"
 #include "../mwmechanics/summoning.hpp"
 
+#include <components/havokpack/clipevents.hpp>
+
 #include "../mwrender/camera.hpp"
 #include "../mwrender/rendermanager.hpp"
 
@@ -328,6 +330,11 @@ namespace MWWorld
             mNavigator = DetourNavigator::makeNavigatorStub();
         }
         mRendering->setNavigator(mNavigator.get());
+
+        // Task 0170 (combat stage S5-2): the clip meta of a neutral actor's combat clip comes from its pose controller.
+        mPhysics->setNeutralClipMetaProvider([this](const MWWorld::Ptr& ptr) {
+            return mRendering->getObjects().neutralActorClipProgress(ptr);
+        });
 
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
         // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.
@@ -1486,6 +1493,9 @@ namespace MWWorld
             // Task 0135 stage S6b: a sit or sleep pose starts or ends.
             for (const auto& change : mPhysics->getNeutralPoseChanges())
                 mRendering->getObjects().setNeutralActorPose(change.mPtr, change.mClip, change.mClipPerSex);
+            // Task 0170: a combat clip starts (a name) or stops (empty) on a drawn neutral actor.
+            for (const auto& op : mPhysics->getNeutralClipOps())
+                mRendering->getObjects().playNeutralActorClip(op.mPtr, op.mClip, op.mPerSex);
             // Task 0148: the locomotion blend of a drawn neutral actor follows the speed it really moved at.
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())
