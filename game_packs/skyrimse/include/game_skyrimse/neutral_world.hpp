@@ -12,11 +12,13 @@
 // compilers. Nothing throws: a failure is `false` plus a located message.
 
 #include <game_skyrimse/actor_table.hpp>
+#include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_mechanics.hpp>
+#include <openeden/game/combat_rules.hpp>
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
@@ -151,6 +153,7 @@ namespace game_skyrimse
                                    public openeden::sdk::game::DialogueSource,
                                    public openeden::sdk::game::DisplayNameSource,
                                    public openeden::sdk::game::ActorRules,
+                                   public openeden::sdk::game::CombatRules,
                                    public openeden::sdk::game::CellWaterSource,
                                    public openeden::sdk::game::WeatherSource,
                                    public openeden::sdk::game::GrassSource
@@ -223,6 +226,18 @@ namespace game_skyrimse
             mActors.onGoalFinished(handle, result);
         }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
+        /// Combat hooks (task 0168, stage S5-0): the pack's skeleton, which refuses and counts; nothing calls it yet.
+        void onClipEvent(const openeden::sdk::game::ClipEvent& event) override { mCombat.onClipEvent(event); }
+        void onSweepResult(openeden::sdk::game::ActorHandle actor, std::uint32_t token,
+            const openeden::sdk::game::SweepHit* hits, std::size_t count) override
+        {
+            mCombat.onSweepResult(actor, token, hits, count);
+        }
+        void combatUpdate(float seconds, openeden::sdk::game::CombatRequestWriter& writer) override
+        {
+            mCombat.combatUpdate(seconds, writer);
+        }
+        [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -233,6 +248,7 @@ namespace game_skyrimse
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
+        SkyrimCombat mCombat;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

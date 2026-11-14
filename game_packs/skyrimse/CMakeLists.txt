@@ -28,6 +28,8 @@ openeden_add_game_pack(skyrimse
         src/world_view.cpp
         src/neutral_world.cpp
         src/actor_table.cpp
+    src/combat.cpp
+        src/combat.cpp
         src/actor_mechanics.cpp
         src/survey.cpp
         src/survey_scripts.cpp
@@ -63,6 +65,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/world_view.hpp
         include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/actor_table.hpp
+        include/game_skyrimse/combat.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
@@ -112,6 +115,7 @@ add_library(game_skyrimse_world STATIC
     src/world_view.cpp
     src/neutral_world.cpp
     src/actor_table.cpp
+    src/combat.cpp
     src/actor_mechanics.cpp
     src/survey.cpp
     src/survey_scripts.cpp

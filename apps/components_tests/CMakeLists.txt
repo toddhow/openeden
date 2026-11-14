@@ -529,6 +529,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimseactorrules.cpp
+    skyrimse/testskyrimsecombat.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp
     skyrimse/testskyrimseactorgoto.cpp
@@ -627,6 +628,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/world_view.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_table.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_mechanics.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/survey_scripts.cpp

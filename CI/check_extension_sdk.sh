@@ -143,3 +143,10 @@ case "$last_host_virtual" in
     *getWorldSourceService*) ;;
     *) echo 'Host::getWorldSourceService() must stay the last virtual function of sdk/include/openeden/host.hpp (add new ones after it, with their own task)'; exit 1 ;;
 esac
+
+# Task 0168 (milestone M-S5, stage S5-0): the combat hooks are a DRAFT interface of their own (decision 0018): they state
+# their version policy and stay at major version 0 until a first consumer exists.
+if ! grep -q 'Version policy: DRAFT' sdk/include/openeden/game/combat_rules.hpp || ! grep -Eq 'kCombatRulesVersion\{ 0, [0-9]+ \}' sdk/include/openeden/game/combat_rules.hpp; then
+    echo 'sdk/include/openeden/game/combat_rules.hpp must keep its version policy and kCombatRulesVersion at major version 0 (decision 0018)'
+    exit 1
+fi
