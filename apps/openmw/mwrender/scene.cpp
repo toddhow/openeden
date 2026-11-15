@@ -1,6 +1,8 @@
 #include "scene.hpp"
 
 #include <algorithm>
+#include <filesystem>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -45,6 +47,8 @@
 #include "skyrimlip.hpp"
 #include "skyrimlocomotion.hpp"
 #include "skyrimpose.hpp"
+#include "skyrimragdoll.hpp"
+#include "skyrimragdollmap.hpp"
 #include <cstdlib>
 
 #include "switches.hpp"
@@ -379,7 +383,51 @@ namespace MWRender
             anim.keepAlive.push_back(controller);
             addPose();
         }
+
+        // Task 0174 (S5-5): the death ragdoll's bone table for a skeleton, made once per skeleton file and process
+        // (the baked map is read from or written to <user data>/openeden/skeletonmaps). A skeleton that gives no table
+        // (a creature's, a damaged one) is remembered as such and logged once.
+        std::mutex sRagdollTableMutex;
+        std::map<std::string, std::shared_ptr<const SkyrimRagdoll::BoneTable>> sRagdollTables;
+
+        std::shared_ptr<const SkyrimRagdoll::BoneTable> ragdollTableFor(
+            const std::string& skeletonPath, const VFS::Manager& vfs)
+        {
+            std::scoped_lock lock(sRagdollTableMutex);
+            const auto found = sRagdollTables.find(skeletonPath);
+            if (found != sRagdollTables.end())
+                return found->second;
+            std::shared_ptr<const SkyrimRagdoll::BoneTable> table;
+            NifScene::Skeleton::Plan plan;
+            std::string error;
+            if (SkyrimActor::readSkeletonPlan(vfs, skeletonPath, plan, error))
+                table = SkyrimRagdoll::makeBoneTable(plan, SkyrimRagdoll::configuredMapFolder(), error);
+            if (table)
+                Log(Debug::Info) << "Ragdoll bones for " << skeletonPath << ": " << table->resolved() << " of "
+                                 << table->set().mMappings.size() << " rig bones (" << table->origin()
+                                 << " skeleton map " << table->digest().substr(0, 16) << ")";
+            else
+                Log(Debug::Warning) << "No death ragdoll for the skeleton " << skeletonPath << ": " << error
+                                    << " (its actors keep the death clip's last pose)";
+            sRagdollTables.emplace(skeletonPath, table);
+            return table;
+        }
+
+        void attachNeutralRagdoll(const openeden::sdk::game::ActorAppearance& appearance, MWAnim::ObjectAnimation& anim,
+            const VFS::Manager& vfs)
+        {
+            if (!anim.animation)
+                return;
+            std::shared_ptr<const SkyrimRagdoll::BoneTable> table = ragdollTableFor(appearance.skeletonPath, vfs);
+            if (!table)
+                return;
+            auto controller = vsg::ref_ptr<SkyrimRagdoll::Controller>(
+                new SkyrimRagdoll::Controller(std::move(table), anim.animation->bones, anim.transform()));
+            anim.addController(controller, anim.transform());
+            anim.keepAlive.push_back(controller);
+        }
     }
+
 
     void Scene::insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
     {
@@ -409,6 +457,9 @@ namespace MWRender
                             << " draws | " << SkyrimActor::describeTotals();
         if (Settings::game().mNeutralActorIdles)
             attachNeutralIdle(ptr, appearance, *anim, *resources->getVFS());
+        // Task 0174: after the pose controllers, so that the ragdoll's bone writes win once it is armed.
+        if (Settings::game().mNeutralCombat && Settings::physics().mCreativeMotionRagdolls)
+            attachNeutralRagdoll(appearance, *anim, *resources->getVFS());
         if (report.mLip)
             anim->keepAlive.push_back(report.mLip); // found again by setNeutralMouth; dies with the object
         loadTransform(ptr, *anim->transform());
@@ -503,6 +554,50 @@ namespace MWRender
             if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
                 return pose->progress();
         return {};
+    }
+
+    SkyrimRagdoll::Controller* Scene::findNeutralRagdoll(const MWWorld::Ptr& ptr)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return nullptr;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return nullptr;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* ragdoll = dynamic_cast<SkyrimRagdoll::Controller*>(kept.get()))
+                return ragdoll;
+        return nullptr;
+    }
+
+    bool Scene::neutralRagdollStartPose(const MWWorld::Ptr& ptr, MWPhysics::ActorStartPose& out)
+    {
+        SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr);
+        return ragdoll != nullptr && ragdoll->startPose(out);
+    }
+
+    bool Scene::beginNeutralRagdoll(const MWWorld::Ptr& ptr, std::span<const std::string> names,
+        std::span<const MWPhysics::RagdollBoneState> initial, std::string& reason)
+    {
+        SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr);
+        if (ragdoll == nullptr)
+        {
+            reason = "the actor has no ragdoll controller";
+            return false;
+        }
+        return ragdoll->arm(names, initial, reason);
+    }
+
+    void Scene::setNeutralRagdollStates(const MWWorld::Ptr& ptr, std::span<const MWPhysics::RagdollBoneState> states)
+    {
+        if (SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr))
+            ragdoll->setStates(states);
+    }
+
+    void Scene::endNeutralRagdoll(const MWWorld::Ptr& ptr)
+    {
+        if (SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr))
+            ragdoll->disarm();
     }
 
     std::shared_ptr<const HavokPack::ClipMeta> Scene::neutralClipMeta(std::string_view clip, bool perSex)

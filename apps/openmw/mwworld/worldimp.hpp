@@ -147,6 +147,9 @@ namespace MWWorld
         ///< Run physics simulation and modify \a world accordingly.
 
         void updateNavigator();
+        // Task 0174 (S5-5): death ragdolls of neutral actors (doPhysics).
+        void startNeutralRagdoll(const MWWorld::Ptr& ptr);
+        void updateNeutralRagdolls();
 
         void updateNavigatorObject(
             const MWPhysics::Object& object, const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);

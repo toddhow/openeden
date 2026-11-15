@@ -38,6 +38,11 @@ namespace Render::PointShadow
 }
 namespace MWRender
 {
+    namespace SkyrimRagdoll
+    {
+        class Controller;
+    }
+
     /*
      * Manages attached objects.
      */
@@ -78,6 +83,7 @@ namespace MWRender
         void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true) override;
 
     private:
+        SkyrimRagdoll::Controller* findNeutralRagdoll(const MWWorld::Ptr& ptr);
         std::unique_ptr<MWAnim::Object> giveSceneryKeyframes(std::unique_ptr<MWAnim::Object> plain,
             const MWWorld::Ptr& ptr, const std::string& mesh, const ESM::Light* light, MWAnim::Context& ctx);
 
@@ -91,6 +97,12 @@ namespace MWRender
         void playNeutralActorClip(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
         HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& ptr) override;
         std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view clip, bool perSex) override;
+        bool neutralRagdollStartPose(const MWWorld::Ptr& ptr, MWPhysics::ActorStartPose& out) override;
+        bool beginNeutralRagdoll(const MWWorld::Ptr& ptr, std::span<const std::string> names,
+            std::span<const MWPhysics::RagdollBoneState> initial, std::string& reason) override;
+        void setNeutralRagdollStates(
+            const MWWorld::Ptr& ptr, std::span<const MWPhysics::RagdollBoneState> states) override;
+        void endNeutralRagdoll(const MWWorld::Ptr& ptr) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
         /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of

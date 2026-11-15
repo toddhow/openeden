@@ -46,6 +46,24 @@ namespace MWRender
     };
     std::span<const RagdollBoneMapping> ragdollBoneMappings();
 
+    /// Task 0174: the bones of another skeleton. The mapping lists the 17 rig bones in the order of
+    /// ragdollBoneMappings() (the pelvis first, parents before children); an entry whose mEngineBone is empty has no
+    /// bone in the skeleton and is skipped, like a bone the actor lacks. mRootBone names the pelvis bone's parent,
+    /// which turns the pelvis' world position into a local one (null: the pelvis does not translate). The strings and
+    /// the span must outlive everything built from the set.
+    struct RagdollBoneSet
+    {
+        std::span<const RagdollBoneMapping> mMappings;
+        const char* mRootBone = nullptr;
+        /// Task 0174. False (Morrowind): the pelvis bone itself takes the translation, which carries the whole body
+        /// because every other bone hangs below it. True (Skyrim: the spine is the pelvis' SIBLING, both under the
+        /// "COM" bone): the pelvis' parent takes it, placed so that the pelvis origin lands where the ragdoll's pelvis
+        /// is, and the spine goes with it.
+        bool mTranslateRootBone = false;
+    };
+    /// Morrowind's bones (ragdollBoneMappings(), root "bip01").
+    RagdollBoneSet morrowindRagdollBones();
+
     /// The actor's bones in their REST pose (the pose the model has before any animation runs), model space, for the 17
     /// mapped bones. Read once when the actor's pose controllers are made (CharacterController::createPoseControllers),
     /// so that a death can tell the pose the actor was in from the way its bone axes differ from the rig's.
@@ -55,6 +73,8 @@ namespace MWRender
     public:
         /// Reads the mapped bones' model space rotations now. isValid() is false when the pelvis bone is missing.
         explicit ActorRagdollRest(Anim::Bones& bones);
+        /// Task 0174: the same for another skeleton's bone set.
+        ActorRagdollRest(Anim::Bones& bones, const RagdollBoneSet& set);
 
         bool isValid() const { return mValid; }
         /// Index = the mapping's index (ragdollBoneMappings()).
@@ -72,6 +92,8 @@ namespace MWRender
     /// (BonePose::find allocates).
     bool makeActorStartPose(
         Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest, MWPhysics::ActorStartPose& out);
+    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
+        const RagdollBoneSet& set, MWPhysics::ActorStartPose& out);
 
     /**
      * @brief Draws a dead NPC's skeleton from its CreativeMotion ragdoll (task 0106).
@@ -92,6 +114,9 @@ namespace MWRender
         /// Reads the actor's current bones and the ragdoll's first state to capture the offsets. Invalid (isValid()
         /// false, reason()) when the source lacks a mapped rig bone, or the actor lacks a mapped bone.
         ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source);
+        /// Task 0174: another skeleton's bones (the set must outlive the driver).
+        ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source,
+            const RagdollBoneSet& set);
         ~ActorRagdollDriver();
 
         ActorRagdollDriver(const ActorRagdollDriver&) = delete;
@@ -119,6 +144,8 @@ namespace MWRender
         std::vector<Driven> mDriven;
         std::vector<MWPhysics::RagdollBoneState> mStates;
         BonePose::Bone mPelvisParent;
+        BonePose::Bone mPelvisGrandParent; // only with mTranslateRootBone; empty: the model root
+        bool mTranslateRootBone = false;
         std::size_t mPelvisDriven = 0; // index into mDriven
         vsg::dvec3 mActorPelvisAtSpawn;
         vsg::dvec3 mRagdollPelvisAtSpawn;
