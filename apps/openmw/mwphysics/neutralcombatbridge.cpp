@@ -118,6 +118,13 @@ namespace MWPhysics
         mDead.reserve(NeutralActorBridge::kMaxActors);
     }
 
+    std::size_t NeutralCombatBridge::reservedBytes() const
+    {
+        return mPlaying.capacity() * sizeof(Playing) + mLate.capacity() * sizeof(Finished)
+            + mResults.capacity() * sizeof(SweepResult) + mCandidates.capacity() * sizeof(NeutralSweep::Candidate)
+            + mDead.capacity() * sizeof(ActorHandle);
+    }
+
     void NeutralCombatBridge::clear()
     {
         mPlaying.clear();

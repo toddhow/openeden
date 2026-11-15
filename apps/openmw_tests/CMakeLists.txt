@@ -178,7 +178,9 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralcombatsight.cpp
     mwphysics/testneutralcombatclock.cpp
     mwphysics/testneutralcombathit.cpp
+    mwphysics/testneutralcombatreview.cpp
     mwrender/testskyrimcombatclips.cpp
+    mwrender/testplayerclipmeta.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp
     mwphysics/testneutralpathfollower.cpp

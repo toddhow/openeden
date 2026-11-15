@@ -275,6 +275,11 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::combatReady()
+    {
+        return true; // stub: the worker comes after the tests
+    }
+
     CombatSettings SkyrimWorldView::settings()
     {
         if (!awaitIndex() || !ensureCombatIndex())

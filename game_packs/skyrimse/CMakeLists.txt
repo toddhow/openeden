@@ -28,7 +28,6 @@ openeden_add_game_pack(skyrimse
         src/world_view.cpp
         src/neutral_world.cpp
         src/actor_table.cpp
-    src/combat.cpp
         src/combat.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp

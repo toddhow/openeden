@@ -126,9 +126,15 @@ namespace MWPhysics
             std::uint64_t mDamageReports = 0;
             std::uint64_t mDamageRefused = 0;
             std::uint64_t mDeaths = 0;
+            std::uint64_t mDeadTableFull = 0; ///< deaths not recorded: kMaxDead living actors are dead already
+            std::uint64_t mWriterFailures = 0; ///< a call into the engine (sink, world, meta) that threw: caught here
         };
 
         static constexpr std::size_t kMaxPlaying = 64;
+        /// Corpses remembered at once (review fix of task 0171: pruned of actors that are gone, never grows).
+        static constexpr std::size_t kMaxDead = 1024;
+        /// Updates between two prunes of the dead list (it is also pruned when it is full).
+        static constexpr std::size_t kDeadPruneUpdates = 64;
         static constexpr float kMetaTimeoutSeconds = 5.f;
         static constexpr std::size_t kMaxPendingResults = 64;
         static constexpr std::size_t kMaxCandidates = 4096;
@@ -156,6 +162,11 @@ namespace MWPhysics
         void clear();
 
         [[nodiscard]] std::size_t playing() const { return mPlaying.size(); }
+        /// Actors told dead and still remembered.
+        [[nodiscard]] std::size_t deadCount() const { return mDead.size(); }
+        /// Bytes the tables hold in reserve now: 0 until the first update with rules (a session without combat pays
+        /// nothing, review fix of task 0171).
+        [[nodiscard]] std::size_t reservedBytes() const;
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
     private:

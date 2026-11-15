@@ -65,6 +65,9 @@ namespace game_skyrimse
     /// Seconds between two attacks of a hostile test actor.
     inline constexpr float kHostileAttackPeriod = 2.5f;
     inline constexpr std::size_t kMaxCombatFighters = 4096;
+    /// A sweep asked for and not answered after this many updates is forgotten (the engine answers in the next one; a
+    /// result it dropped, for an attacker that had gone for instance, must not hold a table slot for ever).
+    inline constexpr std::size_t kSweepAnswerUpdates = 2;
 
     /// Seconds before the first test swing and between two (the 1HM_AttackRight clip lasts 1.3 s).
     inline constexpr float kTestSwingFirstDelay = 3.f;
@@ -96,6 +99,11 @@ namespace game_skyrimse
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.
         virtual const WeaponRecord* weaponByEditorId(std::string_view editorId) = 0;
         virtual CombatSettings settings() = 0;
+        /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
+        /// start of every update and does nothing for that update while it is false (no swing, no hit): the data's
+        /// first use may need records that a worker is still reading (review fix of task 0171: nothing here may block
+        /// the main thread). The first call may start that read. Default: always ready (a test's fake).
+        virtual bool combatReady() { return true; }
     };
 
     /// The table slot (attack, block, ...) x weapon animation type (WEAP DNAM +0, 0 to 9) -> clip file name.
@@ -196,6 +204,10 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t clipsFinished() const { return mClipsFinished; }
         [[nodiscard]] std::size_t clipsCompleted() const { return mClipsCompleted; }
         [[nodiscard]] std::size_t hitsResolved() const { return mHitsResolved; }
+        /// Sweeps asked for whose result has not come (review fix of task 0171).
+        [[nodiscard]] std::size_t pendingSweeps() const { return mAwaiting.size(); }
+        /// Updates that did nothing because the data was not ready yet.
+        [[nodiscard]] std::size_t updatesWaitingForData() const { return mWaitingForData; }
 
     private:
         struct Fighter
@@ -218,6 +230,7 @@ namespace game_skyrimse
             openeden::sdk::game::CombatSubject mSubject;
             std::uint32_t mToken = 0;
             bool mPower = false;
+            std::size_t mAskedAt = 0; ///< mUpdates when the sweep was asked for (mAwaiting only)
         };
         struct SweepDelivery
         {
@@ -262,12 +275,19 @@ namespace game_skyrimse
         bool mPlayerHitDone = false;
         float mPlayerSwingStart = 0.f;
         std::uint32_t mPlayerSwingToken = 0;
+        // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added actor
+        // beyond that, never one per frame). kMaxCombatFighters bounds it.
         std::vector<Fighter> mFighters; ///< index 0 is the player
         std::vector<PendingHit> mPendingHits; ///< Hit events seen since the last combatUpdate
         std::vector<PendingHit> mAwaiting; ///< sweeps asked for, result not here yet
         std::vector<SweepDelivery> mDeliveries; ///< sweep results waiting for the next combatUpdate
         std::function<void(const std::string&)> mTrace;
         std::function<void(const std::string&)> mWarning;
+        // The timing of the player's two attack clips, once known: asking the engine again is then never needed.
+        openeden::sdk::game::ClipTiming mKnownTiming[2];
+        bool mHaveTiming[2] = { false, false };
+        std::size_t mWaitingForData = 0;
+        bool mWarnedAwaitingFull = false;
         float mPlayerHitTime = 0.f; ///< of the swing that runs: from the sidecar
         float mPlayerSwingLength = 0.f;
         bool mPlayerTimingKicked = false; ///< the read of the player's attack clip sidecars was started
