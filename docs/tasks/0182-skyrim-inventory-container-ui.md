@@ -131,7 +131,7 @@ real-data test. Engine (`NeutralInventory*`): 3 of 3 red against a stub, then pa
 backend (`SkyrimInventoryWindows`): 8 of 8 red with the module absent, then pass (including a test that 20 frames with
 nothing changed make 0 protocol calls). The bindings tests needed one fix of the TEST after the first green build (the
 temporary plugin was not named `test.esp`, so its own ids did not resolve); the code did not change. `openmw-tests`
-2,677 pass, `components-tests` (without the Slang, complement and property groups) see below. Existing tests edited: none.
+2,677 pass, `components-tests` (without the Slang, complement and property groups, with `OPENEDEN_SKYRIMSE_DATA` set) 10,633 pass. Existing tests edited: none.
 
 **Real data** (`SkyrimInventoryRealData`, the five masters, printed aggregates): 10,108 items, 591 CONT, 0 odd subrecords,
 0 failed, 0 unresolved ids: every DATA/ENIT/CNTO size is as `inventory.hpp` says (AMMO DATA is 20 bytes: the reader
