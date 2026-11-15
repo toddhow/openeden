@@ -7,23 +7,24 @@
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/version.hpp>
 
-// The hooks a game pack uses to run COMBAT for its actors (task 0168, milestone M-S5 stage S5-0, decision 0018, research
-// note 0056): the pack decides what an actor does in a fight (which attack clip, when it hits, how much damage, when it
-// dies); the core owns what needs the engine: playing a named clip and telling the pack when the clip's events happen, a
-// shape sweep against the one physics world, and the HUD and ragdoll notices. The core never reads the pack's health or
-// stats.
+// The hooks a game pack uses to run COMBAT for its actors (task 0168, milestone M-S5 stage S5-0, decision 0018,
+// research note 0056): the pack decides what an actor does in a fight (which attack clip, when it hits, how much
+// damage, when it dies); the core owns what needs the engine: playing a named clip and telling the pack when the clip's
+// events happen, a shape sweep against the one physics world, and the HUD and ragdoll notices. The core never reads the
+// pack's health or stats.
 //
 // ABI choice (decision 0018): a SEPARATE interface from ActorRules, found by dynamic_cast on the game's registered
 // WorldCellSource, so the AI/schedule rules and the combat rules version independently. A pack that does not implement
 // it has actors that do not fight. The SDK stays 4.0; nothing here changes ActorRules.
 //
 // Version policy: DRAFT 0.1 (major 0 means any change may still break). Once a first consumer exists (stage S5-2) an
-// additive change (a new trailing virtual with a "not supported" default, a trailing field a consumer only reads) raises
-// the minor number.
+// additive change (a new trailing virtual with a "not supported" default, a trailing field a consumer only reads)
+// raises the minor number.
 //
 // Threading: main thread only. The core calls combatUpdate() once per frame right after ActorRules::update() (so a
 // pack that implements both sees the same frame), and the event and result callbacks just before it, never from inside
-// a request. A writer is valid during one combatUpdate() call only; a request written outside it is dropped and counted.
+// a request. A writer is valid during one combatUpdate() call only; a request written outside it is dropped and
+// counted.
 //
 // Handles are those of actor_rules.hpp (ActorHandle: placement id and a session number, never a pointer). The PLAYER
 // has no ActorHandle: requests and events name a CombatSubject (an actor or the player), and the structs where the
@@ -191,12 +192,13 @@ namespace openeden::sdk::game
         double z = 0.0;
         float heading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
         float health = 0.f; ///< the player's current health (0 for an actor)
-        float healthMax = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
+        float healthMax
+            = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
     };
 
-    /// The timing of a clip as its sidecar gives it, in playback seconds (task 0171 stage S5-3b, DRAFT 0.2): when the first
-    /// HitFrame event fires and how long the clip runs. The pack uses it to run a swing that has no clip to carry events
-    /// (the player's: no first-person arms).
+    /// The timing of a clip as its sidecar gives it, in playback seconds (task 0171 stage S5-3b, DRAFT 0.2): when the
+    /// first HitFrame event fires and how long the clip runs. The pack uses it to run a swing that has no clip to carry
+    /// events (the player's: no first-person arms).
     struct ClipTiming
     {
         bool hasHit = false; ///< the clip has a HitFrame event
@@ -212,7 +214,8 @@ namespace openeden::sdk::game
 
         /// Plays a clip on the actor (see ClipRequest). False (counted by the core) for a stale handle, a request whose
         /// slot is None, a name that is empty, longer than kMaxCombatClipName or has characters other than letters,
-        /// digits and `_`, a blend that is negative or not finite, or a call outside combatUpdate(). The default refuses.
+        /// digits and `_`, a blend that is negative or not finite, or a call outside combatUpdate(). The default
+        /// refuses.
         virtual bool playClip(CombatSubject subject, const ClipRequest& request)
         {
             (void)subject;
@@ -228,10 +231,10 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// Asks for a sweep from `subject` (an actor must exist; the subject's own body is not hit). The result arrives in a LATER
-        /// frame through CombatRules::onSweepResult, once per request. False for a stale handle, a value that is not
-        /// finite, a reach, angle or height outside the ranges of SweepRequest, or a call outside combatUpdate(). The
-        /// default refuses.
+        /// Asks for a sweep from `subject` (an actor must exist; the subject's own body is not hit). The result arrives
+        /// in a LATER frame through CombatRules::onSweepResult, once per request. False for a stale handle, a value
+        /// that is not finite, a reach, angle or height outside the ranges of SweepRequest, or a call outside
+        /// combatUpdate(). The default refuses.
         virtual bool requestSweep(CombatSubject subject, const SweepRequest& request)
         {
             (void)subject;
@@ -239,18 +242,18 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// Reports a resolved hit (see DamageReport). When the victim is the player the core writes `healthAfter` into the
-        /// engine's own player health (0.2): the one place where the core changes a number the pack computed, because the
-        /// player's health is the engine's. False for a stale non-player handle, a value that is not finite or
-        /// an amount below 0. The default refuses.
+        /// Reports a resolved hit (see DamageReport). When the victim is the player the core writes `healthAfter` into
+        /// the engine's own player health (0.2): the one place where the core changes a number the pack computed,
+        /// because the player's health is the engine's. False for a stale non-player handle, a value that is not finite
+        /// or an amount below 0. The default refuses.
         virtual bool reportDamage(const DamageReport& report)
         {
             (void)report;
             return false;
         }
 
-        /// Turns an actor on the spot to `heading` (radians about Z as the engine stores it) before it swings (task 0171,
-        /// 0.2). False for a stale handle, a heading that is not finite, the player (the player's heading is the
+        /// Turns an actor on the spot to `heading` (radians about Z as the engine stores it) before it swings (task
+        /// 0171, 0.2). False for a stale handle, a heading that is not finite, the player (the player's heading is the
         /// player's), or a call outside combatUpdate(). The default refuses.
         virtual bool faceHeading(CombatSubject subject, float heading)
         {
@@ -259,9 +262,9 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// The timing of the named clip, read from its sidecar (task 0171 stage S5-3b, 0.2). False while the clip is still
-        /// being read (the first call starts the read) or when it cannot be read, and outside combatUpdate(); the pack asks
-        /// again in a later frame. The default refuses.
+        /// The timing of the named clip, read from its sidecar (task 0171 stage S5-3b, 0.2). False while the clip is
+        /// still being read (the first call starts the read) or when it cannot be read, and outside combatUpdate(); the
+        /// pack asks again in a later frame. The default refuses.
         virtual bool clipTiming(std::string_view clip, bool perSex, ClipTiming& out)
         {
             (void)clip;
@@ -270,8 +273,8 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// Where the subject is now (task 0171, 0.2). False for a stale handle, an actor that is not placed in the physics
-        /// world, or a call outside combatUpdate(). The default refuses.
+        /// Where the subject is now (task 0171, 0.2). False for a stale handle, an actor that is not placed in the
+        /// physics world, or a call outside combatUpdate(). The default refuses.
         virtual bool subjectState(CombatSubject subject, SubjectState& out)
         {
             (void)subject;
@@ -279,8 +282,8 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// Reports that the pack's health for the actor reached 0: the core starts the death (ragdoll, corpse). Once per
-        /// actor; a second report is ignored and returns true. False for a stale handle. The default refuses.
+        /// Reports that the pack's health for the actor reached 0: the core starts the death (ragdoll, corpse). Once
+        /// per actor; a second report is ignored and returns true. False for a stale handle. The default refuses.
         virtual bool reportDeath(ActorHandle actor)
         {
             (void)actor;
@@ -299,7 +302,8 @@ namespace openeden::sdk::game
 
         /// The sweep of `token` finished: `count` hits (at most kMaxSweepHits, nearest first, possibly 0), valid during
         /// the call only. Called just before combatUpdate(), at most once per request, not for an actor that has gone.
-        virtual void onSweepResult(CombatSubject subject, std::uint32_t token, const SweepHit* hits, std::size_t count) = 0;
+        virtual void onSweepResult(CombatSubject subject, std::uint32_t token, const SweepHit* hits, std::size_t count)
+            = 0;
 
         /// Once per frame after ActorRules::update(); `seconds` is the frame time as the engine's loop gives it.
         virtual void combatUpdate(float seconds, CombatRequestWriter& writer) = 0;

@@ -55,10 +55,10 @@ namespace game_skyrimse
     inline constexpr float kSweepHeightAbove = 130.f;
     /// The radius of an actor's physics capsule (MWPhysics::NeutralActor::kRadius, mirrored: no engine include here).
     inline constexpr float kBodyRadius = 22.f;
-    /// The player has no clip (no first-person arms), so its swing runs on a hidden clock whose HitFrame time and length
-    /// come from the sidecar of the attack clip at run time (CombatRequestWriter::clipTiming, task 0171 stage S5-3b). There
-    /// is no fallback number: until the timing is ready the player cannot swing, and a timing that has not arrived after
-    /// this many seconds of trying is reported once.
+    /// The player has no clip (no first-person arms), so its swing runs on a hidden clock whose HitFrame time and
+    /// length come from the sidecar of the attack clip at run time (CombatRequestWriter::clipTiming, task 0171 stage
+    /// S5-3b). There is no fallback number: until the timing is ready the player cannot swing, and a timing that has
+    /// not arrived after this many seconds of trying is reported once.
     inline constexpr float kPlayerTimingTimeoutSeconds = 5.f;
     /// Seconds a fighter counts as "in combat" (the regeneration multipliers) after a hit given or taken.
     inline constexpr float kCombatLingerSeconds = 10.f;
@@ -107,8 +107,8 @@ namespace game_skyrimse
     };
 
     /// The table slot (attack, block, ...) x weapon animation type (WEAP DNAM +0, 0 to 9) -> clip file name.
-    /// Default-constructed it is empty (the S5-0 skeleton); `humanoid()` is the shipped table. The names it returns point
-    /// into static storage.
+    /// Default-constructed it is empty (the S5-0 skeleton); `humanoid()` is the shipped table. The names it returns
+    /// point into static storage.
     class SlotTable
     {
     public:
@@ -158,8 +158,8 @@ namespace game_skyrimse
             openeden::sdk::game::CombatSubject subject, std::uint32_t token, openeden::sdk::game::ClipEnd how) override;
         void onPlayerAttack(bool power) override;
 
-        /// Names the editor id of the test swingers (case-insensitive); empty switches the rule off. A value longer than
-        /// kMaxCombatTestSwingName is refused (false, the rule stays off).
+        /// Names the editor id of the test swingers (case-insensitive); empty switches the rule off. A value longer
+        /// than kMaxCombatTestSwingName is refused (false, the rule stays off).
         bool setTestSwing(std::string_view editorId);
         [[nodiscard]] const std::string& testSwing() const { return mTestSwing; }
 
@@ -275,8 +275,8 @@ namespace game_skyrimse
         bool mPlayerHitDone = false;
         float mPlayerSwingStart = 0.f;
         std::uint32_t mPlayerSwingToken = 0;
-        // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added actor
-        // beyond that, never one per frame). kMaxCombatFighters bounds it.
+        // Reserved for the usual cell; a cell with more actors makes onActorAdded grow it (an allocation per added
+        // actor beyond that, never one per frame). kMaxCombatFighters bounds it.
         std::vector<Fighter> mFighters; ///< index 0 is the player
         std::vector<PendingHit> mPendingHits; ///< Hit events seen since the last combatUpdate
         std::vector<PendingHit> mAwaiting; ///< sweeps asked for, result not here yet

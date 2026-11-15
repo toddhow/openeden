@@ -147,7 +147,8 @@ namespace game_skyrimse
                     const std::string swinger = settings->getString(kPackId, kCombatTestSwingKey, "");
                     if (!mCellSource.combat().setTestSwing(swinger))
                         say(openeden::sdk::LogLevel::Warning,
-                            "the setting '" + std::string(kCombatTestSwingKey) + "' is too long; the test swing is off");
+                            "the setting '" + std::string(kCombatTestSwingKey)
+                                + "' is too long; the test swing is off");
                     else if (!swinger.empty())
                         say(openeden::sdk::LogLevel::Info, "combat test swing: actors named " + swinger + " swing");
                     // Task 0171 (combat stage S5-3): the melee test rules and the decision trace, all off by default.
@@ -160,7 +161,8 @@ namespace game_skyrimse
                     const std::string weapon = settings->getString(kPackId, kCombatTestWeaponKey, "");
                     if (!mCellSource.combat().setTestWeapon(weapon))
                         say(openeden::sdk::LogLevel::Warning,
-                            "the setting '" + std::string(kCombatTestWeaponKey) + "' is too long; fighters are unarmed");
+                            "the setting '" + std::string(kCombatTestWeaponKey)
+                                + "' is too long; fighters are unarmed");
                     else if (!weapon.empty())
                         say(openeden::sdk::LogLevel::Info, "combat test weapon: " + weapon);
                     const float playerSwing = settings->getFloat(kPackId, kCombatTestPlayerSwingKey, 0.f);

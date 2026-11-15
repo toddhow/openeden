@@ -1,7 +1,7 @@
-// Task 0171 (combat stage S5-3b): a blow needs a clear line (walls, doors), and the player's swing timing comes from the
-// sidecar. The bridge half is tested with a fake pack, sink and world; the geometry half (a wall, a door, an actor in
-// the way) is tested against a real Jolt system in testneutralsight.cpp. Written from the headers before the code (the
-// first run was against stubs, see the task's stage log).
+// Task 0171 (combat stage S5-3b): a blow needs a clear line (walls, doors), and the player's swing timing comes from
+// the sidecar. The bridge half is tested with a fake pack, sink and world; the geometry half (a wall, a door, an actor
+// in the way) is tested against a real Jolt system in testneutralsight.cpp. Written from the headers before the code
+// (the first run was against stubs, see the task's stage log).
 #include "apps/openmw/mwphysics/neutralcombatbridge.hpp"
 #include "apps/openmw_tests/support/allocationcounter.hpp"
 
@@ -169,7 +169,8 @@ namespace
 
     TEST_F(CombatSight, onlyTheHitBehindTheWallIsDroppedTheNearOneStays)
     {
-        // B at 40 (touched at y 18) is in front of the wall (y = 55); C at 90 (touched at y 68) is behind it. The arc catches both.
+        // B at 40 (touched at y 18) is in front of the wall (y = 55); C at 90 (touched at y 68) is behind it. The arc
+        // catches both.
         mWorld.mCandidates = { body(mA, 0, 0), body(mB, 0, 40), body(mC, 0, 90) };
         mWorld.mWallsY = { 55.0 };
         sweepFromA();

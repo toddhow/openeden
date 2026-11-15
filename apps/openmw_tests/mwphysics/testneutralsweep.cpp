@@ -1,7 +1,7 @@
 // Task 0171 (combat stage S5-3): the shape test of a melee swing (apps/openmw/mwphysics/neutralsweep.hpp), written from
-// the header and the contract's SweepRequest. Every expectation is worked out by hand in its comment: the attacker stands
-// at the origin facing +Y (heading 0), reach 100, half angle 35 degrees, a band from 16 below to 130 above its feet, and
-// every body is a capsule of radius 22 and height 128 (the neutral actor's).
+// the header and the contract's SweepRequest. Every expectation is worked out by hand in its comment: the attacker
+// stands at the origin facing +Y (heading 0), reach 100, half angle 35 degrees, a band from 16 below to 130 above its
+// feet, and every body is a capsule of radius 22 and height 128 (the neutral actor's).
 #include "apps/openmw/mwphysics/neutralsweep.hpp"
 
 #include <gtest/gtest.h>
@@ -121,8 +121,9 @@ namespace
 
     TEST(NeutralSweep, theHeightBandSelectsByTheBodysVerticalExtent)
     {
-        // Band is z in [-16, 130]. A body standing at z 200 (feet above the band) and one whose top, -200 + 128 = -72, is
-        // below it are out; one standing at -100 reaches up to 28 and is in; one standing at 130 touches the top edge.
+        // Band is z in [-16, 130]. A body standing at z 200 (feet above the band) and one whose top, -200 + 128 = -72,
+        // is below it are out; one standing at -100 reaches up to 28 and is in; one standing at 130 touches the top
+        // edge.
         EXPECT_TRUE(sweep(request(), {}, { actor(1, 0, 60, 200) }).empty());
         EXPECT_TRUE(sweep(request(), {}, { actor(1, 0, 60, -200) }).empty());
         EXPECT_EQ(sweep(request(), {}, { actor(1, 0, 60, -100) }).size(), 1u);
@@ -156,8 +157,7 @@ namespace
     {
         // Mirror positions (+-30, 80) are the same distance away; the player stands on the same circle.
         const double s = std::sqrt(30.0 * 30.0 + 80.0 * 80.0); // 85.44
-        std::vector<Candidate> bodies
-            = { actor(9, 30, 80), actor(3, -30, 80), player(0.0, s), actor(4, 0, 50) };
+        std::vector<Candidate> bodies = { actor(9, 30, 80), actor(3, -30, 80), player(0.0, s), actor(4, 0, 50) };
         const auto hits = sweep(request(), {}, bodies);
         ASSERT_EQ(hits.size(), 4u);
         EXPECT_EQ(hits[0].actor.reference, 4u); // 50 - 22 = 28

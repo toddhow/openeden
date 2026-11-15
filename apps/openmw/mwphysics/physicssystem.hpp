@@ -290,8 +290,8 @@ namespace MWPhysics
         using NeutralRulesResolver = std::function<openeden::sdk::game::ActorRules*()>;
         void setNeutralRulesResolver(NeutralRulesResolver resolver) { mNeutralRulesResolver = std::move(resolver); }
 
-        /// Task 0170 (combat stage S5-2): the game's CombatRules (null when it has none or the pack is gone), resolved on
-        /// every use like the actor rules. Only used with `[Game] neutral combat`.
+        /// Task 0170 (combat stage S5-2): the game's CombatRules (null when it has none or the pack is gone), resolved
+        /// on every use like the actor rules. Only used with `[Game] neutral combat`.
         using NeutralCombatResolver = std::function<openeden::sdk::game::CombatRules*()>;
         void setNeutralCombatResolver(NeutralCombatResolver resolver) { mNeutralCombatResolver = std::move(resolver); }
         /// Where the clip meta of an actor comes from (the renderer); null while it is still being read.
@@ -300,7 +300,10 @@ namespace MWPhysics
         /// Task 0171 stage S5-3b: the sidecar meta of a clip for the player's hidden swing clock (null until read).
         using NeutralPlayerClipMetaFn
             = std::function<std::shared_ptr<const HavokPack::ClipMeta>(std::string_view clip, bool perSex)>;
-        void setNeutralPlayerClipMeta(NeutralPlayerClipMetaFn provider) { mNeutralPlayerClipMeta = std::move(provider); }
+        void setNeutralPlayerClipMeta(NeutralPlayerClipMetaFn provider)
+        {
+            mNeutralPlayerClipMeta = std::move(provider);
+        }
         /// The clips the combat hooks started (a clip name) or stopped (empty) in the last updateNeutralActors; the
         /// caller hands them to the renderer. Reserved with the other lists, so a frame does not allocate.
         struct NeutralClipOp

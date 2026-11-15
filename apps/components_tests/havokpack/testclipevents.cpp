@@ -117,7 +117,8 @@ namespace
     TEST(HavokClipEvents, aSpeedThatIsNotPositiveAndFinitePlaysAsOne)
     {
         ClipMeta meta = attack();
-        for (float speed : { 0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN() })
+        for (float speed :
+            { 0.f, -1.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN() })
         {
             meta.mSpeed = speed;
             EXPECT_FLOAT_EQ(meta.speed(), 1.f);
@@ -146,13 +147,15 @@ namespace
     }
 
     // Task 0171: the mutation "a wrapped lap starts at 0 instead of -1" went uncaught in task 0170 because no loop test
-    // had an event at time 0. An event at 0 belongs to every lap: a step that wraps fires it at the start of the new lap.
+    // had an event at time 0. An event at 0 belongs to every lap: a step that wraps fires it at the start of the new
+    // lap.
     TEST(HavokClipEvents, aLoopingClipFiresAnEventAtTimeZeroOnEveryWrap)
     {
         ClipMeta meta;
         meta.mDuration = 1.f;
         meta.mEvents = { { "start", 0.f }, { "mid", 0.5f } };
-        // 0.6 to 1.2: the lap ends at 1.0 (nothing left in it), the next lap fires "start" at 0, then not "mid" (0.5 > 0.2).
+        // 0.6 to 1.2: the lap ends at 1.0 (nothing left in it), the next lap fires "start" at 0, then not "mid" (0.5 >
+        // 0.2).
         auto passed = run(meta, 0.6f, 1.2f, true);
         ASSERT_EQ(passed.size(), 1u);
         EXPECT_EQ(passed[0].first, "start");

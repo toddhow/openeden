@@ -302,7 +302,8 @@ namespace game_skyrimse
                 {
                     if (record.mUncompressedSize > mLimits.mMaxRecordBytes)
                     {
-                        fail(record, "the record inflates to " + std::to_string(record.mUncompressedSize)
+                        fail(record,
+                            "the record inflates to " + std::to_string(record.mUncompressedSize)
                                 + " bytes, over the limit of " + std::to_string(mLimits.mMaxRecordBytes));
                         return true;
                     }
@@ -316,7 +317,8 @@ namespace game_skyrimse
                 }
                 else if (record.mDataSize > mLimits.mMaxRecordBytes)
                 {
-                    fail(record, "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
+                    fail(record,
+                        "the record is " + std::to_string(record.mDataSize) + " bytes, over the limit of "
                             + std::to_string(mLimits.mMaxRecordBytes));
                     return true;
                 }
@@ -486,8 +488,8 @@ namespace game_skyrimse
             float scaled = base;
             if (piece.mType == 0 || piece.mType == 1)
             {
-                const float skill = std::min(static_cast<float>(skills[piece.mType == 0 ? kLightSlot : kHeavySlot]),
-                    kMaxSkill);
+                const float skill
+                    = std::min(static_cast<float>(skills[piece.mType == 0 ? kLightSlot : kHeavySlot]), kMaxSkill);
                 scaled = base * (1.f + skill / 200.f); // RECALLED-VERIFY
             }
             else
@@ -567,8 +569,8 @@ namespace game_skyrimse
                 + clean(input.mWeapon->mWeight) * clean(settings.mStaminaAttackWeaponMult);
             hit.mStagger = clean(input.mWeapon->mStagger);
             if (input.mWeapon->mHasCrit)
-                hit.mCriticalDamage = static_cast<float>(input.mWeapon->mCritDamage)
-                    * clean(input.mWeapon->mCritMultiplier);
+                hit.mCriticalDamage
+                    = static_cast<float>(input.mWeapon->mCritDamage) * clean(input.mWeapon->mCritMultiplier);
         }
         else
         {
@@ -592,8 +594,7 @@ namespace game_skyrimse
         return clean(weapon->mReach) * clean(settings.mCombatDistance);
     }
 
-    float regenAmount(
-        float maximum, float ratePercentPerSecond, float combatMultiplier, bool inCombat, float seconds)
+    float regenAmount(float maximum, float ratePercentPerSecond, float combatMultiplier, bool inCombat, float seconds)
     {
         const float multiplier = inCombat ? clean(combatMultiplier) : 1.f;
         return clean(maximum) * clean(ratePercentPerSecond) / 100.f * clean(seconds) * multiplier;

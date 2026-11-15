@@ -25,8 +25,9 @@ namespace game_skyrimse
         }
 
         // Clip names of Skyrim - Animations.bsa, meshes/actors/character/animations (read from the listing; events in
-        // animationdata/defaultmale.txt: AttackRight has preHitFrame 0.233, weaponSwing 0.333, HitFrame 0.367, attackStop
-        // 1.287 playback seconds). Case as in the sidecar's generator names, the file system of the VFS ignores case.
+        // animationdata/defaultmale.txt: AttackRight has preHitFrame 0.233, weaponSwing 0.333, HitFrame 0.367,
+        // attackStop 1.287 playback seconds). Case as in the sidecar's generator names, the file system of the VFS
+        // ignores case.
         constexpr SlotTable::Entry sHumanoid[] = {
             { ClipSlot::Attack, kWeaponAnim1HSword, "1HM_AttackRight" },
             { ClipSlot::AttackLeft, kWeaponAnim1HSword, "1HM_AttackLeft" },
@@ -184,8 +185,9 @@ namespace game_skyrimse
         if (info.handle.valid())
         {
             // The same placement again with a new session replaces the old fighter (its state starts again).
-            std::erase_if(mFighters,
-                [&](const Fighter& f) { return !f.mSubject.player && f.mSubject.actor.reference == info.handle.reference; });
+            std::erase_if(mFighters, [&](const Fighter& f) {
+                return !f.mSubject.player && f.mSubject.actor.reference == info.handle.reference;
+            });
             if (mFighters.size() < kMaxCombatFighters)
             {
                 Fighter fighter;
@@ -214,7 +216,8 @@ namespace game_skyrimse
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
         std::erase_if(mFighters, [&](const Fighter& f) { return !f.mSubject.player && f.mSubject.actor == handle; });
-        // Nothing of the actor stays in a table: a result that arrives later is refused, a hit that was waiting is gone.
+        // Nothing of the actor stays in a table: a result that arrives later is refused, a hit that was waiting is
+        // gone.
         const CombatSubject gone = CombatSubject::of(handle);
         std::erase_if(mPendingHits, [&](const PendingHit& p) { return p.mSubject == gone; });
         std::erase_if(mAwaiting, [&](const PendingHit& p) { return p.mSubject == gone; });
@@ -251,7 +254,8 @@ namespace game_skyrimse
             f->mSwinging = false;
     }
 
-    void SkyrimCombat::onSweepResult(CombatSubject subject, std::uint32_t token, const SweepHit* hits, std::size_t count)
+    void SkyrimCombat::onSweepResult(
+        CombatSubject subject, std::uint32_t token, const SweepHit* hits, std::size_t count)
     {
         const auto waiting = std::find_if(mAwaiting.begin(), mAwaiting.end(),
             [&](const PendingHit& p) { return p.mSubject == subject && p.mToken == token; });
@@ -339,8 +343,8 @@ namespace game_skyrimse
             mPlayerSwingToken = mNextToken++;
             mPlayerPower = power;
             ++mSwingsRequested;
-            trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "") + " hit at "
-                + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
+            trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "")
+                + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
         if (fighter.mDead || fighter.mSwinging)
@@ -387,8 +391,8 @@ namespace game_skyrimse
             const double dx = player.x - self.x;
             const double dy = player.y - self.y;
             const float reach = meleeReachUnits(mWeapon, f->mProfile.mUnarmedReach, mCombatSettings);
-            // The sweep reaches `reach` from the actor to the player's capsule: close enough when the centres are within
-            // that and a body radius, less a little so a hit is certain.
+            // The sweep reaches `reach` from the actor to the player's capsule: close enough when the centres are
+            // within that and a body radius, less a little so a hit is certain.
             if (std::sqrt(dx * dx + dy * dy) > static_cast<double>(reach + kBodyRadius - 4.f))
                 continue;
             writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(dx, dy)));
@@ -511,7 +515,8 @@ namespace game_skyrimse
         }
     }
 
-    void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, const SweepHit& hit, Fighter& victim)
+    void SkyrimCombat::applyHit(
+        CombatRequestWriter& writer, Fighter& attacker, bool power, const SweepHit& hit, Fighter& victim)
     {
         MeleeInput input;
         input.mWeapon = mWeapon;
@@ -583,8 +588,9 @@ namespace game_skyrimse
         trace("COMBAT death " + name(victim.mSubject));
         if (!victim.mSubject.player)
         {
-            // The stagger-back clip lays the body down; as a Death-slot clip the core holds its last pose until the ragdoll
-            // (stage S5-5) exists. (The table has no Death entry: its test pins that, so the Stagger entry is used.)
+            // The stagger-back clip lays the body down; as a Death-slot clip the core holds its last pose until the
+            // ragdoll (stage S5-5) exists. (The table has no Death entry: its test pins that, so the Stagger entry is
+            // used.)
             const std::string_view clip = mSlots.clipFor(ClipSlot::Stagger, kWeaponAnim1HSword);
             if (!clip.empty())
             {
@@ -611,7 +617,7 @@ namespace game_skyrimse
             if (hit.target == SweepTarget::World)
                 continue;
             Fighter* victim = hit.target == SweepTarget::Player ? find(CombatSubject::ofPlayer())
-                                                               : find(CombatSubject::of(hit.actor));
+                                                                : find(CombatSubject::of(hit.actor));
             if (victim == nullptr || victim == attacker || victim->mDead || !ready(*victim))
                 continue;
             applyHit(writer, *attacker, delivery.mWho.mPower, hit, *victim);

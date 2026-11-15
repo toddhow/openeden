@@ -52,8 +52,8 @@ namespace MWPhysics::NeutralSight
         if (!(length > kEndTrim))
             return false;
         const float scale = (length - kEndTrim) / length;
-        const JPH::RRayCast ray(Misc::Convert::toJolt<JPH::RVec3>(from),
-            JPH::Vec3(delta.x * scale, delta.y * scale, delta.z * scale));
+        const JPH::RRayCast ray(
+            Misc::Convert::toJolt<JPH::RVec3>(from), JPH::Vec3(delta.x * scale, delta.y * scale, delta.z * scale));
         JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
         MaskedObjectLayerFilter objectLayers(layerMask);
         const IgnoreListFilter bodies(ignore);

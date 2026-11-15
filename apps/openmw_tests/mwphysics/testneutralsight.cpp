@@ -31,7 +31,8 @@ namespace
         JPH::BodyID addBox(JPH::ObjectLayer layer, JPH::Vec3 half, JPH::RVec3 centre)
         {
             const JPH::RefConst<JPH::Shape> shape = new JPH::BoxShape(half);
-            const JPH::BodyCreationSettings settings(shape, centre, JPH::Quat::sIdentity(), JPH::EMotionType::Static, layer);
+            const JPH::BodyCreationSettings settings(
+                shape, centre, JPH::Quat::sIdentity(), JPH::EMotionType::Static, layer);
             return mWorld->bodies().CreateAndAddBody(settings, JPH::EActivation::DontActivate);
         }
 
@@ -41,7 +42,8 @@ namespace
             return addBox(layer, JPH::Vec3(100.f, 2.f, 100.f), JPH::RVec3(0.0, 30.0, 100.0));
         }
 
-        static constexpr int kStatic = MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR | MWPhysics::Layers::HEIGHTMAP;
+        static constexpr int kStatic
+            = MWPhysics::Layers::WORLD | MWPhysics::Layers::DOOR | MWPhysics::Layers::HEIGHTMAP;
         const vsg::vec3 mFrom{ 0.f, 0.f, 80.f };
         const vsg::vec3 mTo{ 0.f, 60.f, 80.f };
 
@@ -65,13 +67,15 @@ namespace
     {
         addWall(MWPhysics::Layers::DOOR);
         EXPECT_TRUE(blocked(mWorld->system(), mFrom, mTo, kStatic, {}));
-        EXPECT_FALSE(blocked(mWorld->system(), mFrom, mTo, MWPhysics::Layers::WORLD, {})); // the control: the mask matters
+        EXPECT_FALSE(
+            blocked(mWorld->system(), mFrom, mTo, MWPhysics::Layers::WORLD, {})); // the control: the mask matters
     }
 
     TEST_F(NeutralSightJolt, anActorsCapsuleBodyInTheWayDoesNotBlockWhenItIsIgnored)
     {
         // The actors' bodies are WORLD objects: here a 44 wide box standing at y = 30.
-        const JPH::BodyID actor = addBox(MWPhysics::Layers::WORLD, JPH::Vec3(22.f, 22.f, 64.f), JPH::RVec3(0.0, 30.0, 64.0));
+        const JPH::BodyID actor
+            = addBox(MWPhysics::Layers::WORLD, JPH::Vec3(22.f, 22.f, 64.f), JPH::RVec3(0.0, 30.0, 64.0));
         EXPECT_TRUE(blocked(mWorld->system(), mFrom, mTo, kStatic, {})); // control: unlisted, it blocks
         const JPH::BodyID ignored[] = { actor };
         EXPECT_FALSE(blocked(mWorld->system(), mFrom, mTo, kStatic, ignored));
@@ -79,7 +83,8 @@ namespace
 
     TEST_F(NeutralSightJolt, anIgnoredActorDoesNotHideAWallBehindIt)
     {
-        const JPH::BodyID actor = addBox(MWPhysics::Layers::WORLD, JPH::Vec3(22.f, 22.f, 64.f), JPH::RVec3(0.0, 20.0, 64.0));
+        const JPH::BodyID actor
+            = addBox(MWPhysics::Layers::WORLD, JPH::Vec3(22.f, 22.f, 64.f), JPH::RVec3(0.0, 20.0, 64.0));
         addWall();
         const JPH::BodyID ignored[] = { actor };
         EXPECT_TRUE(blocked(mWorld->system(), mFrom, mTo, kStatic, ignored));
@@ -125,7 +130,8 @@ namespace
     TEST_F(NeutralSightJolt, aRayCastAllocatesNothing)
     {
         addWall();
-        const JPH::BodyID ignored[] = { addBox(MWPhysics::Layers::WORLD, JPH::Vec3(1.f, 1.f, 1.f), JPH::RVec3(500.0, 0.0, 0.0)) };
+        const JPH::BodyID ignored[]
+            = { addBox(MWPhysics::Layers::WORLD, JPH::Vec3(1.f, 1.f, 1.f), JPH::RVec3(500.0, 0.0, 0.0)) };
         (void)blocked(mWorld->system(), mFrom, mTo, kStatic, ignored); // warm up
         std::size_t allocations = 0;
         bool all = true;

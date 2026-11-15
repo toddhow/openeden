@@ -9,7 +9,8 @@
 namespace
 {
     // The layout of animationdata/<project>.txt: a file list, then per clip a name, a number, "1 0 0", the event count
-    // and the events (docs/research/0054-provenance.md F44 to F53). Values copied from defaultmale.txt's 1HM_AttackRight.
+    // and the events (docs/research/0054-provenance.md F44 to F53). Values copied from defaultmale.txt's
+    // 1HM_AttackRight.
     const std::string sProject
         = "1\r\n1\r\nDefaultMale.hkx\r\n"
           "1\r\n"

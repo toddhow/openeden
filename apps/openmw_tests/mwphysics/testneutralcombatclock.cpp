@@ -1,8 +1,9 @@
 // Task 0171 (combat stage S5-3b follow-up): the combat clip clock does not depend on worker timing. The meta of a clip
-// is read on a worker and the renderer starts sampling the clip when its decode is done, so the frame on which the bridge
-// first SEES the meta (and the renderer's playback time then) varies from run to run. The clock of a clip counts from the
-// frame the clip was requested, so the frame on which an event is delivered must not change with it. Written from the
-// bridge header before the fix (the first run was against the old clock, which started at the renderer's time).
+// is read on a worker and the renderer starts sampling the clip when its decode is done, so the frame on which the
+// bridge first SEES the meta (and the renderer's playback time then) varies from run to run. The clock of a clip counts
+// from the frame the clip was requested, so the frame on which an event is delivered must not change with it. Written
+// from the bridge header before the fix (the first run was against the old clock, which started at the renderer's
+// time).
 #include "apps/openmw/mwphysics/neutralcombatbridge.hpp"
 
 #include <gtest/gtest.h>
@@ -69,8 +70,8 @@ namespace
 
     constexpr float kDt = 1.f / 60.f;
 
-    // Runs 120 frames; the clip is asked for in frame 1. The meta becomes visible to the bridge in frame `readyAt`, with
-    // the renderer reporting `rendererTime` playback seconds and `started`.
+    // Runs 120 frames; the clip is asked for in frame 1. The meta becomes visible to the bridge in frame `readyAt`,
+    // with the renderer reporting `rendererTime` playback seconds and `started`.
     Frames run(int readyAt, float rendererTime, bool started)
     {
         auto meta = std::make_shared<HavokPack::ClipMeta>();

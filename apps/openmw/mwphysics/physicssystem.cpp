@@ -1351,9 +1351,9 @@ namespace MWPhysics
     bool PhysicsSystem::NeutralCombatWorldImpl::lineBlocked(
         double x0, double y0, double z0, double x1, double y1, double z1)
     {
-        // Task 0171 stage S5-3b: static geometry only. Neutral actors are WORLD bodies too, so they are listed as ignored
-        // (the list is reserved when an actor is added: a frame does not allocate).
-        // The list is rebuilt once a frame, not for every hit (in place: it is reserved when an actor is added).
+        // Task 0171 stage S5-3b: static geometry only. Neutral actors are WORLD bodies too, so they are listed as
+        // ignored (the list is reserved when an actor is added: a frame does not allocate). The list is rebuilt once a
+        // frame, not for every hit (in place: it is reserved when an actor is added).
         std::vector<JPH::BodyID>& ignore = mPhysics.mNeutralSightIgnore;
         if (mPhysics.mNeutralSightIgnoreFrame != mPhysics.mNeutralFrame)
         {
@@ -1387,8 +1387,8 @@ namespace MWPhysics
 
     void PhysicsSystem::NeutralCombatWorldImpl::actorDied(const void* key, openeden::sdk::game::ActorHandle actor)
     {
-        // Stage S5-3: the death is only noted. The pack has stopped the actor's clips and its health is 0; the ragdoll is
-        // stage S5-5. The actor stays where it is (its movement request is cleared so that it does not walk on).
+        // Stage S5-3: the death is only noted. The pack has stopped the actor's clips and its health is 0; the ragdoll
+        // is stage S5-5. The actor stays where it is (its movement request is cleared so that it does not walk on).
         if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
             entry->mRequest = {};
         Log(Debug::Info) << "NCOMBAT actor " << actor.reference << "/" << actor.session << " died";

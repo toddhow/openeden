@@ -30,11 +30,10 @@ namespace MWPhysics
 
         bool equalsNoCase(std::string_view a, std::string_view b)
         {
-            return a.size() == b.size()
-                && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
-                       const auto lower = [](char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + 32) : c; };
-                       return lower(x) == lower(y);
-                   });
+            return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+                const auto lower = [](char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + 32) : c; };
+                return lower(x) == lower(y);
+            });
         }
 
         bool validClipName(std::string_view clip)
@@ -99,7 +98,8 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::doClipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
+    bool NeutralCombatBridge::Writer::doClipTiming(
+        std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
     {
         out = {};
         if (mSink == nullptr || mWorld == nullptr || !validClipName(clip))
@@ -299,7 +299,8 @@ namespace MWPhysics
         result.mSubject = subject;
         result.mToken = r.token;
         std::size_t dropped = 0;
-        result.mCount = NeutralSweep::arcSweep(r, { subject.player, subject.actor }, b.mCandidates, result.mHits, &dropped);
+        result.mCount
+            = NeutralSweep::arcSweep(r, { subject.player, subject.actor }, b.mCandidates, result.mHits, &dropped);
         // Stage S5-3b: a blow needs a clear line from the weapon to the target's capsule. The world's geometry (walls,
         // closed doors) blocks it; actors never do.
         const double eyeZ = r.z + static_cast<double>(kWeaponHeight);
@@ -310,7 +311,8 @@ namespace MWPhysics
             double aimZ = eyeZ;
             for (const NeutralSweep::Candidate& c : b.mCandidates)
             {
-                if (c.mTarget != hit.target || (hit.target == openeden::sdk::game::SweepTarget::Actor && !(c.mActor == hit.actor)))
+                if (c.mTarget != hit.target
+                    || (hit.target == openeden::sdk::game::SweepTarget::Actor && !(c.mActor == hit.actor)))
                     continue;
                 const double low = c.mZ + static_cast<double>(kAimMargin);
                 const double high = c.mZ + static_cast<double>(c.mHeight) - static_cast<double>(kAimMargin);
@@ -322,8 +324,9 @@ namespace MWPhysics
                 ++b.mStats.mSweepHitsBlocked;
                 if (traceOn())
                     Log(Debug::Info) << "NCOMBAT sweep token " << r.token << " blocked by geometry: "
-                                     << (hit.target == openeden::sdk::game::SweepTarget::Player ? std::string("player")
-                                                                                                : std::to_string(hit.actor.reference))
+                                     << (hit.target == openeden::sdk::game::SweepTarget::Player
+                                                ? std::string("player")
+                                                : std::to_string(hit.actor.reference))
                                      << " at distance " << hit.distance;
                 continue;
             }
@@ -390,7 +393,8 @@ namespace MWPhysics
             }
             return false;
         }
-        b.mDead.insert(std::lower_bound(b.mDead.begin(), b.mDead.end(), actor, handleBefore), actor); // room: no allocation
+        b.mDead.insert(
+            std::lower_bound(b.mDead.begin(), b.mDead.end(), actor, handleBefore), actor); // room: no allocation
         ++b.mStats.mDeaths;
         if (traceOn())
             Log(Debug::Info) << "NCOMBAT death actor " << actor.reference << "/" << actor.session;
@@ -446,7 +450,8 @@ namespace MWPhysics
     {
         return guarded([&] { return doSubjectState(subject, out); });
     }
-    bool NeutralCombatBridge::Writer::clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
+    bool NeutralCombatBridge::Writer::clipTiming(
+        std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
     {
         return guarded([&] { return doClipTiming(clip, perSex, out); });
     }
@@ -550,30 +555,29 @@ namespace MWPhysics
             const CombatSubject subject = p.mSubject;
             const ClipSlot slot = p.mSlot;
             const std::uint32_t token = p.mToken;
-            const bool finished
-                = HavokPack::advanceClipEvents(*p.mMeta, p.mPrevious, p.mCurrent, false,
-                    [&](const HavokPack::ClipMetaEvent& event, float clipTime) {
-                        ClipEvent out;
-                        out.subject = subject;
-                        out.slot = slot;
-                        out.token = token;
-                        out.kind = classifyClipEvent(event.mName);
-                        out.name = event.mName;
-                        out.clipTime = clipTime;
-                        ++mStats.mEventsDelivered;
-                        if (traceOn())
-                            Log(Debug::Info) << "NCOMBAT event token " << token << " " << event.mName << " kind "
-                                             << static_cast<int>(out.kind) << " at " << clipTime << " s (frame clock "
-                                             << p.mCurrent << ")";
-                        try
-                        {
-                            rules->onClipEvent(out);
-                        }
-                        catch (...)
-                        {
-                            ++mStats.mRulesFailures;
-                        }
-                    });
+            const bool finished = HavokPack::advanceClipEvents(
+                *p.mMeta, p.mPrevious, p.mCurrent, false, [&](const HavokPack::ClipMetaEvent& event, float clipTime) {
+                    ClipEvent out;
+                    out.subject = subject;
+                    out.slot = slot;
+                    out.token = token;
+                    out.kind = classifyClipEvent(event.mName);
+                    out.name = event.mName;
+                    out.clipTime = clipTime;
+                    ++mStats.mEventsDelivered;
+                    if (traceOn())
+                        Log(Debug::Info) << "NCOMBAT event token " << token << " " << event.mName << " kind "
+                                         << static_cast<int>(out.kind) << " at " << clipTime << " s (frame clock "
+                                         << p.mCurrent << ")";
+                    try
+                    {
+                        rules->onClipEvent(out);
+                    }
+                    catch (...)
+                    {
+                        ++mStats.mRulesFailures;
+                    }
+                });
             if (finished)
             {
                 if (traceOn())
@@ -604,7 +608,8 @@ namespace MWPhysics
         }
         if (traceOn())
         {
-            const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - updateStart).count();
+            const double ms
+                = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - updateStart).count();
             if (ms > 1.0)
                 Log(Debug::Info) << "TIMING combatUpdate " << ms << " ms at update " << mStats.mUpdates;
         }

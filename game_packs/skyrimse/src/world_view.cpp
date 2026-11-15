@@ -281,7 +281,8 @@ namespace game_skyrimse
                     for (const PluginData& plugin : mPlugins)
                     {
                         Content::Error openError;
-                        const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+                        const std::unique_ptr<Content::Plugin> file
+                            = Content::Plugin::openFile(plugin.mPath, openError);
                         if (file == nullptr)
                         {
                             errors.push_back(openError);
@@ -308,8 +309,9 @@ namespace game_skyrimse
                 mCombatBuilt = std::move(combat);
                 mActorBuilt = std::move(actors);
                 mCombatErrors = std::move(errors);
-                mCombatMillis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - started).count());
+                mCombatMillis = static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started)
+                        .count());
                 mCombatState.store(2, std::memory_order_release);
             });
             return false;

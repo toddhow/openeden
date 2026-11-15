@@ -43,8 +43,9 @@ namespace MWRender::SkyrimPose
         /// setClip("") ends it; the events and length of the clip arrive through meta(). Main thread.
         void playOnce(std::string_view clip, bool perSex);
 
-        /// The one-shot clip's meta (null until the worker has read it, after a clip that failed to decode and while none
-        /// is set), whether sampling of the decoded clip has begun and the playback time of the last sample. Main thread.
+        /// The one-shot clip's meta (null until the worker has read it, after a clip that failed to decode and while
+        /// none is set), whether sampling of the decoded clip has begun and the playback time of the last sample. Main
+        /// thread.
         [[nodiscard]] HavokPack::ClipProgress progress() const;
 
         /// True between a setClip with a name and the next empty one.

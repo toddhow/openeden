@@ -1,6 +1,6 @@
 // Task 0171 (combat stage S5-3): the bridge's sweep, damage and death handling (apps/openmw/mwphysics/
-// neutralcombatbridge.hpp), tested with a fake pack, a fake sink and a fake world, so no Jolt world and no Ptr is needed.
-// Written from the header and the contract (combat_rules.hpp, 0.2).
+// neutralcombatbridge.hpp), tested with a fake pack, a fake sink and a fake world, so no Jolt world and no Ptr is
+// needed. Written from the header and the contract (combat_rules.hpp, 0.2).
 #include "apps/openmw/mwphysics/neutralcombatbridge.hpp"
 #include "apps/openmw_tests/support/allocationcounter.hpp"
 
@@ -52,10 +52,7 @@ namespace
             mPlayerHealth = report.healthAfter;
             ++mPlayerHits;
         }
-        void actorDied(const void* key, ActorHandle actor) override
-        {
-            mDied.push_back({ key, actor });
-        }
+        void actorDied(const void* key, ActorHandle actor) override { mDied.push_back({ key, actor }); }
         std::vector<Candidate> mCandidates;
         float mPlayerHealth = -1.f;
         int mPlayerHits = 0;
@@ -104,10 +101,7 @@ namespace
         void stopClip(const void*) override { ++mStops; }
         int mPlays = 0;
         int mStops = 0;
-        void setHeading(const void* key, float heading) override
-        {
-            mHeadings.push_back({ key, heading });
-        }
+        void setHeading(const void* key, float heading) override { mHeadings.push_back({ key, heading }); }
         std::vector<std::pair<const void*, float>> mHeadings;
     };
 

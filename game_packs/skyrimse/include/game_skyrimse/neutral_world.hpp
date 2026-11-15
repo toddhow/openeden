@@ -18,8 +18,8 @@
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_mechanics.hpp>
-#include <openeden/game/combat_rules.hpp>
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/combat_rules.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
 #include <openeden/game/grass_source.hpp>
@@ -163,7 +163,8 @@ namespace game_skyrimse
             : mView(view)
             , mLimits(limits)
         {
-            // Task 0171: a view that knows the combat records (SkyrimWorldView does) gives the melee rules their numbers.
+            // Task 0171: a view that knows the combat records (SkyrimWorldView does) gives the melee rules their
+            // numbers.
             mCombat.setData(dynamic_cast<CombatData*>(&view));
         }
 
@@ -248,8 +249,8 @@ namespace game_skyrimse
             mCombat.combatUpdate(seconds, writer);
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
-        void onClipFinished(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
-            openeden::sdk::game::ClipEnd how) override
+        void onClipFinished(
+            openeden::sdk::game::CombatSubject subject, std::uint32_t token, openeden::sdk::game::ClipEnd how) override
         {
             mCombat.onClipFinished(subject, token, how);
         }

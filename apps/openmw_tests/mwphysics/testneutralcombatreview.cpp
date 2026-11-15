@@ -230,7 +230,8 @@ namespace
         (void)b;
     }
 
-    // ---- finding 6: nothing thrown by the engine's side reaches the pack ---------------------------------------------
+    // ---- finding 6: nothing thrown by the engine's side reaches the pack
+    // ---------------------------------------------
 
     TEST_F(BridgeReview, aSinkThatThrowsMakesTheRequestFailAndNothingEscapes)
     {

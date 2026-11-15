@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <memory>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -68,8 +68,8 @@ namespace
     }
 
     // DNAM, 100 bytes: +0 animation type, +4 speed, +8 reach, +12 flags, +76 skill actor value, +96 stagger.
-    Bytes weaponDnam(std::uint8_t type, float speed, float reach, std::uint16_t flags, std::uint32_t skill,
-        float stagger)
+    Bytes weaponDnam(
+        std::uint8_t type, float speed, float reach, std::uint16_t flags, std::uint32_t skill, float stagger)
     {
         Bytes d;
         d.u8(type).u8(0).u8(0).u8(0).f32(speed).f32(reach).u16(flags);
@@ -376,7 +376,8 @@ namespace
 
     TEST(SkyrimCombatStatsArmour, onePieceAtSkillZero)
     {
-        // body piece, rating 25, heavy, skill 0: 25 * (1 + 0/200) = 25; percent = 25 * 0.12 + 100 * 0.03 * 1 = 3 + 3 = 6
+        // body piece, rating 25, heavy, skill 0: 25 * (1 + 0/200) = 25; percent = 25 * 0.12 + 100 * 0.03 * 1 = 3 + 3 =
+        // 6
         const std::vector<ArmourPiece> pieces{ { 25.f, ArmourSlot::Body, 1 } };
         const ArmourResult r = armourOf(pieces, skills(0, 0), CombatSettings());
         EXPECT_FLOAT_EQ(r.mRating, 25.f);

@@ -2,7 +2,8 @@
 // contract with a fake data source and a recording writer. Every number is worked out by hand in a comment from the
 // formulas of task 0168's stats (combat_stats.hpp) with the default GMSTs: damage = WEAP damage x min(1.5, 1 + skill /
 // 200) (x 2 for a power attack), after armour x (1 - mitigation / 100); stamina = 20 + weight x 1 (x 2 for a power
-// attack, fPowerAttackStaminaPenalty). The weapon is an "Iron Sword" of damage 7, weight 9, reach 1.0 (reach 141 units).
+// attack, fPowerAttackStaminaPenalty). The weapon is an "Iron Sword" of damage 7, weight 9, reach 1.0 (reach 141
+// units).
 #include <game_skyrimse/combat.hpp>
 
 #include <gtest/gtest.h>
@@ -113,8 +114,8 @@ namespace
             mFacings.push_back({ subject, heading });
             return true;
         }
-        // Task 0171 stage S5-3b: the player's swing timing, as the sidecar of 1HM_AttackRight gives it (defaultmale.txt:
-        // HitFrame 0.367, 1.287 s long). Ready by default so that the older tests run as before.
+        // Task 0171 stage S5-3b: the player's swing timing, as the sidecar of 1HM_AttackRight gives it
+        // (defaultmale.txt: HitFrame 0.367, 1.287 s long). Ready by default so that the older tests run as before.
         bool clipTiming(std::string_view clip, bool, ClipTiming& out) override
         {
             ++mTimingAsks;
@@ -206,8 +207,8 @@ namespace
         }
 
         // A hit event, one frame to turn it into a sweep request, the result, one frame to resolve it.
-        void swing(CombatSubject attacker, std::uint32_t token, std::vector<SweepHit> hits,
-            ClipSlot slot = ClipSlot::Attack)
+        void swing(
+            CombatSubject attacker, std::uint32_t token, std::vector<SweepHit> hits, ClipSlot slot = ClipSlot::Attack)
         {
             mCombat.onClipEvent(hitEvent(attacker, token, slot));
             mCombat.combatUpdate(0.016f, mWriter);
@@ -376,7 +377,8 @@ namespace
 
     TEST_F(CombatMelee, anNpcHittingThePlayerReadsTheEnginesHealthAndReportsTheNewOne)
     {
-        // The engine says the player has 90 of 100. No armour: 8.75, 90 - 8.75 = 81.25. No reaction clip for the player.
+        // The engine says the player has 90 of 100. No armour: 8.75, 90 - 8.75 = 81.25. No reaction clip for the
+        // player.
         swing(CombatSubject::of(mA), 5, { SweepHit{ SweepTarget::Player, {}, 0, 0, 0, 30.f } });
         ASSERT_EQ(mWriter.mDamage.size(), 1u);
         const DamageReport& d = mWriter.mDamage[0];
@@ -479,11 +481,12 @@ namespace
         swing(CombatSubject::of(mA), 5, { hitOn(mB) }); // two updates of 0.016 s; stamina 71, victim health 43
         SkyrimCombat::FighterView attacker;
         SkyrimCombat::FighterView victim;
-        // The first update spends the stamina (the fighter is not ready before it, so it has not regenerated), the second
-        // regenerates 100 x 10 / 100 x 0.016 x fCombatStaminaRegenRateMult 0.35 = 0.056 in combat.
+        // The first update spends the stamina (the fighter is not ready before it, so it has not regenerated), the
+        // second regenerates 100 x 10 / 100 x 0.016 x fCombatStaminaRegenRateMult 0.35 = 0.056 in combat.
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mA), attacker));
         EXPECT_NEAR(attacker.mStamina, 71.056f, 1e-3f);
-        // One more second in combat: +3.5 stamina; the health mult in combat is fCombatHealthRegenRateMult 0: no health.
+        // One more second in combat: +3.5 stamina; the health mult in combat is fCombatHealthRegenRateMult 0: no
+        // health.
         mCombat.combatUpdate(1.f, mWriter);
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mA), attacker));
         ASSERT_TRUE(mCombat.fighterView(CombatSubject::of(mB), victim));
@@ -622,7 +625,8 @@ namespace
         mCombat.onPlayerAttack(true);
         mCombat.combatUpdate(0.1f, mWriter);
         ASSERT_FALSE(mWriter.mTimingClips.empty());
-        // Both attack clips were asked for at the first update (the read starts early), and the press asks for the power one.
+        // Both attack clips were asked for at the first update (the read starts early), and the press asks for the
+        // power one.
         EXPECT_EQ(mWriter.mTimingClips.front(), "1HM_AttackRight");
         EXPECT_EQ(mWriter.mTimingClips.back(), "1HM_AttackPower");
     }

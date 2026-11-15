@@ -76,7 +76,7 @@ namespace game_skyrimse
                 return 255;
             const std::uint32_t slot = mSkillValue - kFirstSkillActorValue;
             return slot < openeden::sdk::game::kActorSkillCount ? static_cast<std::uint8_t>(slot)
-                                                                  : static_cast<std::uint8_t>(255);
+                                                                : static_cast<std::uint8_t>(255);
         }
     };
 
@@ -93,8 +93,8 @@ namespace game_skyrimse
         float mUnarmedReach = 0.f; ///< +100 (Nord 96)
     };
 
-    /// A numeric GMST: the first letter of the editor id says the type (f float, i signed integer, b boolean as 0 or 1);
-    /// the others (s strings) are not numeric and are not kept.
+    /// A numeric GMST: the first letter of the editor id says the type (f float, i signed integer, b boolean as 0 or
+    /// 1); the others (s strings) are not numeric and are not kept.
     struct GameSetting
     {
         RecordCommon mCommon;
@@ -214,9 +214,9 @@ namespace game_skyrimse
 
     /// RECALLED-VERIFY formula (UESP "Armor Rating"; the 80 percent cap and 567 as the rating that reaches it agree:
     /// 567 * 0.12 + 3 * 4 = 80.04):
-    ///   piece = base * (1 + skill / 200) for light and heavy (skill = Light Armor or Heavy Armor), base * clothing scale
-    ///   for clothing; rating = sum of pieces;
-    ///   percent = min(mMaxArmorRating, rating * mArmorScalingFactor + 100 * mArmorBaseFactor * main pieces worn).
+    ///   piece = base * (1 + skill / 200) for light and heavy (skill = Light Armor or Heavy Armor), base * clothing
+    ///   scale for clothing; rating = sum of pieces; percent = min(mMaxArmorRating, rating * mArmorScalingFactor + 100
+    ///   * mArmorBaseFactor * main pieces worn).
     /// A negative or non-finite rating counts as 0; the skill is clamped to 0 to 100. A main piece counts when its
     /// rating is above 0 (one piece for each of head, body, hands and feet at most).
     [[nodiscard]] ArmourResult armourOf(const std::vector<ArmourPiece>& pieces,

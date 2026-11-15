@@ -331,14 +331,14 @@ namespace MWWorld
         }
         mRendering->setNavigator(mNavigator.get());
 
-        // The combat hooks below are installed only with `[Game] neutral combat` on (review fix of task 0171): a session
-        // without it (Morrowind, or the setting off) holds none of these functions.
+        // The combat hooks below are installed only with `[Game] neutral combat` on (review fix of task 0171): a
+        // session without it (Morrowind, or the setting off) holds none of these functions.
         if (Settings::game().mNeutralCombat.get())
         {
-            // Task 0170 (combat stage S5-2): the clip meta of a neutral actor's combat clip comes from its pose controller.
-            mPhysics->setNeutralClipMetaProvider([this](const MWWorld::Ptr& ptr) {
-                return mRendering->getObjects().neutralActorClipProgress(ptr);
-            });
+            // Task 0170 (combat stage S5-2): the clip meta of a neutral actor's combat clip comes from its pose
+            // controller.
+            mPhysics->setNeutralClipMetaProvider(
+                [this](const MWWorld::Ptr& ptr) { return mRendering->getObjects().neutralActorClipProgress(ptr); });
 
             // Task 0171 stage S5-3b: the timing of the player's swing comes from the sidecar of the attack clip.
             mPhysics->setNeutralPlayerClipMeta([this](std::string_view clip, bool perSex) {
@@ -346,8 +346,8 @@ namespace MWWorld
             });
 
             // Task 0171 (combat stage S5-3): the player as the combat hooks see it. Its health is the engine's own
-            // (MWMechanics::CreatureStats of the player's Ptr): read for the pack's damage rule, written with the number
-            // the pack computed. Main thread, from inside the pack's combatUpdate.
+            // (MWMechanics::CreatureStats of the player's Ptr): read for the pack's damage rule, written with the
+            // number the pack computed. Main thread, from inside the pack's combatUpdate.
             mPhysics->setNeutralPlayerHooks(
                 [this](MWPhysics::PhysicsSystem::NeutralPlayerState& out) {
                     const Ptr player = getPlayerPtr();
@@ -358,7 +358,8 @@ namespace MWWorld
                     out.mY = pos.pos[1];
                     out.mZ = pos.pos[2];
                     out.mHeading = pos.rot[2];
-                    const MWMechanics::DynamicStat<float>& health = player.getClass().getCreatureStats(player).getHealth();
+                    const MWMechanics::DynamicStat<float>& health
+                        = player.getClass().getCreatureStats(player).getHealth();
                     out.mHealth = health.getCurrent();
                     out.mHealthMax = health.getModified();
                     return true;

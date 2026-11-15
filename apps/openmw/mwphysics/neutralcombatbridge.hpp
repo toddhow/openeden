@@ -59,13 +59,14 @@ namespace MWPhysics
     public:
         virtual ~NeutralCombatWorld() = default;
         /// Where a subject stands (and the player's engine health). False when it is not in the world.
-        virtual bool subjectState(openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) = 0;
+        virtual bool subjectState(openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out)
+            = 0;
         /// Appends every body a swing can hit: the placed neutral actors and, when there is one, the player.
         virtual void collectCandidates(std::vector<NeutralSweep::Candidate>& out) = 0;
         /// A hit on the player was resolved: write report.healthAfter into the engine's player health.
         virtual void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) { (void)report; }
-        /// Task 0171 stage S5-3b: true when a wall, a closed door or other static geometry lies on the straight line from
-        /// (x0, y0, z0) to (x1, y1, z1); actors never block. Default: nothing blocks.
+        /// Task 0171 stage S5-3b: true when a wall, a closed door or other static geometry lies on the straight line
+        /// from (x0, y0, z0) to (x1, y1, z1); actors never block. Default: nothing blocks.
         virtual bool lineBlocked(double x0, double y0, double z0, double x1, double y1, double z1)
         {
             (void)x0;
@@ -76,8 +77,8 @@ namespace MWPhysics
             (void)z1;
             return false;
         }
-        /// Task 0171 stage S5-3b: the sidecar meta of a clip, for the player's hidden swing clock; null while it is still
-        /// being read (the first call starts the read) or when it cannot be. Default: never.
+        /// Task 0171 stage S5-3b: the sidecar meta of a clip, for the player's hidden swing clock; null while it is
+        /// still being read (the first call starts the read) or when it cannot be. Default: never.
         virtual std::shared_ptr<const HavokPack::ClipMeta> playerClipMeta(std::string_view clip, bool perSex)
         {
             (void)clip;
@@ -113,7 +114,8 @@ namespace MWPhysics
             std::uint64_t mClipsInterrupted = 0;
             std::uint64_t mClipsFailed = 0;
             std::uint64_t mEventsDelivered = 0;
-            std::uint64_t mRefused = 0; ///< requests refused: stale or player subject, bad name or blend, slot None, outside update
+            std::uint64_t mRefused
+                = 0; ///< requests refused: stale or player subject, bad name or blend, slot None, outside update
             std::uint64_t mTableFull = 0;
             std::uint64_t mRulesFailures = 0; ///< a pack function that threw
             std::uint64_t mUpdates = 0;
@@ -139,8 +141,8 @@ namespace MWPhysics
         static constexpr std::size_t kMaxPendingResults = 64;
         static constexpr std::size_t kMaxCandidates = 4096;
         /// Task 0171 stage S5-3b: a blow needs a clear line from the attacker, this far above its feet, to the target's
-        /// capsule: mid-body (half the 128 unit standing height). Measured in the Bannered Mare: the bar counter's top is
-        /// about 80 above the floor, so a line at 64 meets it and a line at 80 skims over it.
+        /// capsule: mid-body (half the 128 unit standing height). Measured in the Bannered Mare: the bar counter's top
+        /// is about 80 above the floor, so a line at 64 meets it and a line at 80 skims over it.
         static constexpr float kWeaponHeight = 64.f;
         /// ... aimed at the capsule this far inside its top and bottom (never at the floor under it).
         static constexpr float kAimMargin = 8.f;
@@ -195,8 +197,8 @@ namespace MWPhysics
                 : mBridge(bridge)
             {
             }
-            bool playClip(openeden::sdk::game::CombatSubject subject,
-                const openeden::sdk::game::ClipRequest& request) override;
+            bool playClip(
+                openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::ClipRequest& request) override;
             bool stopClip(openeden::sdk::game::CombatSubject subject) override;
             bool faceHeading(openeden::sdk::game::CombatSubject subject, float heading) override;
             bool requestSweep(
@@ -215,7 +217,8 @@ namespace MWPhysics
             // counts in Stats::mWriterFailures, logs once and makes the call return false.
             template <class F>
             bool guarded(F&& call);
-            bool doPlayClip(openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::ClipRequest& request);
+            bool doPlayClip(
+                openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::ClipRequest& request);
             bool doStopClip(openeden::sdk::game::CombatSubject subject);
             bool doFaceHeading(openeden::sdk::game::CombatSubject subject, float heading);
             bool doRequestSweep(

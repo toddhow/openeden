@@ -51,9 +51,9 @@ namespace HavokPack
         }
     };
 
-    /// What the renderer reports about the one-shot clip an actor plays (task 0170, sync): the clip's meta once read, whether
-    /// the decoded clip has begun to be sampled, and how far into the clip (playback seconds) it was at its last
-    /// sample. The combat clock starts from this, so events and the drawn pose agree.
+    /// What the renderer reports about the one-shot clip an actor plays (task 0170, sync): the clip's meta once read,
+    /// whether the decoded clip has begun to be sampled, and how far into the clip (playback seconds) it was at its
+    /// last sample. The combat clock starts from this, so events and the drawn pose agree.
     struct ClipProgress
     {
         std::shared_ptr<const ClipMeta> mMeta;

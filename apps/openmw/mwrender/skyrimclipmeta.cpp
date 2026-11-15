@@ -88,7 +88,8 @@ namespace MWRender::SkyrimClipMeta
                     return result;
                 const auto project = projectFor(vfs, female);
                 if (!project->mFailure.empty())
-                    Log(Debug::Warning) << "Skyrim combat clip " << stem << ": no sidecar events: " << project->mFailure;
+                    Log(Debug::Warning) << "Skyrim combat clip " << stem
+                                        << ": no sidecar events: " << project->mFailure;
                 result = makeClipMeta(project->mProject, project->mMotion, stem, decoded->mClip.mDuration);
             }
             catch (const std::exception& e)
