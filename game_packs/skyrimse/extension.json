@@ -81,6 +81,21 @@
       "default": 0.0
     },
     {
+      "key": "combat perks",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "combat test player perks",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat test npc perks",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "combat trace",
       "type": "bool",
       "default": false

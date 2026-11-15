@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -59,6 +60,11 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestAmmoKey = "combat test ammo";
     inline constexpr std::string_view kCombatTestPlayerBowKey = "combat test player bow";
     inline constexpr std::string_view kCombatTestBowSpeedBonusKey = "combat test bow speed bonus";
+    /// Task 0179 (stage S5-7): `combat perks` (default true) turns perk evaluation on; the two lists are comma
+    /// separated PERK editor ids given to the stand-in player and to every NPC fighter (empty: none).
+    inline constexpr std::string_view kCombatPerksKey = "combat perks";
+    inline constexpr std::string_view kCombatTestPlayerPerksKey = "combat test player perks";
+    inline constexpr std::string_view kCombatTestNpcPerksKey = "combat test npc perks";
     /// Where an arrow leaves an archer: above its feet and ahead of its centre (game units; ours, tunable).
     inline constexpr float kBowReleaseHeight = 100.f;
     inline constexpr float kBowMuzzleForward = 30.f;
@@ -129,7 +135,27 @@ namespace game_skyrimse
         float mUnarmedDamage = 0.f;
         float mUnarmedReach = 0.f;
         std::array<std::uint8_t, openeden::sdk::game::kActorSkillCount> mSkills{};
+        // Task 0179 (perks), everything empty by default: with no perks, no abilities and no armour pieces nothing
+        // below is read and every number is the one the fields above give.
+        std::vector<FormId> mPerks; ///< PERK forms (NPC_ PRKR plus the test settings), sorted and unique
+        std::vector<FormId> mSpells; ///< SPLO of the NPC and its race (abilities among them)
+        std::vector<FormId> mKeywords; ///< the NPC's own KWDA and its race's
+        std::vector<FormId> mFactions;
+        std::vector<ArmourPiece> mPieces; ///< the worn armour with keywords (mMitigationPercent is their result)
+        FormId mBase = kNullFormId;
+        FormId mRace = kNullFormId;
+        bool mFemale = false;
+        std::uint16_t mLevel = 1;
+        /// Sums of the ability effects on DamageResist (added to the armour rating) and WeaponSpeedMult (the bow's
+        /// draw speed is multiplied by it when `mHasWeaponSpeedAbility`); filled from mPerks and mSpells.
+        float mAbilityDamageResist = 0.f;
+        bool mHasWeaponSpeedAbility = false;
+        float mAbilityWeaponSpeed = 1.f;
     };
+
+    /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
+    /// it has one (Quick Shot: 1.3; RECALLED-VERIFY: the stored magnitude is the multiplier itself), clamped 0.1 to 10.
+    [[nodiscard]] float fighterBowDrawSpeed(const FighterProfile& profile, float weaponSpeed, float testBonus);
 
     /// Where SkyrimCombat gets its numbers from. SkyrimWorldView implements it; a test supplies a fake. Main thread.
     class CombatData
@@ -163,6 +189,14 @@ namespace game_skyrimse
         /// first use may need records that a worker is still reading (review fix of task 0171: nothing here may block
         /// the main thread). The first call may start that read. Default: always ready (a test's fake).
         virtual bool combatReady() { return true; }
+        /// Task 0179: the perk records (null: no perk exists, every perk list is ignored), and a PERK by editor id
+        /// (case-insensitive; 0 when unknown). Defaults: none.
+        virtual const PerkLibrary* perkLibrary() { return nullptr; }
+        virtual FormId perkByEditorId(std::string_view editorId)
+        {
+            (void)editorId;
+            return kNullFormId;
+        }
     };
 
     /// The table slot (attack, block, ...) x weapon animation type (WEAP DNAM +0, 0 to 9) -> clip file name.
@@ -249,6 +283,13 @@ namespace game_skyrimse
         /// its own test (0, negative or not finite: the real key only).
         bool setTestAmmo(std::string_view editorId);
         void setTestBowSpeedBonus(float bonus);
+        /// Task 0179 (stage S5-7). `combat perks` (default true): when false no perk is looked at. The two lists are
+        /// comma separated PERK editor ids given to the stand-in player and to every NPC fighter; empty (the default)
+        /// gives none. A name the data does not know is traced once and skipped.
+        void setUsePerks(bool use) { mUsePerks = use; }
+        void setTestPlayerPerks(std::string_view list) { mTestPlayerPerks = std::string(list); }
+        void setTestNpcPerks(std::string_view list) { mTestNpcPerks = std::string(list); }
+        [[nodiscard]] std::size_t perkEffectsApplied() const { return mPerkEffectsApplied; }
         void setTestPlayerBow(float holdSeconds);
         void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
         void onPlayerAttackEdge(bool pressed) override;
@@ -326,6 +367,8 @@ namespace game_skyrimse
                 = Bow::None;
             std::uint32_t mBowToken = 0;
             std::uint32_t mArrowsKept = 0;
+            std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
+            std::vector<FormId> mWornKeywords; ///< task 0179
         };
         /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
         struct PendingBow
@@ -362,6 +405,14 @@ namespace game_skyrimse
         void regenerate(float seconds);
         void beginAttack(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, AttackKind kind);
         void loadSettings();
+        // Task 0179: perks. All of it does nothing for a fighter with no perks, no armour perk and no ability.
+        void resolveTestPerks();
+        void preparePerks(Fighter& fighter);
+        [[nodiscard]] bool perksMatter(const Fighter& fighter) const;
+        [[nodiscard]] PerkParticipant actorParticipant(const Fighter& fighter, bool power) const;
+        [[nodiscard]] PerkParticipant weaponParticipant() const;
+        void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
+        [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
         [[nodiscard]] bool bowReady();
         void beginBowDraw(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
         void releaseBow(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, std::uint32_t token);
@@ -422,6 +473,14 @@ namespace game_skyrimse
         bool mAmmoLooked = false;
         ProjectileSettings mProjectileSettings;
         float mBowSpeedBonus = 0.f;
+        bool mUsePerks = true;
+        std::string mTestPlayerPerks;
+        std::string mTestNpcPerks;
+        std::vector<FormId> mPlayerTestPerks; ///< resolved once
+        std::vector<FormId> mNpcTestPerks;
+        bool mPerksResolved = false;
+        std::unique_ptr<PerkEngine> mPerkEngine;
+        std::size_t mPerkEffectsApplied = 0;
         float mPlayerBowHold = 0.f;
         float mNextPlayerBow = 1.f;
         std::vector<bool> mPlayerEdges; ///< attack-control edges since the last combatUpdate (true: pressed)

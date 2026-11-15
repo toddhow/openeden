@@ -861,9 +861,20 @@ namespace game_skyrimse::conditions
     /// Applies compare operator code 0 to 5 (see above); `valid` is false for any other code.
     [[nodiscard]] bool compareValues(std::uint8_t op, float lhs, float rhs, bool& valid);
 
+    /// A function a caller adds for ITS evaluator only (task 0179: the perk evaluator's IsBlocking and friends). The
+    /// global table is not touched, so every other list still fails closed on these indices.
+    struct ExtraFunction
+    {
+        std::uint16_t mIndex = 0;
+        ConditionFunction mFunction = nullptr;
+    };
+
     class Evaluator
     {
     public:
+        /// Extra functions, consulted only for an index the global table does not know. Not owned; empty by default.
+        void setExtraFunctions(std::span<const ExtraFunction> extras) { mExtra = extras; }
+
         /// Called once per unknown function index with a one-line text.
         void setLog(std::function<void(const std::string&)> log) { mLog = std::move(log); }
 
@@ -883,6 +894,7 @@ namespace game_skyrimse::conditions
 
     private:
         std::function<void(const std::string&)> mLog;
+        std::span<const ExtraFunction> mExtra;
     };
 }
 

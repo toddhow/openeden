@@ -401,6 +401,16 @@ namespace game_skyrimse
         return nullptr;
     }
 
+    const PerkLibrary* SkyrimWorldView::perkLibrary()
+    {
+        return mCombatIndex.get();
+    }
+
+    FormId SkyrimWorldView::perkByEditorId(std::string_view editorId)
+    {
+        return mCombatIndex == nullptr ? kNullFormId : mCombatIndex->perkByEditorId(std::string(editorId));
+    }
+
     FighterProfile SkyrimWorldView::playerFighter()
     {
         // The player has no records: a level 1 stand-in with skills at kStandInSkill, no armour, a Nord's unarmed hit.
@@ -435,8 +445,32 @@ namespace game_skyrimse
         out.mStaminaMax = stats.stamina;
         out.mSkills = stats.skills;
         ActorIndex::Resolved resolved;
+        out.mBase = npc;
+        out.mLevel = stats.level;
+        out.mFemale = stats.female;
+        {
+            std::string pieceError;
+            (void)wornArmour(*mActorIndex, npc, 0, mStandInPlayerLevel, out.mPieces, pieceError);
+        }
         if (mActorIndex->resolve(npc, mStandInPlayerLevel, 0, resolved) == ActorIndex::ResolveStatus::Ok)
         {
+            // Task 0179: what the perk conditions ask about. PRKR follows the template's "spell list" use flag
+            // (RECALLED-VERIFY: the flag that covers it).
+            out.mRace = resolved.mRace;
+            if (const ActorNpc* source = mActorIndex->npc(resolved.mSpellsFrom))
+            {
+                out.mPerks = source->mPerks;
+                out.mSpells = source->mSpells;
+            }
+            if (const ActorNpc* keywords = mActorIndex->npc(resolved.mKeywordsFrom))
+                out.mKeywords = keywords->mKeywords;
+            if (const RaceRecord* actorRace = mActorIndex->race(resolved.mRace))
+            {
+                out.mKeywords.insert(out.mKeywords.end(), actorRace->mKeywords.begin(), actorRace->mKeywords.end());
+                out.mSpells.insert(out.mSpells.end(), actorRace->mSpells.begin(), actorRace->mSpells.end());
+            }
+            for (const FactionMembership& membership : resolved.mFactions)
+                out.mFactions.push_back(membership.mFaction);
             if (const RaceCombatRecord* race = mCombatIndex->race(resolved.mRace))
             {
                 out.mHealthRegenPercent = race->mHealthRegen;

@@ -6,6 +6,14 @@
 
 namespace game_skyrimse
 {
+    float fighterBowDrawSpeed(const FighterProfile& profile, float weaponSpeed, float testBonus)
+    {
+        const float speed = bowDrawSpeed(weaponSpeed, testBonus);
+        if (!profile.mHasWeaponSpeedAbility || !std::isfinite(profile.mAbilityWeaponSpeed))
+            return speed;
+        return std::clamp(speed * profile.mAbilityWeaponSpeed, 0.1f, 10.f);
+    }
+
     namespace
     {
         using openeden::sdk::game::ActorHandle;
@@ -211,6 +219,282 @@ namespace game_skyrimse
         mHaveSettings = true;
     }
 
+    // ---- perks (task 0179, stage S5-7) -----------------------------------------------------------------------------
+
+    namespace
+    {
+        // The actor values the perk conditions read from a fighter: the skills from 6, then the three vitals.
+        constexpr std::uint32_t kPerkSkillBase = 6;
+        constexpr std::uint32_t kPerkHealthValue = 24, kPerkMagickaValue = 25, kPerkStaminaValue = 26;
+
+        std::vector<std::string> splitNames(const std::string& list)
+        {
+            std::vector<std::string> out;
+            std::string current;
+            auto flush = [&] {
+                std::size_t b = 0, e = current.size();
+                while (b < e && (current[b] == ' ' || current[b] == '\t'))
+                    ++b;
+                while (e > b && (current[e - 1] == ' ' || current[e - 1] == '\t'))
+                    --e;
+                if (e > b)
+                    out.push_back(current.substr(b, e - b));
+                current.clear();
+            };
+            for (const char c : list)
+            {
+                if (c == ',')
+                    flush();
+                else
+                    current.push_back(c);
+            }
+            flush();
+            return out;
+        }
+    }
+
+    void SkyrimCombat::resolveTestPerks()
+    {
+        mPerksResolved = true;
+        const std::pair<const std::string*, std::vector<FormId>*> lists[]
+            = { { &mTestPlayerPerks, &mPlayerTestPerks }, { &mTestNpcPerks, &mNpcTestPerks } };
+        for (const auto& [text, ids] : lists)
+        {
+            ids->clear();
+            for (const std::string& n : splitNames(*text))
+            {
+                const FormId id = mData->perkByEditorId(n);
+                if (id == kNullFormId)
+                    trace("COMBAT perk '" + n + "' is not a PERK of the data: skipped");
+                else
+                    ids->push_back(id);
+            }
+        }
+    }
+
+    void SkyrimCombat::preparePerks(Fighter& fighter)
+    {
+        const PerkLibrary* library = mUsePerks && mData != nullptr ? mData->perkLibrary() : nullptr;
+        if (library == nullptr || !fighter.mHasProfile)
+            return;
+        if (!mPerksResolved)
+            resolveTestPerks();
+        FighterProfile& p = fighter.mProfile;
+        const std::vector<FormId>& extra = fighter.mSubject.player ? mPlayerTestPerks : mNpcTestPerks;
+        p.mPerks.insert(p.mPerks.end(), extra.begin(), extra.end());
+        std::sort(p.mPerks.begin(), p.mPerks.end());
+        p.mPerks.erase(std::unique(p.mPerks.begin(), p.mPerks.end()), p.mPerks.end());
+        if (p.mPerks.empty() && p.mSpells.empty())
+            return;
+        std::vector<FormId> spells = p.mSpells;
+        collectPerkAbilities(*library, p.mPerks, spells);
+        bool found = false;
+        const float resist
+            = abilityModifier(*library, spells, static_cast<std::int32_t>(ActorValueIndex::DamageResist), found);
+        if (found)
+            p.mAbilityDamageResist += resist;
+        const float speed
+            = abilityModifier(*library, spells, static_cast<std::int32_t>(ActorValueIndex::WeaponSpeedMult), found);
+        if (found)
+        {
+            p.mHasWeaponSpeedAbility = true;
+            p.mAbilityWeaponSpeed = speed;
+        }
+        fighter.mPerkValues.clear();
+        for (std::size_t i = 0; i < p.mSkills.size(); ++i)
+            fighter.mPerkValues.emplace_back(
+                kPerkSkillBase + static_cast<std::uint32_t>(i), static_cast<float>(p.mSkills[i]));
+        fighter.mPerkValues.emplace_back(kPerkHealthValue, p.mHealthMax);
+        fighter.mPerkValues.emplace_back(kPerkMagickaValue, 0.f);
+        fighter.mPerkValues.emplace_back(kPerkStaminaValue, p.mStaminaMax);
+        fighter.mWornKeywords.clear();
+        for (const ArmourPiece& piece : p.mPieces)
+            fighter.mWornKeywords.insert(fighter.mWornKeywords.end(), piece.mKeywords.begin(), piece.mKeywords.end());
+        if (!p.mPerks.empty() || p.mAbilityDamageResist != 0.f || p.mHasWeaponSpeedAbility)
+            trace("COMBAT perks " + name(fighter.mSubject) + ": " + std::to_string(p.mPerks.size()) + " perks, "
+                + std::to_string(spells.size()) + " abilities, damage resist " + fmt(p.mAbilityDamageResist)
+                + (p.mHasWeaponSpeedAbility ? ", weapon speed x " + fmt(p.mAbilityWeaponSpeed) : std::string()));
+    }
+
+    bool SkyrimCombat::perksMatter(const Fighter& fighter) const
+    {
+        if (!mUsePerks || mData == nullptr || !fighter.mHasProfile)
+            return false;
+        const FighterProfile& p = fighter.mProfile;
+        return !p.mPerks.empty() || p.mAbilityDamageResist != 0.f || p.mHasWeaponSpeedAbility;
+    }
+
+    PerkParticipant SkyrimCombat::actorParticipant(const Fighter& fighter, bool power) const
+    {
+        const FighterProfile& p = fighter.mProfile;
+        PerkParticipant out;
+        out.mKind = PerkParticipant::Kind::Actor;
+        out.mForm = p.mBase;
+        out.mRace = p.mRace;
+        out.mFemale = p.mFemale;
+        out.mLevel = p.mLevel;
+        out.mPerks = &p.mPerks;
+        out.mKeywords = &p.mKeywords;
+        out.mFactions = &p.mFactions;
+        out.mWornKeywords = &fighter.mWornKeywords;
+        out.mValues = &fighter.mPerkValues;
+        out.mRightHandType = mWeapon != nullptr ? mWeapon->mAnimType : std::uint8_t(0);
+        out.mBlocking = isBlocking(fighter);
+        out.mPowerAttacking = power;
+        return out;
+    }
+
+    PerkParticipant SkyrimCombat::weaponParticipant() const
+    {
+        PerkParticipant out;
+        if (mWeapon == nullptr)
+            return out;
+        out.mKind = PerkParticipant::Kind::Weapon;
+        out.mForm = mWeapon->mCommon.mId;
+        out.mKeywords = &mWeapon->mKeywords;
+        out.mAnimType = mWeapon->mAnimType;
+        return out;
+    }
+
+    // The damage, the mitigation and the stagger of one blow through the perks of both sides. Nothing changes (and
+    // nothing is traced) unless a perk effect applied.
+    void SkyrimCombat::applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit)
+    {
+        const bool attackerMatters = perksMatter(attacker);
+        const bool victimMatters = perksMatter(victim);
+        if (!attackerMatters && !victimMatters)
+            return;
+        const PerkLibrary* library = mData->perkLibrary();
+        if (library == nullptr)
+            return;
+        if (!mPerkEngine)
+            mPerkEngine = std::make_unique<PerkEngine>(*library);
+        PerkEngine& engine = *mPerkEngine;
+        const PerkParticipant a = actorParticipant(attacker, power);
+        const PerkParticipant v = actorParticipant(victim, false);
+        const PerkParticipant w = weaponParticipant();
+        PerkQuery attackQuery; // owner = the attacker: [Owner, Weapon, Target]
+        attackQuery.set(PerkRole::Owner, &a);
+        attackQuery.set(PerkRole::Target, &v);
+        if (mWeapon != nullptr)
+            attackQuery.set(PerkRole::Weapon, &w);
+        PerkQuery defendQuery; // owner = the victim: [Owner, Attacker, Weapon]
+        defendQuery.set(PerkRole::Owner, &v);
+        defendQuery.set(PerkRole::Attacker, &a);
+        if (mWeapon != nullptr)
+            defendQuery.set(PerkRole::Weapon, &w);
+        auto step = [&](std::uint8_t entry, const std::vector<FormId>& perks, const PerkQuery& query, float& value,
+                        const char* what) {
+            if (!engine.hasEntryPoint(perks, entry))
+                return false;
+            const EntryOutcome outcome = engine.apply(entry, perks, query, value);
+            if (outcome.mApplied == 0)
+                return false;
+            trace("COMBAT perk " + std::string(what) + " (entry point " + std::to_string(entry) + ") "
+                + std::to_string(outcome.mApplied) + " effects: " + fmt(value) + " -> " + fmt(outcome.mValue));
+            value = outcome.mValue;
+            mPerkEffectsApplied += outcome.mApplied;
+            return true;
+        };
+        float before = hit.mDamageBefore;
+        bool damageChanged = false;
+        if (attackerMatters)
+        {
+            if (mWeapon != nullptr && mWeapon->mDamage > 0)
+            {
+                const float base = static_cast<float>(mWeapon->mDamage);
+                float newBase = base;
+                if (step(PerkEntry::CalculateWeaponDamage, attacker.mProfile.mPerks, attackQuery, newBase,
+                        "weapon damage"))
+                {
+                    before *= newBase / base;
+                    damageChanged = true;
+                }
+            }
+            damageChanged
+                |= step(PerkEntry::ModAttackDamage, attacker.mProfile.mPerks, attackQuery, before, "attack damage");
+            if (power)
+                damageChanged |= step(PerkEntry::ModPowerAttackDamage, attacker.mProfile.mPerks, attackQuery, before,
+                    "power attack damage");
+        }
+        if (victimMatters)
+            damageChanged
+                |= step(PerkEntry::ModIncomingDamage, victim.mProfile.mPerks, defendQuery, before, "incoming damage");
+        bool mitigationChanged = false;
+        float mitigation = victim.mProfile.mMitigationPercent;
+        if (victimMatters)
+            mitigation = perkMitigation(victim, mitigationChanged);
+        if (damageChanged || mitigationChanged)
+        {
+            before = std::isfinite(before) ? std::max(0.f, before) : 0.f;
+            const float m = std::clamp(mitigation, 0.f, mCombatSettings.mMaxArmorRating);
+            hit.mDamageBefore = before;
+            hit.mDamageAfter = std::clamp(before * (1.f - m / 100.f), 0.f, before);
+            trace("COMBAT perk damage before armour " + fmt(hit.mDamageBefore) + " after armour "
+                + fmt(hit.mDamageAfter) + " (mitigation " + fmt(m) + "%)");
+        }
+        float stagger = hit.mStagger;
+        if (attackerMatters)
+        {
+            PerkQuery staggerQuery;
+            staggerQuery.set(PerkRole::Owner, &a);
+            staggerQuery.set(PerkRole::Target, &v);
+            step(PerkEntry::ModTargetStagger, attacker.mProfile.mPerks, staggerQuery, stagger, "target stagger");
+        }
+        if (victimMatters)
+        {
+            PerkQuery incoming;
+            incoming.set(PerkRole::Owner, &v);
+            incoming.set(PerkRole::Attacker, &a);
+            step(PerkEntry::ModIncomingStagger, victim.mProfile.mPerks, incoming, stagger, "incoming stagger");
+        }
+        hit.mStagger = std::max(0.f, stagger);
+    }
+
+    // The victim's mitigation percent through ModArmorRating (per worn piece) and DamageResist abilities.
+    float SkyrimCombat::perkMitigation(const Fighter& victim, bool& changed)
+    {
+        const FighterProfile& p = victim.mProfile;
+        changed = false;
+        float mitigation = p.mMitigationPercent;
+        PerkEngine& engine = *mPerkEngine;
+        if (!p.mPieces.empty() && engine.hasEntryPoint(p.mPerks, PerkEntry::ModArmorRating))
+        {
+            const PerkParticipant owner = actorParticipant(victim, false);
+            std::vector<ArmourPiece> pieces = p.mPieces;
+            bool any = false;
+            for (ArmourPiece& piece : pieces)
+            {
+                PerkParticipant armour;
+                armour.mKind = PerkParticipant::Kind::Armour;
+                armour.mForm = piece.mForm;
+                armour.mKeywords = &piece.mKeywords;
+                PerkQuery query;
+                query.set(PerkRole::Owner, &owner);
+                query.set(PerkRole::Armour, &armour);
+                const EntryOutcome outcome = engine.apply(PerkEntry::ModArmorRating, p.mPerks, query, piece.mRating);
+                if (outcome.mApplied > 0)
+                {
+                    piece.mRating = std::max(0.f, outcome.mValue);
+                    mPerkEffectsApplied += outcome.mApplied;
+                    any = true;
+                }
+            }
+            if (any)
+            {
+                mitigation = armourOf(pieces, p.mSkills, mCombatSettings).mMitigationPercent;
+                changed = true;
+            }
+        }
+        if (p.mAbilityDamageResist != 0.f)
+        {
+            mitigation = std::min(mCombatSettings.mMaxArmorRating,
+                mitigation + p.mAbilityDamageResist * mCombatSettings.mArmorScalingFactor);
+            changed = true;
+        }
+        return mitigation;
+    }
+
     bool SkyrimCombat::isBlocker(ActorHandle handle) const
     {
         return std::find(mBlockers.begin(), mBlockers.end(), handle) != mBlockers.end();
@@ -293,6 +577,7 @@ namespace game_skyrimse
                 fighter.mProfile = mData->playerFighter();
             fighter.mHealth = fighter.mProfile.mHealthMax;
             fighter.mStamina = fighter.mProfile.mStaminaMax;
+            preparePerks(fighter);
         }
         return fighter.mHasProfile;
     }
@@ -671,7 +956,30 @@ namespace game_skyrimse
         if (mWeapon != nullptr && mWeapon->skillSlot() < attacker->mProfile.mSkills.size())
             input.mAttackerSkill = attacker->mProfile.mSkills[mWeapon->skillSlot()];
         const MeleeHit cost = computeMeleeHit(input, mCombatSettings);
-        const float staminaCost = hit.mBash ? bashStaminaCost(mBlockSettings) : cost.mStaminaCost;
+        float staminaCost = hit.mBash ? bashStaminaCost(mBlockSettings) : cost.mStaminaCost;
+        if (hit.mPower && !hit.mBash && perksMatter(*attacker) && mData->perkLibrary() != nullptr)
+        {
+            // Task 0179: ModPowerAttackStamina [owner, weapon].
+            if (!mPerkEngine)
+                mPerkEngine = std::make_unique<PerkEngine>(*mData->perkLibrary());
+            const PerkParticipant a = actorParticipant(*attacker, true);
+            const PerkParticipant w = weaponParticipant();
+            PerkQuery query;
+            query.set(PerkRole::Owner, &a);
+            if (mWeapon != nullptr)
+                query.set(PerkRole::Weapon, &w);
+            if (mPerkEngine->hasEntryPoint(attacker->mProfile.mPerks, PerkEntry::ModPowerAttackStamina))
+            {
+                const EntryOutcome outcome = mPerkEngine->apply(
+                    PerkEntry::ModPowerAttackStamina, attacker->mProfile.mPerks, query, staminaCost);
+                if (outcome.mApplied > 0)
+                {
+                    trace("COMBAT perk power attack stamina " + fmt(staminaCost) + " -> " + fmt(outcome.mValue));
+                    staminaCost = std::max(0.f, outcome.mValue);
+                    mPerkEffectsApplied += outcome.mApplied;
+                }
+            }
+        }
         attacker->mStamina = std::max(0.f, attacker->mStamina - staminaCost);
         attacker->mCombatUntil = mClock + kCombatLingerSeconds;
         openeden::sdk::game::SubjectState where;
@@ -708,7 +1016,9 @@ namespace game_skyrimse
         input.mTargetMitigationPercent = victim.mProfile.mMitigationPercent;
         if (mWeapon != nullptr && mWeapon->skillSlot() < attacker.mProfile.mSkills.size())
             input.mAttackerSkill = attacker.mProfile.mSkills[mWeapon->skillSlot()];
-        const MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
+        MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
+        if (!bash)
+            applyPerksToHit(attacker, victim, power, result);
 
         // A bash deals no damage and no block stops it; a blow on a blocker goes through the block formula (task 0172).
         float damage = bash ? 0.f : result.mDamageAfter;
@@ -722,6 +1032,22 @@ namespace game_skyrimse
             blockInput.mBlockerSkill = victim.mProfile.mSkills[kBlockSkillSlot];
             blockInput.mPowerAttack = power;
             blockInput.mBlockerStamina = victim.mStamina;
+            if (perksMatter(victim) && mPerkEngine
+                && mPerkEngine->hasEntryPoint(victim.mProfile.mPerks, PerkEntry::ModPercentBlocked))
+            {
+                // Task 0179: ModPercentBlocked [owner] scales the fraction a block takes off.
+                const PerkParticipant owner = actorParticipant(victim, false);
+                PerkQuery query;
+                query.set(PerkRole::Owner, &owner);
+                const EntryOutcome outcome
+                    = mPerkEngine->apply(PerkEntry::ModPercentBlocked, victim.mProfile.mPerks, query, 1.f);
+                if (outcome.mApplied > 0)
+                {
+                    blockInput.mFractionScale = outcome.mValue;
+                    mPerkEffectsApplied += outcome.mApplied;
+                    trace("COMBAT perk block fraction scale " + fmt(outcome.mValue));
+                }
+            }
             const BlockResult block = computeBlock(blockInput, mBlockSettings);
             victim.mStamina = std::max(0.f, victim.mStamina - block.mStaminaDrain);
             damage = block.mDamageTaken;
@@ -858,7 +1184,7 @@ namespace game_skyrimse
         request.token = mNextToken++;
         if (!writer.playClip(fighter.mSubject, request))
             return;
-        const float speed = bowDrawSpeed(mWeapon->mSpeed, mBowSpeedBonus);
+        const float speed = fighterBowDrawSpeed(fighter.mProfile, mWeapon->mSpeed, mBowSpeedBonus);
         (void)writer.setClipSpeed(fighter.mSubject, speed);
         fighter.mBow = Fighter::Bow::Drawing;
         fighter.mBowToken = request.token;
@@ -998,7 +1324,28 @@ namespace game_skyrimse
         if (!alreadyDead && result.fate == openeden::sdk::game::ProjectileFate::HitActor)
         {
             const std::uint64_t seed = (static_cast<std::uint64_t>(result.token) << 32) ^ result.actor.reference;
-            if (rollPercent(seed) < mProjectileSettings.mArrowInventoryChance)
+            float chance = mProjectileSettings.mArrowInventoryChance;
+            if (perksMatter(*archer) && mData->perkLibrary() != nullptr)
+            {
+                // Task 0179: ModRecoverArrowChance [owner].
+                if (!mPerkEngine)
+                    mPerkEngine = std::make_unique<PerkEngine>(*mData->perkLibrary());
+                if (mPerkEngine->hasEntryPoint(archer->mProfile.mPerks, PerkEntry::ModRecoverArrowChance))
+                {
+                    const PerkParticipant owner = actorParticipant(*archer, false);
+                    PerkQuery query;
+                    query.set(PerkRole::Owner, &owner);
+                    const EntryOutcome outcome
+                        = mPerkEngine->apply(PerkEntry::ModRecoverArrowChance, archer->mProfile.mPerks, query, chance);
+                    if (outcome.mApplied > 0)
+                    {
+                        chance = outcome.mValue;
+                        mPerkEffectsApplied += outcome.mApplied;
+                        trace("COMBAT perk arrow recover chance " + fmt(chance));
+                    }
+                }
+            }
+            if (rollPercent(seed) < chance)
             {
                 ++victim->mArrowsKept;
                 ++mArrowsKept;
@@ -1026,7 +1373,8 @@ namespace game_skyrimse
                 && time > 0.f)
                 mPlayerDrawTime = time;
         }
-        const float drawSeconds = mPlayerDrawTime / bowDrawSpeed(mWeapon->mSpeed, mBowSpeedBonus);
+        const float drawSeconds
+            = mPlayerDrawTime / fighterBowDrawSpeed(player.mProfile, mWeapon->mSpeed, mBowSpeedBonus);
         // The automatic test: press, hold, release, every kPlayerBowPeriod seconds.
         if (mPlayerBowHold > 0.f && !mPlayerDrawing && mPlayerDrawTime > 0.f && mPlayerEdges.empty()
             && mClock >= mNextPlayerBow)

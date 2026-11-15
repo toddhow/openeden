@@ -19,6 +19,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/land.hpp"
+#include "game_skyrimse/perks.hpp"
 
 #include <array>
 #include <cstdint>
@@ -65,6 +66,7 @@ namespace game_skyrimse
         bool mHasCrit = false; ///< CRDT, 24 bytes (VERIFIED size)
         std::uint16_t mCritDamage = 0; ///< +0
         float mCritMultiplier = 1.f; ///< +4 (1.0 for 3,160 of 3,262)
+        std::vector<FormId> mKeywords; ///< KWDA (task 0179: the perk conditions ask HasKeyword of the weapon)
 
         [[nodiscard]] bool isMelee() const
         {
@@ -159,6 +161,9 @@ namespace game_skyrimse
         std::vector<RaceCombatRecord> mRaces;
         std::vector<GameSetting> mSettings;
         std::vector<ProjectileRecord> mProjectiles; ///< task 0178
+        std::vector<PerkRecord> mPerks; ///< task 0179
+        std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
+        std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         DecodeNotes mNotes;
         std::vector<Content::Error> mErrors;
@@ -243,7 +248,7 @@ namespace game_skyrimse
     };
 
     /// WEAP and RACE combat numbers of a load order by form id (later plugins override, whole records).
-    class CombatIndex
+    class CombatIndex : public PerkLibrary
     {
     public:
         void add(const CombatRecords& records);
@@ -256,12 +261,23 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t raceCount() const { return mRaces.size(); }
         [[nodiscard]] std::vector<FormId> weaponIds() const; ///< sorted
         [[nodiscard]] const SettingsTable& settings() const { return mSettings; }
+        // PerkLibrary (task 0179)
+        [[nodiscard]] const PerkRecord* perk(FormId id) const override;
+        [[nodiscard]] const SpellRecord* spell(FormId id) const override;
+        [[nodiscard]] const MagicEffectRecord* magicEffect(FormId id) const override;
+        /// The PERK with this editor id (case-insensitive), or 0.
+        [[nodiscard]] FormId perkByEditorId(const std::string& editorId) const;
+        [[nodiscard]] std::size_t perkCount() const { return mPerks.size(); }
+        [[nodiscard]] std::vector<FormId> perkIds() const; ///< sorted
 
     private:
         std::unordered_map<FormId, WeaponRecord> mWeapons;
         std::unordered_map<FormId, RaceCombatRecord> mRaces;
         std::unordered_map<FormId, ProjectileRecord> mProjectiles;
         std::unordered_map<FormId, AmmoRecord> mAmmo;
+        std::unordered_map<FormId, PerkRecord> mPerks;
+        std::unordered_map<FormId, SpellRecord> mSpells;
+        std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
     };
 
@@ -280,6 +296,8 @@ namespace game_skyrimse
         float mRating = 0.f;
         std::uint32_t mSlotMask = 0;
         std::uint32_t mType = 0;
+        FormId mForm = kNullFormId; ///< task 0179: the ARMO (0 when not known)
+        std::vector<FormId> mKeywords; ///< task 0179: its KWDA
     };
 
     /// The armour of an actor: the summed rating (skill-scaled), how many main pieces count and the percent of damage
@@ -396,6 +414,7 @@ namespace game_skyrimse
         float mBlockerSkill = 0.f; ///< the blocker's Block skill, 0 to 100
         bool mPowerAttack = false;
         float mBlockerStamina = 0.f;
+        float mFractionScale = 1.f; ///< task 0179: a perk (ModPercentBlocked) scales the fraction; 1 changes nothing
     };
 
     struct BlockResult

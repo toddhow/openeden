@@ -127,6 +127,9 @@ namespace game_skyrimse
         FormId mDefaultPackageList = kNullFormId; ///< DPLT (an FLST in the installed data)
         std::vector<FormId> mKeywords; ///< KWDA
         std::vector<FormId> mSpells; ///< SPLO
+        /// PRKR (task 0179): the PERK records the NPC has (8 bytes each: the form, a rank byte that is always 1 in the
+        /// installed data, 3 padding). Each rank is its own PERK record.
+        std::vector<FormId> mPerks;
         std::vector<FormId> mHeadParts; ///< PNAM: HDPT forms (VERIFIED: 14,382 of 14,382)
         std::optional<float> mHeight; ///< NAM6, 0.5 to 3.3 in the installed data
         std::optional<float> mWeight; ///< NAM7, 0 to 100
@@ -230,6 +233,7 @@ namespace game_skyrimse
         std::vector<FormId> mArmatures; ///< MODL (VERIFIED: all ARMA)
         FormId mTemplate = kNullFormId; ///< TNAM
         std::uint32_t mRating = 0; ///< DNAM, 100 times the armor rating (RECALLED-VERIFY)
+        std::vector<FormId> mKeywords; ///< KWDA (task 0179)
     };
 
     /// One XNAM of a FACT (12 bytes, VERIFIED on all 1,159): another faction, a modifier (0 in the installed data) and

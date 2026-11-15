@@ -464,6 +464,16 @@ namespace game_skyrimse
                     if (bowBonus != 0.f)
                         say(openeden::sdk::LogLevel::Info,
                             "combat test bow speed bonus: " + std::to_string(bowBonus));
+                    // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
+                    mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
+                    const std::string playerPerks = settings->getString(kPackId, kCombatTestPlayerPerksKey, "");
+                    mCellSource.combat().setTestPlayerPerks(playerPerks);
+                    if (!playerPerks.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test player perks: " + playerPerks);
+                    const std::string npcPerks = settings->getString(kPackId, kCombatTestNpcPerksKey, "");
+                    mCellSource.combat().setTestNpcPerks(npcPerks);
+                    if (!npcPerks.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test npc perks: " + npcPerks);
                     mCellSource.combat().setWarning(
                         [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
                     if (settings->getBool(kPackId, kCombatTraceKey, false))

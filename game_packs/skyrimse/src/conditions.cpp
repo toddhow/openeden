@@ -978,7 +978,12 @@ namespace game_skyrimse::conditions
             const survey::Ctda& c = list[i];
             ++mConditions;
             bool result = false;
-            if (const ConditionFunction function = findFunction(c.mFunction))
+            ConditionFunction function = findFunction(c.mFunction);
+            if (function == nullptr)
+                for (const ExtraFunction& extra : mExtra)
+                    if (extra.mIndex == c.mFunction)
+                        function = extra.mFunction;
+            if (function != nullptr)
             {
                 if ((c.mFlags & kFlagSwapSubjectAndTarget) != 0)
                 {

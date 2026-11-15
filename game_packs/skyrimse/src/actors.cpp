@@ -425,6 +425,16 @@ namespace game_skyrimse
                         case Content::fourCC("SPLO"):
                             ok = formEntry(type, data, n.mSpells);
                             break;
+                        case Content::fourCC("PRKR"): // task 0179: perk form, rank, 3 padding (VERIFIED size 8)
+                            if (data.size() != 8)
+                            {
+                                oddType(type);
+                                break;
+                            }
+                            if (n.mPerks.size() + 1 > mLimits.mMaxEntriesPerList)
+                                return tooMany(type);
+                            n.mPerks.push_back(resolved(readLe<std::uint32_t>(data.data())));
+                            break;
                         case Content::fourCC("KWDA"):
                             ok = formList(type, data, n.mKeywords);
                             break;
@@ -893,6 +903,9 @@ namespace game_skyrimse
                                 a.mRating = readLe<std::uint32_t>(data.data());
                             else
                                 oddType(type);
+                            break;
+                        case Content::fourCC("KWDA"): // task 0179
+                            ok = formList(type, data, a.mKeywords);
                             break;
                         default:
                             break;

@@ -164,6 +164,15 @@ namespace game_skyrimse
                         out.mCritMultiplier = multiplier;
                     }
                     break;
+                case Content::fourCC("KWDA"): // task 0179: the keywords the perk conditions ask about
+                    if (data.size() % 4 != 0 || data.size() / 4 > 64)
+                    {
+                        fields.odd(type);
+                        break;
+                    }
+                    for (std::size_t i = 0; i < data.size() / 4; ++i)
+                        out.mKeywords.push_back(fields.resolved(readLe<std::uint32_t>(data.data() + i * 4)));
+                    break;
                 default:
                     break;
             }
@@ -528,7 +537,8 @@ namespace game_skyrimse
             {
                 const std::uint32_t t = record.mType;
                 if (t != Content::fourCC("WEAP") && t != Content::fourCC("RACE") && t != Content::fourCC("GMST")
-                    && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO"))
+                    && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO") && t != Content::fourCC("PERK")
+                    && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -577,6 +587,27 @@ namespace game_skyrimse
                     ok = decodeAmmo(bytes, record, mContext, a, why);
                     if (ok)
                         mOut.mAmmo.push_back(std::move(a));
+                }
+                else if (t == Content::fourCC("PERK"))
+                {
+                    PerkRecord p;
+                    ok = decodePerk(bytes, record, mContext, p, why);
+                    if (ok)
+                        mOut.mPerks.push_back(std::move(p));
+                }
+                else if (t == Content::fourCC("SPEL"))
+                {
+                    SpellRecord sp;
+                    ok = decodeSpell(bytes, record, mContext, sp, why);
+                    if (ok)
+                        mOut.mSpells.push_back(std::move(sp));
+                }
+                else if (t == Content::fourCC("MGEF"))
+                {
+                    MagicEffectRecord m;
+                    ok = decodeMagicEffect(bytes, record, mContext, m, why);
+                    if (ok)
+                        mOut.mMagicEffects.push_back(std::move(m));
                 }
                 else if (t == Content::fourCC("RACE"))
                 {
@@ -736,7 +767,66 @@ namespace game_skyrimse
             else
                 mRaces[r.mCommon.mId] = r;
         }
+        for (const PerkRecord& p : records.mPerks)
+        {
+            if (p.mCommon.deleted())
+                mPerks.erase(p.mCommon.mId);
+            else
+                mPerks[p.mCommon.mId] = p;
+        }
+        for (const SpellRecord& sp : records.mSpells)
+        {
+            if (sp.mCommon.deleted())
+                mSpells.erase(sp.mCommon.mId);
+            else
+                mSpells[sp.mCommon.mId] = sp;
+        }
+        for (const MagicEffectRecord& m : records.mMagicEffects)
+        {
+            if (m.mCommon.deleted())
+                mMagicEffects.erase(m.mCommon.mId);
+            else
+                mMagicEffects[m.mCommon.mId] = m;
+        }
         mSettings.add(records);
+    }
+
+    const PerkRecord* CombatIndex::perk(FormId id) const
+    {
+        const auto it = mPerks.find(id);
+        return it == mPerks.end() ? nullptr : &it->second;
+    }
+
+    const SpellRecord* CombatIndex::spell(FormId id) const
+    {
+        const auto it = mSpells.find(id);
+        return it == mSpells.end() ? nullptr : &it->second;
+    }
+
+    const MagicEffectRecord* CombatIndex::magicEffect(FormId id) const
+    {
+        const auto it = mMagicEffects.find(id);
+        return it == mMagicEffects.end() ? nullptr : &it->second;
+    }
+
+    std::vector<FormId> CombatIndex::perkIds() const
+    {
+        std::vector<FormId> ids;
+        ids.reserve(mPerks.size());
+        for (const auto& entry : mPerks)
+            ids.push_back(entry.first);
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    }
+
+    FormId CombatIndex::perkByEditorId(const std::string& editorId) const
+    {
+        const std::string wanted = lower(editorId);
+        FormId best = kNullFormId;
+        for (const auto& [id, perk] : mPerks)
+            if (lower(perk.mCommon.mEditorId) == wanted && (best == kNullFormId || id < best))
+                best = id;
+        return best;
     }
 
     const WeaponRecord* CombatIndex::weapon(FormId id) const
@@ -821,7 +911,8 @@ namespace game_skyrimse
             const ArmorExtra* armor = index.armor(worn.mArmor);
             if (armor == nullptr)
                 continue;
-            out.push_back({ static_cast<float>(armor->mRating) / 100.f, armor->mSlotMask, armor->mArmorType });
+            out.push_back({ static_cast<float>(armor->mRating) / 100.f, armor->mSlotMask, armor->mArmorType,
+                worn.mArmor, armor->mKeywords });
         }
         error.clear();
         return true;
@@ -898,7 +989,7 @@ namespace game_skyrimse
         fraction = std::min(fraction, clean(settings.mBlockMax));
         if (input.mPowerAttack)
             fraction *= clean(settings.mBlockPowerAttackMult);
-        fraction = std::clamp(fraction, 0.f, 1.f);
+        fraction = std::clamp(fraction * clean(input.mFractionScale), 0.f, 1.f);
         const float blocked = damage * fraction;
         const float drain = clean(blocked * clean(settings.mStaminaBlockDmgMult) + clean(settings.mStaminaBlockBase));
         const float stamina = clean(input.mBlockerStamina);

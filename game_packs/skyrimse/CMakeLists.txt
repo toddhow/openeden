@@ -33,6 +33,7 @@ openeden_add_game_pack(skyrimse
         src/combat.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
+        src/perks.cpp
         src/survey.cpp
         src/survey_scripts.cpp
         src/survey_nif.cpp
@@ -72,6 +73,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/combat.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/combat_stats.hpp
+        include/game_skyrimse/perks.hpp
         include/game_skyrimse/skyrimse_game_pack.hpp
     MANIFEST
         extension.json
@@ -125,6 +127,7 @@ add_library(game_skyrimse_world STATIC
     src/combat.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
+    src/perks.cpp
     src/survey.cpp
     src/survey_scripts.cpp
     src/survey_nif.cpp
