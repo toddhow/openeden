@@ -616,4 +616,25 @@ namespace MWPhysics
         mWriter.mSink = nullptr;
         mWriter.mWorld = nullptr;
     }
+
+    bool NeutralCombatBridge::playerAttack(openeden::sdk::game::CombatRules* rules, bool power)
+    {
+        if (rules == nullptr)
+        {
+            ++mStats.mPlayerAttackRefused;
+            return false;
+        }
+        try
+        {
+            rules->onPlayerAttack(power);
+        }
+        catch (...)
+        {
+            ++mStats.mPlayerAttackRefused;
+            ++mStats.mRulesFailures;
+            return false;
+        }
+        ++mStats.mPlayerAttacks;
+        return true;
+    }
 }

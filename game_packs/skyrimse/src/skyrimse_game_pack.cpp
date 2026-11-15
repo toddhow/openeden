@@ -171,6 +171,23 @@ namespace game_skyrimse
                     if (playerSwing > 0.f)
                         say(openeden::sdk::LogLevel::Info,
                             "combat test player swing: every " + std::to_string(playerSwing) + " s");
+                    // Task 0172 (stage S5-4): the block, power attack and bash test rules.
+                    const std::string blocker = settings->getString(kPackId, kCombatTestBlockKey, "");
+                    if (!mCellSource.combat().setTestBlock(blocker))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestBlockKey) + "' is too long; it is off");
+                    else if (!blocker.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test block: actors named " + blocker + " block");
+                    const int powerEvery = settings->getInt(kPackId, kCombatTestPowerEveryKey, 0);
+                    mCellSource.combat().setTestPowerEvery(powerEvery);
+                    if (powerEvery > 0)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test power every: " + std::to_string(powerEvery) + " attacks");
+                    const int bashEvery = settings->getInt(kPackId, kCombatTestBashEveryKey, 0);
+                    mCellSource.combat().setTestBashEvery(bashEvery);
+                    if (bashEvery > 0)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test bash every: " + std::to_string(bashEvery) + " attacks");
                     mCellSource.combat().setWarning(
                         [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
                     if (settings->getBool(kPackId, kCombatTraceKey, false))

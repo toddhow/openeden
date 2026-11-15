@@ -34,6 +34,7 @@
 #include "neutralmover.hpp"
 #include "neutralpathfollower.hpp"
 #include "neutralplanelinks.hpp"
+#include "neutralplayerattack.hpp"
 #include "neutralprocess.hpp"
 #include "ragdolltypes.hpp"
 #include "raycasting.hpp"
@@ -324,6 +325,9 @@ namespace MWPhysics
             float mHeading = 0.f;
             float mHealth = 0.f;
             float mHealthMax = 0.f; ///< 0 when the engine has no health for the player
+            /// Task 0172 (stage S5-4): the attack action is down, and the controls take it (no menu, not disabled).
+            bool mAttackHeld = false;
+            bool mAttackEnabled = false;
         };
         using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
         using NeutralPlayerDamageFn = std::function<void(float healthAfter)>;
@@ -650,6 +654,7 @@ namespace MWPhysics
             PhysicsSystem& mPhysics;
         };
         NeutralPlayerStateFn mNeutralPlayerState;
+        NeutralPlayerAttackInput mNeutralPlayerAttack; ///< task 0172: the player's attack key as the pack wants it
         NeutralPlayerClipMetaFn mNeutralPlayerClipMeta;
         std::vector<JPH::BodyID> mNeutralSightIgnore; ///< the neutral actors' bodies, refilled once a frame
         std::uint64_t mNeutralFrame = 0; ///< counts updateNeutralActors

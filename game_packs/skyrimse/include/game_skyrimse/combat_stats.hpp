@@ -150,6 +150,23 @@ namespace game_skyrimse
         float mCombatStaminaRegenRateMult = 0.35f; ///< fCombatStaminaRegenRateMult
     };
 
+    /// Task 0172 (stage S5-4): the numbers of blocking, bashing and staggering. The GMST values are VERIFIED by the
+    /// data census (note 0056 section 2); how they combine (computeBlock, causesStagger) is RECALLED-VERIFY and
+    /// tunable. The last two are not GMSTs: they are ours.
+    struct BlockSettings
+    {
+        float mBlockMax = 0.7f; ///< fBlockMax: the most damage a block takes off (a fraction)
+        float mBlockWeaponBase = 0.3f; ///< fBlockWeaponBase
+        float mBlockWeaponScaling = 0.2f; ///< fBlockWeaponScaling
+        float mBlockSkillMult = 2.0f; ///< fBlockSkillMult
+        float mBlockPowerAttackMult = 0.66f; ///< fBlockPowerAttackMult: a power attack is blocked this much as well
+        float mStaminaBlockDmgMult = 0.25f; ///< fStaminaBlockDmgMult: stamina paid per point of damage blocked
+        float mStaminaBlockBase = 0.f; ///< fStaminaBlockBase
+        float mStaminaBashBase = 35.f; ///< fStaminaBashBase: what a bash costs
+        float mStaggerThreshold = 1.f; ///< OURS: the stagger magnitude at which a blow staggers its target
+        float mPowerAttackStaggerBonus = 1.f; ///< OURS: a power attack adds this to the weapon's stagger value
+    };
+
     /// The GMSTs of a load order by editor id (later plugins win).
     class SettingsTable
     {
@@ -163,6 +180,8 @@ namespace game_skyrimse
         /// The settings the formulas read: a GMST the table has replaces the default; `missing` (if given) gets the
         /// names of those that stayed the default, in a fixed order.
         [[nodiscard]] CombatSettings combatSettings(std::vector<std::string>* missing = nullptr) const;
+        /// Task 0172: the block, bash and stagger numbers (a GMST the table has replaces the default).
+        [[nodiscard]] BlockSettings blockSettings() const;
 
     private:
         std::map<std::string, float> mValues;
@@ -261,6 +280,41 @@ namespace game_skyrimse
     ///             times mPowerAttackStaminaPenalty for a power attack.
     /// Negative and non-finite inputs count as 0. Pure: no random numbers (a critical's chance is the caller's).
     [[nodiscard]] MeleeHit computeMeleeHit(const MeleeInput& input, const CombatSettings& settings);
+
+    /// One blow meeting a block (task 0172). `mDamage` is the damage after armour.
+    struct BlockInput
+    {
+        float mDamage = 0.f;
+        float mBlockerSkill = 0.f; ///< the blocker's Block skill, 0 to 100
+        bool mPowerAttack = false;
+        float mBlockerStamina = 0.f;
+    };
+
+    struct BlockResult
+    {
+        bool mBlocked = false; ///< the block held
+        bool mBroken = false; ///< the blocker lacked the stamina: full damage, stamina gone, and it staggers
+        float mFraction = 0.f; ///< the fraction of the damage the block takes off (0 when broken)
+        float mDamageTaken = 0.f; ///< what reaches the blocker's health
+        float mStaminaDrain = 0.f; ///< what the blocker pays
+    };
+
+    /// RECALLED-VERIFY, tunable: fraction = min(fBlockMax, fBlockWeaponBase + fBlockWeaponScaling x skill x
+    /// fBlockSkillMult / 100) with the skill clamped to 0 to 100 (skill 100 gives fBlockMax exactly), times
+    /// fBlockPowerAttackMult for a power attack; blocked = damage x fraction; the blocker pays blocked x
+    /// fStaminaBlockDmgMult + fStaminaBlockBase. With less stamina than that the block is broken: the whole damage
+    /// is taken and the blocker's stamina goes to 0. Negative and non-finite inputs count as 0.
+    [[nodiscard]] BlockResult computeBlock(const BlockInput& input, const BlockSettings& settings);
+
+    /// The stagger a blow carries: the weapon's stagger value, plus mPowerAttackStaggerBonus for a power attack (so a
+    /// power attack staggers by default, as in Skyrim, and a normal blow only with a weapon of stagger 1 or more).
+    [[nodiscard]] float staggerMagnitude(float weaponStagger, bool powerAttack, const BlockSettings& settings);
+
+    /// True when that magnitude reaches mStaggerThreshold (RECALLED-VERIFY: Skyrim also looks at the target's mass).
+    [[nodiscard]] bool causesStagger(float weaponStagger, bool powerAttack, const BlockSettings& settings);
+
+    /// What a bash costs the basher: fStaminaBashBase.
+    [[nodiscard]] float bashStaminaCost(const BlockSettings& settings);
 
     /// How far a swing reaches, in units: the weapon's reach times mCombatDistance (RECALLED-VERIFY); unarmed uses
     /// `unarmedReach` as it is (the race's stored 96, already units).

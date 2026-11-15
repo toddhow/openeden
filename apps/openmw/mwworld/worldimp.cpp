@@ -65,12 +65,15 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
+#include "../mwbase/inputmanager.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/scriptmanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+
+#include "../mwinput/actions.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/aiavoiddoor.hpp" //Used to tell actors to avoid doors
@@ -362,6 +365,13 @@ namespace MWWorld
                         = player.getClass().getCreatureStats(player).getHealth();
                     out.mHealth = health.getCurrent();
                     out.mHealthMax = health.getModified();
+                    // Task 0172 (stage S5-4): the attack action. It is only read, never changed, and only because
+                    // `[Game] neutral combat` is on (this hook is installed under it).
+                    MWBase::InputManager* input = MWBase::Environment::get().getInputManager();
+                    MWBase::WindowManager* windows = MWBase::Environment::get().getWindowManager();
+                    out.mAttackEnabled
+                        = input != nullptr && windows != nullptr && !windows->isGuiMode() && !input->controlsDisabled();
+                    out.mAttackHeld = input != nullptr && input->actionIsActive(MWInput::A_Use);
                     return true;
                 },
                 [this](float healthAfter) {

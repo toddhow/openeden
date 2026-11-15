@@ -129,6 +129,8 @@ namespace MWPhysics
             std::uint64_t mDamageRefused = 0;
             std::uint64_t mDeaths = 0;
             std::uint64_t mDeadTableFull = 0; ///< deaths not recorded: kMaxDead living actors are dead already
+            std::uint64_t mPlayerAttacks = 0; ///< task 0172: attack key presses told to the pack
+            std::uint64_t mPlayerAttackRefused = 0; ///< no rules, or the pack's function threw
             std::uint64_t mWriterFailures = 0; ///< a call into the engine (sink, world, meta) that threw: caught here
         };
 
@@ -156,6 +158,11 @@ namespace MWPhysics
         /// negative `seconds` is passed as 0.
         void update(openeden::sdk::game::CombatRules* rules, float seconds, NeutralClipSink& sink,
             const NeutralClipMetaFn& meta, NeutralCombatWorld* world = nullptr);
+
+        /// Task 0172 (stage S5-4): the player pressed attack (`power`: held long enough). Calls rules->onPlayerAttack
+        /// just before the next update's combatUpdate would; main thread, outside update(). False (and counted) with no
+        /// rules or when the pack's function throws (caught).
+        bool playerAttack(openeden::sdk::game::CombatRules* rules, bool power);
 
         /// True once the pack reported the actor dead.
         [[nodiscard]] bool isDead(openeden::sdk::game::ActorHandle actor) const;

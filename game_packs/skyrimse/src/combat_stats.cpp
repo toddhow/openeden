@@ -432,6 +432,33 @@ namespace game_skyrimse
         return settings;
     }
 
+    BlockSettings SettingsTable::blockSettings() const
+    {
+        struct BlockName
+        {
+            const char* mName;
+            float BlockSettings::*mMember;
+        };
+        static constexpr BlockName kNames[] = {
+            { "fBlockMax", &BlockSettings::mBlockMax },
+            { "fBlockWeaponBase", &BlockSettings::mBlockWeaponBase },
+            { "fBlockWeaponScaling", &BlockSettings::mBlockWeaponScaling },
+            { "fBlockSkillMult", &BlockSettings::mBlockSkillMult },
+            { "fBlockPowerAttackMult", &BlockSettings::mBlockPowerAttackMult },
+            { "fStaminaBlockDmgMult", &BlockSettings::mStaminaBlockDmgMult },
+            { "fStaminaBlockBase", &BlockSettings::mStaminaBlockBase },
+            { "fStaminaBashBase", &BlockSettings::mStaminaBashBase },
+        };
+        BlockSettings settings;
+        for (const BlockName& entry : kNames)
+        {
+            const auto it = mValues.find(lower(entry.mName));
+            if (it != mValues.end())
+                settings.*entry.mMember = it->second;
+        }
+        return settings;
+    }
+
     void CombatIndex::add(const CombatRecords& records)
     {
         for (const WeaponRecord& w : records.mWeapons)
@@ -598,5 +625,52 @@ namespace game_skyrimse
     {
         const float multiplier = inCombat ? clean(combatMultiplier) : 1.f;
         return clean(maximum) * clean(ratePercentPerSecond) / 100.f * clean(seconds) * multiplier;
+    }
+
+    BlockResult computeBlock(const BlockInput& input, const BlockSettings& settings)
+    {
+        BlockResult result;
+        const float damage = clean(input.mDamage);
+        const float skill = std::min(clean(input.mBlockerSkill), kMaxSkill);
+        float fraction = clean(settings.mBlockWeaponBase)
+            + clean(settings.mBlockWeaponScaling) * skill * clean(settings.mBlockSkillMult) / 100.f;
+        fraction = std::min(fraction, clean(settings.mBlockMax));
+        if (input.mPowerAttack)
+            fraction *= clean(settings.mBlockPowerAttackMult);
+        fraction = std::clamp(fraction, 0.f, 1.f);
+        const float blocked = damage * fraction;
+        const float drain = clean(blocked * clean(settings.mStaminaBlockDmgMult) + clean(settings.mStaminaBlockBase));
+        const float stamina = clean(input.mBlockerStamina);
+        // A tiny tolerance: 10 x 0.3 x 0.25 is 0.75000006 in float, and a blocker with exactly 0.75 can pay it.
+        constexpr float kStaminaTolerance = 1.0e-4f;
+        if (stamina + kStaminaTolerance >= drain)
+        {
+            result.mBlocked = true;
+            result.mFraction = fraction;
+            result.mDamageTaken = clean(damage - blocked);
+            result.mStaminaDrain = std::min(drain, stamina);
+        }
+        else
+        {
+            result.mBroken = true;
+            result.mDamageTaken = damage;
+            result.mStaminaDrain = stamina;
+        }
+        return result;
+    }
+
+    float staggerMagnitude(float weaponStagger, bool powerAttack, const BlockSettings& settings)
+    {
+        return clean(clean(weaponStagger) + (powerAttack ? clean(settings.mPowerAttackStaggerBonus) : 0.f));
+    }
+
+    bool causesStagger(float weaponStagger, bool powerAttack, const BlockSettings& settings)
+    {
+        return staggerMagnitude(weaponStagger, powerAttack, settings) >= clean(settings.mStaggerThreshold);
+    }
+
+    float bashStaminaCost(const BlockSettings& settings)
+    {
+        return clean(settings.mStaminaBashBase);
     }
 }

@@ -51,6 +51,21 @@
       "default": ""
     },
     {
+      "key": "combat test power every",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "combat test bash every",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "combat test block",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "combat trace",
       "type": "bool",
       "default": false
