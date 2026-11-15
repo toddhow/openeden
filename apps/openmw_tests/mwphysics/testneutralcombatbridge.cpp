@@ -225,47 +225,43 @@ namespace
         EXPECT_EQ(mRules.mFinished.size(), 1u);
     }
 
-    TEST_F(Fixture, noClockRunsUntilTheMetaArrivesAndThenTimeStartsAtZero)
+    // Task 0171 S5-3b follow-up (edited, awaiting approval): the clock counts from the request, not from the renderer's
+    // own playback time, so that the frame of an event does not depend on worker timing (testneutralcombatclock.cpp).
+    TEST_F(Fixture, noEventRunsUntilTheMetaArrivesAndThenTheClockIsTheTimeSinceTheRequest)
     {
         mMetaReady = false;
         startSwing();
-        for (int i = 0; i < 10; ++i)
-            frame(0.2f);
+        frame(0.2f);
+        frame(0.2f);
         EXPECT_TRUE(mRules.mEvents.empty());
         EXPECT_EQ(mCombat.playing(), 1u);
         mMetaReady = true;
-        frame(0.2f); // starts the clock: time 0, no event yet
+        frame(0.2f); // the clock is the 0.4 s that passed: preHitFrame, weaponSwing and HitFrame fire at once, in order
+        ASSERT_EQ(mRules.mEvents.size(), 3u);
+        EXPECT_EQ(mRules.mEvents[0].mKind, ClipEventKind::PreHit);
+        EXPECT_EQ(mRules.mEvents[1].mKind, ClipEventKind::WeaponSwing);
+        EXPECT_EQ(mRules.mEvents[2].mKind, ClipEventKind::Hit);
+    }
+
+    TEST_F(Fixture, theRenderersOwnPlaybackTimeDoesNotMoveTheClock)
+    {
+        // The renderer began sampling the clip 0.35 s before the bridge first looked (a worker was slow): that used to
+        // start the clock at 0.35 s. It no longer does: the clock starts at the request.
+        mRendererTime = 0.35f;
+        startSwing(9);
+        frame(0.f);
         EXPECT_TRUE(mRules.mEvents.empty());
-        frame(0.3f); // time 0.3: preHitFrame (0.233) passed
+        frame(0.3f); // clock 0.3: preHitFrame (0.233)
         ASSERT_EQ(mRules.mEvents.size(), 1u);
         EXPECT_EQ(mRules.mEvents[0].mKind, ClipEventKind::PreHit);
     }
 
-    TEST_F(Fixture, theClockStartsFromTheTimeTheRendererHasReachedSoEventsAndThePoseAgree)
+    TEST_F(Fixture, aClipTheRendererHasNotStartedSamplingStillHasItsClockFromTheRequest)
     {
-        // The renderer began sampling the clip 0.35 s before the bridge first looked (a worker was slow): the events the
-        // drawn pose has already passed (0.233, 0.333) fire at once, in order; the rest follow by the frame time.
-        mRendererTime = 0.35f;
-        startSwing(9);
-        frame(0.f);
-        ASSERT_EQ(mRules.mEvents.size(), 2u);
-        EXPECT_EQ(mRules.mEvents[0].mKind, ClipEventKind::PreHit);
-        EXPECT_EQ(mRules.mEvents[1].mKind, ClipEventKind::WeaponSwing);
-        frame(0.05f); // clock 0.40: HitFrame (0.367)
-        ASSERT_EQ(mRules.mEvents.size(), 3u);
-        EXPECT_EQ(mRules.mEvents[2].mKind, ClipEventKind::Hit);
-    }
-
-    TEST_F(Fixture, noClockRunsWhileTheRendererHasNotStartedTheClip)
-    {
-        mStarted = false; // the clip is still being decoded
+        mStarted = false;
         startSwing();
-        for (int i = 0; i < 10; ++i)
-            frame(0.2f);
+        frame(0.2f); // meta visible: the clock starts at 0
         EXPECT_TRUE(mRules.mEvents.empty());
-        mStarted = true;
-        mRendererTime = 0.f;
-        frame(0.2f);
         frame(0.3f);
         ASSERT_EQ(mRules.mEvents.size(), 1u);
         EXPECT_EQ(mRules.mEvents[0].mKind, ClipEventKind::PreHit);

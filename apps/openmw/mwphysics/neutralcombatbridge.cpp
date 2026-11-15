@@ -390,7 +390,7 @@ namespace MWPhysics
             if (!p.mMeta)
             {
                 const HavokPack::ClipProgress progress = metaFn ? metaFn(p.mKey) : HavokPack::ClipProgress{};
-                if (progress.mMeta && progress.mStarted)
+                if (progress.mMeta)
                     p.mMeta = progress.mMeta;
                 if (!p.mMeta)
                 {
@@ -406,10 +406,13 @@ namespace MWPhysics
                     ++i;
                     continue;
                 }
-                // The first frame with a clock: the time the renderer has reached in the clip (0 when it started this
-                // very frame; events at or before it fire now, in order).
+                // The first frame the meta is visible. The clock counts from the request: it is the time of the frames
+                // that passed while the meta was being read (0 when it was ready at once), so the frame on which an
+                // event fires does not depend on how long the worker took, nor on where the renderer's own sampling
+                // had got to (task 0171 S5-3b follow-up: both varied by a frame from run to run). Events that the
+                // wait has passed fire now, in clip-time order.
                 p.mPrevious = -1.f;
-                p.mCurrent = (std::isfinite(progress.mPlaybackTime) && progress.mPlaybackTime > 0.f) ? progress.mPlaybackTime : 0.f;
+                p.mCurrent = p.mWaited;
             }
             else
             {

@@ -17,7 +17,9 @@ return {
             if not placed then
                 if t < 6 then return end
                 placed = t
-                local cx, cy = -50 - ACTOR[1], -450 - ACTOR[2]
+                -- Task 0171 S5-3b: the player stands EAST of her, in the open. West of her (where this scenario used to put it) the bar
+                -- counter lies between the two, and since the line of sight is checked no blow crosses it (see tradewall.lua).
+                local cx, cy = 736 - ACTOR[1], -416 - ACTOR[2]
                 local len = math.sqrt(cx * cx + cy * cy)
                 local px, py = ACTOR[1] + cx / len * DIST, ACTOR[2] + cy / len * DIST
                 local yaw = math.atan2(ACTOR[1] - px, ACTOR[2] - py)

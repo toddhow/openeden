@@ -176,6 +176,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralsweep.cpp
     mwphysics/testneutralsight.cpp
     mwphysics/testneutralcombatsight.cpp
+    mwphysics/testneutralcombatclock.cpp
     mwphysics/testneutralcombathit.cpp
     mwrender/testskyrimcombatclips.cpp
     mwphysics/testneutralactorgoals.cpp
