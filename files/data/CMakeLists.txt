@@ -140,6 +140,8 @@ set(BUILTIN_DATA_FILES
     # The UI component library (task 0162, decision 0015)
     openeden/ui.lua
     openeden/ui/reactive.lua
+    openeden/hud/skyrimcombat.lua
+    scripts/openeden/skyrim_combat_hud.lua
 
     builtin.omwscripts
 

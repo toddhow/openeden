@@ -299,6 +299,15 @@ namespace game_skyrimse
                                 logger->log(openeden::sdk::LogLevel::Info, "PAPYRUS the Papyrus host is on");
                         }
                     }
+                    // Task 0180: the combat HUD's script package `core.skyrimse.combat` (read-only; a script only sees
+                    // numbers once combat runs, `active()`), declared only for a host that reads sources.
+                    if (openeden::sdk::BindingsService* bindings = host.getBindingsService())
+                    {
+                        const openeden::sdk::DeclareResult declared = mHudBindings.declareTo(*bindings);
+                        if (!declared.ok && logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning,
+                                "the combat HUD package was refused: " + declared.message);
+                    }
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -611,6 +620,7 @@ namespace game_skyrimse
             std::unique_ptr<VfsFileSource> mFileSource; // declared before the view that may refer to it
             SkyrimWorldView mWorldView;
             SkyrimCellSource mCellSource{ mWorldView };
+            CombatHudBindings mHudBindings{ mCellSource.hud() }; // task 0180; refers to the cell source's HUD
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop

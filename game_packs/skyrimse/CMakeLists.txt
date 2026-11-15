@@ -31,6 +31,7 @@ openeden_add_game_pack(skyrimse
         src/neutral_world.cpp
         src/actor_table.cpp
         src/combat.cpp
+        src/hud.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
         src/perks.cpp
@@ -71,6 +72,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/actor_table.hpp
         include/game_skyrimse/combat.hpp
+        include/game_skyrimse/hud.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/combat_stats.hpp
         include/game_skyrimse/perks.hpp
@@ -125,6 +127,7 @@ add_library(game_skyrimse_world STATIC
     src/neutral_world.cpp
     src/actor_table.cpp
     src/combat.cpp
+    src/hud.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/perks.cpp

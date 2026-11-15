@@ -13,6 +13,7 @@
 
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
+#include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
@@ -167,6 +168,10 @@ namespace game_skyrimse
             // Task 0171: a view that knows the combat records (SkyrimWorldView does) gives the melee rules their
             // numbers.
             mCombat.setData(dynamic_cast<CombatData*>(&view));
+            // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
+            mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
+                return mCombat.fighterView(subject, out);
+            });
         }
 
         std::string_view gameId() const override { return "skyrimse"; }
@@ -223,11 +228,15 @@ namespace game_skyrimse
         {
             mActors.onActorAdded(info);
             mCombat.onActorAdded(info);
+            // Task 0180: the name the enemy bar shows (FULL name when the record has one, else the editor id).
+            std::string name = displayNameOf(info.base);
+            mHud.actorAdded(info.handle, name.empty() ? info.editorId : std::string_view(name));
         }
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override
         {
             mActors.onActorRemoved(handle);
             mCombat.onActorRemoved(handle);
+            mHud.actorRemoved(handle);
         }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
         {
@@ -247,7 +256,11 @@ namespace game_skyrimse
         }
         void combatUpdate(float seconds, openeden::sdk::game::CombatRequestWriter& writer) override
         {
-            mCombat.combatUpdate(seconds, writer);
+            // Task 0180: the HUD sees the damage and death reports that go through (combat.cpp is not changed) and
+            // reads the player's numbers, which are only readable inside this call.
+            HudWriter hudWriter(writer, mHud);
+            mCombat.combatUpdate(seconds, hudWriter);
+            mHud.update(seconds, writer);
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
         void onClipFinished(
@@ -263,6 +276,8 @@ namespace game_skyrimse
         }
         void onPlayerAttackEdge(bool pressed) override { mCombat.onPlayerAttackEdge(pressed); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
+        /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
+        [[nodiscard]] CombatHud& hud() { return mHud; }
         /// Task 0176: the Papyrus host hears of a built cell and of a conversation that began (the player used an
         /// actor). Main thread, called after the engine's request succeeded; empty functions are not called.
         void setScriptSinks(std::function<void(openeden::sdk::game::WorldId cell)> cellBuilt,
@@ -282,6 +297,7 @@ namespace game_skyrimse
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
         SkyrimCombat mCombat;
+        CombatHud mHud;
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.

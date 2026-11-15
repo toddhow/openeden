@@ -37,3 +37,6 @@ CUSTOM: scripts/omw/console/local.lua
 
 # Music system
 NPC,CREATURE: scripts/omw/music/actor.lua
+
+# Skyrim SE combat HUD (task 0180); started only when the game pack declares the package
+PLAYER REQUIRES=core.skyrimse.combat>=1.0: scripts/openeden/skyrim_combat_hud.lua
