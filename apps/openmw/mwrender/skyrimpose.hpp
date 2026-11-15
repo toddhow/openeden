@@ -11,6 +11,7 @@
 // the object's update (an update worker for some objects). The few members both touch are guarded by one mutex; run()
 // allocates nothing once the clip is resolved.
 
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -50,7 +51,10 @@ namespace MWRender::SkyrimPose
         /// The one-shot clip's meta (null until the worker has read it, after a clip that failed to decode and while
         /// none is set), whether sampling of the decoded clip has begun and the playback time of the last sample. Main
         /// thread.
-        [[nodiscard]] HavokPack::ClipProgress progress() const;
+        /// Task 0183: with a positive `wait` the call blocks (the controller's lock held) until the worker has read the
+        /// meta or the time has passed; only repeatable test runs ask for that. Main thread.
+        [[nodiscard]] HavokPack::ClipProgress progress(
+            std::chrono::milliseconds wait = std::chrono::milliseconds(0)) const;
 
         /// True between a setClip with a name and the next empty one.
         [[nodiscard]] bool active() const;

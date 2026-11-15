@@ -1262,6 +1262,21 @@ namespace MWPhysics
         };
     }
 
+    void PhysicsSystem::setNeutralClipMetaWaitProvider(NeutralClipMetaWaitProvider provider, int waitMilliseconds)
+    {
+        mNeutralCombat.setMetaWaiter(
+            [this, provider = std::move(provider), waitMilliseconds](const void* key) -> HavokPack::ClipProgress {
+                const auto entry = std::find_if(mNeutralActors.begin(), mNeutralActors.end(),
+                    [&](const NeutralActorEntry& e) { return e.mRef == key; });
+                if (entry == mNeutralActors.end())
+                    return {};
+                const auto found = mObjects.find(entry->mRef);
+                if (found == mObjects.end())
+                    return {};
+                return provider(found->second->getPtr(), waitMilliseconds);
+            });
+    }
+
     void PhysicsSystem::NeutralClipApplier::playClip(const void* key, std::string_view clip, bool perSex)
     {
         NeutralActorEntry* entry = mPhysics.findNeutralActor(key);

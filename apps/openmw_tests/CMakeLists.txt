@@ -183,6 +183,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralplayerattack.cpp
     mwphysics/testneutralcombatsight.cpp
     mwphysics/testneutralcombatclock.cpp
+    mwphysics/testneutralcombatdeterminism.cpp
     mwphysics/testneutralcombathit.cpp
     mwphysics/testneutralcombatreview.cpp
     mwrender/testskyrimcombatclips.cpp

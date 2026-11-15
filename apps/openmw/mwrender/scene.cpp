@@ -560,6 +560,11 @@ namespace MWRender
 
     HavokPack::ClipProgress Scene::neutralActorClipProgress(const MWWorld::Ptr& ptr)
     {
+        return neutralActorClipProgressWaiting(ptr, 0);
+    }
+
+    HavokPack::ClipProgress Scene::neutralActorClipProgressWaiting(const MWWorld::Ptr& ptr, int waitMilliseconds)
+    {
         auto cell = getCell(ptr, false);
         if (!cell)
             return {};
@@ -568,7 +573,7 @@ namespace MWRender
             return {};
         for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
             if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
-                return pose->progress();
+                return pose->progress(std::chrono::milliseconds(waitMilliseconds));
         return {};
     }
 
@@ -635,7 +640,12 @@ namespace MWRender
             const VFS::Manager& vfs = *resources->getVFS();
             SkyrimIdle::ClipFuture decoded
                 = SkyrimIdle::loadIdleAsync(vfs, std::string(kSkeleton), perSex ? "male" : "", clip);
-            mPlayerClipMeta.begin(clip, perSex, SkyrimClipMeta::loadAsync(vfs, false, std::string(clip), decoded));
+            // Task 0183: a run with a fixed frame time (every repeatable test run) waits for the read, so the frame on
+            // which the player's first swing can start does not depend on a worker's speed; a game that is played does
+            // not block.
+            static const bool sRepeatable = std::getenv("OPENEDEN_FIXED_FRAME_TIME") != nullptr;
+            mPlayerClipMeta.begin(clip, perSex, SkyrimClipMeta::loadAsync(vfs, false, std::string(clip), decoded),
+                std::chrono::milliseconds(sRepeatable ? 2000 : 0));
         }
         return answer.mMeta;
     }

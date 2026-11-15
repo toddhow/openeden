@@ -85,9 +85,11 @@ namespace MWRender::SkyrimPose
         mRate = multiplier;
     }
 
-    HavokPack::ClipProgress Controller::progress() const
+    HavokPack::ClipProgress Controller::progress(std::chrono::milliseconds wait) const
     {
         const std::lock_guard lock(mMutex);
+        if (!mMeta && wait.count() > 0 && mMetaFuture.valid())
+            (void)mMetaFuture.wait_for(wait);
         if (!mMeta && mMetaFuture.valid() && mMetaFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             mMeta = mMetaFuture.get();
         return { mMeta, mOnce && mSampled, mPlaybackTime };

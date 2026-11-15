@@ -539,6 +539,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatslots.cpp
     skyrimse/testskyrimsecombatmelee.cpp
     skyrimse/testskyrimsecombatblock.cpp
+    skyrimse/testskyrimsecombatdeterminism.cpp
     skyrimse/testskyrimsecombatreview.cpp
     skyrimse/testskyrimsecombatindex.cpp
     skyrimse/testskyrimsecombatstats.cpp

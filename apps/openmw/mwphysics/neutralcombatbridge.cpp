@@ -551,6 +551,11 @@ namespace MWPhysics
                 {
                     if (metaFn)
                         progress = metaFn(p.mKey);
+                    if (!progress.mMeta && mMetaWaiter && !p.mWaitedFor)
+                    {
+                        p.mWaitedFor = true;
+                        progress = mMetaWaiter(p.mKey);
+                    }
                 }
                 catch (...)
                 {

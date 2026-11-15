@@ -42,7 +42,10 @@ namespace MWRender
         /// `now` is any steady clock in seconds. Allocation free.
         [[nodiscard]] Answer lookup(std::string_view clip, bool perSex, double now);
         /// Hands over the future of the read lookup() asked for (allocates the first time a clip is seen).
-        void begin(std::string_view clip, bool perSex, Future future);
+        /// Task 0183: with a positive `wait` the call first waits (blocking) for the read to finish, so the very next
+        /// lookup() answers; only repeatable test runs (fixed frame time) pass one.
+        void begin(std::string_view clip, bool perSex, Future future,
+            std::chrono::milliseconds wait = std::chrono::milliseconds(0));
         [[nodiscard]] std::size_t size() const { return mEntries.size(); }
 
     private:
@@ -112,8 +115,11 @@ namespace MWRender
         return answer;
     }
 
-    inline void PlayerClipMetaCache::begin(std::string_view clip, bool perSex, Future future)
+    inline void PlayerClipMetaCache::begin(
+        std::string_view clip, bool perSex, Future future, std::chrono::milliseconds wait)
     {
+        if (wait.count() > 0 && future.valid())
+            (void)future.wait_for(wait);
         Entry* e = find(clip, perSex);
         if (e == nullptr)
         {

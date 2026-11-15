@@ -1423,8 +1423,13 @@ namespace game_skyrimse
     {
         ++mUpdates;
         const float step = (std::isfinite(seconds) && seconds > 0.f) ? seconds : 0.f;
-        mClock += step;
-        if (mData != nullptr && !mData->combatReady())
+        const bool waiting = mData != nullptr && !mData->combatReady();
+        // Task 0183: the combat clock (test schedules, regeneration, linger times) counts only the updates on which
+        // the data was ready. How many updates a worker needs to read the records differs from run to run, so a clock
+        // that also counted the waiting ones moved every schedule and every regeneration step with it.
+        if (!waiting)
+            mClock += step;
+        if (waiting)
         {
             // The data is still being read on a worker: no swing, no hit this update, and nothing waits for later.
             ++mWaitingForData;

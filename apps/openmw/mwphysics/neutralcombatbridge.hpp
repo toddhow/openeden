@@ -212,6 +212,13 @@ namespace MWPhysics
         void update(openeden::sdk::game::CombatRules* rules, float seconds, NeutralClipSink& sink,
             const NeutralClipMetaFn& meta, NeutralCombatWorld* world = nullptr);
 
+        /// Task 0183: when set, a clip whose meta is not visible at its first poll is waited for ONCE through `waiter`
+        /// (which may block the main thread for a bounded time and returns the meta or none): the frame on which every
+        /// event of the clip is delivered, and the order of the events of several clips, then no longer depend on how
+        /// long a worker took to read the sidecar. The host sets it only for repeatable test runs (fixed frame time);
+        /// a game that is played does not stall on a clip, and its events follow the arrival, as before.
+        void setMetaWaiter(NeutralClipMetaFn waiter) { mMetaWaiter = std::move(waiter); }
+
         /// Task 0172 (stage S5-4): the player pressed attack (`power`: held long enough). Calls rules->onPlayerAttack
         /// just before the next update's combatUpdate would; main thread, outside update(). False (and counted) with no
         /// rules or when the pack's function throws (caught).
@@ -251,6 +258,7 @@ namespace MWPhysics
             float mCurrent = -1.f;
             float mWaited = 0.f; ///< playback seconds spent waiting for the meta
             float mRate = 1.f; ///< task 0178: the clip's speed multiplier (the draw speed of a bow)
+            bool mWaitedFor = false; ///< task 0183: the meta waiter has been asked for this clip
         };
         struct Stuck
         {
@@ -344,6 +352,7 @@ namespace MWPhysics
         std::vector<Playing> mPlaying;
         std::vector<Finished> mLate; ///< interrupts, told at the start of the next update
         Stats mStats;
+        NeutralClipMetaFn mMetaWaiter; ///< task 0183: empty unless the host runs with a fixed frame time
         Writer mWriter;
     };
 }

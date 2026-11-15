@@ -5,7 +5,9 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <future>
+#include <thread>
 
 namespace
 {
@@ -127,5 +129,34 @@ namespace
         EXPECT_FALSE(answer.mStart);
         EXPECT_FALSE(answer.mMeta);
         EXPECT_EQ(cache.size(), PlayerClipMetaCache::kMaxEntries);
+    }
+}
+
+// Task 0183: begin() can wait for the read, so the next lookup answers (repeatable test runs only).
+namespace
+{
+    TEST(PlayerClipMetaWait, aWaitingBeginAnswersAtTheNextLookupWhateverTheWorkersSpeed)
+    {
+        for (const int delayMs : { 0, 30, 120 })
+        {
+            PlayerClipMetaCache cache;
+            ASSERT_TRUE(cache.lookup("a", false, 0.0).mStart);
+            auto future = std::async(std::launch::async, [delayMs] {
+                std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+                return std::shared_ptr<const HavokPack::ClipMeta>(meta());
+            });
+            cache.begin("a", false, future.share(), std::chrono::milliseconds(5000));
+            EXPECT_TRUE(cache.lookup("a", false, 0.1).mMeta) << "worker delay " << delayMs << " ms";
+        }
+    }
+
+    TEST(PlayerClipMetaWait, aWaitThatTimesOutLeavesTheReadRunning)
+    {
+        PlayerClipMetaCache cache;
+        std::promise<std::shared_ptr<const HavokPack::ClipMeta>> promise;
+        cache.begin("a", false, promise.get_future().share(), std::chrono::milliseconds(20));
+        EXPECT_FALSE(cache.lookup("a", false, 0.1).mMeta);
+        promise.set_value(meta());
+        EXPECT_TRUE(cache.lookup("a", false, 0.2).mMeta);
     }
 }

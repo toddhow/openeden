@@ -351,6 +351,15 @@ namespace MWWorld
             // controller.
             mPhysics->setNeutralClipMetaProvider(
                 [this](const MWWorld::Ptr& ptr) { return mRendering->getObjects().neutralActorClipProgress(ptr); });
+            // Task 0183: a run with a fixed frame time (every repeatable test run) waits for the meta of a clip it has
+            // just started, so the frame of each combat event does not depend on a worker's speed. A game that is
+            // played never blocks on a clip.
+            if (std::getenv("OPENEDEN_FIXED_FRAME_TIME") != nullptr)
+                mPhysics->setNeutralClipMetaWaitProvider(
+                    [this](const MWWorld::Ptr& ptr, int waitMilliseconds) {
+                        return mRendering->getObjects().neutralActorClipProgressWaiting(ptr, waitMilliseconds);
+                    },
+                    2000);
 
             // Task 0171 stage S5-3b: the timing of the player's swing comes from the sidecar of the attack clip.
             mPhysics->setNeutralPlayerClipMeta([this](std::string_view clip, bool perSex) {

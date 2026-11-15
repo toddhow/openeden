@@ -298,6 +298,10 @@ namespace MWPhysics
         /// Where the clip meta of an actor comes from (the renderer); null while it is still being read.
         using NeutralClipMetaProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&)>;
         void setNeutralClipMetaProvider(NeutralClipMetaProvider provider);
+        /// Task 0183: for repeatable test runs (fixed frame time) only: the same lookup, but it blocks for up to
+        /// `waitMilliseconds` for the meta of a clip that has just started, and the combat bridge asks it once per clip.
+        using NeutralClipMetaWaitProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&, int)>;
+        void setNeutralClipMetaWaitProvider(NeutralClipMetaWaitProvider provider, int waitMilliseconds);
         /// Task 0171 stage S5-3b: the sidecar meta of a clip for the player's hidden swing clock (null until read).
         using NeutralPlayerClipMetaFn
             = std::function<std::shared_ptr<const HavokPack::ClipMeta>(std::string_view clip, bool perSex)>;
