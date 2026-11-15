@@ -461,7 +461,9 @@ namespace
         EXPECT_EQ(rig.number(kRefA, "KwScript", "hasB"), 0.0);
     }
 
-    TEST(SkyrimPapyrusSlice2, SetCurrentStageID_sets_the_stage_without_the_fragment_or_the_done_mark)
+    // Slice 2b (toddhow's approval, 2026-11-15): SetCurrentStageID is an alias of SetStage. It replaces the slice 2 test
+    // SetCurrentStageID_sets_the_stage_without_the_fragment_or_the_done_mark, which pinned "stage only".
+    TEST(SkyrimPapyrusSlice2, SetCurrentStageID_marks_the_stage_done_runs_the_fragment_and_raises_OnStageSet)
     {
         Rig rig;
         rig.mData.add(stageScript());
@@ -470,14 +472,15 @@ namespace
         rig.mVmads[kQuestA] = questWithFragment({ script("QF_Slice2"), script("StageScript") });
         rig.mHost->startGame();
         rig.tick();
+        const std::uint64_t fragmentsBefore = rig.mHost->counters().mFragmentsRun;
         ASSERT_TRUE(rig.mHost->callFunction(kQuestA, "StageScript", "SetCurrent"));
         EXPECT_EQ(rig.mState.stage(kQuestA), 10.f);
         EXPECT_EQ(rig.number(kQuestA, "StageScript", "current"), 10.0) << "GetStage sees it";
-        EXPECT_EQ(rig.number(kQuestA, "StageScript", "doneAfterCurrent"), 0.0) << "it does not mark the stage done";
-        EXPECT_FALSE(rig.mState.stageDone(kQuestA, 10));
-        EXPECT_EQ(rig.mHost->counters().mFragmentsRun, 0u) << "no fragment";
+        EXPECT_EQ(rig.number(kQuestA, "StageScript", "doneAfterCurrent"), 1.0) << "it marks the stage done";
+        EXPECT_TRUE(rig.mState.stageDone(kQuestA, 10));
+        EXPECT_EQ(rig.mHost->counters().mFragmentsRun, fragmentsBefore + 1) << "the stage fragment runs";
         rig.tick();
-        EXPECT_EQ(rig.number(kQuestA, "StageScript", "lastStage"), -1.0) << "no OnStageSet either";
+        EXPECT_EQ(rig.number(kQuestA, "StageScript", "lastStage"), 10.0) << "and OnStageSet is raised";
     }
 
     TEST(SkyrimPapyrusSlice2, IsStageDone_is_true_after_a_real_SetStage)

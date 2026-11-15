@@ -712,10 +712,13 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(true));
             });
             // Quest
-            reg("Quest", "SetStage", false, [this](const NativeCall& c) {
+            // SetCurrentStageID is an alias of SetStage in the game (task 0181 slice 2b, the Creation Kit wiki through search
+            // summaries, toddhow's approval of 2026-11-15): done mark, fragment and OnStageSet.
+            const auto setStageNative = [this](const NativeCall& c) {
                 return result(
                     PapyrusValue::makeBool(setStage(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)))));
-            });
+            };
+            reg("Quest", "SetStage", false, setStageNative);
             const auto currentStage = [this](const NativeCall& c) {
                 return result(PapyrusValue::makeInt(
                     mState != nullptr ? static_cast<std::int32_t>(mState->stage(formOf(c.self))) : 0));
@@ -728,11 +731,7 @@ namespace game_skyrimse
             };
             reg("Quest", "GetStageDone", false, stageDone);
             reg("Quest", "IsStageDone", false, stageDone);
-            reg("Quest", "SetCurrentStageID", false, [this](const NativeCall& c) {
-                if (mState != nullptr)
-                    mState->setCurrentStage(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)));
-                return NativeResult{};
-            });
+            reg("Quest", "SetCurrentStageID", false, setStageNative);
             reg("Quest", "IsRunning", false, [this](const NativeCall& c) {
                 return result(PapyrusValue::makeBool(mState != nullptr && mState->running(formOf(c.self))));
             });
