@@ -40,6 +40,7 @@
 #include "mask.hpp"
 #include "npc.hpp"
 #include "skyrimactor.hpp"
+#include "skyrimclipmeta.hpp"
 #include "skyrimidle.hpp"
 #include "skyrimlip.hpp"
 #include "skyrimlocomotion.hpp"
@@ -502,6 +503,29 @@ namespace MWRender
             if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
                 return pose->progress();
         return {};
+    }
+
+    std::shared_ptr<const HavokPack::ClipMeta> Scene::neutralClipMeta(std::string_view clip, bool perSex)
+    {
+        // The player has no skeleton of its own here: the male character skeleton and the male project's sidecars give
+        // the clip's timing (HitFrame, length), which is all the hidden swing clock needs.
+        static constexpr std::string_view kSkeleton = "actors/character/character assets/skeleton.nif";
+        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+        if (resources == nullptr || resources->getVFS() == nullptr)
+            return {};
+        const VFS::Manager& vfs = *resources->getVFS();
+        std::string key(clip); // a few asks a second at most: the pack asks when the player attacks
+        key += perSex ? "|sex" : "|";
+        auto found = mPlayerClipMeta.find(key);
+        if (found == mPlayerClipMeta.end())
+        {
+            SkyrimIdle::ClipFuture decoded
+                = SkyrimIdle::loadIdleAsync(vfs, std::string(kSkeleton), perSex ? "male" : "", clip);
+            found = mPlayerClipMeta.emplace(key, SkyrimClipMeta::loadAsync(vfs, false, std::string(clip), decoded)).first;
+        }
+        if (found->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return {};
+        return found->second.get();
     }
 
     bool Scene::removeObject(const MWWorld::Ptr& ptr)

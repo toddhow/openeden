@@ -77,6 +77,36 @@ namespace MWPhysics
         return ClipEventKind::Other;
     }
 
+    bool clipTimingOf(const HavokPack::ClipMeta* meta, openeden::sdk::game::ClipTiming& out)
+    {
+        out = {};
+        if (meta == nullptr)
+            return false;
+        const float length = meta->playbackDuration();
+        if (!(length > 0.f))
+            return false;
+        out.length = length;
+        for (const HavokPack::ClipMetaEvent& event : meta->mEvents)
+        {
+            if (classifyClipEvent(event.mName) == ClipEventKind::Hit && std::isfinite(event.mTime))
+            {
+                out.hasHit = true;
+                out.hitTime = event.mTime;
+                break;
+            }
+        }
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
+    {
+        out = {};
+        if (mSink == nullptr || mWorld == nullptr || !validClipName(clip))
+            return false;
+        // The first call for a clip starts the world's read; the answer comes in a later frame.
+        return clipTimingOf(mWorld->playerClipMeta(clip, perSex).get(), out);
+    }
+
     NeutralCombatBridge::NeutralCombatBridge(const NeutralActorBridge& actors)
         : mActors(actors)
         , mWriter(*this)
@@ -230,6 +260,36 @@ namespace MWPhysics
         result.mToken = r.token;
         std::size_t dropped = 0;
         result.mCount = NeutralSweep::arcSweep(r, { subject.player, subject.actor }, b.mCandidates, result.mHits, &dropped);
+        // Stage S5-3b: a blow needs a clear line from the weapon to the target's capsule. The world's geometry (walls,
+        // closed doors) blocks it; actors never do.
+        const double eyeZ = r.z + static_cast<double>(kWeaponHeight);
+        std::size_t kept = 0;
+        for (std::size_t i = 0; i < result.mCount; ++i)
+        {
+            const openeden::sdk::game::SweepHit& hit = result.mHits[i];
+            double aimZ = eyeZ;
+            for (const NeutralSweep::Candidate& c : b.mCandidates)
+            {
+                if (c.mTarget != hit.target || (hit.target == openeden::sdk::game::SweepTarget::Actor && !(c.mActor == hit.actor)))
+                    continue;
+                const double low = c.mZ + static_cast<double>(kAimMargin);
+                const double high = c.mZ + static_cast<double>(c.mHeight) - static_cast<double>(kAimMargin);
+                aimZ = std::clamp(eyeZ, low, std::max(low, high));
+                break;
+            }
+            if (mWorld->lineBlocked(r.x, r.y, eyeZ, hit.x, hit.y, aimZ))
+            {
+                ++b.mStats.mSweepHitsBlocked;
+                if (traceOn())
+                    Log(Debug::Info) << "NCOMBAT sweep token " << r.token << " blocked by geometry: "
+                                     << (hit.target == openeden::sdk::game::SweepTarget::Player ? std::string("player")
+                                                                                                : std::to_string(hit.actor.reference))
+                                     << " at distance " << hit.distance;
+                continue;
+            }
+            result.mHits[kept++] = hit;
+        }
+        result.mCount = kept;
         ++b.mStats.mSweeps;
         b.mStats.mSweepHitsDropped += dropped;
         if (traceOn())

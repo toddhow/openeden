@@ -336,6 +336,11 @@ namespace MWWorld
             return mRendering->getObjects().neutralActorClipProgress(ptr);
         });
 
+        // Task 0171 stage S5-3b: the timing of the player's swing comes from the sidecar of the attack clip.
+        mPhysics->setNeutralPlayerClipMeta([this](std::string_view clip, bool perSex) {
+            return mRendering->getObjects().neutralClipMeta(clip, perSex);
+        });
+
         // Task 0171 (combat stage S5-3): the player as the combat hooks see it. Its health is the engine's own
         // (MWMechanics::CreatureStats of the player's Ptr): read for the pack's damage rule, written with the number
         // the pack computed. Main thread, from inside the pack's combatUpdate.

@@ -194,6 +194,16 @@ namespace openeden::sdk::game
         float healthMax = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
     };
 
+    /// The timing of a clip as its sidecar gives it, in playback seconds (task 0171 stage S5-3b, DRAFT 0.2): when the first
+    /// HitFrame event fires and how long the clip runs. The pack uses it to run a swing that has no clip to carry events
+    /// (the player's: no first-person arms).
+    struct ClipTiming
+    {
+        bool hasHit = false; ///< the clip has a HitFrame event
+        float hitTime = 0.f;
+        float length = 0.f;
+    };
+
     /// How the pack answers in combatUpdate(). One writer, valid during one call.
     class CombatRequestWriter
     {
@@ -246,6 +256,17 @@ namespace openeden::sdk::game
         {
             (void)subject;
             (void)heading;
+            return false;
+        }
+
+        /// The timing of the named clip, read from its sidecar (task 0171 stage S5-3b, 0.2). False while the clip is still
+        /// being read (the first call starts the read) or when it cannot be read, and outside combatUpdate(); the pack asks
+        /// again in a later frame. The default refuses.
+        virtual bool clipTiming(std::string_view clip, bool perSex, ClipTiming& out)
+        {
+            (void)clip;
+            (void)perSex;
+            out = {};
             return false;
         }
 

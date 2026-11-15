@@ -168,6 +168,8 @@ namespace game_skyrimse
                     if (playerSwing > 0.f)
                         say(openeden::sdk::LogLevel::Info,
                             "combat test player swing: every " + std::to_string(playerSwing) + " s");
+                    mCellSource.combat().setWarning(
+                        [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
                     if (settings->getBool(kPackId, kCombatTraceKey, false))
                         mCellSource.combat().setTrace(
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });

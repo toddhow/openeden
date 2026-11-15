@@ -68,6 +68,7 @@
 #include "neutralactor.hpp"
 #include "neutralmover.hpp"
 #include "neutralplanelinks.hpp"
+#include "neutralsight.hpp"
 #include "object.hpp"
 #include "projectile.hpp"
 #include "ragdollhost.hpp"
@@ -1181,6 +1182,7 @@ namespace MWPhysics
         mNeutralMoved.reserve(mNeutralActors.size());
         mNeutralTurned.reserve(mNeutralActors.size());
         mNeutralSpeeds.reserve(mNeutralActors.size());
+        mNeutralSightIgnore.reserve(mNeutralActors.size());
     }
 
     const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
@@ -1343,6 +1345,32 @@ namespace MWPhysics
             c.mHeight = NeutralActor::kStandingHeight;
             out.push_back(c);
         }
+    }
+
+    bool PhysicsSystem::NeutralCombatWorldImpl::lineBlocked(
+        double x0, double y0, double z0, double x1, double y1, double z1)
+    {
+        // Task 0171 stage S5-3b: static geometry only. Neutral actors are WORLD bodies too, so they are listed as ignored
+        // (the list is reserved when an actor is added: a frame does not allocate).
+        std::vector<JPH::BodyID>& ignore = mPhysics.mNeutralSightIgnore;
+        ignore.clear();
+        for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        {
+            const auto found = mPhysics.mObjects.find(entry.mRef);
+            if (found == mPhysics.mObjects.end() || ignore.size() >= ignore.capacity())
+                continue;
+            ignore.push_back(found->second->getPhysicsBody());
+        }
+        return NeutralSight::blocked(mPhysics.mPhysicsSystem,
+            vsg::vec3(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(z0)),
+            vsg::vec3(static_cast<float>(x1), static_cast<float>(y1), static_cast<float>(z1)),
+            Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, ignore);
+    }
+
+    std::shared_ptr<const HavokPack::ClipMeta> PhysicsSystem::NeutralCombatWorldImpl::playerClipMeta(
+        std::string_view clip, bool perSex)
+    {
+        return mPhysics.mNeutralPlayerClipMeta ? mPhysics.mNeutralPlayerClipMeta(clip, perSex) : nullptr;
     }
 
     void PhysicsSystem::NeutralCombatWorldImpl::applyPlayerDamage(const openeden::sdk::game::DamageReport& report)

@@ -113,6 +113,18 @@ namespace
             mFacings.push_back({ subject, heading });
             return true;
         }
+        // Task 0171 stage S5-3b: the player's swing timing, as the sidecar of 1HM_AttackRight gives it (defaultmale.txt:
+        // HitFrame 0.367, 1.287 s long). Ready by default so that the older tests run as before.
+        bool clipTiming(std::string_view clip, bool, ClipTiming& out) override
+        {
+            ++mTimingAsks;
+            mTimingClips.emplace_back(clip);
+            out = {};
+            if (!mTimingReady)
+                return false;
+            out = mTiming;
+            return true;
+        }
         bool subjectState(CombatSubject subject, SubjectState& out) override
         {
             out = {};
@@ -138,6 +150,10 @@ namespace
         bool mHavePlayer = true;
         bool mRefusePlay = false;
         bool mRefuseSweep = false;
+        bool mTimingReady = true;
+        ClipTiming mTiming{ true, 0.367f, 1.287f };
+        int mTimingAsks = 0;
+        std::vector<std::string> mTimingClips;
     };
 
     ActorInfo info(WorldId reference, std::uint32_t session, WorldId base, std::string_view editorId)
@@ -518,5 +534,106 @@ namespace
         EXPECT_FALSE(mCombat.fighterView(CombatSubject::of(mB), view));
         swing(CombatSubject::of(mA), 5, { hitOn(mB) });
         EXPECT_TRUE(mWriter.mDamage.empty());
+    }
+
+    // ---- stage S5-3b: the player's swing timing from the sidecar ----------------------------------------------------
+
+    TEST_F(CombatMelee, thePlayerCannotSwingUntilTheTimingIsReadyAndThenUsesTheSidecarsNumbers)
+    {
+        mWriter.mTimingReady = false;
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.1f, mWriter);
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.5f, mWriter);
+        EXPECT_EQ(mCombat.swingsRequested(), 0u);
+        EXPECT_TRUE(mWriter.mSweeps.empty());
+        EXPECT_GE(mWriter.mTimingAsks, 1);
+        ASSERT_FALSE(mWriter.mTimingClips.empty());
+        EXPECT_EQ(mWriter.mTimingClips[0], "1HM_AttackRight"); // the clip of the attack slot
+        // The sidecar arrives: the swing starts at the next press and hits at 0.367 s.
+        mWriter.mTimingReady = true;
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.1f, mWriter); // the swing starts
+        EXPECT_EQ(mCombat.swingsRequested(), 1u);
+        mCombat.combatUpdate(0.3f, mWriter); // elapsed 0.3 < 0.367
+        EXPECT_TRUE(mWriter.mSweeps.empty());
+        mCombat.combatUpdate(0.1f, mWriter); // elapsed 0.4
+        EXPECT_EQ(mWriter.mSweeps.size(), 1u);
+    }
+
+    TEST_F(CombatMelee, theSwingFollowsWhateverTheSidecarSaysNotAConstant)
+    {
+        mWriter.mTiming = { true, 0.9f, 2.0f };
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.1f, mWriter); // starts
+        mCombat.combatUpdate(0.5f, mWriter); // elapsed 0.5
+        mCombat.combatUpdate(0.3f, mWriter); // elapsed 0.8: past the old 0.367, before 0.9
+        EXPECT_TRUE(mWriter.mSweeps.empty());
+        mCombat.combatUpdate(0.2f, mWriter); // elapsed 1.0 >= 0.9
+        EXPECT_EQ(mWriter.mSweeps.size(), 1u);
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.6f, mWriter); // elapsed 1.6 < 2.0: still swinging, press dropped
+        EXPECT_EQ(mCombat.swingsRequested(), 1u);
+        mCombat.combatUpdate(0.5f, mWriter); // elapsed 2.1: ended
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.016f, mWriter);
+        EXPECT_EQ(mCombat.swingsRequested(), 2u);
+    }
+
+    TEST_F(CombatMelee, aClipWithNoHitFrameIsNoSwing)
+    {
+        mWriter.mTiming = { false, 0.f, 1.5f };
+        mCombat.onPlayerAttack(false);
+        mCombat.combatUpdate(0.1f, mWriter);
+        mCombat.combatUpdate(0.5f, mWriter);
+        EXPECT_EQ(mCombat.swingsRequested(), 0u);
+        EXPECT_TRUE(mWriter.mSweeps.empty());
+    }
+
+    TEST_F(CombatMelee, theAutomaticTestSwingWaitsForTheTimingToo)
+    {
+        mWriter.mTimingReady = false;
+        mCombat.setTestPlayerSwing(4.f);
+        mCombat.combatUpdate(1.5f, mWriter);
+        mCombat.combatUpdate(0.5f, mWriter);
+        EXPECT_EQ(mCombat.swingsRequested(), 0u);
+        mWriter.mTimingReady = true;
+        mCombat.combatUpdate(0.016f, mWriter);
+        EXPECT_EQ(mCombat.swingsRequested(), 1u);
+    }
+
+    TEST_F(CombatMelee, aTimingThatNeverArrivesIsReportedOnceAfterFiveSeconds)
+    {
+        mWriter.mTimingReady = false;
+        mCombat.setTestPlayerSwing(1.f);
+        for (int i = 0; i < 20; ++i)
+            mCombat.combatUpdate(0.5f, mWriter); // ten seconds
+        EXPECT_EQ(mCombat.playerTimingTimeouts(), 1u);
+        EXPECT_EQ(mCombat.swingsRequested(), 0u);
+        int lines = 0;
+        for (const std::string& line : mTrace)
+            if (line.find("player swing timing never arrived") != std::string::npos)
+                ++lines;
+        EXPECT_EQ(lines, 1);
+    }
+
+    TEST_F(CombatMelee, thePowerAttackAsksForTheTimingOfThePowerClip)
+    {
+        mCombat.onPlayerAttack(true);
+        mCombat.combatUpdate(0.1f, mWriter);
+        ASSERT_FALSE(mWriter.mTimingClips.empty());
+        // Both attack clips were asked for at the first update (the read starts early), and the press asks for the power one.
+        EXPECT_EQ(mWriter.mTimingClips.front(), "1HM_AttackRight");
+        EXPECT_EQ(mWriter.mTimingClips.back(), "1HM_AttackPower");
+    }
+
+    TEST_F(CombatMelee, theReadOfThePlayersAttackTimingStartsAtTheFirstUpdateAndOnlyOnce)
+    {
+        EXPECT_EQ(mWriter.mTimingAsks, 0);
+        mCombat.combatUpdate(0.016f, mWriter);
+        EXPECT_EQ(mWriter.mTimingAsks, 2); // the one-handed attack and power attack clips
+        mCombat.combatUpdate(0.016f, mWriter);
+        mCombat.combatUpdate(0.016f, mWriter);
+        EXPECT_EQ(mWriter.mTimingAsks, 2); // nothing asks again until a swing wants the numbers
     }
 }

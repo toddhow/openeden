@@ -45,3 +45,10 @@ future behaviour is behind `[Game] neutral combat` (off by default); with it off
 - Contract 0.2 (additive, SDK stays 4.0): `SubjectState` and `CombatRequestWriter::subjectState` (where a subject is, and the player's engine health), `CombatRequestWriter::faceHeading`, and the rule that `reportDamage` with `victimIsPlayer` makes the core write `healthAfter` into the engine's player health (the player's health is the engine's, not the pack's). A clip in the `Death` slot is not stopped by the core when it ends: the body keeps its last pose.
 - The sweep is cast by the core at the moment of the request and told in the next frame; it is a geometric arc against the actors' and the player's capsules, not a Jolt shape cast, and does not look for a wall (decision for toddhow in the task).
 
+
+## Decided 2026-11-14 (toddhow, stage S5-3b; task `docs/tasks/0171-skyrim-combat-s5-3-melee-hit.md`)
+
+- The edit of the existing test `CombatContract.versionIsADraftZeroOne` (the pinned minor version 1 to 2: the contract is 0.2) is approved.
+- **Walls:** after the geometric arc picks its candidates, each hit needs a clear line from the attacker's weapon height to the target's capsule through the Jolt world: one ray per candidate against static WORLD geometry, terrain and closed doors, never against actors, cast by the core on the main thread at the moment of the request. A blocked candidate is not hit (counted and traced).
+- **Player swing timing from data:** the player's HitFrame time and clip length come from the `1HM_AttackRight` sidecar at run time, through the same meta loader the NPC clips use. Contract 0.2 gains `ClipTiming` and `CombatRequestWriter::clipTiming(clip, perSex, out)` (a trailing virtual, default refuses; additive). Until the meta is ready the player cannot swing: there is no fallback constant, and a timing that has not arrived after five seconds of trying is reported once in the log.
+- The death pose stays the held stagger-back clip until S5-5 (no change).

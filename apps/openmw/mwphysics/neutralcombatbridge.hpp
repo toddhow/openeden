@@ -64,6 +64,26 @@ namespace MWPhysics
         virtual void collectCandidates(std::vector<NeutralSweep::Candidate>& out) = 0;
         /// A hit on the player was resolved: write report.healthAfter into the engine's player health.
         virtual void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) { (void)report; }
+        /// Task 0171 stage S5-3b: true when a wall, a closed door or other static geometry lies on the straight line from
+        /// (x0, y0, z0) to (x1, y1, z1); actors never block. Default: nothing blocks.
+        virtual bool lineBlocked(double x0, double y0, double z0, double x1, double y1, double z1)
+        {
+            (void)x0;
+            (void)y0;
+            (void)z0;
+            (void)x1;
+            (void)y1;
+            (void)z1;
+            return false;
+        }
+        /// Task 0171 stage S5-3b: the sidecar meta of a clip, for the player's hidden swing clock; null while it is still
+        /// being read (the first call starts the read) or when it cannot be. Default: never.
+        virtual std::shared_ptr<const HavokPack::ClipMeta> playerClipMeta(std::string_view clip, bool perSex)
+        {
+            (void)clip;
+            (void)perSex;
+            return {};
+        }
         /// The pack reported the actor behind `key` dead (once).
         virtual void actorDied(const void* key, openeden::sdk::game::ActorHandle actor)
         {
@@ -75,6 +95,10 @@ namespace MWPhysics
     /// How far the renderer is with the clip the actor behind `key` plays now: no meta while it is still being read (or
     /// when it failed), not started while the clip is being decoded.
     using NeutralClipMetaFn = std::function<HavokPack::ClipProgress(const void* key)>;
+
+    /// The timing a pack needs from a clip's meta: the first HitFrame event and the playback length. False without a
+    /// meta; `hasHit` stays false when the clip has no HitFrame.
+    [[nodiscard]] bool clipTimingOf(const HavokPack::ClipMeta* meta, openeden::sdk::game::ClipTiming& out);
 
     /// The event kind of a sidecar event name (case-insensitive; Other for an unknown name).
     [[nodiscard]] openeden::sdk::game::ClipEventKind classifyClipEvent(std::string_view name);
@@ -96,6 +120,7 @@ namespace MWPhysics
             std::uint64_t mSweeps = 0; ///< sweeps cast
             std::uint64_t mSweepHits = 0; ///< hits told to the pack
             std::uint64_t mSweepHitsDropped = 0; ///< hits beyond kMaxSweepHits
+            std::uint64_t mSweepHitsBlocked = 0; ///< hits dropped because a wall or door lay between (stage S5-3b)
             std::uint64_t mSweepsRefused = 0; ///< bad request, unknown subject, no world, result table full
             std::uint64_t mSweepResultsDropped = 0; ///< results whose attacker had gone
             std::uint64_t mDamageReports = 0;
@@ -107,6 +132,12 @@ namespace MWPhysics
         static constexpr float kMetaTimeoutSeconds = 5.f;
         static constexpr std::size_t kMaxPendingResults = 64;
         static constexpr std::size_t kMaxCandidates = 4096;
+        /// Task 0171 stage S5-3b: a blow needs a clear line from the attacker, this far above its feet, to the target's
+        /// capsule: mid-body (half the 128 unit standing height). Measured in the Bannered Mare: the bar counter's top is
+        /// about 80 above the floor, so a line at 64 meets it and a line at 80 skims over it.
+        static constexpr float kWeaponHeight = 64.f;
+        /// ... aimed at the capsule this far inside its top and bottom (never at the floor under it).
+        static constexpr float kAimMargin = 8.f;
 
         explicit NeutralCombatBridge(const NeutralActorBridge& actors);
         NeutralCombatBridge(const NeutralCombatBridge&) = delete;
@@ -163,6 +194,7 @@ namespace MWPhysics
             bool reportDeath(openeden::sdk::game::ActorHandle actor) override;
             bool subjectState(
                 openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
+            bool clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out) override;
             NeutralClipSink* mSink = nullptr; ///< non-null only while the pack's combatUpdate runs
             NeutralCombatWorld* mWorld = nullptr; ///< likewise (may be null: sweeps are then refused)
 

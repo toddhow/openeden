@@ -52,6 +52,14 @@ namespace MWRender
         /// Task 0170: the meta of the clip playNeutralActorClip started and how far its sampling has got (empty for an
         /// actor with no such clip).
         virtual HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& /*ptr*/) { return {}; }
+
+        /// Task 0171 stage S5-3b: the sidecar meta of a character clip for a swing that has no actor (the player's: no
+        /// first-person arms). Null until the clip and the sidecars have been read on a worker; the first call for a clip
+        /// starts the read. Main thread.
+        virtual std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view /*clip*/, bool /*perSex*/)
+        {
+            return {};
+        }
     };
 }
 

@@ -297,6 +297,10 @@ namespace MWPhysics
         /// Where the clip meta of an actor comes from (the renderer); null while it is still being read.
         using NeutralClipMetaProvider = std::function<HavokPack::ClipProgress(const MWWorld::Ptr&)>;
         void setNeutralClipMetaProvider(NeutralClipMetaProvider provider);
+        /// Task 0171 stage S5-3b: the sidecar meta of a clip for the player's hidden swing clock (null until read).
+        using NeutralPlayerClipMetaFn
+            = std::function<std::shared_ptr<const HavokPack::ClipMeta>(std::string_view clip, bool perSex)>;
+        void setNeutralPlayerClipMeta(NeutralPlayerClipMetaFn provider) { mNeutralPlayerClipMeta = std::move(provider); }
         /// The clips the combat hooks started (a clip name) or stopped (empty) in the last updateNeutralActors; the
         /// caller hands them to the renderer. Reserved with the other lists, so a frame does not allocate.
         struct NeutralClipOp
@@ -634,6 +638,8 @@ namespace MWPhysics
             bool subjectState(
                 openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
             void collectCandidates(std::vector<NeutralSweep::Candidate>& out) override;
+            bool lineBlocked(double x0, double y0, double z0, double x1, double y1, double z1) override;
+            std::shared_ptr<const HavokPack::ClipMeta> playerClipMeta(std::string_view clip, bool perSex) override;
             void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) override;
             void actorDied(const void* key, openeden::sdk::game::ActorHandle actor) override;
 
@@ -641,6 +647,8 @@ namespace MWPhysics
             PhysicsSystem& mPhysics;
         };
         NeutralPlayerStateFn mNeutralPlayerState;
+        NeutralPlayerClipMetaFn mNeutralPlayerClipMeta;
+        std::vector<JPH::BodyID> mNeutralSightIgnore; ///< the neutral actors' bodies, refilled for each line of sight
         NeutralPlayerDamageFn mNeutralPlayerDamage;
         NeutralCombatResolver mNeutralCombatResolver;
         NeutralClipMetaFn mNeutralClipMeta;

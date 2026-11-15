@@ -1,9 +1,12 @@
 #ifndef VSGOPENMW_MWRENDER_SCENE_H
 #define VSGOPENMW_MWRENDER_SCENE_H
 
+#include <chrono>
 #include <cstdint>
+#include <future>
 #include <map>
 #include <memory>
+#include <string>
 
 #include <vsg/core/ref_ptr.h>
 #include <vsg/nodes/Group.h>
@@ -52,6 +55,8 @@ namespace MWRender
         static void moveNightDaySwitches(MWAnim::Object& object, Cell& from, Cell* to);
 
         std::uint32_t mChangeCounter = 0;
+        /// Task 0171 stage S5-3b: clip metas for swings with no actor (the player's), by clip name; main thread only.
+        std::map<std::string, std::shared_future<std::shared_ptr<const HavokPack::ClipMeta>>> mPlayerClipMeta;
 
         vsg::ref_ptr<vsg::Switch> mActorGroup;
         vsg::ref_ptr<vsg::Switch> mObjectGroup;
@@ -84,6 +89,7 @@ namespace MWRender
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
         void playNeutralActorClip(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
         HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& ptr) override;
+        std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view clip, bool perSex) override;
         void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields) override;
 
         /// Puts a built and compiled object (an actor when `actor`) into its cell's group and update list: the end of

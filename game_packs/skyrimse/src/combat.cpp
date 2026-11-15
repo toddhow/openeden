@@ -288,13 +288,38 @@ namespace game_skyrimse
         {
             if (mPlayerSwingActive)
                 return;
+            // The player's clip is never played (no first-person arms): its timing is the sidecar's, asked for by the
+            // clip the slot would play. Until it is ready there is no swing (stage S5-3b: no fallback number).
+            const std::string_view playerClip
+                = mSlots.clipFor(power ? ClipSlot::PowerAttack : ClipSlot::Attack, kWeaponAnim1HSword);
+            openeden::sdk::game::ClipTiming timing;
+            if (playerClip.empty() || !writer.clipTiming(playerClip, false, timing) || !timing.hasHit
+                || !(timing.length > 0.f))
+            {
+                if (mPlayerTimingSince < 0.f)
+                    mPlayerTimingSince = mClock;
+                else if (mClock - mPlayerTimingSince >= kPlayerTimingTimeoutSeconds && mPlayerTimingTimeouts == 0)
+                {
+                    ++mPlayerTimingTimeouts;
+                    const std::string line = "COMBAT player swing timing never arrived for '" + std::string(playerClip)
+                        + "': the player cannot swing";
+                    if (mWarning)
+                        mWarning(line);
+                    trace(line);
+                }
+                return;
+            }
+            mPlayerTimingSince = -1.f;
+            mPlayerHitTime = timing.hitTime;
+            mPlayerSwingLength = timing.length;
             mPlayerSwingActive = true;
             mPlayerHitDone = false;
             mPlayerSwingStart = mClock;
             mPlayerSwingToken = mNextToken++;
             mPlayerPower = power;
             ++mSwingsRequested;
-            trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : ""));
+            trace("COMBAT swing player token " + std::to_string(mPlayerSwingToken) + (power ? " power" : "") + " hit at "
+                + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
         if (fighter.mDead || fighter.mSwinging)
@@ -358,6 +383,19 @@ namespace game_skyrimse
         Fighter& player = mFighters.front();
         if (!ready(player))
             return;
+        if (!mPlayerTimingKicked)
+        {
+            // Start reading the sidecars of the player's attack clips now, long before the first swing needs them (the
+            // answer is ignored here; the swing asks again). Reading is on the core's worker.
+            mPlayerTimingKicked = true;
+            openeden::sdk::game::ClipTiming ignored;
+            for (const ClipSlot slot : { ClipSlot::Attack, ClipSlot::PowerAttack })
+            {
+                const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
+                if (!clip.empty())
+                    (void)writer.clipTiming(clip, false, ignored);
+            }
+        }
         // A press while a swing runs is dropped (no buffering in this stage).
         const bool pressed = mPlayerAttackPending;
         mPlayerAttackPending = false;
@@ -365,6 +403,7 @@ namespace game_skyrimse
         {
             bool start = false;
             bool power = false;
+            bool automatic = false;
             if (pressed)
             {
                 start = true;
@@ -374,19 +413,25 @@ namespace game_skyrimse
             {
                 start = true;
                 mNextPlayerAuto = mClock + mPlayerAutoPeriod;
+                automatic = true;
             }
             if (start)
+            {
                 beginAttack(writer, player, power);
+                // An automatic swing whose timing is not ready yet asks again in the next frame, not a period later.
+                if (automatic && !mPlayerSwingActive)
+                    mNextPlayerAuto = mClock;
+            }
         }
         if (mPlayerSwingActive)
         {
             const float elapsed = mClock - mPlayerSwingStart;
-            if (!mPlayerHitDone && elapsed >= kPlayerHitTime)
+            if (!mPlayerHitDone && elapsed >= mPlayerHitTime)
             {
                 mPlayerHitDone = true;
                 processHit(writer, { player.mSubject, mPlayerSwingToken, mPlayerPower });
             }
-            if (elapsed >= kPlayerSwingLength)
+            if (elapsed >= mPlayerSwingLength)
                 mPlayerSwingActive = false;
         }
     }

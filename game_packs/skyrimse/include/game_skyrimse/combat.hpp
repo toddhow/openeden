@@ -55,11 +55,11 @@ namespace game_skyrimse
     inline constexpr float kSweepHeightAbove = 130.f;
     /// The radius of an actor's physics capsule (MWPhysics::NeutralActor::kRadius, mirrored: no engine include here).
     inline constexpr float kBodyRadius = 22.f;
-    /// Seconds from the start of the player's swing to its HitFrame and to its end: the numbers of the sidecar of
-    /// 1HM_AttackRight (`animationdata/defaultmale.txt`: HitFrame 0.367, length 1.3; the task 0170 trace). The player has
-    /// no clip (no first-person arms), so its swing runs on this timer.
-    inline constexpr float kPlayerHitTime = 0.367f;
-    inline constexpr float kPlayerSwingLength = 1.3f;
+    /// The player has no clip (no first-person arms), so its swing runs on a hidden clock whose HitFrame time and length
+    /// come from the sidecar of the attack clip at run time (CombatRequestWriter::clipTiming, task 0171 stage S5-3b). There
+    /// is no fallback number: until the timing is ready the player cannot swing, and a timing that has not arrived after
+    /// this many seconds of trying is reported once.
+    inline constexpr float kPlayerTimingTimeoutSeconds = 5.f;
     /// Seconds a fighter counts as "in combat" (the regeneration multipliers) after a hit given or taken.
     inline constexpr float kCombatLingerSeconds = 10.f;
     /// Seconds between two attacks of a hostile test actor.
@@ -165,6 +165,10 @@ namespace game_skyrimse
         bool setTestWeapon(std::string_view editorId);
         /// Called with one line per combat decision (`COMBAT ...`), when set. Main thread.
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
+        /// Where a warning goes (the host's log); a warning is also traced.
+        void setWarning(std::function<void(const std::string&)> warning) { mWarning = std::move(warning); }
+        /// How many times the player's swing timing did not arrive within kPlayerTimingTimeoutSeconds (reported once).
+        [[nodiscard]] std::size_t playerTimingTimeouts() const { return mPlayerTimingTimeouts; }
 
         /// What the pack believes about a fighter now; false for an unknown or not yet used one.
         struct FighterView
@@ -263,6 +267,12 @@ namespace game_skyrimse
         std::vector<PendingHit> mAwaiting; ///< sweeps asked for, result not here yet
         std::vector<SweepDelivery> mDeliveries; ///< sweep results waiting for the next combatUpdate
         std::function<void(const std::string&)> mTrace;
+        std::function<void(const std::string&)> mWarning;
+        float mPlayerHitTime = 0.f; ///< of the swing that runs: from the sidecar
+        float mPlayerSwingLength = 0.f;
+        bool mPlayerTimingKicked = false; ///< the read of the player's attack clip sidecars was started
+        float mPlayerTimingSince = -1.f; ///< clock of the first refused ask, -1 when none is waiting
+        std::size_t mPlayerTimingTimeouts = 0;
         float mClock = 0.f;
         float mNextSwing = kTestSwingFirstDelay;
         std::uint32_t mNextToken = 1;
