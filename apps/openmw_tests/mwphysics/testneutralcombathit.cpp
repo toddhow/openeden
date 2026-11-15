@@ -330,7 +330,7 @@ namespace
         meta->sortEvents();
         MWPhysics::NeutralClipMetaFn metaFn = [&](const void*) { return HavokPack::ClipProgress{ meta, true, 0.f }; };
         const auto play = [&](ClipSlot slot, std::uint32_t token) {
-            mRules.mDo = [=](CombatRequestWriter& w) {
+            mRules.mDo = [=, this](CombatRequestWriter& w) {
                 ClipRequest request;
                 request.slot = slot;
                 request.clip = "1HM_StaggerBackMedium";
