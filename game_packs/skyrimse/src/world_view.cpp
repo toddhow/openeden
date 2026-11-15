@@ -220,6 +220,8 @@ namespace game_skyrimse
 
     SkyrimWorldView::~SkyrimWorldView()
     {
+        if (mCombatThread.joinable())
+            mCombatThread.join();
         cancelAndJoin();
         if (mDialogueThread.joinable())
             mDialogueThread.join();
@@ -253,43 +255,93 @@ namespace game_skyrimse
         return true;
     }
 
-    bool SkyrimWorldView::ensureCombatIndex()
-    {
-        if (mCombatIndex != nullptr)
-            return true;
-        auto index = std::make_unique<CombatIndex>();
-        for (const PluginData& plugin : mPlugins)
-        {
-            Content::Error openError;
-            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
-            if (file == nullptr)
-            {
-                noteError(openError);
-                continue;
-            }
-            CombatRecords records;
-            (void)parseCombatRecords(*file, mOrder, ExteriorLimits(), records);
-            index->add(records);
-        }
-        mCombatIndex = std::move(index);
-        return true;
-    }
-
     bool SkyrimWorldView::combatReady()
     {
-        return true; // stub: the worker comes after the tests
+        const int state = mCombatState.load(std::memory_order_acquire);
+        if (state == 3)
+            return true;
+        if (state == 0)
+        {
+            // The plugin list is final only when the world index is built: a worker started earlier would read a list
+            // that is still growing.
+            if (mBuilding.load(std::memory_order_acquire) || mFailed.load(std::memory_order_acquire))
+                return false;
+            mCombatState.store(1, std::memory_order_release);
+            const bool wantActors = mActorIndex == nullptr;
+            mCombatThread = std::thread([this, wantActors]() {
+                const auto started = std::chrono::steady_clock::now();
+                auto combat = std::make_unique<CombatIndex>();
+                std::unique_ptr<ActorIndex> actors;
+                if (wantActors)
+                    actors = std::make_unique<ActorIndex>();
+                std::vector<Content::Error> errors;
+                const ActorLimits limits;
+                try
+                {
+                    for (const PluginData& plugin : mPlugins)
+                    {
+                        Content::Error openError;
+                        const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+                        if (file == nullptr)
+                        {
+                            errors.push_back(openError);
+                            continue;
+                        }
+                        CombatRecords records;
+                        (void)parseCombatRecords(*file, mOrder, ExteriorLimits(), records);
+                        combat->add(records);
+                        if (actors != nullptr)
+                        {
+                            ActorRecords actorRecords;
+                            (void)parseActorRecords(*file, mOrder, limits, actorRecords);
+                            for (ActorNpc& npc : actorRecords.mNpcs)
+                                npc.mPlugin = static_cast<std::uint32_t>(&plugin - mPlugins.data());
+                            actors->add(actorRecords);
+                            actors->addLeveledLists(plugin.mParsed.mLeveledLists);
+                        }
+                    }
+                }
+                catch (...)
+                {
+                    // A read that threw leaves what it had: the combat answers are then partial, never undefined.
+                }
+                mCombatBuilt = std::move(combat);
+                mActorBuilt = std::move(actors);
+                mCombatErrors = std::move(errors);
+                mCombatMillis = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - started).count());
+                mCombatState.store(2, std::memory_order_release);
+            });
+            return false;
+        }
+        if (state == 1)
+            return false;
+        // 2: adopt on the calling (main) thread. Another path may have built the actor index meanwhile: keep that one.
+        mCombatThread.join();
+        mCombatIndex = std::move(mCombatBuilt);
+        if (mActorIndex == nullptr && mActorBuilt != nullptr)
+            mActorIndex = std::move(mActorBuilt);
+        mActorBuilt.reset();
+        for (const Content::Error& error : mCombatErrors)
+            noteError(error);
+        mCombatErrors.clear();
+        if (mOptions.mNotice)
+            mOptions.mNotice("combat records read on a worker in " + std::to_string(mCombatMillis)
+                + " ms (the main thread did not wait)");
+        mCombatState.store(3, std::memory_order_release);
+        return true;
     }
 
     CombatSettings SkyrimWorldView::settings()
     {
-        if (!awaitIndex() || !ensureCombatIndex())
+        if (mCombatIndex == nullptr)
             return {};
         return mCombatIndex->settings().combatSettings();
     }
 
     const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
     {
-        if (!awaitIndex() || !ensureCombatIndex())
+        if (mCombatIndex == nullptr)
             return nullptr;
         auto lower = [](std::string_view text) {
             std::string out(text);
@@ -326,8 +378,8 @@ namespace game_skyrimse
     bool SkyrimWorldView::fighter(openeden::sdk::game::WorldId base, FighterProfile& out)
     {
         out = {};
-        if (!awaitIndex() || !ensureActorIndex() || !ensureCombatIndex())
-            return false;
+        if (mCombatIndex == nullptr || mActorIndex == nullptr)
+            return false; // not read yet: combatReady() starts that and says when
         const FormId npc = static_cast<FormId>(base);
         openeden::sdk::game::ActorStats stats;
         std::string error;

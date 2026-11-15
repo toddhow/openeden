@@ -579,7 +579,8 @@ namespace game_skyrimse
             hit.mStaminaCost *= clean(settings.mPowerAttackStaminaPenalty);
         hit.mDamageBefore = clean(base * powerFactor);
         const float mitigation = std::min(clean(input.mTargetMitigationPercent), clean(settings.mMaxArmorRating));
-        hit.mDamageAfter = hit.mDamageBefore * (1.f - mitigation / 100.f);
+        // Never negative and never more than the blow itself, whatever the mitigation says (a negative one is data).
+        hit.mDamageAfter = std::clamp(hit.mDamageBefore * (1.f - mitigation / 100.f), 0.f, hit.mDamageBefore);
         hit.mStaminaCost = clean(hit.mStaminaCost);
         return hit;
     }

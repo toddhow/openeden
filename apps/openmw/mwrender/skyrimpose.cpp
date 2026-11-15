@@ -24,10 +24,16 @@ namespace MWRender::SkyrimPose
         SkyrimIdle::ClipFuture future;
         if (!clip.empty())
             future = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
+        // The futures this call replaces are moved here and die after the lock is let go (declared first, so they are
+        // destroyed last): a future that holds the last reference of a running read must not be waited for under the
+        // mutex the update thread needs (review fix of task 0171).
+        SkyrimIdle::ClipFuture oldClip;
+        SkyrimClipMeta::MetaFuture oldMeta;
         const std::lock_guard lock(mMutex);
         mOnce = false;
         mSampled = false;
         mPlaybackTime = 0.f;
+        oldMeta = std::move(mMetaFuture);
         mMetaFuture = {};
         mMeta.reset();
         mActive = !clip.empty();
@@ -38,6 +44,7 @@ namespace MWRender::SkyrimPose
         }
         // Switching from one clip to another (the sit-down to the sitting loop, task 0135 stage S6f) keeps the old clip
         // playing until the new one is decoded and bound: no frame of the idle pose in between.
+        oldClip = std::move(mFuture);
         mFuture = std::move(future);
         mPending = mActive;
         mNeedStart = mActive;
@@ -53,13 +60,17 @@ namespace MWRender::SkyrimPose
         SkyrimIdle::ClipFuture future
             = SkyrimIdle::loadIdleAsync(mVfs, mSkeleton, perSex ? (mFemale ? "female" : "male") : "", clip);
         SkyrimClipMeta::MetaFuture metaFuture = SkyrimClipMeta::loadAsync(mVfs, mFemale, std::string(clip), future);
+        SkyrimIdle::ClipFuture oldClip; // see setClip: they die after the lock
+        SkyrimClipMeta::MetaFuture oldMeta;
         const std::lock_guard lock(mMutex);
         mOnce = true;
         mSampled = false;
         mPlaybackTime = 0.f;
+        oldMeta = std::move(mMetaFuture);
         mMetaFuture = std::move(metaFuture);
         mMeta.reset();
         mActive = true;
+        oldClip = std::move(mFuture);
         mFuture = std::move(future);
         mPending = true;
         mNeedStart = true;

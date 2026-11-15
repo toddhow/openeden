@@ -331,6 +331,10 @@ namespace MWWorld
         }
         mRendering->setNavigator(mNavigator.get());
 
+        // The combat hooks below are installed only with `[Game] neutral combat` on (review fix of task 0171): a session
+        // without it (Morrowind, or the setting off) holds none of these functions.
+        if (Settings::game().mNeutralCombat.get())
+        {
         // Task 0170 (combat stage S5-2): the clip meta of a neutral actor's combat clip comes from its pose controller.
         mPhysics->setNeutralClipMetaProvider([this](const MWWorld::Ptr& ptr) {
             return mRendering->getObjects().neutralActorClipProgress(ptr);
@@ -365,9 +369,11 @@ namespace MWWorld
                     return;
                 MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
                 MWMechanics::DynamicStat<float> health = stats.getHealth();
-                health.setCurrent(healthAfter);
+                // Never outside [0, max] (the pack's number is data).
+                health.setCurrent(std::clamp(healthAfter, 0.f, std::max(0.f, health.getModified())));
                 stats.setHealth(health);
             });
+        }
 
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
         // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.

@@ -13,6 +13,7 @@
 
 #include <components/mwanimation/context.hpp>
 
+#include "playerclipmeta.hpp"
 #include "renderinginterface.hpp"
 
 namespace MWWorld
@@ -56,7 +57,7 @@ namespace MWRender
 
         std::uint32_t mChangeCounter = 0;
         /// Task 0171 stage S5-3b: clip metas for swings with no actor (the player's), by clip name; main thread only.
-        std::map<std::string, std::shared_future<std::shared_ptr<const HavokPack::ClipMeta>>> mPlayerClipMeta;
+        PlayerClipMetaCache mPlayerClipMeta;
 
         vsg::ref_ptr<vsg::Switch> mActorGroup;
         vsg::ref_ptr<vsg::Switch> mObjectGroup;

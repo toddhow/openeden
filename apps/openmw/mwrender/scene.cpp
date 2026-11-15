@@ -510,22 +510,23 @@ namespace MWRender
         // The player has no skeleton of its own here: the male character skeleton and the male project's sidecars give
         // the clip's timing (HitFrame, length), which is all the hidden swing clock needs.
         static constexpr std::string_view kSkeleton = "actors/character/character assets/skeleton.nif";
-        Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
-        if (resources == nullptr || resources->getVFS() == nullptr)
-            return {};
-        const VFS::Manager& vfs = *resources->getVFS();
-        std::string key(clip); // a few asks a second at most: the pack asks when the player attacks
-        key += perSex ? "|sex" : "|";
-        auto found = mPlayerClipMeta.find(key);
-        if (found == mPlayerClipMeta.end())
+        // The lookup allocates nothing and a known meta is answered from the cache (review fix of task 0171: this was a
+        // string key built per call). A read that failed is tried once more later and reported once per clip.
+        const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        const PlayerClipMetaCache::Answer answer = mPlayerClipMeta.lookup(clip, perSex, now);
+        if (answer.mWarn)
+            Log(Debug::Warning) << "Combat: the timing of the clip '" << clip << "' could not be read";
+        if (answer.mStart)
         {
+            Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
+            if (resources == nullptr || resources->getVFS() == nullptr)
+                return {};
+            const VFS::Manager& vfs = *resources->getVFS();
             SkyrimIdle::ClipFuture decoded
                 = SkyrimIdle::loadIdleAsync(vfs, std::string(kSkeleton), perSex ? "male" : "", clip);
-            found = mPlayerClipMeta.emplace(key, SkyrimClipMeta::loadAsync(vfs, false, std::string(clip), decoded)).first;
+            mPlayerClipMeta.begin(clip, perSex, SkyrimClipMeta::loadAsync(vfs, false, std::string(clip), decoded));
         }
-        if (found->second.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
-            return {};
-        return found->second.get();
+        return answer.mMeta;
     }
 
     bool Scene::removeObject(const MWWorld::Ptr& ptr)

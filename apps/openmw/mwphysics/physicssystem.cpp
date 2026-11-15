@@ -1182,7 +1182,8 @@ namespace MWPhysics
         mNeutralMoved.reserve(mNeutralActors.size());
         mNeutralTurned.reserve(mNeutralActors.size());
         mNeutralSpeeds.reserve(mNeutralActors.size());
-        mNeutralSightIgnore.reserve(mNeutralActors.size());
+        if (Settings::game().mNeutralCombat.get())
+            mNeutralSightIgnore.reserve(mNeutralActors.size()); // only the combat's line of sight uses it
     }
 
     const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
@@ -1352,14 +1353,19 @@ namespace MWPhysics
     {
         // Task 0171 stage S5-3b: static geometry only. Neutral actors are WORLD bodies too, so they are listed as ignored
         // (the list is reserved when an actor is added: a frame does not allocate).
+        // The list is rebuilt once a frame, not for every hit (in place: it is reserved when an actor is added).
         std::vector<JPH::BodyID>& ignore = mPhysics.mNeutralSightIgnore;
-        ignore.clear();
-        for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        if (mPhysics.mNeutralSightIgnoreFrame != mPhysics.mNeutralFrame)
         {
-            const auto found = mPhysics.mObjects.find(entry.mRef);
-            if (found == mPhysics.mObjects.end() || ignore.size() >= ignore.capacity())
-                continue;
-            ignore.push_back(found->second->getPhysicsBody());
+            mPhysics.mNeutralSightIgnoreFrame = mPhysics.mNeutralFrame;
+            ignore.clear();
+            for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
+            {
+                const auto found = mPhysics.mObjects.find(entry.mRef);
+                if (found == mPhysics.mObjects.end() || ignore.size() >= ignore.capacity())
+                    continue;
+                ignore.push_back(found->second->getPhysicsBody());
+            }
         }
         return NeutralSight::blocked(mPhysics.mPhysicsSystem,
             vsg::vec3(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(z0)),
@@ -1578,6 +1584,7 @@ namespace MWPhysics
 
     void PhysicsSystem::updateNeutralActors(float dt)
     {
+        ++mNeutralFrame;
         mNeutralMoved.clear();
         mNeutralTurned.clear();
         mNeutralSpeeds.clear();

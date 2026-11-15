@@ -648,7 +648,9 @@ namespace MWPhysics
         };
         NeutralPlayerStateFn mNeutralPlayerState;
         NeutralPlayerClipMetaFn mNeutralPlayerClipMeta;
-        std::vector<JPH::BodyID> mNeutralSightIgnore; ///< the neutral actors' bodies, refilled for each line of sight
+        std::vector<JPH::BodyID> mNeutralSightIgnore; ///< the neutral actors' bodies, refilled once a frame
+        std::uint64_t mNeutralFrame = 0; ///< counts updateNeutralActors
+        std::uint64_t mNeutralSightIgnoreFrame = ~std::uint64_t{ 0 }; ///< the frame mNeutralSightIgnore was filled for
         NeutralPlayerDamageFn mNeutralPlayerDamage;
         NeutralCombatResolver mNeutralCombatResolver;
         NeutralClipMetaFn mNeutralClipMeta;

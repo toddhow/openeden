@@ -69,12 +69,63 @@ namespace MWRender
         std::vector<Entry> mEntries;
     };
 
-    // Stub: the behaviour is written after the tests have been shown red.
-    inline PlayerClipMetaCache::Answer PlayerClipMetaCache::lookup(std::string_view, bool, double)
+    inline PlayerClipMetaCache::Answer PlayerClipMetaCache::lookup(std::string_view clip, bool perSex, double now)
     {
-        return {};
+        Entry* e = find(clip, perSex);
+        if (e == nullptr)
+        {
+            Answer answer;
+            answer.mStart = mEntries.size() < kMaxEntries;
+            return answer;
+        }
+        Answer answer;
+        if (e->mMeta)
+        {
+            answer.mMeta = e->mMeta;
+            return answer;
+        }
+        if (e->mGaveUp)
+            return answer;
+        if (!e->mFuture.valid())
+        {
+            answer.mStart = now >= e->mRetryAt;
+            return answer;
+        }
+        if (e->mFuture.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+            return answer;
+        std::shared_ptr<const HavokPack::ClipMeta> meta = e->mFuture.get();
+        if (meta)
+        {
+            e->mMeta = meta;
+            answer.mMeta = std::move(meta);
+            return answer;
+        }
+        // A read that came back empty: tried once more later, then given up; said once per clip name.
+        ++e->mAttempts;
+        answer.mWarn = !e->mWarned;
+        e->mWarned = true;
+        e->mFuture = Future();
+        if (e->mAttempts >= kMaxAttempts)
+            e->mGaveUp = true;
+        else
+            e->mRetryAt = now + kRetrySeconds;
+        return answer;
     }
-    inline void PlayerClipMetaCache::begin(std::string_view, bool, Future) {}
+
+    inline void PlayerClipMetaCache::begin(std::string_view clip, bool perSex, Future future)
+    {
+        Entry* e = find(clip, perSex);
+        if (e == nullptr)
+        {
+            if (mEntries.size() >= kMaxEntries)
+                return;
+            mEntries.emplace_back();
+            e = &mEntries.back();
+            e->mClip = std::string(clip);
+            e->mPerSex = perSex;
+        }
+        e->mFuture = std::move(future);
+    }
 }
 
 #endif

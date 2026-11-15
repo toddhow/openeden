@@ -78,6 +78,7 @@ namespace game_skyrimse
         mHaveSettings = false;
         mWeaponLooked = false;
         mWeapon = nullptr;
+        mHaveTiming[0] = mHaveTiming[1] = false;
         for (Fighter& f : mFighters)
             f.mReady = false;
     }
@@ -213,6 +214,11 @@ namespace game_skyrimse
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
         std::erase_if(mFighters, [&](const Fighter& f) { return !f.mSubject.player && f.mSubject.actor == handle; });
+        // Nothing of the actor stays in a table: a result that arrives later is refused, a hit that was waiting is gone.
+        const CombatSubject gone = CombatSubject::of(handle);
+        std::erase_if(mPendingHits, [&](const PendingHit& p) { return p.mSubject == gone; });
+        std::erase_if(mAwaiting, [&](const PendingHit& p) { return p.mSubject == gone; });
+        std::erase_if(mDeliveries, [&](const SweepDelivery& d) { return d.mWho.mSubject == gone; });
     }
 
     void SkyrimCombat::onPlayerAttack(bool power)
@@ -249,17 +255,23 @@ namespace game_skyrimse
     {
         const auto waiting = std::find_if(mAwaiting.begin(), mAwaiting.end(),
             [&](const PendingHit& p) { return p.mSubject == subject && p.mToken == token; });
-        if (waiting == mAwaiting.end() || mDeliveries.size() >= mDeliveries.capacity())
+        if (waiting == mAwaiting.end())
+        {
+            ++mRefusedSweepResults;
+            return;
+        }
+        const PendingHit who = *waiting;
+        mAwaiting.erase(waiting); // gone whether or not there is room to deliver (a refused result must not leak)
+        if (mDeliveries.size() >= mDeliveries.capacity())
         {
             ++mRefusedSweepResults;
             return;
         }
         SweepDelivery delivery;
-        delivery.mWho = *waiting;
+        delivery.mWho = who;
         delivery.mCount = std::min(count, openeden::sdk::game::kMaxSweepHits);
         for (std::size_t i = 0; i < delivery.mCount && hits != nullptr; ++i)
             delivery.mHits[i] = hits[i];
-        mAwaiting.erase(waiting);
         mDeliveries.push_back(delivery);
     }
 
@@ -292,9 +304,18 @@ namespace game_skyrimse
             // clip the slot would play. Until it is ready there is no swing (stage S5-3b: no fallback number).
             const std::string_view playerClip
                 = mSlots.clipFor(power ? ClipSlot::PowerAttack : ClipSlot::Attack, kWeaponAnim1HSword);
+            const int timingSlot = power ? 1 : 0;
             openeden::sdk::game::ClipTiming timing;
-            if (playerClip.empty() || !writer.clipTiming(playerClip, false, timing) || !timing.hasHit
-                || !(timing.length > 0.f))
+            // Once known the timing is kept: the engine is not asked again (review fix of task 0171).
+            if (mHaveTiming[timingSlot])
+                timing = mKnownTiming[timingSlot];
+            else if (!playerClip.empty() && writer.clipTiming(playerClip, false, timing) && timing.hasHit
+                && timing.length > 0.f)
+            {
+                mKnownTiming[timingSlot] = timing;
+                mHaveTiming[timingSlot] = true;
+            }
+            if (playerClip.empty() || !timing.hasHit || !(timing.length > 0.f))
             {
                 if (mPlayerTimingSince < 0.f)
                     mPlayerTimingSince = mClock;
@@ -388,12 +409,16 @@ namespace game_skyrimse
             // Start reading the sidecars of the player's attack clips now, long before the first swing needs them (the
             // answer is ignored here; the swing asks again). Reading is on the core's worker.
             mPlayerTimingKicked = true;
-            openeden::sdk::game::ClipTiming ignored;
             for (const ClipSlot slot : { ClipSlot::Attack, ClipSlot::PowerAttack })
             {
                 const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
-                if (!clip.empty())
-                    (void)writer.clipTiming(clip, false, ignored);
+                openeden::sdk::game::ClipTiming timing;
+                const int timingSlot = slot == ClipSlot::PowerAttack ? 1 : 0;
+                if (!clip.empty() && writer.clipTiming(clip, false, timing) && timing.hasHit && timing.length > 0.f)
+                {
+                    mKnownTiming[timingSlot] = timing;
+                    mHaveTiming[timingSlot] = true;
+                }
             }
         }
         // A press while a swing runs is dropped (no buffering in this stage).
@@ -441,6 +466,19 @@ namespace game_skyrimse
         Fighter* attacker = find(hit.mSubject);
         if (attacker == nullptr || attacker->mDead || !ready(*attacker))
             return;
+        if (mAwaiting.size() >= mAwaiting.capacity())
+        {
+            // No room to remember the sweep: the swing does not land (nothing is spent) and the table is reported once.
+            if (!mWarnedAwaitingFull)
+            {
+                mWarnedAwaitingFull = true;
+                const std::string line = "COMBAT sweeps waiting for their result fill the table; hits are dropped";
+                if (mWarning)
+                    mWarning(line);
+                trace(line);
+            }
+            return;
+        }
         MeleeInput input;
         input.mWeapon = mWeapon;
         input.mUnarmedDamage = attacker->mProfile.mUnarmedDamage;
@@ -467,8 +505,9 @@ namespace game_skyrimse
             + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach " + fmt(request.reach));
         if (writer.requestSweep(attacker->mSubject, request))
         {
-            if (mAwaiting.size() < mAwaiting.capacity())
-                mAwaiting.push_back(hit);
+            PendingHit asked = hit;
+            asked.mAskedAt = mUpdates;
+            mAwaiting.push_back(asked); // room was checked above
         }
     }
 
@@ -586,10 +625,21 @@ namespace game_skyrimse
         ++mUpdates;
         const float step = (std::isfinite(seconds) && seconds > 0.f) ? seconds : 0.f;
         mClock += step;
-        if (mData != nullptr)
+        if (mData != nullptr && !mData->combatReady())
+        {
+            // The data is still being read on a worker: no swing, no hit this update, and nothing waits for later.
+            ++mWaitingForData;
+            mPendingHits.clear();
+            mAwaiting.clear();
+            mDeliveries.clear();
+            mPlayerAttackPending = false;
+        }
+        else if (mData != nullptr)
         {
             if (!mHaveSettings)
                 mCombatSettings = mData->settings(), mHaveSettings = true;
+            // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
+            std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
             // Results cast last frame, then the hits the clips reached since.
             for (const SweepDelivery& delivery : mDeliveries)

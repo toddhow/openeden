@@ -210,10 +210,27 @@ namespace MWPhysics
             NeutralCombatWorld* mWorld = nullptr; ///< likewise (may be null: sweeps are then refused)
 
         private:
+            // Each public call is the matching do... call inside a try block: nothing the engine's side throws (the
+            // sink, the world, the renderer's lambdas behind it) reaches the pack (review fix of task 0171). A throw
+            // counts in Stats::mWriterFailures, logs once and makes the call return false.
+            template <class F>
+            bool guarded(F&& call);
+            bool doPlayClip(openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::ClipRequest& request);
+            bool doStopClip(openeden::sdk::game::CombatSubject subject);
+            bool doFaceHeading(openeden::sdk::game::CombatSubject subject, float heading);
+            bool doRequestSweep(
+                openeden::sdk::game::CombatSubject subject, const openeden::sdk::game::SweepRequest& request);
+            bool doReportDamage(const openeden::sdk::game::DamageReport& report);
+            bool doReportDeath(openeden::sdk::game::ActorHandle actor);
+            bool doSubjectState(openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out);
+            bool doClipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out);
             NeutralCombatBridge& mBridge;
         };
 
         std::size_t indexOf(openeden::sdk::game::CombatSubject subject) const;
+        void ensureStorage(); ///< the tables' reserve, made when the first update with rules runs
+        void pruneDead(); ///< forgets the corpses of actors that are no longer registered
+        void stopSafely(NeutralClipSink& sink, const void* key); ///< sink.stopClip, a throw caught
         void tellFinished(openeden::sdk::game::CombatRules& rules, const Finished& finished);
 
         struct SweepResult
@@ -227,7 +244,10 @@ namespace MWPhysics
         const NeutralActorBridge& mActors;
         std::vector<SweepResult> mResults; ///< cast, not yet told
         std::vector<NeutralSweep::Candidate> mCandidates;
-        std::vector<openeden::sdk::game::ActorHandle> mDead;
+        std::vector<openeden::sdk::game::ActorHandle> mDead; ///< sorted by (reference, session), at most kMaxDead
+        std::size_t mUpdatesSincePrune = 0;
+        bool mWarnedWriter = false;
+        bool mWarnedDeadFull = false;
         std::vector<Playing> mPlaying;
         std::vector<Finished> mLate; ///< interrupts, told at the start of the next update
         Stats mStats;

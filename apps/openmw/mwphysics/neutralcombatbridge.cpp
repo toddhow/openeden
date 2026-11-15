@@ -98,7 +98,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
+    bool NeutralCombatBridge::Writer::doClipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
     {
         out = {};
         if (mSink == nullptr || mWorld == nullptr || !validClipName(clip))
@@ -111,11 +111,34 @@ namespace MWPhysics
         : mActors(actors)
         , mWriter(*this)
     {
+        // Nothing is reserved here: a session with no combat (Morrowind, or the setting off) never runs update() with
+        // rules and so never pays for the tables (review fix of task 0171).
+    }
+
+    void NeutralCombatBridge::ensureStorage()
+    {
         mPlaying.reserve(kMaxPlaying);
         mLate.reserve(2 * kMaxPlaying);
         mResults.reserve(kMaxPendingResults);
         mCandidates.reserve(kMaxCandidates);
-        mDead.reserve(NeutralActorBridge::kMaxActors);
+        mDead.reserve(kMaxDead);
+    }
+
+    void NeutralCombatBridge::pruneDead()
+    {
+        std::erase_if(mDead, [&](const ActorHandle& h) { return mActors.keyOfHandle(h) == nullptr; });
+    }
+
+    void NeutralCombatBridge::stopSafely(NeutralClipSink& sink, const void* key)
+    {
+        try
+        {
+            sink.stopClip(key);
+        }
+        catch (...)
+        {
+            ++mStats.mWriterFailures;
+        }
     }
 
     std::size_t NeutralCombatBridge::reservedBytes() const
@@ -133,9 +156,18 @@ namespace MWPhysics
         mDead.clear();
     }
 
+    namespace
+    {
+        bool handleBefore(const ActorHandle& a, const ActorHandle& b)
+        {
+            return a.reference != b.reference ? a.reference < b.reference : a.session < b.session;
+        }
+    }
+
     bool NeutralCombatBridge::isDead(ActorHandle actor) const
     {
-        return std::find(mDead.begin(), mDead.end(), actor) != mDead.end();
+        const auto it = std::lower_bound(mDead.begin(), mDead.end(), actor, handleBefore);
+        return it != mDead.end() && *it == actor;
     }
 
     std::size_t NeutralCombatBridge::indexOf(CombatSubject subject) const
@@ -158,7 +190,7 @@ namespace MWPhysics
         }
     }
 
-    bool NeutralCombatBridge::Writer::playClip(CombatSubject subject, const ClipRequest& request)
+    bool NeutralCombatBridge::Writer::doPlayClip(CombatSubject subject, const ClipRequest& request)
     {
         NeutralCombatBridge& b = mBridge;
         if (mSink == nullptr || subject.player || !subject.valid() || request.slot == ClipSlot::None
@@ -201,7 +233,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::stopClip(CombatSubject subject)
+    bool NeutralCombatBridge::Writer::doStopClip(CombatSubject subject)
     {
         NeutralCombatBridge& b = mBridge;
         if (mSink == nullptr || subject.player || !subject.valid() || b.mActors.keyOfHandle(subject.actor) == nullptr)
@@ -220,7 +252,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::faceHeading(CombatSubject subject, float heading)
+    bool NeutralCombatBridge::Writer::doFaceHeading(CombatSubject subject, float heading)
     {
         const void* key = (subject.valid() && !subject.player) ? mBridge.mActors.keyOfHandle(subject.actor) : nullptr;
         if (mSink == nullptr || key == nullptr || !std::isfinite(heading))
@@ -232,7 +264,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::subjectState(CombatSubject subject, openeden::sdk::game::SubjectState& out)
+    bool NeutralCombatBridge::Writer::doSubjectState(CombatSubject subject, openeden::sdk::game::SubjectState& out)
     {
         out = {};
         if (mSink == nullptr || mWorld == nullptr || !subject.valid())
@@ -242,7 +274,7 @@ namespace MWPhysics
         return mWorld->subjectState(subject, out);
     }
 
-    bool NeutralCombatBridge::Writer::requestSweep(CombatSubject subject, const openeden::sdk::game::SweepRequest& r)
+    bool NeutralCombatBridge::Writer::doRequestSweep(CombatSubject subject, const openeden::sdk::game::SweepRequest& r)
     {
         NeutralCombatBridge& b = mBridge;
         constexpr float kPi = 3.14159265358979f;
@@ -306,7 +338,7 @@ namespace MWPhysics
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::reportDamage(const openeden::sdk::game::DamageReport& d)
+    bool NeutralCombatBridge::Writer::doReportDamage(const openeden::sdk::game::DamageReport& d)
     {
         NeutralCombatBridge& b = mBridge;
         if (mSink == nullptr || !std::isfinite(d.amount) || d.amount < 0.f || !std::isfinite(d.healthAfter)
@@ -323,11 +355,18 @@ namespace MWPhysics
                              << (d.victimIsPlayer ? "player" : "actor") << " amount " << d.amount << " health after "
                              << d.healthAfter << " of " << d.healthMax;
         if (d.victimIsPlayer && mWorld != nullptr)
-            mWorld->applyPlayerDamage(d);
+        {
+            // The engine's health is never written outside [0, max] (a pack's number is data).
+            openeden::sdk::game::DamageReport clamped = d;
+            clamped.healthAfter = std::max(0.f, d.healthAfter);
+            if (d.healthMax > 0.f)
+                clamped.healthAfter = std::min(clamped.healthAfter, d.healthMax);
+            mWorld->applyPlayerDamage(clamped);
+        }
         return true;
     }
 
-    bool NeutralCombatBridge::Writer::reportDeath(ActorHandle actor)
+    bool NeutralCombatBridge::Writer::doReportDeath(ActorHandle actor)
     {
         NeutralCombatBridge& b = mBridge;
         const void* key = b.mActors.keyOfHandle(actor);
@@ -338,8 +377,19 @@ namespace MWPhysics
         }
         if (b.isDead(actor))
             return true;
-        if (b.mDead.size() < b.mDead.capacity())
-            b.mDead.push_back(actor);
+        if (b.mDead.size() >= kMaxDead)
+            b.pruneDead(); // the corpses of cells that have unloaded make room
+        if (b.mDead.size() >= kMaxDead)
+        {
+            ++b.mStats.mDeadTableFull;
+            if (!b.mWarnedDeadFull)
+            {
+                b.mWarnedDeadFull = true;
+                Log(Debug::Warning) << "Combat: " << kMaxDead << " dead actors are remembered already; a death is not";
+            }
+            return false;
+        }
+        b.mDead.insert(std::lower_bound(b.mDead.begin(), b.mDead.end(), actor, handleBefore), actor); // room: no allocation
         ++b.mStats.mDeaths;
         if (traceOn())
             Log(Debug::Info) << "NCOMBAT death actor " << actor.reference << "/" << actor.session;
@@ -348,17 +398,78 @@ namespace MWPhysics
         return true;
     }
 
+    template <class F>
+    bool NeutralCombatBridge::Writer::guarded(F&& call)
+    {
+        try
+        {
+            return call();
+        }
+        catch (...)
+        {
+            ++mBridge.mStats.mWriterFailures;
+            if (!mBridge.mWarnedWriter)
+            {
+                mBridge.mWarnedWriter = true;
+                Log(Debug::Warning) << "Combat: a call into the engine threw; the request fails (reported once)";
+            }
+            return false;
+        }
+    }
+
+    bool NeutralCombatBridge::Writer::playClip(CombatSubject subject, const ClipRequest& request)
+    {
+        return guarded([&] { return doPlayClip(subject, request); });
+    }
+    bool NeutralCombatBridge::Writer::stopClip(CombatSubject subject)
+    {
+        return guarded([&] { return doStopClip(subject); });
+    }
+    bool NeutralCombatBridge::Writer::faceHeading(CombatSubject subject, float heading)
+    {
+        return guarded([&] { return doFaceHeading(subject, heading); });
+    }
+    bool NeutralCombatBridge::Writer::requestSweep(CombatSubject subject, const openeden::sdk::game::SweepRequest& r)
+    {
+        return guarded([&] { return doRequestSweep(subject, r); });
+    }
+    bool NeutralCombatBridge::Writer::reportDamage(const openeden::sdk::game::DamageReport& d)
+    {
+        return guarded([&] { return doReportDamage(d); });
+    }
+    bool NeutralCombatBridge::Writer::reportDeath(ActorHandle actor)
+    {
+        return guarded([&] { return doReportDeath(actor); });
+    }
+    bool NeutralCombatBridge::Writer::subjectState(CombatSubject subject, openeden::sdk::game::SubjectState& out)
+    {
+        return guarded([&] { return doSubjectState(subject, out); });
+    }
+    bool NeutralCombatBridge::Writer::clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out)
+    {
+        return guarded([&] { return doClipTiming(clip, perSex, out); });
+    }
+
     void NeutralCombatBridge::update(CombatRules* rules, float seconds, NeutralClipSink& sink,
         const NeutralClipMetaFn& metaFn, NeutralCombatWorld* world)
     {
         if (rules == nullptr)
         {
+            // Only a clip whose actor is still registered under the same key is stopped: a stale key may name a freed
+            // object (review fix of task 0171).
             for (const Playing& p : mPlaying)
-                sink.stopClip(p.mKey);
+                if (p.mSubject.valid() && mActors.keyOfHandle(p.mSubject.actor) == p.mKey)
+                    stopSafely(sink, p.mKey);
             clear();
             return;
         }
+        ensureStorage();
         ++mStats.mUpdates;
+        if (!mDead.empty() && ++mUpdatesSincePrune >= kDeadPruneUpdates)
+        {
+            mUpdatesSincePrune = 0;
+            pruneDead();
+        }
         if (!std::isfinite(seconds) || seconds < 0.f)
             seconds = 0.f;
         for (const Finished& finished : mLate)
@@ -396,7 +507,16 @@ namespace MWPhysics
             }
             if (!p.mMeta)
             {
-                const HavokPack::ClipProgress progress = metaFn ? metaFn(p.mKey) : HavokPack::ClipProgress{};
+                HavokPack::ClipProgress progress;
+                try
+                {
+                    if (metaFn)
+                        progress = metaFn(p.mKey);
+                }
+                catch (...)
+                {
+                    ++mStats.mWriterFailures; // the clip keeps waiting; the timeout below still ends it
+                }
                 if (progress.mMeta)
                     p.mMeta = progress.mMeta;
                 if (!p.mMeta)
@@ -404,7 +524,7 @@ namespace MWPhysics
                     p.mWaited += seconds;
                     if (p.mWaited > kMetaTimeoutSeconds)
                     {
-                        sink.stopClip(p.mKey);
+                        stopSafely(sink, p.mKey);
                         ++mStats.mClipsFailed;
                         tellFinished(*rules, { p.mSubject, p.mToken, ClipEnd::Failed });
                         mPlaying.erase(mPlaying.begin() + static_cast<std::ptrdiff_t>(i));
@@ -459,7 +579,7 @@ namespace MWPhysics
                     Log(Debug::Info) << "NCOMBAT end token " << token << " completed at clock " << p.mCurrent;
                 // A death clip is not stopped when it ends: the body keeps its last pose (task 0171).
                 if (slot != ClipSlot::Death)
-                    sink.stopClip(p.mKey);
+                    stopSafely(sink, p.mKey);
                 ++mStats.mClipsCompleted;
                 tellFinished(*rules, { subject, token, ClipEnd::Completed });
                 mPlaying.erase(mPlaying.begin() + static_cast<std::ptrdiff_t>(i));

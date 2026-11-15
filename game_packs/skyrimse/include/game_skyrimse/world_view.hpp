@@ -438,7 +438,15 @@ namespace game_skyrimse
         float mStandInGold = 100.f; ///< kStandInGold
         bool ensureActorIndex();
         std::unique_ptr<CombatIndex> mCombatIndex; ///< WEAP, RACE combat fields and GMSTs of every plugin (task 0171)
-        bool ensureCombatIndex();
+        // Review fix of task 0171: the combat records (and the actor records, when nothing else has read them yet) are
+        // read by ONE worker started by the first combatReady(); the main thread only adopts the result. State: 0 not
+        // started, 1 reading, 2 read (waiting to be adopted), 3 adopted.
+        std::thread mCombatThread;
+        std::atomic<int> mCombatState{ 0 };
+        std::unique_ptr<CombatIndex> mCombatBuilt;
+        std::unique_ptr<ActorIndex> mActorBuilt;
+        std::vector<Content::Error> mCombatErrors;
+        std::uint64_t mCombatMillis = 0;
         struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;
