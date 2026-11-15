@@ -2,8 +2,8 @@
 #define OPENMW_MWPHYSICS_NEUTRALPLAYERATTACK_H
 
 // Task 0172 (combat stage S5-4): turns the frames of "the attack action is down" into the one event the pack's
-// CombatRules::onPlayerAttack wants. A tap (released before kPowerHoldSeconds) is an attack, told on the release; a hold
-// that reaches kPowerHoldSeconds is a power attack, told at that moment, and its release tells nothing more. While
+// CombatRules::onPlayerAttack wants. A tap (released before kPowerHoldSeconds) is an attack, told on the release; a
+// hold that reaches kPowerHoldSeconds is a power attack, told at that moment, and its release tells nothing more. While
 // `enabled` is false (menus, disabled controls) nothing is told and the tracker forgets a hold in progress.
 //
 // Pure: no engine type, no allocation. Main thread.

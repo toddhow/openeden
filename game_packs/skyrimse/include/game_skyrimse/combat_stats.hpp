@@ -150,9 +150,9 @@ namespace game_skyrimse
         float mCombatStaminaRegenRateMult = 0.35f; ///< fCombatStaminaRegenRateMult
     };
 
-    /// Task 0172 (stage S5-4): the numbers of blocking, bashing and staggering. The GMST values are VERIFIED by the data
-    /// census (note 0056 section 2); how they combine (computeBlock, causesStagger) is RECALLED-VERIFY and tunable. The
-    /// last two are not GMSTs: they are ours.
+    /// Task 0172 (stage S5-4): the numbers of blocking, bashing and staggering. The GMST values are VERIFIED by the
+    /// data census (note 0056 section 2); how they combine (computeBlock, causesStagger) is RECALLED-VERIFY and
+    /// tunable. The last two are not GMSTs: they are ours.
     struct BlockSettings
     {
         float mBlockMax = 0.7f; ///< fBlockMax: the most damage a block takes off (a fraction)

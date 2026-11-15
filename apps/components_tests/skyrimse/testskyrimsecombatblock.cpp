@@ -2,8 +2,8 @@
 // combat.hpp, combat_stats.hpp), tested through the contract with a fake data source and a recording writer. Written
 // from the task's spec (docs/tasks/0172-skyrim-combat-s5-4.md) before the code. Every number is worked out by hand in a
 // comment. The fixture is the S5-3 one: an "Iron Sword" of damage 7, weight 9, reach 1.0 (141 units), the attacker's
-// One-handed skill 50 (x 1.25), the victim's armour 20 percent: a normal blow takes 7 x 1.25 x 0.8 = 7.0 health, a power
-// attack 14.0.
+// One-handed skill 50 (x 1.25), the victim's armour 20 percent: a normal blow takes 7 x 1.25 x 0.8 = 7.0 health, a
+// power attack 14.0.
 #include <game_skyrimse/combat.hpp>
 
 #include <gtest/gtest.h>

@@ -419,7 +419,9 @@ namespace game_skyrimse
             fighter.mSwingToken = request.token;
             ++mSwingsRequested;
             trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token)
-                + (kind == AttackKind::Bash ? " bash" : power ? " power" : ""));
+                + (kind == AttackKind::Bash ? " bash"
+                        : power             ? " power"
+                                            : ""));
         }
     }
 
@@ -579,8 +581,8 @@ namespace game_skyrimse
         }
     }
 
-    void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
-        const SweepHit& hit, Fighter& victim)
+    void SkyrimCombat::applyHit(
+        CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash, const SweepHit& hit, Fighter& victim)
     {
         MeleeInput input;
         input.mWeapon = mWeapon;

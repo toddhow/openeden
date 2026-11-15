@@ -369,8 +369,8 @@ namespace MWWorld
                     // `[Game] neutral combat` is on (this hook is installed under it).
                     MWBase::InputManager* input = MWBase::Environment::get().getInputManager();
                     MWBase::WindowManager* windows = MWBase::Environment::get().getWindowManager();
-                    out.mAttackEnabled = input != nullptr && windows != nullptr && !windows->isGuiMode()
-                        && !input->controlsDisabled();
+                    out.mAttackEnabled
+                        = input != nullptr && windows != nullptr && !windows->isGuiMode() && !input->controlsDisabled();
                     out.mAttackHeld = input != nullptr && input->actionIsActive(MWInput::A_Use);
                     return true;
                 },
