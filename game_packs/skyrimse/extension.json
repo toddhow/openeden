@@ -81,6 +81,11 @@
       "default": false
     },
     {
+      "key": "papyrus",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "actor sleep snap",
       "type": "bool",
       "default": true

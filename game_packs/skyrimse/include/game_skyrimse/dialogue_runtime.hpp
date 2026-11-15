@@ -112,6 +112,8 @@ namespace game_skyrimse
         [[nodiscard]] bool open() const { return mOpen; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] const QuestState& quests() const { return mState; }
+        /// Task 0176: the Papyrus host changes the quest state the conversations read.
+        [[nodiscard]] QuestState& questsMutable() { return mState; }
 
     private:
         void fillTurn(const DialogInfo& info, openeden::sdk::game::DialogueTurn& out);

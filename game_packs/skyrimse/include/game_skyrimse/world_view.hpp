@@ -26,7 +26,9 @@
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
+#include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/vmad.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
 #include <openeden/game/actor_mechanics.hpp>
@@ -141,6 +143,24 @@ namespace game_skyrimse
             /// Told about waits and timeouts (any thread; the pack passes its logger, which has its own lock).
             /// May be empty.
             std::function<void(const std::string&)> mNotice;
+        };
+
+        /// A placed reference that carries scripts (task 0176): its form ids are load order ids.
+        struct ReferenceScripts
+        {
+            FormId mReference = kNullFormId;
+            FormId mBase = kNullFormId;
+            bool mActor = false;
+            std::vector<vmad::Script> mScripts;
+        };
+
+        /// What the Papyrus host reads of the dialogue data (task 0176). Pointers stay valid while the view lives.
+        struct PapyrusAccess
+        {
+            const QuestIndex* mQuests = nullptr;
+            /// the conversation runtime's quest state: scripts change it, dialogue reads it
+            QuestState* mState = nullptr;
+            std::function<const vmad::Vmad*(FormId quest)> mVmads;
         };
 
         /// What startLoad's worker did, handed to the completion function.
@@ -338,6 +358,16 @@ namespace game_skyrimse
         /// The placed-reference table, once the dialogue worker has built it (null before; main thread). Its build took
         /// `placedRefsBuildMillis()`.
         [[nodiscard]] const PlacedRefIndex* placedRefs() const;
+
+        // ---- task 0176 (Papyrus wiring)
+        /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
+        /// call and never waits: false means "ask again next frame"). Main thread.
+        [[nodiscard]] bool papyrusAccess(PapyrusAccess& out);
+        /// The scripts of the placed references of a cell (its own placements, not the world's persistent ones).
+        /// Main thread.
+        [[nodiscard]] std::vector<ReferenceScripts> scriptsOfCell(FormId cell);
+        /// A script set a quest's stage: the package brain's own copy of the quest state follows.
+        void setPackageQuestStage(FormId quest, std::uint32_t stage);
         [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
 
         // ---- openeden::sdk::game::DisplayNameSource (task 0150) ----
@@ -410,6 +440,7 @@ namespace game_skyrimse
             std::vector<openeden::sdk::game::PlacedObject> mObjects;
             std::uint32_t mUnresolvedBases = 0;
             std::map<FormId, PlacementComponents> mComponents; ///< by placement id; only placements that have any
+            std::vector<ReferenceScripts> mScripts; ///< placements with VMAD scripts, by id (task 0176)
         };
 
         /// True when the caller may read or change the index: nothing is building, or the caller is the worker, or the

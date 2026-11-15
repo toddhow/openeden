@@ -383,7 +383,10 @@ namespace game_skyrimse
     bool SkyrimCellSource::buildCell(
         openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error)
     {
-        return loadNeutralCell(mView, cell, out, error, mLimits);
+        const bool built = loadNeutralCell(mView, cell, out, error, mLimits);
+        if (built && mCellBuilt)
+            mCellBuilt(cell);
+        return built;
     }
 
     bool SkyrimCellSource::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
@@ -457,6 +460,8 @@ namespace game_skyrimse
                 mActors.onConversation(mTalkingTo, false);
             mTalkingTo = reference;
             mActors.onConversation(reference, true);
+            if (mActivated)
+                mActivated(reference);
         }
         return begun;
     }

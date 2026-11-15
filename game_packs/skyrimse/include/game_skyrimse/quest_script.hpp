@@ -21,6 +21,7 @@
 // field order (xEdit's wbVMAD); the data agrees (the walk ends exactly inside the subrecord for the aggregates).
 
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/vmad.hpp>
 
 #include <components/contentsource/plugin.hpp>
 
@@ -97,6 +98,39 @@ namespace game_skyrimse
 
     private:
         std::unordered_map<FormId, QuestScriptEntry> mQuests;
+    };
+
+    // ---- the whole VMAD of every quest (task 0176) --------------------------------------------------------------
+
+    struct QuestVmadEntry
+    {
+        FormId mQuest = kNullFormId;
+        bool mDeleted = false;
+        bool mHasVmad = false;
+        vmad::Vmad mVmad; ///< form ids resolved to load order ids
+    };
+
+    struct QuestVmadRecords
+    {
+        std::string mName;
+        std::vector<QuestVmadEntry> mQuests;
+        std::uint64_t mDamaged = 0; ///< a VMAD that did not parse (what was read before the fault is kept)
+        std::uint64_t mUnresolvedForms = 0;
+        std::vector<Content::Error> mErrors;
+    };
+
+    [[nodiscard]] bool parseQuestVmads(const Content::Plugin& plugin, const LoadOrder& order, QuestVmadRecords& out);
+
+    /// A later plugin's QUST replaces an earlier one's VMAD wholesale (a record with none has none).
+    class QuestVmadIndex
+    {
+    public:
+        void add(QuestVmadRecords records);
+        [[nodiscard]] const vmad::Vmad* find(FormId quest) const;
+        [[nodiscard]] std::size_t count() const { return mQuests.size(); }
+
+    private:
+        std::unordered_map<FormId, vmad::Vmad> mQuests;
     };
 
     /// Reads `scripts/<name>.pex` (lower case name without extension). False when the file is not there.

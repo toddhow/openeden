@@ -338,6 +338,102 @@ namespace game_skyrimse
         return it == mQuests.end() ? nullptr : &it->second;
     }
 
+    // ---- the whole VMAD of every quest (task 0176) ---------------------------------------------------------------
+
+    namespace
+    {
+        class QuestVmadParser final : public Content::Visitor
+        {
+        public:
+            QuestVmadParser(const Content::Plugin& plugin, const FormIdResolver& resolver, QuestVmadRecords& out)
+                : mPlugin(plugin)
+                , mResolver(resolver)
+                , mOut(out)
+            {
+            }
+
+            bool onRecord(const Content::RawRecord& record) override
+            {
+                if (record.mType != Content::fourCC("QUST"))
+                    return true;
+                constexpr std::uint64_t kMaxRecordBytes = 16ull * 1024 * 1024;
+                std::span<const std::byte> bytes = record.mData;
+                if (record.isCompressed())
+                {
+                    if (record.mUncompressedSize > kMaxRecordBytes)
+                        return true;
+                    Content::Error error;
+                    if (!inflateRecord(record, mPlugin.name(), mInflated, error))
+                    {
+                        mOut.mErrors.push_back(std::move(error));
+                        return true;
+                    }
+                    bytes = mInflated;
+                }
+                else if (record.mDataSize > kMaxRecordBytes)
+                    return true;
+                const std::optional<FormId> id = mResolver.resolve(record.mFormId);
+                if (!id)
+                    return true;
+                QuestVmadEntry entry;
+                entry.mQuest = *id;
+                entry.mDeleted = (record.mFlags & RecordFlags::Deleted) != 0;
+                (void)survey::forEachSubrecord(bytes, [&](const survey::SubrecordView& sub) {
+                    if (sub.mType != Content::fourCC("VMAD") || entry.mHasVmad)
+                        return;
+                    vmad::ParseResult parsed = vmad::parse(sub.mData, true);
+                    if (!parsed.mOk)
+                        ++mOut.mDamaged;
+                    const auto resolve = [&](std::uint32_t stored) -> std::uint32_t {
+                        const std::optional<FormId> resolved = mResolver.resolve(stored);
+                        return resolved && *resolved != kUnresolvedFormId ? *resolved : 0u;
+                    };
+                    mOut.mUnresolvedForms += vmad::resolveForms(parsed.mVmad, resolve);
+                    entry.mHasVmad = !parsed.mVmad.mScripts.empty() || parsed.mVmad.mHasFragments;
+                    entry.mVmad = std::move(parsed.mVmad);
+                });
+                mOut.mQuests.push_back(std::move(entry));
+                return true;
+            }
+
+        private:
+            const Content::Plugin& mPlugin;
+            const FormIdResolver& mResolver;
+            QuestVmadRecords& mOut;
+            std::vector<std::byte> mInflated;
+        };
+    }
+
+    bool parseQuestVmads(const Content::Plugin& plugin, const LoadOrder& order, QuestVmadRecords& out)
+    {
+        out = QuestVmadRecords();
+        out.mName = plugin.name();
+        if (!isSkyrimSeHeader(plugin.header()))
+            return false;
+        const FormIdResolver resolver(plugin.header(), plugin.name(), order);
+        QuestVmadParser parser(plugin, resolver, out);
+        return !plugin.walk(parser).has_value();
+    }
+
+    void QuestVmadIndex::add(QuestVmadRecords records)
+    {
+        for (QuestVmadEntry& e : records.mQuests)
+        {
+            if (e.mQuest == kNullFormId || e.mQuest == kUnresolvedFormId)
+                continue;
+            if (e.mDeleted || !e.mHasVmad)
+                mQuests.erase(e.mQuest);
+            else
+                mQuests[e.mQuest] = std::move(e.mVmad);
+        }
+    }
+
+    const vmad::Vmad* QuestVmadIndex::find(FormId quest) const
+    {
+        const auto it = mQuests.find(quest);
+        return it == mQuests.end() ? nullptr : &it->second;
+    }
+
     // ---- QuestVariables ----------------------------------------------------------------------------------------
 
     struct QuestVariables::Impl

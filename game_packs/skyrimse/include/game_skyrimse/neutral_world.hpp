@@ -30,6 +30,7 @@
 #include <openeden/game/world_water.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -256,6 +257,14 @@ namespace game_skyrimse
         }
         void onPlayerAttack(bool power) override { mCombat.onPlayerAttack(power); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
+        /// Task 0176: the Papyrus host hears of a built cell and of a conversation that began (the player used an
+        /// actor). Main thread, called after the engine's request succeeded; empty functions are not called.
+        void setScriptSinks(std::function<void(openeden::sdk::game::WorldId cell)> cellBuilt,
+            std::function<void(openeden::sdk::game::WorldId reference)> activated)
+        {
+            mCellBuilt = std::move(cellBuilt);
+            mActivated = std::move(activated);
+        }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -267,6 +276,8 @@ namespace game_skyrimse
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
         SkyrimCombat mCombat;
+        std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
+        std::function<void(openeden::sdk::game::WorldId)> mActivated;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

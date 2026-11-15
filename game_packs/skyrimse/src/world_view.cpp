@@ -182,6 +182,7 @@ namespace game_skyrimse
         LocationIndex mLocations; ///< task 0156
         QuestScriptIndex mQuestScripts; ///< task 0156
         PlacedRefIndex mPlacedRefs; ///< task 0160
+        QuestVmadIndex mQuestVmads; ///< task 0176: scripts, fragments and alias scripts of every quest
         std::uint64_t mPlacedRefsMillis = 0; ///< the part of the build that read references (task 0160)
     };
 
@@ -504,6 +505,7 @@ namespace game_skyrimse
                 data->mPackages.add(PackageRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mLocations.add(LocationRecords());
                 data->mQuestScripts.add(QuestScriptRecords());
+                data->mQuestVmads.add(QuestVmadRecords());
                 continue;
             }
             DialogueRecords dialogue;
@@ -518,6 +520,11 @@ namespace game_skyrimse
             LocationRecords locations;
             (void)parseLocationRecords(*file, order, locationLimits, locations);
             data->mLocations.add(std::move(locations));
+            {
+                QuestVmadRecords vmads;
+                (void)parseQuestVmads(*file, order, vmads);
+                data->mQuestVmads.add(std::move(vmads));
+            }
             QuestScriptRecords questScripts;
             (void)parseQuestScripts(*file, order, questScriptLimits, questScripts);
             data->mQuestScripts.add(std::move(questScripts));
@@ -984,6 +991,33 @@ namespace game_skyrimse
         mCurrentPackageLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
+    }
+
+    bool SkyrimWorldView::papyrusAccess(PapyrusAccess& out)
+    {
+        if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mRuntime == nullptr)
+            return false;
+        DialogueData* data = mDialogue->mData.get();
+        out.mQuests = &data->mQuests;
+        out.mState = &mDialogue->mRuntime->questsMutable();
+        out.mVmads = [data](FormId quest) { return data->mQuestVmads.find(quest); };
+        return true;
+    }
+
+    std::vector<SkyrimWorldView::ReferenceScripts> SkyrimWorldView::scriptsOfCell(FormId cell)
+    {
+        std::string error;
+        if (!awaitIndex())
+            return {};
+        const std::shared_ptr<const Materialised> content = materialise(cell, error);
+        return content != nullptr ? content->mScripts : std::vector<ReferenceScripts>();
+    }
+
+    void SkyrimWorldView::setPackageQuestStage(FormId quest, std::uint32_t stage)
+    {
+        if (mDialogue == nullptr || mDialogue->mData == nullptr)
+            return;
+        mDialogue->mPackageQuests.setStage(mDialogue->mData->mQuests, quest, stage);
     }
 
     const PlacedRefIndex* SkyrimWorldView::placedRefs() const
@@ -1893,6 +1927,15 @@ namespace game_skyrimse
                 components.light = makeLightComponent(*light, mStats.mComponents, NeutralLimits{});
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));
+            if (!ref.mScripts.empty())
+            {
+                ReferenceScripts scripts;
+                scripts.mReference = id;
+                scripts.mBase = ref.mBase;
+                scripts.mActor = ref.mKind == RefKind::Actor;
+                scripts.mScripts = ref.mScripts;
+                result->mScripts.push_back(std::move(scripts));
+            }
             if (missing)
                 ++result->mUnresolvedBases;
         }

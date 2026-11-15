@@ -4,6 +4,8 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/papyrus_host.hpp"
+#include "game_skyrimse/placed_refs.hpp"
 #include "game_skyrimse/world_view.hpp"
 
 #include <openeden/extension.hpp>
@@ -19,6 +21,7 @@
 #include <components/files/conversion.hpp>
 
 #include <chrono>
+#include <deque>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -29,12 +32,221 @@ namespace game_skyrimse
 {
     namespace
     {
+        // Task 0176 (milestone M-S6): what the Papyrus host reads from the pack. Scripts come through the session's
+        // VFS (scripts/<name>.pex, usually in "Skyrim - Misc.bsa"); a form's class and position from the quest index
+        // and the placed reference table the dialogue worker built.
+        class PackPapyrusData final : public PapyrusGameData
+        {
+        public:
+            PackPapyrusData(const FileSource* files, SkyrimWorldView& view)
+                : mFiles(files)
+                , mView(view)
+            {
+            }
+            void setQuests(const QuestIndex* quests) { mQuests = quests; }
+
+            bool readPex(const std::string& lowerName, std::vector<std::uint8_t>& bytes) override
+            {
+                if (mFiles == nullptr)
+                    return false;
+                std::string text;
+                if (!mFiles->read("scripts/" + lowerName + ".pex", text))
+                    return false;
+                bytes.assign(reinterpret_cast<const std::uint8_t*>(text.data()),
+                    reinterpret_cast<const std::uint8_t*>(text.data()) + text.size());
+                return true;
+            }
+            std::string formClass(FormId form) const override
+            {
+                if (mQuests != nullptr && mQuests->quest(form) != nullptr)
+                    return "Quest";
+                if (const PlacedRefIndex* refs = mView.placedRefs())
+                    if (const PlacedEntry* entry = refs->find(form))
+                        return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
+                return {};
+            }
+            bool referencePosition(FormId reference, double& x, double& y, double& z) const override
+            {
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                if (entry == nullptr)
+                    return false;
+                x = entry->mX;
+                y = entry->mY;
+                z = entry->mZ;
+                return true;
+            }
+            FormId baseOf(FormId reference) const override
+            {
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                return entry != nullptr ? entry->mBase : 0;
+            }
+
+        private:
+            const FileSource* mFiles;
+            SkyrimWorldView& mView;
+            const QuestIndex* mQuests = nullptr;
+        };
+
+        // Task 0176: runs the Papyrus host in the pack's frame phase. It waits (without blocking) until the quest data
+        // the dialogue worker reads is ready, then attaches the scripts of the start-game-enabled quests, and queues
+        // the cells the engine built before that. Everything it logs starts with "PAPYRUS" so a scenario can pick the
+        // lines out; lines carry script time, never a frame number or a wall clock, so two runs read the same.
+        class PapyrusDriver
+        {
+        public:
+            PapyrusDriver(SkyrimWorldView& view, const FileSource* files, openeden::sdk::Logger* logger)
+                : mView(view)
+                , mData(files, view)
+                , mHost(mData)
+                , mLogger(logger)
+            {
+                mHost.setLog([this](bool error, const std::string& line) {
+                    // the host's own lines say "Papyrus: ..."; the runtime's have no prefix
+                    const std::string text = line.rfind("Papyrus: ", 0) == 0 ? line.substr(9) : line;
+                    say(error ? openeden::sdk::LogLevel::Error : openeden::sdk::LogLevel::Info, "PAPYRUS " + text);
+                });
+                mHost.setQuestChanged(
+                    [this](FormId quest, std::uint32_t stage) { mView.setPackageQuestStage(quest, stage); });
+            }
+
+            void frame(float dt)
+            {
+                if (!mStarted && !tryStart())
+                    return;
+                flushPending();
+                mHost.tick(dt);
+                if (mHost.scriptTime() >= mNextSummary)
+                {
+                    mNextSummary += kSummarySeconds;
+                    summary();
+                }
+            }
+
+            void cellBuilt(openeden::sdk::game::WorldId cell)
+            {
+                mPendingCells.push_back(cell);
+                if (mPendingCells.size() > kMaxPending)
+                    mPendingCells.pop_front();
+            }
+
+            void activated(openeden::sdk::game::WorldId reference) { mPendingActivations.push_back(reference); }
+
+            void summary()
+            {
+                const PapyrusHostCounters& c = mHost.counters();
+                std::string events;
+                for (const auto& [name, count] : c.mEvents)
+                    events += (events.empty() ? "" : ",") + name + "=" + std::to_string(count);
+                std::string natives;
+                std::uint64_t answered = 0;
+                for (const auto& [name, count] : c.mNatives)
+                {
+                    natives += (natives.empty() ? "" : ",") + name + "=" + std::to_string(count);
+                    answered += count;
+                }
+                std::string tolerant;
+                const std::vector<std::string> names = mHost.tolerantNatives();
+                for (const std::string& name : names)
+                    tolerant += (tolerant.empty() ? "" : ",") + name;
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS summary at script time " + std::to_string(static_cast<long long>(mHost.scriptTime()))
+                        + " s: scripts loaded " + std::to_string(c.mScriptsLoaded) + ", missing "
+                        + std::to_string(c.mScriptsMissing) + ", refused " + std::to_string(c.mScriptsRefused)
+                        + "; instances " + std::to_string(c.mInstancesAttached) + ", properties set "
+                        + std::to_string(c.mPropertiesSet) + " (rejected " + std::to_string(c.mPropertiesRejected)
+                        + ", skipped " + std::to_string(c.mPropertiesSkipped) + "); stage sets "
+                        + std::to_string(c.mStageSets) + ", fragments " + std::to_string(c.mFragmentsRun)
+                        + ", updates " + std::to_string(c.mUpdatesFired) + ", script errors "
+                        + std::to_string(c.mScriptErrors) + "; native calls answered " + std::to_string(answered)
+                        + ", tolerant natives " + std::to_string(names.size()) + ", tolerant calls "
+                        + std::to_string(mHost.runtimeStats().unregisteredNativeCalls));
+                say(openeden::sdk::LogLevel::Info, "PAPYRUS events " + events);
+                say(openeden::sdk::LogLevel::Info, "PAPYRUS natives " + natives);
+                say(openeden::sdk::LogLevel::Info, "PAPYRUS tolerant " + tolerant);
+            }
+
+            [[nodiscard]] PapyrusHost& host() { return mHost; }
+
+        private:
+            static constexpr double kSummarySeconds = 10.0;
+            static constexpr std::size_t kMaxPending = 4096;
+
+            void say(openeden::sdk::LogLevel level, const std::string& line)
+            {
+                if (mLogger != nullptr)
+                    mLogger->log(level, line);
+            }
+
+            bool tryStart()
+            {
+                SkyrimWorldView::PapyrusAccess access;
+                if (!mView.papyrusAccess(access))
+                    return false;
+                mData.setQuests(access.mQuests);
+                mHost.setQuests(access.mQuests, access.mState, access.mVmads);
+                mStarted = true;
+                const auto began = std::chrono::steady_clock::now();
+                mHost.startGame();
+                const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - began);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS started: " + std::to_string(access.mQuests->questCount()) + " quests, "
+                        + std::to_string(mHost.instanceCount()) + " script instances attached");
+                // a wall clock reading: its own prefix, so that a comparison of two runs can leave it out
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUSTIME startGame took " + std::to_string(millis.count()) + " ms on the main thread");
+                return true;
+            }
+
+            void flushPending()
+            {
+                while (!mPendingCells.empty())
+                {
+                    const openeden::sdk::game::WorldId cell = mPendingCells.front();
+                    mPendingCells.pop_front();
+                    const std::vector<SkyrimWorldView::ReferenceScripts> scripts = mView.scriptsOfCell(cell);
+                    std::vector<FormId> references;
+                    for (const SkyrimWorldView::ReferenceScripts& s : scripts)
+                    {
+                        mHost.attachReference(s.mReference, s.mBase, s.mActor, s.mScripts);
+                        references.push_back(s.mReference);
+                    }
+                    mHost.onCellLoaded(cell, references);
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS cell " + std::to_string(cell) + " loaded: " + std::to_string(references.size())
+                            + " references with scripts");
+                }
+                for (const openeden::sdk::game::WorldId reference : mPendingActivations)
+                    mHost.onActivate(reference, 0x14);
+                mPendingActivations.clear();
+            }
+
+            SkyrimWorldView& mView;
+            PackPapyrusData mData;
+            PapyrusHost mHost;
+            openeden::sdk::Logger* mLogger;
+            bool mStarted = false;
+            double mNextSummary = kSummarySeconds;
+            std::deque<openeden::sdk::game::WorldId> mPendingCells;
+            std::vector<openeden::sdk::game::WorldId> mPendingActivations;
+        };
+
         // Owns the content loader it registers (the host keeps a reference until stop()), the world view and the
         // neutral world source over it (the source is declared after the view it refers to).
         class SkyrimGamePack final : public openeden::sdk::Extension
         {
         public:
-            void registerServices(openeden::sdk::Registrar&) override {}
+            // Task 0176: the Papyrus host runs in the game phase, on the main thread; with the setting off the driver
+            // does not exist and the callback does nothing.
+            void registerServices(openeden::sdk::Registrar& registrar) override
+            {
+                registrar.registerPhaseCallback(openeden::sdk::Phase::GameSimulation, [this](float dt) {
+                    if (mPapyrus != nullptr)
+                        mPapyrus->frame(dt);
+                });
+            }
 
             bool resolve(const openeden::sdk::ServiceLocator&) override { return true; }
 
@@ -70,6 +282,20 @@ namespace game_skyrimse
                     // from the host; none of this runs when the host does not read sources.
                     const auto startedAt = std::chrono::steady_clock::now();
                     loadSessionContent(host, *sources, logger);
+                    // Task 0176: the Papyrus host, off unless [extension.skyrimse] papyrus = true.
+                    if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
+                    {
+                        if (settings->getBool(kPackId, kPapyrusKey, false))
+                        {
+                            mPapyrus = std::make_unique<PapyrusDriver>(mWorldView, mFileSource.get(), logger);
+                            PapyrusDriver* driver = mPapyrus.get();
+                            mCellSource.setScriptSinks(
+                                [driver](openeden::sdk::game::WorldId cell) { driver->cellBuilt(cell); },
+                                [driver](openeden::sdk::game::WorldId reference) { driver->activated(reference); });
+                            if (logger != nullptr)
+                                logger->log(openeden::sdk::LogLevel::Info, "PAPYRUS the Papyrus host is on");
+                        }
+                    }
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -92,6 +318,12 @@ namespace game_skyrimse
 
             void stop() override
             {
+                if (mPapyrus != nullptr)
+                {
+                    mPapyrus->summary();
+                    mCellSource.setScriptSinks({}, {});
+                    mPapyrus.reset();
+                }
                 // The index worker uses the logger and the file source: end it before anything is withdrawn.
                 mWorldView.cancelAndJoin();
                 withdrawWorldSource();
@@ -100,6 +332,7 @@ namespace game_skyrimse
 
             ~SkyrimGamePack() override
             {
+                mPapyrus.reset();
                 mWorldView.cancelAndJoin();
                 withdrawWorldSource();
                 withdrawWorldView();
@@ -327,6 +560,7 @@ namespace game_skyrimse
             SkyrimCellSource mCellSource{ mWorldView };
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
+            std::unique_ptr<PapyrusDriver> mPapyrus; // last: refers to the view and the file source
         };
     }
 

@@ -905,6 +905,21 @@ namespace game_skyrimse
                                 r.mLinks.push_back(link);
                             }
                             break;
+                        case Content::fourCC("VMAD"): // the scripts of the reference (task 0176; layout in vmad.hpp)
+                        {
+                            vmad::ParseResult scripts = vmad::parse(data, false);
+                            if (!scripts.mOk)
+                                odd("VMAD");
+                            else
+                            {
+                                vmad::resolveForms(scripts.mVmad.mScripts, [&](std::uint32_t stored) -> std::uint32_t {
+                                    const FormId id = resolved(stored);
+                                    return id == kUnresolvedFormId ? 0u : id;
+                                });
+                                r.mScripts = std::move(scripts.mVmad.mScripts);
+                            }
+                            break;
+                        }
                         case Content::fourCC("XPRD"):
                             if (data.size() != 4)
                                 odd("XPRD");

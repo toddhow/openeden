@@ -15,6 +15,8 @@
 // throw, so they are not called here. Each layout detail is marked in records.cpp as VERIFIED (checked against the
 // installed plugins by tools/skyrimse_records_check) or RECALLED-VERIFY (not checked).
 
+#include <game_skyrimse/vmad.hpp>
+
 #include <components/contentsource/plugin.hpp>
 
 #include <array>
@@ -262,6 +264,8 @@ namespace game_skyrimse
         /// XPRD (stage S6f): the seconds a patrolling actor idles at this marker. VERIFIED size 4 (a float: 10.0, 3.0,
         /// 6.0 in the data) on 4,340 placements; negative means none.
         float mPatrolIdle = -1.f;
+        /// VMAD (task 0176): the scripts the placement carries, form ids resolved to load order ids (0 when unresolved).
+        std::vector<vmad::Script> mScripts;
 
         [[nodiscard]] bool persistent() const { return (mCommon.mFlags & RecordFlags::Persistent) != 0; }
         [[nodiscard]] bool initiallyDisabled() const { return (mCommon.mFlags & RecordFlags::InitiallyDisabled) != 0; }
