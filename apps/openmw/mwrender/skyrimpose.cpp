@@ -128,16 +128,21 @@ namespace MWRender::SkyrimPose
                     {
                         // Developer trace: the clip's first pose for the root and centre-of-mass tracks, where the
                         // actor's origin sits relative to the figure (task 0135 stage S6b).
-                        HavokPack::samplePose(*mClip, 0.f, mScratch);
-                        for (std::size_t i = 0; i < mTargets.size(); ++i)
+                        // Task 0171: eight samples over the clip, so that a clip that moves the root or the pelvis shows.
+                        for (int step = 0; step <= 8; ++step)
                         {
-                            const std::string& name = mClip->mTrackBones[i];
-                            if (name.find("com") != std::string::npos || name.find("root") != std::string::npos
-                                || name.find("pelvis") != std::string::npos)
-                                Log(Debug::Info)
-                                    << "NPOSE " << name << " t " << mScratch[i].mTranslation[0] << " "
-                                    << mScratch[i].mTranslation[1] << " " << mScratch[i].mTranslation[2] << " duration "
-                                    << mClip->mClip.mDuration << (mTargets[i] ? "" : " (unbound)");
+                            const float at = mClip->mClip.mDuration * static_cast<float>(step) / 8.f;
+                            HavokPack::samplePose(*mClip, std::min(at, mClip->mClip.mDuration - 1e-4f), mScratch);
+                            for (std::size_t i = 0; i < mTargets.size(); ++i)
+                            {
+                                const std::string& name = mClip->mTrackBones[i];
+                                if (name.find("com") != std::string::npos || name.find("root") != std::string::npos
+                                    || name.find("pelvis") != std::string::npos)
+                                    Log(Debug::Info)
+                                        << "NPOSE " << name << " at " << at << " t " << mScratch[i].mTranslation[0]
+                                        << " " << mScratch[i].mTranslation[1] << " " << mScratch[i].mTranslation[2]
+                                        << " duration " << mClip->mClip.mDuration << (mTargets[i] ? "" : " (unbound)");
+                            }
                         }
                     }
                 }

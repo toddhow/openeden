@@ -36,6 +36,26 @@
       "default": ""
     },
     {
+      "key": "combat test hostile",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat test player swing",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "combat test weapon",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat trace",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "actor test goto",
       "type": "string",
       "default": ""

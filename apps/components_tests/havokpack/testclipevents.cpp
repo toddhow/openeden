@@ -145,6 +145,30 @@ namespace
         EXPECT_EQ(names, expected);
     }
 
+    // Task 0171: the mutation "a wrapped lap starts at 0 instead of -1" went uncaught in task 0170 because no loop test
+    // had an event at time 0. An event at 0 belongs to every lap: a step that wraps fires it at the start of the new lap.
+    TEST(HavokClipEvents, aLoopingClipFiresAnEventAtTimeZeroOnEveryWrap)
+    {
+        ClipMeta meta;
+        meta.mDuration = 1.f;
+        meta.mEvents = { { "start", 0.f }, { "mid", 0.5f } };
+        // 0.6 to 1.2: the lap ends at 1.0 (nothing left in it), the next lap fires "start" at 0, then not "mid" (0.5 > 0.2).
+        auto passed = run(meta, 0.6f, 1.2f, true);
+        ASSERT_EQ(passed.size(), 1u);
+        EXPECT_EQ(passed[0].first, "start");
+        EXPECT_FLOAT_EQ(passed[0].second, 0.f);
+        // 0.6 to 2.7: start (lap 2), mid, start (lap 3), mid, start (lap 4: to = 0.7 passes mid? 0.5 <= 0.7 yes).
+        passed = run(meta, 0.6f, 2.7f, true);
+        std::vector<std::string> names;
+        for (const auto& p : passed)
+            names.push_back(p.first);
+        const std::vector<std::string> expected = { "start", "mid", "start", "mid" };
+        EXPECT_EQ(names, expected);
+        // Without looping an event at 0 fires only for a clock started at -1.
+        EXPECT_EQ(run(meta, -1.f, 0.1f, false).size(), 1u);
+        EXPECT_TRUE(run(meta, 0.f, 0.1f, false).empty());
+    }
+
     TEST(HavokClipEvents, bogusClocksFireNothing)
     {
         EXPECT_TRUE(run(attack(), 1.f, 0.5f, false).empty()); // going backwards

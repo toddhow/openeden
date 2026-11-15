@@ -253,6 +253,103 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::ensureCombatIndex()
+    {
+        if (mCombatIndex != nullptr)
+            return true;
+        auto index = std::make_unique<CombatIndex>();
+        for (const PluginData& plugin : mPlugins)
+        {
+            Content::Error openError;
+            const std::unique_ptr<Content::Plugin> file = Content::Plugin::openFile(plugin.mPath, openError);
+            if (file == nullptr)
+            {
+                noteError(openError);
+                continue;
+            }
+            CombatRecords records;
+            (void)parseCombatRecords(*file, mOrder, ExteriorLimits(), records);
+            index->add(records);
+        }
+        mCombatIndex = std::move(index);
+        return true;
+    }
+
+    CombatSettings SkyrimWorldView::settings()
+    {
+        if (!awaitIndex() || !ensureCombatIndex())
+            return {};
+        return mCombatIndex->settings().combatSettings();
+    }
+
+    const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
+    {
+        if (!awaitIndex() || !ensureCombatIndex())
+            return nullptr;
+        auto lower = [](std::string_view text) {
+            std::string out(text);
+            for (char& c : out)
+                if (c >= 'A' && c <= 'Z')
+                    c = static_cast<char>(c + 32);
+            return out;
+        };
+        const std::string wanted = lower(editorId);
+        for (const FormId id : mCombatIndex->weaponIds())
+        {
+            const WeaponRecord* weapon = mCombatIndex->weapon(id);
+            if (weapon != nullptr && lower(weapon->mCommon.mEditorId) == wanted)
+                return weapon;
+        }
+        return nullptr;
+    }
+
+    FighterProfile SkyrimWorldView::playerFighter()
+    {
+        // The player has no records: a level 1 stand-in with skills at kStandInSkill, no armour, a Nord's unarmed hit.
+        FighterProfile out;
+        out.mHealthMax = 100.f;
+        out.mStaminaMax = 100.f;
+        out.mHealthRegenPercent = 0.7f;
+        out.mStaminaRegenPercent = 5.f;
+        out.mMitigationPercent = 0.f;
+        out.mUnarmedDamage = 4.f;
+        out.mUnarmedReach = 96.f;
+        out.mSkills.fill(15);
+        return out;
+    }
+
+    bool SkyrimWorldView::fighter(openeden::sdk::game::WorldId base, FighterProfile& out)
+    {
+        out = {};
+        if (!awaitIndex() || !ensureActorIndex() || !ensureCombatIndex())
+            return false;
+        const FormId npc = static_cast<FormId>(base);
+        openeden::sdk::game::ActorStats stats;
+        std::string error;
+        if (!computeActorStats(*mActorIndex, npc, 0, mStandInPlayerLevel, stats, error))
+            return false;
+        const CombatSettings combat = mCombatIndex->settings().combatSettings();
+        ArmourResult armour;
+        std::string armourError;
+        if (computeActorArmour(*mActorIndex, combat, npc, 0, mStandInPlayerLevel, armour, armourError))
+            out.mMitigationPercent = armour.mMitigationPercent;
+        out.mHealthMax = stats.health;
+        out.mStaminaMax = stats.stamina;
+        out.mSkills = stats.skills;
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(npc, mStandInPlayerLevel, 0, resolved) == ActorIndex::ResolveStatus::Ok)
+        {
+            if (const RaceCombatRecord* race = mCombatIndex->race(resolved.mRace))
+            {
+                out.mHealthRegenPercent = race->mHealthRegen;
+                out.mStaminaRegenPercent = race->mStaminaRegen;
+                out.mUnarmedDamage = race->mUnarmedDamage;
+                out.mUnarmedReach = race->mUnarmedReach;
+            }
+        }
+        return true;
+    }
+
     bool SkyrimWorldView::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
         openeden::sdk::game::ActorAppearance& out, std::string& error)
     {

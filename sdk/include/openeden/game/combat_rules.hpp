@@ -33,7 +33,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCombatRulesVersion{ 0, 1 };
+    inline constexpr Version kCombatRulesVersion{ 0, 2 };
 
     /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
     /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
@@ -182,6 +182,18 @@ namespace openeden::sdk::game
         double z = 0.0;
     };
 
+    /// Where a combat subject stands now, for the pack to aim a sweep with (task 0171, DRAFT 0.2). For the player the
+    /// engine's own health is reported too (the pack never owns the player's health); `healthMax` is 0 for an actor.
+    struct SubjectState
+    {
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
+        float heading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
+        float health = 0.f; ///< the player's current health (0 for an actor)
+        float healthMax = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
+    };
+
     /// How the pack answers in combatUpdate(). One writer, valid during one call.
     class CombatRequestWriter
     {
@@ -217,11 +229,32 @@ namespace openeden::sdk::game
             return false;
         }
 
-        /// Reports a resolved hit (see DamageReport). False for a stale non-player handle, a value that is not finite or
+        /// Reports a resolved hit (see DamageReport). When the victim is the player the core writes `healthAfter` into the
+        /// engine's own player health (0.2): the one place where the core changes a number the pack computed, because the
+        /// player's health is the engine's. False for a stale non-player handle, a value that is not finite or
         /// an amount below 0. The default refuses.
         virtual bool reportDamage(const DamageReport& report)
         {
             (void)report;
+            return false;
+        }
+
+        /// Turns an actor on the spot to `heading` (radians about Z as the engine stores it) before it swings (task 0171,
+        /// 0.2). False for a stale handle, a heading that is not finite, the player (the player's heading is the
+        /// player's), or a call outside combatUpdate(). The default refuses.
+        virtual bool faceHeading(CombatSubject subject, float heading)
+        {
+            (void)subject;
+            (void)heading;
+            return false;
+        }
+
+        /// Where the subject is now (task 0171, 0.2). False for a stale handle, an actor that is not placed in the physics
+        /// world, or a call outside combatUpdate(). The default refuses.
+        virtual bool subjectState(CombatSubject subject, SubjectState& out)
+        {
+            (void)subject;
+            out = {};
             return false;
         }
 

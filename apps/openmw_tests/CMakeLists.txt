@@ -173,6 +173,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactor.cpp
     mwphysics/testneutralactorbridge.cpp
     mwphysics/testneutralcombatbridge.cpp
+    mwphysics/testneutralsweep.cpp
+    mwphysics/testneutralcombathit.cpp
     mwrender/testskyrimcombatclips.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp

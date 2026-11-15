@@ -9,6 +9,7 @@
 
 namespace MWPhysics
 {
+    using openeden::sdk::game::ActorHandle;
     using openeden::sdk::game::ClipEnd;
     using openeden::sdk::game::ClipEvent;
     using openeden::sdk::game::ClipEventKind;
@@ -82,12 +83,22 @@ namespace MWPhysics
     {
         mPlaying.reserve(kMaxPlaying);
         mLate.reserve(2 * kMaxPlaying);
+        mResults.reserve(kMaxPendingResults);
+        mCandidates.reserve(kMaxCandidates);
+        mDead.reserve(NeutralActorBridge::kMaxActors);
     }
 
     void NeutralCombatBridge::clear()
     {
         mPlaying.clear();
         mLate.clear();
+        mResults.clear();
+        mDead.clear();
+    }
+
+    bool NeutralCombatBridge::isDead(ActorHandle actor) const
+    {
+        return std::find(mDead.begin(), mDead.end(), actor) != mDead.end();
     }
 
     std::size_t NeutralCombatBridge::indexOf(CombatSubject subject) const
@@ -172,8 +183,106 @@ namespace MWPhysics
         return true;
     }
 
-    void NeutralCombatBridge::update(
-        CombatRules* rules, float seconds, NeutralClipSink& sink, const NeutralClipMetaFn& metaFn)
+    bool NeutralCombatBridge::Writer::faceHeading(CombatSubject subject, float heading)
+    {
+        const void* key = (subject.valid() && !subject.player) ? mBridge.mActors.keyOfHandle(subject.actor) : nullptr;
+        if (mSink == nullptr || key == nullptr || !std::isfinite(heading))
+        {
+            ++mBridge.mStats.mRefused;
+            return false;
+        }
+        mSink->setHeading(key, heading);
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::subjectState(CombatSubject subject, openeden::sdk::game::SubjectState& out)
+    {
+        out = {};
+        if (mSink == nullptr || mWorld == nullptr || !subject.valid())
+            return false;
+        if (!subject.player && mBridge.mActors.keyOfHandle(subject.actor) == nullptr)
+            return false;
+        return mWorld->subjectState(subject, out);
+    }
+
+    bool NeutralCombatBridge::Writer::requestSweep(CombatSubject subject, const openeden::sdk::game::SweepRequest& r)
+    {
+        NeutralCombatBridge& b = mBridge;
+        constexpr float kPi = 3.14159265358979f;
+        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z) && std::isfinite(r.heading)
+            && std::isfinite(r.reach) && std::isfinite(r.halfAngle) && std::isfinite(r.heightBelow)
+            && std::isfinite(r.heightAbove);
+        if (mSink == nullptr || mWorld == nullptr || !subject.valid() || !finite || !(r.reach > 0.f)
+            || !(r.halfAngle > 0.f && r.halfAngle <= kPi) || r.heightBelow < 0.f || !(r.heightAbove > 0.f)
+            || (!subject.player && b.mActors.keyOfHandle(subject.actor) == nullptr)
+            || b.mResults.size() >= kMaxPendingResults)
+        {
+            ++b.mStats.mSweepsRefused;
+            return false;
+        }
+        b.mCandidates.clear();
+        mWorld->collectCandidates(b.mCandidates);
+        std::erase_if(b.mCandidates, [&](const NeutralSweep::Candidate& c) {
+            return c.mTarget == openeden::sdk::game::SweepTarget::Actor && b.isDead(c.mActor);
+        });
+        SweepResult result;
+        result.mSubject = subject;
+        result.mToken = r.token;
+        std::size_t dropped = 0;
+        result.mCount = NeutralSweep::arcSweep(r, { subject.player, subject.actor }, b.mCandidates, result.mHits, &dropped);
+        ++b.mStats.mSweeps;
+        b.mStats.mSweepHitsDropped += dropped;
+        if (traceOn())
+            Log(Debug::Info) << "NCOMBAT sweep token " << r.token << " from " << r.x << " " << r.y << " " << r.z
+                             << " heading " << r.heading << " reach " << r.reach << " hits " << result.mCount;
+        b.mResults.push_back(result);
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::reportDamage(const openeden::sdk::game::DamageReport& d)
+    {
+        NeutralCombatBridge& b = mBridge;
+        if (mSink == nullptr || !std::isfinite(d.amount) || d.amount < 0.f || !std::isfinite(d.healthAfter)
+            || !std::isfinite(d.healthMax) || !std::isfinite(d.x) || !std::isfinite(d.y) || !std::isfinite(d.z)
+            || (!d.victimIsPlayer && b.mActors.keyOfHandle(d.victim) == nullptr)
+            || (!d.attackerIsPlayer && b.mActors.keyOfHandle(d.attacker) == nullptr))
+        {
+            ++b.mStats.mDamageRefused;
+            return false;
+        }
+        ++b.mStats.mDamageReports;
+        if (traceOn())
+            Log(Debug::Info) << "NCOMBAT damage " << (d.attackerIsPlayer ? "player" : "actor") << " -> "
+                             << (d.victimIsPlayer ? "player" : "actor") << " amount " << d.amount << " health after "
+                             << d.healthAfter << " of " << d.healthMax;
+        if (d.victimIsPlayer && mWorld != nullptr)
+            mWorld->applyPlayerDamage(d);
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::reportDeath(ActorHandle actor)
+    {
+        NeutralCombatBridge& b = mBridge;
+        const void* key = b.mActors.keyOfHandle(actor);
+        if (mSink == nullptr || key == nullptr)
+        {
+            ++b.mStats.mDamageRefused;
+            return false;
+        }
+        if (b.isDead(actor))
+            return true;
+        if (b.mDead.size() < b.mDead.capacity())
+            b.mDead.push_back(actor);
+        ++b.mStats.mDeaths;
+        if (traceOn())
+            Log(Debug::Info) << "NCOMBAT death actor " << actor.reference << "/" << actor.session;
+        if (mWorld != nullptr)
+            mWorld->actorDied(key, actor);
+        return true;
+    }
+
+    void NeutralCombatBridge::update(CombatRules* rules, float seconds, NeutralClipSink& sink,
+        const NeutralClipMetaFn& metaFn, NeutralCombatWorld* world)
     {
         if (rules == nullptr)
         {
@@ -188,6 +297,26 @@ namespace MWPhysics
         for (const Finished& finished : mLate)
             tellFinished(*rules, finished);
         mLate.clear();
+
+        // Sweeps cast in an earlier frame: told now, before this frame's events and combatUpdate.
+        for (const SweepResult& result : mResults)
+        {
+            if (!result.mSubject.player && mActors.keyOfHandle(result.mSubject.actor) == nullptr)
+            {
+                ++mStats.mSweepResultsDropped;
+                continue;
+            }
+            mStats.mSweepHits += result.mCount;
+            try
+            {
+                rules->onSweepResult(result.mSubject, result.mToken, result.mHits, result.mCount);
+            }
+            catch (...)
+            {
+                ++mStats.mRulesFailures;
+            }
+        }
+        mResults.clear();
 
         for (std::size_t i = 0; i < mPlaying.size();)
         {
@@ -258,7 +387,9 @@ namespace MWPhysics
             {
                 if (traceOn())
                     Log(Debug::Info) << "NCOMBAT end token " << token << " completed at clock " << p.mCurrent;
-                sink.stopClip(p.mKey);
+                // A death clip is not stopped when it ends: the body keeps its last pose (task 0171).
+                if (slot != ClipSlot::Death)
+                    sink.stopClip(p.mKey);
                 ++mStats.mClipsCompleted;
                 tellFinished(*rules, { subject, token, ClipEnd::Completed });
                 mPlaying.erase(mPlaying.begin() + static_cast<std::ptrdiff_t>(i));
@@ -268,6 +399,7 @@ namespace MWPhysics
         }
 
         mWriter.mSink = &sink;
+        mWriter.mWorld = world;
         try
         {
             rules->combatUpdate(seconds, mWriter);
@@ -277,5 +409,6 @@ namespace MWPhysics
             ++mStats.mRulesFailures;
         }
         mWriter.mSink = nullptr;
+        mWriter.mWorld = nullptr;
     }
 }

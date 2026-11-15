@@ -306,6 +306,25 @@ namespace MWPhysics
             bool mPerSex = false;
         };
         const std::vector<NeutralClipOp>& getNeutralClipOps() const { return mNeutralClipOps; }
+        /// Task 0171 (combat stage S5-3): the player as the combat hooks see it. The world supplies where the player is
+        /// and the engine's own health; `damage` writes the health the pack computed back (main thread, called from
+        /// inside the pack's combatUpdate). Without these hooks the player is not a target or an attacker.
+        struct NeutralPlayerState
+        {
+            double mX = 0.0;
+            double mY = 0.0;
+            double mZ = 0.0; ///< the feet
+            float mHeading = 0.f;
+            float mHealth = 0.f;
+            float mHealthMax = 0.f; ///< 0 when the engine has no health for the player
+        };
+        using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
+        using NeutralPlayerDamageFn = std::function<void(float healthAfter)>;
+        void setNeutralPlayerHooks(NeutralPlayerStateFn state, NeutralPlayerDamageFn damage)
+        {
+            mNeutralPlayerState = std::move(state);
+            mNeutralPlayerDamage = std::move(damage);
+        }
         [[nodiscard]] const NeutralCombatBridge::Stats& neutralCombatStats() const { return mNeutralCombat.stats(); }
 
         /// Tells the pack about a neutral actor that already has a body (addNeutralActor): `reference` is the
@@ -599,14 +618,35 @@ namespace MWPhysics
             }
             void playClip(const void* key, std::string_view clip, bool perSex) override;
             void stopClip(const void* key) override;
+            void setHeading(const void* key, float heading) override;
 
         private:
             PhysicsSystem& mPhysics;
         };
+        // Task 0171: what the combat bridge needs from this world (sweep bodies, positions, the player's health).
+        class NeutralCombatWorldImpl final : public NeutralCombatWorld
+        {
+        public:
+            explicit NeutralCombatWorldImpl(PhysicsSystem& physics)
+                : mPhysics(physics)
+            {
+            }
+            bool subjectState(
+                openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
+            void collectCandidates(std::vector<NeutralSweep::Candidate>& out) override;
+            void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) override;
+            void actorDied(const void* key, openeden::sdk::game::ActorHandle actor) override;
+
+        private:
+            PhysicsSystem& mPhysics;
+        };
+        NeutralPlayerStateFn mNeutralPlayerState;
+        NeutralPlayerDamageFn mNeutralPlayerDamage;
         NeutralCombatResolver mNeutralCombatResolver;
         NeutralClipMetaFn mNeutralClipMeta;
         NeutralCombatBridge mNeutralCombat{ mNeutralBridge };
         NeutralClipApplier mNeutralClipApplier{ *this };
+        NeutralCombatWorldImpl mNeutralCombatWorld{ *this };
         std::vector<NeutralClipOp> mNeutralClipOps;
         NeutralRequestApplier mNeutralApplier{ *this };
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);

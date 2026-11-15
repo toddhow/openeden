@@ -1275,6 +1275,91 @@ namespace MWPhysics
         mPhysics.mNeutralClipOps.push_back({ found->second->getPtr(), std::string(), false });
     }
 
+    void PhysicsSystem::NeutralClipApplier::setHeading(const void* key, float heading)
+    {
+        mPhysics.mNeutralApplier.setHeading(key, heading);
+    }
+
+    bool PhysicsSystem::NeutralCombatWorldImpl::subjectState(
+        openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out)
+    {
+        out = {};
+        if (subject.player)
+        {
+            NeutralPlayerState player;
+            if (!mPhysics.mNeutralPlayerState || !mPhysics.mNeutralPlayerState(player))
+                return false;
+            out.x = player.mX;
+            out.y = player.mY;
+            out.z = player.mZ;
+            out.heading = player.mHeading;
+            out.health = player.mHealth;
+            out.healthMax = player.mHealthMax;
+            return true;
+        }
+        const void* key = mPhysics.mNeutralBridge.keyOfHandle(subject.actor);
+        NeutralActorEntry* entry = key != nullptr ? mPhysics.findNeutralActor(key) : nullptr;
+        if (entry == nullptr)
+            return false;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return false;
+        const ESM::Position pos = found->second->getPtr().getRefData().getPosition();
+        out.x = pos.pos[0];
+        out.y = pos.pos[1];
+        out.z = pos.pos[2];
+        out.heading = pos.rot[2];
+        return true;
+    }
+
+    void PhysicsSystem::NeutralCombatWorldImpl::collectCandidates(std::vector<NeutralSweep::Candidate>& out)
+    {
+        for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
+        {
+            const openeden::sdk::game::ActorHandle handle = mPhysics.mNeutralBridge.handleOf(entry.mRef);
+            const auto found = mPhysics.mObjects.find(entry.mRef);
+            if (!handle.valid() || found == mPhysics.mObjects.end() || out.size() >= out.capacity())
+                continue;
+            const ESM::Position pos = found->second->getPtr().getRefData().getPosition();
+            NeutralSweep::Candidate c;
+            c.mTarget = openeden::sdk::game::SweepTarget::Actor;
+            c.mActor = handle;
+            c.mX = pos.pos[0];
+            c.mY = pos.pos[1];
+            c.mZ = pos.pos[2];
+            c.mRadius = entry.mCapsule.mRadius;
+            c.mHeight = 2.f * (entry.mCapsule.mHalfCylinder + entry.mCapsule.mRadius);
+            out.push_back(c);
+        }
+        NeutralPlayerState player;
+        if (mPhysics.mNeutralPlayerState && mPhysics.mNeutralPlayerState(player) && out.size() < out.capacity())
+        {
+            NeutralSweep::Candidate c;
+            c.mTarget = openeden::sdk::game::SweepTarget::Player;
+            c.mX = player.mX;
+            c.mY = player.mY;
+            c.mZ = player.mZ;
+            c.mRadius = NeutralActor::kRadius;
+            c.mHeight = NeutralActor::kStandingHeight;
+            out.push_back(c);
+        }
+    }
+
+    void PhysicsSystem::NeutralCombatWorldImpl::applyPlayerDamage(const openeden::sdk::game::DamageReport& report)
+    {
+        if (mPhysics.mNeutralPlayerDamage)
+            mPhysics.mNeutralPlayerDamage(report.healthAfter);
+    }
+
+    void PhysicsSystem::NeutralCombatWorldImpl::actorDied(const void* key, openeden::sdk::game::ActorHandle actor)
+    {
+        // Stage S5-3: the death is only noted. The pack has stopped the actor's clips and its health is 0; the ragdoll is
+        // stage S5-5. The actor stays where it is (its movement request is cleared so that it does not walk on).
+        if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
+            entry->mRequest = {};
+        Log(Debug::Info) << "NCOMBAT actor " << actor.reference << "/" << actor.session << " died";
+    }
+
     PhysicsSystem::NeutralActorEntry* PhysicsSystem::findNeutralActor(const void* key)
     {
         for (NeutralActorEntry& entry : mNeutralActors)
@@ -1484,7 +1569,8 @@ namespace MWPhysics
         if (mNeutralCombatResolver && Settings::game().mNeutralCombat.get())
         {
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
-            mNeutralCombat.update(mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta);
+            mNeutralCombat.update(
+                mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta, &mNeutralCombatWorld);
         }
         const auto costAfterPack = costTrace ? std::chrono::steady_clock::now() : costStart;
         static const bool trace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;

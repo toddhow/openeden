@@ -150,6 +150,27 @@ namespace game_skyrimse
                             "the setting '" + std::string(kCombatTestSwingKey) + "' is too long; the test swing is off");
                     else if (!swinger.empty())
                         say(openeden::sdk::LogLevel::Info, "combat test swing: actors named " + swinger + " swing");
+                    // Task 0171 (combat stage S5-3): the melee test rules and the decision trace, all off by default.
+                    const std::string hostile = settings->getString(kPackId, kCombatTestHostileKey, "");
+                    if (!mCellSource.combat().setTestHostile(hostile))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestHostileKey) + "' is too long; it is off");
+                    else if (!hostile.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test hostile: actors named " + hostile + " attack");
+                    const std::string weapon = settings->getString(kPackId, kCombatTestWeaponKey, "");
+                    if (!mCellSource.combat().setTestWeapon(weapon))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestWeaponKey) + "' is too long; fighters are unarmed");
+                    else if (!weapon.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test weapon: " + weapon);
+                    const float playerSwing = settings->getFloat(kPackId, kCombatTestPlayerSwingKey, 0.f);
+                    mCellSource.combat().setTestPlayerSwing(playerSwing);
+                    if (playerSwing > 0.f)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test player swing: every " + std::to_string(playerSwing) + " s");
+                    if (settings->getBool(kPackId, kCombatTraceKey, false))
+                        mCellSource.combat().setTrace(
+                            [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");
                     if (!mCellSource.actorTable().setTestGoto(goer))

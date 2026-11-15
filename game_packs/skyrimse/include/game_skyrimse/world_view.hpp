@@ -120,7 +120,8 @@ namespace game_skyrimse
                                   public openeden::sdk::game::DisplayNameSource,
                                   public openeden::sdk::game::WeatherSource,
                                   public PackageSource,
-                                  public FurnitureSource
+                                  public FurnitureSource,
+                                  public CombatData
     {
     public:
         struct Options
@@ -294,6 +295,12 @@ namespace game_skyrimse
         bool describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
             openeden::sdk::game::ActorAppearance& out, std::string& error) override;
 
+        // ---- CombatData (task 0171, stage S5-3): the numbers of a fight from the actor and combat records ----
+        bool fighter(openeden::sdk::game::WorldId base, FighterProfile& out) override;
+        FighterProfile playerFighter() override;
+        const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
+        CombatSettings settings() override;
+
         // ---- openeden::sdk::game::ActorMechanicsSource (task 0154, stage S7) ----
         /// Numbers and relations from the actor index (FACT, RACE, CLAS, NPC_ of every plugin; read with the first
         /// describeActor or the first of these asks). Main thread only.
@@ -426,6 +433,8 @@ namespace game_skyrimse
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
         bool ensureActorIndex();
+        std::unique_ptr<CombatIndex> mCombatIndex; ///< WEAP, RACE combat fields and GMSTs of every plugin (task 0171)
+        bool ensureCombatIndex();
         struct DialogueData; ///< the dialogue and quest indexes (task 0141); defined in the .cpp
         struct DialogueState; ///< the data, the string tables and the runtime
         std::unique_ptr<DialogueState> mDialogue;

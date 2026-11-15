@@ -336,6 +336,34 @@ namespace MWWorld
             return mRendering->getObjects().neutralActorClipProgress(ptr);
         });
 
+        // Task 0171 (combat stage S5-3): the player as the combat hooks see it. Its health is the engine's own
+        // (MWMechanics::CreatureStats of the player's Ptr): read for the pack's damage rule, written with the number
+        // the pack computed. Main thread, from inside the pack's combatUpdate.
+        mPhysics->setNeutralPlayerHooks(
+            [this](MWPhysics::PhysicsSystem::NeutralPlayerState& out) {
+                const Ptr player = getPlayerPtr();
+                if (player.isEmpty() || !player.getClass().isActor())
+                    return false;
+                const ESM::Position& pos = player.getRefData().getPosition();
+                out.mX = pos.pos[0];
+                out.mY = pos.pos[1];
+                out.mZ = pos.pos[2];
+                out.mHeading = pos.rot[2];
+                const MWMechanics::DynamicStat<float>& health = player.getClass().getCreatureStats(player).getHealth();
+                out.mHealth = health.getCurrent();
+                out.mHealthMax = health.getModified();
+                return true;
+            },
+            [this](float healthAfter) {
+                const Ptr player = getPlayerPtr();
+                if (player.isEmpty() || !player.getClass().isActor())
+                    return;
+                MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
+                MWMechanics::DynamicStat<float> health = stats.getHealth();
+                health.setCurrent(healthAfter);
+                stats.setHealth(health);
+            });
+
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
         // session's navmesh is built for (the capsule can only make it narrower), so no second navmesh is made.
         mPhysics->setNeutralPathFinder(

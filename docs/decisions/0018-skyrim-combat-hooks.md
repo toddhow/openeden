@@ -36,3 +36,12 @@ structs carry a `player` flag.
 
 Nothing in the engine calls the interface in S5-0; the pack's `combat.*` is a skeleton that refuses and counts. All
 future behaviour is behind `[Game] neutral combat` (off by default); with it off no Morrowind or Skyrim path changes.
+
+## Decided 2026-11-14 (toddhow, stage S5-3; task `docs/tasks/0171-skyrim-combat-s5-3-melee-hit.md`, contract 0.2)
+
+- `CombatSubject` (an actor or the player) and `onPlayerAttack` stay as built in 0.1; the melee sweep is a forward arc (reach, half angle, a height band).
+- Power attack stamina is multiplied by `fPowerAttackStaminaPenalty` (2.0); the armour formulas stay "plausible and tunable" (RECALLED-VERIFY); armour from an actor's inventory (CNTO) waits for S5-9.
+- Attack clips play on the whole body for now; an upper-body clip over locomotion comes with S5-9.
+- Contract 0.2 (additive, SDK stays 4.0): `SubjectState` and `CombatRequestWriter::subjectState` (where a subject is, and the player's engine health), `CombatRequestWriter::faceHeading`, and the rule that `reportDamage` with `victimIsPlayer` makes the core write `healthAfter` into the engine's player health (the player's health is the engine's, not the pack's). A clip in the `Death` slot is not stopped by the core when it ends: the body keeps its last pose.
+- The sweep is cast by the core at the moment of the request and told in the next frame; it is a geometric arc against the actors' and the player's capsules, not a Jolt shape cast, and does not look for a wall (decision for toddhow in the task).
+

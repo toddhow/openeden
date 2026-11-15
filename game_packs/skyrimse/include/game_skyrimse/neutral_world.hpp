@@ -163,6 +163,8 @@ namespace game_skyrimse
             : mView(view)
             , mLimits(limits)
         {
+            // Task 0171: a view that knows the combat records (SkyrimWorldView does) gives the melee rules their numbers.
+            mCombat.setData(dynamic_cast<CombatData*>(&view));
         }
 
         std::string_view gameId() const override { return "skyrimse"; }
@@ -245,6 +247,13 @@ namespace game_skyrimse
         {
             mCombat.combatUpdate(seconds, writer);
         }
+        /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
+        void onClipFinished(openeden::sdk::game::CombatSubject subject, std::uint32_t token,
+            openeden::sdk::game::ClipEnd how) override
+        {
+            mCombat.onClipFinished(subject, token, how);
+        }
+        void onPlayerAttack(bool power) override { mCombat.onPlayerAttack(power); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
