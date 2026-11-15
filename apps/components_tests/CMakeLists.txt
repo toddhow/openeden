@@ -27,6 +27,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testuicomponents2.cpp
     ui/testuiframe.cpp
     ui/testuilist.cpp
+    ui/testskyrimseinventorywindows.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
     ui/testuiupdatehook.cpp
@@ -577,6 +578,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseconditionstatereal.cpp
     skyrimse/testskyrimseplacedrefs.cpp
     skyrimse/testskyrimseplacedrefsreal.cpp
+    skyrimse/testskyrimseinventory.cpp
+    skyrimse/testskyrimseinventorybindings.cpp
+    skyrimse/testskyrimseinventoryreal.cpp
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
@@ -644,6 +648,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/speech.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/location.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/placed_refs.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/inventory.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/inventory_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vmad.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_host.cpp

@@ -40,3 +40,6 @@ NPC,CREATURE: scripts/omw/music/actor.lua
 
 # Skyrim SE combat HUD (task 0180); started only when the game pack declares the package
 PLAYER REQUIRES=core.skyrimse.combat>=1.0: scripts/openeden/skyrim_combat_hud.lua
+# Skyrim SE inventory and container windows (task 0182); started only when the session's game pack has the namespace
+GLOBAL REQUIRES=core.skyrimse.inventory>=1.0: scripts/openeden/skyrimse/inventory_global.lua
+PLAYER REQUIRES=core.skyrimse.inventory>=1.0: scripts/openeden/skyrimse/inventory_player.lua

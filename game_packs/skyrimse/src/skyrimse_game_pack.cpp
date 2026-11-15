@@ -2,6 +2,7 @@
 #include "game_skyrimse/speech.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
@@ -398,6 +399,8 @@ namespace game_skyrimse
                 registrar.registerPhaseCallback(openeden::sdk::Phase::GameSimulation, [this](float dt) {
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
+                    if (mInventory != nullptr)
+                        (void)mInventory->poll(); // starts and adopts the item table reader; never waits
                 });
             }
 
@@ -474,6 +477,8 @@ namespace game_skyrimse
                             logger->log(openeden::sdk::LogLevel::Warning,
                                 "the combat HUD package was refused: " + declared.message);
                     }
+                    // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse] inventory.
+                    startInventory(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -518,6 +523,51 @@ namespace game_skyrimse
             }
 
         private:
+            // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
+            void startInventory(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "inventory", false))
+                    return;
+                inventory::Hooks hooks;
+                hooks.mInputs = [this](inventory::Inputs& out) {
+                    return mWorldView.inventoryInputs(out.mPaths, out.mOrder, out.mLeveled);
+                };
+                hooks.mName = [this](FormId id) { return mWorldView.displayNameOf(id); };
+                hooks.mNpcContents = [this](FormId base, std::vector<InventoryEntry>& out) {
+                    return mWorldView.npcInventory(base, out);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                const int gold = settings->getInt(kPackId, kPlayerGoldKey, static_cast<int>(kStandInGold));
+                mInventory = std::make_unique<inventory::InventoryService>(
+                    std::move(hooks), gold >= 0 ? static_cast<float>(gold) : kStandInGold, kStandInPlayerLevel);
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mInventory->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the inventory bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mInventory->chunk().setRefusalSink([logger](const std::string& reason) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Error, "the save is refused: " + reason);
+                    });
+                    mInventory->chunk().setRestoredSink([logger](const std::string& what) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "INV chunk " + what);
+                    });
+                    if (!chunks->registerHandler(mInventory->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the inventory chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "INV the inventory is on");
+            }
+
             // Task 0177 (neutral saves): the save chunk that ties a save to the load order it was made with.
             void registerLoadOrderStamp(openeden::sdk::Host& host, openeden::sdk::game::WorldSourceService& sources,
                 openeden::sdk::Logger* logger)
@@ -791,6 +841,7 @@ namespace game_skyrimse
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
+            std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; last: refers to mPapyrus
         };

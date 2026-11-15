@@ -111,6 +111,11 @@
       "default": false
     },
     {
+      "key": "inventory",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "papyrus",
       "type": "bool",
       "default": false

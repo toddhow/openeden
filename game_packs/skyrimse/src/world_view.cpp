@@ -1882,6 +1882,35 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::inventoryInputs(std::vector<std::filesystem::path>& paths, LoadOrder& order,
+        std::vector<LeveledList>& leveled) const
+    {
+        if (mBuilding.load(std::memory_order_acquire) || mFailed.load(std::memory_order_acquire))
+            return false;
+        for (const PluginData& plugin : mPlugins)
+        {
+            paths.push_back(plugin.mPath);
+            leveled.insert(leveled.end(), plugin.mParsed.mLeveledLists.begin(), plugin.mParsed.mLeveledLists.end());
+        }
+        order = mOrder;
+        return true;
+    }
+
+    bool SkyrimWorldView::npcInventory(FormId base, std::vector<InventoryEntry>& out)
+    {
+        if (!awaitIndex() || !ensureActorIndex())
+            return false;
+        ActorIndex::Resolved resolved;
+        if (mActorIndex->resolve(base, mStandInPlayerLevel, static_cast<std::uint32_t>(base), resolved)
+            != ActorIndex::ResolveStatus::Ok)
+            return false;
+        out = resolved.mInventory;
+        if (const OutfitRecord* outfit = mActorIndex->outfit(resolved.mDefaultOutfit))
+            for (const FormId item : outfit->mItems)
+                out.push_back({ item, 1 });
+        return true;
+    }
+
     std::string SkyrimWorldView::displayNameOf(sdkgame::WorldId base)
     {
         if (!awaitIndex())

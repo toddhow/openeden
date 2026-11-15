@@ -23,6 +23,7 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/extensionmanager.hpp"
+#include "../mwbase/luamanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwgui/tooltips.hpp"
@@ -40,6 +41,7 @@
 #include "../mwworld/neutraldialogue.hpp"
 #include "../mwworld/neutraldisplayname.hpp"
 #include "../mwworld/neutraldoor.hpp"
+#include "../mwworld/neutralinventory.hpp"
 #include "../mwworld/neutrallock.hpp"
 #include "../mwworld/neutralstore.hpp"
 #include "../mwworld/ptr.hpp"
@@ -208,6 +210,39 @@ namespace MWClass
             }
         };
 
+        // Task 0182 (milestone M-S6): activating a container tells the pack's Lua scripts (a global script, then the
+        // player's windows); the engine opens no window of its own. See mwworld/neutralinventory.hpp.
+        class OpenInventoryAction final : public MWWorld::Action
+        {
+            std::uint64_t mPlacement;
+            std::uint64_t mBase;
+            std::string mName;
+
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                std::vector<MWBase::LuaManager::ExtensionEventField> fields;
+                for (const MWWorld::NeutralInventoryEventField& f :
+                    MWWorld::neutralInventoryEventFields(mPlacement, mBase, "container", mName))
+                    fields.push_back({ f.mName, f.mText });
+                Log(Debug::Info) << "NINV container " << MWWorld::neutralHexId(mPlacement) << " base "
+                                 << MWWorld::neutralHexId(mBase) << " '" << mName << "' opened";
+                MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
+                    std::string(MWWorld::kNeutralInventoryEvent), fields);
+            }
+
+        public:
+            OpenInventoryAction(const MWWorld::Ptr& target, std::uint64_t placement, std::uint64_t base,
+                std::string name)
+                : MWWorld::Action(false, target)
+                , mPlacement(placement)
+                , mBase(base)
+                , mName(std::move(name))
+            {
+            }
+        };
+
         // One trace line per activation (OPENEDEN_NEUTRAL_DOOR_TRACE).
         void logDoor(const MWWorld::Ptr& ptr, const MWWorld::NeutralDoorDecision& decision,
             std::string_view destination, bool reused)
@@ -278,9 +313,16 @@ namespace MWClass
             }
             lockOpen = lockOutcome != MWWorld::NeutralLockOutcome::NotLocked;
         }
-        // A container has nothing more to do before the neutral inventory (stage N5).
+        // Task 0182: with [Game] neutral inventory a container opens the inventory windows (through the pack's
+        // scripts); otherwise a container has nothing more to do (as before).
         if (base.mKind == ObjectKind::Container)
+        {
+            if (MWWorld::decideNeutralInventory(base.mKind, actor == MWMechanics::getPlayer(),
+                    Settings::game().mNeutralInventory.get())
+                == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<OpenInventoryAction>(ptr, *placement, base.mBase, std::string(getName(ptr)));
             return MWWorld::Class::activate(ptr, actor);
+        }
 
         MWWorld::WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
         MWWorld::CellStore* destination = nullptr;
@@ -565,6 +607,18 @@ namespace MWClass
                                  << position.x << "," << position.y << "," << position.z << " key " << object->lock->key
                                  << " level " << object->lock->level;
             }
+        }
+        if (doorTraceWanted() && base.mKind == ObjectKind::Container && ptr.getCell() != nullptr)
+        {
+            // Task 0182 (developer trace): every container of a cell as it is inserted, with its lock state, to find
+            // one to open in a check run.
+            const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            const openeden::sdk::game::WorldObject* object
+                = placement ? ptr.getCell()->neutralObject(*placement) : nullptr;
+            const auto& position = ptr.getRefData().getPosition().asVec3();
+            Log(Debug::Info) << "NCONT " << (placement ? *placement : 0) << " " << ptr.getCellRef().getRefId() << " "
+                             << base.mEditorId << " at " << position.x << "," << position.y << "," << position.z
+                             << " locked " << (object != nullptr && object->lock && object->lock->locked ? 1 : 0);
         }
         if (base.mCollision.source == CollisionSource::None)
             return;

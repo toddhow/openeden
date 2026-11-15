@@ -365,6 +365,15 @@ namespace game_skyrimse
         /// `placedRefsBuildMillis()`.
         [[nodiscard]] const PlacedRefIndex* placedRefs() const;
 
+        // ---- task 0182 (inventory)
+        /// What the inventory reader needs, copied out once the index is built (false before: ask again, nothing
+        /// waits). `leveled` gets every plugin's leveled lists in load order (the reader keeps the later one).
+        [[nodiscard]] bool inventoryInputs(std::vector<std::filesystem::path>& paths, LoadOrder& order,
+            std::vector<LeveledList>& leveled) const;
+        /// The CNTO entries of an NPC_ base with its default outfit's items (after templates); false when unknown.
+        /// Reads the actor index like describeActor (main thread).
+        [[nodiscard]] bool npcInventory(FormId base, std::vector<InventoryEntry>& out);
+
         // ---- task 0176 (Papyrus wiring)
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.

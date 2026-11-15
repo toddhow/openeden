@@ -142,6 +142,7 @@ set(BUILTIN_DATA_FILES
     openeden/ui/reactive.lua
     openeden/hud/skyrimcombat.lua
     scripts/openeden/skyrim_combat_hud.lua
+    openeden/skyrimse/inventory_windows.lua
 
     builtin.omwscripts
 
@@ -178,6 +179,8 @@ set(BUILTIN_DATA_FILES
     scripts/omw/skillhandlers.lua
     scripts/omw/crimes.lua
     scripts/omw/ui.lua
+    scripts/openeden/skyrimse/inventory_global.lua
+    scripts/openeden/skyrimse/inventory_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

@@ -98,6 +98,7 @@ namespace Settings
         SettingValue<bool> mNeutralWorld{ mIndex, "Game", "neutral world" };
         SettingValue<bool> mNeutralSaves{ mIndex, "Game", "neutral saves" };
         SettingValue<bool> mNeutralActors{ mIndex, "Game", "neutral actors" };
+        SettingValue<bool> mNeutralInventory{ mIndex, "Game", "neutral inventory" };
         SettingValue<bool> mNeutralActorIdles{ mIndex, "Game", "neutral actor idles" };
         SettingValue<bool> mNeutralCombat{ mIndex, "Game", "neutral combat" };
         SettingValue<bool> mNeutralActorLocomotion{ mIndex, "Game", "neutral actor locomotion" };

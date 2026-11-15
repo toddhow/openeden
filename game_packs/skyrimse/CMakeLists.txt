@@ -17,6 +17,8 @@ openeden_add_game_pack(skyrimse
         src/speech.cpp
         src/location.cpp
         src/placed_refs.cpp
+        src/inventory.cpp
+        src/inventory_service.cpp
         src/quest_script.cpp
         src/vmad.cpp
         src/papyrus_host.cpp
@@ -58,6 +60,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/speech.hpp
         include/game_skyrimse/location.hpp
         include/game_skyrimse/placed_refs.hpp
+        include/game_skyrimse/inventory.hpp
+        include/game_skyrimse/inventory_service.hpp
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/vmad.hpp
         include/game_skyrimse/papyrus_host.hpp
