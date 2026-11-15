@@ -52,3 +52,11 @@ future behaviour is behind `[Game] neutral combat` (off by default); with it off
 - **Walls:** after the geometric arc picks its candidates, each hit needs a clear line from the attacker's weapon height to the target's capsule through the Jolt world: one ray per candidate against static WORLD geometry, terrain and closed doors, never against actors, cast by the core on the main thread at the moment of the request. A blocked candidate is not hit (counted and traced).
 - **Player swing timing from data:** the player's HitFrame time and clip length come from the `1HM_AttackRight` sidecar at run time, through the same meta loader the NPC clips use. Contract 0.2 gains `ClipTiming` and `CombatRequestWriter::clipTiming(clip, perSex, out)` (a trailing virtual, default refuses; additive). Until the meta is ready the player cannot swing: there is no fallback constant, and a timing that has not arrived after five seconds of trying is reported once in the log.
 - The death pose stays the held stagger-back clip until S5-5 (no change).
+
+## Decided 2026-11-15 (toddhow, stage S5-4; task `docs/tasks/0172-skyrim-combat-s5-4.md`, contract unchanged at 0.2)
+
+- Both pieces approved ("Yes, both"): block, bash, power attack and stagger for the one-handed sword set, and the engine's real attack input wired to `CombatRules::onPlayerAttack` (a tap attacks, a hold of 0.5 s is a power attack).
+- Power attack stamina is multiplied by `fPowerAttackStaminaPenalty` (2.0), as already built.
+- Block, bash and stagger formulas are "plausible and tunable" (RECALLED-VERIFY); the GMSTs come from the data where they exist (`BlockSettings`), the stagger threshold and the power attack stagger bonus are ours.
+- The NPC's choice between attack, power attack, bash and block is a deterministic test rule (`combat test power every`, `combat test bash every`, `combat test block`); real combat AI is S5-9.
+- There is no player block: OpenMW has no block action (`MWInput::A_Use` is attack and spell; no `A_Block`), so the contract gets no block call and the player never blocks or bashes. Adding one is a new binding and a new `CombatRules` method (decision for toddhow).

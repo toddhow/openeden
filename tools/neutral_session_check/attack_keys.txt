@@ -1,0 +1,15 @@
+# task 0172 (combat S5-4): the REAL attack action (the left mouse button, A_Use) as synthetic SDL events through the real input path:
+# a tap (attack on the release), a hold of about two seconds (a power attack at 0.5 s of holding), then a tap again.
+# Used with "n5trade" and [GUI] rmlui = true (the input script only runs with the overlay); frames count running frames, so the numbers
+# depend on the machine's frame rate: the `log` lines tell the real time they fire at (compare with the N5TRADE shot lines).
+2900 log KEYSCRIPT tap down
+2900 down L 400 300
+2904 up L 400 300
+3000 log KEYSCRIPT tap up
+4000 log KEYSCRIPT hold down
+4000 down L 400 300
+5000 up L 400 300
+5001 log KEYSCRIPT hold up
+5800 down L 400 300
+5804 up L 400 300
+5805 log KEYSCRIPT second tap
