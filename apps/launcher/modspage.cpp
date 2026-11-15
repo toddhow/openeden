@@ -22,6 +22,7 @@
 #include <components/files/conversion.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/modorganizer/configfile.hpp>
+#include <components/modorganizer/games.hpp>
 #include <components/modorganizer/processcheck.hpp>
 #include <components/modorganizer/repack.hpp>
 
@@ -32,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <tuple>
 
 namespace
 {
@@ -373,8 +375,9 @@ void Launcher::ModsPage::refreshAll()
 void Launcher::ModsPage::refreshProfiles()
 {
     mProfileBox->clear();
-    for (const MO::Profile& profile : mStore.mProfiles)
-        mProfileBox->addItem(q(profile.mName));
+    // Task 0173: only the profiles of the active profile's game (all of them while there is only Morrowind)
+    for (const std::string& name : MO::profilesOfGame(mStore, currentGame()))
+        mProfileBox->addItem(q(name));
     const int index = mProfileBox->findText(q(mStore.mActive));
     mProfileBox->setCurrentIndex(index);
 
@@ -715,9 +718,10 @@ bool Launcher::ModsPage::askName(const QString& title, const QString& label, QSt
 
 void Launcher::ModsPage::onProfileChosen(int index)
 {
-    if (index < 0 || index >= static_cast<int>(mStore.mProfiles.size()))
+    const std::vector<std::string> names = MO::profilesOfGame(mStore, currentGame());
+    if (index < 0 || index >= static_cast<int>(names.size()))
         return;
-    mStore.mActive = mStore.mProfiles[static_cast<std::size_t>(index)].mName;
+    mStore.mActive = names[static_cast<std::size_t>(index)];
     changed();
     startPluginReport();
 }
@@ -727,11 +731,15 @@ void Launcher::ModsPage::newProfile()
     QString name;
     if (!askName(tr("New profile"), tr("Name of the new, empty profile:"), name))
         return;
+    const std::string game = MO::profileGameId(currentGame());
     if (!MO::createProfile(mStore, s(name)))
     {
         QMessageBox::warning(this, tr("New profile"), tr("A profile with this name exists already."));
         return;
     }
+    // A new profile is for the game in use (task 0173)
+    if (MO::Profile* created = mStore.findProfile(s(name)))
+        created->mGame = game;
     mStore.mActive = s(name);
     changed();
     startPluginReport();
@@ -1226,4 +1234,117 @@ void Launcher::ModsPage::applyProfile()
         refreshApplyState();
         emit profileApplied();
     }
+}
+
+// ---- the game (task 0173)
+// -----------------------------------------------------------------------------------------------------------
+
+std::string Launcher::ModsPage::currentGame() const
+{
+    const MO::Profile* profile = mStore.active();
+    return profile == nullptr || profile->mGame.empty() ? std::string("morrowind") : profile->mGame;
+}
+
+void Launcher::ModsPage::chooseGame(const std::string& gameId, const QString& gameName)
+{
+    const std::string game = MO::profileGameId(gameId);
+    if (MO::profileGameId(currentGame()) == game)
+    {
+        emit gameChosen(q(gameId));
+        return;
+    }
+    // Put back when openmw.cfg is not rewritten (finishGameChoice), so that the page and the file agree
+    mGameChoicePrevious = mStore.mActive;
+    mGameChoicePreviousLast = mStore.mLastProfileOfGame;
+    if (MO::selectGame(mStore, game))
+    {
+        finishGameChoice(gameId);
+        return;
+    }
+    if (game.empty())
+    {
+        QMessageBox::warning(this, tr("Game"), tr("There is no Morrowind profile. Make one on the Mods page."));
+        emit gameNotChosen();
+        return;
+    }
+
+    // The game's first profile (task 0173, 8.5 question 1): its Data folder, whose plugins this game's headers have
+    const QString folder = QFileDialog::getExistingDirectory(this, tr("Data folder of %1").arg(gameName));
+    if (folder.isEmpty())
+    {
+        emit gameNotChosen();
+        return;
+    }
+    setBusy(true, tr("Reading the plugins of %1...").arg(gameName));
+    const std::filesystem::path path = Files::pathFromQString(folder);
+    const Content::GameGuess expected = MO::expectedHeaderGame(gameId);
+    startBackgroundJob(
+        this, mThreads,
+        [path, expected]() {
+            std::vector<std::string> problems;
+            std::vector<MO::GamePlugin> plugins = MO::scanGamePlugins(path, expected, problems);
+            std::vector<std::string> archives = MO::listArchives(path);
+            return std::make_tuple(std::move(plugins), std::move(archives), std::move(problems));
+        },
+        [this, gameId, game, gameName, folder](
+            std::tuple<std::vector<MO::GamePlugin>, std::vector<std::string>, std::vector<std::string>> found) {
+            setBusy(false);
+            const auto& [plugins, archives, problems] = found;
+            if (plugins.empty())
+            {
+                QString text = tr("No plugin of %1 was found in %2.").arg(gameName, folder);
+                if (!problems.empty())
+                    text += QLatin1Char('\n') + q(problems.front());
+                QMessageBox::warning(this, tr("Game"), text);
+                emit gameNotChosen();
+                return;
+            }
+            // A profile name is a file name shared by every game: the game's name, or its id, then a number
+            const std::string base
+                = MO::isValidProfileName(s(gameName)) && s(gameName).size() <= 56 ? s(gameName) : game;
+            std::string name = base;
+            for (int n = 2; mStore.findProfile(name) != nullptr && n < 1000; ++n)
+                name = base + " " + std::to_string(n);
+            MO::ImportResult first = MO::buildFirstGameProfile(
+                gameId, Files::pathToUnicodeString(Files::pathFromQString(folder)), plugins, archives, name);
+            if (!MO::createProfile(mStore, name))
+            {
+                QMessageBox::warning(this, tr("Game"), tr("A profile named \"%1\" cannot be made.").arg(q(name)));
+                emit gameNotChosen();
+                return;
+            }
+            *mStore.findProfile(name) = first.mProfile;
+            mStore.mGameBaseData[game] = first.mBaseData;
+            mStore.mLastProfileOfGame[game] = name;
+            if (!MO::selectGame(mStore, game))
+            {
+                emit gameNotChosen();
+                return;
+            }
+            finishGameChoice(gameId);
+        });
+}
+
+void Launcher::ModsPage::finishGameChoice(const std::string& gameId)
+{
+    saveNow();
+    refreshAll();
+    startPluginReport();
+    // The file holds the previous profile's lines: when they are what that profile's last apply wrote, replacing them
+    // with the new game's is no hand edit (review finding 1), so no question is asked
+    const std::filesystem::path cfg = mCfgMgr.getUserConfigPath() / Files::openmwCfgFile;
+    if (!doApply(MO::configMatchesLastApply(mPaths, mGameChoicePrevious, cfg)))
+    {
+        // Refused (a hand edit the player kept, the game running, a write error): the previous profile stays active
+        if (mStore.findProfile(mGameChoicePrevious) != nullptr)
+            mStore.mActive = mGameChoicePrevious;
+        mStore.mLastProfileOfGame = mGameChoicePreviousLast;
+        saveNow();
+        refreshAll();
+        startPluginReport();
+        emit gameNotChosen();
+        return;
+    }
+    emit profileApplied();
+    emit gameChosen(q(gameId));
 }

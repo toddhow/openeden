@@ -4,6 +4,8 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/extension/testeditorextensionhost.cpp
     model/extension/testeditorextensionhostphysics.cpp
     model/extension/testeditormodulesources.cpp
+    model/extension/testeditorextensionhostgamepack.cpp
+    model/extension/testgamesessionsetup.cpp
     model/module/advancedbodies/testabfill.cpp
     model/module/advancedbodies/testabhostile.cpp
     model/module/advancedbodies/testabmodule.cpp
@@ -66,6 +68,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/mesh/testscenemodel.cpp
     model/mesh/testtexturereport.cpp
     model/mesh/testtexturecolour.cpp
+    model/mesh/testworldaccess.cpp
     model/lod/testtilemodel.cpp
     model/lod/testtilemesh.cpp
     model/lod/testworldgrid.cpp
@@ -79,6 +82,7 @@ file(GLOB OPENCS_TESTS_SRC_FILES
     model/physics/teststudioworldhooks.cpp
     model/prefs/testconfigmigration.cpp
     model/prefs/testcommandline.cpp
+    model/prefs/testcommandlinegame.cpp
     model/prefs/testquietwindow.cpp
     model/prefs/testlayoutstore.cpp
     model/world/testinfocollection.cpp
@@ -102,6 +106,12 @@ openmw_add_executable(eden-studio-tests ${OPENCS_TESTS_SRC_FILES})
 add_dependencies(eden-studio-tests sample_editor_module creativemotion_editor advancedbodies_editor)
 target_sources(eden-studio-tests PRIVATE $<TARGET_OBJECTS:creativemotion_editor_objects>)
 target_link_libraries(eden-studio-tests PRIVATE opas::rig)
+# Task 0173: Eden Studio no longer links the Skyrim pack's code (the cell viewer reads the store of the game pack the
+# editor host starts). The old process-wide cell source stays for the gated real-data test of the neutral store
+# (model/mesh/testcellsceneneutralreal.cpp, which reads OPENEDEN_SKYRIMSE_PLUGINS) and the pack's types for
+# testcellsceneneutral.cpp: both are test-only now.
+target_sources(eden-studio-tests PRIVATE ${CMAKE_SOURCE_DIR}/apps/opencs/model/mesh/skyrimcellsource.cpp)
+target_link_libraries(eden-studio-tests PRIVATE game_skyrimse_world)
 target_compile_definitions(eden-studio-tests PRIVATE
     "CREATIVEMOTION_EDITOR_PATH=\"$<TARGET_FILE:creativemotion_editor>\"")
 # AdvancedBodies' editor module (task 0069 stage f): its sources without the entry point, and the built library.
@@ -143,6 +153,27 @@ foreach(old_api 1_0 1_1 1_2 1_3)
     target_compile_definitions(eden-studio-tests PRIVATE
         "OLD_API_${old_api_upper}_MODULE_PATH=\"$<TARGET_FILE:${old_target}>\"")
 endforeach()
+
+# A game pack as a shared library for the host tests of the game pack choice (task 0173, stage c). It registers a content
+# loader and a small world source and lists the content it was given in its one cell. Laid out like the one in
+# openmw-tests (apps/openmw_tests/CMakeLists.txt); the tests copy the library into a game_packs folder of their own.
+include(${CMAKE_SOURCE_DIR}/cmake/OpenEdenGamePack.cmake)
+openeden_add_game_pack(eden_studio_test_game_pack
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/model/extension/testgamepack/testgamepack.cpp NO_INSTALL)
+set_target_properties(eden_studio_test_game_pack PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>")
+foreach(EDEN_STUDIO_TEST_CONFIG ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${EDEN_STUDIO_TEST_CONFIG} EDEN_STUDIO_TEST_CONFIG)
+    set_target_properties(eden_studio_test_game_pack PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_${EDEN_STUDIO_TEST_CONFIG} "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>"
+        LIBRARY_OUTPUT_DIRECTORY_${EDEN_STUDIO_TEST_CONFIG} "${CMAKE_BINARY_DIR}/test_extensions/$<CONFIG>")
+endforeach()
+target_compile_definitions(eden_studio_test_game_pack PRIVATE OPENEDEN_TEST_GAME_PACK_ID="eden_studio_test_game_pack")
+add_dependencies(eden-studio-tests eden_studio_test_game_pack)
+target_compile_definitions(eden-studio-tests PRIVATE
+    EDEN_STUDIO_TEST_GAME_PACK_ID="eden_studio_test_game_pack"
+    "EDEN_STUDIO_TEST_GAME_PACK_PATH=\"$<TARGET_FILE:eden_studio_test_game_pack>\"")
 
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GTEST_INCLUDE_DIRS})
 target_include_directories(eden-studio-tests SYSTEM PRIVATE ${GMOCK_INCLUDE_DIRS})

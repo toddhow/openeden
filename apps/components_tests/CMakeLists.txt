@@ -226,6 +226,10 @@ file(GLOB UNITTEST_SRC_FILES
     modorganizer/testmasters.cpp
     modorganizer/testrepack.cpp
     modorganizer/testprofilestore.cpp
+    modorganizer/testgames.cpp
+    modorganizer/testgamesreview.cpp
+    # Task 0173: the game pack rules both hosts share.
+    gamesession/testgamesession.cpp
     worldlod/testbakestatus.cpp
     worldlod/testlodsettings.cpp
 

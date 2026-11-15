@@ -256,7 +256,7 @@ namespace ModOrganizer
     std::optional<Profile> readProfile(std::string_view text, std::string_view fileName, LoadError& error)
     {
         return readFile(text, fileName, sProfileFormat,
-            { "format", "version", "name", "mods", "plugins", "archives", "groundcover", "extensions" }, error,
+            { "format", "version", "name", "mods", "plugins", "archives", "groundcover", "extensions", "game" }, error,
             [](const Json::ObjectView& view) -> std::optional<Profile> {
                 Profile profile;
                 profile.mName = view.str("name", 64);
@@ -296,6 +296,10 @@ namespace ModOrganizer
                 profile.mArchives = readStringArray(view, "archives");
                 profile.mGroundcover = readStringArray(view, "groundcover");
                 profile.mExtensions = readStringArray(view, "extensions");
+                // Task 0173: the game pack the profile is for; absent is Morrowind
+                profile.mGame = view.str("game", 64, false);
+                if (!profile.mGame.empty() && !isValidModId(profile.mGame))
+                    throw Json::FormatError{ view.pointer("game"), "not a valid game pack id" };
                 return profile;
             });
     }
@@ -312,6 +316,9 @@ namespace ModOrganizer
             { "mods", std::move(mods) }, { "plugins", std::move(plugins) },
             { "archives", stringArray(profile.mArchives) }, { "groundcover", stringArray(profile.mGroundcover) },
             { "extensions", stringArray(profile.mExtensions) } };
+        // Task 0173: written only for a game other than Morrowind, so a Morrowind profile's file is as before
+        if (!profile.mGame.empty())
+            root["game"] = profile.mGame;
         return Json::canonicalText(root);
     }
 }

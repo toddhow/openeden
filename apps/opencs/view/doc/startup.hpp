@@ -26,10 +26,22 @@ namespace CSVDoc
 
         QWidget* createTools();
 
+        QPushButton* mLoadDocument = nullptr;
+        QPushButton* mCreateAddon = nullptr;
+        QPushButton* mCreateGame = nullptr;
+        QPushButton* mBrowseWorld = nullptr;
+
     public:
         StartupDialogue();
 
+        /// The session's game pack is not Morrowind (task 0173): the three content file buttons are disabled, since
+        /// the editor edits only Morrowind records, and "Browse the world" opens a cell of the pack's world when it
+        /// registered one. Never called for Morrowind, so the dialogue is as before.
+        void setGamePack(const QString& name, bool worldAvailable);
+
     signals:
+
+        void browseWorld();
 
         void createGame();
 

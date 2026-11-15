@@ -597,6 +597,34 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
         <source>&lt;br&gt;&lt;b&gt;Could not create directory %0&lt;/b&gt;&lt;br&gt;&lt;br&gt;%1&lt;br&gt;</source>
         <translation>&lt;br&gt;&lt;b&gt;Kunde inte skapa katalog %0&lt;/b&gt;&lt;br&gt;&lt;br&gt;%1&lt;br&gt;</translation>
     </message>
+    <message>
+        <source>Launch Eden Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The game the launched programs run: selecting one applies its profile to openmw.cfg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Game:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (not installed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenMW Launcher</source>
+        <translation type="unfinished">OpenMW Startare</translation>
+    </message>
+    <message>
+        <source>OpenMW Launcher - %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>Launcher::ModsPage</name>
@@ -1124,6 +1152,26 @@ Apply anyway?</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Game</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is no Morrowind profile. Make one on the Mods page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data folder of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading the plugins of %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No plugin of %1 was found in %2.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

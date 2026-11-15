@@ -31,11 +31,15 @@
 #include <components/files/collections.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/qtconversion.hpp>
+#include <components/gamesession/gamesession.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "model/doc/document.hpp"
 #include "model/doc/documentmanager.hpp"
+#include "model/extension/editorextensionhost.hpp"
+#include "model/extension/gamesessionsetup.hpp"
+#include "model/mesh/worldaccess.hpp"
 #include "model/prefs/state.hpp"
 #include "model/world/data.hpp"
 #include "model/world/idcollection.hpp"
@@ -431,6 +435,13 @@ int CS::runCapture(int argc, char** argv)
             ->multitoken()
             ->composing());
     addOption("encoding", bpo::value<std::string>()->default_value("win1252"));
+    // Task 0173: the session's game pack (game= in the config, written by the launcher), as the editor's
+    addOption("game", bpo::value<std::string>()->default_value(""));
+    addOption("extension",
+        bpo::value<std::vector<std::string>>()
+            ->default_value(std::vector<std::string>(), "")
+            ->multitoken()
+            ->composing());
     addOption("fallback-archive",
         bpo::value<std::vector<std::string>>()
             ->default_value(std::vector<std::string>(), "fallback-archive")
@@ -494,15 +505,58 @@ int CS::runCapture(int argc, char** argv)
     dataDirs.insert(dataDirs.begin(), resources / "vfs");
 
     const auto content = variables["content"].as<std::vector<std::string>>();
-    if (content.empty())
+
+    // Task 0173: a game pack other than Morrowind is started as the editor starts it, and its content goes to the
+    // pack; the document is then a new, empty game (the documents are Morrowind's), which is never saved.
+    const std::string gamePack = variables["game"].as<std::string>();
+    const bool startsGamePack = !gamePack.empty() && gamePack != GameSession::sMorrowindId;
+    // Declared in this order so that the host goes first, then the VFS it was given
+    CSMExtension::GameSessionSetup sessionSetup;
+    std::unique_ptr<CSMExtension::EditorExtensionHost> gameHost;
+    // Declared after the host: the viewer's world is forgotten before the host and its store go, on every return
+    struct ActiveWorldGuard
     {
-        Log(Debug::Error) << "The configuration has no content files to open";
-        return 1;
-    }
-    const Files::Collections collections(dataDirs);
+        ~ActiveWorldGuard() { CSMMesh::setActiveWorld({}); }
+    } activeWorldGuard;
     std::vector<std::filesystem::path> files;
-    for (const std::string& name : content)
-        files.push_back(collections.getPath(name));
+    bool newDocument = false;
+    if (startsGamePack)
+    {
+        CSMExtension::EditorExtensionHost::Config hostConfig;
+        hostConfig.mSearchDirs = GameSession::searchDirectories(cfgMgr.getLocalPath(), cfgMgr.getUserDataPath(), true);
+        for (const std::string& id : variables["extension"].as<std::vector<std::string>>())
+            if (!id.empty())
+                hostConfig.mEnabled.push_back(id);
+        hostConfig.mGamePackId = gamePack;
+        gameHost = std::make_unique<CSMExtension::EditorExtensionHost>(hostConfig);
+        sessionSetup.prepare(*gameHost, dataDirs, variables["fallback-archive"].as<std::vector<std::string>>(), content,
+            ToUTF8::calculateEncoding(variables["encoding"].as<std::string>()));
+        for (const std::string& problem : sessionSetup.problems())
+            Log(Debug::Warning) << "Content file not given to the game pack: " << problem;
+        gameHost->start();
+        Log(Debug::Info) << "Extensions: " << gameHost->summary();
+        if (gameHost->gamePackState() != CSMExtension::EditorExtensionHost::GamePackState::Active)
+        {
+            Log(Debug::Error) << "Game pack '" << gamePack << "' is not available: " << gameHost->gamePackFailure();
+            return 1;
+        }
+        CSMMesh::setActiveWorld(CSMMesh::worldFromStore(gameHost->neutralWorldStore(), gameHost->gamePackName()));
+        Log(Debug::Info) << "Game pack: " << gameHost->gamePackName() << " (" << gamePack << "), world source "
+                         << (CSMMesh::hasActiveWorld() ? CSMMesh::activeWorld().mGameId : std::string("none"));
+        files.push_back(cfgMgr.getUserDataPath() / "eden-studio-capture.omwgame");
+        newDocument = true;
+    }
+    else
+    {
+        if (content.empty())
+        {
+            Log(Debug::Error) << "The configuration has no content files to open";
+            return 1;
+        }
+        const Files::Collections collections(dataDirs);
+        for (const std::string& name : content)
+            files.push_back(collections.getPath(name));
+    }
 
     CSMPrefs::State settings(cfgMgr);
     CSMDoc::DocumentManager documents(cfgMgr);
@@ -850,7 +904,7 @@ int CS::runCapture(int argc, char** argv)
             });
         });
 
-    documents.addDocument(files, files.back(), false);
+    documents.addDocument(files, files.back(), newDocument);
 
     const int code = QApplication::exec();
     frame.reset();

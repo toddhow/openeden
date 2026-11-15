@@ -52,6 +52,10 @@ namespace CSMPrefs
                 ->multitoken()
                 ->composing(),
             "OpenEden extension ID(s) to enable (extension= lines in openmw.cfg)");
+        // Task 0173: the session's game pack, as the game's (apps/openmw/options.cpp). The launcher writes it into
+        // openmw.cfg when a game is selected; empty is Morrowind.
+        addOption("game", bpo::value<std::string>()->default_value(""),
+            "ID of the OpenEden game pack of this session (a pack of kind \"game\"); empty is Morrowind");
         addOption("fallback-archive",
             bpo::value<std::vector<std::string>>()
                 ->default_value(std::vector<std::string>(), "fallback-archive")

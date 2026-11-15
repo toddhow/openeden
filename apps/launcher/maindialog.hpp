@@ -2,6 +2,13 @@
 #define MAINDIALOG_H
 
 #ifndef Q_MOC_RUN
+#include <components/modorganizer/games.hpp>
+
+#include <QComboBox>
+
+#include <string>
+#include <vector>
+
 #include <components/process/processinvoker.hpp>
 
 #include <components/config/gamesettings.hpp>
@@ -48,6 +55,10 @@ namespace Launcher
 
     public:
         explicit MainDialog(const Files::ConfigurationManager& configurationManager, QWidget* parent = nullptr);
+
+        /// Task 0173: the launcher's own command line; --config, --replace, --user-data and --resources are handed
+        /// to the programs it starts (ModOrganizer::forwardedConfigArguments).
+        void setCommandLine(std::vector<std::string> arguments) { mCommandLine = std::move(arguments); }
         ~MainDialog() override;
 
         FirstRunDialogResult showFirstRunDialog();
@@ -68,6 +79,8 @@ namespace Launcher
         void enableWorldLodPage();
         void play();
         void help();
+        void startEditor();
+        void onGameSelected(int index);
 
     protected:
         bool event(QEvent* event) override;
@@ -109,12 +122,20 @@ namespace Launcher
         WorldLodPage* mWorldLodPage;
 
         Process::ProcessInvoker* mGameInvoker;
+        Process::ProcessInvoker* mEditorInvoker;
+        /// Task 0173: the game the launcher's programs run (it writes game= with the game's profile)
+        QComboBox* mGameBox = nullptr;
+        std::vector<ModOrganizer::GameEntry> mGames;
+        void refreshGames();
+        void selectGameInBox(const QString& gameId);
+        bool startForwarded(Process::ProcessInvoker* invoker, const QString& name);
         Process::ProcessInvoker* mWizardInvoker;
 
         const Files::ConfigurationManager& mCfgMgr;
 
         Config::GameSettings mGameSettings;
         Config::LauncherSettings mLauncherSettings;
+        std::vector<std::string> mCommandLine;
     };
 }
 #endif

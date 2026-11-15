@@ -8,12 +8,12 @@
 #include <string_view>
 #include <system_error>
 
-#include <components/contentsource/sessiontag.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/extension/dependency_resolver.hpp>
 #include <components/extension/game_conventions.hpp>
 #include <components/extension/session_content.hpp>
+#include <components/gamesession/gamesession.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/gameconventions.hpp>
 #include <components/settings/values.hpp>
@@ -127,25 +127,6 @@ namespace OMW
         }
     };
 
-    /// The engine's side of the world source service: sources go into the neutral world store and leave it when the
-    /// pack withdraws them (by game id; the source object may be gone).
-    struct ExtensionHost::StoreListener final : openeden::extension::WorldSourceServiceImpl::Listener
-    {
-        explicit StoreListener(NeutralWorld::NeutralWorldStore& store)
-            : mStore(store)
-        {
-        }
-
-        bool sourceRegistered(openeden::sdk::game::WorldCellSource& source, std::string& error) override
-        {
-            return mStore.addSource(source, error);
-        }
-
-        void sourceWithdrawn(std::string_view gameId) override { mStore.removeSource(gameId); }
-
-        NeutralWorld::NeutralWorldStore& mStore;
-    };
-
     ExtensionHost::ExtensionHost(const Config& config)
         : mLifecycle(mHost)
     {
@@ -158,7 +139,7 @@ namespace OMW
         if (config.neutralWorld)
         {
             mNeutralWorldStore = std::make_unique<NeutralWorld::NeutralWorldStore>();
-            mStoreListener = std::make_unique<StoreListener>(*mNeutralWorldStore);
+            mStoreListener = std::make_unique<GameSession::StoreListener>(*mNeutralWorldStore);
             mHost.worldSources().setListener(mStoreListener.get());
             mHost.worldSources().setConsumerEnabled(true);
         }
@@ -167,10 +148,9 @@ namespace OMW
         const std::vector<extension::DiscoveredExtension> discovered
             = extension::discoverExtensionDirectories(config.searchDirs, &errors);
 
-        const auto isEnabled = [&](const std::string& id) {
-            return id == config.gamePackId
-                || std::find(config.enabled.begin(), config.enabled.end(), id) != config.enabled.end();
-        };
+        // The session's rules are shared with Eden Studio (task 0173, stage b): components/gamesession
+        const GameSession::Rules rules{ config.enabled, config.gamePackId };
+        const auto isEnabled = [&](const std::string& id) { return GameSession::isEnabled(rules, id); };
 
         // A broken manifest has no reliable ID to check against the enable list, so it is always reported
         for (const extension::ExtensionLoadError& error : errors)
@@ -186,29 +166,30 @@ namespace OMW
         std::map<std::string, std::filesystem::path> loadedData;
 
         std::set<std::string> seen;
-        for (const extension::DiscoveredExtension& item : discovered)
+        const std::vector<GameSession::ItemVerdict> verdicts = GameSession::classify(discovered, rules);
+        for (std::size_t index = 0; index < discovered.size(); ++index)
         {
+            const extension::DiscoveredExtension& item = discovered[index];
             const std::string& id = item.manifest.id;
-            if (!seen.insert(id).second)
+            seen.insert(id);
+            const GameSession::ItemVerdict& verdict = verdicts[index];
+            if (verdict.mVerdict == GameSession::Verdict::Duplicate)
             {
                 Log(Debug::Warning) << "Extension '" << id << "' in " << item.directory
                                     << " ignored: found earlier in another extension directory";
                 continue;
             }
-            if (!isEnabled(id))
+            if (verdict.mVerdict == GameSession::Verdict::NotEnabled)
             {
                 Log(Debug::Info) << "Extension '" << id << "' is installed but not enabled";
                 continue;
             }
 
             // One game pack per session, chosen by game= (task 0084)
-            if (item.manifest.kind == openeden::sdk::kKindGame && id != config.gamePackId)
+            if (verdict.mVerdict == GameSession::Verdict::RefusedGamePack)
             {
-                const std::string reason = config.gamePackId.empty()
-                    ? "no game= line chooses a game pack"
-                    : "this session's game pack is '" + config.gamePackId + "'";
-                Log(Debug::Error) << "Game pack '" << id << "' not loaded: " << reason;
-                mLoadFailures.push_back(id + ": game pack not loaded, " + reason);
+                Log(Debug::Error) << "Game pack '" << id << "' not loaded: " << verdict.mReason;
+                mLoadFailures.push_back(id + ": game pack not loaded, " + verdict.mReason);
                 continue;
             }
 
@@ -504,20 +485,8 @@ namespace OMW
         // Off means unchanged: with [Game] neutral world off nothing reads the list, so no file is opened.
         if (mNeutralWorldStore == nullptr)
             return;
-        openeden::extension::SessionContentCollection collected = openeden::extension::collectSessionContent(
-            contentFiles,
-            [&collections](const std::string& name) -> std::optional<std::filesystem::path> {
-                if (!collections.doesExist(name))
-                    return std::nullopt;
-                return collections.getPath(name);
-            },
-            [](const std::filesystem::path& path,
-                std::string& error) -> std::optional<openeden::extension::SessionContentHeader> {
-                const std::optional<Content::SessionTag> tag = Content::readSessionTag(path, error);
-                if (!tag.has_value())
-                    return std::nullopt;
-                return openeden::extension::SessionContentHeader{ tag->mTag, tag->mFormatVersion };
-            });
+        openeden::extension::SessionContentCollection collected
+            = GameSession::collectContent(contentFiles, collections);
         for (const std::string& name : collected.missing)
             Log(Debug::Warning) << "Content file " << name
                                 << " is not in any data folder; the game pack is not given it";

@@ -1,5 +1,7 @@
 #include "view.hpp"
 
+#include <apps/opencs/model/mesh/worldaccess.hpp>
+
 #include "../module/moduleui.hpp"
 #include "../render/physicshub.hpp"
 #include <apps/opencs/model/module/moduleregistry.hpp>
@@ -128,7 +130,11 @@ void CSVDoc::View::setupFileMenu()
     connect(openMesh, &QAction::triggered, this, &View::openMeshFile);
 
     // The read-only Skyrim SE cell viewer (task 0086, world model option 1).
-    QAction* openSkyrimCell = file->addAction(tr("Open Skyrim Cell..."));
+    // Task 0173: the cell of the session's game pack's world (CSMMesh::activeWorld); disabled without one
+    QAction* openSkyrimCell = file->addAction(CSMMesh::activeWorld().mGameName.empty()
+            ? tr("Open World Cell...")
+            : tr("Open Cell of %1...").arg(QString::fromStdString(CSMMesh::activeWorld().mGameName)));
+    openSkyrimCell->setEnabled(CSMMesh::hasActiveWorld());
     openSkyrimCell->setObjectName("document-file-openskyrimcell");
     connect(openSkyrimCell, &QAction::triggered, this, &View::openSkyrimCell);
 
@@ -1180,9 +1186,9 @@ void CSVDoc::View::openMeshFile()
 void CSVDoc::View::openSkyrimCell()
 {
     bool accepted = false;
-    const QString editorId = QInputDialog::getText(this, tr("Open Skyrim Cell"),
-        tr("Editor id of the cell (the load order is read from OPENEDEN_SKYRIMSE_PLUGINS):"), QLineEdit::Normal,
-        QString(), &accepted);
+    const QString editorId = QInputDialog::getText(this, tr("Open World Cell"),
+        tr("Editor id of the cell, or @<world>,<x>,<y>[,<radius>] for exterior squares:"), QLineEdit::Normal, QString(),
+        &accepted);
     if (!accepted || editorId.trimmed().isEmpty())
         return;
     addSubView(

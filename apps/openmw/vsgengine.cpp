@@ -19,6 +19,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/files/conversion.hpp>
+#include <components/gamesession/gamesession.hpp>
 #include <components/misc/loadtrace.hpp>
 #include <components/misc/quietwindow.hpp>
 #include <components/render/attachmentformat.hpp>
@@ -402,9 +403,8 @@ namespace OMW
 
         Settings::ShaderManager::get().load(mCfgMgr.getUserConfigPath() / "shaders.yaml");
         mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
-            { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions",
-                mCfgMgr.getLocalPath() / "game_packs", mCfgMgr.getUserDataPath() / "game_packs" },
-            args.extensions, args.gamePack, args.builtInGamePacks, Settings::game().mNeutralWorld.get() });
+            GameSession::searchDirectories(mCfgMgr.getLocalPath(), mCfgMgr.getUserDataPath(), true), args.extensions,
+            args.gamePack, args.builtInGamePacks, Settings::game().mNeutralWorld.get() });
         mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();

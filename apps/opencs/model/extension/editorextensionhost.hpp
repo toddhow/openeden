@@ -10,6 +10,7 @@
 #include <components/extension/host_impl.hpp>
 #include <components/extension/lifecycle_manager.hpp>
 #include <components/extension/manifest.hpp>
+#include <components/extension/session_content.hpp>
 
 #include "../module/modulehost.hpp"
 #include <openeden/physics.hpp>
@@ -17,6 +18,21 @@
 namespace JPH
 {
     class PhysicsSystem;
+}
+
+namespace NeutralWorld
+{
+    class NeutralWorldStore;
+}
+
+namespace VFS
+{
+    class Manager;
+}
+
+namespace GameSession
+{
+    class StoreListener;
 }
 
 namespace CSMExtension
@@ -40,6 +56,8 @@ namespace CSMExtension
         std::string mMessage; ///< Why, for Failed; empty otherwise.
         /// The manifest's "editor" entry (task 0031), if it has one. Not used by the game.
         std::optional<openeden::extension::EditorEntry> mEditor;
+        /// The session's game pack (task 0173): the pack Config::mGamePackId chose, listed first.
+        bool mGamePack = false;
     };
 
     /// Eden Studio's extension host (task 0024, stage D; decision 0007, Phase 1): it loads the enabled extensions the
@@ -62,6 +80,21 @@ namespace CSMExtension
             std::vector<std::filesystem::path> mSearchDirs;
             /// Extension IDs to load. Empty means none.
             std::vector<std::string> mEnabled;
+            /// The session's game pack (game= or --game, task 0173). Loaded without an extension= line; any other
+            /// pack of kind "game" is refused (GameSession::classify, as in the game). Empty, or an id in
+            /// mBuiltInGamePacks, loads and starts no game pack: the editor works as before.
+            std::string mGamePackId = {};
+            /// Game pack ids the editor has built in and does not start (it works on Morrowind's structs directly).
+            std::vector<std::string> mBuiltInGamePacks = { "morrowind" };
+        };
+
+        enum class GamePackState
+        {
+            None, ///< No game pack chosen.
+            BuiltIn, ///< A built-in one (Morrowind): nothing loaded or started.
+            Loaded, ///< Loaded, start() not run yet.
+            Active, ///< Started; its world source, if it has one, is in neutralWorldStore().
+            Failed, ///< Not installed, refused, or failed to load or start: gamePackFailure() says why.
         };
 
         /// Finds extensions and loads the enabled ones' libraries (the handshake only). Never throws for a bad
@@ -106,12 +139,36 @@ namespace CSMExtension
         /// "2 of 3 extensions active" and the like, for the menu and the status line.
         std::string summary() const;
 
+        /// The chosen game pack id (Config::mGamePackId), empty for none.
+        const std::string& gamePackId() const { return mGamePackId; }
+        /// The manifest name of the chosen game pack once it is found ("Morrowind" for the built-in one), else its id.
+        std::string gamePackName() const;
+        GamePackState gamePackState() const;
+        /// Why the game pack failed, "<id>: <reason>" as the game reports it; empty unless gamePackState() is Failed.
+        std::string gamePackFailure() const;
+
+        /// Hands a loaded game pack the session's content files (GameSession::collectContent of the content= list)
+        /// and the VFS its reads go through (string tables). Only the files the pack's content loaders accept reach
+        /// it. Call it before start(), with a VFS that outlives the host. Does nothing unless a game pack was loaded.
+        void setSessionContent(std::vector<openeden::extension::SessionContentEntry> entries, const VFS::Manager* vfs);
+
+        /// The neutral world store the game pack registers its world source into (decision 0016). Exists only when a
+        /// game pack that is not built in was loaded; null otherwise.
+        NeutralWorld::NeutralWorldStore* neutralWorldStore();
+
     private:
+        // Declared before the host so that they outlive it: the host's world source service points at the listener,
+        // and the pack withdraws its source from the store while the lifecycle shuts down.
+        std::unique_ptr<NeutralWorld::NeutralWorldStore> mNeutralWorldStore;
+        std::unique_ptr<GameSession::StoreListener> mStoreListener;
         openeden::extension::HostImpl mHost;
         openeden::extension::LifecycleManager mLifecycle;
         std::vector<ExtensionInfo> mInfos;
         bool mAnyLoaded = false;
         bool mRunning = false;
+        std::string mGamePackId;
+        bool mGamePackBuiltIn = false;
+        bool mGamePackLoaded = false;
     };
 }
 

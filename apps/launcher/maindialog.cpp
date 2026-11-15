@@ -1,5 +1,13 @@
 #include "maindialog.hpp"
 
+#include <QLabel>
+
+#include <QSignalBlocker>
+
+#include <components/extension/extension_loader.hpp>
+
+#include <components/gamesession/gamesession.hpp>
+
 #include <QCloseEvent>
 #include <QDir>
 #include <QMessageBox>
@@ -50,6 +58,7 @@ Launcher::MainDialog::MainDialog(const Files::ConfigurationManager& configuratio
     setupUi(this);
 
     mGameInvoker = new ProcessInvoker();
+    mEditorInvoker = new ProcessInvoker();
     mWizardInvoker = new ProcessInvoker();
 
     connect(mWizardInvoker->getProcess(), &QProcess::started, this, &MainDialog::wizardStarted);
@@ -59,6 +68,13 @@ Launcher::MainDialog::MainDialog(const Files::ConfigurationManager& configuratio
 
     buttonBox->button(QDialogButtonBox::Close)->setText(tr("Close"));
     buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Launch OpenMW"));
+    // Task 0173: every program is opened from the launcher, with the game selected here
+    QPushButton* editorButton = buttonBox->addButton(tr("Launch Eden Studio"), QDialogButtonBox::ActionRole);
+    connect(editorButton, &QPushButton::clicked, this, &MainDialog::startEditor);
+    mGameBox = new QComboBox(this);
+    mGameBox->setToolTip(tr("The game the launched programs run: selecting one applies its profile to openmw.cfg"));
+    horizontalLayout->insertWidget(1, new QLabel(tr("Game:"), this));
+    horizontalLayout->insertWidget(2, mGameBox);
     buttonBox->button(QDialogButtonBox::Help)->setText(tr("Help"));
 
     buttonBox->button(QDialogButtonBox::Ok)->setMinimumWidth(160);
@@ -145,6 +161,14 @@ void Launcher::MainDialog::createPages()
     // same lines. Not reloadSettings(): that also reloads settings.cfg and would drop unsaved Graphics, Settings and
     // World LOD changes.
     connect(mModsPage, &ModsPage::profileApplied, this, [this] { reloadGameSettings(); });
+    connect(mModsPage, &ModsPage::gameChosen, this, [this](const QString& id) {
+        mGameBox->setEnabled(true);
+        selectGameInBox(id);
+    });
+    connect(mModsPage, &ModsPage::gameNotChosen, this, [this] {
+        mGameBox->setEnabled(true);
+        selectGameInBox(QString::fromStdString(mModsPage->currentGame()));
+    });
     // A bake reads settings.cfg and openmw.cfg from disk: write what the pages hold first
     connect(mWorldLodPage, &WorldLodPage::settingsNeedSaving, this, [this] { writeSettings(); });
 
@@ -258,6 +282,10 @@ bool Launcher::MainDialog::setup()
 
     loadSettings();
 
+    // Task 0173: the Game selector shows the active profile's game (the store is read; nothing is written)
+    mModsPage->loadSettings();
+    refreshGames();
+
     return true;
 }
 
@@ -299,6 +327,7 @@ bool Launcher::MainDialog::reloadSettings()
 
     mExtensionsPage->loadSettings();
     mModsPage->loadSettings();
+    refreshGames();
     mWorldLodPage->loadSettings();
 
     if (!mSettingsPage->loadSettings())
@@ -683,10 +712,78 @@ void Launcher::MainDialog::play()
         return;
     }
 
-    // Launch the game detached
+    // Launch the game detached, with the launcher's own --config and the like (task 0173)
 
-    if (mGameInvoker->startProcess(QLatin1String("openmw"), true))
+    if (startForwarded(mGameInvoker, QLatin1String("openmw")))
         return qApp->quit();
+}
+
+bool Launcher::MainDialog::startForwarded(Process::ProcessInvoker* invoker, const QString& name)
+{
+    QStringList arguments;
+    for (const std::string& argument : ModOrganizer::forwardedConfigArguments(mCommandLine))
+        arguments << QString::fromStdString(argument);
+    return invoker->startProcess(name, arguments, true);
+}
+
+void Launcher::MainDialog::startEditor()
+{
+    // As play(): the settings first, so that Eden Studio reads the profile and the game= line the launcher shows
+    if (!writeSettings())
+        return qApp->quit();
+    if (startForwarded(mEditorInvoker, QLatin1String("eden-studio")))
+        return qApp->quit();
+}
+
+void Launcher::MainDialog::refreshGames()
+{
+    std::vector<openeden::extension::ExtensionManifest> manifests;
+    const std::vector<openeden::extension::DiscoveredExtension> found
+        = openeden::extension::discoverExtensionDirectories(
+            GameSession::searchDirectories(mCfgMgr.getLocalPath(), mCfgMgr.getUserDataPath(), true), nullptr);
+    for (const openeden::extension::DiscoveredExtension& item : found)
+        manifests.push_back(item.manifest);
+    mGames = ModOrganizer::listGames(manifests);
+    const QSignalBlocker blocker(mGameBox);
+    mGameBox->clear();
+    for (const ModOrganizer::GameEntry& game : mGames)
+    {
+        const QString label = game.mVersion.empty()
+            ? QString::fromStdString(game.mName)
+            : tr("%1 %2").arg(QString::fromStdString(game.mName), QString::fromStdString(game.mVersion));
+        mGameBox->addItem(label, QString::fromStdString(game.mId));
+    }
+    selectGameInBox(QString::fromStdString(mModsPage->currentGame()));
+    connect(mGameBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &MainDialog::onGameSelected,
+        Qt::UniqueConnection);
+}
+
+void Launcher::MainDialog::selectGameInBox(const QString& gameId)
+{
+    const QSignalBlocker blocker(mGameBox);
+    const int index = mGameBox->findData(gameId);
+    if (index >= 0)
+        mGameBox->setCurrentIndex(index);
+    else
+    {
+        // A profile's game that is not installed is still shown, so that the box says what openmw.cfg will run
+        mGameBox->addItem(tr("%1 (not installed)").arg(gameId), gameId);
+        mGameBox->setCurrentIndex(mGameBox->count() - 1);
+    }
+    // The wizard installs Morrowind only (task 0173, 8.5 question 4)
+    const bool morrowind = ModOrganizer::isMorrowind(gameId.toStdString());
+    setWindowTitle(morrowind ? tr("OpenMW Launcher") : tr("OpenMW Launcher - %1").arg(mGameBox->currentText()));
+}
+
+void Launcher::MainDialog::onGameSelected(int index)
+{
+    if (index < 0)
+        return;
+    const QString id = mGameBox->itemData(index).toString();
+    // One choice at a time: the first profile of a game is read on a worker thread (gameChosen or gameNotChosen ends
+    // it)
+    mGameBox->setEnabled(false);
+    mModsPage->chooseGame(id.toStdString(), mGameBox->itemText(index));
 }
 
 void Launcher::MainDialog::help()

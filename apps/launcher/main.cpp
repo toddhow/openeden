@@ -20,6 +20,12 @@
 
 #include "maindialog.hpp"
 
+#include <boost/program_options/parsers.hpp>
+
+#include <filesystem>
+#include <string>
+#include <vector>
+
 int runLauncher(int argc, char* argv[])
 {
     Platform::init();
@@ -28,7 +34,17 @@ int runLauncher(int argc, char* argv[])
     boost::program_options::options_description description;
     Files::ConfigurationManager configurationManager;
     configurationManager.addCommonOptions(description);
+    // Task 0173: the launcher opens every program, so --config, --replace, --user-data and --resources given to it
+    // are used by it and handed to what it starts. Without them nothing changes.
+    boost::program_options::store(
+        boost::program_options::command_line_parser(argc, argv).options(description).allow_unregistered().run(),
+        variables);
+    boost::program_options::notify(variables);
+    configurationManager.processPaths(variables, std::filesystem::current_path());
     configurationManager.readConfiguration(variables, description, true);
+    std::vector<std::string> commandLine;
+    for (int i = 1; i < argc; ++i)
+        commandLine.emplace_back(argv[i]);
 
     Debug::setupLogging(configurationManager.getLogPath(), "Launcher");
 
@@ -45,6 +61,7 @@ int runLauncher(int argc, char* argv[])
         L10n::installQtTranslations(app, "launcher", resourcesPath);
 
         Launcher::MainDialog mainWin(configurationManager);
+        mainWin.setCommandLine(commandLine);
 
         Launcher::FirstRunDialogResult result = mainWin.showFirstRunDialog();
         if (result == Launcher::FirstRunDialogResultFailure)

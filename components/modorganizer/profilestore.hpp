@@ -35,6 +35,10 @@ namespace ModOrganizer
         std::filesystem::path activeFile() const;
         std::filesystem::path baseDataFile() const;
         std::filesystem::path appliedFile(const std::string& name) const;
+        /// base-data-<game>.txt: the base data folders of a game other than Morrowind (task 0173).
+        std::filesystem::path gameBaseDataFile(const std::string& gameId) const;
+        /// last-profiles.txt: one "<game id>	<profile name>" line per game, the profile last active for it.
+        std::filesystem::path lastProfilesFile() const;
     };
 
     StorePaths storePaths(const std::filesystem::path& userConfigFolder);
@@ -47,6 +51,12 @@ namespace ModOrganizer
         std::vector<std::string> mBaseData;
         /// Repacks the player made (mod id to shim and pack); filled by the repack runner, empty otherwise.
         std::map<std::string, RepackedMod> mRepacks;
+        /// Task 0173: the base data folders of each game other than Morrowind (mBaseData is Morrowind's). Saved to
+        /// base-data-<game>.txt; nothing is written for a game that has none.
+        std::map<std::string, std::vector<std::string>> mGameBaseData;
+        /// Task 0173: the profile last active for each game ("" is Morrowind). Saved to last-profiles.txt only when
+        /// a game other than Morrowind has an entry, so a Morrowind-only store writes no new file.
+        std::map<std::string, std::string> mLastProfileOfGame;
 
         bool mLibraryReadOnly = false; // mods.json has a newer version
         std::vector<std::string> mReadOnlyProfiles; // names of profile files with a newer version
@@ -76,6 +86,8 @@ namespace ModOrganizer
         std::vector<std::string> mArchives;
         std::vector<std::string> mGroundcover;
         std::vector<std::string> mExtensions;
+        /// Task 0173: the game= line (the last one); empty when there is none.
+        std::string mGame;
         /// False when the installation's own openmw.cfg already names the game data: then every data= line of the
         /// user file is a mod and there is no locked base layer.
         bool mFirstDataIsBase = true;
@@ -200,6 +212,12 @@ namespace ModOrganizer
     /// owned lines differ from the ones this profile's last apply wrote, unless `acceptHandEdits`.
     ApplyOutcome applyActiveProfile(const StorePaths& paths, const Store& store,
         const std::filesystem::path& configFile, const ApplyOptions& options, bool acceptHandEdits);
+
+    /// Task 0173: true when the owned lines of `configFile` are the ones `profileName`'s last apply wrote (its
+    /// applied/<name>.txt), or when the file or that record does not exist. A game switch applies the new game's
+    /// profile over the old one's lines; they are no hand edit when they are what the old profile wrote.
+    bool configMatchesLastApply(
+        const StorePaths& paths, const std::string& profileName, const std::filesystem::path& configFile);
 }
 
 #endif

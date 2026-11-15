@@ -598,6 +598,34 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <source>&lt;br&gt;&lt;b&gt;You do not have a game file selected.&lt;/b&gt;&lt;br&gt;&lt;br&gt;OpenMW will not start without a game file selected.&lt;br&gt;</source>
         <translation>&lt;br&gt;&lt;b&gt;Nie wybrano pliku gry.&lt;/b&gt;&lt;br&gt;&lt;br&gt;OpenMW nie uruchomi się bez wybranego pliku gry.&lt;br&gt;</translation>
     </message>
+    <message>
+        <source>Launch Eden Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The game the launched programs run: selecting one applies its profile to openmw.cfg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Game:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (not installed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenMW Launcher</source>
+        <translation type="unfinished">Program uruchamiający OpenMW</translation>
+    </message>
+    <message>
+        <source>OpenMW Launcher - %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>Launcher::ModsPage</name>
@@ -1130,6 +1158,26 @@ Apply anyway?</source>
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Game</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is no Morrowind profile. Make one on the Mods page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data folder of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading the plugins of %1...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No plugin of %1 was found in %2.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

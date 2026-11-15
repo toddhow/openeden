@@ -28,8 +28,8 @@ namespace CSMPrefs
     };
 
     /// The options the editor accepts: the game's configuration options (data, data-local, content, encoding,
-    /// extension, fallback-archive, fallback and Files::ConfigurationManager::addCommonOptions: config, replace,
-    /// user-data, resources) and help.
+    /// extension, game, fallback-archive, fallback and Files::ConfigurationManager::addCommonOptions: config,
+    /// replace, user-data, resources) and help.
     boost::program_options::options_description makeEditorOptions();
 
     /// Parses the editor's command line against \a description. Unknown options, a second positional argument and a

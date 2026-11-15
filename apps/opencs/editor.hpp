@@ -22,6 +22,7 @@
 
 #include "model/doc/documentmanager.hpp"
 #include "model/extension/editorextensionhost.hpp"
+#include "model/extension/gamesessionsetup.hpp"
 #include "model/module/managersettingsstore.hpp"
 #include "model/module/modulehost.hpp"
 #include "model/module/moduleregistry.hpp"
@@ -79,7 +80,11 @@ namespace CS
         // The modules' simulation sandbox (Editor Module API 1.3, task 0065): a ragdoll and its ground in the world
         // above. Declared after the world so that it is destroyed before it; modules reach it through ModuleUi.
         CSMPhysics::SandboxService mSandbox{ mPhysicsWorld };
+        // What the session's game pack reads (task 0173): its VFS. Declared before the host, so that it goes after.
+        CSMExtension::GameSessionSetup mGameSessionSetup;
         std::unique_ptr<CSMExtension::EditorExtensionHost> mExtensionHost; // after the views: they point at it
+        /// "Browse the world" (task 0173): the cell to open in the document that is being created for it.
+        std::string mBrowseCell;
         // The editor modules (task 0031): the registry and the UI they talk to come first, the host that owns the
         // modules last, so that the modules go before the extensions whose manifests named some of them.
         CSMModule::ModuleRegistry mModuleRegistry;
@@ -102,8 +107,8 @@ namespace CS
         std::pair<Files::PathContainer, std::vector<std::string>> readConfig(bool quiet = false);
         ///< \return data paths
 
-        void startExtensionHost();
-        ///< Needs mConfigVariables.
+        void startExtensionHost(const Files::PathContainer& dataDirs, const std::vector<std::string>& archives);
+        ///< Needs mConfigVariables and readConfig's data folders and archives (the game pack's VFS, task 0173).
 
         void startModules(const Files::PathContainer& dataDirs);
         ///< After the extension host and the configuration, before the first view.
@@ -129,6 +134,7 @@ namespace CS
 
         void createGame();
         void createAddon();
+        void browseWorld();
         void cancelCreateGame();
         void cancelFileDialog();
 

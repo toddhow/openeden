@@ -44,6 +44,8 @@ namespace ModOrganizer
         std::vector<std::string> mContent; // active plugins, in load order
         std::vector<std::string> mGroundcover;
         std::vector<std::string> mExtensions;
+        /// The profile's game pack (Profile::mGame): rendered as the first owned line, game=<id>, when not empty.
+        std::string mGame;
         std::vector<std::string> mProblems; // unknown mod ids, duplicates, a repack asked for but not available
     };
 
@@ -52,7 +54,8 @@ namespace ModOrganizer
     /// "..." with the openmw.cfg quoting: '"' becomes '&"' and '&' becomes '&&'.
     std::string quoteConfigPath(std::string_view path);
 
-    /// The owned lines in a fixed order: fallback-archive, data, groundcover, content, extension.
+    /// The owned lines in a fixed order: game (only when Layout::mGame is not empty), fallback-archive, data,
+    /// groundcover, content, extension.
     std::vector<std::string> renderConfigLines(const Layout& layout);
 
     /// The path of a mod's data folder: root joined with dataPath ('/' separators), or the pack file itself.

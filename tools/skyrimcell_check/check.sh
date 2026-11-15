@@ -11,7 +11,9 @@ export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
 #   around a grid square (radius 0 to 4). Pass editor ids on the command line only; none is kept in the repository.
 # EXE=<file name in the build dir> runs another editor executable (default eden-studio.exe), for before/after runs.
 # Needs OPENEDEN_SKYRIMSE_DATA (the game's Data folder) and OPENEDEN_SKYRIMSE_PLUGINS (a text file with one plugin path
-# per line, in load order; the game's masters are enough). Optional: MESH_CAMERA="ex,ey,ez,cx,cy,cz" for every cell.
+# per line, in load order; the game's masters are enough). These are the script's inputs: since task 0173 the editor
+# reads neither and gets game=skyrimse and content= lines from the config this script writes. LEGACY=1 writes the old
+# config for an executable from before task 0173. Optional: MESH_CAMERA="ex,ey,ez,cx,cy,cz" for every cell.
 # Reads only; the work folder must be under I:/Projects/OpenEden-work and holds a scratch config and the frames.
 set -u
 [ $# -ge 3 ] || { sed -n 9,10p "$0"; exit 2; }
@@ -33,21 +35,39 @@ pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILED=1; }
 
 mkdir -p "$WORK/config" "$WORK/empty-data"
-# The editor needs one content file to open: a generated empty plugin (TES3 header only, no records).
-perl -e 'my $hedr = pack("fVa32a256V", 1.3, 0, "generated", "empty content file for the Skyrim cell view check", 0);
-    my $sub = "HEDR" . pack("V", length $hedr) . $hedr;
-    binmode STDOUT; print "TES3" . pack("VVV", length $sub, 0, 0) . $sub;' > "$WORK/empty-data/empty.esp"
 W=$(native "$WORK")
 D=$(native "$DATA")
-{
-    echo "data=\"$D\""
-    echo "data=\"$W/empty-data\""
-    echo "content=empty.esp"
-    # Meshes and textures: every mesh and texture archive of the base game, then Update.bsa (it overrides).
-    for a in "$DATA"/"Skyrim - Meshes"*.bsa "$DATA"/"Skyrim - Textures"*.bsa "$DATA"/Update.bsa; do
-        [ -f "$a" ] && echo "fallback-archive=$(basename "$a")"
-    done
-} > "$WORK/config/openmw.cfg"
+if [ -n "${LEGACY:-}" ]; then
+    # LEGACY=1: an executable from before task 0173, which reads the load order from OPENEDEN_SKYRIMSE_PLUGINS and
+    # needs one Morrowind content file to open (a generated empty plugin, TES3 header only).
+    perl -e 'my $hedr = pack("fVa32a256V", 1.3, 0, "generated", "empty content file for the Skyrim cell view check", 0);
+        my $sub = "HEDR" . pack("V", length $hedr) . $hedr;
+        binmode STDOUT; print "TES3" . pack("VVV", length $sub, 0, 0) . $sub;' > "$WORK/empty-data/empty.esp"
+    {
+        echo "data=\"$D\""
+        echo "data=\"$W/empty-data\""
+        echo "content=empty.esp"
+        for a in "$DATA"/"Skyrim - Meshes"*.bsa "$DATA"/"Skyrim - Textures"*.bsa "$DATA"/Update.bsa; do
+            [ -f "$a" ] && echo "fallback-archive=$(basename "$a")"
+        done
+    } > "$WORK/config/openmw.cfg"
+else
+    # Task 0173: the config folder the launcher's game choice writes. The editor starts the skyrimse game pack (found in
+    # <build dir>/game_packs) and hands it the content= list; it reads no environment variable.
+    {
+        echo "game=skyrimse"
+        # Meshes and textures: every mesh and texture archive of the base game, then Update.bsa (it overrides).
+        for a in "$DATA"/"Skyrim - Meshes"*.bsa "$DATA"/"Skyrim - Textures"*.bsa "$DATA"/Update.bsa; do
+            [ -f "$a" ] && echo "fallback-archive=$(basename "$a")"
+        done
+        echo "data=\"$D\""
+        while IFS= read -r line || [ -n "$line" ]; do
+            line=${line%$'\r'}
+            case "$line" in '' | '#'*) continue ;; esac
+            echo "content=$(basename "$line")"
+        done < "$PLUGINS"
+    } > "$WORK/config/openmw.cfg"
+fi
 
 i=0
 for spec in "$@"; do
@@ -66,6 +86,7 @@ for spec in "$@"; do
     fi
     [ "$code" -eq 0 ] && pass "cell $i exits 0" || fail "cell $i exits $code"
     [ -s "$WORK/user-$i/screenshots/mesh0.png" ] && pass "cell $i wrote a frame" || fail "cell $i wrote no frame"
+    grep -h "Game pack:" "$WORK/$i.out" | sed 's/^\[[^]]*\] //' | head -1
     grep -h "Cell viewer:" "$WORK/$i.out" | sed 's/^\[[^]]*\] //' | head -1
 done
 exit $FAILED

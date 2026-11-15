@@ -6,6 +6,7 @@
 #include <QWidget>
 
 #include <functional>
+#include <map>
 
 #include <components/modorganizer/conflicts.hpp>
 #include <components/modorganizer/masters.hpp>
@@ -48,7 +49,16 @@ namespace Launcher
         /// for a process named openmw; tests replace it.
         void setGameRunningCheck(std::function<bool()> check) { mGameRunning = std::move(check); }
 
+        /// Task 0173: the game of the active profile ("morrowind" for Morrowind's profiles).
+        std::string currentGame() const;
+        /// Makes `gameId`'s last profile active and applies it to openmw.cfg (which writes its game= line, or none
+        /// for Morrowind). A game with no profile yet gets a first one from a Data folder the player chooses (read on
+        /// a worker thread). Emits gameChosen when the game is in use, gameNotChosen when it was not changed.
+        void chooseGame(const std::string& gameId, const QString& gameName);
+
     signals:
+        void gameChosen(const QString& gameId);
+        void gameNotChosen();
         /// openmw.cfg was rewritten from the active profile: the other pages should read it again.
         void profileApplied();
 
@@ -102,6 +112,10 @@ namespace Launcher
         QString modName(const QString& id) const;
         bool askName(const QString& title, const QString& label, QString& name, const QString& initial = QString());
         bool doApply(bool acceptHandEdits);
+        void finishGameChoice(const std::string& gameId);
+        // The active profile and the last profile of each game before a game choice, restored when it is not applied
+        std::string mGameChoicePrevious;
+        std::map<std::string, std::string> mGameChoicePreviousLast;
 
         const Files::ConfigurationManager& mCfgMgr;
         ModOrganizer::StorePaths mPaths;

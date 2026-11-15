@@ -7,6 +7,7 @@
 #include <components/extension/manifest.hpp>
 #include <components/extension/profiler_snapshot.hpp>
 #include <components/extension/vfs_service.hpp>
+#include <components/gamesession/gamesession.hpp>
 #include <components/worldmodel/store.hpp>
 
 #include "builtinpack.hpp"
@@ -226,7 +227,6 @@ namespace OMW
 
     private:
         struct LogBridge;
-        struct StoreListener;
 
         std::unique_ptr<ExtensionWorld> mWorld;
         MWPhysics::PhysicsSystem* mPhysics = nullptr;
@@ -248,7 +248,7 @@ namespace OMW
         // mHost and mLifecycle so that they are destroyed after them: a pack withdraws its source (through the
         // listener, into the store) while the lifecycle destroys it.
         std::unique_ptr<NeutralWorld::NeutralWorldStore> mNeutralWorldStore;
-        std::unique_ptr<StoreListener> mStoreListener;
+        std::unique_ptr<GameSession::StoreListener> mStoreListener;
 
         openeden::extension::HostImpl mHost;
         openeden::extension::LifecycleManager mLifecycle;

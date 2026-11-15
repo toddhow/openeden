@@ -90,8 +90,9 @@ namespace ModOrganizer
 
     bool isOwnedLine(std::string_view line)
     {
-        static const std::array<std::string_view, 5> keys
-            = { "data", "content", "groundcover", "fallback-archive", "extension" };
+        // "game" since task 0173: the profile's game pack, written by the launcher's game choice
+        static const std::array<std::string_view, 6> keys
+            = { "data", "content", "groundcover", "fallback-archive", "extension", "game" };
         line = trim(line);
         for (const std::string_view key : keys)
         {

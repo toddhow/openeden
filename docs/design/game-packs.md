@@ -224,6 +224,14 @@ editor until stage e's descriptors reach it, which is acceptable because Eden St
 system (root guide, "Not yet"). Eden Studio can show Skyrim meshes after the NIF stage (task 0082) without any game
 pack; it shows Skyrim records only after the record descriptors.
 
+**Update 2026-11-15 (task 0173, toddhow).** The launcher selects the game, which sets the game pack: it writes
+`game=<id>` into `openmw.cfg` with that game's profile (none for Morrowind), and opens the game and Eden Studio. Eden
+Studio now **starts** a game pack other than Morrowind (sections 7 and the pack's own comment said it never did): its
+extension host follows the game's rules (`components/gamesession`), hands the pack the session's content list and a
+VFS, and reads the pack's world source through a neutral world store for the cell viewer. The editor's documents stay
+Morrowind's; with a non-Morrowind game its start dialogue disables the content file buttons and offers "Browse the
+world". With no `game=` line or `game=morrowind` the editor starts no pack and behaves as before.
+
 ## 9. Open questions (recommendations first)
 
 1. **Names.** Recommend: tier = **game pack** (manifest `kind: "game"`), per-game adapter = **compatibility pack**,

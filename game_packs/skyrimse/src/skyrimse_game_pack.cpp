@@ -40,7 +40,8 @@ namespace game_skyrimse
 
             // The null game rules (design doc game-packs.md 5.5): the pack identifies Skyrim SE content, then refuses
             // the session. A game pack's failure in start() is a session error that names it and refuses saving, so
-            // the player sees the message at the main menu; the editor and tools never start the pack and run.
+            // the player sees the message at the main menu. Eden Studio starts the pack when game=skyrimse (task
+            // 0173) and reads sources, so it takes the path below.
             void start(openeden::sdk::Host& host) override
             {
                 openeden::sdk::ContentService* const content = host.getContentService();

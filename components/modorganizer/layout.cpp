@@ -35,6 +35,7 @@ namespace ModOrganizer
     Layout buildLayout(const ModLibrary& library, const Profile& profile, const LayoutOptions& options)
     {
         Layout layout;
+        layout.mGame = profile.mGame;
         for (const std::string& base : options.mBaseData)
             layout.mData.push_back({ base, "", false, false });
 
@@ -101,6 +102,8 @@ namespace ModOrganizer
     std::vector<std::string> renderConfigLines(const Layout& layout)
     {
         std::vector<std::string> lines;
+        if (!layout.mGame.empty())
+            lines.push_back("game=" + layout.mGame);
         for (const std::string& name : layout.mArchives)
             lines.push_back("fallback-archive=" + name);
         for (const DataEntry& entry : layout.mData)

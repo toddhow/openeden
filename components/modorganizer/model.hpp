@@ -79,6 +79,9 @@ namespace ModOrganizer
         std::vector<std::string> mArchives;
         std::vector<std::string> mGroundcover;
         std::vector<std::string> mExtensions;
+        /// The game pack the profile is for (task 0173): empty is Morrowind, which writes no game= line. Stored as
+        /// "game" in the profile file only when not empty, so a Morrowind profile's file is as before.
+        std::string mGame;
 
         bool operator==(const Profile&) const = default;
     };

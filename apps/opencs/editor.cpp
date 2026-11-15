@@ -13,6 +13,7 @@
 #include <QDropEvent>
 #include <QFileInfo>
 #include <QGroupBox>
+#include <QInputDialog>
 #include <QLineEdit>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -67,11 +68,14 @@
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/qtconversion.hpp>
+#include <components/gamesession/gamesession.hpp>
+#include <components/misc/quietwindow.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "model/extension/editorextensionhost.hpp"
+#include "model/mesh/worldaccess.hpp"
 #include "model/prefs/configmigration.hpp"
 #include "model/world/columns.hpp"
 #include "model/world/data.hpp"
@@ -105,9 +109,10 @@ CS::Editor::Editor(CSMPrefs::CommandLine commandLine)
     // Copy everything logged to the Output Log panel (the log file and console get it unchanged).
     CSVDoc::LogTap::install();
 
-    startExtensionHost();
-
+    // The data folders first: a game pack other than Morrowind reads them (task 0173)
     std::pair<Files::PathContainer, std::vector<std::string>> config = readConfig();
+
+    startExtensionHost(config.first, config.second);
 
     startModules(config.first);
 
@@ -142,6 +147,7 @@ CS::Editor::Editor(CSMPrefs::CommandLine commandLine)
     connect(&mStartup, &CSVDoc::StartupDialogue::createAddon, this, &Editor::createAddon);
     connect(&mStartup, &CSVDoc::StartupDialogue::loadDocument, this, &Editor::loadDocument);
     connect(&mStartup, &CSVDoc::StartupDialogue::editConfig, this, &Editor::showSettings);
+    connect(&mStartup, &CSVDoc::StartupDialogue::browseWorld, this, &Editor::browseWorld);
 
     connect(&mFileDialog, &CSVDoc::FileDialog::signalOpenFiles, this,
         [this](const std::filesystem::path& savePath) { this->openFiles(savePath); });
@@ -217,6 +223,8 @@ void CS::Editor::startModules(const Files::PathContainer& dataDirs)
 
 CS::Editor::~Editor()
 {
+    // The cell viewer's world is the extension host's store (task 0173): forget it before the host goes
+    CSMMesh::setActiveWorld({});
     mPhysicsWorld.setStepObserver(nullptr);
     delete mViewManager;
     mViewManager = nullptr;
@@ -256,21 +264,75 @@ boost::program_options::variables_map CS::Editor::readConfiguration(boost::progr
     return variables;
 }
 
-void CS::Editor::startExtensionHost()
+void CS::Editor::startExtensionHost(const Files::PathContainer& dataDirs, const std::vector<std::string>& archives)
 {
     // As the game does (apps/openmw/vsgengine.cpp): extensions/ beside the program, then in the user data folder. The
     // editor only reads: no world, no phases (task 0024, stage D).
     CSMExtension::EditorExtensionHost::Config config;
-    config.mSearchDirs = { mCfgMgr.getLocalPath() / "extensions", mCfgMgr.getUserDataPath() / "extensions" };
+    // Task 0173: the session's game pack (game=, written by the launcher, or --game). Morrowind, or none, is built in:
+    // the game_packs folders are not searched and nothing new loads, so the editor is as before.
+    const std::string gamePack = mConfigVariables["game"].as<std::string>();
+    const bool startsGamePack = !gamePack.empty() && gamePack != GameSession::sMorrowindId;
+    config.mSearchDirs
+        = GameSession::searchDirectories(mCfgMgr.getLocalPath(), mCfgMgr.getUserDataPath(), startsGamePack);
     for (const std::string& id : mConfigVariables["extension"].as<std::vector<std::string>>())
         if (!id.empty())
             config.mEnabled.push_back(id);
+    config.mGamePackId = gamePack;
     mExtensionHost = std::make_unique<CSMExtension::EditorExtensionHost>(config);
     // Read-only queries on the editor's world, before extensions start (task 0030).
     mExtensionHost->attachPhysicsWorld(mPhysicsWorld.system(), CSMPhysics::StudioWorld::sUnitsPerMeter);
     mPhysicsWorld.setStepObserver(this);
+    // A game pack other than Morrowind reads the session's content list and its own VFS (does nothing otherwise)
+    mGameSessionSetup.prepare(*mExtensionHost, dataDirs, archives,
+        mConfigVariables["content"].as<std::vector<std::string>>(), ToUTF8::calculateEncoding(mEncodingName));
+    for (const std::string& problem : mGameSessionSetup.problems())
+        Log(Debug::Warning) << "Content file not given to the game pack: " << problem;
     mExtensionHost->start();
     Log(Debug::Info) << "Extensions: " << mExtensionHost->summary();
+    if (!startsGamePack)
+        return;
+
+    using State = CSMExtension::EditorExtensionHost::GamePackState;
+    const std::string name = mExtensionHost->gamePackName();
+    if (mExtensionHost->gamePackState() != State::Active)
+    {
+        const std::string failure = mExtensionHost->gamePackFailure();
+        Log(Debug::Error) << "Game pack '" << gamePack << "' is not available: " << failure;
+        // A quiet-window run (check scripts) has nobody to close a box placed off the desktop
+        if (Misc::isQuietWindowRequested())
+            return;
+        QMessageBox messageBox;
+        messageBox.setWindowTitle(tr("Game pack not available"));
+        messageBox.setIcon(QMessageBox::Warning);
+        messageBox.setStandardButtons(QMessageBox::Ok);
+        messageBox.setText(
+            tr("The game pack '%1' chosen for this session is not available:<br><br>%2<br><br>Eden "
+               "Studio starts without it.")
+                .arg(QString::fromStdString(gamePack), QString::fromStdString(failure)));
+        messageBox.exec();
+        return;
+    }
+    CSMMesh::setActiveWorld(CSMMesh::worldFromStore(mExtensionHost->neutralWorldStore(), name));
+    Log(Debug::Info) << "Game pack: " << name << " (" << gamePack << "), world source "
+                     << (CSMMesh::hasActiveWorld() ? CSMMesh::activeWorld().mGameId : std::string("none"));
+    mStartup.setGamePack(QString::fromStdString(name), CSMMesh::hasActiveWorld());
+}
+
+void CS::Editor::browseWorld()
+{
+    // Task 0173: the cell viewer is a subview of a document, and the documents are Morrowind's; a new, empty game
+    // document that is never saved carries it. The cell comes from the session's game pack (CSMMesh::activeWorld).
+    bool accepted = false;
+    const QString editorId = QInputDialog::getText(&mStartup, tr("Browse the World"),
+        tr("Editor id of the cell, or @<world>,<x>,<y>[,<radius>] for exterior squares:"), QLineEdit::Normal, QString(),
+        &accepted);
+    if (!accepted || editorId.trimmed().isEmpty())
+        return;
+    mBrowseCell = editorId.trimmed().toStdString();
+    mStartup.hide();
+    const std::filesystem::path file = mCfgMgr.getUserDataPath() / "eden-studio-world.omwgame";
+    mDocumentManager.addDocument({ file }, file, true);
 }
 
 std::pair<Files::PathContainer, std::vector<std::string>> CS::Editor::readConfig(bool quiet)
@@ -2222,6 +2284,15 @@ void CS::Editor::startUiCheck()
 
 void CS::Editor::documentAdded(CSMDoc::Document* document)
 {
+    if (!mBrowseCell.empty())
+    {
+        // "Browse the world" (task 0173): the new document's first view opens the cell
+        const std::string cell = std::move(mBrowseCell);
+        mBrowseCell.clear();
+        mViewManager->addView(
+            document, CSMWorld::UniversalId(CSMWorld::UniversalId::Type_Mesh, "skyrimcell:" + cell), "");
+        return;
+    }
     mViewManager->addView(document);
 }
 

@@ -9,6 +9,8 @@
 #include <components/debug/debuglog.hpp>
 #include <components/extension/extension_loader.hpp>
 #include <components/extension/physics_service.hpp>
+#include <components/gamesession/gamesession.hpp>
+#include <components/worldmodel/store.hpp>
 
 #include "../physics/studioworld.hpp"
 
@@ -55,9 +57,14 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
 
     mHost.settingsService().useEngineSettings();
 
-    const auto isEnabled = [&](const std::string& id) {
-        return std::find(config.mEnabled.begin(), config.mEnabled.end(), id) != config.mEnabled.end();
-    };
+    // The session's rules, shared with the game (task 0173, components/gamesession). A built-in game pack (Morrowind)
+    // is satisfied without loading anything: the editor works on its structs directly.
+    mGamePackId = config.mGamePackId;
+    mGamePackBuiltIn = !mGamePackId.empty()
+        && std::find(config.mBuiltInGamePacks.begin(), config.mBuiltInGamePacks.end(), mGamePackId)
+            != config.mBuiltInGamePacks.end();
+    const GameSession::Rules rules{ config.mEnabled, mGamePackId };
+    const auto isEnabled = [&](const std::string& id) { return GameSession::isEnabled(rules, id); };
 
     std::vector<ExtensionLoadError> errors;
     const std::vector<DiscoveredExtension> discovered
@@ -78,10 +85,14 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
     }
 
     std::set<std::string> seen;
-    for (const DiscoveredExtension& item : discovered)
+    const std::vector<GameSession::ItemVerdict> verdicts = GameSession::classify(discovered, rules);
+    for (std::size_t index = 0; index < discovered.size(); ++index)
     {
+        const DiscoveredExtension& item = discovered[index];
         const std::string& id = item.manifest.id;
-        if (!seen.insert(id).second)
+        const GameSession::ItemVerdict& verdict = verdicts[index];
+        seen.insert(id);
+        if (verdict.mVerdict == GameSession::Verdict::Duplicate)
         {
             Log(Debug::Warning) << "Extension '" << id << "' in " << item.directory
                                 << " ignored: found earlier in another extension directory";
@@ -95,10 +106,29 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
         info.mDirectory = item.directory;
         info.mEditor = item.manifest.editor;
         info.mEnabled = isEnabled(id);
+        info.mGamePack = !mGamePackId.empty() && id == mGamePackId;
 
-        if (!info.mEnabled)
+        if (verdict.mVerdict == GameSession::Verdict::NotEnabled)
         {
             Log(Debug::Info) << "Extension '" << id << "' is installed but not enabled";
+            mInfos.push_back(std::move(info));
+            continue;
+        }
+
+        // One game pack per session, chosen by game= (task 0084), as in the game
+        if (verdict.mVerdict == GameSession::Verdict::RefusedGamePack)
+        {
+            Log(Debug::Error) << "Game pack '" << id << "' not loaded: " << verdict.mReason;
+            info.mState = ExtensionInfo::State::Failed;
+            info.mMessage = "game pack not loaded, " + verdict.mReason;
+            mInfos.push_back(std::move(info));
+            continue;
+        }
+
+        // A built-in game pack is not started, even when a folder with its id is installed
+        if (info.mGamePack && mGamePackBuiltIn)
+        {
+            Log(Debug::Info) << "Game pack '" << id << "' is built in; the installed copy is not loaded";
             mInfos.push_back(std::move(info));
             continue;
         }
@@ -119,12 +149,35 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
         mLifecycle.addExtension(std::move(result.extension.manifest), std::move(result.extension.instance),
             std::move(result.extension.library));
         mAnyLoaded = true;
+        if (info.mGamePack)
+            mGamePackLoaded = true;
         mInfos.push_back(std::move(info));
+    }
+
+    // The chosen game pack (task 0173): not installed is a failure with the game's text. Loaded, it gets the neutral
+    // world store its world source goes into (decision 0016), and is told that something reads sources.
+    if (!mGamePackId.empty() && !mGamePackBuiltIn && seen.find(mGamePackId) == seen.end())
+    {
+        Log(Debug::Error) << "Game pack '" << mGamePackId << "' (game=) is not installed";
+        ExtensionInfo info;
+        info.mId = mGamePackId;
+        info.mEnabled = true;
+        info.mGamePack = true;
+        info.mState = ExtensionInfo::State::Failed;
+        info.mMessage = "the game pack chosen by game= is not installed";
+        mInfos.push_back(std::move(info));
+    }
+    if (mGamePackLoaded)
+    {
+        mNeutralWorldStore = std::make_unique<NeutralWorld::NeutralWorldStore>();
+        mStoreListener = std::make_unique<GameSession::StoreListener>(*mNeutralWorldStore);
+        mHost.worldSources().setListener(mStoreListener.get());
+        mHost.worldSources().setConsumerEnabled(true);
     }
 
     for (const std::string& id : config.mEnabled)
     {
-        if (seen.find(id) != seen.end())
+        if (seen.find(id) != seen.end() || id == mGamePackId)
             continue;
         const bool brokenFolder = std::any_of(
             errors.begin(), errors.end(), [&](const ExtensionLoadError& error) { return error.extensionId == id; });
@@ -138,6 +191,9 @@ CSMExtension::EditorExtensionHost::EditorExtensionHost(const Config& config)
         info.mMessage = "enabled, but no extension with this ID is installed";
         mInfos.push_back(std::move(info));
     }
+
+    // The game pack's row first (the Extension Manager shows it at the top), the others in the loader's order
+    std::stable_partition(mInfos.begin(), mInfos.end(), [](const ExtensionInfo& info) { return info.mGamePack; });
 }
 
 CSMExtension::EditorExtensionHost::~EditorExtensionHost()
@@ -211,6 +267,7 @@ void CSMExtension::EditorExtensionHost::stop()
     mRunning = false;
     Log(Debug::Info) << "Stopping extensions";
     mLifecycle.shutdown();
+    mHost.vfsService().setEngineVfs(nullptr);
 }
 
 std::vector<CSMModule::ModuleSource> CSMExtension::EditorExtensionHost::editorModuleSources() const
@@ -243,4 +300,67 @@ std::string CSMExtension::EditorExtensionHost::summary() const
     if (failed > 0)
         text += ", " + std::to_string(failed) + " failed";
     return text;
+}
+
+std::string CSMExtension::EditorExtensionHost::gamePackName() const
+{
+    if (mGamePackId.empty())
+        return {};
+    if (mGamePackBuiltIn && mGamePackId == GameSession::sMorrowindId)
+        return "Morrowind";
+    for (const ExtensionInfo& info : mInfos)
+    {
+        if (info.mGamePack && !info.mName.empty())
+            return info.mName;
+    }
+    return mGamePackId;
+}
+
+CSMExtension::EditorExtensionHost::GamePackState CSMExtension::EditorExtensionHost::gamePackState() const
+{
+    if (mGamePackId.empty())
+        return GamePackState::None;
+    if (mGamePackBuiltIn)
+        return GamePackState::BuiltIn;
+    for (const ExtensionInfo& info : mInfos)
+    {
+        if (!info.mGamePack)
+            continue;
+        if (info.mState == ExtensionInfo::State::Failed)
+            return GamePackState::Failed;
+        if (info.mState == ExtensionInfo::State::Active)
+            return GamePackState::Active;
+    }
+    return mGamePackLoaded ? GamePackState::Loaded : GamePackState::Failed;
+}
+
+std::string CSMExtension::EditorExtensionHost::gamePackFailure() const
+{
+    if (gamePackState() != GamePackState::Failed)
+        return {};
+    for (const ExtensionInfo& info : mInfos)
+    {
+        // "<id>: <reason>", as the game reports its load failures (apps/openmw/extensionhost.cpp)
+        if (info.mGamePack && info.mState == ExtensionInfo::State::Failed)
+            return info.mId + ": " + info.mMessage;
+    }
+    return mGamePackId + ": the game pack did not load";
+}
+
+void CSMExtension::EditorExtensionHost::setSessionContent(
+    std::vector<openeden::extension::SessionContentEntry> entries, const VFS::Manager* vfs)
+{
+    if (mNeutralWorldStore == nullptr || mRunning)
+        return;
+    mHost.vfsService().setEngineVfs(vfs);
+    // As the game does (apps/openmw/extensionhost.cpp, setSessionContent): only what a registered content loader
+    // accepts reaches the pack. The loaders register in start(), so the filter is applied when the pack asks.
+    mHost.worldSources().setSessionContent(std::move(entries));
+    mHost.worldSources().setContentFilter(
+        [this](const openeden::sdk::ContentHeader& header) { return mHost.content().findLoader(header) != nullptr; });
+}
+
+NeutralWorld::NeutralWorldStore* CSMExtension::EditorExtensionHost::neutralWorldStore()
+{
+    return mNeutralWorldStore.get();
 }

@@ -52,9 +52,10 @@
 #include <apps/opencs/model/mesh/cellscene.hpp>
 #include <apps/opencs/model/mesh/meshoverlay.hpp>
 #include <apps/opencs/model/mesh/scenemodel.hpp>
-#include <apps/opencs/model/mesh/skyrimcellsource.hpp>
 #include <apps/opencs/model/mesh/texturecolour.hpp>
+#include <apps/opencs/model/mesh/worldaccess.hpp>
 #include <apps/opencs/model/physics/joltruntime.hpp>
+#include <components/worldmodel/store.hpp>
 
 #include "picking.hpp"
 #include "scenehost.hpp"
@@ -582,13 +583,17 @@ namespace CSVRender
 
     bool MeshScene::loadSkyrimCell(const std::string& editorId, std::string& error)
     {
-        CSMMesh::SkyrimCellSource& source = CSMMesh::SkyrimCellSource::instance();
-        if (!source.ready() && !source.configureFromEnvironment(error))
+        // The viewer reads the NEUTRAL world model (task 0102, stage N2) of the session's game pack (task 0173): the
+        // store the editor host gave the pack, with the pack's source registered, never the pack's own types.
+        if (!CSMMesh::hasActiveWorld())
+        {
+            error
+                = "no game pack of this session registered a world (choose the game in the OpenEden launcher; "
+                  "Morrowind has no world for this viewer)";
             return false;
-        // The viewer reads the NEUTRAL world model (task 0102, stage N2): the core's store with the Skyrim pack's
-        // source registered, never the pack's WorldView directly.
-        NeutralWorld::NeutralWorldStore& store = *source.store();
-        const char* const game = CSMMesh::SkyrimCellSource::kGameId;
+        }
+        NeutralWorld::NeutralWorldStore& store = *CSMMesh::activeWorld().mStore;
+        const std::string& game = CSMMesh::activeWorld().mGameId;
         openeden::sdk::game::WorldCell content;
         if (!editorId.empty() && editorId[0] == '@')
         {
@@ -614,7 +619,8 @@ namespace CSVRender
             const openeden::sdk::game::WorldId worldId = store.findWorldByEditorId(game, parts[0]);
             if (worldId == openeden::sdk::game::kNoWorldId)
             {
-                error = "There is no world with the editor id \"" + parts[0] + "\" (" + source.summary() + ")";
+                error = "There is no world with the editor id \"" + parts[0] + "\" ("
+                    + std::string("the world of game pack ") + game + ")";
                 return false;
             }
             std::size_t found = 0;
@@ -649,7 +655,7 @@ namespace CSVRender
             if (cellId == openeden::sdk::game::kNoWorldId)
             {
                 error = "There is no cell with the editor id \"" + editorId + "\" in the Skyrim load order ("
-                    + source.summary() + ")";
+                    + std::string("the world of game pack ") + game + ")";
                 return false;
             }
             const openeden::sdk::game::WorldCell* one = store.cell(game, cellId, error);

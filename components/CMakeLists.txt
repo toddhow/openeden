@@ -108,7 +108,13 @@ add_component_dir (bgsm
 # The launcher's mod organizer (task 0057): mod library and profiles, scanner, layout, openmw.cfg rewrite, conflicts,
 # master hints, repack planning. No Qt. Depends on vfs, contentsource and edenarchive.
 add_component_dir (modorganizer
-    model scanner layout configfile conflicts masters repack processcheck profilestore
+    model scanner layout configfile conflicts masters repack processcheck profilestore games
+    )
+
+# The game pack rules of a session, shared by the game and Eden Studio (task 0173): search folders, which extensions
+# load, the game pack refusal, the session content list, the world source listener. Layer host.
+add_component_dir (gamesession
+    gamesession
     )
 
 # The launcher's World LOD page (task 0058): the baker's status and command file contract. No Qt.

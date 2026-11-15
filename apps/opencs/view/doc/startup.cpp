@@ -42,12 +42,15 @@ QWidget* CSVDoc::StartupDialogue::createButtons()
 
     /// \todo add icons
     QPushButton* loadDocument = addButton("Edit A Content File", ":startup/edit-content");
+    mLoadDocument = loadDocument;
     connect(loadDocument, &QPushButton::clicked, this, &StartupDialogue::loadDocument);
 
     QPushButton* createAddon = addButton("Create A New Addon", ":startup/create-addon");
+    mCreateAddon = createAddon;
     connect(createAddon, &QPushButton::clicked, this, &StartupDialogue::createAddon);
 
     QPushButton* createGame = addButton("Create A New Game", ":startup/create-game");
+    mCreateGame = createGame;
     connect(createGame, &QPushButton::clicked, this, &StartupDialogue::createGame);
 
     for (int i = 0; i < 3; ++i)
@@ -84,6 +87,13 @@ QWidget* CSVDoc::StartupDialogue::createTools()
     config->setToolTip("Open user settings");
 
     layout->addWidget(config);
+
+    // Task 0173: shown only when the session's game pack is not Morrowind (setGamePack)
+    mBrowseWorld = new QPushButton(tr("Browse the world"), widget);
+    mBrowseWorld->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
+    mBrowseWorld->setVisible(false);
+    layout->addWidget(mBrowseWorld);
+    connect(mBrowseWorld, &QPushButton::clicked, this, &StartupDialogue::browseWorld);
 
     layout->addWidget(new QWidget, 1); // dummy widget; stops buttons from taking all the space
 
@@ -128,4 +138,21 @@ CSVDoc::StartupDialogue::StartupDialogue()
     QRect scr = QGuiApplication::primaryScreen()->geometry();
     QRect rect = geometry();
     move(scr.center().x() - rect.center().x(), scr.center().y() - rect.center().y());
+}
+
+void CSVDoc::StartupDialogue::setGamePack(const QString& name, bool worldAvailable)
+{
+    setWindowTitle(tr("Eden Studio - %1").arg(name));
+    const QString reason = tr("This game pack has no record editor yet");
+    for (QPushButton* button : { mLoadDocument, mCreateAddon, mCreateGame })
+    {
+        if (button == nullptr)
+            continue;
+        button->setEnabled(false);
+        button->setToolTip(reason);
+    }
+    mBrowseWorld->setVisible(true);
+    mBrowseWorld->setEnabled(worldAvailable);
+    mBrowseWorld->setToolTip(worldAvailable ? tr("Open a cell of the world of %1").arg(name)
+                                            : tr("%1 registered no world: see the Output Log").arg(name));
 }

@@ -216,6 +216,16 @@ namespace ModOrganizer
     {
         return mFolder / "base-data.txt";
     }
+
+    fs::path StorePaths::gameBaseDataFile(const std::string& gameId) const
+    {
+        return mFolder / Files::pathFromUnicodeString("base-data-" + gameId + ".txt");
+    }
+
+    fs::path StorePaths::lastProfilesFile() const
+    {
+        return mFolder / "last-profiles.txt";
+    }
     fs::path StorePaths::appliedFile(const std::string& name) const
     {
         return mFolder / "applied" / Files::pathFromUnicodeString(name + ".txt");
@@ -324,6 +334,33 @@ namespace ModOrganizer
         text.clear();
         if (readTextFile(paths.baseDataFile(), text, exists, ioError) && exists)
             store.mBaseData = splitLines(text);
+
+        // Task 0173: the other games' base data and last profiles. Only games some profile is for are looked up.
+        std::set<std::string> games;
+        for (const Profile& profile : store.mProfiles)
+        {
+            if (!profile.mGame.empty())
+                games.insert(profile.mGame);
+        }
+        for (const std::string& game : games)
+        {
+            text.clear();
+            if (readTextFile(paths.gameBaseDataFile(game), text, exists, ioError) && exists)
+                store.mGameBaseData[game] = splitLines(text);
+        }
+        text.clear();
+        if (readTextFile(paths.lastProfilesFile(), text, exists, ioError) && exists)
+        {
+            for (const std::string& line : splitLines(text))
+            {
+                const std::size_t tab = line.find('\t');
+                if (tab == std::string::npos)
+                    continue;
+                const std::string profile = line.substr(tab + 1);
+                if (store.findProfile(profile) != nullptr)
+                    store.mLastProfileOfGame[line.substr(0, tab)] = profile;
+            }
+        }
         return store;
     }
 
@@ -376,6 +413,27 @@ namespace ModOrganizer
             base += line + "\n";
         if (!base.empty() || fs::exists(paths.baseDataFile(), ec))
             note(writeIfChanged(paths.baseDataFile(), base));
+
+        // Task 0173: nothing new is written for a store that only knows Morrowind
+        for (const auto& [game, folders] : store.mGameBaseData)
+        {
+            if (game.empty() || !isValidModId(game))
+                continue;
+            std::string lines;
+            for (const std::string& line : folders)
+                lines += line + "\n";
+            if (!lines.empty() || fs::exists(paths.gameBaseDataFile(game), ec))
+                note(writeIfChanged(paths.gameBaseDataFile(game), lines));
+        }
+        bool otherGame = false;
+        std::string last;
+        for (const auto& [game, profile] : store.mLastProfileOfGame)
+        {
+            otherGame = otherGame || !game.empty();
+            last += game + "\t" + profile + "\n";
+        }
+        if (otherGame || fs::exists(paths.lastProfilesFile(), ec))
+            note(writeIfChanged(paths.lastProfilesFile(), otherGame ? last : std::string()));
         return errors;
     }
 
@@ -425,6 +483,8 @@ namespace ModOrganizer
                 snapshot.mGroundcover.push_back(value);
             else if (key == "extension")
                 snapshot.mExtensions.push_back(value);
+            else if (key == "game")
+                snapshot.mGame = value; // task 0173: the last line wins, as for the game's own single-value options
         }
         return snapshot;
     }
@@ -433,6 +493,10 @@ namespace ModOrganizer
     {
         ImportResult result;
         result.mProfile.mName = profileName;
+        // Task 0173: a game= line names the profile's game ("morrowind", like none, is stored as none); an id a profile
+        // file could not hold is not imported
+        if (snapshot.mGame != "morrowind" && isValidModId(snapshot.mGame))
+            result.mProfile.mGame = snapshot.mGame;
         std::vector<std::string> seenPaths;
         auto seen = [&seenPaths](const std::string& path) {
             for (const std::string& other : seenPaths)
@@ -812,9 +876,17 @@ namespace ModOrganizer
             store.mProfiles.begin(), store.mProfiles.end(), [&](const Profile& p) { return p.mName == name; });
         if (it == store.mProfiles.end())
             return false;
+        const std::string game = it->mGame;
         store.mProfiles.erase(it);
+        // Task 0173: the profile is no game's last profile any more, and another profile of the same game takes over
+        for (auto entry = store.mLastProfileOfGame.begin(); entry != store.mLastProfileOfGame.end();)
+            entry = entry->second == name ? store.mLastProfileOfGame.erase(entry) : std::next(entry);
         if (store.mActive == name)
-            store.mActive = store.mProfiles.front().mName;
+        {
+            const auto sameGame = std::find_if(
+                store.mProfiles.begin(), store.mProfiles.end(), [&](const Profile& p) { return p.mGame == game; });
+            store.mActive = sameGame != store.mProfiles.end() ? sameGame->mName : store.mProfiles.front().mName;
+        }
         return true;
     }
 
@@ -828,6 +900,12 @@ namespace ModOrganizer
         profile->mName = to;
         if (store.mActive == from)
             store.mActive = to;
+        // Task 0173: the last profile of its game keeps that place under the new name
+        for (auto& entry : store.mLastProfileOfGame)
+        {
+            if (entry.second == from)
+                entry.second = to;
+        }
         sortProfiles(store);
         return true;
     }
@@ -838,6 +916,12 @@ namespace ModOrganizer
     {
         LayoutOptions options;
         options.mBaseData = store.mBaseData;
+        // Task 0173: a profile for another game starts from that game's base data
+        if (const Profile* profile = store.active(); profile != nullptr && !profile->mGame.empty())
+        {
+            const auto found = store.mGameBaseData.find(profile->mGame);
+            options.mBaseData = found != store.mGameBaseData.end() ? found->second : std::vector<std::string>();
+        }
         options.mRepacks = store.mRepacks;
         return options;
     }
@@ -905,5 +989,23 @@ namespace ModOrganizer
         if (!recorded.empty())
             outcome.mProblems.push_back(recorded);
         return outcome;
+    }
+}
+
+namespace ModOrganizer
+{
+    bool configMatchesLastApply(const StorePaths& paths, const std::string& profileName, const fs::path& configFile)
+    {
+        std::string existing;
+        bool exists = false;
+        std::string ignored;
+        if (!readTextFile(configFile, existing, exists, ignored) || !exists)
+            return true;
+        std::string appliedText;
+        bool appliedExists = false;
+        if (!readTextFile(paths.appliedFile(profileName), appliedText, appliedExists, ignored) || !appliedExists)
+            return true;
+        // The same comparison as applyActiveProfile's hand-edit check
+        return ownedLines(existing) == splitLines(appliedText);
     }
 }
