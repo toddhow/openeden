@@ -1,6 +1,7 @@
 #include "neutralcombatbridge.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -590,6 +591,9 @@ namespace MWPhysics
 
         mWriter.mSink = &sink;
         mWriter.mWorld = world;
+        // OPENEDEN_NEUTRAL_COMBAT_TRACE: a pack update that blocks the main thread is visible here (review fix of task
+        // 0171: the first one used to read every plugin). Not a NCOMBAT line: the milliseconds differ run to run.
+        const auto updateStart = traceOn() ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
         try
         {
             rules->combatUpdate(seconds, mWriter);
@@ -597,6 +601,12 @@ namespace MWPhysics
         catch (...)
         {
             ++mStats.mRulesFailures;
+        }
+        if (traceOn())
+        {
+            const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - updateStart).count();
+            if (ms > 1.0)
+                Log(Debug::Info) << "TIMING combatUpdate " << ms << " ms at update " << mStats.mUpdates;
         }
         mWriter.mSink = nullptr;
         mWriter.mWorld = nullptr;
