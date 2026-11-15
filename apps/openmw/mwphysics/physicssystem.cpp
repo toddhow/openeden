@@ -72,6 +72,7 @@
 #include "object.hpp"
 #include "projectile.hpp"
 #include "ragdollhost.hpp"
+#include "../mwmechanics/corpserest.hpp"
 #include "skyrimshape.hpp"
 #include "water.hpp"
 
@@ -1011,6 +1012,8 @@ namespace MWPhysics
         {
             if (mNeutralBridge.size() != 0)
                 mNeutralBridge.remove(mNeutralRulesResolver ? mNeutralRulesResolver() : nullptr, ptr.mRef);
+            if (!mActorRagdolls.empty())
+                stopActorRagdoll(ptr); // task 0174: a neutral actor's ragdoll goes with it
             std::erase_if(mNeutralActors, [&](const NeutralActorEntry& e) { return e.mRef == ptr.mRef; });
             std::erase_if(mNeutralDoors, [&](const NeutralDoorEntry& e) { return e.mRef == ptr.mRef; });
             mAnimatedObjects.erase(foundObject->second.get());
@@ -1183,7 +1186,10 @@ namespace MWPhysics
         mNeutralTurned.reserve(mNeutralActors.size());
         mNeutralSpeeds.reserve(mNeutralActors.size());
         if (Settings::game().mNeutralCombat.get())
+        {
             mNeutralSightIgnore.reserve(mNeutralActors.size()); // only the combat's line of sight uses it
+            mNeutralDeaths.reserve(mNeutralActors.size());
+        }
     }
 
     const NeutralActor::Fall* PhysicsSystem::getNeutralActorFall(const MWWorld::ConstPtr& ptr) const
@@ -1387,11 +1393,139 @@ namespace MWPhysics
 
     void PhysicsSystem::NeutralCombatWorldImpl::actorDied(const void* key, openeden::sdk::game::ActorHandle actor)
     {
-        // Stage S5-3: the death is only noted. The pack has stopped the actor's clips and its health is 0; the ragdoll
-        // is stage S5-5. The actor stays where it is (its movement request is cleared so that it does not walk on).
+        // Stage S5-3: the death is noted. The pack has stopped the actor's clips and its health is 0. The actor stays
+        // where it is (its movement request is cleared so that it does not walk on). Stage S5-5 (task 0174): with
+        // `[Physics] creativemotion ragdolls` on, the world is told so that it can turn the corpse into a ragdoll.
         if (NeutralActorEntry* entry = mPhysics.findNeutralActor(key))
+        {
             entry->mRequest = {};
+            if (Settings::physics().mCreativeMotionRagdolls)
+            {
+                const auto found = mPhysics.mObjects.find(entry->mRef);
+                if (found != mPhysics.mObjects.end())
+                    mPhysics.mNeutralDeaths.push_back(found->second->getPtr());
+            }
+        }
         Log(Debug::Info) << "NCOMBAT actor " << actor.reference << "/" << actor.session << " died";
+    }
+
+    bool PhysicsSystem::startNeutralActorRagdoll(
+        const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose)
+    {
+        if (!Settings::physics().mCreativeMotionRagdolls)
+        {
+            message = "creativemotion ragdolls is off";
+            return false;
+        }
+        NeutralActorEntry* entry = findNeutralActor(ptr.mRef);
+        const auto object = mObjects.find(ptr.mRef);
+        if (entry == nullptr || object == mObjects.end())
+        {
+            message = "the actor is not a neutral actor with a body";
+            return false;
+        }
+        if (mActorRagdolls.find(ptr.mRef) != mActorRagdolls.end())
+        {
+            message = "the actor already has a ragdoll";
+            return false;
+        }
+
+        // Bodies are added while the actor job may be querying: take the same lock stepSimulation takes.
+        std::scoped_lock lock(mTaskScheduler->getSimulationMutex());
+
+        if (mRagdollHost == nullptr)
+        {
+            mRagdollHost = RagdollHost::create(mPhysicsSystem, Constants::UnitsPerMeter, mPhysicsDt, &message);
+            if (mRagdollHost == nullptr)
+                return false;
+        }
+        // The capsule is a WORLD body and a ragdoll meets WORLD: it would hold its own corpse up like an invisible
+        // pillar. DEBRIS meets only WORLD and HEIGHTMAP, which are static, so nothing meets the capsule any more (the
+        // combat's sweeps are geometric and skip the dead).
+        JPH::BodyInterface& bodies = mTaskScheduler->getBodyInterface();
+        bodies.SetObjectLayer(object->second->getPhysicsBody(), Layers::DEBRIS);
+
+        const ESM::Position& position = ptr.getRefData().getPosition();
+        // No start velocity: the pack's clips move the actor in place (the neutral mover's walk is not tracked).
+        const double velocity[3] = { 0.0, 0.0, 0.0 };
+        handle = mRagdollHost->spawnActor(
+            JPH::RVec3(position.pos[0], position.pos[1], position.pos[2]), position.rot[2], velocity, &message, pose);
+        if (!handle.isValid())
+        {
+            bodies.SetObjectLayer(object->second->getPhysicsBody(), Layers::WORLD);
+            return false;
+        }
+        if (std::getenv("OPENEDEN_RAGDOLL_TRACE") != nullptr)
+            mRagdollHost->setProgressLogging(true);
+        mActorRagdolls.emplace(ptr.mRef, handle);
+        entry->mRagdoll = handle;
+        entry->mCorpseDone = false;
+        entry->mCorpseFrames = 0;
+        return true;
+    }
+
+    void PhysicsSystem::forEachNeutralRagdoll(
+        const std::function<void(const MWWorld::Ptr&, ActorRagdollHandle, bool)>& fn)
+    {
+        for (NeutralActorEntry& entry : mNeutralActors)
+        {
+            if (!entry.mRagdoll.isValid())
+                continue;
+            const auto found = mObjects.find(entry.mRef);
+            if (found == mObjects.end())
+                continue;
+            const bool alive = mRagdollHost != nullptr && mRagdollHost->hasActor(entry.mRagdoll);
+            const MWWorld::Ptr ptr = found->second->getPtr();
+            const ActorRagdollHandle handle = entry.mRagdoll;
+            if (!alive)
+            {
+                // Removed by the host (it fell out of the world): the capsule stays where it died, non-colliding.
+                entry.mRagdoll = ActorRagdollHandle{};
+                entry.mCorpseDone = true;
+                mActorRagdolls.erase(entry.mRef);
+            }
+            fn(ptr, handle, alive);
+        }
+    }
+
+    void PhysicsSystem::restNeutralCorpse(NeutralActorEntry& entry, const MWWorld::Ptr& ptr)
+    {
+        constexpr std::uint32_t cCheckEveryFrames = 10; // reading 16 bodies each frame is needless
+        if (entry.mCorpseDone || ++entry.mCorpseFrames % cCheckEveryFrames != 0)
+            return;
+        MWMechanics::CorpseRestInput input;
+        input.mSettled = actorRagdollAtRest(entry.mRagdoll, input.mPelvis);
+        if (!input.mSettled)
+            return;
+        const ESM::Position position = ptr.getRefData().getPosition();
+        for (int k = 0; k < 3; ++k)
+            input.mActor[k] = position.pos[k];
+        const float unitsPerMeter = Constants::UnitsPerMeter;
+        input.mUnitsPerMeter = unitsPerMeter;
+        // A ray down from just above the pelvis finds what the corpse lies on.
+        float groundZ = 0.f;
+        const vsg::vec3 above(static_cast<float>(input.mPelvis[0]), static_cast<float>(input.mPelvis[1]),
+            static_cast<float>(input.mPelvis[2]) + unitsPerMeter * 0.25f);
+        input.mHasGround = groundBelow(above, unitsPerMeter * 3.f, groundZ);
+        input.mGroundZ = groundZ;
+        const MWMechanics::CorpseRestDecision decision = MWMechanics::decideCorpseRest(input);
+        entry.mCorpseDone = decision.mDone;
+        if (!decision.mMove)
+        {
+            Log(Debug::Info) << "Corpse of " << ptr.getCellRef().getRefId() << " stays where it died ("
+                             << position.pos[0] << " " << position.pos[1] << " " << position.pos[2]
+                             << "; its ragdoll rests at pelvis " << input.mPelvis[0] << " " << input.mPelvis[1] << " "
+                             << input.mPelvis[2] << ")";
+            return;
+        }
+        ESM::Position moved = position;
+        for (int k = 0; k < 3; ++k)
+            moved.pos[k] = static_cast<float>(decision.mPosition[k]);
+        ptr.getRefData().setPosition(moved);
+        mNeutralMoved.push_back(ptr);
+        Log(Debug::Info) << "Corpse of " << ptr.getCellRef().getRefId() << " moved to where its ragdoll lies ("
+                         << moved.pos[0] << " " << moved.pos[1] << " " << moved.pos[2] << "; died at "
+                         << position.pos[0] << " " << position.pos[1] << " " << position.pos[2] << ")";
     }
 
     PhysicsSystem::NeutralActorEntry* PhysicsSystem::findNeutralActor(const void* key)
@@ -1586,6 +1720,7 @@ namespace MWPhysics
     {
         ++mNeutralFrame;
         mNeutralMoved.clear();
+        mNeutralDeaths.clear();
         mNeutralTurned.clear();
         mNeutralSpeeds.clear();
         mNeutralPoseChanges.clear();
@@ -1671,6 +1806,13 @@ namespace MWPhysics
                 }
             }
             entry.mMeasuredSpeed = 0.f;
+            if (entry.mRagdoll.isValid())
+            {
+                // Task 0174: a ragdoll draws the corpse; no fall, no walk. Once it sleeps the corpse is moved to where
+                // it lies (the same rule as Morrowind's, MWMechanics::decideCorpseRest).
+                restNeutralCorpse(entry, found->second->getPtr());
+                continue;
+            }
             if (entry.mSeated)
             {
                 // Stage S6b: on furniture. The body stays where the pack put it (a static object, so the furniture does

@@ -57,6 +57,11 @@ namespace MWRender::SkyrimActor
     [[nodiscard]] vsg::ref_ptr<vsg::Node> buildActorNode(const openeden::sdk::game::ActorAppearance& appearance,
         const VFS::Manager& vfs, const SkyrimModel::BuildContext& context, Report& report);
 
+    /// Task 0174: the skeleton file as a plan (the bones with parents and rest transforms), for the death ragdoll's
+    /// bone table. False with `error` set when the file cannot be read or has no bones. Never throws.
+    [[nodiscard]] bool readSkeletonPlan(
+        const VFS::Manager& vfs, const std::string& skeletonPath, NifScene::Skeleton::Plan& plan, std::string& error);
+
     /// "Skyrim actors: 5 built, 31 parts drawn ..." for the log.
     std::string describeTotals();
 }

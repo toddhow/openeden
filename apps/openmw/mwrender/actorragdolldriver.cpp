@@ -4,6 +4,7 @@
 
 #include <components/animation/bones.hpp>
 #include <components/animation/transform.hpp>
+#include <components/vsgutil/name.hpp>
 
 #include <array>
 
@@ -54,13 +55,25 @@ namespace MWRender
         return sMappings;
     }
 
+    RagdollBoneSet morrowindRagdollBones()
+    {
+        return RagdollBoneSet{ std::span<const RagdollBoneMapping>(sMappings), sRootBone };
+    }
+
     ActorRagdollRest::ActorRagdollRest(Anim::Bones& bones)
+        : ActorRagdollRest(bones, morrowindRagdollBones())
+    {
+    }
+
+    ActorRagdollRest::ActorRagdollRest(Anim::Bones& bones, const RagdollBoneSet& set)
     {
         // Model space: no root transform, so neither the actor's yaw nor its position is in the numbers.
         const BonePose pose(bones, nullptr);
-        for (std::size_t i = 0; i < sMappings.size(); ++i)
+        for (std::size_t i = 0; i < set.mMappings.size() && i < mPresent.size(); ++i)
         {
-            const BonePose::Bone bone = pose.find(sMappings[i].mEngineBone);
+            if (set.mMappings[i].mEngineBone == nullptr || set.mMappings[i].mEngineBone[0] == '\0')
+                continue;
+            const BonePose::Bone bone = pose.find(set.mMappings[i].mEngineBone);
             if (!bone)
                 continue;
             mRotations[i] = Misc::VsgMath::rotationOf(pose.getWorldRotation(bone));
@@ -72,26 +85,33 @@ namespace MWRender
     bool makeActorStartPose(
         Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest, MWPhysics::ActorStartPose& out)
     {
-        if (!rest.isValid())
+        return makeActorStartPose(bones, root, rest, morrowindRagdollBones(), out);
+    }
+
+    bool makeActorStartPose(Anim::Bones& bones, const Anim::Transform* root, const ActorRagdollRest& rest,
+        const RagdollBoneSet& set, MWPhysics::ActorStartPose& out)
+    {
+        if (!rest.isValid() || set.mMappings.empty() || set.mMappings[0].mEngineBone == nullptr)
             return false;
         const BonePose modelPose(bones, nullptr);
         const BonePose worldPose(bones, root);
-        const BonePose::Bone pelvis = worldPose.find(sMappings[0].mEngineBone);
+        const BonePose::Bone pelvis = worldPose.find(set.mMappings[0].mEngineBone);
         if (!pelvis)
             return false;
 
+        const std::span<const RagdollBoneMapping> mappings = set.mMappings;
         MWPhysics::ActorStartPose result;
-        for (std::size_t i = 0; i < sMappings.size(); ++i)
+        for (std::size_t i = 0; i < mappings.size(); ++i)
         {
             if (!rest.has(i))
                 continue;
-            const BonePose::Bone bone = modelPose.find(sMappings[i].mEngineBone);
+            const BonePose::Bone bone = modelPose.find(mappings[i].mEngineBone);
             if (!bone)
                 continue;
             const vsg::dquat now = Misc::VsgMath::rotationOf(modelPose.getWorldRotation(bone));
             const vsg::dquat relative = RagdollBones::restRelative(now, rest.rotation(i));
             const double rotation[4] = { relative.x, relative.y, relative.z, relative.w };
-            result.add(sMappings[i].mRigBone, rotation);
+            result.add(mappings[i].mRigBone, rotation);
         }
         const vsg::dvec3 position = Misc::VsgMath::getTrans(worldPose.getWorld(pelvis));
         result.mPelvisPosition[0] = position.x;
@@ -103,6 +123,12 @@ namespace MWRender
 
     ActorRagdollDriver::ActorRagdollDriver(
         Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source)
+        : ActorRagdollDriver(bones, root, std::move(source), morrowindRagdollBones())
+    {
+    }
+
+    ActorRagdollDriver::ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root,
+        std::unique_ptr<RagdollSource> source, const RagdollBoneSet& set)
         : mPose(std::make_unique<BonePose>(bones, root))
         , mSource(std::move(source))
     {
@@ -121,8 +147,8 @@ namespace MWRender
 
         // A rig bone without a body (the embedded humanoid has none for the neck) or an engine bone the actor lacks is
         // skipped: that bone keeps the animation's local rotation under its driven parent. The pelvis is required.
-        mDriven.reserve(sMappings.size());
-        for (const RagdollBoneMapping& mapping : sMappings)
+        mDriven.reserve(set.mMappings.size());
+        for (const RagdollBoneMapping& mapping : set.mMappings)
         {
             const bool isPelvis = mDriven.empty();
             std::size_t state = names.size();
@@ -144,7 +170,8 @@ namespace MWRender
                 continue;
             }
             Driven driven;
-            driven.mBone = mPose->find(mapping.mEngineBone);
+            if (mapping.mEngineBone != nullptr && mapping.mEngineBone[0] != '\0')
+                driven.mBone = mPose->find(mapping.mEngineBone);
             if (!driven.mBone)
             {
                 if (isPelvis)
@@ -168,7 +195,15 @@ namespace MWRender
 
         // Only the pelvis translates; it needs its parent to turn a world position into a local one.
         mPelvisDriven = 0;
-        mPelvisParent = mPose->find(sRootBone);
+        if (set.mRootBone != nullptr && set.mRootBone[0] != '\0')
+            mPelvisParent = mPose->find(set.mRootBone);
+        if (mPelvisParent && set.mTranslateRootBone && mPelvisParent.mPath.size() >= 2)
+        {
+            // Task 0174: the bone above the root bone, found by name, turns a world position into the root bone's
+            // local translation. A root bone with no bone above it is under the model root (getRoot()).
+            mPelvisGrandParent = mPose->find(vsgUtil::getName(*mPelvisParent.mPath[mPelvisParent.mPath.size() - 2]));
+        }
+        mTranslateRootBone = set.mTranslateRootBone;
         if (mPelvisParent)
         {
             mActorPelvisAtSpawn = Misc::VsgMath::getTrans(mPose->getWorld(mDriven[mPelvisDriven].mBone));
@@ -198,6 +233,25 @@ namespace MWRender
             const Driven& pelvis = mDriven[mPelvisDriven];
             const vsg::dvec3 wanted = RagdollBones::drivenPelvisPosition(
                 mActorPelvisAtSpawn, mRagdollPelvisAtSpawn, positionOfState(mStates[pelvis.mState]));
+            if (mTranslateRootBone)
+            {
+                // The pelvis origin is parent * (local translation), and the parent's rotation is not driven: put the
+                // parent where that product lands on `wanted`.
+                const vsg::vec3 offset = mPose->getLocalTranslation(pelvis.mBone);
+                const vsg::vec4 rotated
+                    = mPose->getWorldRotation(mPelvisParent) * vsg::vec4(offset.x, offset.y, offset.z, 0.0f);
+                const vsg::vec4 parentAt(static_cast<float>(wanted.x) - rotated.x,
+                    static_cast<float>(wanted.y) - rotated.y, static_cast<float>(wanted.z) - rotated.z, 1.0f);
+                const vsg::mat4 aboveWorld
+                    = mPelvisGrandParent ? mPose->getWorld(mPelvisGrandParent) : mPose->getRoot();
+                vsg::mat4 inverseAbove;
+                if (Misc::VsgMath::invert(aboveWorld, inverseAbove))
+                {
+                    const vsg::vec4 local = inverseAbove * parentAt;
+                    mPose->setLocalTranslation(mPelvisParent, vsg::vec3(local.x, local.y, local.z));
+                }
+                return true;
+            }
             const vsg::mat4 parentWorld = mPose->getWorld(mPelvisParent);
             vsg::mat4 inverseParent;
             if (Misc::VsgMath::invert(parentWorld, inverseParent))

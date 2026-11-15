@@ -391,6 +391,18 @@ namespace MWPhysics
         std::span<const std::string> actorRagdollBones() const;
         std::size_t actorRagdollCount() const;
 
+        /// Task 0174 (S5-5). The neutral actors the pack reported dead since the last updateNeutralActors, when
+        /// `[Physics] creativemotion ragdolls` is on (valid until the next call of it). Main thread.
+        const std::vector<MWWorld::Ptr>& getNeutralDeaths() const { return mNeutralDeaths; }
+        /// Turns a dead neutral actor into a ragdoll: its capsule leaves every layer the ragdoll meets, the ragdoll is
+        /// built in `pose` (null: the rig's standing rest pose) at the actor's place and yaw, at rest. False with a
+        /// message when the setting is off, the actor is not a neutral actor, it has one already or the host refuses.
+        bool startNeutralActorRagdoll(
+            const MWWorld::Ptr& ptr, ActorRagdollHandle& handle, std::string& message, const ActorStartPose* pose);
+        /// Calls fn(ptr, handle, alive) for every neutral actor that has a ragdoll; one whose ragdoll the host has
+        /// removed (it fell out of the world) is told once with alive false and forgotten.
+        void forEachNeutralRagdoll(const std::function<void(const MWWorld::Ptr&, ActorRagdollHandle, bool)>& fn);
+
         /// The box around every body of the Jolt world (task 0028: the light probe baker sizes its volume with it).
         void getWorldBounds(vsg::vec3& low, vsg::vec3& high) const;
 
@@ -572,6 +584,11 @@ namespace MWPhysics
             NeutralProcess::Level mLevel = NeutralProcess::Level::High; ///< task 0154
             NeutralProcess::Schedule mSchedule;
             bool mScheduleSeeded = false;
+            // Task 0174 (S5-5): the pack reported it dead and the ragdoll host holds its ragdoll. A handle that is
+            // valid keeps the fall and walk code away from the entry; the corpse is moved to where it lies once.
+            ActorRagdollHandle mRagdoll;
+            bool mCorpseDone = false;
+            std::uint32_t mCorpseFrames = 0;
         };
         NeutralProcess::Config mNeutralProcessConfig;
         NeutralProcessStats mNeutralProcessStats;
@@ -670,9 +687,11 @@ namespace MWPhysics
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
         void followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace);
         NeutralActorEntry* findNeutralActor(const void* key);
+        void restNeutralCorpse(NeutralActorEntry& entry, const MWWorld::Ptr& ptr);
         NeutralPathFinderFn mNeutralPathFinder;
         std::vector<MWWorld::Ptr> mNeutralMoved; // reserved when an actor is added, so a frame does not allocate
         std::vector<MWWorld::Ptr> mNeutralTurned;
+        std::vector<MWWorld::Ptr> mNeutralDeaths; // task 0174: reported dead since the last updateNeutralActors
         std::vector<NeutralSpeedReport> mNeutralSpeeds;
 
         using ProjectileMap = std::map<int, std::shared_ptr<Projectile>>;

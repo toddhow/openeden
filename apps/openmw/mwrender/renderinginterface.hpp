@@ -3,6 +3,7 @@
 
 #include <array>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -10,6 +11,7 @@
 
 #include <openeden/game/actor_appearance.hpp>
 
+#include "../mwphysics/ragdolltypes.hpp"
 #include "../mwworld/ptr.hpp"
 
 namespace MWRender
@@ -61,6 +63,29 @@ namespace MWRender
         {
             return {};
         }
+
+        // Task 0174 (S5-5, death ragdolls). All main thread. The defaults do nothing, so an implementation with no
+        // neutral actors needs no change.
+        /// The actor's mapped bones now against their rest, as the start pose of its ragdoll. False for an actor with
+        /// no ragdoll controller (a creature, the setting off) or no pelvis.
+        virtual bool neutralRagdollStartPose(const MWWorld::Ptr& /*ptr*/, MWPhysics::ActorStartPose& /*out*/)
+        {
+            return false;
+        }
+        /// Starts drawing the actor's skeleton from its ragdoll (`names`: the rig bone of each state). False with a
+        /// reason when the driver is refused; the actor then keeps its pose.
+        virtual bool beginNeutralRagdoll(const MWWorld::Ptr& /*ptr*/, std::span<const std::string> /*names*/,
+            std::span<const MWPhysics::RagdollBoneState> /*initial*/, std::string& /*reason*/)
+        {
+            return false;
+        }
+        /// The ragdoll's bodies for this frame.
+        virtual void setNeutralRagdollStates(
+            const MWWorld::Ptr& /*ptr*/, std::span<const MWPhysics::RagdollBoneState> /*states*/)
+        {
+        }
+        /// Stops drawing from the ragdoll (the ragdoll is gone).
+        virtual void endNeutralRagdoll(const MWWorld::Ptr& /*ptr*/) {}
     };
 }
 

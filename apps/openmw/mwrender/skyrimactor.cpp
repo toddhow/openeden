@@ -177,6 +177,21 @@ namespace MWRender::SkyrimActor
         return root;
     }
 
+    bool readSkeletonPlan(
+        const VFS::Manager& vfs, const std::string& skeletonPath, NifScene::Skeleton::Plan& plan, std::string& error)
+    {
+        NifScene::Scene scene;
+        if (!readScene(vfs, skeletonPath, scene, error))
+            return false;
+        plan = NifScene::Skeleton::plan(scene);
+        if (plan.mNodes.empty())
+        {
+            error = "the skeleton has no bones";
+            return false;
+        }
+        return true;
+    }
+
     std::string describeTotals()
     {
         const Totals& t = totals();

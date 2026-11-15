@@ -89,6 +89,7 @@
 
 #include "../mwrender/camera.hpp"
 #include "../mwrender/rendermanager.hpp"
+#include "../mwrender/skyrimragdollmap.hpp"
 
 #include "../mwscript/globalscripts.hpp"
 
@@ -338,6 +339,8 @@ namespace MWWorld
         // session without it (Morrowind, or the setting off) holds none of these functions.
         if (Settings::game().mNeutralCombat.get())
         {
+            // Task 0174 (S5-5): where the death ragdoll's baked skeleton maps are kept.
+            MWRender::SkyrimRagdoll::setConfiguredMapFolder(MWRender::SkyrimRagdoll::mapFolder(mUserDataPath));
             // Task 0170 (combat stage S5-2): the clip meta of a neutral actor's combat clip comes from its pose
             // controller.
             mPhysics->setNeutralClipMetaProvider(
@@ -1550,11 +1553,60 @@ namespace MWWorld
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())
                     mRendering->getObjects().setNeutralActorSpeed(report.mPtr, report.mSpeed);
+            // Task 0174 (S5-5): an actor the pack reported dead becomes a ragdoll (humanoids that have a bone table).
+            for (const MWWorld::Ptr& ptr : mPhysics->getNeutralDeaths())
+                startNeutralRagdoll(ptr);
         }
         mPhysics->stepSimulation(duration, mDiscardMovements);
+        if (mPhysics->actorRagdollCount() != 0)
+            updateNeutralRagdolls();
         mProjectileManager->processHits();
         mDiscardMovements = false;
         mPhysics->moveActors();
+    }
+
+    void World::startNeutralRagdoll(const Ptr& ptr)
+    {
+        // The pose the actor died in, read from its bones now; an actor with no ragdoll controller (a creature, a
+        // skeleton with no bone table) keeps the death clip's last pose.
+        MWPhysics::ActorStartPose pose;
+        if (!mRendering->getObjects().neutralRagdollStartPose(ptr, pose))
+        {
+            Log(Debug::Verbose) << "No ragdoll for " << ptr.getCellRef().getRefId() << ": no bone table or pose";
+            return;
+        }
+        MWPhysics::ActorRagdollHandle handle;
+        std::string message;
+        if (!mPhysics->startNeutralActorRagdoll(ptr, handle, message, &pose))
+        {
+            Log(Debug::Verbose) << "No ragdoll for " << ptr.getCellRef().getRefId() << ": " << message;
+            return;
+        }
+        std::array<MWPhysics::RagdollBoneState, 2 * MWPhysics::cMaxStartPoseBones> states;
+        const std::span<const std::string> names = mPhysics->actorRagdollBones();
+        if (names.size() > states.size() || !mPhysics->readActorRagdoll(handle, states)
+            || !mRendering->getObjects().beginNeutralRagdoll(ptr, names, states, message))
+        {
+            Log(Debug::Verbose) << "No ragdoll for " << ptr.getCellRef().getRefId() << ": " << message;
+            mPhysics->stopActorRagdoll(ptr);
+            return;
+        }
+        Log(Debug::Info) << "Ragdoll started for " << ptr.getCellRef().getRefId();
+    }
+
+    void World::updateNeutralRagdolls()
+    {
+        std::array<MWPhysics::RagdollBoneState, 2 * MWPhysics::cMaxStartPoseBones> states;
+        mPhysics->forEachNeutralRagdoll(
+            [this, &states](const Ptr& ptr, MWPhysics::ActorRagdollHandle handle, bool alive) {
+                if (!alive)
+                {
+                    mRendering->getObjects().endNeutralRagdoll(ptr);
+                    return;
+                }
+                if (mPhysics->readActorRagdoll(handle, states))
+                    mRendering->getObjects().setNeutralRagdollStates(ptr, states);
+            });
     }
 
     void World::updateNavigator()
