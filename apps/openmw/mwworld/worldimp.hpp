@@ -64,6 +64,7 @@ namespace MWWorld
     class WeatherManager;
     class Player;
     class ProjectileManager;
+    class NeutralProjectiles;
 
     /// \brief The game world and its visual representation
 
@@ -90,6 +91,7 @@ namespace MWWorld
         std::unique_ptr<MWWorld::WeatherManager> mWeatherManager;
         std::unique_ptr<MWWorld::DateTimeManager> mTimeManager;
         std::unique_ptr<ProjectileManager> mProjectileManager;
+        std::unique_ptr<NeutralProjectiles> mNeutralProjectiles; // task 0178: the arrows of the neutral combat bridge
 
         bool mGodMode;
         bool mScriptsEnabled;

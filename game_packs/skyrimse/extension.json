@@ -66,6 +66,21 @@
       "default": ""
     },
     {
+      "key": "combat test ammo",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat test player bow",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "combat test bow speed bonus",
+      "type": "float",
+      "default": 0.0
+    },
+    {
       "key": "combat trace",
       "type": "bool",
       "default": false

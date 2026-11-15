@@ -542,6 +542,22 @@ namespace MWRender
             }
     }
 
+    void Scene::setNeutralActorClipSpeed(const MWWorld::Ptr& ptr, float multiplier)
+    {
+        auto cell = getCell(ptr, false);
+        if (!cell)
+            return;
+        const auto iter = cell->objects.find(ptr);
+        if (iter == cell->objects.end())
+            return;
+        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+            {
+                pose->setRate(multiplier);
+                return;
+            }
+    }
+
     HavokPack::ClipProgress Scene::neutralActorClipProgress(const MWWorld::Ptr& ptr)
     {
         auto cell = getCell(ptr, false);

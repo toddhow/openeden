@@ -256,6 +256,12 @@ namespace game_skyrimse
             mCombat.onClipFinished(subject, token, how);
         }
         void onPlayerAttack(bool power) override { mCombat.onPlayerAttack(power); }
+        /// Task 0178 (stage S5-6): the arrow results and the attack control's presses and releases.
+        void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override
+        {
+            mCombat.onProjectileResult(result);
+        }
+        void onPlayerAttackEdge(bool pressed) override { mCombat.onPlayerAttackEdge(pressed); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Task 0176: the Papyrus host hears of a built cell and of a conversation that began (the player used an
         /// actor). Main thread, called after the engine's request succeeded; empty functions are not called.

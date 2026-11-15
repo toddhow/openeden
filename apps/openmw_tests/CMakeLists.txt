@@ -177,6 +177,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorbridge.cpp
     mwphysics/testneutralcombatbridge.cpp
     mwphysics/testneutralsweep.cpp
+    mwphysics/testneutralprojectile.cpp
+    mwphysics/testneutralprojectilebridge.cpp
     mwphysics/testneutralsight.cpp
     mwphysics/testneutralplayerattack.cpp
     mwphysics/testneutralcombatsight.cpp

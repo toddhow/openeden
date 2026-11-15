@@ -52,6 +52,10 @@ namespace MWRender
         /// controller.
         virtual void playNeutralActorClip(const MWWorld::Ptr& /*ptr*/, std::string_view /*clip*/, bool /*perSex*/) {}
 
+        /// Task 0178 (the bow's draw speed): the clip the actor plays now runs at `multiplier` times its speed. Applied
+        /// after playNeutralActorClip (a new clip starts at speed 1). The default does nothing.
+        virtual void setNeutralActorClipSpeed(const MWWorld::Ptr& /*ptr*/, float /*multiplier*/) {}
+
         /// Task 0170: the meta of the clip playNeutralActorClip started and how far its sampling has got (empty for an
         /// actor with no such clip).
         virtual HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& /*ptr*/) { return {}; }

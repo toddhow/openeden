@@ -95,6 +95,7 @@ namespace MWRender
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
         void playNeutralActorClip(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;
+        void setNeutralActorClipSpeed(const MWWorld::Ptr& ptr, float multiplier) override;
         HavokPack::ClipProgress neutralActorClipProgress(const MWWorld::Ptr& ptr) override;
         std::shared_ptr<const HavokPack::ClipMeta> neutralClipMeta(std::string_view clip, bool perSex) override;
         bool neutralRagdollStartPose(const MWWorld::Ptr& ptr, MWPhysics::ActorStartPose& out) override;

@@ -23,6 +23,7 @@
 // A pack function that throws is caught and counted. Only actors: the player has no handle (refused and counted).
 
 #include "neutralactorbridge.hpp"
+#include "neutralprojectile.hpp"
 #include "neutralsweep.hpp"
 
 #include <components/havokpack/clipevents.hpp>
@@ -38,11 +39,41 @@
 
 namespace MWPhysics
 {
+    /// Where a projectile is drawn: a position and the unit direction of its flight (task 0178).
+    struct NeutralProjectilePose
+    {
+        double mX = 0.0;
+        double mY = 0.0;
+        double mZ = 0.0;
+        float mDirX = 0.f;
+        float mDirY = 1.f;
+        float mDirZ = 0.f;
+    };
+
     /// Where the clip goes. `key` is the actor key of the NeutralActorBridge.
     class NeutralClipSink
     {
     public:
         virtual ~NeutralClipSink() = default;
+        /// Task 0178: the clip the actor plays now runs at `multiplier` times its speed (default: nothing).
+        virtual void setClipSpeed(const void* key, float multiplier)
+        {
+            (void)key;
+            (void)multiplier;
+        }
+        /// Task 0178: a projectile starts to be drawn (`id` is the core's number), moves, or goes. Defaults: nothing.
+        virtual void spawnProjectile(std::uint32_t id, std::string_view model, const NeutralProjectilePose& pose)
+        {
+            (void)id;
+            (void)model;
+            (void)pose;
+        }
+        virtual void moveProjectile(std::uint32_t id, const NeutralProjectilePose& pose)
+        {
+            (void)id;
+            (void)pose;
+        }
+        virtual void removeProjectile(std::uint32_t id) { (void)id; }
         virtual void playClip(const void* key, std::string_view clip, bool perSex) = 0;
         virtual void stopClip(const void* key) = 0;
         /// Task 0171: turns the actor on the spot (default: nothing).
@@ -84,6 +115,15 @@ namespace MWPhysics
             (void)clip;
             (void)perSex;
             return {};
+        }
+        /// Task 0178: the first static body the segment from p0 to p1 meets, as the fraction along it in [0, 1]
+        /// (a projectile's flight; actors are not bodies for it). Default: nothing is hit.
+        virtual bool rayWorld(const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction)
+        {
+            (void)p0;
+            (void)p1;
+            fraction = 0.0;
+            return false;
         }
         /// The pack reported the actor behind `key` dead (once).
         virtual void actorDied(const void* key, openeden::sdk::game::ActorHandle actor)
@@ -132,6 +172,14 @@ namespace MWPhysics
             std::uint64_t mPlayerAttacks = 0; ///< task 0172: attack key presses told to the pack
             std::uint64_t mPlayerAttackRefused = 0; ///< no rules, or the pack's function threw
             std::uint64_t mWriterFailures = 0; ///< a call into the engine (sink, world, meta) that threw: caught here
+            std::uint64_t mProjectilesLaunched = 0; ///< task 0178
+            std::uint64_t mProjectilesRefused = 0; ///< bad request, stale owner, table full, outside update
+            std::uint64_t mProjectileHitsActor = 0;
+            std::uint64_t mProjectileHitsPlayer = 0;
+            std::uint64_t mProjectileHitsWorld = 0;
+            std::uint64_t mProjectilesExpired = 0;
+            std::uint64_t mProjectileResultsDropped = 0; ///< the owner had gone
+            std::uint64_t mPlayerAttackEdges = 0;
         };
 
         static constexpr std::size_t kMaxPlaying = 64;
@@ -141,6 +189,11 @@ namespace MWPhysics
         static constexpr std::size_t kDeadPruneUpdates = 64;
         static constexpr float kMetaTimeoutSeconds = 5.f;
         static constexpr std::size_t kMaxPendingResults = 64;
+        /// Task 0178: projectiles in flight at once, and the longest model path accepted.
+        static constexpr std::size_t kMaxProjectiles = 64;
+        static constexpr std::size_t kMaxProjectileModelPath = 256;
+        /// A projectile that has flown this long is expired whatever its range says (it fell out of the world).
+        static constexpr float kMaxProjectileSeconds = 30.f;
         static constexpr std::size_t kMaxCandidates = 4096;
         /// Task 0171 stage S5-3b: a blow needs a clear line from the attacker, this far above its feet, to the target's
         /// capsule: mid-body (half the 128 unit standing height). Measured in the Bannered Mare: the bar counter's top
@@ -163,6 +216,14 @@ namespace MWPhysics
         /// just before the next update's combatUpdate would; main thread, outside update(). False (and counted) with no
         /// rules or when the pack's function throws (caught).
         bool playerAttack(openeden::sdk::game::CombatRules* rules, bool power);
+
+        /// Task 0178: the player's attack control went down or up (`pressed`): tells rules->onPlayerAttackEdge. False
+        /// (and counted) with no rules or when the pack's function throws (caught).
+        bool playerAttackEdge(openeden::sdk::game::CombatRules* rules, bool pressed);
+
+        /// Projectiles in the air, and arrows stuck in the world and still drawn.
+        [[nodiscard]] std::size_t projectilesInFlight() const { return mShots.size(); }
+        [[nodiscard]] std::size_t projectilesStuck() const { return mStuck.size(); }
 
         /// True once the pack reported the actor dead.
         [[nodiscard]] bool isDead(openeden::sdk::game::ActorHandle actor) const;
@@ -188,7 +249,13 @@ namespace MWPhysics
             std::shared_ptr<const HavokPack::ClipMeta> mMeta;
             float mPrevious = -1.f; ///< clip clock before this frame's step
             float mCurrent = -1.f;
-            float mWaited = 0.f; ///< seconds spent waiting for the meta
+            float mWaited = 0.f; ///< playback seconds spent waiting for the meta
+            float mRate = 1.f; ///< task 0178: the clip's speed multiplier (the draw speed of a bow)
+        };
+        struct Stuck
+        {
+            std::uint32_t mId = 0;
+            float mSecondsLeft = 0.f;
         };
         struct Finished
         {
@@ -215,6 +282,11 @@ namespace MWPhysics
             bool subjectState(
                 openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
             bool clipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out) override;
+            bool launchProjectile(
+                openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r) override;
+            bool setClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier) override;
+            bool clipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
+                float& out) override;
             NeutralClipSink* mSink = nullptr; ///< non-null only while the pack's combatUpdate runs
             NeutralCombatWorld* mWorld = nullptr; ///< likewise (may be null: sweeps are then refused)
 
@@ -234,6 +306,11 @@ namespace MWPhysics
             bool doReportDeath(openeden::sdk::game::ActorHandle actor);
             bool doSubjectState(openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out);
             bool doClipTiming(std::string_view clip, bool perSex, openeden::sdk::game::ClipTiming& out);
+            bool doLaunchProjectile(
+                openeden::sdk::game::CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r);
+            bool doSetClipSpeed(openeden::sdk::game::CombatSubject subject, float multiplier);
+            bool doClipEventTime(std::string_view clip, bool perSex, openeden::sdk::game::ClipEventKind kind,
+                float& out);
             NeutralCombatBridge& mBridge;
         };
 
@@ -251,7 +328,13 @@ namespace MWPhysics
             openeden::sdk::game::SweepHit mHits[openeden::sdk::game::kMaxSweepHits];
         };
 
+        void stepProjectiles(float seconds, NeutralClipSink& sink, NeutralCombatWorld* world);
+
         const NeutralActorBridge& mActors;
+        std::vector<NeutralProjectile::Shot> mShots; ///< in flight
+        std::vector<Stuck> mStuck; ///< arrows that hit the world and are still drawn
+        std::vector<openeden::sdk::game::ProjectileResult> mProjectileResults; ///< ended, not yet told
+        std::uint32_t mNextProjectileId = 1;
         std::vector<SweepResult> mResults; ///< cast, not yet told
         std::vector<NeutralSweep::Candidate> mCandidates;
         std::vector<openeden::sdk::game::ActorHandle> mDead; ///< sorted by (reference, session), at most kMaxDead

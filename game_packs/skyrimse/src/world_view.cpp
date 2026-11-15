@@ -349,6 +349,37 @@ namespace game_skyrimse
         return mCombatIndex->settings().blockSettings();
     }
 
+    const AmmoRecord* SkyrimWorldView::ammoByEditorId(std::string_view editorId)
+    {
+        if (mCombatIndex == nullptr)
+            return nullptr;
+        auto lower = [](std::string_view text) {
+            std::string out(text);
+            for (char& c : out)
+                if (c >= 'A' && c <= 'Z')
+                    c = static_cast<char>(c + 32);
+            return out;
+        };
+        const std::string wanted = lower(editorId);
+        for (const FormId id : mCombatIndex->ammoIds())
+        {
+            const AmmoRecord* ammo = mCombatIndex->ammo(id);
+            if (ammo != nullptr && lower(ammo->mCommon.mEditorId) == wanted)
+                return ammo;
+        }
+        return nullptr;
+    }
+
+    const ProjectileRecord* SkyrimWorldView::projectileOf(const AmmoRecord& ammo)
+    {
+        return mCombatIndex == nullptr || ammo.mProjectile == 0 ? nullptr : mCombatIndex->projectile(ammo.mProjectile);
+    }
+
+    ProjectileSettings SkyrimWorldView::projectileSettings()
+    {
+        return mCombatIndex == nullptr ? ProjectileSettings{} : mCombatIndex->settings().projectileSettings();
+    }
+
     const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
     {
         if (mCombatIndex == nullptr)

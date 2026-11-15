@@ -60,6 +60,8 @@ namespace game_skyrimse
         std::uint16_t mFlags = 0; ///< +12
         std::uint32_t mSkillValue = kFirstSkillActorValue; ///< +76, an actor value index (6, 7 or 8 in the data)
         float mStagger = 0.f; ///< +96 (0 to 1.5 in the data)
+        float mMinRange = 0.f; ///< +28 (500 for bows in the data; 0 for every other weapon) (task 0178)
+        float mMaxRange = 0.f; ///< +32 (2500 for bows)
         bool mHasCrit = false; ///< CRDT, 24 bytes (VERIFIED size)
         std::uint16_t mCritDamage = 0; ///< +0
         float mCritMultiplier = 1.f; ///< +4 (1.0 for 3,160 of 3,262)
@@ -102,6 +104,46 @@ namespace game_skyrimse
         float mValue = 0.f;
     };
 
+    /// Task 0178 (stage S5-6): a PROJ, the numbers a bow shot reads. DATA is 92 bytes for 230 of the 236 in the five
+    /// masters (6 are 84 or 88): flags u16 (+0), type u16 (+2), gravity f32 (+4), speed f32 (+8), range f32 (+12)
+    /// (layout from xEdit, RECALLED-VERIFY; the value ranges agree with the census of note 0056 section 5). The model
+    /// is MODL (`Weapons\Iron\IronArrowFlight.nif` for the iron arrow).
+    struct ProjectileRecord
+    {
+        RecordCommon mCommon;
+        bool mHasData = false;
+        std::uint16_t mFlags = 0;
+        std::uint16_t mType = 0;
+        float mGravity = 0.f; ///< 0 for 153 records, 0.35 for 36, 1.0 for 24, 4.0 for 11
+        float mSpeed = 0.f; ///< units a second
+        float mRange = 0.f;
+        std::string mModel; ///< MODL as stored (`Weapons\Iron\IronArrowFlight.nif`)
+
+        /// The type value of an arrow in xEdit's enum (a flag word: Missile 1, Lobber 2, Beam 4, Flame 8, Cone 16,
+        /// Barrier 32, Arrow 64: VERIFIED on Skyrim.esm, where ArrowIronProjectile and 19 more records have type 64,
+        /// speed 3600, gravity 0.35 and range 60000).
+        static constexpr std::uint16_t kTypeArrow = 64;
+        [[nodiscard]] bool isArrow() const { return mType == kTypeArrow; }
+    };
+
+    /// An AMMO: DATA is 20 bytes (VERIFIED on Skyrim.esm: every record; the census of note 0056 said 16, which was
+    /// wrong): projectile form id +0, flags u32 +4, damage f32 +8, value u32 +12 (VERIFIED by IronArrow: damage 8,
+    /// flags 4, projectile ArrowIronProjectile), and 4 more bytes (a weight, RECALLED-VERIFY) that are not read.
+    struct AmmoRecord
+    {
+        RecordCommon mCommon;
+        bool mHasData = false;
+        FormId mProjectile = 0; ///< resolved; 0 when it does not resolve
+        std::uint32_t mFlags = 0;
+        float mDamage = 0.f;
+        std::uint32_t mValue = 0;
+    };
+
+    [[nodiscard]] bool decodeProjectile(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, ProjectileRecord& out, std::string& why);
+    [[nodiscard]] bool decodeAmmo(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, AmmoRecord& out, std::string& why);
+
     [[nodiscard]] bool decodeWeapon(std::span<const std::byte> bytes, const Content::RawRecord& record,
         const DecodeContext& context, WeaponRecord& out, std::string& why);
     [[nodiscard]] bool decodeRaceCombat(std::span<const std::byte> bytes, const Content::RawRecord& record,
@@ -116,6 +158,8 @@ namespace game_skyrimse
         std::vector<WeaponRecord> mWeapons;
         std::vector<RaceCombatRecord> mRaces;
         std::vector<GameSetting> mSettings;
+        std::vector<ProjectileRecord> mProjectiles; ///< task 0178
+        std::vector<AmmoRecord> mAmmo; ///< task 0178
         DecodeNotes mNotes;
         std::vector<Content::Error> mErrors;
         std::uint64_t mErrorsDropped = 0;
@@ -167,6 +211,15 @@ namespace game_skyrimse
         float mPowerAttackStaggerBonus = 1.f; ///< OURS: a power attack adds this to the weapon's stagger value
     };
 
+    /// Task 0178: what a bow shot reads from the GMSTs (VERIFIED values in the data census, note 0056 section 2; how
+    /// they are used is RECALLED-VERIFY).
+    struct ProjectileSettings
+    {
+        float mArrowInventoryChance = 33.f; ///< iArrowInventoryChance: percent of arrows that end in the inventory
+        float mMissileStickDepth = 20.f; ///< fCombatMissileStickDepth: how far into a surface a stuck arrow is drawn
+        float mAttachedArrowAgeMax = 10.f; ///< fAttachedArrowAgeMax: seconds a stuck arrow stays
+    };
+
     /// The GMSTs of a load order by editor id (later plugins win).
     class SettingsTable
     {
@@ -182,6 +235,8 @@ namespace game_skyrimse
         [[nodiscard]] CombatSettings combatSettings(std::vector<std::string>* missing = nullptr) const;
         /// Task 0172: the block, bash and stagger numbers (a GMST the table has replaces the default).
         [[nodiscard]] BlockSettings blockSettings() const;
+        /// Task 0178: the arrow numbers (a GMST the table has replaces the default).
+        [[nodiscard]] ProjectileSettings projectileSettings() const;
 
     private:
         std::map<std::string, float> mValues;
@@ -194,6 +249,9 @@ namespace game_skyrimse
         void add(const CombatRecords& records);
         [[nodiscard]] const WeaponRecord* weapon(FormId id) const;
         [[nodiscard]] const RaceCombatRecord* race(FormId id) const;
+        [[nodiscard]] const ProjectileRecord* projectile(FormId id) const; ///< task 0178
+        [[nodiscard]] const AmmoRecord* ammo(FormId id) const; ///< task 0178
+        [[nodiscard]] std::vector<FormId> ammoIds() const; ///< sorted
         [[nodiscard]] std::size_t weaponCount() const { return mWeapons.size(); }
         [[nodiscard]] std::size_t raceCount() const { return mRaces.size(); }
         [[nodiscard]] std::vector<FormId> weaponIds() const; ///< sorted
@@ -202,6 +260,8 @@ namespace game_skyrimse
     private:
         std::unordered_map<FormId, WeaponRecord> mWeapons;
         std::unordered_map<FormId, RaceCombatRecord> mRaces;
+        std::unordered_map<FormId, ProjectileRecord> mProjectiles;
+        std::unordered_map<FormId, AmmoRecord> mAmmo;
         SettingsTable mSettings;
     };
 
@@ -280,6 +340,54 @@ namespace game_skyrimse
     ///             times mPowerAttackStaminaPenalty for a power attack.
     /// Negative and non-finite inputs count as 0. Pure: no random numbers (a critical's chance is the caller's).
     [[nodiscard]] MeleeHit computeMeleeHit(const MeleeInput& input, const CombatSettings& settings);
+
+    /// Task 0178: the numbers of one arrow, gathered by the caller.
+    struct BowInput
+    {
+        const WeaponRecord* mBow = nullptr;
+        const AmmoRecord* mAmmo = nullptr;
+        float mArcherySkill = 0.f; ///< 0 to 100
+        float mDrawFraction = 1.f; ///< how far the bow was drawn, 0 to 1
+        float mTargetMitigationPercent = 0.f;
+    };
+
+    struct BowHit
+    {
+        float mDamageBefore = 0.f;
+        float mDamageAfter = 0.f;
+        float mStagger = 0.f; ///< the bow's stagger value
+    };
+
+    /// RECALLED-VERIFY, tunable: before = (bow damage + ammo damage) x skill multiplier (as computeMeleeHit: min(
+    /// mDamagePCSkillMax, 1 + skill / 200)) x draw fraction (clamped to 0 to 1); after = before x (1 - mitigation /
+    /// 100) with the mitigation clamped to 0 to mMaxArmorRating. No bow or no ammo: 0. Negative and non-finite inputs
+    /// count as 0. Pure.
+    [[nodiscard]] BowHit computeBowHit(const BowInput& input, const CombatSettings& settings);
+
+    /// How fast a bow is drawn: the weapon's DNAM speed times (1 + BowSpeedBonus), clamped to 0.1 to 10 (so the draw
+    /// clip lasts 1 / this long relative to its own length). RECALLED-VERIFY: the actor value BowSpeedBonus is a
+    /// perk and enchantment effect the pack does not read yet (0 here); a bad input gives 1.
+    [[nodiscard]] float bowDrawSpeed(float weaponSpeed, float bowSpeedBonus);
+
+    /// The elevation (radians, positive up) that makes a shot of `speed` units a second under `gravity` units a second
+    /// squared reach `rise` higher than where it starts at `horizontal` distance, the flatter of the two solutions.
+    /// `mReachable` is false (and the pitch 45 degrees) when the target is out of reach; gravity near 0 gives the
+    /// straight line.
+    struct LaunchSolution
+    {
+        bool mReachable = false;
+        float mPitch = 0.f;
+    };
+    [[nodiscard]] LaunchSolution solveLaunchPitch(float horizontal, float rise, float speed, float gravity);
+
+    /// The percent roll of a hit in [0, 100) from two numbers, deterministic (splitmix64): the arrow-in-inventory
+    /// chance of S5-6 is `rollPercent(seed) < chance`.
+    [[nodiscard]] float rollPercent(std::uint64_t seed);
+
+    /// `Weapons\Iron\IronArrowProjectile.nif` to the VFS path `meshes/Weapons/Iron/IronArrowProjectile.nif`
+    /// (forward slashes, one `meshes/` prefix); empty for an empty, over-long (256) path or one with `..` or a drive
+    /// letter.
+    [[nodiscard]] std::string projectileModelPath(const std::string& stored);
 
     /// One blow meeting a block (task 0172). `mDamage` is the damage after armour.
     struct BlockInput

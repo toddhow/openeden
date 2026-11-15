@@ -81,6 +81,12 @@ CFG
 [ "$SHOT" = n5trade ] && echo "content=n5trade.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5death ] && echo "content=n5death.omwscripts" >> "$WORK/config/openmw.cfg"
 [ "$SHOT" = n5tradewall ] && echo "content=n5tradewall.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0178 (combat stage S5-6): "n5bow" stands the player BOW_DIST (default 400) units east of Hulda and takes a picture every BOW_EVERY (0.5) seconds,
+# and every frame inside the simulation-time windows of BOW_BURST ("t0,t1;t2,t3"), from the static camera BOW_CAM ("x,y,z,lookX,lookY,lookZ", default: the player's own); the bow test settings go in SETTINGS_EXTRA (see luatest/scripts/n5/bow.lua).
+[ "$SHOT" = n5bow ] && echo "content=n5bow.omwscripts" >> "$WORK/config/openmw.cfg"
+burst=""; IFS=';' read -ra windows <<< "${BOW_BURST:-}"; for w in "${windows[@]}"; do [ -n "$w" ] && burst="$burst{${w}},"; done
+cam=""; [ -n "${BOW_CAM:-}" ] && cam=", cam = { ${BOW_CAM} }"
+echo "return { dist = ${BOW_DIST:-400}, every = ${BOW_EVERY:-0.5}, burst = { ${burst} }${cam} }" > "$WORK/luatest/scripts/n5/bowcfg.lua"
 [ "$SHOT" = n5sightprobe ] && echo "content=n5sightprobe.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
 # "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
@@ -177,7 +183,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

@@ -314,6 +314,30 @@ namespace MWPhysics
             bool mPerSex = false;
         };
         const std::vector<NeutralClipOp>& getNeutralClipOps() const { return mNeutralClipOps; }
+        /// Task 0178 (combat stage S5-6): the clips whose speed the pack set in the last updateNeutralActors (applied
+        /// by the caller after the clip ops: a new clip resets its speed).
+        struct NeutralClipSpeedOp
+        {
+            MWWorld::Ptr mPtr;
+            float mMultiplier = 1.f;
+        };
+        const std::vector<NeutralClipSpeedOp>& getNeutralClipSpeedOps() const { return mNeutralClipSpeedOps; }
+        /// Task 0178: the projectiles the combat bridge started, moved or ended in the last updateNeutralActors, for the
+        /// caller to draw (`mId` is the bridge's number).
+        struct NeutralProjectileOp
+        {
+            enum class Kind : std::uint8_t
+            {
+                Spawn,
+                Move,
+                Remove,
+            };
+            Kind mKind = Kind::Move;
+            std::uint32_t mId = 0;
+            std::string mModel; ///< Spawn only
+            NeutralProjectilePose mPose; ///< Spawn and Move
+        };
+        const std::vector<NeutralProjectileOp>& getNeutralProjectileOps() const { return mNeutralProjectileOps; }
         /// Task 0171 (combat stage S5-3): the player as the combat hooks see it. The world supplies where the player is
         /// and the engine's own health; `damage` writes the health the pack computed back (main thread, called from
         /// inside the pack's combatUpdate). Without these hooks the player is not a target or an attacker.
@@ -328,6 +352,8 @@ namespace MWPhysics
             /// Task 0172 (stage S5-4): the attack action is down, and the controls take it (no menu, not disabled).
             bool mAttackHeld = false;
             bool mAttackEnabled = false;
+            /// Task 0178: the look direction's elevation, radians, positive up (the bow's launch pitch).
+            float mPitch = 0.f;
         };
         using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
         using NeutralPlayerDamageFn = std::function<void(float healthAfter)>;
@@ -647,6 +673,10 @@ namespace MWPhysics
             void playClip(const void* key, std::string_view clip, bool perSex) override;
             void stopClip(const void* key) override;
             void setHeading(const void* key, float heading) override;
+            void setClipSpeed(const void* key, float multiplier) override;
+            void spawnProjectile(std::uint32_t id, std::string_view model, const NeutralProjectilePose& pose) override;
+            void moveProjectile(std::uint32_t id, const NeutralProjectilePose& pose) override;
+            void removeProjectile(std::uint32_t id) override;
 
         private:
             PhysicsSystem& mPhysics;
@@ -663,6 +693,7 @@ namespace MWPhysics
                 openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out) override;
             void collectCandidates(std::vector<NeutralSweep::Candidate>& out) override;
             bool lineBlocked(double x0, double y0, double z0, double x1, double y1, double z1) override;
+            bool rayWorld(const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction) override;
             std::shared_ptr<const HavokPack::ClipMeta> playerClipMeta(std::string_view clip, bool perSex) override;
             void applyPlayerDamage(const openeden::sdk::game::DamageReport& report) override;
             void actorDied(const void* key, openeden::sdk::game::ActorHandle actor) override;
@@ -683,6 +714,10 @@ namespace MWPhysics
         NeutralClipApplier mNeutralClipApplier{ *this };
         NeutralCombatWorldImpl mNeutralCombatWorld{ *this };
         std::vector<NeutralClipOp> mNeutralClipOps;
+        std::vector<NeutralClipSpeedOp> mNeutralClipSpeedOps; // task 0178
+        std::vector<NeutralProjectileOp> mNeutralProjectileOps; // task 0178
+        bool mNeutralPlayerHeldPrev = false; // task 0178: the attack control as the pack last heard it
+        const std::vector<JPH::BodyID>& neutralSightIgnore(); // the neutral actors' bodies, refilled once a frame
         NeutralRequestApplier mNeutralApplier{ *this };
         void walkNeutralActor(NeutralActorEntry& entry, Object& object, float dt, bool trace);
         void followNeutralGoal(NeutralActorEntry& entry, const MWWorld::Ptr& ptr, float dt, bool trace);

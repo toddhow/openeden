@@ -22,6 +22,8 @@ namespace game_skyrimse
         constexpr std::size_t kWeaponDataBytes = 10;
         constexpr std::size_t kWeaponDnamBytes = 100;
         constexpr std::size_t kWeaponCrdtBytes = 24;
+        constexpr std::size_t kProjectileDataBytes = 92;
+        constexpr std::size_t kAmmoDataBytes = 20; // VERIFIED on Skyrim.esm: every AMMO DATA is 20 bytes
         constexpr std::size_t kRaceDataBytes = 164;
         constexpr std::size_t kGameSettingBytes = 4;
         constexpr float kMaxSkill = 100.f;
@@ -126,7 +128,9 @@ namespace game_skyrimse
                         const float speed = readLe<float>(p + 4);
                         const float reach = readLe<float>(p + 8);
                         const float stagger = readLe<float>(p + 96);
-                        if (!allFinite({ speed, reach, stagger }))
+                        const float minRange = readLe<float>(p + 28);
+                        const float maxRange = readLe<float>(p + 32);
+                        if (!allFinite({ speed, reach, stagger, minRange, maxRange }))
                         {
                             fields.odd(type);
                             break;
@@ -138,6 +142,8 @@ namespace game_skyrimse
                         out.mFlags = readLe<std::uint16_t>(p + 12);
                         out.mSkillValue = readLe<std::uint32_t>(p + 76);
                         out.mStagger = stagger;
+                        out.mMinRange = minRange;
+                        out.mMaxRange = maxRange;
                     }
                     break;
                 case Content::fourCC("CRDT"):
@@ -276,6 +282,232 @@ namespace game_skyrimse
         return true;
     }
 
+    // ---- task 0178 (stage S5-6): PROJ, AMMO, the bow hit and the arrow's numbers -----------------------------------
+
+    bool decodeProjectile(std::span<const std::byte> bytes, const Content::RawRecord& record,
+        const DecodeContext& context, ProjectileRecord& out, std::string& why)
+    {
+        const Fields fields{ context, "PROJ", why };
+        out = ProjectileRecord();
+        out.mCommon = fields.common(record);
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        while ((status = reader.next(type, data)) == 1)
+        {
+            if (type == Content::fourCC("EDID"))
+            {
+                if (!fields.zstring(type, data, out.mCommon.mEditorId))
+                    return false;
+            }
+            else if (type == Content::fourCC("MODL"))
+            {
+                if (!fields.zstring(type, data, out.mModel))
+                    return false;
+            }
+            else if (type == Content::fourCC("DATA"))
+            {
+                // 92 bytes for 230 of the 236 in the five masters, 84 or 88 for the other six.
+                if (data.size() != 84 && data.size() != 88 && data.size() != kProjectileDataBytes)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const std::byte* p = data.data();
+                const float gravity = readLe<float>(p + 4);
+                const float speed = readLe<float>(p + 8);
+                const float range = readLe<float>(p + 12);
+                if (!allFinite({ gravity, speed, range }))
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                out.mHasData = true;
+                out.mFlags = readLe<std::uint16_t>(p);
+                out.mType = readLe<std::uint16_t>(p + 2);
+                out.mGravity = gravity;
+                out.mSpeed = speed;
+                out.mRange = range;
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        return true;
+    }
+
+    bool decodeAmmo(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,
+        AmmoRecord& out, std::string& why)
+    {
+        const Fields fields{ context, "AMMO", why };
+        out = AmmoRecord();
+        out.mCommon = fields.common(record);
+        SubReader reader(bytes);
+        std::uint32_t type = 0;
+        std::span<const std::byte> data;
+        int status = 0;
+        while ((status = reader.next(type, data)) == 1)
+        {
+            if (type == Content::fourCC("EDID"))
+            {
+                if (!fields.zstring(type, data, out.mCommon.mEditorId))
+                    return false;
+            }
+            else if (type == Content::fourCC("DATA"))
+            {
+                if (data.size() != kAmmoDataBytes)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const float damage = readLe<float>(data.data() + 8);
+                if (!std::isfinite(damage))
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const std::uint32_t stored = readLe<std::uint32_t>(data.data());
+                out.mHasData = true;
+                out.mProjectile = 0;
+                if (stored != 0)
+                {
+                    const FormId id = fields.resolved(stored);
+                    out.mProjectile = id == kUnresolvedFormId ? 0 : id;
+                }
+                out.mFlags = readLe<std::uint32_t>(data.data() + 4);
+                out.mDamage = damage;
+                out.mValue = readLe<std::uint32_t>(data.data() + 12);
+            }
+        }
+        if (status < 0)
+        {
+            why = reader.message();
+            return false;
+        }
+        return true;
+    }
+
+    BowHit computeBowHit(const BowInput& input, const CombatSettings& settings)
+    {
+        BowHit hit;
+        if (input.mBow == nullptr || input.mAmmo == nullptr)
+            return hit;
+        const float skill = std::min(clean(input.mArcherySkill), kMaxSkill);
+        const float skillMult = std::min(clean(settings.mDamagePCSkillMax), 1.f + skill / 200.f);
+        const float draw = std::isfinite(input.mDrawFraction) ? std::clamp(input.mDrawFraction, 0.f, 1.f) : 0.f;
+        hit.mDamageBefore
+            = clean((static_cast<float>(input.mBow->mDamage) + clean(input.mAmmo->mDamage)) * skillMult * draw);
+        const float mitigation = std::min(clean(input.mTargetMitigationPercent), clean(settings.mMaxArmorRating));
+        hit.mDamageAfter = std::clamp(hit.mDamageBefore * (1.f - mitigation / 100.f), 0.f, hit.mDamageBefore);
+        hit.mStagger = clean(input.mBow->mStagger);
+        return hit;
+    }
+
+    float bowDrawSpeed(float weaponSpeed, float bowSpeedBonus)
+    {
+        if (!std::isfinite(weaponSpeed) || !std::isfinite(bowSpeedBonus))
+            return 1.f;
+        return std::clamp(weaponSpeed * (1.f + bowSpeedBonus), 0.1f, 10.f);
+    }
+
+    LaunchSolution solveLaunchPitch(float horizontal, float rise, float speed, float gravity)
+    {
+        constexpr float kLimit = 1.5f; // never straight up or down
+        constexpr float kFallback = 0.78539816f; // 45 degrees
+        LaunchSolution out;
+        out.mPitch = kFallback;
+        if (!std::isfinite(horizontal) || !std::isfinite(rise) || !std::isfinite(speed) || !std::isfinite(gravity)
+            || horizontal < 0.f || !(speed > 0.f) || gravity < 0.f)
+            return out;
+        if (gravity < 1e-6f)
+        {
+            out.mReachable = true;
+            out.mPitch = std::clamp(std::atan2(rise, horizontal), -kLimit, kLimit);
+            return out;
+        }
+        if (horizontal < 1e-3f)
+        {
+            out.mReachable = true;
+            out.mPitch = rise >= 0.f ? kLimit : -kLimit;
+            return out;
+        }
+        const double v = static_cast<double>(speed);
+        const double g = static_cast<double>(gravity);
+        const double d = static_cast<double>(horizontal);
+        const double h = static_cast<double>(rise);
+        const double v2 = v * v;
+        const double disc = v2 * v2 - g * (g * d * d + 2.0 * h * v2);
+        if (disc < 0.0)
+            return out;
+        const double tangent = (v2 - std::sqrt(disc)) / (g * d);
+        out.mReachable = true;
+        out.mPitch = std::clamp(static_cast<float>(std::atan(tangent)), -kLimit, kLimit);
+        return out;
+    }
+
+    float rollPercent(std::uint64_t seed)
+    {
+        // splitmix64 (public domain): a mix of one number, the same on every platform.
+        std::uint64_t z = seed + 0x9E3779B97F4A7C15ull;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        z ^= z >> 31;
+        const double unit = static_cast<double>(z >> 11) * (1.0 / 9007199254740992.0); // [0, 1)
+        return std::min(static_cast<float>(unit * 100.0), 99.99999f);
+    }
+
+    std::string projectileModelPath(const std::string& stored)
+    {
+        if (stored.empty() || stored.size() > 256 || stored.find("..") != std::string::npos
+            || stored.find(':') != std::string::npos)
+            return {};
+        std::string path = stored;
+        for (char& c : path)
+            if (c == '\\')
+                c = '/';
+        if (path.front() == '/')
+            return {};
+        const std::string prefix = "meshes/";
+        bool hasPrefix = path.size() >= prefix.size();
+        for (std::size_t i = 0; hasPrefix && i < prefix.size(); ++i)
+            hasPrefix = std::tolower(static_cast<unsigned char>(path[i])) == prefix[i];
+        return hasPrefix ? path : prefix + path;
+    }
+
+    ProjectileSettings SettingsTable::projectileSettings() const
+    {
+        ProjectileSettings settings;
+        settings.mArrowInventoryChance = get("iArrowInventoryChance", settings.mArrowInventoryChance);
+        settings.mMissileStickDepth = get("fCombatMissileStickDepth", settings.mMissileStickDepth);
+        settings.mAttachedArrowAgeMax = get("fAttachedArrowAgeMax", settings.mAttachedArrowAgeMax);
+        return settings;
+    }
+
+    const ProjectileRecord* CombatIndex::projectile(FormId id) const
+    {
+        const auto it = mProjectiles.find(id);
+        return it == mProjectiles.end() ? nullptr : &it->second;
+    }
+
+    const AmmoRecord* CombatIndex::ammo(FormId id) const
+    {
+        const auto it = mAmmo.find(id);
+        return it == mAmmo.end() ? nullptr : &it->second;
+    }
+
+    std::vector<FormId> CombatIndex::ammoIds() const
+    {
+        std::vector<FormId> ids;
+        ids.reserve(mAmmo.size());
+        for (const auto& entry : mAmmo)
+            ids.push_back(entry.first);
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    }
+
     // ---- the walk --------------------------------------------------------------------------------------------------
 
     namespace
@@ -295,7 +527,8 @@ namespace game_skyrimse
             bool onRecord(const Content::RawRecord& record) override
             {
                 const std::uint32_t t = record.mType;
-                if (t != Content::fourCC("WEAP") && t != Content::fourCC("RACE") && t != Content::fourCC("GMST"))
+                if (t != Content::fourCC("WEAP") && t != Content::fourCC("RACE") && t != Content::fourCC("GMST")
+                    && t != Content::fourCC("PROJ") && t != Content::fourCC("AMMO"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -330,6 +563,20 @@ namespace game_skyrimse
                     ok = decodeWeapon(bytes, record, mContext, w, why);
                     if (ok)
                         mOut.mWeapons.push_back(std::move(w));
+                }
+                else if (t == Content::fourCC("PROJ"))
+                {
+                    ProjectileRecord p;
+                    ok = decodeProjectile(bytes, record, mContext, p, why);
+                    if (ok)
+                        mOut.mProjectiles.push_back(std::move(p));
+                }
+                else if (t == Content::fourCC("AMMO"))
+                {
+                    AmmoRecord a;
+                    ok = decodeAmmo(bytes, record, mContext, a, why);
+                    if (ok)
+                        mOut.mAmmo.push_back(std::move(a));
                 }
                 else if (t == Content::fourCC("RACE"))
                 {
@@ -467,6 +714,20 @@ namespace game_skyrimse
                 mWeapons.erase(w.mCommon.mId);
             else
                 mWeapons[w.mCommon.mId] = w;
+        }
+        for (const ProjectileRecord& p : records.mProjectiles)
+        {
+            if (p.mCommon.deleted())
+                mProjectiles.erase(p.mCommon.mId);
+            else
+                mProjectiles[p.mCommon.mId] = p;
+        }
+        for (const AmmoRecord& a : records.mAmmo)
+        {
+            if (a.mCommon.deleted())
+                mAmmo.erase(a.mCommon.mId);
+            else
+                mAmmo[a.mCommon.mId] = a;
         }
         for (const RaceCombatRecord& r : records.mRaces)
         {

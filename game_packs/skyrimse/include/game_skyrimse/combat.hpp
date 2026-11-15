@@ -36,6 +36,7 @@ namespace game_skyrimse
     /// Weapon animation types (WEAP DNAM +0).
     inline constexpr std::uint8_t kWeaponAnimHandToHand = 0;
     inline constexpr std::uint8_t kWeaponAnim1HSword = 1;
+    inline constexpr std::uint8_t kWeaponAnimBow = 7;
 
     inline constexpr std::string_view kCombatTestSwingKey = "combat test swing";
     inline constexpr std::size_t kMaxCombatTestSwingName = 128;
@@ -51,6 +52,34 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestPowerEveryKey = "combat test power every";
     inline constexpr std::string_view kCombatTestBashEveryKey = "combat test bash every";
     inline constexpr std::string_view kCombatTestBlockKey = "combat test block";
+    /// Task 0178 (stage S5-6) test settings, all off by default: the editor id of the AMMO both sides shoot (empty: no
+    /// shooting), the seconds the player holds the attack control to draw each shot (0: the real key only) and a
+    /// BowSpeedBonus for every archer (the actor value is not read from any record yet). A bow is `combat test
+    /// weapon` with an animation type of 7.
+    inline constexpr std::string_view kCombatTestAmmoKey = "combat test ammo";
+    inline constexpr std::string_view kCombatTestPlayerBowKey = "combat test player bow";
+    inline constexpr std::string_view kCombatTestBowSpeedBonusKey = "combat test bow speed bonus";
+    /// Where an arrow leaves an archer: above its feet and ahead of its centre (game units; ours, tunable).
+    inline constexpr float kBowReleaseHeight = 100.f;
+    inline constexpr float kBowMuzzleForward = 30.f;
+    /// The player's eye above its feet (the player has no head position in the contract; ours, tunable) and the point
+    /// of a target an archer aims at, above its feet (chest height).
+    inline constexpr float kPlayerEyeHeight = 118.f;
+    inline constexpr float kBowAimHeight = 80.f;
+    /// How far an NPC archer shoots when the bow record has no maximum range (the data: 2500 for bows).
+    inline constexpr float kBowDefaultRange = 2500.f;
+    /// The shortest hold of the attack control that shoots at all, and the speed of a barely drawn bow as a fraction
+    /// of the full draw (ours, RECALLED-VERIFY: Skyrim scales speed and damage with the draw).
+    inline constexpr float kMinPullSeconds = 0.2f;
+    inline constexpr float kMinDrawSpeedFraction = 0.35f;
+    /// PROJ gravity is a multiplier of this acceleration, units a second squared: 9.80665 m/s2 at the engine's
+    /// 69.99125 units a metre (RECALLED-VERIFY: Skyrim's own reading of the field is not settled by the data).
+    inline constexpr float kProjectileGravityUnits = 686.38f;
+    /// Shots whose launch the pack remembers until the core tells how they ended.
+    inline constexpr std::size_t kMaxShotsRemembered = 64;
+    /// Seconds between the presses of `combat test player bow`.
+    inline constexpr float kPlayerBowPeriod = 4.f;
+
     /// Skill slot of Block in ActorStats::skills (actor value 9; the skills start at 6 with One-handed: RECALLED-VERIFY
     /// from the engine's actor value order, which the data agrees with for 6, 7 and 8).
     inline constexpr std::size_t kBlockSkillSlot = 3;
@@ -114,6 +143,19 @@ namespace game_skyrimse
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.
         virtual const WeaponRecord* weaponByEditorId(std::string_view editorId) = 0;
         virtual CombatSettings settings() = 0;
+        /// Task 0178: the AMMO with this editor id (case-insensitive), or null; and the PROJ of an ammunition (null when
+        /// it has none). Defaults: none.
+        virtual const AmmoRecord* ammoByEditorId(std::string_view editorId)
+        {
+            (void)editorId;
+            return nullptr;
+        }
+        virtual const ProjectileRecord* projectileOf(const AmmoRecord& ammo)
+        {
+            (void)ammo;
+            return nullptr;
+        }
+        virtual ProjectileSettings projectileSettings() { return {}; }
         /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
         virtual BlockSettings blockSettings() { return {}; }
         /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
@@ -143,6 +185,11 @@ namespace game_skyrimse
         /// from `animationdata/defaultmale.txt` (task 0170). RACE ATKE is not read (it names the event that starts an
         /// attack, which the clips' own sidecars already carry).
         [[nodiscard]] static SlotTable humanoid();
+
+        /// Task 0178: the bow's clips (animation type 7): `Bow_DrawLight` (events bowDrawStart 0.8 and bowDrawn
+        /// 1.667 playback seconds) and `Bow_Release` (arrowRelease 0.033), read from `animationdata/defaultmale.txt`
+        /// and the listing of Skyrim - Animations.bsa. A separate table so that humanoid() keeps its seven entries.
+        [[nodiscard]] static SlotTable bow();
 
         /// Number of (slot, weapon type) entries.
         [[nodiscard]] std::size_t size() const { return mCount; }
@@ -195,6 +242,16 @@ namespace game_skyrimse
         void setTestPowerEvery(int n);
         void setTestBashEvery(int n);
         bool setTestBlock(std::string_view editorId);
+        /// Task 0178 (stage S5-6), all off by default. The AMMO the archers shoot (case-insensitive editor id; empty:
+        /// nobody shoots; false when too long); a BowSpeedBonus for every archer (finite and not below -0.9; the draw
+        /// clip runs at weapon speed x (1 + bonus)); and the seconds the player holds the attack control for each shot
+        /// of
+        /// its own test (0, negative or not finite: the real key only).
+        bool setTestAmmo(std::string_view editorId);
+        void setTestBowSpeedBonus(float bonus);
+        void setTestPlayerBow(float holdSeconds);
+        void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
+        void onPlayerAttackEdge(bool pressed) override;
         /// Called with one line per combat decision (`COMBAT ...`), when set. Main thread.
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
         /// Where a warning goes (the host's log); a warning is also traced.
@@ -212,6 +269,7 @@ namespace game_skyrimse
             bool mDead = false;
             bool mStaggered = false; ///< a stagger clip is playing
             bool mBlocking = false; ///< the block rule holds now
+            std::uint32_t mArrowsKept = 0; ///< task 0178: arrows that ended in this fighter's inventory
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
 
@@ -230,6 +288,11 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t clipsFinished() const { return mClipsFinished; }
         [[nodiscard]] std::size_t clipsCompleted() const { return mClipsCompleted; }
         [[nodiscard]] std::size_t hitsResolved() const { return mHitsResolved; }
+        /// Task 0178: arrows launched, results told, and arrows that were kept by their target.
+        [[nodiscard]] std::size_t arrowsLaunched() const { return mArrowsLaunched; }
+        [[nodiscard]] std::size_t projectileResultsSeen() const { return mProjectileResultsSeen; }
+        [[nodiscard]] std::size_t arrowsKept() const { return mArrowsKept; }
+        [[nodiscard]] std::size_t shotsRemembered() const { return mShots.size(); }
         /// Sweeps asked for whose result has not come (review fix of task 0171).
         [[nodiscard]] std::size_t pendingSweeps() const { return mAwaiting.size(); }
         /// Updates that did nothing because the data was not ready yet.
@@ -253,6 +316,30 @@ namespace game_skyrimse
             bool mStaggered = false; ///< task 0172: a stagger clip plays (mStaggerToken)
             std::uint32_t mStaggerToken = 0;
             std::uint32_t mAttackCount = 0; ///< attacks begun by the hostile rule, for the every-N choice
+            // Task 0178: the bow. Drawing -> (BowDrawn event) -> Releasing -> (arrowRelease event) -> shot.
+            enum class Bow : std::uint8_t
+            {
+                None,
+                Drawing,
+                Releasing,
+            } mBow
+                = Bow::None;
+            std::uint32_t mBowToken = 0;
+            std::uint32_t mArrowsKept = 0;
+        };
+        /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
+        struct PendingBow
+        {
+            openeden::sdk::game::CombatSubject mSubject;
+            std::uint32_t mToken = 0;
+            bool mRelease = false; ///< the release event; else the drawn event
+        };
+        /// A shot launched and not yet told about.
+        struct Shot
+        {
+            std::uint32_t mToken = 0;
+            openeden::sdk::game::CombatSubject mOwner;
+            float mDraw = 1.f;
         };
         struct PendingHit
         {
@@ -275,6 +362,14 @@ namespace game_skyrimse
         void regenerate(float seconds);
         void beginAttack(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, AttackKind kind);
         void loadSettings();
+        [[nodiscard]] bool bowReady();
+        void beginBowDraw(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
+        void releaseBow(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, std::uint32_t token);
+        bool launchArrow(openeden::sdk::game::CombatRequestWriter& writer, Fighter& archer, float draw,
+            const openeden::sdk::game::SubjectState* target);
+        void runPlayerBow(openeden::sdk::game::CombatRequestWriter& writer);
+        void resolveProjectile(
+            openeden::sdk::game::CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result);
         [[nodiscard]] bool isBlocking(const Fighter& fighter) const;
         [[nodiscard]] bool isBlocker(openeden::sdk::game::ActorHandle handle) const;
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
@@ -282,7 +377,7 @@ namespace game_skyrimse
         void processHit(openeden::sdk::game::CombatRequestWriter& writer, const PendingHit& hit);
         void resolveSweep(openeden::sdk::game::CombatRequestWriter& writer, const SweepDelivery& delivery);
         void applyHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
-            const openeden::sdk::game::SweepHit& hit, Fighter& victim);
+            const openeden::sdk::game::SweepHit& hit, Fighter& victim, const MeleeHit* preset = nullptr);
         void trace(const std::string& line) const
         {
             if (mTrace)
@@ -317,6 +412,27 @@ namespace game_skyrimse
         // actor beyond that, never one per frame). kMaxCombatFighters bounds it.
         std::vector<Fighter> mFighters; ///< index 0 is the player
         std::vector<PendingHit> mPendingHits; ///< Hit events seen since the last combatUpdate
+        std::vector<PendingBow> mPendingBow; ///< task 0178
+        std::vector<Shot> mShots; ///< task 0178
+        std::vector<openeden::sdk::game::ProjectileResult> mProjectileResults; ///< told, resolved in combatUpdate
+        SlotTable mBowSlots;
+        std::string mTestAmmo; ///< lower case
+        const AmmoRecord* mAmmo = nullptr;
+        const ProjectileRecord* mProjectile = nullptr;
+        bool mAmmoLooked = false;
+        ProjectileSettings mProjectileSettings;
+        float mBowSpeedBonus = 0.f;
+        float mPlayerBowHold = 0.f;
+        float mNextPlayerBow = 1.f;
+        std::vector<bool> mPlayerEdges; ///< attack-control edges since the last combatUpdate (true: pressed)
+        bool mPlayerDrawing = false;
+        float mPlayerDrawStart = 0.f;
+        float mPlayerDrawTime = 0.f; ///< playback seconds of the draw clip to the BowDrawn event, 0 until read
+        bool mPlayerDrawKicked = false;
+        float mPlayerAutoReleaseAt = -1.f;
+        std::size_t mArrowsLaunched = 0;
+        std::size_t mProjectileResultsSeen = 0;
+        std::size_t mArrowsKept = 0;
         std::vector<PendingHit> mAwaiting; ///< sweeps asked for, result not here yet
         std::vector<SweepDelivery> mDeliveries; ///< sweep results waiting for the next combatUpdate
         std::function<void(const std::string&)> mTrace;

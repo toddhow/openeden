@@ -43,6 +43,10 @@ namespace MWRender::SkyrimPose
         /// setClip("") ends it; the events and length of the clip arrive through meta(). Main thread.
         void playOnce(std::string_view clip, bool perSex);
 
+        /// Task 0178: the one-shot clip runs at `multiplier` times its speed (the bow's draw speed); playOnce and
+        /// setClip put it back to 1. Main thread. A value that is not finite or not above 0 is ignored.
+        void setRate(float multiplier);
+
         /// The one-shot clip's meta (null until the worker has read it, after a clip that failed to decode and while
         /// none is set), whether sampling of the decoded clip has begun and the playback time of the last sample. Main
         /// thread.
@@ -68,6 +72,7 @@ namespace MWRender::SkyrimPose
         mutable SkyrimIdle::ClipFuture mFuture;
         mutable bool mPending = false;
         bool mOnce = false; ///< the clip plays once and holds its end (combat)
+        float mRate = 1.f; ///< task 0178: speed multiplier of a one-shot clip
         mutable SkyrimClipMeta::MetaFuture mMetaFuture;
         mutable std::shared_ptr<const HavokPack::ClipMeta> mMeta;
         mutable bool mSampled = false; ///< a one-shot clip has been sampled at least once

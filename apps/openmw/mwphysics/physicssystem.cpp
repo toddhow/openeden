@@ -1289,6 +1289,45 @@ namespace MWPhysics
         mPhysics.mNeutralApplier.setHeading(key, heading);
     }
 
+    void PhysicsSystem::NeutralClipApplier::setClipSpeed(const void* key, float multiplier)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return;
+        mPhysics.mNeutralClipSpeedOps.push_back({ found->second->getPtr(), multiplier });
+    }
+
+    void PhysicsSystem::NeutralClipApplier::spawnProjectile(
+        std::uint32_t id, std::string_view model, const NeutralProjectilePose& pose)
+    {
+        NeutralProjectileOp op;
+        op.mKind = NeutralProjectileOp::Kind::Spawn;
+        op.mId = id;
+        op.mModel = std::string(model);
+        op.mPose = pose;
+        mPhysics.mNeutralProjectileOps.push_back(std::move(op));
+    }
+
+    void PhysicsSystem::NeutralClipApplier::moveProjectile(std::uint32_t id, const NeutralProjectilePose& pose)
+    {
+        NeutralProjectileOp op;
+        op.mKind = NeutralProjectileOp::Kind::Move;
+        op.mId = id;
+        op.mPose = pose;
+        mPhysics.mNeutralProjectileOps.push_back(std::move(op));
+    }
+
+    void PhysicsSystem::NeutralClipApplier::removeProjectile(std::uint32_t id)
+    {
+        NeutralProjectileOp op;
+        op.mKind = NeutralProjectileOp::Kind::Remove;
+        op.mId = id;
+        mPhysics.mNeutralProjectileOps.push_back(std::move(op));
+    }
+
     bool PhysicsSystem::NeutralCombatWorldImpl::subjectState(
         openeden::sdk::game::CombatSubject subject, openeden::sdk::game::SubjectState& out)
     {
@@ -1302,6 +1341,7 @@ namespace MWPhysics
             out.y = player.mY;
             out.z = player.mZ;
             out.heading = player.mHeading;
+            out.pitch = player.mPitch;
             out.health = player.mHealth;
             out.healthMax = player.mHealthMax;
             return true;
@@ -1357,26 +1397,45 @@ namespace MWPhysics
     bool PhysicsSystem::NeutralCombatWorldImpl::lineBlocked(
         double x0, double y0, double z0, double x1, double y1, double z1)
     {
-        // Task 0171 stage S5-3b: static geometry only. Neutral actors are WORLD bodies too, so they are listed as
-        // ignored (the list is reserved when an actor is added: a frame does not allocate). The list is rebuilt once a
-        // frame, not for every hit (in place: it is reserved when an actor is added).
-        std::vector<JPH::BodyID>& ignore = mPhysics.mNeutralSightIgnore;
-        if (mPhysics.mNeutralSightIgnoreFrame != mPhysics.mNeutralFrame)
-        {
-            mPhysics.mNeutralSightIgnoreFrame = mPhysics.mNeutralFrame;
-            ignore.clear();
-            for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)
-            {
-                const auto found = mPhysics.mObjects.find(entry.mRef);
-                if (found == mPhysics.mObjects.end() || ignore.size() >= ignore.capacity())
-                    continue;
-                ignore.push_back(found->second->getPhysicsBody());
-            }
-        }
+        // Task 0171 stage S5-3b: static geometry only (the neutral actors' bodies are ignored).
+        const std::vector<JPH::BodyID>& ignore = mPhysics.neutralSightIgnore();
         return NeutralSight::blocked(mPhysics.mPhysicsSystem,
             vsg::vec3(static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(z0)),
             vsg::vec3(static_cast<float>(x1), static_cast<float>(y1), static_cast<float>(z1)),
             Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, ignore);
+    }
+
+    const std::vector<JPH::BodyID>& PhysicsSystem::neutralSightIgnore()
+    {
+        // Neutral actors are WORLD bodies too, so they are listed as ignored (the list is reserved when an actor is
+        // added: a frame does not allocate). The list is rebuilt once a frame, not for every ray.
+        if (mNeutralSightIgnoreFrame != mNeutralFrame)
+        {
+            mNeutralSightIgnoreFrame = mNeutralFrame;
+            mNeutralSightIgnore.clear();
+            for (const NeutralActorEntry& entry : mNeutralActors)
+            {
+                const auto found = mObjects.find(entry.mRef);
+                if (found == mObjects.end() || mNeutralSightIgnore.size() >= mNeutralSightIgnore.capacity())
+                    continue;
+                mNeutralSightIgnore.push_back(found->second->getPhysicsBody());
+            }
+        }
+        return mNeutralSightIgnore;
+    }
+
+    bool PhysicsSystem::NeutralCombatWorldImpl::rayWorld(
+        const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction)
+    {
+        // Task 0178: a projectile's step against static geometry (walls, floors, terrain, closed doors).
+        float f = 0.f;
+        if (!NeutralSight::firstHit(mPhysics.mPhysicsSystem,
+                vsg::vec3(static_cast<float>(p0.x), static_cast<float>(p0.y), static_cast<float>(p0.z)),
+                vsg::vec3(static_cast<float>(p1.x), static_cast<float>(p1.y), static_cast<float>(p1.z)),
+                Layers::WORLD | Layers::HEIGHTMAP | Layers::DOOR, mPhysics.neutralSightIgnore(), f))
+            return false;
+        fraction = static_cast<double>(f);
+        return true;
     }
 
     std::shared_ptr<const HavokPack::ClipMeta> PhysicsSystem::NeutralCombatWorldImpl::playerClipMeta(
@@ -1726,6 +1785,8 @@ namespace MWPhysics
         mNeutralPoseChanges.clear();
         mNeutralDoorsMoved.clear();
         mNeutralClipOps.clear();
+        mNeutralClipSpeedOps.clear();
+        mNeutralProjectileOps.clear();
         if (mNeutralActors.empty())
             return;
         // OPENEDEN_NEUTRAL_ACTOR_COST=1 (developer aid, task 0154): the time of this function per frame, logged every
@@ -1748,8 +1809,17 @@ namespace MWPhysics
                 if (attack != NeutralPlayerAttackInput::Event::None)
                     mNeutralCombat.playerAttack(
                         mNeutralCombatResolver(), attack == NeutralPlayerAttackInput::Event::PowerAttack);
+                // Task 0178: the press and the release themselves, for a bow (draw on the press, shoot on the release).
+                const bool held = playerInput.mAttackEnabled && playerInput.mAttackHeld;
+                if (held != mNeutralPlayerHeldPrev)
+                {
+                    mNeutralPlayerHeldPrev = held;
+                    mNeutralCombat.playerAttackEdge(mNeutralCombatResolver(), held);
+                }
             }
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
+            mNeutralClipSpeedOps.reserve(NeutralCombatBridge::kMaxPlaying);
+            mNeutralProjectileOps.reserve(4 * NeutralCombatBridge::kMaxProjectiles);
             mNeutralCombat.update(
                 mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta, &mNeutralCombatWorld);
         }

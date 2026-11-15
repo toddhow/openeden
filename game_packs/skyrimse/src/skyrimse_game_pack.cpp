@@ -447,6 +447,23 @@ namespace game_skyrimse
                     if (bashEvery > 0)
                         say(openeden::sdk::LogLevel::Info,
                             "combat test bash every: " + std::to_string(bashEvery) + " attacks");
+                    // Task 0178 (stage S5-6): the bow test rules, all off by default.
+                    const std::string ammo = settings->getString(kPackId, kCombatTestAmmoKey, "");
+                    if (!mCellSource.combat().setTestAmmo(ammo))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestAmmoKey) + "' is too long; nobody shoots");
+                    else if (!ammo.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test ammo: " + ammo);
+                    const float playerBow = settings->getFloat(kPackId, kCombatTestPlayerBowKey, 0.f);
+                    mCellSource.combat().setTestPlayerBow(playerBow);
+                    if (playerBow > 0.f)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test player bow: holds " + std::to_string(playerBow) + " s");
+                    const float bowBonus = settings->getFloat(kPackId, kCombatTestBowSpeedBonusKey, 0.f);
+                    mCellSource.combat().setTestBowSpeedBonus(bowBonus);
+                    if (bowBonus != 0.f)
+                        say(openeden::sdk::LogLevel::Info,
+                            "combat test bow speed bonus: " + std::to_string(bowBonus));
                     mCellSource.combat().setWarning(
                         [say](const std::string& line) { say(openeden::sdk::LogLevel::Warning, line); });
                     if (settings->getBool(kPackId, kCombatTraceKey, false))

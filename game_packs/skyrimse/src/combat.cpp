@@ -61,10 +61,70 @@ namespace game_skyrimse
         return table;
     }
 
+    // Task 0178 (stage S5-6): the bow's clips. Names from the listing of Skyrim - Animations.bsa (`bow_drawlight`,
+    // `bow_release`); events from animationdata/defaultmale.txt: Bow_DrawLight has bowDrawStart 0.8 and bowDrawn
+    // 1.667 playback seconds, Bow_Release has arrowRelease 0.033.
+    namespace
+    {
+        constexpr SlotTable::Entry sBow[] = {
+            { ClipSlot::BowDraw, kWeaponAnimBow, "Bow_DrawLight" },
+            { ClipSlot::BowRelease, kWeaponAnimBow, "Bow_Release" },
+        };
+    }
+
+    SlotTable SlotTable::bow()
+    {
+        SlotTable table;
+        table.mEntries = sBow;
+        table.mCount = std::size(sBow);
+        return table;
+    }
+
+    bool SkyrimCombat::setTestAmmo(std::string_view editorId)
+    {
+        mAmmoLooked = false;
+        mAmmo = nullptr;
+        mProjectile = nullptr;
+        if (editorId.size() > kMaxCombatTestSwingName)
+        {
+            mTestAmmo.clear();
+            return false;
+        }
+        mTestAmmo = lowerAscii(editorId);
+        return true;
+    }
+
+    void SkyrimCombat::setTestBowSpeedBonus(float bonus)
+    {
+        mBowSpeedBonus = std::isfinite(bonus) ? std::max(bonus, -0.9f) : 0.f;
+    }
+
+    void SkyrimCombat::setTestPlayerBow(float holdSeconds)
+    {
+        mPlayerBowHold = (std::isfinite(holdSeconds) && holdSeconds > 0.f) ? holdSeconds : 0.f;
+    }
+
+    void SkyrimCombat::onProjectileResult(const openeden::sdk::game::ProjectileResult& result)
+    {
+        if (mProjectileResults.size() < mProjectileResults.capacity())
+            mProjectileResults.push_back(result);
+    }
+
+    void SkyrimCombat::onPlayerAttackEdge(bool pressed)
+    {
+        if (mPlayerEdges.size() < mPlayerEdges.capacity())
+            mPlayerEdges.push_back(pressed);
+    }
+
     SkyrimCombat::SkyrimCombat()
         : mSlots(SlotTable::humanoid())
     {
         mFighters.reserve(256);
+        mBowSlots = SlotTable::bow();
+        mPendingBow.reserve(32);
+        mShots.reserve(kMaxShotsRemembered);
+        mProjectileResults.reserve(kMaxShotsRemembered);
+        mPlayerEdges.reserve(8);
         mPendingHits.reserve(32);
         mAwaiting.reserve(32);
         mDeliveries.reserve(32);
@@ -79,6 +139,10 @@ namespace game_skyrimse
         mHaveSettings = false;
         mWeaponLooked = false;
         mWeapon = nullptr;
+        mAmmoLooked = false;
+        mAmmo = nullptr;
+        mProjectile = nullptr;
+        mPlayerDrawTime = 0.f;
         mHaveTiming[0] = mHaveTiming[1] = false;
         for (Fighter& f : mFighters)
             f.mReady = false;
@@ -207,6 +271,20 @@ namespace game_skyrimse
             mWeaponLooked = true;
             mWeapon = mTestWeapon.empty() ? nullptr : mData->weaponByEditorId(mTestWeapon);
         }
+        if (!mAmmoLooked)
+        {
+            mAmmoLooked = true;
+            mAmmo = mTestAmmo.empty() ? nullptr : mData->ammoByEditorId(mTestAmmo);
+            mProjectile = mAmmo != nullptr ? mData->projectileOf(*mAmmo) : nullptr;
+            mProjectileSettings = mData->projectileSettings();
+            if (!mTestAmmo.empty())
+                trace("COMBAT ammo '" + mTestAmmo + "' " + (mAmmo != nullptr ? "found" : "NOT found") + ", projectile "
+                    + (mProjectile != nullptr ? "found (speed " + fmt(mProjectile->mSpeed) + " gravity "
+                                + fmt(mProjectile->mGravity) + " range " + fmt(mProjectile->mRange) + " type "
+                                + std::to_string(mProjectile->mType) + " model " + mProjectile->mModel + ")"
+                                              : std::string("NOT found"))
+                    + ", weapon " + (mWeapon != nullptr ? "found" : "NOT found"));
+        }
         if (!fighter.mReady)
         {
             fighter.mReady = true;
@@ -267,6 +345,7 @@ namespace game_skyrimse
         std::erase_if(mPendingHits, [&](const PendingHit& p) { return p.mSubject == gone; });
         std::erase_if(mAwaiting, [&](const PendingHit& p) { return p.mSubject == gone; });
         std::erase_if(mDeliveries, [&](const SweepDelivery& d) { return d.mWho.mSubject == gone; });
+        std::erase_if(mPendingBow, [&](const PendingBow& p) { return p.mSubject == gone; });
     }
 
     void SkyrimCombat::onPlayerAttack(bool power)
@@ -278,6 +357,17 @@ namespace game_skyrimse
     void SkyrimCombat::onClipEvent(const openeden::sdk::game::ClipEvent& event)
     {
         ++mEventsSeen;
+        // Task 0178: the bow's two events are acted on in the next combatUpdate (a writer is not valid here).
+        const bool bowDrawn
+            = event.slot == ClipSlot::BowDraw && event.kind == openeden::sdk::game::ClipEventKind::BowDrawn;
+        const bool bowRelease
+            = event.slot == ClipSlot::BowRelease && event.kind == openeden::sdk::game::ClipEventKind::BowRelease;
+        if (bowDrawn || bowRelease)
+        {
+            if (mPendingBow.size() < mPendingBow.capacity())
+                mPendingBow.push_back({ event.subject, event.token, bowRelease });
+            return;
+        }
         const bool attackSlot = event.slot == ClipSlot::Attack || event.slot == ClipSlot::PowerAttack
             || event.slot == ClipSlot::AttackLeft || event.slot == ClipSlot::Bash;
         if (mData == nullptr || event.kind != openeden::sdk::game::ClipEventKind::Hit || !attackSlot)
@@ -302,6 +392,16 @@ namespace game_skyrimse
                 f->mSwinging = false;
             if (f->mStaggered && f->mStaggerToken == token)
                 f->mStaggered = false;
+            if (f->mBow != Fighter::Bow::None && f->mBowToken == token)
+            {
+                // Measured in game: the draw clip's bowDrawn event lies a hair past the clip's own length (1.66667 s
+                // against a shorter duration), so the core never delivers it; a draw clip that COMPLETES has drawn.
+                if (f->mBow == Fighter::Bow::Drawing && how == openeden::sdk::game::ClipEnd::Completed
+                    && mPendingBow.size() < mPendingBow.capacity())
+                    mPendingBow.push_back({ subject, token, false });
+                else
+                    f->mBow = Fighter::Bow::None; // replaced by a hit reaction, failed, or the release clip ended
+            }
         }
     }
 
@@ -434,7 +534,8 @@ namespace game_skyrimse
         for (const ActorHandle& handle : mHostiles)
         {
             Fighter* f = find(CombatSubject::of(handle));
-            if (f == nullptr || f->mDead || f->mSwinging || f->mStaggered || mClock < f->mNextAttack || !ready(*f))
+            if (f == nullptr || f->mDead || f->mSwinging || f->mStaggered || f->mBow != Fighter::Bow::None
+                || mClock < f->mNextAttack || !ready(*f))
                 continue;
             if (!havePlayer)
             {
@@ -447,6 +548,16 @@ namespace game_skyrimse
                 continue;
             const double dx = player.x - self.x;
             const double dy = player.y - self.y;
+            if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+            {
+                // Task 0178: an archer shoots from afar (up to the bow's maximum range) and does not swing.
+                const double range = mWeapon->mMaxRange > 0.f ? mWeapon->mMaxRange : kBowDefaultRange;
+                if (!bowReady() || std::sqrt(dx * dx + dy * dy) > range)
+                    continue;
+                writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(dx, dy)));
+                beginBowDraw(writer, *f);
+                continue;
+            }
             const float reach = meleeReachUnits(mWeapon, f->mProfile.mUnarmedReach, mCombatSettings);
             // The sweep reaches `reach` from the actor to the player's capsule: close enough when the centres are
             // within that and a body radius, less a little so a hit is certain.
@@ -472,6 +583,12 @@ namespace game_skyrimse
         Fighter& player = mFighters.front();
         if (!ready(player))
             return;
+        if (mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow)
+        {
+            // Task 0178: with a bow the attack control draws and shoots (runPlayerBow); there is no melee swing.
+            mPlayerAttackPending = false;
+            return;
+        }
         if (!mPlayerTimingKicked)
         {
             // Start reading the sidecars of the player's attack clips now, long before the first swing needs them (the
@@ -581,8 +698,8 @@ namespace game_skyrimse
         }
     }
 
-    void SkyrimCombat::applyHit(
-        CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash, const SweepHit& hit, Fighter& victim)
+    void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
+        const SweepHit& hit, Fighter& victim, const MeleeHit* preset)
     {
         MeleeInput input;
         input.mWeapon = mWeapon;
@@ -591,7 +708,7 @@ namespace game_skyrimse
         input.mTargetMitigationPercent = victim.mProfile.mMitigationPercent;
         if (mWeapon != nullptr && mWeapon->skillSlot() < attacker.mProfile.mSkills.size())
             input.mAttackerSkill = attacker.mProfile.mSkills[mWeapon->skillSlot()];
-        const MeleeHit result = computeMeleeHit(input, mCombatSettings);
+        const MeleeHit result = preset != nullptr ? *preset : computeMeleeHit(input, mCombatSettings);
 
         // A bash deals no damage and no block stops it; a blow on a blocker goes through the block formula (task 0172).
         float damage = bash ? 0.f : result.mDamageAfter;
@@ -721,6 +838,239 @@ namespace game_skyrimse
         trace("COMBAT miss " + name(attacker->mSubject) + " token " + std::to_string(delivery.mWho.mToken));
     }
 
+    bool SkyrimCombat::bowReady()
+    {
+        return mWeapon != nullptr && mWeapon->mAnimType == kWeaponAnimBow && mAmmo != nullptr && mAmmo->mHasData
+            && mProjectile != nullptr && mProjectile->mHasData;
+    }
+
+    void SkyrimCombat::beginBowDraw(CombatRequestWriter& writer, Fighter& fighter)
+    {
+        const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
+        if (clip.empty())
+            return;
+        fighter.mNextAttack = mClock + kHostileAttackPeriod;
+        openeden::sdk::game::ClipRequest request;
+        request.slot = ClipSlot::BowDraw;
+        request.clip = clip;
+        request.clipPerSex = false;
+        request.blendSeconds = 0.1f;
+        request.token = mNextToken++;
+        if (!writer.playClip(fighter.mSubject, request))
+            return;
+        const float speed = bowDrawSpeed(mWeapon->mSpeed, mBowSpeedBonus);
+        (void)writer.setClipSpeed(fighter.mSubject, speed);
+        fighter.mBow = Fighter::Bow::Drawing;
+        fighter.mBowToken = request.token;
+        trace("COMBAT bow draw " + name(fighter.mSubject) + " token " + std::to_string(request.token) + " speed "
+            + fmt(speed));
+    }
+
+    void SkyrimCombat::releaseBow(CombatRequestWriter& writer, Fighter& fighter, std::uint32_t)
+    {
+        const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowRelease, kWeaponAnimBow);
+        openeden::sdk::game::ClipRequest request;
+        request.slot = ClipSlot::BowRelease;
+        request.clip = clip;
+        request.clipPerSex = false;
+        request.blendSeconds = 0.05f;
+        request.token = mNextToken++;
+        if (clip.empty() || !writer.playClip(fighter.mSubject, request))
+        {
+            fighter.mBow = Fighter::Bow::None;
+            return;
+        }
+        fighter.mBow = Fighter::Bow::Releasing;
+        fighter.mBowToken = request.token;
+        trace("COMBAT bow release " + name(fighter.mSubject) + " token " + std::to_string(request.token));
+    }
+
+    bool SkyrimCombat::launchArrow(
+        CombatRequestWriter& writer, Fighter& archer, float draw, const openeden::sdk::game::SubjectState* target)
+    {
+        openeden::sdk::game::SubjectState self;
+        if (!bowReady() || !writer.subjectState(archer.mSubject, self))
+            return false;
+        const float fraction = std::isfinite(draw) ? std::clamp(draw, 0.f, 1.f) : 0.f;
+        const float speed = mProjectile->mSpeed
+            * (fraction < 1.f ? kMinDrawSpeedFraction + (1.f - kMinDrawSpeedFraction) * fraction : 1.f);
+        const float gravity = std::max(0.f, mProjectile->mGravity) * kProjectileGravityUnits;
+        openeden::sdk::game::ProjectileRequest request;
+        request.token = mNextToken++;
+        if (target != nullptr)
+        {
+            // An NPC aims: toward the target's chest, the elevation that makes the arc reach it.
+            const double dx = target->x - self.x;
+            const double dy = target->y - self.y;
+            const double h0 = std::atan2(dx, dy);
+            const double ox = self.x + std::sin(h0) * static_cast<double>(kBowMuzzleForward);
+            const double oy = self.y + std::cos(h0) * static_cast<double>(kBowMuzzleForward);
+            const double oz = self.z + static_cast<double>(kBowReleaseHeight);
+            const double ax = target->x - ox;
+            const double ay = target->y - oy;
+            const double horizontal = std::sqrt(ax * ax + ay * ay);
+            const double rise = target->z + static_cast<double>(kBowAimHeight) - oz;
+            request.x = ox;
+            request.y = oy;
+            request.z = oz;
+            request.heading = static_cast<float>(std::atan2(ax, ay));
+            request.pitch = solveLaunchPitch(static_cast<float>(horizontal), static_cast<float>(rise), speed, gravity)
+                                .mPitch;
+        }
+        else
+        {
+            // The player aims with its look direction, from its eye.
+            request.x = self.x + std::sin(static_cast<double>(self.heading)) * static_cast<double>(kBowMuzzleForward);
+            request.y = self.y + std::cos(static_cast<double>(self.heading)) * static_cast<double>(kBowMuzzleForward);
+            request.z = self.z + static_cast<double>(kPlayerEyeHeight);
+            request.heading = self.heading;
+            request.pitch = self.pitch;
+        }
+        request.speed = speed;
+        request.gravity = gravity;
+        request.range = mProjectile->mRange;
+        request.stickDepth = mProjectileSettings.mMissileStickDepth;
+        request.stickSeconds = mProjectileSettings.mAttachedArrowAgeMax;
+        const std::string model = projectileModelPath(mProjectile->mModel);
+        request.model = model;
+        if (!writer.launchProjectile(archer.mSubject, request))
+            return false;
+        if (mShots.size() >= kMaxShotsRemembered)
+            mShots.erase(mShots.begin()); // an arrow whose end never came (its owner left): the oldest is forgotten
+        mShots.push_back({ request.token, archer.mSubject, fraction });
+        ++mArrowsLaunched;
+        trace("COMBAT arrow launch " + name(archer.mSubject) + " token " + std::to_string(request.token) + " from "
+            + fmt(static_cast<float>(request.x)) + " " + fmt(static_cast<float>(request.y)) + " "
+            + fmt(static_cast<float>(request.z)) + " heading " + fmt(request.heading) + " pitch " + fmt(request.pitch)
+            + " speed " + fmt(request.speed) + " gravity " + fmt(request.gravity) + " draw " + fmt(fraction));
+        return true;
+    }
+
+    void SkyrimCombat::resolveProjectile(
+        CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result)
+    {
+        const auto shot = std::find_if(mShots.begin(), mShots.end(),
+            [&](const Shot& s) { return s.mToken == result.token && s.mOwner == result.owner; });
+        if (shot == mShots.end())
+            return; // not one of ours (or already told)
+        const Shot launched = *shot;
+        mShots.erase(shot);
+        ++mProjectileResultsSeen;
+        trace("COMBAT arrow ended " + name(result.owner) + " token " + std::to_string(result.token) + " fate "
+            + std::to_string(static_cast<int>(result.fate)) + " at " + fmt(static_cast<float>(result.x)) + " "
+            + fmt(static_cast<float>(result.y)) + " " + fmt(static_cast<float>(result.z)) + " after "
+            + fmt(result.flightSeconds) + " s, " + fmt(result.distance) + " units");
+        if (result.fate != openeden::sdk::game::ProjectileFate::HitActor
+            && result.fate != openeden::sdk::game::ProjectileFate::HitPlayer)
+            return;
+        Fighter* archer = find(result.owner);
+        Fighter* victim = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer
+            ? find(CombatSubject::ofPlayer())
+            : find(CombatSubject::of(result.actor));
+        if (archer == nullptr || victim == nullptr || archer == victim || victim->mDead || !ready(*archer)
+            || !ready(*victim) || !bowReady())
+            return;
+        BowInput input;
+        input.mBow = mWeapon;
+        input.mAmmo = mAmmo;
+        input.mDrawFraction = launched.mDraw;
+        input.mTargetMitigationPercent = victim->mProfile.mMitigationPercent;
+        if (mWeapon->skillSlot() < archer->mProfile.mSkills.size())
+            input.mArcherySkill = archer->mProfile.mSkills[mWeapon->skillSlot()];
+        const BowHit bow = computeBowHit(input, mCombatSettings);
+        MeleeHit preset;
+        preset.mDamageBefore = bow.mDamageBefore;
+        preset.mDamageAfter = bow.mDamageAfter;
+        preset.mStagger = bow.mStagger;
+        SweepHit where;
+        where.target = result.fate == openeden::sdk::game::ProjectileFate::HitPlayer ? SweepTarget::Player
+                                                                                     : SweepTarget::Actor;
+        where.actor = result.actor;
+        where.x = result.x;
+        where.y = result.y;
+        where.z = result.z;
+        where.distance = result.distance;
+        archer->mCombatUntil = mClock + kCombatLingerSeconds;
+        const bool alreadyDead = victim->mDead;
+        applyHit(writer, *archer, false, false, where, *victim, &preset);
+        // The arrow may end in the victim's inventory (iArrowInventoryChance percent). There is no inventory yet
+        // (stage S5-9): it is counted per fighter.
+        if (!alreadyDead && result.fate == openeden::sdk::game::ProjectileFate::HitActor)
+        {
+            const std::uint64_t seed = (static_cast<std::uint64_t>(result.token) << 32) ^ result.actor.reference;
+            if (rollPercent(seed) < mProjectileSettings.mArrowInventoryChance)
+            {
+                ++victim->mArrowsKept;
+                ++mArrowsKept;
+                trace("COMBAT arrow kept by " + name(victim->mSubject) + " (inventory "
+                    + std::to_string(victim->mArrowsKept) + ")");
+            }
+        }
+    }
+
+    void SkyrimCombat::runPlayerBow(CombatRequestWriter& writer)
+    {
+        Fighter& player = mFighters.front();
+        if (!ready(player) || mWeapon == nullptr || mWeapon->mAnimType != kWeaponAnimBow || !bowReady())
+        {
+            mPlayerEdges.clear();
+            mPlayerDrawing = false;
+            return;
+        }
+        // The draw clip's bowDrawn time: the read starts with the first ask and arrives a few frames later.
+        if (!(mPlayerDrawTime > 0.f))
+        {
+            float time = 0.f;
+            const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
+            if (!clip.empty() && writer.clipEventTime(clip, false, openeden::sdk::game::ClipEventKind::BowDrawn, time)
+                && time > 0.f)
+                mPlayerDrawTime = time;
+        }
+        const float drawSeconds = mPlayerDrawTime / bowDrawSpeed(mWeapon->mSpeed, mBowSpeedBonus);
+        // The automatic test: press, hold, release, every kPlayerBowPeriod seconds.
+        if (mPlayerBowHold > 0.f && !mPlayerDrawing && mPlayerDrawTime > 0.f && mPlayerEdges.empty()
+            && mClock >= mNextPlayerBow)
+        {
+            mPlayerEdges.push_back(true);
+            mNextPlayerBow = mClock + kPlayerBowPeriod;
+            mPlayerAutoReleaseAt = mClock + mPlayerBowHold;
+        }
+        if (mPlayerDrawing && mPlayerAutoReleaseAt >= 0.f && mClock >= mPlayerAutoReleaseAt)
+        {
+            mPlayerEdges.push_back(false);
+            mPlayerAutoReleaseAt = -1.f;
+        }
+        for (const bool pressed : mPlayerEdges)
+        {
+            if (pressed)
+            {
+                if (mPlayerDrawing)
+                    continue;
+                if (!(mPlayerDrawTime > 0.f))
+                {
+                    trace("COMBAT player bow press ignored: the draw time has not arrived");
+                    continue;
+                }
+                mPlayerDrawing = true;
+                mPlayerDrawStart = mClock;
+                trace("COMBAT player bow draw at " + fmt(mClock) + " full draw takes " + fmt(drawSeconds) + " s");
+                continue;
+            }
+            if (!mPlayerDrawing)
+                continue;
+            mPlayerDrawing = false;
+            const float held = mClock - mPlayerDrawStart;
+            if (held < kMinPullSeconds)
+            {
+                trace("COMBAT player bow cancelled after " + fmt(held) + " s");
+                continue;
+            }
+            const float fraction = drawSeconds > 0.f ? std::min(1.f, held / drawSeconds) : 1.f;
+            (void)launchArrow(writer, player, fraction, nullptr);
+        }
+        mPlayerEdges.clear();
+    }
+
     void SkyrimCombat::combatUpdate(float seconds, CombatRequestWriter& writer)
     {
         ++mUpdates;
@@ -733,6 +1083,9 @@ namespace game_skyrimse
             mPendingHits.clear();
             mAwaiting.clear();
             mDeliveries.clear();
+            mPendingBow.clear();
+            mProjectileResults.clear();
+            mPlayerEdges.clear();
             mPlayerAttackPending = false;
         }
         else if (mData != nullptr)
@@ -750,12 +1103,34 @@ namespace game_skyrimse
             for (std::size_t i = 0; i < mPendingHits.size(); ++i)
                 processHit(writer, mPendingHits[i]);
             mPendingHits.clear();
+            // Task 0178: how the arrows ended, then the bow events (draw done: release; release: the arrow flies).
+            for (std::size_t i = 0; i < mProjectileResults.size(); ++i)
+                resolveProjectile(writer, mProjectileResults[i]);
+            mProjectileResults.clear();
+            for (std::size_t i = 0; i < mPendingBow.size(); ++i)
+            {
+                const PendingBow pending = mPendingBow[i];
+                Fighter* f = find(pending.mSubject);
+                if (f == nullptr || f->mDead || f->mBowToken != pending.mToken)
+                    continue;
+                if (!pending.mRelease && f->mBow == Fighter::Bow::Drawing)
+                    releaseBow(writer, *f, pending.mToken);
+                else if (pending.mRelease && f->mBow == Fighter::Bow::Releasing)
+                {
+                    f->mBow = Fighter::Bow::None;
+                    openeden::sdk::game::SubjectState target;
+                    if (writer.subjectState(CombatSubject::ofPlayer(), target))
+                        (void)launchArrow(writer, *f, 1.f, &target);
+                }
+            }
+            mPendingBow.clear();
             // The named blockers' data is read even before a blow reaches them (their blocking state is then visible).
             for (const ActorHandle& handle : mBlockers)
                 if (Fighter* f = find(CombatSubject::of(handle)))
                     (void)ready(*f);
             startHostiles(writer);
             runPlayerSwing(writer);
+            runPlayerBow(writer);
         }
         if (mSwingers.empty())
             return;

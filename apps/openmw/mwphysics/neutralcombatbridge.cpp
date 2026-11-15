@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include <components/debug/debuglog.hpp>
 
@@ -67,6 +68,7 @@ namespace MWPhysics
             { "bowDrawStart", ClipEventKind::BowDrawStart },
             { "bowDrawn", ClipEventKind::BowDrawn },
             { "BowRelease", ClipEventKind::BowRelease },
+            { "arrowRelease", ClipEventKind::BowRelease }, // the sidecar's own name (Bow_Release, task 0178)
             { "BowReleaseFast", ClipEventKind::BowRelease },
             { "staggerStop", ClipEventKind::StaggerStop },
             { "recoilStop", ClipEventKind::RecoilStop },
@@ -121,6 +123,9 @@ namespace MWPhysics
         mPlaying.reserve(kMaxPlaying);
         mLate.reserve(2 * kMaxPlaying);
         mResults.reserve(kMaxPendingResults);
+        mShots.reserve(kMaxProjectiles);
+        mStuck.reserve(256);
+        mProjectileResults.reserve(kMaxProjectiles);
         mCandidates.reserve(kMaxCandidates);
         mDead.reserve(kMaxDead);
     }
@@ -151,6 +156,9 @@ namespace MWPhysics
 
     void NeutralCombatBridge::clear()
     {
+        mShots.clear();
+        mStuck.clear();
+        mProjectileResults.clear();
         mPlaying.clear();
         mLate.clear();
         mResults.clear();
@@ -466,6 +474,10 @@ namespace MWPhysics
             for (const Playing& p : mPlaying)
                 if (p.mSubject.valid() && mActors.keyOfHandle(p.mSubject.actor) == p.mKey)
                     stopSafely(sink, p.mKey);
+            for (const NeutralProjectile::Shot& shot : mShots)
+                sink.removeProjectile(shot.mId);
+            for (const Stuck& stuck : mStuck)
+                sink.removeProjectile(stuck.mId);
             clear();
             return;
         }
@@ -502,6 +514,27 @@ namespace MWPhysics
         }
         mResults.clear();
 
+        // Projectiles that ended in an earlier frame: told now, after the sweeps and before the events.
+        for (const openeden::sdk::game::ProjectileResult& result : mProjectileResults)
+        {
+            if (!result.owner.player && mActors.keyOfHandle(result.owner.actor) == nullptr)
+            {
+                ++mStats.mProjectileResultsDropped;
+                continue;
+            }
+            try
+            {
+                rules->onProjectileResult(result);
+            }
+            catch (...)
+            {
+                ++mStats.mRulesFailures;
+            }
+        }
+        mProjectileResults.clear();
+        // The shots in the air fly this frame's time; whatever ends is told at the start of the next update.
+        stepProjectiles(seconds, sink, world);
+
         for (std::size_t i = 0; i < mPlaying.size();)
         {
             Playing& p = mPlaying[i];
@@ -527,7 +560,7 @@ namespace MWPhysics
                     p.mMeta = progress.mMeta;
                 if (!p.mMeta)
                 {
-                    p.mWaited += seconds;
+                    p.mWaited += seconds * p.mRate;
                     if (p.mWaited > kMetaTimeoutSeconds)
                     {
                         stopSafely(sink, p.mKey);
@@ -550,7 +583,7 @@ namespace MWPhysics
             else
             {
                 p.mPrevious = p.mCurrent;
-                p.mCurrent += seconds;
+                p.mCurrent += seconds * p.mRate;
             }
             const CombatSubject subject = p.mSubject;
             const ClipSlot slot = p.mSlot;
@@ -635,6 +668,284 @@ namespace MWPhysics
             return false;
         }
         ++mStats.mPlayerAttacks;
+        return true;
+    }
+
+    // ---- task 0178 (stage S5-6): projectiles, the clip speed, the clip event time, the player's edges -------------
+
+    namespace
+    {
+        constexpr float kHalfPi = 1.57079632679f;
+        constexpr float kMaxProjectileSpeed = 1.0e6f;
+        constexpr float kMaxProjectileGravity = 1.0e5f;
+        constexpr float kMaxProjectileRange = 1.0e6f;
+        constexpr float kMaxStickDepth = 1.0e4f;
+        constexpr float kMaxStickSeconds = 1.0e3f;
+        constexpr float kMinClipSpeed = 0.1f;
+        constexpr float kMaxClipSpeed = 10.f;
+        constexpr std::size_t kMaxStuckArrows = 256;
+
+        bool validModelPath(std::string_view path)
+        {
+            if (path.size() > NeutralCombatBridge::kMaxProjectileModelPath)
+                return false;
+            if (path.find("..") != std::string_view::npos || path.find(':') != std::string_view::npos)
+                return false;
+            return path.empty() || (path.front() != '/' && path.front() != '\\');
+        }
+
+        MWPhysics::NeutralProjectilePose poseOf(const NeutralProjectile::Vec& at, const NeutralProjectile::Vec& dir)
+        {
+            MWPhysics::NeutralProjectilePose pose;
+            pose.mX = at.x;
+            pose.mY = at.y;
+            pose.mZ = at.z;
+            pose.mDirX = static_cast<float>(dir.x);
+            pose.mDirY = static_cast<float>(dir.y);
+            pose.mDirZ = static_cast<float>(dir.z);
+            return pose;
+        }
+
+        class WorldRayAdapter final : public NeutralProjectile::WorldRay
+        {
+        public:
+            explicit WorldRayAdapter(NeutralCombatWorld& world)
+                : mWorld(world)
+            {
+            }
+            bool cast(const NeutralProjectile::Vec& p0, const NeutralProjectile::Vec& p1, double& fraction) override
+            {
+                return mWorld.rayWorld(p0, p1, fraction);
+            }
+
+        private:
+            NeutralCombatWorld& mWorld;
+        };
+    }
+
+    bool NeutralCombatBridge::Writer::doLaunchProjectile(
+        CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r)
+    {
+        NeutralCombatBridge& b = mBridge;
+        const bool finite = std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.z)
+            && std::isfinite(r.heading) && std::isfinite(r.pitch) && std::isfinite(r.speed)
+            && std::isfinite(r.gravity) && std::isfinite(r.range) && std::isfinite(r.stickDepth)
+            && std::isfinite(r.stickSeconds);
+        if (mSink == nullptr || !owner.valid() || !finite || !(r.speed > 0.f && r.speed <= kMaxProjectileSpeed)
+            || !(r.gravity >= 0.f && r.gravity <= kMaxProjectileGravity)
+            || !(r.range > 0.f && r.range <= kMaxProjectileRange) || !(std::abs(r.pitch) < kHalfPi)
+            || !(r.stickDepth >= 0.f && r.stickDepth <= kMaxStickDepth)
+            || !(r.stickSeconds >= 0.f && r.stickSeconds <= kMaxStickSeconds) || !validModelPath(r.model)
+            || (!owner.player && b.mActors.keyOfHandle(owner.actor) == nullptr)
+            || b.mShots.size() >= kMaxProjectiles)
+        {
+            ++b.mStats.mProjectilesRefused;
+            return false;
+        }
+        NeutralProjectile::Shot shot;
+        shot.mId = b.mNextProjectileId++;
+        if (b.mNextProjectileId == 0)
+            b.mNextProjectileId = 1;
+        shot.mOwner = owner;
+        shot.mToken = r.token;
+        shot.mPosition = { r.x, r.y, r.z };
+        const double heading = static_cast<double>(r.heading);
+        const double pitch = static_cast<double>(r.pitch);
+        const double speed = static_cast<double>(r.speed);
+        const NeutralProjectile::Vec direction{ std::sin(heading) * std::cos(pitch), std::cos(heading) * std::cos(pitch),
+            std::sin(pitch) };
+        shot.mVelocity = { direction.x * speed, direction.y * speed, direction.z * speed };
+        shot.mGravity = r.gravity;
+        shot.mRangeLeft = r.range;
+        shot.mStickDepth = r.stickDepth;
+        shot.mStickSeconds = r.stickSeconds;
+        b.mShots.push_back(shot); // room was checked above
+        ++b.mStats.mProjectilesLaunched;
+        if (!r.model.empty())
+            mSink->spawnProjectile(shot.mId, r.model, poseOf(shot.mPosition, direction));
+        if (traceOn())
+            Log(Debug::Info) << "NCOMBAT projectile launch id " << shot.mId << " token " << r.token << " from " << r.x
+                             << " " << r.y << " " << r.z << " heading " << r.heading << " pitch " << r.pitch
+                             << " speed " << r.speed << " gravity " << r.gravity;
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::doSetClipSpeed(CombatSubject subject, float multiplier)
+    {
+        NeutralCombatBridge& b = mBridge;
+        if (mSink == nullptr || subject.player || !subject.valid() || !std::isfinite(multiplier)
+            || multiplier < kMinClipSpeed || multiplier > kMaxClipSpeed)
+        {
+            ++b.mStats.mRefused;
+            return false;
+        }
+        const std::size_t index = b.indexOf(subject);
+        if (index == b.mPlaying.size())
+        {
+            ++b.mStats.mRefused;
+            return false;
+        }
+        b.mPlaying[index].mRate = multiplier;
+        mSink->setClipSpeed(b.mPlaying[index].mKey, multiplier);
+        return true;
+    }
+
+    bool NeutralCombatBridge::Writer::doClipEventTime(
+        std::string_view clip, bool perSex, ClipEventKind kind, float& out)
+    {
+        out = 0.f;
+        if (mSink == nullptr || mWorld == nullptr || !validClipName(clip))
+            return false;
+        const std::shared_ptr<const HavokPack::ClipMeta> meta = mWorld->playerClipMeta(clip, perSex);
+        if (!meta)
+            return false;
+        for (const HavokPack::ClipMetaEvent& event : meta->mEvents)
+        {
+            if (classifyClipEvent(event.mName) == kind && std::isfinite(event.mTime))
+            {
+                out = event.mTime;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool NeutralCombatBridge::Writer::launchProjectile(
+        CombatSubject owner, const openeden::sdk::game::ProjectileRequest& r)
+    {
+        return guarded([&] { return doLaunchProjectile(owner, r); });
+    }
+    bool NeutralCombatBridge::Writer::setClipSpeed(CombatSubject subject, float multiplier)
+    {
+        return guarded([&] { return doSetClipSpeed(subject, multiplier); });
+    }
+    bool NeutralCombatBridge::Writer::clipEventTime(
+        std::string_view clip, bool perSex, ClipEventKind kind, float& out)
+    {
+        return guarded([&] { return doClipEventTime(clip, perSex, kind, out); });
+    }
+
+    void NeutralCombatBridge::stepProjectiles(float seconds, NeutralClipSink& sink, NeutralCombatWorld* world)
+    {
+        // The arrows stuck in a wall go when their time is up.
+        for (std::size_t i = 0; i < mStuck.size();)
+        {
+            mStuck[i].mSecondsLeft -= seconds;
+            if (mStuck[i].mSecondsLeft <= 0.f)
+            {
+                sink.removeProjectile(mStuck[i].mId);
+                mStuck.erase(mStuck.begin() + static_cast<std::ptrdiff_t>(i));
+            }
+            else
+                ++i;
+        }
+        if (mShots.empty())
+            return;
+        mCandidates.clear();
+        if (world != nullptr)
+            world->collectCandidates(mCandidates);
+        std::erase_if(mCandidates, [&](const NeutralSweep::Candidate& c) {
+            return c.mTarget == openeden::sdk::game::SweepTarget::Actor && isDead(c.mActor);
+        });
+        std::optional<WorldRayAdapter> ray;
+        if (world != nullptr)
+            ray.emplace(*world);
+        for (std::size_t i = 0; i < mShots.size();)
+        {
+            NeutralProjectile::Shot& shot = mShots[i];
+            NeutralProjectile::StepResult result;
+            if (shot.mAge >= kMaxProjectileSeconds)
+            {
+                result.mOutcome = NeutralProjectile::Outcome::Expired;
+                result.mAt = shot.mPosition;
+            }
+            else
+                result = NeutralProjectile::step(shot, seconds, mCandidates, ray ? &*ray : nullptr);
+            if (result.mOutcome == NeutralProjectile::Outcome::Flying)
+            {
+                sink.moveProjectile(shot.mId, poseOf(result.mAt, result.mDirection));
+                if (traceOn())
+                    Log(Debug::Info) << "NCOMBAT projectile step id " << shot.mId << " at " << result.mAt.x << " "
+                                     << result.mAt.y << " " << result.mAt.z << " age " << shot.mAge;
+                ++i;
+                continue;
+            }
+            using openeden::sdk::game::ProjectileFate;
+            openeden::sdk::game::ProjectileResult told;
+            told.owner = shot.mOwner;
+            told.token = shot.mToken;
+            told.x = result.mAt.x;
+            told.y = result.mAt.y;
+            told.z = result.mAt.z;
+            told.flightSeconds = shot.mAge;
+            told.distance = shot.mTravelled;
+            told.speed = NeutralProjectile::speedOf(shot);
+            switch (result.mOutcome)
+            {
+                case NeutralProjectile::Outcome::HitActor:
+                    told.fate = ProjectileFate::HitActor;
+                    told.actor = result.mActor;
+                    ++mStats.mProjectileHitsActor;
+                    break;
+                case NeutralProjectile::Outcome::HitPlayer:
+                    told.fate = ProjectileFate::HitPlayer;
+                    ++mStats.mProjectileHitsPlayer;
+                    break;
+                case NeutralProjectile::Outcome::HitWorld:
+                    told.fate = ProjectileFate::HitWorld;
+                    ++mStats.mProjectileHitsWorld;
+                    break;
+                default:
+                    told.fate = ProjectileFate::Expired;
+                    ++mStats.mProjectilesExpired;
+                    break;
+            }
+            if (traceOn())
+                Log(Debug::Info) << "NCOMBAT projectile end id " << shot.mId << " token " << shot.mToken << " fate "
+                                 << static_cast<int>(told.fate) << " at " << told.x << " " << told.y << " " << told.z
+                                 << " flight " << told.flightSeconds << " s distance " << told.distance;
+            if (mProjectileResults.size() < mProjectileResults.capacity())
+                mProjectileResults.push_back(told);
+            else
+                ++mStats.mProjectileResultsDropped;
+            if (told.fate == ProjectileFate::HitWorld && shot.mStickSeconds > 0.f)
+            {
+                // The arrow stays, drawn its stick depth into the surface along its flight.
+                const NeutralProjectile::Vec in{ result.mAt.x + result.mDirection.x * shot.mStickDepth,
+                    result.mAt.y + result.mDirection.y * shot.mStickDepth,
+                    result.mAt.z + result.mDirection.z * shot.mStickDepth };
+                sink.moveProjectile(shot.mId, poseOf(in, result.mDirection));
+                if (mStuck.size() >= kMaxStuckArrows)
+                {
+                    sink.removeProjectile(mStuck.front().mId);
+                    mStuck.erase(mStuck.begin());
+                }
+                mStuck.push_back({ shot.mId, shot.mStickSeconds });
+            }
+            else
+                sink.removeProjectile(shot.mId);
+            mShots.erase(mShots.begin() + static_cast<std::ptrdiff_t>(i));
+        }
+    }
+
+    bool NeutralCombatBridge::playerAttackEdge(openeden::sdk::game::CombatRules* rules, bool pressed)
+    {
+        if (rules == nullptr)
+        {
+            ++mStats.mPlayerAttackRefused;
+            return false;
+        }
+        try
+        {
+            rules->onPlayerAttackEdge(pressed);
+        }
+        catch (...)
+        {
+            ++mStats.mPlayerAttackRefused;
+            ++mStats.mRulesFailures;
+            return false;
+        }
+        ++mStats.mPlayerAttackEdges;
         return true;
     }
 }

@@ -106,14 +106,14 @@ add_openmw_dir (mwworld
     actionequip timestamp actionalchemy cellstore actionapply actioneat
     store esmstore fallback actionrepair actionsoulgem livecellref actiondoor
     contentloader esmloader actiontrap cellreflist cellref weather projectilemanager
-    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles craftingrules gamerules doordestination neutralprojection neutralstore neutralstub neutralcell neutrallight neutraldoor neutralstart neutrallock neutralweather neutralweathersound neutralphysicswater neutralnavigation neutraldialogue neutraldisplayname neutralsave
+    datetimemanager groundcoverstore magiceffects cell ptrregistry preloadcell positioncellgrid itemhandles craftingrules gamerules doordestination neutralprojection neutralstore neutralstub neutralcell neutrallight neutraldoor neutralstart neutrallock neutralweather neutralweathersound neutralphysicswater neutralnavigation neutraldialogue neutraldisplayname neutralprojectiles neutralsave
     )
 
 add_openmw_dir (mwphysics
     physicssystem trace collisiontype actor convert object heightfield closestnotmerayresultcallback
     contacttestresultcallback stepper movementsolver projectile
     actorconvexcallback raycasting mtphysics water contacttestwrapper projectileconvexcallback
-    ragdollhost ragdollrigdata skyrimshape skyrimhavok neutralactor neutralmover neutralactorbridge neutralcombatbridge neutralsweep neutralsight neutralplayerattack neutralpathfollower neutralplanelinks neutralprocess neutraldoorswing
+    ragdollhost ragdollrigdata skyrimshape skyrimhavok neutralactor neutralmover neutralactorbridge neutralcombatbridge neutralsweep neutralprojectile neutralsight neutralplayerattack neutralpathfollower neutralplanelinks neutralprocess neutraldoorswing
     )
 
 add_openmw_dir (mwclass

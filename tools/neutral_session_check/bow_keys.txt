@@ -1,0 +1,16 @@
+# task 0178 (combat S5-6): the REAL attack action (the left mouse button, A_Use) as synthetic SDL events through the real input path,
+# for the player's bow: a full draw (held 150 frames, 2.5 s of fixed frame time, longer than the draw clip's 1.78 s), a tap (4 frames: cancelled,
+# shorter than 0.2 s) and a half draw (60 frames, 1 s). Used with "n5bow" (BOW_EVERY=100), [GUI] rmlui = true (the input script only runs with
+# the overlay) and the bow test settings WITHOUT `combat test player bow`. Frames count running frames; the player is placed at real second 6,
+# about frame 1500 at 250 frames a second, so the first press is later than that.
+2900 log KEYSCRIPT full draw down
+2900 down L 400 300
+3050 up L 400 300
+3051 log KEYSCRIPT full draw up
+3300 log KEYSCRIPT tap down
+3300 down L 400 300
+3304 up L 400 300
+3400 log KEYSCRIPT half draw down
+3400 down L 400 300
+3460 up L 400 300
+3461 log KEYSCRIPT half draw up

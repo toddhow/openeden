@@ -321,6 +321,10 @@ namespace game_skyrimse
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
         CombatSettings settings() override;
         BlockSettings blockSettings() override;
+        /// Task 0178 (stage S5-6): the AMMO by editor id, its PROJ and the arrow GMSTs.
+        const AmmoRecord* ammoByEditorId(std::string_view editorId) override;
+        const ProjectileRecord* projectileOf(const AmmoRecord& ammo) override;
+        ProjectileSettings projectileSettings() override;
         /// Review fix of task 0171: false until the combat records (and the actor records) are read, on a worker
         /// started by the first call; never blocks. The four answers above read nothing themselves: they answer
         /// "nothing" until this is true.

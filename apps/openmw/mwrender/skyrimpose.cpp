@@ -64,6 +64,7 @@ namespace MWRender::SkyrimPose
         SkyrimClipMeta::MetaFuture oldMeta;
         const std::lock_guard lock(mMutex);
         mOnce = true;
+        mRate = 1.f;
         mSampled = false;
         mPlaybackTime = 0.f;
         oldMeta = std::move(mMetaFuture);
@@ -74,6 +75,14 @@ namespace MWRender::SkyrimPose
         mFuture = std::move(future);
         mPending = true;
         mNeedStart = true;
+    }
+
+    void Controller::setRate(float multiplier)
+    {
+        if (!std::isfinite(multiplier) || !(multiplier > 0.f))
+            return;
+        const std::lock_guard lock(mMutex);
+        mRate = multiplier;
     }
 
     HavokPack::ClipProgress Controller::progress() const
@@ -177,8 +186,8 @@ namespace MWRender::SkyrimPose
             const float speed = mMeta ? mMeta->speed() : 1.f;
             const float duration = mClip->mClip.mDuration;
             mSampled = true;
-            mPlaybackTime = std::max(0.f, at);
-            at = std::max(0.f, at) * speed;
+            mPlaybackTime = std::max(0.f, at) * mRate;
+            at = std::max(0.f, at) * speed * mRate;
             if (duration > 0.f)
                 at = std::min(at, duration - 1e-4f);
         }

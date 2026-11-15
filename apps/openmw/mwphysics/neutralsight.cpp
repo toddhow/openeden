@@ -42,6 +42,27 @@ namespace MWPhysics::NeutralSight
         };
     }
 
+    bool firstHit(const JPH::PhysicsSystem& system, const vsg::vec3& from, const vsg::vec3& to, int layerMask,
+        std::span<const JPH::BodyID> ignore, float& fraction)
+    {
+        fraction = 0.f;
+        if (!finite(from) || !finite(to))
+            return false;
+        const vsg::vec3 delta(to.x - from.x, to.y - from.y, to.z - from.z);
+        const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
+        if (!(length > 1e-4f))
+            return false;
+        const JPH::RRayCast ray(Misc::Convert::toJolt<JPH::RVec3>(from), JPH::Vec3(delta.x, delta.y, delta.z));
+        JPH::BroadPhaseLayerFilter allBroadPhaseLayers;
+        MaskedObjectLayerFilter objectLayers(layerMask);
+        const IgnoreListFilter bodies(ignore);
+        JPH::RayCastResult hit;
+        if (!system.GetNarrowPhaseQuery().CastRay(ray, hit, allBroadPhaseLayers, objectLayers, bodies))
+            return false;
+        fraction = hit.mFraction;
+        return true;
+    }
+
     bool blocked(const JPH::PhysicsSystem& system, const vsg::vec3& from, const vsg::vec3& to, int layerMask,
         std::span<const JPH::BodyID> ignore)
     {

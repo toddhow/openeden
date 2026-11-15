@@ -28,6 +28,12 @@ namespace MWPhysics::NeutralSight
     /// that is not finite or shorter than kEndTrim is never blocked.
     [[nodiscard]] bool blocked(const JPH::PhysicsSystem& system, const vsg::vec3& from, const vsg::vec3& to,
         int layerMask, std::span<const JPH::BodyID> ignore);
+
+    /// Task 0178 (a projectile's flight): the first body of `layerMask` that is not in `ignore` along the whole segment
+    /// from `from` to `to`, as the fraction of the segment in [0, 1] (not shortened by kEndTrim). False for no hit, a
+    /// segment that is not finite or shorter than 1e-4.
+    [[nodiscard]] bool firstHit(const JPH::PhysicsSystem& system, const vsg::vec3& from, const vsg::vec3& to,
+        int layerMask, std::span<const JPH::BodyID> ignore, float& fraction);
 }
 
 #endif

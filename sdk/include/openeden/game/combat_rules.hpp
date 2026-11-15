@@ -34,7 +34,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCombatRulesVersion{ 0, 2 };
+    inline constexpr Version kCombatRulesVersion{ 0, 3 };
 
     /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
     /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
@@ -194,6 +194,52 @@ namespace openeden::sdk::game
         float health = 0.f; ///< the player's current health (0 for an actor)
         float healthMax
             = 0.f; ///< the player's maximum health (0 for an actor, and for a player the engine has no health for)
+        float pitch = 0.f; ///< 0.3: the look direction's elevation, radians, positive up; 0 for an actor
+    };
+
+    /// A projectile the pack asks the core to launch (task 0178, stage S5-6, DRAFT 0.3). The core owns the flight: it
+    /// steps the shot every frame (a ballistic arc of speed and gravity against the one physics world: static geometry
+    /// by ray, actors and the player by their capsules), draws the model, and tells the pack where it ended. The pack
+    /// owns every number about it (which PROJ, which damage) and resolves the hit when told.
+    struct ProjectileRequest
+    {
+        std::uint32_t token = 0; ///< handed back in ProjectileResult
+        double x = 0.0; ///< launch position, game units
+        double y = 0.0;
+        double z = 0.0;
+        float heading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
+        float pitch = 0.f; ///< elevation of the launch direction, radians in (-pi/2, pi/2), positive up
+        float speed = 0.f; ///< units a second, > 0
+        float gravity = 0.f; ///< units a second squared, pulling down, >= 0
+        float range = 0.f; ///< the shot ends after this much path, > 0
+        float stickDepth = 0.f; ///< a shot that hits the world is drawn this far into it, >= 0
+        float stickSeconds = 0.f; ///< ... and stays that long before it is removed, >= 0
+        /// The model's VFS path (for example `meshes/weapons/iron/ironarrowprojectile.nif`); valid during the call only,
+        /// the core copies it. Empty: the shot is not drawn.
+        std::string_view model;
+    };
+
+    enum class ProjectileFate : std::uint8_t
+    {
+        Expired = 0, ///< the range was used up (or it fell out of the world)
+        HitActor = 1,
+        HitPlayer = 2,
+        HitWorld = 3,
+    };
+
+    /// How a projectile ended; delivered by CombatRules::onProjectileResult once, at the start of the NEXT update.
+    struct ProjectileResult
+    {
+        CombatSubject owner;
+        std::uint32_t token = 0;
+        ProjectileFate fate = ProjectileFate::Expired;
+        ActorHandle actor; ///< valid when fate == HitActor
+        double x = 0.0; ///< where it ended
+        double y = 0.0;
+        double z = 0.0;
+        float flightSeconds = 0.f;
+        float distance = 0.f; ///< path length
+        float speed = 0.f; ///< at the end, units a second
     };
 
     /// The timing of a clip as its sidecar gives it, in playback seconds (task 0171 stage S5-3b, DRAFT 0.2): when the
@@ -282,6 +328,39 @@ namespace openeden::sdk::game
             return false;
         }
 
+        /// Launches a projectile (see ProjectileRequest), 0.3. `owner` is never hit by its own shot. False for a stale
+        /// handle, a value that is not finite or outside the ranges of ProjectileRequest, a model path that is longer
+        /// than 256 bytes, has `..` or a drive letter, too many shots in flight (64), or a call outside combatUpdate().
+        /// The default refuses.
+        virtual bool launchProjectile(CombatSubject owner, const ProjectileRequest& request)
+        {
+            (void)owner;
+            (void)request;
+            return false;
+        }
+
+        /// Plays the clip the same update's playClip started at `multiplier` times its speed, 0.3 (the draw speed of a
+        /// bow): the clip's events fire that much earlier. False for no such clip, a multiplier outside [0.1, 10] or
+        /// not finite, or a call outside combatUpdate(). The default refuses.
+        virtual bool setClipSpeed(CombatSubject subject, float multiplier)
+        {
+            (void)subject;
+            (void)multiplier;
+            return false;
+        }
+
+        /// The playback time of the first event of `kind` in the named clip's sidecar, 0.3. False while the clip is
+        /// still being read (the first call starts the read), when it has no such event, and outside combatUpdate().
+        /// The default refuses.
+        virtual bool clipEventTime(std::string_view clip, bool perSex, ClipEventKind kind, float& out)
+        {
+            (void)clip;
+            (void)perSex;
+            (void)kind;
+            out = 0.f;
+            return false;
+        }
+
         /// Reports that the pack's health for the actor reached 0: the core starts the death (ragdoll, corpse). Once
         /// per actor; a second report is ignored and returns true. False for a stale handle. The default refuses.
         virtual bool reportDeath(ActorHandle actor)
@@ -320,5 +399,14 @@ namespace openeden::sdk::game
             (void)token;
             (void)how;
         }
+
+        /// A projectile of this pack ended (0.3). Called just before combatUpdate(), once per launch, not for an owner
+        /// that has gone. The default ignores it.
+        virtual void onProjectileResult(const ProjectileResult& result) { (void)result; }
+
+        /// The player's attack control went down (`pressed`) or up (0.3), once per change; `onPlayerAttack` (a tap or
+        /// a hold) is still sent as before. A pack with a bow draws on the press and shoots on the release. Called
+        /// just before combatUpdate(). The default ignores it.
+        virtual void onPlayerAttackEdge(bool pressed) { (void)pressed; }
     };
 }

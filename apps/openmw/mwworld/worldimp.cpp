@@ -48,6 +48,7 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "neutraldialogue.hpp"
+#include "neutralprojectiles.hpp"
 #include "neutralnavigation.hpp"
 #include "neutralrotation.hpp"
 #include <components/detournavigator/agentbounds.hpp>
@@ -369,6 +370,7 @@ namespace MWWorld
                     out.mY = pos.pos[1];
                     out.mZ = pos.pos[2];
                     out.mHeading = pos.rot[2];
+                    out.mPitch = -pos.rot[0]; // task 0178: the camera's pitch is -rot[0] (camera.cpp, setPitch)
                     const MWMechanics::DynamicStat<float>& health
                         = player.getClass().getCreatureStats(player).getHealth();
                     out.mHealth = health.getCurrent();
@@ -1568,6 +1570,15 @@ namespace MWWorld
             // Task 0170: a combat clip starts (a name) or stops (empty) on a drawn neutral actor.
             for (const auto& op : mPhysics->getNeutralClipOps())
                 mRendering->getObjects().playNeutralActorClip(op.mPtr, op.mClip, op.mPerSex);
+            // Task 0178: after the clips (a new clip starts at speed 1), the draw speed of a bow; then the arrows.
+            for (const auto& op : mPhysics->getNeutralClipSpeedOps())
+                mRendering->getObjects().setNeutralActorClipSpeed(op.mPtr, op.mMultiplier);
+            if (!mPhysics->getNeutralProjectileOps().empty())
+            {
+                if (!mNeutralProjectiles)
+                    mNeutralProjectiles = std::make_unique<NeutralProjectiles>();
+                mNeutralProjectiles->apply(mPhysics->getNeutralProjectileOps(), *mRendering);
+            }
             // Task 0148: the locomotion blend of a drawn neutral actor follows the speed it really moved at.
             if (Settings::game().mNeutralActorLocomotion.get())
                 for (const auto& report : mPhysics->getNeutralActorSpeeds())
