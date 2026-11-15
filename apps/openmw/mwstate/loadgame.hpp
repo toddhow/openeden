@@ -20,6 +20,8 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwscript/globalscripts.hpp"
 #include "../mwworld/cellstore.hpp"
+#include "../mwworld/esmstore.hpp"
+#include "../mwworld/neutralsave.hpp"
 #include "../mwworld/scene.hpp"
 #include "../mwworld/worldmodel.hpp"
 
@@ -239,6 +241,7 @@ namespace MWState
                     case ESM::REC_RAND:
                     case ESM::REC_STAT:
                     case ESM::REC_DOOR:
+                    case MWWorld::kNeutralSaveRecord: // task 0177: the neutral world's changes
                         MWBase::Environment::get().getWorld()->readRecord(reader, n.toInt());
                         break;
 
@@ -335,7 +338,9 @@ namespace MWState
 
             // Vanilla MW will restart startup scripts when a save game is loaded. This is unintuitive,
             // but some mods may be using it as a reload detector.
-            MWBase::Environment::get().getScriptManager()->getGlobalScripts().addStartup();
+            // A neutral session (task 0177) has no Morrowind startup script (the new game does not start one either)
+            if (!MWBase::Environment::get().getWorld()->getStore().hasNeutralStubs())
+                MWBase::Environment::get().getScriptManager()->getGlobalScripts().addStartup();
 
             // Since we passed "changeEvent=false" to changeCell, we shouldn't have triggered the cell change flag.
             // But make sure the flag is cleared anyway in case it was set from an earlier game.

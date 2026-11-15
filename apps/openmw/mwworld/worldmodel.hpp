@@ -12,6 +12,7 @@
 #include <components/misc/algorithm.hpp>
 
 #include "cellstore.hpp"
+#include "neutralsave.hpp"
 #include "ptr.hpp"
 #include "ptrregistry.hpp"
 
@@ -110,6 +111,38 @@ namespace MWWorld
         NeutralWorldLookup findNeutralWorld(NeutralWorld::NeutralWorldStore& neutral, std::string_view editorId) const;
 
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
+
+        /// Task 0177 (neutral world saves, stage N6). The key a neutral cell is saved under: an interior by the pack's
+        /// cell id, an exterior by world and grid square; None for a cell that is not a neutral one.
+        NeutralSaveCellKey neutralSaveKey(const CellStore& cell) const;
+
+        /// A cell of a game pack's neutral world, with or without a pack cell behind it (an empty exterior square).
+        /// Such a cell is rebuilt from the pack at every load and is never written as a Morrowind cell state.
+        bool isNeutralStore(const CellStore& cell) const;
+
+        /// The changes of every loaded neutral cell against the pack (moved, scaled, disabled, enabled and deleted
+        /// placements; actors are left out, they are rebuilt from the pack's schedule), the player's cell, the opened
+        /// locks and the held keys. Canonical. Reads only; callable from the save's worker thread.
+        void collectNeutralSave(NeutralSaveState& out, const CellStore* playerCell) const;
+
+        struct NeutralSaveRestore
+        {
+            CellStore* mPlayerCell = nullptr; ///< null when there was no player cell or it cannot be found
+            std::size_t mCells = 0;
+            std::size_t mObjects = 0;
+            std::size_t mMissing = 0; ///< saved placements that the pack no longer has
+            std::string mError; ///< why the player's cell could not be found
+            std::vector<std::string> mWarnings;
+        };
+
+        /// Builds the cells the state names from the pack (the pack's own state), applies the saved changes, restores
+        /// the opened locks and held keys and finds the player's cell. Main thread, after the world was cleared.
+        NeutralSaveRestore restoreNeutralSave(
+            const NeutralSaveState& state, NeutralWorld::NeutralWorldStore& neutral) const;
+
+        /// The cell a key names, built when needed; null with `error` when the pack no longer has it.
+        CellStore* findNeutralSaveCell(
+            NeutralWorld::NeutralWorldStore& neutral, const NeutralSaveCellKey& key, std::string& error) const;
 
         /// Task 0125 (stage E2): the neutral worldspaces the engine knows (registered when a door or a start finds an
         /// exterior of a supported world); null for any other worldspace, Morrowind's included.

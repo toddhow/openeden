@@ -534,6 +534,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testbsahardening.cpp
     skyrimse/testcompatskyrimse.cpp
     skyrimse/testskyrimseactorrules.cpp
+    skyrimse/testskyrimseloadorderstamp.cpp
     skyrimse/testskyrimsecombat.cpp
     skyrimse/testskyrimsecombatslots.cpp
     skyrimse/testskyrimsecombatmelee.cpp

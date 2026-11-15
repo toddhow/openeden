@@ -65,6 +65,10 @@ namespace OMW
             /// [Game] neutral world (task 0103): build the neutral world store and let the game pack register its world
             /// source in it. False builds nothing and the pack is told that nothing reads its source.
             bool neutralWorld = false;
+            /// [Game] neutral saves (task 0177): a session whose game pack registered a neutral world source may be
+            /// saved (the engine writes the changes against the pack and the player's cell). False keeps saving
+            /// refused there, as before.
+            bool neutralSaves = false;
         };
 
         explicit ExtensionHost(const Config& config);
@@ -239,6 +243,7 @@ namespace OMW
         void finishStart();
         void installPackRules();
         void attachWorldNow(MWPhysics::PhysicsSystem& physics);
+        bool mNeutralSaves = false; // Config::neutralSaves (task 0177)
         bool mRulesFromPack = false;
         bool mStarted = false;
         bool mGamePackStarted = false; // startGamePack() ran the first phase (maybe early, task 0113)

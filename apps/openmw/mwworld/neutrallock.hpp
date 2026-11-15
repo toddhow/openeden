@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include <openeden/game/world_model.hpp>
 
@@ -18,8 +19,8 @@
 // (game_packs/morrowind security rules) reads Morrowind GMSTs, skills and probe items and cannot be applied to a Skyrim
 // lock, so a lock with no usable key stays locked (task 0128, decision 1).
 //
-// NeutralLockState is the session's memory: the keys held and the locks opened. Main thread only. Not saved (saving is
-// refused in a neutral session until stage N6).
+// NeutralLockState is the session's memory: the keys held and the locks opened. Main thread only. Saved with
+// [Game] neutral saves (task 0177, neutralsave.hpp); otherwise saving is refused in a neutral session.
 
 namespace MWWorld
 {
@@ -53,6 +54,16 @@ namespace MWWorld
         /// Reads "game:id,game:id" (id in hexadecimal, with or without 0x) and gives each key. Returns the number of
         /// keys given; malformed entries are skipped.
         std::size_t giveKeysFromText(std::string_view text);
+
+        /// The held keys and the opened locks as (game id, id) pairs in order, for the save (task 0177).
+        [[nodiscard]] std::vector<std::pair<std::string, std::uint32_t>> keyEntries() const
+        {
+            return { mKeys.begin(), mKeys.end() };
+        }
+        [[nodiscard]] std::vector<std::pair<std::string, std::uint32_t>> unlockedEntries() const
+        {
+            return { mUnlocked.begin(), mUnlocked.end() };
+        }
 
         [[nodiscard]] std::size_t keyCount() const { return mKeys.size(); }
         [[nodiscard]] std::size_t unlockedCount() const { return mUnlocked.size(); }

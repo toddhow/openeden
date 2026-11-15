@@ -50,6 +50,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralwater.cpp
     mwworld/testneutraldoorreal.cpp
     mwworld/testneutrallock.cpp
+    mwworld/testneutralsave.cpp
+    mwworld/testneutralsaveworld.cpp
     mwworld/testneutralsafety.cpp
     mwworld/testneutralstorereal.cpp
 
@@ -214,6 +216,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/testgamerules.cpp
     extension/testneutralworldhost.cpp
     extension/testneutralworldsaving.cpp
+    extension/testneutralsavesetting.cpp
     mwstate/testautoframes.cpp
     mwstate/testgamepackchunks.cpp
 

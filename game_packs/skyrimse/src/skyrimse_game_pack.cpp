@@ -2,6 +2,7 @@
 #include "game_skyrimse/speech.hpp"
 
 #include "game_skyrimse/actor_mechanics.hpp"
+#include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -27,6 +28,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace game_skyrimse
 {
@@ -282,6 +284,7 @@ namespace game_skyrimse
                     // from the host; none of this runs when the host does not read sources.
                     const auto startedAt = std::chrono::steady_clock::now();
                     loadSessionContent(host, *sources, logger);
+                    registerLoadOrderStamp(host, *sources, logger);
                     // Task 0176: the Papyrus host, off unless [extension.skyrimse] papyrus = true.
                     if (const openeden::sdk::SettingsService* settings = host.getSettingsService())
                     {
@@ -339,6 +342,29 @@ namespace game_skyrimse
             }
 
         private:
+            // Task 0177 (neutral saves): the save chunk that ties a save to the load order it was made with.
+            void registerLoadOrderStamp(openeden::sdk::Host& host, openeden::sdk::game::WorldSourceService& sources,
+                openeden::sdk::Logger* logger)
+            {
+                std::vector<openeden::sdk::game::SessionContentFile> files;
+                sources.sessionContent(files);
+                std::vector<std::string> names;
+                names.reserve(files.size());
+                for (const openeden::sdk::game::SessionContentFile& file : files)
+                    names.push_back(Files::pathFromUnicodeString(file.path).filename().string());
+                mLoadOrderStamp.setLoadOrder(std::move(names));
+                mLoadOrderStamp.setRefusalSink([logger](const std::string& reason) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Error, "the save is refused: " + reason);
+                });
+                openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService();
+                if (chunks == nullptr || !chunks->registerHandler(mLoadOrderStamp))
+                {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the load order stamp chunk was not registered");
+                }
+            }
+
             // Starts building the world view from the plugins of the session that this pack's content loader accepts,
             // on a worker thread (task 0109, decision 2): start() returns at once and the view's queries wait for the
             // worker if they come first (SkyrimWorldView, threading note). Plugins the view refuses are named once and
@@ -560,6 +586,7 @@ namespace game_skyrimse
             SkyrimCellSource mCellSource{ mWorldView };
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
+            LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<PapyrusDriver> mPapyrus; // last: refers to the view and the file source
         };
     }

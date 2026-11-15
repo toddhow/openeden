@@ -1,0 +1,3 @@
+GLOBAL: scripts/n6/lockglobal.lua
+MENU: scripts/n6/menu.lua
+PLAYER: scripts/n4doors/shot.lua

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
+#include <unordered_map>
 #include <stdexcept>
 
 #include <components/debug/debuglog.hpp>
@@ -28,6 +29,7 @@
 #include "cellstore.hpp"
 #include "esmstore.hpp"
 #include "neutralcell.hpp"
+#include "neutrallock.hpp"
 #include "neutralstore.hpp"
 
 #include "../mwbase/environment.hpp"
@@ -749,13 +751,15 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(const ESM::RefId& id)
 
 size_t MWWorld::WorldModel::countSavedGameRecords() const
 {
-    return std::count_if(mCells.begin(), mCells.end(), [](const auto& v) { return v.second.hasState(); });
+    // A neutral cell is rebuilt from the game pack at every load; its changes go into the neutral record (task 0177)
+    return std::count_if(mCells.begin(), mCells.end(),
+        [this](const auto& v) { return v.second.hasState() && !isNeutralStore(v.second); });
 }
 
 void MWWorld::WorldModel::write(ESM::ESMWriter& writer, MWState::Loading& state) const
 {
     for (auto& [id, cellStore] : mCells)
-        if (cellStore.hasState())
+        if (cellStore.hasState() && !isNeutralStore(cellStore))
         {
             writeCell(writer, cellStore);
             state.advance();
@@ -817,4 +821,214 @@ bool MWWorld::WorldModel::readRecord(ESM::ESMReader& reader, uint32_t type)
     }
 
     return false;
+}
+
+// Task 0177 (neutral world saves, stage N6). The neutral cells are rebuilt from the game pack at every load; a save
+// keeps only what differs from the pack (neutralsave.hpp).
+namespace MWWorld
+{
+    bool WorldModel::isNeutralStore(const CellStore& cell) const
+    {
+        if (cell.isNeutral())
+            return true;
+        // An empty exterior square of a neutral world has no pack cell but belongs to it all the same
+        const Cell* record = cell.getCell();
+        return record != nullptr && !mNeutralWorldspaces.empty() && record->isExterior()
+            && mNeutralWorldspaces.count(record->getWorldSpace()) != 0;
+    }
+
+    NeutralSaveCellKey WorldModel::neutralSaveKey(const CellStore& cell) const
+    {
+        NeutralSaveCellKey key;
+        const Cell* record = cell.getCell();
+        if (record == nullptr)
+            return key;
+        if (const openeden::sdk::game::WorldCell* neutral = cell.neutralCell(); neutral != nullptr && neutral->interior)
+        {
+            key.mKind = NeutralSaveCellKey::Kind::Interior;
+            key.mGameId = cell.neutralGameId();
+            key.mCell = static_cast<std::uint32_t>(neutral->id);
+            return key;
+        }
+        // An exterior, built from a pack cell or empty: its worldspace says which pack world it belongs to
+        if (!record->isExterior())
+            return key;
+        const NeutralWorldspace* world = neutralWorldspace(record->getWorldSpace());
+        if (world == nullptr)
+            return key;
+        key.mKind = NeutralSaveCellKey::Kind::Exterior;
+        key.mGameId = world->mGameId;
+        key.mWorld = static_cast<std::uint32_t>(world->mWorld);
+        key.mX = record->getGridX();
+        key.mY = record->getGridY();
+        return key;
+    }
+
+    void WorldModel::collectNeutralSave(NeutralSaveState& out, const CellStore* playerCell) const
+    {
+        out = {};
+        if (playerCell != nullptr)
+            out.mPlayerCell = neutralSaveKey(*playerCell);
+        for (const auto& [id, store] : mCells)
+        {
+            if (!store.isNeutral() || store.getState() != CellStore::State_Loaded)
+                continue;
+            const NeutralSaveCellKey key = neutralSaveKey(store);
+            if (key.mKind == NeutralSaveCellKey::Kind::None)
+                continue;
+            NeutralSavedCell saved;
+            saved.mKey = key;
+            // The pack's objects by placement id (the snapshot is not promised to be sorted by it)
+            std::unordered_map<openeden::sdk::game::WorldId, const openeden::sdk::game::WorldObject*> packObjects;
+            packObjects.reserve(store.neutralCell()->objects.size());
+            for (const openeden::sdk::game::WorldObject& packObject : store.neutralCell()->objects)
+                packObjects.emplace(packObject.id, &packObject);
+            store.forEachNeutralRef([&](const LiveCellRef<NeutralBase>& live) {
+                const auto placement = static_cast<openeden::sdk::game::WorldId>(live.mRef.getRefNum().mIndex);
+                const auto packObject = packObjects.find(placement);
+                const openeden::sdk::game::WorldObject* object
+                    = packObject == packObjects.end() ? nullptr : packObject->second;
+                if (object == nullptr)
+                    return;
+                ESM::CellRef original;
+                std::string error;
+                if (!makeNeutralCellRef(store.neutralGameId(), *object, original, error))
+                    return;
+                NeutralObjectNow now;
+                now.mPosition = live.mData.getPosition();
+                now.mScale = live.mRef.getScale();
+                now.mEnabled = live.mData.isEnabled();
+                now.mDeleted = live.mRef.getCount(false) == 0;
+                // A neutral actor walks by its pack's schedule and is placed again at every load: where it stands is
+                // the actor system's (out of scope for this stage). That it was disabled, enabled or deleted is saved.
+                if (object->kind == openeden::sdk::game::ObjectKind::Actor)
+                {
+                    now.mPosition = original.mPos;
+                    now.mScale = original.mScale;
+                }
+                if (auto diff = diffNeutralObject(static_cast<std::uint32_t>(placement), original,
+                        !object->initiallyDisabled, now))
+                    saved.mObjects.push_back(*diff);
+            });
+            if (!saved.mObjects.empty())
+                out.mCells.push_back(std::move(saved));
+        }
+        out.mUnlocked = neutralLockState().unlockedEntries();
+        out.mKeys = neutralLockState().keyEntries();
+        canonicaliseNeutralSave(out);
+    }
+
+    CellStore* WorldModel::findNeutralSaveCell(
+        NeutralWorld::NeutralWorldStore& neutral, const NeutralSaveCellKey& key, std::string& error) const
+    {
+        error.clear();
+        try
+        {
+            if (key.mKind == NeutralSaveCellKey::Kind::Interior)
+            {
+                const NeutralCellLookup found
+                    = findNeutralCell(neutral, key.mGameId, static_cast<openeden::sdk::game::WorldId>(key.mCell));
+                if (found.mStatus != NeutralCellStatus::Found || found.mStore == nullptr)
+                {
+                    error = "the interior cell " + std::to_string(key.mCell) + " of '" + key.mGameId
+                        + "' is not in the loaded game: " + found.mError;
+                    return nullptr;
+                }
+                return found.mStore;
+            }
+            if (key.mKind == NeutralSaveCellKey::Kind::Exterior)
+            {
+                const auto world = static_cast<openeden::sdk::game::WorldId>(key.mWorld);
+                openeden::sdk::game::WorldSpaceInfo info;
+                openeden::sdk::game::WorldCellSource* source = neutral.source(key.mGameId);
+                if (source == nullptr || !source->worldInfo(world, info))
+                {
+                    error = "the world " + std::to_string(key.mWorld) + " of '" + key.mGameId
+                        + "' is not in the loaded game";
+                    return nullptr;
+                }
+                const ESM::RefId worldspace = neutralWorldspaceId(key.mGameId, world);
+                if (worldspace.empty())
+                {
+                    error = "the world " + std::to_string(key.mWorld) + " of '" + key.mGameId + "' cannot be carried";
+                    return nullptr;
+                }
+                mNeutralWorldspaces.emplace(worldspace, NeutralWorldspace{ key.mGameId, world });
+                return &getExterior(ESM::ExteriorCellLocation(key.mX, key.mY, worldspace));
+            }
+        }
+        catch (const std::exception& e)
+        {
+            error = e.what();
+            return nullptr;
+        }
+        error = "the save names no cell";
+        return nullptr;
+    }
+
+    WorldModel::NeutralSaveRestore WorldModel::restoreNeutralSave(
+        const NeutralSaveState& state, NeutralWorld::NeutralWorldStore& neutral) const
+    {
+        NeutralSaveRestore result;
+
+        // The session's locks and keys come back first: a cell built below may consult them
+        neutralLockState().clear();
+        for (const auto& [game, key] : state.mKeys)
+            neutralLockState().giveKey(game, static_cast<openeden::sdk::game::WorldId>(key));
+        for (const auto& [game, placement] : state.mUnlocked)
+            neutralLockState().unlock(game, static_cast<openeden::sdk::game::WorldId>(placement));
+
+        for (const NeutralSavedCell& saved : state.mCells)
+        {
+            std::string error;
+            CellStore* cell = findNeutralSaveCell(neutral, saved.mKey, error);
+            if (cell == nullptr)
+            {
+                result.mWarnings.push_back("Dropping the saved changes of a cell: " + error);
+                continue;
+            }
+            if (cell->getState() != CellStore::State_Loaded)
+                cell->load();
+            ++result.mCells;
+            std::map<std::uint32_t, LiveCellRef<NeutralBase>*> byPlacement;
+            cell->forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
+                byPlacement.emplace(live.mRef.getRefNum().mIndex, &live);
+            });
+            for (const NeutralSavedObject& object : saved.mObjects)
+            {
+                const auto found = byPlacement.find(object.mPlacement);
+                if (found == byPlacement.end())
+                {
+                    ++result.mMissing;
+                    continue;
+                }
+                LiveCellRef<NeutralBase>& live = *found->second;
+                NeutralObjectNow now;
+                now.mPosition = live.mData.getPosition();
+                now.mScale = live.mRef.getScale();
+                now.mEnabled = live.mData.isEnabled();
+                now.mDeleted = live.mRef.getCount(false) == 0;
+                applyNeutralSavedObject(object, now);
+                live.mData.setPosition(now.mPosition);
+                live.mRef.setScale(now.mScale);
+                if (now.mEnabled)
+                    live.mData.enable();
+                else
+                    live.mData.disable();
+                if (now.mDeleted)
+                    live.mRef.setCount(0);
+                ++result.mObjects;
+            }
+        }
+
+        if (state.mPlayerCell.mKind != NeutralSaveCellKey::Kind::None)
+        {
+            result.mPlayerCell = findNeutralSaveCell(neutral, state.mPlayerCell, result.mError);
+            if (result.mPlayerCell != nullptr && result.mPlayerCell->getState() != CellStore::State_Loaded)
+                result.mPlayerCell->load();
+        }
+        else
+            result.mError = "the save has no player cell";
+        return result;
+    }
 }

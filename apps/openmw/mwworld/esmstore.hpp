@@ -202,6 +202,15 @@ namespace MWWorld
         /// True when the store holds the neutral world's stub player (MWWorld::insertNeutralStubPlayer).
         bool hasNeutralStubs() const { return mNeutralStubs; }
         void markNeutralStubs() { mNeutralStubs = true; }
+        /// Task 0177 ([Game] neutral saves): the stub player is static content of every neutral session, so a save does
+        /// not need it and may be written. The player's own state is the REC_PLAY record. Off by default: write()
+        /// still refuses a store with stubs.
+        void allowNeutralStubWrite() { mNeutralStubWriteAllowed = true; }
+
+    private:
+        bool mNeutralStubWriteAllowed = false;
+
+    public:
 
         void addOMWScripts(std::filesystem::path filePath) { mLuaContent.push_back(std::move(filePath)); }
         ESM::LuaScriptsCfg getLuaScriptsCfg() const;

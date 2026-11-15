@@ -2,6 +2,7 @@
 #define GAME_MWWORLD_CELLSTORE_H
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -221,6 +222,11 @@ namespace MWWorld
         /// Task 0115: the placement of this neutral cell with that id (the snapshot's objects are in ascending id
         /// order, so a binary search); null for an unknown id or a cell that is not neutral.
         const openeden::sdk::game::WorldObject* neutralObject(openeden::sdk::game::WorldId placement) const;
+
+        /// Task 0177 (neutral saves): visits the cell's neutral references (a loaded cell; nothing otherwise). The const
+        /// form does not mark the cell as having state; the second form is for restoring a save.
+        void forEachNeutralRef(const std::function<void(const LiveCellRef<NeutralBase>&)>& visitor) const;
+        void forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor);
 
         /// Whether this cell came from a game pack's neutral world (setNeutralCell).
         bool isNeutral() const { return mNeutralCell != nullptr; }

@@ -130,6 +130,7 @@ namespace OMW
     ExtensionHost::ExtensionHost(const Config& config)
         : mLifecycle(mHost)
     {
+        mNeutralSaves = config.neutralSaves;
         namespace extension = openeden::extension;
 
         mHost.settingsService().useEngineSettings();
@@ -328,7 +329,8 @@ namespace OMW
     {
         if (!mLifecycle.getSessionError().empty())
             return mLifecycle.getSessionError();
-        if (mHost.worldSources().sourceCount() > 0)
+        // Task 0177: with [Game] neutral saves the engine saves the neutral world itself (the changes against the pack)
+        if (mHost.worldSources().sourceCount() > 0 && !mNeutralSaves)
             return "Saving is refused: the game pack's world has no save support yet";
         return {};
     }

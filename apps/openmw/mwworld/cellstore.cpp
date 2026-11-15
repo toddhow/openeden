@@ -908,6 +908,22 @@ namespace MWWorld
         return &*it;
     }
 
+    void CellStore::forEachNeutralRef(const std::function<void(const LiveCellRef<NeutralBase>&)>& visitor) const
+    {
+        if (mState != State_Loaded)
+            return;
+        for (const LiveCellRef<NeutralBase>& live : get<NeutralBase>().mList)
+            visitor(live);
+    }
+
+    void CellStore::forEachNeutralRefMutable(const std::function<void(LiveCellRef<NeutralBase>&)>& visitor)
+    {
+        if (mState != State_Loaded)
+            return;
+        for (LiveCellRef<NeutralBase>& live : get<NeutralBase>().mList)
+            visitor(live);
+    }
+
     void CellStore::loadNeutralRefs()
     {
         mNeutralLoaded = 0;

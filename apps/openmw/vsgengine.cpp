@@ -404,7 +404,8 @@ namespace OMW
         Settings::ShaderManager::get().load(mCfgMgr.getUserConfigPath() / "shaders.yaml");
         mExtensionHost = std::make_unique<ExtensionHost>(ExtensionHost::Config{
             GameSession::searchDirectories(mCfgMgr.getLocalPath(), mCfgMgr.getUserDataPath(), true), args.extensions,
-            args.gamePack, args.builtInGamePacks, Settings::game().mNeutralWorld.get() });
+            args.gamePack, args.builtInGamePacks, Settings::game().mNeutralWorld.get(),
+            Settings::game().mNeutralSaves.get() });
         mEnvironment.setExtensionManager(*mExtensionHost);
 
         mVFS = std::make_unique<VFS::Manager>();

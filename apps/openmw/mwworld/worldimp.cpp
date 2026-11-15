@@ -314,7 +314,12 @@ namespace MWWorld
         // Task 0105 (neutral world, stage N3a-2): a session whose content defines no player gets a stub one; a store
         // that has a "Player" (Morrowind, always) is not touched.
         if (Settings::game().mNeutralWorld.get())
+        {
             insertNeutralStubPlayer(mStore);
+            // Task 0177: with [Game] neutral saves the stub is plain static content and a save may be written
+            if (Settings::game().mNeutralSaves.get())
+                mStore.allowNeutralStubWrite();
+        }
 
         mStore.setUp();
         mStore.validateRecords(mReaders);
@@ -484,6 +489,7 @@ namespace MWWorld
 
         mWorldScene->clear();
         mWorldModel.clear();
+        mNeutralSaveBytes.clear();
 
         mStore.clearDynamic();
 
@@ -513,7 +519,8 @@ namespace MWWorld
             + 1 // weather record
             + 1 // levitation/teleport enabled state
             + 1 // camera
-            + 1; // random state.
+            + 1 // random state.
+            + (writesNeutralSave() ? 1 : 0); // the neutral world's changes (task 0177)
     }
 
     size_t World::countSavedGameCells() const
@@ -536,6 +543,8 @@ namespace MWWorld
 
         mStore.write(writer, progress); // dynamic Store must be written (and read) before Cells, so that
                                         // references to custom made records will be recognized
+        if (writesNeutralSave())
+            writeNeutralSave(writer);
         mWorldModel.write(writer, state); // the player's cell needs to be loaded before the player
         mPlayer->write(writer, progress);
 
@@ -559,6 +568,16 @@ namespace MWWorld
         {
             case ESM::REC_ACTC:
                 reader.skipRecord();
+                return;
+            case kNeutralSaveRecord:
+                // Kept as bytes here (this runs on the loading worker); restored on the main thread in saveLoaded
+                reader.getSubNameIs("NWDA");
+                reader.getSubHeader();
+                if (reader.getSubSize() > kNeutralSaveMaxBytes)
+                    throw std::runtime_error("The save's neutral world record is larger than any this build writes");
+                mNeutralSaveBytes.resize(reader.getSubSize());
+                if (!mNeutralSaveBytes.empty())
+                    reader.getExact(mNeutralSaveBytes.data(), mNeutralSaveBytes.size());
                 return;
             case ESM::REC_ENAB:
                 reader.getHNT(mTeleportEnabled, "TELE");
@@ -2488,6 +2507,62 @@ namespace MWWorld
         mStore.validateDynamic();
         mTimeManager->setup(mGlobalVariables);
         mProjectileManager->saveLoaded(reader);
+        restoreNeutralSave();
+    }
+
+    bool World::writesNeutralSave() const
+    {
+        return mStore.hasNeutralStubs() && Settings::game().mNeutralSaves.get();
+    }
+
+    void World::writeNeutralSave(ESM::ESMWriter& writer) const
+    {
+        NeutralSaveState state;
+        mWorldModel.collectNeutralSave(state, getPlayerConstPtr().getCell());
+        std::size_t changed = 0;
+        for (const NeutralSavedCell& cell : state.mCells)
+            changed += cell.mObjects.size();
+        Log(Debug::Info) << "Neutral save: " << state.mCells.size() << " cells with changes, " << changed
+                         << " changed objects, " << state.mUnlocked.size() << " opened locks, " << state.mKeys.size()
+                         << " keys";
+        const std::vector<std::byte> bytes = encodeNeutralSave(std::move(state));
+        writer.startRecord(kNeutralSaveRecord);
+        writer.startSubRecord("NWDA");
+        writer.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+        writer.endRecord("NWDA");
+        writer.endRecord(kNeutralSaveRecord);
+    }
+
+    void World::restoreNeutralSave()
+    {
+        if (!Settings::game().mNeutralWorld.get())
+        {
+            mNeutralSaveBytes.clear();
+            return;
+        }
+        NeutralWorld::NeutralWorldStore* neutral = MWBase::Environment::get().getExtensionManager()->neutralWorldStore();
+        if (neutral == nullptr || !mStore.hasNeutralStubs())
+        {
+            mNeutralSaveBytes.clear();
+            return;
+        }
+        if (mNeutralSaveBytes.empty())
+            throw std::runtime_error("The save holds no neutral world record, so the player's cell is unknown");
+        NeutralSaveState state;
+        std::string error;
+        const bool ok = decodeNeutralSave(mNeutralSaveBytes, state, error);
+        mNeutralSaveBytes.clear();
+        if (!ok)
+            throw std::runtime_error("The save's neutral world record is damaged: " + error);
+        const WorldModel::NeutralSaveRestore restored = mWorldModel.restoreNeutralSave(state, *neutral);
+        for (const std::string& warning : restored.mWarnings)
+            Log(Debug::Warning) << warning;
+        Log(Debug::Info) << "Neutral world restored: " << restored.mCells << " cells with changes, " << restored.mObjects
+                         << " changed objects (" << restored.mMissing << " no longer in the game), "
+                         << state.mUnlocked.size() << " opened locks, " << state.mKeys.size() << " keys";
+        if (restored.mPlayerCell == nullptr)
+            throw std::runtime_error("The player's cell cannot be restored: " + restored.mError);
+        mPlayer->setCell(restored.mPlayerCell);
     }
 
     void World::setupPlayer()

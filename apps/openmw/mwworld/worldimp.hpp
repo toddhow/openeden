@@ -119,6 +119,13 @@ namespace MWWorld
         uint32_t mRandomSeed{};
         bool mIdsRebuilt{};
 
+        // Task 0177 (neutral saves): the bytes of the save's neutral record, kept by readRecord on the loading worker
+        // until saveLoaded restores them on the main thread.
+        std::vector<std::byte> mNeutralSaveBytes;
+        bool writesNeutralSave() const;
+        void writeNeutralSave(ESM::ESMWriter& writer) const;
+        void restoreNeutralSave();
+
         // not implemented
         World(const World&) = delete;
         World& operator=(const World&) = delete;
