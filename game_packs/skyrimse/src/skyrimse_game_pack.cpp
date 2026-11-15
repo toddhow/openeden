@@ -134,8 +134,7 @@ namespace game_skyrimse
             {
                 if (!mStarted && !tryStart())
                     return;
-                flushPending(mQuietCells);
-                mQuietCells = false;
+                flushPending();
                 mHost.tick(dt);
                 if (mHost.scriptTime() >= mNextSummary)
                 {
@@ -243,8 +242,9 @@ namespace game_skyrimse
                 return true;
             }
 
-            // The cells the engine built while it loaded a save are the same cells that were loaded when the state was
-            // written: their references get no OnCellLoad and OnLoad again (decision for toddhow, task 0181).
+            // The cells the engine built while it loaded a save raise OnCellLoad and OnLoad again, as in the game (task
+            // 0181 stage slice 2b, toddhow 2026-11-15): their references are attached already (the restore rebuilt the
+            // ledger, so `attachReference` adds nothing and OnInit does not run again), and only the events are sent.
             bool applyRestore(const std::vector<std::uint8_t>& bytes, std::string& error)
             {
                 const PapyrusRestoreOutcome outcome = mHost.restoreSavedState(bytes);
@@ -254,7 +254,6 @@ namespace game_skyrimse
                     say(openeden::sdk::LogLevel::Error, "PAPYRUSLOAD the saved Papyrus state was refused: " + error);
                     return false;
                 }
-                mQuietCells = true;
                 mNextSummary = (std::floor(mHost.scriptTime() / kSummarySeconds) + 1.0) * kSummarySeconds;
                 say(openeden::sdk::LogLevel::Info,
                     "PAPYRUSLOAD restored: " + std::to_string(mHost.instanceCount()) + " script instances, script time "
@@ -286,7 +285,7 @@ namespace game_skyrimse
                         + hexId(cell) + (queued ? " sent to the world" : " not sent"));
             }
 
-            void flushPending(bool quiet)
+            void flushPending()
             {
                 while (!mPendingCells.empty())
                 {
@@ -299,10 +298,9 @@ namespace game_skyrimse
                         mHost.attachReference(s.mReference, s.mBase, s.mActor, s.mScripts);
                         references.push_back(s.mReference);
                     }
-                    if (!quiet)
-                        mHost.onCellLoaded(cell, references);
+                    mHost.onCellLoaded(cell, references);
                     say(openeden::sdk::LogLevel::Info,
-                        std::string(quiet ? "PAPYRUSLOAD" : "PAPYRUS") + " cell " + std::to_string(cell) + " loaded: "
+                        std::string("PAPYRUS") + " cell " + std::to_string(cell) + " loaded: "
                             + std::to_string(references.size()) + " references with scripts");
                 }
                 for (const openeden::sdk::game::WorldId reference : mPendingActivations)
@@ -315,7 +313,6 @@ namespace game_skyrimse
             PapyrusHost mHost;
             openeden::sdk::Logger* mLogger;
             bool mStarted = false;
-            bool mQuietCells = false;
             std::optional<std::vector<std::uint8_t>> mPendingRestore;
             openeden::sdk::game::WorldSourceService* mSources;
             openeden::sdk::game::WorldCellSource& mCells;

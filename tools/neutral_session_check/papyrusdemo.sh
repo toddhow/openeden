@@ -9,6 +9,10 @@
 #
 #   papyrusdemo.sh <build dir> <base config dir> <Skyrim Data folder> <work dir> <phase> [frames] [saveAt] [papyrus]
 #
+# Slice 2b (2026-11-15): after a load the cells raise OnCellLoad and OnLoad again, as in the game. Use the script written by
+# SkyrimPapyrusDemo2b (OPENEDEN_PAPYRUS_DEMO_DIR_2B) in DEMO_DIR: it prints "<Label>init" from OnInit and "<Label>load n=<n>"
+# from OnLoad. The check is now: three load runs have byte-identical OEDEMO lines (timestamps cut off), the save run is
+# unchanged, and no load run has an "init" line.
 # phase "ref":  one long run with no save.   "save": the same, saving once at simulation time <saveAt> (default 120).
 # phase "load": a new process that loads the save of the "save" run of the same work dir.
 # <papyrus> "off" runs the same with [extension.skyrimse] papyrus = false (default true).

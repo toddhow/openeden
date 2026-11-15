@@ -876,4 +876,140 @@ namespace
         out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
         ASSERT_TRUE(out.good());
     }
+
+    // ---- slice 2b (toddhow, 2026-11-15): after a load the cells raise OnCellLoad and OnLoad again, as in the game ------
+    // The suppression of slice 2 lived in the pack's driver; these tests pin what the host must guarantee when the events
+    // come back: a restored script is not attached twice, OnInit does not run again, OnLoad and OnCellLoad do, and two
+    // loads of one save behave alike. (Written together with the driver change; the red evidence is the in-game demo.)
+
+    ScriptBuilder initLoadScript()
+    {
+        ScriptBuilder s("InitLoad");
+        s.parent("ObjectReference");
+        s.var("inits", "Int");
+        s.var("cellLoads", "Int");
+        s.var("loads", "Int");
+        s.function("OnInit").iadd(Id("inits"), Id("inits"), Int(1));
+        s.function("OnCellLoad").iadd(Id("cellLoads"), Id("cellLoads"), Int(1));
+        s.function("OnLoad").iadd(Id("loads"), Id("loads"), Int(1));
+        return s;
+    }
+
+    void setUpInitLoad(Rig& rig)
+    {
+        rig.mData.add(initLoadScript());
+        rig.quests({ questRecord(kQuestA, QuestFlags::StartGameEnabled, stage(10, 0)) });
+    }
+
+    TEST(SkyrimPapyrusSlice2b, a_cell_loaded_after_a_restore_raises_OnCellLoad_and_OnLoad_but_not_OnInit_or_a_second_attach)
+    {
+        Rig a;
+        setUpInitLoad(a);
+        a.mHost->startGame();
+        ASSERT_EQ(a.mHost->attachReference(kRefA, kBaseA, false, { script("InitLoad") }), 1u);
+        a.mHost->onCellLoaded(7, { kRefA });
+        a.tick();
+        EXPECT_EQ(a.number(kRefA, "InitLoad", "inits"), 1.0);
+        EXPECT_EQ(a.number(kRefA, "InitLoad", "loads"), 1.0);
+        const std::vector<std::uint8_t> bytes = a.mHost->saveState();
+
+        Rig b;
+        setUpInitLoad(b);
+        ASSERT_TRUE(b.mHost->restoreSavedState(bytes).mOk);
+        const std::uint64_t attached = b.mHost->counters().mInstancesAttached;
+        // what the engine does after a load: the cell is built again, the pack attaches it again, then the events
+        EXPECT_EQ(b.mHost->attachReference(kRefA, kBaseA, false, { script("InitLoad") }), 0u);
+        b.mHost->onCellLoaded(7, { kRefA });
+        b.tick();
+        EXPECT_EQ(b.mHost->counters().mInstancesAttached, attached) << "no second attach";
+        EXPECT_EQ(b.number(kRefA, "InitLoad", "inits"), 1.0) << "OnInit does not run again on a load";
+        EXPECT_EQ(b.number(kRefA, "InitLoad", "cellLoads"), 2.0) << "OnCellLoad does";
+        EXPECT_EQ(b.number(kRefA, "InitLoad", "loads"), 2.0) << "and so does OnLoad";
+    }
+
+    TEST(SkyrimPapyrusSlice2b, a_reference_the_save_did_not_hold_is_attached_and_initialised_when_its_cell_loads_later)
+    {
+        Rig a;
+        setUpInitLoad(a);
+        a.mHost->startGame();
+        const std::vector<std::uint8_t> bytes = a.mHost->saveState();
+        Rig b;
+        setUpInitLoad(b);
+        ASSERT_TRUE(b.mHost->restoreSavedState(bytes).mOk);
+        EXPECT_EQ(b.mHost->attachReference(kRefA, kBaseA, false, { script("InitLoad") }), 1u);
+        b.mHost->onCellLoaded(7, { kRefA });
+        b.tick();
+        EXPECT_EQ(b.number(kRefA, "InitLoad", "inits"), 1.0) << "first time this reference is seen: OnInit";
+        EXPECT_EQ(b.number(kRefA, "InitLoad", "loads"), 1.0);
+    }
+
+    TEST(SkyrimPapyrusSlice2b, two_loads_of_one_save_with_the_load_events_end_in_the_same_state_and_log)
+    {
+        Rig a;
+        runToSavePoint(a);
+        const std::vector<std::uint8_t> bytes = a.mHost->saveState();
+        std::vector<std::vector<std::uint8_t>> states;
+        std::vector<std::vector<std::string>> logs;
+        for (int run = 0; run < 2; ++run)
+        {
+            Rig r;
+            setUpWorld(r);
+            ASSERT_TRUE(r.mHost->restoreSavedState(bytes).mOk);
+            EXPECT_EQ(r.mHost->attachReference(kRefB, kBaseA, true, { script("RefWorld") }), 0u);
+            r.mHost->onCellLoaded(7, { kRefB });
+            r.tick(80, 0.1f);
+            states.push_back(r.mHost->saveState());
+            logs.push_back(r.mAll);
+        }
+        EXPECT_EQ(states[0], states[1]);
+        EXPECT_EQ(logs[0], logs[1]);
+    }
+
+    // The demo script with load events for tools/neutral_session_check/papyrusdemo.sh (slice 2b): as the slice 2 script, and
+    // it prints "<Label>init" from OnInit and "<Label>load n=<n>" from OnLoad. Written only when asked.
+    TEST(SkyrimPapyrusDemo2b, writes_the_demo_script_with_load_events_when_asked)
+    {
+        const char* const dir = std::getenv("OPENEDEN_PAPYRUS_DEMO_DIR_2B");
+        if (dir == nullptr || *dir == '\0')
+            GTEST_SKIP() << "OPENEDEN_PAPYRUS_DEMO_DIR_2B is not set";
+        ScriptBuilder s("OEDemoTick");
+        s.parent("ObjectReference");
+        s.var("n", "Int");
+        s.autoProperty("Limit", "Int");
+        s.autoProperty("Label", "String");
+        s.function("OnInit")
+            .local("nn", "None")
+            .local("m", "String")
+            .op(PexAsm::Op::StrCat, { Id("m"), Id("::Label_var"), Str("init") })
+            .callStatic("Debug", "Trace", Id("nn"), { Id("m"), Int(0) })
+            .callMethod("RegisterForUpdate", Id("self"), Id("nn"), { Flt(2.0f) });
+        s.function("OnLoad")
+            .local("nn", "None")
+            .local("s", "String")
+            .local("m", "String")
+            .local("t", "String")
+            .op(PexAsm::Op::Cast, { Id("s"), Id("n") })
+            .op(PexAsm::Op::StrCat, { Id("t"), Id("::Label_var"), Str("load n=") })
+            .op(PexAsm::Op::StrCat, { Id("m"), Id("t"), Id("s") })
+            .callStatic("Debug", "Trace", Id("nn"), { Id("m"), Int(0) });
+        s.function("OnUpdate")
+            .local("nn", "None")
+            .local("s", "String")
+            .local("m", "String")
+            .local("hit", "Bool")
+            .iadd(Id("n"), Id("n"), Int(1))
+            .op(PexAsm::Op::Cast, { Id("s"), Id("n") })
+            .op(PexAsm::Op::StrCat, { Id("m"), Id("::Label_var"), Id("s") })
+            .callStatic("Debug", "Trace", Id("nn"), { Id("m"), Int(0) })
+            .op(PexAsm::Op::CompareEq, { Id("hit"), Id("n"), Id("::Limit_var") })
+            .jmpf(Id("hit"), 3)
+            .callMethod("Disable", Id("self"), Id("nn"), { Bool(false) })
+            .callMethod("UnregisterForUpdate", Id("self"), Id("nn"));
+        const std::vector<std::uint8_t> bytes = s.build(PapyrusTest::optionsFor(PexAsm::Target::SkyrimSE)).mBytes;
+        const std::filesystem::path folder = std::filesystem::path(dir) / "scripts";
+        std::filesystem::create_directories(folder);
+        std::ofstream out(folder / "oedemotick.pex", std::ios::binary);
+        out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        ASSERT_TRUE(out.good());
+    }
 }
