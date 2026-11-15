@@ -68,3 +68,5 @@ Goal: scripts on base forms run, a script's Enable and Disable show on screen an
 7. **The host start waits for the quest data**; a state read before that is held (non-blocking), so for a few frames after a load the saved scripts do not tick. Blocking the main thread in the chunk's `read()` was rejected (the dialogue worker takes seconds, the freeze monitor's bar is 5 s).
 8. **The state is one chunk of up to 256 MiB** by cap; the demo's state with 878 instances is about the size of the runtime blob plus 40 kB (not measured separately).
 9. **Saves made with the setting on carry a `papyrus` chunk and `loadorder`**; a save made without it carries neither of the Papyrus kind, so default saves are unchanged.
+
+- 2026-11-15: toddhow approved the version pin edit ("Yes, approve"): `WorldSourceService.theVersionIsOneZero` now expects minor 2.
