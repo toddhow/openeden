@@ -821,6 +821,50 @@ namespace game_skyrimse
             e.mRunning = false;
     }
 
+    void QuestState::setCurrentStage(FormId quest, std::uint32_t stage)
+    {
+        const auto it = mQuests.find(quest);
+        if (it != mQuests.end())
+            it->second.mStage = stage;
+    }
+
+    std::vector<QuestState::SnapshotEntry> QuestState::snapshot() const
+    {
+        std::vector<SnapshotEntry> out;
+        out.reserve(mQuests.size());
+        for (const auto& [id, e] : mQuests)
+        {
+            SnapshotEntry entry;
+            entry.mQuest = id;
+            entry.mRunning = e.mRunning;
+            entry.mCompleted = e.mCompleted;
+            entry.mStage = e.mStage;
+            entry.mDone.assign(e.mDone.begin(), e.mDone.end());
+            entry.mAliases.assign(e.mAliases.begin(), e.mAliases.end());
+            out.push_back(std::move(entry));
+        }
+        return out;
+    }
+
+    void QuestState::restoreSnapshot(const std::vector<SnapshotEntry>& entries)
+    {
+        for (const SnapshotEntry& entry : entries)
+        {
+            const auto it = mQuests.find(entry.mQuest);
+            if (it == mQuests.end())
+                continue;
+            Entry& e = it->second;
+            e.mRunning = entry.mRunning;
+            e.mCompleted = entry.mCompleted;
+            e.mStage = entry.mStage;
+            e.mDone.clear();
+            e.mDone.insert(entry.mDone.begin(), entry.mDone.end());
+            e.mAliases.clear();
+            for (const auto& [alias, fill] : entry.mAliases)
+                e.mAliases[alias] = fill;
+        }
+    }
+
     void QuestState::setAliasFill(FormId quest, std::uint32_t alias, const AliasFill& fill)
     {
         const auto it = mQuests.find(quest);

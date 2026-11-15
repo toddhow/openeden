@@ -104,6 +104,7 @@ namespace openeden::extension
                 continue;
             const std::string gameId = std::move(it->mGameId);
             mSources.erase(it);
+            std::erase_if(mObjectChanges, [&](const ObjectEnableChange& c) { return c.gameId == gameId; });
             if (mListener != nullptr)
                 mListener->sourceWithdrawn(gameId);
             return;
@@ -118,8 +119,45 @@ namespace openeden::extension
         return kept.size();
     }
 
+    bool WorldSourceServiceImpl::setObjectEnabled(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, bool enabled)
+    {
+        const Entry* entry = nullptr;
+        for (const Entry& candidate : mSources)
+            if (candidate.mSource == &source)
+                entry = &candidate;
+        if (entry == nullptr)
+            return false;
+        for (ObjectEnableChange& pending : mObjectChanges)
+        {
+            if (pending.placement == placement && pending.gameId == entry->mGameId)
+            {
+                pending.cell = cellHint;
+                pending.enabled = enabled;
+                return true;
+            }
+        }
+        if (mObjectChanges.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return false;
+        }
+        mObjectChanges.push_back({ entry->mGameId, cellHint, placement, enabled });
+        return true;
+    }
+
+    std::size_t WorldSourceServiceImpl::takeObjectEnableChanges(std::vector<ObjectEnableChange>& out)
+    {
+        const std::size_t count = mObjectChanges.size();
+        for (ObjectEnableChange& change : mObjectChanges)
+            out.push_back(std::move(change));
+        mObjectChanges.clear();
+        return count;
+    }
+
     void WorldSourceServiceImpl::releaseAll()
     {
+        mObjectChanges.clear();
         while (!mSources.empty())
         {
             const std::string gameId = std::move(mSources.back().mGameId);

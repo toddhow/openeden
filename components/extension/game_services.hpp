@@ -20,6 +20,15 @@
 
 namespace openeden::extension
 {
+    /// One enable or disable a game pack asked for (WorldSourceService::setObjectEnabled), kept until the engine takes it.
+    struct ObjectEnableChange
+    {
+        std::string gameId;
+        openeden::sdk::game::WorldId cell = openeden::sdk::game::kNoWorldId; ///< the pack's hint
+        openeden::sdk::game::WorldId placement = openeden::sdk::game::kNoWorldId;
+        bool enabled = true;
+    };
+
     /**
      * @brief The core's record type table, filled by the game pack (docs/design/game-packs.md section 5.1).
      * Main thread only. Owned by HostImpl.
@@ -142,6 +151,18 @@ namespace openeden::extension
             mContentFilter = std::move(accepts);
         }
 
+        /// Task 0181 (1.2): queues a change for the engine. The queue is bounded; a placement already in it is updated
+        /// in place (the last change wins and keeps its place), a new one when the queue is full is dropped and counted.
+        [[nodiscard]] bool setObjectEnabled(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, bool enabled) override;
+
+        static constexpr std::size_t kMaxPendingObjectChanges = 4096;
+
+        /// Moves the queued changes, in order, to the end of  out and empties the queue. Returns how many.
+        std::size_t takeObjectEnableChanges(std::vector<ObjectEnableChange>& out);
+        /// Changes dropped because the queue was full, since the service was made.
+        [[nodiscard]] std::size_t droppedObjectChanges() const noexcept { return mDroppedObjectChanges; }
+
         void setConsumerEnabled(bool enabled) noexcept { mConsumerEnabled = enabled; }
         void setListener(Listener* listener) noexcept { mListener = listener; }
         [[nodiscard]] std::size_t sourceCount() const noexcept { return mSources.size(); }
@@ -158,6 +179,8 @@ namespace openeden::extension
         };
 
         std::vector<Entry> mSources;
+        std::vector<ObjectEnableChange> mObjectChanges;
+        std::size_t mDroppedObjectChanges = 0;
         std::vector<SessionContentEntry> mSessionContent;
         std::function<bool(const openeden::sdk::ContentHeader&)> mContentFilter;
         Listener* mListener = nullptr;

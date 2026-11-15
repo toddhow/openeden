@@ -1078,6 +1078,68 @@ namespace game_skyrimse
         return content != nullptr ? content->mScripts : std::vector<ReferenceScripts>();
     }
 
+    const std::vector<vmad::Script>* SkyrimWorldView::baseScriptsOf(FormId base) const
+    {
+        const auto it = mBases.find(base);
+        if (it == mBases.end())
+            return nullptr;
+        const ParsedPlugin& p = mPlugins[it->second.mPlugin].mParsed;
+        const std::vector<vmad::Script>* scripts = nullptr;
+        switch (it->second.mTable)
+        {
+            case BaseTable::Model:
+                scripts = &p.mModels[it->second.mIndex].mScripts;
+                break;
+            case BaseTable::Npc:
+                scripts = &p.mNpcs[it->second.mIndex].mScripts;
+                break;
+            case BaseTable::Item:
+                scripts = &p.mItems[it->second.mIndex].mScripts;
+                break;
+            default:
+                break;
+        }
+        return scripts != nullptr && !scripts->empty() ? scripts : nullptr;
+    }
+
+    bool SkyrimWorldView::formHasKeyword(FormId form, FormId keyword) const
+    {
+        if (keyword == kNullFormId)
+            return false;
+        FormId base = form;
+        if (const PlacedRefIndex* refs = placedRefs())
+            if (const PlacedEntry* entry = refs->find(form))
+                base = entry->mBase;
+        const auto it = mBases.find(base);
+        if (it == mBases.end())
+            return false;
+        const ParsedPlugin& p = mPlugins[it->second.mPlugin].mParsed;
+        const auto has = [keyword](const std::vector<FormId>& list) {
+            return std::find(list.begin(), list.end(), keyword) != list.end();
+        };
+        switch (it->second.mTable)
+        {
+            case BaseTable::Model:
+                return has(p.mModels[it->second.mIndex].mKeywords);
+            case BaseTable::Item:
+                return has(p.mItems[it->second.mIndex].mKeywords);
+            case BaseTable::Npc:
+            {
+                if (mActorIndex == nullptr)
+                    return false;
+                const ActorNpc* npc = mActorIndex->npc(base);
+                if (npc == nullptr)
+                    return false;
+                if (has(npc->mKeywords))
+                    return true;
+                const RaceRecord* race = mActorIndex->race(npc->mRace);
+                return race != nullptr && has(race->mKeywords);
+            }
+            default:
+                return false;
+        }
+    }
+
     void SkyrimWorldView::setPackageQuestStage(FormId quest, std::uint32_t stage)
     {
         if (mDialogue == nullptr || mDialogue->mData == nullptr)
@@ -1992,13 +2054,14 @@ namespace game_skyrimse
                 components.light = makeLightComponent(*light, mStats.mComponents, NeutralLimits{});
             if (!components.empty())
                 result->mComponents.emplace(id, std::move(components));
-            if (!ref.mScripts.empty())
+            std::vector<vmad::Script> allScripts = vmad::combineScripts(ref.mScripts, baseScriptsOf(ref.mBase));
+            if (!allScripts.empty())
             {
                 ReferenceScripts scripts;
                 scripts.mReference = id;
                 scripts.mBase = ref.mBase;
                 scripts.mActor = ref.mKind == RefKind::Actor;
-                scripts.mScripts = ref.mScripts;
+                scripts.mScripts = std::move(allScripts);
                 result->mScripts.push_back(std::move(scripts));
             }
             if (missing)

@@ -119,6 +119,12 @@ namespace game_skyrimse::vmad
     /// 0; the number of those is returned.
     std::size_t resolveForms(Vmad& vmad, const std::function<std::uint32_t(std::uint32_t)>& resolve);
     std::size_t resolveForms(std::vector<Script>& scripts, const std::function<std::uint32_t(std::uint32_t)>& resolve);
+
+    /// The scripts of a placed reference (task 0181): its own, in order, then those of its base  base (null for none)
+    /// in order, leaving out a base script whose name (compared without case) the reference already has: the
+    /// reference's values win. The attach ordinal of a script is its place in this list, so the order is part of the
+    /// save keys.
+    [[nodiscard]] std::vector<Script> combineScripts(const std::vector<Script>& own, const std::vector<Script>* base);
 }
 
 #endif

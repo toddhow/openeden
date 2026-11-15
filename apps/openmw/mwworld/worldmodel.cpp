@@ -918,6 +918,37 @@ namespace MWWorld
         canonicaliseNeutralSave(out);
     }
 
+    Ptr WorldModel::findLoadedNeutralObject(
+        std::string_view gameId, openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldId placement) const
+    {
+        const auto inCell = [&](CellStore& store) -> Ptr {
+            Ptr found;
+            store.forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
+                if (found.isEmpty() && live.mRef.getRefNum().mIndex == placement)
+                    found = Ptr(&live, &store);
+            });
+            return found;
+        };
+        // the hinted cell first, then every other loaded neutral cell of the game, in a fixed order
+        std::vector<CellStore*> candidates;
+        for (auto& [id, store] : mCells)
+        {
+            if (!store.isNeutral() || store.getState() != CellStore::State_Loaded || store.neutralGameId() != gameId)
+                continue;
+            if (store.neutralCell() != nullptr && store.neutralCell()->id == cell)
+                candidates.insert(candidates.begin(), &store);
+            else
+                candidates.push_back(&store);
+        }
+        for (CellStore* store : candidates)
+        {
+            const Ptr found = inCell(*store);
+            if (!found.isEmpty())
+                return found;
+        }
+        return Ptr();
+    }
+
     CellStore* WorldModel::findNeutralSaveCell(
         NeutralWorld::NeutralWorldStore& neutral, const NeutralSaveCellKey& key, std::string& error) const
     {

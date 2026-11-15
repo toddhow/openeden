@@ -1,6 +1,7 @@
 #include "game_skyrimse/vmad.hpp"
 
 #include <cstring>
+#include <set>
 #include <string>
 
 // VMAD layout: see the header (task 0176).
@@ -320,5 +321,30 @@ namespace game_skyrimse::vmad
             missing += resolveForms(a.mScripts, resolve);
         }
         return missing;
+    }
+
+    namespace
+    {
+        std::string lowerName(const std::string& name)
+        {
+            std::string out = name;
+            for (char& c : out)
+                c = static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
+            return out;
+        }
+    }
+
+    std::vector<Script> combineScripts(const std::vector<Script>& own, const std::vector<Script>* base)
+    {
+        std::vector<Script> all = own;
+        if (base == nullptr)
+            return all;
+        std::set<std::string> have;
+        for (const Script& script : own)
+            have.insert(lowerName(script.mName));
+        for (const Script& script : *base)
+            if (have.insert(lowerName(script.mName)).second)
+                all.push_back(script);
+        return all;
     }
 }

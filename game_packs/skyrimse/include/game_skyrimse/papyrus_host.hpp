@@ -27,12 +27,14 @@
 
 #include <components/script_papyrus/papyrusruntime.hpp>
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -69,6 +71,23 @@ namespace game_skyrimse
         {
             (void)reference;
             return 0;
+        }
+
+        /// Task 0181: does the form (a placed reference, or a base form) have the keyword? For a reference the answer
+        /// is its base form's. False when the data cannot say.
+        [[nodiscard]] virtual bool hasKeyword(FormId form, FormId keyword) const
+        {
+            (void)form;
+            (void)keyword;
+            return false;
+        }
+
+        /// Task 0181: whether the data places the reference enabled (false for one flagged initially disabled). A
+        /// script's Enable and Disable start from this.
+        [[nodiscard]] virtual bool initiallyEnabled(FormId reference) const
+        {
+            (void)reference;
+            return true;
         }
 
         /// The editor id or the name of a form for GetName; empty when none.
@@ -111,6 +130,13 @@ namespace game_skyrimse
         std::uint64_t mScriptErrors = 0; ///< a stack that ended with an error
         std::map<std::string, std::uint64_t> mEvents; ///< events sent, by name (lower case)
         std::map<std::string, std::uint64_t> mNatives; ///< natives the host answered, by "class.function" (lower case)
+    };
+
+    /// The answer of PapyrusHost::restoreSavedState: ok, or why the state was refused (nothing changed then).
+    struct PapyrusRestoreOutcome
+    {
+        bool mOk = false;
+        std::string mError;
     };
 
     class PapyrusHost
@@ -158,12 +184,39 @@ namespace game_skyrimse
         /// the waiting scripts.
         void tick(float dt);
 
-        /// The hook for the saves work: the runtime's own state as bytes (empty inside a tick). Nothing writes it.
+        /// The runtime's own state as bytes (empty inside a tick). Part of saveState().
         [[nodiscard]] openeden::script::SaveBlob serialiseState() const;
         bool restoreState(const openeden::script::SaveBlob& blob);
 
+        /// Task 0181: everything a save needs to resume the scripts (the pack's `papyrus` chunk): the runtime's state,
+        /// the host's ledger of instances (so that its own tables are rebuilt), script time, timers, enable and position
+        /// overrides, forced alias fills, objective flags, recorded spells, the quest state it changed, the sets of
+        /// attached quests and references, and the counters. Canonical: restoring and saving again gives the same
+        /// bytes. Empty before the game has started, inside a tick, and when the runtime cannot write its state.
+        [[nodiscard]] std::vector<std::uint8_t> saveState() const;
+        /// Replaces the host's state with a saved one. The scripts the state names are loaded first; the state is checked
+        /// whole (including every attach key, against the game data) before anything changes: a refusal changes nothing.
+        /// Needs setQuests. A host that restored counts as started (startGame does nothing afterwards). For every quest
+        /// with a stage above 0 the QuestChanged sink is told, so the package brain's own copy follows. Not inside a
+        /// tick.
+        PapyrusRestoreOutcome restoreSavedState(std::span<const std::uint8_t> bytes);
+        /// startGame() ran, or a state was restored.
+        [[nodiscard]] bool started() const;
+
+        /// The enabled state a script gave a reference (nullopt when no script ever enabled or disabled it), and all of
+        /// them in form id order: what the pack pushes to the world and replays after a restore.
+        [[nodiscard]] std::optional<bool> enableOverride(FormId reference) const;
+        [[nodiscard]] std::vector<std::pair<FormId, bool>> enableOverrides() const;
+        /// Where MoveTo put a reference (nullopt when it was never moved). Recorded only: the engine is not moved.
+        [[nodiscard]] std::optional<std::array<double, 3>> positionOverride(FormId reference) const;
+        /// Whether Actor.AddSpell recorded the spell for the actor (recorded only: no effect).
+        [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
+
         [[nodiscard]] const PapyrusHostCounters& counters() const;
         [[nodiscard]] const ScriptPapyrus::Stats& runtimeStats() const;
+        /// Calls of natives nobody answered (tolerant: the zero came back), across a save and load: the runtime's own
+        /// count of this run plus what the state that was restored had counted.
+        [[nodiscard]] std::uint64_t tolerantCalls() const;
         /// Natives a script called that nobody answered ("class.function", lower case, sorted).
         [[nodiscard]] std::vector<std::string> tolerantNatives() const;
         /// The enabled state of a reference as scripts left it (true when no script changed it).

@@ -22,10 +22,13 @@
 #include <components/files/conversion.hpp>
 
 #include <chrono>
+#include <cmath>
+#include <cstdio>
 #include <deque>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -84,6 +87,13 @@ namespace game_skyrimse
                 const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
                 return entry != nullptr ? entry->mBase : 0;
             }
+            bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
+            bool initiallyEnabled(FormId reference) const override
+            {
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                return entry == nullptr || (entry->mFlags & PlacedFlags::Disabled) == 0;
+            }
 
         private:
             const FileSource* mFiles;
@@ -98,12 +108,18 @@ namespace game_skyrimse
         class PapyrusDriver
         {
         public:
-            PapyrusDriver(SkyrimWorldView& view, const FileSource* files, openeden::sdk::Logger* logger)
+            PapyrusDriver(SkyrimWorldView& view, const FileSource* files, openeden::sdk::Logger* logger,
+                openeden::sdk::game::WorldSourceService* sources, openeden::sdk::game::WorldCellSource& cells)
                 : mView(view)
                 , mData(files, view)
                 , mHost(mData)
                 , mLogger(logger)
+                , mSources(sources)
+                , mCells(cells)
             {
+                // Task 0181: a script's Enable and Disable reach the engine through the host service; a cell built
+                // later comes out with the override (SkyrimCellSource::setEnableOverrideLookup).
+                mHost.setEnableChanged([this](FormId reference, bool enabled) { pushEnabled(reference, enabled); });
                 mHost.setLog([this](bool error, const std::string& line) {
                     // the host's own lines say "Papyrus: ..."; the runtime's have no prefix
                     const std::string text = line.rfind("Papyrus: ", 0) == 0 ? line.substr(9) : line;
@@ -117,7 +133,8 @@ namespace game_skyrimse
             {
                 if (!mStarted && !tryStart())
                     return;
-                flushPending();
+                flushPending(mQuietCells);
+                mQuietCells = false;
                 mHost.tick(dt);
                 if (mHost.scriptTime() >= mNextSummary)
                 {
@@ -134,6 +151,21 @@ namespace game_skyrimse
             }
 
             void activated(openeden::sdk::game::WorldId reference) { mPendingActivations.push_back(reference); }
+
+            // Task 0181: a save made while the host ran. Empty before the host started.
+            [[nodiscard]] std::vector<std::uint8_t> saveState() const { return mHost.saveState(); }
+
+            // A saved state was read. When the host runs already it is restored at once (false: refused, the load
+            // is refused); otherwise it is held and used at the host's start in place of startGame().
+            bool restore(std::vector<std::uint8_t> bytes, std::string& error)
+            {
+                if (!mStarted)
+                {
+                    mPendingRestore = std::move(bytes);
+                    return true;
+                }
+                return applyRestore(bytes, error);
+            }
 
             void summary()
             {
@@ -163,7 +195,7 @@ namespace game_skyrimse
                         + ", updates " + std::to_string(c.mUpdatesFired) + ", script errors "
                         + std::to_string(c.mScriptErrors) + "; native calls answered " + std::to_string(answered)
                         + ", tolerant natives " + std::to_string(names.size()) + ", tolerant calls "
-                        + std::to_string(mHost.runtimeStats().unregisteredNativeCalls));
+                        + std::to_string(mHost.tolerantCalls()));
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS events " + events);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS natives " + natives);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS tolerant " + tolerant);
@@ -190,6 +222,14 @@ namespace game_skyrimse
                 mHost.setQuests(access.mQuests, access.mState, access.mVmads);
                 mStarted = true;
                 const auto began = std::chrono::steady_clock::now();
+                if (mPendingRestore)
+                {
+                    std::string error;
+                    std::vector<std::uint8_t> bytes = std::move(*mPendingRestore);
+                    mPendingRestore.reset();
+                    if (applyRestore(bytes, error))
+                        return true; // the state replaces startGame()
+                }
                 mHost.startGame();
                 const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - began);
@@ -202,7 +242,50 @@ namespace game_skyrimse
                 return true;
             }
 
-            void flushPending()
+            // The cells the engine built while it loaded a save are the same cells that were loaded when the state was
+            // written: their references get no OnCellLoad and OnLoad again (decision for toddhow, task 0181).
+            bool applyRestore(const std::vector<std::uint8_t>& bytes, std::string& error)
+            {
+                const PapyrusRestoreOutcome outcome = mHost.restoreSavedState(bytes);
+                if (!outcome.mOk)
+                {
+                    error = outcome.mError;
+                    say(openeden::sdk::LogLevel::Error, "PAPYRUSLOAD the saved Papyrus state was refused: " + error);
+                    return false;
+                }
+                mQuietCells = true;
+                mNextSummary = (std::floor(mHost.scriptTime() / kSummarySeconds) + 1.0) * kSummarySeconds;
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUSLOAD restored: " + std::to_string(mHost.instanceCount()) + " script instances, script time "
+                        + std::to_string(static_cast<long long>(mHost.scriptTime())) + " s");
+                // the world was rebuilt from the pack, without the scripts' overrides: tell it again
+                for (const auto& [reference, enabled] : mHost.enableOverrides())
+                    pushEnabled(reference, enabled);
+                return true;
+            }
+
+            static std::string hexId(FormId id)
+            {
+                char buffer[16];
+                std::snprintf(buffer, sizeof(buffer), "%08X", id);
+                return buffer;
+            }
+
+            void pushEnabled(FormId reference, bool enabled)
+            {
+                if (mSources == nullptr)
+                    return;
+                FormId cell = kNullFormId;
+                if (const PlacedRefIndex* refs = mView.placedRefs())
+                    if (const PlacedEntry* entry = refs->find(reference))
+                        cell = entry->mCell;
+                const bool queued = mSources->setObjectEnabled(mCells, cell, reference, enabled);
+                say(openeden::sdk::LogLevel::Info,
+                    std::string("PAPYRUS ") + (enabled ? "enable" : "disable") + " of " + hexId(reference) + " in cell "
+                        + hexId(cell) + (queued ? " sent to the world" : " not sent"));
+            }
+
+            void flushPending(bool quiet)
             {
                 while (!mPendingCells.empty())
                 {
@@ -215,10 +298,11 @@ namespace game_skyrimse
                         mHost.attachReference(s.mReference, s.mBase, s.mActor, s.mScripts);
                         references.push_back(s.mReference);
                     }
-                    mHost.onCellLoaded(cell, references);
+                    if (!quiet)
+                        mHost.onCellLoaded(cell, references);
                     say(openeden::sdk::LogLevel::Info,
-                        "PAPYRUS cell " + std::to_string(cell) + " loaded: " + std::to_string(references.size())
-                            + " references with scripts");
+                        std::string(quiet ? "PAPYRUSLOAD" : "PAPYRUS") + " cell " + std::to_string(cell) + " loaded: "
+                            + std::to_string(references.size()) + " references with scripts");
                 }
                 for (const openeden::sdk::game::WorldId reference : mPendingActivations)
                     mHost.onActivate(reference, 0x14);
@@ -230,9 +314,76 @@ namespace game_skyrimse
             PapyrusHost mHost;
             openeden::sdk::Logger* mLogger;
             bool mStarted = false;
+            bool mQuietCells = false;
+            std::optional<std::vector<std::uint8_t>> mPendingRestore;
+            openeden::sdk::game::WorldSourceService* mSources;
+            openeden::sdk::game::WorldCellSource& mCells;
             double mNextSummary = kSummarySeconds;
             std::deque<openeden::sdk::game::WorldId> mPendingCells;
             std::vector<openeden::sdk::game::WorldId> mPendingActivations;
+        };
+
+        // Task 0181: the Papyrus state as a save chunk. Written only while the host runs (a byte says whether there
+        // is a state); read before or after the host started (the driver holds it until it can use it). Registered only
+        // when [extension.skyrimse] papyrus is on, so a save made without it has no such chunk.
+        class PapyrusSaveChunk final : public openeden::sdk::SaveChunkHandler
+        {
+        public:
+            static constexpr std::uint32_t kVersion = 1;
+            static constexpr std::uint32_t kMaxBytes = 256u * 1024u * 1024u;
+
+            explicit PapyrusSaveChunk(std::unique_ptr<PapyrusDriver>& driver)
+                : mDriver(driver)
+            {
+            }
+            void setRefusalSink(std::function<void(const std::string&)> sink) { mSink = std::move(sink); }
+
+            std::string_view chunkName() const override { return "papyrus"; }
+            std::uint32_t chunkVersion() const override { return kVersion; }
+
+            void write(openeden::sdk::ChunkWriter& writer) override
+            {
+                const std::vector<std::uint8_t> bytes = mDriver != nullptr ? mDriver->saveState()
+                                                                           : std::vector<std::uint8_t>();
+                writer.writeValue(static_cast<std::uint8_t>(bytes.empty() ? 0 : 1));
+                if (bytes.empty())
+                    return;
+                writer.writeValue(static_cast<std::uint32_t>(bytes.size()));
+                writer.write(bytes.data(), bytes.size());
+            }
+
+            bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override
+            {
+                if (version != kVersion)
+                    return refuse("the Papyrus chunk has version " + std::to_string(version));
+                std::uint8_t present = 0;
+                if (!reader.readValue(present) || present > 1)
+                    return refuse("the Papyrus chunk is damaged");
+                if (present == 0)
+                    return reader.remaining() == 0 ? true : refuse("the Papyrus chunk is damaged");
+                std::uint32_t size = 0;
+                if (!reader.readValue(size) || size > kMaxBytes || size != reader.remaining())
+                    return refuse("the Papyrus chunk is damaged");
+                std::vector<std::uint8_t> bytes(size);
+                if (size != 0 && !reader.read(bytes.data(), size))
+                    return refuse("the Papyrus chunk is damaged");
+                if (mDriver == nullptr)
+                    return true; // the host is gone: nothing to resume
+                std::string error;
+                if (!mDriver->restore(std::move(bytes), error))
+                    return refuse("the Papyrus state cannot be resumed: " + error);
+                return true;
+            }
+
+        private:
+            bool refuse(const std::string& why)
+            {
+                if (mSink)
+                    mSink(why);
+                return false;
+            }
+            std::unique_ptr<PapyrusDriver>& mDriver;
+            std::function<void(const std::string&)> mSink;
         };
 
         // Owns the content loader it registers (the host keeps a reference until stop()), the world view and the
@@ -290,8 +441,23 @@ namespace game_skyrimse
                     {
                         if (settings->getBool(kPackId, kPapyrusKey, false))
                         {
-                            mPapyrus = std::make_unique<PapyrusDriver>(mWorldView, mFileSource.get(), logger);
+                            mPapyrus = std::make_unique<PapyrusDriver>(
+                                mWorldView, mFileSource.get(), logger, sources, mCellSource);
                             PapyrusDriver* driver = mPapyrus.get();
+                            mCellSource.setEnableOverrideLookup(
+                                [driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
+                                    return driver->host().enableOverride(static_cast<FormId>(reference));
+                                });
+                            if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                            {
+                                mPapyrusChunk = std::make_unique<PapyrusSaveChunk>(mPapyrus);
+                                mPapyrusChunk->setRefusalSink([logger](const std::string& reason) {
+                                    if (logger != nullptr)
+                                        logger->log(openeden::sdk::LogLevel::Error, "the load is refused: " + reason);
+                                });
+                                if (!chunks->registerHandler(*mPapyrusChunk) && logger != nullptr)
+                                    logger->log(openeden::sdk::LogLevel::Warning, "the Papyrus chunk was not registered");
+                            }
                             mCellSource.setScriptSinks(
                                 [driver](openeden::sdk::game::WorldId cell) { driver->cellBuilt(cell); },
                                 [driver](openeden::sdk::game::WorldId reference) { driver->activated(reference); });
@@ -334,6 +500,7 @@ namespace game_skyrimse
                 {
                     mPapyrus->summary();
                     mCellSource.setScriptSinks({}, {});
+                    mCellSource.setEnableOverrideLookup({});
                     mPapyrus.reset();
                 }
                 // The index worker uses the logger and the file source: end it before anything is withdrawn.
@@ -624,7 +791,8 @@ namespace game_skyrimse
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
-            std::unique_ptr<PapyrusDriver> mPapyrus; // last: refers to the view and the file source
+            std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
+            std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; last: refers to mPapyrus
         };
     }
 

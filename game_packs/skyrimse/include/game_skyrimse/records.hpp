@@ -406,6 +406,11 @@ namespace game_skyrimse
         /// FULL: the display name (doors, containers, activators ...). Empty when the record has none; a localised name
         /// is resolved by the view like the other names (task 0150).
         LString mName;
+        /// VMAD (task 0181): the scripts of the base form, form ids resolved to load order ids (0 when unresolved). Every
+        /// placement of the base carries them.
+        std::vector<vmad::Script> mScripts;
+        /// KWDA (task 0181): the keywords, resolved.
+        std::vector<FormId> mKeywords;
     };
 
     namespace NpcFlags
@@ -441,6 +446,8 @@ namespace game_skyrimse
         std::uint16_t mHealth = 0;
         std::uint16_t mMagicka = 0;
         std::uint16_t mStamina = 0;
+        /// VMAD (task 0181): the scripts of the base NPC, resolved like PlacedRef::mScripts.
+        std::vector<vmad::Script> mScripts;
 
         [[nodiscard]] bool female() const { return (mFlags & NpcFlags::Female) != 0; }
         [[nodiscard]] bool essential() const { return (mFlags & NpcFlags::Essential) != 0; }
@@ -470,6 +477,8 @@ namespace game_skyrimse
         float mWeight = 0.0f;
         std::uint16_t mDamage = 0; ///< WEAP only (DATA is 10 bytes)
         std::vector<FormId> mKeywords; ///< KWDA
+        /// VMAD (task 0181): the scripts of the base item, resolved like PlacedRef::mScripts.
+        std::vector<vmad::Script> mScripts;
     };
 
     namespace LeveledFlags

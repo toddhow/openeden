@@ -371,7 +371,12 @@ namespace game_skyrimse
         [[nodiscard]] bool papyrusAccess(PapyrusAccess& out);
         /// The scripts of the placed references of a cell (its own placements, not the world's persistent ones).
         /// Main thread.
+        /// Task 0181: a placement's own scripts followed by those of its base form (see vmad::combineScripts).
         [[nodiscard]] std::vector<ReferenceScripts> scriptsOfCell(FormId cell);
+        /// Task 0181: does the form (a placed reference: its base form's keywords) have the keyword? Base records
+        /// (ACTI, DOOR, items ...) by their KWDA; an NPC by its own keywords and its race's, once the actor index exists.
+        /// False when the data cannot say. Main thread.
+        [[nodiscard]] bool formHasKeyword(FormId form, FormId keyword) const;
         /// A script set a quest's stage: the package brain's own copy of the quest state follows.
         void setPackageQuestStage(FormId quest, std::uint32_t stage);
         [[nodiscard]] std::uint64_t placedRefsBuildMillis() const { return mPlacedRefsMillis.load(); }
@@ -502,6 +507,8 @@ namespace game_skyrimse
         LoadOrder mOrder;
         std::vector<PluginData> mPlugins;
         std::unordered_map<FormId, BaseRef> mBases;
+        /// The VMAD scripts of a base form (null when it has none or is not a scripted kind). Task 0181.
+        [[nodiscard]] const std::vector<vmad::Script>* baseScriptsOf(FormId base) const;
         std::unordered_map<FormId, CellEntry> mCells;
         std::map<FormId, WorldEntry> mWorlds;
         std::vector<FormId> mCellOrder;

@@ -310,6 +310,25 @@ namespace game_skyrimse
         /// down stage stops it. A quest that is not running is started first (RECALLED-VERIFY: the game does).
         void setStage(const QuestIndex& index, FormId quest, std::uint32_t stage);
         void setAliasFill(FormId quest, std::uint32_t alias, const AliasFill& fill);
+        /// Task 0181: sets the current stage and nothing else (Quest.SetCurrentStageID: no done mark, no completion,
+        /// the caller runs no fragment). RECALLED-VERIFY: the game's exact semantics. Unknown quests are ignored.
+        void setCurrentStage(FormId quest, std::uint32_t stage);
+
+        /// One quest's state as plain values, for saves (task 0181).
+        struct SnapshotEntry
+        {
+            FormId mQuest = kNullFormId;
+            bool mRunning = false;
+            bool mCompleted = false;
+            std::uint32_t mStage = 0;
+            std::vector<std::uint32_t> mDone; ///< ascending
+            std::vector<std::pair<std::uint32_t, AliasFill>> mAliases; ///< ascending alias id
+        };
+        /// Every quest, ascending by form id.
+        [[nodiscard]] std::vector<SnapshotEntry> snapshot() const;
+        /// Replaces the state of the quests the snapshot names; a quest the snapshot lacks, or the state does not
+        /// know, is left as it is (a quest of a plugin that was added since the save keeps its initial state).
+        void restoreSnapshot(const std::vector<SnapshotEntry>& entries);
 
     private:
         struct Entry

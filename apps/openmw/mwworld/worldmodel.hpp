@@ -125,6 +125,13 @@ namespace MWWorld
         /// locks and the held keys. Canonical. Reads only; callable from the save's worker thread.
         void collectNeutralSave(NeutralSaveState& out, const CellStore* playerCell) const;
 
+        /// Task 0181 (Papyrus slice 2): the reference of a game pack's neutral placement in an ALREADY loaded neutral
+        /// cell of that game (nothing is built or loaded here), or an empty Ptr. The cell id is tried first; a
+        /// placement the pack holds in another cell (a persistent reference) is searched for in the other loaded cells.
+        /// Main thread.
+        Ptr findLoadedNeutralObject(std::string_view gameId, openeden::sdk::game::WorldId cell,
+            openeden::sdk::game::WorldId placement) const;
+
         struct NeutralSaveRestore
         {
             CellStore* mPlayerCell = nullptr; ///< null when there was no player cell or it cannot be found

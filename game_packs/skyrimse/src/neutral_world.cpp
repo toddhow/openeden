@@ -384,6 +384,12 @@ namespace game_skyrimse
         openeden::sdk::game::WorldId cell, openeden::sdk::game::WorldCell& out, std::string& error)
     {
         const bool built = loadNeutralCell(mView, cell, out, error, mLimits);
+        if (built && mEnableOverride)
+        {
+            for (openeden::sdk::game::WorldObject& object : out.objects)
+                if (const std::optional<bool> enabled = mEnableOverride(object.id))
+                    object.initiallyDisabled = !*enabled;
+        }
         if (built && mCellBuilt)
             mCellBuilt(cell);
         return built;

@@ -286,6 +286,13 @@ namespace game_skyrimse
             mCellBuilt = std::move(cellBuilt);
             mActivated = std::move(activated);
         }
+        /// Task 0181: what a script made of a placement's enabled state (nullopt when it never touched it). A cell built
+        /// afterwards comes out with it (WorldObject::initiallyDisabled), so Enable and Disable reach cells that were not
+        /// loaded when the script ran. Main thread.
+        void setEnableOverrideLookup(std::function<std::optional<bool>(openeden::sdk::game::WorldId)> lookup)
+        {
+            mEnableOverride = std::move(lookup);
+        }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -300,6 +307,7 @@ namespace game_skyrimse
         CombatHud mHud;
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
+        std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

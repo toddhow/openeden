@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
+#include <cmath>
 #include <cstdio>
 
 namespace game_skyrimse
@@ -53,10 +55,11 @@ namespace game_skyrimse
         }
     }
 
-    struct PapyrusHost::Impl final : public openeden::script::PapyrusWorld
+    struct PapyrusHost::Impl final : public openeden::script::PapyrusWorld, public openeden::script::PapyrusAttachKeyCheck
     {
         struct InstanceInfo
         {
+            std::uint32_t mOrdinal = 0; ///< AttachKey::effectKey: the script's place in its form's list
             FormId mForm = 0; ///< a quest or a placed reference; for an alias script the quest
             std::uint32_t mAlias = 0; ///< the alias id of an alias script, else 0
             bool mIsAlias = false;
@@ -238,6 +241,7 @@ namespace game_skyrimse
             }
             InstanceInfo stored = info;
             stored.mScript = name;
+            stored.mOrdinal = key.effectKey;
             mInstances.emplace(instance, stored);
             if (info.mIsAlias)
                 mByAlias[{ info.mForm, info.mAlias }].push_back(instance);
@@ -493,8 +497,42 @@ namespace game_skyrimse
         bool referenceEnabled(FormId reference) const
         {
             const auto it = mEnabled.find(reference);
-            return it == mEnabled.end() || it->second;
+            return it != mEnabled.end() ? it->second : mData.initiallyEnabled(reference);
         }
+
+        // Where a reference is now: where MoveTo put it, else where the data placed it.
+        bool positionOf(FormId reference, double (&xyz)[3]) const
+        {
+            const auto it = mPositions.find(reference);
+            if (it != mPositions.end())
+            {
+                xyz[0] = it->second[0];
+                xyz[1] = it->second[1];
+                xyz[2] = it->second[2];
+                return true;
+            }
+            return mData.referencePosition(reference, xyz[0], xyz[1], xyz[2]);
+        }
+
+        // The runtime asks this when it restores a state: does the game still have what the key names?
+        bool attachKeyExists(const AttachKey& key) const override
+        {
+            if (key.kind == AttachKind::Form)
+            {
+                if (key.formId == kPlayerReference || (mIndex != nullptr && mIndex->quest(key.formId) != nullptr))
+                    return true;
+                return !mData.formClass(key.formId).empty();
+            }
+            if (key.kind == AttachKind::Alias)
+            {
+                const QuestRecord* quest = mIndex != nullptr ? mIndex->quest(key.formId) : nullptr;
+                return quest != nullptr && quest->alias(key.aliasIndex) != nullptr;
+            }
+            return false;
+        }
+
+        std::vector<std::uint8_t> save() const;
+        PapyrusRestoreOutcome restore(std::span<const std::uint8_t> bytes);
 
         // ---- timers ------------------------------------------------------------------------------------------------
 
@@ -635,13 +673,33 @@ namespace game_skyrimse
             const auto position = [this](int axis) {
                 return [this, axis](const NativeCall& c) {
                     double xyz[3] = { 0.0, 0.0, 0.0 };
-                    (void)mData.referencePosition(formOf(c.self), xyz[0], xyz[1], xyz[2]);
+                    (void)positionOf(formOf(c.self), xyz);
                     return result(PapyrusValue::makeFloat(static_cast<float>(xyz[axis])));
                 };
             };
             reg("ObjectReference", "GetPositionX", false, position(0));
             reg("ObjectReference", "GetPositionY", false, position(1));
             reg("ObjectReference", "GetPositionZ", false, position(2));
+            reg("ObjectReference", "MoveTo", false, [this](const NativeCall& c) {
+                const FormId self = formOf(c.self);
+                double target[3] = { 0.0, 0.0, 0.0 };
+                if (self != 0 && !c.arguments.empty() && positionOf(formOf(c.arguments[0]), target))
+                {
+                    mPositions[self] = { target[0] + argNumber(c, 1), target[1] + argNumber(c, 2),
+                        target[2] + argNumber(c, 3) };
+                    say(false, "Papyrus: reference " + hex(self) + " moved");
+                }
+                return NativeResult{};
+            });
+            reg("Form", "HasKeyword", false, [this](const NativeCall& c) {
+                const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(keyword != 0 && mData.hasKeyword(formOf(c.self), keyword)));
+            });
+            reg("Actor", "AddSpell", false, [this](const NativeCall& c) {
+                const FormId spell = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const FormId actor = formOf(c.self);
+                return result(PapyrusValue::makeBool(spell != 0 && actor != 0 && mSpells.emplace(actor, spell).second));
+            });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
                 const FormId base = mData.baseOf(formOf(c.self));
                 return result(base != 0 ? PapyrusValue::makeForm(intern("Form"), base) : PapyrusValue::makeNone());
@@ -664,9 +722,16 @@ namespace game_skyrimse
             };
             reg("Quest", "GetStage", false, currentStage);
             reg("Quest", "GetCurrentStageID", false, currentStage);
-            reg("Quest", "GetStageDone", false, [this](const NativeCall& c) {
+            const auto stageDone = [this](const NativeCall& c) {
                 return result(PapyrusValue::makeBool(
                     mState != nullptr && mState->stageDone(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)))));
+            };
+            reg("Quest", "GetStageDone", false, stageDone);
+            reg("Quest", "IsStageDone", false, stageDone);
+            reg("Quest", "SetCurrentStageID", false, [this](const NativeCall& c) {
+                if (mState != nullptr)
+                    mState->setCurrentStage(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)));
+                return NativeResult{};
             });
             reg("Quest", "IsRunning", false, [this](const NativeCall& c) {
                 return result(PapyrusValue::makeBool(mState != nullptr && mState->running(formOf(c.self))));
@@ -797,7 +862,10 @@ namespace game_skyrimse
         std::set<FormId> mRefAttached;
         std::map<FormId, std::string> mRefClass;
         std::map<std::pair<double, std::uint64_t>, Timer> mTimers;
+        std::uint64_t mTolerantBase = 0; ///< tolerant calls counted before the state that was restored
         std::map<FormId, bool> mEnabled;
+        std::map<FormId, std::array<double, 3>> mPositions; ///< MoveTo (recorded only)
+        std::set<std::pair<FormId, FormId>> mSpells; ///< Actor.AddSpell (recorded only)
         std::vector<std::pair<FormId, std::uint32_t>> mAliasKeys;
         std::map<std::pair<FormId, std::uint32_t>, std::uint32_t> mAliasByKey;
         std::map<std::pair<FormId, std::uint32_t>, FormId> mAliasForced;
@@ -805,6 +873,506 @@ namespace game_skyrimse
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesCompleted;
         std::string mStringScratch;
     };
+
+    namespace
+    {
+        // ---- the host's state as bytes (task 0181) -----------------------------------------------------------------
+        // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before it.
+        constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
+        constexpr std::uint32_t kStateVersion = 1;
+        constexpr std::uint32_t kMaxEntries = 1u << 22; // a hostile count never allocates more than the bytes allow
+
+        std::uint64_t fnv1a(const std::uint8_t* data, std::size_t size)
+        {
+            std::uint64_t hash = 0xcbf29ce484222325ull;
+            for (std::size_t i = 0; i < size; ++i)
+            {
+                hash ^= data[i];
+                hash *= 0x100000001b3ull;
+            }
+            return hash;
+        }
+
+        class ByteWriter
+        {
+        public:
+            void u8(std::uint8_t v) { mBytes.push_back(v); }
+            void u32(std::uint32_t v)
+            {
+                for (int i = 0; i < 4; ++i)
+                    mBytes.push_back(static_cast<std::uint8_t>(v >> (8 * i)));
+            }
+            void u64(std::uint64_t v)
+            {
+                for (int i = 0; i < 8; ++i)
+                    mBytes.push_back(static_cast<std::uint8_t>(v >> (8 * i)));
+            }
+            void f64(double v) { u64(std::bit_cast<std::uint64_t>(v)); }
+            void str(const std::string& s)
+            {
+                u32(static_cast<std::uint32_t>(s.size()));
+                mBytes.insert(mBytes.end(), s.begin(), s.end());
+            }
+            void raw(const std::vector<std::uint8_t>& bytes)
+            {
+                u32(static_cast<std::uint32_t>(bytes.size()));
+                mBytes.insert(mBytes.end(), bytes.begin(), bytes.end());
+            }
+            std::vector<std::uint8_t> finish()
+            {
+                const std::uint64_t sum = fnv1a(mBytes.data(), mBytes.size());
+                u64(sum);
+                return std::move(mBytes);
+            }
+
+        private:
+            std::vector<std::uint8_t> mBytes;
+        };
+
+        class ByteReader
+        {
+        public:
+            explicit ByteReader(std::span<const std::uint8_t> data)
+                : mData(data)
+            {
+            }
+            [[nodiscard]] bool failed() const { return mFailed; }
+            [[nodiscard]] std::size_t remaining() const { return mData.size() - mPos; }
+            std::uint8_t u8()
+            {
+                if (!take(1))
+                    return 0;
+                return mData[mPos - 1];
+            }
+            std::uint32_t u32()
+            {
+                if (!take(4))
+                    return 0;
+                std::uint32_t v = 0;
+                for (int i = 0; i < 4; ++i)
+                    v |= static_cast<std::uint32_t>(mData[mPos - 4 + i]) << (8 * i);
+                return v;
+            }
+            std::uint64_t u64()
+            {
+                if (!take(8))
+                    return 0;
+                std::uint64_t v = 0;
+                for (int i = 0; i < 8; ++i)
+                    v |= static_cast<std::uint64_t>(mData[mPos - 8 + i]) << (8 * i);
+                return v;
+            }
+            double f64() { return std::bit_cast<double>(u64()); }
+            std::string str()
+            {
+                const std::uint32_t n = u32();
+                if (!take(n))
+                    return {};
+                return std::string(reinterpret_cast<const char*>(mData.data() + mPos - n), n);
+            }
+            std::vector<std::uint8_t> raw()
+            {
+                const std::uint32_t n = u32();
+                if (!take(n))
+                    return {};
+                return std::vector<std::uint8_t>(mData.begin() + static_cast<std::ptrdiff_t>(mPos - n),
+                    mData.begin() + static_cast<std::ptrdiff_t>(mPos));
+            }
+            // A count of items that each need at least \a minBytes: it must fit in what is left.
+            std::uint32_t count(std::size_t minBytes)
+            {
+                const std::uint32_t n = u32();
+                if (n > kMaxEntries || static_cast<std::uint64_t>(n) * minBytes > remaining())
+                {
+                    mFailed = true;
+                    return 0;
+                }
+                return n;
+            }
+
+        private:
+            bool take(std::size_t n)
+            {
+                if (mFailed || n > remaining())
+                {
+                    mFailed = true;
+                    return false;
+                }
+                mPos += n;
+                return true;
+            }
+            std::span<const std::uint8_t> mData;
+            std::size_t mPos = 0;
+            bool mFailed = false;
+        };
+
+        using PairKey = std::pair<FormId, std::uint32_t>;
+    }
+
+    std::vector<std::uint8_t> PapyrusHost::Impl::save() const
+    {
+        if (!mStarted || mInTick)
+            return {};
+        // Instance ids must be 1..n: the ledger is written in id order and a restore numbers instances the same way.
+        InstanceId expected = 1;
+        for (const auto& [id, info] : mInstances)
+        {
+            if (id != expected++)
+                return {};
+        }
+        const openeden::script::SaveBlob blob = mRuntime->serialise();
+        if (blob.formatVersion == 0 && blob.bytes.empty())
+            return {};
+
+        ByteWriter w;
+        w.u32(kStateMagic);
+        w.u32(kStateVersion);
+        w.f64(mTime);
+        w.u64(mTimerSeq);
+        const PapyrusHostCounters& c = mCounters;
+        for (const std::uint64_t v : { c.mScriptsLoaded, c.mScriptsMissing, c.mScriptsRefused, c.mInstancesAttached,
+                 c.mAttachRefused, c.mPropertiesSet, c.mPropertiesRejected, c.mPropertiesSkipped, c.mFragmentsRun,
+                 c.mStageSets, c.mUpdatesFired, c.mTicks, c.mStacksRun, c.mScriptErrors })
+            w.u64(v);
+        for (const auto* map : { &c.mEvents, &c.mNatives })
+        {
+            w.u32(static_cast<std::uint32_t>(map->size()));
+            for (const auto& [name, count] : *map)
+            {
+                w.str(name);
+                w.u64(count);
+            }
+        }
+        w.u32(static_cast<std::uint32_t>(mTolerant.size()));
+        for (const std::string& name : mTolerant)
+            w.str(name);
+        w.u64(mTolerantBase + mRuntime->stats().unregisteredNativeCalls);
+        w.u32(blob.formatVersion);
+        w.raw(blob.bytes);
+
+        w.u32(static_cast<std::uint32_t>(mInstances.size()));
+        for (const auto& [id, info] : mInstances)
+        {
+            w.u8(info.mIsAlias ? 1 : 0);
+            w.u32(info.mForm);
+            w.u32(info.mAlias);
+            w.u32(info.mOrdinal);
+            w.str(info.mScript);
+        }
+        w.u32(static_cast<std::uint32_t>(mTimers.size()));
+        for (const auto& [key, timer] : mTimers)
+        {
+            w.f64(key.first);
+            w.u64(key.second);
+            w.u32(timer.mInstance);
+            w.f64(timer.mRepeat);
+        }
+        w.u32(static_cast<std::uint32_t>(mEnabled.size()));
+        for (const auto& [ref, on] : mEnabled)
+        {
+            w.u32(ref);
+            w.u8(on ? 1 : 0);
+        }
+        w.u32(static_cast<std::uint32_t>(mPositions.size()));
+        for (const auto& [ref, xyz] : mPositions)
+        {
+            w.u32(ref);
+            for (const double v : xyz)
+                w.f64(v);
+        }
+        w.u32(static_cast<std::uint32_t>(mSpells.size()));
+        for (const auto& [actor, spell] : mSpells)
+        {
+            w.u32(actor);
+            w.u32(spell);
+        }
+        w.u32(static_cast<std::uint32_t>(mAliasKeys.size()));
+        for (const PairKey& key : mAliasKeys)
+        {
+            w.u32(key.first);
+            w.u32(key.second);
+        }
+        w.u32(static_cast<std::uint32_t>(mAliasForced.size()));
+        for (const auto& [key, form] : mAliasForced)
+        {
+            w.u32(key.first);
+            w.u32(key.second);
+            w.u32(form);
+        }
+        for (const auto* map : { &mObjectivesDisplayed, &mObjectivesCompleted })
+        {
+            w.u32(static_cast<std::uint32_t>(map->size()));
+            for (const auto& [key, on] : *map)
+            {
+                w.u32(key.first);
+                w.u32(key.second);
+                w.u8(on ? 1 : 0);
+            }
+        }
+        w.u32(static_cast<std::uint32_t>(mQuestsAttached.size()));
+        for (const FormId quest : mQuestsAttached)
+            w.u32(quest);
+        w.u32(static_cast<std::uint32_t>(mRefAttached.size()));
+        for (const FormId ref : mRefAttached)
+            w.u32(ref);
+        w.u32(static_cast<std::uint32_t>(mRefClass.size()));
+        for (const auto& [ref, cls] : mRefClass)
+        {
+            w.u32(ref);
+            w.u8(cls == "Actor" ? 1 : 0);
+        }
+        std::vector<QuestState::SnapshotEntry> quests;
+        if (mState != nullptr)
+            quests = mState->snapshot();
+        w.u32(static_cast<std::uint32_t>(quests.size()));
+        for (const QuestState::SnapshotEntry& q : quests)
+        {
+            w.u32(q.mQuest);
+            w.u8(q.mRunning ? 1 : 0);
+            w.u8(q.mCompleted ? 1 : 0);
+            w.u32(q.mStage);
+            w.u32(static_cast<std::uint32_t>(q.mDone.size()));
+            for (const std::uint32_t d : q.mDone)
+                w.u32(d);
+            w.u32(static_cast<std::uint32_t>(q.mAliases.size()));
+            for (const auto& [alias, fill] : q.mAliases)
+            {
+                w.u32(alias);
+                w.u8(fill.mKnown ? 1 : 0);
+                w.u32(fill.mReference);
+                w.u32(fill.mActor);
+            }
+        }
+        return w.finish();
+    }
+
+    PapyrusRestoreOutcome PapyrusHost::Impl::restore(std::span<const std::uint8_t> bytes)
+    {
+        const auto refuse = [](const std::string& why) { return PapyrusRestoreOutcome{ false, why }; };
+        if (mInTick)
+            return refuse("a state cannot be restored inside a tick");
+        if (mIndex == nullptr || mState == nullptr)
+            return refuse("the quest data is not set");
+        if (bytes.size() < 8 + 8)
+            return refuse("the Papyrus state is too short");
+        const std::size_t bodySize = bytes.size() - 8;
+        {
+            ByteReader tail(bytes.subspan(bodySize));
+            if (tail.u64() != fnv1a(bytes.data(), bodySize))
+                return refuse("the Papyrus state is damaged (checksum)");
+        }
+        ByteReader r(bytes.first(bodySize));
+        if (r.u32() != kStateMagic)
+            return refuse("this is not a Papyrus state");
+        if (const std::uint32_t version = r.u32(); version != kStateVersion)
+            return refuse("the Papyrus state has version " + std::to_string(version));
+
+        struct LedgerEntry
+        {
+            bool mAlias = false;
+            FormId mForm = 0;
+            std::uint32_t mAliasId = 0;
+            std::uint32_t mOrdinal = 0;
+            std::string mScript;
+        };
+        struct SavedTimer
+        {
+            double mDue = 0;
+            std::uint64_t mSeq = 0;
+            InstanceId mInstance = 0;
+            double mRepeat = 0;
+        };
+        const double time = r.f64();
+        const std::uint64_t timerSeq = r.u64();
+        PapyrusHostCounters counters;
+        std::uint64_t* const fields[] = { &counters.mScriptsLoaded, &counters.mScriptsMissing,
+            &counters.mScriptsRefused, &counters.mInstancesAttached, &counters.mAttachRefused, &counters.mPropertiesSet,
+            &counters.mPropertiesRejected, &counters.mPropertiesSkipped, &counters.mFragmentsRun, &counters.mStageSets,
+            &counters.mUpdatesFired, &counters.mTicks, &counters.mStacksRun, &counters.mScriptErrors };
+        for (std::uint64_t* field : fields)
+            *field = r.u64();
+        for (auto* map : { &counters.mEvents, &counters.mNatives })
+        {
+            const std::uint32_t n = r.count(12);
+            for (std::uint32_t i = 0; i < n; ++i)
+            {
+                std::string name = r.str();
+                (*map)[std::move(name)] = r.u64();
+            }
+        }
+        std::set<std::string> tolerant;
+        for (std::uint32_t i = 0, n = r.count(4); i < n; ++i)
+            tolerant.insert(r.str());
+        const std::uint64_t tolerantCalls = r.u64();
+        openeden::script::SaveBlob blob;
+        blob.formatVersion = r.u32();
+        blob.bytes = r.raw();
+        std::vector<LedgerEntry> ledger;
+        for (std::uint32_t i = 0, n = r.count(17); i < n; ++i)
+        {
+            LedgerEntry e;
+            e.mAlias = r.u8() != 0;
+            e.mForm = r.u32();
+            e.mAliasId = r.u32();
+            e.mOrdinal = r.u32();
+            e.mScript = r.str();
+            ledger.push_back(std::move(e));
+        }
+        std::vector<SavedTimer> timers;
+        for (std::uint32_t i = 0, n = r.count(28); i < n; ++i)
+        {
+            SavedTimer t;
+            t.mDue = r.f64();
+            t.mSeq = r.u64();
+            t.mInstance = r.u32();
+            t.mRepeat = r.f64();
+            timers.push_back(t);
+        }
+        std::map<FormId, bool> enabled;
+        for (std::uint32_t i = 0, n = r.count(5); i < n; ++i)
+        {
+            const FormId ref = r.u32();
+            enabled[ref] = r.u8() != 0;
+        }
+        std::map<FormId, std::array<double, 3>> positions;
+        for (std::uint32_t i = 0, n = r.count(28); i < n; ++i)
+        {
+            const FormId ref = r.u32();
+            std::array<double, 3> xyz{};
+            for (double& v : xyz)
+                v = r.f64();
+            positions[ref] = xyz;
+        }
+        std::set<std::pair<FormId, FormId>> spells;
+        for (std::uint32_t i = 0, n = r.count(8); i < n; ++i)
+        {
+            const FormId actor = r.u32();
+            spells.emplace(actor, r.u32());
+        }
+        std::vector<PairKey> aliasKeys;
+        for (std::uint32_t i = 0, n = r.count(8); i < n; ++i)
+        {
+            const FormId quest = r.u32();
+            aliasKeys.emplace_back(quest, r.u32());
+        }
+        std::map<PairKey, FormId> aliasForced;
+        for (std::uint32_t i = 0, n = r.count(12); i < n; ++i)
+        {
+            const FormId quest = r.u32();
+            const std::uint32_t alias = r.u32();
+            aliasForced[{ quest, alias }] = r.u32();
+        }
+        std::map<PairKey, bool> displayed;
+        std::map<PairKey, bool> completed;
+        for (auto* map : { &displayed, &completed })
+            for (std::uint32_t i = 0, n = r.count(9); i < n; ++i)
+            {
+                const FormId quest = r.u32();
+                const std::uint32_t objective = r.u32();
+                (*map)[{ quest, objective }] = r.u8() != 0;
+            }
+        std::set<FormId> questsAttached;
+        for (std::uint32_t i = 0, n = r.count(4); i < n; ++i)
+            questsAttached.insert(r.u32());
+        std::set<FormId> refAttached;
+        for (std::uint32_t i = 0, n = r.count(4); i < n; ++i)
+            refAttached.insert(r.u32());
+        std::map<FormId, std::string> refClass;
+        for (std::uint32_t i = 0, n = r.count(5); i < n; ++i)
+        {
+            const FormId ref = r.u32();
+            refClass[ref] = r.u8() != 0 ? "Actor" : "ObjectReference";
+        }
+        std::vector<QuestState::SnapshotEntry> quests;
+        for (std::uint32_t i = 0, n = r.count(18); i < n; ++i)
+        {
+            QuestState::SnapshotEntry q;
+            q.mQuest = r.u32();
+            q.mRunning = r.u8() != 0;
+            q.mCompleted = r.u8() != 0;
+            q.mStage = r.u32();
+            for (std::uint32_t d = 0, nd = r.count(4); d < nd; ++d)
+                q.mDone.push_back(r.u32());
+            for (std::uint32_t a = 0, na = r.count(13); a < na; ++a)
+            {
+                const std::uint32_t alias = r.u32();
+                AliasFill fill;
+                fill.mKnown = r.u8() != 0;
+                fill.mReference = r.u32();
+                fill.mActor = r.u32();
+                q.mAliases.emplace_back(alias, fill);
+            }
+            quests.push_back(std::move(q));
+        }
+        if (r.failed())
+            return refuse("the Papyrus state is damaged (a field runs past the end)");
+        if (r.remaining() != 0)
+            return refuse("the Papyrus state has bytes after its end");
+        if (!(time >= 0.0) || !std::isfinite(time))
+            return refuse("the Papyrus state has a bad script time");
+        for (const SavedTimer& t : timers)
+            if (t.mInstance == 0 || t.mInstance > ledger.size())
+                return refuse("a timer names an instance that does not exist");
+        if (ledger.size() > mOptions.mMaxInstances)
+            return refuse("the state holds more instances than the host allows");
+
+        // the scripts first: the runtime refuses a state whose script is not loaded
+        for (const LedgerEntry& e : ledger)
+            if (!load(e.mScript, false))
+                return refuse("the script '" + e.mScript + "' of a saved instance cannot be loaded");
+        const openeden::script::RestoreResult restored = mRuntime->restore(blob);
+        if (!restored.ok)
+            return refuse("the runtime refused the state: " + restored.error.format());
+
+        // everything is accepted: replace the host's tables
+        mInstances.clear();
+        mByForm.clear();
+        mByAlias.clear();
+        InstanceId next = 1;
+        for (const LedgerEntry& e : ledger)
+        {
+            InstanceInfo info;
+            info.mForm = e.mForm;
+            info.mAlias = e.mAliasId;
+            info.mIsAlias = e.mAlias;
+            info.mScript = e.mScript;
+            info.mOrdinal = e.mOrdinal;
+            mInstances.emplace(next, info);
+            if (e.mAlias)
+                mByAlias[{ e.mForm, e.mAliasId }].push_back(next);
+            else
+                mByForm.emplace(e.mForm, next);
+            ++next;
+        }
+        mTimers.clear();
+        for (const SavedTimer& t : timers)
+            mTimers.emplace(std::make_pair(t.mDue, t.mSeq), Timer{ t.mInstance, t.mRepeat });
+        mTime = time;
+        mTimerSeq = timerSeq;
+        mCounters = std::move(counters);
+        mTolerant = std::move(tolerant);
+        mTolerantBase = tolerantCalls - std::min(tolerantCalls, mRuntime->stats().unregisteredNativeCalls);
+        mEnabled = std::move(enabled);
+        mPositions = std::move(positions);
+        mSpells = std::move(spells);
+        mAliasKeys = std::move(aliasKeys);
+        mAliasByKey.clear();
+        for (std::size_t i = 0; i < mAliasKeys.size(); ++i)
+            mAliasByKey.emplace(mAliasKeys[i], kAliasTag | static_cast<std::uint32_t>(i + 1));
+        mAliasForced = std::move(aliasForced);
+        mObjectivesDisplayed = std::move(displayed);
+        mObjectivesCompleted = std::move(completed);
+        mQuestsAttached = std::move(questsAttached);
+        mRefAttached = std::move(refAttached);
+        mRefClass = std::move(refClass);
+        mState->restoreSnapshot(quests);
+        mStarted = true;
+        if (mQuestChanged)
+            for (const QuestState::SnapshotEntry& q : quests)
+                if (q.mStage > 0)
+                    mQuestChanged(q.mQuest, q.mStage);
+        return { true, {} };
+    }
 
     PapyrusHost::PapyrusHost(PapyrusGameData& data, PapyrusHostOptions options)
         : mImpl(std::make_unique<Impl>(data, options))
@@ -910,6 +1478,47 @@ namespace game_skyrimse
         return mImpl->mRuntime->restore(blob).ok;
     }
 
+    std::vector<std::uint8_t> PapyrusHost::saveState() const
+    {
+        return mImpl->save();
+    }
+
+    PapyrusRestoreOutcome PapyrusHost::restoreSavedState(std::span<const std::uint8_t> bytes)
+    {
+        return mImpl->restore(bytes);
+    }
+
+    bool PapyrusHost::started() const
+    {
+        return mImpl->mStarted;
+    }
+
+    std::optional<bool> PapyrusHost::enableOverride(FormId reference) const
+    {
+        const auto it = mImpl->mEnabled.find(reference);
+        if (it == mImpl->mEnabled.end())
+            return std::nullopt;
+        return it->second;
+    }
+
+    std::vector<std::pair<FormId, bool>> PapyrusHost::enableOverrides() const
+    {
+        return std::vector<std::pair<FormId, bool>>(mImpl->mEnabled.begin(), mImpl->mEnabled.end());
+    }
+
+    std::optional<std::array<double, 3>> PapyrusHost::positionOverride(FormId reference) const
+    {
+        const auto it = mImpl->mPositions.find(reference);
+        if (it == mImpl->mPositions.end())
+            return std::nullopt;
+        return it->second;
+    }
+
+    bool PapyrusHost::hasSpell(FormId actor, FormId spell) const
+    {
+        return mImpl->mSpells.count({ actor, spell }) != 0;
+    }
+
     const PapyrusHostCounters& PapyrusHost::counters() const
     {
         return mImpl->mCounters;
@@ -923,6 +1532,11 @@ namespace game_skyrimse
     std::vector<std::string> PapyrusHost::tolerantNatives() const
     {
         return std::vector<std::string>(mImpl->mTolerant.begin(), mImpl->mTolerant.end());
+    }
+
+    std::uint64_t PapyrusHost::tolerantCalls() const
+    {
+        return mImpl->mTolerantBase + mImpl->mRuntime->stats().unregisteredNativeCalls;
     }
 
     bool PapyrusHost::referenceEnabled(FormId reference) const

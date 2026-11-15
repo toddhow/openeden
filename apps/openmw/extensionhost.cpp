@@ -22,6 +22,7 @@
 #include "mwbase/environment.hpp"
 #include "mwbase/statemanager.hpp"
 #include "mwbase/world.hpp"
+#include "mwworld/worldmodel.hpp"
 #include "mwphysics/physicssystem.hpp"
 #include "mwworld/craftingrules.hpp"
 #include "mwworld/gamerules.hpp"
@@ -323,6 +324,40 @@ namespace OMW
             add(failure.extensionId + ": " + failure.reason);
         }
         return report;
+    }
+
+    void ExtensionHost::applyNeutralObjectChanges()
+    {
+        if (mNeutralWorldStore == nullptr || !MWBase::Environment::exists())
+            return;
+        std::vector<openeden::extension::ObjectEnableChange> changes;
+        if (mHost.worldSources().takeObjectEnableChanges(changes) == 0)
+            return;
+        MWBase::World* const world = MWBase::Environment::get().getWorld();
+        MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
+        if (world == nullptr || model == nullptr)
+            return;
+        for (const openeden::extension::ObjectEnableChange& change : changes)
+        {
+            // a cell that is not loaded has nothing to change: the pack builds it with its override when it loads
+            const MWWorld::Ptr ptr = model->findLoadedNeutralObject(change.gameId, change.cell, change.placement);
+            if (ptr.isEmpty())
+                continue;
+            try
+            {
+                if (change.enabled)
+                    world->enable(ptr);
+                else
+                    world->disable(ptr);
+                Log(Debug::Info) << "A game pack " << (change.enabled ? "enabled" : "disabled") << " the placement "
+                                 << change.placement << " of '" << change.gameId << "'";
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "A game pack's enable or disable of the placement " << change.placement
+                                    << " failed: " << e.what();
+            }
+        }
     }
 
     std::string ExtensionHost::savingRefusal() const

@@ -67,6 +67,11 @@ namespace MWBase
         /// session then has its own start path. False with `[Game] neutral world` off and with Morrowind. Main thread.
         virtual bool hasNeutralWorldSource() { return false; }
 
+        /// Task 0181 (Papyrus slice 2): applies the enables and disables the game pack asked for
+        /// (WorldSourceService::setObjectEnabled) to the loaded neutral world. Once a frame, on the main thread, after
+        /// the game phase. Does nothing without a game pack or with nothing queued.
+        virtual void applyNeutralObjectChanges() {}
+
         /// Non-empty once the game pack has failed: saving is refused. Main thread only.
         virtual const std::string& sessionError() const
         {

@@ -224,6 +224,8 @@ namespace OMW
         {
             return mNeutralWorldStore.get();
         }
+        /// Task 0181: the pack's Enable and Disable requests reach the loaded neutral world (once a frame).
+        void applyNeutralObjectChanges() override;
         [[nodiscard]] bool hasNeutralWorldSource() override
         {
             return mNeutralWorldStore != nullptr && mNeutralWorldStore->sourceCount() > 0;

@@ -22,7 +22,7 @@ namespace openeden::sdk::game
     /// Version policy: a new virtual function goes at the END of WorldSourceService with a default that means "not
     /// supported" and raises the minor number; anything else is a major change. Host::getWorldSourceService() is the
     /// last virtual function of Host, so adding it left every earlier slot where it was (kSdkVersion stays 4.0).
-    inline constexpr Version kWorldSourceServiceVersion{ 1, 1 };
+    inline constexpr Version kWorldSourceServiceVersion{ 1, 2 };
 
     /// One content file of the session (a `content=` line of the engine's configuration): the plugin a game pack
     /// builds its world from. Plain strings, so that nothing of the host crosses the boundary.
@@ -62,6 +62,24 @@ namespace openeden::sdk::game
         {
             (void)out;
             return 0;
+        }
+
+        /// Version 1.2 (task 0181, Papyrus slice 2). Asks the host to enable or disable one placement of the neutral
+        /// world this `source` fed (a script's Enable and Disable). The host queues the change (bounded; the last change
+        /// of a placement wins) and the engine applies it on the main thread, to the placement if its cell is loaded;
+        /// a cell loaded later is built by the pack, which keeps its own override (this call only reaches cells that
+        /// exist). `cellHint` is the pack's cell id when the pack knows it; a host looks the placement up in the loaded
+        /// cells of the game and may ignore the hint (a persistent reference is held by a different cell than the one
+        /// it stands in). True when the change was queued; false for a source that is not registered, a full queue, or
+        /// a host built before 1.2 (the default). Main thread only.
+        [[nodiscard]] virtual bool setObjectEnabled(
+            WorldCellSource& source, WorldId cellHint, WorldId placement, bool enabled)
+        {
+            (void)source;
+            (void)cellHint;
+            (void)placement;
+            (void)enabled;
+            return false;
         }
     };
 }

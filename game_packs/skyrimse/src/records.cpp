@@ -649,6 +649,22 @@ namespace game_skyrimse
                 return true;
             }
 
+            // VMAD of a base record (task 0181): the scripts, with the object properties resolved like a reference's.
+            void vmadField(std::span<const std::byte> data, std::vector<vmad::Script>& out)
+            {
+                vmad::ParseResult scripts = vmad::parse(data, false);
+                if (!scripts.mOk)
+                {
+                    odd("VMAD");
+                    return;
+                }
+                vmad::resolveForms(scripts.mVmad.mScripts, [&](std::uint32_t stored) -> std::uint32_t {
+                    const FormId id = resolved(stored);
+                    return id == kUnresolvedFormId ? 0u : id;
+                });
+                out = std::move(scripts.mVmad.mScripts);
+            }
+
             // -- records --
 
             bool readWorld(const Content::RawRecord& record, std::span<const std::byte> bytes)
@@ -1084,6 +1100,8 @@ namespace game_skyrimse
                 float lightFade = 1.0f;
                 bool hasLightFade = false;
                 LString fullName; // FULL of a model record (task 0150)
+                std::vector<vmad::Script> baseScripts; // VMAD (task 0181)
+                std::vector<FormId> baseKeywords; // KWDA (task 0181)
                 SubReader reader(bytes);
                 std::uint32_t type = 0;
                 std::span<const std::byte> data;
@@ -1148,6 +1166,12 @@ namespace game_skyrimse
                         case Content::fourCC("MODL"):
                             ok = zstring(type, data, s.mModel);
                             break;
+                        case Content::fourCC("VMAD"):
+                            vmadField(data, baseScripts);
+                            break;
+                        case Content::fourCC("KWDA"):
+                            ok = formList(type, data, baseKeywords);
+                            break;
                         default:
                             break;
                     }
@@ -1163,6 +1187,8 @@ namespace game_skyrimse
                     ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt,
                         {} };
                     model.mName = std::move(fullName);
+                    model.mScripts = std::move(baseScripts);
+                    model.mKeywords = std::move(baseKeywords);
                     if (hasLightData)
                     {
                         light.mFade = lightFade;
@@ -1198,6 +1224,9 @@ namespace game_skyrimse
                             break;
                         case Content::fourCC("CNAM"):
                             ok = formField(type, data, n.mClass);
+                            break;
+                        case Content::fourCC("VMAD"):
+                            vmadField(data, n.mScripts);
                             break;
                         case Content::fourCC("ACBS"): // flags u32 @0, level u16 @8, calc min @10, calc max @12; size 24
                                                       // VERIFIED size (tool); offsets CONFIRMED by upstream
@@ -1295,6 +1324,9 @@ namespace game_skyrimse
                             break;
                         case Content::fourCC("KWDA"):
                             ok = formList(type, data, it.mKeywords);
+                            break;
+                        case Content::fourCC("VMAD"):
+                            vmadField(data, it.mScripts);
                             break;
                         case Content::fourCC("DATA"):
                         {
