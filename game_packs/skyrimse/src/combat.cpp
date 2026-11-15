@@ -119,6 +119,46 @@ namespace game_skyrimse
         return true;
     }
 
+    void SkyrimCombat::setTestPowerEvery(int n)
+    {
+        mPowerEvery = n > 0 ? n : 0;
+    }
+
+    void SkyrimCombat::setTestBashEvery(int n)
+    {
+        mBashEvery = n > 0 ? n : 0;
+    }
+
+    bool SkyrimCombat::setTestBlock(std::string_view editorId)
+    {
+        if (editorId.size() > kMaxCombatTestSwingName)
+        {
+            mTestBlock.clear();
+            return false;
+        }
+        mTestBlock = lowerAscii(editorId);
+        return true;
+    }
+
+    void SkyrimCombat::loadSettings()
+    {
+        mCombatSettings = mData->settings();
+        mBlockSettings = mData->blockSettings();
+        mHaveSettings = true;
+    }
+
+    bool SkyrimCombat::isBlocker(ActorHandle handle) const
+    {
+        return std::find(mBlockers.begin(), mBlockers.end(), handle) != mBlockers.end();
+    }
+
+    // A named blocker blocks whenever it is alive, free (not swinging, not staggered) and its data is read.
+    bool SkyrimCombat::isBlocking(const Fighter& fighter) const
+    {
+        return !fighter.mSubject.player && isBlocker(fighter.mSubject.actor) && fighter.mReady && fighter.mHasProfile
+            && !fighter.mDead && !fighter.mSwinging && !fighter.mStaggered;
+    }
+
     void SkyrimCombat::setTestPlayerSwing(float seconds)
     {
         mPlayerAutoPeriod = (std::isfinite(seconds) && seconds > 0.f) ? seconds : 0.f;
@@ -151,6 +191,8 @@ namespace game_skyrimse
         out.mStamina = f->mStamina;
         out.mStaminaMax = f->mProfile.mStaminaMax;
         out.mDead = f->mDead;
+        out.mStaggered = f->mStaggered;
+        out.mBlocking = isBlocking(*f);
         return true;
     }
 
@@ -159,10 +201,7 @@ namespace game_skyrimse
         if (mData == nullptr)
             return false;
         if (!mHaveSettings)
-        {
-            mCombatSettings = mData->settings();
-            mHaveSettings = true;
-        }
+            loadSettings();
         if (!mWeaponLooked)
         {
             mWeaponLooked = true;
@@ -204,6 +243,11 @@ namespace game_skyrimse
             std::erase_if(mSwingers, [&](const ActorHandle& h) { return h.reference == info.handle.reference; });
             mSwingers.push_back(info.handle);
         }
+        if (!mTestBlock.empty() && id == mTestBlock)
+        {
+            std::erase_if(mBlockers, [&](const ActorHandle& h) { return h.reference == info.handle.reference; });
+            mBlockers.push_back(info.handle);
+        }
         if (!mTestHostile.empty() && id == mTestHostile)
         {
             std::erase_if(mHostiles, [&](const ActorHandle& h) { return h.reference == info.handle.reference; });
@@ -215,6 +259,7 @@ namespace game_skyrimse
     {
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
+        std::erase(mBlockers, handle);
         std::erase_if(mFighters, [&](const Fighter& f) { return !f.mSubject.player && f.mSubject.actor == handle; });
         // Nothing of the actor stays in a table: a result that arrives later is refused, a hit that was waiting is
         // gone.
@@ -234,7 +279,7 @@ namespace game_skyrimse
     {
         ++mEventsSeen;
         const bool attackSlot = event.slot == ClipSlot::Attack || event.slot == ClipSlot::PowerAttack
-            || event.slot == ClipSlot::AttackLeft;
+            || event.slot == ClipSlot::AttackLeft || event.slot == ClipSlot::Bash;
         if (mData == nullptr || event.kind != openeden::sdk::game::ClipEventKind::Hit || !attackSlot)
         {
             if (event.kind == openeden::sdk::game::ClipEventKind::Hit)
@@ -242,7 +287,8 @@ namespace game_skyrimse
             return;
         }
         if (mPendingHits.size() < mPendingHits.capacity())
-            mPendingHits.push_back({ event.subject, event.token, event.slot == ClipSlot::PowerAttack });
+            mPendingHits.push_back(
+                { event.subject, event.token, event.slot == ClipSlot::PowerAttack, 0, event.slot == ClipSlot::Bash });
     }
 
     void SkyrimCombat::onClipFinished(CombatSubject subject, std::uint32_t token, openeden::sdk::game::ClipEnd how)
@@ -250,8 +296,13 @@ namespace game_skyrimse
         ++mClipsFinished;
         if (how == openeden::sdk::game::ClipEnd::Completed)
             ++mClipsCompleted;
-        if (Fighter* f = find(subject); f != nullptr && f->mSwinging && f->mSwingToken == token)
-            f->mSwinging = false;
+        if (Fighter* f = find(subject); f != nullptr)
+        {
+            if (f->mSwinging && f->mSwingToken == token)
+                f->mSwinging = false;
+            if (f->mStaggered && f->mStaggerToken == token)
+                f->mStaggered = false;
+        }
     }
 
     void SkyrimCombat::onSweepResult(
@@ -298,11 +349,12 @@ namespace game_skyrimse
         }
     }
 
-    void SkyrimCombat::beginAttack(CombatRequestWriter& writer, Fighter& fighter, bool power)
+    void SkyrimCombat::beginAttack(CombatRequestWriter& writer, Fighter& fighter, AttackKind kind)
     {
+        const bool power = kind == AttackKind::Power;
         if (fighter.mSubject.player)
         {
-            if (mPlayerSwingActive)
+            if (mPlayerSwingActive || kind == AttackKind::Bash) // the player has no bash (there is no input for it)
                 return;
             // The player's clip is never played (no first-person arms): its timing is the sidecar's, asked for by the
             // clip the slot would play. Until it is ready there is no swing (stage S5-3b: no fallback number).
@@ -347,9 +399,11 @@ namespace game_skyrimse
                 + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
-        if (fighter.mDead || fighter.mSwinging)
+        if (fighter.mDead || fighter.mSwinging || fighter.mStaggered)
             return;
-        const ClipSlot slot = power ? ClipSlot::PowerAttack : ClipSlot::Attack;
+        const ClipSlot slot = kind == AttackKind::Bash ? ClipSlot::Bash
+            : power                                    ? ClipSlot::PowerAttack
+                                                       : ClipSlot::Attack;
         const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
         if (clip.empty())
             return;
@@ -364,7 +418,8 @@ namespace game_skyrimse
             fighter.mSwinging = true;
             fighter.mSwingToken = request.token;
             ++mSwingsRequested;
-            trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token));
+            trace("COMBAT swing " + name(fighter.mSubject) + " token " + std::to_string(request.token)
+                + (kind == AttackKind::Bash ? " bash" : power ? " power" : ""));
         }
     }
 
@@ -377,7 +432,7 @@ namespace game_skyrimse
         for (const ActorHandle& handle : mHostiles)
         {
             Fighter* f = find(CombatSubject::of(handle));
-            if (f == nullptr || f->mDead || f->mSwinging || mClock < f->mNextAttack || !ready(*f))
+            if (f == nullptr || f->mDead || f->mSwinging || f->mStaggered || mClock < f->mNextAttack || !ready(*f))
                 continue;
             if (!havePlayer)
             {
@@ -397,7 +452,14 @@ namespace game_skyrimse
                 continue;
             writer.faceHeading(f->mSubject, static_cast<float>(std::atan2(dx, dy)));
             f->mNextAttack = mClock + kHostileAttackPeriod;
-            beginAttack(writer, *f, false);
+            // The every-N rules (task 0172): counts per actor from 1, a bash wins on a shared number.
+            ++f->mAttackCount;
+            AttackKind kind = AttackKind::Normal;
+            if (mBashEvery > 0 && f->mAttackCount % static_cast<std::uint32_t>(mBashEvery) == 0)
+                kind = AttackKind::Bash;
+            else if (mPowerEvery > 0 && f->mAttackCount % static_cast<std::uint32_t>(mPowerEvery) == 0)
+                kind = AttackKind::Power;
+            beginAttack(writer, *f, kind);
         }
     }
 
@@ -446,7 +508,7 @@ namespace game_skyrimse
             }
             if (start)
             {
-                beginAttack(writer, player, power);
+                beginAttack(writer, player, power ? AttackKind::Power : AttackKind::Normal);
                 // An automatic swing whose timing is not ready yet asks again in the next frame, not a period later.
                 if (automatic && !mPlayerSwingActive)
                     mNextPlayerAuto = mClock;
@@ -490,7 +552,8 @@ namespace game_skyrimse
         if (mWeapon != nullptr && mWeapon->skillSlot() < attacker->mProfile.mSkills.size())
             input.mAttackerSkill = attacker->mProfile.mSkills[mWeapon->skillSlot()];
         const MeleeHit cost = computeMeleeHit(input, mCombatSettings);
-        attacker->mStamina = std::max(0.f, attacker->mStamina - cost.mStaminaCost);
+        const float staminaCost = hit.mBash ? bashStaminaCost(mBlockSettings) : cost.mStaminaCost;
+        attacker->mStamina = std::max(0.f, attacker->mStamina - staminaCost);
         attacker->mCombatUntil = mClock + kCombatLingerSeconds;
         openeden::sdk::game::SubjectState where;
         if (!writer.subjectState(attacker->mSubject, where))
@@ -506,7 +569,8 @@ namespace game_skyrimse
         request.heightBelow = kSweepHeightBelow;
         request.heightAbove = kSweepHeightAbove;
         trace("COMBAT hitframe " + name(attacker->mSubject) + " token " + std::to_string(hit.mToken) + " stamina "
-            + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach " + fmt(request.reach));
+            + fmt(attacker->mStamina) + " of " + fmt(attacker->mProfile.mStaminaMax) + " reach " + fmt(request.reach)
+            + (hit.mBash ? " bash" : ""));
         if (writer.requestSweep(attacker->mSubject, request))
         {
             PendingHit asked = hit;
@@ -515,8 +579,8 @@ namespace game_skyrimse
         }
     }
 
-    void SkyrimCombat::applyHit(
-        CombatRequestWriter& writer, Fighter& attacker, bool power, const SweepHit& hit, Fighter& victim)
+    void SkyrimCombat::applyHit(CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
+        const SweepHit& hit, Fighter& victim)
     {
         MeleeInput input;
         input.mWeapon = mWeapon;
@@ -526,6 +590,27 @@ namespace game_skyrimse
         if (mWeapon != nullptr && mWeapon->skillSlot() < attacker.mProfile.mSkills.size())
             input.mAttackerSkill = attacker.mProfile.mSkills[mWeapon->skillSlot()];
         const MeleeHit result = computeMeleeHit(input, mCombatSettings);
+
+        // A bash deals no damage and no block stops it; a blow on a blocker goes through the block formula (task 0172).
+        float damage = bash ? 0.f : result.mDamageAfter;
+        bool blocked = false;
+        bool broken = false;
+        std::string blockNote;
+        if (!bash && isBlocking(victim))
+        {
+            BlockInput blockInput;
+            blockInput.mDamage = damage;
+            blockInput.mBlockerSkill = victim.mProfile.mSkills[kBlockSkillSlot];
+            blockInput.mPowerAttack = power;
+            blockInput.mBlockerStamina = victim.mStamina;
+            const BlockResult block = computeBlock(blockInput, mBlockSettings);
+            victim.mStamina = std::max(0.f, victim.mStamina - block.mStaminaDrain);
+            damage = block.mDamageTaken;
+            blocked = block.mBlocked;
+            broken = block.mBroken;
+            blockNote = std::string(blocked ? " blocked fraction " : " block broken fraction ") + fmt(block.mFraction)
+                + " stamina " + fmt(victim.mStamina);
+        }
 
         float current = victim.mHealth;
         float maximum = victim.mProfile.mHealthMax;
@@ -539,7 +624,7 @@ namespace game_skyrimse
                 maximum = state.healthMax;
             }
         }
-        const float after = std::max(0.f, current - result.mDamageAfter);
+        const float after = std::max(0.f, current - damage);
         victim.mHealth = after;
         victim.mCombatUntil = mClock + kCombatLingerSeconds;
         ++mHitsResolved;
@@ -549,7 +634,7 @@ namespace game_skyrimse
         report.attacker = attacker.mSubject.actor;
         report.victimIsPlayer = victim.mSubject.player;
         report.victim = victim.mSubject.actor;
-        report.amount = result.mDamageAfter;
+        report.amount = damage;
         report.healthAfter = after;
         report.healthMax = maximum;
         report.x = hit.x;
@@ -559,23 +644,30 @@ namespace game_skyrimse
         trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
             + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "
             + fmt(victim.mProfile.mMitigationPercent) + "%) health " + fmt(current) + " -> " + fmt(after) + " of "
-            + fmt(maximum) + (power ? " power" : ""));
+            + fmt(maximum) + (power ? " power" : "") + (bash ? " bash" : "") + blockNote);
 
         if (after > 0.f)
         {
             if (!victim.mSubject.player)
             {
-                const std::string_view clip = mSlots.clipFor(ClipSlot::Recoil, kWeaponAnim1HSword);
+                // What the victim does: a held block plays the block-hit clip, a bash, a broken block or a heavy enough
+                // blow staggers it, anything else makes it recoil (S5-3).
+                const bool staggers
+                    = bash || broken || (!blocked && causesStagger(result.mStagger, power, mBlockSettings));
+                const ClipSlot slot = blocked ? ClipSlot::BlockHit : staggers ? ClipSlot::Stagger : ClipSlot::Recoil;
+                const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
                 if (!clip.empty())
                 {
                     openeden::sdk::game::ClipRequest request;
-                    request.slot = ClipSlot::Recoil;
+                    request.slot = slot;
                     request.clip = clip;
                     request.blendSeconds = 0.05f;
                     request.token = mNextToken++;
                     if (writer.playClip(victim.mSubject, request))
                     {
                         victim.mSwinging = false; // the reaction replaced its swing
+                        victim.mStaggered = slot == ClipSlot::Stagger;
+                        victim.mStaggerToken = request.token;
                         trace("COMBAT reaction " + name(victim.mSubject) + " clip " + std::string(clip));
                     }
                 }
@@ -585,6 +677,7 @@ namespace game_skyrimse
         if (victim.mDead)
             return;
         victim.mDead = true;
+        victim.mStaggered = false;
         trace("COMBAT death " + name(victim.mSubject));
         if (!victim.mSubject.player)
         {
@@ -620,7 +713,7 @@ namespace game_skyrimse
                                                                 : find(CombatSubject::of(hit.actor));
             if (victim == nullptr || victim == attacker || victim->mDead || !ready(*victim))
                 continue;
-            applyHit(writer, *attacker, delivery.mWho.mPower, hit, *victim);
+            applyHit(writer, *attacker, delivery.mWho.mPower, delivery.mWho.mBash, hit, *victim);
             return; // one target a swing: the nearest valid one
         }
         trace("COMBAT miss " + name(attacker->mSubject) + " token " + std::to_string(delivery.mWho.mToken));
@@ -643,7 +736,7 @@ namespace game_skyrimse
         else if (mData != nullptr)
         {
             if (!mHaveSettings)
-                mCombatSettings = mData->settings(), mHaveSettings = true;
+                loadSettings();
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
@@ -655,6 +748,10 @@ namespace game_skyrimse
             for (std::size_t i = 0; i < mPendingHits.size(); ++i)
                 processHit(writer, mPendingHits[i]);
             mPendingHits.clear();
+            // The named blockers' data is read even before a blow reaches them (their blocking state is then visible).
+            for (const ActorHandle& handle : mBlockers)
+                if (Fighter* f = find(CombatSubject::of(handle)))
+                    (void)ready(*f);
             startHostiles(writer);
             runPlayerSwing(writer);
         }

@@ -1603,6 +1603,17 @@ namespace MWPhysics
         // Task 0170: the combat hooks run right after the actor rules (clip events first, then combatUpdate).
         if (mNeutralCombatResolver && Settings::game().mNeutralCombat.get())
         {
+            // Task 0172 (stage S5-4): the player's real attack key. A tap is an attack, a hold a power attack; the pack
+            // hears it just before its combatUpdate.
+            NeutralPlayerState playerInput;
+            if (mNeutralPlayerState && mNeutralPlayerState(playerInput))
+            {
+                const NeutralPlayerAttackInput::Event attack
+                    = mNeutralPlayerAttack.update(playerInput.mAttackHeld, playerInput.mAttackEnabled, dt);
+                if (attack != NeutralPlayerAttackInput::Event::None)
+                    mNeutralCombat.playerAttack(
+                        mNeutralCombatResolver(), attack == NeutralPlayerAttackInput::Event::PowerAttack);
+            }
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
             mNeutralCombat.update(
                 mNeutralCombatResolver(), dt, mNeutralClipApplier, mNeutralClipMeta, &mNeutralCombatWorld);

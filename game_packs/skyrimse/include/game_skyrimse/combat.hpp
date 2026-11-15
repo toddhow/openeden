@@ -46,6 +46,21 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTestPlayerSwingKey = "combat test player swing";
     inline constexpr std::string_view kCombatTestWeaponKey = "combat test weapon";
     inline constexpr std::string_view kCombatTraceKey = "combat trace";
+    /// Task 0172 (stage S5-4) test settings, all off by default: every Nth attack of a hostile actor is a power attack,
+    /// every Mth a bash, and the actors with this editor id block.
+    inline constexpr std::string_view kCombatTestPowerEveryKey = "combat test power every";
+    inline constexpr std::string_view kCombatTestBashEveryKey = "combat test bash every";
+    inline constexpr std::string_view kCombatTestBlockKey = "combat test block";
+    /// Skill slot of Block in ActorStats::skills (actor value 9; the skills start at 6 with One-handed: RECALLED-VERIFY
+    /// from the engine's actor value order, which the data agrees with for 6, 7 and 8).
+    inline constexpr std::size_t kBlockSkillSlot = 3;
+    /// What kind of attack a swing is (a bash and a power attack are attacks with their own clip slot).
+    enum class AttackKind
+    {
+        Normal,
+        Power,
+        Bash,
+    };
 
     /// The sweep's half angle: RACE ATKD +20 "strike angle" is 35 degrees in 1,582 of 2,065 attacks (note 0056 section
     /// 2); ATKD is not decoded per race yet, so every swing uses it (RECALLED-VERIFY, tunable).
@@ -99,6 +114,8 @@ namespace game_skyrimse
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.
         virtual const WeaponRecord* weaponByEditorId(std::string_view editorId) = 0;
         virtual CombatSettings settings() = 0;
+        /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
+        virtual BlockSettings blockSettings() { return {}; }
         /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
         /// start of every update and does nothing for that update while it is false (no swing, no hit): the data's
         /// first use may need records that a worker is still reading (review fix of task 0171: nothing here may block
@@ -171,6 +188,13 @@ namespace game_skyrimse
         void setTestPlayerSwing(float seconds);
         /// The WEAP both sides wield (case-insensitive editor id); empty is unarmed. False when too long.
         bool setTestWeapon(std::string_view editorId);
+        /// Task 0172 (stage S5-4), all off by default. Every Nth attack of a `combat test hostile` actor is a power
+        /// attack (0 or negative: never); every Mth is a bash (bash wins on a shared number); actors named by
+        /// `combat test block` block while they are alive, not swinging and not staggered. Counts are per actor from
+        /// 1 and there is no random number, so the trace is repeatable.
+        void setTestPowerEvery(int n);
+        void setTestBashEvery(int n);
+        bool setTestBlock(std::string_view editorId);
         /// Called with one line per combat decision (`COMBAT ...`), when set. Main thread.
         void setTrace(std::function<void(const std::string&)> trace) { mTrace = std::move(trace); }
         /// Where a warning goes (the host's log); a warning is also traced.
@@ -186,6 +210,8 @@ namespace game_skyrimse
             float mStamina = 0.f;
             float mStaminaMax = 0.f;
             bool mDead = false;
+            bool mStaggered = false; ///< a stagger clip is playing
+            bool mBlocking = false; ///< the block rule holds now
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
 
@@ -224,6 +250,9 @@ namespace game_skyrimse
             std::uint32_t mSwingToken = 0;
             float mCombatUntil = -1.f;
             float mNextAttack = 0.f;
+            bool mStaggered = false; ///< task 0172: a stagger clip plays (mStaggerToken)
+            std::uint32_t mStaggerToken = 0;
+            std::uint32_t mAttackCount = 0; ///< attacks begun by the hostile rule, for the every-N choice
         };
         struct PendingHit
         {
@@ -231,6 +260,7 @@ namespace game_skyrimse
             std::uint32_t mToken = 0;
             bool mPower = false;
             std::size_t mAskedAt = 0; ///< mUpdates when the sweep was asked for (mAwaiting only)
+            bool mBash = false; ///< task 0172: the swing is a bash (mPower is false then)
         };
         struct SweepDelivery
         {
@@ -243,12 +273,15 @@ namespace game_skyrimse
         [[nodiscard]] const Fighter* find(openeden::sdk::game::CombatSubject subject) const;
         bool ready(Fighter& fighter);
         void regenerate(float seconds);
-        void beginAttack(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, bool power);
+        void beginAttack(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, AttackKind kind);
+        void loadSettings();
+        [[nodiscard]] bool isBlocking(const Fighter& fighter) const;
+        [[nodiscard]] bool isBlocker(openeden::sdk::game::ActorHandle handle) const;
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerSwing(openeden::sdk::game::CombatRequestWriter& writer);
         void processHit(openeden::sdk::game::CombatRequestWriter& writer, const PendingHit& hit);
         void resolveSweep(openeden::sdk::game::CombatRequestWriter& writer, const SweepDelivery& delivery);
-        void applyHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, bool power,
+        void applyHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, bool power, bool bash,
             const openeden::sdk::game::SweepHit& hit, Fighter& victim);
         void trace(const std::string& line) const
         {
@@ -259,7 +292,12 @@ namespace game_skyrimse
         SlotTable mSlots;
         CombatData* mData = nullptr;
         CombatSettings mCombatSettings;
+        BlockSettings mBlockSettings;
         bool mHaveSettings = false;
+        int mPowerEvery = 0;
+        int mBashEvery = 0;
+        std::string mTestBlock; ///< lower case
+        std::vector<openeden::sdk::game::ActorHandle> mBlockers;
         const WeaponRecord* mWeapon = nullptr;
         bool mWeaponLooked = false;
         std::string mTestWeapon; ///< lower case

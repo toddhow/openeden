@@ -341,6 +341,13 @@ namespace game_skyrimse
         return mCombatIndex->settings().combatSettings();
     }
 
+    BlockSettings SkyrimWorldView::blockSettings()
+    {
+        if (mCombatIndex == nullptr)
+            return {};
+        return mCombatIndex->settings().blockSettings();
+    }
+
     const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
     {
         if (mCombatIndex == nullptr)
