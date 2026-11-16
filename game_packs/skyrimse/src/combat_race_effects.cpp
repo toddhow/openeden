@@ -272,7 +272,8 @@ namespace game_skyrimse
                 (void)running(kNullFormId, 0.f);
                 target.mStatus.mNightEyeUntil = extendStatus(target.mStatus.mNightEyeUntil, mClock, seconds);
                 trace("COMBAT effect night eye on " + who(target.mSubject) + " for " + num(seconds)
-                    + " s (the view: the image space modifier, with [extension.skyrimse] night eye)");
+                    + (mNightEyeView ? " s (the view: the image space modifier)"
+                                   : " s (a status only: nothing draws a brighter view)"));
                 return true;
             case race_effects::ScriptKind::CommandAnimal:
             {
