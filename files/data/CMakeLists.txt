@@ -222,6 +222,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/rest_player.lua
     scripts/openeden/skyrimse/harvest_global.lua
     scripts/openeden/skyrimse/harvest_player.lua
+    scripts/openeden/skyrimse/mining_global.lua
+    scripts/openeden/skyrimse/mining_player.lua
     scripts/openeden/skyrimse/menus_menu.lua
     scripts/openeden/skyrimse/character_global.lua
     scripts/openeden/skyrimse/character_player.lua

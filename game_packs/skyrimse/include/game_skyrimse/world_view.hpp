@@ -26,6 +26,7 @@
 #include <game_skyrimse/barter.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/furniture.hpp>
+#include <game_skyrimse/mining.hpp>
 #include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/music_data.hpp>
 #include <game_skyrimse/menus.hpp>
@@ -509,6 +510,17 @@ namespace game_skyrimse
         /// Task 0221: the harvest data of a FLOR or TREE base that names an ingredient, and its name (the FULL, else
         /// the editor id); false for any other base or before the index is built. Main thread.
         [[nodiscard]] bool plantOf(FormId base, HarvestData& out, std::string& name);
+        /// Task 0224: the resource data of an ore vein (an ACTI with MineOreScript) or a chopping block (a FURN with
+        /// ResourceFurnitureScript), its name (FULL, else the editor id) and its activate text; false for any other
+        /// base or before the index is built. Main thread.
+        [[nodiscard]] bool resourceOf(
+            FormId base, mining::ResourceInfo& out, std::string& name, std::string& activateText);
+        /// Task 0224: the entries of an FLST (needs the dialogue worker's data, started by this call); false while
+        /// that is not ready or when the form is not a list. Main thread.
+        [[nodiscard]] bool formListEntries(FormId list, std::vector<FormId>& out);
+        /// Task 0224: the DESC text of a MESG record (a localised one is looked up in the plugin's string tables,
+        /// read at the first ask); empty when it cannot be read. Main thread.
+        [[nodiscard]] std::string messageTextOf(FormId message);
         /// Task 0221: with this on, displayNameOf answers a harvestable plant's prompt ("Harvest Canis Root") instead
         /// of its name. Set before the first cell is built.
         void setHarvestPrompts(bool on) { mHarvestPrompts = on; }
@@ -763,6 +775,7 @@ namespace game_skyrimse
             const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
             bool mapMarkers, bool loadingScreens);
         bool mWantLoadingScreens = false; ///< task 0207: read the LSCR records with the dialogue data
+        std::map<std::uint32_t, std::unique_ptr<StringTable>> mMessageTables; ///< task 0224: by plugin and kind
         bool mHarvestPrompts = false; ///< task 0221: displayNameOf answers a plant's prompt
         bool mWantMapMarkers = false; ///< task 0201: read the map markers with the dialogue data
         std::thread mDialogueThread; ///< reads the conversation records after the first actor was described

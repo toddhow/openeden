@@ -47,6 +47,14 @@ namespace MWWorld
         return NeutralInventoryDecision::Open;
     }
 
+    NeutralInventoryDecision decideNeutralResource(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn)
+    {
+        if (!settingOn || !byPlayer || kind != openeden::sdk::game::ObjectKind::Activator)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
     bool neutralKindHasToolTip(openeden::sdk::game::ObjectKind kind, bool inventorySettingOn)
     {
         using openeden::sdk::game::ObjectKind;

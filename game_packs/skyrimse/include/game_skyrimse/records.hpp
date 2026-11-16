@@ -428,6 +428,10 @@ namespace game_skyrimse
         std::vector<FormId> mKeywords;
         /// FLOR and TREE records with a PFIG, PFPC or RNAM (task 0221).
         std::optional<HarvestData> mHarvest;
+        /// DESC of a MESG record (task 0224: the text of a message box); other types leave it absent.
+        LString mDescription;
+        /// RNAM of an ACTI (task 0224: the activate text override, "Mine" on an ore vein); a FLOR's is in mHarvest.
+        LString mActivateText;
     };
 
     namespace NpcFlags

@@ -598,6 +598,10 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseharvestrecords.cpp
     skyrimse/testskyrimseharvestreal.cpp
     skyrimse/testskyrimseharvestservice.cpp
+    skyrimse/testskyrimsemining.cpp
+    skyrimse/testskyrimseminingrecords.cpp
+    skyrimse/testskyrimseminingreal.cpp
+    skyrimse/testskyrimseminingservice.cpp
     skyrimse/testskyrimsepickpocketcrime.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
@@ -785,6 +789,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pickup_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/harvest.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/harvest_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/mining.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/mining_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp

@@ -269,6 +269,7 @@ namespace MWClass
                     : mKind == "item"                               ? MWWorld::kNeutralPickupEvent
                     : mKind == "pickpocket"                         ? MWWorld::kNeutralPickpocketEvent
                     : mKind == "flora"                              ? MWWorld::kNeutralHarvestEvent
+                    : mKind == "resource"                           ? MWWorld::kNeutralResourceEvent
                                                                     : MWWorld::kNeutralInventoryEvent;
                 MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(eventName), fields);
             }
@@ -404,6 +405,17 @@ namespace MWClass
                     == MWWorld::NeutralInventoryDecision::Open)
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *plantPlacement, base.mBase, std::string(getName(ptr)), "flora");
+        }
+        // Task 0224: a placed Activator the player activates (an ore vein) tells the pack's scripts; nothing happens when
+        // none listens.
+        if (base.mKind == ObjectKind::Activator && actor == MWMechanics::getPlayer())
+        {
+            const auto resourcePlacement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            if (resourcePlacement != std::nullopt
+                && MWWorld::decideNeutralResource(base.mKind, true, Settings::game().mNeutralInventory.get())
+                    == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<OpenInventoryAction>(
+                    ptr, *resourcePlacement, base.mBase, std::string(getName(ptr)), "resource");
         }
         // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).
@@ -599,24 +611,58 @@ namespace MWClass
         return empty;
     }
 
+    namespace
+    {
+        MWWorld::NeutralDisplayNames& displayNames()
+        {
+            static MWWorld::NeutralDisplayNames names;
+            return names;
+        }
+
+        openeden::sdk::game::DisplayNameSource* displayNameSourceOf(const MWWorld::NeutralBase& base)
+        {
+            if (!MWBase::Environment::exists())
+                return nullptr;
+            MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
+            NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
+            return dynamic_cast<openeden::sdk::game::DisplayNameSource*>(
+                store != nullptr ? store->source(base.mGameId) : nullptr);
+        }
+
+        // Task 0224: the pack's name for this ONE placement (a depleted ore vein), else empty. Only asked for the kinds
+        // that can be resources, and only with `[Game] neutral inventory`.
+        std::string_view placementNameOf(const MWWorld::ConstPtr& ptr, const MWWorld::NeutralBase& base)
+        {
+            if ((base.mKind != ObjectKind::Activator && base.mKind != ObjectKind::Furniture)
+                || !Settings::game().mNeutralInventory.get())
+                return {};
+            openeden::sdk::game::DisplayNameSource* source = displayNameSourceOf(base);
+            const auto placement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            if (source == nullptr || placement == std::nullopt)
+                return {};
+            const std::string name = source->placementNameOf(*placement, base.mBase);
+            return name.empty() ? std::string_view() : displayNames().intern(name);
+        }
+    }
+
     std::string_view Neutral::getName(const MWWorld::ConstPtr& ptr) const
     {
         // Task 0150: the display name of the base (the pack's optional DisplayNameSource), else the editor id.
-        static MWWorld::NeutralDisplayNames names;
         const MWWorld::NeutralBase& base = baseOf(ptr);
-        if (!MWBase::Environment::exists())
-            return names.nameOf(base, nullptr);
-        MWBase::ExtensionManager* extensions = MWBase::Environment::get().getExtensionManager();
-        NeutralWorld::NeutralWorldStore* store = extensions != nullptr ? extensions->neutralWorldStore() : nullptr;
-        openeden::sdk::game::WorldCellSource* source = store != nullptr ? store->source(base.mGameId) : nullptr;
-        return names.nameOf(base, dynamic_cast<openeden::sdk::game::DisplayNameSource*>(source));
+        if (const std::string_view own = placementNameOf(ptr, base); !own.empty())
+            return own;
+        return displayNames().nameOf(base, displayNameSourceOf(base));
     }
 
     bool Neutral::hasToolTip(const MWWorld::ConstPtr& ptr) const
     {
         // task 0199: a furniture shows its name when the neutral inventory is on (a crafting bench may be among them);
-        // task 0221: so does a flora or a tree (the pack's name is the harvest prompt)
-        return MWWorld::neutralKindHasToolTip(baseOf(ptr).mKind, Settings::game().mNeutralInventory.get());
+        // task 0221: so does a flora or a tree (the pack's name is the harvest prompt); task 0224: an activator shows
+        // one only when the pack has a name for that placement (an ore vein), so levers and markers stay quiet
+        const MWWorld::NeutralBase& base = baseOf(ptr);
+        if (base.mKind == ObjectKind::Activator)
+            return !placementNameOf(ptr, base).empty();
+        return MWWorld::neutralKindHasToolTip(base.mKind, Settings::game().mNeutralInventory.get());
     }
 
     MWGui::ToolTipInfo Neutral::getToolTipInfo(const MWWorld::ConstPtr& ptr, int /*count*/) const

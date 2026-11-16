@@ -23,9 +23,16 @@ namespace MWWorld
         return it->second;
     }
 
+    std::string_view NeutralDisplayNames::intern(std::string_view text)
+    {
+        const std::lock_guard lock(mMutex);
+        return *mInterned.emplace(text).first;
+    }
+
     void NeutralDisplayNames::clear()
     {
         const std::lock_guard lock(mMutex);
         mNames.clear();
+        mInterned.clear();
     }
 }

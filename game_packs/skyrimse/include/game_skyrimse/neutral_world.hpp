@@ -215,6 +215,17 @@ namespace game_skyrimse
         }
         /// Task 0150: forwards to the view's DisplayNameSource.
         std::string displayNameOf(openeden::sdk::game::WorldId base) override;
+        /// Task 0224: the pack's name for one placement (a depleted ore vein); empty without a lookup.
+        std::string placementNameOf(
+            openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) override
+        {
+            return mPlacementName ? mPlacementName(placement, base) : std::string();
+        }
+        void setPlacementNameLookup(
+            std::function<std::string(openeden::sdk::game::WorldId, openeden::sdk::game::WorldId)> lookup)
+        {
+            mPlacementName = std::move(lookup);
+        }
         std::size_t cellCount() const override { return mView.cellCount(); }
         std::size_t listCells(
             std::size_t first, std::size_t maxCount, std::vector<openeden::sdk::game::WorldId>& out) const override;
@@ -482,6 +493,8 @@ namespace game_skyrimse
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
         std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221
+        /// task 0224
+        std::function<std::string(openeden::sdk::game::WorldId, openeden::sdk::game::WorldId)> mPlacementName;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

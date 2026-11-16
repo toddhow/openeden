@@ -2310,6 +2310,7 @@ namespace game_skyrimse
             resolve(m.mName);
             if (m.mHarvest)
                 resolve(m.mHarvest->mActivateText); // task 0221
+            resolve(m.mActivateText); // task 0224
         }
         for (ItemRecord& i : p.mItems)
             resolve(i.mName);
@@ -3158,6 +3159,83 @@ namespace game_skyrimse
         out = *m.mHarvest;
         name = m.mName.mPresent ? m.mName.mText : m.mCommon.mEditorId;
         return true;
+    }
+
+    bool SkyrimWorldView::resourceOf(
+        FormId base, mining::ResourceInfo& out, std::string& name, std::string& activateText)
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())
+            return false;
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return false;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if ((m.mType != Content::fourCC("ACTI") && m.mType != Content::fourCC("FURN")) || m.mScripts.empty())
+            return false;
+        const mining::ResourceInfo info = mining::resourceFromScripts(m.mScripts);
+        if ((info.mKind == mining::ResourceKind::Ore && m.mType != Content::fourCC("ACTI"))
+            || (info.mKind == mining::ResourceKind::Wood && m.mType != Content::fourCC("FURN"))
+            || info.mKind == mining::ResourceKind::None)
+            return false;
+        out = info;
+        name = m.mName.mPresent ? m.mName.mText : m.mCommon.mEditorId;
+        activateText = m.mActivateText.mPresent ? m.mActivateText.mText : std::string();
+        return true;
+    }
+
+    bool SkyrimWorldView::formListEntries(FormId list, std::vector<FormId>& out)
+    {
+        if (list == kNullFormId || !awaitIndex())
+            return false;
+        if (mDialogue == nullptr && !mDialogueThread.joinable())
+            startDialoguePrefetch();
+        if (!ensureDialogue() || mDialogue == nullptr || mDialogue->mData == nullptr)
+            return false;
+        const FormListRecord* record = mDialogue->mData->mDialogue.formList(list);
+        if (record == nullptr)
+            return false;
+        out = record->mEntries;
+        return true;
+    }
+
+    std::string SkyrimWorldView::messageTextOf(FormId message)
+    {
+        if (message == kNullFormId || message == kUnresolvedFormId || !awaitIndex())
+            return {};
+        const auto it = mBases.find(message);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return {};
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if (m.mType != Content::fourCC("MESG") || !m.mDescription.mPresent)
+            return {};
+        if (!m.mDescription.mLocalized)
+            return m.mDescription.mText;
+        if (mFiles == nullptr)
+            return {};
+        // The description is in .DLSTRINGS in Skyrim.esm; the other tables are tried too, as the loading tips do.
+        for (const StringTableKind kind :
+            { StringTableKind::DlStrings, StringTableKind::Strings, StringTableKind::IlStrings })
+        {
+            const std::uint32_t key = it->second.mPlugin * 4u + static_cast<std::uint32_t>(kind);
+            auto& slot = mMessageTables[key];
+            if (slot == nullptr)
+            {
+                std::string bytes;
+                const std::string path
+                    = stringTablePath(stemOf(mPlugins[it->second.mPlugin].mPath), mOptions.mLanguage, kind);
+                auto table = std::make_unique<StringTable>();
+                Content::Error tableError;
+                if (mFiles->read(path, bytes)
+                    && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
+                        mPlugins[it->second.mPlugin].mName, *table, tableError))
+                    slot = std::move(table);
+                else
+                    slot = std::make_unique<StringTable>(); // empty: not tried again
+            }
+            if (const std::string* found = slot->find(m.mDescription.mId))
+                return *found;
+        }
+        return {};
     }
 
     std::int32_t SkyrimWorldView::itemCountOfPlacement(FormId placement) const

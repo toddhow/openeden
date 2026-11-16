@@ -406,6 +406,7 @@ namespace game_skyrimse
                     case Content::fourCC("ASPC"):
                     case Content::fourCC("SPEL"):
                     case Content::fourCC("TXST"):
+                    case Content::fourCC("MESG"):
                         break;
                     default:
                         return true;
@@ -493,6 +494,7 @@ namespace game_skyrimse
                     case Content::fourCC("ASPC"):
                     case Content::fourCC("SPEL"):
                     case Content::fourCC("TXST"):
+                    case Content::fourCC("MESG"): // task 0224: DESC only
                         ok = readStatic(record, bytes);
                         break;
                     case Content::fourCC("NPC_"):
@@ -1110,6 +1112,8 @@ namespace game_skyrimse
                 float lightFade = 1.0f;
                 bool hasLightFade = false;
                 LString fullName; // FULL of a model record (task 0150)
+                LString description; // DESC of a MESG (task 0224)
+                LString activateText; // RNAM of an ACTI (task 0224)
                 std::vector<vmad::Script> baseScripts; // VMAD (task 0181)
                 std::vector<FormId> baseKeywords; // KWDA (task 0181)
                 const bool isPlant = record.mType == Content::fourCC("FLOR") || record.mType == Content::fourCC("TREE");
@@ -1154,11 +1158,21 @@ namespace game_skyrimse
                             else
                                 odd("PFPC");
                             break;
-                        case Content::fourCC("RNAM"): // FLOR only: the activate text
+                        case Content::fourCC("RNAM"): // FLOR only: the activate text; an ACTI's goes in mActivateText
+                            if (record.mType == Content::fourCC("ACTI"))
+                            {
+                                ok = lstring(type, data, activateText);
+                                break;
+                            }
                             if (record.mType != Content::fourCC("FLOR"))
                                 break;
                             ok = lstring(type, data, harvest.mActivateText);
                             hasHarvest = true;
+                            break;
+                        case Content::fourCC("DESC"): // MESG only: the message text
+                            if (record.mType != Content::fourCC("MESG"))
+                                break;
+                            ok = lstring(type, data, description);
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
                             if (!isLight)
@@ -1230,6 +1244,8 @@ namespace game_skyrimse
                     ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt,
                         {}, {}, {} };
                     model.mName = std::move(fullName);
+                    model.mDescription = std::move(description);
+                    model.mActivateText = std::move(activateText);
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);
                     if (hasHarvest)

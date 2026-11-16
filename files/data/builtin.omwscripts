@@ -75,6 +75,9 @@ PLAYER REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_play
 # Skyrim SE harvesting flora (task 0221); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.harvest>=1.0: scripts/openeden/skyrimse/harvest_global.lua
 PLAYER REQUIRES=core.skyrimse.harvest>=1.0: scripts/openeden/skyrimse/harvest_player.lua
+# Skyrim SE mining ore veins and chopping wood (task 0224); started only when the session's game pack has the namespace
+GLOBAL REQUIRES=core.skyrimse.mining>=1.0: scripts/openeden/skyrimse/mining_global.lua
+PLAYER REQUIRES=core.skyrimse.mining>=1.0: scripts/openeden/skyrimse/mining_player.lua
 # Skyrim SE: the player's level stat follows the progression so that saves show it (task 0215)
 PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/presentation_player.lua
 # Skyrim SE waiting and sleeping (task 0210); started only when the session's game pack has the namespace

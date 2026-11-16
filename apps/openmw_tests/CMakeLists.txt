@@ -64,6 +64,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutrallockpick.cpp
     mwworld/testneutralpickup.cpp
     mwworld/testneutralharvest.cpp
+    mwworld/testneutralresource.cpp
     mwworld/testneutralsave.cpp
     mwworld/testneutralsaveworld.cpp
     mwworld/testneutralsafety.cpp

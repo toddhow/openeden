@@ -61,6 +61,13 @@ namespace MWWorld
     /// actors, doors and containers always, furniture, items, flora and trees with the neutral inventory on.
     [[nodiscard]] bool neutralKindHasToolTip(openeden::sdk::game::ObjectKind kind, bool inventorySettingOn);
 
+    /// Task 0224: a placed Activator the player activates (an ore vein: the pack's scripts decide from the base whether it
+    /// is a resource; nothing happens when none listens). Only with `[Game] neutral inventory`. A Furniture (the chopping
+    /// block) already sends the bench event, which the mining script also answers.
+    inline constexpr std::string_view kNeutralResourceEvent = "openeden_skyrimse_resource_activated";
+    [[nodiscard]] NeutralInventoryDecision decideNeutralResource(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
+
     /// An id as lower-case hex of at least 8 digits (the form the pack's bindings read).
     [[nodiscard]] std::string neutralHexId(std::uint64_t id);
 
