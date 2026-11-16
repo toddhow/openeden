@@ -100,8 +100,8 @@ namespace
         {
             out.mPaths = { mPath };
             std::string err;
-            out.mOrder.add("Skyrim.esm", false, err);
-            out.mOrder.add("test.esp", false, err);
+            (void)out.mOrder.add("Skyrim.esm", false, err);
+            (void)out.mOrder.add("test.esp", false, err);
             return true;
         }
         void waitReady()

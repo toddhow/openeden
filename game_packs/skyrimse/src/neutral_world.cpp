@@ -603,7 +603,7 @@ namespace game_skyrimse
         const openeden::sdk::game::MusicContext& context, openeden::sdk::game::MusicTypeDescription& out)
     {
         music::MusicRuntime* runtime = mMusicOn ? musicRuntimeOf(mView) : nullptr;
-        if (runtime == nullptr || context.cell > 0xFFFFFFFFull)
+        if (runtime == nullptr)
             return false;
         return runtime->type(static_cast<FormId>(context.cell), mCombat.playerEngagedByAi(), out);
     }
@@ -613,7 +613,7 @@ namespace game_skyrimse
     {
         music::MusicRuntime* runtime = mMusicOn ? musicRuntimeOf(mView) : nullptr;
         auto* data = dynamic_cast<music::MusicDataSource*>(&mView);
-        if (runtime == nullptr || data == nullptr || typeId > 0xFFFFFFFFull)
+        if (runtime == nullptr || data == nullptr)
             return false;
         music::ConditionFacts facts;
         facts.mGameHour = context.gameHour;

@@ -119,7 +119,9 @@ namespace
         EXPECT_EQ(get<int>("#sent"), 0);
         for (const ElementId id : withClass("button"))
             if (backend.node(id)->mText == "Wait")
+            {
                 ASSERT_TRUE(backend.emit(id, EventKind::Click));
+            }
         ASSERT_TRUE(run("ui.update()"));
         ASSERT_EQ(get<int>("#sent"), 1);
         EXPECT_EQ(get<int>("sent[1].hours"), 3);
@@ -132,7 +134,9 @@ namespace
         ASSERT_TRUE(run("win.open('sleep'); ui.update()"));
         for (const ElementId id : withClass("button"))
             if (backend.node(id)->mText == "Sleep")
+            {
                 ASSERT_TRUE(backend.emit(id, EventKind::Click));
+            }
         ASSERT_TRUE(run("ui.update()"));
         ASSERT_EQ(get<int>("#sent"), 1);
         EXPECT_EQ(get<int>("sent[1].hours"), 8);

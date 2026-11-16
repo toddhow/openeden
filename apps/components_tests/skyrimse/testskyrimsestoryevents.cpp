@@ -56,7 +56,9 @@ namespace
         LocationRecords out;
         EXPECT_NE(plugin, nullptr);
         if (plugin != nullptr)
+        {
             EXPECT_TRUE(parseLocationRecords(*plugin, order(), LocationLimits(), out));
+        }
         LocationIndex index;
         index.add(std::move(out));
         return index;

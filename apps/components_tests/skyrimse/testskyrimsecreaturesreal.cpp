@@ -107,7 +107,7 @@ namespace
             if (r == nullptr)
                 continue;
             const std::string& sk = r->skeleton(Sex::Male);
-            const bool humanoid = sk.find("character\character assets") != std::string::npos
+            const bool humanoid = sk.find("character\\character assets") != std::string::npos
                 || sk.find("character/character assets") != std::string::npos;
             if (humanoid)
                 continue;

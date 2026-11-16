@@ -151,7 +151,7 @@ namespace
             {
                 const FormId owner = locations.locationOfGrid(c.mWorld, c.mX, c.mY);
                 const FormId swapped = locations.locationOfGrid(c.mWorld, c.mY, c.mX);
-                if (owner != kNullFormId && locations.isWithin(c.mLocation, owner) || owner == c.mLocation)
+                if ((owner != kNullFormId && locations.isWithin(c.mLocation, owner)) || owner == c.mLocation)
                     ++listedYx;
                 else if (swapped != kNullFormId && (locations.isWithin(c.mLocation, swapped) || swapped == c.mLocation))
                     ++listedXy;
