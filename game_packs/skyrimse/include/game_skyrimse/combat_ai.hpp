@@ -149,6 +149,7 @@ namespace game_skyrimse
         bool mFleeStuck = false; ///< every flee direction failed: it holds still until the target is near (cornered)
         float mFleeStartHealth = 1.f; ///< the health fraction the retreat began at
         float mRecoveredAt = 2.f; ///< the health fraction a retreat ended at (2: none yet)
+        bool mFearFlee = false; ///< task 0233: the retreat is a fear's (it ends when the fear does, never by health)
     };
 
     /// What the caller knows this frame. Distances are in the ground plane, game units.
@@ -167,6 +168,7 @@ namespace game_skyrimse
         bool mBusy = false; ///< swinging, staggered, drawing or casting: no new action now
         bool mCanCast = false; ///< an aimed spell it can pay for
         bool mCanBlock = true; ///< has something to block with (always true now)
+        bool mFeared = false; ///< task 0233: a fear effect runs on it: it flees whatever its health
     };
 
     struct AiOutput

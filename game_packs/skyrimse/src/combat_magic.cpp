@@ -494,7 +494,8 @@ namespace game_skyrimse
         float magnitude = signedMagnitude(effect.mMagnitude, record.mFlags);
         if (hostile && valueEffect)
             magnitude = (magnitude < 0.f ? -1.f : 1.f)
-                * resistedMagnitude(std::abs(magnitude), resistOf(target, record.mResistValue));
+                * weakened(resistedMagnitude(std::abs(magnitude), resistOf(target, record.mResistValue)),
+                    weaknessOf(target, record.mResistValue)); // task 0233: a weakness running on the target adds to it
         const EffectTiming timing = effectTiming(spell.mCastType, effect, record);
         // The ward takes what it can of a hostile spell's magnitude; a spell it holds entirely does nothing at all.
         if (hostile && target.mWardPower > 0.f)
@@ -551,7 +552,9 @@ namespace game_skyrimse
                     // A status on a value the pack does not track (a skill, a resistance): kept for its duration.
                     if (seconds > 0.f)
                     {
-                        (void)active(0.f, 0.f, false);
+                        // task 0233: a modifier on a resistance keeps its signed size (a weakness is negative): the
+                        // damage path reads it back through weaknessOf
+                        (void)active(isResistValue(record.mPrimaryValue) ? magnitude : 0.f, 0.f, false);
                         ++mEffectsApplied;
                     }
                     trace("COMBAT effect " + record.mCommon.mEditorId + " on value "
@@ -613,8 +616,17 @@ namespace game_skyrimse
                 if (seconds > 0.f && active(0.f, 0.f, false))
                     target.mDemoralizedUntil = mClock + seconds;
                 trace("COMBAT effect demoralize on " + who(target.mSubject) + " for " + num(seconds) + " s");
+                if (hostile)
+                    (void)applyStatusEffect(writer, caster, target, effect, record); // task 0233: the actor runs
                 return;
             }
+            case StatusArchetype::Paralysis:
+            case StatusArchetype::Frenzy:
+                if (hostile && applyStatusEffect(writer, caster, target, effect, record)) // task 0233
+                    return;
+                trace("COMBAT effect " + record.mCommon.mEditorId + ": archetype " + std::to_string(archetype)
+                    + " is not supported");
+                return;
             case MagicArchetype::AccumulateMagnitude:
                 return; // a ward is charged by its concentration (tickConcentrations)
             default:
@@ -765,7 +777,8 @@ namespace game_skyrimse
     bool SkyrimCombat::beginCast(
         CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, bool heldByKey, float holdSeconds)
     {
-        if (caster.mDead || !ready(caster) || isBusyCasting(caster.mSubject) || mCasts.size() >= kMaxCasts)
+        if (caster.mDead || !ready(caster) || isBusyCasting(caster.mSubject) || mCasts.size() >= kMaxCasts
+            || isParalyzed(caster)) // task 0233
             return false;
         const std::string name = spellName(spell);
         if (spell.mEffects.empty())
@@ -1142,7 +1155,8 @@ namespace game_skyrimse
             float magnitude = signedMagnitude(effect.mMagnitude, record->mFlags);
             if (hostile)
                 magnitude = (magnitude < 0.f ? -1.f : 1.f)
-                    * resistedMagnitude(std::abs(magnitude), resistOf(*victim, record->mResistValue));
+                    * weakened(resistedMagnitude(std::abs(magnitude), resistOf(*victim, record->mResistValue)),
+                        weaknessOf(*victim, record->mResistValue)); // task 0233
             const float taken
                 = changeVital(writer, &caster, *victim, record->mPrimaryValue, magnitude * paidSeconds, &where);
             if (archetype == MagicArchetype::Dual && isVitalValue(record->mSecondaryValue) && !victim->mDead)

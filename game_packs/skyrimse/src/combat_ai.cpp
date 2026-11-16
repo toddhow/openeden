@@ -97,6 +97,31 @@ namespace game_skyrimse
         const bool rise = v.mTargetSwinging && !state.mPrevTargetSwinging;
         state.mPrevTargetSwinging = v.mTargetSwinging;
 
+        // Task 0233: a fear effect makes it flee at any health and never fight back when cornered; when the fear ends
+        // the retreat ends with it.
+        if (v.mFeared)
+        {
+            if (state.mMode != AiMode::Retreat)
+            {
+                lowerGuard();
+                setMode(AiMode::Retreat);
+                state.mFleeTry = 0;
+                state.mFleeStuck = false;
+                state.mFleeStartHealth = 1.f;
+            }
+            state.mFearFlee = true;
+            state.mCornered = false;
+        }
+        else if (state.mFearFlee)
+        {
+            state.mFearFlee = false;
+            if (state.mMode == AiMode::Retreat)
+            {
+                setMode(AiMode::Duel);
+                state.mNextDecision = v.mNow;
+            }
+        }
+
         // Flee: at or below the health fraction of its confidence, unless it is cornered (a coward at full health
         // flees at once).
         const float fleeAt = fleeHealthFraction(profile.mConfidence);
@@ -129,6 +154,11 @@ namespace game_skyrimse
             }
             else if (state.mFleeStuck)
             {
+                if (v.mFeared)
+                {
+                    out.mMove = AiMove::None; // a frightened actor with nowhere to run cowers, it does not fight
+                    return out;
+                }
                 if (v.mDistance <= kAiCorneredDistance)
                 {
                     state.mCornered = true;

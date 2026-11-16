@@ -2,6 +2,7 @@
 #include "game_skyrimse/poison.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace game_skyrimse::crafting
 {
@@ -41,6 +42,96 @@ namespace game_skyrimse::crafting
             return left;
         }
         return -1;
+    }
+
+    // ---- the saved form (task 0233) ----------------------------------------------------------------------------
+
+    void PoisonCoatings::write(openeden::sdk::ChunkWriter& writer) const
+    {
+        writer.writeValue(static_cast<std::uint32_t>(mCoats.size()));
+        for (const Entry& e : mCoats)
+        {
+            writer.writeValue(e.mWeapon);
+            writer.writeValue(e.mPoison.mPoison);
+            writer.writeString(e.mPoison.mName);
+            writer.writeValue(e.mPoison.mCharges);
+            writer.writeValue(static_cast<std::uint8_t>(e.mPoison.mEffects.size()));
+            for (const EffectEntry& effect : e.mPoison.mEffects)
+            {
+                writer.writeValue(effect.mEffect);
+                writer.writeValue(effect.mMagnitude);
+                writer.writeValue(effect.mArea);
+                writer.writeValue(effect.mDuration);
+            }
+        }
+    }
+
+    bool PoisonCoatings::read(openeden::sdk::ChunkReader& reader, std::string& error)
+    {
+        const auto bad = [&](const char* why) {
+            error = why;
+            return false;
+        };
+        std::uint32_t count = 0;
+        if (!reader.readValue(count) || count > kMax)
+            return bad("the coating count is damaged");
+        std::vector<Entry> coats;
+        coats.reserve(count);
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            Entry e;
+            std::uint8_t effects = 0;
+            if (!reader.readValue(e.mWeapon) || !reader.readValue(e.mPoison.mPoison)
+                || !reader.readString(e.mPoison.mName) || !reader.readValue(e.mPoison.mCharges)
+                || !reader.readValue(effects))
+                return bad("a coating is cut short");
+            if (e.mWeapon == kNullFormId || e.mPoison.mName.size() > kMaxName || e.mPoison.mCharges < 1
+                || e.mPoison.mCharges > kMaxCharges || effects < 1 || effects > kMaxEffects)
+                return bad("a coating is damaged");
+            for (std::uint8_t k = 0; k < effects; ++k)
+            {
+                EffectEntry effect;
+                if (!reader.readValue(effect.mEffect) || !reader.readValue(effect.mMagnitude)
+                    || !reader.readValue(effect.mArea) || !reader.readValue(effect.mDuration))
+                    return bad("an effect is cut short");
+                if (!std::isfinite(effect.mMagnitude))
+                    return bad("an effect is damaged");
+                e.mPoison.mEffects.push_back(effect);
+            }
+            for (const Entry& other : coats)
+                if (other.mWeapon == e.mWeapon)
+                    return bad("a weapon is listed twice");
+            coats.push_back(std::move(e));
+        }
+        if (reader.remaining() != 0)
+            return bad("the chunk has trailing bytes");
+        mCoats = std::move(coats);
+        return true;
+    }
+
+    bool PoisonChunk::read(openeden::sdk::ChunkReader& reader, std::uint32_t version)
+    {
+        std::string error;
+        bool ok = true;
+        if (version != kVersion)
+        {
+            error = "the poisons chunk has version " + std::to_string(version) + ", this build reads "
+                + std::to_string(kVersion);
+            ok = false;
+        }
+        else
+            ok = mCoatings.read(reader, error);
+        if (!ok)
+        {
+            mRefusal = error;
+            if (mSink)
+                mSink(error);
+            return false;
+        }
+        mRefusal.clear();
+        if (mRestored)
+            mRestored(mCoatings.size());
+        return true;
     }
 
     SpellRecord poisonSpell(const WeaponPoison& poison)

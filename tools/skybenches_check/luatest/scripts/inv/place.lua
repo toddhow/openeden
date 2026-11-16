@@ -40,6 +40,7 @@ local function nearest(cell, base, near)
 end
 
 local updates, placed = 0, false
+local target = nil
 return {
     engineHandlers = {
         onUpdate = function()
@@ -66,6 +67,7 @@ return {
                     obj = { recordId = cfg.base }
                 end
                 d = d or 0
+                target = obj
                 if p == nil then
                     print('N6INV target not found')
                 else
@@ -77,6 +79,18 @@ return {
                     local yaw = math.atan2(p.x - px, p.y - py) + (cfg.yawOff or 0)
                     print(string.format('N6INV target %s at %.0f,%.0f,%.0f (%.0f from the spot), placed at update %d', tostring(obj.recordId), p.x, p.y, p.z, d, updates))
                     player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
+                end
+            end
+            -- task 0233: stands the actor whose record id contains cfg.pullTag beside the target (a second actor for a frenzy to pick)
+            if cfg.pullTag ~= nil and cfg.pullTag ~= '' and updates == cfg.pullFrame and target ~= nil then
+                for _, obj in ipairs(player.cell:getAll()) do
+                    local ok, id = pcall(function() return obj.recordId end)
+                    if ok and string.find(id, cfg.pullTag, 1, true) then
+                        local q = target.position
+                        obj:teleport(player.cell, util.vector3(q.x + cfg.pullDx, q.y + cfg.pullDy, q.z), {})
+                        print('N6INV pulled ' .. id .. ' beside the target')
+                        break
+                    end
                 end
             end
             if updates == cfg.openFrame and cfg.openFrame > 0 then

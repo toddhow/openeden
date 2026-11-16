@@ -126,6 +126,8 @@ namespace game_skyrimse::crafting
         [[nodiscard]] const CraftingState& state() const { return mState; }
         [[nodiscard]] const CraftingTable& table() const { return mTable; }
         [[nodiscard]] CraftingChunk& chunk() { return mChunk; }
+        /// Task 0233: the weapons' poisons (their own chunk).
+        [[nodiscard]] PoisonChunk& poisonChunk() { return mPoisonChunk; }
 
         /// Task 0213: is this furniture a crafting bench? "yes", "no", or "pending" while the recipe table is being built.
         [[nodiscard]] std::string benchAnswer(FormId furniture) const;
@@ -203,6 +205,7 @@ namespace game_skyrimse::crafting
         bool mTestBench;
         CraftingState mState;
         PoisonCoatings mCoatings;
+        PoisonChunk mPoisonChunk{ mCoatings };
         CraftingChunk mChunk;
         CraftingTable mTable;
         CraftingTable mBuilt;

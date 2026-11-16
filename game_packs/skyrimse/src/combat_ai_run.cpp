@@ -694,6 +694,12 @@ namespace game_skyrimse
                 continue;
             }
             const float distance = static_cast<float>(std::hypot(targetState.x - self.x, targetState.y - self.y));
+            if (isParalyzed(*f)) // task 0233: a paralysed actor does nothing; the hold was sent when it began
+            {
+                a.mMoving = false;
+                ++i;
+                continue;
+            }
             const WeaponRecord* weapon = weaponFor(*f);
             const bool bow = weapon != nullptr && weapon->mAnimType == kWeaponAnimBow && bowReady();
             const float rawReach = meleeReachUnits(weapon, f->mProfile.mUnarmedReach, mCombatSettings);
@@ -707,6 +713,7 @@ namespace game_skyrimse
             view.mStaminaFraction
                 = f->mProfile.mStaminaMax > 0.f ? std::clamp(f->mStamina / f->mProfile.mStaminaMax, 0.f, 1.f) : 1.f;
             view.mFleeDistance = kAiFleeDistance;
+            view.mFeared = isFeared(*f); // task 0233
             view.mTargetAlive = a.mTarget.player ? playerAlive : true;
             view.mTargetSwinging = a.mTarget.player ? mPlayerSwingActive : targetFighter->mSwinging;
             // the player has no block input
@@ -786,6 +793,7 @@ namespace game_skyrimse
 
             if (out.mLost)
             {
+                statusNoteLost(*f); // task 0233: a fear that ran far enough is over
                 aiRelease(i, "flee over or target gone");
                 continue;
             }

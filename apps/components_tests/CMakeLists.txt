@@ -659,6 +659,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecraftingreal.cpp
     skyrimse/testskyrimsebenches.cpp
     skyrimse/testskyrimsepoison.cpp
+    skyrimse/testskyrimsestatuses.cpp
+    skyrimse/testskyrimsepoisonsave.cpp
     skyrimse/testskyrimsewiring.cpp
     skyrimse/testskyrimseinventoryequip.cpp
     skyrimse/testskyrimseinventoryequipreal.cpp
@@ -809,6 +811,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/mining_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic_status.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_status.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp

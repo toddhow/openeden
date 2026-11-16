@@ -26,6 +26,7 @@
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
 #include <game_skyrimse/magic.hpp>
+#include <game_skyrimse/magic_status.hpp>
 #include <game_skyrimse/progression.hpp>
 
 #include <openeden/game/actor_rules.hpp>
@@ -494,6 +495,12 @@ namespace game_skyrimse
         void setSpellVisuals(bool on) { mSpellVisuals = on; }
         [[nodiscard]] std::size_t spellsCast() const { return mSpellsCast; }
         [[nodiscard]] std::size_t effectsApplied() const { return mEffectsApplied; }
+        /// Task 0233: paralysis, frenzy and fear effects that took hold.
+        [[nodiscard]] std::size_t statusesApplied() const { return mStatusesApplied; }
+        /// Task 0233: the actor is held by a paralysis, runs from a fear, or is in a frenzy (false for an unknown one).
+        [[nodiscard]] bool paralyzed(openeden::sdk::game::CombatSubject subject) const;
+        [[nodiscard]] bool feared(openeden::sdk::game::CombatSubject subject) const;
+        [[nodiscard]] bool frenzied(openeden::sdk::game::CombatSubject subject) const;
         [[nodiscard]] std::size_t effectsEnded() const { return mEffectsEnded; }
         [[nodiscard]] std::size_t activeEffects() const { return mEffects.size(); }
         [[nodiscard]] std::size_t concentrationsHeld() const { return mConcentrations.size(); }
@@ -766,6 +773,7 @@ namespace game_skyrimse
             float mWardMax = 0.f;
             float mMagickaRegenAt = 0.f; ///< the combat clock at which regeneration may resume
             float mDemoralizedUntil = -1.f;
+            ActorStatus mStatus; ///< task 0233: paralysis, frenzy and fear
             std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
             std::vector<FormId> mWornKeywords; ///< task 0179
             FighterGear mGear; ///< task 0214: filled with `combat real gear`
@@ -870,6 +878,22 @@ namespace game_skyrimse
         void cancelCastsOf(const openeden::sdk::game::CombatSubject& subject);
         void tickEffects(openeden::sdk::game::CombatRequestWriter& writer, float step);
         [[nodiscard]] float resistOf(const Fighter& fighter, std::int32_t resistValue);
+        // Task 0233 (combat_status.cpp): paralysis, frenzy, fear and weakness. Each hook call from the older files is one
+        // of these; with no such effect running none of them does anything.
+        [[nodiscard]] bool isParalyzed(const Fighter& fighter) const;
+        [[nodiscard]] bool isFeared(const Fighter& fighter) const;
+        /// The weakness in percent that the effects running on `target` give to a hostile effect of resistance
+        /// `resistValue` (its own resistance and magic, summed, at most kMaxWeaknessPercent).
+        [[nodiscard]] float weaknessOf(const Fighter& target, std::int32_t resistValue) const;
+        /// Applies one effect of archetype Paralysis, Frenzy or Demoralize's flight. True when it handled it.
+        bool applyStatusEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
+            const SpellEffect& effect, const MagicEffectRecord& record);
+        void runStatuses(openeden::sdk::game::CombatRequestWriter& writer);
+        void statusNoteLost(Fighter& fighter);
+        void endParalysis(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
+        void holdActor(openeden::sdk::game::ActorHandle handle);
+        void frenzyRetarget(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
+        std::size_t mStatusesApplied = 0;
         [[nodiscard]] bool launchSpell(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster,
             const SpellRecord& spell, const openeden::sdk::game::SubjectState* target);
         [[nodiscard]] bool resolveSpellShot(
@@ -904,6 +928,7 @@ namespace game_skyrimse
             /// Task 0197: who it fights (the player until the factions rules pick another).
             openeden::sdk::game::CombatSubject mTarget = openeden::sdk::game::CombatSubject::ofPlayer();
             bool mAssisted = false; ///< it joined a fight of another (it does not call for help itself)
+            bool mByStatus = false; ///< task 0233: a fear or a frenzy engaged it (it is let go when that ends)
         };
         /// Task 0197: where a ready fighter stood at the last snapshot (every Factions::kSnapshotPeriod).
         struct AiSnap

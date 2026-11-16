@@ -1256,7 +1256,7 @@ namespace game_skyrimse
                     + " hit at " + std::to_string(mPlayerHitTime) + " length " + std::to_string(mPlayerSwingLength));
             return;
         }
-        if (fighter.mDead || fighter.mSwinging || fighter.mStaggered)
+        if (fighter.mDead || fighter.mSwinging || fighter.mStaggered || isParalyzed(fighter)) // task 0233
             return;
         const ClipSlot slot = kind == AttackKind::Bash ? ClipSlot::Bash
             : power                                    ? ClipSlot::PowerAttack
@@ -1669,7 +1669,7 @@ namespace game_skyrimse
                     = bash || broken || (!blocked && causesStagger(result.mStagger, power, mBlockSettings));
                 const ClipSlot slot = blocked ? ClipSlot::BlockHit : staggers ? ClipSlot::Stagger : ClipSlot::Recoil;
                 const std::string_view clip = meleeClip(slot, victim, slot == ClipSlot::BlockHit);
-                if (!clip.empty())
+                if (!clip.empty() && !isParalyzed(victim)) // task 0233: a held body keeps its pose
                 {
                     openeden::sdk::game::ClipRequest request;
                     request.slot = slot;
@@ -1747,6 +1747,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::beginBowDraw(CombatRequestWriter& writer, Fighter& fighter)
     {
+        if (isParalyzed(fighter)) // task 0233
+            return;
         const std::string_view clip = mBowSlots.clipFor(ClipSlot::BowDraw, kWeaponAnimBow);
         if (clip.empty())
             return;
@@ -2078,6 +2080,7 @@ namespace game_skyrimse
                     (void)ready(*f);
             if (crowdOn() && !mCrowdChosen && mClock >= mCrowdDelay)
                 chooseCrowd(writer);
+            runStatuses(writer); // task 0233: paralysis, frenzy and fear end and drive here; inert with none running
             runAi(writer); // task 0190: does nothing unless `combat ai` is on, which also stops startHostiles
             startHostiles(writer);
             runPlayerSwing(writer);

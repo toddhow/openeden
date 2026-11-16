@@ -54,6 +54,8 @@
 #include "neutralscenespeech.hpp"
 #include "neutralprojectiles.hpp"
 #include "neutralnavigation.hpp"
+#include "neutralpick.hpp"
+#include "neutralstore.hpp"
 #include "neutralrotation.hpp"
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -2154,6 +2156,49 @@ namespace MWWorld
             mDistanceToFocusObject = (rayToObject.mRatio * maxDistance) - camDist;
         else
             mDistanceToFocusObject = -1;
+        // Task 0233: a neutral furniture is also picked by its bounds, because a cooking pot or a fire spit is mostly
+        // rail and wire and a ray aimed at it passes through (neutralpick.hpp). Only with the neutral inventory on.
+        if (rayToObject.mHit && Settings::game().mNeutralInventory.get())
+        {
+            const vsg::dvec3 origin = mRendering->getCamera()->getPosition();
+            const vsg::dvec3 toHit = vsg::dvec3(rayToObject.mHitPointWorld) - origin;
+            const double hitDistance = std::sqrt(toHit.x * toHit.x + toHit.y * toHit.y + toHit.z * toHit.z);
+            if (hitDistance > 1e-6)
+            {
+                const vsg::dvec3 direction = toHit * (1.0 / hitDistance);
+                const bool hitCanBeActivated
+                    = !focusObject.isEmpty() && focusObject.getClass().hasToolTip(focusObject);
+                double bestEntry = std::numeric_limits<double>::infinity();
+                Ptr best;
+                for (CellStore* cellstore : mWorldScene->getActiveCells())
+                    cellstore->forEachNeutralRefMutable([&](LiveCellRef<NeutralBase>& live) {
+                        const NeutralBase& base = *live.mBase;
+                        if (base.mKind != openeden::sdk::game::ObjectKind::Furniture || !base.mCollision.hasBounds)
+                            return;
+                        const Ptr candidate(&live, cellstore);
+                        if (!candidate.getRefData().isEnabled())
+                            return;
+                        const ESM::Position& position = candidate.getRefData().getPosition();
+                        const auto box = rayOrientedBox(origin, direction, maxDistance,
+                            vsg::dvec3(base.mCollision.boundsMin.x, base.mCollision.boundsMin.y,
+                                base.mCollision.boundsMin.z),
+                            vsg::dvec3(base.mCollision.boundsMax.x, base.mCollision.boundsMax.y,
+                                base.mCollision.boundsMax.z),
+                            vsg::dvec3(position.pos[0], position.pos[1], position.pos[2]),
+                            Misc::Convert::makeOsgQuat(position), candidate.getCellRef().getScale());
+                        if (box && box->mEntry < bestEntry && boxBeatsRenderHit(*box, hitDistance, hitCanBeActivated))
+                        {
+                            bestEntry = box->mEntry;
+                            best = candidate;
+                        }
+                    });
+                if (!best.isEmpty())
+                {
+                    focusObject = best;
+                    mDistanceToFocusObject = static_cast<float>(bestEntry - camDist);
+                }
+            }
+        }
         return focusObject;
     }
 

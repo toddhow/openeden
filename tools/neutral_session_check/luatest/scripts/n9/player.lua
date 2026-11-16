@@ -75,10 +75,48 @@ local function autoaim()
     end
 end
 
+-- Task 0233: the same grid with the RENDERING ray the activate key uses (asyncCastRenderingRay): prints the nearest hit of every record
+-- id, to see which objects the key can pick. cfg.scanr = real seconds after the start.
+local renderScanned = false
+local function scanRender()
+    local async = require('openmw.async')
+    local from = self.position + util.vector3(0, 0, 118) -- the camera position lags a teleport by a frame or more
+    local yaw0 = self.rotation:getAnglesZYX()
+    local best, pending = {}, 0
+    for pi = -2, 16 do
+        for yi = -14, 14 do
+            local pitch, yaw = pi * 0.08, yaw0 + yi * 0.08
+            local dir = util.vector3(math.sin(yaw) * math.cos(pitch), math.cos(yaw) * math.cos(pitch), -math.sin(pitch))
+            pending = pending + 1
+            nearby.asyncCastRenderingRay(async:callback(function(res)
+                pending = pending - 1
+                if res and res.hit then
+                    local id = res.hitObject and tostring(res.hitObject.recordId) or 'terrain'
+                    local d = (res.hitPos - from):length()
+                    if not best[id] or d < best[id].d then best[id] = { d = d, pitch = pitch, yaw = yi * 0.08, pos = res.hitPos } end
+                end
+                if pending == 0 then
+                    for k, b in pairs(best) do
+                        print(string.format('N9 rscan hit %s dist %.0f pitch %.2f yawoff %.2f at %.1f,%.1f,%.1f', k, b.d, b.pitch, b.yaw, b.pos.x, b.pos.y, b.pos.z))
+                    end
+                end
+            end), from, from + dir * 190, { ignore = self.object })
+        end
+    end
+end
+
 return {
     engineHandlers = {
         onFrame = function()
             if cfg.sneak then self.controls.sneak = true end
+            -- (only once the player stands within 300 units of cfg.near: the placement teleport comes later than a fixed time)
+            local near = cfg.near and util.vector3(cfg.near[1], cfg.near[2], cfg.near[3]) or nil
+            if cfg.scanr and not renderScanned and near and (self.position - near):length() < 300
+                and core.getRealTime() - (startedAt or core.getRealTime()) > cfg.scanr then
+                renderScanned = true
+                print('N9 rscan start at ' .. tostring(camera.getPosition()))
+                scanRender()
+            end
             if cfg.autoaim then autoaim() elseif cfg.pitch ~= 0 then
                 local delta = cfg.pitch - camera.getPitch()
                 self.controls.pitchChange = math.max(-0.05, math.min(0.05, delta))

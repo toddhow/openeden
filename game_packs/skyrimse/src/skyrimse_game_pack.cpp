@@ -2821,6 +2821,20 @@ namespace game_skyrimse
                     });
                     if (!chunks->registerHandler(mCrafting->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the crafting chunk was not registered");
+                    // Task 0233: a weapon's poison is saved in a chunk of its own; after a load the wielded weapon's
+                    // coating goes to the combat again.
+                    mCrafting->poisonChunk().setRefusalSink([logger](const std::string& reason) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Error, "the save is refused: " + reason);
+                    });
+                    mCrafting->poisonChunk().setRestoredSink([this, logger](std::size_t coatings) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "CRAFT poisons restored: " + std::to_string(coatings) + " coated weapons");
+                        syncPoison();
+                    });
+                    if (!chunks->registerHandler(mCrafting->poisonChunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the poisons chunk was not registered");
                 }
                 // Task 0229: a landed blow spends one charge of the poison on the weapon.
                 mCellSource.combat().setPoisonSpentHook([this](int remaining) {

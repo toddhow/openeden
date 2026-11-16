@@ -13,9 +13,13 @@
 #include <game_skyrimse/crafting.hpp>
 #include <game_skyrimse/perks.hpp>
 
+#include <openeden/game/save_chunks.hpp>
+
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace game_skyrimse::crafting
@@ -51,6 +55,13 @@ namespace game_skyrimse::crafting
         void clear() { mCoats.clear(); }
         [[nodiscard]] std::size_t size() const { return mCoats.size(); }
 
+        /// Task 0233: the saved form. Per coating: weapon item, poison item, name, charges, effects. Canonical (the
+        /// order of the table). `read` checks everything first and changes nothing when the bytes are damaged.
+        static constexpr std::int32_t kMaxCharges = 1000;
+        static constexpr std::size_t kMaxName = 160;
+        void write(openeden::sdk::ChunkWriter& writer) const;
+        [[nodiscard]] bool read(openeden::sdk::ChunkReader& reader, std::string& error);
+
     private:
         struct Entry
         {
@@ -58,6 +69,35 @@ namespace game_skyrimse::crafting
             WeaponPoison mPoison;
         };
         std::vector<Entry> mCoats;
+    };
+
+    /// Task 0233: a weapon's poison is saved in a chunk of its own (`poisons`, version 1), so the `crafting` chunk's
+    /// bytes and version are untouched: a save made before this build has no such chunk and loads with clean weapons,
+    /// and a save made with it loads in this build only (an older build keeps the chunk unread).
+    class PoisonChunk final : public openeden::sdk::SaveChunkHandler
+    {
+    public:
+        static constexpr std::uint32_t kVersion = 1;
+        static constexpr std::string_view kName = "poisons";
+        explicit PoisonChunk(PoisonCoatings& coatings)
+            : mCoatings(coatings)
+        {
+        }
+        void setRefusalSink(std::function<void(const std::string&)> sink) { mSink = std::move(sink); }
+        /// Called after a good read with the number of coatings (the pack re-syncs the wielded weapon's poison).
+        void setRestoredSink(std::function<void(std::size_t)> sink) { mRestored = std::move(sink); }
+        [[nodiscard]] const std::string& refusal() const { return mRefusal; }
+
+        std::string_view chunkName() const override { return kName; }
+        std::uint32_t chunkVersion() const override { return kVersion; }
+        void write(openeden::sdk::ChunkWriter& writer) override { mCoatings.write(writer); }
+        bool read(openeden::sdk::ChunkReader& reader, std::uint32_t version) override;
+
+    private:
+        PoisonCoatings& mCoatings;
+        std::function<void(const std::string&)> mSink;
+        std::function<void(std::size_t)> mRestored;
+        std::string mRefusal;
     };
 
     /// The spell the combat rules apply on a hit: a touch, fire-and-forget spell of the poison's effects, named after
