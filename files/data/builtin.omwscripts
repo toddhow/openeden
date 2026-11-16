@@ -57,3 +57,6 @@ PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills
 # Skyrim SE compass and world map (task 0201); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_global.lua
 PLAYER REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_player.lua
+# Skyrim SE crime: the guard's offer and the jail (task 0204); started only when the session's game pack has the namespace
+GLOBAL REQUIRES=core.skyrimse.crime>=1.0: scripts/openeden/skyrimse/crime_global.lua
+PLAYER REQUIRES=core.skyrimse.crime>=1.0: scripts/openeden/skyrimse/crime_player.lua

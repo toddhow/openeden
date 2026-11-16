@@ -47,6 +47,10 @@ namespace game_skyrimse
             std::function<void(const std::string&)> mLog;
             /// Task 0200: a trade went through; the gold it moved (trains the Speech skill). May be empty.
             std::function<void(float gold)> mTraded;
+            /// Task 0204 (crime): how many of an item the player holds are stolen (0 when none), and told when a fence
+            /// bought `count` of them. May be empty.
+            std::function<std::int32_t(FormId item)> mStolenHeld;
+            std::function<void(FormId item, std::int32_t count)> mStolenSold;
         };
 
         class BarterService

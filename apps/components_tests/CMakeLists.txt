@@ -571,6 +571,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombathud.cpp
     skyrimse/testskyrimseprogression.cpp
     skyrimse/testskyrimseprogressionservice.cpp
+    skyrimse/testskyrimsecrime.cpp
+    skyrimse/testskyrimsecrimeservice.cpp
+    skyrimse/testskyrimsecrimehooks.cpp
     skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuicombathudcrosshair.cpp
@@ -715,6 +718,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp

@@ -100,6 +100,11 @@ echo "return { mode = '${NF_MODE:-guards}', attacker = ${NF_ATTACKER:-1048812}, 
 # (see luatest/scripts/n5/aiglobal.lua).
 [ "$SHOT" = n5ai ] && echo "content=n5ai.omwscripts" >> "$WORK/config/openmw.cfg"
 echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EVERY:-0.5}, window = ${AI_WINDOW:-60}, target = '${AI_TARGET:-b80803}'${AI_CAM:+, cam = { $AI_CAM }} }" > "$WORK/luatest/scripts/n5/aicfg.lua"
+# Task 0204 (crime): "n8crime" stands the player N8_DIST (default 100) units east of the witness N8_TARGET (default b80803, Hulda) and commits the crime of N8_MODE
+# (theft from the owned container N8_PLACEMENT/N8_BASE at N8_T seconds; assault is the pack setting combat test player swing); N8_CHOICE (pay, jail, resist or empty)
+# is chosen N8_DELAY seconds after the guard's offer (luatest/scripts/n8/crimeglobal.lua). The crime settings go in SETTINGS_EXTRA.
+[ "$SHOT" = n8crime ] && echo "content=n8crime.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { mode = '${N8_MODE:-theft}', target = '${N8_TARGET:-b80803}', dist = ${N8_DIST:-100}, placement = '${N8_PLACEMENT:-0009cafb}', base = '${N8_BASE:-0009cafa}', tCrime = ${N8_T:-4}, choice = '${N8_CHOICE:-}', choiceDelay = ${N8_DELAY:-2}, every = ${N8_EVERY:-5}, maxShots = ${N8_SHOTS:-30}, guard = '${N8_GUARD:-}', phase = '${N8_PHASE:-none}', saveT = ${N8_SAVE_T:-10} }" > "$WORK/luatest/scripts/n8/cfg.lua"
 [ "$SHOT" = n5sightprobe ] && echo "content=n5sightprobe.omwscripts" >> "$WORK/config/openmw.cfg"
 # Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
 # "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
@@ -200,8 +205,8 @@ PROBE_CELL="$CELL"
 # Task 0142: a start text beginning with @ is an exterior spot (--start @<world>,<x>,<y>[,<z>]); the probe cell is then a fixed interior.
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
-    --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5npcfight) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5npcfight|n8crime) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

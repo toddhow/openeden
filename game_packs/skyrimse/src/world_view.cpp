@@ -574,6 +574,12 @@ namespace game_skyrimse
                 out.mKeywords.insert(out.mKeywords.end(), actorRace->mKeywords.begin(), actorRace->mKeywords.end());
                 out.mSpells.insert(out.mSpells.end(), actorRace->mSpells.begin(), actorRace->mSpells.end());
             }
+            // Task 0204: the crime faction of the NPC (CRIF), from the NPC that owns the faction list after templates.
+            if (const ActorNpc* crimeSource = mActorIndex->npc(resolved.mFactionsFrom))
+                out.mAi.mCrimeFaction = crimeSource->mCrimeFaction;
+            if (out.mAi.mCrimeFaction == kNullFormId)
+                if (const ActorNpc* own = mActorIndex->npc(npc))
+                    out.mAi.mCrimeFaction = own->mCrimeFaction;
             for (const FactionMembership& membership : resolved.mFactions)
             {
                 out.mFactions.push_back(membership.mFaction);
@@ -2633,6 +2639,10 @@ namespace game_skyrimse
             }
             out = std::move(content);
             mLastCell = cell;
+            if (mOwners.size() < 1024u * 1024u)
+                for (const auto& [placement, component] : components)
+                    if (component.owner)
+                        mOwners[placement] = *component.owner; // task 0204
             mLastComponents = std::move(components);
             if (entry.mLighting && entry.mInfo.interior)
                 mLastLighting = makeCellLighting(*entry.mLighting);
@@ -2644,5 +2654,76 @@ namespace game_skyrimse
             error = std::string("the cell could not be loaded: ") + e.what();
             return false;
         }
+    }
+
+    // ---- task 0204 (crime) ------------------------------------------------------------------------------------------
+
+    std::optional<sdkgame::OwnerComponent> SkyrimWorldView::ownerOfPlacement(FormId placement) const
+    {
+        const auto it = mOwners.find(placement);
+        if (it == mOwners.end())
+            return std::nullopt;
+        return it->second;
+    }
+
+    bool SkyrimWorldView::isFactionForm(FormId form) const
+    {
+        return mActorIndex != nullptr && mActorIndex->faction(form) != nullptr;
+    }
+
+    const CrimeData* SkyrimWorldView::crimeDataOf(FormId faction) const
+    {
+        if (mActorIndex == nullptr)
+            return nullptr;
+        const FactionRecord* record = mActorIndex->faction(faction);
+        return record != nullptr && record->mCrime.mPresent ? &record->mCrime : nullptr;
+    }
+
+    std::string SkyrimWorldView::factionNameOf(FormId faction) const
+    {
+        if (mActorIndex == nullptr)
+            return {};
+        const FactionRecord* record = mActorIndex->faction(faction);
+        if (record == nullptr)
+            return {};
+        return record->mName.mText.empty() ? record->mCommon.mEditorId : record->mName.mText;
+    }
+
+    bool SkyrimWorldView::jailDestination(FormId faction, crime::JailDestination& out)
+    {
+        out = {};
+        const CrimeData* crimeData = crimeDataOf(faction);
+        if (crimeData == nullptr || crimeData->mJail == kNullFormId || !awaitIndex())
+            return false;
+        const auto markerCell = mRefCells.find(crimeData->mJail);
+        if (markerCell == mRefCells.end())
+            return false;
+        std::string error;
+        const std::shared_ptr<const Materialised> cell = materialise(markerCell->second, error);
+        if (cell == nullptr)
+            return false;
+        const auto components = cell->mComponents.find(crimeData->mJail);
+        if (components == cell->mComponents.end() || !components->second.teleport)
+            return false;
+        const sdkgame::TeleportComponent& teleport = *components->second.teleport;
+        sdkgame::WorldId destinationCell = teleport.destinationCell;
+        if (destinationCell == sdkgame::kNoWorldId)
+        {
+            const auto door = mRefCells.find(static_cast<FormId>(teleport.destinationDoor));
+            if (door == mRefCells.end())
+                return false;
+            destinationCell = door->second;
+        }
+        const auto entry = mCells.find(static_cast<FormId>(destinationCell));
+        if (entry == mCells.end() || entry->second.mInfo.editorId.empty())
+            return false;
+        const sdkgame::Quatd& q = teleport.destination.rotation;
+        out.mValid = true;
+        out.mCell = entry->second.mInfo.editorId;
+        out.mX = teleport.destination.position.x;
+        out.mY = teleport.destination.position.y;
+        out.mZ = teleport.destination.position.z;
+        out.mHeading = std::atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+        return true;
     }
 }

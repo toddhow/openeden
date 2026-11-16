@@ -211,6 +211,8 @@ namespace game_skyrimse::inventory
             if (c == nullptr)
                 return false;
             entries = c->mItems;
+            if (mContainerOwners.size() < 65536)
+                mContainerOwners.insert(owner); // task 0204
         }
         else if (kind == "actor")
         {
@@ -569,6 +571,9 @@ namespace game_skyrimse::inventory
                     return ok();
                 }
                 const TransferStatus s = self->mModel.transfer(from, to, item, a[3].integer);
+                if (s == TransferStatus::Ok && self->mHooks.mTaken && to == kPlayerOwner
+                    && self->mContainerOwners.count(from) != 0)
+                    self->mHooks.mTaken(from, item, a[3].integer); // task 0204
                 if (self->mHooks.mLog)
                     self->mHooks.mLog("INV transfer " + formatId(from) + " -> " + formatId(to) + " item "
                         + formatId(item) + " x" + std::to_string(a[3].integer) + ": "
@@ -581,7 +586,14 @@ namespace game_skyrimse::inventory
                 if (!owner(a[0], from) || !owner(a[1], to))
                     return ok();
                 std::int64_t moved = 0;
+                std::vector<Stack> before; // task 0204: what a take-all takes, for the crime rules
+                const bool watch = self->mHooks.mTaken && to == kPlayerOwner && self->mContainerOwners.count(from) != 0;
+                if (watch)
+                    before = self->mModel.stacks(from);
                 const TransferStatus s = self->mModel.transferAll(from, to, moved);
+                if (watch && s == TransferStatus::Ok)
+                    for (const Stack& stack : before)
+                        self->mHooks.mTaken(from, stack.mItem, stack.mCount);
                 if (self->mHooks.mLog)
                     self->mHooks.mLog("INV take_all " + formatId(from) + " -> " + formatId(to) + ": "
                         + std::string(transferStatusName(s)) + ", " + std::to_string(moved) + " items, revision "

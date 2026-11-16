@@ -3,6 +3,7 @@
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
+#include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/journal.hpp"
@@ -763,6 +764,8 @@ namespace game_skyrimse
                     startProgression(host, logger);
                     // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
                     startBarter(host, logger);
+                    // Task 0204: crime, bounty and guards (the namespace skyrimse.crime).
+                    startCrime(host, logger);
                     wirePapyrusWorld(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
@@ -792,6 +795,7 @@ namespace game_skyrimse
 
             void stop() override
             {
+                mCellSource.setCrime(nullptr); // task 0204: before the crime service goes
                 unwirePapyrusWorld();
                 if (mPapyrus != nullptr)
                 {
@@ -808,6 +812,7 @@ namespace game_skyrimse
 
             ~SkyrimGamePack() override
             {
+                mCellSource.setCrime(nullptr);
                 unwirePapyrusWorld();
                 mPapyrus.reset();
                 mWorldView.cancelAndJoin();
@@ -1130,6 +1135,9 @@ namespace game_skyrimse
                 hooks.mHealthOf = [this](FormId effect, float magnitude, std::uint32_t duration) {
                     return mWorldView.healthOfEffect(effect, magnitude, duration);
                 };
+                hooks.mTaken = [this](std::uint64_t owner, FormId item, std::int32_t count) {
+                    onContainerTaken(owner, item, count); // task 0204
+                };
                 hooks.mApplyHealth = [this](float amount) {
                     // the combat rules must run (the engine's health is written through them)
                     return mCellSource.combat().updates() > 0 && mCellSource.combat().queuePlayerHeal(amount);
@@ -1275,6 +1283,101 @@ namespace game_skyrimse
                 }
             }
 
+            // Task 0204: crime. Off unless [extension.skyrimse] crime. Theft needs the inventory (the window hook),
+            // guards need the combat AI (they walk and fight through it).
+            void startCrime(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "crime", false))
+                    return;
+                crime::ServiceHooks hooks;
+                hooks.mActors = [this](std::vector<crime::CrimeActor>& out) { mCellSource.combat().crimeActors(out); };
+                hooks.mActor = [this](openeden::sdk::game::ActorHandle h, crime::CrimeActor& out) {
+                    return mCellSource.combat().crimeActor(h, out);
+                };
+                hooks.mCrimeData = [this](FormId f) { return mWorldView.crimeDataOf(f); };
+                hooks.mFactionName = [this](FormId f) { return mWorldView.factionNameOf(f); };
+                hooks.mItemValue = [this](FormId item) -> std::int32_t {
+                    if (mInventory == nullptr)
+                        return 0;
+                    const inventory::ItemStat* stat = mInventory->table().item(item);
+                    return stat != nullptr ? stat->mValue : 0;
+                };
+                hooks.mGold = [this]() -> std::int32_t {
+                    return mInventory != nullptr
+                        ? mInventory->model().count(inventory::kPlayerOwner, inventory::kGoldItem)
+                        : 0;
+                };
+                hooks.mTakeGold = [this](std::int32_t amount) {
+                    return mInventory != nullptr
+                        && mInventory->model().consume(inventory::kPlayerOwner, inventory::kGoldItem, amount)
+                        == inventory::TransferStatus::Ok;
+                };
+                hooks.mTakeItem = [this](FormId item, std::int32_t count) -> std::int32_t {
+                    if (mInventory == nullptr)
+                        return 0;
+                    const std::int32_t take = std::min(count, mInventory->model().count(inventory::kPlayerOwner, item));
+                    if (take <= 0
+                        || mInventory->model().consume(inventory::kPlayerOwner, item, take)
+                            != inventory::TransferStatus::Ok)
+                        return 0;
+                    return take;
+                };
+                hooks.mItemCount = [this](FormId item) -> std::int32_t {
+                    return mInventory != nullptr ? mInventory->model().count(inventory::kPlayerOwner, item) : 0;
+                };
+                hooks.mGoTo = [this](openeden::sdk::game::ActorHandle h, double x, double y, double z,
+                                  openeden::sdk::game::ActorSpeed speed) {
+                    mCellSource.combat().crimeGoTo(h, x, y, z, speed);
+                };
+                hooks.mHold = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeHold(h); };
+                hooks.mRelease = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeRelease(h); };
+                hooks.mAttack = [this](openeden::sdk::game::ActorHandle h) { mCellSource.combat().crimeAttack(h); };
+                hooks.mJail = [this](FormId faction, crime::JailDestination& out) {
+                    return mWorldView.jailDestination(faction, out);
+                };
+                hooks.mLog = [this, logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mCrime = std::make_unique<crime::CrimeService>(std::move(hooks));
+                mCellSource.combat().setCrimeTestGuard(settings->getString(kPackId, "crime test guard", ""));
+                mCellSource.setCrime(&mCrime->system());
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mCrime->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the crime bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mCrime->chunk().setRefusalSink([logger](const std::string& why) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Warning, "CRIME " + why);
+                    });
+                    if (!chunks->registerHandler(mCrime->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the crime chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "CRIME crime rules are on");
+            }
+
+            // Task 0204: the player took an item out of a container: theft when somebody else owns the placement.
+            void onContainerTaken(std::uint64_t placement, FormId item, std::int32_t count)
+            {
+                if (mCrime == nullptr)
+                    return;
+                const auto owner = mWorldView.ownerOfPlacement(static_cast<FormId>(placement));
+                if (!owner || owner->owner == openeden::sdk::game::kNoWorldId)
+                    return;
+                const FormId who = static_cast<FormId>(owner->owner);
+                // Things of the player: the Player NPC_ (form id 7) and the player faction.
+                if (who == crime::kPlayerNpcId || who == kPlayerFactionId)
+                    return;
+                mCrime->theft(item, count);
+            }
+
             // Task 0189: the barter service over the inventory (on whenever the inventory is).
             void startBarter(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
@@ -1292,6 +1395,13 @@ namespace game_skyrimse
                 hooks.mTraded = [this](float gold) {
                     if (mProgression != nullptr)
                         mProgression->skillUsed(progression::Slot::Speechcraft, gold);
+                };
+                hooks.mStolenHeld = [this](FormId item) { // task 0204
+                    return mCrime != nullptr ? mCrime->stolenHeld(item) : 0;
+                };
+                hooks.mStolenSold = [this](FormId item, std::int32_t count) {
+                    if (mCrime != nullptr)
+                        (void)mCrime->ledger().forgetStolen(item, count);
                 };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
@@ -1800,6 +1910,7 @@ namespace game_skyrimse
             WeaponRecord mMadeWeapon; // task 0199: the combat record of the wielded made weapon (combat points at it)
             std::function<void(std::string_view, float)> mCraftingSkillSink; // task 0199: a skills system may set it
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
+            std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;
             std::uint64_t mProgressionPushed = 0;

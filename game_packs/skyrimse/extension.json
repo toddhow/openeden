@@ -21,6 +21,16 @@
   "data": "data",
   "settings": [
     {
+      "key": "crime",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crime test guard",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "string table language",
       "type": "string",
       "default": "english"

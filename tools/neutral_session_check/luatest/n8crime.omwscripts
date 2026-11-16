@@ -1,0 +1,4 @@
+PLAYER: scripts/n5/shot.lua
+PLAYER: scripts/n8/crimeplayer.lua
+GLOBAL: scripts/n8/crimeglobal.lua
+MENU: scripts/n8/menu.lua

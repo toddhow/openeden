@@ -6,6 +6,7 @@
 // costs one state lookup every kAiSightPeriod. An engaged actor costs two state lookups, one aiThink and, at most
 // every kAiRetargetPeriod, one goal request (the path search is the core's).
 #include "game_skyrimse/combat.hpp"
+#include "game_skyrimse/crime.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -103,6 +104,121 @@ namespace game_skyrimse
         mAiMoves.clear();
     }
 
+    // ---- task 0204: what the crime rules read and do --------------------------------------------------------------
+
+    namespace
+    {
+        void fillCrimeActor(crime::CrimeActor& out, ActorHandle handle, FormId base, const FighterProfile& profile,
+            bool dead, bool engagedAgainstPlayer, std::string name)
+        {
+            out.mHandle = handle;
+            out.mBase = base;
+            out.mCrimeFaction = profile.mAi.mCrimeFaction;
+            out.mGuard = profile.mAi.mGuard;
+            out.mEnemyOfPlayer = static_cast<openeden::sdk::game::ActorRelation>(profile.mAi.mRelationToPlayer)
+                == openeden::sdk::game::ActorRelation::Enemy;
+            out.mEngagedAgainstPlayer = engagedAgainstPlayer;
+            out.mDead = dead;
+            out.mName = std::move(name);
+        }
+    }
+
+    bool SkyrimCombat::freshlyProvoked(ActorHandle handle) const
+    {
+        for (const auto& e : mFreshProvoked)
+            if (e.first == handle && e.second == mUpdates)
+                return true;
+        return false;
+    }
+
+    void SkyrimCombat::crimeActors(std::vector<crime::CrimeActor>& out)
+    {
+        for (Fighter& f : mFighters)
+        {
+            if (f.mSubject.player || !ready(f))
+                continue;
+            const AiActor* ai = aiFind(f.mSubject.actor);
+            std::string name;
+            for (const auto& n : mActorNames)
+                if (n.first == f.mSubject.actor)
+                    name = n.second;
+            crime::CrimeActor a;
+            const bool testGuard = !mCrimeTestGuard.empty() && name == mCrimeTestGuard;
+            fillCrimeActor(a, f.mSubject.actor, f.mBase, f.mProfile, f.mDead,
+                ai != nullptr && ai->mTarget.player && !freshlyProvoked(f.mSubject.actor), std::move(name));
+            a.mGuard = a.mGuard || testGuard;
+            out.push_back(std::move(a));
+        }
+    }
+
+    bool SkyrimCombat::crimeActor(ActorHandle handle, crime::CrimeActor& out)
+    {
+        Fighter* f = find(CombatSubject::of(handle));
+        if (f == nullptr || !ready(*f))
+            return false;
+        const AiActor* ai = aiFind(handle);
+        std::string name;
+        for (const auto& n : mActorNames)
+            if (n.first == handle)
+                name = n.second;
+        const bool testGuard = !mCrimeTestGuard.empty() && name == mCrimeTestGuard;
+        fillCrimeActor(out, handle, f->mBase, f->mProfile, f->mDead,
+            ai != nullptr && ai->mTarget.player && !freshlyProvoked(handle), std::move(name));
+        out.mGuard = out.mGuard || testGuard;
+        return true;
+    }
+
+    void SkyrimCombat::setCrimeTestGuard(std::string_view editorId)
+    {
+        mCrimeTestGuard.assign(editorId);
+        for (char& c : mCrimeTestGuard)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    void SkyrimCombat::crimeGoTo(ActorHandle handle, double x, double y, double z, openeden::sdk::game::ActorSpeed speed)
+    {
+        AiMoveIntent intent;
+        intent.mKind = AiMoveIntent::Kind::GoTo;
+        intent.mActor = handle;
+        intent.mX = x;
+        intent.mY = y;
+        intent.mZ = z;
+        intent.mSpeed = speed;
+        mAiMoves.push_back(intent);
+    }
+
+    void SkyrimCombat::crimeHold(ActorHandle handle)
+    {
+        AiMoveIntent intent;
+        intent.mActor = handle;
+        intent.mKind = AiMoveIntent::Kind::Suspend;
+        mAiMoves.push_back(intent);
+        intent.mKind = AiMoveIntent::Kind::Stop;
+        mAiMoves.push_back(intent);
+    }
+
+    void SkyrimCombat::crimeRelease(ActorHandle handle)
+    {
+        AiMoveIntent intent;
+        intent.mActor = handle;
+        intent.mKind = AiMoveIntent::Kind::Stop;
+        mAiMoves.push_back(intent);
+        intent.mKind = AiMoveIntent::Kind::Resume;
+        mAiMoves.push_back(intent);
+    }
+
+    void SkyrimCombat::crimeAttack(ActorHandle handle)
+    {
+        if (!mAiOn)
+            return;
+        Fighter* f = find(CombatSubject::of(handle));
+        if (f == nullptr)
+            return;
+        // A guard that was held for the talk is let go first so that the AI can take it over.
+        crimeRelease(handle);
+        (void)aiBegin(*f, "provoked", CombatSubject::ofPlayer());
+    }
+
     SkyrimCombat::AiActor* SkyrimCombat::aiFind(ActorHandle handle)
     {
         for (AiActor& a : mAiActors)
@@ -168,6 +284,12 @@ namespace game_skyrimse
         const std::uint32_t engagement = ++mAiEngagements[actor.mHandle.reference];
         game_skyrimse::aiEngage(actor.mState, aiSeed(actor.mHandle.reference, engagement), mClock);
         mAiActors.push_back(actor);
+        if (target.player && std::strcmp(reason, "provoked") == 0)
+        {
+            std::erase_if(mFreshProvoked, [this](const auto& e) { return e.second != mUpdates; });
+            if (mFreshProvoked.size() < 64)
+                mFreshProvoked.emplace_back(actor.mHandle, mUpdates); // task 0204
+        }
         AiMoveIntent intent;
         intent.mKind = AiMoveIntent::Kind::Suspend;
         intent.mActor = actor.mHandle;

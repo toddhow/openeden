@@ -32,6 +32,8 @@
 #include <openeden/game/bindings.hpp>
 #include <openeden/host.hpp>
 
+#include <set>
+
 #include <atomic>
 #include <filesystem>
 #include <functional>
@@ -72,6 +74,10 @@ namespace game_skyrimse
             std::function<float(FormId effect, float magnitude, std::uint32_t duration)> mHealthOf;
             /// Gives the player's health back (the combat rules apply it through the engine); false: not possible now.
             std::function<bool(float amount)> mApplyHealth;
+            // ---- task 0204 (crime)
+            /// The player took `count` of `item` out of the container `owner` (a placement; never a corpse) through a
+            /// window. May be empty.
+            std::function<void(std::uint64_t owner, FormId item, std::int32_t count)> mTaken;
         };
 
         [[nodiscard]] std::string formatId(std::uint64_t id); ///< 8 lower-case hex digits (more when needed)
@@ -135,6 +141,7 @@ namespace game_skyrimse
             InventoryModel mModel;
             InventoryChunk mChunk;
             EquipmentChunk mEquipmentChunk;
+            std::set<std::uint64_t> mContainerOwners; ///< task 0204: owners opened as kind container
             mutable std::unordered_map<FormId, EquipInfo> mArmourInfo;
             std::uint16_t mLevel;
             std::atomic<int> mState{ 0 }; ///< 0 idle, 1 reading, 2 read

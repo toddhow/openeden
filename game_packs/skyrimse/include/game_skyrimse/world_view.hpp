@@ -24,6 +24,7 @@
 
 #include <game_skyrimse/anim_motion.hpp>
 #include <game_skyrimse/barter.hpp>
+#include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
@@ -447,6 +448,18 @@ namespace game_skyrimse
         /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
         /// first conversation or any time after.
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
+        // ---- task 0204 (crime)
+        /// Who owns a placement of a cell loadCell has returned (an NPC_ or a FACT form id; the placements of every cell
+        /// loaded so far are kept, bounded). Nothing for an unowned or unknown placement. Main thread.
+        [[nodiscard]] std::optional<openeden::sdk::game::OwnerComponent> ownerOfPlacement(FormId placement) const;
+        /// True when the form is a FACT (else an NPC_). Needs the actor index (built by the combat or the first actor).
+        [[nodiscard]] bool isFactionForm(FormId form) const;
+        /// The crime data of a faction (null: none or no crime values) and its name (the FULL, else the editor id).
+        [[nodiscard]] const CrimeData* crimeDataOf(FormId faction) const;
+        [[nodiscard]] std::string factionNameOf(FormId faction) const;
+        /// Where the JAIL marker of a crime faction sends the player: the XTEL of that REFR (its destination cell's
+        /// editor id, position and heading). False when the marker or its teleport is not known.
+        [[nodiscard]] bool jailDestination(FormId faction, crime::JailDestination& out);
         /// The speech skill of the stand-in player (the pack setting `player speech`).
         [[nodiscard]] std::uint8_t standInPlayerSpeech() const { return mStandInSpeech; }
 
@@ -662,6 +675,7 @@ namespace game_skyrimse
         const std::vector<FurnitureMarker>& markersOf(const std::string& model);
         std::optional<openeden::sdk::game::CellLighting> mLastLighting; ///< its interior lighting, if the cell has some
         std::map<FormId, PlacementComponents> mLastComponents; ///< its placements' components, borrowed ones included
+        std::unordered_map<FormId, openeden::sdk::game::OwnerComponent> mOwners; ///< task 0204: every loaded owned placement
         std::vector<Content::Error> mErrors;
         Stats mStats;
         bool mFinished = false;

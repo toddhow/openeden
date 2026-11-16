@@ -1104,6 +1104,50 @@ namespace game_skyrimse
                             else
                                 oddType(type);
                             break;
+                        case Content::fourCC("CRVA"): // task 0204: crime values, 20 bytes (16 and 12 in older records)
+                            if (data.size() == 20 || data.size() == 16 || data.size() == 12)
+                            {
+                                CrimeData& c = f.mCrime;
+                                c.mPresent = true;
+                                c.mArrest = static_cast<std::uint8_t>(data[0]) != 0;
+                                c.mAttackOnSight = static_cast<std::uint8_t>(data[1]) != 0;
+                                c.mMurder = readLe<std::uint16_t>(data.data() + 2);
+                                c.mAssault = readLe<std::uint16_t>(data.data() + 4);
+                                c.mTrespass = readLe<std::uint16_t>(data.data() + 6);
+                                c.mPickpocket = readLe<std::uint16_t>(data.data() + 8);
+                                c.mStealMultiplier = data.size() >= 16 ? readLe<float>(data.data() + 12) : 0.f;
+                                c.mEscape = data.size() >= 20 ? readLe<std::uint16_t>(data.data() + 16) : 0;
+                                c.mWerewolf = data.size() >= 20 ? readLe<std::uint16_t>(data.data() + 18) : 0;
+                            }
+                            else
+                                oddType(type);
+                            break;
+                        case Content::fourCC("JAIL"):
+                        case Content::fourCC("WAIT"):
+                        case Content::fourCC("STOL"):
+                        case Content::fourCC("PLCN"):
+                        case Content::fourCC("JOUT"):
+                        case Content::fourCC("CRGR"): // task 0204: 4 byte form ids of the crime faction
+                            if (data.size() == 4)
+                            {
+                                const FormId id = resolved(readLe<std::uint32_t>(data.data()));
+                                CrimeData& c = f.mCrime;
+                                if (type == Content::fourCC("JAIL"))
+                                    c.mJail = id;
+                                else if (type == Content::fourCC("WAIT"))
+                                    c.mWait = id;
+                                else if (type == Content::fourCC("STOL"))
+                                    c.mStolenChest = id;
+                                else if (type == Content::fourCC("PLCN"))
+                                    c.mPlayerChest = id;
+                                else if (type == Content::fourCC("JOUT"))
+                                    c.mJailOutfit = id;
+                                else
+                                    c.mGroup = id;
+                            }
+                            else
+                                oddType(type);
+                            break;
                         case Content::fourCC("XNAM"): // VERIFIED size 12 (1,159 of 1,159): faction, modifier, reaction
                             if (data.size() == 12)
                             {

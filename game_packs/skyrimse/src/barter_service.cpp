@@ -259,8 +259,28 @@ namespace game_skyrimse::barter
             mLastResult = "no merchant";
             return TradeStatus::UnknownOwner;
         }
+        // Task 0204: a merchant that is no fence does not buy what the player stole.
+        std::int32_t stolenSold = 0;
+        if (mHooks.mStolenHeld && count > 0)
+        {
+            const std::int32_t stolen = mHooks.mStolenHeld(item);
+            const std::int32_t clean = std::max(0, mInventory.model().count(inventory::kPlayerOwner, item) - stolen);
+            if (stolen > 0 && count > clean)
+            {
+                if (!mVendor.mBuysStolen)
+                {
+                    mLastResult = "This merchant does not buy stolen goods.";
+                    log("BARTER sell " + inventory::formatId(item) + " x" + std::to_string(count)
+                        + ": refused, stolen goods");
+                    return TradeStatus::WontBuy;
+                }
+                stolenSold = count - clean;
+            }
+        }
         const TradeResult r
             = barter::sell(mInventory.model(), mInventory.table(), mVendor, mOwner, item, count, speech(), mSettings);
+        if (r.mStatus == TradeStatus::Ok && stolenSold > 0 && mHooks.mStolenSold)
+            mHooks.mStolenSold(item, stolenSold);
         mLastResult = resultText(r.mStatus, false);
         log("BARTER sell " + inventory::formatId(item) + " x" + std::to_string(count) + ": "
             + std::string(tradeStatusName(r.mStatus)) + ", unit " + std::to_string(r.mUnitPrice) + ", gold "

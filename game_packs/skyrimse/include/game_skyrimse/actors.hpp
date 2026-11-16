@@ -270,7 +270,33 @@ namespace game_skyrimse
         [[nodiscard]] bool isVendor() const { return mList != kNullFormId && mChest != kNullFormId; }
     };
 
-    /// FACT: the relations to other factions, the flags and the vendor data. Ranks and crime values are not read.
+    /// A crime faction's data (task 0204): CRVA (20, 16 or 12 bytes; the layout is settled by the hold factions, see
+    /// docs/tasks/0204-skyrim-crime.md section 2: arrest u8, attack on sight u8, murder u16, assault u16, trespass u16,
+    /// pickpocket u16, one unused u16 at 10 that is garbage in 2 factions (not read), steal multiplier f32 at 12,
+    /// escape u16 at 16, werewolf u16 at 18; a shorter form reads 0 for the rest) and the 4 byte form ids JAIL, WAIT,
+    /// STOL, PLCN (REFRs), JOUT (an OTFT) and CRGR (an FLST), VERIFIED on Skyrim.esm. The two flag names are
+    /// RECALLED-VERIFY.
+    struct CrimeData
+    {
+        bool mPresent = false; ///< a CRVA of a known size was read
+        bool mArrest = false;
+        bool mAttackOnSight = false;
+        std::uint16_t mMurder = 0;
+        std::uint16_t mAssault = 0;
+        std::uint16_t mTrespass = 0;
+        std::uint16_t mPickpocket = 0;
+        float mStealMultiplier = 0.f;
+        std::uint16_t mEscape = 0;
+        std::uint16_t mWerewolf = 0;
+        FormId mJail = kNullFormId; ///< JAIL: a REFR, the marker whose XTEL leads to the jail
+        FormId mWait = kNullFormId; ///< WAIT
+        FormId mStolenChest = kNullFormId; ///< STOL
+        FormId mPlayerChest = kNullFormId; ///< PLCN
+        FormId mJailOutfit = kNullFormId; ///< JOUT
+        FormId mGroup = kNullFormId; ///< CRGR
+    };
+
+    /// FACT: the relations to other factions, the flags, the vendor data and the crime data.
     struct FactionRecord
     {
         RecordCommon mCommon;
@@ -278,6 +304,7 @@ namespace game_skyrimse
         std::uint32_t mFlags = 0; ///< DATA, 4 bytes (VERIFIED size 4 on 1,407 of 1,407)
         std::vector<FactionRelation> mRelations;
         VendorData mVendor; ///< task 0189
+        CrimeData mCrime; ///< task 0204
     };
 
     struct OutfitRecord

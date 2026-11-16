@@ -145,6 +145,7 @@ set(BUILTIN_DATA_FILES
     openeden/skyrimse/inventory_windows.lua
     openeden/skyrimse/barter_windows.lua
     openeden/skyrimse/crafting_windows.lua
+    openeden/skyrimse/crime_windows.lua
     openeden/skyrimse/journal_windows.lua
     openeden/skyrimse/skills_windows.lua
     openeden/skyrimse/compass.lua
@@ -191,6 +192,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/crafting_global.lua
     scripts/openeden/skyrimse/crafting_player.lua
     scripts/openeden/skyrimse/barter_player.lua
+    scripts/openeden/skyrimse/crime_global.lua
+    scripts/openeden/skyrimse/crime_player.lua
     scripts/openeden/skyrimse/journal_player.lua
     scripts/openeden/skyrimse/papyrus_player.lua
     scripts/openeden/skyrimse/skills_player.lua

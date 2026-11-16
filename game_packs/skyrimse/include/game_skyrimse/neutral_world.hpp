@@ -13,6 +13,7 @@
 
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
+#include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
@@ -343,7 +344,16 @@ namespace game_skyrimse
             AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
             ScriptEventWriter scriptWriter(aiWriter, mScriptBridge); // task 0198: OnHit, OnDeath, Actor.Kill
             mScriptBridge.drain(scriptWriter);
-            mCombat.combatUpdate(seconds, scriptWriter);
+            if (mCrime != nullptr)
+            {
+                // Task 0204: the crime rules see every blow and death first (before the victim is provoked), and run
+                // once the combat has moved on (their rays and positions only work inside this call).
+                crime::CrimeWriter crimeWriter(scriptWriter, *mCrime);
+                mCombat.combatUpdate(seconds, crimeWriter);
+                mCrime->update(seconds, scriptWriter);
+            }
+            else
+                mCombat.combatUpdate(seconds, scriptWriter);
             mHud.update(seconds, writer);
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
@@ -360,6 +370,8 @@ namespace game_skyrimse
         }
         void onPlayerAttackEdge(bool pressed) override { mCombat.onPlayerAttackEdge(pressed); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
+        /// Task 0204: the crime rules (null: off). The system must outlive the cell source's use of it.
+        void setCrime(crime::CrimeSystem* system) { mCrime = system; }
         /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are set).
         [[nodiscard]] ScriptCombatBridge& scriptBridge() { return mScriptBridge; }
         /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
@@ -395,6 +407,7 @@ namespace game_skyrimse
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198
+        crime::CrimeSystem* mCrime = nullptr; ///< task 0204
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;

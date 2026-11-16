@@ -29,6 +29,7 @@ namespace game_skyrimse
         std::uint8_t mAssistance = 0; ///< AIDT +5 (task 0197): 0 helps nobody, 1 allies, 2 friends and allies
         std::uint8_t mRelationToPlayer = 0; ///< task 0197: the sdk ActorRelation of its factions to the player's
         bool mGuard = false; ///< task 0197: in the faction Factions::kGuardFactionEditorId
+        std::uint32_t mCrimeFaction = 0; ///< task 0204: NPC_ CRIF (after templates), the faction that collects its bounty
         CombatStyleRecord mStyle;
     };
 

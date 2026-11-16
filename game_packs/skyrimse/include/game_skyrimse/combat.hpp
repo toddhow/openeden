@@ -41,6 +41,11 @@
 
 namespace game_skyrimse
 {
+    namespace crime
+    {
+        struct CrimeActor;
+    }
+
     /// Weapon animation types (WEAP DNAM +0).
     inline constexpr std::uint8_t kWeaponAnimHandToHand = 0;
     inline constexpr std::uint8_t kWeaponAnim1HSword = 1;
@@ -526,6 +531,19 @@ namespace game_skyrimse
         /// Seconds of combat clock before the factions rules look for targets (default 0; a scenario that arranges the
         /// street first sets it).
         void setFactionsDelay(float seconds) { mFactionsDelay = (seconds > 0.f && seconds < 1.0e6f) ? seconds : 0.f; }
+        /// Task 0204 (crime): the loaded fighters as the crime rules see them (appended), one of them, and the guard
+        /// moves. `crimeHold` suspends the actor's package and stops its goal, `crimeRelease` lets its package go on,
+        /// `crimeAttack` makes it fight the player (the AI engages it as if it were provoked). All inert for an actor
+        /// the combat rules do not know.
+        void crimeActors(std::vector<crime::CrimeActor>& out);
+        [[nodiscard]] bool crimeActor(openeden::sdk::game::ActorHandle handle, crime::CrimeActor& out);
+        void crimeGoTo(openeden::sdk::game::ActorHandle handle, double x, double y, double z,
+            openeden::sdk::game::ActorSpeed speed);
+        void crimeHold(openeden::sdk::game::ActorHandle handle);
+        void crimeRelease(openeden::sdk::game::ActorHandle handle);
+        void crimeAttack(openeden::sdk::game::ActorHandle handle);
+        /// Test aid (task 0204): this actor (editor id, case-insensitive) counts as a guard for the crime rules.
+        void setCrimeTestGuard(std::string_view editorId);
         /// The target of an engaged AI actor (the player when it is not engaged).
         [[nodiscard]] openeden::sdk::game::CombatSubject aiTargetOf(openeden::sdk::game::ActorHandle handle) const;
         [[nodiscard]] std::size_t aiEngagedCount() const { return mAiActors.size(); }
@@ -783,6 +801,10 @@ namespace game_skyrimse
         float mSightTraceAt[64] = {}; ///< the combat clock of the last 'no sight' trace line, per reference % 64
         std::function<bool(openeden::sdk::game::WorldId)> mFollowerQuery;
         std::string mTestAttacker; ///< lower case
+        std::string mCrimeTestGuard; ///< task 0204, lower case
+        /// Task 0204: actors the player provoked from calm in update N (so the crime rules still see them as calm).
+        std::vector<std::pair<openeden::sdk::game::ActorHandle, std::size_t>> mFreshProvoked;
+        [[nodiscard]] bool freshlyProvoked(openeden::sdk::game::ActorHandle handle) const;
         std::vector<AiSnap> mAiSnap;
         float mAiSnapAt = -1.0e9f;
         std::size_t mWatchCursor = 0;
