@@ -719,6 +719,16 @@ namespace MWRender
         playNeutralObjectClip(*iter->second, clip, perSex);
     }
 
+    void Scene::setNeutralObjectPose(MWAnim::Object& object, std::string_view clip, bool perSex)
+    {
+        for (const vsg::ref_ptr<vsg::Object>& kept : object.keepAlive)
+            if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
+            {
+                pose->setClip(clip, perSex);
+                return;
+            }
+    }
+
     void Scene::playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex)
     {
         if (!clip.empty())

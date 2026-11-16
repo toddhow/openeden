@@ -108,6 +108,9 @@ namespace MWRender
         /// The gait speed and a combat clip of an object made by makeNeutralActorObject (what the Ptr versions do).
         static void setNeutralObjectSpeed(MWAnim::Object& object, float unitsPerSecond);
         static void playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex);
+        /// Task 0251 (riding): loops `clip` on a neutral object (its SkyrimPose controller, as a seated actor does); an
+        /// empty name gives the idle and the gait back.
+        static void setNeutralObjectPose(MWAnim::Object& object, std::string_view clip, bool perSex);
         void setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes) override;
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;

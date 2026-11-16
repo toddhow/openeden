@@ -261,6 +261,16 @@
       "default": false
     },
     {
+      "key": "riding",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "horse test owned",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "summons",
       "type": "bool",
       "default": false

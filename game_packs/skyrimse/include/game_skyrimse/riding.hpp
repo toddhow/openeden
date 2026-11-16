@@ -1,0 +1,184 @@
+#ifndef OPENEDEN_GAME_SKYRIMSE_RIDING_H
+#define OPENEDEN_GAME_SKYRIMSE_RIDING_H
+
+// Task 0251 (horse riding, first slice): the rules of mounting, riding and dismounting a horse. Plain values and the
+// SDK's riding interfaces only (sdk/include/openeden/game/riding_rules.hpp); no engine type.
+//
+//   * Mount: the player activates a horse he owns (or any horse the test setting names). The pack asks the horse's
+//     appearance for its animation project (`horseproject`) through a lookup the cell source gives, so a horse is a
+//     horse only when the pack setting `creatures` is on (the profile of tasks 0212 and 0216 gives the horse its own
+//     clips and speeds).
+//   * Ride: the player's controls drive the horse: forward is walk (and run while the run control is on), the turn
+//     controls and the view turn the horse (it faces its direction of travel), back stops it. The player's body is
+//     carried to the saddle every frame and plays the rider clip of the gait (`horse_rider/...`).
+//   * Dismount: the jump control, or activating the horse again. The player is put down beside the horse.
+//
+// Every number named kXxx is ours (an estimate) unless the comment says it was measured on the installed data
+// (docs/tasks/0251-skyrim-horse-riding.md section 1). No combat while riding in this slice; nothing is saved (a load
+// puts the player on his feet).
+//
+// Threading: main thread only (the core calls update() once a frame before the physics step).
+
+#include <openeden/game/actor_rules.hpp>
+#include <openeden/game/riding_rules.hpp>
+
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+
+namespace game_skyrimse
+{
+    /// The pack setting (bool, default false; needs the engine's `[Game] neutral actors` and the pack's `creatures`).
+    inline constexpr std::string_view kRidingKey = "riding";
+    /// The test setting: the editor id (case-insensitive) of the horse base the player owns, or `*` for every horse.
+    /// Empty (the default): no horse is owned.
+    inline constexpr std::string_view kHorseTestOwnedKey = "horse test owned";
+
+    /// How fast a rider turns his horse with the turn controls, radians a second. OURS.
+    inline constexpr float kRidingTurnRate = 1.7f;
+    /// How far to the right of the horse the player is put down when he dismounts, game units. OURS.
+    inline constexpr float kDismountSide = 110.f;
+    /// A forward control above this starts the horse (below it the stick is at rest). OURS.
+    inline constexpr float kRidingDeadZone = 0.15f;
+
+    /// Where the rider's origin goes, relative to the horse's origin, in the horse's frame (x to its right, y forward,
+    /// z up), game units. MEASURED: the rest-pose world position of the `SaddleBone` node of the horse skeleton
+    /// (`SkyrimRidingSurvey`, docs/tasks/0251-skyrim-horse-riding.md section 1), plus kRiderLift (OURS).
+    inline constexpr float kSaddleX = 1.67f;
+    inline constexpr float kSaddleY = -0.98f;
+    inline constexpr float kSaddleZ = 134.92f;
+    inline constexpr float kRiderLift = 0.f;
+
+    enum class Gait : std::uint8_t
+    {
+        Stand = 0,
+        Walk = 1,
+        Run = 2,
+    };
+
+    /// The gait the controls ask for: back or no forward is Stand; forward is Walk, or Run while the run control is on.
+    [[nodiscard]] Gait gaitFor(const openeden::sdk::game::RiderControls& controls);
+
+    /// The rider's yaw after `dt` seconds: the player's own yaw (the view's) turned by the turn control. Finite
+    /// inputs only (anything else keeps `heading`); the result is in (-pi, pi].
+    [[nodiscard]] float nextRiderHeading(float heading, float turn, float dt);
+
+    /// The horse's velocity in game units a second for a gait, heading and the horse's own walk and run speeds.
+    struct Velocity
+    {
+        float mX = 0.f;
+        float mY = 0.f;
+    };
+    [[nodiscard]] Velocity velocityFor(Gait gait, float heading, float walkSpeed, float runSpeed);
+
+    /// The saddle in the world: the horse's position plus the saddle offset turned by the horse's heading.
+    struct Point
+    {
+        double mX = 0.0;
+        double mY = 0.0;
+        double mZ = 0.0;
+    };
+    [[nodiscard]] Point saddlePoint(double horseX, double horseY, double horseZ, float heading);
+
+    /// Where the player is put down: to the right of the horse (at its heading), at the horse's height.
+    [[nodiscard]] Point dismountPoint(double horseX, double horseY, double horseZ, float heading);
+
+    /// The rider clip of a gait: a path under the actor's animations folder (`horse_rider/idle`, ...), with no
+    /// extension. The files are in Skyrim - Animations.bsa under actors/character/animations/horse_rider.
+    [[nodiscard]] std::string_view riderClipFor(Gait gait);
+
+    /// What the lookup says about an actor base.
+    struct HorseInfo
+    {
+        float mWalkSpeed = 0.f; ///< units a second, the horse's own (creature row)
+        float mRunSpeed = 0.f;
+    };
+    /// True with `out` filled when the base (with this placement as the variation) is a horse.
+    using HorseLookup
+        = std::function<bool(openeden::sdk::game::WorldId base, std::uint32_t variation, HorseInfo& out)>;
+
+    class Riding final : public openeden::sdk::game::RidingRules
+    {
+    public:
+        /// Off (the default): nothing is tracked and canMount is false.
+        void setEnabled(bool on) { mEnabled = on; }
+        [[nodiscard]] bool enabled() const { return mEnabled; }
+        /// The test setting (kHorseTestOwnedKey). Applies to actors added from now on.
+        void setTestOwned(std::string editorId);
+        void setHorseLookup(HorseLookup lookup) { mLookup = std::move(lookup); }
+        /// Called with the placement of the horse when the brain must stand aside (true) or may take its package up
+        /// again (false).
+        void setBrainControl(std::function<void(openeden::sdk::game::WorldId, bool)> control)
+        {
+            mBrainControl = std::move(control);
+        }
+        /// Called with a line for the log when the rider mounts or dismounts.
+        void setLog(std::function<void(const std::string&)> log) { mLog = std::move(log); }
+
+        void onActorAdded(const openeden::sdk::game::ActorInfo& info);
+        void onActorRemoved(openeden::sdk::game::ActorHandle handle);
+
+        // RidingRules
+        [[nodiscard]] bool canMount(openeden::sdk::game::ActorHandle handle) const override;
+        void onMountRequested(openeden::sdk::game::ActorHandle handle) override;
+
+        /// Once a frame, after the actors' own rules. Does nothing unless a mount is requested or the player rides.
+        void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer);
+
+        /// True while the player sits on a horse.
+        [[nodiscard]] bool riding() const { return mMounted; }
+        /// The rider clip of the current gait (empty when not riding): what the player's body plays.
+        [[nodiscard]] std::string_view clip() const { return mMounted ? riderClipFor(mGait) : std::string_view(); }
+        [[nodiscard]] Gait gait() const { return mGait; }
+        [[nodiscard]] openeden::sdk::game::ActorHandle mount() const { return mHorse; }
+        [[nodiscard]] std::uint32_t mounts() const { return mMountCount; }
+        [[nodiscard]] std::uint32_t dismounts() const { return mDismountCount; }
+
+    private:
+        struct Row
+        {
+            openeden::sdk::game::ActorHandle mHandle;
+            openeden::sdk::game::WorldId mBase = openeden::sdk::game::kNoWorldId;
+            bool mOwned = false; ///< the editor id matched the test setting when the row was made
+            std::int8_t mHorse = -1; ///< -1 not asked yet, 0 no, 1 yes
+            HorseInfo mInfo;
+        };
+
+        /// The row of a handle, asking the lookup once; null for an unknown handle.
+        Row* rowOf(openeden::sdk::game::ActorHandle handle) const;
+        void log(const std::string& line) const
+        {
+            if (mLog)
+                mLog(line);
+        }
+        void dismount(openeden::sdk::game::ActorRequestWriter& writer, openeden::sdk::game::RidingWriter* player,
+            const std::string& why);
+
+        bool mEnabled = false;
+        std::string mTestOwned; ///< lower case
+        HorseLookup mLookup;
+        std::function<void(openeden::sdk::game::WorldId, bool)> mBrainControl;
+        std::function<void(const std::string&)> mLog;
+        mutable std::unordered_map<openeden::sdk::game::WorldId, Row> mRows; ///< by placement
+
+        // The request the core made (activation) and what it asked for.
+        openeden::sdk::game::ActorHandle mRequest;
+        bool mHasRequest = false;
+
+        bool mMounted = false;
+        openeden::sdk::game::ActorHandle mHorse;
+        HorseInfo mHorseInfo;
+        Gait mGait = Gait::Stand;
+        float mHeading = 0.f;
+        bool mJumpWasUp = false; ///< the jump control has been released since the mount (one press, one dismount)
+        bool mDismountRequested = false; ///< the player activated the horse he sits on
+        bool mHorseLost = false; ///< the horse's actor was removed: dismount in the next update
+        Point mLastHorse; ///< where the horse was last seen
+        std::uint32_t mMountCount = 0;
+        std::uint32_t mDismountCount = 0;
+    };
+}
+
+#endif

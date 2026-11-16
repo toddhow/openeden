@@ -120,6 +120,43 @@ namespace MWPhysics
         return true;
     }
 
+    // Task 0251 (riding): the hooks are the world's; each call is valid while update() runs only (the sink is set), and
+    // a hook that is not there or a value that is not finite is refused.
+    bool NeutralActorBridge::Writer::riderControls(openeden::sdk::game::RiderControls& out) const
+    {
+        if (mSink == nullptr || mBridge.mRidingHooks == nullptr || !mBridge.mRidingHooks->mControls)
+            return false;
+        openeden::sdk::game::RiderControls controls;
+        if (!mBridge.mRidingHooks->mControls(controls))
+            return false;
+        out = controls;
+        return true;
+    }
+
+    bool NeutralActorBridge::Writer::carryPlayer(double x, double y, double z, float heading)
+    {
+        if (mSink == nullptr || mBridge.mRidingHooks == nullptr || !mBridge.mRidingHooks->mCarry)
+            return false;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z) || !std::isfinite(heading))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        return mBridge.mRidingHooks->mCarry(x, y, z, heading);
+    }
+
+    bool NeutralActorBridge::Writer::releasePlayer(double x, double y, double z)
+    {
+        if (mSink == nullptr || mBridge.mRidingHooks == nullptr || !mBridge.mRidingHooks->mRelease)
+            return false;
+        if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
+        {
+            ++mBridge.mStats.mBadValues;
+            return false;
+        }
+        return mBridge.mRidingHooks->mRelease(x, y, z);
+    }
+
     void NeutralActorBridge::update(ActorRules* rules, float seconds, NeutralRequestSink& sink)
     {
         if (rules == nullptr || mEntries.empty())

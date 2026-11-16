@@ -1,0 +1,14 @@
+# task 0251: the real controls of a ride, as synthetic SDL events (frames count running frames; the global script's RIDE
+# lines give the simulation second of each). W forward, D turn right, A turn left, E jump (dismount; the default jump key
+# is E, Space is activate). The player's script makes the run on (always run) at its own time.
+600 log RIDEKEYS W down (walk)
+600 key W down
+1000 log RIDEKEYS D down (turn right)
+1000 key D down
+1040 key D up
+1080 key A down
+1110 key A up
+1400 key W up
+1500 log RIDEKEYS E (the jump control: dismount)
+1500 key E down
+1520 key E up

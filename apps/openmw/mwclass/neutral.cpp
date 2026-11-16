@@ -305,6 +305,24 @@ namespace MWClass
             }
         };
 
+        // Task 0251 (riding): activating a horse the pack lets the player mount, or the one he sits on, tells the pack.
+        class MountAction final : public MWWorld::Action
+        {
+            void executeImp(const MWWorld::Ptr& actor) override
+            {
+                if (actor != MWMechanics::getPlayer())
+                    return;
+                if (MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem())
+                    physics->requestNeutralMount(getTarget());
+            }
+
+        public:
+            explicit MountAction(const MWWorld::Ptr& target)
+                : MWWorld::Action(false, target)
+            {
+            }
+        };
+
         // Task 0203: a locked door or container the player has no key for offers the pack's lock picking minigame (an
         // event to the scripts) instead of the refusal; see mwworld/neutralinventory.hpp.
         class LockpickAction final : public MWWorld::Action
@@ -435,6 +453,13 @@ namespace MWClass
                     == MWWorld::NeutralInventoryDecision::Open)
                 return std::make_unique<OpenInventoryAction>(
                     ptr, *resourcePlacement, base.mBase, std::string(getName(ptr)), "resource");
+        }
+        // Task 0251: a horse the player may mount, or the one he sits on, is mounted or left (before talking).
+        if (base.mKind == ObjectKind::Actor && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
+        {
+            const MWPhysics::PhysicsSystem* physics = MWBase::Environment::get().getWorld()->getPhysicsSystem();
+            if (physics != nullptr && physics->neutralCanMount(ptr))
+                return std::make_unique<MountAction>(ptr);
         }
         // Task 0141: an actor of a pack that can run conversations is talked to (only with the actors switched on, the
         // same setting that draws them, and only by the player).

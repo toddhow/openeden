@@ -19,6 +19,7 @@
 #include <game_skyrimse/sneak.hpp>
 #include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/riding.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
 #include <openeden/game/actor_appearance.hpp>
@@ -180,7 +181,8 @@ namespace game_skyrimse
                                    public openeden::sdk::game::GrassSource,
                                    public openeden::sdk::game::PlayerItemSource,
                                    public openeden::sdk::game::SceneSpeechSource,
-                                   public openeden::sdk::game::PlayerPlaceSink
+                                   public openeden::sdk::game::PlayerPlaceSink,
+                                   public openeden::sdk::game::RidingRules
     {
     public:
         explicit SkyrimCellSource(openeden::sdk::game::WorldView& view, NeutralLimits limits = {})
@@ -201,6 +203,19 @@ namespace game_skyrimse
                 out.mWorld = mPlayerPlace.interior ? kNullFormId : static_cast<FormId>(mPlayerPlace.world);
                 return true;
             });
+            // Task 0251: a horse is an actor whose appearance names the horse project; the brain stands aside while
+            // the player rides it.
+            mRiding.setHorseLookup([this](openeden::sdk::game::WorldId base, std::uint32_t variation, HorseInfo& out) {
+                openeden::sdk::game::ActorAppearance appearance;
+                std::string error;
+                if (!describeActor(base, variation, appearance, error) || appearance.animationProject != "horseproject")
+                    return false;
+                out.mWalkSpeed = appearance.walkSpeed;
+                out.mRunSpeed = appearance.runSpeed;
+                return true;
+            });
+            mRiding.setBrainControl(
+                [this](openeden::sdk::game::WorldId reference, bool stands) { mActors.onConversation(reference, stands); });
             // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
             mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                 return mCombat.fighterView(subject, out);
@@ -294,6 +309,7 @@ namespace game_skyrimse
         void onActorAdded(const openeden::sdk::game::ActorInfo& info) override
         {
             mActors.onActorAdded(info);
+            mRiding.onActorAdded(info); // task 0251
             mCombat.onActorAdded(info);
             // Task 0180: the name the enemy bar shows (FULL name when the record has one, else the editor id).
             std::string name = displayNameOf(info.base);
@@ -302,6 +318,7 @@ namespace game_skyrimse
         void onActorRemoved(openeden::sdk::game::ActorHandle handle) override
         {
             mActors.onActorRemoved(handle);
+            mRiding.onActorRemoved(handle); // task 0251
             mCombat.onActorRemoved(handle);
             mHud.actorRemoved(handle);
         }
@@ -324,6 +341,7 @@ namespace game_skyrimse
                     (void)writer.cancelGoal(move.mActor);
             }
             mActors.update(seconds, writer);
+            mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
@@ -335,6 +353,13 @@ namespace game_skyrimse
             mActors.onGoalFinished(handle, result);
             mCombat.aiGoalFinished(handle, result); // task 0190
         }
+        /// Task 0251 (riding): the rules; off (the default) until the game pack turns them on.
+        [[nodiscard]] Riding& riding() { return mRiding; }
+        [[nodiscard]] bool canMount(openeden::sdk::game::ActorHandle handle) const override
+        {
+            return mRiding.canMount(handle);
+        }
+        void onMountRequested(openeden::sdk::game::ActorHandle handle) override { mRiding.onMountRequested(handle); }
         [[nodiscard]] SkyrimActorTable& actorTable() { return mActors; }
         /// Task 0231 (barks): null (the default) is off. The system must outlive the cell source's use of it; the cell
         /// source feeds it the fight's moments (through the combat's bark sink) and, once an update, the roster.
@@ -530,6 +555,7 @@ namespace game_skyrimse
         openeden::sdk::game::WorldView& mView;
         NeutralLimits mLimits;
         SkyrimActorTable mActors;
+        Riding mRiding; ///< task 0251
         static constexpr std::size_t kMaxQueuedSpeech = 64;
         std::vector<openeden::sdk::game::SceneSpeech> mSpeech; ///< task 0194: lines waiting for the core
         void updateBarks(float seconds, openeden::sdk::game::ActorRequestWriter& writer); ///< task 0231

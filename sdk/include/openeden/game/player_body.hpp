@@ -14,7 +14,8 @@
 // What the pack shows is its own choice (race, sex, worn armour, held weapon and shield); the core draws the
 // ActorAppearance the way it draws any actor and plays the clips the state names. Plain values only.
 //
-// Version policy: DRAFT 0.2 (0.2, task 0245: the first-person arms: PlayerBodyState::firstPerson, castToken and castClip
+// Version policy: DRAFT 0.3 (0.3, task 0251: ridingClip; 0.2, task 0245: the first-person arms: PlayerBodyState::firstPerson,
+// castToken and castClip
 // at the end, and a trailing describeFirstPersonBody with a default that refuses). Additive changes (a trailing virtual
 // with a default, a trailing field the core only reads) raise the minor number. Threading: main thread only.
 
@@ -57,6 +58,10 @@ namespace openeden::sdk::game
         std::uint8_t castHold = 0;
         float castHoldSeconds = 0.f;
         std::string castHoldClip;
+        // ---- Also 0.3 (task 0251, riding; merged beside task 0249). A field the core only reads.
+        /// While the player rides, the clip his body loops instead of walking (a path under the actor's animations folder,
+        /// for example `horse_rider/walkforward`); empty on foot. The pack changes it with the gait.
+        std::string ridingClip;
     };
 
     class PlayerBodySource

@@ -15,9 +15,11 @@
 // in Stats::mRulesFailures.
 
 #include <openeden/game/actor_rules.hpp>
+#include <openeden/game/riding_rules.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string_view>
 #include <vector>
 
@@ -72,6 +74,15 @@ namespace MWPhysics
             (void)z;
             return false;
         }
+    };
+
+    /// Task 0251 (riding): what the writer's RidingWriter interface does. Set by the world; any of them may be empty
+    /// (the writer then refuses). Called on the main thread, inside the pack's update().
+    struct NeutralRidingHooks
+    {
+        std::function<bool(openeden::sdk::game::RiderControls&)> mControls;
+        std::function<bool(double, double, double, float)> mCarry;
+        std::function<bool(double, double, double)> mRelease;
     };
 
     class NeutralActorBridge
@@ -133,6 +144,10 @@ namespace MWPhysics
         /// is not finite makes the position invalid (the writer then refuses).
         void setPlayerPosition(bool valid, double x, double y, double z);
 
+        /// Task 0251: the hooks behind the writer's RidingWriter; null (the default) refuses every riding call. The
+        /// pointed-to struct must outlive the bridge's use of it.
+        void setRidingHooks(const NeutralRidingHooks* hooks) { mRidingHooks = hooks; }
+
         [[nodiscard]] std::size_t size() const { return mEntries.size(); }
         [[nodiscard]] const Stats& stats() const { return mStats; }
 
@@ -153,7 +168,7 @@ namespace MWPhysics
             const void* mKey;
         };
 
-        class Writer final : public openeden::sdk::game::ActorRequestWriter
+        class Writer final : public openeden::sdk::game::ActorRequestWriter, public openeden::sdk::game::RidingWriter
         {
         public:
             explicit Writer(NeutralActorBridge& bridge)
@@ -172,6 +187,10 @@ namespace MWPhysics
             bool actorPosition(openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
             bool playerPosition(double& x, double& y, double& z) const override;
+            // Task 0251 (RidingWriter): valid during update() only.
+            bool riderControls(openeden::sdk::game::RiderControls& out) const override;
+            bool carryPlayer(double x, double y, double z, float heading) override;
+            bool releasePlayer(double x, double y, double z) override;
             NeutralRequestSink* mSink = nullptr; ///< non-null only while update() runs
 
         private:
@@ -196,6 +215,7 @@ namespace MWPhysics
         double mPlayerX = 0.0;
         double mPlayerY = 0.0;
         double mPlayerZ = 0.0;
+        const NeutralRidingHooks* mRidingHooks = nullptr;
         Writer mWriter;
     };
 }

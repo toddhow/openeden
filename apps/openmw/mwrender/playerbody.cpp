@@ -96,6 +96,7 @@ namespace MWRender
         }
         mBody = std::move(body);
         mSwing.adopt(swingToken);
+        mRidingClip.clear(); // task 0251: a new body is not posed yet
         mGate.built(revision);
         ++mBuilds;
         Log(Debug::Info) << "PLAYERBODY built revision " << revision << ": " << appearance.parts.size() << " parts"
@@ -123,7 +124,15 @@ namespace MWRender
         transform.rotation = playerTransform.rotation;
 
         const float speed = mSpeed.update(playerTransform.translation.x, playerTransform.translation.y, dt);
-        Scene::setNeutralObjectSpeed(*mBody, speed);
+        Scene::setNeutralObjectSpeed(*mBody, state.ridingClip.empty() ? speed : 0.f);
+        // Task 0251 (riding): the pack names the rider clip of the gait while the player sits on a horse; the body
+        // loops it (and does not walk). It stays where the stub player is, which the pack carries to the saddle.
+        if (state.ridingClip != mRidingClip)
+        {
+            Scene::setNeutralObjectPose(*mBody, state.ridingClip, false);
+            Log(Debug::Info) << "PLAYERBODY riding clip '" << mRidingClip << "' -> '" << state.ridingClip << "'";
+            mRidingClip = state.ridingClip;
+        }
         if (mSwing.poll(state.swingToken) && !state.swingClip.empty())
         {
             Scene::playNeutralObjectClip(*mBody, state.swingClip, false);

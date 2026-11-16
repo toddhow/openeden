@@ -457,6 +457,7 @@ namespace game_skyrimse
             out.castHoldSeconds = hands.castHoldSeconds;
             out.castHoldClip = hands.castHoldClip;
         }
+        out.ridingClip = std::string(mRiding.clip()); // task 0251
         return true;
     }
 

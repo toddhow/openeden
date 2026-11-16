@@ -3869,6 +3869,16 @@ namespace game_skyrimse
                             settings->getFloat(kPackId, kSummonsTestMagickaKey, 0.f));
                         say(openeden::sdk::LogLevel::Info, "summons: on");
                     }
+                    // Task 0251: the player may ride a horse (off by default; needs creatures and the engine's
+                    // neutral actors; the horse the player owns is the test setting for now).
+                    if (settings->getBool(kPackId, kRidingKey, false))
+                    {
+                        mCellSource.riding().setEnabled(true);
+                        mCellSource.riding().setTestOwned(settings->getString(kPackId, kHorseTestOwnedKey, ""));
+                        mCellSource.riding().setLog(
+                            [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                        say(openeden::sdk::LogLevel::Info, "riding: on");
+                    }
                     // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
                     if (settings->getBool(kPackId, kPlayerBodyKey, false))
                     {

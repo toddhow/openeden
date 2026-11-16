@@ -113,6 +113,7 @@ openeden_add_game_pack(skyrimse
         src/combat_sound.cpp
         src/combat_style.cpp
         src/creatures.cpp
+        src/riding.cpp
         src/combat_ai.cpp
         src/combat_ai_run.cpp
         src/combat_factions.cpp
@@ -322,6 +323,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_sound.cpp
     src/combat_style.cpp
     src/creatures.cpp
+    src/riding.cpp
     src/combat_ai.cpp
     src/combat_ai_run.cpp
     src/combat_factions.cpp

@@ -1795,6 +1795,29 @@ namespace MWPhysics
                              << pos.pos[1] << " " << pos.pos[2];
     }
 
+    bool PhysicsSystem::neutralCanMount(const MWWorld::Ptr& ptr) const
+    {
+        if (!mNeutralRulesResolver)
+            return false;
+        auto* riding = dynamic_cast<openeden::sdk::game::RidingRules*>(mNeutralRulesResolver());
+        if (riding == nullptr)
+            return false;
+        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.handleOf(ptr.mRef);
+        return handle.valid() && riding->canMount(handle);
+    }
+
+    void PhysicsSystem::requestNeutralMount(const MWWorld::Ptr& ptr)
+    {
+        if (!mNeutralRulesResolver)
+            return;
+        auto* riding = dynamic_cast<openeden::sdk::game::RidingRules*>(mNeutralRulesResolver());
+        if (riding == nullptr)
+            return;
+        const openeden::sdk::game::ActorHandle handle = mNeutralBridge.handleOf(ptr.mRef);
+        if (handle.valid())
+            riding->onMountRequested(handle);
+    }
+
     void PhysicsSystem::announceNeutralActor(const MWWorld::Ptr& ptr, openeden::sdk::game::WorldId reference,
         openeden::sdk::game::WorldId base, std::string_view editorId)
     {
@@ -2432,6 +2455,19 @@ namespace MWPhysics
         }
 
         return false;
+    }
+
+    void PhysicsSystem::setPlayerCollisionMode(bool on)
+    {
+        const ActorMap::iterator found = mActors.find(MWMechanics::getPlayer().mRef);
+        if (found != mActors.end())
+            found->second->enableCollisionMode(on);
+    }
+
+    bool PhysicsSystem::playerCollisionMode() const
+    {
+        const ActorMap::const_iterator found = mActors.find(MWMechanics::getPlayer().mRef);
+        return found == mActors.end() || found->second->getCollisionMode();
     }
 
     void PhysicsSystem::queueObjectMovement(const MWWorld::Ptr& ptr, const vsg::vec3& velocity)

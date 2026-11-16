@@ -752,6 +752,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesclips.cpp
     skyrimse/testskyrimsecreaturesthirdreal.cpp
     skyrimse/testskyrimsecreaturesthird.cpp
+    skyrimse/testskyrimseriding.cpp
+    skyrimse/testskyrimseridingreal.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseland.cpp
     skyrimse/testskyrimsegrass.cpp
@@ -894,6 +896,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sound.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_style.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/creatures.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/riding.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_factions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai_run.cpp

@@ -428,6 +428,17 @@ namespace MWPhysics
             mNeutralPlayerDamage = std::move(damage);
         }
         [[nodiscard]] const NeutralCombatBridge::Stats& neutralCombatStats() const { return mNeutralCombat.stats(); }
+        /// Task 0251 (riding): the world gives the bridge's RidingWriter its hooks (the player's controls, carrying and
+        /// releasing the player). The hooks are kept here, so the bridge's pointer stays valid.
+        void setNeutralRidingHooks(NeutralRidingHooks hooks)
+        {
+            mNeutralRidingHooks = std::move(hooks);
+            mNeutralBridge.setRidingHooks(&mNeutralRidingHooks);
+        }
+        /// Task 0251: whether the pack offers the player to mount this actor (or to get off the horse he sits on).
+        [[nodiscard]] bool neutralCanMount(const MWWorld::Ptr& ptr) const;
+        /// Task 0251: the player activated the mount: tells the pack, which acts in its next update.
+        void requestNeutralMount(const MWWorld::Ptr& ptr);
         /// Task 0184: the pack reported this neutral actor dead (a corpse the player may search).
         [[nodiscard]] bool isNeutralActorDead(const MWWorld::Ptr& ptr) const
         {
@@ -527,6 +538,9 @@ namespace MWPhysics
         const HeightField* getHeightField(int x, int y) const;
 
         bool toggleCollisionMode();
+        /// Task 0251 (riding): sets the player's collision mode (off: no collision, no gravity, as after `tcl`) and reports it.
+        void setPlayerCollisionMode(bool on);
+        [[nodiscard]] bool playerCollisionMode() const;
 
         /// Determine new position based on all queued movements, then clear the list.
         void stepSimulation(float dt, bool skipSimulation);
@@ -749,6 +763,7 @@ namespace MWPhysics
         };
         NeutralRulesResolver mNeutralRulesResolver;
         NeutralActorBridge mNeutralBridge;
+        NeutralRidingHooks mNeutralRidingHooks; // task 0251
         // Task 0170: the combat hooks' clips. The sink turns a clip request into an op for the renderer.
         class NeutralClipApplier final : public NeutralClipSink
         {

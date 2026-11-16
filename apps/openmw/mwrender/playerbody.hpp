@@ -93,6 +93,7 @@ namespace MWRender
         std::unique_ptr<MWAnim::ObjectAnimation> mBody;
         PlayerBodyTrack::GroundSpeed mSpeed;
         PlayerBodyTrack::SwingWatch mSwing;
+        std::string mRidingClip; ///< task 0251: the rider clip the body loops now; empty when on foot
         PlayerBodyTrack::RebuildGate mGate;
         std::uint32_t mBuilds = 0;
 

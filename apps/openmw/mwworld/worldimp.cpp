@@ -86,6 +86,7 @@
 #include "../mwmechanics/aiavoiddoor.hpp" //Used to tell actors to avoid doors
 #include "../mwmechanics/combat.hpp"
 #include "../mwmechanics/creaturestats.hpp"
+#include "../mwmechanics/movement.hpp"
 #include "../mwmechanics/levelledlist.hpp"
 #include "../mwmechanics/npcstats.hpp"
 #include "../mwmechanics/spellcasting.hpp"
@@ -430,6 +431,79 @@ namespace MWWorld
                     health.setCurrent(write.mCurrent);
                     stats.setHealth(health);
                 });
+        }
+
+        // Task 0251 (riding): the pack's RidingWriter asks for the player's controls and carries the player's body to
+        // the saddle. Collision mode off holds the player (no gravity, no collision) where the pack puts him; the
+        // first carry also takes the camera out of first person. Main thread, inside the pack's actor update.
+        {
+            MWPhysics::NeutralRidingHooks riding;
+            riding.mControls = [this](openeden::sdk::game::RiderControls& out) {
+                const Ptr player = getPlayerPtr();
+                if (player.isEmpty() || !player.getClass().isActor())
+                    return false;
+                out = {};
+                out.valid = true;
+                out.heading = player.getRefData().getPosition().rot[2];
+                MWBase::InputManager* input = MWBase::Environment::get().getInputManager();
+                MWBase::WindowManager* windows = MWBase::Environment::get().getWindowManager();
+                if (input != nullptr && windows != nullptr && !windows->isGuiMode() && !input->controlsDisabled())
+                {
+                    // The controls the player's own script (the built-in playercontrols) wrote this frame.
+                    const MWBase::LuaManager::ActorControls* controls
+                        = MWBase::Environment::get().getLuaManager()->getActorControls(player);
+                    if (controls != nullptr)
+                    {
+                        out.forward = controls->mMovement;
+                        out.turn = controls->mSideMovement;
+                        out.run = controls->mRun;
+                        out.jump = controls->mJump || player.getClass().getMovementSettings(player).mPosition[2] > 0.5f
+                            || input->actionIsActive(MWInput::A_Jump); // the player's own script makes it an edge
+                        // OPENEDEN_RIDING_TRACE (a developer aid): a line each time the controls change.
+                        static const bool trace = std::getenv("OPENEDEN_RIDING_TRACE") != nullptr;
+                        static float lastForward = 0.f, lastTurn = 0.f;
+                        static bool lastRun = false, lastJump = false;
+                        if (trace
+                            && (lastForward != out.forward || lastTurn != out.turn || lastRun != out.run
+                                || lastJump != out.jump))
+                        {
+                            lastForward = out.forward;
+                            lastTurn = out.turn;
+                            lastRun = out.run;
+                            lastJump = out.jump;
+                            Log(Debug::Info) << "RIDING controls forward " << out.forward << " turn " << out.turn
+                                             << " run " << out.run << " jump " << out.jump;
+                        }
+                    }
+                }
+                return true;
+            };
+            riding.mCarry = [this](double x, double y, double z, float heading) {
+                const Ptr player = getPlayerPtr();
+                if (player.isEmpty())
+                    return false;
+                if (mPhysics->playerCollisionMode())
+                {
+                    mPhysics->setPlayerCollisionMode(false);
+                    if (mRendering->getCamera()->getMode() == MWRender::Camera::Mode::FirstPerson)
+                        mRendering->getCamera()->setMode(MWRender::Camera::Mode::ThirdPerson);
+                }
+                mPhysics->queueObjectMovement(player, vsg::vec3(0.f, 0.f, 0.f));
+                const ESM::Position& pos = player.getRefData().getPosition();
+                rotateObject(player, vsg::vec3(pos.rot[0], pos.rot[1], heading), MWBase::RotationFlag_none);
+                moveObject(player, vsg::vec3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)));
+                return true;
+            };
+            riding.mRelease = [this](double x, double y, double z) {
+                const Ptr player = getPlayerPtr();
+                if (player.isEmpty())
+                    return false;
+                // A little above the horse's feet: the floor rules take him down from there.
+                moveObject(player, vsg::vec3(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) + 30.f));
+                mPhysics->setPlayerCollisionMode(true);
+                return true;
+            };
+            mPhysics->setNeutralRidingHooks(std::move(riding));
         }
 
         // Task 0135 stage S4: a neutral actor's go-to request asks the navigator for a path. The agent is the one the
