@@ -52,6 +52,7 @@
 #include "mwrender/rendermanager.hpp"
 #include "mwsound/soundmanagerimp.hpp"
 #include "mwstate/loadingscreen.hpp"
+#include "mwstate/menu.hpp"
 #include "mwstate/statemanagerimp.hpp"
 #include "probebaker.hpp"
 #include "puddlebaker.hpp"
@@ -126,7 +127,28 @@ namespace OMW
         {
             // Task 0111: the test aid pushes its synthetic SDL events just before the input is read (rmlui only). Its
             // frame counter runs only while a game is running, so the loading time of a start does not move the script.
-            if (mUiScript && mRmlUi && mStateManager->getState() == MWBase::StateManager::State_Running)
+            // Task 0207: OPENEDEN_RMLUI_INPUT_SCRIPT_IN_MENU also runs it (and OPENEDEN_MENU_QUIT_FRAME quits) while no
+            // game is running, to drive the main menu of a game pack that draws its own.
+            static const bool scriptInMenu = std::getenv("OPENEDEN_RMLUI_INPUT_SCRIPT_IN_MENU") != nullptr;
+            const MWBase::StateManager::State sessionState = mStateManager->getState();
+            // the counter starts with the first frame of the menu (or of a running game): the frames of the start-up
+            // loading, whose number varies, do not move the script
+            static bool scriptStarted = false;
+            if (!scriptStarted)
+                scriptStarted = sessionState == MWBase::StateManager::State_Running
+                    || dynamic_cast<MWState::Menu*>(gameState.get()) != nullptr;
+            if (scriptInMenu && scriptStarted && sessionState == MWBase::StateManager::State_NoGame)
+            {
+                static const std::uint64_t menuQuitFrame = [] {
+                    const char* text = std::getenv("OPENEDEN_MENU_QUIT_FRAME");
+                    return text != nullptr ? std::strtoull(text, nullptr, 10) : std::uint64_t(0);
+                }();
+                if (menuQuitFrame != 0 && mUiScriptFrame >= menuQuitFrame)
+                    mStateManager->requestQuit();
+            }
+            if (mUiScript && mRmlUi
+                && (sessionState == MWBase::StateManager::State_Running
+                    || (scriptInMenu && scriptStarted && sessionState == MWBase::StateManager::State_NoGame)))
                 mUiScript->frame(
                     mUiScriptFrame++, [this](float factor) { mRmlUi->setGuiScale(factor); },
                     [this] { mInputManager->executeAction(MWInput::A_Screenshot); });

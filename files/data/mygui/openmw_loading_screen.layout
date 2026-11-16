@@ -3,7 +3,22 @@
 <MyGUI type="Layout">
     <Widget type="Widget" layer="LoadingScreen" position="0 0 300 300" name="_Main" align="Stretch">
 
+        <!-- Task 0207: with a loading tip (a game pack's own menus) a black screen replaces the wallpaper -->
+        <Widget type="Widget" skin="BlackBG" position="0 0 300 300" align="Stretch" name="TipBackground">
+            <Property key="Visible" value="false"/>
+        </Widget>
         <Widget type="BackgroundImage" skin="ImageBox" position="0 0 300 300" name="Splash" align="Stretch" />
+        <!-- Task 0207: a loading tip handed over by a game pack's menu script; hidden while it is empty -->
+        <Widget type="EditBox" skin="MW_TextBoxEdit" position="30 170 240 70" align="Bottom HStretch" name="TipText">
+            <Property key="TextAlign" value="Center"/>
+            <Property key="WordWrap" value="true"/>
+            <Property key="MultiLine" value="true"/>
+            <Property key="ReadOnly" value="true"/>
+            <Property key="TextShadow" value="true"/>
+            <Property key="TextShadowColour" value="0 0 0"/>
+            <Property key="Visible" value="false"/>
+        </Widget>
+
         <Widget type="Widget" skin="MW_Dialog" position="0 245 300 48" align="Bottom HCenter" name="LoadingBox">
 
             <Widget type="TextBox" skin="SandText" position="16 5 260 18" align="Stretch" name="LoadingText">

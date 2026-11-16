@@ -5,6 +5,9 @@
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/statemanager.hpp"
+#include "../mwbase/windowmanager.hpp"
+#include "../mwgui/menureplacement.hpp"
+#include "../mwgui/mode.hpp"
 #include "../mwstate/character.hpp"
 
 #include "context.hpp"
@@ -92,6 +95,7 @@ namespace MWLua
                 slotInfo["description"] = slot.mProfile.mDescription;
                 slotInfo["playerName"] = slot.mProfile.mPlayerName;
                 slotInfo["playerLevel"] = slot.mProfile.mPlayerLevel;
+                slotInfo["playerCell"] = slot.mProfile.mPlayerCellName; // task 0207
                 slotInfo["timePlayed"] = slot.mProfile.mTimePlayed;
                 sol::table contentFiles(currentState, sol::create);
                 for (size_t i = 0; i < slot.mProfile.mContentFiles.size(); ++i)
@@ -125,6 +129,30 @@ namespace MWLua
         };
 
         api["quit"] = []() { MWBase::Environment::get().getStateManager()->requestQuit(); };
+
+        // Task 0207 (Skyrim SE menus): what a menu script that draws the main menu and the pause menu itself needs.
+        // Underscore names: engine-side switches for game packs' scripts, not part of the documented API.
+        // The engine's own (MyGUI) main menu draws nothing while this is true; its GUI mode still works as before.
+        api["_setMainMenuReplaced"] = [](bool replaced) { MWGui::MenuReplacement::setMainMenuReplaced(replaced); };
+        // Is the engine's main menu mode (a pause, or the start screen with no game) on the GUI stack?
+        api["_mainMenuOpen"]
+            = []() { return MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_MainMenu); };
+        // Leaves it: what the engine's "Return" button does.
+        api["_closeMainMenu"] = [context]() {
+            context.mLuaManager->addAction(
+                [] { MWBase::Environment::get().getWindowManager()->removeGuiMode(MWGui::GM_MainMenu); },
+                "Close the main menu");
+        };
+        api["_settingsVisible"]
+            = []() { return MWBase::Environment::get().getWindowManager()->isSettingsWindowVisible(); };
+        api["_toggleSettings"] = [context]() {
+            context.mLuaManager->addAction(
+                [] { MWBase::Environment::get().getWindowManager()->toggleSettingsWindow(); },
+                "Toggle the settings window");
+        };
+        // The tip the engine's loading screen shows (text only; Lua does not run during a load, so the script hands
+        // it over ahead of time).
+        api["_setLoadingTip"] = [](std::string_view text) { MWGui::MenuReplacement::setLoadingTip(text); };
 
         return LuaUtil::makeReadOnly(api);
     }

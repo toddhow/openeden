@@ -71,3 +71,6 @@ PLAYER REQUIRES=core.skyrimse.pickup>=1.0: scripts/openeden/skyrimse/pickup_play
 # Skyrim SE waiting and sleeping (task 0210); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.rest>=1.0: scripts/openeden/skyrimse/rest_global.lua
 PLAYER REQUIRES=core.skyrimse.rest>=1.0: scripts/openeden/skyrimse/rest_player.lua
+# Skyrim SE main menu, pause menu and loading screen tips (task 0207); started only when the session's game pack has the
+# namespace (the pack setting [extension.skyrimse] menus) and [GUI] rmlui is on (the script needs openeden.ui)
+MENU REQUIRES=core.skyrimse.menus>=1.0: scripts/openeden/skyrimse/menus_menu.lua

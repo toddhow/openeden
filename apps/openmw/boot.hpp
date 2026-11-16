@@ -88,6 +88,7 @@ namespace OMW
             else if (!mArgs.skipMenu)
             {
                 // The main menu state streams the title music, as OpenMW 0.51's engine did here.
+                mEngine.mStateManager->setNeutralStartPlace(mArgs.cellName); // task 0207: New Game of a neutral world
                 mEngine.mStateManager->mainMenu();
                 auto logo = Fallback::Map::getString("Movies_Morrowind_Logo");
                 if (!logo.empty())

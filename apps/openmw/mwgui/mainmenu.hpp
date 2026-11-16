@@ -27,6 +27,7 @@ namespace MWGui
         int mHeight;
 
         bool mHasAnimatedMenu;
+        bool mRequestedVisible = false; // task 0207: what the engine last asked (a script's menu may replace this one)
 
     public:
         MainMenu(int w, int h, const VFS::Manager* vfs, const std::string& versionDescription);

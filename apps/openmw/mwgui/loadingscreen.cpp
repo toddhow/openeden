@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include <MyGUI_EditBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_TextBox.h>
 
@@ -11,6 +12,7 @@
 #include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include "backgroundimage.hpp"
+#include "menureplacement.hpp"
 
 namespace MWGui
 {
@@ -21,6 +23,8 @@ namespace MWGui
         getWidget(mProgressBar, "ProgressBar");
         getWidget(mLoadingBox, "LoadingBox");
         getWidget(mSplashImage, "Splash");
+        getWidget(mTipText, "TipText");
+        getWidget(mTipBackground, "TipBackground");
 
         mProgressBar->setScrollViewPage(1);
         mProgressBar->setScrollPosition(0);
@@ -43,7 +47,8 @@ namespace MWGui
 
     void LoadingScreen::setLabel(const std::string& label, bool offset)
     {
-        mLoadingText->setCaptionWithReplacing(label);
+        mLoadingText->setCaptionWithReplacing(
+            MenuReplacement::loadingLabel(label, !MenuReplacement::loadingTip().empty()));
         int padding = mLoadingBox->getWidth() - mLoadingText->getWidth();
         MyGUI::IntSize size(mLoadingText->getTextSize().width + padding, mLoadingBox->getHeight());
         size.width = std::max(300, size.width);
@@ -59,7 +64,19 @@ namespace MWGui
 
     void LoadingScreen::update(float complete, float dt, bool showWallpaper)
     {
-        mSplashImage->setVisible(showWallpaper);
+        const std::string tip = MenuReplacement::loadingTip();
+        // Task 0207: with a tip handed over (a game pack's own menus) the Morrowind wallpapers stay away
+        mSplashImage->setVisible(showWallpaper && tip.empty());
+
+        // Task 0207: the tip a game pack's menu script handed over (text only; empty in every other session)
+        if (tip != mShownTip)
+        {
+            mShownTip = tip;
+            mTipText->setCaption(tip);
+            mTipText->setVisible(!tip.empty());
+        }
+        // black where the wallpaper would be (a load that shows the game behind it keeps showing it)
+        mTipBackground->setVisible(showWallpaper && !tip.empty());
         if (showWallpaper)
         {
             mChangeWallpaperCountdown -= dt;

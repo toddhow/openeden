@@ -186,6 +186,7 @@ namespace game_skyrimse
         StoryIndex mStory; ///< task 0187: the story manager's nodes
         SceneIndex mScenes; ///< task 0194
         map::MarkerIndex mMapMarkers; ///< task 0201: empty unless the pack asked for them
+        menus::LoadingScreenIndex mLoadingScreens; ///< task 0207: empty unless the pack asked for them
         QuestVmadIndex mQuestVmads; ///< task 0176: scripts, fragments and alias scripts of every quest
         std::uint64_t mPlacedRefsMillis = 0; ///< the part of the build that read references (task 0160)
     };
@@ -695,7 +696,7 @@ namespace game_skyrimse
 
     std::unique_ptr<SkyrimWorldView::DialogueData> SkyrimWorldView::buildDialogueData(
         const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
-        bool mapMarkers)
+        bool mapMarkers, bool loadingScreens)
     {
         auto data = std::make_unique<DialogueData>();
         const DialogueLimits dialogueLimits;
@@ -717,6 +718,8 @@ namespace game_skyrimse
                 data->mPackages.add(PackageRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mLocations.add(LocationRecords());
                 data->mMapMarkers.add(map::MarkerRecords());
+                data->mLoadingScreens.add(
+                    menus::LoadingScreenRecords(), FormIdResolver(Content::Header(), name, order));
                 data->mQuestScripts.add(QuestScriptRecords());
                 data->mQuestVmads.add(QuestVmadRecords());
                 data->mStory.add(StoryRecords(), FormIdResolver(Content::Header(), name, order));
@@ -759,6 +762,12 @@ namespace game_skyrimse
                     (void)map::parseMarkers(*file, order, map::MarkerLimits(), markers);
                 data->mMapMarkers.add(std::move(markers));
             }
+            {
+                menus::LoadingScreenRecords screens; // task 0207
+                if (loadingScreens)
+                    (void)menus::parseLoadingScreens(*file, order, menus::LoadingScreenLimits(), screens);
+                data->mLoadingScreens.add(std::move(screens), FormIdResolver(file->header(), name, order));
+            }
             placedTime += std::chrono::steady_clock::now() - placedStart;
         }
         const auto finishStart = std::chrono::steady_clock::now();
@@ -778,8 +787,10 @@ namespace game_skyrimse
         for (const PluginData& plugin : mPlugins)
             plugins.emplace_back(plugin.mPath, plugin.mName);
         const bool mapMarkers = mWantMapMarkers;
-        mDialogueThread = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers]() {
-            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers);
+        const bool loadingScreens = mWantLoadingScreens;
+        mDialogueThread
+            = std::thread([this, plugins = std::move(plugins), order = mOrder, mapMarkers, loadingScreens]() {
+            std::unique_ptr<DialogueData> data = buildDialogueData(plugins, order, mapMarkers, loadingScreens);
             mPrefetched = std::move(data);
             mDialogueReady.store(true);
         });
@@ -804,7 +815,7 @@ namespace game_skyrimse
             std::vector<std::pair<std::filesystem::path, std::string>> plugins;
             for (const PluginData& plugin : mPlugins)
                 plugins.emplace_back(plugin.mPath, plugin.mName);
-            state->mData = buildDialogueData(plugins, mOrder, mWantMapMarkers);
+            state->mData = buildDialogueData(plugins, mOrder, mWantMapMarkers, mWantLoadingScreens);
         }
         DialogueState* raw = state.get();
         raw->mResolver = [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
@@ -1341,6 +1352,24 @@ namespace game_skyrimse
             interior = it->second.mInfo.interior;
             world = static_cast<FormId>(it->second.mInfo.world);
             return true;
+        };
+        return true;
+    }
+
+    bool SkyrimWorldView::loadingAccess(menus::Access& out)
+    {
+        if (!ready() || mDialogue == nullptr || mDialogue->mData == nullptr || mDialogue->mQuestWorld == nullptr)
+            return false;
+        DialogueState* state = mDialogue.get();
+        out.mScreens = &state->mData->mLoadingScreens;
+        out.mText = state->mResolver;
+        out.mEvaluate = [state](const std::vector<survey::Ctda>& list, const FormIdResolver& resolver) {
+            SkyrimConditionWorld* world = state->mQuestWorld.get();
+            world->setStoryEvent(nullptr);
+            world->setSpeaker(DialogueSpeaker());
+            world->setQuestContext(kNullFormId);
+            world->setPlugin(&resolver);
+            return state->mQuestEvaluator.evaluate(list, *world);
         };
         return true;
     }

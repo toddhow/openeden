@@ -26,6 +26,7 @@ namespace MWState
         double mTimePlayed;
         // The save most recently loaded or written, offered by askLoadRecent (OpenMW 0.51, bug #7617).
         std::filesystem::path mLastSavegame;
+        std::string mNeutralStartPlace; // task 0207: see setNeutralStartPlace
 
         std::vector<std::shared_ptr<GameState>> mGameStates;
 
@@ -51,6 +52,9 @@ namespace MWState
 
         void newGame(bool /*vsgopenmw-delete-me*/ bypass = false) override;
         void bypassNewGame(const std::string& startCell);
+        /// Task 0207: the place a neutral session's New Game (from the menu) starts in: `--start` of a run that did
+        /// not skip the menu. Empty: none (the new game then fails with a message).
+        void setNeutralStartPlace(std::string place) { mNeutralStartPlace = std::move(place); }
 
         ///< Start a new game.
         ///

@@ -376,7 +376,9 @@ namespace ESMTerrain
                         if (static_cast<std::size_t>(id.first) < mProjectLayerIndices.size())
                             layerIndex = mProjectLayerIndices[static_cast<std::size_t>(id.first)];
                     }
-                    else if (/*id.first < static_cast<short>(mLayerIndices.size()) && */ id.second >= 0
+                    // Task 0207: the plugin index is checked again (it was commented out): the main menu of a session
+                    // with no Morrowind content asked for land whose plugin is not in the list and crashed here.
+                    else if (id.first >= 0 && id.first < static_cast<short>(mLayerIndices.size()) && id.second >= 0
                         && id.second < static_cast<short>(mLayerIndices[id.first].size()))
                         layerIndex = mLayerIndices[id.first][id.second];
                     (*image)(x, y)[i] = static_cast<unsigned char>(layerIndex);

@@ -127,7 +127,7 @@ namespace MWState
         if (MWBase::Environment::get().getExtensionManager()->hasNeutralWorldSource())
         {
             MWWorld::resetNeutralLockState();
-            cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, std::string()));
+            cleanupAndPush(std::make_shared<NeutralNewGame>(*this, mState, mNeutralStartPlace));
             return;
         }
         cleanupAndPush(std::make_shared<NewGame>(*this, mState, std::nullopt));

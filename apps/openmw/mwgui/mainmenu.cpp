@@ -19,6 +19,7 @@
 
 #include "backgroundimage.hpp"
 #include "confirmationdialog.hpp"
+#include "menureplacement.hpp"
 #include "savegamedialog.hpp"
 #include "settingswindow.hpp"
 #include "videowidget.hpp"
@@ -43,9 +44,15 @@ namespace MWGui
         mDisableGamepadCursor = Settings::gui().mControllerMenus;
 
         updateMenu();
+
+        // Task 0207: a menu script that draws the menu itself (a game pack's) switches this window off and on.
+        MenuReplacement::setChangeListener([this] { setVisible(mRequestedVisible); });
     }
 
-    MainMenu::~MainMenu() {}
+    MainMenu::~MainMenu()
+    {
+        MenuReplacement::setChangeListener({});
+    }
 
     void MainMenu::onResChange(int w, int h)
     {
@@ -57,6 +64,15 @@ namespace MWGui
 
     void MainMenu::setVisible(bool visible)
     {
+        mRequestedVisible = visible;
+        if (!MenuReplacement::mainMenuVisibleFor(true, MenuReplacement::mainMenuReplaced()))
+        {
+            // Task 0207: the script's menu is drawn instead; the GUI mode stays on the stack, nothing of this window
+            // shows (no background, no buttons, no key focus).
+            showBackground(false);
+            Layout::setVisible(false);
+            return;
+        }
         if (visible)
             updateMenu();
 

@@ -26,6 +26,9 @@ namespace MWGui
         MyGUI::Widget* mLoadingBox;
 
         MyGUI::TextBox* mLoadingText;
+        MyGUI::EditBox* mTipText; // task 0207
+        MyGUI::Widget* mTipBackground; // task 0207: black behind the tip, where the wallpaper would be
+        std::string mShownTip;
         MyGUI::ScrollBar* mProgressBar;
         BackgroundImage* mSplashImage;
 

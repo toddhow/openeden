@@ -12,6 +12,7 @@
 #include "game_skyrimse/map.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/rest.hpp"
+#include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
@@ -796,6 +797,8 @@ namespace game_skyrimse
                     // Task 0210: waiting and sleeping (the namespace skyrimse.rest), off unless
                     // [extension.skyrimse] rest.
                     startRest(host, logger);
+                    // Task 0207: the loading screen tips of the menu script, off unless [extension.skyrimse] menus.
+                    startMenus(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1136,6 +1139,32 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Warning, "the map chunk was not registered");
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MAP the map and compass are on");
+            }
+
+            // Task 0207: the LSCR records (read by the dialogue worker, so the flag must be set before the worker
+            // starts) and the menuSafe namespace skyrimse.menus that gives the menu script the next loading tip.
+            void startMenus(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "menus", false))
+                    return;
+                mWorldView.setWantLoadingScreens(true);
+                menus::Hooks hooks;
+                hooks.mAccess = [this](menus::Access& out) { return mWorldView.loadingAccess(out); };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mMenus = std::make_unique<menus::MenusService>(std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mMenus->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the menus bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "MENUS the menus and loading tips are on");
             }
 
             // Task 0210: waiting and sleeping. The rules are `rest.*`; this wires them to the combat (who may rest, who
@@ -2245,6 +2274,7 @@ namespace game_skyrimse
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
+            std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

@@ -256,6 +256,11 @@
       "default": false
     },
     {
+      "key": "menus",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "rest",
       "type": "bool",
       "default": false

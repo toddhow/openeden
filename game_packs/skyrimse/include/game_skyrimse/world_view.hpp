@@ -28,6 +28,7 @@
 #include <game_skyrimse/furniture.hpp>
 #include <game_skyrimse/map_markers.hpp>
 #include <game_skyrimse/music_data.hpp>
+#include <game_skyrimse/menus.hpp>
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
@@ -484,6 +485,14 @@ namespace game_skyrimse
         /// True once the dialogue data (and so the markers) is read; never waits. Main thread.
         [[nodiscard]] bool mapAccess(MapAccess& out);
 
+        // ---- task 0207 (menus and loading screens): the LSCR records and the quest world's evaluator
+        /// Asks the dialogue worker to read the loading screens too (before the worker starts: set it in the pack's
+        /// start()).
+        void setWantLoadingScreens(bool want) { mWantLoadingScreens = want; }
+        /// True once the dialogue data is read; never waits. Main thread. The evaluator answers conditions as the quest
+        /// world does (the player's current state).
+        [[nodiscard]] bool loadingAccess(menus::Access& out);
+
         // ---- task 0176 (Papyrus wiring)
         /// Fills \a out and returns true once the dialogue and quest data are read (it starts the read on the first
         /// call and never waits: false means "ask again next frame"). Main thread.
@@ -643,7 +652,8 @@ namespace game_skyrimse
         void startDialoguePrefetch();
         [[nodiscard]] static std::unique_ptr<DialogueData> buildDialogueData(
             const std::vector<std::pair<std::filesystem::path, std::string>>& plugins, const LoadOrder& order,
-            bool mapMarkers);
+            bool mapMarkers, bool loadingScreens);
+        bool mWantLoadingScreens = false; ///< task 0207: read the LSCR records with the dialogue data
         bool mWantMapMarkers = false; ///< task 0201: read the map markers with the dialogue data
         std::thread mDialogueThread; ///< reads the conversation records after the first actor was described
         std::unique_ptr<DialogueData> mPrefetched; ///< the thread's result; valid once mDialogueReady is set
