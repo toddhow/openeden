@@ -791,14 +791,20 @@ namespace game_skyrimse
     {
         const auto it = mQuests.find(quest);
         if (it != mQuests.end())
+        {
             it->second.mRunning = true;
+            ++mRevision;
+        }
     }
 
     void QuestState::stop(FormId quest)
     {
         const auto it = mQuests.find(quest);
         if (it != mQuests.end())
+        {
             it->second.mRunning = false;
+            ++mRevision;
+        }
     }
 
     void QuestState::setStage(const QuestIndex& index, FormId quest, std::uint32_t stage)
@@ -806,6 +812,7 @@ namespace game_skyrimse
         const auto it = mQuests.find(quest);
         if (it == mQuests.end())
             return;
+        ++mRevision;
         Entry& e = it->second;
         e.mRunning = true;
         e.mStage = stage;
@@ -825,7 +832,10 @@ namespace game_skyrimse
     {
         const auto it = mQuests.find(quest);
         if (it != mQuests.end())
+        {
             it->second.mStage = stage;
+            ++mRevision;
+        }
     }
 
     std::vector<QuestState::SnapshotEntry> QuestState::snapshot() const
@@ -848,6 +858,7 @@ namespace game_skyrimse
 
     void QuestState::restoreSnapshot(const std::vector<SnapshotEntry>& entries)
     {
+        ++mRevision;
         for (const SnapshotEntry& entry : entries)
         {
             const auto it = mQuests.find(entry.mQuest);
@@ -869,6 +880,9 @@ namespace game_skyrimse
     {
         const auto it = mQuests.find(quest);
         if (it != mQuests.end())
+        {
             it->second.mAliases[alias] = fill;
+            ++mRevision;
+        }
     }
 }

@@ -3,6 +3,7 @@
 
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/inventory_service.hpp"
+#include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/neutral_world.hpp"
 #include "game_skyrimse/pack_core.hpp"
@@ -476,6 +477,8 @@ namespace game_skyrimse
                     }
                     // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse] inventory.
                     startInventory(host, logger);
+                    // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
+                    startJournal(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -520,6 +523,52 @@ namespace game_skyrimse
             }
 
         private:
+            // Task 0185: the quest journal (the namespace skyrimse.journal over the dialogue runtime's quest state). It
+            // needs no polling: the first script read asks for the quest data and a read rebuilds what changed. The
+            // objective flags are the Papyrus host's (private there); until PapyrusHost exposes them no objective is
+            // shown (docs/tasks/0185-papyrus-host-objective-accessors.patch).
+            void startJournal(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "journal", false))
+                    return;
+                const int testQuests = settings->getInt(kPackId, "journal test quests", 0);
+                journal::Hooks hooks;
+                hooks.mAccess = [this, logger, testQuests, testQuestsApplied = false](journal::Access& out) mutable {
+                    SkyrimWorldView::PapyrusAccess access;
+                    if (!mWorldView.papyrusAccess(access))
+                        return false;
+                    out.mQuests = access.mQuests;
+                    out.mState = access.mState;
+                    out.mText = access.mText;
+                    if (testQuests > 0 && !testQuestsApplied)
+                    {
+                        // a developer aid: a fresh session has no quest with a log text (the start-up stages have none)
+                        testQuestsApplied = true;
+                        const std::size_t set = journal::applyTestQuests(
+                            *access.mQuests, *access.mState, access.mText, static_cast<std::size_t>(testQuests));
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "JOURNAL test quests: " + std::to_string(set) + " quests moved to a stage with a log text");
+                    }
+                    return true;
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mJournal = std::make_unique<journal::JournalService>(std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mJournal->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the journal bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "JOURNAL the journal is on");
+            }
+
             // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
             void startInventory(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
@@ -839,6 +888,7 @@ namespace game_skyrimse
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
+            std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; last: refers to mPapyrus
         };

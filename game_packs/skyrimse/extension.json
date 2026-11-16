@@ -116,6 +116,16 @@
       "default": false
     },
     {
+      "key": "journal",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "journal test quests",
+      "type": "int",
+      "default": 0
+    },
+    {
       "key": "papyrus",
       "type": "bool",
       "default": false

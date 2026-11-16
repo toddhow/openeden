@@ -1,0 +1,61 @@
+diff --git a/game_packs/skyrimse/include/game_skyrimse/papyrus_host.hpp b/game_packs/skyrimse/include/game_skyrimse/papyrus_host.hpp
+index 520a8f66e2..724eeb3e0f 100644
+--- a/game_packs/skyrimse/include/game_skyrimse/papyrus_host.hpp
++++ b/game_packs/skyrimse/include/game_skyrimse/papyrus_host.hpp
+@@ -209,6 +209,16 @@ namespace game_skyrimse
+         [[nodiscard]] std::vector<std::pair<FormId, bool>> enableOverrides() const;
+         /// Where MoveTo put a reference (nullopt when it was never moved). Recorded only: the engine is not moved.
+         [[nodiscard]] std::optional<std::array<double, 3>> positionOverride(FormId reference) const;
++        /// Task 0185 (the quest journal): the flags Quest.SetObjectiveDisplayed and SetObjectiveCompleted left for an
++        /// objective, and a counter that every such call increments.
++        struct ObjectiveState
++        {
++            bool mDisplayed = false;
++            bool mCompleted = false;
++        };
++        [[nodiscard]] ObjectiveState objectiveState(FormId quest, std::uint32_t objective) const;
++        [[nodiscard]] std::uint64_t objectiveRevision() const;
++
+         /// Whether Actor.AddSpell recorded the spell for the actor (recorded only: no effect).
+         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
+ 
+diff --git a/game_packs/skyrimse/src/papyrus_host.cpp b/game_packs/skyrimse/src/papyrus_host.cpp
+index 67ca57f64d..6465c9e965 100644
+--- a/game_packs/skyrimse/src/papyrus_host.cpp
++++ b/game_packs/skyrimse/src/papyrus_host.cpp
+@@ -756,6 +756,7 @@ namespace game_skyrimse
+                     const auto key = std::make_pair(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)));
+                     const bool on = c.arguments.size() > 1 ? argInt(c, 1) != 0 : true;
+                     (completed ? mObjectivesCompleted : mObjectivesDisplayed)[key] = on;
++                    ++mObjectiveRevision;
+                     return NativeResult{};
+                 };
+             };
+@@ -871,6 +872,7 @@ namespace game_skyrimse
+         std::map<std::pair<FormId, std::uint32_t>, FormId> mAliasForced;
+         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesDisplayed;
+         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesCompleted;
++        std::uint64_t mObjectiveRevision = 0;
+         std::string mStringScratch;
+     };
+ 
+@@ -1514,6 +1516,19 @@ namespace game_skyrimse
+         return it->second;
+     }
+ 
++    PapyrusHost::ObjectiveState PapyrusHost::objectiveState(FormId quest, std::uint32_t objective) const
++    {
++        const std::pair<FormId, std::uint32_t> key{ quest, objective };
++        const auto d = mImpl->mObjectivesDisplayed.find(key);
++        const auto c = mImpl->mObjectivesCompleted.find(key);
++        return { d != mImpl->mObjectivesDisplayed.end() && d->second, c != mImpl->mObjectivesCompleted.end() && c->second };
++    }
++
++    std::uint64_t PapyrusHost::objectiveRevision() const
++    {
++        return mImpl->mObjectiveRevision;
++    }
++
+     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const
+     {
+         return mImpl->mSpells.count({ actor, spell }) != 0;

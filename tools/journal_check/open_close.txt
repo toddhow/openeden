@@ -1,0 +1,22 @@
+# Task 0185: open the journal with J, look at it, pick other quests, switch to the completed list, leave with J. The frame
+# numbers are update counts; the Papyrus host starts when the dialogue records are read (several seconds), so the first J
+# comes late. Coordinates are for 1280 x 720.
+4000 shot
+4100 key J down
+4102 key J up
+4160 shot
+4200 mouse 130 131
+4204 down L 130 131
+4206 up L 130 131
+4230 shot
+4250 mouse 130 183
+4254 down L 130 183
+4256 up L 130 183
+4280 shot
+4300 mouse 190 71
+4304 down L 190 71
+4306 up L 190 71
+4330 shot
+4400 key J down
+4402 key J up
+4440 shot

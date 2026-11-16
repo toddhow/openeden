@@ -192,6 +192,7 @@ namespace game_skyrimse
         /// String tables by (plugin index, kind); an empty table is one that could not be read (tried once).
         std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mTables;
         std::unique_ptr<DialogueRuntime> mRuntime;
+        DialogueTextResolver mResolver; ///< task 0185: the runtime's text resolver, kept for the journal
         std::unique_ptr<QuestVariables> mQuestVariables; ///< task 0156: reads scripts/<name>.pex through the VFS
         std::uint64_t mTablesMissing = 0;
         // Task 0135 stage S5: the package conditions are evaluated against these (not the conversation's own).
@@ -643,35 +644,35 @@ namespace game_skyrimse
             state->mData = buildDialogueData(plugins, mOrder);
         }
         DialogueState* raw = state.get();
-        raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mData->mDialogue, raw->mData->mQuests,
-            QuestState::initial(raw->mData->mQuests),
-            [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
-                if (!text.mPresent)
-                    return std::string();
-                if (!text.mLocalized)
-                    return text.mText;
-                if (mFiles == nullptr || plugin >= mPlugins.size())
-                    return std::string();
-                auto& slot = raw->mTables[{ plugin, static_cast<int>(kind) }];
-                if (slot == nullptr)
+        raw->mResolver = [this, raw](const LString& text, std::uint32_t plugin, StringTableKind kind) -> std::string {
+            if (!text.mPresent)
+                return std::string();
+            if (!text.mLocalized)
+                return text.mText;
+            if (mFiles == nullptr || plugin >= mPlugins.size())
+                return std::string();
+            auto& slot = raw->mTables[{ plugin, static_cast<int>(kind) }];
+            if (slot == nullptr)
+            {
+                std::string bytes;
+                const std::string path = stringTablePath(stemOf(mPlugins[plugin].mPath), mOptions.mLanguage, kind);
+                auto table = std::make_unique<StringTable>();
+                Content::Error tableError;
+                if (mFiles->read(path, bytes)
+                    && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
+                        mPlugins[plugin].mName, *table, tableError))
+                    slot = std::move(table);
+                else
                 {
-                    std::string bytes;
-                    const std::string path = stringTablePath(stemOf(mPlugins[plugin].mPath), mOptions.mLanguage, kind);
-                    auto table = std::make_unique<StringTable>();
-                    Content::Error tableError;
-                    if (mFiles->read(path, bytes)
-                        && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() }, kind,
-                            mPlugins[plugin].mName, *table, tableError))
-                        slot = std::move(table);
-                    else
-                    {
-                        ++raw->mTablesMissing;
-                        slot = std::make_unique<StringTable>(); // empty: not tried again
-                    }
+                    ++raw->mTablesMissing;
+                    slot = std::make_unique<StringTable>(); // empty: not tried again
                 }
-                const std::string* found = slot->find(text.mId);
-                return found != nullptr ? *found : std::string();
-            });
+            }
+            const std::string* found = slot->find(text.mId);
+            return found != nullptr ? *found : std::string();
+        };
+        raw->mRuntime = std::make_unique<DialogueRuntime>(*mActorIndex, raw->mData->mDialogue, raw->mData->mQuests,
+            QuestState::initial(raw->mData->mQuests), raw->mResolver);
         if (mFiles != nullptr)
         {
             // Task 0143: a voice line is named only when its .fuz exists (loose, in a mod or in "Skyrim -
@@ -1066,6 +1067,7 @@ namespace game_skyrimse
         out.mQuests = &data->mQuests;
         out.mState = &mDialogue->mRuntime->questsMutable();
         out.mVmads = [data](FormId quest) { return data->mQuestVmads.find(quest); };
+        out.mText = mDialogue->mResolver;
         return true;
     }
 

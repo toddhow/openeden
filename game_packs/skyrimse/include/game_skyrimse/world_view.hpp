@@ -161,6 +161,9 @@ namespace game_skyrimse
             /// the conversation runtime's quest state: scripts change it, dialogue reads it
             QuestState* mState = nullptr;
             std::function<const vmad::Vmad*(FormId quest)> mVmads;
+            /// task 0185: the text of a localised string of a record of plugin `plugin` (the runtime's own resolver;
+            /// main thread only; an empty string when it cannot be found)
+            std::function<std::string(const LString&, std::uint32_t plugin, StringTableKind)> mText;
         };
 
         /// What startLoad's worker did, handed to the completion function.

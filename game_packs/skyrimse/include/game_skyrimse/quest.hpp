@@ -314,6 +314,9 @@ namespace game_skyrimse
         /// the caller runs no fragment). RECALLED-VERIFY: the game's exact semantics. Unknown quests are ignored.
         void setCurrentStage(FormId quest, std::uint32_t stage);
 
+        /// Task 0185: a counter that every mutation increments (a reader compares it to notice a change). Starts at 0.
+        [[nodiscard]] std::uint64_t revision() const { return mRevision; }
+
         /// One quest's state as plain values, for saves (task 0181).
         struct SnapshotEntry
         {
@@ -340,6 +343,7 @@ namespace game_skyrimse
             std::map<std::uint32_t, AliasFill> mAliases;
         };
         std::map<FormId, Entry> mQuests;
+        std::uint64_t mRevision = 0;
     };
 }
 
