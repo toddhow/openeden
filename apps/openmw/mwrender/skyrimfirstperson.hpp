@@ -386,7 +386,7 @@ namespace MWRender::SkyrimFirstPerson
                 {
                     const float t = now - mOnceStart;
                     if (t < length)
-                        return { mOnce, t, true };
+                        return { mOnce, t, true, {}, 0.f, 1.f };
                     mState = OnceState::None;
                     mIdleStart = now; // the loop comes back from its start
                 }
@@ -396,7 +396,7 @@ namespace MWRender::SkyrimFirstPerson
                 mIdleStart = now - mIdleOffset;
                 mIdleOffset = 0.f;
             }
-            return { mIdle, now - mIdleStart, false };
+            return { mIdle, now - mIdleStart, false, {}, 0.f, 1.f };
         }
 
         enum class OnceState : std::uint8_t
