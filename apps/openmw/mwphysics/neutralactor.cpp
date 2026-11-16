@@ -31,6 +31,18 @@ namespace MWPhysics::NeutralActor
         return capsule;
     }
 
+    Capsule capsuleFor(float heightScale, float radius)
+    {
+        Capsule capsule = capsuleFor(heightScale);
+        if (!std::isfinite(radius) || !(radius > 0.f))
+            return capsule;
+        // The radius is the actor's own, but never more than the body's height allows: the capsule stays a capsule.
+        const float height = 2.f * (capsule.mHalfCylinder + capsule.mRadius);
+        capsule.mRadius = std::min(radius, height * kMaxRadiusFraction);
+        capsule.mHalfCylinder = height * 0.5f - capsule.mRadius;
+        return capsule;
+    }
+
     vsg::ref_ptr<Resource::PhysicsShape> makeShape(const Capsule& capsule)
     {
         if (!(capsule.mRadius > 0.f) || !(capsule.mHalfCylinder > 0.f) || !std::isfinite(capsule.mCentreZ))

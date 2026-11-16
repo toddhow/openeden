@@ -72,6 +72,9 @@ namespace MWRender::SkyrimClipMeta
             out.push_back("Shd_Bash");
         else if (lower == "shd_blockbashpower")
             out.push_back("shd_BashPower");
+        // Task 0246: the falmer's hand-to-hand attack files are played by `H2H_Attack<n>_Clip`.
+        if (lower == "h2hattack1" || lower == "h2hattack2")
+            out.push_back("H2H_Attack" + lower.substr(9) + "_Clip");
         out.push_back(std::string(clipStem) + "NPC");
         return out;
     }

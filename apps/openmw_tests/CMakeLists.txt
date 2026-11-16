@@ -206,6 +206,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testskyrimshape.cpp
     mwphysics/testskyrimhavok.cpp
     mwphysics/testneutralactor.cpp
+    mwphysics/testneutralactorradius.cpp
     mwphysics/testneutralactorbridge.cpp
     mwphysics/testneutralcombatbridge.cpp
     mwphysics/testneutralspellfire.cpp
@@ -226,6 +227,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralcombatsound.cpp
     mwrender/testskyrimcombatclips.cpp
     mwrender/testskyrimclipalias.cpp
+    mwrender/testskyrimclipaliasfalmer.cpp
     mwrender/testplayerclipmeta.cpp
     mwphysics/testneutralactorgoals.cpp
     mwphysics/testneutralactorfurniture.cpp

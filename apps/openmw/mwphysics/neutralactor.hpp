@@ -39,6 +39,14 @@ namespace MWPhysics::NeutralActor
     /// The capsule of an actor of the given height scale (1 = standard). A non-finite or non-positive scale means 1.
     [[nodiscard]] Capsule capsuleFor(float heightScale);
 
+    /// A creature's radius is at most this part of the capsule's total height, so that the capsule stays a capsule.
+    inline constexpr float kMaxRadiusFraction = 0.45f;
+
+    /// Task 0246: the same with a radius of the actor's own (a mammoth's is 100, a wolf's 16). A radius of 0, or one
+    /// that is not finite, means the person's (the one-argument overload); a larger one is cut to kMaxRadiusFraction of
+    /// the height.
+    [[nodiscard]] Capsule capsuleFor(float heightScale, float radius);
+
     /// The capsule as a physics shape in the actor's own frame (feet at the origin, upright). Null if Jolt refuses it.
     /// Its visual-collision type is Camera, which every navigator site reads as "not map geometry", so an actor's body
     /// never becomes part of the navigation mesh.

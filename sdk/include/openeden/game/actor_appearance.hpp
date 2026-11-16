@@ -26,7 +26,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorAppearanceVersion{ 0, 5 };
+    inline constexpr Version kActorAppearanceVersion{ 0, 6 };
 
     enum class ActorPartKind : std::uint8_t
     {
@@ -91,6 +91,12 @@ namespace openeden::sdk::game
         std::uint8_t heldWeaponType = 0;
         /// The model of the shield on the actor's arm; empty when it has none. Its part is not in `parts`.
         std::string heldShieldModel;
+
+        // ---- Added in 0.6 (task 0246): the collision capsule's radius.
+        /// The radius of the actor's collision capsule in game units. 0: the core's own (a person's). A creature's is
+        /// measured from its skin model (docs/tasks/0246-skyrim-creatures-third.md); the core caps it so that the capsule
+        /// stays a capsule.
+        float capsuleRadius = 0.f;
 
         friend bool operator==(const ActorAppearance&, const ActorAppearance&) = default;
     };

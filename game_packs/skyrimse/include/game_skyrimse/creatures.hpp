@@ -52,12 +52,25 @@ namespace game_skyrimse
         std::string_view mRecoil;
         std::string_view mStagger;
         std::string_view mDeath;
+        /// Task 0246: the radius of the creature's collision capsule in game units: half the smaller horizontal extent
+        /// of the skin model's mid-body (20 to 60 percent of its height) in the rest pose, at least
+        /// kCreatureMinRadius (docs/tasks/0246-skyrim-creatures-third.md section 2). The core caps it at 45 percent of
+        /// the height. 0 means the core's own radius.
+        float mCapsuleRadius = 0.f;
     };
+
+    /// Task 0246: no capsule is thinner than this (a needle lets the player squeeze past a skeever; the core's own
+    /// radius is 22). A named estimate.
+    inline constexpr float kCreatureMinRadius = 16.f;
 
     /// Task 0216: every profile the pack knows, in table order (the wolf first). The table is the one place to add a
     /// creature: one row in creatures.cpp, with the numbers read as docs/tasks/0216-skyrim-creatures-more.md section 2
     /// says.
     [[nodiscard]] std::span<const CreatureProfile> creatureProfiles();
+
+    /// Task 0246: the ten creatures of `creatureProfiles()` and the creatures of the third slice after them (draugr,
+    /// falmer, troll, frostbite spider, chaurus, hagraven, spriggan). `creatureProfileFor` searches all of them.
+    [[nodiscard]] std::span<const CreatureProfile> creatureProfilesAll();
 
     /// The clip of a combat slot for this creature (Attack, PowerAttack, Recoil, Stagger, Death), or empty: a creature
     /// has no block, bash, cast or bow clips.

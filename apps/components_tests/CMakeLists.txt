@@ -744,6 +744,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecreaturesmeasure.cpp
     skyrimse/testskyrimsecreaturesmore.cpp
     skyrimse/testskyrimsecreaturesclips.cpp
+    skyrimse/testskyrimsecreaturesthirdreal.cpp
+    skyrimse/testskyrimsecreaturesthird.cpp
     skyrimse/testskyrimserecordsreal.cpp
     skyrimse/testskyrimseland.cpp
     skyrimse/testskyrimsegrass.cpp

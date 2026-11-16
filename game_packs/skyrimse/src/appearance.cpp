@@ -216,6 +216,7 @@ namespace game_skyrimse
         {
             // Task 0212: the capsule of an animal is its own size, not a person's times the race height.
             out.heightScale = creature->mCapsuleHeight / kCreatureReferenceHeight;
+            out.capsuleRadius = creature->mCapsuleRadius; // task 0246: 0 keeps the core's own
             out.animationProject = std::string(creature->mProject);
             out.idleClip = std::string(creature->mIdle);
             out.walkClip = std::string(creature->mWalk);

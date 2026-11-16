@@ -1158,12 +1158,16 @@ namespace MWPhysics
     }
 
     void PhysicsSystem::addNeutralActor(
-        const MWWorld::Ptr& ptr, float heightScale, float raise, float walkSpeed, float runSpeed)
+        const MWWorld::Ptr& ptr, float heightScale, float raise, float walkSpeed, float runSpeed, float radius)
     {
         if (getObject(ptr) != nullptr)
             return;
-        const NeutralActor::Capsule capsule = NeutralActor::capsuleFor(heightScale);
+        const NeutralActor::Capsule capsule = NeutralActor::capsuleFor(heightScale, radius); // task 0246
         vsg::ref_ptr<Resource::PhysicsShape> shape = NeutralActor::makeShape(capsule);
+        static const bool capsuleTrace = std::getenv("OPENEDEN_NEUTRAL_ACTOR_TRACE") != nullptr;
+        if (capsuleTrace)
+            Log(Debug::Info) << "NACTCAPSULE " << ptr.getCellRef().getRefId() << " radius " << capsule.mRadius
+                             << " half cylinder " << capsule.mHalfCylinder;
         if (shape == nullptr)
             return;
         if (std::isfinite(raise) && raise != 0.f)
