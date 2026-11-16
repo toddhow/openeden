@@ -765,6 +765,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsewerewolfreal.cpp
     skyrimse/testskyrimsewerewolf.cpp
     skyrimse/testskyrimsecombatdragon.cpp
+    skyrimse/testskyrimseruneglyph.cpp
     skyrimse/testskyrimsecreaturesthird.cpp
     skyrimse/testskyrimseriding.cpp
     skyrimse/testskyrimseridingreal.cpp

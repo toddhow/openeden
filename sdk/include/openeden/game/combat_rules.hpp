@@ -480,6 +480,16 @@ namespace openeden::sdk::game
             (void)request;
             return false;
         }
+
+        /// Task 0262: removes the drawing of the projectile launched with `token` (an arrow or spell shot stuck in the
+        /// world, or still in flight; a rune's glyph when the rune goes off or ends). True when one was removed, false
+        /// when none was (it already ended, or the token is unknown) and outside combatUpdate(). Additive: the version
+        /// stays 0.6. The default refuses.
+        virtual bool cancelProjectile(std::uint32_t token)
+        {
+            (void)token;
+            return false;
+        }
     };
 
     /// Implemented by a WorldCellSource whose game has combat.

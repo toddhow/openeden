@@ -121,7 +121,7 @@ namespace game_skyrimse
             return false; // it ran out of range: nothing lands
         if (spell.mDelivery == MagicDelivery::TargetLocation)
         {
-            placeRune(writer, caster, spell, result.x, result.y, result.z);
+            placeRune(writer, caster, spell, result.x, result.y, result.z, result.token);
             return true;
         }
         if (spell.mDelivery != MagicDelivery::Aimed || !hasAreaEffect(spell))
@@ -199,13 +199,14 @@ namespace game_skyrimse
     }
 
     void SkyrimCombat::placeRune(
-        CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, double x, double y, double z)
+        CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell, double x, double y, double z,
+        std::uint32_t token)
     {
-        (void)writer;
         const std::string name = spellName(spell);
         if (mRunes.size() >= kMaxRunes)
         {
             trace("COMBAT rune " + name + " replaced the oldest of " + std::to_string(mRunes.size()));
+            (void)writer.cancelProjectile(mRunes.front().mToken); // task 0262: its glyph goes with it
             mRunes.erase(mRunes.begin());
         }
         Rune rune;
@@ -215,6 +216,7 @@ namespace game_skyrimse
         rune.mY = y;
         rune.mZ = z;
         rune.mTrigger = kDefaultRuneProximity;
+        rune.mToken = token;
         for (const SpellEffect& effect : spell.mEffects)
         {
             const MagicEffectRecord* record = mData->effectById(effect.mEffect);
@@ -252,12 +254,14 @@ namespace game_skyrimse
             Fighter* caster = find(rune.mCaster);
             if (caster == nullptr)
             {
+                (void)writer.cancelProjectile(rune.mToken);
                 mRunes.erase(mRunes.begin() + static_cast<std::ptrdiff_t>(i));
                 continue;
             }
             if (mClock >= rune.mExpiresAt)
             {
                 trace("COMBAT rune " + spellName(spell) + " expired (of " + who(rune.mCaster) + ")");
+                (void)writer.cancelProjectile(rune.mToken); // task 0262
                 mRunes.erase(mRunes.begin() + static_cast<std::ptrdiff_t>(i));
                 continue;
             }
@@ -285,6 +289,7 @@ namespace game_skyrimse
             const CombatSubject by = trigger->mSubject;
             mRunes.erase(mRunes.begin() + static_cast<std::ptrdiff_t>(i));
             ++mRunesSetOff;
+            (void)writer.cancelProjectile(rune.mToken); // task 0262: the glyph goes when the rune does
             trace("COMBAT rune " + spellName(spell) + " set off by " + who(by) + " (of " + who(rune.mCaster) + ")");
             explodeAt(writer, *caster, spell, rune.mX, rune.mY, rune.mZ, nullptr);
         }

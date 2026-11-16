@@ -297,6 +297,7 @@ namespace MWPhysics
         {
             std::uint32_t mId = 0;
             float mSecondsLeft = 0.f;
+            std::uint32_t mToken = 0; ///< task 0262: the pack's token, for cancelProjectile
         };
         struct Finished
         {
@@ -334,6 +335,7 @@ namespace MWPhysics
             bool showEffect(openeden::sdk::game::CombatSubject subject,
                 const openeden::sdk::game::EffectRequest& request) override;
             bool hideEffect(std::uint32_t token) override;
+            bool cancelProjectile(std::uint32_t token) override; // task 0262
             NeutralClipSink* mSink = nullptr; ///< non-null only while the pack's combatUpdate runs
             NeutralCombatWorld* mWorld = nullptr; ///< likewise (may be null: sweeps are then refused)
 
@@ -364,6 +366,7 @@ namespace MWPhysics
             bool doShowEffect(openeden::sdk::game::CombatSubject subject,
                 const openeden::sdk::game::EffectRequest& request);
             bool doHideEffect(std::uint32_t token);
+            bool doCancelProjectile(std::uint32_t token);
             NeutralCombatBridge& mBridge;
         };
 

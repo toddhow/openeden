@@ -1179,7 +1179,7 @@ namespace game_skyrimse
         void explodeAt(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
             double x, double y, double z, const openeden::sdk::game::SweepHit* direct);
         void placeRune(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
-            double x, double y, double z);
+            double x, double y, double z, std::uint32_t token);
         void tickRunes(openeden::sdk::game::CombatRequestWriter& writer);
         [[nodiscard]] bool runeTriggeredBy(const Fighter& caster, const Fighter& other) const;
         /// The radius of one effect in game units: its area (feet) or, with none, the radius of the explosion its
@@ -1439,6 +1439,7 @@ namespace game_skyrimse
             float mTrigger = kDefaultRuneProximity; ///< game units
             float mRadius = 0.f; ///< the explosion's, game units
             float mExpiresAt = 0.f; ///< combat clock
+            std::uint32_t mToken = 0; ///< task 0262: the projectile that placed it (its glyph stays drawn)
         };
         std::vector<Rune> mRunes; ///< task 0242
         bool mSpellDelivery = false;
@@ -1713,6 +1714,7 @@ namespace game_skyrimse
             return mInner.showEffect(subject, request);
         }
         bool hideEffect(std::uint32_t token) override { return mInner.hideEffect(token); }
+        bool cancelProjectile(std::uint32_t token) override { return mInner.cancelProjectile(token); } // task 0262
         bool playSound(const openeden::sdk::game::SoundRequest& request) override { return mInner.playSound(request); }
 
     private:

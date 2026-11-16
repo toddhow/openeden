@@ -989,7 +989,7 @@ namespace MWPhysics
                     sink.removeProjectile(mStuck.front().mId);
                     mStuck.erase(mStuck.begin());
                 }
-                mStuck.push_back({ shot.mId, shot.mStickSeconds });
+                mStuck.push_back({ shot.mId, shot.mStickSeconds, shot.mToken });
             }
             else
                 sink.removeProjectile(shot.mId);
@@ -1142,6 +1142,34 @@ namespace MWPhysics
     bool NeutralCombatBridge::Writer::hideEffect(std::uint32_t token)
     {
         return guarded([&] { return doHideEffect(token); });
+    }
+
+    // Task 0262: a stuck projectile (a rune's glyph) or one still in flight is taken out of the world at once.
+    bool NeutralCombatBridge::Writer::doCancelProjectile(std::uint32_t token)
+    {
+        NeutralCombatBridge& b = mBridge;
+        if (mSink == nullptr)
+            return false;
+        for (std::size_t i = 0; i < b.mStuck.size(); ++i)
+            if (b.mStuck[i].mToken == token)
+            {
+                mSink->removeProjectile(b.mStuck[i].mId);
+                b.mStuck.erase(b.mStuck.begin() + static_cast<std::ptrdiff_t>(i));
+                return true;
+            }
+        for (std::size_t i = 0; i < b.mShots.size(); ++i)
+            if (b.mShots[i].mToken == token && !b.mShots[i].mVisualOnly)
+            {
+                mSink->removeProjectile(b.mShots[i].mId);
+                b.mShots.erase(b.mShots.begin() + static_cast<std::ptrdiff_t>(i));
+                return true;
+            }
+        return false;
+    }
+
+    bool NeutralCombatBridge::Writer::cancelProjectile(std::uint32_t token)
+    {
+        return guarded([&] { return doCancelProjectile(token); });
     }
 
     void NeutralCombatBridge::followEffects(NeutralClipSink& sink, NeutralCombatWorld* world)
