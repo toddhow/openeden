@@ -114,6 +114,8 @@ openeden_add_game_pack(skyrimse
         src/combat_style.cpp
         src/creatures.cpp
         src/riding.cpp
+        src/dragons.cpp
+        src/combat_dragon.cpp
         src/combat_ai.cpp
         src/combat_ai_run.cpp
         src/combat_factions.cpp
@@ -324,6 +326,8 @@ add_library(game_skyrimse_world STATIC
     src/combat_style.cpp
     src/creatures.cpp
     src/riding.cpp
+    src/dragons.cpp
+    src/combat_dragon.cpp
     src/combat_ai.cpp
     src/combat_ai_run.cpp
     src/combat_factions.cpp

@@ -27,6 +27,8 @@ namespace game_skyrimse
         /// Task 0212 (`[extension.skyrimse] creatures`): a creature race gets its own animation fields and capsule, and
         /// a sex whose skeleton or skin model is empty takes the other sex's. Off: described as before.
         bool mCreatures = false;
+        /// Task 0253 (`[extension.skyrimse] dragons`, with creatures): the dragon race gets the dragon row.
+        bool mDragons = false;
         /// Task 0220 (`[extension.skyrimse] held gear`): the actor's melee weapon and shield are named in the
         /// appearance (heldWeaponModel, heldWeaponType, heldShieldModel) and the shield's part leaves `parts`. Off: the
         /// appearance is what it was.

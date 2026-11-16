@@ -451,4 +451,25 @@ namespace game_skyrimse::shouts
         }
         return out;
     }
+
+    // ---- task 0253: announcements (not saved)
+
+    void ShoutState::announce(std::string text)
+    {
+        if (text.empty())
+            return;
+        if (text.size() > kMaxNoticeBytes)
+            text.resize(kMaxNoticeBytes);
+        if (mNotices.size() < kMaxNotices)
+            mNotices.resize(kMaxNotices);
+        mNotices[static_cast<std::size_t>(mNoticeCount % kMaxNotices)] = std::move(text);
+        ++mNoticeCount;
+    }
+
+    std::string ShoutState::noticeAt(std::uint64_t number) const
+    {
+        if (number < 1 || number > mNoticeCount || mNoticeCount - number >= kMaxNotices)
+            return {};
+        return mNotices[static_cast<std::size_t>((number - 1) % kMaxNotices)];
+    }
 }

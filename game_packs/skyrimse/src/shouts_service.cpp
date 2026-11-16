@@ -282,6 +282,19 @@ namespace game_skyrimse::shouts
         add("souls", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
             return resultOf(integer(self->state().souls()));
         });
+        // Task 0253: what the state announced ("Dragon soul absorbed"), numbered from 1 like diseases' messages.
+        add("notification_count", {}, true, BindingType::Int32, [self](std::span<const BindingValue>) {
+            return resultOf(integer(static_cast<std::int64_t>(self->state().noticeCount() & 0x7FFFFFFF)));
+        });
+        add("notification", m.mIntParam, true, BindingType::String, [self, &m](std::span<const BindingValue> a) {
+            m.mNameScratch = !a.empty() && a[0].integer >= 1
+                ? self->state().noticeAt(static_cast<std::uint64_t>(a[0].integer))
+                : std::string();
+            BindingValue v;
+            v.type = BindingType::String;
+            v.text = m.mNameScratch;
+            return resultOf(v);
+        });
         add("add_souls", m.mIntParam, false, BindingType::Bool,
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].integer > 0)

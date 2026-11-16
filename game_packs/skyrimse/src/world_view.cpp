@@ -1,5 +1,7 @@
 #include "game_skyrimse/world_view.hpp"
 
+#include "game_skyrimse/dragons.hpp"
+
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/actors.hpp"
 #include "game_skyrimse/appearance.hpp"
@@ -589,6 +591,27 @@ namespace game_skyrimse
         return fighterFor(base, 0, out);
     }
 
+    FormId SkyrimWorldView::npcByEditorId(std::string_view editorId)
+    {
+        if (!mNpcByEditorIdBuilt)
+        {
+            mNpcByEditorIdBuilt = true;
+            for (const PluginData& plugin : mPlugins)
+                for (const NpcRecord& npc : plugin.mParsed.mNpcs)
+                {
+                    std::string key = npc.mCommon.mEditorId;
+                    for (char& c : key)
+                        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    mNpcByEditorId[key] = npc.mCommon.mId;
+                }
+        }
+        std::string key(editorId);
+        for (char& c : key)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const auto it = mNpcByEditorId.find(key);
+        return it == mNpcByEditorId.end() ? kNullFormId : it->second;
+    }
+
     bool SkyrimWorldView::fighterFor(
         openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
     {
@@ -635,6 +658,8 @@ namespace game_skyrimse
                         out.mCreature = creatureProfileFor(creatureRace->skeleton(out.mFemale ? Sex::Female : Sex::Male));
                         if (out.mCreature == nullptr)
                             out.mCreature = creatureProfileFor(creatureRace->skeleton(Sex::Male));
+                        if (out.mCreature == nullptr && mDragons)
+                            out.mCreature = dragons::dragonProfileFor(creatureRace->skeleton(Sex::Male));
                     }
             }
             if (const ActorNpc* source = mActorIndex->npc(resolved.mSpellsFrom))
@@ -738,6 +763,7 @@ namespace game_skyrimse
         }
         AppearanceLimits limits;
         limits.mCreatures = mCreatures; // task 0212
+        limits.mDragons = mDragons; // task 0253
         limits.mHeldGear = mHeldGear; // task 0220
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, limits, &probe);
     }

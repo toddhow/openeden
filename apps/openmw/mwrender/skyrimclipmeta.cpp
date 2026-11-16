@@ -75,6 +75,29 @@ namespace MWRender::SkyrimClipMeta
         // Task 0246: the falmer's hand-to-hand attack files are played by `H2H_Attack<n>_Clip`.
         if (lower == "h2hattack1" || lower == "h2hattack2")
             out.push_back("H2H_Attack" + lower.substr(9) + "_Clip");
+        // Task 0253: the dragon's generators are named `CLIP_<...>` (the sidecar of dragonproject), not like their files.
+        struct DragonAlias
+        {
+            const char* mStem;
+            const char* mGenerator;
+        };
+        static const DragonAlias kDragonAliases[] = {
+            { "ground_bite", "CLIP_Ground_Combat_Attack_Bite" },
+            { "ground_biteleft", "CLIP_Ground_Combat_Attack_Bite_Left" },
+            { "ground_biteright", "CLIP_Ground_Combat_Attack_Bite_Right" },
+            { "ground_tailwhip", "CLIP_Ground_Combat_Attack_Tail" },
+            { "ground_tailwhipleft", "CLIP_Ground_Combat_Attack_Tail_Left" },
+            { "ground_tailwhipright", "CLIP_Ground_Combat_Attack_Tail_Right" },
+            { "ground_wingswipeleft", "CLIP_Ground_Combat_Attack_Wing_Left" },
+            { "ground_wingswiperight", "CLIP_Ground_Combat_Attack_Wing_Right" },
+            { "ground_exhalefirebreath", "CLIP_Shout_Exhale_Firebreath" },
+            { "ground_exhalefireball", "CLIP_Shout_Exhale_Fireball" },
+            { "shout_flightexhaleflame", "CLIP_Flight_Shout_Exhale_Firebreath" },
+            { "mtforwardground", "CLIP_Ground_Locomotion_Forward" },
+        };
+        for (const DragonAlias& alias : kDragonAliases)
+            if (lower == alias.mStem)
+                out.push_back(alias.mGenerator);
         out.push_back(std::string(clipStem) + "NPC");
         return out;
     }

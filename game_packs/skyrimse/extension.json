@@ -524,6 +524,51 @@
       "key": "character creation",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "dragons",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "dragons flight",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "dragons test place",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "dragons test replace",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "dragons test ground seconds",
+      "type": "float",
+      "default": 0
+    },
+    {
+      "key": "dragons test air seconds",
+      "type": "float",
+      "default": 0
+    },
+    {
+      "key": "dragons test health",
+      "type": "float",
+      "default": 0
+    },
+    {
+      "key": "dragons test damage scale",
+      "type": "float",
+      "default": 1
+    },
+    {
+      "key": "dragons test kill at",
+      "type": "float",
+      "default": 0
     }
   ],
   "licence": "GPL-3.0-or-later"

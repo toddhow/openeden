@@ -1,4 +1,5 @@
 #include "game_skyrimse/appearance.hpp"
+#include "game_skyrimse/dragons.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -202,6 +203,8 @@ namespace game_skyrimse
         out.skeletonPath = race->skeleton(skeletonSex);
         out.female = sex == Sex::Female;
         const CreatureProfile* creature = limits.mCreatures ? creatureProfileFor(out.skeletonPath) : nullptr;
+        if (creature == nullptr && limits.mCreatures && limits.mDragons)
+            creature = dragons::dragonProfileFor(out.skeletonPath); // task 0253
 
         // The height: the race's for this sex times the NPC's own (NAM6) of the NPC the traits come from.
         {

@@ -1,8 +1,11 @@
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/music.hpp>
+#include <game_skyrimse/world_view.hpp>
 
+#include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <utility>
@@ -392,6 +395,43 @@ namespace game_skyrimse
             for (openeden::sdk::game::WorldObject& object : out.objects)
                 if (const std::optional<bool> enabled = mEnableOverride(object.id))
                     object.initiallyDisabled = !*enabled;
+        }
+        if (built && !mTestDragonPlace.empty() && !mTestDragonReplace.empty())
+        {
+            // Task 0253: a developer aid. A dragon takes the place of the actors of another base (a wolf).
+            if (auto* view = dynamic_cast<SkyrimWorldView*>(&mView))
+            {
+                const FormId dragon = view->npcByEditorId(mTestDragonPlace);
+                std::string replace = mTestDragonReplace;
+                // "name" replaces every placed actor of that base, "name@x,y" only those within 500 units of (x, y).
+                bool atPlace = false;
+                double wantX = 0.0, wantY = 0.0;
+                if (const std::size_t at = replace.find('@'); at != std::string::npos)
+                {
+                    atPlace = std::sscanf(replace.c_str() + at + 1, "%lf,%lf", &wantX, &wantY) == 2;
+                    replace.resize(at);
+                }
+                for (char& c : replace)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (dragon != kNullFormId)
+                    for (openeden::sdk::game::WorldObject& object : out.objects)
+                    {
+                        if (object.kind != openeden::sdk::game::ObjectKind::Actor)
+                            continue;
+                        std::string name = object.baseEditorId;
+                        for (char& c : name)
+                            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                        if (name != replace)
+                            continue;
+                        if (atPlace
+                            && std::hypot(object.transform.position.x - wantX, object.transform.position.y - wantY)
+                                > 500.0)
+                            continue;
+                        object.base = dragon;
+                        object.baseEditorId = mTestDragonPlace;
+                        object.initiallyDisabled = false;
+                    }
+            }
         }
         if (built && mTaken)
         {

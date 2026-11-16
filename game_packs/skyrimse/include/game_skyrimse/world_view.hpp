@@ -424,6 +424,10 @@ namespace game_skyrimse
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
         /// Task 0212 (`creatures`): creature races are described and fight as creatures. Set before the first actor.
         void setCreatures(bool on) { mCreatures = on; }
+        /// Task 0253: the dragon race is described and fights as a dragon (needs setCreatures).
+        void setDragons(bool on) { mDragons = on; }
+        /// Task 0253: the NPC_ of this editor id (any case; the last plugin wins), or kNullFormId. Main thread.
+        [[nodiscard]] FormId npcByEditorId(std::string_view editorId);
         /// Task 0220 (`[extension.skyrimse] held gear`): describeActor also names the actor's weapon and shield.
         void setHeldGear(bool on) { mHeldGear = on; }
         [[nodiscard]] bool heldGear() const { return mHeldGear; }
@@ -803,6 +807,9 @@ namespace game_skyrimse
         bool mStandInFemale = false;
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         bool mCreatures = false; ///< task 0212
+        bool mDragons = false; ///< task 0253
+        std::map<std::string, FormId> mNpcByEditorId; ///< task 0253: lower case, built by the first npcByEditorId
+        bool mNpcByEditorIdBuilt = false;
         bool mHeldGear = false; ///< task 0220
         bool mPlayerBodyOn = false; ///< task 0222
         bool mFirstPersonBodyOn = false; ///< task 0245

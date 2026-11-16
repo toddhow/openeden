@@ -3879,6 +3879,40 @@ namespace game_skyrimse
                             [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
                         say(openeden::sdk::LogLevel::Info, "riding: on");
                     }
+                    // Task 0253: dragons (off by default; needs creatures and the combat AI to fight).
+                    if (settings->getBool(kPackId, kCreaturesKey, false)
+                        && settings->getBool(kPackId, std::string(dragons::kDragonsKey), false))
+                    {
+                        mWorldView.setDragons(true);
+                        dragons::Settings dragonSettings;
+                        dragonSettings.mOn = true;
+                        dragonSettings.mFlight.mEnabled
+                            = settings->getBool(kPackId, std::string(dragons::kFlightKey), true);
+                        const float ground = settings->getFloat(kPackId, std::string(dragons::kTestGroundKey), 0.f);
+                        const float air = settings->getFloat(kPackId, std::string(dragons::kTestAirKey), 0.f);
+                        if (std::isfinite(ground) && ground > 0.f && ground < 3600.f)
+                            dragonSettings.mFlight.mGroundSeconds = ground;
+                        if (std::isfinite(air) && air > 0.f && air < 3600.f)
+                            dragonSettings.mFlight.mAirSeconds = air;
+                        const float testHealth = settings->getFloat(kPackId, std::string(dragons::kTestHealthKey), 0.f);
+                        if (std::isfinite(testHealth) && testHealth > 0.f && testHealth < 1.0e7f)
+                            dragonSettings.mTestHealth = testHealth;
+                        const float damageScale
+                            = settings->getFloat(kPackId, std::string(dragons::kTestDamageKey), 1.f);
+                        if (std::isfinite(damageScale) && damageScale >= 0.f && damageScale <= 100.f)
+                            dragonSettings.mTestDamageScale = damageScale;
+                        const float killAt = settings->getFloat(kPackId, std::string(dragons::kTestKillKey), 0.f);
+                        if (std::isfinite(killAt) && killAt > 0.f && killAt < 1.0e6f)
+                            dragonSettings.mTestKillAt = killAt;
+                        mCellSource.combat().setDragons(dragonSettings);
+                        mCellSource.setTestDragon(
+                            settings->getString(kPackId, std::string(dragons::kTestPlaceKey), ""),
+                            settings->getString(kPackId, std::string(dragons::kTestReplaceKey), ""));
+                        say(openeden::sdk::LogLevel::Info,
+                            std::string("dragons: on, flight ") + (dragonSettings.mFlight.mEnabled ? "on" : "off")
+                                + ", " + std::to_string(dragonSettings.mFlight.mGroundSeconds) + " s on the ground, "
+                                + std::to_string(dragonSettings.mFlight.mAirSeconds) + " s in the air");
+                    }
                     // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
                     if (settings->getBool(kPackId, kPlayerBodyKey, false))
                     {

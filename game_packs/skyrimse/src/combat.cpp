@@ -2201,6 +2201,7 @@ namespace game_skyrimse
             runStatuses(writer); // task 0233: paralysis, frenzy and fear end and drive here; inert with none running
             tickSummons(writer); // task 0250: does nothing unless summons are on and one is conjured
             runAi(writer); // task 0190: does nothing unless `combat ai` is on, which also stops startHostiles
+            updateDragons(writer, step); // task 0253: nothing unless `dragons` is on
             startHostiles(writer);
             runPlayerSwing(writer);
             runPlayerBow(writer);

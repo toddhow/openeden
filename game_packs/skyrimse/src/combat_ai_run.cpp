@@ -472,6 +472,10 @@ namespace game_skyrimse
         intent.mY = y;
         intent.mZ = z;
         intent.mSpeed = speed;
+        intent.mDirect = dragonWalksDirect(actor.mHandle); // task 0253
+        if (intent.mDirect && mTrace)
+            trace("COMBAT ai dragon walks straight to " + std::to_string(static_cast<long long>(x)) + " "
+                + std::to_string(static_cast<long long>(y)));
         mAiMoves.push_back(intent);
         actor.mMoving = true;
         actor.mGoalX = x;
@@ -685,6 +689,11 @@ namespace game_skyrimse
             {
                 mAiCooldown[a.mHandle.reference] = mClock + kAiGiveUpCooldown;
                 aiRelease(i, "no way to the target");
+                continue;
+            }
+            if (dragonHolds(f->mSubject)) // task 0253: a dragon in the air or breathing is driven by updateDragons
+            {
+                ++i;
                 continue;
             }
             SubjectState self;

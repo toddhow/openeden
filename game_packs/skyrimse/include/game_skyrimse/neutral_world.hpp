@@ -44,8 +44,10 @@
 #include <openeden/game/world_water.hpp>
 
 #include <cstdint>
+#include <cmath>
 #include <functional>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 
@@ -338,15 +340,59 @@ namespace game_skyrimse
                 else if (move.mKind == Kind::Resume)
                     mActors.onConversation(move.mActor.reference, false);
                 else if (move.mKind == Kind::Stop)
+                {
                     (void)writer.cancelGoal(move.mActor);
+                    if (mDirectWalkers.erase(move.mActor.reference) != 0) // task 0253
+                        (void)writer.setMovement(move.mActor, 0.f, 0.f);
+                }
             }
             mActors.update(seconds, writer);
             mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
             if (mBarks != nullptr)
                 updateBarks(seconds, writer); // task 0231
             for (const SkyrimCombat::AiMoveIntent& move : mAiMoves)
-                if (move.mKind == Kind::GoTo)
+            {
+                if (move.mKind == Kind::GoTo && move.mDirect)
+                {
+                    // Task 0253: a dragon walks straight at its goal (its size finds no path on the navmesh).
+                    double x = 0.0, y = 0.0, z = 0.0;
+                    if (writer.actorPosition(move.mActor, x, y, z))
+                    {
+                        const double dx = move.mX - x, dy = move.mY - y;
+                        const double d = std::hypot(dx, dy);
+                        if (d > 1.0)
+                        {
+                            const double speed = static_cast<double>(dragons::kGroundSpeed);
+                            (void)writer.setMovement(
+                                move.mActor, static_cast<float>(dx / d * speed), static_cast<float>(dy / d * speed));
+                            mDirectWalkers.insert(move.mActor.reference);
+                        }
+                    }
+                }
+                else if (move.mKind == Kind::GoTo)
                     (void)writer.goTo(move.mActor, { move.mX, move.mY, move.mZ, move.mSpeed });
+                else if (move.mKind == Kind::Fly)
+                {
+                    // Task 0253: a dragon in the air is on a pose that the pack moves (the furniture machinery: no fall,
+                    // no walk, a looped clip). A new loop is a new useFurniture; every other step only moves it.
+                    openeden::sdk::game::FurnitureUse use;
+                    use.x = move.mX;
+                    use.y = move.mY;
+                    use.z = move.mZ;
+                    use.heading = move.mHeading;
+                    use.pose = openeden::sdk::game::FurniturePose::Sit;
+                    use.clip = move.mClip;
+                    if (move.mStart)
+                    {
+                        mDirectWalkers.erase(move.mActor.reference);
+                        (void)writer.useFurniture(move.mActor, use);
+                    }
+                    else if (!writer.placeFurniture(move.mActor, move.mX, move.mY, move.mZ, move.mHeading))
+                        (void)writer.useFurniture(move.mActor, use);
+                }
+                else if (move.mKind == Kind::Land)
+                    (void)writer.leaveFurniture(move.mActor, move.mX, move.mY, move.mZ);
+            }
         }
         void onGoalFinished(openeden::sdk::game::ActorHandle handle, openeden::sdk::game::GoalResult result) override
         {
@@ -481,6 +527,13 @@ namespace game_skyrimse
             mCellBuilt = std::move(cellBuilt);
             mActivated = std::move(activated);
         }
+        /// Task 0253 (a developer aid): in every cell built, each placed actor whose base editor id is `replace` (any case)
+        /// gets the base of the NPC_ `place` instead (a dragon where a wolf stood). Both empty: nothing changes.
+        void setTestDragon(std::string place, std::string replace)
+        {
+            mTestDragonPlace = std::move(place);
+            mTestDragonReplace = std::move(replace);
+        }
         /// Task 0211: the core tells where the player stands when it changes (the story manager's "change location").
         /// Main thread. Empty: nothing is told on.
         void setPlayerPlaceSink(std::function<void(const openeden::sdk::game::PlayerPlace&)> sink)
@@ -565,6 +618,7 @@ namespace game_skyrimse
         bool mMusicOn = false; ///< task 0209
         std::uint64_t mMusicSeed = 1;
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
+        std::set<openeden::sdk::game::WorldId> mDirectWalkers; ///< task 0253: dragons walked by setMovement
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
@@ -580,6 +634,8 @@ namespace game_skyrimse
         openeden::sdk::game::PlayerPlace mPlayerPlace; ///< task 0238: the last place the core told
         bool mHavePlayerPlace = false;
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
+        std::string mTestDragonPlace; ///< task 0253
+        std::string mTestDragonReplace;
         std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
         std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221
         /// task 0224

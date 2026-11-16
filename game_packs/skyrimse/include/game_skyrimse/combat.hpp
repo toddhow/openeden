@@ -26,6 +26,7 @@
 #include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/creatures.hpp>
+#include <game_skyrimse/dragons.hpp>
 #include <game_skyrimse/magic.hpp>
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
@@ -763,6 +764,8 @@ namespace game_skyrimse
                 Resume, ///< the fight is over: the brain takes its package up again
                 Stop, ///< cancel the goal
                 GoTo, ///< walk or run to (x, y, z)
+                Fly, ///< task 0253: a dragon in the air: put it at (x, y, z) facing mHeading (a new pose loop of mClip when mStart)
+                Land, ///< task 0253: take the dragon off its flight pose at (x, y, z)
             };
             Kind mKind = Kind::Stop;
             openeden::sdk::game::ActorHandle mActor;
@@ -770,7 +773,20 @@ namespace game_skyrimse
             double mY = 0.0;
             double mZ = 0.0;
             openeden::sdk::game::ActorSpeed mSpeed = openeden::sdk::game::ActorSpeed::Walk;
+            float mHeading = 0.f; ///< Fly: radians as the engine stores it
+            std::string_view mClip; ///< Fly: the pose clip (static text of dragons.hpp)
+            bool mStart = false; ///< Fly: start a new loop of mClip now
+            bool mDirect = false; ///< GoTo of a dragon: walk straight at (x, y) instead of asking the navigator
         };
+
+        // ---- task 0253 (dragons, combat_dragon.cpp)
+        /// Switches the dragons on (the pack setting `dragons`, with the flight numbers). Off: nothing of it runs.
+        void setDragons(const dragons::Settings& settings) { mDragonSettings = settings; }
+        [[nodiscard]] std::size_t dragonCount() const { return mDragonStates.size(); }
+        /// The flight phase of a dragon (Ground for an actor that is not one).
+        [[nodiscard]] dragons::Phase dragonPhase(openeden::sdk::game::ActorHandle handle) const;
+        [[nodiscard]] std::uint32_t dragonBreaths() const;
+        [[nodiscard]] std::uint32_t dragonSouls() const { return mDragonSouls; }
 
         /// Switches the AI on (the pack setting `combat ai`). Off, nothing of it runs and the old test rules are the
         /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every` and
@@ -1225,6 +1241,13 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, float> mAiCooldown; ///< the combat clock before which it does not engage
         std::vector<AiMoveIntent> mAiMoves;
         BarkSink mBarkSink; ///< task 0231
+        // Task 0253 (dragons).
+        dragons::Settings mDragonSettings;
+        std::vector<dragons::DragonState> mDragonStates;
+        std::uint32_t mDragonSouls = 0;
+        void updateDragons(openeden::sdk::game::CombatRequestWriter& writer, float step);
+        [[nodiscard]] bool dragonHolds(const openeden::sdk::game::CombatSubject& subject) const;
+        [[nodiscard]] bool dragonWalksDirect(openeden::sdk::game::ActorHandle handle) const;
 
         void startHostiles(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerSwing(openeden::sdk::game::CombatRequestWriter& writer);

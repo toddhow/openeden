@@ -145,6 +145,14 @@ namespace game_skyrimse::shouts
         [[nodiscard]] float cooldownTotal() const { return mCooldownTotal; }
         [[nodiscard]] bool ready() const { return mCooldown <= 0.f; }
 
+        /// Task 0253: a message for the player ("Dragon soul absorbed"). Not saved, a ring of kMaxNotices; the first
+        /// is number 1. An empty text is ignored, one over kMaxNoticeBytes is cut.
+        void announce(std::string text);
+        [[nodiscard]] std::uint64_t noticeCount() const { return mNoticeCount; }
+        [[nodiscard]] std::string noticeAt(std::uint64_t number) const;
+        static constexpr std::size_t kMaxNotices = 32;
+        static constexpr std::size_t kMaxNoticeBytes = 256;
+
         [[nodiscard]] std::uint64_t revision() const { return mRevision; }
 
         /// The canonical bytes of the whole state (see ShoutChunk) and the exact inverse; false changes nothing.
@@ -159,6 +167,8 @@ namespace game_skyrimse::shouts
         float mCooldown = 0.f;
         float mCooldownTotal = 0.f;
         std::uint64_t mRevision = 0;
+        std::vector<std::string> mNotices; ///< task 0253: a ring, number n is at (n - 1) % kMaxNotices
+        std::uint64_t mNoticeCount = 0;
     };
 
     /// The save chunk "shouts" (version 1) of a ShoutState: u32 learned count, the ids ascending, u32 unlocked count,
