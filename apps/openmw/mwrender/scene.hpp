@@ -12,6 +12,7 @@
 #include <vsg/nodes/Group.h>
 
 #include <components/mwanimation/context.hpp>
+#include <components/mwanimation/objectanim.hpp>
 
 #include "playerclipmeta.hpp"
 #include "renderinginterface.hpp"
@@ -91,6 +92,13 @@ namespace MWRender
         void insertNPC(const MWWorld::Ptr& ptr) override;
         void insertNeutralActor(
             const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance) override;
+        /// Task 0222: the drawn object of a neutral actor (nodes, pose and gait controllers, held gear), made but not
+        /// placed or compiled; null when it cannot be drawn. `player` is the player's own body (see scene.cpp).
+        std::unique_ptr<MWAnim::ObjectAnimation> makeNeutralActorObject(const MWWorld::Ptr& ptr,
+            const openeden::sdk::game::ActorAppearance& appearance, bool player);
+        /// The gait speed and a combat clip of an object made by makeNeutralActorObject (what the Ptr versions do).
+        static void setNeutralObjectSpeed(MWAnim::Object& object, float unitsPerSecond);
+        static void playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex);
         void setNeutralMouth(const MWWorld::Ptr& ptr, const std::array<float, 16>& visemes) override;
         void setNeutralActorSpeed(const MWWorld::Ptr& ptr, float unitsPerSecond) override;
         void setNeutralActorPose(const MWWorld::Ptr& ptr, std::string_view clip, bool perSex) override;

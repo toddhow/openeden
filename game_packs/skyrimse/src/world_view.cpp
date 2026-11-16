@@ -7,6 +7,7 @@
 #include "game_skyrimse/harvest.hpp"
 #include "game_skyrimse/location.hpp"
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/player_body.hpp"
 #include "game_skyrimse/quest_script.hpp"
 #include "game_skyrimse/music.hpp"
 #include "game_skyrimse/story_events.hpp"
@@ -672,6 +673,57 @@ namespace game_skyrimse
         limits.mCreatures = mCreatures; // task 0212
         limits.mHeldGear = mHeldGear; // task 0220
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, limits, &probe);
+    }
+
+    // ---- the player's body (task 0222) -----------------------------------------------------------------------------
+
+    void SkyrimWorldView::setPlayerEquipment(std::vector<FormId> armour, FormId weapon)
+    {
+        std::sort(armour.begin(), armour.end());
+        armour.erase(std::unique(armour.begin(), armour.end()), armour.end());
+        if (armour == mPlayerArmour && weapon == mPlayerWeapon)
+            return;
+        mPlayerArmour = std::move(armour);
+        mPlayerWeapon = weapon;
+        ++mPlayerBodyRevision;
+    }
+
+    bool SkyrimWorldView::playerBody(openeden::sdk::game::PlayerBodyState& out)
+    {
+        out = {};
+        if (!mPlayerBodyOn)
+            return false;
+        // Not ready (revision 0) until the world index is built and the actor records are in: a worker reads them
+        // (the combat index's), the main thread adopts them here, so this call never waits.
+        if (mActorIndex == nullptr)
+        {
+            (void)combatReady();
+            return true;
+        }
+        out.revision = mPlayerBodyRevision + 1; // never 0
+        return true;
+    }
+
+    bool SkyrimWorldView::describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        out = {};
+        if (!mPlayerBodyOn)
+        {
+            error = "the player body is off";
+            return false;
+        }
+        if (mActorIndex == nullptr)
+        {
+            error = "the actor records are not read yet";
+            return false;
+        }
+        PlayerBodyRequest request;
+        request.mFemale = mStandInFemale;
+        request.mWornArmour = mPlayerArmour;
+        request.mWeapon = mPlayerWeapon;
+        AppearanceLimits limits;
+        limits.mHeldGear = true; // the player's own weapon and shield are always shown with his body
+        return makePlayerAppearance(*mActorIndex, request, out, error, limits);
     }
 
     // ---- actor numbers and relations (task 0154, stage S7) ---------------------------------------------------------

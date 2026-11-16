@@ -423,6 +423,29 @@ namespace game_skyrimse
         return source->describeActor(base, variation, out, error);
     }
 
+    bool SkyrimCellSource::playerBody(openeden::sdk::game::PlayerBodyState& out)
+    {
+        out = {};
+        auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);
+        if (source == nullptr || !source->playerBody(out))
+            return false;
+        out.swingToken = mCombat.playerSwingCount();
+        out.swingClip = mCombat.playerSwingClip();
+        return true;
+    }
+
+    bool SkyrimCellSource::describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error)
+    {
+        auto* source = dynamic_cast<openeden::sdk::game::PlayerBodySource*>(&mView);
+        if (source == nullptr)
+        {
+            out = {};
+            error = "the world view has no player body";
+            return false;
+        }
+        return source->describePlayerBody(out, error);
+    }
+
     bool SkyrimCellSource::actorStats(openeden::sdk::game::WorldId base, std::uint32_t variation,
         std::uint16_t playerLevel, openeden::sdk::game::ActorStats& out, std::string& error)
     {

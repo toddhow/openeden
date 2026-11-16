@@ -1,0 +1,80 @@
+#ifndef OPENMW_MWRENDER_PLAYERBODY_HPP
+#define OPENMW_MWRENDER_PLAYERBODY_HPP
+
+// Task 0222 (the player has a Skyrim body): the player's drawn body in third person, for a session whose game pack
+// describes it (openeden::sdk::game::PlayerBodySource, `[Game] neutral player body`). The player stays the stub
+// record's Player object (the camera and the mechanics hold it); this object is drawn BESIDE it: made by the same
+// path as every neutral actor (Scene::makeNeutralActorObject: skeleton, skin, head, worn gear, idle/walk/run
+// controllers, held weapon and shield), placed on the player's transform every frame and given
+//   * the gait speed the player really moved at (playerbodytrack.hpp GroundSpeed),
+//   * the clip of each melee swing the pack began (PlayerBodyState::swingToken and swingClip),
+//   * a new body whenever the pack's revision changes (worn armour, weapon, sex).
+//
+// Ownership: RenderManager owns one (null unless the setting is on). Threads: the main thread only (update runs next
+// to Player::update). Nothing here reads a file on its own; the pack reads on its worker and the body's models come
+// through Scene::makeNeutralActorObject on the main thread, as an NPC's do.
+
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include <vsg/core/ref_ptr.h>
+
+#include <components/mwanimation/objectanim.hpp>
+
+#include "playerbodytrack.hpp"
+
+namespace vsg
+{
+    class Node;
+}
+namespace Anim
+{
+    class Transform;
+}
+namespace MWWorld
+{
+    class Ptr;
+}
+namespace openeden::sdk::game
+{
+    class PlayerBodySource;
+}
+namespace MWRender
+{
+    class Scene;
+
+    class PlayerBody
+    {
+    public:
+        explicit PlayerBody(Scene& scene);
+        ~PlayerBody();
+        PlayerBody(const PlayerBody&) = delete;
+        PlayerBody& operator=(const PlayerBody&) = delete;
+
+        /// One frame. `player` is the stub Player object's transform (position and heading), `dt` the frame time.
+        void update(float dt, const MWWorld::Ptr& player, const Anim::Transform& playerTransform);
+
+        /// The body's scene graph node, or null before it exists. Changes when the body is made again.
+        [[nodiscard]] vsg::ref_ptr<vsg::Node> node() const;
+
+        /// Test and trace aids.
+        [[nodiscard]] std::uint32_t builds() const { return mBuilds; }
+
+    private:
+        openeden::sdk::game::PlayerBodySource* findSource();
+        void rebuild(openeden::sdk::game::PlayerBodySource& source, const MWWorld::Ptr& player, std::uint32_t revision,
+            std::uint32_t swingToken);
+
+        Scene& mScene;
+        std::string mGameId; ///< the game whose source gave the body; empty until one did
+        std::uint32_t mLookupFrames = 0;
+        std::unique_ptr<MWAnim::ObjectAnimation> mBody;
+        PlayerBodyTrack::GroundSpeed mSpeed;
+        PlayerBodyTrack::SwingWatch mSwing;
+        PlayerBodyTrack::RebuildGate mGate;
+        std::uint32_t mBuilds = 0;
+    };
+}
+
+#endif

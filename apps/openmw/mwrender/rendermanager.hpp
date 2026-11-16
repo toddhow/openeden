@@ -146,6 +146,7 @@ namespace MWRender
     class FogManager;
     class Sky;
     class Player;
+    class PlayerBody;
     class Pathgrid;
     class Camera;
     class Water;
@@ -717,6 +718,7 @@ namespace MWRender
         std::unique_ptr<WaterRipples> mWaterRipples;
         std::unique_ptr<Projectiles> mProjectiles;
         std::unique_ptr<Player> mPlayer;
+        std::unique_ptr<PlayerBody> mPlayerBody; ///< task 0222: made on the first frame with `neutral player body` on
         std::unique_ptr<Camera> mCamera;
         std::unique_ptr<Groundcover> mGroundcover;
         std::atomic<const MWWorld::GroundcoverStore*> mGroundcoverStore{ nullptr };

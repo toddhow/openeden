@@ -7,6 +7,7 @@
 #include "game_skyrimse/crime_service.hpp"
 #include "game_skyrimse/pickup_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
+#include "game_skyrimse/player_body.hpp"
 #include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/harvest_service.hpp"
 #include "game_skyrimse/journal.hpp"
@@ -929,6 +930,8 @@ namespace game_skyrimse
                         }
                         syncEquipment();
                     }
+                    if (mWorldView.playerBodyOn())
+                        syncPlayerBody(); // task 0222
                 });
             }
 
@@ -2276,6 +2279,29 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "CRAFT the crafting service is on");
             }
 
+            // Task 0222: what the player wears and wields reaches the picture of his body whenever it changes. Made
+            // gear shows as its base record (as the combat's pieces do); a shield is armour.
+            void syncPlayerBody()
+            {
+                if (mInventory == nullptr)
+                    return;
+                const std::uint32_t revision = mInventory->model().equipmentRevision();
+                if (revision == mBodySynced)
+                    return;
+                mBodySynced = revision;
+                std::vector<FormId> armour;
+                FormId weapon = kNullFormId;
+                for (const inventory::EquippedItem& worn : mInventory->model().equipped())
+                {
+                    const FormId base = mCrafting != nullptr ? mCrafting->baseOf(worn.mItem) : worn.mItem;
+                    if (worn.mKind == inventory::EquipKind::Weapon)
+                        weapon = base;
+                    else
+                        armour.push_back(base);
+                }
+                mWorldView.setPlayerEquipment(std::move(armour), weapon);
+            }
+
             // Task 0184: what the player wields and wears reaches the combat rules whenever it changes. A weapon whose
             // record is not read yet (the combat records load on a worker) is looked up again next frame.
             void syncEquipment()
@@ -2536,6 +2562,12 @@ namespace game_skyrimse
                         mWorldView.setCreatures(true);
                         say(openeden::sdk::LogLevel::Info, "creatures: on (the wolf)");
                     }
+                    // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
+                    if (settings->getBool(kPackId, kPlayerBodyKey, false))
+                    {
+                        mWorldView.setPlayerBody(true);
+                        say(openeden::sdk::LogLevel::Info, "player body: on");
+                    }
                     // Task 0220: an actor's melee weapon and shield are drawn (off by default).
                     if (settings->getBool(kPackId, kHeldGearKey, false))
                     {
@@ -2735,6 +2767,7 @@ namespace game_skyrimse
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
+            std::uint32_t mBodySynced = 0xFFFFFFFFu; // task 0222
             bool mEquipPending = false;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
             std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; refers to mPapyrus

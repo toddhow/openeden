@@ -340,7 +340,7 @@ namespace MWRender
         // the files are missing or damaged, the actor stays in the rest pose (the loader logs a failure once). Nothing
         // here waits.
         void attachNeutralIdle(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance,
-            MWAnim::ObjectAnimation& anim, const VFS::Manager& vfs)
+            MWAnim::ObjectAnimation& anim, const VFS::Manager& vfs, bool forceLocomotion)
         {
             if (!anim.animation)
                 return;
@@ -374,7 +374,7 @@ namespace MWRender
                 anim.addController(pose, anim.transform());
                 anim.keepAlive.push_back(pose);
             };
-            if (Settings::game().mNeutralActorLocomotion)
+            if (forceLocomotion || Settings::game().mNeutralActorLocomotion)
             {
                 // Task 0148: the idle, walk and run cycles blended by the ground speed the physics side reports.
                 HavokPack::Gait::Params gait;
@@ -454,16 +454,17 @@ namespace MWRender
     }
 
 
-    void Scene::insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
+    std::unique_ptr<MWAnim::ObjectAnimation> Scene::makeNeutralActorObject(
+        const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance, bool player)
     {
         // Task 0121 (decision 0017, stage N5-2): a game pack's actor, drawn in its rest pose. The object is the
         // ordinary animation object a creature gets (bones plus skinned geometry under one root), so the engine's
-        // animation system links the skins; nothing moves it yet. Kept in the plain object group, not the actor group:
-        // Class::isActor() is false for a neutral object, and removeObject looks the cell up by that.
+        // animation system links the skins. Task 0222: this is also how the player's own body is made (`player`: the
+        // idle, walk and run controllers are always added and there is no ragdoll); the caller places and compiles it.
         Misc::LoadTrace::Scope traceCreate("neutralactor.create");
         Resource::ResourceSystem* resources = MWBase::Environment::get().getResourceSystem();
         if (resources == nullptr || !resources->builder || resources->getVFS() == nullptr)
-            return;
+            return nullptr;
         const SkyrimModel::BuildContext buildContext{ *resources->builder, resources->textureOptions, nullptr,
             Bin_DepthSorted, "actor", {} };
         SkyrimActor::Report report;
@@ -472,7 +473,7 @@ namespace MWRender
         if (!node)
         {
             Log(Debug::Warning) << "Skyrim actor " << ptr.getCellRef().getRefId() << " not drawn: " << report.mFailure;
-            return;
+            return nullptr;
         }
         std::unique_ptr<MWAnim::ObjectAnimation> anim
             = MWAnim::create<MWAnim::ObjectAnimation>(context, node, nullptr, true);
@@ -480,10 +481,10 @@ namespace MWRender
         Log(Debug::Verbose) << "Skyrim actor " << ptr.getCellRef().getRefId() << ": " << report.mPartsDrawn << " of "
                             << report.mPartsAsked << " parts drawn, " << report.mBones << " bones, " << report.mDraws
                             << " draws | " << SkyrimActor::describeTotals();
-        if (Settings::game().mNeutralActorIdles)
-            attachNeutralIdle(ptr, appearance, *anim, *resources->getVFS());
+        if (player || Settings::game().mNeutralActorIdles)
+            attachNeutralIdle(ptr, appearance, *anim, *resources->getVFS(), player);
         // Task 0174: after the pose controllers, so that the ragdoll's bone writes win once it is armed.
-        if (Settings::game().mNeutralCombat && Settings::physics().mCreativeMotionRagdolls)
+        if (!player && Settings::game().mNeutralCombat && Settings::physics().mCreativeMotionRagdolls)
             attachNeutralRagdoll(appearance, *anim, *resources->getVFS());
         if (report.mLip)
             anim->keepAlive.push_back(report.mLip); // found again by setNeutralMouth; dies with the object
@@ -497,6 +498,16 @@ namespace MWRender
                                     << (held.mShieldAttached ? "yes" : "no")
                                     << (held.mFailure.empty() ? "" : " | " + held.mFailure);
         }
+        return anim;
+    }
+
+    void Scene::insertNeutralActor(const MWWorld::Ptr& ptr, const openeden::sdk::game::ActorAppearance& appearance)
+    {
+        // Kept in the plain object group, not the actor group: Class::isActor() is false for a neutral object, and
+        // removeObject looks the cell up by that.
+        std::unique_ptr<MWAnim::ObjectAnimation> anim = makeNeutralActorObject(ptr, appearance, false);
+        if (!anim)
+            return;
         loadTransform(ptr, *anim->transform());
         Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
         if (!context.compileContext->compile(anim->node()))
@@ -537,7 +548,12 @@ namespace MWRender
         const auto iter = cell->objects.find(ptr);
         if (iter == cell->objects.end())
             return;
-        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+        setNeutralObjectSpeed(*iter->second, unitsPerSecond);
+    }
+
+    void Scene::setNeutralObjectSpeed(MWAnim::Object& object, float unitsPerSecond)
+    {
+        for (const vsg::ref_ptr<vsg::Object>& kept : object.keepAlive)
             if (auto* loco = dynamic_cast<SkyrimLocomotion::Controller*>(kept.get()))
             {
                 loco->setGroundSpeed(unitsPerSecond);
@@ -569,9 +585,14 @@ namespace MWRender
         const auto iter = cell->objects.find(ptr);
         if (iter == cell->objects.end())
             return;
+        playNeutralObjectClip(*iter->second, clip, perSex);
+    }
+
+    void Scene::playNeutralObjectClip(MWAnim::Object& object, std::string_view clip, bool perSex)
+    {
         if (!clip.empty())
-            SkyrimHeldGear::noteCombat(iter->second->keepAlive); // task 0220: the weapon comes to the hand
-        for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
+            SkyrimHeldGear::noteCombat(object.keepAlive); // task 0220: the weapon comes to the hand
+        for (const vsg::ref_ptr<vsg::Object>& kept : object.keepAlive)
             if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
             {
                 pose->playOnce(clip, perSex);

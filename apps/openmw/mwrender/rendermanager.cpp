@@ -133,6 +133,7 @@
 #include "navmesh.hpp"
 #include "neutralgrass.hpp"
 #include "player.hpp"
+#include "playerbody.hpp"
 #include "pointshadows.hpp"
 #include "postprocess.hpp"
 #include "precipitationoccluder.hpp"
@@ -3758,6 +3759,12 @@ namespace MWRender
             mSky->update(dt);
 
         mPlayer->update(dt);
+        if (Settings::game().mNeutralPlayerBody)
+        {
+            if (!mPlayerBody)
+                mPlayerBody = std::make_unique<PlayerBody>(*mScene); // task 0222
+            mPlayerBody->update(dt, mPlayer->getPtr(), *mPlayer->transform());
+        }
         setFirstPersonMode(mCamera->getMode() == Camera::Mode::FirstPerson);
 
         mScene->setNightDayMode(MWBase::Environment::get().getWorld()->getNightDayMode());
@@ -4337,7 +4344,12 @@ namespace MWRender
             mFirstPersonProjection->children = { mPlayer->node() };
         }
         else
+        {
             mPlayerGroup->children = { { Mask_Player, mPlayer->node() } };
+            // Task 0222: the player's Skyrim body beside the stub player (no body in first person).
+            if (mPlayerBody && mPlayerBody->node())
+                mPlayerGroup->children.push_back({ Mask_Player, mPlayerBody->node() });
+        }
     }
 
     vsg::dmat4 RenderManager::getProjectionMatrix() const

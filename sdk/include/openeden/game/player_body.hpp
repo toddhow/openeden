@@ -1,0 +1,48 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+
+#include <openeden/game/actor_appearance.hpp>
+#include <openeden/version.hpp>
+
+// The player's own body (task 0222): what a game pack shows of the player in third person. The player is not a world
+// object (the core makes him from a stub record), so the pack describes him through its own optional interface, found
+// by dynamic_cast on the game's registered WorldCellSource (as ActorAppearanceSource is). The core POLLS: playerBody()
+// never blocks and never reads a file; describePlayerBody() is asked for only when `revision` changed.
+//
+// What the pack shows is its own choice (race, sex, worn armour, held weapon and shield); the core draws the
+// ActorAppearance the way it draws any actor and plays the clips the state names. Plain values only.
+//
+// Version policy: DRAFT 0.1. Additive changes (a trailing virtual with a default, a trailing field the core only
+// reads) raise the minor number. Threading: main thread only.
+
+namespace openeden::sdk::game
+{
+    inline constexpr Version kPlayerBodyVersion{ 0, 1 };
+
+    struct PlayerBodyState
+    {
+        /// 0 while the pack cannot describe the player yet (its records are still being read, or the setting is off);
+        /// otherwise a number that changes whenever the picture changes (worn armour, held weapon, sex).
+        std::uint32_t revision = 0;
+        /// The player's melee swings, newest last: a number that grows by one for each swing the pack began, and the
+        /// clip that swing plays (a clip file name without extension). The core plays the clip when the number
+        /// changes. 0 and empty: no swing yet.
+        std::uint32_t swingToken = 0;
+        std::string swingClip;
+    };
+
+    class PlayerBodySource
+    {
+    public:
+        virtual ~PlayerBodySource() = default;
+
+        /// Cheap and non-blocking. False when the pack has no player body (the setting is off).
+        [[nodiscard]] virtual bool playerBody(PlayerBodyState& out) = 0;
+
+        /// The player's appearance now. False with `error` when it cannot be made. May read the pack's actor records
+        /// the first time (a pause the core accepts once, when the player is first drawn).
+        [[nodiscard]] virtual bool describePlayerBody(ActorAppearance& out, std::string& error) = 0;
+    };
+}

@@ -1213,6 +1213,8 @@ namespace game_skyrimse
             mPlayerHitDone = false;
             mPlayerSwingStart = mClock;
             mPlayerSwingToken = mNextToken++;
+            ++mPlayerSwingCount; // task 0222: the core draws the swing on the player's body
+            mPlayerSwingClip.assign(playerClip);
             mPlayerPower = power;
             mSounds.queueSwing(fighter.mSubject, weaponFor(fighter)); // task 0193: the player has no clip event
             ++mSwingsRequested;

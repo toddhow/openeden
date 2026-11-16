@@ -44,6 +44,7 @@
 #include <openeden/game/actor_mechanics.hpp>
 #include <openeden/game/dialogue_source.hpp>
 #include <openeden/game/display_name_source.hpp>
+#include <openeden/game/player_body.hpp>
 #include <openeden/game/weather_source.hpp>
 #include <openeden/game/world_view.hpp>
 #include <openeden/vfs.hpp>
@@ -127,6 +128,7 @@ namespace game_skyrimse
                                   public ComponentSource,
                                   public TerrainProvider,
                                   public openeden::sdk::game::ActorAppearanceSource,
+                                  public openeden::sdk::game::PlayerBodySource,
                                   public openeden::sdk::game::ActorMechanicsSource,
                                   public openeden::sdk::game::DialogueSource,
                                   public openeden::sdk::game::DisplayNameSource,
@@ -388,6 +390,18 @@ namespace game_skyrimse
         /// Task 0220 (`[extension.skyrimse] held gear`): describeActor also names the actor's weapon and shield.
         void setHeldGear(bool on) { mHeldGear = on; }
         [[nodiscard]] bool heldGear() const { return mHeldGear; }
+
+        // ---- openeden::sdk::game::PlayerBodySource (task 0222) ----
+        /// `[extension.skyrimse] player body`: the player has a Skyrim body (race Nord, the sex of `player female`).
+        void setPlayerBody(bool on) { mPlayerBodyOn = on; }
+        [[nodiscard]] bool playerBodyOn() const { return mPlayerBodyOn; }
+        /// What the player has equipped, as the pack's inventory holds it (the ARMO items and the one WEAP). A change
+        /// moves the revision the core polls; the same lists again do not.
+        void setPlayerEquipment(std::vector<FormId> armour, FormId weapon);
+        /// The revision and (through the cell source) the swing state. Never blocks: the revision is 0 until the actor
+        /// records are read (a worker reads them, adopted here).
+        bool playerBody(openeden::sdk::game::PlayerBodyState& out) override;
+        bool describePlayerBody(openeden::sdk::game::ActorAppearance& out, std::string& error) override;
         [[nodiscard]] bool creatures() const { return mCreatures; }
         /// The speech skill and the gold of the stand-in player the dialogue conditions read (task 0155; the pack
         /// settings `player speech` and `player gold`). Applied when the dialogue runtime is built, the level is
@@ -652,6 +666,10 @@ namespace game_skyrimse
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         bool mCreatures = false; ///< task 0212
         bool mHeldGear = false; ///< task 0220
+        bool mPlayerBodyOn = false; ///< task 0222
+        std::vector<FormId> mPlayerArmour; ///< task 0222: sorted
+        FormId mPlayerWeapon = kNullFormId; ///< task 0222
+        std::uint32_t mPlayerBodyRevision = 0; ///< task 0222: counts changes of the equipment
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
         bool mHaveProgressionPlayer = false; // task 0200

@@ -674,6 +674,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseappearance.cpp
     skyrimse/testskyrimseappearancereal.cpp
     skyrimse/testskyrimseheldgear.cpp
+    skyrimse/testskyrimseplayerbody.cpp
     skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimsecreaturesreal.cpp
     skyrimse/testskyrimsecreatures.cpp
@@ -750,6 +751,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_host.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/player_body.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/grass.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldspace.cpp
