@@ -133,6 +133,10 @@ namespace MWRender
         void setNeutralRagdollStates(
             const MWWorld::Ptr& ptr, std::span<const MWPhysics::RagdollBoneState> states) override;
         void endNeutralRagdoll(const MWWorld::Ptr& ptr) override;
+        bool beginNeutralRagdollFrozen(const MWWorld::Ptr& ptr, std::span<const std::string> names,
+            std::span<const MWPhysics::RagdollBoneState> states, std::string& reason) override;
+        bool neutralRagdollDrivenPose(const MWWorld::Ptr& ptr, std::vector<std::string>& names,
+            std::vector<MWPhysics::RagdollBoneState>& states) override;
         bool neutralObjectHasSequence(const MWWorld::Ptr& ptr) override;
         void setNeutralObjectOpen(const MWWorld::Ptr& ptr, float progress, bool closing) override;
         void setNeutralObjectTarget(const MWWorld::Ptr& ptr, bool open) override;

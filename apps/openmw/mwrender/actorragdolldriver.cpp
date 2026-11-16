@@ -129,8 +129,15 @@ namespace MWRender
 
     ActorRagdollDriver::ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root,
         std::unique_ptr<RagdollSource> source, const RagdollBoneSet& set)
+        : ActorRagdollDriver(bones, root, std::move(source), set, false)
+    {
+    }
+
+    ActorRagdollDriver::ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root,
+        std::unique_ptr<RagdollSource> source, const RagdollBoneSet& set, bool absolute)
         : mPose(std::make_unique<BonePose>(bones, root))
         , mSource(std::move(source))
+        , mAbsolute(absolute)
     {
         if (mSource == nullptr)
         {
@@ -139,6 +146,7 @@ namespace MWRender
         }
         const std::span<const std::string> names = mSource->boneNames();
         mStates.assign(names.size(), MWPhysics::RagdollBoneState{});
+        mLastDrawn.assign(names.size(), MWPhysics::RagdollBoneState{});
         if (!mSource->read(mStates))
         {
             mReason = "the ragdoll is already gone";
@@ -184,7 +192,10 @@ namespace MWRender
             driven.mState = state;
             // The spawn frame: the actor's bone and the ragdoll's bone as they are now.
             const vsg::dquat actorRotation = Misc::VsgMath::rotationOf(mPose->getWorldRotation(driven.mBone));
-            driven.mDelta = RagdollBones::bindDelta(rotationOfState(mStates[state]), actorRotation);
+            if (mAbsolute)
+                driven.mDelta = vsg::dquat(0.0, 0.0, 0.0, 1.0);
+            else
+                driven.mDelta = RagdollBones::bindDelta(rotationOfState(mStates[state]), actorRotation);
             mDriven.push_back(std::move(driven));
         }
         if (mDriven.size() < cMinDrivenBones)
@@ -208,6 +219,12 @@ namespace MWRender
         {
             mActorPelvisAtSpawn = Misc::VsgMath::getTrans(mPose->getWorld(mDriven[mPelvisDriven].mBone));
             mRagdollPelvisAtSpawn = positionOfState(mStates[mDriven[mPelvisDriven].mState]);
+            if (mAbsolute)
+            {
+                // wanted = actor + (state - ragdoll): with both zero it is the state's own position
+                mActorPelvisAtSpawn = vsg::dvec3(0.0, 0.0, 0.0);
+                mRagdollPelvisAtSpawn = vsg::dvec3(0.0, 0.0, 0.0);
+            }
             mHasPelvisTranslation = true;
         }
         mValid = true;
@@ -220,10 +237,17 @@ namespace MWRender
         if (!mValid || !mSource->read(mStates))
             return false;
 
+        mLastDrawn = mStates;
+        mHasDrawn = true;
         for (const Driven& driven : mDriven)
         {
             const vsg::dquat world
                 = RagdollBones::drivenWorldRotation(rotationOfState(mStates[driven.mState]), driven.mDelta);
+            MWPhysics::RagdollBoneState& drawn = mLastDrawn[driven.mState];
+            drawn.mRotation[0] = world.x;
+            drawn.mRotation[1] = world.y;
+            drawn.mRotation[2] = world.z;
+            drawn.mRotation[3] = world.w;
             const vsg::dquat parent = Misc::VsgMath::rotationOf(mPose->getParentWorldRotation(driven.mBone));
             mPose->setLocalRotation(driven.mBone, RagdollBones::localFromWorld(parent, world));
         }
@@ -233,6 +257,10 @@ namespace MWRender
             const Driven& pelvis = mDriven[mPelvisDriven];
             const vsg::dvec3 wanted = RagdollBones::drivenPelvisPosition(
                 mActorPelvisAtSpawn, mRagdollPelvisAtSpawn, positionOfState(mStates[pelvis.mState]));
+            MWPhysics::RagdollBoneState& drawnPelvis = mLastDrawn[pelvis.mState];
+            drawnPelvis.mPosition[0] = wanted.x;
+            drawnPelvis.mPosition[1] = wanted.y;
+            drawnPelvis.mPosition[2] = wanted.z;
             if (mTranslateRootBone)
             {
                 // The pelvis origin is parent * (local translation), and the parent's rotation is not driven: put the
@@ -262,6 +290,15 @@ namespace MWRender
                 mPose->setLocalTranslation(pelvis.mBone, vsg::vec3(local.x, local.y, local.z));
             }
         }
+        return true;
+    }
+
+    bool ActorRagdollDriver::drivenPose(std::span<MWPhysics::RagdollBoneState> out) const
+    {
+        if (!mHasDrawn || out.size() < mLastDrawn.size())
+            return false;
+        for (std::size_t i = 0; i < mLastDrawn.size(); ++i)
+            out[i] = mLastDrawn[i];
         return true;
     }
 }

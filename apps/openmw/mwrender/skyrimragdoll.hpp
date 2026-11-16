@@ -74,6 +74,16 @@ namespace MWRender::SkyrimRagdoll
         bool arm(std::span<const std::string> names, std::span<const MWPhysics::RagdollBoneState> initial,
             std::string& reason);
 
+        /// Task 0263. Main thread. Draws a corpse in a pose saved earlier (drivenPose of an earlier run): `states` are
+        /// world rotations and the pelvis' world position, no ragdoll runs, and the driver captures no offsets. False
+        /// (with reason) when the driver is not valid; then nothing is armed.
+        bool armFrozen(std::span<const std::string> names, std::span<const MWPhysics::RagdollBoneState> states,
+            std::string& reason);
+
+        /// Task 0263. Main thread. The pose the driver wrote on its last frame, in the order of `names` (which are
+        /// filled in too). False before the first frame, when not armed, or when `states` is too small.
+        bool drivenPose(std::vector<std::string>& names, std::vector<MWPhysics::RagdollBoneState>& states) const;
+
         /// Main thread. The ragdoll's bodies for this frame.
         void setStates(std::span<const MWPhysics::RagdollBoneState> states);
 

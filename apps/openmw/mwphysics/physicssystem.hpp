@@ -497,6 +497,9 @@ namespace MWPhysics
         bool groundBelow(const vsg::vec3& from, float maxDrop, float& groundZ) const;
         /// Removes the actor's ragdoll if it has one. Called when the actor leaves the physics system.
         void stopActorRagdoll(const MWWorld::Ptr& ptr);
+        /// Task 0263. True once for a neutral actor the pack put back as a saved corpse (ActorRequestWriter::placeCorpse),
+        /// then false until it is put back again. Main thread.
+        bool takeRestoredCorpse(const MWWorld::Ptr& ptr);
         /// The rig bone each ragdoll body follows; empty until the first ragdoll was built.
         std::span<const std::string> actorRagdollBones() const;
         std::size_t actorRagdollCount() const;
@@ -702,6 +705,7 @@ namespace MWPhysics
             ActorRagdollHandle mRagdoll;
             bool mCorpseDone = false;
             std::uint32_t mCorpseFrames = 0;
+            bool mRestoredCorpse = false; ///< task 0263: the pack put a saved corpse back (placeCorpse), until taken
             float mWalkSpeed = 0.f; ///< task 0212: a creature's own walk and run speeds, 0 for the core's
             float mRunSpeed = 0.f;
         };

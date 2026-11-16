@@ -40,6 +40,13 @@ namespace MWWorld
     inline constexpr std::uint32_t kNeutralSaveVersion = 1;
     inline constexpr std::uint32_t kNeutralSaveVersionCreated = 2;
     inline constexpr std::size_t kNeutralSaveMaxCreated = 65536;
+    /// Version 3 (task 0263) adds the poses of settled corpses (NeutralCorpsePose). It is written ONLY when the state
+    /// holds one, so every other save keeps its version 1 or 2 bytes; all three are read. A version 3 save also holds
+    /// the created-object counter (it may be 0).
+    inline constexpr std::uint32_t kNeutralSaveVersionPoses = 3;
+    inline constexpr std::size_t kNeutralSaveMaxPoses = 4096; ///< the death ledger of the Skyrim pack holds as many
+    inline constexpr std::size_t kNeutralSaveMaxPoseBones = 32; ///< the rig has 16 bodies; a pose holds up to this
+    inline constexpr std::size_t kNeutralSaveMaxPoseName = 32;
 
     /// Caps of the decoder: a hostile save must not allocate without bound.
     inline constexpr std::size_t kNeutralSaveMaxBytes = std::size_t{ 64 } << 20;
@@ -115,6 +122,28 @@ namespace MWWorld
         friend bool operator==(const NeutralSavedCell&, const NeutralSavedCell&) = default;
     };
 
+    /// One bone of a corpse's pose: the rig bone's name, the bone's world rotation as drawn (x, y, z, w) and a world
+    /// position (only the pelvis' is used).
+    struct NeutralCorpseBone
+    {
+        std::string mName;
+        float mPos[3] = {};
+        float mRot[4] = { 0.f, 0.f, 0.f, 1.f };
+
+        friend bool operator==(const NeutralCorpseBone&, const NeutralCorpseBone&) = default;
+    };
+
+    /// Task 0263: the pose a dead actor's ragdoll settled in, so that after a load the corpse is drawn in it at once
+    /// instead of falling again. Keyed like the opened locks: (game id, the pack's placement id).
+    struct NeutralCorpsePose
+    {
+        std::string mGameId;
+        std::uint32_t mPlacement = 0;
+        std::vector<NeutralCorpseBone> mBones; ///< 1 to kNeutralSaveMaxPoseBones, in the rig's body order
+
+        friend bool operator==(const NeutralCorpsePose&, const NeutralCorpsePose&) = default;
+    };
+
     struct NeutralSaveState
     {
         NeutralSaveCellKey mPlayerCell;
@@ -126,6 +155,8 @@ namespace MWWorld
         /// was
         /// ever created. When set it is above the index of every created object.
         std::uint32_t mNextCreatedIndex = 0;
+        /// Version 3 (task 0263): poses of settled corpses, sorted by (game id, placement), no duplicates.
+        std::vector<NeutralCorpsePose> mCorpsePoses;
 
         friend bool operator==(const NeutralSaveState&, const NeutralSaveState&) = default;
     };

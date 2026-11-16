@@ -603,6 +603,8 @@ namespace MWWorld
         mWorldScene->clear();
         mWorldModel.clear();
         mNeutralSaveBytes.clear();
+        mCorpsePoses.clear(); // task 0263
+        mCorpseRest.clear();
         // Task 0209: nothing of the music is saved; a new or loaded game starts a fresh director.
         mNeutralMusic.reset();
         mNeutralMusicTried = false;
@@ -1833,8 +1835,77 @@ namespace MWWorld
         mPhysics->moveActors();
     }
 
+    bool World::neutralCorpseKey(const Ptr& ptr, std::string& gameId, std::uint32_t& placement) const
+    {
+        const CellStore* cell = ptr.getCell();
+        if (cell == nullptr || !cell->isNeutral())
+            return false;
+        gameId = cell->neutralGameId();
+        placement = static_cast<std::uint32_t>(ptr.getCellRef().getRefNum().mIndex);
+        return !gameId.empty();
+    }
+
+    bool World::restoreNeutralCorpsePose(const Ptr& ptr, const std::string& gameId, std::uint32_t placement)
+    {
+        const NeutralCorpsePose* pose = mCorpsePoses.find(gameId, placement);
+        if (pose == nullptr)
+            return false;
+        std::vector<std::string> names;
+        std::vector<MWPhysics::RagdollBoneState> states;
+        std::string message;
+        if (!NeutralCorpsePoses::toStates(*pose, names, states)
+            || !mRendering->getObjects().beginNeutralRagdollFrozen(ptr, names, states, message))
+        {
+            Log(Debug::Verbose) << "No saved corpse pose for " << ptr.getCellRef().getRefId() << ": " << message;
+            return false;
+        }
+        Log(Debug::Info) << "Corpse pose restored for " << ptr.getCellRef().getRefId() << " (" << names.size()
+                         << " bones, no ragdoll)";
+        return true;
+    }
+
+    void World::trackNeutralCorpseRest(const Ptr& ptr, MWPhysics::ActorRagdollHandle handle)
+    {
+        // Three updates in a row with every body asleep: the pose no longer changes, so the driver's last frame is the
+        // pose of the corpse. Anything that wakes it again drops the kept pose (it would be stale).
+        constexpr unsigned cRestUpdates = 3;
+        CorpseRest& rest = mCorpseRest[ptr.mRef];
+        rest.mSeen = true;
+        double pelvis[3];
+        std::string gameId;
+        std::uint32_t placement = 0;
+        if (!mPhysics->actorRagdollAtRest(handle, pelvis))
+        {
+            if (rest.mCaptured && neutralCorpseKey(ptr, gameId, placement))
+                mCorpsePoses.erase(gameId, placement);
+            rest.mCaptured = false;
+            rest.mFrames = 0;
+            return;
+        }
+        if (rest.mCaptured || ++rest.mFrames < cRestUpdates)
+            return;
+        std::vector<std::string> names;
+        std::vector<MWPhysics::RagdollBoneState> states;
+        if (!mRendering->getObjects().neutralRagdollDrivenPose(ptr, names, states))
+            return; // the driver has not drawn yet: ask again next update
+        rest.mCaptured = true;
+        if (neutralCorpseKey(ptr, gameId, placement) && mCorpsePoses.put(gameId, placement, names, states))
+            Log(Debug::Info) << "Corpse pose kept for " << ptr.getCellRef().getRefId() << " (" << names.size()
+                             << " bones)";
+    }
+
     void World::startNeutralRagdoll(const Ptr& ptr)
     {
+        // Task 0263: a corpse the pack put back from a save is drawn in the pose it lay in, with no ragdoll to fall
+        // again. A death that is new (not put back) replaces whatever pose the actor had.
+        std::string gameId;
+        std::uint32_t placement = 0;
+        if (neutralCorpseKey(ptr, gameId, placement))
+        {
+            if (mPhysics->takeRestoredCorpse(ptr) && restoreNeutralCorpsePose(ptr, gameId, placement))
+                return;
+            mCorpsePoses.erase(gameId, placement);
+        }
         // The pose the actor died in, read from its bones now; an actor with no ragdoll controller (a creature, a
         // skeleton with no bone table) keeps the death clip's last pose.
         MWPhysics::ActorStartPose pose;
@@ -1874,7 +1945,18 @@ namespace MWWorld
                 }
                 if (mPhysics->readActorRagdoll(handle, states))
                     mRendering->getObjects().setNeutralRagdollStates(ptr, states);
+                trackNeutralCorpseRest(ptr, handle);
             });
+        for (auto it = mCorpseRest.begin(); it != mCorpseRest.end();)
+        {
+            if (!it->second.mSeen)
+                it = mCorpseRest.erase(it);
+            else
+            {
+                it->second.mSeen = false;
+                ++it;
+            }
+        }
     }
 
     void World::updateNavigator()
@@ -2856,12 +2938,13 @@ namespace MWWorld
         // Task 0202: the counter of the ids of created objects (1: none was ever made, which keeps version 1 bytes)
         const std::uint32_t createdCounter = MWBase::Environment::get().getExtensionManager()->neutralCreatedCounter();
         state.mNextCreatedIndex = createdCounter > 1 ? createdCounter : 0;
+        state.mCorpsePoses = mCorpsePoses.collect(); // task 0263
         std::size_t changed = 0;
         for (const NeutralSavedCell& cell : state.mCells)
             changed += cell.mObjects.size();
         Log(Debug::Info) << "Neutral save: " << state.mCells.size() << " cells with changes, " << changed
                          << " changed objects, " << state.mUnlocked.size() << " opened locks, " << state.mKeys.size()
-                         << " keys";
+                         << " keys, " << state.mCorpsePoses.size() << " corpse poses";
         const std::vector<std::byte> bytes = encodeNeutralSave(std::move(state));
         writer.startRecord(kNeutralSaveRecord);
         writer.startSubRecord("NWDA");
@@ -2891,6 +2974,7 @@ namespace MWWorld
         mNeutralSaveBytes.clear();
         if (!ok)
             throw std::runtime_error("The save's neutral world record is damaged: " + error);
+        mCorpsePoses.load(state.mCorpsePoses); // task 0263: the poses of the corpses the pack puts back
         const WorldModel::NeutralSaveRestore restored = mWorldModel.restoreNeutralSave(state, *neutral);
         for (const std::string& warning : restored.mWarnings)
             Log(Debug::Warning) << warning;

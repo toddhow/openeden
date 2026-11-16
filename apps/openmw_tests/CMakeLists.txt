@@ -70,6 +70,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralharvest.cpp
     mwworld/testneutralresource.cpp
     mwworld/testneutralsave.cpp
+    mwworld/testneutralcorpseposes.cpp
     mwworld/testneutralsavecreated.cpp
     mwworld/testneutralfade.cpp
     mwworld/testneutralcreatedcell.cpp
@@ -108,6 +109,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/testragdollbonemath.cpp
     mwrender/testgltfclips.cpp
     mwrender/testactorragdolldriver.cpp
+    mwrender/testcorpsepose.cpp
     mwrender/testskyrimragdoll.cpp
     mwrender/testactorragdollstartpose.cpp
     mwrender/testfootik.cpp

@@ -3,6 +3,7 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
 
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
@@ -18,6 +19,7 @@
 #include "globals.hpp"
 #include "groundcoverstore.hpp"
 #include "localscripts.hpp"
+#include "neutralcorpseposes.hpp"
 #include "neutralmouth.hpp"
 #include "ptr.hpp"
 #include "scene.hpp"
@@ -180,6 +182,19 @@ namespace MWWorld
         // Task 0174 (S5-5): death ragdolls of neutral actors (doPhysics).
         void startNeutralRagdoll(const MWWorld::Ptr& ptr);
         void updateNeutralRagdolls();
+        // Task 0263: the pose a settled death ragdoll ended in is kept (and saved), and a corpse the pack puts back
+        // after a load is drawn in it with no ragdoll.
+        bool neutralCorpseKey(const MWWorld::Ptr& ptr, std::string& gameId, std::uint32_t& placement) const;
+        bool restoreNeutralCorpsePose(const MWWorld::Ptr& ptr, const std::string& gameId, std::uint32_t placement);
+        void trackNeutralCorpseRest(const MWWorld::Ptr& ptr, MWPhysics::ActorRagdollHandle handle);
+        NeutralCorpsePoses mCorpsePoses;
+        struct CorpseRest
+        {
+            unsigned mFrames = 0; ///< consecutive updates with every body asleep
+            bool mCaptured = false; ///< the pose was kept (or could not be)
+            bool mSeen = false; ///< seen in this update's pass, for the sweep
+        };
+        std::unordered_map<const MWWorld::LiveCellRefBase*, CorpseRest> mCorpseRest;
 
         void updateNavigatorObject(
             const MWPhysics::Object& object, const DetourNavigator::UpdateGuard* navigatorUpdateGuard = nullptr);

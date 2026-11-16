@@ -12,7 +12,9 @@
 
 // The bytes of a neutral save (task 0177). Layout, all little endian:
 //   magic "NWSV", u32 version, cell key of the player, u32 cell count, cells, u32 unlocked count, entries,
-//   u32 key count, entries, and in version 2 (task 0202) u32 next created index
+//   u32 key count, entries, and in version 2 (task 0202) u32 next created index; in version 3 (task 0263) after it
+//   u32 pose count, poses: string game id, u32 placement, u8 bone count, bones: string name, 3 f32 position, 4 f32
+//   rotation
 // cell key: u8 kind; for a kind other than None: string game id, then Interior: u32 cell; Exterior: u32 world, i32 x,
 //   i32 y. string: u16 length, bytes.
 // cell: key, u32 object count, objects. object: u32 placement, u8 flags, then Moved: 6 floats (position, rotation),
@@ -267,6 +269,15 @@ namespace MWWorld
         state.mCells.erase(std::unique(state.mCells.begin(), state.mCells.end(),
                                [](const NeutralSavedCell& a, const NeutralSavedCell& b) { return a.mKey == b.mKey; }),
             state.mCells.end());
+        std::stable_sort(state.mCorpsePoses.begin(), state.mCorpsePoses.end(),
+            [](const NeutralCorpsePose& a, const NeutralCorpsePose& b) {
+                return std::tie(a.mGameId, a.mPlacement) < std::tie(b.mGameId, b.mPlacement);
+            });
+        state.mCorpsePoses.erase(std::unique(state.mCorpsePoses.begin(), state.mCorpsePoses.end(),
+                                     [](const NeutralCorpsePose& a, const NeutralCorpsePose& b) {
+                                         return a.mGameId == b.mGameId && a.mPlacement == b.mPlacement;
+                                     }),
+            state.mCorpsePoses.end());
         for (auto* entries : { &state.mUnlocked, &state.mKeys })
         {
             std::sort(entries->begin(), entries->end());
@@ -289,11 +300,24 @@ namespace MWWorld
         if (created > kNeutralSaveMaxCreated)
             throw std::length_error("a neutral save holds too many created objects");
         // Version 1 bytes unless something was ever created: every other save is what it always was
-        const bool version2 = created != 0 || state.mNextCreatedIndex != 0;
+        const bool poses = !state.mCorpsePoses.empty();
+        if (state.mCorpsePoses.size() > kNeutralSaveMaxPoses)
+            throw std::length_error("a neutral save holds too many corpse poses");
+        for (const NeutralCorpsePose& pose : state.mCorpsePoses)
+        {
+            if (pose.mGameId.empty() || pose.mBones.empty() || pose.mBones.size() > kNeutralSaveMaxPoseBones)
+                throw std::invalid_argument(
+                    "a neutral save cannot be written: a corpse pose has no game id or a bad bone count");
+            for (const NeutralCorpseBone& bone : pose.mBones)
+                if (bone.mName.empty() || bone.mName.size() > kNeutralSaveMaxPoseName)
+                    throw std::invalid_argument(
+                        "a neutral save cannot be written: a corpse pose bone has an empty or too long name");
+        }
+        const bool version2 = created != 0 || state.mNextCreatedIndex != 0 || poses;
         Writer w;
         for (char c : kMagic)
             w.u8(static_cast<std::uint8_t>(c));
-        w.u32(version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
+        w.u32(poses ? kNeutralSaveVersionPoses : version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
         w.key(state.mPlayerCell);
         w.count(state.mCells.size(), kNeutralSaveMaxCells, "cells");
         for (const NeutralSavedCell& cell : state.mCells)
@@ -335,6 +359,24 @@ namespace MWWorld
         writeEntries(w, state.mKeys, "keys");
         if (version2)
             w.u32(state.mNextCreatedIndex);
+        if (poses)
+        {
+            w.u32(static_cast<std::uint32_t>(state.mCorpsePoses.size()));
+            for (const NeutralCorpsePose& pose : state.mCorpsePoses)
+            {
+                w.string(pose.mGameId);
+                w.u32(pose.mPlacement);
+                w.u8(static_cast<std::uint8_t>(pose.mBones.size()));
+                for (const NeutralCorpseBone& bone : pose.mBones)
+                {
+                    w.string(bone.mName);
+                    for (float f : bone.mPos)
+                        w.f32(f);
+                    for (float f : bone.mRot)
+                        w.f32(f);
+                }
+            }
+        }
         if (w.mBytes.size() > kNeutralSaveMaxBytes)
             throw std::length_error("a neutral save is larger than " + std::to_string(kNeutralSaveMaxBytes) + " bytes");
         return std::move(w.mBytes);
@@ -370,13 +412,15 @@ namespace MWWorld
         std::uint32_t version = 0;
         if (!r.u32(version))
             return fail();
-        if (version != kNeutralSaveVersion && version != kNeutralSaveVersionCreated)
+        if (version != kNeutralSaveVersion && version != kNeutralSaveVersionCreated
+            && version != kNeutralSaveVersionPoses)
         {
             r.fail("the neutral save has version " + std::to_string(version) + ", this build reads versions "
-                + std::to_string(kNeutralSaveVersion) + " and " + std::to_string(kNeutralSaveVersionCreated));
+                + std::to_string(kNeutralSaveVersion) + " to " + std::to_string(kNeutralSaveVersionPoses));
             return fail();
         }
-        const bool version2 = version == kNeutralSaveVersionCreated;
+        const bool version3 = version == kNeutralSaveVersionPoses;
+        const bool version2 = version == kNeutralSaveVersionCreated || version3;
         std::size_t createdCount = 0;
         if (!r.key(state.mPlayerCell, true))
             return fail();
@@ -476,10 +520,61 @@ namespace MWWorld
                         r.fail(problem);
                         return fail();
                     }
-            if (createdCount == 0 && state.mNextCreatedIndex == 0)
+            if (!version3 && createdCount == 0 && state.mNextCreatedIndex == 0)
             {
                 r.fail("a version 2 save with nothing created and no counter is not canonical");
                 return fail();
+            }
+        }
+        if (version3)
+        {
+            std::size_t poses = 0;
+            if (!r.count(poses, kNeutralSaveMaxPoses, 11, "corpse poses"))
+                return fail();
+            if (poses == 0)
+            {
+                r.fail("a version 3 save with no corpse pose is not canonical");
+                return fail();
+            }
+            state.mCorpsePoses.reserve(poses);
+            for (std::size_t i = 0; i < poses; ++i)
+            {
+                NeutralCorpsePose pose;
+                std::uint8_t bones = 0;
+                if (!r.string(pose.mGameId) || !r.u32(pose.mPlacement) || !r.u8(bones))
+                    return fail();
+                if (pose.mGameId.empty() || bones == 0 || bones > kNeutralSaveMaxPoseBones)
+                {
+                    r.fail("a corpse pose has no game id or a bad bone count");
+                    return fail();
+                }
+                if (!state.mCorpsePoses.empty()
+                    && !(std::tie(state.mCorpsePoses.back().mGameId, state.mCorpsePoses.back().mPlacement)
+                        < std::tie(pose.mGameId, pose.mPlacement)))
+                {
+                    r.fail("the corpse poses are not in order");
+                    return fail();
+                }
+                pose.mBones.reserve(bones);
+                for (std::uint8_t b = 0; b < bones; ++b)
+                {
+                    NeutralCorpseBone bone;
+                    if (!r.string(bone.mName))
+                        return fail();
+                    if (bone.mName.empty() || bone.mName.size() > kNeutralSaveMaxPoseName)
+                    {
+                        r.fail("a corpse pose bone has an empty or too long name");
+                        return fail();
+                    }
+                    for (float& f : bone.mPos)
+                        if (!r.f32(f))
+                            return fail();
+                    for (float& f : bone.mRot)
+                        if (!r.f32(f))
+                            return fail();
+                    pose.mBones.push_back(std::move(bone));
+                }
+                state.mCorpsePoses.push_back(std::move(pose));
             }
         }
         if (!r.atEnd())

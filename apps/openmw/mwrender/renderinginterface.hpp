@@ -5,6 +5,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <vector>
 #include <string_view>
 
 #include <components/havokpack/clipevents.hpp>
@@ -97,6 +98,20 @@ namespace MWRender
         }
         /// Stops drawing from the ragdoll (the ragdoll is gone).
         virtual void endNeutralRagdoll(const MWWorld::Ptr& /*ptr*/) {}
+        /// Task 0263: draws a corpse in a saved pose (world rotations and the pelvis' world position, in the order of
+        /// `names`), with no ragdoll. False with a reason when the actor has no ragdoll controller or the driver is
+        /// refused; the caller then falls back to the ragdoll.
+        virtual bool beginNeutralRagdollFrozen(const MWWorld::Ptr& /*ptr*/, std::span<const std::string> /*names*/,
+            std::span<const MWPhysics::RagdollBoneState> /*states*/, std::string& /*reason*/)
+        {
+            return false;
+        }
+        /// Task 0263: the pose the actor's ragdoll driver drew last (the saved form). False when no driver has drawn.
+        virtual bool neutralRagdollDrivenPose(
+            const MWWorld::Ptr& /*ptr*/, std::vector<std::string>& /*names*/, std::vector<MWPhysics::RagdollBoneState>& /*states*/)
+        {
+            return false;
+        }
 
         // Task 0232 (door and chest sequences). Main thread. The defaults do nothing / say no.
         /// Whether the object's model plays an Open sequence (only with [Game] neutral object animations).

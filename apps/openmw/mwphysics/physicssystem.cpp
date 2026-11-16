@@ -1770,8 +1770,18 @@ namespace MWPhysics
         entry->mFall.mZ = pos.pos[2];
         entry->mFall.mVelocity = 0.f;
         entry->mRequest = {};
+        entry->mRestoredCorpse = true;
         mPhysics.mNeutralMoved.push_back(ptr);
         mPhysics.mNeutralTurned.push_back(ptr);
+        return true;
+    }
+
+    bool PhysicsSystem::takeRestoredCorpse(const MWWorld::Ptr& ptr)
+    {
+        NeutralActorEntry* entry = findNeutralActor(ptr.mRef);
+        if (entry == nullptr || !entry->mRestoredCorpse)
+            return false;
+        entry->mRestoredCorpse = false;
         return true;
     }
 

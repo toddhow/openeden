@@ -117,6 +117,11 @@ namespace MWRender
         /// Task 0174: another skeleton's bones (the set must outlive the driver).
         ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source,
             const RagdollBoneSet& set);
+        /// Task 0263: with absolute set, the states ARE the world rotations of the driven bones and the pelvis' world
+        /// position (what drivenPose() gave), not a ragdoll's: no offsets are captured, so the corpse is drawn in
+        /// exactly that pose.
+        ActorRagdollDriver(Anim::Bones& bones, const Anim::Transform* root, std::unique_ptr<RagdollSource> source,
+            const RagdollBoneSet& set, bool absolute);
         ~ActorRagdollDriver();
 
         ActorRagdollDriver(const ActorRagdollDriver&) = delete;
@@ -131,6 +136,12 @@ namespace MWRender
         /// Writes the bones. False when the ragdoll is gone (the bones keep the last pose written).
         bool apply();
 
+        /// Task 0263. The pose the last apply() wrote, in the layout of the source's states: each driven bone's state
+        /// carries the bone's world rotation as drawn, the pelvis' state also its world position as drawn. Bones with
+        /// no body keep the source's own state. False before the first apply() or when `out` is too small. Same
+        /// thread as apply(). No allocation.
+        bool drivenPose(std::span<MWPhysics::RagdollBoneState> out) const;
+
     private:
         struct Driven
         {
@@ -143,6 +154,9 @@ namespace MWRender
         std::unique_ptr<RagdollSource> mSource;
         std::vector<Driven> mDriven;
         std::vector<MWPhysics::RagdollBoneState> mStates;
+        std::vector<MWPhysics::RagdollBoneState> mLastDrawn; // task 0263: what apply() last wrote, see drivenPose
+        bool mHasDrawn = false;
+        bool mAbsolute = false;
         BonePose::Bone mPelvisParent;
         BonePose::Bone mPelvisGrandParent; // only with mTranslateRootBone; empty: the model root
         bool mTranslateRootBone = false;

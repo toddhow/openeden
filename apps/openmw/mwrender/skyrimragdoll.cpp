@@ -99,6 +99,47 @@ namespace MWRender::SkyrimRagdoll
         return true;
     }
 
+    bool Controller::armFrozen(std::span<const std::string> names,
+        std::span<const MWPhysics::RagdollBoneState> states, std::string& reason)
+    {
+        if (states.size() < names.size())
+        {
+            reason = "too few saved pose states";
+            return false;
+        }
+        auto snapshot = std::make_shared<Snapshot>(std::vector<std::string>(names.begin(), names.end()));
+        snapshot->set(states);
+        auto driver = std::make_unique<ActorRagdollDriver>(
+            mBones, mRoot, std::make_unique<SnapshotSource>(snapshot), mTable->set(), true);
+        if (!driver->isValid())
+        {
+            reason = driver->reason();
+            return false;
+        }
+        std::scoped_lock lock(mMutex);
+        if (mSnapshot)
+            mSnapshot->end();
+        mSnapshot = std::move(snapshot);
+        mDriver = std::move(driver);
+        mArmed = true;
+        return true;
+    }
+
+    bool Controller::drivenPose(
+        std::vector<std::string>& names, std::vector<MWPhysics::RagdollBoneState>& states) const
+    {
+        std::scoped_lock lock(mMutex);
+        if (!mArmed || !mDriver || !mSnapshot)
+            return false;
+        const std::span<const std::string> own = mSnapshot->names();
+        std::vector<MWPhysics::RagdollBoneState> result(own.size());
+        if (!mDriver->drivenPose(result))
+            return false;
+        names.assign(own.begin(), own.end());
+        states = std::move(result);
+        return true;
+    }
+
     void Controller::setStates(std::span<const MWPhysics::RagdollBoneState> states)
     {
         std::shared_ptr<Snapshot> snapshot;

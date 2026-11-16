@@ -850,6 +850,25 @@ namespace MWRender
             ragdoll->disarm();
     }
 
+    bool Scene::beginNeutralRagdollFrozen(const MWWorld::Ptr& ptr, std::span<const std::string> names,
+        std::span<const MWPhysics::RagdollBoneState> states, std::string& reason)
+    {
+        SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr);
+        if (ragdoll == nullptr)
+        {
+            reason = "the actor has no ragdoll controller";
+            return false;
+        }
+        return ragdoll->armFrozen(names, states, reason);
+    }
+
+    bool Scene::neutralRagdollDrivenPose(const MWWorld::Ptr& ptr, std::vector<std::string>& names,
+        std::vector<MWPhysics::RagdollBoneState>& states)
+    {
+        SkyrimRagdoll::Controller* ragdoll = findNeutralRagdoll(ptr);
+        return ragdoll != nullptr && ragdoll->drivenPose(names, states);
+    }
+
     std::shared_ptr<const HavokPack::ClipMeta> Scene::neutralClipMeta(std::string_view clip, bool perSex)
     {
         // The player has no skeleton of its own here: the male character skeleton and the male project's sidecars give
