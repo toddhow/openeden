@@ -216,6 +216,7 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/lockpick_global.lua
     scripts/openeden/skyrimse/lockpick_player.lua
     scripts/openeden/skyrimse/books_global.lua
+    scripts/openeden/skyrimse/worldbooks_global.lua
     scripts/openeden/skyrimse/books_player.lua
     scripts/openeden/skyrimse/skills_global.lua
     scripts/openeden/skyrimse/map_global.lua

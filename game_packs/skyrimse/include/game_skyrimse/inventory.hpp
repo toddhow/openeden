@@ -76,6 +76,7 @@ namespace game_skyrimse
             Weapon, ///< one at a time (the right hand)
             Armor, ///< replaces every equipped piece whose slot mask overlaps
             Potion, ///< used, not worn
+            Scroll, ///< task 0234: used (cast), not worn
         };
 
         struct EquipInfo

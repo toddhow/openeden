@@ -113,6 +113,9 @@ namespace game_skyrimse
 
             // ---- books
             ReadStatus readBook(FormId item);
+            /// Task 0234: reads a book lying in the world: the effect of the first reading is the inventory read's, but
+            /// the book need not be held and a tome is not consumed (it is not in the inventory).
+            ReadStatus readWorldBook(FormId item);
             /// Null when not a book, or the index is not ready.
             [[nodiscard]] const BookRecord* book(FormId item) const;
             [[nodiscard]] std::string bookTitle(FormId item);
@@ -123,6 +126,7 @@ namespace game_skyrimse
             [[nodiscard]] openeden::sdk::DeclareResult declare(openeden::sdk::BindingsService& service);
 
         private:
+            ReadStatus readImpl(FormId item, bool held);
             struct Impl;
             std::unique_ptr<Impl> mImpl;
             inventory::InventoryService& mInventory;

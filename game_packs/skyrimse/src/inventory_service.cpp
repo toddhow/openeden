@@ -247,6 +247,8 @@ namespace game_skyrimse::inventory
                 return { EquipKind::Weapon, 0 };
             case Category::Potion:
                 return { EquipKind::Potion, 0 };
+            case Category::Scroll:
+                return { EquipKind::Scroll, 0 }; // task 0234
             case Category::Armor:
             {
                 // The slots come from the armour records (a hook); an answer is remembered, a failure is asked again.
@@ -325,6 +327,20 @@ namespace game_skyrimse::inventory
                         + std::string(transferStatusName(used)) + ", revision " + std::to_string(mModel.revision()));
                 return UseStatus::Ok;
             }
+        }
+        if (equipInfoOf(item).mKind == EquipKind::Scroll)
+        {
+            // Task 0234: a scroll is cast by the magic runtime (no magicka); one is used up when the cast is
+            // accepted, and
+            // the pack gives it back if the cast never starts.
+            const int cast = mHooks.mUseScroll ? mHooks.mUseScroll(item) : -1;
+            if (cast <= 0)
+                return refuse(UseStatus::Refused, "the scroll cannot be cast now");
+            const TransferStatus used = mModel.consume(kPlayerOwner, item, 1);
+            if (mHooks.mLog)
+                mHooks.mLog("INV use " + formatId(item) + ": scroll cast, " + std::string(transferStatusName(used))
+                    + ", revision " + std::to_string(mModel.revision()));
+            return UseStatus::Ok;
         }
         if (equipInfoOf(item).mKind != EquipKind::Potion)
             return refuse(UseStatus::NotUsable, "not a potion");
@@ -535,6 +551,9 @@ namespace game_skyrimse::inventory
                     break;
                 case EquipKind::Potion:
                     m.mText = "potion";
+                    break;
+                case EquipKind::Scroll:
+                    m.mText = "scroll";
                     break;
                 default:
                     m.mText.clear();

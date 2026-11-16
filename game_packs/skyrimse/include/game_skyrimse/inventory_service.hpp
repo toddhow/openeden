@@ -83,6 +83,11 @@ namespace game_skyrimse
             /// potion), 1 when the poison was put on the weapon he wields (the item is consumed), -1 when it was
             /// refused (no weapon, a bow, a weapon already poisoned: nothing is consumed). May be empty.
             std::function<int(FormId item)> mUsePoison;
+            // ---- task 0234 (scrolls)
+            /// The player uses a scroll from the inventory window: 1 when the pack accepted the cast (one scroll
+            /// is consumed), -1 when it was refused (the combat rules are off or busy: nothing is consumed), 0
+            /// when it does not know the item. May be empty (then a scroll is refused and kept).
+            std::function<int(FormId item)> mUseScroll;
         };
 
         [[nodiscard]] std::string formatId(std::uint64_t id); ///< 8 lower-case hex digits (more when needed)

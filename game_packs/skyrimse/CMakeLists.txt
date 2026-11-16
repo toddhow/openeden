@@ -70,6 +70,7 @@ openeden_add_game_pack(skyrimse
         src/crime_service.cpp
         src/lockbooks.cpp
         src/lockbooks_service.cpp
+        src/worldbooks.cpp
         src/pickup.cpp
         src/pickup_service.cpp
         src/harvest.cpp
@@ -85,6 +86,8 @@ openeden_add_game_pack(skyrimse
         src/combat_magic.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
+        src/combat_scroll.cpp
+        src/scroll.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
         src/combat_impact.cpp
@@ -159,6 +162,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/crime_service.hpp
         include/game_skyrimse/lockbooks.hpp
         include/game_skyrimse/lockbooks_service.hpp
+        include/game_skyrimse/worldbooks.hpp
+        include/game_skyrimse/scroll.hpp
         include/game_skyrimse/pickup.hpp
         include/game_skyrimse/pickup_service.hpp
         include/game_skyrimse/harvest.hpp
@@ -256,6 +261,7 @@ add_library(game_skyrimse_world STATIC
     src/crime_service.cpp
     src/lockbooks.cpp
     src/lockbooks_service.cpp
+    src/worldbooks.cpp
     src/pickup.cpp
     src/pickup_service.cpp
     src/harvest.cpp
@@ -271,6 +277,8 @@ add_library(game_skyrimse_world STATIC
     src/combat_magic.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp
+    src/combat_scroll.cpp
+    src/scroll.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/combat_impact.cpp

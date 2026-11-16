@@ -189,6 +189,7 @@ namespace game_skyrimse
         std::vector<ArtRecord> mArts; ///< task 0191
         std::vector<PerkRecord> mPerks; ///< task 0179
         std::vector<SpellRecord> mSpells; ///< task 0179: ability spells only
+        std::vector<SpellRecord> mScrolls; ///< task 0234: SCRL records read as spells (scroll.hpp)
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
@@ -329,6 +330,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, CombatStyleRecord> mStyles;
         std::unordered_map<FormId, PerkRecord> mPerks;
         std::unordered_map<FormId, SpellRecord> mSpells;
+        std::unordered_map<FormId, SpellRecord> mScrolls; ///< task 0234
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
         SoundLibrary mSoundLibrary;

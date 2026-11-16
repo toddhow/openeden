@@ -149,6 +149,8 @@ namespace game_skyrimse
         float mCastDuration = 0.f;
         float mRange = 0.f;
         std::vector<SpellEffect> mEffects;
+        /// Task 0234: decoded from a SCRL (scroll.hpp): cost 0, cast type normalised, castable once by the player.
+        bool mScroll = false;
         static constexpr std::uint32_t kTypeAbility = 4;
         [[nodiscard]] bool isAbility() const { return mHasData && mType == kTypeAbility; }
     };

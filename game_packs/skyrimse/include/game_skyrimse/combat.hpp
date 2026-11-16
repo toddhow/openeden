@@ -592,6 +592,16 @@ namespace game_skyrimse
         /// power, or one is already waiting. The once-a-day rule is the caller's.
         bool castPlayerPower(FormId spell);
 
+        // ---- task 0234 (scrolls; combat_scroll.cpp) --------------------------------------------------------
+        /// Queues the cast of the scroll `scroll` (a SpellRecord decoded from a SCRL, SpellRecord::mScroll) by the
+        /// player: the same cast clip, delivery and effect rules as any spell, no magicka. False (nothing queued,
+        /// so the caller uses nothing up) when the combat has never run, the id is not a scroll with effects, or
+        /// another waits.
+        bool castPlayerScroll(FormId scroll);
+        /// Told once per accepted scroll: `cast` true when its cast began, false when it gave up waiting for the
+        /// cast clip's timing (the caller gives the scroll back).
+        void setScrollOutcome(std::function<void(FormId scroll, bool cast)> sink);
+
         // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
 
         /// What the AI asks of the actor hook (the combat writer has no movement): the cell source drains these once a
@@ -851,6 +861,7 @@ namespace game_skyrimse
         void startTestCasts(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerCast(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerPower(openeden::sdk::game::CombatRequestWriter& writer);
+        void runPlayerScroll(openeden::sdk::game::CombatRequestWriter& writer); // task 0234
         void applyPowerEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
         bool beginCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
             bool heldByKey, float holdSeconds);
@@ -1145,6 +1156,9 @@ namespace game_skyrimse
         std::vector<bool> mCastEdges; ///< attack-control edges for the spell (true: pressed)
         FormId mPendingPower = kNullFormId; ///< task 0228: a power waiting for its cast clip's timing
         float mPendingPowerAt = 0.f;
+        FormId mPendingScroll = kNullFormId; ///< task 0234: a scroll waiting for its cast clip's timing
+        float mPendingScrollAt = 0.f;
+        std::function<void(FormId, bool)> mScrollOutcome;
         std::string mTestPlayerSpell; ///< lower case
         const SpellRecord* mPlayerSpell = nullptr;
         bool mPlayerSpellLooked = false;

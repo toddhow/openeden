@@ -2299,6 +2299,13 @@ namespace game_skyrimse
             (void)m.sendEvent(instance, "OnActivate", { m.formValue(actionRef) });
     }
 
+    void PapyrusHost::onRead(FormId target)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesOf(target))
+            (void)m.sendEvent(instance, "OnRead");
+    }
+
     void PapyrusHost::tick(float dt)
     {
         mImpl->tick(dt);

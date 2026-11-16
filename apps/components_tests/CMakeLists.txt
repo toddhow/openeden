@@ -42,6 +42,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
     ui/testskyrimsebookwindow.cpp
+    ui/testskyrimseworldbookwindow.cpp
     ui/testuiqueue.cpp
     ui/testuireactive.cpp
     ui/testuiupdatehook.cpp
@@ -597,6 +598,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimselockbooksreal.cpp
     skyrimse/testskyrimselockbooksskill.cpp
     skyrimse/testskyrimselockbookssource.cpp
+    skyrimse/testskyrimseworldbooks.cpp
+    skyrimse/testskyrimsescrolls.cpp
+    skyrimse/testskyrimsescrollsreal.cpp
     skyrimse/testskyrimsepickup.cpp
     skyrimse/testskyrimsepickupservice.cpp
     skyrimse/testskyrimseharvest.cpp
@@ -807,6 +811,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crime_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/lockbooks_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/worldbooks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pickup.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/pickup_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/harvest.cpp
@@ -822,6 +827,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp

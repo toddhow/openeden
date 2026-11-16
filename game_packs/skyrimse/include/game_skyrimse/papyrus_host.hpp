@@ -386,6 +386,9 @@ namespace game_skyrimse
         /// The player (or an actor) used a placed reference: sends OnActivate(akActionRef) to its instances.
         void onActivate(FormId target, FormId actionRef);
 
+        /// Task 0234: the player read a placed book: sends OnRead to its instances.
+        void onRead(FormId target);
+
         /// Advances script time by \a dt seconds: fires the updates that are due, runs the queued events and wakes
         /// the waiting scripts.
         void tick(float dt);

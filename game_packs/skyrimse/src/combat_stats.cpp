@@ -4,6 +4,7 @@
 
 #include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/scroll.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -654,7 +655,7 @@ namespace game_skyrimse
                     && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO")
-                    && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF"))
+                    && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -738,6 +739,13 @@ namespace game_skyrimse
                     ok = decodeSpell(bytes, record, mContext, sp, why);
                     if (ok)
                         mOut.mSpells.push_back(std::move(sp));
+                }
+                else if (t == Content::fourCC("SCRL"))
+                {
+                    SpellRecord sp; // task 0234: a scroll is cast as a spell
+                    ok = decodeScroll(bytes, record, mContext, sp, why);
+                    if (ok)
+                        mOut.mScrolls.push_back(std::move(sp));
                 }
                 else if (t == Content::fourCC("MGEF"))
                 {
@@ -970,6 +978,13 @@ namespace game_skyrimse
             else
                 mSpells[sp.mCommon.mId] = sp;
         }
+        for (const SpellRecord& sc : records.mScrolls)
+        {
+            if (sc.mCommon.deleted())
+                mScrolls.erase(sc.mCommon.mId);
+            else
+                mScrolls[sc.mCommon.mId] = sc;
+        }
         for (const MagicEffectRecord& m : records.mMagicEffects)
         {
             if (m.mCommon.deleted())
@@ -989,7 +1004,10 @@ namespace game_skyrimse
     const SpellRecord* CombatIndex::spell(FormId id) const
     {
         const auto it = mSpells.find(id);
-        return it == mSpells.end() ? nullptr : &it->second;
+        if (it != mSpells.end())
+            return &it->second;
+        const auto scroll = mScrolls.find(id); // task 0234: a scroll is found by its form id too (never by editor id)
+        return scroll == mScrolls.end() ? nullptr : &scroll->second;
     }
 
     const MagicEffectRecord* CombatIndex::magicEffect(FormId id) const

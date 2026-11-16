@@ -1395,6 +1395,7 @@ namespace game_skyrimse
         }
         runPlayerCast(writer);
         runPlayerPower(writer);
+        runPlayerScroll(writer); // task 0234
         startTestCasts(writer);
     }
 }

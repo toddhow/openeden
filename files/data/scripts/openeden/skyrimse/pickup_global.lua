@@ -7,12 +7,16 @@ local okInv, inv = pcall(require, 'core.skyrimse.inventory')
 if not (okPick and okInv) then
   return {}
 end
+-- Task 0234: a book lying in the world is read in place by worldbooks_global.lua (whose Take button comes back here
+-- through the pickup path), not taken at once; without that namespace the old behaviour stays.
+local okWb, wb = pcall(require, 'core.skyrimse.worldbooks')
 
 return {
   eventHandlers = {
     -- From the engine (MWClass::Neutral::activate): a placed item was activated by the player.
     -- data: placement and base (hex text), kind ('item'), name.
     openeden_skyrimse_item_activated = function(data)
+      if okWb and wb.is_book(data.base) then return end
       print('[skyrimse pickup] item activated ' .. tostring(data.placement) .. ' ' .. tostring(data.name))
       pick.pickup(data.placement, data.base)
     end,

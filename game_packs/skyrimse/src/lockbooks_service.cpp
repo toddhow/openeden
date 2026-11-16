@@ -315,12 +315,20 @@ namespace game_skyrimse::lockbooks
 
     LockBooksService::ReadStatus LockBooksService::readBook(FormId item)
     {
+        return readImpl(item, true);
+    }
+
+    // `held`: the book is read from the inventory (it must be held, and a tome is used up); not held: it lies in the
+    // world
+    // (task 0234), so nothing is required of or taken from the inventory.
+    LockBooksService::ReadStatus LockBooksService::readImpl(FormId item, bool held)
+    {
         if (!mReady)
             return ReadStatus::NotReady;
         const BookRecord* b = mBooks.book(item);
         if (b == nullptr)
             return ReadStatus::NotABook;
-        if (mInventory.model().count(inventory::kPlayerOwner, item) <= 0)
+        if (held && mInventory.model().count(inventory::kPlayerOwner, item) <= 0)
             return ReadStatus::NotHeld;
         std::string result;
         const std::string title = bookTitle(item);
@@ -350,7 +358,8 @@ namespace game_skyrimse::lockbooks
             else if (mModel.learnSpell(b->mTeaches))
             {
                 (void)mModel.markRead(item);
-                (void)mInventory.model().consume(inventory::kPlayerOwner, item, 1);
+                if (held)
+                    (void)mInventory.model().consume(inventory::kPlayerOwner, item, 1);
                 if (mHooks.mSpellLearned)
                     mHooks.mSpellLearned(b->mTeaches);
                 result = "Learned " + name + ".";
@@ -363,6 +372,11 @@ namespace game_skyrimse::lockbooks
             mHooks.mLog("LOCKBOOKS read '" + title + "' (" + std::string(bookKindName(b->kind())) + ")"
                 + (result.empty() ? std::string() : ": " + result));
         return ReadStatus::Ok;
+    }
+
+    LockBooksService::ReadStatus LockBooksService::readWorldBook(FormId item)
+    {
+        return readImpl(item, false);
     }
 
     // ---- bindings ------------------------------------------------------------------------------------------------

@@ -59,7 +59,7 @@ end
 -- The label of the extra button of a row, nil when it has none.
 local function useLabel(r)
   if r.readable then return 'Read' end
-  if r.useKind == 'potion' then return 'Use' end
+  if r.useKind == 'potion' or r.useKind == 'scroll' then return 'Use' end -- task 0234: a scroll is cast
   if r.useKind == 'weapon' or r.useKind == 'armor' then return r.equipped and 'Unequip' or 'Equip' end
   return nil
 end
@@ -101,7 +101,7 @@ function M.create(env)
       env.read(r.id)
       return
     end
-    if r.useKind == 'potion' then
+    if r.useKind == 'potion' or r.useKind == 'scroll' then
       if env.use then env.use(r.id) end
     elseif r.equipped then
       if env.unequip then env.unequip(r.id) end

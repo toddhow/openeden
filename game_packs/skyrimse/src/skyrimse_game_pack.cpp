@@ -18,6 +18,7 @@
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/map.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
+#include "game_skyrimse/worldbooks.hpp"
 #include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
@@ -329,6 +330,12 @@ namespace game_skyrimse
             }
 
             void activated(openeden::sdk::game::WorldId reference) { mPendingActivations.push_back(reference); }
+            /// Task 0234: a placed book was read (OnRead goes to its scripts at the next game update).
+            void read(openeden::sdk::game::WorldId reference)
+            {
+                if (mPendingReads.size() < kMaxPending)
+                    mPendingReads.push_back(reference);
+            }
 
             // Task 0181: a save made while the host ran. Empty before the host started.
             [[nodiscard]] std::vector<std::uint8_t> saveState() const { return mHost.saveState(); }
@@ -801,6 +808,9 @@ namespace game_skyrimse
                 for (const openeden::sdk::game::WorldId reference : mPendingActivations)
                     mHost.onActivate(reference, 0x14);
                 mPendingActivations.clear();
+                for (const openeden::sdk::game::WorldId reference : mPendingReads)
+                    mHost.onRead(static_cast<FormId>(reference));
+                mPendingReads.clear();
             }
 
             SkyrimWorldView& mView;
@@ -835,6 +845,7 @@ namespace game_skyrimse
             bool mLogStoryFills = false;
             std::deque<openeden::sdk::game::WorldId> mPendingCells;
             std::vector<openeden::sdk::game::WorldId> mPendingActivations;
+            std::vector<openeden::sdk::game::WorldId> mPendingReads; // task 0234
         };
 
         // Task 0181: the Papyrus state as a save chunk. Written only while the host runs (a byte says whether there
@@ -2001,6 +2012,7 @@ namespace game_skyrimse
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
                 if (settings == nullptr || !settings->getBool(kPackId, "inventory", false))
                     return;
+                mScrollLogger = logger; // task 0234
                 inventory::Hooks hooks;
                 hooks.mInputs = [this](inventory::Inputs& out) {
                     return mWorldView.inventoryInputs(out.mPaths, out.mOrder, out.mLeveled);
@@ -2029,6 +2041,7 @@ namespace game_skyrimse
                     onContainerTaken(owner, item, count); // task 0204
                 };
                 hooks.mUsePoison = [this](FormId item) { return usePoisonOnWeapon(item); }; // task 0229
+                hooks.mUseScroll = [this](FormId item) { return useScroll(item); }; // task 0234
                 hooks.mApplyHealth = [this](float amount) {
                     // the combat rules must run (the engine's health is written through them)
                     return mCellSource.combat().updates() > 0 && mCellSource.combat().queuePlayerHeal(amount);
@@ -2685,6 +2698,21 @@ namespace game_skyrimse
                     if (!chunks->registerHandler(mLockBooks->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the lockbooks chunk was not registered");
                 }
+                // Task 0234: books lying in the world are read in place; OnRead goes to the placement's scripts.
+                lockbooks::WorldBooksHooks worldHooks;
+                worldHooks.mRead = [this](std::uint64_t placement) {
+                    if (mPapyrus != nullptr)
+                        mPapyrus->read(static_cast<openeden::sdk::game::WorldId>(placement));
+                };
+                worldHooks.mLog = hooks.mLog;
+                mWorldBooks = std::make_unique<lockbooks::WorldBooksService>(*mLockBooks, std::move(worldHooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mWorldBooks->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the worldbooks bindings were refused: " + declared.message);
+                }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "LOCKBOOKS lock picking and books are on");
             }
@@ -2949,6 +2977,39 @@ namespace game_skyrimse
                     return worn.mItem;
                 }
                 return kNullFormId;
+            }
+
+            // Task 0234: the player uses a scroll: the combat rules cast it (no magicka). 1 when the cast was accepted
+            // (the inventory uses one up), -1 when the combat refused (it has never run: [Game] neutral combat is
+            // off; the id is not a scroll; another waits), 0 when there is nothing to cast with.
+            int useScroll(FormId item)
+            {
+                if (mInventory == nullptr)
+                    return 0;
+                SkyrimCombat& combat = mCellSource.combat();
+                if (!mScrollSinkSet)
+                {
+                    mScrollSinkSet = true;
+                    combat.setScrollOutcome([this](FormId scroll, bool cast) { onScrollOutcome(scroll, cast); });
+                }
+                const bool accepted = combat.castPlayerScroll(item);
+                scrollLog("SCROLL " + inventory::formatId(item) + (accepted ? " cast accepted" : " refused"));
+                return accepted ? 1 : -1;
+            }
+
+            void scrollLog(const std::string& line)
+            {
+                if (mScrollLogger != nullptr)
+                    mScrollLogger->log(openeden::sdk::LogLevel::Info, line);
+            }
+
+            // A scroll whose cast never began is given back; one whose cast began stays used up.
+            void onScrollOutcome(FormId scroll, bool cast)
+            {
+                scrollLog(
+                    "SCROLL " + inventory::formatId(scroll) + (cast ? " cast began" : " cast gave up, given back"));
+                if (!cast && mInventory != nullptr)
+                    (void)mInventory->model().add(inventory::kPlayerOwner, scroll, 1);
             }
 
             // Task 0229: the player used an item from the inventory window: 0 when it is no poison, 1 when it went on
@@ -3377,6 +3438,9 @@ namespace game_skyrimse
             WeaponRecord mMadeWeapon; // task 0199: the combat record of the wielded made weapon (combat points at it)
             std::function<void(std::string_view, float)> mCraftingSkillSink; // task 0199: a skills system may set it
             std::unique_ptr<lockbooks::LockBooksService> mLockBooks; // task 0203; refers to the inventory
+            std::unique_ptr<lockbooks::WorldBooksService> mWorldBooks; // task 0234; refers to the book service
+            bool mScrollSinkSet = false; // task 0234
+            openeden::sdk::Logger* mScrollLogger = nullptr; // task 0234 (the host's logger outlives the pack)
             std::vector<std::filesystem::path> mBookPaths;
             std::string mBookLanguage = "english";
             std::map<std::pair<std::uint32_t, int>, std::unique_ptr<StringTable>> mBookTables;
