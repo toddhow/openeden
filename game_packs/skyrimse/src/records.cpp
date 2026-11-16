@@ -1241,8 +1241,11 @@ namespace game_skyrimse
                     mOut.mStatics.push_back(std::move(s));
                 else
                 {
-                    ModelRecord model{ record.mType, std::move(s.mCommon), s.mBounds, std::move(s.mModel), std::nullopt,
-                        {}, {}, {} };
+                    ModelRecord model;
+                    model.mType = record.mType;
+                    model.mCommon = std::move(s.mCommon);
+                    model.mBounds = s.mBounds;
+                    model.mModel = std::move(s.mModel);
                     model.mName = std::move(fullName);
                     model.mDescription = std::move(description);
                     model.mActivateText = std::move(activateText);

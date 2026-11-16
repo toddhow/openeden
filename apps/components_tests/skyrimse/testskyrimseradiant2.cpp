@@ -908,7 +908,9 @@ namespace
             // Whiterun is a habitation: the favour node (radiant favours) is behind nodes that must see the event after
             // the first quest was tried; it applies to an arrival from a place that is not a dwelling
             if (c.mFavor)
+            {
                 EXPECT_TRUE(favor) << "no favour quest started when arriving at Whiterun from outside";
+            }
         }
     }
 }

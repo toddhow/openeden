@@ -203,7 +203,9 @@ namespace
         EXPECT_EQ(models(a, ActorPartKind::HeadPart), (std::vector<std::string>{ "head_m.nif", "eyes_m.nif" }));
         for (const auto& part : a.parts)
             if (part.kind == ActorPartKind::HeadPart)
+            {
                 EXPECT_NE(part.headPartType, 0u);
+            }
     }
 
     TEST(SkyrimPlayerBody, theHeightScaleIsTheRacesForTheSex)
