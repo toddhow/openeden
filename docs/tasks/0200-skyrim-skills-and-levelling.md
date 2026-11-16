@@ -80,4 +80,51 @@ clicks, save and load, three equal runs, setting off equals the parent, Morrowin
 
 ## Stage log
 
-(see the end of the task's final report and the changelog row of `CLAUDE.md`)
+Windows only, local commits on branch `skills` from `3885a4091b`, not pushed. Same hand wrote tests and code; no fresh reviewer.
+
+- **Tests.** `testskyrimseprogression.cpp` (pure module, 24 tests): written first against a stub, **21 of 23 red** (the 2 that
+  passed test absence), all green after; `reset` added later with its test. `testskyrimsecombatskills.cpp` (7) and
+  `testskyrimseprogressionservice.cpp` (8) were written AFTER the code (not run red; the perk entry point test failed
+  once on a test mistake and was fixed). Full `components-tests` without the Slang, complement and property groups: 11,196 pass.
+  The script bindings (`declare`) and the Lua window have no unit test (no bindings host or headless UI test written): they are
+  checked in game only.
+- **Data (aggregates, Skyrim.esm).** 20 AVIF with AVSK (the 18 skills and two rate mods); layouts in section 1; MGEF DATA +12:
+  18 to 22 for 76, 74, 183, 67 and 153 effects (the five schools), -1 for 397. In game: 180 perk nodes of the five masters.
+- **In game (Bannered Mare, player against Hulda, `progression test amount` multiplies every use; sounds off in the final runs).**
+  Skill up from fighting: One-Handed 15 -> 31 over ten hits, damage 7.525 -> 7.98 (the player's real skill is used; the stand-in
+  would keep 7.525). Real clicks through `OPENEDEN_RMLUI_INPUT_SCRIPT`: K opens the window, Health +10 (level 2, story event LEVL
+  raised, health maximum 110), Armsman rank 1 bought (a second click: refused, no point). The next hits show `COMBAT perk attack
+  damage (entry point 35): 4.72 -> 5.664`. Frames: `skills/keep/final_009.png` (level up offered), `final_012.png` (Level 2,
+  Armsman 1/5, "perk bought"), `final_023.png`.
+- **Save and load.** Two processes (save in one, `--load-savegame` in the next): the second logs `PROGRESSION ready: level 2` and
+  `SKSTATE level 2 xp 276 points 0 one-handed 31 perks 000babe4x1` before any hit, and the combat reads level 2, stamina 110, 1 perk.
+- **Three runs.** One-sided fight (the player swings at Hulda, no hostile), progression on: three traces of 153 lines, byte
+  identical (the earlier two-sided fights vary from run to run: an existing nondeterminism of two sides swinging, see
+  task 0184, and one run reached One-Handed 33 instead of 31 for that reason).
+- **Setting off equals the parent.** Same one-sided scenario, progression off: 130 lines, identical in two runs and identical to
+  a build of `3885a4091b` (diff empty). Morrowind: `tools/worldobjects_check` 110 lines OK against the `combat4` build, and the
+  fixed Balmora frame hash `1c5d47ad0b5dc32d` equal for the `combat4` build, the parent build, this build and this build
+  with the neutral combat settings on.
+- **Not run:** the Linux gate and GCC `-Werror`, clang-format 14 (not installed: wrapped by hand to 120 columns), clang-tidy,
+  `openmw-tests`, the Lua integration tests, a fresh review, barter or speech in game (hooks are unit-tested only for the
+  combat side; the barter `mTraded` hook and `setProgressionPlayer` have no test), the first runs of the day had no `[Sound]
+  master volume = 0.0` (the final ones did).
+
+## Limits and decisions for toddhow
+
+1. **Health maximum.** The pack raises the player's health maximum in the combat profile and reports the new maximum and health
+   to the engine (a zero damage report), but the bridge only clamps and writes `healthAfter`; the engine's own maximum
+   (`subjectState().healthMax`) stays what the engine says. Not changed (engine side).
+2. **Level up without sleeping** (Skyrim needs a bed): the window offers it when the experience is there. Say if you want a rest.
+3. **Amounts per use and character experience** (damage dealt, damage blocked, damage taken in armour, magicka spent, gold
+   traded; a skill increase gives its new level; level up at 75 + 25 * level) are RECALLED-VERIFY; named in `progression.hpp`.
+4. **Perk names** are editor ids split into words (PERK FULL strings are not read); the window is a list ordered by row and
+   column, not Skyrim's star map.
+5. **Not built:** experience from lockpicking, sneak, pickpocket, smithing, alchemy, enchanting and speech challenges (the
+   crafting task may call `ProgressionService::skillUsed(slot, amount)`; `actorValue(index, out)` answers skills 6 to 23
+   for the Papyrus host). Both sit on the service object the pack owns: nothing hands it to another module yet (one accessor
+   on the pack class would do).
+6. **Combat edits** are one hook call per skill use (`reportHitSkills` in `applyHit`, `reportSpellUse` in `tryCast` and
+   `tickConcentrations`) and `syncProgression` in `combatUpdate`; no new virtual on the combat writer, so `HudWriter` and
+   `AiDamageWriter` needed no change. The world is paused while the window is open, so the combat re-reads the progression after
+   it closes.
