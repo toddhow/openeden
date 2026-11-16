@@ -1164,6 +1164,27 @@ namespace MWPhysics
         }
     }
 
+    bool NeutralCombatBridge::playerShoutEdge(openeden::sdk::game::CombatRules* rules, bool pressed)
+    {
+        if (rules == nullptr)
+        {
+            ++mStats.mPlayerShoutRefused;
+            return false;
+        }
+        try
+        {
+            rules->onPlayerShoutEdge(pressed);
+        }
+        catch (...)
+        {
+            ++mStats.mPlayerShoutRefused;
+            ++mStats.mRulesFailures;
+            return false;
+        }
+        ++mStats.mPlayerShoutEdges;
+        return true;
+    }
+
     bool NeutralCombatBridge::playerAttackEdge(openeden::sdk::game::CombatRules* rules, bool pressed)
     {
         if (rules == nullptr)

@@ -1889,6 +1889,13 @@ namespace MWPhysics
                     mNeutralPlayerHeldPrev = held;
                     mNeutralCombat.playerAttackEdge(mNeutralCombatResolver(), held);
                 }
+                // Task 0205: the shout control's press and release.
+                const bool shoutHeld = playerInput.mAttackEnabled && playerInput.mShoutHeld;
+                if (shoutHeld != mNeutralShoutHeldPrev)
+                {
+                    mNeutralShoutHeldPrev = shoutHeld;
+                    mNeutralCombat.playerShoutEdge(mNeutralCombatResolver(), shoutHeld);
+                }
             }
             mNeutralClipOps.reserve(2 * NeutralCombatBridge::kMaxPlaying);
             mNeutralClipSpeedOps.reserve(NeutralCombatBridge::kMaxPlaying);

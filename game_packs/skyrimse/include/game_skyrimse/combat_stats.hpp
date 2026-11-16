@@ -23,6 +23,7 @@
 #include "game_skyrimse/land.hpp"
 #include "game_skyrimse/perks.hpp"
 #include "game_skyrimse/progression.hpp"
+#include "game_skyrimse/shouts.hpp"
 
 #include <array>
 #include <cstdint>
@@ -196,6 +197,8 @@ namespace game_skyrimse
         std::vector<SpellRecord> mScrolls; ///< task 0234: SCRL records read as spells (scroll.hpp)
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
+        std::vector<ShoutRecord> mShouts; ///< task 0205
+        std::vector<WordRecord> mWords; ///< task 0205
         SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
         std::vector<progression::SkillRecord> mSkills; ///< task 0200: AVIF with skill data
         std::vector<CombatStyleRecord> mStyles; ///< task 0190
@@ -266,6 +269,8 @@ namespace game_skyrimse
         float mWardPowerMaxBase = 1.3f; ///< fMagicWardPowerMaxBase: a ward holds this times its Peak magnitude at most
         float mWardPowerMaxMult = 0.f; ///< fMagicWardPowerMaxMult: the part that grows with the skill (0 in the data)
         float mDamagedMagickaRegenDelay = 0.5f; ///< fDamagedMagickaRegenDelay: seconds after spending before regeneration
+        float mShoutTime1 = 0.2f; ///< task 0205, fShoutTime1
+        float mShoutTime2 = 0.9f; ///< fShoutTime2
     };
 
     /// The GMSTs of a load order by editor id (later plugins win).
@@ -285,7 +290,7 @@ namespace game_skyrimse
         [[nodiscard]] BlockSettings blockSettings() const;
         /// Task 0178: the arrow numbers (a GMST the table has replaces the default).
         [[nodiscard]] ProjectileSettings projectileSettings() const;
-        /// Task 0186: the ward and magicka regeneration numbers.
+        /// Task 0186: the ward and magicka regeneration numbers (and, task 0205, the two shout times).
         [[nodiscard]] MagicSettings magicSettings() const;
 
     private:
@@ -311,6 +316,8 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t raceCount() const { return mRaces.size(); }
         [[nodiscard]] std::vector<FormId> weaponIds() const; ///< sorted
         [[nodiscard]] const SettingsTable& settings() const { return mSettings; }
+        /// Task 0205: the shouts and words of the load order.
+        [[nodiscard]] const ShoutIndex& shouts() const { return mShoutIndex; }
         // PerkLibrary (task 0179)
         [[nodiscard]] const PerkRecord* perk(FormId id) const override;
         [[nodiscard]] const SpellRecord* spell(FormId id) const override;
@@ -337,6 +344,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, SpellRecord> mScrolls; ///< task 0234
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
+        ShoutIndex mShoutIndex;
         SoundLibrary mSoundLibrary;
         progression::SkillTable mSkillTable;
     };

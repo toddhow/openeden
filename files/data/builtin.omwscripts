@@ -98,3 +98,5 @@ MENU REQUIRES=core.skyrimse.menus>=1.0: scripts/openeden/skyrimse/menus_menu.lua
 # Task 0225: the character creation (the pack setting [extension.skyrimse] character creation)
 GLOBAL REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/character_global.lua
 PLAYER REQUIRES=core.skyrimse.character>=1.0: scripts/openeden/skyrimse/character_player.lua
+# Skyrim SE shout cooldown indicator (task 0205)
+PLAYER REQUIRES=core.skyrimse.shouts>=1.0: scripts/openeden/skyrimse/shouts_player.lua

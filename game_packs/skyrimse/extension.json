@@ -291,6 +291,11 @@
       "default": false
     },
     {
+      "key": "shouts",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "fast travel",
       "type": "bool",
       "default": false
@@ -339,6 +344,36 @@
       "key": "rest test ignore owner",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "shouts test learn",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shouts test unlock",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shouts test souls",
+      "type": "int",
+      "default": 0
+    },
+    {
+      "key": "shouts test shout",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "shouts test shout every",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "shouts test shout hold",
+      "type": "float",
+      "default": 1.0
     },
     {
       "key": "journal test quests",

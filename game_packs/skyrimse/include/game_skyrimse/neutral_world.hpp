@@ -423,6 +423,7 @@ namespace game_skyrimse
             mCombat.onProjectileResult(result);
         }
         void onPlayerAttackEdge(bool pressed) override { mCombat.onPlayerAttackEdge(pressed); }
+        void onPlayerShoutEdge(bool pressed) override { mCombat.onPlayerShoutEdge(pressed); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Task 0204: the crime rules (null: off). The system must outlive the cell source's use of it.
         void setCrime(crime::CrimeSystem* system) { mCrime = system; }

@@ -212,6 +212,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralsight.cpp
     mwphysics/testneutralplayerattack.cpp
     mwphysics/testneutralplayerplace.cpp
+    mwphysics/testneutralshoutedge.cpp
     mwphysics/testneutralcombatsight.cpp
     mwphysics/testneutralcombatclock.cpp
     mwphysics/testneutralcombatdeterminism.cpp

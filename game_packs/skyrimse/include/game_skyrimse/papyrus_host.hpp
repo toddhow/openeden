@@ -313,6 +313,23 @@ namespace game_skyrimse
         }
         /// Shows a short message to the player (Debug.Notification).
         virtual void notification(const std::string& text) { (void)text; }
+        /// Task 0205 (a word wall's script): the player learns a word of power, unlocks one with no dragon soul, asks
+        /// whether one is unlocked. False when the pack cannot (the shouts are off, or the form is no word).
+        virtual bool teachWord(FormId word)
+        {
+            (void)word;
+            return false;
+        }
+        virtual bool unlockWord(FormId word)
+        {
+            (void)word;
+            return false;
+        }
+        [[nodiscard]] virtual bool isWordUnlocked(FormId word)
+        {
+            (void)word;
+            return false;
+        }
     };
 
     /// Task 0194: what the Scene natives and the quest hooks reach (the scene runner). Every function runs on the main

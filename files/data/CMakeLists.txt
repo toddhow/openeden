@@ -235,6 +235,8 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/menus_menu.lua
     scripts/openeden/skyrimse/character_global.lua
     scripts/openeden/skyrimse/character_player.lua
+    openeden/skyrimse/shouthud.lua
+    scripts/openeden/skyrimse/shouts_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

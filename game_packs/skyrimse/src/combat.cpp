@@ -2085,6 +2085,7 @@ namespace game_skyrimse
             mProjectileResults.clear();
             mPlayerEdges.clear();
             mCastEdges.clear();
+            mShoutEdges.clear();
             mPlayerAttackPending = false;
         }
         else if (mData != nullptr)

@@ -953,19 +953,31 @@ namespace game_skyrimse
             trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " (held) magicka " + num(f->mMagicka));
             return;
         }
-        const float cost = static_cast<float>(spell.mCost);
+        const float cost = cast.mShout ? 0.f : static_cast<float>(spell.mCost); // task 0205: a shout is free
         if (f->mMagicka < cost)
         {
             trace("COMBAT cast " + name + " refused: not enough magicka (" + num(f->mMagicka) + " of " + num(cost)
                 + ")");
             return;
         }
-        f->mMagicka -= cost;
-        f->mMagickaRegenAt = mClock + mMagicSettings.mDamagedMagickaRegenDelay;
-        reportSpellUse(*f, spell, cost); // task 0200
-        ++mSpellsCast;
-        trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " cost " + num(cost) + " magicka " + num(f->mMagicka)
-            + " of " + num(f->mProfile.mMagickaMax));
+        if (cast.mShout)
+        {
+            // Task 0205: the recovery starts when the shout goes; no magicka, no skill use, no regeneration delay.
+            if (mShouts != nullptr)
+                mShouts->startCooldown(cast.mRecovery);
+            ++mShoutsSpoken;
+            trace("COMBAT shout " + mShoutTraceName + " word " + std::to_string(mShoutWordsChosen) + " spell " + name
+                + " goes, cooldown " + num(cast.mRecovery));
+        }
+        else
+        {
+            f->mMagicka -= cost;
+            f->mMagickaRegenAt = mClock + mMagicSettings.mDamagedMagickaRegenDelay;
+            reportSpellUse(*f, spell, cost); // task 0200
+            ++mSpellsCast;
+            trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " cost " + num(cost) + " magicka "
+                + num(f->mMagicka) + " of " + num(f->mProfile.mMagickaMax));
+        }
         if (spell.mDelivery == MagicDelivery::Self)
         {
             if (isPowerType(spell))
@@ -1409,6 +1421,7 @@ namespace game_skyrimse
         runPlayerCast(writer);
         runPlayerPower(writer);
         runPlayerScroll(writer); // task 0234
+        runPlayerShout(writer, step); // task 0205
         startTestCasts(writer);
     }
 }

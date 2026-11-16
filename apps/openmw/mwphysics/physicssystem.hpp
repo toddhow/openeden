@@ -408,6 +408,8 @@ namespace MWPhysics
             /// Task 0172 (stage S5-4): the attack action is down, and the controls take it (no menu, not disabled).
             bool mAttackHeld = false;
             bool mAttackEnabled = false;
+            /// Task 0205: the shout action is down (the same controls-enabled test as the attack).
+            bool mShoutHeld = false;
             /// Task 0178: the look direction's elevation, radians, positive up (the bow's launch pitch).
             float mPitch = 0.f;
             /// Task 0227: the player's Stance_Sneak.
@@ -800,6 +802,7 @@ namespace MWPhysics
         std::vector<NeutralClipSpeedOp> mNeutralClipSpeedOps; // task 0178
         std::vector<NeutralSoundOp> mNeutralSoundOps; // task 0193
         std::vector<NeutralProjectileOp> mNeutralProjectileOps; // task 0178
+        bool mNeutralShoutHeldPrev = false; // task 0205: the shout control as the pack last heard it
         bool mNeutralPlayerHeldPrev = false; // task 0178: the attack control as the pack last heard it
         const std::vector<JPH::BodyID>& neutralSightIgnore(); // the neutral actors' bodies, refilled once a frame
         NeutralRequestApplier mNeutralApplier{ *this };

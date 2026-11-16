@@ -92,6 +92,11 @@ openeden_add_game_pack(skyrimse
         src/combat_disease.cpp
         src/combat_scroll.cpp
         src/scroll.cpp
+        src/combat_shout.cpp
+        src/shouts.cpp
+        src/shouts_service.cpp
+        include/game_skyrimse/shouts.hpp
+        include/game_skyrimse/shouts_service.hpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
         src/combat_impact.cpp
@@ -286,6 +291,8 @@ add_library(game_skyrimse_world STATIC
     src/diseases.cpp
     src/combat_scroll.cpp
     src/scroll.cpp
+    src/combat_shout.cpp
+    src/shouts.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/combat_impact.cpp

@@ -380,6 +380,12 @@ namespace game_skyrimse
         ProjectileSettings projectileSettings() override;
         /// Task 0186 (stage S5-8): spells by editor id, a PROJ by form id and the magic GMSTs.
         const SpellRecord* spellByEditorId(std::string_view editorId) override;
+        // Task 0205: the shouts.
+        const ShoutRecord* shoutById(FormId id) override;
+        const ShoutRecord* shoutByEditorId(std::string_view editorId) override;
+        shouts::Settings shoutSettings() override;
+        /// The shouts and words of the load order, or null while the combat records are being read.
+        [[nodiscard]] const ShoutIndex* shoutIndex() const;
         const ProjectileRecord* projectileById(FormId id) override;
         std::string_view artModelById(FormId id) override; ///< task 0191
         MagicSettings magicSettings() override;

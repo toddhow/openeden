@@ -949,7 +949,7 @@ namespace
     TEST(CombatMagicContract, theContractIsZeroPointFourAndHasASpellFireKind)
     {
         EXPECT_EQ(kCombatRulesVersion.major, 0);
-        EXPECT_EQ(kCombatRulesVersion.minor, 5);
+        EXPECT_EQ(kCombatRulesVersion.minor, 6);
         EXPECT_EQ(static_cast<int>(ClipEventKind::SpellFire), 16);
     }
 }

@@ -34,7 +34,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCombatRulesVersion{ 0, 5 };
+    inline constexpr Version kCombatRulesVersion{ 0, 6 };
 
     /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
     /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
@@ -517,5 +517,9 @@ namespace openeden::sdk::game
         /// a hold) is still sent as before. A pack with a bow draws on the press and shoots on the release. Called
         /// just before combatUpdate(). The default ignores it.
         virtual void onPlayerAttackEdge(bool pressed) { (void)pressed; }
+
+        /// The player's shout control went down (`pressed`) or up (0.6), once per change (task 0205). The core reads
+        /// the action `A_CycleSpellRight` for it. Called just before combatUpdate(). The default ignores it.
+        virtual void onPlayerShoutEdge(bool pressed) { (void)pressed; }
     };
 }

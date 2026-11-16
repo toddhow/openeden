@@ -406,6 +406,8 @@ namespace MWWorld
                     out.mAttackEnabled
                         = input != nullptr && windows != nullptr && !windows->isGuiMode() && !input->controlsDisabled();
                     out.mAttackHeld = input != nullptr && input->actionIsActive(MWInput::A_Use);
+                    // Task 0205: the shout control is the action A_CycleSpellRight (the = key by default).
+                    out.mShoutHeld = input != nullptr && input->actionIsActive(MWInput::A_CycleSpellRight);
                     return true;
                 },
                 [this](float healthAfter, float healthMax) {

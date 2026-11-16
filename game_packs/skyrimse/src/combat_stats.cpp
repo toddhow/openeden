@@ -599,6 +599,8 @@ namespace game_skyrimse
         settings.mWardPowerMaxBase = get("fMagicWardPowerMaxBase", settings.mWardPowerMaxBase);
         settings.mWardPowerMaxMult = get("fMagicWardPowerMaxMult", settings.mWardPowerMaxMult);
         settings.mDamagedMagickaRegenDelay = get("fDamagedMagickaRegenDelay", settings.mDamagedMagickaRegenDelay);
+        settings.mShoutTime1 = get("fShoutTime1", settings.mShoutTime1);
+        settings.mShoutTime2 = get("fShoutTime2", settings.mShoutTime2);
         return settings;
     }
 
@@ -668,7 +670,8 @@ namespace game_skyrimse
                     && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO")
-                    && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL"))
+                    && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF") && t != Content::fourCC("SCRL")
+                    && t != Content::fourCC("SHOU") && t != Content::fourCC("WOOP"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -759,6 +762,20 @@ namespace game_skyrimse
                     ok = decodeScroll(bytes, record, mContext, sp, why);
                     if (ok)
                         mOut.mScrolls.push_back(std::move(sp));
+                }
+                else if (t == Content::fourCC("SHOU"))
+                {
+                    ShoutRecord sh;
+                    ok = decodeShout(bytes, record, mContext, sh, why);
+                    if (ok)
+                        mOut.mShouts.push_back(std::move(sh));
+                }
+                else if (t == Content::fourCC("WOOP"))
+                {
+                    WordRecord wd;
+                    ok = decodeWord(bytes, record, mContext, wd, why);
+                    if (ok)
+                        mOut.mWords.push_back(std::move(wd));
                 }
                 else if (t == Content::fourCC("MGEF"))
                 {
@@ -1005,6 +1022,7 @@ namespace game_skyrimse
             else
                 mMagicEffects[m.mCommon.mId] = m;
         }
+        mShoutIndex.add(records.mShouts, records.mWords);
         mSettings.add(records);
     }
 

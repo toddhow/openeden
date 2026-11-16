@@ -437,6 +437,35 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? nullptr : mCombatIndex->spellByEditorId(std::string(editorId));
     }
 
+    const ShoutRecord* SkyrimWorldView::shoutById(FormId id)
+    {
+        return mCombatIndex == nullptr ? nullptr : mCombatIndex->shouts().shout(id);
+    }
+
+    const ShoutRecord* SkyrimWorldView::shoutByEditorId(std::string_view editorId)
+    {
+        return mCombatIndex == nullptr ? nullptr : mCombatIndex->shouts().shoutByEditorId(editorId);
+    }
+
+    shouts::Settings SkyrimWorldView::shoutSettings()
+    {
+        shouts::Settings settings;
+        if (mCombatIndex != nullptr)
+        {
+            const MagicSettings magic = mCombatIndex->settings().magicSettings();
+            settings.mMinimumHold = magic.mShoutTime1;
+            settings.mWordTime = magic.mShoutTime2;
+        }
+        return settings;
+    }
+
+    const ShoutIndex* SkyrimWorldView::shoutIndex() const
+    {
+        return mCombatState.load(std::memory_order_acquire) != 3 || mCombatIndex == nullptr
+            ? nullptr
+            : &mCombatIndex->shouts();
+    }
+
     const ProjectileRecord* SkyrimWorldView::projectileById(FormId id)
     {
         return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->projectile(id);

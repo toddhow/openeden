@@ -1509,6 +1509,23 @@ namespace game_skyrimse
                     mKilling.insert(actor);
                 return NativeResult{};
             });
+            // Task 0205: a word wall's script teaches words of power (the dragon souls unlock them by hand).
+            reg("Game", "TeachWord", true, [this](const NativeCall& c) {
+                const FormId word = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (mHooks != nullptr && word != 0)
+                    (void)mHooks->teachWord(word);
+                return NativeResult{};
+            });
+            reg("Game", "UnlockWord", true, [this](const NativeCall& c) {
+                const FormId word = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (mHooks != nullptr && word != 0)
+                    (void)mHooks->unlockWord(word);
+                return NativeResult{};
+            });
+            reg("Game", "IsWordUnlocked", true, [this](const NativeCall& c) {
+                const FormId word = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(mHooks != nullptr && word != 0 && mHooks->isWordUnlocked(word)));
+            });
             reg("Game", "GetFormFromFile", true, [this](const NativeCall& c) {
                 const std::string file = c.arguments.size() > 1 && c.arguments[1].kind == PapyrusKind::String
                     ? lower(c.arguments[1].text)

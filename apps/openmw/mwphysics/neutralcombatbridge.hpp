@@ -190,6 +190,8 @@ namespace MWPhysics
             std::uint64_t mProjectilesExpired = 0;
             std::uint64_t mProjectileResultsDropped = 0; ///< the owner had gone
             std::uint64_t mPlayerAttackEdges = 0;
+            std::uint64_t mPlayerShoutEdges = 0; ///< task 0205
+            std::uint64_t mPlayerShoutRefused = 0;
             std::uint64_t mSoundsPlayed = 0; ///< task 0193: sound requests handed to the sink
             std::uint64_t mSoundsRefused = 0; ///< no sink, stale actor, empty or over-long path, bad volume
             /// Task 0192: nanoseconds spent inside rules->combatUpdate (summed, only with OPENEDEN_NEUTRAL_ACTOR_COST).
@@ -249,6 +251,11 @@ namespace MWPhysics
         /// Task 0178: the player's attack control went down or up (`pressed`): tells rules->onPlayerAttackEdge. False
         /// (and counted) with no rules or when the pack's function throws (caught).
         bool playerAttackEdge(openeden::sdk::game::CombatRules* rules, bool pressed);
+
+        /// Task 0205 (contract 0.6): the player's shout control went down or up (`pressed`): tells
+        /// rules->onPlayerShoutEdge. False (and counted in mPlayerShoutRefused) with no rules or when the pack's
+        /// function throws (caught).
+        bool playerShoutEdge(openeden::sdk::game::CombatRules* rules, bool pressed);
 
         /// Projectiles in the air, and arrows stuck in the world and still drawn.
         [[nodiscard]] std::size_t projectilesInFlight() const { return mShots.size(); }

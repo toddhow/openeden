@@ -43,6 +43,9 @@ namespace game_skyrimse
         std::function<bool(FormId actor)> isDead;
         std::function<bool(FormId actor)> queueKill;
         std::function<bool(FormId form)> isItem;
+        std::function<bool(FormId word)> teachWord; ///< task 0205
+        std::function<bool(FormId word)> unlockWord;
+        std::function<bool(FormId word)> isWordUnlocked;
         std::function<void(const std::string&)> notification;
         /// Task 0202: enable or disable with a fade, move or turn, and create (PlaceAtMe) through the world.
         std::function<bool(FormId reference, bool enabled, float fadeSeconds)> setObjectEnabled;
@@ -93,6 +96,9 @@ namespace game_skyrimse
         {
             return mEnv.placeObject ? mEnv.placeObject(request) : ObjectPlaceResult{};
         }
+        bool teachWord(FormId word) override { return mEnv.teachWord && mEnv.teachWord(word); }
+        bool unlockWord(FormId word) override { return mEnv.unlockWord && mEnv.unlockWord(word); }
+        bool isWordUnlocked(FormId word) override { return mEnv.isWordUnlocked && mEnv.isWordUnlocked(word); }
 
     private:
         inventory::InventoryModel* model() const { return mEnv.model ? mEnv.model() : nullptr; }

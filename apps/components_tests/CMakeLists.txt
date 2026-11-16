@@ -39,6 +39,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsemenuswindows.cpp
     ui/testskyrimsecharacterwindow.cpp
     ui/testskyrimsepresentationlua.cpp
+    ui/testskyrimseshouthud.cpp
     ui/testskyrimseinventoryequipwindows.cpp
     ui/testskyrimselockpickwindow.cpp
     ui/testskyrimsebookwindow.cpp
@@ -691,6 +692,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp
     skyrimse/testskyrimsepresentation.cpp
+    skyrimse/testskyrimseshouts.cpp
+    skyrimse/testskyrimsecombatshout.cpp
+    skyrimse/testskyrimseshoutsreal.cpp
     skyrimse/testskyrimsespeechreal.cpp
     skyrimse/testskyrimsevoicereal.cpp
     skyrimse/testskyrimsequest.cpp
@@ -844,6 +848,9 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/diseases.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_shout.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp

@@ -29,6 +29,7 @@
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
 #include <game_skyrimse/progression.hpp>
+#include <game_skyrimse/shouts.hpp>
 #include <game_skyrimse/value_modifiers.hpp>
 
 #include <openeden/game/actor_rules.hpp>
@@ -343,6 +344,18 @@ namespace game_skyrimse
             (void)value;
             return false;
         }
+        /// Task 0205: a shout by form id or editor id (case-insensitive) and the two shout GMSTs. Defaults: none.
+        virtual const ShoutRecord* shoutById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
+        virtual const ShoutRecord* shoutByEditorId(std::string_view editorId)
+        {
+            (void)editorId;
+            return nullptr;
+        }
+        virtual shouts::Settings shoutSettings() { return {}; }
         /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
         virtual BlockSettings blockSettings() { return {}; }
         /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
@@ -551,6 +564,16 @@ namespace game_skyrimse
         [[nodiscard]] std::size_t castsWaiting() const { return mCasts.size(); }
         void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
         void onPlayerAttackEdge(bool pressed) override;
+        /// Task 0205 (M-S7): the player's shout. `state` (not owned; null: no shouts) holds the words, the souls and the
+        /// cooldown; the shout control is `onPlayerShoutEdge`. `setTestPlayerShout` equips the SHOU with this editor id
+        /// when the data are ready (false when the name is too long); `setTestShoutEvery` presses the control by itself
+        /// every N seconds (0, negative or not finite: the real key only) and holds it `setTestShoutHold` seconds.
+        void setShoutState(shouts::ShoutState* state) { mShouts = state; }
+        void onPlayerShoutEdge(bool pressed) override;
+        bool setTestPlayerShout(std::string_view editorId);
+        void setTestShoutEvery(float seconds);
+        void setTestShoutHold(float seconds);
+        [[nodiscard]] std::size_t shoutsSpoken() const { return mShoutsSpoken; }
         /// Task 0184: what the PLAYER wields and wears, from the inventory. A melee weapon replaces the test weapon for
         /// the player's own swings (reach, stamina, damage and skill); the pieces give the player's armour rating
         /// through armourOf with the stand-in's skills. An empty value (no weapon, no pieces) is "nothing equipped":
@@ -924,6 +947,10 @@ namespace game_skyrimse
         void runPlayerPower(openeden::sdk::game::CombatRequestWriter& writer);
         void runPlayerScroll(openeden::sdk::game::CombatRequestWriter& writer); // task 0234
         void applyPowerEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
+        // Task 0205: the player's shout (combat_shout.cpp).
+        void runPlayerShout(openeden::sdk::game::CombatRequestWriter& writer, float step);
+        bool beginShoutCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
+            float recovery);
         bool beginCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
             bool heldByKey, float holdSeconds);
         void fireCast(openeden::sdk::game::CombatRequestWriter& writer, const Cast& cast);
@@ -1184,6 +1211,8 @@ namespace game_skyrimse
             float mHold = 0.f; ///< a concentration spell: seconds to hold
             bool mHeldByKey = false; ///< the player's real key: held until the release edge
             bool mFireSeen = false; ///< the SpellFire event came
+            bool mShout = false; ///< task 0205: a shout, which costs no magicka and starts the cooldown when it goes
+            float mRecovery = 0.f; ///< a shout's cooldown seconds
         };
         struct Concentration
         {
@@ -1219,6 +1248,27 @@ namespace game_skyrimse
         std::vector<std::pair<openeden::sdk::game::ActorHandle, std::string>> mActorNames; ///< lower case editor ids
         bool mPlayerCastWanted = false; ///< a press waits for the cast clip's timing
         float mPlayerCastWantedAt = 0.f;
+        // Task 0205: the player's shout.
+        shouts::ShoutState* mShouts = nullptr; ///< not owned
+        std::string mTestPlayerShout;
+        float mShoutEvery = 0.f;
+        float mShoutHold = 1.f;
+        float mNextShout = 0.f; ///< the combat clock of the next automatic press
+        bool mShoutHeld = false; ///< the control is down
+        bool mShoutWanted = false; ///< a shout was chosen and its cast has not begun (the clip's timing is awaited)
+        float mShoutHeldFor = 0.f;
+        float mShoutAutoReleaseAt = -1.f;
+        std::size_t mShoutWordsTold = 0; ///< words already traced during this hold
+        std::size_t mShoutWordsChosen = 0;
+        float mShoutWantedAt = 0.f;
+        std::vector<bool> mShoutEdges;
+        bool mTestShoutLooked = false;
+        std::size_t mShoutAvail = 0; ///< the words of the equipped shout that were unlocked at the press
+        bool mShoutAutoFired = false; ///< the last word was reached while held and went: the release does nothing
+        shouts::Settings mShoutSettings;
+        bool mHaveShoutSettings = false;
+        std::string mShoutTraceName; ///< the shout being spoken, for the trace
+        std::size_t mShoutsSpoken = 0;
         bool mPlayerCastHeld = false; ///< the attack control is down (a real key or an automatic press)
         std::vector<bool> mCastEdges; ///< attack-control edges for the spell (true: pressed)
         FormId mPendingPower = kNullFormId; ///< task 0228: a power waiting for its cast clip's timing

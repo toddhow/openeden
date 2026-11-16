@@ -31,6 +31,7 @@
 #include "game_skyrimse/placed_refs.hpp"
 #include "game_skyrimse/progression_service.hpp"
 #include "game_skyrimse/story_events.hpp"
+#include "game_skyrimse/shouts_service.hpp"
 #include "game_skyrimse/world_view.hpp"
 
 #include <openeden/extension.hpp>
@@ -1189,6 +1190,8 @@ namespace game_skyrimse
                     syncDiseases(); // task 0240
                     if (mProgression != nullptr)
                         pollProgression(); // task 0200
+                    if (mShouts != nullptr)
+                        (void)mShouts->poll(); // task 0205
                     if (mInventory != nullptr)
                     {
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
@@ -1412,6 +1415,8 @@ namespace game_skyrimse
                     // Task 0225: the character creation (the namespace skyrimse.character), off unless
                     // [extension.skyrimse] character creation (which needs menus and player body).
                     startCharacter(host, logger);
+                    // Task 0205: the shouts (the namespace skyrimse.shouts), off unless [extension.skyrimse] shouts.
+                    startShouts(host, logger);
                     std::string error;
                     if (!sources->registerSource(mCellSource, error))
                         throw std::runtime_error("the world source was refused: " + error);
@@ -1438,6 +1443,7 @@ namespace game_skyrimse
                 mCellSource.setTakenLookup({}); // task 0208: before the pickup service goes
                 mCellSource.setHarvestedLookup({}); // task 0221: before the harvest service goes
                 mCellSource.setPlacementNameLookup({}); // task 0224: before the mining service goes
+                mCellSource.combat().setShoutState(nullptr);
                 unwirePapyrusWorld();
                 if (mPapyrus != nullptr)
                 {
@@ -1556,6 +1562,10 @@ namespace game_skyrimse
                 env.placeObject = [this](const ObjectPlaceRequest& request) {
                     return mPapyrus != nullptr ? mPapyrus->placeObject(request) : ObjectPlaceResult{};
                 };
+                env.teachWord = [this](FormId word) { return mShouts != nullptr && mShouts->teachWord(word); };
+                env.unlockWord = [this](FormId word) { return mShouts != nullptr && mShouts->unlockWord(word); };
+                env.isWordUnlocked
+                    = [this](FormId word) { return mShouts != nullptr && mShouts->isWordUnlocked(word); };
                 mPapyrusHooks = std::make_unique<PackWorldHooks>(std::move(env));
                 host.setWorldHooks(mPapyrusHooks.get());
                 if (mInventory != nullptr)
@@ -2344,6 +2354,49 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MINING mining and woodcutting are on");
+        }
+
+            // Task 0205: the player's shouts: the state (words, souls, cooldown), its save chunk, the namespace
+            // skyrimse.shouts and the test settings. The combat rules cast the shout (combat_shout.cpp).
+            void startShouts(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "shouts", false))
+                    return;
+                const auto say = [logger](openeden::sdk::LogLevel level, const std::string& text) {
+                    if (logger != nullptr)
+                        logger->log(level, text);
+                };
+                shouts::Hooks hooks;
+                hooks.mIndex = [this]() -> const ShoutIndex* {
+                    return mWorldView.combatReady() ? mWorldView.shoutIndex() : nullptr;
+                };
+                hooks.mLog = [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); };
+                mShouts = std::make_unique<shouts::ShoutService>(std::move(hooks));
+                shouts::TestSettings test;
+                test.mLearn = settings->getString(kPackId, "shouts test learn", "");
+                test.mUnlock = settings->getString(kPackId, "shouts test unlock", "");
+                test.mSouls = settings->getInt(kPackId, "shouts test souls", 0);
+                test.mShout = settings->getString(kPackId, "shouts test shout", "");
+                mShouts->setTestSettings(test);
+                mShouts->chunk().setRefusalSink([say](const std::string& reason) {
+                    say(openeden::sdk::LogLevel::Error, "the shouts chunk is refused: " + reason);
+                });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mShouts->declare(*bindings);
+                    if (!declared.ok)
+                        say(openeden::sdk::LogLevel::Warning, "the shouts bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(mShouts->chunk()))
+                        say(openeden::sdk::LogLevel::Warning, "the shouts chunk was not registered");
+                mCellSource.combat().setShoutState(&mShouts->state());
+                if (!mCellSource.combat().setTestPlayerShout(test.mShout))
+                    say(openeden::sdk::LogLevel::Warning, "the setting 'shouts test shout' is too long; no shout");
+                mCellSource.combat().setTestShoutEvery(settings->getFloat(kPackId, "shouts test shout every", 0.f));
+                mCellSource.combat().setTestShoutHold(settings->getFloat(kPackId, "shouts test shout hold", 1.f));
+                say(openeden::sdk::LogLevel::Info, "SHOUTS the shouts are on");
             }
 
             // Task 0182: the inventory service (item table, model, save chunk) and the namespace skyrimse.inventory.
@@ -3811,6 +3864,7 @@ namespace game_skyrimse
             float mProgressionBoost = 1.f; // task 0206: the test multiplier of `progression test amount`
             std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
+            std::unique_ptr<shouts::ShoutService> mShouts; // task 0205; refers to the world view
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
             std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
