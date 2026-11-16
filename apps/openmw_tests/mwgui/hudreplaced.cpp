@@ -15,6 +15,14 @@ namespace MWGui
             EXPECT_TRUE(parts.mEnemy);
         }
 
+        TEST(MWGuiHudReplaced, aNeutralSessionWithTheCombatHudAlsoReplacesTheCrosshair)
+        {
+            EXPECT_TRUE(replacedHudParts(true, true, true).mCrosshair);
+            EXPECT_FALSE(replacedHudParts(false, true, true).mCrosshair);
+            EXPECT_FALSE(replacedHudParts(true, false, true).mCrosshair);
+            EXPECT_FALSE(replacedHudParts(true, true, false).mCrosshair);
+        }
+
         TEST(MWGuiHudReplaced, aMorrowindSessionIsNeverTouchedWhateverTheSettingsSay)
         {
             for (const bool combat : { false, true })

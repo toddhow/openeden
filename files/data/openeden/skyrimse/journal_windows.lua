@@ -15,11 +15,11 @@ local DETAIL_MARGIN = 10
 local DETAIL_WIDTH = WINDOW_WIDTH - LIST_WIDTH - 48 - DETAIL_MARGIN
 local LIST_HEIGHT = 420
 local ROW_HEIGHT = 26
-local DETAIL_ROW_HEIGHT = 22
 local DETAIL_HEIGHT = 330
--- The bitmap font draws only the first line of a text element that wraps, so the window breaks lines itself: about 7.6
--- dp a character on the 462 dp detail column, with a margin for wide letters.
-local LINE_CHARS = 52
+-- The detail pane is a fixed set of text slots in a scroll view: text elements wrap on their own (task 0188), so a row
+-- can be any number of lines tall, which a fixed-height list row cannot. A quest with more rows than slots shows the
+-- first ones (the log is newest first).
+local DETAIL_SLOTS = 40
 
 local function readQuests(jr, completed)
   local rows = {}
@@ -29,50 +29,30 @@ local function readQuests(jr, completed)
   return rows
 end
 
---- Greedy line breaking on spaces (a word longer than the limit stays whole).
-local function wrap(text, limit)
-  local lines, line = {}, ''
-  for word in text:gmatch('%S+') do
-    if line == '' then
-      line = word
-    elseif #line + 1 + #word <= limit then
-      line = line .. ' ' .. word
-    else
-      lines[#lines + 1] = line
-      line = word
-    end
-  end
-  if line ~= '' then lines[#lines + 1] = line end
-  return lines
-end
-
--- One list holds everything the detail pane shows: the current entry, the objectives, the earlier entries.
+-- One list of rows holds everything the detail pane shows: the current entry, the objectives, the earlier entries.
 local function detailRows(jr, id)
   local rows = {}
   local function add(text, class)
-    rows[#rows + 1] = { key = #rows .. ':' .. text, text = text, class = class }
+    rows[#rows + 1] = { text = text, class = class }
   end
-  local function addWrapped(text, class, indent)
-    for i, line in ipairs(wrap(text, LINE_CHARS - #indent)) do
-      add((i == 1 and '' or indent) .. line, class)
-    end
-  end
+  -- A blank row is a space: an empty element has no height and a space is kept by `white-space: pre-wrap`.
+  local function addGap() add(' ', 'quest-line') end
   local entry = jr.entry(id)
-  if entry ~= '' then addWrapped(entry, 'quest-entry', '') end
+  if entry ~= '' then add(entry, 'quest-entry') end
   local objectives = jr.objectives(id)
   local done = jr.objective_done(id)
   if #objectives > 0 then
-    add('', 'quest-line')
+    addGap()
     add('Objectives', 'info')
     for i, text in ipairs(objectives) do
-      addWrapped((done[i] and '[x] ' or '[ ] ') .. text, 'quest-line', '    ')
+      add((done[i] and '[x] ' or '[ ] ') .. text, 'quest-line')
     end
   end
   local log = jr.log(id)
   if #log > 1 then
-    add('', 'quest-line')
+    addGap()
     add('Earlier', 'info')
-    for i = #log - 1, 1, -1 do addWrapped(log[i], 'quest-line', '') end -- newest first
+    for i = #log - 1, 1, -1 do add(log[i], 'quest-line') end -- newest first
   end
   return rows
 end
@@ -137,6 +117,26 @@ function M.create(env)
     refresh()
   end
 
+  -- The slots must be made inside the document's build function (they need its reactive scope).
+  local function detailSlots()
+    local slots = {}
+    for i = 1, DETAIL_SLOTS do
+      slots[i] = ui.Text{
+        text = ui.Computed(function() local r = detail:get()[i]; return r and r.text or '' end),
+        class = ui.Computed(function() local r = detail:get()[i]; return r and r.class or '' end),
+        visible = ui.Computed(function() return detail:get()[i] ~= nil end),
+        style = { width = DETAIL_WIDTH - 12, ['white-space'] = 'pre-wrap' },
+      }
+    end
+    return slots
+  end
+
+  local function detailScroll()
+    local props = { height = DETAIL_HEIGHT, width = DETAIL_WIDTH }
+    for i, slot in ipairs(detailSlots()) do props[i] = slot end
+    return props
+  end
+
   local function build()
     return ui.Document{ name = 'skyrim-journal', class = 'panel',
       style = { position = 'absolute', left = 24, top = 24, width = WINDOW_WIDTH },
@@ -164,16 +164,7 @@ function M.create(env)
               ui.Text{ text = emptyText, class = 'info' },
               ui.Text{ text = nameText, class = 'title' },
               ui.Text{ text = statusText, class = 'info' },
-              ui.List{
-                items = detail,
-                key = function(r) return r.key end,
-                rowHeight = DETAIL_ROW_HEIGHT,
-                height = DETAIL_HEIGHT,
-                width = DETAIL_WIDTH,
-                render = function(r)
-                  return ui.Text{ text = r.text, class = r.class, style = { width = DETAIL_WIDTH - 12 } }
-                end,
-              },
+              ui.ScrollView(detailScroll()),
             },
           },
           ui.Row{

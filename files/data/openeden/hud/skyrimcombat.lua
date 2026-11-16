@@ -20,7 +20,8 @@ local COLOURS = {
   stamina = 'rgb(58, 154, 58)',
   enemy = 'rgb(176, 42, 42)',
 }
-local CROSSHAIR = 'rgba(255, 255, 255, 0.85)'
+-- RmlUi's rgba() alpha is 0 to 255 (0.85 would be invisible): 217 is 85 percent.
+local CROSSHAIR = 'rgba(255, 255, 255, 217)'
 
 -- value / maximum as a percent string in half-percent steps, clamped to 0..100; a missing or zero maximum is empty.
 local function percent(value, max)

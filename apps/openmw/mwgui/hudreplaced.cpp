@@ -10,6 +10,7 @@ namespace MWGui
         parts.mStats = true;
         parts.mWeaponSpell = true;
         parts.mEnemy = true;
+        parts.mCrosshair = true;
         return parts;
     }
 }

@@ -560,6 +560,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatbow.cpp
     skyrimse/testskyrimsecombathud.cpp
     ui/testuicombathud.cpp
+    ui/testuicombathudcrosshair.cpp
     skyrimse/testskyrimseactormechanics.cpp
     skyrimse/testskyrimseactormechanicsreal.cpp
     skyrimse/testskyrimseactorgoto.cpp

@@ -160,9 +160,10 @@ namespace
         EXPECT_EQ(get<std::string>("win.selected()"), "a0000001");
     }
 
-    TEST_F(SkyrimJournalWindow, aLongEntryAndALongEarlierLineAreBrokenIntoLinesThatEachFit)
+    TEST_F(SkyrimJournalWindow, aLongEntryAndALongEarlierLineStayOneNodeEachAndWrapOnTheirOwn)
     {
-        // the bitmap font draws only the first line of a wrapped text element, so the window breaks lines itself
+        // Task 0188 (toddhow's approval of 2026-11-15): the bitmap font wraps text now, so the window no longer breaks
+        // lines by hand: one node per entry, whole.
         ASSERT_TRUE(run(R"(
             local long = 'I have awoken in the Temple of Dibella in Markarth and Sam and the staff he promised me have '
               .. 'disappeared, so now I must find them before the trail goes cold in the mountains.'
@@ -171,25 +172,21 @@ namespace
             revision = 2
             win.open(); ui.update()
         )"));
-        std::size_t longest = 0;
-        std::size_t entryLines = 0;
-        bool sawStart = false, sawEnd = false;
+        std::size_t entryNodes = 0, wholeNodes = 0;
         for (const auto& [id, node] : backend.nodes())
         {
-            if (node.mClass.find("quest-entry") != std::string::npos)
+            if (node.mClass.find("quest-entry") != std::string::npos && !node.mText.empty())
             {
-                ++entryLines;
-                longest = std::max(longest, node.mText.size());
-                sawStart = sawStart || node.mText.rfind("I have awoken", 0) == 0;
-                sawEnd = sawEnd || node.mText.find("mountains.") != std::string::npos;
+                ++entryNodes;
+                EXPECT_EQ(node.mText.rfind("I have awoken", 0), 0u);
+                EXPECT_NE(node.mText.find("mountains."), std::string::npos);
+                EXPECT_GT(node.mText.size(), 100u);
             }
-            if (node.mClass.find("quest-line") != std::string::npos)
-                longest = std::max(longest, node.mText.size());
+            if (node.mClass.find("quest-line") != std::string::npos && node.mText.find("mountains. Earlier") != std::string::npos)
+                ++wholeNodes;
         }
-        EXPECT_GE(entryLines, 3u);
-        EXPECT_LE(longest, 56u);
-        EXPECT_TRUE(sawStart);
-        EXPECT_TRUE(sawEnd);
+        EXPECT_EQ(entryNodes, 1u);
+        EXPECT_EQ(wholeNodes, 1u);
     }
 
     TEST_F(SkyrimJournalWindow, aFrameWithNothingChangedMakesNoProtocolCalls)

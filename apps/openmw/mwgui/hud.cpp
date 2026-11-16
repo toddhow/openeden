@@ -595,6 +595,8 @@ namespace MWGui
             setWeapVisible(true);
             setSpellVisible(true);
         }
+        if (mReplaced.mCrosshair && !now.mCrosshair)
+            mCrosshair->setVisible(Settings::hud().mCrosshair);
         mReplaced = now;
 
         if (mReplaced.mStats && mHealth->getVisible())
@@ -607,6 +609,8 @@ namespace MWGui
                 setSpellVisible(false);
             mWeaponSpellBox->setVisible(false); // the name that pops up when a weapon or spell is selected
         }
+        if (mReplaced.mCrosshair && mCrosshair->getVisible())
+            mCrosshair->setVisible(false); // WindowManager::showCrosshair shows it again on a mode change
         if (mReplaced.mEnemy && mEnemyHealth->getVisible())
         {
             mEnemyHealth->setVisible(false);

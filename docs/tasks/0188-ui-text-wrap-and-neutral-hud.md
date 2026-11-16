@@ -78,3 +78,29 @@ enemy bar); scripts and `WindowManager` call them, so the HUD enforces the choic
 4. Hiding is per frame and does not remember a script's own visibility request; the parts return as visible when the
    player leaves a neutral cell.
 5. No existing test was edited.
+
+## Follow-up (2026-11-15, branch `uifix2` from `d4d45e202e`; toddhow: "Yes, both")
+
+**Approval recorded:** toddhow approved changing the journal test `aLongEntryAndALongEarlierLineAreBrokenIntoLinesThatEachFit`
+(now `...StayOneNodeEachAndWrapOnTheirOwn`: one node per entry, whole) and removing `wrap`, `addWrapped` and `LINE_CHARS`.
+
+1. **Journal.** A fixed-height `ui.List` row cannot hold wrapped text (rows are placed at index times row height), so the
+   detail pane is now a `ui.ScrollView` of 40 text slots (reactive text, class and visibility from the rows; a blank row is
+   a space with `white-space: pre-wrap`); a quest with more than 40 rows shows the first 40. The other 8 journal tests are
+   unedited and pass (one node per objective and log line is kept; a frame with nothing changed makes no protocol call).
+   Red first: the edited test failed (1 of 9). In game (`tools/journal_check`, `open_close.txt`, six test quests): "I ran in
+   to a talking dog ... Haemar's Shame." wraps over two lines inside the pane (`combat5\uijr\...\screenshot001.png`).
+2. **Crosshair.** Cause by experiment (a demo mod of Huds, `combat5\xhmod`): not the size, offsets, Stack or position of the
+   document (a red frame in every layout drew); the colour. RmlUi's `rgba()` takes the alpha as 0 to 255: `rgba(255,0,0,0.85)`
+   and `rgba(255,0,0,1)` draw nothing, `rgba(255,0,0,217)` and `rgb(255,0,0)` draw (1200 pixels each). `CROSSHAIR` is now
+   `rgba(255, 255, 255, 217)` (the only line of `skyrimcombat.lua` changed). New test `UiCombatHudCrosshair` (red 1 of 1,
+   `apps/components_tests/ui/testuicombathudcrosshair.cpp`). `replacedHudParts` now also hides the MyGUI crosshair
+   (`mCrosshair`, hidden per frame, restored with `Settings::hud().mCrosshair`); new test
+   `MWGuiHudReplaced.aNeutralSessionWithTheCombatHudAlsoReplacesTheCrosshair` (red 1 of 4). In a Skyrim fight there is one
+   solid white cross (`combat5\hudx_003.png`) and no MyGUI gap cross. I edited `apps/openmw/mwgui/hud.cpp` (the MyGUI HUD,
+   mine from the first part) and not the pack's `hud.*`.
+3. **Found, not fixed (outside the crosshair lines):** `TRACK = 'rgba(0, 0, 0, 0.55)'` in `skyrimcombat.lua` has the same
+   alpha mistake, so the bars' dark track is invisible; the fix is `rgba(0, 0, 0, 140)` (S5-8 is editing that file).
+4. **Morrowind unchanged:** `worldobjects_check` OK; fixed Balmora frame `1c5d47ad0b5dc32d` for the parent, this build, and
+   the settings off, `rmlui`, and all on (Morrowind keeps its crosshair). Tests: `components-tests` UI selection 358 and
+   `openmw-tests` MWGui 11 pass. Not run: the Linux gate, clang-format 14, clang-tidy, the Lua tests, a quest with over 40 rows.

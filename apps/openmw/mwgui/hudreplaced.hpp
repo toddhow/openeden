@@ -10,16 +10,16 @@ namespace MWGui
         bool mStats = false; ///< the health, magicka and stamina bars
         bool mWeaponSpell = false; ///< the selected weapon and spell icons (they name Morrowind items and spells)
         bool mEnemy = false; ///< the enemy health bar
+        bool mCrosshair = false; ///< the MyGUI crosshair (the combat HUD draws its own)
 
-        bool any() const { return mStats || mWeaponSpell || mEnemy; }
+        bool any() const { return mStats || mWeaponSpell || mEnemy || mCrosshair; }
     };
 
     /// `playerInNeutralCell`: the player stands in a cell of a game pack's neutral world (a Morrowind session never
     /// does, whatever its settings say). `neutralCombat` is `[Game] neutral combat` and `rmlui` is `[GUI] rmlui`: the
     /// combat HUD is drawn by the RmlUi overlay for the player script of that combat, so it needs both.
     /// Everything else stays: the minimap, cell name, active effects, sneak indicator and drowning bar have no
-    /// replacement, and the crosshair stays because the combat HUD's own crosshair draws nothing yet (task 0188 found
-    /// no pixel of it in any frame; the MyGUI one is the only crosshair there is).
+    /// replacement. (The crosshair was kept while the combat HUD's own drew nothing: RmlUi's rgba() alpha is 0 to 255.)
     ReplacedHudParts replacedHudParts(bool playerInNeutralCell, bool neutralCombat, bool rmlui);
 }
 
