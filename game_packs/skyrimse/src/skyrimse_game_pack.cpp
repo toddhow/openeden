@@ -1426,6 +1426,15 @@ namespace game_skyrimse
                     {
                         mCellSource.combat().setCombatAi(true);
                         say(openeden::sdk::LogLevel::Info, "combat ai: on");
+                        // Task 0197: relations, followers, guards and sight choose the target.
+                        if (settings->getBool(kPackId, kCombatFactionsKey, false))
+                        {
+                            mCellSource.combat().setCombatFactions(true);
+                            say(openeden::sdk::LogLevel::Info, "combat factions: on");
+                        }
+                        mCellSource.combat().setFactionsDelay(
+                            settings->getFloat(kPackId, kCombatFactionsDelayKey, 0.f));
+                        mCellSource.combat().setTestAttacker(settings->getString(kPackId, kCombatTestAttackerKey, ""));
                     }
                     if (settings->getBool(kPackId, kCombatTraceKey, false))
                         mCellSource.combat().setTrace(

@@ -90,6 +90,11 @@ echo "return { dist = ${BOW_DIST:-400}, every = ${BOW_EVERY:-0.5}, burst = { ${b
 # Task 0192 (combat on many actors): "n5many" is a crowd fight in Whiterun's street (CELL='@WhiterunWorld,25670,-7633'; MANY_* variables, see luatest/scripts/n5/manyglobal.lua); "n5manyprobe" only lists what Lua sees.
 case "$SHOT" in n5many|n5manyscan) echo "content=$SHOT.omwscripts" >> "$WORK/config/openmw.cfg" ;; esac
 echo "return { hostile = ${MANY_HOSTILE:-8}, duels = ${MANY_DUELS:-0}, park = ${MANY_PARK:-2200}, away = ${MANY_AWAY:-0}, awayAt = ${MANY_AWAY_AT:-25}, every = ${MANY_EVERY:-0}, maxShots = ${MANY_SHOTS:-12}, camBack = ${MANY_CAM_BACK:-420}, camUp = ${MANY_CAM_UP:-260} }" > "$WORK/luatest/scripts/n5/manycfg.lua"
+# Task 0197 (NPC against NPC): "n5npcfight" builds a fight in Whiterun street (CELL=@WhiterunWorld,25670,-7633); NF_MODE=guards|follower,
+# NF_ATTACKER and NF_FOLLOWER are base numbers (decimal) of street guards, NF_COUNT guards in the ring, NF_DIST, NF_CAM_BACK, NF_CAM_UP, NF_EVERY, NF_SHOTS
+# (see luatest/scripts/n5/npcfightglobal.lua); the settings (combat test attacker, follower test recruit) go in SETTINGS_EXTRA.
+[ "$SHOT" = n5npcfight ] && echo "content=n5npcfight.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { mode = '${NF_MODE:-guards}', attacker = ${NF_ATTACKER:-1048812}, follower = ${NF_FOLLOWER:-1048819}, count = ${NF_COUNT:-6}, parkMode = '${NF_PARK:-teleport}', dist = ${NF_DIST:-1100}, camBack = ${NF_CAM_BACK:-380}, camUp = ${NF_CAM_UP:-300}, every = ${NF_EVERY:-1.0}, maxShots = ${NF_SHOTS:-12} }" > "$WORK/luatest/scripts/n5/npcfightcfg.lua"
 # Task 0190 (combat stage S5-9): "n5ai" stands the player AI_DIST (default 300) units east of Hulda, keeps him facing her and
 # takes a picture every AI_EVERY (0.5) seconds of real time for AI_WINDOW (60) seconds; the AI settings go in SETTINGS_EXTRA
 # (see luatest/scripts/n5/aiglobal.lua).
@@ -196,7 +201,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 --start "$CELL" $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5npcfight) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

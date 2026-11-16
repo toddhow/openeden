@@ -175,6 +175,9 @@ namespace game_skyrimse
             // Task 0171: a view that knows the combat records (SkyrimWorldView does) gives the melee rules their
             // numbers.
             mCombat.setData(dynamic_cast<CombatData*>(&view));
+            // Task 0197: followers fight on the player's side.
+            mCombat.setFollowerQuery(
+                [this](openeden::sdk::game::WorldId reference) { return mActors.isFollower(reference); });
             // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
             mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                 return mCombat.fighterView(subject, out);

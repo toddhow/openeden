@@ -19,6 +19,7 @@
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
 #include <game_skyrimse/combat_sound.hpp>
+#include <game_skyrimse/combat_factions.hpp>
 #include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/magic.hpp>
@@ -63,6 +64,11 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatTraceKey = "combat trace";
     /// Task 0190 (stage S5-9): the combat AI (off by default). With it on the test settings above are overrides.
     inline constexpr std::string_view kCombatAiKey = "combat ai";
+    /// Task 0197: targets from relations, followers, guards and sight (needs `combat ai`); off by default.
+    inline constexpr std::string_view kCombatFactionsKey = "combat factions";
+    /// Task 0197 test rule: this actor (editor id) attacks the nearest valid target on sight.
+    inline constexpr std::string_view kCombatTestAttackerKey = "combat test attacker";
+    inline constexpr std::string_view kCombatFactionsDelayKey = "combat factions delay";
     /// Task 0172 (stage S5-4) test settings, all off by default: every Nth attack of a hostile actor is a power attack,
     /// every Mth a bash, and the actors with this editor id block.
     inline constexpr std::string_view kCombatTestPowerEveryKey = "combat test power every";
@@ -247,6 +253,14 @@ namespace game_skyrimse
         /// The WEAP with this editor id (case-insensitive), or null. The pointer stays valid as long as the data.
         virtual const WeaponRecord* weaponByEditorId(std::string_view editorId) = 0;
         virtual CombatSettings settings() = 0;
+        /// Task 0197: how the factions of `a` feel about those of `b` (symmetric: an enemy in either direction is an
+        /// enemy). Default: neutral.
+        virtual openeden::sdk::game::ActorRelation factionRelation(const FighterProfile& a, const FighterProfile& b)
+        {
+            (void)a;
+            (void)b;
+            return openeden::sdk::game::ActorRelation::Neutral;
+        }
         /// Task 0178: the AMMO with this editor id (case-insensitive), or null; and the PROJ of an ammunition (null when
         /// it has none). Defaults: none.
         virtual const AmmoRecord* ammoByEditorId(std::string_view editorId)
@@ -502,6 +516,19 @@ namespace game_skyrimse
         /// whole of the hostile behaviour. On, `combat test hostile` names actors that engage at once, `power every` and
         /// `bash every` fix the attack kind and `combat test block` makes the named actors block always.
         void setCombatAi(bool on);
+        /// Task 0197: the target is chosen from relations, followers, guards and sight (needs the AI); off, the AI's
+        /// target is the player as before.
+        void setCombatFactions(bool on);
+        /// Who follows the player (the cell source's actor table). Without it nobody does.
+        void setFollowerQuery(std::function<bool(openeden::sdk::game::WorldId reference)> query);
+        /// Test rule: this actor (editor id, case-insensitive) attacks the nearest valid target on sight (frenzied).
+        void setTestAttacker(std::string_view editorId);
+        /// Seconds of combat clock before the factions rules look for targets (default 0; a scenario that arranges the
+        /// street first sets it).
+        void setFactionsDelay(float seconds) { mFactionsDelay = (seconds > 0.f && seconds < 1.0e6f) ? seconds : 0.f; }
+        /// The target of an engaged AI actor (the player when it is not engaged).
+        [[nodiscard]] openeden::sdk::game::CombatSubject aiTargetOf(openeden::sdk::game::ActorHandle handle) const;
+        [[nodiscard]] std::size_t aiEngagedCount() const { return mAiActors.size(); }
         [[nodiscard]] bool combatAi() const { return mAiOn; }
         /// Appends the movement the AI wants since the last drain, in order, and empties its queue.
         void drainAiMoves(std::vector<AiMoveIntent>& out);
@@ -584,6 +611,8 @@ namespace game_skyrimse
             std::uint32_t mStaggerToken = 0;
             std::uint32_t mAttackCount = 0; ///< attacks begun by the hostile rule, for the every-N choice
             bool mAiScanned = false; ///< task 0190: looked at once for hostility on sight
+            /// Task 0197: who its arrows and spells are aimed at (the player unless the AI chose another target).
+            openeden::sdk::game::CombatSubject mAimTarget = openeden::sdk::game::CombatSubject::ofPlayer();
             // Task 0178: the bow. Drawing -> (BowDrawn event) -> Releasing -> (arrowRelease event) -> shot.
             enum class Bow : std::uint8_t
             {
@@ -714,6 +743,17 @@ namespace game_skyrimse
             bool mFleeGoalOut = false; ///< a flee goal was issued and has not ended
             int mGoalFails = 0; ///< goals in a row that ended NoPath or Blocked outside a flee
             bool mGiveUp = false; ///< too many failed goals: it lets go of the fight
+            /// Task 0197: who it fights (the player until the factions rules pick another).
+            openeden::sdk::game::CombatSubject mTarget = openeden::sdk::game::CombatSubject::ofPlayer();
+            bool mAssisted = false; ///< it joined a fight of another (it does not call for help itself)
+        };
+        /// Task 0197: where a ready fighter stood at the last snapshot (every Factions::kSnapshotPeriod).
+        struct AiSnap
+        {
+            openeden::sdk::game::CombatSubject mSubject;
+            double mX = 0.0;
+            double mY = 0.0;
+            double mZ = 0.0;
         };
         struct AiWatcher
         {
@@ -722,7 +762,9 @@ namespace game_skyrimse
         };
         void runAi(openeden::sdk::game::CombatRequestWriter& writer);
         void aiScan();
-        bool aiBegin(Fighter& fighter, const char* reason);
+        bool aiBegin(Fighter& fighter, const char* reason,
+            openeden::sdk::game::CombatSubject target = openeden::sdk::game::CombatSubject::ofPlayer(),
+            bool assisted = false);
         void aiForget(openeden::sdk::game::ActorHandle handle);
         void aiPickSpell(Fighter& fighter, AiActor& actor);
         void aiRelease(std::size_t index, const char* why);
@@ -735,6 +777,28 @@ namespace game_skyrimse
         [[nodiscard]] bool aiGuardUp(openeden::sdk::game::ActorHandle handle) const;
         [[nodiscard]] AiActor* aiFind(openeden::sdk::game::ActorHandle handle);
         [[nodiscard]] const AiActor* aiFind(openeden::sdk::game::ActorHandle handle) const;
+        // Task 0197 (combat_ai_run.cpp, combat_factions.*)
+        bool mFactionsOn = false;
+        float mFactionsDelay = 0.f;
+        float mSightTraceAt[64] = {}; ///< the combat clock of the last 'no sight' trace line, per reference % 64
+        std::function<bool(openeden::sdk::game::WorldId)> mFollowerQuery;
+        std::string mTestAttacker; ///< lower case
+        std::vector<AiSnap> mAiSnap;
+        float mAiSnapAt = -1.0e9f;
+        std::size_t mWatchCursor = 0;
+        mutable std::map<std::uint64_t, std::uint8_t> mRelCache; ///< (base a, base b) -> ActorRelation; lookups only
+        [[nodiscard]] Factions::Party partyOf(const Fighter& fighter) const;
+        [[nodiscard]] openeden::sdk::game::ActorRelation relationOf(const Fighter& a, const Fighter& b) const;
+        [[nodiscard]] bool factions() const { return mAiOn && mFactionsOn; }
+        [[nodiscard]] bool isTestAttacker(openeden::sdk::game::ActorHandle handle) const;
+        std::vector<openeden::sdk::game::ActorHandle> mAiHelpFor; ///< fighters that engaged: allies may join
+        std::vector<std::pair<float, std::size_t>> mAiScratch; ///< candidate (distance, snapshot index)
+        void aiSnapshot(openeden::sdk::game::CombatRequestWriter& writer);
+        void aiLookForTarget(openeden::sdk::game::CombatRequestWriter& writer, AiWatcher& watcher);
+        [[nodiscard]] bool aiHasSight(openeden::sdk::game::CombatRequestWriter& writer,
+            const openeden::sdk::game::CombatSubject& from, const AiSnap& to);
+        void aiCallForHelp(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::ActorHandle engaged);
+        [[nodiscard]] bool aiTargetsPlayerSide(const Fighter& fighter) const;
         bool mAiOn = false;
         SlotTable mGuardSlots;
         std::vector<AiActor> mAiActors;

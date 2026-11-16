@@ -26,6 +26,9 @@ namespace game_skyrimse
         std::uint8_t mConfidence = 2; ///< AIDT +1: 0 cowardly .. 4 foolhardy
         bool mHostileOnSight = false; ///< wouldAttackOnSight(aggression, relation to the player)
         bool mKnown = false; ///< filled from the records (false: the defaults of an actor with no data)
+        std::uint8_t mAssistance = 0; ///< AIDT +5 (task 0197): 0 helps nobody, 1 allies, 2 friends and allies
+        std::uint8_t mRelationToPlayer = 0; ///< task 0197: the sdk ActorRelation of its factions to the player's
+        bool mGuard = false; ///< task 0197: in the faction Factions::kGuardFactionEditorId
         CombatStyleRecord mStyle;
     };
 

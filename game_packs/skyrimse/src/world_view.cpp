@@ -345,6 +345,35 @@ namespace game_skyrimse
         return true;
     }
 
+    namespace
+    {
+        bool equalsLower(std::string_view a, std::string_view b)
+        {
+            if (a.size() != b.size())
+                return false;
+            for (std::size_t i = 0; i < a.size(); ++i)
+                if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i])))
+                    return false;
+            return true;
+        }
+    }
+
+    openeden::sdk::game::ActorRelation SkyrimWorldView::factionRelation(
+        const FighterProfile& a, const FighterProfile& b)
+    {
+        if (!mActorIndex)
+            return openeden::sdk::game::ActorRelation::Neutral;
+        std::vector<FactionMembership> ma;
+        std::vector<FactionMembership> mb;
+        ma.reserve(a.mFactions.size());
+        mb.reserve(b.mFactions.size());
+        for (const FormId f : a.mFactions)
+            ma.push_back({ f, 0 });
+        for (const FormId f : b.mFactions)
+            mb.push_back({ f, 0 });
+        return relationOfFactions(*mActorIndex, ma, mb);
+    }
+
     CombatSettings SkyrimWorldView::settings()
     {
         if (mCombatIndex == nullptr)
@@ -545,7 +574,13 @@ namespace game_skyrimse
                 out.mSpells.insert(out.mSpells.end(), actorRace->mSpells.begin(), actorRace->mSpells.end());
             }
             for (const FactionMembership& membership : resolved.mFactions)
+            {
                 out.mFactions.push_back(membership.mFaction);
+                // Task 0197: a guard is a member of the game's own guard faction.
+                if (const FactionRecord* faction = mActorIndex->faction(membership.mFaction))
+                    if (equalsLower(faction->mCommon.mEditorId, Factions::kGuardFactionEditorId))
+                        out.mAi.mGuard = true;
+            }
             // Task 0190: what the combat AI reads: AIDT (from the NPC that owns the AI data after templates), the
             // combat style it names (ZNAM; the defaults of DefaultCombatstyle when none) and whether its relation to
             // the player makes it hostile on sight.
@@ -556,6 +591,7 @@ namespace game_skyrimse
                 {
                     out.mAi.mAggression = aiOwner->mAi->mAggression;
                     out.mAi.mConfidence = aiOwner->mAi->mConfidence;
+                    out.mAi.mAssistance = aiOwner->mAi->mAssistance; // task 0197
                 }
                 if (aiOwner->mCombatStyle != kNullFormId)
                     if (const CombatStyleRecord* style = mCombatIndex->style(aiOwner->mCombatStyle))
@@ -565,7 +601,10 @@ namespace game_skyrimse
                 MechanicsOptions options;
                 options.mPlayerLevel = mStandInPlayerLevel;
                 if (computeActorDisposition(*mActorIndex, npc, 0, options, disposition, dispositionError))
+                {
                     out.mAi.mHostileOnSight = disposition.hostileOnSight;
+                    out.mAi.mRelationToPlayer = static_cast<std::uint8_t>(disposition.relationToPlayer); // task 0197
+                }
             }
             if (const RaceCombatRecord* race = mCombatIndex->race(resolved.mRace))
             {

@@ -166,6 +166,21 @@
       "default": false
     },
     {
+      "key": "combat factions",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "combat factions delay",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "combat test attacker",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "combat trace",
       "type": "bool",
       "default": false

@@ -8,6 +8,7 @@
 #include "game_skyrimse/combat.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -147,7 +148,7 @@ namespace game_skyrimse
         std::erase_if(mAiWatchers, [&](const AiWatcher& w) { return w.mHandle == handle; });
     }
 
-    bool SkyrimCombat::aiBegin(Fighter& fighter, const char* reason)
+    bool SkyrimCombat::aiBegin(Fighter& fighter, const char* reason, CombatSubject target, bool assisted)
     {
         if (fighter.mSubject.player || fighter.mDead || aiFind(fighter.mSubject.actor) != nullptr
             || mAiActors.size() >= kMaxAiActors || !ready(fighter))
@@ -161,6 +162,9 @@ namespace game_skyrimse
         }
         AiActor actor;
         actor.mHandle = fighter.mSubject.actor;
+        actor.mTarget = target;
+        actor.mAssisted = assisted;
+        fighter.mAimTarget = target;
         const std::uint32_t engagement = ++mAiEngagements[actor.mHandle.reference];
         game_skyrimse::aiEngage(actor.mState, aiSeed(actor.mHandle.reference, engagement), mClock);
         mAiActors.push_back(actor);
@@ -179,8 +183,12 @@ namespace game_skyrimse
             trace("COMBAT ai engage " + id + " " + subjectName(fighter.mSubject) + " (" + reason + ") aggression "
                 + std::to_string(ai.mAggression) + " confidence " + std::to_string(ai.mConfidence) + " style "
                 + (ai.mStyle.mCommon.mEditorId.empty() ? std::string("default") : ai.mStyle.mCommon.mEditorId)
-                + " engagement " + std::to_string(engagement));
+                + " engagement " + std::to_string(engagement)
+                + (target.player ? std::string() : " target " + subjectName(target))
+                + (factions() ? " at " + fmtf(mClock) : std::string())); // task 0197
         }
+        if (factions() && !assisted)
+            mAiHelpFor.push_back(actor.mHandle);
         return true;
     }
 
@@ -189,6 +197,8 @@ namespace game_skyrimse
         if (index >= mAiActors.size())
             return;
         const AiActor actor = mAiActors[index];
+        if (Fighter* f = find(CombatSubject::of(actor.mHandle)))
+            f->mAimTarget = CombatSubject::ofPlayer();
         mAiActors.erase(mAiActors.begin() + static_cast<std::ptrdiff_t>(index));
         AiMoveIntent intent;
         intent.mActor = actor.mHandle;
@@ -211,19 +221,24 @@ namespace game_skyrimse
 
     void SkyrimCombat::aiNoteDamage(const openeden::sdk::game::DamageReport& report)
     {
-        if (!mAiOn || !report.attackerIsPlayer || report.victimIsPlayer || !(report.amount > 0.f)
+        if (!mAiOn || (!report.attackerIsPlayer && !mFactionsOn) || report.victimIsPlayer || !(report.amount > 0.f)
             || !(report.healthAfter > 0.f))
             return;
         Fighter* victim = find(CombatSubject::of(report.victim));
-        if (victim != nullptr)
-            (void)aiBegin(*victim, "provoked");
+        if (victim == nullptr)
+            return;
+        // Task 0197: an NPC that is hurt by another NPC fights it (an ally's accident included: it is not refused).
+        const CombatSubject by
+            = report.attackerIsPlayer ? CombatSubject::ofPlayer() : CombatSubject::of(report.attacker);
+        (void)aiBegin(*victim, "provoked", by);
     }
 
     void SkyrimCombat::aiProvoke(const Fighter& attacker, Fighter& victim)
     {
-        if (!mAiOn || !attacker.mSubject.player || victim.mSubject.player || victim.mDead || victim.mHealth <= 0.f)
+        if (!mAiOn || (!attacker.mSubject.player && !mFactionsOn) || victim.mSubject.player || victim.mDead
+            || victim.mHealth <= 0.f || (!attacker.mSubject.player && attacker.mDead))
             return;
-        (void)aiBegin(victim, "provoked");
+        (void)aiBegin(victim, "provoked", attacker.mSubject);
     }
 
     void SkyrimCombat::aiGoalFinished(ActorHandle handle, GoalResult result)
@@ -272,7 +287,7 @@ namespace game_skyrimse
                 continue;
             ++looked;
             f.mAiScanned = true;
-            if (!ready(f) || !f.mProfile.mAi.mHostileOnSight)
+            if (!ready(f) || (!factions() && !f.mProfile.mAi.mHostileOnSight))
                 continue;
             AiWatcher watcher;
             watcher.mHandle = f.mSubject.actor;
@@ -408,6 +423,8 @@ namespace game_skyrimse
         if (!mAiOn)
             return;
         aiScan();
+        if (factions())
+            aiSnapshot(writer);
         Fighter* player = find(CombatSubject::ofPlayer());
         if (player == nullptr)
             return;
@@ -433,19 +450,46 @@ namespace game_skyrimse
                 Fighter* f = find(CombatSubject::of(handle));
                 if (f == nullptr || f->mDead || !ready(*f))
                     continue;
+                CombatSubject target = CombatSubject::ofPlayer();
+                if (factions())
+                    for (const auto& pair : mOpponents)
+                        if (pair.first == handle)
+                            target = CombatSubject::of(pair.second);
                 const bool again = mAiEngagements.count(handle.reference) != 0;
-                if (again)
+                if (again && target.player)
                 {
                     SubjectState self;
                     if (!getPlayer() || !writer.subjectState(f->mSubject, self)
                         || std::hypot(playerState.x - self.x, playerState.y - self.y) > kAiSightDistance)
                         continue;
                 }
-                (void)aiBegin(*f, "test hostile");
+                (void)aiBegin(*f, "test hostile", target);
             }
 
-        // 2. Hostile on sight: a look twice a second.
-        if (playerAlive)
+        // 2. Hostile on sight: a look twice a second. With the factions rules (task 0197) every fighter that can start
+        // a fight looks at every valid target, not only the player.
+        if (factions())
+        {
+            std::size_t looked = 0;
+            const std::size_t count = mAiWatchers.size();
+            for (std::size_t step = 0; mClock >= mFactionsDelay && step < count && looked < Factions::kScanBudget;
+                 ++step)
+            {
+                const std::size_t index = (mWatchCursor + step) % count;
+                AiWatcher& w = mAiWatchers[index];
+                if (mClock < w.mNextSight || aiFind(w.mHandle) != nullptr)
+                    continue;
+                ++looked;
+                w.mNextSight = mClock + kAiSightPeriod;
+                aiLookForTarget(writer, w);
+            }
+            if (count != 0)
+                mWatchCursor = (mWatchCursor + 1) % count;
+            for (std::size_t i = 0; i < mAiHelpFor.size(); ++i)
+                aiCallForHelp(writer, mAiHelpFor[i]);
+            mAiHelpFor.clear();
+        }
+        else if (playerAlive)
             for (AiWatcher& w : mAiWatchers)
             {
                 if (mClock < w.mNextSight || aiFind(w.mHandle) != nullptr)
@@ -470,10 +514,21 @@ namespace game_skyrimse
                 aiRelease(i, "dead");
                 continue;
             }
-            if (!playerAlive)
+            if (!playerAlive && a.mTarget.player)
             {
                 aiRelease(i, "target dead");
                 continue;
+            }
+            // Task 0197: the target of this fight (the player's state is read once for the whole update).
+            Fighter* targetFighter = a.mTarget.player ? player : find(a.mTarget);
+            SubjectState targetState;
+            if (!a.mTarget.player)
+            {
+                if (targetFighter == nullptr || targetFighter->mDead || !writer.subjectState(a.mTarget, targetState))
+                {
+                    aiRelease(i, "target dead");
+                    continue;
+                }
             }
             if (a.mGiveUp)
             {
@@ -487,7 +542,15 @@ namespace game_skyrimse
                 ++i;
                 continue;
             }
-            const float distance = static_cast<float>(std::hypot(playerState.x - self.x, playerState.y - self.y));
+            if (a.mTarget.player)
+                targetState = playerState;
+            else if (factions() && partyOf(*f).mFollower
+                && std::hypot(playerState.x - self.x, playerState.y - self.y) > 1.5 * Factions::kFollowerLeash)
+            {
+                aiRelease(i, "left the player");
+                continue;
+            }
+            const float distance = static_cast<float>(std::hypot(targetState.x - self.x, targetState.y - self.y));
             const WeaponRecord* weapon = mWeapon;
             const bool bow = weapon != nullptr && weapon->mAnimType == kWeaponAnimBow && bowReady();
             const float rawReach = meleeReachUnits(weapon, f->mProfile.mUnarmedReach, mCombatSettings);
@@ -501,9 +564,10 @@ namespace game_skyrimse
             view.mStaminaFraction
                 = f->mProfile.mStaminaMax > 0.f ? std::clamp(f->mStamina / f->mProfile.mStaminaMax, 0.f, 1.f) : 1.f;
             view.mFleeDistance = kAiFleeDistance;
-            view.mTargetAlive = playerAlive;
-            view.mTargetSwinging = mPlayerSwingActive;
-            view.mTargetBlocking = false; // the player has no block input
+            view.mTargetAlive = a.mTarget.player ? playerAlive : true;
+            view.mTargetSwinging = a.mTarget.player ? mPlayerSwingActive : targetFighter->mSwinging;
+            // the player has no block input
+            view.mTargetBlocking = a.mTarget.player ? false : isBlocking(*targetFighter);
             view.mBusy = f->mSwinging || f->mStaggered || f->mBow != Fighter::Bow::None
                 || isBusyCasting(f->mSubject);
             aiPickSpell(*f, a);
@@ -537,7 +601,7 @@ namespace game_skyrimse
                     if (a.mSpell != nullptr)
                     {
                         (void)writer.faceHeading(f->mSubject,
-                            static_cast<float>(std::atan2(playerState.x - self.x, playerState.y - self.y)));
+                            static_cast<float>(std::atan2(targetState.x - self.x, targetState.y - self.y)));
                         (void)beginCast(writer, *f, *a.mSpell, false, 0.f);
                     }
                     break;
@@ -564,7 +628,7 @@ namespace game_skyrimse
                                     : kind == AttackKind::Power ? " power"
                                                                 : " normal"));
                     (void)writer.faceHeading(f->mSubject,
-                        static_cast<float>(std::atan2(playerState.x - self.x, playerState.y - self.y)));
+                        static_cast<float>(std::atan2(targetState.x - self.x, targetState.y - self.y)));
                     if (bow)
                         beginBowDraw(writer, *f);
                     else
@@ -583,8 +647,270 @@ namespace game_skyrimse
                 continue;
             }
             const float moveReach = bow ? view.mRange * 0.7f / kAiStandOffFraction : rawReach;
-            aiMove(writer, a, *f, out.mMove, self, playerState, distance, moveReach);
+            aiMove(writer, a, *f, out.mMove, self, targetState, distance, moveReach);
             ++i;
+        }
+    }
+
+    // ---- task 0197: targets from relations, followers, guards and sight ---------------------------------------------
+
+    void SkyrimCombat::setCombatFactions(bool on)
+    {
+        mFactionsOn = on;
+        if (on)
+        {
+            mAiSnap.reserve(256);
+            mAiScratch.reserve(64);
+            mAiHelpFor.reserve(16);
+        }
+    }
+
+    void SkyrimCombat::setFollowerQuery(std::function<bool(openeden::sdk::game::WorldId)> query)
+    {
+        mFollowerQuery = std::move(query);
+    }
+
+    void SkyrimCombat::setTestAttacker(std::string_view editorId)
+    {
+        mTestAttacker.assign(editorId);
+        for (char& c : mTestAttacker)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    CombatSubject SkyrimCombat::aiTargetOf(ActorHandle handle) const
+    {
+        const AiActor* a = aiFind(handle);
+        return a != nullptr ? a->mTarget : CombatSubject::ofPlayer();
+    }
+
+    bool SkyrimCombat::isTestAttacker(ActorHandle handle) const
+    {
+        if (mTestAttacker.empty())
+            return false;
+        for (const auto& n : mActorNames)
+            if (n.first == handle)
+                return n.second == mTestAttacker;
+        return false;
+    }
+
+    Factions::Party SkyrimCombat::partyOf(const Fighter& fighter) const
+    {
+        Factions::Party party;
+        if (fighter.mSubject.player)
+        {
+            party.mPlayer = true;
+            return party;
+        }
+        party.mFollower = mFollowerQuery && mFollowerQuery(fighter.mSubject.actor.reference);
+        const AiProfile& ai = fighter.mProfile.mAi;
+        party.mAggression = ai.mAggression;
+        party.mAssistance = ai.mAssistance;
+        party.mGuard = ai.mGuard;
+        party.mHostileOnSight = ai.mHostileOnSight;
+        party.mRelationToPlayer
+            = static_cast<openeden::sdk::game::ActorRelation>(std::min<std::uint8_t>(ai.mRelationToPlayer, 3));
+        // The test attacker turns on at the crowd test's delay (`combat test crowd delay`, default 4 s of combat clock)
+        // so that a scenario can arrange the street first.
+        if (mClock >= mCrowdDelay && isTestAttacker(fighter.mSubject.actor))
+            party.mAggression = 3;
+        return party;
+    }
+
+    openeden::sdk::game::ActorRelation SkyrimCombat::relationOf(const Fighter& a, const Fighter& b) const
+    {
+        using openeden::sdk::game::ActorRelation;
+        if (a.mSubject == b.mSubject)
+            return ActorRelation::Ally;
+        // The test duels name their opponents.
+        if (!a.mSubject.player && !b.mSubject.player)
+            for (const auto& pair : mOpponents)
+                if (pair.first == a.mSubject.actor && pair.second == b.mSubject.actor)
+                    return ActorRelation::Enemy;
+        ActorRelation base = ActorRelation::Neutral;
+        if (a.mSubject.player || b.mSubject.player)
+        {
+            const Fighter& other = a.mSubject.player ? b : a;
+            base = static_cast<ActorRelation>(std::min<std::uint8_t>(other.mProfile.mAi.mRelationToPlayer, 3));
+        }
+        else if (mData != nullptr)
+        {
+            const std::uint64_t lo = std::min<std::uint64_t>(a.mBase, b.mBase);
+            const std::uint64_t hi = std::max<std::uint64_t>(a.mBase, b.mBase);
+            const std::uint64_t key = (lo << 32) | hi;
+            const auto found = mRelCache.find(key);
+            if (found != mRelCache.end())
+                base = static_cast<ActorRelation>(found->second);
+            else
+            {
+                base = mData->factionRelation(a.mProfile, b.mProfile);
+                if (mRelCache.size() >= 65536)
+                    mRelCache.clear();
+                mRelCache[key] = static_cast<std::uint8_t>(base);
+            }
+        }
+        return Factions::sideRelation(partyOf(a), partyOf(b), base);
+    }
+
+    bool SkyrimCombat::aiTargetsPlayerSide(const Fighter& fighter) const
+    {
+        if (fighter.mSubject.player)
+            return false;
+        const AiActor* a = aiFind(fighter.mSubject.actor);
+        if (a == nullptr)
+            return false;
+        if (a->mTarget.player)
+            return true;
+        return mFollowerQuery && mFollowerQuery(a->mTarget.actor.reference);
+    }
+
+    // Where every ready fighter stands, every kSnapshotPeriod. A look reads this and asks the core for nothing but
+    // the rays of the targets it picked.
+    void SkyrimCombat::aiSnapshot(CombatRequestWriter& writer)
+    {
+        if (mClock - mAiSnapAt < Factions::kSnapshotPeriod)
+            return;
+        mAiSnapAt = mClock;
+        mAiSnap.clear();
+        for (Fighter& f : mFighters)
+        {
+            if (f.mDead || (!f.mSubject.player && !(f.mReady && f.mHasProfile)))
+                continue;
+            SubjectState state;
+            if (!writer.subjectState(f.mSubject, state))
+                continue;
+            AiSnap snap;
+            snap.mSubject = f.mSubject;
+            snap.mX = state.x;
+            snap.mY = state.y;
+            snap.mZ = state.z;
+            mAiSnap.push_back(snap);
+        }
+    }
+
+    // One ray from the eye of `from` to the target. A ray the core cannot answer leaves the target in sight (unknown
+    // is not blocked).
+    bool SkyrimCombat::aiHasSight(CombatRequestWriter& writer, const CombatSubject& from, const AiSnap& to)
+    {
+        SubjectState self;
+        if (!writer.subjectState(from, self))
+            return false;
+        const Factions::SightRay ray = Factions::sightRay(self.x, self.y, self.z, to.mX, to.mY, to.mZ);
+        if (!ray.mValid)
+            return true;
+        openeden::sdk::game::RayHit hit;
+        if (!writer.castRay(from, ray.mRay, hit))
+            return true;
+        return Factions::sightClear(hit.fate);
+    }
+
+    void SkyrimCombat::aiLookForTarget(CombatRequestWriter& writer, AiWatcher& watcher)
+    {
+        Fighter* f = find(CombatSubject::of(watcher.mHandle));
+        if (f == nullptr || f->mDead || !ready(*f) || aiFind(watcher.mHandle) != nullptr)
+            return;
+        const auto rest = mAiCooldown.find(watcher.mHandle.reference);
+        if (rest != mAiCooldown.end() && mClock < rest->second)
+            return;
+        const Factions::Party self = partyOf(*f);
+        if (self.mAggression == 0 && !self.mGuard && !self.mFollower)
+            return;
+        const AiSnap* me = nullptr;
+        const AiSnap* playerSnap = nullptr;
+        for (const AiSnap& snap : mAiSnap)
+        {
+            if (snap.mSubject == f->mSubject)
+                me = &snap;
+            if (snap.mSubject.player)
+                playerSnap = &snap;
+        }
+        if (me == nullptr)
+            return;
+        // A follower fights near the player only.
+        if (self.mFollower
+            && (playerSnap == nullptr
+                || std::hypot(playerSnap->mX - me->mX, playerSnap->mY - me->mY) > Factions::kFollowerLeash))
+            return;
+        mAiScratch.clear();
+        for (std::size_t i = 0; i < mAiSnap.size(); ++i)
+        {
+            const AiSnap& snap = mAiSnap[i];
+            if (snap.mSubject == f->mSubject)
+                continue;
+            const double flat = std::hypot(snap.mX - me->mX, snap.mY - me->mY);
+            if (flat > kAiSightDistance || std::abs(snap.mZ - me->mZ) > kAiSightHeight)
+                continue;
+            const Fighter* other = find(snap.mSubject);
+            if (other == nullptr || other->mDead)
+                continue;
+            const bool hostileToSide = aiTargetsPlayerSide(*other);
+            if (!Factions::attacksOnSight(self, partyOf(*other), relationOf(*f, *other), hostileToSide))
+                continue;
+            mAiScratch.push_back({ static_cast<float>(flat), i });
+        }
+        std::sort(mAiScratch.begin(), mAiScratch.end());
+        std::size_t rays = 0;
+        for (const auto& candidate : mAiScratch)
+        {
+            if (++rays > 3)
+                break; // at most three rays a look
+            const AiSnap to = mAiSnap[candidate.second];
+            if (!aiHasSight(writer, f->mSubject, to))
+            {
+                if (mTrace && mSightTraceAt[f->mSubject.actor.reference % 64] + 5.f <= mClock)
+                {
+                    mSightTraceAt[f->mSubject.actor.reference % 64] = mClock;
+                    trace("COMBAT ai no sight " + subjectName(f->mSubject) + " -> " + subjectName(to.mSubject));
+                }
+                continue;
+            }
+            (void)aiBegin(*f, "on sight", to.mSubject);
+            return;
+        }
+    }
+
+    // The engaged fighter picked a target: those who would help the target against it join.
+    void SkyrimCombat::aiCallForHelp(CombatRequestWriter& writer, ActorHandle engaged)
+    {
+        const AiActor* actor = aiFind(engaged);
+        Fighter* attacker = find(CombatSubject::of(engaged));
+        if (actor == nullptr || attacker == nullptr)
+            return;
+        const CombatSubject victimSubject = actor->mTarget;
+        Fighter* victim = find(victimSubject);
+        if (victim == nullptr)
+            return;
+        const AiSnap* victimSnap = nullptr;
+        const AiSnap* attackerSnap = nullptr;
+        for (const AiSnap& snap : mAiSnap)
+        {
+            if (snap.mSubject == victimSubject)
+                victimSnap = &snap;
+            if (snap.mSubject == attacker->mSubject)
+                attackerSnap = &snap;
+        }
+        if (victimSnap == nullptr || attackerSnap == nullptr)
+            return;
+        const bool victimOnSide = Factions::playerSide(partyOf(*victim));
+        for (std::size_t i = 0; i < mAiSnap.size(); ++i)
+        {
+            const AiSnap snap = mAiSnap[i];
+            if (snap.mSubject.player || snap.mSubject == attacker->mSubject || snap.mSubject == victimSubject)
+                continue;
+            if (std::hypot(snap.mX - victimSnap->mX, snap.mY - victimSnap->mY) > Factions::kAssistRadius)
+                continue;
+            // it has to be able to see the attacker: within sight distance and height, and a clear line
+            if (std::hypot(snap.mX - attackerSnap->mX, snap.mY - attackerSnap->mY) > kAiSightDistance
+                || std::abs(snap.mZ - attackerSnap->mZ) > kAiSightHeight)
+                continue;
+            Fighter* helper = find(snap.mSubject);
+            if (helper == nullptr || helper->mDead || aiFind(snap.mSubject.actor) != nullptr)
+                continue;
+            if (!Factions::assists(partyOf(*helper), relationOf(*helper, *victim), relationOf(*helper, *attacker),
+                    victimOnSide))
+                continue;
+            if (!aiHasSight(writer, helper->mSubject, *attackerSnap))
+                continue;
+            (void)aiBegin(*helper, "assist", attacker->mSubject, true);
         }
     }
 }

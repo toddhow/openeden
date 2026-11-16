@@ -1028,6 +1028,15 @@ namespace game_skyrimse
 
     bool SkyrimCombat::mayHit(const Fighter& attacker, const Fighter& victim) const
     {
+        if (factions())
+        {
+            // Task 0197: the real relation. The crowd rule below stays for the runs without the factions rules.
+            if (attacker.mSubject.player)
+                return true;
+            const AiActor* engaged = aiFind(attacker.mSubject.actor);
+            const bool isTarget = engaged != nullptr && engaged->mTarget == victim.mSubject;
+            return Factions::mayHit(relationOf(attacker, victim), isTarget);
+        }
         if (!crowdOn() || attacker.mSubject.player)
             return true;
         for (const auto& pair : mOpponents)
@@ -1747,7 +1756,7 @@ namespace game_skyrimse
                 {
                     f->mBow = Fighter::Bow::None;
                     openeden::sdk::game::SubjectState target;
-                    if (writer.subjectState(CombatSubject::ofPlayer(), target))
+                    if (writer.subjectState(f->mAimTarget, target)) // task 0197: the player unless the AI chose
                         (void)launchArrow(writer, *f, 1.f, &target);
                 }
             }

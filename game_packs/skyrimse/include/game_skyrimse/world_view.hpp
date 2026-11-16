@@ -342,6 +342,8 @@ namespace game_skyrimse
         FighterProfile playerFighter() override;
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
         CombatSettings settings() override;
+        // Task 0197
+        openeden::sdk::game::ActorRelation factionRelation(const FighterProfile& a, const FighterProfile& b) override;
         BlockSettings blockSettings() override;
         /// Task 0178 (stage S5-6): the AMMO by editor id, its PROJ and the arrow GMSTs.
         const AmmoRecord* ammoByEditorId(std::string_view editorId) override;

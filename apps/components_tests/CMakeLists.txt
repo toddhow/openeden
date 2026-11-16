@@ -551,6 +551,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsegoldkeys.cpp
     skyrimse/testskyrimsecombatdeterminism.cpp
     skyrimse/testskyrimsecombatcrowd.cpp
+    skyrimse/testskyrimsecombatfactions.cpp
     skyrimse/testskyrimsecombatreview.cpp
     skyrimse/testskyrimsecombatindex.cpp
     skyrimse/testskyrimsecombatsound.cpp
@@ -713,6 +714,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sound.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_style.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_factions.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_ai_run.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/perks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_mechanics.cpp

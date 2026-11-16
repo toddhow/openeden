@@ -809,8 +809,8 @@ namespace game_skyrimse
             (void)launchSpell(writer, *f, spell, nullptr);
             return;
         }
-        SubjectState player;
-        if (writer.subjectState(CombatSubject::ofPlayer(), player))
+        SubjectState player; // task 0197: the AI's target (the player unless it chose another)
+        if (writer.subjectState(f->mAimTarget, player))
             (void)launchSpell(writer, *f, spell, &player);
     }
 
@@ -867,8 +867,8 @@ namespace game_skyrimse
             out.pitch = self.pitch;
             return true;
         }
-        SubjectState player;
-        if (!writer.subjectState(CombatSubject::ofPlayer(), player))
+        SubjectState player; // task 0197: the AI's target
+        if (!writer.subjectState(caster.mAimTarget, player))
             return false;
         const double dx = player.x - self.x;
         const double dy = player.y - self.y;
