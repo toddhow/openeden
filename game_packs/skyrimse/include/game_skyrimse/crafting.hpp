@@ -18,6 +18,7 @@
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/inventory.hpp>
 #include <game_skyrimse/records.hpp>
+#include <game_skyrimse/survey.hpp>
 
 #include <components/contentsource/plugin.hpp>
 
@@ -66,6 +67,7 @@ namespace game_skyrimse::crafting
         FormId mBench = kNullFormId; ///< BNAM: the bench keyword
         std::vector<InventoryEntry> mItems; ///< CNTO: what is consumed
         std::uint32_t mConditions = 0; ///< CTDA count (not evaluated)
+        std::vector<survey::Ctda> mConditionList; ///< task 0206: the decoded CTDA, form parameters resolved
     };
 
     struct Enchantment
@@ -118,6 +120,19 @@ namespace game_skyrimse::crafting
     /// The keyword editor id of a bench kind ("" for None).
     [[nodiscard]] std::string_view benchKeywordName(BenchKind kind);
     [[nodiscard]] bool isTemperBench(BenchKind kind);
+
+    /// Task 0206: the progression slot (`progression::Slot`) a crafting skill name trains: "alchemy", "smithing",
+    /// "enchanting"; the skill count (18) for any other name.
+    [[nodiscard]] std::size_t skillSlotOfCraftingName(std::string_view skill);
+    /// Task 0206: is every condition of a recipe one the perks module can answer: HasPerk (fn 448), GetBaseActorValue
+    /// (277) and the tempering test "the item is enchanted" (659)? An empty list is. The data holds only these on the
+    /// forge and tempering recipes; a recipe with any other function (a global, a quest stage) is not decided by them.
+    [[nodiscard]] bool recipeConditionsPerkOnly(std::span<const survey::Ctda> list);
+    /// Task 0206: evaluates a recipe's conditions for the player: `perks` are the PERK forms HasPerk answers true for,
+    /// `values` the base actor values (skills at 6 to 23), `itemEnchanted` is fn 659's answer (the item a tempering
+    /// recipe would improve carries an enchantment). Fails closed on a function nothing answers.
+    [[nodiscard]] bool recipeConditionsHold(std::span<const survey::Ctda> list, const std::vector<FormId>& perks,
+        std::uint16_t level, const std::vector<std::pair<std::uint32_t, float>>& values, bool itemEnchanted);
 
     struct CraftingLimits
     {

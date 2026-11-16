@@ -153,6 +153,53 @@ namespace game_skyrimse::crafting
         std::vector<BindingValue> mElements;
     };
 
+    void linkProgression(CraftingHooks& hooks, progression::ProgressionService& progression, float boost)
+    {
+        if (!std::isfinite(boost) || boost < 0.f)
+            boost = 1.f;
+        // what the recipe conditions read of the player, rebuilt only when the progression changed
+        struct Cache
+        {
+            std::uint64_t mRevision = 0;
+            bool mValid = false;
+            std::vector<FormId> mPerks;
+            std::vector<std::pair<std::uint32_t, float>> mValues;
+            std::uint16_t mLevel = 1;
+        };
+        const auto cache = std::make_shared<Cache>();
+        const auto earlierSkill = hooks.mSkill;
+        hooks.mSkill = [&progression, earlierSkill](std::string_view name) {
+            const std::size_t slot = skillSlotOfCraftingName(name);
+            float real = 0.f;
+            if (slot < progression::kSkillCount
+                && progression.actorValue(progression::kFirstSkillValue + static_cast<std::uint32_t>(slot), real))
+                return real;
+            return earlierSkill ? earlierSkill(name) : 15.f;
+        };
+        const auto earlierUsed = hooks.mSkillUsed;
+        hooks.mSkillUsed = [&progression, boost, earlierUsed](std::string_view name, float amount) {
+            const std::size_t slot = skillSlotOfCraftingName(name);
+            if (slot < progression::kSkillCount)
+                progression.skillUsed(slot, amount * boost);
+            if (earlierUsed)
+                earlierUsed(name, amount);
+        };
+        hooks.mRecipeConditions = [&progression, cache](std::span<const survey::Ctda> list, bool enchanted) {
+            const progression::PlayerProgression* p = progression.progression();
+            if (p == nullptr)
+                return false; // the perks are not known yet: nothing a perk gates is offered
+            if (!cache->mValid || cache->mRevision != p->revision())
+            {
+                cache->mValid = true;
+                cache->mRevision = p->revision();
+                cache->mPerks = p->hasPerkSet();
+                cache->mValues = p->actorValues();
+                cache->mLevel = p->level();
+            }
+            return recipeConditionsHold(list, cache->mPerks, cache->mLevel, cache->mValues, enchanted);
+        };
+    }
+
     CraftingService::CraftingService(inventory::InventoryService& inventory, CraftingHooks hooks,
         CraftingSettings settings, bool ignoreConditions, bool testBench)
         : mImpl(std::make_unique<Impl>())
@@ -456,6 +503,29 @@ namespace game_skyrimse::crafting
         return found;
     }
 
+    bool CraftingService::conditionsAllow(const Recipe& recipe) const
+    {
+        if (mIgnoreConditions || recipe.mConditions == 0)
+            return true;
+        const bool temper = isTemperBench(mTable.benchOfKeyword(recipe.mBench));
+        // Task 0206: a list of only perk and skill tests (the forge and tempering recipes of the data) is answered
+        // from the player's perks; any other list, and a list that did not decode whole, keeps the earlier rule.
+        if (mHooks.mRecipeConditions && recipe.mConditionList.size() == recipe.mConditions
+            && recipeConditionsPerkOnly(recipe.mConditionList))
+        {
+            bool enchanted = false; // fn 659: the item a tempering recipe would improve carries an enchantment
+            if (temper)
+            {
+                FormId item = 0;
+                std::int32_t permille = 0;
+                if (temperTarget(recipe.mResult, item, permille))
+                    enchanted = enchantmentOfGear(item) != kNullFormId;
+            }
+            return mHooks.mRecipeConditions(recipe.mConditionList, enchanted);
+        }
+        return temper; // every tempering recipe of the game carries conditions: they were never hidden
+    }
+
     bool CraftingService::recipeOk(const Recipe& recipe) const
     {
         if (!materialsHeld(recipe))
@@ -475,8 +545,8 @@ namespace game_skyrimse::crafting
         if (mSession != State::Ready)
             return out;
         for (const BenchKind kind : mKinds)
-            for (const Recipe* r : mTable.recipesFor(kind, mIgnoreConditions))
-                if (mInventory.table().item(r->mResult) != nullptr)
+            for (const Recipe* r : mTable.recipesFor(kind, true))
+                if (mInventory.table().item(r->mResult) != nullptr && conditionsAllow(*r))
                     out.push_back(r);
         std::sort(out.begin(), out.end(), [](const Recipe* a, const Recipe* b) { return a->mId < b->mId; });
         out.erase(std::unique(out.begin(), out.end()), out.end());
@@ -566,7 +636,7 @@ namespace game_skyrimse::crafting
         const BenchKind kind = mTable.benchOfKeyword(r->mBench);
         if (isTemperBench(kind) || !hasKind(kind))
             return done(Status::NoBench, "craft");
-        if (r->mConditions > 0 && !mIgnoreConditions)
+        if (!conditionsAllow(*r))
             return done(Status::UnknownRecipe, "craft");
         const inventory::ItemStat* result = mInventory.table().item(r->mResult);
         if (result == nullptr)
@@ -593,6 +663,8 @@ namespace game_skyrimse::crafting
         const BenchKind kind = mTable.benchOfKeyword(r->mBench);
         if (!isTemperBench(kind) || !hasKind(kind))
             return done(Status::NoBench, "temper");
+        if (!conditionsAllow(*r))
+            return done(Status::UnknownRecipe, "temper");
         const inventory::ItemStat* baseStat = mInventory.table().item(r->mResult);
         if (baseStat == nullptr || !isGear(r->mResult))
             return done(Status::NotGear, "temper");

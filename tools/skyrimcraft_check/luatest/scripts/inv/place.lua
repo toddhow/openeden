@@ -4,6 +4,7 @@
 local core = require('openmw.core')
 local world = require('openmw.world')
 local storage = require('openmw.storage')
+local util = require('openmw.util')
 local cfg = require('scripts.inv.cfg')
 local phase = require('scripts.inv.phase')
 local okInv, inv = pcall(require, 'core.skyrimse.inventory')
@@ -22,7 +23,23 @@ local function dump(label)
     end
 end
 
-local updates = 0
+-- Task 0206: with cfg.base set, stands the player cfg.dist from the nearest object of that record, facing it, at update
+-- cfg.frame (a bench opened by the REAL activate key instead of the test setting). cfg.height raises the aim to the
+-- middle of the bench (the player's eye is about 120 above the feet, a bench top is lower).
+local function nearest(cell, base, near)
+    local best, bestD = nil, math.huge
+    for _, obj in ipairs(cell:getAll()) do
+        local ok, id = pcall(function() return obj.recordId end)
+        if ok and id == base then
+            local p = obj.position
+            local d = (p.x - near[1]) ^ 2 + (p.y - near[2]) ^ 2 + (p.z - near[3]) ^ 2
+            if d < bestD then best, bestD = obj, d end
+        end
+    end
+    return best, math.sqrt(bestD)
+end
+
+local updates, placed = 0, false
 return {
     engineHandlers = {
         onUpdate = function()
@@ -38,7 +55,24 @@ return {
                 if updates == 650 then dump('loaded') end
                 return
             end
-            if updates == cfg.openFrame then
+            if cfg.base ~= '' and not placed and updates >= cfg.frame then
+                placed = true
+                local obj, d = nearest(player.cell, cfg.base, cfg.near)
+                if obj == nil then
+                    print('N6INV target not found')
+                else
+                    local p = obj.position
+                    local fx, fy = cfg.from[1], cfg.from[2]
+                    if fx == 0 and fy == 0 then fx, fy = p.x + 100, p.y end
+                    local cx, cy = fx - p.x, fy - p.y
+                    local len = math.sqrt(cx * cx + cy * cy)
+                    local px, py = p.x + cx / len * cfg.dist, p.y + cy / len * cfg.dist
+                    local yaw = math.atan2(p.x - px, p.y - py)
+                    print(string.format('N6INV target %s at %.0f,%.0f,%.0f (%.0f from the spot), placed at update %d', tostring(obj.recordId), p.x, p.y, p.z, d, updates))
+                    player:teleport(player.cell, util.vector3(px, py, p.z), { onGround = true, rotation = util.transform.rotateZ(yaw) })
+                end
+            end
+            if updates == cfg.openFrame and cfg.openFrame > 0 then
                 print('N6INV open ' .. cfg.kind)
                 core.sendGlobalEvent('SkyrimCraftingOpenKind', { kind = cfg.kind, name = cfg.name })
             end
@@ -55,6 +89,10 @@ return {
                         break
                     end
                 end
+            end
+            -- task 0206: how many recipes the open bench offers (a perk the player bought opens more)
+            if okCraft and cfg.openFrame > 0 and (updates == cfg.openFrame + 60 or (cfg.openFrame2 > 0 and updates == cfg.openFrame2 + 60)) then
+                print('N6INV recipes ' .. tostring(crafting.bench()) .. ' ' .. #crafting.recipes())
             end
             if updates == cfg.openFrame + 200 then dump('before') end
             if updates == cfg.openFrame + 700 then dump('after') end

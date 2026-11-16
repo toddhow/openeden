@@ -646,6 +646,11 @@ namespace game_skyrimse
         class SkyrimGamePack final : public openeden::sdk::Extension
         {
         public:
+            // Task 0206: the player's progression for the other parts of the pack (crafting, lockpicking, books
+            // ...): `skillUsed(slot, amount)` trains a skill, `actorValue(index, out)` reads one. Null when
+            // `[extension.skyrimse] player progression` is off. Owned by the pack; main thread.
+            [[nodiscard]] progression::ProgressionService* progressionService() const { return mProgression.get(); }
+
             // Task 0176: the Papyrus host runs in the game phase, on the main thread; with the setting off the driver
             // does not exist and the callback does nothing.
             void registerServices(openeden::sdk::Registrar& registrar) override
@@ -848,6 +853,15 @@ namespace game_skyrimse
                 env.actorValue = [this](FormId actor, std::string_view name, double& current, double& maximum) {
                     if (actor == kPapyrusPlayerReference)
                     {
+                        // Task 0206: the player's skills are the progression's (with the maximum left 0 so that a
+                        // script's ModActorValue is not clamped back to it)
+                        float skill = 0.f;
+                        if (mProgression != nullptr && progression::skillActorValue(*mProgression, name, skill))
+                        {
+                            current = skill;
+                            maximum = 0.0;
+                            return true;
+                        }
                         const HudSnapshot& hud = mCellSource.hud().snapshot();
                         if (name == "health")
                             current = hud.mPlayerHealth, maximum = hud.mPlayerHealthMax;
@@ -1243,6 +1257,7 @@ namespace game_skyrimse
                 float boost = settings->getFloat(kPackId, "progression test amount", 1.f);
                 if (!std::isfinite(boost) || boost < 0.f || boost > 10000.f)
                     boost = 1.f;
+                mProgressionBoost = boost;
                 mCellSource.combat().setSkillUseHook(
                     [this, boost](std::size_t slot, float amount) { mProgression->skillUsed(slot, amount * boost); });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
@@ -1470,6 +1485,11 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
+                // Task 0206: a craft trains the player's skill, the formulas read the real one and a recipe's perk
+                // conditions are answered from the bought perks (only with the progression on; the progression is
+                // destroyed before the crafting service but is never called from its destructor).
+                if (mProgression != nullptr)
+                    crafting::linkProgression(hooks, *mProgression, mProgressionBoost);
                 mCrafting = std::make_unique<crafting::CraftingService>(*mInventory, std::move(hooks),
                     crafting::CraftingSettings(), settings->getBool(kPackId, "crafting ignore conditions", false),
                     settings->getBool(kPackId, "crafting test bench", false));
@@ -1913,6 +1933,7 @@ namespace game_skyrimse
             std::unique_ptr<crime::CrimeService> mCrime; // task 0204; refers to the cell source and the inventory
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;
+            float mProgressionBoost = 1.f; // task 0206: the test multiplier of `progression test amount`
             std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery

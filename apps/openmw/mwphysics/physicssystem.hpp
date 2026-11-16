@@ -383,7 +383,9 @@ namespace MWPhysics
             float mPitch = 0.f;
         };
         using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
-        using NeutralPlayerDamageFn = std::function<void(float healthAfter)>;
+        /// Task 0206: also the report's maximum (0 when it names none), so that a raised maximum reaches the
+        /// engine's stat.
+        using NeutralPlayerDamageFn = std::function<void(float healthAfter, float healthMax)>;
         void setNeutralPlayerHooks(NeutralPlayerStateFn state, NeutralPlayerDamageFn damage)
         {
             mNeutralPlayerState = std::move(state);

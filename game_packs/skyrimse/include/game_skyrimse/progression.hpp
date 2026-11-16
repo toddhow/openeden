@@ -62,6 +62,10 @@ namespace game_skyrimse::progression
     /// The skill a magic effect trains: its MGEF associated skill (an actor value 18 to 22) as a slot, else
     /// kSkillCount.
     [[nodiscard]] std::size_t slotOfMagicSkillValue(std::int32_t actorValue);
+    /// Task 0206: the slot of a skill by the key a Papyrus script's actor value name is reduced to (lower case, no
+    /// spaces or underscores: "onehanded", "marksman" and "archery", "speechcraft" and "speech", "illusion" ...);
+    /// kSkillCount when the key is not a skill. The script names are RECALLED-VERIFY.
+    [[nodiscard]] std::size_t slotOfActorValueName(std::string_view key);
 
     struct PerkNode
     {

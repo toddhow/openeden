@@ -177,6 +177,7 @@ file(GLOB UNITTEST_SRC_FILES
     # Task 0035 stage b: the RAGDOLL layer, HostedWorldConfig::gravityFactor and MWPhysics::RagdollHost.
     mwphysics/testjoltlayers.cpp
     mwphysics/testgravityfactor.cpp
+    mwphysics/testneutralplayerhealth.cpp
     mwphysics/testragdollhost.cpp
     # Task 0110 stage N3a-4b: collision from a Skyrim SE model's visual triangles (the Jolt half and the shape manager hook).
     mwphysics/testskyrimshape.cpp

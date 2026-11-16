@@ -97,6 +97,7 @@
 
 #include "../mwphysics/actor.hpp"
 #include "../mwphysics/joltlayers.hpp"
+#include "../mwphysics/neutralplayerhealth.hpp"
 #include "../mwphysics/object.hpp"
 #include "../mwphysics/physicssystem.hpp"
 
@@ -418,14 +419,21 @@ namespace MWWorld
                     out.mAttackHeld = input != nullptr && input->actionIsActive(MWInput::A_Use);
                     return true;
                 },
-                [this](float healthAfter) {
+                [this](float healthAfter, float healthMax) {
                     const Ptr player = getPlayerPtr();
                     if (player.isEmpty() || !player.getClass().isActor())
                         return;
                     MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
                     MWMechanics::DynamicStat<float> health = stats.getHealth();
-                    // Never outside [0, max] (the pack's number is data).
-                    health.setCurrent(std::clamp(healthAfter, 0.f, std::max(0.f, health.getModified())));
+                    // Never outside [0, max] (the pack's number is data). Task 0206: the maximum is the pack's when
+                    // it reports one (a level up raises it), so the HUD bar's range follows.
+                    const MWPhysics::PlayerHealthWrite write = MWPhysics::neutralPlayerHealthWrite(
+                        health.getBase(), health.getModifier(), health.getCurrent(), healthAfter, healthMax);
+                    if (write.mBase != health.getBase())
+                        Log(Debug::Info) << "NCOMBAT player health maximum " << health.getModified() << " -> "
+                                         << write.mBase + health.getModifier();
+                    health.setBase(write.mBase);
+                    health.setCurrent(write.mCurrent);
                     stats.setHealth(health);
                 });
         }

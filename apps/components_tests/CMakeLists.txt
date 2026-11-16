@@ -612,6 +612,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecrafting.cpp
     skyrimse/testskyrimsecraftingservice.cpp
     skyrimse/testskyrimsecraftingreal.cpp
+    skyrimse/testskyrimsewiring.cpp
     skyrimse/testskyrimseinventoryequip.cpp
     skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp

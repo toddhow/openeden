@@ -27,6 +27,7 @@
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/crafting.hpp>
 #include <game_skyrimse/inventory_service.hpp>
+#include <game_skyrimse/progression_service.hpp>
 
 #include <openeden/game/bindings.hpp>
 
@@ -53,8 +54,17 @@ namespace game_skyrimse::crafting
         std::function<EffectInfo(FormId effect)> mEffectInfo;
         std::function<float(std::string_view skill)> mSkill; ///< "alchemy", "smithing", "enchanting"; 15 when empty
         std::function<void(std::string_view skill, float amount)> mSkillUsed; ///< told after each successful craft
+        /// Task 0206: do a recipe's perk conditions hold for the player? `itemEnchanted` answers the tempering test.
+        /// Unset: perk conditions are not evaluated (a forge recipe with conditions is hidden, tempering is shown).
+        std::function<bool(std::span<const survey::Ctda> conditions, bool itemEnchanted)> mRecipeConditions;
         std::function<void(const std::string&)> mLog;
     };
+
+    /// Task 0206: connects crafting to the player's progression. A craft trains its skill (`amount * boost`, boost the
+    /// pack's test multiplier), the formulas read the real skill once the progression is ready (before: what the hook
+    /// said), and a recipe's perk conditions are answered from the bought perks. The earlier hooks still run. The
+    /// progression must outlive the crafting service.
+    void linkProgression(CraftingHooks& hooks, progression::ProgressionService& progression, float boost = 1.f);
 
     enum class Status : std::uint8_t
     {
@@ -128,6 +138,9 @@ namespace game_skyrimse::crafting
         /// Scales the armour rating by the temper of a made armour. False when the item is not made gear.
         [[nodiscard]] bool armourFor(FormId item, ArmourPiece& piece) const;
 
+        /// The recipes the open session's benches show to the player (conditions applied), sorted by id.
+        [[nodiscard]] std::vector<const Recipe*> visibleRecipes() const;
+
         [[nodiscard]] const std::string& lastResult() const { return mLastResult; }
         [[nodiscard]] std::uint32_t results() const { return mResults; }
         [[nodiscard]] float skill(std::string_view name) const;
@@ -156,8 +169,10 @@ namespace game_skyrimse::crafting
         [[nodiscard]] bool temperTarget(FormId base, FormId& item, std::int32_t& permille) const;
         [[nodiscard]] bool materialsHeld(const Recipe& recipe) const;
         [[nodiscard]] std::string gearName(FormId base, std::int32_t permille, FormId enchantment) const;
-        [[nodiscard]] std::vector<const Recipe*> visibleRecipes() const;
         [[nodiscard]] bool recipeOk(const Recipe& recipe) const;
+        /// Task 0206: do the recipe's conditions let the player see and use it (see
+        /// `CraftingHooks::mRecipeConditions`)?
+        [[nodiscard]] bool conditionsAllow(const Recipe& recipe) const;
 
         std::unique_ptr<Impl> mImpl;
         inventory::InventoryService& mInventory;

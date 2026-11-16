@@ -96,6 +96,43 @@ namespace game_skyrimse::progression
         return static_cast<std::size_t>(actorValue) - kFirstSkillValue;
     }
 
+    std::size_t slotOfActorValueName(std::string_view key)
+    {
+        // The names of the actor values a Papyrus script passes, reduced as `avKey` does (RECALLED-VERIFY): Archery is
+        // `Marksman` there and Illusion is `Illusion` (its AVIF editor id is `AVMysticism`).
+        struct Entry
+        {
+            std::string_view mKey;
+            std::size_t mSlot;
+        };
+        static constexpr Entry kNames[] = {
+            { "onehanded", Slot::OneHanded },
+            { "twohanded", Slot::TwoHanded },
+            { "marksman", Slot::Archery },
+            { "archery", Slot::Archery },
+            { "block", Slot::Block },
+            { "smithing", Slot::Smithing },
+            { "heavyarmor", Slot::HeavyArmor },
+            { "lightarmor", Slot::LightArmor },
+            { "pickpocket", Slot::Pickpocket },
+            { "lockpicking", Slot::Lockpicking },
+            { "sneak", Slot::Sneak },
+            { "alchemy", Slot::Alchemy },
+            { "speechcraft", Slot::Speechcraft },
+            { "speech", Slot::Speechcraft },
+            { "alteration", Slot::Alteration },
+            { "conjuration", Slot::Conjuration },
+            { "destruction", Slot::Destruction },
+            { "illusion", Slot::Illusion },
+            { "restoration", Slot::Restoration },
+            { "enchanting", Slot::Enchanting },
+        };
+        for (const Entry& entry : kNames)
+            if (entry.mKey == key)
+                return entry.mSlot;
+        return kSkillCount;
+    }
+
     // ---- the AVIF decoder -----------------------------------------------------------------------------------------
 
     bool decodeSkill(std::span<const std::byte> bytes, const Content::RawRecord& record, const DecodeContext& context,

@@ -466,4 +466,10 @@ namespace game_skyrimse::progression
         ns.functions = m.mFunctions;
         return service.declareNamespace(ns);
     }
+
+    bool skillActorValue(const ProgressionService& service, std::string_view key, float& out)
+    {
+        const std::size_t slot = slotOfActorValueName(key);
+        return slot < kSkillCount && service.actorValue(kFirstSkillValue + static_cast<std::uint32_t>(slot), out);
+    }
 }

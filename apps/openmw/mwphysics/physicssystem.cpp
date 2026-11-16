@@ -1483,7 +1483,7 @@ namespace MWPhysics
     void PhysicsSystem::NeutralCombatWorldImpl::applyPlayerDamage(const openeden::sdk::game::DamageReport& report)
     {
         if (mPhysics.mNeutralPlayerDamage)
-            mPhysics.mNeutralPlayerDamage(report.healthAfter);
+            mPhysics.mNeutralPlayerDamage(report.healthAfter, report.healthMax);
     }
 
     void PhysicsSystem::NeutralCombatWorldImpl::actorDied(const void* key, openeden::sdk::game::ActorHandle actor)

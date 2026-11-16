@@ -1,9 +1,12 @@
 #include "game_skyrimse/crafting.hpp"
 
 #include "game_skyrimse/pack_core.hpp"
+#include "game_skyrimse/perks.hpp"
+#include "game_skyrimse/progression.hpp"
 #include "game_skyrimse/survey.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -222,7 +225,19 @@ namespace game_skyrimse::crafting
                         }
                     }
                     else if (t == Content::fourCC("CTDA"))
+                    {
                         ++r.mConditions;
+                        // task 0206: kept decoded, the form parameters of the functions that have one resolved
+                        survey::Ctda c;
+                        if (r.mConditionList.size() < 32 && survey::decodeCtda(sub.mData, c))
+                        {
+                            if ((c.mFunction == 448 || c.mFunction == 74 || c.mFunction == 58
+                                    || c.mFunction == 59)
+                                && c.mParam1 != 0)
+                                c.mParam1 = resolved(c.mParam1);
+                            r.mConditionList.push_back(std::move(c));
+                        }
+                    }
                 });
                 if (!ok || tooMany)
                     return false;
@@ -558,6 +573,67 @@ namespace game_skyrimse::crafting
         }
         std::sort(out.begin(), out.end());
         return out;
+    }
+
+    std::size_t skillSlotOfCraftingName(std::string_view skill)
+    {
+        if (skill == "alchemy")
+            return progression::Slot::Alchemy;
+        if (skill == "smithing")
+            return progression::Slot::Smithing;
+        if (skill == "enchanting")
+            return progression::Slot::Enchanting;
+        return progression::kSkillCount;
+    }
+
+    namespace
+    {
+        constexpr std::uint16_t kFnGetBaseActorValue = 277;
+        constexpr std::uint16_t kFnHasPerk = 448;
+        constexpr std::uint16_t kFnTemperingItemIsEnchanted = 659; // RECALLED-VERIFY name; the data's use is certain
+
+        // The answer of fn 659 for the list being evaluated. Set around one evaluation, on the calling thread (the
+        // evaluator's function table is plain function pointers: no object to carry it).
+        thread_local bool tItemEnchanted = false;
+
+        float temperingItemEnchanted(const survey::Ctda&, conditions::Subject, const conditions::ConditionWorld&)
+        {
+            return tItemEnchanted ? 1.f : 0.f;
+        }
+    }
+
+    bool recipeConditionsPerkOnly(std::span<const survey::Ctda> list)
+    {
+        for (const survey::Ctda& c : list)
+            if (c.mFunction != kFnHasPerk && c.mFunction != kFnTemperingItemIsEnchanted
+                && c.mFunction != kFnGetBaseActorValue)
+                return false;
+        return true;
+    }
+
+    bool recipeConditionsHold(std::span<const survey::Ctda> list, const std::vector<FormId>& perks, std::uint16_t level,
+        const std::vector<std::pair<std::uint32_t, float>>& values, bool itemEnchanted)
+    {
+        if (list.empty())
+            return true;
+        PerkParticipant player;
+        player.mKind = PerkParticipant::Kind::Actor;
+        player.mLevel = level;
+        player.mPerks = &perks;
+        player.mValues = &values;
+        PerkQuery query;
+        query.set(PerkRole::Owner, &player);
+        PerkConditionWorld world;
+        world.setQuery(&query);
+        world.setCurrentRole(PerkRole::Owner);
+        static constexpr std::array<conditions::ExtraFunction, 1> kExtra = { { { kFnTemperingItemIsEnchanted,
+            &temperingItemEnchanted } } };
+        conditions::Evaluator evaluator;
+        evaluator.setExtraFunctions(kExtra);
+        tItemEnchanted = itemEnchanted;
+        const bool holds = evaluator.evaluate(list, world);
+        tItemEnchanted = false;
+        return holds;
     }
 
     std::vector<const Recipe*> CraftingTable::recipesFor(BenchKind kind, bool ignoreConditions) const

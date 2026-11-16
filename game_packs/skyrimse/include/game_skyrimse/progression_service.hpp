@@ -30,6 +30,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace game_skyrimse
@@ -112,6 +113,10 @@ namespace game_skyrimse
             std::string mRefusal;
             std::uint64_t mLastPerkBuy = 0;
         };
+
+        /// Task 0206: a skill by the key of a Papyrus actor value name (see `slotOfActorValueName`): true with the
+        /// player's real level of it once the service is ready. False for another name or before ready.
+        [[nodiscard]] bool skillActorValue(const ProgressionService& service, std::string_view key, float& out);
 
         /// "ArmsmanOneHanded00" to "Armsman One Handed" (an editor id as a name; the perks' own names are in the string
         /// tables, which the pack does not read for perks yet).
