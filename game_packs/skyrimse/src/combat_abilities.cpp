@@ -76,7 +76,7 @@ namespace game_skyrimse
         const AbilityNumbers numbers = sumAbilityNumbers(library, held);
         const bool changed = !(numbers == fighter.mAbilities);
         fighter.mAbilities = numbers;
-        fighter.mHasAbilities = numbers.any();
+        fighter.mHasAbilities = numbers.any() || numbers.anySkillOrShout();
         if (changed)
         {
             ++mAbilityRevision;
@@ -89,23 +89,67 @@ namespace game_skyrimse
                     + num(numbers.mRegenRate[1]) + " " + num(numbers.mRegenRate[2]) + " mult "
                     + num(numbers.mRegenMult[0]) + " " + num(numbers.mRegenMult[1]) + " " + num(numbers.mRegenMult[2]));
         }
-        // The Fortify share of the three maximums: a gain also raises the current value by the same amount (the game's
-        // modifier is added to both), a loss lowers it; health is the engine's, so its change is reported later.
+        if (changed)
+            ++mSkillModRevision; // task 0248
+        applyVitalShare(fighter);
+        applySkillPoints(fighter);
+        if (changed && mTrace && numbers.anySkillOrShout())
+        {
+            std::string line = "COMBAT player skill modifiers:";
+            for (std::size_t s = 0; s < numbers.mSkillPoints.size(); ++s)
+                if (numbers.mSkillPoints[s] != 0.f || numbers.mSkillPower[s] != 0.f)
+                    line += " slot " + std::to_string(s) + " points " + num(numbers.mSkillPoints[s]) + " percent "
+                        + num(numbers.mSkillPower[s]) + " (profile skill now "
+                        + std::to_string(static_cast<int>(fighter.mProfile.mSkills[s])) + ")";
+            if (numbers.mShoutTimer != 0.f)
+                line += " shout timer " + num(numbers.mShoutTimer);
+            trace(line);
+        }
+    }
+
+    // The Fortify share of the three maximums (and, task 0248, a disease's health maximum): a gain also raises the
+    // current value by the same amount (the game's modifier is added to both), a loss lowers it; health is the engine's,
+    // so its change is reported later.
+    void SkyrimCombat::applyVitalShare(Fighter& fighter)
+    {
+        if (!fighter.mSubject.player || !fighter.mHasProfile)
+            return;
+        FighterProfile& profile = fighter.mProfile;
+        const AbilityNumbers& numbers = fighter.mAbilities;
         float* maximums[3] = { &profile.mHealthMax, &profile.mMagickaMax, &profile.mStaminaMax };
         float* currents[3] = { &fighter.mHealth, &fighter.mMagicka, &fighter.mStamina };
         for (int i = 0; i < 3; ++i)
         {
-            const float delta = numbers.mVital[i] - mAppliedVital[i];
+            const float wanted = numbers.mVital[i] + (i == 0 ? mValueMods.mHealthMax : 0.f);
+            const float delta = wanted - mAppliedVital[i];
             if (delta == 0.f)
                 continue;
             *maximums[i] = std::max(0.f, *maximums[i] + delta);
             *currents[i] = std::clamp(*currents[i] + delta, 0.f, *maximums[i]);
-            mAppliedVital[i] = numbers.mVital[i];
+            mAppliedVital[i] = wanted;
             if (i == 0)
             {
                 mPendingHealthDelta += delta;
                 mVitalReportPending = true;
             }
+        }
+    }
+
+    // Task 0248: the points a blessing adds to a skill (Dibella's Speechcraft, Nocturnal's Sneak) join the player's
+    // profile skills; the progression's own value is never written.
+    void SkyrimCombat::applySkillPoints(Fighter& fighter)
+    {
+        if (!fighter.mSubject.player || !fighter.mHasProfile)
+            return;
+        for (std::size_t s = 0; s < mAppliedSkillPoints.size() && s < fighter.mProfile.mSkills.size(); ++s)
+        {
+            const int wanted = static_cast<int>(std::lround(fighter.mAbilities.mSkillPoints[s]));
+            const int delta = wanted - mAppliedSkillPoints[s];
+            if (delta == 0)
+                continue;
+            fighter.mProfile.mSkills[s] = static_cast<std::uint8_t>(
+                std::clamp(static_cast<int>(fighter.mProfile.mSkills[s]) + delta, 0, 255));
+            mAppliedSkillPoints[s] = wanted;
         }
     }
 

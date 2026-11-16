@@ -88,6 +88,11 @@ namespace game_skyrimse
             /// for
             /// any other index or before ready.
             [[nodiscard]] bool actorValue(std::uint32_t index, float& out) const;
+            /// Task 0248: points and percent modifiers a blessing or a disease gives the skills (read side only: the
+            /// progression, its save and `actorValue` keep the base value). `effectiveActorValue` is the skill with
+            /// them, for speech, barter, sneaking, pickpocketing and lock picking.
+            void setSkillModifiers(const std::array<float, kSkillCount>& points, const std::array<float, kSkillCount>& power);
+            [[nodiscard]] bool effectiveActorValue(std::uint32_t index, float& out) const;
 
             bool chooseLevelUp(Vital vital);
             bool buyPerk(FormId firstRank);
@@ -119,6 +124,8 @@ namespace game_skyrimse
             Inputs mInputs;
             std::vector<std::uint8_t> mPendingRestore;
             bool mHavePendingRestore = false;
+            std::array<float, kSkillCount> mSkillPoints{};
+            std::array<float, kSkillCount> mSkillPower{};
             std::function<float()> mGain;
             std::function<float(std::size_t)> mSkillScale; ///< task 0237
             std::string mLastResult;

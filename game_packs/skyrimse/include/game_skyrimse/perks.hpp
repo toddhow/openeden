@@ -185,6 +185,9 @@ namespace game_skyrimse
         /// Warrior, Mage, Thief and Lover stones' effects name doomWarriorPerk and the others, which hold the ModSkillUse
         /// entry points.
         FormId mPerkToApply = kNullFormId;
+        /// Task 0248: DATA +8, the associated item (resolved, 0 when none): a cloak's damage spell (VERIFIED:
+        /// PowerDarkElfFireCloakFFSelf names PowerDarkELfFlameCloakDmg).
+        FormId mAssociatedItem = kNullFormId;
         bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
         /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
         /// Firebolt are perk effects with conditions). The magic runtime evaluates them (task 0236).

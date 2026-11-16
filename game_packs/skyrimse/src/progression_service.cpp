@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <span>
 
+#include "game_skyrimse/race_effects.hpp"
+
 // The progression service and its bindings: see the header (task 0200).
 
 namespace game_skyrimse::progression
@@ -238,6 +240,23 @@ namespace game_skyrimse::progression
         if (mProgression == nullptr || index < kFirstSkillValue || index >= kFirstSkillValue + kSkillCount)
             return false;
         out = static_cast<float>(mProgression->skill(index - kFirstSkillValue));
+        return true;
+    }
+
+    void ProgressionService::setSkillModifiers(
+        const std::array<float, kSkillCount>& points, const std::array<float, kSkillCount>& power)
+    {
+        mSkillPoints = points;
+        mSkillPower = power;
+    }
+
+    bool ProgressionService::effectiveActorValue(std::uint32_t index, float& out) const
+    {
+        float base = 0.f;
+        if (!actorValue(index, base))
+            return false;
+        const std::size_t slot = index - kFirstSkillValue;
+        out = race_effects::effectiveSkill(base, mSkillPoints[slot], mSkillPower[slot]);
         return true;
     }
 

@@ -48,6 +48,7 @@ namespace game_skyrimse
         for (const ArmourPiece& piece : fighter.mProfile.mPieces)
             worn.insert(worn.end(), piece.mKeywords.begin(), piece.mKeywords.end());
         out.mPerk.mWornKeywords = &worn;
+        out.mCommanded = statusActive(fighter.mStatus.mCommandedUntil, mClock); // task 0248
         out.mChild = mData != nullptr && fighter.mHasProfile && mData->raceIsChild(p.mRace); // task 0238
         return out;
     }

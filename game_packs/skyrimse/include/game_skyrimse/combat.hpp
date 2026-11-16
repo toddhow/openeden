@@ -665,6 +665,27 @@ namespace game_skyrimse
         /// An Invisibility effect (a stone's power) is running on the player: observers do not notice him.
         [[nodiscard]] bool playerInvisible() const;
 
+        // ---- task 0248 (combat_race_effects.cpp): the effects the older tasks left without a rule ----------------------
+        /// Skill points and percent skill modifiers the player holds (abilities and blessings, and the diseases'), for
+        /// the progression's effective skill values; `skillModRevision` moves when either changes.
+        struct SkillModifiers
+        {
+            std::array<float, 18> mPoints{};
+            std::array<float, 18> mPower{};
+        };
+        [[nodiscard]] SkillModifiers playerSkillModifiers() const;
+        [[nodiscard]] std::uint64_t skillModRevision() const { return mSkillModRevision; }
+        /// Carry weight from abilities, blessings and diseases (Steed +100, Black-Heart Blight -10).
+        [[nodiscard]] float playerCarryBonus() const;
+        /// The factor on a shout's recovery time (the Talos blessing); 1 with none.
+        [[nodiscard]] float playerShoutRecoveryScale() const;
+        /// Night Eye runs on the player (a status only: nothing draws a brighter view).
+        [[nodiscard]] bool playerNightEye() const;
+        [[nodiscard]] bool calmed(openeden::sdk::game::CombatSubject subject) const;
+        [[nodiscard]] bool commanded(openeden::sdk::game::CombatSubject subject) const;
+        /// Does the fighter hold this perk now (a timed one a running effect gave included)?
+        [[nodiscard]] bool holdsPerk(openeden::sdk::game::CombatSubject subject, FormId perk) const;
+
         // ---- task 0240 (diseases; combat_disease.cpp) ---------------------------------------------------------------
         /// Told once for each landed, unblocked, non-bash blow of a non-player fighter on the player: the spells its race's
         /// attacks carry and its placement reference. Empty by default: nothing of the combat changes.
@@ -918,6 +939,7 @@ namespace game_skyrimse
             std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
             std::vector<FormId> mWornKeywords; ///< task 0179
             FighterGear mGear; ///< task 0214: filled with `combat real gear`
+            std::vector<FormId> mTimedPerks; ///< task 0248: perks a running Script effect holds (Berserk)
             AbilityNumbers mAbilities; ///< task 0241: the player's held abilities and blessings (player only)
             bool mHasAbilities = false; ///< mAbilities holds something
         };
@@ -1417,6 +1439,31 @@ namespace game_skyrimse
         // Task 0241 (combat_abilities.cpp)
         void applyAbilityNumbers(Fighter& fighter, const PerkLibrary& library);
         void flushAbilityVitals(openeden::sdk::game::CombatRequestWriter& writer);
+        // Task 0248 (combat_race_effects.cpp, combat_abilities.cpp)
+        void applyVitalShare(Fighter& fighter);
+        void applySkillPoints(Fighter& fighter);
+        [[nodiscard]] float skillPowerOf(std::size_t slot) const;
+        /// Handles an effect of archetype Script (by editor id), Calm or Cloak; false for any other.
+        bool applyRaceEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
+            const SpellRecord& spell, const SpellEffect& effect, const MagicEffectRecord& record, float seconds,
+            EffectTiming timing);
+        void addTimedPerk(Fighter& fighter, FormId perk);
+        void removeTimedPerk(Fighter& fighter, FormId perk);
+        void tickCloak(openeden::sdk::game::CombatRequestWriter& writer, const ActiveEffect& effect, float used);
+        [[nodiscard]] float absorbChanceOf(const Fighter& target) const;
+        [[nodiscard]] bool spellAbsorbed(Fighter& caster, Fighter& target, const SpellRecord& spell);
+        struct AbsorbMemo
+        {
+            bool mValid = false;
+            FormId mSpell = kNullFormId;
+            openeden::sdk::game::CombatSubject mCaster;
+            openeden::sdk::game::CombatSubject mTarget;
+            float mAt = 0.f;
+            bool mAbsorbed = false;
+        } mAbsorbMemo;
+        std::uint64_t mAbsorbRolls = 0;
+        std::uint64_t mSkillModRevision = 0;
+        std::array<int, 18> mAppliedSkillPoints{};
         std::vector<FormId> mExtraPerks;
         std::vector<FormId> mAppliedExtraPerks; ///< what the profile's perk list holds of them now
         float mAppliedVital[3] = { 0.f, 0.f, 0.f }; ///< the Fortify share the profile's maximums hold now

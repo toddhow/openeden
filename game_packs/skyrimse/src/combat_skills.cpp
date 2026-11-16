@@ -91,7 +91,8 @@ namespace game_skyrimse
         const float oldStaminaMax = profile.mStaminaMax;
         const float oldMagickaMax = profile.mMagickaMax;
         for (std::size_t s = 0; s < progression::kSkillCount; ++s)
-            profile.mSkills[s] = p.skill(s);
+            profile.mSkills[s] = static_cast<std::uint8_t>(std::clamp(
+                static_cast<int>(p.skill(s)) + (s < mAppliedSkillPoints.size() ? mAppliedSkillPoints[s] : 0), 0, 255));
         profile.mLevel = p.level();
         profile.mHealthMax = mStandProfile.mHealthMax + p.vitalBonus(progression::Vital::Health) + mAppliedVital[0];
         profile.mMagickaMax = mStandProfile.mMagickaMax + p.vitalBonus(progression::Vital::Magicka) + mAppliedVital[1];

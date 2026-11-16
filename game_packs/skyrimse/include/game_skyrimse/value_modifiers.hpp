@@ -24,9 +24,14 @@ namespace game_skyrimse
         /// damage of the skill with that slot (VERIFIED: the enchantment EnchFortifyOneHandedConstantSelf, magnitude 13,
         /// names actor value 96). Only the slots of the weapon skills change damage; the others are carried and not used.
         std::array<float, 18> mSkillPercent{};
+        /// Task 0248: actor value 24 (Sanguinare Vampiris: the health maximum) and 32 (Black-Heart Blight: carry weight).
+        float mHealthMax = 0.f;
+        float mCarry = 0.f;
 
         [[nodiscard]] bool isZero() const
         {
+            if (mHealthMax != 0.f || mCarry != 0.f)
+                return false;
             if (mStaminaMax != 0.f || mMagickaMax != 0.f || mStaminaRegen != 0.f || mMagickaRegen != 0.f)
                 return false;
             for (const float v : mSkillPercent)
@@ -38,7 +43,7 @@ namespace game_skyrimse
         {
             return mStaminaMax == other.mStaminaMax && mMagickaMax == other.mMagickaMax
                 && mStaminaRegen == other.mStaminaRegen && mMagickaRegen == other.mMagickaRegen
-                && mSkillPercent == other.mSkillPercent;
+                && mSkillPercent == other.mSkillPercent && mHealthMax == other.mHealthMax && mCarry == other.mCarry;
         }
     };
 }

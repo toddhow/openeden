@@ -23,6 +23,7 @@
 
 #include <game_skyrimse/perks.hpp>
 
+#include <array>
 #include <cstdint>
 #include <span>
 
@@ -36,6 +37,13 @@ namespace game_skyrimse
         float mAbsorb = 0.f; ///< actor value 83
         float mRegenRate[3] = { 0.f, 0.f, 0.f }; ///< 27 to 29: added to the rate (percent of the maximum a second)
         float mRegenMult[3] = { 0.f, 0.f, 0.f }; ///< 155 to 157: percent of the rate
+        /// Task 0248: actor values 6 to 23 (points added to a skill), 96 to 113 (a percent skill modifier) and 86 (the
+        /// shout timer). Kept apart from any(): the older tests pin that a blessing of such a value is "not one of
+        /// these numbers".
+        std::array<float, 18> mSkillPoints{};
+        std::array<float, 18> mSkillPower{};
+        float mShoutTimer = 0.f;
+        [[nodiscard]] bool anySkillOrShout() const;
         [[nodiscard]] bool any() const;
         [[nodiscard]] bool hasRegen() const;
         [[nodiscard]] bool operator==(const AbilityNumbers& other) const;

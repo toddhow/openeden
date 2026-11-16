@@ -1,4 +1,5 @@
 #include <game_skyrimse/combat.hpp>
+#include <game_skyrimse/race_effects.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -509,7 +510,22 @@ namespace game_skyrimse
             magnitude = (magnitude < 0.f ? -1.f : 1.f)
                 * weakened(resistedMagnitude(std::abs(magnitude), resistOf(target, record.mResistValue)),
                     weaknessOf(target, record.mResistValue)); // task 0233: a weakness running on the target adds to it
+        if (caster.mSubject.player && valueEffect)
+        {
+            // task 0248: a percent skill modifier of the spell's school (Mara's Restoration) strengthens it
+            const std::size_t school = progression::slotOfMagicSkillValue(record.mAssociatedSkill);
+            if (school < progression::kSkillCount)
+                if (const float power = skillPowerOf(school); power != 0.f)
+                    magnitude *= std::max(0.f, 1.f + power / 100.f);
+        }
         const EffectTiming timing = effectTiming(spell.mCastType, effect, record);
+        if (hostile && spellAbsorbed(caster, target, spell)) // task 0248: Dragonskin, the Atronach sign
+        {
+            blocked = true;
+            return;
+        }
+        if (applyRaceEffect(writer, caster, target, spell, effect, record, static_cast<float>(effect.mDuration), timing))
+            return; // task 0248: Script effects, Calm, Cloak
         // The ward takes what it can of a hostile spell's magnitude; a spell it holds entirely does nothing at all.
         if (hostile && target.mWardPower > 0.f)
         {
@@ -569,6 +585,7 @@ namespace game_skyrimse
                         // damage path reads it back through weaknessOf
                         // task 0238: so does a regeneration rate (27 to 29, 155 to 157): its sum is read by regenRateFor
                         (void)active(isResistValue(record.mPrimaryValue) || isRegenRateValue(record.mPrimaryValue)
+                                || record.mPrimaryValue == race_effects::kAbsorbValue
                                 ? magnitude
                                 : 0.f,
                             0.f, false);
@@ -696,6 +713,11 @@ namespace game_skyrimse
         mEffects.advance(
             step,
             [&](ActiveEffect& e, float used) {
+                if (e.mArchetype == race_effects::kCloakArchetype)
+                {
+                    tickCloak(writer, e, used); // task 0248
+                    return;
+                }
                 if (e.mTiming != EffectTiming::PerSecond)
                     return;
                 Fighter* target = find(e.mTarget);
@@ -710,6 +732,9 @@ namespace game_skyrimse
             },
             [&](const ActiveEffect& e) {
                 ++mEffectsEnded;
+                if (e.mPerk != kNullFormId) // task 0248: the perk a Script effect held goes with it
+                    if (Fighter* held = find(e.mTarget))
+                        removeTimedPerk(*held, e.mPerk);
                 if (e.mArchetype == MagicArchetype::Demoralize)
                     if (Fighter* target = find(e.mTarget))
                         target->mDemoralizedUntil = -1.f;

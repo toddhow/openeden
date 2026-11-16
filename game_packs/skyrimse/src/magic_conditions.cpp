@@ -181,7 +181,11 @@ namespace game_skyrimse::effectconditions
                 return p != nullptr && p->mInCombat;
             }
             bool isRestrained(Subject) const override { return false; } // nothing here restrains an actor
-            bool isCommandedActor(Subject) const override { return false; } // nothing here commands an actor
+            bool isCommandedActor(Subject subject) const override
+            {
+                const Participant* p = of(subject);
+                return p != nullptr && p->mCommanded; // task 0248
+            }
             bool hasMagicEffect(Subject subject, std::uint32_t effect) const override
             {
                 const Participant* p = of(subject);

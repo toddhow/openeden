@@ -121,6 +121,11 @@
       "default": ""
     },
     {
+      "key": "stones test cast",
+      "type": "string",
+      "default": ""
+    },
+    {
       "key": "combat test ammo",
       "type": "string",
       "default": ""

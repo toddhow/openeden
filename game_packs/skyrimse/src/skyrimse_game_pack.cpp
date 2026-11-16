@@ -1200,6 +1200,7 @@ namespace game_skyrimse
                     syncFollowerAlias();
                     syncStones(); // task 0237
                     syncDiseases(); // task 0240
+                    syncEffectNumbers(); // task 0248
                     if (mProgression != nullptr)
                         pollProgression(); // task 0200
                     if (mShouts != nullptr)
@@ -1652,6 +1653,12 @@ namespace game_skyrimse
             {
                 if (mPapyrus == nullptr)
                     return;
+                if (const openeden::sdk::SettingsService* const testSettings = host.getSettingsService())
+                {
+                    const std::string cast = testSettings->getString(kPackId, "stones test cast", "");
+                    if (!cast.empty())
+                        mStonesTestCast = static_cast<FormId>(std::strtoul(cast.c_str(), nullptr, 16)); // task 0248
+                }
                 stones::StonesService::Hooks hooks;
                 hooks.mLibrary = [this]() -> const PerkLibrary* {
                     const progression::SkillTable* skills = nullptr;
@@ -1788,6 +1795,8 @@ namespace game_skyrimse
                     return;
                 for (const PapyrusHost::SpellCast& cast : mPapyrus->host().takeCasts())
                     (void)mStones->cast(cast.mSpell, cast.mTarget);
+                if (mStonesTestCast != kNullFormId && mStones->cast(mStonesTestCast, 0x14))
+                    mStonesTestCast = kNullFormId; // task 0248
                 mStones->poll();
                 // task 0241: the perks Actor.AddPerk gave the player (the Ritual stone's) reach the combat; the carry
                 // weight a stone gives (the Steed's) reaches the inventory
@@ -1796,12 +1805,6 @@ namespace game_skyrimse
                 {
                     mPerksSynced = perkRevision;
                     mCellSource.combat().setPlayerExtraPerks(mPapyrus->host().perksOf(kPapyrusPlayerReference));
-                }
-                const std::uint64_t abilityRevision = mCellSource.combat().abilityRevision();
-                if (mInventory != nullptr && abilityRevision != mAbilitiesSynced)
-                {
-                    mAbilitiesSynced = abilityRevision;
-                    mInventory->setCapacityBonus(mCellSource.combat().playerAbilityNumbers().mCarry);
                 }
             }
 
@@ -2633,10 +2636,43 @@ namespace game_skyrimse
                 if (p->revision() != mProgressionPushed)
                 {
                     mProgressionPushed = p->revision();
-                    std::array<std::uint8_t, progression::kSkillCount> skills{};
-                    for (std::size_t s = 0; s < progression::kSkillCount; ++s)
-                        skills[s] = p->skill(s);
-                    mWorldView.setProgressionPlayer(p->level(), skills);
+                    applyEffectiveSkills(*p);
+                }
+            }
+
+            // Task 0248: the speech checks of the dialogue see the skill with the blessings' points and percent; the
+            // progression keeps its own value.
+            void applyEffectiveSkills(const progression::PlayerProgression& p)
+            {
+                std::array<std::uint8_t, progression::kSkillCount> skills{};
+                for (std::size_t s = 0; s < progression::kSkillCount; ++s)
+                {
+                    float value = 0.f;
+                    if (!mProgression->effectiveActorValue(progression::kFirstSkillValue + static_cast<std::uint32_t>(s), value))
+                        value = p.skill(s);
+                    skills[s] = static_cast<std::uint8_t>(std::clamp(value, 0.f, 255.f));
+                }
+                mWorldView.setProgressionPlayer(p.level(), skills);
+            }
+
+            // Task 0248: what the combat holds of abilities, blessings and diseases that other systems read: skill
+            // points and percent for the progression, the carry weight for the inventory.
+            void syncEffectNumbers()
+            {
+                const std::uint64_t skillRevision = mCellSource.combat().skillModRevision();
+                if (mProgression != nullptr && skillRevision != mSkillModsSynced)
+                {
+                    mSkillModsSynced = skillRevision;
+                    const SkyrimCombat::SkillModifiers mods = mCellSource.combat().playerSkillModifiers();
+                    mProgression->setSkillModifiers(mods.mPoints, mods.mPower);
+                    if (progression::PlayerProgression* p = mProgression->progression())
+                        applyEffectiveSkills(*p);
+                }
+                const std::uint64_t abilityRevision = mCellSource.combat().abilityRevision();
+                if (mInventory != nullptr && abilityRevision != mAbilitiesSynced)
+                {
+                    mAbilitiesSynced = abilityRevision;
+                    mInventory->setCapacityBonus(mCellSource.combat().playerCarryBonus());
                 }
             }
 
@@ -2776,7 +2812,7 @@ namespace game_skyrimse
                 hooks.mSkill = [this]() {
                     float skill = 0.f;
                     constexpr std::uint32_t kSneakValue = progression::kFirstSkillValue + progression::Slot::Sneak;
-                    if (mProgression != nullptr && mProgression->actorValue(kSneakValue, skill))
+                    if (mProgression != nullptr && mProgression->effectiveActorValue(kSneakValue, skill))
                         return skill;
                     return 15.f; // a new character's Sneak (RECALLED-VERIFY)
                 };
@@ -2958,7 +2994,7 @@ namespace game_skyrimse
                     float skill = 0.f;
                     constexpr std::uint32_t kPickpocketValue
                         = progression::kFirstSkillValue + progression::Slot::Pickpocket;
-                    if (mProgression != nullptr && mProgression->actorValue(kPickpocketValue, skill))
+                    if (mProgression != nullptr && mProgression->effectiveActorValue(kPickpocketValue, skill))
                         return skill;
                     return pickup::kStandInPickpocket;
                 };
@@ -3028,7 +3064,7 @@ namespace game_skyrimse
                 hooks.mSpeech = [this]() {
                     float speech = 0.f; // task 0200: the real skill with the progression on
                     constexpr std::uint32_t kSpeechValue = progression::kFirstSkillValue + progression::Slot::Speechcraft;
-                    if (mProgression != nullptr && mProgression->actorValue(kSpeechValue, speech))
+                    if (mProgression != nullptr && mProgression->effectiveActorValue(kSpeechValue, speech))
                         return speech;
                     return static_cast<float>(mWorldView.standInPlayerSpeech());
                 };
@@ -3174,8 +3210,8 @@ namespace game_skyrimse
                 hooks.mSkill = [this]() {
                     float skill = 15.f; // a new character's start skill (progression off)
                     if (mProgression != nullptr)
-                        (void)mProgression->actorValue(
-                            progression::kFirstSkillValue + progression::Slot::Lockpicking, skill);
+                        (void)mProgression->effectiveActorValue(
+                            progression::kFirstSkillValue + progression::Slot::Lockpicking, skill); // task 0248
                     return skill;
                 };
                 hooks.mSkillUsed = [this](std::size_t slot, float amount) {
@@ -4006,6 +4042,8 @@ namespace game_skyrimse
             std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
             FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
             std::uint64_t mPerksSynced = 0; // task 0241: the host's perk revision the combat last read
+            std::uint64_t mSkillModsSynced = 0; // task 0248
+            FormId mStonesTestCast = kNullFormId; // task 0248: a proof aid, a hex form id cast once as a blessing
             std::uint64_t mAbilitiesSynced = 0; // task 0241: the combat's ability revision the inventory last read
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view

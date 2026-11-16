@@ -634,6 +634,7 @@ namespace game_skyrimse
         }
         const std::vector<FormId>& extra = fighter.mSubject.player ? mPlayerTestPerks : mNpcTestPerks;
         p.mPerks.insert(p.mPerks.end(), extra.begin(), extra.end());
+        p.mPerks.insert(p.mPerks.end(), fighter.mTimedPerks.begin(), fighter.mTimedPerks.end()); // task 0248
         if (fighter.mSubject.player)
         {
             // task 0241: the perks Actor.AddPerk gave the player replace the ones the last call added
@@ -1708,6 +1709,9 @@ namespace game_skyrimse
                     trace("COMBAT perk block fraction scale " + fmt(outcome.mValue));
                 }
             }
+            if (victim.mSubject.player)
+                if (const float blockPower = skillPowerOf(progression::Slot::Block); blockPower != 0.f)
+                    blockInput.mFractionScale *= std::max(0.f, 1.f + blockPower / 100.f); // task 0248 (Stendarr)
             const BlockResult block = computeBlock(blockInput, mBlockSettings);
             victim.mStamina = std::max(0.f, victim.mStamina - block.mStaminaDrain);
             damage = block.mDamageTaken;

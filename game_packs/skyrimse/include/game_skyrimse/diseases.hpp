@@ -78,6 +78,12 @@ namespace game_skyrimse::diseases
     [[nodiscard]] PlayerValueModifiers modifiersOf(
         const PerkLibrary& library, std::span<const FormId> diseases, std::vector<std::string>* ignored = nullptr);
 
+    /// Task 0248: the same, and also the effects the older rule leaves described only: the health maximum (Sanguinare
+    /// Vampiris, actor value 24), the carry weight (Black-Heart Blight, 32) and every skill modifier slot (Ataxia: 104
+    /// lockpicking and 103 pickpocket). `modifiersOf` is unchanged (tests pin what it ignores).
+    [[nodiscard]] PlayerValueModifiers modifiersOfExtended(
+        const PerkLibrary& library, std::span<const FormId> diseases, std::vector<std::string>* ignored = nullptr);
+
     /// The sum of the disease resistance (actor value 45) the ability spells give, in percent (not clamped).
     [[nodiscard]] float resistanceOf(const PerkLibrary& library, std::span<const FormId> spells);
 

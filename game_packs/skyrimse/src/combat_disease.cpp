@@ -28,9 +28,16 @@ namespace game_skyrimse
     {
         if (modifiers == mValueMods)
             return;
+        if (modifiers.mCarry != mValueMods.mCarry || modifiers.mSkillPercent != mValueMods.mSkillPercent)
+        {
+            ++mAbilityRevision; // task 0248: the carry weight and the skill modifiers are read by the pack
+            ++mSkillModRevision;
+        }
         mValueMods = modifiers;
         mValueModsDirty = true;
         applyPlayerValueModifiers();
+        if (Fighter* player = find(openeden::sdk::game::CombatSubject::ofPlayer()); player != nullptr && ready(*player))
+            applyVitalShare(*player); // task 0248: Sanguinare Vampiris lowers the health maximum
     }
 
     std::vector<FormId> SkyrimCombat::playerSpells() const
@@ -81,7 +88,7 @@ namespace game_skyrimse
         const std::size_t slot = weapon->skillSlot();
         if (slot >= mValueMods.mSkillPercent.size())
             return;
-        const float percent = mValueMods.mSkillPercent[slot];
+        const float percent = skillPowerOf(slot); // task 0248: the diseases' and the abilities' percent
         if (percent == 0.f || !std::isfinite(percent))
             return;
         const float scale = std::max(0.f, 1.f + percent / 100.f);

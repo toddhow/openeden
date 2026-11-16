@@ -212,7 +212,7 @@ namespace game_skyrimse
             return;
         }
         mShoutTraceName = shout->mCommon.mEditorId;
-        if (beginShoutCast(writer, player, *spell, slot.mRecovery))
+        if (beginShoutCast(writer, player, *spell, slot.mRecovery * playerShoutRecoveryScale()))
             mShoutWanted = false;
     }
 }

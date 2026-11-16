@@ -110,6 +110,7 @@ namespace game_skyrimse
         bool mAbsorb = false; ///< the caster gains what the target loses
         float mRemaining = 0.f; ///< seconds left, > 0
         float mElapsed = 0.f;
+        FormId mPerk = kNullFormId; ///< task 0248: a perk this effect holds on the target while it runs (Berserk)
     };
 
     /// The effects that are running, in the order they were added; ticks and ends happen in that order, so a run is

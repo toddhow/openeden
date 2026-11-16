@@ -58,8 +58,27 @@ namespace game_skyrimse::diseases
         constexpr std::int32_t kDamageSkillSlots = 3;
 
         /// Adds `amount` to what actor value `value` changes; false for a value this runtime does not change.
-        bool addTo(PlayerValueModifiers& m, std::int32_t value, float amount)
+        bool addTo(PlayerValueModifiers& m, std::int32_t value, float amount, bool extended = false)
         {
+            if (extended)
+            {
+                if (value == 24)
+                {
+                    m.mHealthMax += amount; // task 0248
+                    return true;
+                }
+                if (value == 32)
+                {
+                    m.mCarry += amount;
+                    return true;
+                }
+                const std::int32_t any = value - kFirstSkillModifier;
+                if (any >= 0 && any < static_cast<std::int32_t>(m.mSkillPercent.size()))
+                {
+                    m.mSkillPercent[static_cast<std::size_t>(any)] += amount;
+                    return true;
+                }
+            }
             switch (value)
             {
                 case kValueMagicka:
@@ -133,9 +152,11 @@ namespace game_skyrimse::diseases
             [&](const SpellEffect& e) { return isCureDiseaseEffect(library, e.mEffect); });
     }
 
-    PlayerValueModifiers modifiersOf(
-        const PerkLibrary& library, std::span<const FormId> diseaseSpells, std::vector<std::string>* ignored)
+    namespace
     {
+        PlayerValueModifiers modifiersImpl(const PerkLibrary& library, std::span<const FormId> diseaseSpells,
+            std::vector<std::string>* ignored, bool extended)
+        {
         PlayerValueModifiers out;
         for (const FormId id : diseaseSpells)
         {
@@ -155,15 +176,28 @@ namespace game_skyrimse::diseases
                     continue;
                 }
                 const float amount = signedMagnitude(effect.mMagnitude, magic->mFlags);
-                bool all = addTo(out, magic->mPrimaryValue, amount);
+                bool all = addTo(out, magic->mPrimaryValue, amount, extended);
                 if (magic->mArchetype == MagicArchetype::Dual && magic->mSecondaryValue >= 0)
-                    all = addTo(out, magic->mSecondaryValue, amount * magic->mSecondaryWeight) && all;
+                    all = addTo(out, magic->mSecondaryValue, amount * magic->mSecondaryWeight, extended) && all;
                 if (!all && ignored != nullptr)
                     ignored->push_back(where + ": actor value " + std::to_string(magic->mPrimaryValue)
                         + " is carried and changes nothing");
             }
         }
         return out;
+        }
+    }
+
+    PlayerValueModifiers modifiersOf(
+        const PerkLibrary& library, std::span<const FormId> diseaseSpells, std::vector<std::string>* ignored)
+    {
+        return modifiersImpl(library, diseaseSpells, ignored, false);
+    }
+
+    PlayerValueModifiers modifiersOfExtended(
+        const PerkLibrary& library, std::span<const FormId> diseaseSpells, std::vector<std::string>* ignored)
+    {
+        return modifiersImpl(library, diseaseSpells, ignored, true);
     }
 
     float resistanceOf(const PerkLibrary& library, std::span<const FormId> spells)
@@ -379,7 +413,7 @@ namespace game_skyrimse::diseases
         if (library == nullptr || !mHooks.mApply)
             return;
         std::vector<std::string> ignored;
-        const PlayerValueModifiers modifiers = modifiersOf(*library, mInfected, &ignored);
+        const PlayerValueModifiers modifiers = modifiersOfExtended(*library, mInfected, &ignored); // task 0248
         mHooks.mApply(modifiers);
         mSentRevision = mRevision;
         for (const std::string& line : ignored)

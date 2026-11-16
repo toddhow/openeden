@@ -284,6 +284,14 @@ namespace game_skyrimse
             if (rest != mAiCooldown.end() && mClock < rest->second)
                 return false;
         }
+        if (statusActive(fighter.mStatus.mCalmUntil, mClock)) // task 0248: Calm holds a new fight off; a blow ends it
+        {
+            if (std::strcmp(reason, "provoked") != 0)
+                return false;
+            fighter.mStatus.mCalmUntil = -1.f;
+            if (mTrace)
+                trace("COMBAT effect calm ended by a blow on " + subjectName(fighter.mSubject));
+        }
         AiActor actor;
         actor.mHandle = fighter.mSubject.actor;
         actor.mTarget = target;
@@ -852,7 +860,8 @@ namespace game_skyrimse
             party.mPlayer = true;
             return party;
         }
-        party.mFollower = mFollowerQuery && mFollowerQuery(fighter.mSubject.actor.reference);
+        party.mFollower = (mFollowerQuery && mFollowerQuery(fighter.mSubject.actor.reference))
+            || statusActive(fighter.mStatus.mCommandedUntil, mClock); // task 0248: a commanded animal
         const AiProfile& ai = fighter.mProfile.mAi;
         party.mAggression = ai.mAggression;
         party.mAssistance = ai.mAssistance;

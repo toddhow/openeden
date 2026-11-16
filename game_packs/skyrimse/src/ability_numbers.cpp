@@ -3,6 +3,7 @@
 
 #include "game_skyrimse/magic.hpp"
 #include "game_skyrimse/magic_status.hpp"
+#include "game_skyrimse/race_effects.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -58,6 +59,16 @@ namespace game_skyrimse
         return false;
     }
 
+    bool AbilityNumbers::anySkillOrShout() const
+    {
+        if (mShoutTimer != 0.f)
+            return true;
+        for (std::size_t i = 0; i < mSkillPoints.size(); ++i)
+            if (mSkillPoints[i] != 0.f || mSkillPower[i] != 0.f)
+                return true;
+        return false;
+    }
+
     bool AbilityNumbers::hasRegen() const
     {
         for (int i = 0; i < 3; ++i)
@@ -68,8 +79,11 @@ namespace game_skyrimse
 
     bool AbilityNumbers::operator==(const AbilityNumbers& o) const
     {
-        if (differs(mCarry, o.mCarry) || differs(mAbsorb, o.mAbsorb))
+        if (differs(mCarry, o.mCarry) || differs(mAbsorb, o.mAbsorb) || differs(mShoutTimer, o.mShoutTimer))
             return false;
+        for (std::size_t i = 0; i < mSkillPoints.size(); ++i)
+            if (differs(mSkillPoints[i], o.mSkillPoints[i]) || differs(mSkillPower[i], o.mSkillPower[i]))
+                return false;
         for (int i = 0; i < 3; ++i)
             if (differs(mVital[i], o.mVital[i]) || differs(mRegenRate[i], o.mRegenRate[i])
                 || differs(mRegenMult[i], o.mRegenMult[i]))
@@ -123,7 +137,13 @@ namespace game_skyrimse
                     default:
                     {
                         const std::int32_t value = record->mPrimaryValue;
-                        if (isResistValue(value))
+                        if (const int points = race_effects::skillPointsSlot(value); points >= 0)
+                            n.mSkillPoints[static_cast<std::size_t>(points)] += v; // task 0248
+                        else if (const int power = race_effects::skillPowerSlot(value); power >= 0)
+                            n.mSkillPower[static_cast<std::size_t>(power)] += v;
+                        else if (value == race_effects::kShoutTimerValue)
+                            n.mShoutTimer += v;
+                        else if (isResistValue(value))
                             n.mResist[value - ResistValue::Poison] += v;
                         else if (regenVital(value) >= 0)
                             (isRegenMultValue(value) ? n.mRegenMult : n.mRegenRate)[regenVital(value)] += v;
@@ -140,6 +160,11 @@ namespace game_skyrimse
             v = cut(v);
         for (float& v : n.mResist)
             v = cut(v);
+        for (float& v : n.mSkillPoints)
+            v = cut(v);
+        for (float& v : n.mSkillPower)
+            v = cut(v);
+        n.mShoutTimer = cut(n.mShoutTimer);
         n.mCarry = cut(n.mCarry);
         n.mAbsorb = cut(n.mAbsorb);
         return n;

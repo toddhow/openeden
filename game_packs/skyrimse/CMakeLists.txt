@@ -90,10 +90,12 @@ openeden_add_game_pack(skyrimse
         src/combat_regen.cpp
         src/combat_abilities.cpp
         src/ability_numbers.cpp
+        src/race_effects.cpp
         src/combat_magic.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
         src/combat_disease.cpp
+        src/combat_race_effects.cpp
         src/combat_scroll.cpp
         src/combat_delivery.cpp
         src/scroll.cpp
@@ -140,6 +142,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/poison.hpp
         include/game_skyrimse/magic_status.hpp
         include/game_skyrimse/ability_numbers.hpp
+        include/game_skyrimse/race_effects.hpp
         include/game_skyrimse/magic_conditions.hpp
         include/game_skyrimse/barter.hpp
         include/game_skyrimse/barter_service.hpp
@@ -295,10 +298,12 @@ add_library(game_skyrimse_world STATIC
     src/combat_regen.cpp
     src/combat_abilities.cpp
     src/ability_numbers.cpp
+    src/race_effects.cpp
     src/combat_magic.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp
     src/combat_disease.cpp
+    src/combat_race_effects.cpp
     src/diseases.cpp
     src/combat_scroll.cpp
     src/combat_delivery.cpp

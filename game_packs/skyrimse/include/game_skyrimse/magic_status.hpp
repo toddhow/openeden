@@ -97,6 +97,9 @@ namespace game_skyrimse
         float mFrenzyUntil = -1.f;
         float mFearUntil = -1.f;
         float mInvisibleUntil = -1.f; ///< task 0241: an Invisibility effect (the Shadow stone's power) runs until then
+        float mCalmUntil = -1.f; ///< task 0248: Voice of the Emperor's Calm: no new fight until then (a blow ends it)
+        float mCommandedUntil = -1.f; ///< task 0248: Command Animal: fights on the player's side until then
+        float mNightEyeUntil = -1.f; ///< task 0248: Night Eye (a vision status only)
         float mFrenzyRetargetAt = 0.f; ///< the combat clock at which a frenzied actor looks again for a target
         bool mParalysisClipHeld = false; ///< the held fall clip is playing and must be ended by a recovery clip
     };

@@ -67,6 +67,7 @@ namespace game_skyrimse::effectconditions
         // Task 0238 (all default to "no"): the race has the Child flag; the actor is an enemy of the caster of the effect
         // and of the player (the combat's relation rules).
         bool mChild = false;
+        bool mCommanded = false; ///< task 0248: a Command Animal effect holds it (fn 700)
         bool mHostileToCaster = false;
         bool mHostileToPlayer = false;
     };
