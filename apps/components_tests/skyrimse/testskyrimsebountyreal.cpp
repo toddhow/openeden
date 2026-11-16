@@ -106,7 +106,9 @@ namespace
             for (const char* aliasName : { "Hold", "BountyLocation", "Bounty" })
                 for (const QuestAlias& a : q->mAliases)
                     if (a.mName == aliasName)
+                    {
                         EXPECT_NE(access.mState->aliasFill(id, a.mId).mReference, kNullFormId) << name << "." << aliasName;
+                    }
         }
         EXPECT_GT(bounties, 0u);
     }

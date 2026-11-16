@@ -46,7 +46,7 @@ namespace
     {
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("MineOreIron01")));
-        subs.append(sub4("MODL", Bytes().zstring("Dungeons\Mines\Ore\MineOreIron01.nif")));
+        subs.append(sub4("MODL", Bytes().zstring("Dungeons\\Mines\\Ore\\MineOreIron01.nif")));
         subs.append(sub4("FULL", Bytes().zstring("Iron Ore Vein")));
         subs.append(sub4("RNAM", Bytes().zstring("Mine")));
         ParsedPlugin plugin;
@@ -61,7 +61,7 @@ namespace
     {
         Bytes subs;
         subs.append(sub4("EDID", Bytes().zstring("Plant")));
-        subs.append(sub4("MODL", Bytes().zstring("Plants\Plant01.nif")));
+        subs.append(sub4("MODL", Bytes().zstring("Plants\\Plant01.nif")));
         subs.append(sub4("PFIG", Bytes().u32(0x01000555)));
         subs.append(sub4("RNAM", Bytes().zstring("Pick")));
         ParsedPlugin plugin;
