@@ -99,6 +99,8 @@ openeden_add_game_pack(skyrimse
         src/combat_race_effects.cpp
         src/combat_scroll.cpp
         src/combat_summons.cpp
+        src/combat_deaths.cpp
+        src/deaths.cpp
         src/summons.cpp
         src/combat_delivery.cpp
         src/scroll.cpp
@@ -177,6 +179,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/actor_table.hpp
         include/game_skyrimse/follower.hpp
         include/game_skyrimse/follower_state.hpp
+        include/game_skyrimse/deaths.hpp
         include/game_skyrimse/combat.hpp
         include/game_skyrimse/combat_crowd.hpp
         include/game_skyrimse/combat_gear.hpp
@@ -314,6 +317,8 @@ add_library(game_skyrimse_world STATIC
     src/diseases.cpp
     src/combat_scroll.cpp
     src/combat_summons.cpp
+    src/combat_deaths.cpp
+    src/deaths.cpp
     src/summons.cpp
     src/combat_delivery.cpp
     src/scroll.cpp

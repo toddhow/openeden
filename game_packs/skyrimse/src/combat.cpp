@@ -922,6 +922,8 @@ namespace game_skyrimse
         out.mHasShield = hasShield(*f);
         out.mLevel = f->mProfile.mLevel;
         out.mEngaged = isEngagedNow(*f);
+        out.mUnique = f->mProfile.mUnique; // task 0254
+        out.mEssential = f->mProfile.mEssential;
         return true;
     }
 

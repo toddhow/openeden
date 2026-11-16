@@ -197,6 +197,8 @@ namespace game_skyrimse
         }
         if (mSummonHooks.remove)
             mSummonHooks.remove(corpse); // the corpse is hidden while the raised actor stands in its place
+        if (mCorpseRaised)
+            mCorpseRaised(corpse); // task 0254
         while (mSummons.countOf(caster.mSubject) >= mMaxSummons)
         {
             const SummonEntry* oldest = mSummons.oldestOf(caster.mSubject);

@@ -13,6 +13,7 @@
 
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
+#include <game_skyrimse/deaths.hpp>
 #include <game_skyrimse/crime.hpp>
 #include <game_skyrimse/hud.hpp>
 #include <game_skyrimse/hud_style.hpp>
@@ -322,6 +323,8 @@ namespace game_skyrimse
             mActors.onActorRemoved(handle);
             mRiding.onActorRemoved(handle); // task 0251
             mCombat.onActorRemoved(handle);
+            if (mDeaths != nullptr)
+                mDeaths->actorGone(handle.reference); // task 0254
             mHud.actorRemoved(handle);
         }
         void update(float seconds, openeden::sdk::game::ActorRequestWriter& writer) override
@@ -345,6 +348,13 @@ namespace game_skyrimse
                     if (mDirectWalkers.erase(move.mActor.reference) != 0) // task 0253
                         (void)writer.setMovement(move.mActor, 0.f, 0.f);
                 }
+            }
+            if (mDeaths != nullptr)
+            {
+                // Task 0254: the clock, then the dead of a loaded save are put back before the brain moves anyone
+                const openeden::sdk::game::ActorClock clock = writer.clock();
+                mDeaths->setClock(static_cast<double>(clock.day) * 24.0 + static_cast<double>(clock.hour), clock.valid);
+                mDeaths->placeCorpses(writer, mCombat);
             }
             mActors.update(seconds, writer);
             mRiding.update(seconds, writer); // task 0251: after the brain, so a ridden horse's requests win
@@ -465,6 +475,8 @@ namespace game_skyrimse
         {
             // Task 0180: the HUD sees the damage and death reports that go through (combat.cpp is not changed) and
             // reads the player's numbers, which are only readable inside this call.
+            if (mDeaths != nullptr)
+                mDeaths->restoreDeaths(writer, mCombat); // task 0254: the core's own writer: no OnDeath, no crime
             HudWriter hudWriter(writer, mHud);
             AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
             ScriptEventWriter scriptWriter(aiWriter, mScriptBridge); // task 0198: OnHit, OnDeath, Actor.Kill
@@ -488,6 +500,8 @@ namespace game_skyrimse
             }
             else
                 mCombat.combatUpdate(seconds, scriptWriter);
+            if (mDeaths != nullptr)
+                mDeaths->noteDeaths(seconds, writer, mCombat); // task 0254
             mHud.update(seconds, writer);
             if (mStyleHud != nullptr)
                 mStyleHud->update(seconds, writer); // task 0244: after the HUD's own update
@@ -509,6 +523,8 @@ namespace game_skyrimse
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
         /// Task 0204: the crime rules (null: off). The system must outlive the cell source's use of it.
         void setCrime(crime::CrimeSystem* system) { mCrime = system; }
+        /// Task 0254: who died stays dead across a load (null: off). Must outlive the cell source's use of it.
+        void setDeaths(DeathKeeper* keeper) { mDeaths = keeper; }
         /// Task 0227: sneaking and detection (null: off). The system must outlive the cell source's use of it.
         void setSneak(sneak::SneakSystem* system) { mSneak = system; }
         void setStyleHud(hudstyle::StyleHud* hud) { mStyleHud = hud; } // task 0244; not owned
@@ -622,6 +638,7 @@ namespace game_skyrimse
         CombatHud mHud;
         ScriptCombatBridge mScriptBridge; ///< task 0198
         crime::CrimeSystem* mCrime = nullptr; ///< task 0204
+        DeathKeeper* mDeaths = nullptr; ///< task 0254
         sneak::SneakSystem* mSneak = nullptr; ///< task 0227
         hudstyle::StyleHud* mStyleHud = nullptr; ///< task 0244
         StanceSink mStanceSink; ///< task 0235

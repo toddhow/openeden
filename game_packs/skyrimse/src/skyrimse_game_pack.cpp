@@ -1471,6 +1471,7 @@ namespace game_skyrimse
 
             void stop() override
             {
+                mCellSource.setDeaths(nullptr); // task 0254: before the keeper goes
                 mCellSource.setCrime(nullptr); // task 0204: before the crime service goes
                 mCellSource.setTakenLookup({}); // task 0208: before the pickup service goes
                 mCellSource.setHarvestedLookup({}); // task 0221: before the harvest service goes
@@ -1493,6 +1494,7 @@ namespace game_skyrimse
 
             ~SkyrimGamePack() override
             {
+                mCellSource.setDeaths(nullptr);
                 mCellSource.setCrime(nullptr);
                 unwirePapyrusWorld();
                 mCellSource.combat().setGlobalSource({}); // task 0238
@@ -3857,6 +3859,43 @@ namespace game_skyrimse
                         say(openeden::sdk::LogLevel::Info,
                             "creatures: on (" + std::to_string(creatureProfilesAll().size()) + " creatures)");
                     }
+                    // Task 0254: dead stays dead across a load (a fix of the neutral saves: no setting). Hooks only; the
+                    // keeper does nothing until an actor of the ledger appears.
+                    {
+                        DeathHooks deathHooks;
+                        deathHooks.handleOf = [this](openeden::sdk::game::WorldId reference) {
+                            return mCellSource.actorTable().handleOf(reference);
+                        };
+                        deathHooks.hold = [this](openeden::sdk::game::WorldId reference, bool on) {
+                            mCellSource.actorTable().onConversation(reference, on);
+                        };
+                        deathHooks.respawnHours = [this] { return mWorldView.hoursToRespawnCell(); };
+                        deathHooks.enable = [this, src = &sources](openeden::sdk::game::WorldId reference) {
+                            openeden::sdk::game::WorldId cell = openeden::sdk::game::kNoWorldId;
+                            if (const PlacedRefIndex* refs = mWorldView.placedRefs())
+                                if (const PlacedEntry* entry = refs->find(static_cast<FormId>(reference)))
+                                    cell = entry->mCell;
+                            (void)src->setObjectEnabled(mCellSource, cell, reference, true);
+                        };
+                        mDeathKeeper = std::make_unique<DeathKeeper>(mDeathLedger, std::move(deathHooks));
+                        mCellSource.setDeaths(mDeathKeeper.get());
+                        if (settings->getBool(kPackId, kCombatTraceKey, false))
+                            mDeathKeeper->setTrace(
+                                [say](const std::string& line) { say(openeden::sdk::LogLevel::Info, line); });
+                        mCellSource.combat().setCorpseRaisedSink(
+                            [this](openeden::sdk::game::WorldId corpse) { mDeathKeeper->corpseRaised(corpse); });
+                        mDeathsChunk = std::make_unique<DeathsChunk>(
+                            [this] { return mDeathLedger.data(); },
+                            [this](const std::map<FormId, DeathEntry>& saved) {
+                                if (!mDeathLedger.restore(saved))
+                                    return false;
+                                mDeathKeeper->ledgerRestored();
+                                return true;
+                            });
+                        if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                            if (!chunks->registerHandler(*mDeathsChunk))
+                                say(openeden::sdk::LogLevel::Warning, "the deaths chunk was not registered");
+                    }
                     // Task 0250: Summon Creature and Reanimate (off by default; needs `combat spell delivery`).
                     if (settings->getBool(kPackId, kSummonsKey, false))
                     {
@@ -4155,6 +4194,9 @@ namespace game_skyrimse
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
+            DeathLedger mDeathLedger; // task 0254: who died, for the saves
+            std::unique_ptr<DeathKeeper> mDeathKeeper; // task 0254; refers to the ledger and the cell source
+            std::unique_ptr<DeathsChunk> mDeathsChunk; // task 0254; refers to the ledger and the keeper
             FollowerState mFollowerState; // task 0239: what the follower scripts changed
             std::unique_ptr<FollowerStateChunk> mFollowerStateChunk; // task 0239; refers to mFollowerState
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias

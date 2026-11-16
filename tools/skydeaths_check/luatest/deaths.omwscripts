@@ -1,0 +1,3 @@
+GLOBAL: scripts/dth/global.lua
+MENU: scripts/dth/menu.lua
+PLAYER: scripts/dth/player.lua

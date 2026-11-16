@@ -612,6 +612,13 @@ namespace game_skyrimse
         return it == mNpcByEditorId.end() ? kNullFormId : it->second;
     }
 
+    double SkyrimWorldView::hoursToRespawnCell() const
+    {
+        if (mCombatIndex == nullptr)
+            return 240.0;
+        return static_cast<double>(mCombatIndex->settings().get("iHoursToRespawnCell", 240.f));
+    }
+
     bool SkyrimWorldView::fighterFor(
         openeden::sdk::game::WorldId base, std::uint32_t variation, FighterProfile& out)
     {
@@ -666,6 +673,11 @@ namespace game_skyrimse
             {
                 out.mPerks = source->mPerks;
                 out.mSpells = source->mSpells;
+            }
+            if (const ActorNpc* own = mActorIndex->npc(npc)) // task 0254
+            {
+                out.mUnique = (own->mFlags & NpcFlags::Unique) != 0;
+                out.mEssential = (own->mFlags & NpcFlags::Essential) != 0;
             }
             if (const ActorNpc* keywords = mActorIndex->npc(resolved.mKeywordsFrom))
                 out.mKeywords = keywords->mKeywords;

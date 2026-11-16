@@ -213,6 +213,20 @@ namespace openeden::sdk::game
             return false;
         }
 
+        /// (task 0254, additive, version unchanged) Puts a dead actor back where it lay when a saved game was loaded:
+        /// moves it to (x, y, z) facing `heading` and clears its movement request. Nothing else changes: the pack reports
+        /// the death afterwards as it would a new one, so a core that makes ragdolls makes one for the corpse. False
+        /// (counted) for a stale handle, a value that is not finite or a call outside update(). The default refuses.
+        virtual bool placeCorpse(ActorHandle handle, double x, double y, double z, float heading)
+        {
+            (void)handle;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
+
         /// (0.3) The game clock of this frame. The default is an invalid clock. Valid during update() only.
         [[nodiscard]] virtual ActorClock clock() const { return {}; }
     };

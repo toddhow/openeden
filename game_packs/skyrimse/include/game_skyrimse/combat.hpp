@@ -271,6 +271,10 @@ namespace game_skyrimse
         /// Task 0240: the spells the race's attacks carry (RACE ATKD +8, each once, in order): a creature's disease is one
         /// of them. Empty for a person.
         std::vector<FormId> mAttackSpells;
+        /// Task 0254: the NPC's own ACBS Unique and Essential flags. A unique actor stays dead for good; the others
+        /// come back when their cell resets (iHoursToRespawnCell).
+        bool mUnique = false;
+        bool mEssential = false;
     };
 
     /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
@@ -579,6 +583,18 @@ namespace game_skyrimse
         /// target actor delivery) and the hooks; off by default.
         void setSummons(bool on) { mSummonsOn = on; }
         void setSummonHooks(SummonHooks hooks) { mSummonHooks = std::move(hooks); }
+        /// Task 0254 (combat_deaths.cpp): told the placement of a corpse a Reanimate spell hid (it is saved so that the
+        /// corpse comes back as a corpse after a load). Empty: nobody is told.
+        void setCorpseRaisedSink(std::function<void(openeden::sdk::game::WorldId)> sink)
+        {
+            mCorpseRaised = std::move(sink);
+        }
+        /// Task 0254: a saved game said this actor was dead. Marks it dead (health 0, no more swings), plays its death
+        /// clip at kRestoredDeathClipSpeed so that it lies in the clip's last pose at once, and tells the core it is
+        /// dead (loot opens). `writer` must be the core's own writer, not a wrapped one: the report must not reach the
+        /// script, crime or HUD hooks again (no OnDeath, no quest kill). False while the actor's data is not read yet
+        /// or the actor is unknown.
+        bool restoreDead(openeden::sdk::game::CombatRequestWriter& writer, openeden::sdk::game::ActorHandle handle);
         void setMaxSummons(std::size_t n) { mMaxSummons = n > 0 ? n : 1; }
         /// A test aid (`summons test kill = <editor id>`): the named actor dies kSummonTestKillSeconds after the data was
         /// read, so a scenario has a corpse to raise. Lower case is applied here.
@@ -875,8 +891,13 @@ namespace game_skyrimse
             std::uint16_t mLevel = 1; ///< task 0244: the level of its profile (read only)
             /// Task 0244: fighting now (a blow given or taken lately, or an engaged AI actor or test hostile).
             bool mEngaged = false;
+            bool mUnique = false; ///< task 0254: ACBS Unique
+            bool mEssential = false; ///< task 0254: ACBS Essential
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
+        /// Task 0254: the same for one actor, reading its numbers now if they were not (an idle fighter is otherwise only
+        /// read when something happens to it). False while the records are still being read or for an unknown actor.
+        bool readView(openeden::sdk::game::ActorHandle handle, FighterView& out);
         /// Task 0244 (read only): calls `visit` for every actor fighter that is ready (the player is left out). The
         /// visitor must not call back into this object.
         using FighterVisitor
@@ -1401,6 +1422,7 @@ namespace game_skyrimse
         std::string mTestKill; ///< lower case; cleared once the actor was killed
         float mTestPlayerMagicka = 0.f;
         SummonHooks mSummonHooks;
+        std::function<void(openeden::sdk::game::WorldId)> mCorpseRaised; // task 0254
         SummonLedger mSummons;
         bool applySummonEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster,
             const SpellRecord& spell, const SpellEffect& effect, const MagicEffectRecord& record);

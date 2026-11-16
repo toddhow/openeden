@@ -376,6 +376,8 @@ namespace game_skyrimse
         FighterProfile playerFighter() override;
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
         CombatSettings settings() override;
+        /// Task 0254: iHoursToRespawnCell (240 when the data has none or the records are not read yet).
+        [[nodiscard]] double hoursToRespawnCell() const;
         // Task 0197
         openeden::sdk::game::ActorRelation factionRelation(const FighterProfile& a, const FighterProfile& b) override;
         BlockSettings blockSettings() override;

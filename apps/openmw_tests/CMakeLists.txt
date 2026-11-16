@@ -210,6 +210,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwphysics/testneutralactorradius.cpp
     mwphysics/testneutralactorbridge.cpp
     mwphysics/testneutralactorriding.cpp
+    mwphysics/testneutralplacecorpse.cpp
     mwphysics/testneutralcombatbridge.cpp
     mwphysics/testneutralspellfire.cpp
     mwphysics/testneutralsweep.cpp

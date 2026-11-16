@@ -1751,6 +1751,30 @@ namespace MWPhysics
         return true;
     }
 
+    bool PhysicsSystem::NeutralRequestApplier::placeCorpse(
+        const void* key, double x, double y, double z, float heading)
+    {
+        NeutralActorEntry* entry = mPhysics.findNeutralActor(key);
+        if (entry == nullptr)
+            return false;
+        const auto found = mPhysics.mObjects.find(entry->mRef);
+        if (found == mPhysics.mObjects.end())
+            return false;
+        const MWWorld::Ptr ptr = found->second->getPtr();
+        ESM::Position pos = ptr.getRefData().getPosition();
+        pos.pos[0] = static_cast<float>(x);
+        pos.pos[1] = static_cast<float>(y);
+        pos.pos[2] = static_cast<float>(z);
+        pos.rot[2] = heading;
+        ptr.getRefData().setPosition(pos);
+        entry->mFall.mZ = pos.pos[2];
+        entry->mFall.mVelocity = 0.f;
+        entry->mRequest = {};
+        mPhysics.mNeutralMoved.push_back(ptr);
+        mPhysics.mNeutralTurned.push_back(ptr);
+        return true;
+    }
+
     bool PhysicsSystem::NeutralRequestApplier::positionOf(const void* key, double& x, double& y, double& z) const
     {
         for (const NeutralActorEntry& entry : mPhysics.mNeutralActors)

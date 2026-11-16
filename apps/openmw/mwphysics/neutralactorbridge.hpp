@@ -66,6 +66,16 @@ namespace MWPhysics
             (void)heading;
             return false;
         }
+        // Task 0254: puts a dead actor back where it lay (a loaded save): its position and heading, no movement request.
+        virtual bool placeCorpse(const void* key, double x, double y, double z, float heading)
+        {
+            (void)key;
+            (void)x;
+            (void)y;
+            (void)z;
+            (void)heading;
+            return false;
+        }
         virtual bool positionOf(const void* key, double& x, double& y, double& z) const
         {
             (void)key;
@@ -183,6 +193,8 @@ namespace MWPhysics
                 openeden::sdk::game::ActorHandle handle, const openeden::sdk::game::FurnitureUse& use) override;
             bool leaveFurniture(openeden::sdk::game::ActorHandle handle, double x, double y, double z) override;
             bool placeFurniture(
+                openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
+            bool placeCorpse(
                 openeden::sdk::game::ActorHandle handle, double x, double y, double z, float heading) override;
             bool actorPosition(openeden::sdk::game::ActorHandle handle, double& x, double& y, double& z) const override;
             [[nodiscard]] openeden::sdk::game::ActorClock clock() const override { return mBridge.mClock; }
