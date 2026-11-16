@@ -654,6 +654,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecrafting.cpp
     skyrimse/testskyrimsecraftingservice.cpp
     skyrimse/testskyrimsecraftingreal.cpp
+    skyrimse/testskyrimsebenches.cpp
+    skyrimse/testskyrimsepoison.cpp
     skyrimse/testskyrimsewiring.cpp
     skyrimse/testskyrimseinventoryequip.cpp
     skyrimse/testskyrimseinventoryequipreal.cpp
@@ -749,6 +751,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crafting.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crafting_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/poison.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp
@@ -801,6 +804,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp

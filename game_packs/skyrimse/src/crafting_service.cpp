@@ -530,6 +530,10 @@ namespace game_skyrimse::crafting
             }
             return mHooks.mRecipeConditions(recipe.mConditionList, enchanted);
         }
+        // Task 0229: the tanning rack's recipes carry GetItemCount(item) >= 1 on the pelt they consume: it holds while
+        // the player holds it (the recipe is then offered, as in the game).
+        if (recipe.mConditionList.size() == recipe.mConditions && recipeConditionsItemCountOnly(recipe.mConditionList))
+            return itemCountConditionsHold(recipe.mConditionList, [this](FormId item) { return held(item); });
         return temper; // every tempering recipe of the game carries conditions: they were never hidden
     }
 
@@ -653,9 +657,47 @@ namespace game_skyrimse::crafting
         for (const InventoryEntry& e : r->mItems)
             (void)mInventory.model().consume(inventory::kPlayerOwner, e.mItem, e.mCount);
         (void)mInventory.model().grant(inventory::kPlayerOwner, r->mResult, std::max<std::int32_t>(1, r->mCount));
-        if (mHooks.mSkillUsed)
+        // Task 0229: the smelter and the tanning rack train smithing as the forge does; cooking trains nothing
+        // (RECALLED-VERIFY: Skyrim gives the cooking pot no experience).
+        if (mHooks.mSkillUsed && kind != BenchKind::Cookpot)
             mHooks.mSkillUsed("smithing", static_cast<float>(std::max(1, result->mValue)));
         return done(Status::Ok, "craft " + itemName(r->mResult));
+    }
+
+    PoisonUse CraftingService::usePoison(FormId item, FormId weapon, bool melee)
+    {
+        if (!mTableReady || !mInventory.ready())
+            return PoisonUse::NotPoison;
+        const inventory::ItemStat* stat = mInventory.table().item(item);
+        // A poison is a potion whose first effect is hostile (an ALCH of the game or one made at an alchemy lab).
+        if (stat == nullptr || stat->mCategory != inventory::Category::Potion || stat->mEffects.empty()
+            || !effectInfo(stat->mEffects.front().mEffect).mHostile)
+            return PoisonUse::NotPoison;
+        if (weapon == kNullFormId)
+            return PoisonUse::NoWeapon;
+        if (!melee)
+            return PoisonUse::NotMelee;
+        WeaponPoison poison;
+        poison.mPoison = item;
+        poison.mName = itemName(item);
+        poison.mCharges = mSettings.mPoisonCharges;
+        for (const inventory::ItemEffect& e : stat->mEffects)
+        {
+            EffectEntry entry;
+            entry.mEffect = e.mEffect;
+            entry.mMagnitude = e.mMagnitude;
+            entry.mArea = e.mArea;
+            entry.mDuration = e.mDuration;
+            poison.mEffects.push_back(entry);
+        }
+        const CoatStatus coated = mCoatings.apply(weapon, std::move(poison));
+        log("CRAFT poison " + itemName(item) + " on " + itemName(weapon) + ": "
+            + (coated == CoatStatus::Ok                  ? "applied"
+                    : coated == CoatStatus::AlreadyPoisoned ? "already poisoned"
+                                                            : "refused"));
+        if (coated == CoatStatus::Ok)
+            return PoisonUse::Applied;
+        return coated == CoatStatus::AlreadyPoisoned ? PoisonUse::AlreadyPoisoned : PoisonUse::NoWeapon;
     }
 
     Status CraftingService::temper(FormId recipeId)

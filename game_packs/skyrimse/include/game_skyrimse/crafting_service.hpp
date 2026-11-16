@@ -27,6 +27,7 @@
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/crafting.hpp>
 #include <game_skyrimse/inventory_service.hpp>
+#include <game_skyrimse/poison.hpp>
 #include <game_skyrimse/progression_service.hpp>
 
 #include <openeden/game/bindings.hpp>
@@ -89,6 +90,16 @@ namespace game_skyrimse::crafting
     };
     [[nodiscard]] std::string_view statusName(Status status);
 
+    /// Task 0229: what happened when the player tried to coat his weapon with an item.
+    enum class PoisonUse : std::uint8_t
+    {
+        NotPoison, ///< the item is not a poison (a potion, food, anything): the caller goes on as for any item
+        Applied,
+        NoWeapon, ///< no weapon in hand
+        NotMelee, ///< a bow: the poison reaches no one through an arrow here
+        AlreadyPoisoned, ///< the weapon carries a poison
+    };
+
     class CraftingService
     {
     public:
@@ -131,6 +142,14 @@ namespace game_skyrimse::crafting
         Status temper(FormId recipe);
         Status disenchant(FormId item);
         Status enchant(FormId item, FormId enchantment, FormId gem);
+
+        /// Task 0229: coats `weapon` (a weapon item the player wields) with `item` when `item` is a poison: its first
+        /// effect is hostile. Does not touch the inventory: the caller consumes the item on Applied.
+        PoisonUse usePoison(FormId item, FormId weapon, bool melee);
+        /// The poison a weapon item carries, or null.
+        [[nodiscard]] const WeaponPoison* coating(FormId weapon) const { return mCoatings.find(weapon); }
+        /// One landed hit spent: the charges left, or -1 when the weapon carried none.
+        int spendPoison(FormId weapon) { return mCoatings.spend(weapon); }
 
         /// The record item an item stands for: a tempered or enchanted item's base, else the item.
         [[nodiscard]] FormId baseOf(FormId item) const;
@@ -183,6 +202,7 @@ namespace game_skyrimse::crafting
         bool mIgnoreConditions;
         bool mTestBench;
         CraftingState mState;
+        PoisonCoatings mCoatings;
         CraftingChunk mChunk;
         CraftingTable mTable;
         CraftingTable mBuilt;

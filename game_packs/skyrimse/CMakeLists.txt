@@ -23,6 +23,7 @@ openeden_add_game_pack(skyrimse
         src/barter_service.cpp
         src/crafting.cpp
         src/crafting_service.cpp
+        src/poison.cpp
         src/journal.cpp
         src/map.cpp
         src/map_markers.cpp
@@ -78,6 +79,7 @@ openeden_add_game_pack(skyrimse
         src/magic.cpp
         src/combat_magic.cpp
         src/combat_sneak.cpp
+        src/combat_poison.cpp
         src/actor_mechanics.cpp
         src/combat_stats.cpp
         src/combat_impact.cpp
@@ -113,6 +115,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/placed_refs.hpp
         include/game_skyrimse/inventory.hpp
         include/game_skyrimse/inventory_service.hpp
+        include/game_skyrimse/poison.hpp
         include/game_skyrimse/barter.hpp
         include/game_skyrimse/barter_service.hpp
         include/game_skyrimse/journal.hpp
@@ -253,6 +256,7 @@ add_library(game_skyrimse_world STATIC
     src/magic.cpp
     src/combat_magic.cpp
     src/combat_sneak.cpp
+    src/combat_poison.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/combat_impact.cpp

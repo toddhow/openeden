@@ -134,6 +134,14 @@ namespace game_skyrimse::crafting
     [[nodiscard]] bool recipeConditionsHold(std::span<const survey::Ctda> list, const std::vector<FormId>& perks,
         std::uint16_t level, const std::vector<std::pair<std::uint32_t, float>>& values, bool itemEnchanted);
 
+    /// Task 0229: the tanning rack's recipes (and a few others) carry one condition each, GetItemCount(item) >= 1
+    /// (function 47, operators 0 to 5): is every condition of the list that function? An empty list is not.
+    [[nodiscard]] bool recipeConditionsItemCountOnly(std::span<const survey::Ctda> list);
+    /// Task 0229: do all those conditions hold for the items the player holds (`held` gives the count of an item)? An
+    /// empty list holds.
+    [[nodiscard]] bool itemCountConditionsHold(
+        std::span<const survey::Ctda> list, const std::function<std::int32_t(FormId)>& held);
+
     struct CraftingLimits
     {
         std::uint64_t mMaxRecordBytes = 16ull * 1024 * 1024;
@@ -217,6 +225,7 @@ namespace game_skyrimse::crafting
         float mPotionWeight = 0.5f;
         std::int32_t mMaxValue = 100000;
         float mEatMagnitudeScale = 1.f; ///< unused for now (eating applies no effect), kept for tuning
+        std::int32_t mPoisonCharges = 1; ///< landed hits a poison on a weapon lasts (ours: the data has no dose count)
     };
 
     /// 1 + (factor - 1) x skill / 100, the skill clamped to 0 to 100.

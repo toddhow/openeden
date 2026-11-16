@@ -611,6 +611,60 @@ namespace game_skyrimse::crafting
         return true;
     }
 
+    namespace
+    {
+        constexpr std::uint16_t kFnGetItemCount = 47; // RECALLED-VERIFY name; the data's use on tanning recipes is certain
+        constexpr std::uint8_t kCtdaOr = 0x01, kCtdaUseGlobal = 0x04; // CTDA type flags
+    }
+
+    bool recipeConditionsItemCountOnly(std::span<const survey::Ctda> list)
+    {
+        if (list.empty())
+            return false;
+        for (const survey::Ctda& c : list)
+            if (c.mFunction != kFnGetItemCount)
+                return false;
+        return true;
+    }
+
+    bool itemCountConditionsHold(std::span<const survey::Ctda> list, const std::function<std::int32_t(FormId)>& held)
+    {
+        for (const survey::Ctda& c : list)
+        {
+            // an OR chain or a global as the compared value is not what the data holds here: fail closed
+            if (c.mFunction != kFnGetItemCount || (c.mFlags & (kCtdaOr | kCtdaUseGlobal)) != 0 || !held)
+                return false;
+            const float count = static_cast<float>(held(c.mParam1));
+            bool holds = false;
+            switch (c.mCompare)
+            {
+                case 0:
+                    holds = count == c.mComparison;
+                    break;
+                case 1:
+                    holds = count != c.mComparison;
+                    break;
+                case 2:
+                    holds = count > c.mComparison;
+                    break;
+                case 3:
+                    holds = count >= c.mComparison;
+                    break;
+                case 4:
+                    holds = count < c.mComparison;
+                    break;
+                case 5:
+                    holds = count <= c.mComparison;
+                    break;
+                default:
+                    return false;
+            }
+            if (!holds)
+                return false;
+        }
+        return true;
+    }
+
     bool recipeConditionsHold(std::span<const survey::Ctda> list, const std::vector<FormId>& perks, std::uint16_t level,
         const std::vector<std::pair<std::uint32_t, float>>& values, bool itemEnchanted)
     {

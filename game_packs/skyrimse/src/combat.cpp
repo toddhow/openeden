@@ -1651,6 +1651,8 @@ namespace game_skyrimse
         if (sneakMult > 1.f && mSneakDone)
             mSneakDone(victim.mSubject.actor.reference, sneakMult); // task 0227
         soundHit(writer, attacker, victim, blocked, bash); // task 0193
+        if (!blocked && !bash)
+            applyPoisonOnHit(writer, attacker, victim, hit); // task 0229
         if (mTrace)
             trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
                 + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "

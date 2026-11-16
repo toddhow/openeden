@@ -511,6 +511,12 @@ namespace game_skyrimse
             std::vector<ArmourPiece> mPieces;
         };
         void setPlayerEquipment(PlayerEquipment equipment);
+        /// Task 0229: the poison on the player's wielded melee weapon. The next `charges` landed blows apply the spell's
+        /// effects to the target through the magic runtime; 0 charges clears it. The hook is told the charges left after
+        /// each blow.
+        void setPlayerPoison(SpellRecord spell, int charges);
+        [[nodiscard]] int playerPoisonCharges() const { return mPoisonCharges; }
+        void setPoisonSpentHook(std::function<void(int remaining)> hook) { mPoisonSpent = std::move(hook); }
         /// Task 0184: restores `amount` health to the player at the next update, through the engine's own health (a
         /// DamageReport that takes none off). False when there are no combat data: nothing is queued then.
         bool queuePlayerHeal(float amount);
@@ -804,6 +810,8 @@ namespace game_skyrimse
             const SpellRecord& spell, const openeden::sdk::game::RayRequest& ray, float length);
         [[nodiscard]] std::uint32_t showWardBody(
             openeden::sdk::game::CombatRequestWriter& writer, const Fighter& caster, const SpellRecord& spell);
+        void applyPoisonOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
+            const openeden::sdk::game::SweepHit& hit); // task 0229 (combat_poison.cpp)
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
             const SpellRecord& spell, const openeden::sdk::game::SweepHit* where);
         void applyOneEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -1101,6 +1109,9 @@ namespace game_skyrimse
         std::vector<SweepDelivery> mDeliveries; ///< sweep results waiting for the next combatUpdate
         std::function<void(const std::string&)> mTrace;
         std::function<void(const std::string&)> mWarning;
+        SpellRecord mPoisonSpell; ///< task 0229: the poison on the player's weapon
+        int mPoisonCharges = 0;
+        std::function<void(int remaining)> mPoisonSpent;
         // The timing of the player's two attack clips, once known: asking the engine again is then never needed.
         openeden::sdk::game::ClipTiming mKnownTiming[2];
         bool mHaveTiming[2] = { false, false };

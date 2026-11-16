@@ -2009,6 +2009,7 @@ namespace game_skyrimse
                 hooks.mTaken = [this](std::uint64_t owner, FormId item, std::int32_t count) {
                     onContainerTaken(owner, item, count); // task 0204
                 };
+                hooks.mUsePoison = [this](FormId item) { return usePoisonOnWeapon(item); }; // task 0229
                 hooks.mApplyHealth = [this](float amount) {
                     // the combat rules must run (the engine's health is written through them)
                     return mCellSource.combat().updates() > 0 && mCellSource.combat().queuePlayerHeal(amount);
@@ -2740,6 +2741,18 @@ namespace game_skyrimse
                     if (!chunks->registerHandler(mCrafting->chunk()) && logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Warning, "the crafting chunk was not registered");
                 }
+                // Task 0229: a landed blow spends one charge of the poison on the weapon.
+                mCellSource.combat().setPoisonSpentHook([this](int remaining) {
+                    if (mCrafting == nullptr || mPoisonedWeapon == kNullFormId)
+                        return;
+                    const int left = mCrafting->spendPoison(mPoisonedWeapon);
+                    if (mCraftLogger != nullptr)
+                        mCraftLogger->log(openeden::sdk::LogLevel::Info,
+                            "CRAFT poison spent on a blow: " + std::to_string(left) + " charges left ("
+                                + std::to_string(remaining) + " in combat)");
+                    if (left <= 0)
+                        mPoisonedWeapon = kNullFormId;
+                });
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "CRAFT the crafting service is on");
             }
@@ -2818,6 +2831,64 @@ namespace game_skyrimse
                                                             : std::string("none"))
                             + ", " + std::to_string(equipment.mPieces.size()) + " armour pieces");
                 mCellSource.combat().setPlayerEquipment(std::move(equipment));
+                syncPoison(); // task 0229: the poison the wielded weapon carries
+            }
+
+            // Task 0229: the weapon item the player wields and whether it is a melee weapon (one- or two-handed;
+            // a bow, a crossbow, a staff and bare hands are not). `known` is false while its record is not read.
+            FormId wieldedWeapon(bool& melee, bool& known)
+            {
+                melee = false;
+                known = true;
+                if (mInventory == nullptr || mCrafting == nullptr)
+                    return kNullFormId;
+                for (const inventory::EquippedItem& worn : mInventory->model().equipped())
+                {
+                    if (worn.mKind != inventory::EquipKind::Weapon)
+                        continue;
+                    const WeaponRecord* record = nullptr;
+                    if (!mWorldView.lookupWeapon(mCrafting->baseOf(worn.mItem), record))
+                        known = false;
+                    else
+                        melee = record != nullptr && record->mAnimType >= 1 && record->mAnimType <= 6;
+                    return worn.mItem;
+                }
+                return kNullFormId;
+            }
+
+            // Task 0229: the player used an item from the inventory window: 0 when it is no poison, 1 when it went on
+            // the weapon in hand (the inventory consumes it), -1 when refused.
+            int usePoisonOnWeapon(FormId item)
+            {
+                if (mCrafting == nullptr)
+                    return 0;
+                bool melee = false;
+                bool known = true;
+                const FormId weapon = wieldedWeapon(melee, known);
+                const crafting::PoisonUse use = mCrafting->usePoison(item, weapon, melee && known);
+                if (use == crafting::PoisonUse::NotPoison)
+                    return 0;
+                if (use != crafting::PoisonUse::Applied)
+                    return -1;
+                syncPoison();
+                return 1;
+            }
+
+            // Task 0229: gives the combat rules the poison the wielded melee weapon carries (none when it carries
+            // none), so the next landed blows apply it.
+            void syncPoison()
+            {
+                if (mCrafting == nullptr)
+                    return;
+                bool melee = false;
+                bool known = true;
+                const FormId weapon = wieldedWeapon(melee, known);
+                const crafting::WeaponPoison* coat = weapon != kNullFormId && melee ? mCrafting->coating(weapon) : nullptr;
+                mPoisonedWeapon = coat != nullptr ? weapon : kNullFormId;
+                if (coat == nullptr)
+                    mCellSource.combat().setPlayerPoison(SpellRecord(), 0);
+                else
+                    mCellSource.combat().setPlayerPoison(crafting::poisonSpell(*coat), coat->mCharges);
             }
 
             // Task 0177 (neutral saves): the save chunk that ties a save to the load order it was made with.
@@ -3207,6 +3278,7 @@ namespace game_skyrimse
             std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
             std::unique_ptr<crafting::CraftingService> mCrafting; // task 0199; refers to the inventory
             openeden::sdk::Logger* mCraftLogger = nullptr; // task 0199
+            FormId mPoisonedWeapon = kNullFormId; // task 0229: the weapon item whose poison the combat holds
             WeaponRecord mMadeWeapon; // task 0199: the combat record of the wielded made weapon (combat points at it)
             std::function<void(std::string_view, float)> mCraftingSkillSink; // task 0199: a skills system may set it
             std::unique_ptr<lockbooks::LockBooksService> mLockBooks; // task 0203; refers to the inventory

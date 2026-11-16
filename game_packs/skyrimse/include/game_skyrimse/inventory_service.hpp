@@ -78,6 +78,11 @@ namespace game_skyrimse
             /// The player took `count` of `item` out of the container `owner` (a placement; never a corpse) through a
             /// window. May be empty.
             std::function<void(std::uint64_t owner, FormId item, std::int32_t count)> mTaken;
+            // ---- task 0229 (poisons)
+            /// The player uses `item` from the inventory window: 0 when it is not a poison (the use goes on as for a
+            /// potion), 1 when the poison was put on the weapon he wields (the item is consumed), -1 when it was
+            /// refused (no weapon, a bow, a weapon already poisoned: nothing is consumed). May be empty.
+            std::function<int(FormId item)> mUsePoison;
         };
 
         [[nodiscard]] std::string formatId(std::uint64_t id); ///< 8 lower-case hex digits (more when needed)

@@ -311,6 +311,21 @@ namespace game_skyrimse::inventory
             return refuse(UseStatus::NotReady, "the item table is not built");
         if (mModel.count(kPlayerOwner, item) < 1)
             return refuse(UseStatus::NotHeld, "not held");
+        if (mHooks.mUsePoison)
+        {
+            // Task 0229: a poison goes on the weapon in hand and is never drunk.
+            const int poisoned = mHooks.mUsePoison(item);
+            if (poisoned < 0)
+                return refuse(UseStatus::Refused, "the poison cannot go on the weapon in hand");
+            if (poisoned > 0)
+            {
+                const TransferStatus used = mModel.consume(kPlayerOwner, item, 1);
+                if (mHooks.mLog)
+                    mHooks.mLog("INV use " + formatId(item) + ": poison on the weapon, "
+                        + std::string(transferStatusName(used)) + ", revision " + std::to_string(mModel.revision()));
+                return UseStatus::Ok;
+            }
+        }
         if (equipInfoOf(item).mKind != EquipKind::Potion)
             return refuse(UseStatus::NotUsable, "not a potion");
         const float health = healthOf(item);
