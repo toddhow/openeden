@@ -612,6 +612,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrushost.cpp
     skyrimse/testskyrimsepapyrusbase.cpp
     skyrimse/testskyrimsepapyrusslice2.cpp
+    skyrimse/testskyrimsepapyrusnatives2.cpp
     skyrimse/testskyrimsepackages.cpp
     skyrimse/testskyrimsepackagebrain.cpp
     skyrimse/testskyrimseanimmotion.cpp
@@ -684,6 +685,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_alias.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/vmad.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_host.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/papyrus_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/appearance.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/land.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/grass.cpp

@@ -14,6 +14,7 @@
 #include <game_skyrimse/actor_table.hpp>
 #include <game_skyrimse/combat.hpp>
 #include <game_skyrimse/hud.hpp>
+#include <game_skyrimse/papyrus_world.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/terrain_source.hpp>
 
@@ -337,7 +338,9 @@ namespace game_skyrimse
             // reads the player's numbers, which are only readable inside this call.
             HudWriter hudWriter(writer, mHud);
             AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
-            mCombat.combatUpdate(seconds, aiWriter);
+            ScriptEventWriter scriptWriter(aiWriter, mScriptBridge); // task 0198: OnHit, OnDeath, Actor.Kill
+            mScriptBridge.drain(scriptWriter);
+            mCombat.combatUpdate(seconds, scriptWriter);
             mHud.update(seconds, writer);
         }
         /// Task 0171: forwarded so that the pack's melee rules see a clip's end and the player's attack key.
@@ -354,6 +357,8 @@ namespace game_skyrimse
         }
         void onPlayerAttackEdge(bool pressed) override { mCombat.onPlayerAttackEdge(pressed); }
         [[nodiscard]] SkyrimCombat& combat() { return mCombat; }
+        /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are set).
+        [[nodiscard]] ScriptCombatBridge& scriptBridge() { return mScriptBridge; }
         /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
         [[nodiscard]] CombatHud& hud() { return mHud; }
         /// Task 0176: the Papyrus host hears of a built cell and of a conversation that began (the player used an
@@ -386,6 +391,7 @@ namespace game_skyrimse
         SkyrimCombat mCombat;
         std::vector<SkyrimCombat::AiMoveIntent> mAiMoves; ///< task 0190: drained each update
         CombatHud mHud;
+        ScriptCombatBridge mScriptBridge; ///< task 0198
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;

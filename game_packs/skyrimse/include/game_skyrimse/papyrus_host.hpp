@@ -113,12 +113,108 @@ namespace game_skyrimse
             return false;
         }
 
+        /// Task 0198: the reference a placement links to by `keyword` (0: the unkeyworded link); 0 when it has none or the
+        /// cell was never built (ObjectReference.GetLinkedRef).
+        [[nodiscard]] virtual FormId linkedRef(FormId reference, FormId keyword) const
+        {
+            (void)reference, (void)keyword;
+            return 0;
+        }
+
+        /// Task 0198: does the data place the actor dead (ACHR flagged dead)? Actor.IsDead starts from it.
+        [[nodiscard]] virtual bool initiallyDead(FormId actor) const
+        {
+            (void)actor;
+            return false;
+        }
+
+        /// Task 0198: Game.GetFormFromFile: the load-order form id of the local id `local` in the plugin named `lowerFile`
+        /// (a load order id is 0 when the plugin is not loaded or the id is out of range).
+        [[nodiscard]] virtual FormId formFromFile(std::string_view lowerFile, std::uint32_t local) const
+        {
+            (void)lowerFile, (void)local;
+            return 0;
+        }
+
         /// The editor id or the name of a form for GetName; empty when none.
         [[nodiscard]] virtual std::string nameOf(FormId form) const
         {
             (void)form;
             return {};
         }
+    };
+
+    /// Task 0198: what the world natives reach beyond the quest state (inventory, actor values, deaths, plugin lookups).
+    /// A reference is its form id as the host sees it: a placement id, or 0x14 for the player. Every function runs on the
+    /// main thread and every default means "cannot": the native then answers as it did before (the tolerant zero).
+    class PapyrusWorldHooks
+    {
+    public:
+        virtual ~PapyrusWorldHooks() = default;
+        /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
+        virtual bool addItem(FormId owner, FormId item, std::int32_t count)
+        {
+            (void)owner, (void)item, (void)count;
+            return false;
+        }
+        /// Removes `count` (fewer when the owner holds fewer); returns how many were removed, -1 when it cannot say.
+        virtual std::int32_t removeItem(FormId owner, FormId item, std::int32_t count)
+        {
+            (void)owner, (void)item, (void)count;
+            return -1;
+        }
+        /// How many of the item the owner holds; -1 when the inventory does not know the owner.
+        [[nodiscard]] virtual std::int32_t itemCount(FormId owner, FormId item)
+        {
+            (void)owner, (void)item;
+            return -1;
+        }
+        /// Moves `count` from one owner to another (RemoveItem with a container). False when it cannot.
+        virtual bool transferItem(FormId from, FormId to, FormId item, std::int32_t count)
+        {
+            (void)from, (void)to, (void)item, (void)count;
+            return false;
+        }
+        /// Moves everything the owner holds to `target` (0: it is removed); returns the number of items, -1 when it cannot.
+        virtual std::int64_t removeAllItems(FormId owner, FormId target)
+        {
+            (void)owner, (void)target;
+            return -1;
+        }
+        /// An actor value by lower-case name ("health", "magicka", "stamina", skills): its current and its maximum
+        /// value. False when the pack has no number for it.
+        [[nodiscard]] virtual bool actorValue(FormId actor, std::string_view lowerName, double& current, double& maximum)
+        {
+            (void)actor, (void)lowerName, (void)current, (void)maximum;
+            return false;
+        }
+        /// Sets the current health of an actor (clamped to [0, maximum] by the pack); false when it cannot.
+        virtual bool setHealth(FormId actor, double health)
+        {
+            (void)actor, (void)health;
+            return false;
+        }
+        /// Is the actor dead (combat's own state)? False when unknown.
+        [[nodiscard]] virtual bool isDead(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        /// Starts the death of an actor now (the combat rules' death path). False when it cannot (stale, the player).
+        virtual bool killActor(FormId actor)
+        {
+            (void)actor;
+            return false;
+        }
+        /// Is the form a concrete item the inventory knows? An inventory event filter that names anything else (a form
+        /// list the host cannot expand) is ignored.
+        [[nodiscard]] virtual bool isItem(FormId form)
+        {
+            (void)form;
+            return false;
+        }
+        /// Shows a short message to the player (Debug.Notification).
+        virtual void notification(const std::string& text) { (void)text; }
     };
 
     /// Task 0194: what the Scene natives and the quest hooks reach (the scene runner). Every function runs on the main
@@ -165,6 +261,8 @@ namespace game_skyrimse
         std::uint64_t mStoryEvents = 0; ///< story events raised (SendStoryEvent and the pack's own)
         std::uint64_t mStoryQuestsStarted = 0; ///< quests the story manager started
         std::uint64_t mAliasesFilled = 0; ///< aliases that gained a reference when a quest started or on demand
+        std::uint64_t mItemEvents = 0; ///< task 0198: OnItemAdded, OnItemRemoved and OnContainerChanged sent
+        std::uint64_t mCombatEvents = 0; ///< task 0198: OnHit, OnDying and OnDeath sent
         std::uint64_t mTicks = 0;
         std::uint64_t mStacksRun = 0;
         std::uint64_t mScriptErrors = 0; ///< a stack that ended with an error
@@ -211,6 +309,21 @@ namespace game_skyrimse
         void setStoryEventSink(StoryEventSink sink);
         /// Task 0194: the scene runner. Not owned; null: the Scene natives answer false and quests start no scenes.
         void setSceneControl(SceneControl* control);
+        /// Task 0198: the world natives' reach (see PapyrusWorldHooks). Not owned; null: those natives are tolerant.
+        void setWorldHooks(PapyrusWorldHooks* hooks);
+
+        /// Task 0198: the events the inventory and combat can raise. `from` and `to` are the owners' reference ids (0:
+        /// none, as when a script added the item). Queued like any event; run by the next tick.
+        /// OnItemAdded goes to `to`'s scripts, OnItemRemoved to `from`'s, OnContainerChanged to scripts on the item form.
+        void onItemMoved(FormId from, FormId to, FormId item, std::int32_t count);
+        /// OnHit goes to the victim's scripts (and alias scripts that hold it). `attacker` 0: unknown.
+        void onActorHit(FormId victim, FormId attacker, bool blocked, bool bash);
+        /// OnDying and OnDeath go to the victim's scripts; the actor counts as dead for IsDead.
+        void onActorDied(FormId victim, FormId killer);
+        /// Notifications (Debug.Notification) shown since the host was made: a ring of the last kMaxNotifications.
+        static constexpr std::size_t kMaxNotifications = 16;
+        [[nodiscard]] std::uint64_t notificationCount() const;
+        [[nodiscard]] std::string notificationAt(std::uint64_t number) const; ///< 1-based; empty when out of the ring
         /// Task 0194: a scene fragment function. The scripts of the SCEN VMAD are attached to the scene form (once) and
         /// `function` of the instance named `script` is queued. Returns how many functions were queued.
         std::size_t runSceneFragment(
@@ -295,6 +408,8 @@ namespace game_skyrimse
         [[nodiscard]] std::uint64_t tolerantCalls() const;
         /// Natives a script called that nobody answered ("class.function", lower case, sorted).
         [[nodiscard]] std::vector<std::string> tolerantNatives() const;
+        /// Task 0198: tolerant calls of this run by "class.function" (lower case), most calls first, ties by name.
+        [[nodiscard]] std::vector<std::pair<std::string, std::uint64_t>> tolerantRanking() const;
         /// The enabled state of a reference as scripts left it (true when no script changed it).
         [[nodiscard]] bool referenceEnabled(FormId reference) const;
         [[nodiscard]] std::size_t instanceCount() const;

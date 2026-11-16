@@ -774,6 +774,7 @@ namespace ScriptPapyrus::Vm
                 return fail(ErrorKind::UnregisteredNative, "native '" + label() + "' is declared and not registered");
             }
             ++mStats.unregisteredNativeCalls;
+            ++mStats.unregisteredByName[label()];
             logOnce("native:" + label(),
                 "native '" + label() + "' is declared and not registered; it returns the zero of its type");
         }

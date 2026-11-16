@@ -8,6 +8,7 @@
 #include <bit>
 #include <cmath>
 #include <cstdio>
+#include <deque>
 
 namespace game_skyrimse
 {
@@ -24,6 +25,18 @@ namespace game_skyrimse
     {
         constexpr FormId kPlayerReference = 0x14;
         constexpr std::uint32_t kAliasTag = 0xFF000000u; // a handle of this host's alias table, not a form id
+        constexpr std::size_t kMaxNotificationBytes = 256;
+        constexpr std::size_t kMaxAvOffsets = 4096; // actor value changes a script may leave behind
+
+        // "Max Health" and "maxhealth" are the same: lower case without spaces
+        std::string avKey(std::string_view s)
+        {
+            std::string out;
+            for (const char c : s)
+                if (c != ' ' && c != '_')
+                    out.push_back(static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c));
+            return out;
+        }
 
         std::string lower(std::string_view s)
         {
@@ -110,7 +123,26 @@ namespace game_skyrimse
             return !className.empty();
         }
 
-        void report(std::string_view message) override { say(false, "Papyrus: " + std::string(message)); }
+        void report(std::string_view message) override
+        {
+            constexpr std::string_view kNote = "[Notification] ";
+            if (message.substr(0, kNote.size()) == kNote)
+                note(std::string(message.substr(kNote.size())));
+            say(false, "Papyrus: " + std::string(message));
+        }
+
+        // Task 0198: Debug.Notification. A ring of the last few, and the pack's hook (the HUD) is told at once.
+        void note(std::string text)
+        {
+            if (text.size() > kMaxNotificationBytes)
+                text.resize(kMaxNotificationBytes);
+            ++mNoteCount;
+            mNotes.push_back(text);
+            if (mNotes.size() > PapyrusHost::kMaxNotifications)
+                mNotes.pop_front();
+            if (mHooks != nullptr)
+                mHooks->notification(text);
+        }
 
         void log(openeden::script::Severity severity, std::string_view message) override
         {
@@ -948,6 +980,151 @@ namespace game_skyrimse
                     mAliasForced.erase({ quest, alias });
                 return NativeResult{};
             });
+            registerInventoryNatives();
+            registerActorNatives();
+        }
+
+        // ---- task 0198: inventory, actor values, deaths ------------------------------------------------------------
+        // Signatures from the Creation Kit wiki function pages (recalled, RECALLED-VERIFY): AddItem(akItemToAdd,
+        // aiCount = 1, abSilent = false), RemoveItem(akItemToRemove, aiCount = 1, abSilent = false, akOtherContainer =
+        // None), GetItemCount(akItem), RemoveAllItems(akTransferTo = None, ...). The hook (the pack's inventory) raises
+        // OnItemAdded and OnItemRemoved itself, because the inventory windows change the same lists.
+
+        std::int32_t countArgument(const NativeCall& c, std::size_t i) const
+        {
+            return c.arguments.size() > i ? argInt(c, i) : 1;
+        }
+
+        void registerInventoryNatives()
+        {
+            reg("ObjectReference", "AddItem", false, [this](const NativeCall& c) {
+                const FormId owner = formOf(c.self);
+                const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const std::int32_t count = countArgument(c, 1);
+                if (mHooks != nullptr && owner != 0 && item != 0 && count > 0)
+                    (void)mHooks->addItem(owner, item, count);
+                return NativeResult{};
+            });
+            reg("ObjectReference", "RemoveItem", false, [this](const NativeCall& c) {
+                const FormId owner = formOf(c.self);
+                const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const std::int32_t count = countArgument(c, 1);
+                const FormId other = c.arguments.size() > 3 ? formOf(c.arguments[3]) : 0;
+                if (mHooks != nullptr && owner != 0 && item != 0 && count > 0)
+                {
+                    if (other != 0)
+                        (void)mHooks->transferItem(owner, other, item, count);
+                    else
+                        (void)mHooks->removeItem(owner, item, count);
+                }
+                return NativeResult{};
+            });
+            reg("ObjectReference", "GetItemCount", false, [this](const NativeCall& c) {
+                const FormId item = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const std::int32_t held = mHooks != nullptr ? mHooks->itemCount(formOf(c.self), item) : -1;
+                return result(PapyrusValue::makeInt(std::max(held, 0)));
+            });
+            reg("ObjectReference", "RemoveAllItems", false, [this](const NativeCall& c) {
+                const FormId owner = formOf(c.self);
+                const FormId target = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (mHooks != nullptr && owner != 0)
+                    (void)mHooks->removeAllItems(owner, target);
+                return NativeResult{};
+            });
+            for (const char* cls : { "ObjectReference", "ReferenceAlias" })
+            {
+                reg(cls, "AddInventoryEventFilter", false, [this](const NativeCall& c) {
+                    const FormId key = formOf(c.self);
+                    const FormId filter = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                    if (key != 0 && filter != 0 && (mInvFilters.size() < kMaxAvOffsets || mInvFilters.count(key) != 0))
+                    {
+                        std::set<FormId>& set = mInvFilters[key];
+                        if (set.size() < 256)
+                            set.insert(filter);
+                    }
+                    return NativeResult{};
+                });
+                reg(cls, "RemoveInventoryEventFilter", false, [this](const NativeCall& c) {
+                    const auto it = mInvFilters.find(formOf(c.self));
+                    if (it != mInvFilters.end() && !c.arguments.empty())
+                    {
+                        it->second.erase(formOf(c.arguments[0]));
+                        if (it->second.empty())
+                            mInvFilters.erase(it);
+                    }
+                    return NativeResult{};
+                });
+            }
+            reg("ObjectReference", "GetLinkedRef", false, [this](const NativeCall& c) {
+                const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return result(formValue(mData.linkedRef(formOf(c.self), keyword)));
+            });
+            reg("ObjectReference", "GetDistance", false, [this](const NativeCall& c) {
+                double a[3] = { 0, 0, 0 }, b[3] = { 0, 0, 0 };
+                const FormId other = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (!positionOf(formOf(c.self), a) || !positionOf(other, b))
+                    return result(PapyrusValue::makeFloat(0.f));
+                const double dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+                return result(PapyrusValue::makeFloat(static_cast<float>(std::sqrt(dx * dx + dy * dy + dz * dz))));
+            });
+        }
+
+        void registerActorNatives()
+        {
+            const auto valueName = [](const NativeCall& c) {
+                return !c.arguments.empty() && c.arguments[0].kind == PapyrusKind::String
+                    ? avKey(c.arguments[0].text)
+                    : std::string();
+            };
+            reg("Actor", "GetActorValue", false, [this, valueName](const NativeCall& c) {
+                double now = 0.0, max = 0.0;
+                (void)avNow(formOf(c.self), valueName(c), now, max);
+                return result(PapyrusValue::makeFloat(static_cast<float>(now)));
+            });
+            reg("Actor", "GetBaseActorValue", false, [this, valueName](const NativeCall& c) {
+                double now = 0.0, max = 0.0;
+                if (mHooks == nullptr || !mHooks->actorValue(formOf(c.self), valueName(c), now, max))
+                    return result(PapyrusValue::makeFloat(0.f));
+                return result(PapyrusValue::makeFloat(static_cast<float>(max > 0.0 ? max : now)));
+            });
+            reg("Actor", "GetActorValuePercentage", false, [this, valueName](const NativeCall& c) {
+                double now = 0.0, max = 0.0;
+                (void)avNow(formOf(c.self), valueName(c), now, max);
+                return result(PapyrusValue::makeFloat(max > 0.0 ? static_cast<float>(now / max) : 0.f));
+            });
+            reg("Actor", "SetActorValue", false, [this, valueName](const NativeCall& c) {
+                double now = 0.0, max = 0.0;
+                const FormId actor = formOf(c.self);
+                const std::string key = valueName(c);
+                (void)avNow(actor, key, now, max);
+                avMove(actor, key, argNumber(c, 1) - now);
+                return NativeResult{};
+            });
+            const auto change = [this, valueName](double sign) {
+                return [this, valueName, sign](const NativeCall& c) {
+                    avMove(formOf(c.self), valueName(c), sign * argNumber(c, 1));
+                    return NativeResult{};
+                };
+            };
+            reg("Actor", "ModActorValue", false, change(1.0));
+            reg("Actor", "RestoreActorValue", false, change(1.0));
+            reg("Actor", "DamageActorValue", false, change(-1.0));
+            reg("Actor", "IsDead", false,
+                [this](const NativeCall& c) { return result(PapyrusValue::makeBool(actorDead(formOf(c.self)))); });
+            reg("Actor", "Kill", false, [this](const NativeCall& c) {
+                const FormId actor = formOf(c.self);
+                if (actor != 0 && actor != kPlayerReference && !actorDead(actor) && mHooks != nullptr
+                    && mHooks->killActor(actor))
+                    mKilling.insert(actor);
+                return NativeResult{};
+            });
+            reg("Game", "GetFormFromFile", true, [this](const NativeCall& c) {
+                const std::string file = c.arguments.size() > 1 && c.arguments[1].kind == PapyrusKind::String
+                    ? lower(c.arguments[1].text)
+                    : std::string();
+                const FormId form = file.empty() ? 0 : mData.formFromFile(file, static_cast<std::uint32_t>(argInt(c, 0)));
+                return result(formValue(form));
+            });
         }
 
         // ---- tick --------------------------------------------------------------------------------------------------
@@ -1026,6 +1203,113 @@ namespace game_skyrimse
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesCompleted;
         std::uint64_t mObjectiveRevision = 0;
         std::string mStringScratch;
+        // ---- task 0198
+        PapyrusWorldHooks* mHooks = nullptr;
+        std::deque<std::string> mNotes;
+        std::uint64_t mNoteCount = 0;
+        std::map<std::pair<FormId, std::string>, double> mAvOffsets; ///< what scripts did to an actor value
+        std::set<FormId> mDead; ///< actors that died (OnDeath was raised)
+        std::set<FormId> mKilling; ///< Actor.Kill asked, the death not yet reported
+        /// AddInventoryEventFilter: per script instance owner (a form id, or an alias handle) the items its events are
+        /// limited to. No entry: every item.
+        std::map<FormId, std::set<FormId>> mInvFilters;
+
+        FormId instanceKey(const InstanceInfo& info)
+        {
+            return info.mIsAlias ? aliasHandle(info.mForm, info.mAlias) : info.mForm;
+        }
+
+        bool inventoryEventWanted(InstanceId instance, FormId item)
+        {
+            const auto info = mInstances.find(instance);
+            if (info == mInstances.end())
+                return false;
+            const auto filter = mInvFilters.find(instanceKey(info->second));
+            if (filter == mInvFilters.end())
+                return true;
+            bool any = false;
+            for (const FormId f : filter->second)
+            {
+                if (mHooks == nullptr || !mHooks->isItem(f))
+                    continue; // a form list or something unknown: cannot be expanded, so it restricts nothing
+                if (f == item)
+                    return true;
+                any = true;
+            }
+            return !any;
+        }
+
+        [[nodiscard]] bool actorDead(FormId actor) const
+        {
+            return mDead.count(actor) != 0 || mKilling.count(actor) != 0
+                || (mHooks != nullptr && mHooks->isDead(actor)) || mData.initiallyDead(actor);
+        }
+
+        // The reference an alias holds now: a script's ForceRefTo, else what the quest state filled (never fills).
+        FormId aliasReferenceOf(FormId quest, std::uint32_t alias) const
+        {
+            const auto forced = mAliasForced.find({ quest, alias });
+            if (forced != mAliasForced.end())
+                return forced->second;
+            if (mState != nullptr)
+            {
+                const AliasFill fill = mState->aliasFill(quest, alias);
+                if (fill.mKnown)
+                    return fill.mReference;
+            }
+            return 0;
+        }
+
+        // The instances on the reference and on every reference alias that holds it (events go to both).
+        std::vector<InstanceId> instancesHolding(FormId reference) const
+        {
+            std::vector<InstanceId> out = instancesOf(reference);
+            if (reference == 0)
+                return out;
+            for (const auto& [key, ids] : mByAlias)
+                if (aliasReferenceOf(key.first, key.second) == reference)
+                    out.insert(out.end(), ids.begin(), ids.end());
+            return out;
+        }
+
+        // The number an actor value has now: the pack's current value plus what scripts did to it (never below 0, never
+        // above the pack's maximum when it has one).
+        bool avNow(FormId actor, const std::string& key, double& current, double& maximum) const
+        {
+            current = 0.0;
+            maximum = 0.0;
+            const bool known = mHooks != nullptr && mHooks->actorValue(actor, key, current, maximum);
+            const auto offset = mAvOffsets.find({ actor, key });
+            if (offset != mAvOffsets.end())
+                current += offset->second;
+            if (known && maximum > 0.0)
+                current = std::min(current, maximum);
+            current = std::max(current, 0.0);
+            return known || offset != mAvOffsets.end();
+        }
+
+        // Moves an actor value by `delta` (health goes to the actor itself when the pack can write it).
+        void avMove(FormId actor, const std::string& key, double delta)
+        {
+            double current = 0.0, maximum = 0.0;
+            const bool known = avNow(actor, key, current, maximum);
+            if (key == "health" && known && mHooks != nullptr && mHooks->setHealth(actor, current + delta))
+            {
+                // the pack holds the number now: nothing of ours stays
+                mAvOffsets.erase({ actor, key });
+                return;
+            }
+            double target = current + delta;
+            if (maximum > 0.0)
+                target = std::min(target, maximum);
+            target = std::max(target, 0.0);
+            double base = 0.0, ignore = 0.0;
+            if (mHooks == nullptr || !mHooks->actorValue(actor, key, base, ignore))
+                base = 0.0;
+            if (mAvOffsets.size() >= kMaxAvOffsets && mAvOffsets.count({ actor, key }) == 0)
+                return;
+            mAvOffsets[{ actor, key }] = target - base;
+        }
     };
 
     namespace
@@ -1033,7 +1317,7 @@ namespace game_skyrimse
         // ---- the host's state as bytes (task 0181) -----------------------------------------------------------------
         // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before it.
         constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
-        constexpr std::uint32_t kStateVersion = 1;
+        constexpr std::uint32_t kStateVersion = 2; // 2 (task 0198) adds actor value changes and deaths; 1 is still read
         constexpr std::uint32_t kMaxEntries = 1u << 22; // a hostile count never allocates more than the bytes allow
 
         std::uint64_t fnv1a(const std::uint8_t* data, std::size_t size)
@@ -1297,6 +1581,24 @@ namespace game_skyrimse
                 w.u32(fill.mActor);
             }
         }
+        w.u32(static_cast<std::uint32_t>(mAvOffsets.size()));
+        for (const auto& [key, offset] : mAvOffsets)
+        {
+            w.u32(key.first);
+            w.str(key.second);
+            w.f64(offset);
+        }
+        w.u32(static_cast<std::uint32_t>(mDead.size()));
+        for (const FormId actor : mDead)
+            w.u32(actor);
+        w.u32(static_cast<std::uint32_t>(mInvFilters.size()));
+        for (const auto& [key, items] : mInvFilters)
+        {
+            w.u32(key);
+            w.u32(static_cast<std::uint32_t>(items.size()));
+            for (const FormId item : items)
+                w.u32(item);
+        }
         return w.finish();
     }
 
@@ -1318,7 +1620,8 @@ namespace game_skyrimse
         ByteReader r(bytes.first(bodySize));
         if (r.u32() != kStateMagic)
             return refuse("this is not a Papyrus state");
-        if (const std::uint32_t version = r.u32(); version != kStateVersion)
+        const std::uint32_t version = r.u32();
+        if (version != 1 && version != kStateVersion)
             return refuse("the Papyrus state has version " + std::to_string(version));
 
         struct LedgerEntry
@@ -1458,6 +1761,30 @@ namespace game_skyrimse
             }
             quests.push_back(std::move(q));
         }
+        std::map<std::pair<FormId, std::string>, double> avOffsets;
+        std::set<FormId> dead;
+        std::map<FormId, std::set<FormId>> filters;
+        if (version >= 2)
+        {
+            for (std::uint32_t i = 0, n = r.count(16); i < n; ++i)
+            {
+                const FormId actor = r.u32();
+                std::string name = r.str();
+                const double offset = r.f64();
+                if (!std::isfinite(offset) || avOffsets.size() >= kMaxAvOffsets)
+                    return refuse("the Papyrus state has a bad actor value change");
+                avOffsets[{ actor, std::move(name) }] = offset;
+            }
+            for (std::uint32_t i = 0, n = r.count(4); i < n; ++i)
+                dead.insert(r.u32());
+            for (std::uint32_t i = 0, n = r.count(8); i < n; ++i)
+            {
+                const FormId key = r.u32();
+                std::set<FormId>& items = filters[key];
+                for (std::uint32_t k = 0, nk = r.count(4); k < nk; ++k)
+                    items.insert(r.u32());
+            }
+        }
         if (r.failed())
             return refuse("the Papyrus state is damaged (a field runs past the end)");
         if (r.remaining() != 0)
@@ -1509,6 +1836,10 @@ namespace game_skyrimse
         mEnabled = std::move(enabled);
         mPositions = std::move(positions);
         mSpells = std::move(spells);
+        mAvOffsets = std::move(avOffsets);
+        mDead = std::move(dead);
+        mInvFilters = std::move(filters);
+        mKilling.clear();
         mAliasKeys = std::move(aliasKeys);
         mAliasByKey.clear();
         for (std::size_t i = 0; i < mAliasKeys.size(); ++i)
@@ -1549,6 +1880,87 @@ namespace game_skyrimse
     void PapyrusHost::setSceneControl(SceneControl* control)
     {
         mImpl->mScenes = control;
+    }
+
+    // ---- task 0198 ----
+
+    void PapyrusHost::setWorldHooks(PapyrusWorldHooks* hooks)
+    {
+        mImpl->mHooks = hooks;
+    }
+
+    void PapyrusHost::onItemMoved(FormId from, FormId to, FormId item, std::int32_t count)
+    {
+        Impl& m = *mImpl;
+        if (count <= 0 || item == 0)
+            return;
+        const PapyrusValue base = m.formValue(item);
+        if (to != 0)
+            for (const InstanceId instance : m.instancesHolding(to))
+                if (m.inventoryEventWanted(instance, item)
+                    && m.sendEvent(instance, "OnItemAdded",
+                        { base, PapyrusValue::makeInt(count), PapyrusValue::makeNone(), m.formValue(from) }))
+                    ++m.mCounters.mItemEvents;
+        if (from != 0)
+            for (const InstanceId instance : m.instancesHolding(from))
+                if (m.inventoryEventWanted(instance, item)
+                    && m.sendEvent(instance, "OnItemRemoved",
+                        { base, PapyrusValue::makeInt(count), PapyrusValue::makeNone(), m.formValue(to) }))
+                    ++m.mCounters.mItemEvents;
+        // scripts on the item form itself (a script on a MISC base) hear of the new container
+        for (const InstanceId instance : m.instancesOf(item))
+            if (m.sendEvent(instance, "OnContainerChanged", { m.formValue(to), m.formValue(from) }))
+                ++m.mCounters.mItemEvents;
+    }
+
+    void PapyrusHost::onActorHit(FormId victim, FormId attacker, bool blocked, bool bash)
+    {
+        Impl& m = *mImpl;
+        for (const InstanceId instance : m.instancesHolding(victim))
+            if (m.sendEvent(instance, "OnHit",
+                    { m.formValue(attacker), PapyrusValue::makeNone(), PapyrusValue::makeNone(),
+                        PapyrusValue::makeBool(false), PapyrusValue::makeBool(false), PapyrusValue::makeBool(bash),
+                        PapyrusValue::makeBool(blocked) }))
+                ++m.mCounters.mCombatEvents;
+    }
+
+    void PapyrusHost::onActorDied(FormId victim, FormId killer)
+    {
+        Impl& m = *mImpl;
+        m.mKilling.erase(victim);
+        if (!m.mDead.insert(victim).second)
+            return;
+        for (const InstanceId instance : m.instancesHolding(victim))
+        {
+            if (m.sendEvent(instance, "OnDying", { m.formValue(killer) }))
+                ++m.mCounters.mCombatEvents;
+            if (m.sendEvent(instance, "OnDeath", { m.formValue(killer) }))
+                ++m.mCounters.mCombatEvents;
+        }
+    }
+
+    std::uint64_t PapyrusHost::notificationCount() const
+    {
+        return mImpl->mNoteCount;
+    }
+
+    std::string PapyrusHost::notificationAt(std::uint64_t number) const
+    {
+        const Impl& m = *mImpl;
+        if (number == 0 || number > m.mNoteCount || m.mNoteCount - number >= m.mNotes.size())
+            return {};
+        return m.mNotes[m.mNotes.size() - 1 - static_cast<std::size_t>(m.mNoteCount - number)];
+    }
+
+    std::vector<std::pair<std::string, std::uint64_t>> PapyrusHost::tolerantRanking() const
+    {
+        std::vector<std::pair<std::string, std::uint64_t>> out;
+        for (const auto& [name, calls] : mImpl->mRuntime->stats().unregisteredByName)
+            out.emplace_back(lower(name), calls);
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            return a.second != b.second ? a.second > b.second : a.first < b.first;
+        });
+        return out;
     }
 
     std::size_t PapyrusHost::runSceneFragment(

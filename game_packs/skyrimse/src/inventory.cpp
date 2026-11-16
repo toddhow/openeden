@@ -626,6 +626,27 @@ namespace game_skyrimse::inventory
         mTouched.insert(from);
         mTouched.insert(to);
         ++mRevision;
+        if (mSink)
+            mSink(from, to, item, count);
+        return TransferStatus::Ok;
+    }
+
+    TransferStatus InventoryModel::add(std::uint64_t owner, FormId item, std::int32_t count)
+    {
+        const auto it = mOwners.find(owner);
+        if (it == mOwners.end())
+            return TransferStatus::UnknownOwner;
+        if (count <= 0 || count > kMaxStackCount || item == kNullFormId)
+            return TransferStatus::BadCount;
+        const auto have = it->second.find(item);
+        const std::int64_t now = have == it->second.end() ? 0 : have->second;
+        if (now + count > kMaxStackCount)
+            return TransferStatus::BadCount;
+        it->second[item] = static_cast<std::int32_t>(now + count);
+        mTouched.insert(owner);
+        ++mRevision;
+        if (mSink)
+            mSink(kNoOwner, owner, item, count);
         return TransferStatus::Ok;
     }
 
@@ -879,6 +900,8 @@ namespace game_skyrimse::inventory
         }
         mTouched.insert(owner);
         ++mRevision;
+        if (mSink)
+            mSink(owner, kNoOwner, item, count);
         return TransferStatus::Ok;
     }
 

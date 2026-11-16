@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -94,6 +95,8 @@ namespace ScriptPapyrus
         std::uint64_t scriptCalls = 0;
         std::uint64_t nativeCalls = 0; ///< A registered handler ran.
         std::uint64_t unregisteredNativeCalls = 0; ///< Tolerant mode: a declared native with no handler, zero returned.
+        /// Task 0198: the same calls by "Class.Function" (as declared), for a measurement of what a host still lacks.
+        std::map<std::string, std::uint64_t> unregisteredByName;
         std::uint64_t latentSkipped = 0; ///< Tolerant mode: a latent native, zero returned (stage d runs them).
         std::uint64_t noneReceiverCalls = 0; ///< Tolerant mode: a call on None, zero returned.
         std::uint64_t missingClassCalls = 0; ///< Tolerant mode: a call into a class that is not loaded, zero returned.

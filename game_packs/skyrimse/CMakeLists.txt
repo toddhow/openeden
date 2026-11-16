@@ -29,6 +29,7 @@ openeden_add_game_pack(skyrimse
         src/quest_alias.cpp
         src/vmad.cpp
         src/papyrus_host.cpp
+        src/papyrus_world.cpp
         src/appearance.cpp
         src/land.cpp
         src/grass.cpp
@@ -84,6 +85,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/quest_script.hpp
         include/game_skyrimse/vmad.hpp
         include/game_skyrimse/papyrus_host.hpp
+        include/game_skyrimse/papyrus_world.hpp
         include/game_skyrimse/appearance.hpp
         include/game_skyrimse/land.hpp
         include/game_skyrimse/grass.hpp
@@ -149,6 +151,7 @@ add_library(game_skyrimse_world STATIC
     src/quest_alias.cpp
     src/vmad.cpp
     src/papyrus_host.cpp
+    src/papyrus_world.cpp
     src/appearance.cpp
     src/land.cpp
     src/grass.cpp

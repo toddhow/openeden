@@ -186,6 +186,7 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/barter_global.lua
     scripts/openeden/skyrimse/barter_player.lua
     scripts/openeden/skyrimse/journal_player.lua
+    scripts/openeden/skyrimse/papyrus_player.lua
     scripts/omw/usehandlers.lua
     scripts/omw/worldeventhandlers.lua
     scripts/omw/input/settings.lua

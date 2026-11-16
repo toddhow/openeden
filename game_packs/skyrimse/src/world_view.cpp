@@ -2112,6 +2112,17 @@ namespace game_skyrimse
         return true;
     }
 
+    FormId SkyrimWorldView::formFromFile(std::string_view lowerFile, std::uint32_t local) const
+    {
+        if (mBuilding.load(std::memory_order_acquire) || mFailed.load(std::memory_order_acquire))
+            return 0;
+        const std::optional<FormId> prefix = mOrder.prefixOf(lowerFile);
+        if (!prefix)
+            return 0;
+        // a light plugin has 12 bits of local id, a normal one 24 (the master index of the stored id is not asked)
+        return *prefix | (local & (mOrder.isLight(lowerFile) ? 0xFFFu : 0xFFFFFFu));
+    }
+
     bool SkyrimWorldView::inventoryInputs(std::vector<std::filesystem::path>& paths, LoadOrder& order,
         std::vector<LeveledList>& leveled) const
     {

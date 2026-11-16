@@ -250,6 +250,14 @@ namespace game_skyrimse
             [[nodiscard]] float weightOf(std::uint64_t owner, const ItemTable& table) const;
 
             [[nodiscard]] TransferStatus transfer(std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count);
+
+            /// Task 0198 (the one hook of the Papyrus natives): items that appear from nowhere (a script's AddItem), and a
+            /// sink that is told of every change of any list: the owner it left (kNoOwner: none), the owner it joined
+            /// (kNoOwner: none), the item and the count. Main thread; a sink must not change the model.
+            static constexpr std::uint64_t kNoOwner = ~std::uint64_t(0);
+            using ChangeSink = std::function<void(std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count)>;
+            void setChangeSink(ChangeSink sink) { mSink = std::move(sink); }
+            [[nodiscard]] TransferStatus add(std::uint64_t owner, FormId item, std::int32_t count);
             /// Moves every stack; `moved` is how many items (the sum of counts). SameOwner and UnknownOwner as above.
             [[nodiscard]] TransferStatus transferAll(std::uint64_t from, std::uint64_t to, std::int64_t& moved);
 
@@ -285,6 +293,7 @@ namespace game_skyrimse
         private:
             bool unequipRaw(FormId item);
             std::map<std::uint64_t, std::map<FormId, std::int32_t>> mOwners;
+            ChangeSink mSink; ///< task 0198
             std::set<std::uint64_t> mTouched; ///< owners that have had a transfer (the player is always saved)
             std::vector<EquippedItem> mEquipped; ///< task 0184
             std::uint32_t mEquipmentRevision = 0;

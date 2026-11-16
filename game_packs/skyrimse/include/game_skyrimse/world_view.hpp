@@ -408,6 +408,10 @@ namespace game_skyrimse
         /// stand-in's. Applied when the dialogue runtime is built (set it before the first conversation).
         void setPlayerGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
 
+        /// Task 0198: Game.GetFormFromFile. The load-order id of local id `local` of the plugin `lowerFile` (lower case);
+        /// 0 when the index is not built or the plugin is not in the order. Main thread.
+        [[nodiscard]] FormId formFromFile(std::string_view lowerFile, std::uint32_t local) const;
+
         // ---- task 0182 (inventory)
         /// What the inventory reader needs, copied out once the index is built (false before: ask again, nothing
         /// waits). `leveled` gets every plugin's leveled lists in load order (the reader keeps the later one).

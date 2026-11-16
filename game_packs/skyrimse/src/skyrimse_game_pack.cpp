@@ -43,6 +43,13 @@ namespace game_skyrimse
         // Task 0176 (milestone M-S6): what the Papyrus host reads from the pack. Scripts come through the session's
         // VFS (scripts/<name>.pex, usually in "Skyrim - Misc.bsa"); a form's class and position from the quest index
         // and the placed reference table the dialogue worker built.
+        std::string hexOf(FormId id) // task 0198: log lines
+        {
+            char buffer[16];
+            std::snprintf(buffer, sizeof(buffer), "%08X", id);
+            return buffer;
+        }
+
         class PackPapyrusData final : public PapyrusGameData
         {
         public:
@@ -91,6 +98,22 @@ namespace game_skyrimse
                 return entry != nullptr ? entry->mBase : 0;
             }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
+            // Task 0198
+            FormId linkedRef(FormId reference, FormId keyword) const override
+            {
+                FormId out = 0;
+                return mView.linkedRef(reference, keyword, out) ? out : 0;
+            }
+            bool initiallyDead(FormId actor) const override
+            {
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(actor) : nullptr;
+                return entry != nullptr && (entry->mFlags & PlacedFlags::Dead) != 0;
+            }
+            FormId formFromFile(std::string_view lowerFile, std::uint32_t local) const override
+            {
+                return mView.formFromFile(lowerFile, local);
+            }
             bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
@@ -313,6 +336,14 @@ namespace game_skyrimse
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS events " + events);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS natives " + natives);
                 say(openeden::sdk::LogLevel::Info, "PAPYRUS tolerant " + tolerant);
+                std::string ranking; // task 0198: the calls behind the names, most first
+                for (const auto& [name, calls] : mHost.tolerantRanking())
+                    ranking += (ranking.empty() ? "" : ",") + name + "=" + std::to_string(calls);
+                say(openeden::sdk::LogLevel::Info, "PAPYRUS tolerantcalls " + ranking);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS item events " + std::to_string(c.mItemEvents) + ", combat events "
+                        + std::to_string(c.mCombatEvents) + ", notifications "
+                        + std::to_string(mHost.notificationCount()));
             }
 
             [[nodiscard]] PapyrusHost& host() { return mHost; }
@@ -723,6 +754,7 @@ namespace game_skyrimse
                     startInventory(host, logger);
                     // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
                     startBarter(host, logger);
+                    wirePapyrusWorld(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
                     startJournal(host, logger);
                     std::string error;
@@ -747,6 +779,7 @@ namespace game_skyrimse
 
             void stop() override
             {
+                unwirePapyrusWorld();
                 if (mPapyrus != nullptr)
                 {
                     mPapyrus->summary();
@@ -762,6 +795,7 @@ namespace game_skyrimse
 
             ~SkyrimGamePack() override
             {
+                unwirePapyrusWorld();
                 mPapyrus.reset();
                 mWorldView.cancelAndJoin();
                 withdrawWorldSource();
@@ -769,6 +803,136 @@ namespace game_skyrimse
             }
 
         private:
+            // Task 0198: the Papyrus host's reach into the inventory and combat (see papyrus_world.hpp). Needs the host;
+            // the inventory natives need the inventory (setting `inventory`), the combat events need combat to run.
+            void wirePapyrusWorld(openeden::sdk::Host& sdkHost, openeden::sdk::Logger* logger)
+            {
+                if (mPapyrus == nullptr)
+                    return;
+                PapyrusHost& host = mPapyrus->host();
+                PackWorldEnv env;
+                if (mInventory != nullptr)
+                {
+                    env.model = [this]() -> inventory::InventoryModel* {
+                        return mInventory != nullptr ? &mInventory->model() : nullptr;
+                    };
+                    env.ensureOwner = [this](std::uint64_t owner, FormId reference) {
+                        if (mInventory == nullptr)
+                            return false;
+                        const PlacedRefIndex* refs = mWorldView.placedRefs();
+                        const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                        if (entry == nullptr || entry->mBase == 0)
+                            return false;
+                        return mInventory->open(
+                            owner, entry->mBase, (entry->mFlags & PlacedFlags::IsActor) != 0 ? "actor" : "container");
+                    };
+                }
+                env.actorValue = [this](FormId actor, std::string_view name, double& current, double& maximum) {
+                    if (actor == kPapyrusPlayerReference)
+                    {
+                        const HudSnapshot& hud = mCellSource.hud().snapshot();
+                        if (name == "health")
+                            current = hud.mPlayerHealth, maximum = hud.mPlayerHealthMax;
+                        else if (name == "magicka")
+                            current = hud.mPlayerMagicka, maximum = hud.mPlayerMagickaMax;
+                        else if (name == "stamina")
+                            current = hud.mPlayerStamina, maximum = hud.mPlayerStaminaMax;
+                        else
+                            return false;
+                        return maximum > 0.0;
+                    }
+                    const openeden::sdk::game::ActorHandle handle = mCellSource.actorTable().handleOf(actor);
+                    SkyrimCombat::FighterView view;
+                    if (!handle.valid()
+                        || !mCellSource.combat().fighterView(openeden::sdk::game::CombatSubject::of(handle), view))
+                        return false;
+                    if (name == "health")
+                        current = view.mHealth, maximum = view.mHealthMax;
+                    else if (name == "magicka")
+                        current = view.mMagicka, maximum = view.mMagickaMax;
+                    else if (name == "stamina")
+                        current = view.mStamina, maximum = view.mStaminaMax;
+                    else
+                        return false;
+                    return true;
+                };
+                env.setHealth = [this](FormId actor, double health) {
+                    if (actor == kPapyrusPlayerReference)
+                        return false; // the engine owns the player's health: nothing here writes it
+                    if (health <= 0.0)
+                        return mCellSource.scriptBridge().queueKill(actor);
+                    const openeden::sdk::game::ActorHandle handle = mCellSource.actorTable().handleOf(actor);
+                    return handle.valid()
+                        && mCellSource.combat().setFighterHealth(
+                            openeden::sdk::game::CombatSubject::of(handle), static_cast<float>(health));
+                };
+                env.isDead = [this](FormId actor) {
+                    const openeden::sdk::game::CombatSubject subject = actor == kPapyrusPlayerReference
+                        ? openeden::sdk::game::CombatSubject::ofPlayer()
+                        : openeden::sdk::game::CombatSubject::of(mCellSource.actorTable().handleOf(actor));
+                    SkyrimCombat::FighterView view;
+                    return subject.valid() && mCellSource.combat().fighterView(subject, view) && view.mDead;
+                };
+                env.queueKill = [this](FormId actor) { return mCellSource.scriptBridge().queueKill(actor); };
+                env.isItem = [this](FormId form) { return mInventory != nullptr && mInventory->table().item(form) != nullptr; };
+                mPapyrusHooks = std::make_unique<PackWorldHooks>(std::move(env));
+                host.setWorldHooks(mPapyrusHooks.get());
+                if (mInventory != nullptr)
+                    mInventory->model().setChangeSink(
+                        [&host, logger](std::uint64_t from, std::uint64_t to, FormId item, std::int32_t count) {
+                            if (logger != nullptr)
+                                logger->log(openeden::sdk::LogLevel::Info,
+                                    "PAPYRUS item " + hexOf(item) + " x" + std::to_string(count) + " from "
+                                        + hexOf(PackWorldHooks::referenceOf(from)) + " to "
+                                        + hexOf(PackWorldHooks::referenceOf(to)));
+                            host.onItemMoved(PackWorldHooks::referenceOf(from), PackWorldHooks::referenceOf(to), item, count);
+                        });
+                mCellSource.scriptBridge().setSinks(
+                    [&host, logger](FormId victim, FormId attacker, bool blocked, bool bash) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "PAPYRUS hit on " + hexOf(victim) + " by " + hexOf(attacker) + (blocked ? " (blocked)" : ""));
+                        host.onActorHit(victim, attacker, blocked, bash);
+                    },
+                    [&host, logger](FormId victim, FormId killer) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info,
+                                "PAPYRUS death of " + hexOf(victim) + " killer " + hexOf(killer));
+                        host.onActorDied(victim, killer);
+                    },
+                    [this](FormId actor, openeden::sdk::game::CombatRequestWriter& writer) {
+                        const openeden::sdk::game::ActorHandle handle = mCellSource.actorTable().handleOf(actor);
+                        if (!handle.valid())
+                            return;
+                        (void)writer.reportDeath(handle);
+                        (void)mCellSource.combat().setFighterHealth(
+                            openeden::sdk::game::CombatSubject::of(handle), 0.f);
+                    });
+                if (openeden::sdk::BindingsService* const bindings = sdkHost.getBindingsService())
+                {
+                    mPapyrusBindings = std::make_unique<PapyrusNotificationBindings>(host);
+                    const openeden::sdk::DeclareResult declared = mPapyrusBindings->declareTo(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the Papyrus notification package was refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info,
+                        std::string("PAPYRUS the world natives are wired (inventory ")
+                            + (mInventory != nullptr ? "on" : "off") + ")");
+            }
+
+            void unwirePapyrusWorld()
+            {
+                if (mPapyrus != nullptr)
+                    mPapyrus->host().setWorldHooks(nullptr);
+                if (mInventory != nullptr)
+                    mInventory->model().setChangeSink({});
+                mCellSource.scriptBridge().setSinks({}, {}, {});
+                mPapyrusBindings.reset();
+                mPapyrusHooks.reset();
+            }
+
             // Task 0185: the quest journal (the namespace skyrimse.journal over the dialogue runtime's quest state). It
             // needs no polling: the first script read asks for the quest data and a read rebuilds what changed. The
             // objective flags are the Papyrus host's (Quest.SetObjectiveDisplayed and SetObjectiveCompleted); without
@@ -1348,7 +1512,9 @@ namespace game_skyrimse
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             bool mEquipPending = false;
             std::unique_ptr<PapyrusDriver> mPapyrus; // refers to the view and the file source
-            std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; last: refers to mPapyrus
+            std::unique_ptr<PapyrusSaveChunk> mPapyrusChunk; // task 0181; refers to mPapyrus
+            std::unique_ptr<PapyrusNotificationBindings> mPapyrusBindings; // task 0198
+            std::unique_ptr<PackWorldHooks> mPapyrusHooks; // task 0198; last: the host and the model refer to it
         };
     }
 
