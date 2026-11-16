@@ -225,6 +225,15 @@ namespace game_skyrimse
         float mAttachedArrowAgeMax = 10.f; ///< fAttachedArrowAgeMax: seconds a stuck arrow stays
     };
 
+    /// Task 0186 (stage S5-8): the magic numbers read from GMSTs. The values are VERIFIED by the data census (note 0056
+    /// section 2); how they are used is RECALLED-VERIFY.
+    struct MagicSettings
+    {
+        float mWardPowerMaxBase = 1.3f; ///< fMagicWardPowerMaxBase: a ward holds this times its Peak magnitude at most
+        float mWardPowerMaxMult = 0.f; ///< fMagicWardPowerMaxMult: the part that grows with the skill (0 in the data)
+        float mDamagedMagickaRegenDelay = 0.5f; ///< fDamagedMagickaRegenDelay: seconds after spending before regeneration
+    };
+
     /// The GMSTs of a load order by editor id (later plugins win).
     class SettingsTable
     {
@@ -242,6 +251,8 @@ namespace game_skyrimse
         [[nodiscard]] BlockSettings blockSettings() const;
         /// Task 0178: the arrow numbers (a GMST the table has replaces the default).
         [[nodiscard]] ProjectileSettings projectileSettings() const;
+        /// Task 0186: the ward and magicka regeneration numbers.
+        [[nodiscard]] MagicSettings magicSettings() const;
 
     private:
         std::map<std::string, float> mValues;
@@ -267,6 +278,9 @@ namespace game_skyrimse
         [[nodiscard]] const MagicEffectRecord* magicEffect(FormId id) const override;
         /// The PERK with this editor id (case-insensitive), or 0.
         [[nodiscard]] FormId perkByEditorId(const std::string& editorId) const;
+        /// Task 0186: the SPEL with this editor id (case-insensitive), or null.
+        [[nodiscard]] const SpellRecord* spellByEditorId(const std::string& editorId) const;
+        [[nodiscard]] std::vector<FormId> spellIds() const; ///< sorted
         [[nodiscard]] std::size_t perkCount() const { return mPerks.size(); }
         [[nodiscard]] std::vector<FormId> perkIds() const; ///< sorted
 

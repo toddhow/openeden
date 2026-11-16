@@ -19,6 +19,7 @@
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
 #include <game_skyrimse/combat_stats.hpp>
+#include <game_skyrimse/magic.hpp>
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -65,6 +66,34 @@ namespace game_skyrimse
     inline constexpr std::string_view kCombatPerksKey = "combat perks";
     inline constexpr std::string_view kCombatTestPlayerPerksKey = "combat test player perks";
     inline constexpr std::string_view kCombatTestNpcPerksKey = "combat test npc perks";
+    /// Task 0186 (stage S5-8) test settings, all off by default. `combat test player spell`: the SPEL (editor id) the
+    /// player's attack control casts in place of a swing; `combat test player cast every` presses it automatically
+    /// every N seconds (0: the real key only) and `combat test player cast hold` is how long an automatic press holds
+    /// (a concentration spell lasts that long). `combat test cast` is a comma separated list of `actor:spell` (editor
+    /// ids): that actor casts the spell every `combat test cast every` seconds (default 4, first cast after one period),
+    /// a concentration spell for `combat test cast hold` seconds (default 3). `combat test spell conditions` applies
+    /// the effects of a spell that carry conditions the pack cannot evaluate (the perk-gated Stagger and Demoralize
+    /// effects of Firebolt), which are otherwise skipped.
+    inline constexpr std::string_view kCombatTestPlayerSpellKey = "combat test player spell";
+    inline constexpr std::string_view kCombatTestPlayerCastEveryKey = "combat test player cast every";
+    inline constexpr std::string_view kCombatTestPlayerCastHoldKey = "combat test player cast hold";
+    inline constexpr std::string_view kCombatTestCastKey = "combat test cast";
+    inline constexpr std::string_view kCombatTestCastEveryKey = "combat test cast every";
+    inline constexpr std::string_view kCombatTestCastHoldKey = "combat test cast hold";
+    inline constexpr std::string_view kCombatTestSpellConditionsKey = "combat test spell conditions";
+    inline constexpr float kDefaultCastPeriod = 4.f;
+    inline constexpr float kDefaultCastHold = 3.f;
+    /// A cast waiting for its clip's SpellFire event gives up after this many seconds (the clip never sent it).
+    inline constexpr float kCastEventTimeoutSeconds = 3.f;
+    /// How often a held concentration spell writes a trace line (seconds).
+    inline constexpr float kConcentrationTraceSeconds = 1.f;
+    /// The most concentrations held, casts waiting and spell shots remembered at once.
+    inline constexpr std::size_t kMaxConcentrations = 32;
+    inline constexpr std::size_t kMaxSpellShots = 64;
+    inline constexpr std::size_t kMaxCasts = 32;
+    inline constexpr std::size_t kMaxTestCasters = 16;
+    inline constexpr std::size_t kMaxTestCastListBytes = 1024;
+
     /// Where an arrow leaves an archer: above its feet and ahead of its centre (game units; ours, tunable).
     inline constexpr float kBowReleaseHeight = 100.f;
     inline constexpr float kBowMuzzleForward = 30.f;
@@ -85,6 +114,10 @@ namespace game_skyrimse
     inline constexpr std::size_t kMaxShotsRemembered = 64;
     /// Seconds between the presses of `combat test player bow`.
     inline constexpr float kPlayerBowPeriod = 4.f;
+
+    /// The columns of SlotTable::magic().
+    inline constexpr std::uint8_t kMagicAimed = 0;
+    inline constexpr std::uint8_t kMagicSelf = 1;
 
     /// Skill slot of Block in ActorStats::skills (actor value 9; the skills start at 6 with One-handed: RECALLED-VERIFY
     /// from the engine's actor value order, which the data agrees with for 6, 7 and 8).
@@ -138,6 +171,8 @@ namespace game_skyrimse
         float mUnarmedDamage = 0.f;
         float mUnarmedReach = 0.f;
         std::array<std::uint8_t, openeden::sdk::game::kActorSkillCount> mSkills{};
+        float mMagickaMax = 0.f; ///< task 0186
+        float mMagickaRegenPercent = 0.f; ///< percent of the maximum a second (RACE DATA +88)
         // Task 0179 (perks), everything empty by default: with no perks, no abilities and no armour pieces nothing
         // below is read and every number is the one the fields above give.
         std::vector<FormId> mPerks; ///< PERK forms (NPC_ PRKR plus the test settings), sorted and unique
@@ -185,6 +220,29 @@ namespace game_skyrimse
             return nullptr;
         }
         virtual ProjectileSettings projectileSettings() { return {}; }
+        /// Task 0186: the SPEL with this editor id (case-insensitive), or null; a SPEL and an MGEF by form id (default:
+        /// the perk library's); a PROJ by form id; the ward and magicka regeneration numbers.
+        virtual const SpellRecord* spellByEditorId(std::string_view editorId)
+        {
+            (void)editorId;
+            return nullptr;
+        }
+        virtual const SpellRecord* spellById(FormId id)
+        {
+            const PerkLibrary* library = perkLibrary();
+            return library != nullptr ? library->spell(id) : nullptr;
+        }
+        virtual const MagicEffectRecord* effectById(FormId id)
+        {
+            const PerkLibrary* library = perkLibrary();
+            return library != nullptr ? library->magicEffect(id) : nullptr;
+        }
+        virtual const ProjectileRecord* projectileById(FormId id)
+        {
+            (void)id;
+            return nullptr;
+        }
+        virtual MagicSettings magicSettings() { return {}; }
         /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
         virtual BlockSettings blockSettings() { return {}; }
         /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
@@ -227,6 +285,12 @@ namespace game_skyrimse
         /// 1.667 playback seconds) and `Bow_Release` (arrowRelease 0.033), read from `animationdata/defaultmale.txt`
         /// and the listing of Skyrim - Animations.bsa. A separate table so that humanoid() keeps its seven entries.
         [[nodiscard]] static SlotTable bow();
+
+        /// Task 0186: the cast clips (slot Cast): the aimed release `MRh_Release` (event MRh_SpellFire_Event at 0.167
+        /// playback seconds) under kMagicAimed and the self release `MRh_SelfRelease` (0.367) under kMagicSelf, read
+        /// from `animationdata/defaultmale.txt` and the listing of Skyrim - Animations.bsa. The "weapon animation type"
+        /// column is the delivery class here.
+        [[nodiscard]] static SlotTable magic();
 
         /// Number of (slot, weapon type) entries.
         [[nodiscard]] std::size_t size() const { return mCount; }
@@ -294,6 +358,26 @@ namespace game_skyrimse
         void setTestNpcPerks(std::string_view list) { mTestNpcPerks = std::string(list); }
         [[nodiscard]] std::size_t perkEffectsApplied() const { return mPerkEffectsApplied; }
         void setTestPlayerBow(float holdSeconds);
+
+        /// Task 0186 (stage S5-8), all off by default. The SPEL the player's attack control casts (case-insensitive
+        /// editor id; empty: the control swings; false when too long), the seconds between automatic presses (0,
+        /// negative or not finite: the real key only) and how long an automatic press holds.
+        bool setTestPlayerSpell(std::string_view editorId);
+        void setTestPlayerCastEvery(float seconds);
+        void setTestPlayerCastHold(float seconds);
+        /// `actor:spell,actor:spell` (editor ids): the named actors cast. False (nothing set) for a list that is too
+        /// long or has an entry without a colon.
+        bool setTestCasts(std::string_view list);
+        void setTestCastEvery(float seconds);
+        void setTestCastHold(float seconds);
+        void setTestSpellConditions(bool apply) { mApplyEffectConditions = apply; }
+        [[nodiscard]] std::size_t spellsCast() const { return mSpellsCast; }
+        [[nodiscard]] std::size_t effectsApplied() const { return mEffectsApplied; }
+        [[nodiscard]] std::size_t effectsEnded() const { return mEffectsEnded; }
+        [[nodiscard]] std::size_t activeEffects() const { return mEffects.size(); }
+        [[nodiscard]] std::size_t concentrationsHeld() const { return mConcentrations.size(); }
+        [[nodiscard]] std::size_t spellShotsRemembered() const { return mSpellShots.size(); }
+        [[nodiscard]] std::size_t castsWaiting() const { return mCasts.size(); }
         void onProjectileResult(const openeden::sdk::game::ProjectileResult& result) override;
         void onPlayerAttackEdge(bool pressed) override;
         /// Task 0184: what the PLAYER wields and wears, from the inventory. A melee weapon replaces the test weapon for
@@ -331,6 +415,10 @@ namespace game_skyrimse
             bool mStaggered = false; ///< a stagger clip is playing
             bool mBlocking = false; ///< the block rule holds now
             std::uint32_t mArrowsKept = 0; ///< task 0178: arrows that ended in this fighter's inventory
+            float mMagicka = 0.f; ///< task 0186
+            float mMagickaMax = 0.f;
+            float mWardPower = 0.f;
+            bool mDemoralized = false;
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
 
@@ -387,6 +475,11 @@ namespace game_skyrimse
                 = Bow::None;
             std::uint32_t mBowToken = 0;
             std::uint32_t mArrowsKept = 0;
+            float mMagicka = 0.f; ///< task 0186
+            float mWardPower = 0.f; ///< what a ward holds now
+            float mWardMax = 0.f;
+            float mMagickaRegenAt = 0.f; ///< the combat clock at which regeneration may resume
+            float mDemoralizedUntil = -1.f;
             std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
             std::vector<FormId> mWornKeywords; ///< task 0179
         };
@@ -434,6 +527,35 @@ namespace game_skyrimse
         void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
         [[nodiscard]] bool bowReady();
+        // Task 0186 (stage S5-8): the magic runtime (combat_magic.cpp).
+        struct Cast;
+        void updateMagic(openeden::sdk::game::CombatRequestWriter& writer, float step);
+        void resolveTestCasts();
+        void startTestCasts(openeden::sdk::game::CombatRequestWriter& writer);
+        void runPlayerCast(openeden::sdk::game::CombatRequestWriter& writer);
+        bool beginCast(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell,
+            bool heldByKey, float holdSeconds);
+        void fireCast(openeden::sdk::game::CombatRequestWriter& writer, const Cast& cast);
+        void tickConcentrations(openeden::sdk::game::CombatRequestWriter& writer, float step);
+        void endConcentration(std::size_t index, const char* why);
+        void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
+            const SpellRecord& spell, const openeden::sdk::game::SweepHit* where);
+        void applyOneEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
+            const SpellRecord& spell, const SpellEffect& effect, const MagicEffectRecord& record, bool& blocked,
+            const openeden::sdk::game::SweepHit* where);
+        /// Changes one of the target's vitals by `delta` (clamped to [0, maximum]); the damage of a hit on health is
+        /// reported and a death handled. Returns the change that really happened (signed).
+        float changeVital(openeden::sdk::game::CombatRequestWriter& writer, Fighter* source, Fighter& target,
+            std::int32_t value, float delta, const openeden::sdk::game::SweepHit* where);
+        [[nodiscard]] bool isBusyCasting(const openeden::sdk::game::CombatSubject& subject) const;
+        [[nodiscard]] bool isBusyConcentrating(const openeden::sdk::game::CombatSubject& subject) const;
+        void cancelCastsOf(const openeden::sdk::game::CombatSubject& subject);
+        void tickEffects(openeden::sdk::game::CombatRequestWriter& writer, float step);
+        [[nodiscard]] float resistOf(const Fighter& fighter, std::int32_t resistValue);
+        [[nodiscard]] bool launchSpell(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster,
+            const SpellRecord& spell, const openeden::sdk::game::SubjectState* target);
+        [[nodiscard]] bool resolveSpellShot(
+            openeden::sdk::game::CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result);
         void beginBowDraw(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter);
         void releaseBow(openeden::sdk::game::CombatRequestWriter& writer, Fighter& fighter, std::uint32_t token);
         bool launchArrow(openeden::sdk::game::CombatRequestWriter& writer, Fighter& archer, float draw,
@@ -497,6 +619,67 @@ namespace game_skyrimse
         std::vector<Shot> mShots; ///< task 0178
         std::vector<openeden::sdk::game::ProjectileResult> mProjectileResults; ///< told, resolved in combatUpdate
         SlotTable mBowSlots;
+        SlotTable mMagicSlots;
+        // Task 0186. A cast: an NPC's waits for its clip's SpellFire event; the player's waits for a time.
+        struct Cast
+        {
+            openeden::sdk::game::CombatSubject mCaster;
+            const SpellRecord* mSpell = nullptr;
+            std::uint32_t mToken = 0; ///< the clip's token (0 for the player)
+            float mFireAt = -1.f; ///< the player's: the combat clock at which the spell goes
+            float mStarted = 0.f;
+            float mHold = 0.f; ///< a concentration spell: seconds to hold
+            bool mHeldByKey = false; ///< the player's real key: held until the release edge
+            bool mFireSeen = false; ///< the SpellFire event came
+        };
+        struct Concentration
+        {
+            openeden::sdk::game::CombatSubject mCaster;
+            const SpellRecord* mSpell = nullptr;
+            float mEndAt = -1.f; ///< the combat clock; negative: until released
+            float mTraceAt = 0.f;
+            bool mHeldByKey = false;
+        };
+        struct SpellShot
+        {
+            std::uint32_t mToken = 0;
+            openeden::sdk::game::CombatSubject mOwner;
+            const SpellRecord* mSpell = nullptr;
+        };
+        struct TestCaster
+        {
+            std::string mActor; ///< lower case editor id
+            std::string mSpellName; ///< lower case editor id
+            const SpellRecord* mSpell = nullptr;
+            bool mLooked = false;
+            openeden::sdk::game::ActorHandle mHandle;
+            float mNext = 0.f;
+        };
+        EffectList mEffects;
+        std::vector<Cast> mCasts;
+        std::vector<Concentration> mConcentrations;
+        std::vector<SpellShot> mSpellShots;
+        std::vector<TestCaster> mTestCasters;
+        std::vector<std::pair<openeden::sdk::game::ActorHandle, std::string>> mActorNames; ///< lower case editor ids
+        bool mPlayerCastWanted = false; ///< a press waits for the cast clip's timing
+        float mPlayerCastWantedAt = 0.f;
+        bool mPlayerCastHeld = false; ///< the attack control is down (a real key or an automatic press)
+        std::vector<bool> mCastEdges; ///< attack-control edges for the spell (true: pressed)
+        std::string mTestPlayerSpell; ///< lower case
+        const SpellRecord* mPlayerSpell = nullptr;
+        bool mPlayerSpellLooked = false;
+        float mPlayerCastEvery = 0.f;
+        float mPlayerCastHold = kDefaultCastHold;
+        float mNextPlayerCast = 1.f;
+        float mAutoCastReleaseAt = -1.f;
+        float mCastPeriod = kDefaultCastPeriod;
+        float mCastHold = kDefaultCastHold;
+        bool mApplyEffectConditions = false;
+        MagicSettings mMagicSettings;
+        bool mHaveMagicSettings = false;
+        std::size_t mSpellsCast = 0;
+        std::size_t mEffectsApplied = 0;
+        std::size_t mEffectsEnded = 0;
         std::string mTestAmmo; ///< lower case
         const AmmoRecord* mAmmo = nullptr;
         const ProjectileRecord* mProjectile = nullptr;

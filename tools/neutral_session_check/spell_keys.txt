@@ -1,0 +1,13 @@
+# task 0186 (combat S5-8): the REAL attack action (the left mouse button, A_Use) as synthetic SDL events through the real input path, for the
+# player's spell (`combat test player spell`): a held press (150 frames, 2.5 s of fixed frame time: a concentration spell such as Healing lasts
+# that long) and a tap (4 frames: a fire and forget spell such as Firebolt goes at once). Used with "n5bow" (BOW_EVERY=100), [GUI] rmlui = true
+# (the input script only runs with the overlay). Frames count running frames; the player is placed at real second 6, about frame 1500 at 250
+# frames a second, so the first press is later than that.
+2900 log KEYSCRIPT hold down
+2900 down L 400 300
+3050 up L 400 300
+3051 log KEYSCRIPT hold up
+3300 log KEYSCRIPT tap down
+3300 down L 400 300
+3304 up L 400 300
+3400 log KEYSCRIPT tap up

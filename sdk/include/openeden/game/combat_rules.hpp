@@ -34,7 +34,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kCombatRulesVersion{ 0, 3 };
+    inline constexpr Version kCombatRulesVersion{ 0, 4 };
 
     /// Who a combat request or event is about: an actor by handle, or the player (who has no ActorHandle). The player
     /// swings, is swept from and is told its clip events through the same functions as an actor, so S5-3 (NPC against
@@ -91,6 +91,7 @@ namespace openeden::sdk::game
         BowRelease = 13, ///< BowRelease, BowReleaseFast
         StaggerStop = 14, ///< staggerStop
         RecoilStop = 15, ///< recoilStop
+        SpellFire = 16, ///< MRh_SpellFire_Event, MLh_SpellFire_Event: the moment a cast clip lets the spell go (0.4)
     };
 
     /// Longest clip name accepted by a ClipRequest (letters, digits and underscores only), the rule of FurnitureUse.

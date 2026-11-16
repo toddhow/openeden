@@ -495,6 +495,39 @@ namespace game_skyrimse
         return settings;
     }
 
+    std::vector<FormId> CombatIndex::spellIds() const
+    {
+        std::vector<FormId> ids;
+        ids.reserve(mSpells.size());
+        for (const auto& entry : mSpells)
+            ids.push_back(entry.first);
+        std::sort(ids.begin(), ids.end());
+        return ids;
+    }
+
+    MagicSettings SettingsTable::magicSettings() const
+    {
+        MagicSettings settings;
+        settings.mWardPowerMaxBase = get("fMagicWardPowerMaxBase", settings.mWardPowerMaxBase);
+        settings.mWardPowerMaxMult = get("fMagicWardPowerMaxMult", settings.mWardPowerMaxMult);
+        settings.mDamagedMagickaRegenDelay = get("fDamagedMagickaRegenDelay", settings.mDamagedMagickaRegenDelay);
+        return settings;
+    }
+
+    const SpellRecord* CombatIndex::spellByEditorId(const std::string& editorId) const
+    {
+        const std::string wanted = lower(editorId);
+        const SpellRecord* found = nullptr;
+        for (const auto& entry : mSpells)
+        {
+            // The highest form id when two share a name, so that the unordered iteration cannot change the answer.
+            if (lower(entry.second.mCommon.mEditorId) == wanted
+                && (found == nullptr || entry.first > found->mCommon.mId))
+                found = &entry.second;
+        }
+        return found;
+    }
+
     const ProjectileRecord* CombatIndex::projectile(FormId id) const
     {
         const auto it = mProjectiles.find(id);

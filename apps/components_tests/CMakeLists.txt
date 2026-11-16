@@ -550,6 +550,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatindex.cpp
     skyrimse/testskyrimsecombatstats.cpp
     skyrimse/testskyrimsecombatstatsreal.cpp
+    skyrimse/testskyrimsemagicreal.cpp
+    skyrimse/testskyrimsemagic.cpp
+    skyrimse/testskyrimsecombatmagic.cpp
     skyrimse/testskyrimsecombatprojrecords.cpp
     skyrimse/testskyrimseperks.cpp
     skyrimse/testskyrimseperksreal.cpp
@@ -673,6 +676,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_table.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_stats.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/perks.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_mechanics.cpp

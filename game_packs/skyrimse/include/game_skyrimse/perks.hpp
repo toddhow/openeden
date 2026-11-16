@@ -126,6 +126,10 @@ namespace game_skyrimse
         float mMagnitude = 0.f;
         std::uint32_t mArea = 0;
         std::uint32_t mDuration = 0;
+        /// Task 0186: CTDA subrecords after this effect's EFIT (a perk, a race or a state gates the effect). The pack
+        /// cannot evaluate them for a spell, so the magic runtime skips an effect that has any (a test setting applies
+        /// them anyway).
+        std::uint32_t mConditions = 0;
     };
 
     /// A SPEL, what an ability perk needs: the spell type (SPIT +8: 4 is an ability) and its effects.
@@ -134,6 +138,13 @@ namespace game_skyrimse
         RecordCommon mCommon;
         bool mHasData = false; ///< SPIT, 36 bytes
         std::uint32_t mType = 0;
+        // Task 0186 (spells): SPIT +0 cost, +16 cast type, +20 delivery, +24 cast duration, +28 range (CommonLibSSE-NG
+        // member order, RECALLED-VERIFY, checked against the data by SkyrimMagicRealData).
+        std::uint32_t mCost = 0;
+        std::uint32_t mCastType = 0; ///< 0 constant effect, 1 fire and forget, 2 concentration
+        std::uint32_t mDelivery = 0; ///< 0 self, 1 touch, 2 aimed, 3 target actor, 4 target location
+        float mCastDuration = 0.f;
+        float mRange = 0.f;
         std::vector<SpellEffect> mEffects;
         static constexpr std::uint32_t kTypeAbility = 4;
         [[nodiscard]] bool isAbility() const { return mHasData && mType == kTypeAbility; }
@@ -147,6 +158,19 @@ namespace game_skyrimse
         std::uint32_t mFlags = 0;
         std::uint32_t mArchetype = 0;
         std::int32_t mPrimaryValue = -1;
+        // Task 0186: +4 base cost, +16 resist actor value, +60 secondary weight, +72 projectile, +80 casting type, +84
+        // delivery, +88 secondary actor value.
+        float mBaseCost = 0.f;
+        std::int32_t mResistValue = -1;
+        float mSecondaryWeight = 0.f;
+        FormId mProjectile = kNullFormId; ///< PROJ, resolved (0 when none)
+        std::uint32_t mCastType = 0;
+        std::uint32_t mDelivery = 0;
+        std::int32_t mSecondaryValue = -1;
+        bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
+        /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
+        /// Firebolt are perk effects with conditions). The magic runtime skips such an effect unless told otherwise.
+        std::uint32_t mConditions = 0;
         /// ValueModifier is 0 (VERIFIED: PerkQuickShot); PeakValueModifier is 34 (RECALLED-VERIFY, CommonLibSSE-NG).
         [[nodiscard]] bool modifiesAValue() const { return mHasData && (mArchetype == 0 || mArchetype == 34); }
     };

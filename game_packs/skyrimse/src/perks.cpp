@@ -397,6 +397,15 @@ namespace game_skyrimse
                     }
                     out.mHasData = true;
                     out.mType = readLe<std::uint32_t>(data.data() + 8);
+                    out.mCost = readLe<std::uint32_t>(data.data());
+                    out.mCastType = readLe<std::uint32_t>(data.data() + 16);
+                    out.mDelivery = readLe<std::uint32_t>(data.data() + 20);
+                    out.mCastDuration = readLe<float>(data.data() + 24);
+                    out.mRange = readLe<float>(data.data() + 28);
+                    if (!std::isfinite(out.mCastDuration))
+                        out.mCastDuration = 0.f;
+                    if (!std::isfinite(out.mRange))
+                        out.mRange = 0.f;
                     break;
                 case Content::fourCC("EFID"):
                     if (data.size() != 4)
@@ -411,6 +420,10 @@ namespace game_skyrimse
                     }
                     out.mEffects.emplace_back();
                     out.mEffects.back().mEffect = fields.resolved(readLe<std::uint32_t>(data.data()));
+                    break;
+                case Content::fourCC("CTDA"):
+                    if (!out.mEffects.empty())
+                        ++out.mEffects.back().mConditions;
                     break;
                 case Content::fourCC("EFIT"):
                     if (data.size() != kSpellEfitBytes || out.mEffects.empty())
@@ -461,6 +474,12 @@ namespace game_skyrimse
                     if (!fields.zstring(type, data, out.mCommon.mEditorId))
                         return false;
                     break;
+                case Content::fourCC("VMAD"):
+                    out.mHasScript = true;
+                    break;
+                case Content::fourCC("CTDA"):
+                    ++out.mConditions;
+                    break;
                 case Content::fourCC("DATA"):
                     if (data.size() != kMagicEffectDataBytes)
                     {
@@ -471,6 +490,19 @@ namespace game_skyrimse
                     out.mFlags = readLe<std::uint32_t>(data.data());
                     out.mArchetype = readLe<std::uint32_t>(data.data() + 64);
                     out.mPrimaryValue = readLe<std::int32_t>(data.data() + 68);
+                    out.mBaseCost = readLe<float>(data.data() + 4);
+                    out.mResistValue = readLe<std::int32_t>(data.data() + 16);
+                    out.mSecondaryWeight = readLe<float>(data.data() + 60);
+                    out.mProjectile = readLe<std::uint32_t>(data.data() + 72) == 0
+                        ? kNullFormId
+                        : fields.resolved(readLe<std::uint32_t>(data.data() + 72));
+                    out.mCastType = readLe<std::uint32_t>(data.data() + 80);
+                    out.mDelivery = readLe<std::uint32_t>(data.data() + 84);
+                    out.mSecondaryValue = readLe<std::int32_t>(data.data() + 88);
+                    if (!std::isfinite(out.mBaseCost))
+                        out.mBaseCost = 0.f;
+                    if (!std::isfinite(out.mSecondaryWeight))
+                        out.mSecondaryWeight = 0.f;
                     break;
                 default:
                     break;

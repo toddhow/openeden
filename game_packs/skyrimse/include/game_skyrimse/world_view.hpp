@@ -328,6 +328,10 @@ namespace game_skyrimse
         const AmmoRecord* ammoByEditorId(std::string_view editorId) override;
         const ProjectileRecord* projectileOf(const AmmoRecord& ammo) override;
         ProjectileSettings projectileSettings() override;
+        /// Task 0186 (stage S5-8): spells by editor id, a PROJ by form id and the magic GMSTs.
+        const SpellRecord* spellByEditorId(std::string_view editorId) override;
+        const ProjectileRecord* projectileById(FormId id) override;
+        MagicSettings magicSettings() override;
         /// Review fix of task 0171: false until the combat records (and the actor records) are read, on a worker
         /// started by the first call; never blocks. The four answers above read nothing themselves: they answer
         /// "nothing" until this is true.

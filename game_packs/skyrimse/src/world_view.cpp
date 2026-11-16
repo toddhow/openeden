@@ -381,6 +381,21 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? ProjectileSettings{} : mCombatIndex->settings().projectileSettings();
     }
 
+    const SpellRecord* SkyrimWorldView::spellByEditorId(std::string_view editorId)
+    {
+        return mCombatIndex == nullptr ? nullptr : mCombatIndex->spellByEditorId(std::string(editorId));
+    }
+
+    const ProjectileRecord* SkyrimWorldView::projectileById(FormId id)
+    {
+        return mCombatIndex == nullptr || id == kNullFormId ? nullptr : mCombatIndex->projectile(id);
+    }
+
+    MagicSettings SkyrimWorldView::magicSettings()
+    {
+        return mCombatIndex == nullptr ? MagicSettings{} : mCombatIndex->settings().magicSettings();
+    }
+
     const WeaponRecord* SkyrimWorldView::weaponByEditorId(std::string_view editorId)
     {
         if (mCombatIndex == nullptr)
@@ -418,8 +433,10 @@ namespace game_skyrimse
         FighterProfile out;
         out.mHealthMax = 100.f;
         out.mStaminaMax = 100.f;
+        out.mMagickaMax = 100.f; // task 0186: the HUD's old stand-in, now a real value
         out.mHealthRegenPercent = 0.7f;
         out.mStaminaRegenPercent = 5.f;
+        out.mMagickaRegenPercent = 3.f; // a Nord's (RACE DATA +88)
         out.mMitigationPercent = 0.f;
         out.mUnarmedDamage = 4.f;
         out.mUnarmedReach = 96.f;
@@ -444,6 +461,7 @@ namespace game_skyrimse
             out.mMitigationPercent = armour.mMitigationPercent;
         out.mHealthMax = stats.health;
         out.mStaminaMax = stats.stamina;
+        out.mMagickaMax = stats.magicka;
         out.mSkills = stats.skills;
         ActorIndex::Resolved resolved;
         out.mBase = npc;
@@ -476,6 +494,7 @@ namespace game_skyrimse
             {
                 out.mHealthRegenPercent = race->mHealthRegen;
                 out.mStaminaRegenPercent = race->mStaminaRegen;
+                out.mMagickaRegenPercent = race->mMagickaRegen;
                 out.mUnarmedDamage = race->mUnarmedDamage;
                 out.mUnarmedReach = race->mUnarmedReach;
             }

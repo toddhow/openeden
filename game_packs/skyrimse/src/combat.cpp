@@ -122,6 +122,8 @@ namespace game_skyrimse
     {
         if (mPlayerEdges.size() < mPlayerEdges.capacity())
             mPlayerEdges.push_back(pressed);
+        if (!mTestPlayerSpell.empty() && mCastEdges.size() < mCastEdges.capacity())
+            mCastEdges.push_back(pressed); // task 0186: the attack control casts
     }
 
     SkyrimCombat::SkyrimCombat()
@@ -129,6 +131,13 @@ namespace game_skyrimse
     {
         mFighters.reserve(256);
         mBowSlots = SlotTable::bow();
+        mMagicSlots = SlotTable::magic();
+        mCasts.reserve(kMaxCasts);
+        mConcentrations.reserve(kMaxConcentrations);
+        mSpellShots.reserve(kMaxSpellShots);
+        mCastEdges.reserve(8);
+        mTestCasters.reserve(kMaxTestCasters);
+        mActorNames.reserve(256);
         mPendingBow.reserve(32);
         mShots.reserve(kMaxShotsRemembered);
         mProjectileResults.reserve(kMaxShotsRemembered);
@@ -151,6 +160,14 @@ namespace game_skyrimse
         mAmmo = nullptr;
         mProjectile = nullptr;
         mPlayerDrawTime = 0.f;
+        mHaveMagicSettings = false;
+        mPlayerSpell = nullptr;
+        mPlayerSpellLooked = false;
+        for (TestCaster& tc : mTestCasters)
+        {
+            tc.mSpell = nullptr;
+            tc.mLooked = false;
+        }
         mHaveTiming[0] = mHaveTiming[1] = false;
         for (Fighter& f : mFighters)
             f.mReady = false;
@@ -622,6 +639,10 @@ namespace game_skyrimse
         out.mDead = f->mDead;
         out.mStaggered = f->mStaggered;
         out.mBlocking = isBlocking(*f);
+        out.mMagicka = f->mMagicka;
+        out.mMagickaMax = f->mProfile.mMagickaMax;
+        out.mWardPower = f->mWardPower;
+        out.mDemoralized = f->mDemoralizedUntil >= 0.f;
         return true;
     }
 
@@ -663,6 +684,7 @@ namespace game_skyrimse
             }
             fighter.mHealth = fighter.mProfile.mHealthMax;
             fighter.mStamina = fighter.mProfile.mStaminaMax;
+            fighter.mMagicka = fighter.mProfile.mMagickaMax;
             if (fighter.mSubject.player && mEquipDirty)
                 applyPlayerEquipment();
             preparePerks(fighter);
@@ -689,6 +711,13 @@ namespace game_skyrimse
         const std::string id = lowerAscii(info.editorId);
         if (!info.handle.valid())
             return;
+        // Task 0186: the names of the actors seen, so a test caster can be named before or after the actor appears.
+        std::erase_if(mActorNames, [&](const auto& n) { return n.first.reference == info.handle.reference; });
+        if (mActorNames.size() < kMaxCombatFighters)
+            mActorNames.emplace_back(info.handle, id);
+        for (TestCaster& tc : mTestCasters)
+            if (tc.mActor == id)
+                tc.mHandle = info.handle;
         if (!mTestSwing.empty() && id == mTestSwing)
         {
             std::erase_if(mSwingers, [&](const ActorHandle& h) { return h.reference == info.handle.reference; });
@@ -711,6 +740,12 @@ namespace game_skyrimse
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
         std::erase(mBlockers, handle);
+        cancelCastsOf(CombatSubject::of(handle)); // task 0186
+        mEffects.removeCaster(CombatSubject::of(handle));
+        std::erase_if(mActorNames, [&](const auto& n) { return n.first == handle; });
+        for (TestCaster& tc : mTestCasters)
+            if (tc.mHandle == handle)
+                tc.mHandle = {};
         std::erase_if(mFighters, [&](const Fighter& f) { return !f.mSubject.player && f.mSubject.actor == handle; });
         // Nothing of the actor stays in a table: a result that arrives later is refused, a hit that was waiting is
         // gone.
@@ -723,6 +758,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::onPlayerAttack(bool power)
     {
+        if (!mTestPlayerSpell.empty())
+            return; // task 0186: with a spell chosen the attack control casts (its edges say when)
         mPlayerAttackPending = true;
         mPlayerPower = power;
     }
@@ -730,6 +767,14 @@ namespace game_skyrimse
     void SkyrimCombat::onClipEvent(const openeden::sdk::game::ClipEvent& event)
     {
         ++mEventsSeen;
+        if (event.slot == ClipSlot::Cast && event.kind == openeden::sdk::game::ClipEventKind::SpellFire)
+        {
+            // Task 0186: the cast clip lets the spell go; combatUpdate fires it.
+            for (Cast& c : mCasts)
+                if (c.mToken == event.token && c.mCaster == event.subject)
+                    c.mFireSeen = true;
+            return;
+        }
         // Task 0178: the bow's two events are acted on in the next combatUpdate (a writer is not valid here).
         const bool bowDrawn
             = event.slot == ClipSlot::BowDraw && event.kind == openeden::sdk::game::ClipEventKind::BowDrawn;
@@ -757,6 +802,15 @@ namespace game_skyrimse
     void SkyrimCombat::onClipFinished(CombatSubject subject, std::uint32_t token, openeden::sdk::game::ClipEnd how)
     {
         ++mClipsFinished;
+        // Task 0186: a cast clip that ended without its event let the spell go at its end (like the bow's draw); one
+        // that was interrupted or failed lets nothing go.
+        std::erase_if(mCasts, [&](const Cast& c) {
+            return c.mToken == token && c.mCaster == subject && !c.mFireSeen
+                && how != openeden::sdk::game::ClipEnd::Completed;
+        });
+        for (Cast& c : mCasts)
+            if (c.mToken == token && c.mCaster == subject && how == openeden::sdk::game::ClipEnd::Completed)
+                c.mFireSeen = true;
         if (how == openeden::sdk::game::ClipEnd::Completed)
             ++mClipsCompleted;
         if (Fighter* f = find(subject); f != nullptr)
@@ -819,6 +873,12 @@ namespace game_skyrimse
                 f.mStamina
                     + regenAmount(f.mProfile.mStaminaMax, f.mProfile.mStaminaRegenPercent,
                         mCombatSettings.mCombatStaminaRegenRateMult, inCombat, seconds));
+            // Task 0186: magicka waits after a spend and while a spell is held (fDamagedMagickaRegenDelay).
+            if (f.mProfile.mMagickaMax > 0.f && mClock >= f.mMagickaRegenAt && !isBusyConcentrating(f.mSubject))
+                f.mMagicka = std::min(f.mProfile.mMagickaMax,
+                    f.mMagicka
+                        + regenAmount(f.mProfile.mMagickaMax, f.mProfile.mMagickaRegenPercent,
+                            mCombatSettings.mCombatMagickaRegenRateMult, inCombat, seconds));
         }
     }
 
@@ -1365,6 +1425,8 @@ namespace game_skyrimse
     void SkyrimCombat::resolveProjectile(
         CombatRequestWriter& writer, const openeden::sdk::game::ProjectileResult& result)
     {
+        if (resolveSpellShot(writer, result))
+            return; // task 0186: a spell's projectile
         const auto shot = std::find_if(mShots.begin(), mShots.end(),
             [&](const Shot& s) { return s.mToken == result.token && s.mOwner == result.owner; });
         if (shot == mShots.end())
@@ -1529,6 +1591,7 @@ namespace game_skyrimse
             mPendingBow.clear();
             mProjectileResults.clear();
             mPlayerEdges.clear();
+            mCastEdges.clear();
             mPlayerAttackPending = false;
         }
         else if (mData != nullptr)
@@ -1539,6 +1602,7 @@ namespace game_skyrimse
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
             applyPlayerHeal(writer); // task 0184
+            updateMagic(writer, step); // task 0186: ticks, casts that go, the player's and the test casters' casts
             // Results cast last frame, then the hits the clips reached since.
             for (const SweepDelivery& delivery : mDeliveries)
                 resolveSweep(writer, delivery);

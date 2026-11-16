@@ -71,6 +71,41 @@
       "default": ""
     },
     {
+      "key": "combat test player spell",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat test player cast every",
+      "type": "float",
+      "default": 0.0
+    },
+    {
+      "key": "combat test player cast hold",
+      "type": "float",
+      "default": 3.0
+    },
+    {
+      "key": "combat test cast",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "combat test cast every",
+      "type": "float",
+      "default": 4.0
+    },
+    {
+      "key": "combat test cast hold",
+      "type": "float",
+      "default": 3.0
+    },
+    {
+      "key": "combat test spell conditions",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "combat test player bow",
       "type": "float",
       "default": 0.0

@@ -120,6 +120,12 @@ namespace game_skyrimse
         {
             mSnapshot.mPlayerStamina = clean(view.mStamina);
             mSnapshot.mPlayerStaminaMax = clean(view.mStaminaMax);
+            if (view.mMagickaMax > 0.f)
+            {
+                // Task 0186: magicka is a real value now; without one (no spells) the bar keeps its stand-in.
+                mSnapshot.mPlayerMagicka = clean(view.mMagicka);
+                mSnapshot.mPlayerMagickaMax = clean(view.mMagickaMax);
+            }
         }
 
         if (!mSnapshot.mEnemyShown)

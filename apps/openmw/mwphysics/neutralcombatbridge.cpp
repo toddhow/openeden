@@ -72,6 +72,8 @@ namespace MWPhysics
             { "BowReleaseFast", ClipEventKind::BowRelease },
             { "staggerStop", ClipEventKind::StaggerStop },
             { "recoilStop", ClipEventKind::RecoilStop },
+            { "MRh_SpellFire_Event", ClipEventKind::SpellFire }, // task 0186
+            { "MLh_SpellFire_Event", ClipEventKind::SpellFire },
         };
         for (const Entry& entry : sTable)
             if (equalsNoCase(entry.mName, name))

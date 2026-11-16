@@ -846,6 +846,29 @@ namespace game_skyrimse
                     if (bowBonus != 0.f)
                         say(openeden::sdk::LogLevel::Info,
                             "combat test bow speed bonus: " + std::to_string(bowBonus));
+                    // Task 0186 (stage S5-8): the spell test rules, all off by default.
+                    const std::string playerSpell = settings->getString(kPackId, kCombatTestPlayerSpellKey, "");
+                    if (!mCellSource.combat().setTestPlayerSpell(playerSpell))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestPlayerSpellKey) + "' is too long; no spell");
+                    else if (!playerSpell.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test player spell: " + playerSpell);
+                    mCellSource.combat().setTestPlayerCastEvery(
+                        settings->getFloat(kPackId, kCombatTestPlayerCastEveryKey, 0.f));
+                    mCellSource.combat().setTestPlayerCastHold(
+                        settings->getFloat(kPackId, kCombatTestPlayerCastHoldKey, kDefaultCastHold));
+                    mCellSource.combat().setTestCastEvery(
+                        settings->getFloat(kPackId, kCombatTestCastEveryKey, kDefaultCastPeriod));
+                    mCellSource.combat().setTestCastHold(
+                        settings->getFloat(kPackId, kCombatTestCastHoldKey, kDefaultCastHold));
+                    const std::string casts = settings->getString(kPackId, kCombatTestCastKey, "");
+                    if (!mCellSource.combat().setTestCasts(casts))
+                        say(openeden::sdk::LogLevel::Warning,
+                            "the setting '" + std::string(kCombatTestCastKey) + "' is not a list of actor:spell");
+                    else if (!casts.empty())
+                        say(openeden::sdk::LogLevel::Info, "combat test cast: " + casts);
+                    mCellSource.combat().setTestSpellConditions(
+                        settings->getBool(kPackId, kCombatTestSpellConditionsKey, false));
                     // Task 0179 (stage S5-7): perks. The switch defaults to on; the two lists to none.
                     mCellSource.combat().setUsePerks(settings->getBool(kPackId, kCombatPerksKey, true));
                     const std::string playerPerks = settings->getString(kPackId, kCombatTestPlayerPerksKey, "");
