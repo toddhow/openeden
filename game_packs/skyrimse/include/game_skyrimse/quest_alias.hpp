@@ -143,6 +143,11 @@ namespace game_skyrimse
         /// Fills the event aliases from `event` (the ones `eventAliasesMatch` accepted). Returns how many were filled.
         std::size_t fillEventAliases(FormId quest, QuestState& state, const StoryEvent& event);
 
+        /// Task 0230: a conversation opens with this speaker. The running quests' find-matching REFERENCE aliases that are
+        /// still empty and whose conditions call GetIsEditorLocAlias (fn_567) are tried with the speaker as the only
+        /// candidate; one whose conditions pass takes it. Returns how many aliases were filled.
+        std::size_t fillForSpeaker(QuestState& state, FormId reference, FormId base);
+
         /// Task 0211: the pack's view of the world; the filler works without it as before.
         void setEnvironment(Environment environment) { mEnvironment = std::move(environment); }
 

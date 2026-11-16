@@ -46,6 +46,8 @@ namespace game_skyrimse
         FormId mBase = kNullFormId; ///< NAME (0 when a record has none; the merge inherits the earlier one)
         FormId mCell = kNullFormId; ///< the CELL whose children group holds it
         FormId mEnableParent = kNullFormId; ///< XESP
+        /// XLCN, the reference's own (persistent) location: its editor location (task 0230). kNullFormId: it has none.
+        FormId mLocation = kNullFormId;
         float mX = 0.f, mY = 0.f, mZ = 0.f;
         std::uint8_t mFlags = 0; ///< PlacedFlags
         bool mDeleted = false; ///< the record is flagged deleted (the merge removes the reference)

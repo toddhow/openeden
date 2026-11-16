@@ -1,0 +1,13 @@
+# task 0230: real clicks (800x600 window) after Hulda's conversation box opened: the line "I'm looking for work. Got any leads?",
+# then the journal (key J) after Goodbye. Frames are engine frames (the box opens about frame 4300 with ACTIVATE_AT = 70).
+6000 shot
+6020 mouse 404 349
+6024 down L 404 349
+6026 up L 404 349
+6200 shot
+6300 mouse 404 401
+6304 down L 404 401
+6306 up L 404 401
+6500 key J down
+6502 key J up
+6560 shot

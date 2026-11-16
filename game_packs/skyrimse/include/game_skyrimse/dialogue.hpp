@@ -417,6 +417,9 @@ namespace game_skyrimse
         [[nodiscard]] FormId aliasReference(std::uint32_t alias) const override;
         [[nodiscard]] FormId locationAncestorWithKeyword(FormId location, FormId keyword) const override;
         [[nodiscard]] FormId editorLocationOfReference(FormId reference) const override;
+        [[nodiscard]] FormId editorLocationOfSubject(conditions::Subject subject) const override; // task 0230
+        /// The editor location of a reference / of an actor known by its base (see the .cpp for the order of sources).
+        [[nodiscard]] FormId editorLocationOf(FormId reference, FormId base) const;
         /// The story filler's view of the aliases it has filled so far in the quest being planned (empty: the saved state
         /// only). Set around the evaluation of a location alias's conditions.
         void setAliasView(std::function<FormId(std::uint32_t)> view) { mAliasView = std::move(view); }

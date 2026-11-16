@@ -45,11 +45,15 @@ namespace game_skyrimse
         }
         /// The editor location of a placed reference; kNullFormId: not known.
         [[nodiscard]] virtual FormId editorLocationOfReference(FormId /*reference*/) const { return kNullFormId; }
+        /// Task 0230: the editor location of the subject of the condition (a placed reference, the speaker, an actor known
+        /// by its base); kNullFormId: not known.
+        [[nodiscard]] virtual FormId editorLocationOfSubject(conditions::Subject /*subject*/) const { return kNullFormId; }
     };
 
     /// 563 and 565 only (a test pins this table's size; fn_181 is in `aliasLocationExtraFunctions`).
     [[nodiscard]] const std::vector<conditions::ExtraFunction>& locationExtraFunctions();
-    /// Task 0226: 181 only (HasSameEditorLocAsRefAlias); the quest evaluator adds it to the others.
+    /// Task 0226: 181 (HasSameEditorLocAsRefAlias), task 0230: 567 (GetIsEditorLocAlias); the quest evaluator adds them to
+    /// the others.
     [[nodiscard]] const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions();
     /// 576 (the story event) plus 563 and 565: what the quest evaluator of the pack uses.
     [[nodiscard]] const std::vector<conditions::ExtraFunction>& storyAndLocationExtraFunctions();

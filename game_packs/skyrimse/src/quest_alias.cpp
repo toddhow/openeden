@@ -28,6 +28,7 @@ namespace game_skyrimse
         }
 
         constexpr std::uint16_t kHasSameEditorLocAsRefAlias = 181;
+        constexpr std::uint16_t kGetIsEditorLocAlias = 567;
 
         /// Tells the environment which reference each alias holds while a location alias's conditions are evaluated.
         class AliasViewScope
@@ -421,6 +422,12 @@ namespace game_skyrimse
         if (dry && alias.mFill == AliasFillKind::FindMatching)
             return Result::Empty; // not a blocking kind: a dry run does not look (it would cost every actor of the world)
 
+        // task 0230: GetIsEditorLocAlias reads another alias (the Hold, the Location): until that one is filled the
+        // conditions would fail for every candidate, so the alias waits for it (as a location alias does for fn_181)
+        for (const survey::Ctda& c : alias.mConditions)
+            if (c.mFunction == kGetIsEditorLocAlias && !filled(currentOf(c.mParam1)))
+                return Result::Waiting;
+
         const auto used = [&](FormId reference) {
             if ((alias.mFlags & AliasFlags::AllowReuseInQuest) != 0)
                 return false;
@@ -540,6 +547,8 @@ namespace game_skyrimse
                 order[i] = keyed[i].second;
         }
 
+        // task 0230: the conditions read the aliases filled so far (GetIsEditorLocAlias names the Hold or Location alias)
+        const AliasViewScope view(mEnvironment, [&](std::uint32_t aliasId) { return currentOf(aliasId).mReference; });
         std::uint32_t evaluated = 0;
         for (const PlacedEntry* e : order)
         {
@@ -629,6 +638,59 @@ namespace game_skyrimse
         for (const auto& [id, fill] : plan)
             state.setAliasFill(quest, id, fill);
         return plan.size();
+    }
+
+    // Task 0230. Only an alias whose conditions call GetIsEditorLocAlias (fn_567) is tried: that function was unanswered, so
+    // the aliases that need it were not filled at the start of the quest; every other empty alias keeps the rule it had.
+    std::size_t QuestAliasFiller::fillForSpeaker(QuestState& state, FormId reference, FormId base)
+    {
+        if (!usable(reference) || !mMatcher)
+            return 0;
+        const PlacedEntry* entry = mRefs.find(reference);
+        if (entry == nullptr || entry->mDeleted)
+            return 0;
+        const FormId entryBase = usable(entry->mBase) ? entry->mBase : base;
+        std::size_t count = 0;
+        for (const FormId questId : mQuests.questIds())
+        {
+            if (!state.running(questId))
+                continue;
+            const QuestRecord* quest = mQuests.quest(questId);
+            if (quest == nullptr)
+                continue;
+            for (const QuestAlias& alias : quest->mAliases)
+            {
+                if (alias.mIsLocation || alias.mFill != AliasFillKind::FindMatching)
+                    continue;
+                if (std::none_of(alias.mConditions.begin(), alias.mConditions.end(),
+                        [](const survey::Ctda& c) { return c.mFunction == kGetIsEditorLocAlias; }))
+                    continue;
+                if (filled(state.aliasFill(questId, alias.mId)))
+                    continue;
+                if ((alias.mFlags & AliasFlags::AllowDisabled) == 0 && mRefs.initiallyDisabled(*entry))
+                    continue;
+                if ((alias.mFlags & AliasFlags::AllowDead) == 0 && (entry->mFlags & PlacedFlags::Dead) != 0)
+                    continue;
+                if ((alias.mFlags & AliasFlags::AllowReuseInQuest) == 0
+                    && std::any_of(quest->mAliases.begin(), quest->mAliases.end(), [&](const QuestAlias& other) {
+                           return other.mId != alias.mId && state.aliasFill(questId, other.mId).mReference == reference;
+                       }))
+                    continue;
+                const AliasViewScope view(mEnvironment,
+                    [&](std::uint32_t aliasId) { return state.aliasFill(questId, aliasId).mReference; });
+                ++mStats.mEvaluated;
+                if (!mMatcher(*quest, alias, reference, entryBase))
+                    continue;
+                AliasFill fill;
+                fill.mKnown = true;
+                fill.mReference = reference;
+                state.setAliasFill(questId, alias.mId, fill);
+                ++mStats.mFilled;
+                ++mStats.mMatched;
+                ++count;
+            }
+        }
+        return count;
     }
 
     bool QuestAliasFiller::fillAlias(FormId quest, std::uint32_t aliasId, QuestState& state)

@@ -213,6 +213,7 @@ namespace game_skyrimse
         conditions::Evaluator mQuestEvaluator;
         StoryEvent mStoryEvent;
         std::unique_ptr<QuestAliasFiller> mAliasFiller;
+        std::vector<conditions::ExtraFunction> mQuestExtras; ///< what mQuestEvaluator may call besides the table (0230)
         std::set<FormId> mStoryRan; ///< task 0194: quests an ADIA event started
         std::unique_ptr<StoryManager> mStoryManager;
         conditions::Evaluator mPackageEvaluator;
@@ -1179,13 +1180,13 @@ namespace game_skyrimse
             world->setKeywordData(&mKeywordData); // task 0217
             world->setPlacedRefs(&raw->mData->mPlacedRefs);
             world->setQuestVariables(raw->mQuestVariables.get());
-            static const std::vector<conditions::ExtraFunction> extras = [] {
-                std::vector<conditions::ExtraFunction> all = storyAndLocationExtraFunctions(); // task 0211
-                all.insert(all.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
-                all.insert(all.end(), aliasLocationExtraFunctions().begin(), aliasLocationExtraFunctions().end());
-                return all;
-            }();
-            raw->mQuestEvaluator.setExtraFunctions(extras);
+            raw->mQuestExtras = storyAndLocationExtraFunctions(); // task 0211
+            raw->mQuestExtras.insert(
+                raw->mQuestExtras.end(), sceneExtraFunctions().begin(), sceneExtraFunctions().end());
+            for (const conditions::ExtraFunction& extra : aliasLocationExtraFunctions())
+                if (extra.mIndex != 567 || mAnswerEditorLocAlias) // task 0230: the measurement switch
+                    raw->mQuestExtras.push_back(extra);
+            raw->mQuestEvaluator.setExtraFunctions(raw->mQuestExtras);
             raw->mAliasFiller = std::make_unique<QuestAliasFiller>(raw->mData->mQuests, raw->mData->mPlacedRefs,
                 [this, raw, world](const QuestRecord& quest, const QuestAlias& alias, FormId reference, FormId base) {
                     DialogueSpeaker speaker;
@@ -2183,6 +2184,11 @@ namespace game_skyrimse
         speaker.mCell = static_cast<FormId>(cell);
         // Task 0156: what the cell says about interior and location
         fillSpeakerCell(speaker, speaker.mCell);
+        // Task 0230: the running quests' aliases that need the speaker's editor location (Steward, Innkeeper, Jarl) take
+        // him now when they are still empty, so their dialogue lines can be offered
+        if (mDialogue->mAliasFiller != nullptr)
+            (void)mDialogue->mAliasFiller->fillForSpeaker(
+                mDialogue->mRuntime->questsMutable(), speaker.mReference, speaker.mBase);
         return mDialogue->mRuntime->begin(speaker, out, error);
     }
 

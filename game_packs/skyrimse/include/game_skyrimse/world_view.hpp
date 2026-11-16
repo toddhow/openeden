@@ -682,6 +682,9 @@ namespace game_skyrimse
         [[nodiscard]] FormId locationOfGridSquare(FormId world, std::int32_t x, std::int32_t y) const;
         /// Task 0211: where the player stands, for the alias filler's closest-first rule. Main thread.
         void setPlayerSite(std::function<QuestAliasFiller::PlayerSite()> site);
+        /// Task 0230: a measurement switch. False leaves GetIsEditorLocAlias (fn_567) unanswered, as before the task; it
+        /// must be set before the quest evaluator is built (the first dialogue or Papyrus use).
+        void setAnswerEditorLocAlias(bool answer) { mAnswerEditorLocAlias = answer; }
         /// Task 0217: what scripts store on locations (Location.SetKeywordData; fn_606 and fn_651 read it). Owned by
         /// the view, so the Papyrus host and the condition worlds share it. Main thread.
         [[nodiscard]] LocationKeywordData& keywordData() { return mKeywordData; }
@@ -838,6 +841,7 @@ namespace game_skyrimse
         const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         bool mOpenServices = false; ///< task 0219
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
+        bool mAnswerEditorLocAlias = true; ///< task 0230: false leaves fn_567 unanswered (measurement only)
         LocationKeywordData mKeywordData; ///< task 0217
         StoryManager::Trace mStoryTrace; ///< task 0217
         static constexpr std::int32_t kLoadedRing = 2; ///< the engine loads the player square and two rings round it

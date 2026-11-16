@@ -150,6 +150,12 @@ namespace game_skyrimse
                                             ref.mFlags |= PlacedFlags::EnableOpposite;
                                     }
                                     break;
+                                case Content::fourCC("XLCN"): // task 0230: the reference's own (persistent) location
+                                    if (sub.mData.size() != 4)
+                                        ++mOut.mOddSubrecords;
+                                    else
+                                        ref.mLocation = resolved(le32(sub.mData.data()));
+                                    break;
                                 default:
                                     break;
                             }

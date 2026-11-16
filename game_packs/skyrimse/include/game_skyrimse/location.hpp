@@ -151,6 +151,12 @@ namespace game_skyrimse
         /// it; the most deeply nested one when several do, ties to the lower form id (RECALLED-VERIFY: the reference's own
         /// persistent-location field is not decoded). kNullFormId when no location lists it.
         [[nodiscard]] FormId editorLocationOf(FormId reference) const;
+        // ---- task 0230 ---------------------------------------------------------------------------------------------
+        /// The location a unique-NPC list (LCUN, ACUN) gives an actor: the location the entry names (the owner of the
+        /// list when it names none), from the entry that names this placed reference, else from the one that names this
+        /// base (a null reference matches by base only); kNullFormId when no list names it. Several entries: the most
+        /// deeply nested location, ties to the lower form id.
+        [[nodiscard]] FormId uniqueNpcLocation(FormId actor, FormId reference) const;
 
     private:
         void rebuildGrids() const;
@@ -161,6 +167,10 @@ namespace game_skyrimse
         void rebuildRefOwners() const;
         mutable bool mRefOwnersDirty = true;
         mutable std::unordered_map<FormId, FormId> mRefOwner;
+        void rebuildUnique() const;
+        mutable bool mUniqueDirty = true;
+        mutable std::unordered_map<FormId, FormId> mUniqueByRef; ///< task 0230
+        mutable std::unordered_map<FormId, FormId> mUniqueByActor;
     };
 }
 

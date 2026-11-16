@@ -668,6 +668,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecrimewitness.cpp
     skyrimse/testskyrimsesneaknotice.cpp
     skyrimse/testskyrimsestancecond.cpp
+    skyrimse/testskyrimsebountydialogue.cpp
+    skyrimse/testskyrimsebountydialoguereal.cpp
     skyrimse/testskyrimseradiantfill.cpp
     skyrimse/testskyrimseradiantreal.cpp
     skyrimse/testskyrimseradiantsurvey.cpp

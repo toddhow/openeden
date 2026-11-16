@@ -52,6 +52,24 @@ namespace game_skyrimse
             return mine != kNullFormId && mine == source->locationAncestorWithKeyword(referenceLocation, keyword) ? 1.f
                                                                                                                   : 0.f;
         }
+
+        // 567 GetIsEditorLocAlias(alias): the editor location of the subject is the location the alias holds or lies
+        // inside it (task 0230). Data: 416 uses, all `== 1`, run on the subject, in quest aliases (414) and packages (2);
+        // the Jarl, Steward and Innkeeper aliases of the bounty quests pair it with a faction test and the Hold or
+        // Location alias, and the actors' own XLCN is the city, not the hold, so "inside" is what the data needs. The
+        // meaning is RECALLED-VERIFY (the Creation Kit wiki is unreachable; xEdit names the function and its alias).
+        float getIsEditorLocAlias(
+            const survey::Ctda& c, conditions::Subject subject, const conditions::ConditionWorld& world)
+        {
+            const LocationSubjectSource* source = dynamic_cast<const LocationSubjectSource*>(&world);
+            if (source == nullptr || subject == 0 || source->locationSubject() != kNullFormId)
+                return 0.f; // not an actor's condition (a candidate location is not an actor)
+            const FormId aliasLocation = source->aliasReference(c.mParam1);
+            if (aliasLocation == kNullFormId)
+                return 0.f;
+            const FormId mine = source->editorLocationOfSubject(subject);
+            return mine != kNullFormId && source->locationWithin(mine, aliasLocation) ? 1.f : 0.f;
+        }
     }
 
     const std::vector<conditions::ExtraFunction>& locationExtraFunctions()
@@ -63,7 +81,8 @@ namespace game_skyrimse
 
     const std::vector<conditions::ExtraFunction>& aliasLocationExtraFunctions()
     {
-        static const std::vector<conditions::ExtraFunction> table = { { 181, &hasSameEditorLocAsRefAlias } };
+        static const std::vector<conditions::ExtraFunction> table = { { 181, &hasSameEditorLocAsRefAlias },
+            { 567, &getIsEditorLocAlias } };
         return table;
     }
 

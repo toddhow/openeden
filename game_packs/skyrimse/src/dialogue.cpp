@@ -995,12 +995,41 @@ namespace game_skyrimse
         return mLocations != nullptr ? mLocations->ancestorWithKeyword(location, keyword) : kNullFormId;
     }
 
-    FormId SkyrimConditionWorld::editorLocationOfReference(FormId reference) const
+    // Task 0230: the editor location of a reference, from the first source that knows it: the reference's own XLCN (the
+    // data's "persistent location": 5,639 of 10,504 placed actors of the five masters have one), the location a unique-NPC
+    // list gives its actor, the location whose special or persistent reference list names it, the location of its cell.
+    // RECALLED-VERIFY: the order (the Creation Kit wiki is unreachable); each source is a named fallback of the one before.
+    FormId SkyrimConditionWorld::editorLocationOf(FormId reference, FormId base) const
     {
-        FormId at = mLocations != nullptr ? mLocations->editorLocationOf(reference) : kNullFormId;
-        if (at == kNullFormId && mReferenceLocation)
+        const PlacedEntry* entry
+            = mPlacedRefs != nullptr && reference != kNullFormId ? mPlacedRefs->find(reference) : nullptr;
+        if (entry != nullptr && entry->mLocation != kNullFormId && entry->mLocation != kUnresolvedFormId)
+            return entry->mLocation;
+        if (base == kNullFormId && entry != nullptr)
+            base = entry->mBase;
+        FormId at = kNullFormId;
+        if (mLocations != nullptr)
+        {
+            at = mLocations->uniqueNpcLocation(base, reference);
+            if (at == kNullFormId)
+                at = mLocations->editorLocationOf(reference);
+        }
+        if (at == kNullFormId && mReferenceLocation && reference != kNullFormId)
             at = mReferenceLocation(reference);
         return at;
+    }
+
+    FormId SkyrimConditionWorld::editorLocationOfReference(FormId reference) const
+    {
+        return editorLocationOf(reference, kNullFormId);
+    }
+
+    FormId SkyrimConditionWorld::editorLocationOfSubject(conditions::Subject subject) const
+    {
+        ActorView view;
+        if (!viewOf(subject, view))
+            return kNullFormId;
+        return editorLocationOf(view.mRef != nullptr ? view.mRef->mId : kNullFormId, view.mBase);
     }
 
     bool SkyrimConditionWorld::locationHasKeyword(conditions::Subject subject, std::uint32_t keyword) const

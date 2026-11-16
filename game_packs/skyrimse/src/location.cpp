@@ -320,6 +320,7 @@ namespace game_skyrimse
         }
         mGridsDirty = true;
         mRefOwnersDirty = true;
+        mUniqueDirty = true;
     }
 
     std::vector<FormId> LocationIndex::ids() const
@@ -521,6 +522,59 @@ namespace game_skyrimse
                 offer(r.mRef, id, d);
         }
         mRefOwnersDirty = false;
+    }
+
+    void LocationIndex::rebuildUnique() const
+    {
+        mUniqueByRef.clear();
+        mUniqueByActor.clear();
+        const auto depthOf = [this](FormId id) {
+            int depth = 0;
+            for (FormId at = id; depth < 64 && at != kNullFormId;)
+            {
+                const LocationRecord* l = location(at);
+                if (l == nullptr)
+                    break;
+                at = l->mParent;
+                ++depth;
+            }
+            return depth;
+        };
+        std::unordered_map<FormId, int> depthByRef, depthByActor;
+        const auto offer = [&](std::unordered_map<FormId, FormId>& table, std::unordered_map<FormId, int>& depths,
+                               FormId key, FormId target) {
+            if (key == kNullFormId || key == kUnresolvedFormId || target == kNullFormId || target == kUnresolvedFormId)
+                return;
+            const int d = depthOf(target);
+            const auto it = table.find(key);
+            if (it == table.end() || d > depths[key] || (d == depths[key] && target < it->second))
+            {
+                table[key] = target;
+                depths[key] = d;
+            }
+        };
+        for (const FormId id : ids())
+            for (const LocationUniqueNpc& n : location(id)->mUniqueNpcs)
+            {
+                const FormId target = n.mLocation != kNullFormId ? n.mLocation : id;
+                offer(mUniqueByRef, depthByRef, n.mRef, target);
+                offer(mUniqueByActor, depthByActor, n.mActor, target);
+            }
+        mUniqueDirty = false;
+    }
+
+    FormId LocationIndex::uniqueNpcLocation(FormId actor, FormId reference) const
+    {
+        if (mUniqueDirty)
+            rebuildUnique();
+        if (reference != kNullFormId)
+        {
+            const auto it = mUniqueByRef.find(reference);
+            if (it != mUniqueByRef.end())
+                return it->second;
+        }
+        const auto it = mUniqueByActor.find(actor);
+        return it == mUniqueByActor.end() ? kNullFormId : it->second;
     }
 
     FormId LocationIndex::editorLocationOf(FormId reference) const
