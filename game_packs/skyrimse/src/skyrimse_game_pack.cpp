@@ -20,6 +20,7 @@
 #include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/worldbooks.hpp"
 #include "game_skyrimse/rest.hpp"
+#include "game_skyrimse/stones.hpp"
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -82,6 +83,17 @@ namespace game_skyrimse
             {
             }
             void setQuests(const QuestIndex* quests) { mQuests = quests; }
+            // Task 0237: Message.Show
+            bool messageInfo(FormId message, PapyrusMessageInfo& out) override
+            {
+                SkyrimWorldView::MessageData data;
+                if (!mView.messageOf(message, data))
+                    return false;
+                out.mText = std::move(data.mText);
+                out.mButtons = std::move(data.mButtons);
+                out.mBox = data.mBox;
+                return true;
+            }
             void setLocations(const LocationIndex* locations) { mLocations = locations; } // task 0217
 
             bool readPex(const std::string& lowerName, std::vector<std::uint8_t>& bytes) override
@@ -104,7 +116,7 @@ namespace game_skyrimse
                 if (const PlacedRefIndex* refs = mView.placedRefs())
                     if (const PlacedEntry* entry = refs->find(form))
                         return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
-                return {};
+                return mView.scriptClassOf(form); // task 0237: Spell and Message
             }
             bool referencePosition(FormId reference, double& x, double& y, double& z) const override
             {
@@ -1041,6 +1053,7 @@ namespace game_skyrimse
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
                     syncFollowerAlias();
+                    syncStones(); // task 0237
                     if (mProgression != nullptr)
                         pollProgression(); // task 0200
                     if (mInventory != nullptr)
@@ -1208,6 +1221,8 @@ namespace game_skyrimse
                     // [extension.skyrimse] sneak; crime and pickpocketing ask it who has noticed the player.
                     startSneak(host, logger);
                     wirePapyrusWorld(host, logger);
+                    // Task 0237: standing stones and shrines (the Papyrus host's spells, messages and blessings)
+                    startStones(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
@@ -1415,6 +1430,74 @@ namespace game_skyrimse
                             + (mInventory != nullptr ? "on" : "off") + ")");
             }
 
+            // Task 0237: the spells and messages of the stones and shrines. Needs the Papyrus host; the experience effect
+            // needs `player progression`, the damage effect `neutral combat`.
+            void startStones(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                if (mPapyrus == nullptr)
+                    return;
+                stones::StonesService::Hooks hooks;
+                hooks.mLibrary = [this]() -> const PerkLibrary* {
+                    const progression::SkillTable* skills = nullptr;
+                    const PerkLibrary* perks = nullptr;
+                    progression::Settings settings;
+                    return mWorldView.progressionInputs(skills, perks, settings) ? perks : nullptr;
+                };
+                hooks.mPersistent = [this] { return mPapyrus->host().spellsOf(kPapyrusPlayerReference); };
+                hooks.mNow = [this] { return mPapyrus->host().gameSeconds(); };
+                hooks.mApply = [this](std::span<const FormId> spells) {
+                    mCellSource.combat().setPlayerExtraAbilities(std::vector<FormId>(spells.begin(), spells.end()));
+                };
+                hooks.mAnswer = [this](FormId message, std::int32_t button) {
+                    return mPapyrus->host().answerMessage(message, button);
+                };
+                hooks.mActivate = [this](FormId placement, FormId base) {
+                    if (mWorldView.stoneNameOf(base).empty())
+                        return false;
+                    mPapyrus->host().onActivate(placement, kPapyrusPlayerReference);
+                    return true;
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mStones = std::make_unique<stones::StonesService>(std::move(hooks));
+                stones::StonesService* stonesPtr = mStones.get();
+                mPapyrus->host().setMessageSink(
+                    [stonesPtr](FormId message, const PapyrusMessageInfo& info) { stonesPtr->ask(message, info); });
+                if (mProgression != nullptr)
+                    mProgression->setSkillUseScale([stonesPtr](std::size_t slot) { return stonesPtr->skillScale(slot); });
+                // a stone or shrine shows its name (and so can be activated with the real key) like an ore vein does
+                mCellSource.setPlacementNameLookup(
+                    [this](openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) {
+                        std::string name = mMining != nullptr
+                            ? mMining->nameOf(static_cast<FormId>(placement), static_cast<FormId>(base))
+                            : std::string();
+                        return name.empty() ? mWorldView.stoneNameOf(static_cast<FormId>(base)) : name;
+                    });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mStones->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the messages bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(mStones->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the stones chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "STONES standing stones and shrines are on");
+            }
+
+            void syncStones()
+            {
+                if (mStones == nullptr || mPapyrus == nullptr)
+                    return;
+                for (const PapyrusHost::SpellCast& cast : mPapyrus->host().takeCasts())
+                    (void)mStones->cast(cast.mSpell, cast.mTarget);
+                mStones->poll();
+            }
+
             void unwirePapyrusWorld()
             {
                 if (mPapyrus != nullptr)
@@ -1425,6 +1508,9 @@ namespace game_skyrimse
                 if (mInventory != nullptr)
                     mInventory->model().setChangeSink({});
                 mCellSource.scriptBridge().setSinks({}, {}, {});
+                if (mProgression != nullptr)
+                    mProgression->setSkillUseScale({});
+                mStones.reset();
                 mPapyrusBindings.reset();
                 mPapyrusHooks.reset();
             }
@@ -1977,9 +2063,12 @@ namespace game_skyrimse
                 mMining = std::make_unique<mining::MiningService>(std::move(hooks));
                 mCellSource.setPlacementNameLookup(
                     [this](openeden::sdk::game::WorldId placement, openeden::sdk::game::WorldId base) {
-                        return mMining != nullptr
+                        std::string name = mMining != nullptr
                             ? mMining->nameOf(static_cast<FormId>(placement), static_cast<FormId>(base))
                             : std::string();
+                        // task 0237: a standing stone or shrine shows its name too
+                        return name.empty() && mStones != nullptr ? mWorldView.stoneNameOf(static_cast<FormId>(base))
+                                                                  : name;
                     });
                 if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
                 {
@@ -3467,6 +3556,7 @@ namespace game_skyrimse
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<harvest::HarvestService> mHarvest; // task 0221; refers to the view and the inventory
+            std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared

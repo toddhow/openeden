@@ -219,6 +219,12 @@ namespace game_skyrimse::progression
         float gain = mGain ? mGain() : 1.f;
         if (!std::isfinite(gain) || !(gain > 0.f))
             gain = 1.f;
+        if (mSkillScale)
+        {
+            const float scale = mSkillScale(slot); // task 0237
+            if (std::isfinite(scale) && scale > 0.f)
+                gain *= scale;
+        }
         const std::uint32_t increases = mProgression->useSkill(slot, amount * gain);
         if (increases > 0 && mHooks.mLog)
             mHooks.mLog("PROGRESSION skill " + std::string(skillName(slot)) + " " + std::to_string(before) + " -> "

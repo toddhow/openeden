@@ -178,6 +178,10 @@ namespace game_skyrimse
         std::uint32_t mCastType = 0;
         std::uint32_t mDelivery = 0;
         std::int32_t mSecondaryValue = -1;
+        /// Task 0237: DATA +136, the perk the effect applies while it is active (0 when none). VERIFIED on Skyrim.esm: the
+        /// Warrior, Mage, Thief and Lover stones' effects name doomWarriorPerk and the others, which hold the ModSkillUse
+        /// entry points.
+        FormId mPerkToApply = kNullFormId;
         bool mHasScript = false; ///< the record carries a VMAD (its effect is a script, Firebolt's damage among them)
         /// CTDA subrecords of the record: a perk or a state gates the effect (the Stagger and Demoralize effects of
         /// Firebolt are perk effects with conditions). The magic runtime evaluates them (task 0236).

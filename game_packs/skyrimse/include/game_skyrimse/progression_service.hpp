@@ -76,6 +76,8 @@ namespace game_skyrimse
             /// Task 0210: a multiplier on every skill use (the Rested state's 1.1); none means 1. A result that is not
             /// finite or not above 0 counts as 1.
             void setGainMultiplier(std::function<float()> gain) { mGain = std::move(gain); }
+            /// Task 0237: a factor per skill slot (the standing stones' ModSkillUse), on top of the gain multiplier.
+            void setSkillUseScale(std::function<float(std::size_t slot)> scale) { mSkillScale = std::move(scale); }
 
             /// Task 0203 (the one hook of the skill books): raises a skill by exactly one level (the experience it takes,
             /// through the same rules as a use). False before ready, for a bad slot, a skill with no use numbers or one
@@ -118,6 +120,7 @@ namespace game_skyrimse
             std::vector<std::uint8_t> mPendingRestore;
             bool mHavePendingRestore = false;
             std::function<float()> mGain;
+            std::function<float(std::size_t)> mSkillScale; ///< task 0237
             std::string mLastResult;
             std::string mRefusal;
             std::uint64_t mLastPerkBuy = 0;

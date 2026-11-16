@@ -3376,6 +3376,95 @@ namespace game_skyrimse
         return {};
     }
 
+    std::string SkyrimWorldView::scriptClassOf(FormId form)
+    {
+        if (form == kNullFormId || form == kUnresolvedFormId || !awaitIndex())
+            return {};
+        const auto it = mBases.find(form);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return {};
+        const std::uint32_t type = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex].mType;
+        if (type == Content::fourCC("SPEL"))
+            return "Spell";
+        return type == Content::fourCC("MESG") ? "Message" : std::string();
+    }
+
+    std::string SkyrimWorldView::stoneNameOf(FormId base)
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId || !awaitIndex())
+            return {};
+        const auto it = mBases.find(base);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return {};
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if (m.mType != Content::fourCC("ACTI"))
+            return {};
+        for (const vmad::Script& script : m.mScripts)
+        {
+            std::string lowered = script.mName;
+            for (char& c : lowered)
+                c = static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
+            if (lowered == "powershrinescript" || lowered == "templeblessingscript")
+                return m.mName.mPresent && !m.mName.mText.empty() ? m.mName.mText : m.mCommon.mEditorId;
+        }
+        return {};
+    }
+
+    bool SkyrimWorldView::messageOf(FormId message, MessageData& out)
+    {
+        out = MessageData();
+        if (message == kNullFormId || message == kUnresolvedFormId || !awaitIndex())
+            return false;
+        const auto it = mBases.find(message);
+        if (it == mBases.end() || it->second.mTable != BaseTable::Model)
+            return false;
+        const ModelRecord& m = mPlugins[it->second.mPlugin].mParsed.mModels[it->second.mIndex];
+        if (m.mType != Content::fourCC("MESG"))
+            return false;
+        out.mText = messageTextOf(message);
+        // the strings hold a printf style percent sign (the data says "20%%")
+        for (std::size_t at = out.mText.find("%%"); at != std::string::npos; at = out.mText.find("%%", at + 1))
+            out.mText.erase(at, 1);
+        out.mBox = m.mMessageBox;
+        for (const LString& button : m.mButtons)
+        {
+            std::string text;
+            if (!button.mPresent)
+            {
+            }
+            else if (!button.mLocalized)
+                text = button.mText;
+            else if (mFiles != nullptr)
+                for (const StringTableKind kind :
+                    { StringTableKind::Strings, StringTableKind::DlStrings, StringTableKind::IlStrings })
+                {
+                    const std::uint32_t key = it->second.mPlugin * 4u + static_cast<std::uint32_t>(kind);
+                    auto& slot = mMessageTables[key];
+                    if (slot == nullptr)
+                    {
+                        std::string bytes;
+                        const std::string path
+                            = stringTablePath(stemOf(mPlugins[it->second.mPlugin].mPath), mOptions.mLanguage, kind);
+                        auto table = std::make_unique<StringTable>();
+                        Content::Error tableError;
+                        if (mFiles->read(path, bytes)
+                            && StringTable::parse({ reinterpret_cast<const std::byte*>(bytes.data()), bytes.size() },
+                                kind, mPlugins[it->second.mPlugin].mName, *table, tableError))
+                            slot = std::move(table);
+                        else
+                            slot = std::make_unique<StringTable>();
+                    }
+                    if (const std::string* found = slot->find(button.mId))
+                    {
+                        text = *found;
+                        break;
+                    }
+                }
+            out.mButtons.push_back(std::move(text));
+        }
+        return true;
+    }
+
     std::int32_t SkyrimWorldView::itemCountOfPlacement(FormId placement) const
     {
         const auto it = mItemCounts.find(placement);

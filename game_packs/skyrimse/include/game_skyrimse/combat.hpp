@@ -565,6 +565,9 @@ namespace game_skyrimse
         /// spell list loses the second and gains the first, and the ability sums (damage resist, weapon speed) are worked
         /// out again. A copy; the call may come at any time.
         void setPlayerRaceAbilities(std::vector<FormId> chosen, std::vector<FormId> standIn);
+        /// Task 0237 (standing stones, shrine blessings): spells the player has beyond his record's, worked into his
+        /// ability sums (damage resistance) and the resist lookups like the race's. A copy; replaces the last list.
+        void setPlayerExtraAbilities(std::vector<FormId> spells);
 
         // ---- task 0228: the powers of the player's race (RACE SPLO spells of type power or lesser power) ---------------
         /// What the magic runtime does with a power: its effects change the player's health, magicka or stamina or
@@ -1197,6 +1200,8 @@ namespace game_skyrimse
         std::vector<FormId> mRaceAbilities; ///< task 0225
         std::vector<FormId> mStandRaceAbilities; ///< task 0225
         bool mRaceAbilitiesSet = false; ///< task 0225
+        std::vector<FormId> mExtraAbilities; ///< task 0237
+        std::vector<FormId> mAppliedExtra; ///< task 0237: what the profile's spell list holds of them now
         std::vector<FormId> mNpcTestPerks;
         bool mPerksResolved = false;
         std::unique_ptr<PerkEngine> mPerkEngine;

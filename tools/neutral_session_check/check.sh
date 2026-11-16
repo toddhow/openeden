@@ -131,6 +131,12 @@ echo "return { mode = '${N8_MODE:-theft}', target = '${N8_TARGET:-b80803}', dist
 mkdir -p "$WORK/luatest/scripts/n9"
 echo "return { base = '${N9_BASE:-}', near = { ${N9_NEAR:-0, 0, 0} }, from = { ${N9_FROM:-1, 0} }, dist = ${N9_DIST:-60}, drop = ${N9_DROP:-0}, pitch = ${N9_PITCH:-0}, yaw = ${N9_YAW:-0}, phase = '${N9_PHASE:-none}', saveT = ${N9_SAVE_T:-20}, item = '${N9_ITEM:-}', sneak = $([ -n "${N9_SNEAK:-}" ] && echo true || echo false), advanceAt = ${N9_ADV_T:-0}, advanceHours = ${N9_ADV_H:-0}, hour = ${N9_HOUR:-nil}, scan = ${N9_SCAN:-nil}, scanr = ${N9_SCANR:-nil}, hide = $([ -n "${N9_HIDE:-}" ] && echo "'${N9_HIDE}'" || echo nil), autoaim = $([ -n "${N9_AUTOAIM:-}" ] && echo true || echo false), aim = $([ -n "${N9_AIM:-}" ] && echo "{ ${N9_AIM} }" || echo nil), shots = { ${N9_SHOTS:-8, 14} } }" > "$WORK/luatest/scripts/n9/cfg.lua"
 [ "$SHOT" = n5sightprobe ] && echo "content=n5sightprobe.omwscripts" >> "$WORK/config/openmw.cfg"
+# Task 0237 (standing stones and shrines): "stn" stands the player in front of the objects of STN_STEPS (Lua table text: { t = 6, base = "skyrimse:b860973",
+# near = { 2454, -59141, 1430 }, from = { 0, -1 }, dist = 90 }, ...) at those simulation seconds and takes a picture at each STN_SHOTS time; the activations and
+# clicks come from OPENEDEN_RMLUI_INPUT_SCRIPT (needs [GUI] rmlui = true and the pack settings papyrus and player progression in SETTINGS_EXTRA).
+[ "$SHOT" = stn ] && echo "content=stn.omwscripts" >> "$WORK/config/openmw.cfg"
+mkdir -p "$WORK/luatest/scripts/stn"
+echo "return { steps = { ${STN_STEPS:-} }, shots = { ${STN_SHOTS:-} }, saveAt = ${STN_SAVE:-nil} }" > "$WORK/luatest/scripts/stn/cfg.lua"
 # Task 0135 stage S3 (actor hooks): the same scenario, but the pack walks the actor: put "[extension.skyrimse]" and
 # "actor test walk = <editor id>" into SETTINGS_EXTRA and OPENEDEN_NEUTRAL_ACTOR_TRACE=1 in the environment; the NACTWALK
 # lines then follow the pacing actor. Leave OPENEDEN_NEUTRAL_ACTOR_WALK unset.
@@ -231,7 +237,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5bark|n5wolf|n5npcfight|n8crime|n9pick|stn|n5gear|pbody|seqdoor|seqwalk) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

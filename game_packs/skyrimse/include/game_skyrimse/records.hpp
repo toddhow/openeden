@@ -410,6 +410,9 @@ namespace game_skyrimse
         LString mActivateText;
     };
 
+    /// The most buttons a message keeps (the data has 2 to 4; the game allows 10).
+    inline constexpr std::size_t kMaxMessageButtons = 10;
+
     struct ModelRecord
     {
         std::uint32_t mType = 0; ///< The record's FourCC
@@ -430,6 +433,9 @@ namespace game_skyrimse
         std::optional<HarvestData> mHarvest;
         /// DESC of a MESG record (task 0224: the text of a message box); other types leave it absent.
         LString mDescription;
+        /// ITXT of a MESG (task 0237): the buttons' texts, in order, and DNAM bit 0: a message box (else a corner text).
+        std::vector<LString> mButtons;
+        bool mMessageBox = false;
         /// RNAM of an ACTI (task 0224: the activate text override, "Mine" on an ore vein); a FLOR's is in mHarvest.
         LString mActivateText;
     };

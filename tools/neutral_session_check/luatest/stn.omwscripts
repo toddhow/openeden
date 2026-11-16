@@ -1,0 +1,4 @@
+GLOBAL: scripts/stn/global.lua
+PLAYER: scripts/stn/player.lua
+PLAYER: scripts/n5/shot.lua
+MENU: scripts/n8/menu.lua

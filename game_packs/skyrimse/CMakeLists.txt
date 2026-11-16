@@ -28,6 +28,7 @@ openeden_add_game_pack(skyrimse
         src/map.cpp
         src/map_markers.cpp
         src/rest.cpp
+        src/stones.cpp
         src/travel.cpp
         src/services.cpp
         src/menus.cpp

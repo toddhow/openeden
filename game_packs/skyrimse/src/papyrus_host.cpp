@@ -94,6 +94,7 @@ namespace game_skyrimse
             mPure = std::make_unique<ScriptPapyrus::PureNatives>(*this, pure);
             (void)mPure->registerAll(*mRuntime);
             registerWorldNatives();
+            registerStoneNatives();
         }
 
         // ---- PapyrusWorld ------------------------------------------------------------------------------------------
@@ -770,6 +771,78 @@ namespace game_skyrimse
             return r;
         }
 
+        // Task 0237: the natives of the standing stones and the shrines (powerShrineScript, TempleBlessingScript).
+        void registerStoneNatives()
+        {
+            reg("Actor", "HasSpell", false, [this](const NativeCall& c) {
+                const FormId spell = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                return result(PapyrusValue::makeBool(spell != 0 && mSpells.count({ formOf(c.self), spell }) != 0));
+            });
+            reg("Actor", "RemoveSpell", false, [this](const NativeCall& c) {
+                const FormId spell = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                const bool removed = spell != 0 && mSpells.erase({ formOf(c.self), spell }) != 0;
+                if (removed)
+                    ++mSpellRevision;
+                return result(PapyrusValue::makeBool(removed));
+            });
+            reg("Actor", "AddPerk", false, [this](const NativeCall& c) {
+                const FormId perk = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                if (perk != 0 && mPerks.size() < kMaxRecordedPerks)
+                    mPerks.emplace(formOf(c.self), perk);
+                return NativeResult{};
+            });
+            // Spell.Cast(source, target): queued for the pack, which applies the spell's effects to the target
+            reg("Spell", "Cast", false, [this](const NativeCall& c) {
+                PapyrusHost::SpellCast cast;
+                cast.mSpell = formOf(c.self);
+                cast.mSource = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                cast.mTarget = c.arguments.size() < 2 ? 0 : formOf(c.arguments[1]);
+                if (cast.mSpell != 0 && mCasts.size() < PapyrusHost::kMaxQueuedCasts)
+                    mCasts.push_back(cast);
+                return NativeResult{};
+            });
+            reg("Message", "Show", false, [this](const NativeCall& c) {
+                return result(PapyrusValue::makeInt(showMessage(formOf(c.self))));
+            });
+            reg("Game", "AddAchievement", true, [](const NativeCall&) { return NativeResult{}; });
+            reg("ObjectReference", "PlayAnimation", false,
+                [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
+        }
+
+        // Message.Show: a corner text shows at once and answers 0; a message box asks the player (once) and answers
+        // the last button, the usual "No", unless the player's answer is waiting.
+        std::int32_t showMessage(FormId message)
+        {
+            PapyrusMessageInfo info;
+            if (message == 0 || !mData.messageInfo(message, info))
+            {
+                say(false, "Papyrus: message " + hex(message) + " is not a message of the data");
+                return 0;
+            }
+            if (!info.mBox || info.mButtons.size() < 2)
+            {
+                say(false, "Papyrus: message " + hex(message) + " shown: " + info.mText);
+                if (!info.mText.empty())
+                    note(info.mText);
+                return 0;
+            }
+            const auto answer = mAnswers.find(message);
+            if (answer != mAnswers.end())
+            {
+                const std::int32_t button = answer->second;
+                mAnswers.erase(answer);
+                return button;
+            }
+            const bool alreadyAsked = std::any_of(
+                mAsked.begin(), mAsked.end(), [message](const Replay& r) { return r.mMessage == message; });
+            if (mMessageSink && !alreadyAsked && mAsked.size() < kMaxAskedMessages)
+            {
+                mAsked.push_back({ message, mLastTarget, mLastActor });
+                mMessageSink(message, info);
+            }
+            return static_cast<std::int32_t>(info.mButtons.size()) - 1;
+        }
+
         void registerWorldNatives()
         {
             // Game
@@ -884,7 +957,10 @@ namespace game_skyrimse
             reg("Actor", "AddSpell", false, [this](const NativeCall& c) {
                 const FormId spell = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
                 const FormId actor = formOf(c.self);
-                return result(PapyrusValue::makeBool(spell != 0 && actor != 0 && mSpells.emplace(actor, spell).second));
+                const bool added = spell != 0 && actor != 0 && mSpells.emplace(actor, spell).second;
+                if (added)
+                    ++mSpellRevision; // task 0237
+                return result(PapyrusValue::makeBool(added));
             });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
                 const FormId base = mData.baseOf(formOf(c.self));
@@ -893,6 +969,8 @@ namespace game_skyrimse
             reg("ObjectReference", "Activate", false, [this](const NativeCall& c) {
                 const FormId target = formOf(c.self);
                 const FormId activator = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                mLastTarget = target; // task 0237
+                mLastActor = activator;
                 for (const InstanceId instance : instancesOf(target))
                     (void)sendEvent(instance, "OnActivate", { formValue(activator) });
                 return result(PapyrusValue::makeBool(true));
@@ -1277,6 +1355,7 @@ namespace game_skyrimse
             if (dt > 0.f)
                 mTime += static_cast<double>(dt);
             ++mCounters.mTicks;
+            runReplays();
             fireTimers();
             for (int round = 0; round < 8; ++round)
             {
@@ -1292,6 +1371,31 @@ namespace game_skyrimse
                     break;
             }
             mInTick = false;
+        }
+
+        struct Replay
+        {
+            FormId mMessage = 0;
+            FormId mTarget = 0;
+            FormId mActor = 0;
+        };
+        static constexpr std::size_t kMaxAskedMessages = 16;
+        static constexpr std::size_t kMaxRecordedPerks = 256;
+
+        // Task 0237: a message the player answered runs its activation again once no stack waits.
+        void runReplays()
+        {
+            if (mReplays.empty() || mRuntime->suspendedStacks() != 0)
+                return;
+            std::vector<Replay> replays;
+            replays.swap(mReplays);
+            for (const Replay& r : replays)
+            {
+                mLastTarget = r.mTarget;
+                mLastActor = r.mActor;
+                for (const InstanceId instance : instancesOf(r.mTarget))
+                    (void)sendEvent(instance, "OnActivate", { formValue(r.mActor) });
+            }
         }
 
         struct Timer
@@ -1336,7 +1440,17 @@ namespace game_skyrimse
         std::uint64_t mTolerantBase = 0; ///< tolerant calls counted before the state that was restored
         std::map<FormId, bool> mEnabled;
         std::map<FormId, std::array<double, 3>> mPositions; ///< MoveTo (recorded only)
-        std::set<std::pair<FormId, FormId>> mSpells; ///< Actor.AddSpell (recorded only)
+        std::set<std::pair<FormId, FormId>> mSpells; ///< Actor.AddSpell (the pack reads it: spellsOf)
+        // task 0237
+        std::uint64_t mSpellRevision = 0;
+        std::set<std::pair<FormId, FormId>> mPerks; ///< Actor.AddPerk (recorded, not saved)
+        std::vector<PapyrusHost::SpellCast> mCasts;
+        PapyrusHost::MessageSink mMessageSink;
+        std::map<FormId, std::int32_t> mAnswers; ///< message -> the button answered, until Message.Show takes it
+        std::vector<Replay> mAsked; ///< message boxes asked and not answered yet
+        std::vector<Replay> mReplays; ///< answered: the activation runs again
+        FormId mLastTarget = 0;
+        FormId mLastActor = 0;
         std::vector<std::pair<FormId, std::uint32_t>> mAliasKeys;
         std::map<std::pair<FormId, std::uint32_t>, std::uint32_t> mAliasByKey;
         std::map<std::pair<FormId, std::uint32_t>, FormId> mAliasForced;
@@ -1983,6 +2097,7 @@ namespace game_skyrimse
         mEnabled = std::move(enabled);
         mPositions = std::move(positions);
         mSpells = std::move(spells);
+        ++mSpellRevision; // task 0237: the pack reads the list again
         mAvOffsets = std::move(avOffsets);
         mDead = std::move(dead);
         mInvFilters = std::move(filters);
@@ -2295,6 +2410,8 @@ namespace game_skyrimse
     void PapyrusHost::onActivate(FormId target, FormId actionRef)
     {
         Impl& m = *mImpl;
+        m.mLastTarget = target; // task 0237
+        m.mLastActor = actionRef;
         for (const InstanceId instance : m.instancesOf(target))
             (void)m.sendEvent(instance, "OnActivate", { m.formValue(actionRef) });
     }
@@ -2381,6 +2498,71 @@ namespace game_skyrimse
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const
     {
         return mImpl->mSpells.count({ actor, spell }) != 0;
+    }
+
+    // ---- task 0237
+    std::vector<PapyrusHost::SpellCast> PapyrusHost::takeCasts()
+    {
+        std::vector<SpellCast> out;
+        out.swap(mImpl->mCasts);
+        return out;
+    }
+
+    std::vector<FormId> PapyrusHost::spellsOf(FormId actor) const
+    {
+        std::vector<FormId> out;
+        for (const auto& [who, spell] : mImpl->mSpells)
+            if (who == actor)
+                out.push_back(spell);
+        return out; // the set is ordered by (actor, spell): already sorted
+    }
+
+    std::uint64_t PapyrusHost::spellRevision() const
+    {
+        return mImpl->mSpellRevision;
+    }
+
+    std::vector<FormId> PapyrusHost::perksOf(FormId actor) const
+    {
+        std::vector<FormId> out;
+        for (const auto& [who, perk] : mImpl->mPerks)
+            if (who == actor)
+                out.push_back(perk);
+        return out;
+    }
+
+    double PapyrusHost::gameSeconds() const
+    {
+        return mImpl->mTime * mImpl->mOptions.mTimeScale;
+    }
+
+    void PapyrusHost::setMessageSink(MessageSink sink)
+    {
+        mImpl->mMessageSink = std::move(sink);
+    }
+
+    bool PapyrusHost::answerMessage(FormId message, std::int32_t button)
+    {
+        Impl& m = *mImpl;
+        const auto asked = std::find_if(
+            m.mAsked.begin(), m.mAsked.end(), [message](const Impl::Replay& r) { return r.mMessage == message; });
+        if (asked == m.mAsked.end() || button < 0)
+            return false;
+        const Impl::Replay replay = *asked;
+        m.mAsked.erase(asked);
+        PapyrusMessageInfo info;
+        const bool cancel
+            = !m.mData.messageInfo(message, info) || button + 1 >= static_cast<std::int32_t>(info.mButtons.size());
+        if (cancel)
+            return true; // the last button is "No": nothing runs again
+        m.mAnswers[message] = button;
+        m.mReplays.push_back(replay);
+        return true;
+    }
+
+    std::size_t PapyrusHost::messagesAsked() const
+    {
+        return mImpl->mAsked.size();
     }
 
     const PapyrusHostCounters& PapyrusHost::counters() const

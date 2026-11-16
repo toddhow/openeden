@@ -398,6 +398,24 @@ namespace game_skyrimse
         preparePerks(*player);
     }
 
+    // ---- task 0237: stones and blessings
+    void SkyrimCombat::setPlayerExtraAbilities(std::vector<FormId> spells)
+    {
+        if (spells == mExtraAbilities)
+            return;
+        mExtraAbilities = std::move(spells);
+        if (mTrace)
+            trace("COMBAT player extra abilities: " + std::to_string(mExtraAbilities.size()));
+        Fighter* player = find(openeden::sdk::game::CombatSubject::ofPlayer());
+        if (player == nullptr || !player->mHasProfile)
+            return; // preparePerks applies them when the profile is made
+        FighterProfile& profile = player->mProfile;
+        profile.mAbilityDamageResist = 0.f;
+        profile.mHasWeaponSpeedAbility = false;
+        profile.mAbilityWeaponSpeed = 1.f;
+        preparePerks(*player);
+    }
+
     // ---- task 0184: what the player wields and wears, and a potion's health
     void SkyrimCombat::setPlayerEquipment(PlayerEquipment equipment)
     {
@@ -596,6 +614,23 @@ namespace game_skyrimse
             for (const FormId id : mRaceAbilities)
                 if (std::find(p.mSpells.begin(), p.mSpells.end(), id) == p.mSpells.end())
                     p.mSpells.push_back(id);
+        }
+        if (fighter.mSubject.player)
+        {
+            // task 0237: the stones' and blessings' spells replace the ones the last call added
+            p.mSpells.erase(std::remove_if(p.mSpells.begin(), p.mSpells.end(),
+                                [this](FormId id) {
+                                    return std::find(mAppliedExtra.begin(), mAppliedExtra.end(), id)
+                                        != mAppliedExtra.end();
+                                }),
+                p.mSpells.end());
+            mAppliedExtra.clear();
+            for (const FormId id : mExtraAbilities)
+                if (std::find(p.mSpells.begin(), p.mSpells.end(), id) == p.mSpells.end())
+                {
+                    p.mSpells.push_back(id);
+                    mAppliedExtra.push_back(id);
+                }
         }
         const std::vector<FormId>& extra = fighter.mSubject.player ? mPlayerTestPerks : mNpcTestPerks;
         p.mPerks.insert(p.mPerks.end(), extra.begin(), extra.end());

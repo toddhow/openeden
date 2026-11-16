@@ -679,6 +679,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepowersreal.cpp
     skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimserest.cpp
+    skyrimse/testskyrimsestones.cpp
     skyrimse/testskyrimsetravel.cpp
     skyrimse/testskyrimseservices.cpp
     skyrimse/testskyrimsecarriage.cpp
@@ -772,6 +773,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/rest.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/stones.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/travel.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/services.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/menus.cpp

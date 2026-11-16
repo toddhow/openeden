@@ -1113,6 +1113,8 @@ namespace game_skyrimse
                 bool hasLightFade = false;
                 LString fullName; // FULL of a model record (task 0150)
                 LString description; // DESC of a MESG (task 0224)
+                std::vector<LString> buttons; // ITXT of a MESG (task 0237), at most kMaxMessageButtons
+                bool messageBox = false; // DNAM bit 0 of a MESG (task 0237): a box with buttons, not a corner text
                 LString activateText; // RNAM of an ACTI (task 0224)
                 std::vector<vmad::Script> baseScripts; // VMAD (task 0181)
                 std::vector<FormId> baseKeywords; // KWDA (task 0181)
@@ -1173,6 +1175,20 @@ namespace game_skyrimse
                             if (record.mType != Content::fourCC("MESG"))
                                 break;
                             ok = lstring(type, data, description);
+                            break;
+                        case Content::fourCC("ITXT"): // MESG only: a button's text (task 0237)
+                            if (record.mType != Content::fourCC("MESG") || buttons.size() >= kMaxMessageButtons)
+                                break;
+                            buttons.emplace_back();
+                            ok = lstring(type, data, buttons.back());
+                            break;
+                        case Content::fourCC("DNAM"): // MESG only: flags, bit 0 = message box (VERIFIED on Skyrim.esm)
+                            if (record.mType != Content::fourCC("MESG"))
+                                break;
+                            if (data.size() == 4)
+                                messageBox = (readLe<std::uint32_t>(data.data()) & 1u) != 0;
+                            else
+                                odd("DNAM");
                             break;
                         case Content::fourCC("DATA"): // LIGH: VERIFIED size 48 (tool), see LightData
                             if (!isLight)
@@ -1248,6 +1264,8 @@ namespace game_skyrimse
                     model.mModel = std::move(s.mModel);
                     model.mName = std::move(fullName);
                     model.mDescription = std::move(description);
+                    model.mButtons = std::move(buttons);
+                    model.mMessageBox = messageBox;
                     model.mActivateText = std::move(activateText);
                     model.mScripts = std::move(baseScripts);
                     model.mKeywords = std::move(baseKeywords);

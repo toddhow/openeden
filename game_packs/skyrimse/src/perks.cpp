@@ -560,6 +560,9 @@ namespace game_skyrimse
                     out.mHitEffectArt = readLe<std::uint32_t>(data.data() + 96) == 0
                         ? kNullFormId
                         : fields.resolved(readLe<std::uint32_t>(data.data() + 96));
+                    out.mPerkToApply = readLe<std::uint32_t>(data.data() + 136) == 0
+                        ? kNullFormId
+                        : fields.resolved(readLe<std::uint32_t>(data.data() + 136));
                     out.mCastType = readLe<std::uint32_t>(data.data() + 80);
                     out.mDelivery = readLe<std::uint32_t>(data.data() + 84);
                     out.mSecondaryValue = readLe<std::int32_t>(data.data() + 88);

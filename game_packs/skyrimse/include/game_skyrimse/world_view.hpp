@@ -535,6 +535,21 @@ namespace game_skyrimse
         /// Task 0224: the DESC text of a MESG record (a localised one is looked up in the plugin's string tables,
         /// read at the first ask); empty when it cannot be read. Main thread.
         [[nodiscard]] std::string messageTextOf(FormId message);
+        /// Task 0237: a MESG's text, button texts and whether it is a message box. False when the form is not a message
+        /// or before the index is built. Main thread.
+        struct MessageData
+        {
+            std::string mText;
+            std::vector<std::string> mButtons;
+            bool mBox = false;
+        };
+        [[nodiscard]] bool messageOf(FormId message, MessageData& out);
+        /// Task 0237: the name (FULL, else the editor id) of an ACTI that carries the standing stone or shrine script
+        /// (`powerShrineScript`, `TempleBlessingScript`), else empty. Main thread.
+        [[nodiscard]] std::string stoneNameOf(FormId base);
+        /// Task 0237: the Papyrus class of a base form the other lookups do not class: "Spell" for a SPEL, "Message"
+        /// for a MESG (a script's `Spell.Cast` and `Message.Show` need the class on the VALUE); empty for anything else.
+        [[nodiscard]] std::string scriptClassOf(FormId form);
         /// Task 0221: with this on, displayNameOf answers a harvestable plant's prompt ("Harvest Canis Root") instead
         /// of its name. Set before the first cell is built.
         void setHarvestPrompts(bool on) { mHarvestPrompts = on; }

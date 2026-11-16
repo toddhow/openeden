@@ -46,11 +46,27 @@ namespace game_skyrimse
     /// The pack setting (`[extension.skyrimse] papyrus`, bool, off by default) that runs the Papyrus host.
     inline constexpr std::string_view kPapyrusKey = "papyrus";
 
+    /// Task 0237: what a MESG says (Message.Show). A box (`mBox`) with two or more buttons asks the player; anything
+    /// else is shown as a corner text and answers button 0.
+    struct PapyrusMessageInfo
+    {
+        std::string mText;
+        std::vector<std::string> mButtons;
+        bool mBox = false;
+    };
+
     /// What the host reads from the pack. Every function runs on the main thread.
     class PapyrusGameData
     {
     public:
         virtual ~PapyrusGameData() = default;
+
+        /// Task 0237: the text, buttons and kind of a MESG. False when the form is not a message.
+        [[nodiscard]] virtual bool messageInfo(FormId message, PapyrusMessageInfo& out)
+        {
+            (void)message, (void)out;
+            return false;
+        }
 
         /// Task 0223: the default value of a GLOB (GlobalVariable.GetValue). False when the form is not a global.
         [[nodiscard]] virtual bool globalValue(FormId global, float& value) const
@@ -431,8 +447,35 @@ namespace game_skyrimse
         /// or after Clear. Read only; the pack polls the DialogueFollower alias with it.
         [[nodiscard]] FormId forcedAlias(FormId quest, std::uint32_t alias) const;
 
-        /// Whether Actor.AddSpell recorded the spell for the actor (recorded only: no effect).
+        /// Whether Actor.AddSpell recorded the spell for the actor (the pack reads it: `spellsOf`).
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
+
+        // ---- task 0237: standing stones and shrines. Additive.
+        /// A Spell.Cast a script made, for the pack to apply (a shrine's blessing). Queued; `takeCasts` empties it.
+        struct SpellCast
+        {
+            FormId mSpell = 0;
+            FormId mSource = 0;
+            FormId mTarget = 0;
+        };
+        static constexpr std::size_t kMaxQueuedCasts = 64;
+        [[nodiscard]] std::vector<SpellCast> takeCasts();
+        /// The spells Actor.AddSpell gave the actor (the player is 0x14), sorted; `spellRevision` moves on every change
+        /// (AddSpell, RemoveSpell).
+        [[nodiscard]] std::vector<FormId> spellsOf(FormId actor) const;
+        [[nodiscard]] std::uint64_t spellRevision() const;
+        /// The perks Actor.AddPerk gave the actor (recorded; not saved).
+        [[nodiscard]] std::vector<FormId> perksOf(FormId actor) const;
+        /// The game seconds a script sees (script time at the host's time scale).
+        [[nodiscard]] double gameSeconds() const;
+        /// Message.Show of a message box asks the player through this sink and answers the last button (the usual
+        /// "No"); `answerMessage` then makes the activation of the same object run again with that answer.
+        using MessageSink = std::function<void(FormId message, const PapyrusMessageInfo& info)>;
+        void setMessageSink(MessageSink sink);
+        /// The player's answer (a button index): a button other than the last runs the script again (once every wait it
+        /// started is over) with Message.Show answering it. False when no such message was asked.
+        bool answerMessage(FormId message, std::int32_t button);
+        [[nodiscard]] std::size_t messagesAsked() const;
 
         [[nodiscard]] const PapyrusHostCounters& counters() const;
         [[nodiscard]] const ScriptPapyrus::Stats& runtimeStats() const;
