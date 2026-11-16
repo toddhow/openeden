@@ -321,6 +321,13 @@ namespace game_skyrimse::crafting
     // ---- the session
     // --------------------------------------------------------------------------------------------------
 
+    std::string CraftingService::benchAnswer(FormId furniture) const
+    {
+        if (!mTableReady)
+            return "pending";
+        return mTable.benchesOf(furniture).empty() ? "no" : "yes";
+    }
+
     void CraftingService::openBench(std::uint64_t placement, FormId furniture, std::string name)
     {
         mSession = State::Pending;
@@ -1059,6 +1066,15 @@ namespace game_skyrimse::crafting
                     m.mText = self->enchantName(e) + " " + buffer;
                 }
             }
+            BindingResult r = ok();
+            r.value = text(m.mText);
+            return r;
+        });
+
+        // Task 0213: the global script asks before it opens a window (a Mutate call cannot answer in the same handler).
+        add("is_bench", s1, true, kStr, BindingAccess::Read, [self, &m, idOf](std::span<const BindingValue> a) {
+            FormId furniture = 0;
+            m.mText = idOf(a[0], furniture) ? self->benchAnswer(furniture) : std::string("no");
             BindingResult r = ok();
             r.value = text(m.mText);
             return r;

@@ -116,6 +116,8 @@ namespace game_skyrimse::crafting
         [[nodiscard]] const CraftingTable& table() const { return mTable; }
         [[nodiscard]] CraftingChunk& chunk() { return mChunk; }
 
+        /// Task 0213: is this furniture a crafting bench? "yes", "no", or "pending" while the recipe table is being built.
+        [[nodiscard]] std::string benchAnswer(FormId furniture) const;
         void openBench(std::uint64_t placement, FormId furniture, std::string name);
         void openKind(BenchKind kind);
         void close();

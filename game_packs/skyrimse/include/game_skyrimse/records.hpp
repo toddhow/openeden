@@ -311,6 +311,8 @@ namespace game_skyrimse
         std::optional<CellGrid> mGrid; ///< XCLC, exterior cells
         std::optional<float> mWaterHeight; ///< XCLW
         FormId mLocation = kNullFormId; ///< XLCN
+        /// XOWN (task 0213): who owns the cell, 0 when it has no owner. 4 bytes in all 230 of the master's.
+        FormId mOwner = kNullFormId;
         /// XCLL, the interior lighting (64 or 92 bytes, VERIFIED on the five masters: 2,360 of 2,360). Only the part
         /// both sizes share is decoded.
         std::optional<CellLightingData> mLighting;

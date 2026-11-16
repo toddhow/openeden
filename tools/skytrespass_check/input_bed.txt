@@ -1,0 +1,7 @@
+# task 0213: activate the bed with the real activate key (Space), look at the refusal, dismiss it with Escape.
+3800 key Space down
+3802 key Space up
+3860 shot
+3900 key Escape down
+3902 key Escape up
+4100 shot

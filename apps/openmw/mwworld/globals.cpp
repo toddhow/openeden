@@ -99,7 +99,15 @@ namespace MWWorld
             global.load(reader, isDeleted);
 
             if (const auto iter = mVariables.find(global.mId); iter != mVariables.end())
+            {
+                // A save made while a float global (gamehour) was defined as an integer holds an integer: keep the
+                // definition's float type, or the truncation would come back for the rest of the game (task 0213).
+                const bool wasFloat = iter->second.mValue.getType() == ESM::VT_Float;
+                const ESM::VarType savedType = global.mValue.getType();
+                if (wasFloat && (savedType == ESM::VT_Long || savedType == ESM::VT_Short || savedType == ESM::VT_Int))
+                    global.mValue = ESM::Variant(static_cast<float>(global.mValue.getInteger()));
                 iter->second = std::move(global);
+            }
 
             return true;
         }

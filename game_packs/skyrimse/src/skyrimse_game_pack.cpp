@@ -1719,6 +1719,16 @@ namespace game_skyrimse
                 hooks.mJail = [this](FormId faction, crime::JailDestination& out) {
                     return mWorldView.jailDestination(faction, out);
                 };
+                // Task 0213: trespass reads the CELL records (owner, public flag) and the owner of a bed placement.
+                hooks.mCellAccess = [this](const std::string& editorId, crime::CellAccess& out) {
+                    return mWorldView.cellAccessByName(editorId, out);
+                };
+                hooks.mPlacementOwner = [this](FormId placement) {
+                    const auto owner = mWorldView.ownerOfPlacement(placement);
+                    return owner && owner->owner != openeden::sdk::game::kNoWorldId
+                        ? static_cast<FormId>(owner->owner)
+                        : kNullFormId;
+                };
                 hooks.mLog = [this, logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);

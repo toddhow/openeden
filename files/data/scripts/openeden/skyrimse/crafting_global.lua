@@ -16,6 +16,12 @@ return {
   eventHandlers = {
     -- From the engine (Neutral::activate on a furniture): data has placement, base, kind ("bench") and name (hex text).
     openeden_skyrimse_bench_opened = function(data)
+      -- Task 0213: the event comes for ANY furniture (a chair, a bed); only a crafting bench opens the window. The
+      -- answer is "yes", "no", or "pending" while the recipe table is built (the pack refuses by itself then). An older
+      -- pack without the function opens as before.
+      if crafting.is_bench ~= nil and crafting.is_bench(data.base) == 'no' then
+        return
+      end
       print('[skyrimse crafting] bench activated: ' .. tostring(data.name))
       crafting.open(data.placement, data.base, data.name)
       toPlayer('SkyrimCraftingOpen', { name = data.name })

@@ -20,6 +20,8 @@
 //   jail_seconds() -> double    how long the player stays
 //   choose(choice) [Mutate]     "pay", "jail" or "resist"
 //   released()     [Mutate]     the jail time is over and the player was taken back
+//   entered_cell(editorId)  [Mutate]   task 0213: the player's cell changed (trespass is judged, see enteredCell)
+//   trespass_bed(placement) [Mutate]   task 0213: the player tried a bed that may not be his
 
 #include <game_skyrimse/crime.hpp>
 
@@ -51,6 +53,9 @@ namespace game_skyrimse::crime
         std::function<void(openeden::sdk::game::ActorHandle)> mRelease;
         std::function<void(openeden::sdk::game::ActorHandle)> mAttack;
         std::function<bool(FormId faction, JailDestination& out)> mJail;
+        /// Task 0213: what the CELL records say of a cell by editor id (false: unknown) and who owns a placement.
+        std::function<bool(const std::string& editorId, CellAccess& out)> mCellAccess;
+        std::function<FormId(FormId placement)> mPlacementOwner;
         std::function<void(const std::string&)> mLog;
     };
 
@@ -68,6 +73,12 @@ namespace game_skyrimse::crime
 
         /// The player took `count` of `item` out of a container somebody else owns.
         void theft(FormId item, std::int32_t count) { mSystem.onTheft(item, count); }
+        /// Task 0213: the player's cell changed to this one (the Lua global script reports every change). The first
+        /// report of a session only records the cell; a cell the jail sent the player to is no trespass; a private
+        /// owned interior is (judged later by the witness rule). Entering any cell ends the previous visit.
+        void enteredCell(std::string_view editorId);
+        /// Task 0213: the player tried to use the bed at `placement`: trespass when its owner is not the player's.
+        void trespassBed(FormId placement);
         /// The player's choice at an offer; a jail with no destination clears the bounty and says why.
         ChoiceStatus choose(std::string_view choice);
         /// How many of an item the player holds are stolen (never more than it holds).
@@ -102,6 +113,8 @@ namespace game_skyrimse::crime
         LedgerChunk mChunk;
         CrimeSystem mSystem;
         std::map<FormId, JailDestination> mJail;
+        std::string mLastCell; ///< the cell the player was last reported in, lower case (empty: none yet)
+        bool mAfterJail = false; ///< the next cell reported is the way back from the jail
         JailDestination mNoJail;
     };
 }

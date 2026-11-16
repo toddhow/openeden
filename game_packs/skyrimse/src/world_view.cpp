@@ -1083,6 +1083,41 @@ namespace game_skyrimse
         return true;
     }
 
+    bool SkyrimWorldView::cellAccessOf(FormId cell, crime::CellAccess& out) const
+    {
+        out = {};
+        if (!awaitIndex())
+            return false;
+        const auto it = mCells.find(cell);
+        if (it == mCells.end())
+            return false;
+        out.mKnown = true;
+        out.mInterior = it->second.mInfo.interior;
+        // The latest plugin that says something wins: a flags word of 0 or no XOWN is "not said" in an override.
+        bool flagsSeen = false;
+        for (auto s = it->second.mSources.rbegin(); s != it->second.mSources.rend(); ++s)
+        {
+            const CellRecord& record = mPlugins[s->mPlugin].mParsed.mCells[s->mIndex];
+            if (!flagsSeen && record.mFlags != 0)
+            {
+                out.mPublic = (record.mFlags & CellFlags::PublicArea) != 0;
+                flagsSeen = true;
+            }
+            if (out.mOwner == kNullFormId && record.mOwner != kNullFormId)
+                out.mOwner = record.mOwner;
+        }
+        return true;
+    }
+
+    bool SkyrimWorldView::cellAccessByName(std::string_view editorId, crime::CellAccess& out) const
+    {
+        out = {};
+        if (!awaitIndex())
+            return false;
+        const auto it = mCellByEditorId.find(lowerAscii(editorId));
+        return it != mCellByEditorId.end() && cellAccessOf(it->second, out);
+    }
+
     // ---- AI packages (task 0135, stage S5) -------------------------------------------------------------------------
 
     bool SkyrimWorldView::ready() const

@@ -11,6 +11,20 @@ end
 
 local jail = nil -- { back = { cell, position, rotation }, until = simulation time }
 
+-- Task 0213: trespass. The pack is not told where the player stands, so this script reports the player's cell each time
+-- it changes (the first report only records it; a cell the jail sends the player to is no trespass: the pack knows).
+-- Needs the functions of 0213; an older pack without them is feature-detected.
+local lastCell = nil
+local function reportCell()
+  if crime.entered_cell == nil then return end
+  local player = world.players[1]
+  if not player or not player.cell then return end
+  local name = player.cell.name
+  if name == nil or name == '' or name == lastCell then return end
+  lastCell = name
+  crime.entered_cell(name)
+end
+
 local function enter()
   local player = world.players[1]
   if not player or not crime.jail_available() then
@@ -46,6 +60,7 @@ end
 return {
   engineHandlers = {
     onUpdate = function()
+      reportCell()
       local state = crime.state()
       if state == 'jailed' then
         if jail == nil then

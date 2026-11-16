@@ -1,6 +1,9 @@
 #include "game_skyrimse/crime_service.hpp"
 
+#include "game_skyrimse/inventory_service.hpp"
+
 #include <algorithm>
+#include <cctype>
 #include <span>
 
 // The crime service and its bindings: see the header (task 0204).
@@ -195,6 +198,47 @@ namespace game_skyrimse::crime
             mHooks.mLog(line);
     }
 
+    void CrimeService::enteredCell(std::string_view editorId)
+    {
+        std::string name(editorId);
+        std::transform(name.begin(), name.end(), name.begin(),
+            [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        if (name.empty() || name == mLastCell)
+            return;
+        const bool first = mLastCell.empty();
+        mLastCell = name;
+        mSystem.onLeftPlace(); // the earlier visit is over
+        if (first)
+            return; // a start or a load: the player did not walk in
+        if (mSystem.state() == State::Jailed)
+        {
+            mAfterJail = true; // the cell of the jail, and the way back from it, are not entered of the player's will
+            return;
+        }
+        if (mAfterJail)
+        {
+            mAfterJail = false;
+            return;
+        }
+        CellAccess access;
+        if (!mHooks.mCellAccess || !mHooks.mCellAccess(name, access) || !cellEntryIsTrespass(access))
+            return;
+        log("CRIME trespass: entered " + name + " (owner " + inventory::formatId(access.mOwner) + ")");
+        // One visit is judged at a time (a new entry ends the last), so the owner, never null here, names it.
+        mSystem.onTrespass(access.mOwner, Place::Cell);
+    }
+
+    void CrimeService::trespassBed(FormId placement)
+    {
+        if (placement == kNullFormId || !mHooks.mPlacementOwner)
+            return;
+        const FormId owner = mHooks.mPlacementOwner(placement);
+        if (owner == kNullFormId || owner == kUnresolvedFormId || isPlayersOwner(owner))
+            return;
+        log("CRIME trespass: bed " + inventory::formatId(placement) + " (owner " + inventory::formatId(owner) + ")");
+        mSystem.onTrespass(placement, Place::Bed);
+    }
+
     openeden::sdk::DeclareResult CrimeService::declare(openeden::sdk::BindingsService& service)
     {
         Impl& m = *mImpl;
@@ -281,6 +325,22 @@ namespace game_skyrimse::crime
                     + ")");
             return ok();
         });
+        add("entered_cell", s1, false, BindingType::Bool, BindingAccess::Mutate,
+            [self](std::span<const BindingValue> a) {
+                self->enteredCell(a[0].text);
+                return ok();
+            });
+        add("trespass_bed", s1, false, BindingType::Bool, BindingAccess::Mutate,
+            [self](std::span<const BindingValue> a) {
+                std::uint64_t id = 0;
+                if (!inventory::parseId(a[0].text, id) || id > 0xFFFFFFFFull)
+                {
+                    self->log("CRIME trespass_bed refused: bad id");
+                    return ok();
+                }
+                self->trespassBed(static_cast<FormId>(id));
+                return ok();
+            });
         add("released", {}, false, BindingType::Bool, BindingAccess::Mutate, [self](std::span<const BindingValue>) {
             self->mSystem.released();
             return ok();

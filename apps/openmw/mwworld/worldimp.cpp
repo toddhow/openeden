@@ -47,6 +47,7 @@
 #include <components/resource/physicsshape.hpp>
 #include <components/resource/resourcesystem.hpp>
 
+#include "defaultglobals.hpp"
 #include "neutraldialogue.hpp"
 #include "neutralmusicdriver.hpp"
 #include "neutralscenespeech.hpp"
@@ -197,25 +198,7 @@ namespace MWWorld
             };
         }
 
-        std::vector<std::pair<GlobalVariableName, ESM::Variant>> generateDefaultGlobals()
-        {
-            return {
-                // vanilla Morrowind does not define dayspassed.
-                { Globals::sDaysPassed, ESM::Variant(1) }, // but the addons start counting at 1 :(
-                { Globals::sWerewolfClawMult, ESM::Variant(25.f) },
-                { Globals::sPCKnownWerewolf, ESM::Variant(0) },
-                // following should exist in all versions of MW, but not necessarily in TCs
-                { Globals::sGameHour, ESM::Variant(0) },
-                { Globals::sTimeScale, ESM::Variant(30.f) },
-                { Globals::sDay, ESM::Variant(1) },
-                { Globals::sYear, ESM::Variant(1) },
-                { Globals::sPCRace, ESM::Variant(0) },
-                { Globals::sPCHasCrimeGold, ESM::Variant(0) },
-                { Globals::sCrimeGoldDiscount, ESM::Variant(0) },
-                { Globals::sCrimeGoldTurnIn, ESM::Variant(0) },
-                { Globals::sPCHasTurnIn, ESM::Variant(0) },
-            };
-        }
+        // The default globals are in defaultglobals.cpp (task 0213).
     }
 
     struct GameContentLoader : public ContentLoader
@@ -681,17 +664,7 @@ namespace MWWorld
             }
         }
 
-        for (const auto& [name, value] : generateDefaultGlobals())
-        {
-            if (mStore.get<ESM::Global>().search(ESM::RefId::stringRefId(name.getValue())) == nullptr)
-            {
-                ESM::Global record;
-                record.mId = ESM::RefId::stringRefId(name.getValue());
-                record.mValue = value;
-                record.mRecordFlags = 0;
-                mStore.insertStatic(record);
-            }
-        }
+        insertMissingDefaultGlobals(mStore);
     }
 
     World::~World()

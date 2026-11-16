@@ -72,6 +72,40 @@ namespace game_skyrimse::crime
         float mRetargetDistance = 48.f;
         /// At most this many witnesses are tested by ray per crime (nearest first). OURS.
         std::size_t mMaxRays = 16;
+        /// Trespass (task 0213), all OURS. A trespass is first judged this long after the event (a new cell's actors
+        /// need a moment to exist), then every mTrespassRetry until a witness sees it or the watch time passes (a cell
+        /// visit and a bed attempt have their own). A bed attempt on the same bed within mTrespassRepeat is not
+        /// charged again.
+        float mTrespassDelay = 1.5f;
+        float mTrespassRetry = 0.5f;
+        float mTrespassWatchCell = 30.f;
+        float mTrespassWatchBed = 2.f;
+        float mTrespassRepeat = 120.f;
+    };
+
+    // ---- trespass (task 0213) -------------------------------------------------------------------------------------
+
+    /// What the rules read of a cell the player entered (from the CELL records of the load order).
+    struct CellAccess
+    {
+        bool mKnown = false;
+        bool mInterior = false;
+        bool mPublic = false; ///< the cell's "public area" flag
+        FormId mOwner = kNullFormId; ///< the cell's XOWN (an NPC_ or a FACT), 0 when it has none
+    };
+
+    /// Is this owner the player's own (the Player NPC_ or PlayerFaction; the stand-in is in no other faction)?
+    [[nodiscard]] bool isPlayersOwner(FormId owner);
+
+    /// Is entering this cell a trespass? An INTERIOR cell with an owner that is not the player's and no public flag.
+    /// A public cell, an unowned cell, an exterior cell and an unknown cell are never trespass.
+    [[nodiscard]] bool cellEntryIsTrespass(const CellAccess& cell);
+
+    /// What a trespass was done in: a cell visit (cancelled when the player leaves) or at a bed.
+    enum class Place : std::uint8_t
+    {
+        Cell,
+        Bed,
     };
 
     /// The bounty of a crime in a crime faction. Murder, Assault, Trespass: the CRVA numbers. Theft:
@@ -244,6 +278,11 @@ namespace game_skyrimse::crime
         /// A pickpocket try that was caught (task 0208): the victim is a witness; nothing was taken, so no item is
         /// marked stolen. The bounty waits for the next update, like a theft's.
         void onPickpocketCaught(std::uint32_t victimReference);
+        /// The player is where he is not welcome (task 0213): `place` is the cell or the bed placement. Judged later,
+        /// by the witness rule, and charged once (a cell visit) or once per mTrespassRepeat (a bed).
+        void onTrespass(FormId place, Place kind);
+        /// The player left the cell he trespassed in: a pending cell visit is dropped.
+        void onLeftPlace();
         /// A damage report as it passed through the combat chain, BEFORE the victim is provoked.
         void onDamage(const openeden::sdk::game::DamageReport& report);
         /// An actor died (reportDeath), seen before the report goes on.
@@ -279,8 +318,14 @@ namespace game_skyrimse::crime
             FormId mItem = kNullFormId;
             std::int32_t mCount = 0;
             openeden::sdk::game::ActorHandle mVictim;
+            FormId mPlace = kNullFormId; ///< trespass: the cell or bed
+            Place mPlaceKind = Place::Cell;
+            float mReadyAt = 0.f; ///< trespass: not judged before this clock time
+            float mExpiresAt = 0.f; ///< trespass: dropped, unwitnessed, after this
+            float mNextTryAt = 0.f; ///< trespass: not judged again before this
         };
-        void evaluate(openeden::sdk::game::CombatRequestWriter& writer, const Pending& crime);
+        /// True when a witness was found (whether or not it cost anything).
+        bool evaluate(openeden::sdk::game::CombatRequestWriter& writer, const Pending& crime, bool quiet = false);
         void runGuards(openeden::sdk::game::CombatRequestWriter& writer);
         void note(std::string text);
         void finishOffer(float cooldown);
@@ -298,6 +343,7 @@ namespace game_skyrimse::crime
         std::vector<openeden::sdk::game::ActorHandle> mAssaulted; ///< non-hostile victims the player has hit
         std::vector<openeden::sdk::game::ActorHandle> mFoughtBack; ///< NPCs that have hurt the player
         std::map<FormId, float> mCooldownUntil; ///< per faction: the clock before which it does not offer
+        std::map<FormId, float> mBedCharged; ///< per bed: the clock at which a bed attempt was last accepted
         std::vector<CrimeActor> mRoster; ///< reused
         std::vector<std::pair<double, std::size_t>> mScratch; ///< reused: (distance, roster index)
         float mClock = 0.f;

@@ -1,0 +1,3 @@
+GLOBAL: scripts/tresp10/global.lua
+MENU: scripts/tresp10/menu.lua
+PLAYER: scripts/tresp10/player.lua

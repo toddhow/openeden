@@ -755,6 +755,9 @@ namespace game_skyrimse
                         case Content::fourCC("XLCN"):
                             ok = formField(type, data, c.mLocation);
                             break;
+                        case Content::fourCC("XOWN"): // task 0213: 4 bytes in all 230 of Skyrim.esm's cells
+                            ok = formField(type, data, c.mOwner);
+                            break;
                         case Content::fourCC("XCLL"): // VERIFIED sizes 64 and 92 (tool); the 20 byte prefix is shared
                             if (data.size() == 64 || data.size() == 92)
                             {

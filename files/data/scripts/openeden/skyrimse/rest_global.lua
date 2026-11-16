@@ -8,6 +8,8 @@ local okRest, rest = pcall(require, 'core.skyrimse.rest')
 if not okRest then
   return {}
 end
+-- Task 0213: using a bed that is not yours is a trespass when somebody sees it (the crime namespace is optional).
+local okCrime, crime = pcall(require, 'core.skyrimse.crime')
 
 local CLOCK_PERIOD = 0.5
 local lastClock = nil -- simulation time of the last set_clock
@@ -62,6 +64,7 @@ return {
       if state == 'free' then
         toPlayer('SkyrimSleepOpen', { name = data.name })
       elseif state == 'owned' then
+        if okCrime and crime.trespass_bed ~= nil then crime.trespass_bed(data.placement) end
         toPlayer('SkyrimRestNotice', { text = 'This bed is not yours.' })
       end
     end,

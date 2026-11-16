@@ -1,6 +1,7 @@
 // Task 0204: Skyrim crime for the player (see crime.hpp and docs/tasks/0204-skyrim-crime.md).
 #include "game_skyrimse/crime.hpp"
 
+#include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/combat_factions.hpp"
 
 #include <algorithm>
@@ -58,6 +59,17 @@ namespace game_skyrimse::crime
                 return "pickpocket";
         }
         return "";
+    }
+
+    bool isPlayersOwner(FormId owner)
+    {
+        return owner == kPlayerNpcId || owner == kPlayerFactionId;
+    }
+
+    bool cellEntryIsTrespass(const CellAccess& cell)
+    {
+        return cell.mKnown && cell.mInterior && !cell.mPublic && cell.mOwner != kNullFormId
+            && cell.mOwner != kUnresolvedFormId && !isPlayersOwner(cell.mOwner);
     }
 
     std::int32_t bountyFor(Kind kind, const CrimeData& values, std::int32_t itemValue, std::int32_t count)
@@ -348,6 +360,36 @@ namespace game_skyrimse::crime
             mPending.push_back({ Kind::Pickpocket, kNullFormId, 0, { victimReference, 0 } });
     }
 
+    void CrimeSystem::onTrespass(FormId place, Place kind)
+    {
+        if (place == kNullFormId || mPending.size() >= kMaxPending)
+            return;
+        for (const Pending& p : mPending)
+            if (p.mKind == Kind::Trespass && p.mPlace == place && p.mPlaceKind == kind)
+                return; // already being judged
+        if (kind == Place::Bed)
+        {
+            const auto charged = mBedCharged.find(place);
+            if (charged != mBedCharged.end() && mClock - charged->second < mSettings.mTrespassRepeat)
+                return;
+        }
+        Pending crime;
+        crime.mKind = Kind::Trespass;
+        crime.mPlace = place;
+        crime.mPlaceKind = kind;
+        crime.mReadyAt = mClock + mSettings.mTrespassDelay;
+        crime.mNextTryAt = crime.mReadyAt;
+        crime.mExpiresAt = mClock + (kind == Place::Cell ? mSettings.mTrespassWatchCell : mSettings.mTrespassWatchBed);
+        mPending.push_back(crime);
+    }
+
+    void CrimeSystem::onLeftPlace()
+    {
+        mPending.erase(std::remove_if(mPending.begin(), mPending.end(),
+                           [](const Pending& p) { return p.mKind == Kind::Trespass && p.mPlaceKind == Place::Cell; }),
+            mPending.end());
+    }
+
     void CrimeSystem::onDamage(const openeden::sdk::game::DamageReport& report)
     {
         if (report.victimIsPlayer && !report.attackerIsPlayer && report.attacker.valid() && report.amount > 0.f)
@@ -391,11 +433,11 @@ namespace game_skyrimse::crime
             mPending.push_back({ Kind::Murder, kNullFormId, 0, actor });
     }
 
-    void CrimeSystem::evaluate(CombatRequestWriter& writer, const Pending& crime)
+    bool CrimeSystem::evaluate(CombatRequestWriter& writer, const Pending& crime, bool quiet)
     {
         SubjectState player;
         if (!writer.subjectState(CombatSubject::ofPlayer(), player))
-            return;
+            return false;
         mRoster.clear();
         mWorld.actors(mRoster);
         struct Candidate
@@ -459,8 +501,9 @@ namespace game_skyrimse::crime
         }
         if (factions.empty())
         {
-            note(std::string(kindName(crime.mKind)) + " not witnessed");
-            return;
+            if (!quiet)
+                note(std::string(kindName(crime.mKind)) + " not witnessed");
+            return false;
         }
         std::sort(factions.begin(), factions.end());
         const std::int32_t value = crime.mKind == Kind::Theft ? mWorld.itemValue(crime.mItem) : 0;
@@ -475,6 +518,7 @@ namespace game_skyrimse::crime
                 + " bounty +" + std::to_string(gold) + " total " + std::to_string(mLedger.bounty(faction)));
             ++mRevision;
         }
+        return true;
     }
 
     void CrimeSystem::update(float seconds, CombatRequestWriter& writer)
@@ -485,9 +529,39 @@ namespace game_skyrimse::crime
         {
             std::vector<Pending> work;
             work.swap(mPending);
-            for (const Pending& crime : work)
-                evaluate(writer, crime);
             mPending.reserve(kMaxPending);
+            for (const Pending& crime : work)
+            {
+                if (crime.mKind != Kind::Trespass)
+                {
+                    evaluate(writer, crime);
+                    continue;
+                }
+                // A trespass is judged later and again until somebody sees it or the watch time is over (task 0213).
+                if (mClock < crime.mReadyAt || mClock < crime.mNextTryAt)
+                {
+                    mPending.push_back(crime);
+                    continue;
+                }
+                if (evaluate(writer, crime, true))
+                {
+                    if (crime.mPlaceKind == Place::Bed)
+                    {
+                        if (mBedCharged.size() >= kMaxAssaulted)
+                            mBedCharged.erase(mBedCharged.begin());
+                        mBedCharged[crime.mPlace] = mClock;
+                    }
+                    continue;
+                }
+                if (mClock >= crime.mExpiresAt)
+                {
+                    note(std::string(kindName(crime.mKind)) + " not witnessed");
+                    continue;
+                }
+                Pending again = crime;
+                again.mNextTryAt = mClock + mSettings.mTrespassRetry;
+                mPending.push_back(again);
+            }
         }
         runGuards(writer);
     }
