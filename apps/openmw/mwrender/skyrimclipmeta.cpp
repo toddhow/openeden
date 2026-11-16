@@ -61,12 +61,39 @@ namespace MWRender::SkyrimClipMeta
         }
     }
 
+    std::vector<std::string> sidecarAliases(std::string_view clipStem)
+    {
+        std::string lower(clipStem);
+        for (char& c : lower)
+            if (c >= 'A' && c <= 'Z')
+                c = static_cast<char>(c + 32);
+        std::vector<std::string> out;
+        if (lower == "shd_blockbash")
+            out.push_back("Shd_Bash");
+        else if (lower == "shd_blockbashpower")
+            out.push_back("shd_BashPower");
+        out.push_back(std::string(clipStem) + "NPC");
+        return out;
+    }
+
     std::shared_ptr<const HavokPack::ClipMeta> makeClipMeta(const HavokPack::AnimationProject& project,
         const HavokPack::MotionTable& motion, std::string_view clipStem, float duration)
     {
         auto meta = std::make_shared<HavokPack::ClipMeta>();
         meta->mDuration = duration;
-        const HavokPack::ClipLink link = HavokPack::linkClip(project, motion, clipStem, duration);
+        HavokPack::ClipLink link = HavokPack::linkClip(project, motion, clipStem, duration);
+        // Task 0214: some clip files are played by a generator of another name (2hw_attackright by
+        // `2HW_AttackRightNPC`, shd_blockbash by `Shd_Bash`). Tried only when nothing has the stem's own name, and
+        // always under the same duration check, so a clip that already had events keeps exactly them.
+        if (link.mClips.empty())
+        {
+            for (const std::string& alias : sidecarAliases(clipStem))
+            {
+                link = HavokPack::linkClip(project, motion, alias, duration);
+                if (!link.mClips.empty())
+                    break;
+            }
+        }
         if (!link.mClips.empty())
         {
             const HavokPack::SidecarClip& clip = *link.mClips.front();

@@ -907,6 +907,9 @@ namespace game_skyrimse
                         case Content::fourCC("KWDA"): // task 0179
                             ok = formList(type, data, a.mKeywords);
                             break;
+                        case Content::fourCC("BAMT"): // task 0214: the block material of a shield
+                            ok = formField(type, data, a.mBlockMaterial);
+                            break;
                         default:
                             break;
                     }

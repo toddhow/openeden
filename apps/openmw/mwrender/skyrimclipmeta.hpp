@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <components/havokpack/animationdata.hpp>
 #include <components/havokpack/clipevents.hpp>
@@ -23,6 +24,10 @@ namespace MWRender::SkyrimClipMeta
 
     /// The meta of the clip `clipStem` of `duration` animation seconds: the events and speed of the first generator of
     /// `project` linked to it. A clip no generator links to gets a meta with its length and no events (speed 1). Pure.
+    /// Task 0214: other names a clip file's generator may have in the sidecar, tried in order when nothing has the
+    /// stem's own.
+    [[nodiscard]] std::vector<std::string> sidecarAliases(std::string_view clipStem);
+
     [[nodiscard]] std::shared_ptr<const HavokPack::ClipMeta> makeClipMeta(const HavokPack::AnimationProject& project,
         const HavokPack::MotionTable& motion, std::string_view clipStem, float duration);
 

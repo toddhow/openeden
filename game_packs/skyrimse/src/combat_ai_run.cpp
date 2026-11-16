@@ -466,7 +466,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::aiRaiseGuard(CombatRequestWriter& writer, AiActor& actor, Fighter& fighter)
     {
-        const std::string_view clip = mGuardSlots.clipFor(ClipSlot::BlockStart, kWeaponAnim1HSword);
+        const std::string_view clip = mRealGear ? meleeClip(ClipSlot::BlockStart, fighter, true)
+                                                : mGuardSlots.clipFor(ClipSlot::BlockStart, kWeaponAnim1HSword);
         if (clip.empty())
             return;
         openeden::sdk::game::ClipRequest request;
@@ -681,7 +682,7 @@ namespace game_skyrimse
                 continue;
             }
             const float distance = static_cast<float>(std::hypot(targetState.x - self.x, targetState.y - self.y));
-            const WeaponRecord* weapon = mWeapon;
+            const WeaponRecord* weapon = weaponFor(*f);
             const bool bow = weapon != nullptr && weapon->mAnimType == kWeaponAnimBow && bowReady();
             const float rawReach = meleeReachUnits(weapon, f->mProfile.mUnarmedReach, mCombatSettings);
             AiView view;

@@ -149,7 +149,12 @@ namespace game_skyrimse
             set = in.mWeapon != nullptr ? in.mWeapon->mImpactSet : in.mUnarmedImpactSet;
         FormId material = kNullFormId;
         const char* what = "hit";
-        if (in.mBlocked && in.mBlockerWeapon != nullptr && in.mBlockerWeapon->mBlockMaterial != kNullFormId)
+        if (in.mBlocked && in.mBlockerShieldMaterial != kNullFormId)
+        {
+            material = in.mBlockerShieldMaterial; // task 0214: a shield blocks as its own material
+            what = "block";
+        }
+        else if (in.mBlocked && in.mBlockerWeapon != nullptr && in.mBlockerWeapon->mBlockMaterial != kNullFormId)
         {
             material = in.mBlockerWeapon->mBlockMaterial;
             what = "block";
@@ -225,6 +230,8 @@ namespace game_skyrimse
         input.mBlocked = blocked;
         input.mBash = bash;
         input.mBlockerWeapon = blocked ? weaponFor(victim) : nullptr;
+        if (blocked && hasShield(victim))
+            input.mBlockerShieldMaterial = victim.mGear.mShieldBlockMaterial;
         input.mVictim = victim.mSubject;
         mSounds.hit(writer, input);
     }

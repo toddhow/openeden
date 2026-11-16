@@ -81,6 +81,11 @@
       "default": 0.0
     },
     {
+      "key": "combat real gear",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "combat test weapon",
       "type": "string",
       "default": ""

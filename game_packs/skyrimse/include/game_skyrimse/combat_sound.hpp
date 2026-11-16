@@ -36,6 +36,7 @@ namespace game_skyrimse
         FormId mVictimBodyMaterial = kNullFormId; ///< the victim's race NAM4
         int mVictimBodyArmourType = -1; ///< ArmourPiece::mType of the worn body piece, -1 for none
         const WeaponRecord* mBlockerWeapon = nullptr; ///< the blocker's weapon when `mBlocked`
+        FormId mBlockerShieldMaterial = kNullFormId; ///< task 0214: the blocker's shield (ARMO BAMT), 0 for none
         bool mBlocked = false;
         bool mBash = false;
         openeden::sdk::game::CombatSubject mVictim;

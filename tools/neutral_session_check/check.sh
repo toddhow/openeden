@@ -102,6 +102,11 @@ echo "return { mode = '${NF_MODE:-guards}', attacker = ${NF_ATTACKER:-1048812}, 
 # Task 0212 (creatures): "n5wolf" is n5ai in daylight with a side camera between the player and the wolf (luatest/scripts/n5/wolfglobal.lua; same AI_* variables).
 [ "$SHOT" = n5wolf ] && echo "content=n5wolf.omwscripts" >> "$WORK/config/openmw.cfg"
 echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EVERY:-0.5}, window = ${AI_WINDOW:-60}, target = '${AI_TARGET:-b80803}'${AI_CAM:+, cam = { $AI_CAM }} }" > "$WORK/luatest/scripts/n5/aicfg.lua"
+# Task 0214 (real weapons): "n5gear" puts the actor with record id GEAR_TARGET (default skyrimse:b1048812, a Whiterun guard) or a fresh GEAR_CREATE
+# object GEAR_DIST (default 130) units east of the player, faces them, and takes a picture every GEAR_EVERY (0.5) seconds (GEAR_SHOTS of them) from
+# GEAR_CAM (x,y,z relative to the player); the combat settings go in SETTINGS_EXTRA (see luatest/scripts/n5/geargobal.lua).
+[ "$SHOT" = n5gear ] && echo "content=n5gear.omwscripts" >> "$WORK/config/openmw.cfg"
+echo "return { start = ${GEAR_START:-2}, dist = ${GEAR_DIST:-130}, every = ${GEAR_EVERY:-0.5}, maxShots = ${GEAR_SHOTS:-40}, target = '${GEAR_TARGET:-skyrimse:b1048812}', create = '${GEAR_CREATE:-}', cam = { ${GEAR_CAM:-0, -300, 120} } }" > "$WORK/luatest/scripts/n5/gearcfg.lua"
 # Task 0204 (crime): "n8crime" stands the player N8_DIST (default 100) units east of the witness N8_TARGET (default b80803, Hulda) and commits the crime of N8_MODE
 # (theft from the owned container N8_PLACEMENT/N8_BASE at N8_T seconds; assault is the pack setting combat test player swing); N8_CHOICE (pay, jail, resist or empty)
 # is chosen N8_DELAY seconds after the guard's offer (luatest/scripts/n8/crimeglobal.lua). The crime settings go in SETTINGS_EXTRA.
@@ -215,7 +220,7 @@ PROBE_CELL="$CELL"
 case "$CELL" in @*) PROBE_CELL=WhiterunBanneredMare ;; esac
 OPENEDEN_SKYRIMSE_PROBE_CELL="$PROBE_CELL" timeout "${CHECK_TIMEOUT:-170}" ./openmw.exe --replace=config --config "$(native "$WORK/config")" \
     --user-data "$(native "$WORK/user")" --skip-menu --no-grab=true --random-seed 7 ${LOADARG:---start "$CELL"} $BAKE \
-    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5wolf|n5npcfight|n8crime|n9pick) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
+    ${SHOT:+$(case "$SHOT" in look|ms0sweep|collision|colldraw|doors*|n5actors|n5idle|e2terrain|e2water|e2swim|w1|stairs|keylocked|keycontainer|w2|w5|lodbake|lodview|navpath|n5body|n5bodydraw|trees|lodobjbake|lodobjview|w3|trunks|n5talk|n5lip|poslog|n5walk|n5goto|actactor|actdoor|skyext|trim|n5pack|tlayers|n5loco|grass|maredump|marecam|floormap|landnormal|n5furn|skyreach|n5wake|n5follow|n5swing|n5hit|n5trade|n5tradewall|n5sightprobe|n5death|n5bow|n5many|n5manyscan|n7follow|n5ai|n5wolf|n5npcfight|n8crime|n9pick|n5gear) ;; *) echo --auto-screenshot "$SHOT" ;; esac)} ${SCRIPT_RUN:+--script-run "$(native "$SCRIPT_RUN")"} --auto-quit "$FRAMES" > "$WORK/log.txt" 2>&1
 code=$?
 set -e
 dumps=$(ls "$WORK"/user/*.dmp "$WORK"/config/*.dmp 2>/dev/null | wc -l)

@@ -18,6 +18,7 @@
 // No engine, renderer, Jolt, Qt or OSG type. Main thread only; the vectors are reserved so that a frame allocates
 // nothing (the trace callback, when set, builds strings: tracing is a developer aid).
 
+#include <game_skyrimse/combat_gear.hpp>
 #include <game_skyrimse/combat_sound.hpp>
 #include <game_skyrimse/combat_factions.hpp>
 #include <game_skyrimse/combat_ai.hpp>
@@ -327,6 +328,17 @@ namespace game_skyrimse
             (void)editorId;
             return kNullFormId;
         }
+        /// Task 0214: what the NPC with this base record fights with (its best melee weapon, its shield, the armour of
+        /// its inventory). Asked only with `combat real gear`. `worn` is the armour the profile already counts. False
+        /// (the default) leaves the fighter with the test weapon and no shield.
+        virtual bool fighterGear(
+            openeden::sdk::game::WorldId base, const std::vector<ArmourPiece>& worn, FighterGear& out)
+        {
+            (void)base;
+            (void)worn;
+            out = {};
+            return false;
+        }
         /// Task 0193: the impact, material and sound records (null: no combat sounds), and whether a VFS path exists
         /// (default: every file does). Called when the data is ready.
         virtual const SoundLibrary* soundLibrary() { return nullptr; }
@@ -378,6 +390,11 @@ namespace game_skyrimse
         /// Recoil, Stagger and Death. Clip names are the sidecar's generator names, which equal the files' (VERIFIED
         /// for these five in animationdata/wolfproject.txt).
         [[nodiscard]] static SlotTable wolf();
+        /// Task 0214: the melee clips of every weapon class (see combat_gear.hpp): the one-handed set (the seven of
+        /// humanoid() plus the raised guard), the two-handed sword (2HM_*), the two-handed axe and hammer (2HW_*) and
+        /// the shield (SHD_BlockHit, SHD_BlockBash, SHD_BlockIdle). Names from the listing of Skyrim - Animations.bsa
+        /// and the generators of animationdata/defaultmale.txt (docs/tasks/0214-skyrim-real-weapons.md).
+        [[nodiscard]] static SlotTable gear();
 
         /// Number of (slot, weapon type) entries.
         [[nodiscard]] std::size_t size() const { return mCount; }
@@ -434,6 +451,11 @@ namespace game_skyrimse
         void setTestPowerEvery(int n);
         void setTestBashEvery(int n);
         bool setTestBlock(std::string_view editorId);
+        /// Task 0214 (`combat real gear`, off by default): fighters use their own melee weapon and shield and play the
+        /// clips of that weapon's class. The test weapon still overrides an NPC's weapon when it is set.
+        void setRealGear(bool on) { mRealGear = on; }
+        [[nodiscard]] bool realGear() const { return mRealGear; }
+
         /// Task 0178 (stage S5-6), all off by default. The AMMO the archers shoot (case-insensitive editor id; empty:
         /// nobody shoots; false when too long); a BowSpeedBonus for every archer (finite and not below -0.9; the draw
         /// clip runs at weapon speed x (1 + bonus)); and the seconds the player holds the attack control for each shot
@@ -593,6 +615,8 @@ namespace game_skyrimse
             float mMagickaMax = 0.f;
             float mWardPower = 0.f;
             bool mDemoralized = false;
+            std::uint8_t mWeaponClass = 0; ///< task 0214: the clip class the fighter swings with (0: unknown)
+            bool mHasShield = false;
         };
         [[nodiscard]] bool fighterView(openeden::sdk::game::CombatSubject subject, FighterView& out) const;
 
@@ -674,6 +698,7 @@ namespace game_skyrimse
             float mDemoralizedUntil = -1.f;
             std::vector<std::pair<std::uint32_t, float>> mPerkValues; ///< task 0179: base actor values for conditions
             std::vector<FormId> mWornKeywords; ///< task 0179
+            FighterGear mGear; ///< task 0214: filled with `combat real gear`
         };
         /// A bow event (BowDrawn or the release) seen since the last combatUpdate: acted on there.
         struct PendingBow
@@ -718,7 +743,16 @@ namespace game_skyrimse
         void preparePerks(Fighter& fighter);
         [[nodiscard]] bool perksMatter(const Fighter& fighter) const;
         [[nodiscard]] PerkParticipant actorParticipant(const Fighter& fighter, bool power) const;
-        [[nodiscard]] PerkParticipant weaponParticipant() const;
+        [[nodiscard]] PerkParticipant weaponParticipant(const WeaponRecord* weapon) const;
+        // Task 0214: real gear. All of it answers what the parent answered while mRealGear is false.
+        [[nodiscard]] const WeaponRecord* perkWeaponFor(const Fighter& fighter) const;
+        [[nodiscard]] std::uint8_t clipClassOf(const Fighter& fighter) const;
+        [[nodiscard]] bool hasShield(const Fighter& fighter) const;
+        [[nodiscard]] std::string_view meleeClip(
+            openeden::sdk::game::ClipSlot slot, const Fighter& fighter, bool shieldSlot) const;
+        [[nodiscard]] float shieldBlockBonus(const Fighter& fighter) const;
+        void applyRealGear(Fighter& fighter);
+        void syncPlayerTimingClass(const Fighter& player);
         void applyPerksToHit(Fighter& attacker, Fighter& victim, bool power, MeleeHit& hit);
         [[nodiscard]] float perkMitigation(const Fighter& victim, bool& changed);
         [[nodiscard]] bool bowReady();
@@ -883,6 +917,8 @@ namespace game_skyrimse
         std::vector<openeden::sdk::game::ActorHandle> mBlockers;
         const WeaponRecord* mWeapon = nullptr;
         bool mWeaponLooked = false;
+        bool mRealGear = false; ///< task 0214
+        SlotTable mGearSlots; ///< task 0214
         // Task 0184
         PlayerEquipment mEquip;
         bool mEquipDirty = false;
@@ -1037,6 +1073,7 @@ namespace game_skyrimse
         // The timing of the player's two attack clips, once known: asking the engine again is then never needed.
         openeden::sdk::game::ClipTiming mKnownTiming[2];
         bool mHaveTiming[2] = { false, false };
+        std::uint8_t mTimingClass = kWeaponAnim1HSword; ///< task 0214: the clip class the cached timing belongs to
         std::size_t mWaitingForData = 0;
         bool mWarnedAwaitingFull = false;
         bool mWarnedHitsFull = false; ///< task 0192

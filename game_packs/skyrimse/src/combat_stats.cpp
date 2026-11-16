@@ -1174,7 +1174,8 @@ namespace game_skyrimse
         const float damage = clean(input.mDamage);
         const float skill = std::min(clean(input.mBlockerSkill), kMaxSkill);
         float fraction = clean(settings.mBlockWeaponBase)
-            + clean(settings.mBlockWeaponScaling) * skill * clean(settings.mBlockSkillMult) / 100.f;
+            + clean(settings.mBlockWeaponScaling) * skill * clean(settings.mBlockSkillMult) / 100.f
+            + std::max(0.f, clean(input.mShieldBonus)); // task 0214: 0 unless a shield is held
         fraction = std::min(fraction, clean(settings.mBlockMax));
         if (input.mPowerAttack)
             fraction *= clean(settings.mBlockPowerAttackMult);

@@ -634,6 +634,17 @@ namespace game_skyrimse
         return true;
     }
 
+    // Task 0214: the weapon, shield and inventory armour of an NPC (leveled lists resolved as the armour's are).
+    bool SkyrimWorldView::fighterGear(
+        openeden::sdk::game::WorldId base, const std::vector<ArmourPiece>& worn, FighterGear& out)
+    {
+        out = {};
+        if (mCombatIndex == nullptr || mActorIndex == nullptr)
+            return false;
+        return resolveFighterGear(
+            *mActorIndex, *mCombatIndex, static_cast<FormId>(base), 0, kAppearanceLevel, worn, out);
+    }
+
     bool SkyrimWorldView::describeActor(openeden::sdk::game::WorldId base, std::uint32_t variation,
         openeden::sdk::game::ActorAppearance& out, std::string& error)
     {

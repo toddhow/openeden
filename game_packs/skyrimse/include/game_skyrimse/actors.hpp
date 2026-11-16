@@ -234,6 +234,7 @@ namespace game_skyrimse
         FormId mTemplate = kNullFormId; ///< TNAM
         std::uint32_t mRating = 0; ///< DNAM, 100 times the armor rating (RECALLED-VERIFY)
         std::vector<FormId> mKeywords; ///< KWDA (task 0179)
+        FormId mBlockMaterial = kNullFormId; ///< task 0214: BAMT, the material a shield counts as when it blocks
     };
 
     /// One XNAM of a FACT (12 bytes, VERIFIED on all 1,159): another faction, a modifier (0 in the installed data) and

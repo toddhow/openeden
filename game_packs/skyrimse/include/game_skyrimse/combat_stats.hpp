@@ -469,6 +469,8 @@ namespace game_skyrimse
         bool mPowerAttack = false;
         float mBlockerStamina = 0.f;
         float mFractionScale = 1.f; ///< task 0179: a perk (ModPercentBlocked) scales the fraction; 1 changes nothing
+        /// task 0214: added to the fraction before the fBlockMax cap (a shield); 0 changes nothing
+        float mShieldBonus = 0.f;
     };
 
     struct BlockResult

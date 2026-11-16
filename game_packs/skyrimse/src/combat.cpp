@@ -105,6 +105,139 @@ namespace game_skyrimse
         };
     }
 
+    // Task 0214: the melee clips of every weapon class. Names from the listing of Skyrim - Animations.bsa; the sidecar
+    // generators are `2HM_*`, `2HW_*NPC` (attack right and left), `shd_BlockHit` and `Shd_Bash` (see the task document
+    // and SkyrimClipMeta).
+    namespace
+    {
+        constexpr SlotTable::Entry sGear[] = {
+            { ClipSlot::Attack, kClipClassOneHanded, "1HM_AttackRight" },
+            { ClipSlot::AttackLeft, kClipClassOneHanded, "1HM_AttackLeft" },
+            { ClipSlot::PowerAttack, kClipClassOneHanded, "1HM_AttackPower" },
+            { ClipSlot::BlockHit, kClipClassOneHanded, "1HM_BlockHit" },
+            { ClipSlot::Bash, kClipClassOneHanded, "1HM_BlockBash" },
+            { ClipSlot::Recoil, kClipClassOneHanded, "1HM_RecoilRight" },
+            { ClipSlot::Stagger, kClipClassOneHanded, "1HM_StaggerBackMedium" },
+            { ClipSlot::BlockStart, kClipClassOneHanded, "1HM_BlockIdle" },
+            { ClipSlot::Attack, kClipClassTwoHandedSword, "2HM_AttackRight" },
+            { ClipSlot::AttackLeft, kClipClassTwoHandedSword, "2HM_AttackLeft" },
+            { ClipSlot::PowerAttack, kClipClassTwoHandedSword, "2HM_AttackPower" },
+            { ClipSlot::BlockHit, kClipClassTwoHandedSword, "2HM_BlockHit" },
+            { ClipSlot::Bash, kClipClassTwoHandedSword, "2HM_BlockBash" },
+            { ClipSlot::Recoil, kClipClassTwoHandedSword, "2HM_RecoilRight" },
+            { ClipSlot::Stagger, kClipClassTwoHandedSword, "2HM_StaggerBackMedium" },
+            { ClipSlot::BlockStart, kClipClassTwoHandedSword, "2HM_BlockIdle" },
+            { ClipSlot::Attack, kClipClassTwoHandedAxe, "2HW_AttackRight" },
+            { ClipSlot::AttackLeft, kClipClassTwoHandedAxe, "2HW_AttackLeft" },
+            { ClipSlot::PowerAttack, kClipClassTwoHandedAxe, "2HW_AttackPower" },
+            { ClipSlot::BlockHit, kClipClassTwoHandedAxe, "2HW_BlockHit" },
+            { ClipSlot::Bash, kClipClassTwoHandedAxe, "2HW_BlockBash" },
+            { ClipSlot::Recoil, kClipClassTwoHandedAxe, "2HW_RecoilRight" },
+            { ClipSlot::Stagger, kClipClassTwoHandedAxe, "2HW_StaggerBackMedium" },
+            { ClipSlot::BlockStart, kClipClassTwoHandedAxe, "2HW_BlockIdle" },
+            { ClipSlot::BlockHit, kClipClassShield, "SHD_BlockHit" },
+            { ClipSlot::Bash, kClipClassShield, "SHD_BlockBash" },
+            { ClipSlot::BlockStart, kClipClassShield, "SHD_BlockIdle" },
+        };
+    }
+
+    SlotTable SlotTable::gear()
+    {
+        SlotTable table;
+        table.mEntries = sGear;
+        table.mCount = std::size(sGear);
+        return table;
+    }
+
+    const WeaponRecord* SkyrimCombat::perkWeaponFor(const Fighter& fighter) const
+    {
+        return mRealGear ? weaponFor(fighter) : mWeapon;
+    }
+
+    std::uint8_t SkyrimCombat::clipClassOf(const Fighter& fighter) const
+    {
+        if (!mRealGear)
+            return kWeaponAnim1HSword;
+        const WeaponRecord* weapon = weaponFor(fighter);
+        return weapon != nullptr ? meleeClipClass(weapon->mAnimType) : kClipClassOneHanded;
+    }
+
+    bool SkyrimCombat::hasShield(const Fighter& fighter) const
+    {
+        if (!mRealGear)
+            return false;
+        const WeaponRecord* weapon = weaponFor(fighter);
+        if (weapon != nullptr && isTwoHanded(weapon->mAnimType))
+            return false;
+        if (fighter.mSubject.player)
+        {
+            for (const ArmourPiece& piece : mEquip.mPieces)
+                if (isShield(piece))
+                    return true;
+            return false;
+        }
+        return fighter.mGear.mKnown && fighter.mGear.mHasShield;
+    }
+
+    std::string_view SkyrimCombat::meleeClip(ClipSlot slot, const Fighter& fighter, bool shieldSlot) const
+    {
+        if (fighter.mProfile.mCreature != nullptr)
+            return clipOf(fighter, slot);
+        if (!mRealGear)
+            return mSlots.clipFor(slot, kWeaponAnim1HSword);
+        const std::uint8_t cls = shieldSlot && hasShield(fighter) ? kClipClassShield : clipClassOf(fighter);
+        return mGearSlots.clipFor(slot, cls);
+    }
+
+    float SkyrimCombat::shieldBlockBonus(const Fighter& fighter) const
+    {
+        if (!hasShield(fighter))
+            return 0.f;
+        float rating = 0.f;
+        if (fighter.mSubject.player)
+        {
+            for (const ArmourPiece& piece : mEquip.mPieces)
+                if (isShield(piece))
+                    rating = std::max(rating, piece.mRating);
+        }
+        else
+            rating = fighter.mGear.mShield.mRating;
+        return std::isfinite(rating) && rating > 0.f ? rating * kShieldBlockPerRating : 0.f;
+    }
+
+    // Looked up once, when the fighter is first used. An NPC with a shield or inventory armour has them counted in
+    // its mitigation from then on.
+    void SkyrimCombat::applyRealGear(Fighter& fighter)
+    {
+        if (!mRealGear || fighter.mSubject.player || mData == nullptr)
+            return;
+        FighterGear gear;
+        if (fighter.mHasProfile && mData->fighterGear(fighter.mBase, fighter.mProfile.mPieces, gear))
+            fighter.mGear = std::move(gear);
+        fighter.mGear.mKnown = true;
+        std::vector<ArmourPiece> pieces = fighter.mProfile.mPieces;
+        const std::size_t before = pieces.size();
+        pieces.insert(pieces.end(), fighter.mGear.mExtraPieces.begin(), fighter.mGear.mExtraPieces.end());
+        if (hasShield(fighter))
+            pieces.push_back(fighter.mGear.mShield);
+        if (pieces.size() != before)
+        {
+            fighter.mProfile.mPieces = pieces;
+            fighter.mProfile.mMitigationPercent
+                = armourOf(pieces, fighter.mProfile.mSkills, mCombatSettings).mMitigationPercent;
+        }
+        if (mTrace)
+        {
+            const WeaponRecord* weapon = weaponFor(fighter);
+            trace("COMBAT gear " + name(fighter.mSubject) + " weapon "
+                + (weapon != nullptr ? weapon->mCommon.mEditorId + " type " + std::to_string(weapon->mAnimType)
+                                     : std::string("none"))
+                + " class " + std::to_string(clipClassOf(fighter)) + " shield " + (hasShield(fighter) ? "yes" : "no")
+                + " extra armour " + std::to_string(fighter.mGear.mExtraPieces.size()) + " mitigation "
+                + fmt(fighter.mProfile.mMitigationPercent));
+        }
+    }
+
     SlotTable SlotTable::bow()
     {
         SlotTable table;
@@ -157,6 +290,7 @@ namespace game_skyrimse
         mFighters.reserve(256);
         mBowSlots = SlotTable::bow();
         mWolfSlots = SlotTable::wolf();
+        mGearSlots = SlotTable::gear();
         mMagicSlots = SlotTable::magic();
         mCasts.reserve(kMaxCasts);
         mConcentrations.reserve(kMaxConcentrations);
@@ -289,11 +423,25 @@ namespace game_skyrimse
             + " takes " + fmt(armour.mMitigationPercent) + "% off");
     }
 
+    // Task 0214: the player's swing timing is per clip class; a change of weapon class forgets the old numbers.
+    void SkyrimCombat::syncPlayerTimingClass(const Fighter& player)
+    {
+        const std::uint8_t cls = clipClassOf(player);
+        if (cls == mTimingClass)
+            return;
+        mTimingClass = cls;
+        mHaveTiming[0] = mHaveTiming[1] = false;
+        mPlayerTimingKicked = false;
+    }
+
     // The weapon a fighter swings: the player's equipped melee weapon, else the test weapon (as before).
     const WeaponRecord* SkyrimCombat::weaponFor(const Fighter& fighter) const
     {
         if (fighter.mSubject.player && mEquip.mWeapon != nullptr && mEquip.mWeapon->isMelee())
             return mEquip.mWeapon;
+        // Task 0214: an NPC's own weapon, unless the test weapon overrides it.
+        if (mRealGear && mWeapon == nullptr && !fighter.mSubject.player && fighter.mGear.mKnown)
+            return fighter.mGear.mWeapon;
         return mWeapon;
     }
 
@@ -474,21 +622,22 @@ namespace game_skyrimse
         out.mFactions = &p.mFactions;
         out.mWornKeywords = &fighter.mWornKeywords;
         out.mValues = &fighter.mPerkValues;
-        out.mRightHandType = mWeapon != nullptr ? mWeapon->mAnimType : std::uint8_t(0);
+        const WeaponRecord* const held = perkWeaponFor(fighter);
+        out.mRightHandType = held != nullptr ? held->mAnimType : std::uint8_t(0);
         out.mBlocking = isBlocking(fighter);
         out.mPowerAttacking = power;
         return out;
     }
 
-    PerkParticipant SkyrimCombat::weaponParticipant() const
+    PerkParticipant SkyrimCombat::weaponParticipant(const WeaponRecord* weapon) const
     {
         PerkParticipant out;
-        if (mWeapon == nullptr)
+        if (weapon == nullptr)
             return out;
         out.mKind = PerkParticipant::Kind::Weapon;
-        out.mForm = mWeapon->mCommon.mId;
-        out.mKeywords = &mWeapon->mKeywords;
-        out.mAnimType = mWeapon->mAnimType;
+        out.mForm = weapon->mCommon.mId;
+        out.mKeywords = &weapon->mKeywords;
+        out.mAnimType = weapon->mAnimType;
         return out;
     }
 
@@ -508,16 +657,17 @@ namespace game_skyrimse
         PerkEngine& engine = *mPerkEngine;
         const PerkParticipant a = actorParticipant(attacker, power);
         const PerkParticipant v = actorParticipant(victim, false);
-        const PerkParticipant w = weaponParticipant();
+        const WeaponRecord* const held = perkWeaponFor(attacker); // task 0214
+        const PerkParticipant w = weaponParticipant(held);
         PerkQuery attackQuery; // owner = the attacker: [Owner, Weapon, Target]
         attackQuery.set(PerkRole::Owner, &a);
         attackQuery.set(PerkRole::Target, &v);
-        if (mWeapon != nullptr)
+        if (held != nullptr)
             attackQuery.set(PerkRole::Weapon, &w);
         PerkQuery defendQuery; // owner = the victim: [Owner, Attacker, Weapon]
         defendQuery.set(PerkRole::Owner, &v);
         defendQuery.set(PerkRole::Attacker, &a);
-        if (mWeapon != nullptr)
+        if (held != nullptr)
             defendQuery.set(PerkRole::Weapon, &w);
         auto step = [&](std::uint8_t entry, const std::vector<FormId>& perks, const PerkQuery& query, float& value,
                         const char* what) {
@@ -536,9 +686,9 @@ namespace game_skyrimse
         bool damageChanged = false;
         if (attackerMatters)
         {
-            if (mWeapon != nullptr && mWeapon->mDamage > 0)
+            if (held != nullptr && held->mDamage > 0)
             {
-                const float base = static_cast<float>(mWeapon->mDamage);
+                const float base = static_cast<float>(held->mDamage);
                 float newBase = base;
                 if (step(PerkEntry::CalculateWeaponDamage, attacker.mProfile.mPerks, attackQuery, newBase,
                         "weapon damage"))
@@ -681,6 +831,8 @@ namespace game_skyrimse
         out.mMagickaMax = f->mProfile.mMagickaMax;
         out.mWardPower = f->mWardPower;
         out.mDemoralized = f->mDemoralizedUntil >= 0.f;
+        out.mWeaponClass = mRealGear ? clipClassOf(*f) : std::uint8_t(0); // task 0214
+        out.mHasShield = hasShield(*f);
         return true;
     }
 
@@ -720,6 +872,7 @@ namespace game_skyrimse
                 mBasePieces = fighter.mProfile.mPieces;
                 mBaseMitigationKnown = true;
             }
+            applyRealGear(fighter); // task 0214 (nothing with the setting off)
             fighter.mHealth = fighter.mProfile.mHealthMax;
             fighter.mStamina = fighter.mProfile.mStaminaMax;
             fighter.mMagicka = fighter.mProfile.mMagickaMax;
@@ -1024,8 +1177,9 @@ namespace game_skyrimse
                 return;
             // The player's clip is never played (no first-person arms): its timing is the sidecar's, asked for by the
             // clip the slot would play. Until it is ready there is no swing (stage S5-3b: no fallback number).
+            syncPlayerTimingClass(fighter);
             const std::string_view playerClip
-                = mSlots.clipFor(power ? ClipSlot::PowerAttack : ClipSlot::Attack, kWeaponAnim1HSword);
+                = meleeClip(power ? ClipSlot::PowerAttack : ClipSlot::Attack, fighter, false);
             const int timingSlot = power ? 1 : 0;
             openeden::sdk::game::ClipTiming timing;
             // Once known the timing is kept: the engine is not asked again (review fix of task 0171).
@@ -1072,7 +1226,7 @@ namespace game_skyrimse
         const ClipSlot slot = kind == AttackKind::Bash ? ClipSlot::Bash
             : power                                    ? ClipSlot::PowerAttack
                                                        : ClipSlot::Attack;
-        const std::string_view clip = clipOf(fighter, slot);
+        const std::string_view clip = meleeClip(slot, fighter, kind == AttackKind::Bash);
         if (clip.empty())
             return;
         openeden::sdk::game::ClipRequest request;
@@ -1200,7 +1354,7 @@ namespace game_skyrimse
                 beginBowDraw(writer, *f);
                 continue;
             }
-            const float reach = meleeReachUnits(mWeapon, f->mProfile.mUnarmedReach, mCombatSettings);
+            const float reach = meleeReachUnits(weaponFor(*f), f->mProfile.mUnarmedReach, mCombatSettings);
             // The sweep reaches `reach` from the actor to the player's capsule: close enough when the centres are
             // within that and a body radius, less a little so a hit is certain.
             if (std::sqrt(dx * dx + dy * dy) > static_cast<double>(reach + kBodyRadius - 4.f))
@@ -1231,6 +1385,7 @@ namespace game_skyrimse
             mPlayerAttackPending = false;
             return;
         }
+        syncPlayerTimingClass(player);
         if (!mPlayerTimingKicked)
         {
             // Start reading the sidecars of the player's attack clips now, long before the first swing needs them (the
@@ -1238,7 +1393,7 @@ namespace game_skyrimse
             mPlayerTimingKicked = true;
             for (const ClipSlot slot : { ClipSlot::Attack, ClipSlot::PowerAttack })
             {
-                const std::string_view clip = mSlots.clipFor(slot, kWeaponAnim1HSword);
+                const std::string_view clip = meleeClip(slot, player, false);
                 openeden::sdk::game::ClipTiming timing;
                 const int timingSlot = slot == ClipSlot::PowerAttack ? 1 : 0;
                 if (!clip.empty() && writer.clipTiming(clip, false, timing) && timing.hasHit && timing.length > 0.f)
@@ -1321,10 +1476,11 @@ namespace game_skyrimse
             if (!mPerkEngine)
                 mPerkEngine = std::make_unique<PerkEngine>(*mData->perkLibrary());
             const PerkParticipant a = actorParticipant(*attacker, true);
-            const PerkParticipant w = weaponParticipant();
+            const WeaponRecord* const held = perkWeaponFor(*attacker);
+            const PerkParticipant w = weaponParticipant(held);
             PerkQuery query;
             query.set(PerkRole::Owner, &a);
-            if (mWeapon != nullptr)
+            if (held != nullptr)
                 query.set(PerkRole::Weapon, &w);
             if (mPerkEngine->hasEntryPoint(attacker->mProfile.mPerks, PerkEntry::ModPowerAttackStamina))
             {
@@ -1392,6 +1548,7 @@ namespace game_skyrimse
             blockInput.mDamage = damage;
             blockInput.mBlockerSkill = victim.mProfile.mSkills[kBlockSkillSlot];
             blockInput.mPowerAttack = power;
+            blockInput.mShieldBonus = shieldBlockBonus(victim); // task 0214
             blockInput.mBlockerStamina = victim.mStamina;
             if (perksMatter(victim) && mPerkEngine
                 && mPerkEngine->hasEntryPoint(victim.mProfile.mPerks, PerkEntry::ModPercentBlocked))
@@ -1466,7 +1623,7 @@ namespace game_skyrimse
                 const bool staggers
                     = bash || broken || (!blocked && causesStagger(result.mStagger, power, mBlockSettings));
                 const ClipSlot slot = blocked ? ClipSlot::BlockHit : staggers ? ClipSlot::Stagger : ClipSlot::Recoil;
-                const std::string_view clip = clipOf(victim, slot);
+                const std::string_view clip = meleeClip(slot, victim, slot == ClipSlot::BlockHit);
                 if (!clip.empty())
                 {
                     openeden::sdk::game::ClipRequest request;
@@ -1500,7 +1657,7 @@ namespace game_skyrimse
             // Task 0212: a creature has a Death clip of its own.
             std::string_view clip = clipOf(victim, ClipSlot::Death);
             if (clip.empty())
-                clip = clipOf(victim, ClipSlot::Stagger);
+                clip = meleeClip(ClipSlot::Stagger, victim, false);
             if (!clip.empty())
             {
                 openeden::sdk::game::ClipRequest request;

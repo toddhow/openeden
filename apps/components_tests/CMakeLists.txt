@@ -550,6 +550,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseloadorderstamp.cpp
     skyrimse/testskyrimsecombat.cpp
     skyrimse/testskyrimsecombatslots.cpp
+    skyrimse/testskyrimsecombatgear.cpp
+    skyrimse/testskyrimsecombatgearreal.cpp
     skyrimse/testskyrimsecombatmelee.cpp
     skyrimse/testskyrimsecombatai.cpp
     skyrimse/testskyrimsecombataireal.cpp
@@ -764,6 +766,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_stats.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_impact.cpp

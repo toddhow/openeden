@@ -2287,6 +2287,12 @@ namespace game_skyrimse
                                 + "' is too long; fighters are unarmed");
                     else if (!weapon.empty())
                         say(openeden::sdk::LogLevel::Info, "combat test weapon: " + weapon);
+                    // Task 0214: fighters use their own melee weapon and shield (the test weapon still overrides).
+                    if (settings->getBool(kPackId, kCombatRealGearKey, false))
+                    {
+                        mCellSource.combat().setRealGear(true);
+                        say(openeden::sdk::LogLevel::Info, "combat real gear: on");
+                    }
                     const float playerSwing = settings->getFloat(kPackId, kCombatTestPlayerSwingKey, 0.f);
                     mCellSource.combat().setTestPlayerSwing(playerSwing);
                     if (playerSwing > 0.f)

@@ -344,6 +344,8 @@ namespace game_skyrimse
 
         // ---- CombatData (task 0171, stage S5-3): the numbers of a fight from the actor and combat records ----
         bool fighter(openeden::sdk::game::WorldId base, FighterProfile& out) override;
+        bool fighterGear(
+            openeden::sdk::game::WorldId base, const std::vector<ArmourPiece>& worn, FighterGear& out) override;
         FighterProfile playerFighter() override;
         const WeaponRecord* weaponByEditorId(std::string_view editorId) override;
         CombatSettings settings() override;
