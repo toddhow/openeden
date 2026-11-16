@@ -46,6 +46,103 @@ namespace game_skyrimse
         }
     }
 
+    namespace
+    {
+        constexpr std::uint32_t kShieldSlot = 0x200; // BOD2 slot 39, as ArmourSlot::Shield of combat_stats.hpp
+        constexpr unsigned kMaxHeldListDepth = 4;
+        constexpr std::size_t kMaxHeldItems = 1024;
+
+        // A weapon the actor can fight with: both of its records read, melee, not hand to hand (1 to 6).
+        bool isFightingLook(const WeaponLook& w)
+        {
+            return w.mHasData && w.mHasDnam && w.mAnimType >= 1 && w.mAnimType <= 6;
+        }
+    }
+
+    bool resolveHeldGear(
+        const ActorIndex& index, FormId npc, std::uint32_t variation, std::uint16_t level, HeldGear& out)
+    {
+        out = {};
+        ActorIndex::Resolved resolved;
+        if (index.resolve(npc, level, variation, resolved) != ActorIndex::ResolveStatus::Ok)
+            return false;
+        const ActorNpc* traits = index.npc(resolved.mTraitsFrom);
+        const ActorNpc* own = index.npc(npc);
+        const Sex sex = traits != nullptr ? traits->sex() : (own != nullptr ? own->sex() : Sex::Male);
+
+        struct Pending
+        {
+            FormId mItem;
+            unsigned mDepth;
+        };
+        std::vector<Pending> work;
+        for (const InventoryEntry& entry : resolved.mInventory)
+            if (entry.mCount > 0)
+                work.push_back({ entry.mItem, 0 });
+        if (const OutfitRecord* outfit = index.outfit(resolved.mDefaultOutfit))
+            for (const FormId item : outfit->mItems)
+                work.push_back({ item, 0 });
+        std::reverse(work.begin(), work.end()); // taken from the back in the listed order
+
+        const WeaponLook* weapon = nullptr;
+        const ArmorExtra* shield = nullptr;
+        std::size_t looked = 0;
+        while (!work.empty() && looked++ < kMaxHeldItems)
+        {
+            const Pending item = work.back();
+            work.pop_back();
+            if (const WeaponLook* look = index.weaponLook(item.mItem))
+            {
+                if (isFightingLook(*look)
+                    && (weapon == nullptr || look->mDamage > weapon->mDamage
+                        || (look->mDamage == weapon->mDamage && look->mCommon.mId < weapon->mCommon.mId)))
+                    weapon = look;
+            }
+            else if (const ArmorExtra* armor = index.armor(item.mItem))
+            {
+                if ((armor->mSlotMask & kShieldSlot) != 0
+                    && (shield == nullptr || armor->mRating > shield->mRating
+                        || (armor->mRating == shield->mRating && armor->mCommon.mId < shield->mCommon.mId)))
+                    shield = armor;
+            }
+            else if (item.mDepth < kMaxHeldListDepth)
+            {
+                const LeveledList* list = index.leveledList(item.mItem);
+                if (list != nullptr && (list->mFlags & LeveledFlags::UseAll) != 0)
+                {
+                    for (auto it = list->mEntries.rbegin(); it != list->mEntries.rend(); ++it)
+                        if (it->mLevel <= level)
+                            work.push_back({ it->mReference, item.mDepth + 1 });
+                }
+                else if (const LeveledEntry* entry = index.pickLeveled(item.mItem, level, variation))
+                    work.push_back({ entry->mReference, item.mDepth + 1 });
+            }
+        }
+
+        if (weapon != nullptr && !weapon->mModel.empty())
+        {
+            out.mWeapon = weapon->mCommon.mId;
+            out.mWeaponModel = weapon->mModel;
+            out.mWeaponType = weapon->mAnimType;
+        }
+        const bool twoHanded = weapon != nullptr && (weapon->mAnimType == 5 || weapon->mAnimType == 6);
+        if (shield != nullptr && !twoHanded)
+        {
+            // The first addon that fits the race (as an outfit's pieces are).
+            for (const FormId armatureId : shield->mArmatures)
+            {
+                const ArmatureRecord* addon = index.armature(armatureId);
+                if (addon != nullptr && addon->appliesTo(resolved.mRace) && !addon->model(sex).empty())
+                {
+                    out.mShield = shield->mCommon.mId;
+                    out.mShieldModel = addon->model(sex);
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
     std::string faceGeometryPath(FormId npc, const LoadOrder& order)
     {
         if (npc == kNullFormId)
@@ -188,6 +285,28 @@ namespace game_skyrimse
             std::set<FormId> seen;
             for (FormId head : resolved.mHeadParts)
                 addHeadPart(index, head, 0, limits, seen, out);
+        }
+
+        // Task 0220: what the actor holds. A shield is not a skinned part, so it leaves the part list for its own field.
+        if (limits.mHeldGear && creature == nullptr)
+        {
+            HeldGear held;
+            if (resolveHeldGear(index, npc, variation, kAppearanceLevel, held))
+            {
+                if (fits(held.mWeaponModel, limits))
+                {
+                    out.heldWeaponModel = held.mWeaponModel;
+                    out.heldWeaponType = held.mWeaponType;
+                }
+                if (fits(held.mShieldModel, limits))
+                    out.heldShieldModel = held.mShieldModel;
+            }
+            if (!out.heldShieldModel.empty())
+                out.parts.erase(std::remove_if(out.parts.begin(), out.parts.end(),
+                                    [](const ActorPart& part) {
+                                        return part.kind == ActorPartKind::Armor && (part.slotMask & kShieldSlot) != 0;
+                                    }),
+                    out.parts.end());
         }
 
         if (out.parts.size() > limits.mMaxParts)

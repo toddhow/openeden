@@ -43,6 +43,7 @@
 #include "npc.hpp"
 #include "skyrimactor.hpp"
 #include "skyrimclipmeta.hpp"
+#include "skyrimheldgear.hpp"
 #include "skyrimidle.hpp"
 #include "skyrimlip.hpp"
 #include "skyrimlocomotion.hpp"
@@ -486,6 +487,16 @@ namespace MWRender
             attachNeutralRagdoll(appearance, *anim, *resources->getVFS());
         if (report.mLip)
             anim->keepAlive.push_back(report.mLip); // found again by setNeutralMouth; dies with the object
+        // Task 0220: the weapon and shield the pack names (empty unless `[extension.skyrimse] held gear`).
+        {
+            SkyrimHeldGear::Report held;
+            SkyrimHeldGear::attach(*anim, appearance, *resources->getVFS(), buildContext, held);
+            if (held.mWeaponAttached || held.mShieldAttached || !held.mFailure.empty())
+                Log(Debug::Verbose) << "Skyrim held gear " << ptr.getCellRef().getRefId() << ": weapon "
+                                    << (held.mWeaponAttached ? held.mSheathNode : std::string("none")) << ", shield "
+                                    << (held.mShieldAttached ? "yes" : "no")
+                                    << (held.mFailure.empty() ? "" : " | " + held.mFailure);
+        }
         loadTransform(ptr, *anim->transform());
         Misc::LoadTrace::Scope traceCompile("neutralactor.compile");
         if (!context.compileContext->compile(anim->node()))
@@ -558,6 +569,8 @@ namespace MWRender
         const auto iter = cell->objects.find(ptr);
         if (iter == cell->objects.end())
             return;
+        if (!clip.empty())
+            SkyrimHeldGear::noteCombat(iter->second->keepAlive); // task 0220: the weapon comes to the hand
         for (const vsg::ref_ptr<vsg::Object>& kept : iter->second->keepAlive)
             if (auto* pose = dynamic_cast<SkyrimPose::Controller*>(kept.get()))
             {

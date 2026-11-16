@@ -385,6 +385,9 @@ namespace game_skyrimse
         [[nodiscard]] std::uint16_t standInPlayerLevel() const { return mStandInPlayerLevel; }
         /// Task 0212 (`creatures`): creature races are described and fight as creatures. Set before the first actor.
         void setCreatures(bool on) { mCreatures = on; }
+        /// Task 0220 (`[extension.skyrimse] held gear`): describeActor also names the actor's weapon and shield.
+        void setHeldGear(bool on) { mHeldGear = on; }
+        [[nodiscard]] bool heldGear() const { return mHeldGear; }
         [[nodiscard]] bool creatures() const { return mCreatures; }
         /// The speech skill and the gold of the stand-in player the dialogue conditions read (task 0155; the pack
         /// settings `player speech` and `player gold`). Applied when the dialogue runtime is built, the level is
@@ -642,6 +645,7 @@ namespace game_skyrimse
         bool mStandInFemale = false;
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         bool mCreatures = false; ///< task 0212
+        bool mHeldGear = false; ///< task 0220
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
         bool mHaveProgressionPlayer = false; // task 0200

@@ -667,6 +667,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsequestreal.cpp
     skyrimse/testskyrimseappearance.cpp
     skyrimse/testskyrimseappearancereal.cpp
+    skyrimse/testskyrimseheldgear.cpp
     skyrimse/testskyrimseactorsreal.cpp
     skyrimse/testskyrimsecreaturesreal.cpp
     skyrimse/testskyrimsecreatures.cpp

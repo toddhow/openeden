@@ -1,6 +1,7 @@
 #include "game_skyrimse/skyrimse_game_pack.hpp"
 #include "game_skyrimse/speech.hpp"
 
+#include "game_skyrimse/appearance.hpp"
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/crime_service.hpp"
@@ -2398,6 +2399,12 @@ namespace game_skyrimse
                     {
                         mWorldView.setCreatures(true);
                         say(openeden::sdk::LogLevel::Info, "creatures: on (the wolf)");
+                    }
+                    // Task 0220: an actor's melee weapon and shield are drawn (off by default).
+                    if (settings->getBool(kPackId, kHeldGearKey, false))
+                    {
+                        mWorldView.setHeldGear(true);
+                        say(openeden::sdk::LogLevel::Info, "held gear: on");
                     }
                     // Stage S4: the go-to test rule.
                     const std::string goer = settings->getString(kPackId, kActorTestGotoKey, "");

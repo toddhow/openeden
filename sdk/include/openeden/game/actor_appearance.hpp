@@ -17,7 +17,8 @@
 // 1.0 by tests). A pack that does not implement it simply draws no actors. Plain values only: no engine, renderer,
 // Jolt or Qt type.
 //
-// Version policy: DRAFT 0.4 (0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
+// Version policy: DRAFT 0.5 (0.5, task 0220: the held weapon and shield at the end of ActorAppearance, empty unless the
+// pack makes them; 0.2, task 0125: ActorPartKind::Face, appended; 0.3, task 0135:
 // ActorAppearance::heightScale, a trailing field the core only reads; 0.4, task 0212: the creature fields at the end of
 // ActorAppearance, which a consumer only reads and which are all empty or 0 for a person). Additive changes (a new trailing virtual with a
 // default meaning "not supported", a new trailing field of ActorPart or ActorAppearance that a consumer only reads)
@@ -25,7 +26,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kActorAppearanceVersion{ 0, 4 };
+    inline constexpr Version kActorAppearanceVersion{ 0, 5 };
 
     enum class ActorPartKind : std::uint8_t
     {
@@ -79,6 +80,17 @@ namespace openeden::sdk::game
         float runSpeed = 0.f;
         float walkStride = 0.f;
         float runStride = 0.f;
+
+        // ---- Added in 0.5 (task 0220): what the actor holds. Empty for an actor with no weapon or shield, and for a
+        // pack that does not make them (the core then draws only `parts`).
+        /// The model of the melee weapon the actor carries, relative to the game's mesh root. The core shows it at the
+        /// actor's sheath node while at peace and in the hand while the actor fights.
+        std::string heldWeaponModel;
+        /// The weapon's animation type as the game numbers it (Skyrim SE: WEAP DNAM +0: 1 sword, 2 dagger, 3 axe, 4 mace,
+        /// 5 two-handed sword, 6 two-handed axe or hammer); chooses the sheath node. 0 when there is no weapon.
+        std::uint8_t heldWeaponType = 0;
+        /// The model of the shield on the actor's arm; empty when it has none. Its part is not in `parts`.
+        std::string heldShieldModel;
 
         friend bool operator==(const ActorAppearance&, const ActorAppearance&) = default;
     };

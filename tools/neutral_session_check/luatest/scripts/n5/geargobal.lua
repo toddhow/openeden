@@ -8,7 +8,7 @@ local world = require('openmw.world')
 local util = require('openmw.util')
 
 local cfg = require('scripts.n5.gearcfg')
-local start, actor, nextShot, shots, tried = nil, nil, 0, 0, false
+local start, actor, nextShot, shots, tried, hourSet = nil, nil, 0, 0, false, false
 
 local function find(player)
     local cx, cy = math.floor(player.position.x / 4096), math.floor(player.position.y / 4096)
@@ -32,6 +32,11 @@ return {
             local player = world.players[1]
             if player == nil then return end
             start = start or core.getSimulationTime()
+            if cfg.hour ~= nil and not hourSet then -- task 0220: daylight, time frozen (GEAR_HOUR)
+                hourSet = true
+                world.mwscript.getGlobalVariables(player).gamehour = cfg.hour
+                world.mwscript.getGlobalVariables(player).timescale = 0
+            end
             local t = core.getSimulationTime() - start
             if t < cfg.start then return end
             if actor == nil then

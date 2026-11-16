@@ -236,6 +236,11 @@
       "default": false
     },
     {
+      "key": "held gear",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "follower test recruit",
       "type": "string",
       "default": ""

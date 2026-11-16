@@ -237,6 +237,19 @@ namespace game_skyrimse
         FormId mBlockMaterial = kNullFormId; ///< task 0214: BAMT, the material a shield counts as when it blocks
     };
 
+    /// What the actor's held gear needs of a WEAP (task 0220): the model, the animation type (DNAM +0) and the damage
+    /// (DATA +8), enough to choose the weapon with the rule of task 0214 (combat_gear.hpp) and to draw it. The record's
+    /// other fields are the combat index's (combat_stats.hpp, WeaponRecord).
+    struct WeaponLook
+    {
+        RecordCommon mCommon;
+        std::string mModel; ///< MODL, relative to the mesh root
+        bool mHasDnam = false;
+        std::uint8_t mAnimType = 0; ///< DNAM +0
+        bool mHasData = false;
+        std::uint16_t mDamage = 0; ///< DATA +8
+    };
+
     /// One XNAM of a FACT (12 bytes, VERIFIED on all 1,159): another faction, a modifier (0 in the installed data) and
     /// the group combat reaction.
     struct FactionRelation
@@ -369,6 +382,7 @@ namespace game_skyrimse
         std::vector<HeadPartRecord> mHeadParts;
         std::vector<ClassRecord> mClasses;
         std::vector<FactionRecord> mFactionRecords; ///< FACT (task 0154)
+        std::vector<WeaponLook> mWeapons; ///< WEAP (task 0220)
 
         std::map<std::uint32_t, TypeCount> mCounts;
         std::uint64_t mUnresolvedFormIds = 0;
@@ -408,6 +422,7 @@ namespace game_skyrimse
         [[nodiscard]] const ClassRecord* classRecord(FormId id) const { return find(mClasses, id); }
         [[nodiscard]] const FactionRecord* faction(FormId id) const { return find(mFactionTable, id); }
         [[nodiscard]] const LeveledList* leveledList(FormId id) const { return find(mLeveled, id); }
+        [[nodiscard]] const WeaponLook* weaponLook(FormId id) const { return find(mWeaponLooks, id); } // task 0220
 
         [[nodiscard]] std::size_t npcCount() const { return mNpcs.size(); }
 
@@ -488,6 +503,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, OutfitRecord> mOutfits;
         std::unordered_map<FormId, HeadPartRecord> mHeadParts;
         std::unordered_map<FormId, ClassRecord> mClasses;
+        std::unordered_map<FormId, WeaponLook> mWeaponLooks; // task 0220
         std::unordered_map<FormId, FactionRecord> mFactionTable;
         std::unordered_map<FormId, LeveledList> mLeveled;
     };

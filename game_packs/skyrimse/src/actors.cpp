@@ -129,6 +129,7 @@ namespace game_skyrimse
                     case Content::fourCC("HDPT"):
                     case Content::fourCC("CLAS"):
                     case Content::fourCC("FACT"):
+                    case Content::fourCC("WEAP"): // task 0220
                         break;
                     default:
                         return true;
@@ -194,6 +195,9 @@ namespace game_skyrimse
                         break;
                     case Content::fourCC("FACT"):
                         ok = readFaction(record, bytes);
+                        break;
+                    case Content::fourCC("WEAP"):
+                        ok = readWeapon(record, bytes);
                         break;
                     default:
                         ok = readClass(record, bytes);
@@ -922,6 +926,57 @@ namespace game_skyrimse
                 return true;
             }
 
+            // -- WEAP (task 0220): the model, the animation type and the damage, for the actor's held gear --
+
+            bool readWeapon(const Content::RawRecord& record, std::span<const std::byte> bytes)
+            {
+                WeaponLook w;
+                w.mCommon = common(record);
+                SubReader reader(bytes);
+                std::uint32_t type = 0;
+                std::span<const std::byte> data;
+                int status = 0;
+                while ((status = reader.next(type, data)) == 1)
+                {
+                    bool ok = true;
+                    switch (type)
+                    {
+                        case Content::fourCC("EDID"):
+                            ok = zstring(type, data, w.mCommon.mEditorId);
+                            break;
+                        case Content::fourCC("MODL"):
+                            ok = zstring(type, data, w.mModel);
+                            break;
+                        case Content::fourCC("DATA"): // value u32, weight f32, damage u16 (VERIFIED size 10)
+                            if (data.size() == 10)
+                            {
+                                w.mHasData = true;
+                                w.mDamage = readLe<std::uint16_t>(data.data() + 8);
+                            }
+                            else
+                                oddType(type);
+                            break;
+                        case Content::fourCC("DNAM"): // VERIFIED size 100; byte 0 is the animation type
+                            if (data.size() == 100)
+                            {
+                                w.mHasDnam = true;
+                                w.mAnimType = std::to_integer<std::uint8_t>(data[0]);
+                            }
+                            else
+                                oddType(type);
+                            break;
+                        default:
+                            break;
+                    }
+                    if (!ok)
+                        return false;
+                }
+                if (status < 0)
+                    return damaged(reader);
+                mOut.mWeapons.push_back(std::move(w));
+                return true;
+            }
+
             // -- OTFT, HDPT, CLAS --
 
             bool readOutfit(const Content::RawRecord& record, std::span<const std::byte> bytes)
@@ -1266,6 +1321,7 @@ namespace game_skyrimse
         put(mHeadParts, records.mHeadParts);
         put(mClasses, records.mClasses);
         put(mFactionTable, records.mFactionRecords);
+        put(mWeaponLooks, records.mWeapons);
     }
 
     void ActorIndex::addLeveledLists(const std::vector<LeveledList>& lists)
@@ -1438,7 +1494,17 @@ namespace game_skyrimse
             }
             else if (depth < kMaxDepth)
             {
-                if (const LeveledEntry* e = pickLeveled(id, level, pick))
+                const LeveledList* list = leveledList(id);
+                if (list != nullptr && (list->mFlags & LeveledFlags::UseAll) != 0)
+                {
+                    // Task 0220: a list that gives ALL its entries (a guard's whole set of armour as one outfit item):
+                    // every entry the level allows, in the listed order. Picking one of them dressed a guard in a
+                    // single piece. Chance none is not drawn: an actor looks the same in every session.
+                    for (auto it = list->mEntries.rbegin(); it != list->mEntries.rend(); ++it)
+                        if (it->mLevel <= level)
+                            work.emplace_back(it->mReference, depth + 1);
+                }
+                else if (const LeveledEntry* e = pickLeveled(id, level, pick))
                     work.emplace_back(e->mReference, depth + 1);
             }
         }

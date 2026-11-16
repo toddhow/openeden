@@ -106,7 +106,7 @@ echo "return { start = ${AI_START:-0.3}, dist = ${AI_DIST:-300}, every = ${AI_EV
 # object GEAR_DIST (default 130) units east of the player, faces them, and takes a picture every GEAR_EVERY (0.5) seconds (GEAR_SHOTS of them) from
 # GEAR_CAM (x,y,z relative to the player); the combat settings go in SETTINGS_EXTRA (see luatest/scripts/n5/geargobal.lua).
 [ "$SHOT" = n5gear ] && echo "content=n5gear.omwscripts" >> "$WORK/config/openmw.cfg"
-echo "return { start = ${GEAR_START:-2}, dist = ${GEAR_DIST:-130}, every = ${GEAR_EVERY:-0.5}, maxShots = ${GEAR_SHOTS:-40}, target = '${GEAR_TARGET:-skyrimse:b1048812}', create = '${GEAR_CREATE:-}', cam = { ${GEAR_CAM:-0, -300, 120} } }" > "$WORK/luatest/scripts/n5/gearcfg.lua"
+echo "return { start = ${GEAR_START:-2}, dist = ${GEAR_DIST:-130}, every = ${GEAR_EVERY:-0.5}, maxShots = ${GEAR_SHOTS:-40}, target = '${GEAR_TARGET:-skyrimse:b1048812}', create = '${GEAR_CREATE:-}', hour = ${GEAR_HOUR:-nil}, cam = { ${GEAR_CAM:-0, -300, 120} } }" > "$WORK/luatest/scripts/n5/gearcfg.lua"
 # Task 0204 (crime): "n8crime" stands the player N8_DIST (default 100) units east of the witness N8_TARGET (default b80803, Hulda) and commits the crime of N8_MODE
 # (theft from the owned container N8_PLACEMENT/N8_BASE at N8_T seconds; assault is the pack setting combat test player swing); N8_CHOICE (pay, jail, resist or empty)
 # is chosen N8_DELAY seconds after the guard's offer (luatest/scripts/n8/crimeglobal.lua). The crime settings go in SETTINGS_EXTRA.

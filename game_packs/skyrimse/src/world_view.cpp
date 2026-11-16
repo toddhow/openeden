@@ -669,6 +669,7 @@ namespace game_skyrimse
         }
         AppearanceLimits limits;
         limits.mCreatures = mCreatures; // task 0212
+        limits.mHeldGear = mHeldGear; // task 0220
         return makeActorAppearance(*mActorIndex, static_cast<FormId>(base), variation, out, error, limits, &probe);
     }
 
