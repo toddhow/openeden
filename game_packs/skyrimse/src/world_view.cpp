@@ -863,6 +863,7 @@ namespace game_skyrimse
         request.mWeapon = mPlayerWeapon;
         AppearanceLimits limits;
         limits.mHeldGear = true;
+        limits.mHeldBow = true; // task 0249: the arms hold a bow in the left hand
         return makeFirstPersonAppearance(*mActorIndex, request, out, error, limits);
     }
 

@@ -20,7 +20,7 @@
 
 namespace openeden::sdk::game
 {
-    inline constexpr Version kPlayerBodyVersion{ 0, 2 };
+    inline constexpr Version kPlayerBodyVersion{ 0, 3 };
 
     struct PlayerBodyState
     {
@@ -41,6 +41,22 @@ namespace openeden::sdk::game
         /// cast plays (a clip file name without extension). 0 and empty: no cast yet.
         std::uint32_t castToken = 0;
         std::string castClip;
+
+        // ---- Added in 0.3 (task 0249). Fields the core only reads.
+        /// The player's bow: `bowDrawToken` grows by one each time he began to draw it (with the clip that draw plays),
+        /// `bowReleaseToken` by one for each arrow he let go (with the release clip); `bowDrawing` is true while the
+        /// string is held back. 0 and empty: nothing yet.
+        std::uint32_t bowDrawToken = 0;
+        std::uint32_t bowReleaseToken = 0;
+        bool bowDrawing = false;
+        std::string bowDrawClip;
+        std::string bowReleaseClip;
+        /// A spell he is holding: 0 none, 1 charging (pressed, the spell has not gone yet), 2 holding (a concentration
+        /// spell or a ward that goes on). `castHoldSeconds` is how long that has lasted (pack seconds, 0 for none) and
+        /// `castHoldClip` the loop the hands play meanwhile (empty for none).
+        std::uint8_t castHold = 0;
+        float castHoldSeconds = 0.f;
+        std::string castHoldClip;
     };
 
     class PlayerBodySource

@@ -29,6 +29,7 @@
 
 #include "playerbodytrack.hpp"
 #include "skyrimfirstperson.hpp"
+#include "skyrimhands.hpp"
 
 namespace vsg
 {
@@ -97,7 +98,8 @@ namespace MWRender
 
         // ---- Task 0245: the first-person arms
         void rebuildArms(openeden::sdk::game::PlayerBodySource& source, const MWWorld::Ptr& player,
-            std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken, std::uint8_t drawState);
+            std::uint32_t revision, std::uint32_t swingToken, std::uint32_t castToken, std::uint32_t bowDrawToken,
+            std::uint32_t bowReleaseToken, std::uint8_t drawState);
         std::unique_ptr<MWAnim::ObjectAnimation> mArms;
         vsg::ref_ptr<SkyrimFirstPerson::ArmsController> mArmsController;
         std::vector<vsg::ref_ptr<const Anim::Transform>> mArmsCameraPath;
@@ -105,17 +107,22 @@ namespace MWRender
         PlayerBodyTrack::RebuildGate mArmsGate;
         PlayerBodyTrack::SwingWatch mArmsSwing;
         PlayerBodyTrack::SwingWatch mArmsCast;
+        // Task 0249: the bow's draws and releases, and the weapon that follows its clip's own event.
+        PlayerBodyTrack::SwingWatch mArmsBowDraw;
+        PlayerBodyTrack::SwingWatch mArmsBowRelease;
+        SkyrimFirstPerson::GearPhase mGearPhase = SkyrimFirstPerson::GearPhase::None;
+        std::string mGearClip; ///< the equip or unequip clip the phase waits on
+        bool mGearStarted = false; ///< that clip has been seen playing
+        std::uint8_t mCastHoldSeen = 0;
         std::uint8_t mArmsWeaponType = 0;
         float mArmsClock = 0.f; ///< seconds of first-person time; the stance holds are on it
         float mWeaponUntil = -1.f;
         float mSpellUntil = -1.f;
         std::uint32_t mArmsBuilds = 0;
         int mTraceSecond = -1;
-        // Task 0247: the engine's draw state the arms last answered (F draws and sheathes), and the putting away of a
-        // weapon: 0 none, 1 the unequip clip was asked for and has not started, 2 it is playing (the weapon stays in
-        // the hand until it is over).
+        // Task 0247: the engine's draw state the arms last answered (F draws and sheathes). Task 0249: the putting
+        // away and the drawing of a weapon are mGearPhase, which follows the clip's own event.
         std::uint8_t mArmsDrawState = 0;
-        std::uint8_t mUnequip = 0;
         float mUnequipSince = 0.f;
     };
 }

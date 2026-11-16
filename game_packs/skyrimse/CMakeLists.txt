@@ -92,6 +92,7 @@ openeden_add_game_pack(skyrimse
         src/ability_numbers.cpp
         src/race_effects.cpp
         src/combat_magic.cpp
+        src/combat_hands.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
         src/combat_disease.cpp
@@ -300,6 +301,7 @@ add_library(game_skyrimse_world STATIC
     src/ability_numbers.cpp
     src/race_effects.cpp
     src/combat_magic.cpp
+    src/combat_hands.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp
     src/combat_disease.cpp

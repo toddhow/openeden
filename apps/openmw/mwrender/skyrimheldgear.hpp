@@ -50,6 +50,18 @@ namespace MWRender::SkyrimHeldGear
     /// task 0220 limit) and for 0.
     [[nodiscard]] std::string_view sheathNodeFor(std::uint8_t weaponType);
 
+    /// Task 0249: where a HELD weapon (the first-person arms') waits and where it is held, by animation type. A bow (7)
+    /// waits on `WeaponBow` and is held on `SHIELD`, the left hand's node; every other type as sheathNodeFor and WEAPON.
+    /// (sheathNodeFor itself still says nothing for 7: NPCs are not given bows.)
+    [[nodiscard]] inline std::string_view heldSheathNode(std::uint8_t weaponType)
+    {
+        return weaponType == 7 ? std::string_view("WeaponBow") : sheathNodeFor(weaponType);
+    }
+    [[nodiscard]] inline std::string_view heldHandNode(std::uint8_t weaponType)
+    {
+        return weaponType == 7 ? std::string_view("SHIELD") : kHandNode;
+    }
+
     /// When the weapon is in the hand. Pure: the time comes in, nothing is read.
     class DrawClock
     {

@@ -98,6 +98,8 @@ namespace MWRender::SkyrimFirstPerson
             case Stance::Weapon:
                 break;
         }
+        if (weaponType == 7)
+            return "bow_idleheld"; // task 0249: a bow held, the string not drawn
         if (weaponType == 5)
             return "2hm_idle";
         if (weaponType == 6)
@@ -109,6 +111,21 @@ namespace MWRender::SkyrimFirstPerson
 
     /// Task 0247. The time the arms cross-fade between two clips (a cut would pop): OURS, not read from the game.
     inline constexpr float kBlendSeconds = 0.15f;
+
+    /// Task 0249. When an event of a first-person clip falls, in animation seconds into the clip (the sidecar's stored
+    /// time times the generator's playback speed): not known yet (the sidecar is still being read), the clip has no such
+    /// event, or at `seconds`.
+    struct EventTime
+    {
+        enum class State : std::uint8_t
+        {
+            Unknown,
+            Missing,
+            At,
+        };
+        State state = State::Unknown;
+        float seconds = 0.f;
+    };
 
     /// MWMechanics::DrawState as the engine numbers it: 0 nothing, 1 weapon, 2 spell.
     inline constexpr std::uint8_t kDrawNothing = 0;
@@ -273,12 +290,15 @@ namespace MWRender::SkyrimFirstPerson
         [[nodiscard]] bool playingOnce() const { return mState == OnceState::Playing; }
 
         /// The loop clip. A change restarts it at the next pick.
-        void setIdle(std::string_view name)
+        /// Task 0249: `offsetSeconds` is how far into the loop it starts when it is (re)started (a hold that began
+        /// before the clip was chosen); ignored while the loop does not change.
+        void setIdle(std::string_view name, float offsetSeconds = 0.f)
         {
             if (name == mIdle)
                 return;
             mIdle.assign(name);
             mIdleStart = kUnset;
+            mIdleOffset = std::isfinite(offsetSeconds) && offsetSeconds > 0.f ? offsetSeconds : 0.f;
         }
         /// Starts a one-shot clip that replaces the loop until it has played; one already under way is replaced.
         void playOnce(std::string_view name)
@@ -372,7 +392,10 @@ namespace MWRender::SkyrimFirstPerson
                 }
             }
             if (mIdleStart == kUnset)
-                mIdleStart = now;
+            {
+                mIdleStart = now - mIdleOffset;
+                mIdleOffset = 0.f;
+            }
             return { mIdle, now - mIdleStart, false };
         }
 
@@ -388,6 +411,7 @@ namespace MWRender::SkyrimFirstPerson
         std::string mOnce;
         OnceState mState = OnceState::None;
         float mIdleStart = kUnset;
+        float mIdleOffset = 0.f;
         float mOnceStart = 0.f;
         float mOnceSince = kUnset;
     };
@@ -418,7 +442,7 @@ namespace MWRender::SkyrimFirstPerson
         ~ArmsController() override;
 
         /// The loop clip (a first-person clip name; a name armsClipName refuses is ignored).
-        void setIdle(std::string_view name);
+        void setIdle(std::string_view name, float offsetSeconds = 0.f);
         /// A swing or a cast: plays once, then the loop comes back.
         void playOnce(std::string_view name);
         /// Task 0247: starts decoding a clip now so that it is ready when it is asked for (the draw, sheathe, idle and
@@ -426,6 +450,11 @@ namespace MWRender::SkyrimFirstPerson
         void prefetch(std::string_view name);
         /// True while a one-shot clip (a swing, a cast, a draw or sheathe) is playing, as of the last frame.
         [[nodiscard]] bool playingOnce() const;
+        /// Task 0249: true, with the seconds into it, while `clip` is the one-shot clip the last frame showed.
+        [[nodiscard]] bool onceProgress(std::string_view clip, float& elapsed) const;
+        /// Task 0249: when the named event (the sidecar `animationdata/firstperson.txt`: weaponDraw, weaponSheathe, ...)
+        /// of the clip falls. The sidecar is read on a worker after the clip has decoded: Unknown until then.
+        [[nodiscard]] EventTime eventTime(std::string_view clip, std::string_view event) const;
         /// The clip written last (empty before the first), for the trace.
         [[nodiscard]] std::string current() const;
 

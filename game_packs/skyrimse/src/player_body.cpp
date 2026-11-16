@@ -40,6 +40,9 @@ namespace game_skyrimse
 
         // What he holds (the rule of an NPC's, task 0220: melee types 1 to 6 with a model; a two-handed weapon gives no
         // shield). Shared by the third-person body and the first-person arms (task 0245).
+        // Task 0249: a bow (type 7) is held too when the limits say so (the first-person arms); it takes both hands.
+        constexpr std::uint8_t kBowAnimType = 7;
+
         void holdGear(const ActorIndex& index, const PlayerBodyRequest& request, const ArmatureRecord* shieldAddon,
             Sex sex, const AppearanceLimits& limits, ActorAppearance& out)
         {
@@ -49,12 +52,13 @@ namespace game_skyrimse
             if (request.mWeapon != kNullFormId)
             {
                 const WeaponLook* look = index.weaponLook(request.mWeapon);
-                if (look != nullptr && look->mHasData && look->mHasDnam && look->mAnimType >= 1 && look->mAnimType <= 6
-                    && fits(look->mModel, limits))
+                const bool bow = limits.mHeldBow && look != nullptr && look->mAnimType == kBowAnimType;
+                if (look != nullptr && look->mHasData && look->mHasDnam
+                    && ((look->mAnimType >= 1 && look->mAnimType <= 6) || bow) && fits(look->mModel, limits))
                 {
                     out.heldWeaponModel = look->mModel;
                     out.heldWeaponType = look->mAnimType;
-                    twoHanded = look->mAnimType == 5 || look->mAnimType == 6;
+                    twoHanded = look->mAnimType == 5 || look->mAnimType == 6 || bow;
                 }
             }
             if (shieldAddon != nullptr && !twoHanded)

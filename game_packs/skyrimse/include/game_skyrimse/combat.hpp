@@ -29,6 +29,7 @@
 #include <game_skyrimse/magic.hpp>
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
+#include <game_skyrimse/player_hands.hpp>
 #include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/shouts.hpp>
 #include <game_skyrimse/value_modifiers.hpp>
@@ -42,6 +43,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -885,6 +887,9 @@ namespace game_skyrimse
         /// Task 0245: the player's casts, like his swings (the first-person arms play the clip).
         [[nodiscard]] std::uint32_t playerCastCount() const { return mPlayerCastCount; }
         [[nodiscard]] const std::string& playerCastClip() const { return mPlayerCastClip; }
+        /// Task 0249: the player's bow and spell hold for the first-person hands (a snapshot taken at the end of
+        /// each combat update; callable from the main thread while the combat update runs).
+        [[nodiscard]] PlayerHands playerHands() const;
         [[nodiscard]] std::size_t eventsSeen() const { return mEventsSeen; }
         [[nodiscard]] std::size_t clipsFinished() const { return mClipsFinished; }
         [[nodiscard]] std::size_t clipsCompleted() const { return mClipsCompleted; }
@@ -1478,6 +1483,13 @@ namespace game_skyrimse
         float mNextPlayerBow = 1.f;
         std::vector<bool> mPlayerEdges; ///< attack-control edges since the last combatUpdate (true: pressed)
         bool mPlayerDrawing = false;
+        // Task 0249: the hands' view of the bow and of a held spell (combat_hands.cpp).
+        void trackPlayerHands();
+        mutable std::mutex mHandsMutex;
+        PlayerHands mHands;
+        HandsHoldClock mHandsClock;
+        std::uint32_t mHandsBowDraws = 0;
+        std::uint32_t mHandsBowReleases = 0;
         float mPlayerDrawStart = 0.f;
         float mPlayerDrawTime = 0.f; ///< playback seconds of the draw clip to the BowDrawn event, 0 until read
         bool mPlayerDrawKicked = false;

@@ -13,6 +13,8 @@
 #include <components/misc/loadtrace.hpp>
 #include <components/vfs/manager.hpp>
 
+#include "skyrimclipmeta.hpp"
+#include "skyrimhands.hpp"
 #include "skyrimidle.hpp"
 
 namespace MWRender::SkyrimFirstPerson
@@ -30,6 +32,12 @@ namespace MWRender::SkyrimFirstPerson
             std::vector<HavokPack::Transform> mScratchFrom; ///< when the clip is the one a fade comes from
             std::unordered_map<const Anim::Transform*, std::size_t> mTrackOf; ///< bone -> track, for the fade
             bool mResolved = false; ///< the future was read (mClip may be null: the clip failed)
+            // Task 0249: the clip's events (the sidecar animationdata/firstperson.txt), read on a worker only when asked.
+            SkyrimIdle::ClipFuture mClipFuture; ///< a copy of the decode future, for the meta's worker
+            SkyrimClipMeta::MetaFuture mMeta;
+            std::shared_ptr<const HavokPack::ClipMeta> mMetaValue;
+            bool mMetaAsked = false;
+            bool mMetaResolved = false;
         };
     }
 
@@ -48,6 +56,8 @@ namespace MWRender::SkyrimFirstPerson
         std::map<std::string, Slot> mSlots;
         Timeline mTimeline;
         std::string mLastClip;
+        std::string mLastOnce; ///< task 0249: the one-shot clip the last frame showed (empty: none)
+        float mLastOnceTime = 0.f;
 
         // Caller holds the mutex.
         void ensure(const std::string& name)
@@ -56,6 +66,7 @@ namespace MWRender::SkyrimFirstPerson
                 return;
             Slot slot;
             slot.mFuture = SkyrimIdle::loadClipAsync(mVfs, std::string(kSkeletonHkx), clipPath(name));
+            slot.mClipFuture = slot.mFuture;
             mSlots.emplace(name, std::move(slot));
         }
 
@@ -111,14 +122,14 @@ namespace MWRender::SkyrimFirstPerson
 
     ArmsController::~ArmsController() = default;
 
-    void ArmsController::setIdle(std::string_view name)
+    void ArmsController::setIdle(std::string_view name, float offsetSeconds)
     {
         const std::string clip = armsClipName(name);
         if (clip.empty())
             return;
         const std::lock_guard lock(mImpl->mMutex);
         mImpl->ensure(clip);
-        mImpl->mTimeline.setIdle(clip);
+        mImpl->mTimeline.setIdle(clip, offsetSeconds);
     }
 
     void ArmsController::playOnce(std::string_view name)
@@ -146,6 +157,40 @@ namespace MWRender::SkyrimFirstPerson
         return mImpl->mTimeline.playingOnce();
     }
 
+    bool ArmsController::onceProgress(std::string_view clip, float& elapsed) const
+    {
+        const std::string name = armsClipName(clip);
+        const std::lock_guard lock(mImpl->mMutex);
+        if (name.empty() || mImpl->mLastOnce != name)
+            return false;
+        elapsed = mImpl->mLastOnceTime;
+        return true;
+    }
+
+    EventTime ArmsController::eventTime(std::string_view clip, std::string_view event) const
+    {
+        const std::string name = armsClipName(clip);
+        if (name.empty())
+            return eventTimeIn({}, true, event);
+        Impl& impl = *mImpl;
+        const std::lock_guard lock(impl.mMutex);
+        impl.ensure(name);
+        Slot& slot = impl.mSlots.find(name)->second;
+        if (!slot.mMetaAsked)
+        {
+            slot.mMetaAsked = true;
+            // The first-person clips are played by the generators of the sidecar project `firstperson`.
+            slot.mMeta = SkyrimClipMeta::loadAsync(impl.mVfs, false, "firstperson", name, slot.mClipFuture);
+        }
+        if (!slot.mMetaResolved && slot.mMeta.valid()
+            && slot.mMeta.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+        {
+            slot.mMetaValue = slot.mMeta.get();
+            slot.mMetaResolved = true;
+        }
+        return eventTimeIn(slot.mMetaValue, slot.mMetaResolved, event);
+    }
+
     std::string ArmsController::current() const
     {
         const std::lock_guard lock(mImpl->mMutex);
@@ -158,6 +203,8 @@ namespace MWRender::SkyrimFirstPerson
         const std::lock_guard lock(impl.mMutex);
         const Timeline::Frame frame
             = impl.mTimeline.pick(time, [&impl](const std::string& name) { return impl.lengthOf(name); });
+        impl.mLastOnce = frame.once ? frame.clip : std::string(); // task 0249
+        impl.mLastOnceTime = frame.time;
         if (frame.clip.empty())
             return;
         const auto it = impl.mSlots.find(frame.clip);

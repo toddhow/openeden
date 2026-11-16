@@ -164,11 +164,13 @@ namespace MWRender::SkyrimHeldGear
         if (!appearance.heldWeaponModel.empty())
         {
             std::string error;
-            const std::string_view sheathName = sheathNodeFor(appearance.heldWeaponType);
+            // Task 0249: a bow is held in the left hand (heldHandNode / heldSheathNode say where).
+            const std::string_view sheathName = heldSheathNode(appearance.heldWeaponType);
             const auto sheath = sheathName.empty() ? vsg::ref_ptr<Anim::Transform>() : find(sheathName);
-            const auto hand = find(kHandNode);
+            const auto hand = find(heldHandNode(appearance.heldWeaponType));
             if (!sheath || !hand)
-                note("the skeleton lacks the weapon nodes " + std::string(sheathName) + " or WEAPON");
+                note("the skeleton lacks the weapon nodes " + std::string(sheathName) + " or "
+                    + std::string(heldHandNode(appearance.heldWeaponType)));
             else if (const auto model = buildStatic(vfs, context, appearance.heldWeaponModel, error))
             {
                 // One shared model, two places; a switch shows one of them.

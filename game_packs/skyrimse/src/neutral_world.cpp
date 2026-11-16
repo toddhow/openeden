@@ -445,6 +445,18 @@ namespace game_skyrimse
         out.swingClip = mCombat.playerSwingClip();
         out.castToken = mCombat.playerCastCount(); // task 0245
         out.castClip = mCombat.playerCastClip();
+        {
+            // task 0249: the bow and the spell hold
+            const PlayerHands hands = mCombat.playerHands();
+            out.bowDrawToken = hands.bowDrawToken;
+            out.bowReleaseToken = hands.bowReleaseToken;
+            out.bowDrawing = hands.bowDrawing;
+            out.bowDrawClip = hands.bowDrawClip;
+            out.bowReleaseClip = hands.bowReleaseClip;
+            out.castHold = hands.castHold;
+            out.castHoldSeconds = hands.castHoldSeconds;
+            out.castHoldClip = hands.castHoldClip;
+        }
         return true;
     }
 

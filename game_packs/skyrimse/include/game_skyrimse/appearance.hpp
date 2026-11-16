@@ -31,6 +31,9 @@ namespace game_skyrimse
         /// appearance (heldWeaponModel, heldWeaponType, heldShieldModel) and the shield's part leaves `parts`. Off: the
         /// appearance is what it was.
         bool mHeldGear = false;
+        /// Task 0249: with held gear on, a bow (weapon animation type 7) is held too, in the left hand. Off (the
+        /// default): a bow is not held, as before. Only the first-person arms set it.
+        bool mHeldBow = false;
     };
 
     /// What an actor holds (task 0220): the melee weapon and the shield it fights with, chosen by the rule of task 0214

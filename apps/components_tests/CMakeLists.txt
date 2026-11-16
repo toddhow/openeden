@@ -587,6 +587,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemagicconditions.cpp
     skyrimse/testskyrimseeffectconditions2.cpp
     skyrimse/testskyrimsecombatbow.cpp
+    skyrimse/testskyrimseplayerhands.cpp
     skyrimse/testskyrimsecombathud.cpp
     skyrimse/testskyrimsehudstyle.cpp
     skyrimse/testskyrimseprogression.cpp
@@ -867,6 +868,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/ability_numbers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/race_effects.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_hands.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_disease.cpp

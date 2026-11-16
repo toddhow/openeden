@@ -2096,6 +2096,7 @@ namespace game_skyrimse
                     continue;
                 }
                 mPlayerDrawing = true;
+                ++mHandsBowDraws; // task 0249
                 mPlayerDrawStart = mClock;
                 mSounds.weaponDraw(writer, player.mSubject, mWeapon); // task 0193
                 mSounds.bowNock(writer, player.mSubject); // task 0193
@@ -2112,6 +2113,7 @@ namespace game_skyrimse
                 continue;
             }
             const float fraction = drawSeconds > 0.f ? std::min(1.f, held / drawSeconds) : 1.f;
+            ++mHandsBowReleases; // task 0249
             (void)launchArrow(writer, player, fraction, nullptr);
         }
         mPlayerEdges.clear();
@@ -2195,6 +2197,7 @@ namespace game_skyrimse
             startHostiles(writer);
             runPlayerSwing(writer);
             runPlayerBow(writer);
+            trackPlayerHands(); // task 0249
         }
         if (mSwingers.empty())
             return;
