@@ -246,6 +246,8 @@ namespace game_skyrimse::barter
             + std::to_string(r.mTotal) + ", player gold "
             + std::to_string(mInventory.model().count(inventory::kPlayerOwner, inventory::kGoldItem))
             + ", vendor gold " + std::to_string(vendorGold()));
+        if (r.mStatus == TradeStatus::Ok && mHooks.mTraded)
+            mHooks.mTraded(static_cast<float>(r.mTotal)); // task 0200: a trade trains Speech
         return r.mStatus;
     }
 

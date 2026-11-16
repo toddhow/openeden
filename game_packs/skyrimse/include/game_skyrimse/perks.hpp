@@ -158,6 +158,8 @@ namespace game_skyrimse
         std::uint32_t mFlags = 0;
         std::uint32_t mArchetype = 0;
         std::int32_t mPrimaryValue = -1;
+        /// Task 0200: DATA +12, the skill the effect trains (an actor value 18 to 22), -1 for none (VERIFIED).
+        std::int32_t mAssociatedSkill = -1;
         // Task 0186: +4 base cost, +16 resist actor value, +60 secondary weight, +72 projectile, +80 casting type, +84
         // delivery, +88 secondary actor value.
         float mBaseCost = 0.f;

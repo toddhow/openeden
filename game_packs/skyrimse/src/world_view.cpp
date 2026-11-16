@@ -452,6 +452,32 @@ namespace game_skyrimse
         return mCombatIndex == nullptr ? kNullFormId : mCombatIndex->perkByEditorId(std::string(editorId));
     }
 
+    bool SkyrimWorldView::progressionInputs(
+        const progression::SkillTable*& skills, const PerkLibrary*& perks, progression::Settings& settings)
+    {
+        if (!combatReady() || mCombatIndex == nullptr)
+            return false;
+        skills = &mCombatIndex->skillTable();
+        perks = mCombatIndex.get();
+        settings = progression::settingsFrom(mCombatIndex->settings());
+        return true;
+    }
+
+    void SkyrimWorldView::setProgressionPlayer(
+        std::uint16_t level, const std::array<std::uint8_t, progression::kSkillCount>& skills)
+    {
+        mHaveProgressionPlayer = true;
+        mProgressionLevel = level;
+        mProgressionSkills = skills;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+        {
+            PlayerStandIn player = mDialogue->mRuntime->player();
+            player.mLevel = level;
+            player.mSkills = skills;
+            mDialogue->mRuntime->setPlayer(player);
+        }
+    }
+
     FighterProfile SkyrimWorldView::playerFighter()
     {
         // The player has no records: a level 1 stand-in with skills at kStandInSkill, no armour, a Nord's unarmed hit.
@@ -768,6 +794,11 @@ namespace game_skyrimse
             player.mSkills[*skillSlotOfActorValue(kAvSpeechcraft)] = mStandInSpeech;
             player.mGold = mStandInGold;
             player.mFemale = mStandInFemale;
+            if (mHaveProgressionPlayer) // task 0200
+            {
+                player.mLevel = mProgressionLevel;
+                player.mSkills = mProgressionSkills;
+            }
             raw->mRuntime->setPlayer(player);
             if (mGoldSource)
                 raw->mRuntime->setGoldSource(mGoldSource); // task 0184

@@ -22,6 +22,7 @@
 #include <game_skyrimse/combat_ai.hpp>
 #include <game_skyrimse/combat_stats.hpp>
 #include <game_skyrimse/magic.hpp>
+#include <game_skyrimse/progression.hpp>
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -466,6 +467,16 @@ namespace game_skyrimse
         /// The player's armour percent as the next hit sees it (0 until the player's data is read).
         [[nodiscard]] float playerMitigationPercent() const;
 
+        // ---- task 0200: the player's skills and levels (combat_skills.cpp) -------------------------------------------
+        /// Called once for each use of a skill the player makes in a fight (a weapon hit, a block, a hit taken in
+        /// armour, a spell cast): the skill slot and what the use reports (damage, damage blocked, damage taken, the
+        /// spell's magicka). Empty by default; nothing else of the combat changes.
+        using SkillUseHook = std::function<void(std::size_t slot, float amount)>;
+        void setSkillUseHook(SkillUseHook hook) { mSkillHook = std::move(hook); }
+        /// With a progression the player's skills, level, vitals and perks in a fight are its own (read again when its
+        /// revision moves); without one (null, the default) they are the stand-in's, as before.
+        void setPlayerProgression(const progression::PlayerProgression* progression);
+
         // ---- task 0190 (stage S5-9): the combat AI (combat_ai.hpp, combat_ai_run.cpp) -----------------------------------
 
         /// What the AI asks of the actor hook (the combat writer has no movement): the cell source drains these once a
@@ -766,6 +777,17 @@ namespace game_skyrimse
         void applyPlayerEquipment();
         [[nodiscard]] const WeaponRecord* weaponFor(const Fighter& fighter) const;
         void applyPlayerHeal(openeden::sdk::game::CombatRequestWriter& writer);
+        // Task 0200
+        SkillUseHook mSkillHook;
+        const progression::PlayerProgression* mProgression = nullptr;
+        std::uint64_t mProgressionSynced = 0;
+        bool mHaveStandProfile = false;
+        FighterProfile mStandProfile; ///< the player's profile as ready() made it, before the progression
+        void syncProgression(openeden::sdk::game::CombatRequestWriter& writer);
+        void reportSkillUse(std::size_t slot, float amount);
+        void reportSpellUse(const Fighter& caster, const SpellRecord& spell, float magicka);
+        void reportHitSkills(const Fighter& attacker, const Fighter& victim, const WeaponRecord* weapon,
+            float blow, float taken, bool blocked);
         std::string mTestWeapon; ///< lower case
         std::string mTestHostile; ///< lower case
         std::string mTestSwing; ///< lower case

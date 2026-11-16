@@ -10,6 +10,7 @@
 #include "game_skyrimse/pack_core.hpp"
 #include "game_skyrimse/papyrus_host.hpp"
 #include "game_skyrimse/placed_refs.hpp"
+#include "game_skyrimse/progression_service.hpp"
 #include "game_skyrimse/world_view.hpp"
 
 #include <openeden/extension.hpp>
@@ -650,6 +651,8 @@ namespace game_skyrimse
                     if (mPapyrus != nullptr)
                         mPapyrus->frame(dt);
                     syncFollowerAlias();
+                    if (mProgression != nullptr)
+                        pollProgression(); // task 0200
                     if (mInventory != nullptr)
                     {
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
@@ -752,6 +755,8 @@ namespace game_skyrimse
                     }
                     // Task 0182: the inventory state and its script bindings, off unless [extension.skyrimse] inventory.
                     startInventory(host, logger);
+                    // Task 0200: the player's skills and levels (the namespace skyrimse.progression).
+                    startProgression(host, logger);
                     // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
                     startBarter(host, logger);
                     wirePapyrusWorld(host, logger);
@@ -1098,6 +1103,81 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "INV the inventory is on");
             }
 
+            // Task 0200: the player's progression: the skills a fight, a trade or a craft trains, the level, the perks and
+            // their window's bindings; off unless [extension.skyrimse] player progression. The story event LEVL is raised
+            // for every level reached.
+            void startProgression(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "player progression", false))
+                    return;
+                progression::ServiceHooks hooks;
+                hooks.mInputs = [this](progression::Inputs& out) {
+                    return mWorldView.progressionInputs(out.mSkills, out.mPerks, out.mSettings);
+                };
+                hooks.mLevelUp = [this, logger](std::uint16_t level) {
+                    if (mPapyrus == nullptr)
+                        return;
+                    StoryEvent event;
+                    event.mType = "LEVL";
+                    event.mValue1 = level;
+                    const std::size_t started = mPapyrus->host().raiseStoryEvent(event);
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "PROGRESSION story event LEVL for level " + std::to_string(level) + " started "
+                                + std::to_string(started) + " quests");
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                const int startLevel = settings->getInt(kPackId, kPlayerLevelKey, kStandInPlayerLevel);
+                hooks.mStartLevel = static_cast<std::uint16_t>(std::clamp(startLevel, 1, 65535));
+                mProgression = std::make_unique<progression::ProgressionService>(std::move(hooks));
+                // a developer aid: every use of a skill counts this many times (default 1) so that a short run shows levels
+                float boost = settings->getFloat(kPackId, "progression test amount", 1.f);
+                if (!std::isfinite(boost) || boost < 0.f || boost > 10000.f)
+                    boost = 1.f;
+                mCellSource.combat().setSkillUseHook(
+                    [this, boost](std::size_t slot, float amount) { mProgression->skillUsed(slot, amount * boost); });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mProgression->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the progression bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    if (!chunks->registerHandler(mProgression->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the progression chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "PROGRESSION the player progression is on");
+            }
+
+            // Once a frame: builds the progression when the records are read, hands it to the combat rules and the
+            // speech checks when it changed.
+            void pollProgression()
+            {
+                if (!mProgression->poll())
+                    return;
+                progression::PlayerProgression* p = mProgression->progression();
+                if (!mProgressionLinked)
+                {
+                    mProgressionLinked = true;
+                    mCellSource.combat().setPlayerProgression(p);
+                }
+                if (p->revision() != mProgressionPushed)
+                {
+                    mProgressionPushed = p->revision();
+                    std::array<std::uint8_t, progression::kSkillCount> skills{};
+                    for (std::size_t s = 0; s < progression::kSkillCount; ++s)
+                        skills[s] = p->skill(s);
+                    mWorldView.setProgressionPlayer(p->level(), skills);
+                }
+            }
+
             // Task 0189: the barter service over the inventory (on whenever the inventory is).
             void startBarter(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
@@ -1105,7 +1185,16 @@ namespace game_skyrimse
                     return;
                 barter::ServiceHooks hooks;
                 hooks.mVendorOf = [this](FormId npc, barter::VendorInfo& out) { return mWorldView.vendorOf(npc, out); };
-                hooks.mSpeech = [this]() { return static_cast<float>(mWorldView.standInPlayerSpeech()); };
+                hooks.mSpeech = [this]() {
+                    float speech = 0.f; // task 0200: the real skill with the progression on
+                    if (mProgression != nullptr && mProgression->actorValue(progression::kFirstSkillValue + progression::Slot::Speechcraft, speech))
+                        return speech;
+                    return static_cast<float>(mWorldView.standInPlayerSpeech());
+                };
+                hooks.mTraded = [this](float gold) {
+                    if (mProgression != nullptr)
+                        mProgression->skillUsed(progression::Slot::Speechcraft, gold);
+                };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
@@ -1507,6 +1596,9 @@ namespace game_skyrimse
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
+            std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
+            bool mProgressionLinked = false;
+            std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184

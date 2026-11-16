@@ -565,6 +565,7 @@ namespace game_skyrimse
             const float fraction = wanted > 0.f ? spend / wanted : 1.f;
             f->mMagicka -= spend;
             f->mMagickaRegenAt = mClock + mMagicSettings.mDamagedMagickaRegenDelay;
+            reportSpellUse(*f, spell, spend); // task 0200
             const float seconds = step * fraction;
             if (c.mBeam)
                 tickBeam(writer, c, *f, spell, seconds);
@@ -783,6 +784,7 @@ namespace game_skyrimse
         }
         f->mMagicka -= cost;
         f->mMagickaRegenAt = mClock + mMagicSettings.mDamagedMagickaRegenDelay;
+        reportSpellUse(*f, spell, cost); // task 0200
         ++mSpellsCast;
         trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " cost " + num(cost) + " magicka " + num(f->mMagicka)
             + " of " + num(f->mProfile.mMagickaMax));

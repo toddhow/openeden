@@ -566,6 +566,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsecombatperks.cpp
     skyrimse/testskyrimsecombatbow.cpp
     skyrimse/testskyrimsecombathud.cpp
+    skyrimse/testskyrimseprogression.cpp
+    skyrimse/testskyrimsecombatskills.cpp
     ui/testuicombathud.cpp
     ui/testuicombathudcrosshair.cpp
     skyrimse/testskyrimseactormechanics.cpp
@@ -699,9 +701,12 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/progression_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_skills.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_stats.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_impact.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sound.cpp

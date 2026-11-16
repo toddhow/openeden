@@ -45,6 +45,8 @@ namespace game_skyrimse
             std::function<float()> mSpeech;
             /// One line per open, refusal and trade. May be empty.
             std::function<void(const std::string&)> mLog;
+            /// Task 0200: a trade went through; the gold it moved (trains the Speech skill). May be empty.
+            std::function<void(float gold)> mTraded;
         };
 
         class BarterService

@@ -1318,6 +1318,8 @@ namespace game_skyrimse
         }
         const float after = std::max(0.f, current - damage);
         victim.mHealth = after;
+        if (mSkillHook && !bash)
+            reportHitSkills(attacker, victim, swung, result.mDamageAfter, damage, blocked); // task 0200
         victim.mCombatUntil = mClock + kCombatLingerSeconds;
         ++mHitsResolved;
         aiProvoke(attacker, victim); // task 0190: an NPC the player hurt fights back (or flees)
@@ -1718,6 +1720,7 @@ namespace game_skyrimse
             // A sweep whose result never came (the engine drops one when its attacker has gone) is forgotten.
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
+            syncProgression(writer); // task 0200
             applyPlayerHeal(writer); // task 0184
             updateMagic(writer, step); // task 0186: ticks, casts that go, the player's and the test casters' casts
             // Results cast last frame, then the hits the clips reached since.

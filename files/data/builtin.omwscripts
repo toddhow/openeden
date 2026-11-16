@@ -49,3 +49,6 @@ PLAYER REQUIRES=core.skyrimse.barter>=1.0: scripts/openeden/skyrimse/barter_play
 PLAYER REQUIRES=core.skyrimse.journal>=1.0: scripts/openeden/skyrimse/journal_player.lua
 # Skyrim SE Papyrus notifications on the HUD (task 0198); started only when the pack's Papyrus host declares the namespace
 PLAYER REQUIRES=core.skyrimse.papyrus>=1.0: scripts/openeden/skyrimse/papyrus_player.lua
+# Skyrim SE skills and perks (task 0200); started only when the session's game pack has the namespace
+GLOBAL REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills_global.lua
+PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills_player.lua

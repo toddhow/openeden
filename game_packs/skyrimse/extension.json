@@ -171,6 +171,16 @@
       "default": false
     },
     {
+      "key": "progression test amount",
+      "type": "float",
+      "default": 1.0
+    },
+    {
+      "key": "player progression",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "actor test goto",
       "type": "string",
       "default": ""

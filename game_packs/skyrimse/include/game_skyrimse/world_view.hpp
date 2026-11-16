@@ -28,6 +28,7 @@
 #include <game_skyrimse/dialogue_runtime.hpp>
 #include <game_skyrimse/neutral_world.hpp>
 #include <game_skyrimse/package_brain.hpp>
+#include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_alias.hpp>
 #include <game_skyrimse/scene_runner.hpp>
@@ -381,6 +382,14 @@ namespace game_skyrimse
         /// The stand-in player's sex (task 0156; the pack setting `player female`).
         void setStandInPlayerFemale(bool female) { mStandInFemale = female; }
 
+        /// Task 0200: the records the player's progression is built from (false until the combat records are read:
+        /// combatReady() starts that).
+        [[nodiscard]] bool progressionInputs(
+            const progression::SkillTable*& skills, const PerkLibrary*& perks, progression::Settings& settings);
+        /// Task 0200: the player's real level and skills for the speech and bribe checks (replaces the stand-in's
+        /// level and skills; applied at once to a running conversation runtime).
+        void setProgressionPlayer(std::uint16_t level, const std::array<std::uint8_t, progression::kSkillCount>& skills);
+
         // ---- task 0160
         /// What package an actor runs now (by the placed reference's id), nullopt when unknown, 0 for none. Used by
         /// GetIsCurrentPackage and GetOffersServicesNow in a conversation. Set it before the first conversation (the
@@ -560,6 +569,9 @@ namespace game_skyrimse
         std::uint16_t mStandInPlayerLevel = 1; ///< kStandInPlayerLevel
         std::uint8_t mStandInSpeech = 15; ///< kStandInSkill
         float mStandInGold = 100.f; ///< kStandInGold
+        bool mHaveProgressionPlayer = false; // task 0200
+        std::uint16_t mProgressionLevel = 1;
+        std::array<std::uint8_t, progression::kSkillCount> mProgressionSkills{};
         std::function<float()> mGoldSource; // task 0184
         bool ensureActorIndex();
         std::unique_ptr<CombatIndex> mCombatIndex; ///< WEAP, RACE combat fields and GMSTs of every plugin (task 0171)

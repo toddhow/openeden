@@ -22,6 +22,7 @@
 #include "game_skyrimse/combat_style.hpp"
 #include "game_skyrimse/land.hpp"
 #include "game_skyrimse/perks.hpp"
+#include "game_skyrimse/progression.hpp"
 
 #include <array>
 #include <cstdint>
@@ -191,6 +192,7 @@ namespace game_skyrimse
         std::vector<MagicEffectRecord> mMagicEffects; ///< task 0179
         std::vector<AmmoRecord> mAmmo; ///< task 0178
         SoundRecords mSounds; ///< task 0193: IPCT, IPDS, MATT, SNDR and SOUN
+        std::vector<progression::SkillRecord> mSkills; ///< task 0200: AVIF with skill data
         std::vector<CombatStyleRecord> mStyles; ///< task 0190
         DecodeNotes mNotes;
         std::vector<Content::Error> mErrors;
@@ -315,6 +317,8 @@ namespace game_skyrimse
         [[nodiscard]] std::vector<FormId> spellIds() const; ///< sorted
         [[nodiscard]] std::size_t perkCount() const { return mPerks.size(); }
         [[nodiscard]] std::vector<FormId> perkIds() const; ///< sorted
+        /// Task 0200: the 18 skills (AVIF) of the load order.
+        [[nodiscard]] const progression::SkillTable& skillTable() const { return mSkillTable; }
 
     private:
         std::unordered_map<FormId, WeaponRecord> mWeapons;
@@ -328,6 +332,7 @@ namespace game_skyrimse
         std::unordered_map<FormId, MagicEffectRecord> mMagicEffects;
         SettingsTable mSettings;
         SoundLibrary mSoundLibrary;
+        progression::SkillTable mSkillTable;
     };
 
     // ---- armour --------------------------------------------------------------------------------------------------

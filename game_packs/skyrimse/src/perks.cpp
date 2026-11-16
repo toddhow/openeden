@@ -491,6 +491,7 @@ namespace game_skyrimse
                     out.mArchetype = readLe<std::uint32_t>(data.data() + 64);
                     out.mPrimaryValue = readLe<std::int32_t>(data.data() + 68);
                     out.mBaseCost = readLe<float>(data.data() + 4);
+                    out.mAssociatedSkill = readLe<std::int32_t>(data.data() + 12);
                     out.mResistValue = readLe<std::int32_t>(data.data() + 16);
                     out.mSecondaryWeight = readLe<float>(data.data() + 60);
                     out.mProjectile = readLe<std::uint32_t>(data.data() + 72) == 0

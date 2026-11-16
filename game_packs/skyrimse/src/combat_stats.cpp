@@ -654,7 +654,7 @@ namespace game_skyrimse
                     && t != Content::fourCC("SPEL") && t != Content::fourCC("MGEF") && t != Content::fourCC("IPCT")
                     && t != Content::fourCC("IPDS") && t != Content::fourCC("MATT") && t != Content::fourCC("SNDR")
                     && t != Content::fourCC("SOUN") && t != Content::fourCC("ARTO")
-                    && t != Content::fourCC("CSTY"))
+                    && t != Content::fourCC("CSTY") && t != Content::fourCC("AVIF"))
                     return true;
                 std::span<const std::byte> bytes = record.mData;
                 if (record.isCompressed())
@@ -689,6 +689,13 @@ namespace game_skyrimse
                     ok = decodeWeapon(bytes, record, mContext, w, why);
                     if (ok)
                         mOut.mWeapons.push_back(std::move(w));
+                }
+                else if (t == Content::fourCC("AVIF"))
+                {
+                    progression::SkillRecord s;
+                    ok = progression::decodeSkill(bytes, record, mContext, s, why);
+                    if (ok && s.mHasSkillData)
+                        mOut.mSkills.push_back(std::move(s));
                 }
                 else if (t == Content::fourCC("PROJ"))
                 {
@@ -933,6 +940,8 @@ namespace game_skyrimse
             else
                 mAmmo[a.mCommon.mId] = a;
         }
+        for (const progression::SkillRecord& sk : records.mSkills)
+            mSkillTable.add(sk);
         for (const CombatStyleRecord& st : records.mStyles)
         {
             if (st.mCommon.deleted())

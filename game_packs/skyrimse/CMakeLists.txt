@@ -43,7 +43,10 @@ openeden_add_game_pack(skyrimse
         src/follower.cpp
         src/combat.cpp
         src/combat_crowd.cpp
+        src/combat_skills.cpp
         src/hud.cpp
+        src/progression.cpp
+        src/progression_service.cpp
         src/magic.cpp
         src/combat_magic.cpp
         src/actor_mechanics.cpp
@@ -100,6 +103,8 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/combat.hpp
         include/game_skyrimse/combat_crowd.hpp
         include/game_skyrimse/hud.hpp
+        include/game_skyrimse/progression.hpp
+        include/game_skyrimse/progression_service.hpp
         include/game_skyrimse/actor_mechanics.hpp
         include/game_skyrimse/combat_stats.hpp
         include/game_skyrimse/combat_impact.hpp
@@ -165,7 +170,10 @@ add_library(game_skyrimse_world STATIC
     src/follower.cpp
     src/combat.cpp
     src/combat_crowd.cpp
+    src/combat_skills.cpp
     src/hud.cpp
+    src/progression.cpp
+    src/progression_service.cpp
     src/magic.cpp
     src/combat_magic.cpp
     src/actor_mechanics.cpp
