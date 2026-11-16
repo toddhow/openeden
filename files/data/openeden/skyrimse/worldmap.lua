@@ -11,6 +11,10 @@
 --   env.map       the `core.skyrimse.map` package
 --   env.player()  { x, y, yaw, world } of the player, or nil
 --   env.close()   leaves the interface mode (the host script's job)
+-- Fast travel (task 0218), only when both are given:
+--   env.travel          the `core.skyrimse.travel` package (marker_ref)
+--   env.requestTravel   function(markerRef, name): asks the global script to travel (it may refuse; the host calls
+--                       `notice` with the reason)
 local M = {}
 
 local CELL_UNITS = 4096 -- the side of a Skyrim SE exterior cell (WorldSpaceInfo::cellSizeUnits)
@@ -42,6 +46,21 @@ function M.runs(pixels)
   return out
 end
 
+local REFUSALS = {
+  combat = 'You cannot fast travel while in combat.',
+  enemies = 'You cannot fast travel with enemies nearby.',
+  interior = 'You cannot fast travel from an interior.',
+  undiscovered = 'You cannot fast travel to a place you have not discovered.',
+  unknown = 'You cannot fast travel to that place.',
+  no_destination = 'There is nowhere to fast travel to there.',
+  not_ready = 'You cannot fast travel yet.',
+}
+
+--- The sentence for a refusal word of the pack's `refusal` function. Pure.
+function M.refusalText(reason)
+  return REFUSALS[reason] or 'You cannot fast travel now.'
+end
+
 --- The pixel of a world position on the map: column and row (both fractions of a cell), north up. Pure.
 function M.toMap(x, y, minX, maxY)
   return x / CELL_UNITS - minX, (maxY + 1) - y / CELL_UNITS
@@ -70,6 +89,9 @@ function M.create(env)
   local playerSlot = { left = ui.Value('0px'), top = ui.Value('0px'), shown = ui.Value(false) }
   local lastRevision, lastPlayerPos = nil, nil
   local shownMarkers = 0
+  local travel = env.travel
+  local markerRefs, markerNames = {}, {}
+  local pending, promptDoc = nil, nil
 
   local function loadInfo(world)
     local v = map.raster_info(world)
@@ -96,12 +118,14 @@ function M.create(env)
       local xs = map.marker_x(p.world, p.x, p.y, 1e9, 0, page)
       local ys = map.marker_y(p.world, p.x, p.y, 1e9, 0, page)
       local names = map.marker_name(p.world, p.x, p.y, 1e9, 0, page)
+      local refs = travel and travel.marker_ref(p.world, p.x, p.y, 1e9, 0, page) or {}
       for i = 1, #xs do
         if used < MARKER_SLOTS then
           used = used + 1
           local px, py = mapPixel(xs[i], ys[i])
           placeSlot(markerSlots[used], px, py, 4)
           markerSlots[used].name:set(names[i] or '')
+          markerRefs[used], markerNames[used] = refs[i], names[i] or ''
         end
       end
       if #xs < 256 then break end
@@ -148,6 +172,7 @@ function M.create(env)
     for i = 1, MARKER_SLOTS do
       overlay[#overlay + 1] = ui.Frame{
         class = 'map-marker', visible = markerSlots[i].shown,
+        onClick = travel and function() self.ask(i) end or nil,
         style = { position = 'absolute', left = markerSlots[i].left, top = markerSlots[i].top, width = 8, height = 8,
           ['background-color'] = 'rgb(230, 110, 0)' } }
     end
@@ -193,6 +218,44 @@ function M.create(env)
       end }
   end
 
+  local function dropPrompt()
+    if promptDoc then promptDoc:destroy() end
+    promptDoc, pending = nil, nil
+  end
+
+  --- The player clicked marker slot i: ask before travelling (only for a marker the player has found).
+  function self.ask(i)
+    local ref, name = markerRefs[i], markerNames[i]
+    if not travel or not isOpen or not ref or not name or name == '' then return end
+    dropPrompt()
+    pending = { ref = ref, name = name }
+    promptDoc = ui.Document{ name = 'skyrim-travel-prompt', class = 'panel',
+      style = { position = 'absolute', left = 260, top = 200, width = 300 },
+      build = function()
+        return ui.Column{
+          ui.Text{ text = 'Travel to ' .. name .. '?', class = 'title' },
+          ui.Row{
+            ui.Button{ text = 'Yes', class = 'btn', onClick = function() self.confirm() end },
+            ui.Button{ text = 'No', class = 'btn', onClick = function() self.cancel() end },
+          },
+        }
+      end }
+  end
+
+  function self.confirm()
+    local p = pending
+    dropPrompt()
+    if p and env.requestTravel then
+      status:set('Travelling to ' .. p.name .. '...')
+      env.requestTravel(p.ref, p.name)
+    end
+  end
+
+  function self.cancel() dropPrompt() end
+  function self.asking() return pending ~= nil end
+  --- A line in the status of the window (a refusal, or the result of a travel).
+  function self.notice(text) status:set(text or '') end
+
   --- Opens the map. False (and nothing drawn) when there is no player in a worldspace or the pack has no land for it.
   function self.open()
     self.dismiss()
@@ -212,6 +275,7 @@ function M.create(env)
   end
 
   function self.dismiss()
+    dropPrompt()
     if doc then doc:destroy() end
     doc = nil
     isOpen = false

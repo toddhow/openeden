@@ -51,6 +51,11 @@ namespace MWWorld
     std::size_t carryNeutralFollowers(
         const std::string& gameId, const std::vector<Ptr>& followers, CellStore& cell, const ESM::Position& arrival);
 
+    /// A script moves the player to `destination` (task 0218, fast travel): the followers of the player's current neutral
+    /// cell go with him, collected and carried exactly as a teleport door does it. Call it before the player moves.
+    /// Returns how many were carried; 0 when the player is not in a neutral cell or the game has no followers.
+    std::size_t carryNeutralFollowersWithPlayer(CellStore& destination, const ESM::Position& arrival);
+
     /// After a load (the pack's chunks restored, the player's cell active): every follower the pack names that is not
     /// in an active cell is looked up in its home cell (FollowerRules::homeCell; an interior the pack can build) and
     /// moved to the player's cell around the player, as a door would have carried it. The neutral save does not keep

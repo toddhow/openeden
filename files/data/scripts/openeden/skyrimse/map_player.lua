@@ -7,6 +7,9 @@ local input = require('openmw.input')
 
 local okUi, ui = pcall(require, 'openeden.ui')
 local okMap, map = pcall(require, 'core.skyrimse.map')
+local core = require('openmw.core')
+-- Task 0218: fast travel is optional (the pack setting `fast travel`)
+local okTravel, travel = pcall(require, 'core.skyrimse.travel')
 if not (okUi and okMap) then
   return {}
 end
@@ -31,7 +34,13 @@ local function leave()
   I.UI.setMode()
 end
 
-worldMap = require('openeden.skyrimse.worldmap').create{ ui = ui, map = map, player = playerPlace, close = leave }
+local worldmapLib = require('openeden.skyrimse.worldmap')
+worldMap = worldmapLib.create{ ui = ui, map = map, player = playerPlace, close = leave,
+  travel = okTravel and travel or nil,
+  requestTravel = function(marker, name)
+    print('[skyrimse map] travel requested to ' .. tostring(name))
+    core.sendGlobalEvent('SkyrimTravelDo', { marker = marker, name = name })
+  end }
 
 local function showMap()
   if I.UI.getMode() ~= nil then return end
@@ -44,6 +53,17 @@ local function showMap()
 end
 
 return {
+  eventHandlers = {
+    -- From travel_global.lua: the pack refused (a reason word) or the player has been moved.
+    SkyrimTravelRefused = function(data)
+      worldMap.notice(worldmapLib.refusalText(data.reason))
+    end,
+    SkyrimTravelDone = function(data)
+      print('[skyrimse map] travelled to ' .. tostring(data.name))
+      worldMap.dismiss()
+      leave()
+    end,
+  },
   engineHandlers = {
     onKeyPress = function(key)
       if key.code == input.KEY.M and not worldMap.isOpen() then

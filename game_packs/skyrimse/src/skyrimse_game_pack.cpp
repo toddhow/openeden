@@ -13,6 +13,7 @@
 #include "game_skyrimse/map.hpp"
 #include "game_skyrimse/lockbooks_service.hpp"
 #include "game_skyrimse/rest.hpp"
+#include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
 #include "game_skyrimse/neutral_world.hpp"
@@ -1054,6 +1055,9 @@ namespace game_skyrimse
                     startJournal(host, logger);
                     // Task 0201: the compass and world map's bindings, off unless [extension.skyrimse] map.
                     startMap(host, logger);
+                    // Task 0218: fast travel from the world map (the namespace skyrimse.travel), off unless
+                    // [extension.skyrimse] fast travel (and map).
+                    startTravel(host, logger);
                     // Task 0210: waiting and sleeping (the namespace skyrimse.rest), off unless
                     // [extension.skyrimse] rest.
                     startRest(host, logger);
@@ -1404,6 +1408,44 @@ namespace game_skyrimse
                         logger->log(openeden::sdk::LogLevel::Warning, "the map chunk was not registered");
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "MAP the map and compass are on");
+            }
+
+            // Task 0218: fast travel. The rules are `travel.*`; this wires them to the map service (markers, discovered
+            // state), the combat (who may travel) and the follower table (how many come along; the engine carries them
+            // with the player's teleport).
+            void startTravel(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "fast travel", false))
+                    return;
+                if (mMap == nullptr)
+                {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "fast travel needs the pack setting map");
+                    return;
+                }
+                travel::Hooks hooks;
+                hooks.mReady = [this] { return mCellSource.combat().dataReady(); };
+                hooks.mInCombat = [this] { return mCellSource.combat().playerInCombat(); };
+                hooks.mEnemiesNear = [this] { return mCellSource.combat().enemiesNear(); };
+                hooks.mFollowerCount = [this] {
+                    openeden::sdk::game::WorldId ids[16];
+                    return mCellSource.actorTable().followers(ids, 16);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mTravel = std::make_unique<travel::TravelService>(*mMap, std::move(hooks));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mTravel->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(
+                            openeden::sdk::LogLevel::Warning, "the travel bindings were refused: " + declared.message);
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "TRAVEL fast travel from the world map is on");
             }
 
             // Task 0207: the LSCR records (read by the dialogue worker, so the flag must be set before the worker
@@ -2590,6 +2632,7 @@ namespace game_skyrimse
             std::uint64_t mProgressionPushed = 0;
             std::unique_ptr<map::MapService> mMap; // task 0201; refers to the world view
             std::unique_ptr<map::MapChunk> mMapChunk; // task 0201; refers to mMap's discovery
+            std::unique_ptr<travel::TravelService> mTravel; // task 0218; refers to mMap and the combat; declared after mMap
             std::unique_ptr<rest::RestService> mRest; // task 0210; the lambdas refer to the pack, the combat, the view
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view

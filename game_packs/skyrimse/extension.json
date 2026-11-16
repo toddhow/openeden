@@ -276,6 +276,11 @@
       "default": false
     },
     {
+      "key": "fast travel",
+      "type": "bool",
+      "default": false
+    },
+    {
       "key": "rest",
       "type": "bool",
       "default": false

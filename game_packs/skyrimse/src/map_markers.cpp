@@ -122,6 +122,18 @@ namespace game_skyrimse::map
                                 else
                                     marker.mType = static_cast<std::uint8_t>(sub.mData[0]);
                                 break;
+                            case Content::fourCC("XLKR"):
+                                // Task 0218: a link with a null keyword is the landing place of a fast travel (8 bytes:
+                                // keyword, reference); a link with a keyword is another kind of link.
+                                if (sub.mData.size() != 8)
+                                    ++mOut.mOddSubrecords;
+                                else if (le32(sub.mData.data()) == 0)
+                                {
+                                    const FormId link = resolved(le32(sub.mData.data() + 4));
+                                    if (link != kUnresolvedFormId)
+                                        marker.mLinked = link;
+                                }
+                                break;
                             case Content::fourCC("FULL"):
                                 readName(sub.mData, marker.mName);
                                 break;

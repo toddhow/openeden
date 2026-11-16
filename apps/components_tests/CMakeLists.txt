@@ -33,6 +33,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testskyrimsejournalwindows.cpp
     ui/testskyrimsemapwindows.cpp
     ui/testskyrimserestwindows.cpp
+    ui/testskyrimsetravelwindows.cpp
     ui/testskyrimsemenuswindows.cpp
     ui/testskyrimsepresentationlua.cpp
     ui/testskyrimseinventoryequipwindows.cpp
@@ -644,6 +645,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsejournal.cpp
     skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimserest.cpp
+    skyrimse/testskyrimsetravel.cpp
     skyrimse/testskyrimsecombatrest.cpp
     skyrimse/testskyrimsemenus.cpp
     skyrimse/testskyrimsepresentation.cpp
@@ -730,6 +732,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/rest.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/travel.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/menus.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/presentation.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/quest_script.cpp

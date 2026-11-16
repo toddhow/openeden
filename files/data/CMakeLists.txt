@@ -212,6 +212,7 @@ set(BUILTIN_DATA_FILES
     scripts/openeden/skyrimse/books_player.lua
     scripts/openeden/skyrimse/skills_global.lua
     scripts/openeden/skyrimse/map_global.lua
+    scripts/openeden/skyrimse/travel_global.lua
     scripts/openeden/skyrimse/map_player.lua
     scripts/openeden/skyrimse/rest_global.lua
     scripts/openeden/skyrimse/rest_player.lua

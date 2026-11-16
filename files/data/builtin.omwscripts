@@ -56,6 +56,8 @@ GLOBAL REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills
 PLAYER REQUIRES=core.skyrimse.progression>=1.0: scripts/openeden/skyrimse/skills_player.lua
 # Skyrim SE compass and world map (task 0201); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_global.lua
+# Task 0218: fast travel from the world map (the pack setting [extension.skyrimse] fast travel, which needs map)
+GLOBAL REQUIRES=core.skyrimse.travel>=1.0: scripts/openeden/skyrimse/travel_global.lua
 PLAYER REQUIRES=core.skyrimse.map>=1.0: scripts/openeden/skyrimse/map_player.lua
 # Skyrim SE crime: the guard's offer and the jail (task 0204); started only when the session's game pack has the namespace
 GLOBAL REQUIRES=core.skyrimse.crime>=1.0: scripts/openeden/skyrimse/crime_global.lua

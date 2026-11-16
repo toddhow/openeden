@@ -67,6 +67,8 @@ namespace game_skyrimse::map
         LString mName;
         std::uint32_t mPlugin = 0; ///< index in the load order of the plugin whose record won (for the string table)
         bool mDeleted = false;
+        /// The reference of the XLKR with a null keyword (task 0218): the place fast travel arrives at; 0 when none.
+        FormId mLinked = kNullFormId;
     };
 
     struct MarkerLimits

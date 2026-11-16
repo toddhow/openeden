@@ -127,6 +127,22 @@ namespace MWWorld
         return moved;
     }
 
+    std::size_t carryNeutralFollowersWithPlayer(CellStore& destination, const ESM::Position& arrival)
+    {
+        if (!MWBase::Environment::exists())
+            return 0;
+        MWBase::World* world = MWBase::Environment::get().getWorld();
+        const Ptr player = world != nullptr ? world->getPlayerPtr() : Ptr();
+        CellStore* from = player.isEmpty() || !player.isInCell() ? nullptr : player.getCell();
+        if (from == nullptr || !from->isNeutral())
+            return 0;
+        const std::string gameId = from->neutralGameId();
+        const std::vector<Ptr> followers = collectNeutralFollowers(gameId, player);
+        if (!followers.empty())
+            Log(Debug::Info) << "Neutral player teleport: " << followers.size() << " followers go with the player";
+        return carryNeutralFollowers(gameId, followers, destination, arrival);
+    }
+
     std::size_t restoreNeutralFollowers()
     {
         if (!MWBase::Environment::exists())
