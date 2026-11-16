@@ -15,6 +15,7 @@
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm4/loadwrld.hpp>
+#include <components/misc/convert.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/world.hpp"
@@ -864,6 +865,59 @@ namespace MWWorld
         return key;
     }
 
+    namespace
+    {
+        NeutralCreatedInfo createdInfoOf(const openeden::sdk::game::WorldObject& object)
+        {
+            NeutralCreatedInfo info;
+            info.mBase = static_cast<std::uint32_t>(object.base);
+            info.mKind = static_cast<std::uint8_t>(object.kind);
+            info.mEditorId = object.baseEditorId;
+            info.mModel = object.modelPath;
+            info.mHasBounds = object.collision.hasBounds;
+            if (info.mHasBounds)
+            {
+                info.mBoundsMin[0] = static_cast<float>(object.collision.boundsMin.x);
+                info.mBoundsMin[1] = static_cast<float>(object.collision.boundsMin.y);
+                info.mBoundsMin[2] = static_cast<float>(object.collision.boundsMin.z);
+                info.mBoundsMax[0] = static_cast<float>(object.collision.boundsMax.x);
+                info.mBoundsMax[1] = static_cast<float>(object.collision.boundsMax.y);
+                info.mBoundsMax[2] = static_cast<float>(object.collision.boundsMax.z);
+            }
+            return info;
+        }
+
+        /// The object a created entry stands for: the base's description from the save, the transform from the saved
+        /// angles (the state is then written over the reference exactly, so the quaternion's rounding does not matter).
+        openeden::sdk::game::WorldObject createdObjectOf(std::string_view, const NeutralSavedObject& saved)
+        {
+            using namespace openeden::sdk::game;
+            const NeutralCreatedInfo& info = *saved.mCreated;
+            WorldObject object;
+            object.id = saved.mPlacement;
+            object.base = info.mBase;
+            object.kind = static_cast<ObjectKind>(info.mKind);
+            object.baseEditorId = info.mEditorId;
+            object.modelPath = info.mModel;
+            object.payload.handle = info.mBase;
+            if (!info.mModel.empty())
+                object.collision.source = CollisionSource::FromModel;
+            else if (info.mHasBounds)
+                object.collision.source = CollisionSource::Box;
+            if (info.mHasBounds)
+            {
+                object.collision.hasBounds = true;
+                object.collision.boundsMin = { info.mBoundsMin[0], info.mBoundsMin[1], info.mBoundsMin[2] };
+                object.collision.boundsMax = { info.mBoundsMax[0], info.mBoundsMax[1], info.mBoundsMax[2] };
+            }
+            object.transform.position = { saved.mPos[0], saved.mPos[1], saved.mPos[2] };
+            const vsg::dquat q = Misc::Convert::makeOsgQuat(saved.mRot);
+            object.transform.rotation = { q.x, q.y, q.z, q.w };
+            object.transform.scale = (saved.mFlags & NeutralSaveScaled) != 0 ? saved.mScale : 1.0;
+            return object;
+        }
+    }
+
     void WorldModel::collectNeutralSave(NeutralSaveState& out, const CellStore* playerCell) const
     {
         out = {};
@@ -890,6 +944,19 @@ namespace MWWorld
                     = packObject == packObjects.end() ? nullptr : packObject->second;
                 if (object == nullptr)
                     return;
+                if (store.isNeutralCreated(placement))
+                {
+                    // Task 0202: an object a script created is saved whole (a deleted one is left out)
+                    if (live.mRef.getCount(false) == 0)
+                        return;
+                    NeutralObjectNow created;
+                    created.mPosition = live.mData.getPosition();
+                    created.mScale = live.mRef.getScale();
+                    created.mEnabled = live.mData.isEnabled();
+                    saved.mObjects.push_back(saveCreatedNeutralObject(
+                        static_cast<std::uint32_t>(placement), createdInfoOf(*object), created));
+                    return;
+                }
                 ESM::CellRef original;
                 std::string error;
                 if (!makeNeutralCellRef(store.neutralGameId(), *object, original, error))
@@ -916,6 +983,48 @@ namespace MWWorld
         out.mUnlocked = neutralLockState().unlockedEntries();
         out.mKeys = neutralLockState().keyEntries();
         canonicaliseNeutralSave(out);
+    }
+
+    CellStore* WorldModel::findLoadedNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId cell,
+        const openeden::sdk::game::Vec3d& position) const
+    {
+        CellStore* byPosition = nullptr;
+        for (auto& [id, store] : mCells)
+        {
+            if (!store.isNeutral() || store.getState() != CellStore::State_Loaded || store.neutralGameId() != gameId)
+                continue;
+            if (store.neutralCell() != nullptr && store.neutralCell()->id == cell)
+                return &store;
+            if (byPosition == nullptr && store.isExterior())
+            {
+                const ESM::ExteriorCellLocation where = ESM::positionToExteriorCellLocation(
+                    static_cast<float>(position.x), static_cast<float>(position.y), store.getCell()->getWorldSpace());
+                if (where.mX == store.getCell()->getGridX() && where.mY == store.getCell()->getGridY())
+                    byPosition = &store;
+            }
+        }
+        return byPosition;
+    }
+
+    LiveCellRef<NeutralBase>* WorldModel::addNeutralCreated(CellStore& cell,
+        const openeden::sdk::game::WorldObject& object, bool startDisabled, std::string& error) const
+    {
+        error.clear();
+        if (!cell.isNeutral())
+        {
+            error = "the cell is not a neutral cell";
+            return nullptr;
+        }
+        Store<NeutralBase>& bases = mStore.getWritable<NeutralBase>();
+        const auto result = bases.addFromObject(cell.neutralGameId(), object);
+        if (result.mStatus == Store<NeutralBase>::Status::Refused)
+        {
+            error = result.mError;
+            return nullptr;
+        }
+        if (result.mStatus == Store<NeutralBase>::Status::Conflict)
+            Log(Debug::Warning) << result.mError;
+        return cell.insertNeutralCreated(object, startDisabled, error);
     }
 
     Ptr WorldModel::findLoadedNeutralObject(
@@ -1027,13 +1136,28 @@ namespace MWWorld
             });
             for (const NeutralSavedObject& object : saved.mObjects)
             {
+                LiveCellRef<NeutralBase>* created = nullptr;
+                if ((object.mFlags & NeutralSaveCreated) != 0)
+                {
+                    // Task 0202: an object a script created is made again from what the save says of its base
+                    std::string createError;
+                    created = addNeutralCreated(
+                        *cell, createdObjectOf(cell->neutralGameId(), object), false, createError);
+                    if (created == nullptr)
+                    {
+                        result.mWarnings.push_back("Dropping a created object: " + createError);
+                        ++result.mMissing;
+                        continue;
+                    }
+                    ++result.mCreated;
+                }
                 const auto found = byPlacement.find(object.mPlacement);
-                if (found == byPlacement.end())
+                if (created == nullptr && found == byPlacement.end())
                 {
                     ++result.mMissing;
                     continue;
                 }
-                LiveCellRef<NeutralBase>& live = *found->second;
+                LiveCellRef<NeutralBase>& live = created != nullptr ? *created : *found->second;
                 NeutralObjectNow now;
                 now.mPosition = live.mData.getPosition();
                 now.mScale = live.mRef.getScale();

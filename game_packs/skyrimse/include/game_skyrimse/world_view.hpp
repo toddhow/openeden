@@ -641,6 +641,12 @@ namespace game_skyrimse
         /// Task 0223: the exterior world a player in the interior cell `editorId` belongs to by its location (its parent
         /// chain up to the first location that lists a grid square): kNullFormId when none can be found.
         [[nodiscard]] FormId worldOfInterior(std::string_view editorId) const;
+        /// Task 0202: the description of a BASE form as an object that is not placed anywhere yet (PlaceAtMe): its
+        /// kind,
+        /// editor id, model path and bounds, and the identity transform; the caller sets id, position, rotation and
+        /// scale.
+        /// False for a form that is not a known base (a placed reference, a quest, a missing id). Main thread.
+        [[nodiscard]] bool describeBase(FormId base, openeden::sdk::game::PlacedObject& out) const;
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false

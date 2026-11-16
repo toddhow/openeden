@@ -127,7 +127,7 @@ namespace
     TEST(WorldSourceService, theVersionIsOneZero)
     {
         EXPECT_EQ(kWorldSourceServiceVersion.major, 1);
-        EXPECT_EQ(kWorldSourceServiceVersion.minor, 2);
+        EXPECT_EQ(kWorldSourceServiceVersion.minor, 3);
     }
 
     // ---- By kind ----

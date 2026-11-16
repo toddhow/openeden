@@ -13,6 +13,7 @@
 #include "builtinpack.hpp"
 #include "mwbase/extensionmanager.hpp"
 #include "mwbase/luamanager.hpp"
+#include "mwworld/neutralfade.hpp"
 
 #include <openeden/phases.hpp>
 
@@ -22,6 +23,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -226,6 +228,9 @@ namespace OMW
         }
         /// Task 0181: the pack's Enable and Disable requests reach the loaded neutral world (once a frame).
         void applyNeutralObjectChanges() override;
+        void advanceNeutralFades(float dt) override;
+        [[nodiscard]] std::uint32_t neutralCreatedCounter() override { return mHost.worldSources().nextCreatedIndex(); }
+        void resetNeutralObjects(std::uint32_t nextCreatedIndex) override;
         [[nodiscard]] bool hasNeutralWorldSource() override
         {
             return mNeutralWorldStore != nullptr && mNeutralWorldStore->sourceCount() > 0;
@@ -246,6 +251,9 @@ namespace OMW
         void installPackRules();
         void attachWorldNow(MWPhysics::PhysicsSystem& physics);
         bool mNeutralSaves = false; // Config::neutralSaves (task 0177)
+        MWWorld::NeutralFades mFades; // task 0202: the fades of neutral objects
+        std::map<std::uint32_t, std::string> mFadeGames; // the game of each fading placement
+        std::vector<MWWorld::NeutralFades::Update> mFadeUpdates; // reused every frame
         bool mRulesFromPack = false;
         bool mStarted = false;
         bool mGamePackStarted = false; // startGamePack() ran the first phase (maybe early, task 0113)

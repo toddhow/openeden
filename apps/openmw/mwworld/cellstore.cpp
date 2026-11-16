@@ -924,6 +924,42 @@ namespace MWWorld
             visitor(live);
     }
 
+    LiveCellRef<NeutralBase>* CellStore::insertNeutralCreated(
+        const openeden::sdk::game::WorldObject& object, bool startDisabled, std::string& error)
+    {
+        error.clear();
+        if (mNeutralCell == nullptr || mState != State_Loaded)
+        {
+            error = "the cell is not a loaded neutral cell";
+            return nullptr;
+        }
+        if (!mNeutralCell->objects.empty() && mNeutralCell->objects.back().id >= object.id)
+        {
+            error = "the id " + std::to_string(object.id) + " is not above the last placement of the cell";
+            return nullptr;
+        }
+        ESM::CellRef ref;
+        if (!makeNeutralCellRef(mNeutralGameId, object, ref, error))
+            return nullptr;
+        const NeutralBase* base = mStore.get<NeutralBase>().search(ref.mRefID);
+        if (base == nullptr)
+        {
+            error = "no base record " + ref.mRefID.toDebugString() + " for the created object";
+            return nullptr;
+        }
+        LiveCellRef<NeutralBase> live(ref, base);
+        if (startDisabled)
+            live.mData.disable();
+        CellRefList<NeutralBase>& list = get<NeutralBase>();
+        list.mList.push_back(std::move(live));
+        mNeutralCell->objects.push_back(object);
+        mNeutralCreated.insert(object.id);
+        mHasState = true;
+        // the merged list every visitor walks (CellStore::forEach) must see the new reference
+        requestMergedRefsUpdate();
+        return &list.mList.back();
+    }
+
     void CellStore::loadNeutralRefs()
     {
         mNeutralLoaded = 0;

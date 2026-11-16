@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -231,6 +232,23 @@ namespace MWWorld
         /// Whether this cell came from a game pack's neutral world (setNeutralCell).
         bool isNeutral() const { return mNeutralCell != nullptr; }
 
+        /// Task 0202: puts an object a script created (PlaceAtMe) into this loaded neutral cell: a reference for it
+        /// (its
+        /// base is already in the ESMStore's Store<NeutralBase>), the description appended to the snapshot (a created
+        /// id
+        /// is above every placement of the pack, so the ids stay ascending) and the id remembered as created. With
+        /// `startDisabled` the reference starts disabled, so that World::enable adds it to the scene. Null with `error`
+        /// for a cell that is not neutral or not loaded, an id that is not above the last one, or a value the engine
+        /// cannot hold.
+        LiveCellRef<NeutralBase>* insertNeutralCreated(
+            const openeden::sdk::game::WorldObject& object, bool startDisabled, std::string& error);
+
+        /// Whether the placement was created by a script (insertNeutralCreated).
+        bool isNeutralCreated(openeden::sdk::game::WorldId placement) const
+        {
+            return mNeutralCreated.count(placement) != 0;
+        }
+
         /// What the last load() of a neutral cell made: objects turned into references, by kind, and objects left out
         /// (no base in the store, a value the engine cannot hold). Zero for a cell that is not neutral.
         std::size_t neutralLoaded() const { return mNeutralLoaded; }
@@ -392,6 +410,7 @@ namespace MWWorld
         // Task 0109: the snapshot of a neutral cell and the game it came from (null/empty for every other cell).
         std::unique_ptr<openeden::sdk::game::WorldCell> mNeutralCell;
         std::string mNeutralGameId;
+        std::set<openeden::sdk::game::WorldId> mNeutralCreated; // task 0202
         std::size_t mNeutralLoaded = 0;
         std::size_t mNeutralSkipped = 0;
         std::size_t mNeutralDisabled = 0;

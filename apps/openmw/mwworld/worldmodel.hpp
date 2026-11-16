@@ -132,12 +132,25 @@ namespace MWWorld
         Ptr findLoadedNeutralObject(std::string_view gameId, openeden::sdk::game::WorldId cell,
             openeden::sdk::game::WorldId placement) const;
 
+        /// Task 0202: the loaded neutral cell of a game that a placement hint names (the pack's cell id); a hint no
+        /// loaded
+        /// cell has (a persistent reference stands in another cell than the one that holds it) falls back to the loaded
+        /// EXTERIOR cell that contains `position`, else null. Main thread.
+        CellStore* findLoadedNeutralCell(std::string_view gameId, openeden::sdk::game::WorldId cell,
+            const openeden::sdk::game::Vec3d& position) const;
+
+        /// Task 0202: an object a script created: its base goes into the store of neutral bases, the object into the
+        /// loaded cell (CellStore::insertNeutralCreated). Null with `error` when it cannot. Main thread.
+        LiveCellRef<NeutralBase>* addNeutralCreated(CellStore& cell, const openeden::sdk::game::WorldObject& object,
+            bool startDisabled, std::string& error) const;
+
         struct NeutralSaveRestore
         {
             CellStore* mPlayerCell = nullptr; ///< null when there was no player cell or it cannot be found
             std::size_t mCells = 0;
             std::size_t mObjects = 0;
             std::size_t mMissing = 0; ///< saved placements that the pack no longer has
+            std::size_t mCreated = 0; ///< objects a script created (task 0202) and the save brought back
             std::string mError; ///< why the player's cell could not be found
             std::vector<std::string> mWarnings;
         };

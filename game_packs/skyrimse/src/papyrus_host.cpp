@@ -1,5 +1,6 @@
 #include "game_skyrimse/papyrus_host.hpp"
 
+#include <openeden/game/world_source_service.hpp>
 #include <components/script_papyrus/papyrusnatives.hpp>
 #include <components/script_papyrus/pexfile.hpp>
 
@@ -26,6 +27,8 @@ namespace game_skyrimse
     {
         constexpr FormId kPlayerReference = 0x14;
         constexpr std::uint32_t kAliasTag = 0xFF000000u; // a handle of this host's alias table, not a form id
+        constexpr std::int32_t kMaxPlaceCount = 16; // PlaceAtMe's aiCount is cut to this (task 0202)
+        constexpr std::size_t kMaxCreatedKept = 65536; // created references the state keeps
         constexpr std::size_t kMaxNotificationBytes = 256;
         constexpr std::size_t kMaxAvOffsets = 4096; // actor value changes a script may leave behind
 
@@ -101,6 +104,11 @@ namespace game_skyrimse
 
         bool formClass(openeden::script::FormId form, std::string& className) const override
         {
+            if (mCreated.count(form) != 0)
+            {
+                className = "ObjectReference";
+                return true;
+            }
             if ((form & 0xFF000000u) == kAliasTag && form != 0)
             {
                 className = "ReferenceAlias";
@@ -626,12 +634,17 @@ namespace game_skyrimse
 
         // ---- references --------------------------------------------------------------------------------------------
 
-        void setEnabled(FormId reference, bool enabled)
+        void setEnabled(FormId reference, bool enabled, float fadeSeconds = 0.f)
         {
             if (referenceEnabled(reference) == enabled)
                 return;
             mEnabled[reference] = enabled;
-            say(false, "Papyrus: reference " + hex(reference) + (enabled ? " enabled" : " disabled"));
+            say(false,
+                "Papyrus: reference " + hex(reference) + (enabled ? " enabled" : " disabled")
+                    + (fadeSeconds > 0.f ? " with a fade" : ""));
+            // Task 0202: the world first (it can fade); the old callback only when the world did not take it
+            if (mHooks != nullptr && mHooks->setObjectEnabled(reference, enabled, fadeSeconds))
+                return;
             if (mEnableChanged)
                 mEnableChanged(reference, enabled);
         }
@@ -653,7 +666,78 @@ namespace game_skyrimse
                 xyz[2] = it->second[2];
                 return true;
             }
+            // Task 0202: a created reference is where it was created until a script moves it
+            const auto created = mCreated.find(reference);
+            if (created != mCreated.end())
+            {
+                xyz[0] = created->second.mPosition[0];
+                xyz[1] = created->second.mPosition[1];
+                xyz[2] = created->second.mPosition[2];
+                return true;
+            }
             return mData.referencePosition(reference, xyz[0], xyz[1], xyz[2]);
+        }
+
+        // Task 0202: the angles (radians) a script gave a reference, else those it was created with; none for a placed
+        // reference nobody turned (the data's own angles are not kept by this host).
+        bool anglesOf(FormId reference, std::array<double, 3>& angles) const
+        {
+            const auto it = mAngles.find(reference);
+            if (it != mAngles.end())
+            {
+                angles = it->second;
+                return true;
+            }
+            const auto created = mCreated.find(reference);
+            if (created != mCreated.end())
+            {
+                angles = created->second.mAngles;
+                return true;
+            }
+            return false;
+        }
+
+        FormId baseOfReference(FormId reference) const
+        {
+            const auto created = mCreated.find(reference);
+            return created != mCreated.end() ? created->second.mBase : mData.baseOf(reference);
+        }
+
+        FormId cellOfReference(FormId reference) const
+        {
+            const auto created = mCreated.find(reference);
+            return created != mCreated.end() ? created->second.mCell : mData.cellOf(reference);
+        }
+
+        // MoveTo between cells of which one is an interior is refused: the engine keeps an object in its own cell.
+        bool crossesCells(FormId a, FormId b) const
+        {
+            const FormId cellA = cellOfReference(a);
+            const FormId cellB = cellOfReference(b);
+            return cellA != 0 && cellB != 0 && cellA != cellB
+                && (mData.cellIsInterior(cellA) || mData.cellIsInterior(cellB));
+        }
+
+        void moveReference(FormId reference, const double* position, const std::array<double, 3>* angles)
+        {
+            ObjectMoveRequest request;
+            if (position != nullptr)
+            {
+                mPositions[reference] = { position[0], position[1], position[2] };
+                request.hasPosition = true;
+                for (int i = 0; i < 3; ++i)
+                    request.position[i] = position[i];
+            }
+            if (angles != nullptr)
+            {
+                mAngles[reference] = *angles;
+                request.hasAngles = true;
+                for (int i = 0; i < 3; ++i)
+                    request.angles[i] = (*angles)[static_cast<std::size_t>(i)];
+            }
+            say(false, "Papyrus: reference " + hex(reference) + " moved");
+            if (mHooks != nullptr)
+                (void)mHooks->moveObject(reference, request);
         }
 
         // The runtime asks this when it restores a state: does the game still have what the key names?
@@ -915,7 +999,7 @@ namespace game_skyrimse
                 return [this, on](const NativeCall& c) {
                     const FormId ref = formOf(c.self);
                     if (ref != 0)
-                        setEnabled(ref, on);
+                        setEnabled(ref, on, argNumber(c, 0) != 0.0 ? kPapyrusFadeSeconds : 0.f);
                     return NativeResult{};
                 };
             };
@@ -941,14 +1025,103 @@ namespace game_skyrimse
             reg("ObjectReference", "GetPositionZ", false, position(2));
             reg("ObjectReference", "MoveTo", false, [this](const NativeCall& c) {
                 const FormId self = formOf(c.self);
-                double target[3] = { 0.0, 0.0, 0.0 };
-                if (self != 0 && !c.arguments.empty() && positionOf(formOf(c.arguments[0]), target))
+                const FormId target = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                double where[3] = { 0.0, 0.0, 0.0 };
+                if (self == 0 || target == 0 || !positionOf(target, where))
+                    return NativeResult{};
+                if (crossesCells(self, target))
                 {
-                    mPositions[self] = { target[0] + argNumber(c, 1), target[1] + argNumber(c, 2),
-                        target[2] + argNumber(c, 3) };
-                    say(false, "Papyrus: reference " + hex(self) + " moved");
+                    say(false,
+                        "Papyrus: MoveTo of " + hex(self) + " to " + hex(target)
+                            + " is in another cell: not done (an object stays in its own cell)");
+                    return NativeResult{};
+                }
+                const double position[3] = { where[0] + argNumber(c, 1), where[1] + argNumber(c, 2),
+                    where[2] + argNumber(c, 3) };
+                // abMatchRotation: the target's angles, when this host knows them
+                std::array<double, 3> angles{};
+                const bool turn = argNumber(c, 4) != 0.0 && anglesOf(target, angles);
+                moveReference(self, position, turn ? &angles : nullptr);
+                return NativeResult{};
+            });
+            reg("ObjectReference", "SetPosition", false, [this](const NativeCall& c) {
+                const FormId self = formOf(c.self);
+                if (self != 0)
+                {
+                    const double position[3] = { argNumber(c, 0), argNumber(c, 1), argNumber(c, 2) };
+                    if (std::isfinite(position[0]) && std::isfinite(position[1]) && std::isfinite(position[2]))
+                        moveReference(self, position, nullptr);
                 }
                 return NativeResult{};
+            });
+            reg("ObjectReference", "SetAngle", false, [this](const NativeCall& c) {
+                const FormId self = formOf(c.self);
+                constexpr double kDegrees = 3.14159265358979323846 / 180.0;
+                const std::array<double, 3> angles{ argNumber(c, 0) * kDegrees, argNumber(c, 1) * kDegrees,
+                    argNumber(c, 2) * kDegrees };
+                if (self != 0 && std::isfinite(angles[0]) && std::isfinite(angles[1]) && std::isfinite(angles[2]))
+                    moveReference(self, nullptr, &angles);
+                return NativeResult{};
+            });
+            reg("ObjectReference", "MoveToMyEditorLocation", false, [this](const NativeCall& c) {
+                const FormId self = formOf(c.self);
+                if (self == 0)
+                    return NativeResult{};
+                mPositions.erase(self);
+                mAngles.erase(self);
+                ObjectMoveRequest request;
+                request.toOriginal = true;
+                say(false, "Papyrus: reference " + hex(self) + " moved back to its editor location");
+                if (mHooks != nullptr)
+                    (void)mHooks->moveObject(self, request);
+                return NativeResult{};
+            });
+            reg("ObjectReference", "PlaceAtMe", false, [this](const NativeCall& c) {
+                const FormId self = formOf(c.self);
+                const FormId base = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                double where[3] = { 0.0, 0.0, 0.0 };
+                if (self == 0 || base == 0 || mHooks == nullptr || !positionOf(self, where))
+                {
+                    if (self != 0 && base != 0 && mHooks != nullptr)
+                        say(false, "Papyrus: PlaceAtMe near " + hex(self) + " has no position to place at");
+                    return result(PapyrusValue::makeNone());
+                }
+                std::array<double, 3> angles{};
+                (void)anglesOf(self, angles);
+                const auto nearCreated = mCreated.find(self);
+                const FormId nearCell = nearCreated != mCreated.end() ? nearCreated->second.mCell : 0;
+                const std::int32_t count = std::clamp<std::int32_t>(argInt(c, 1), 1, kMaxPlaceCount);
+                const bool disabled = argNumber(c, 3) != 0.0;
+                FormId first = 0;
+                for (std::int32_t i = 0; i < count; ++i)
+                {
+                    ObjectPlaceRequest request;
+                    request.base = base;
+                    request.nearReference = self;
+                    request.nearCell = nearCell;
+                    for (std::size_t k = 0; k < 3; ++k)
+                    {
+                        request.position[k] = where[k];
+                        request.angles[k] = angles[k];
+                    }
+                    const ObjectPlaceResult placed = mHooks->placeObject(request);
+                    if (placed.reference == 0 || mCreated.size() >= kMaxCreatedKept)
+                        break;
+                    CreatedObject created;
+                    created.mReference = placed.reference;
+                    created.mBase = base;
+                    created.mCell = placed.cell;
+                    created.mPosition = { where[0], where[1], where[2] };
+                    created.mAngles = angles;
+                    mCreated[placed.reference] = created;
+                    say(false, "Papyrus: " + hex(base) + " placed as " + hex(placed.reference) + " near " + hex(self));
+                    if (disabled)
+                        setEnabled(placed.reference, false, 0.f);
+                    if (first == 0)
+                        first = placed.reference;
+                }
+                return first != 0 ? result(PapyrusValue::makeForm(intern("ObjectReference"), first))
+                                  : result(PapyrusValue::makeNone());
             });
             reg("Form", "HasKeyword", false, [this](const NativeCall& c) {
                 const FormId keyword = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
@@ -963,7 +1136,7 @@ namespace game_skyrimse
                 return result(PapyrusValue::makeBool(added));
             });
             reg("ObjectReference", "GetBaseObject", false, [this](const NativeCall& c) {
-                const FormId base = mData.baseOf(formOf(c.self));
+                const FormId base = baseOfReference(formOf(c.self));
                 return result(base != 0 ? PapyrusValue::makeForm(intern("Form"), base) : PapyrusValue::makeNone());
             });
             reg("ObjectReference", "Activate", false, [this](const NativeCall& c) {
@@ -1439,7 +1612,9 @@ namespace game_skyrimse
         std::map<std::pair<double, std::uint64_t>, Timer> mTimers;
         std::uint64_t mTolerantBase = 0; ///< tolerant calls counted before the state that was restored
         std::map<FormId, bool> mEnabled;
-        std::map<FormId, std::array<double, 3>> mPositions; ///< MoveTo (recorded only)
+        std::map<FormId, std::array<double, 3>> mPositions; ///< MoveTo, SetPosition (also sent to the world, task 0202)
+        std::map<FormId, std::array<double, 3>> mAngles; ///< SetAngle, MoveTo with matched rotation (radians)
+        std::map<FormId, PapyrusHost::CreatedObject> mCreated; ///< PlaceAtMe
         std::set<std::pair<FormId, FormId>> mSpells; ///< Actor.AddSpell (the pack reads it: spellsOf)
         // task 0237
         std::uint64_t mSpellRevision = 0;
@@ -1578,7 +1753,9 @@ namespace game_skyrimse
         // ---- the host's state as bytes (task 0181) -----------------------------------------------------------------
         // Little endian, canonical (maps and sets in key order), ended by an FNV-1a 64 checksum of everything before it.
         constexpr std::uint32_t kStateMagic = 0x31534850u; // "PHS1"
-        constexpr std::uint32_t kStateVersion = 2; // 2 (task 0198) adds actor value changes and deaths; 1 is still read
+        // 3 (task 0202) adds created references and angles; 2 (task 0198) adds actor value changes and deaths; 1 and 2
+        // are still read
+        constexpr std::uint32_t kStateVersion = 3;
         constexpr std::uint32_t kMaxEntries = 1u << 22; // a hostile count never allocates more than the bytes allow
 
         std::uint64_t fnv1a(const std::uint8_t* data, std::size_t size)
@@ -1860,6 +2037,25 @@ namespace game_skyrimse
             for (const FormId item : items)
                 w.u32(item);
         }
+        // version 3 (task 0202): the references scripts created, then the angles scripts gave
+        w.u32(static_cast<std::uint32_t>(mCreated.size()));
+        for (const auto& [ref, created] : mCreated)
+        {
+            w.u32(ref);
+            w.u32(created.mBase);
+            w.u32(created.mCell);
+            for (const double v : created.mPosition)
+                w.f64(v);
+            for (const double v : created.mAngles)
+                w.f64(v);
+        }
+        w.u32(static_cast<std::uint32_t>(mAngles.size()));
+        for (const auto& [ref, angles] : mAngles)
+        {
+            w.u32(ref);
+            for (const double v : angles)
+                w.f64(v);
+        }
         return w.finish();
     }
 
@@ -1882,7 +2078,7 @@ namespace game_skyrimse
         if (r.u32() != kStateMagic)
             return refuse("this is not a Papyrus state");
         const std::uint32_t version = r.u32();
-        if (version != 1 && version != kStateVersion)
+        if (version != 1 && version != 2 && version != kStateVersion)
             return refuse("the Papyrus state has version " + std::to_string(version));
 
         struct LedgerEntry
@@ -2046,6 +2242,41 @@ namespace game_skyrimse
                     items.insert(r.u32());
             }
         }
+        std::map<FormId, PapyrusHost::CreatedObject> createdObjects;
+        std::map<FormId, std::array<double, 3>> angleOverrides;
+        if (version >= 3)
+        {
+            for (std::uint32_t i = 0, n = r.count(12 + 48); i < n; ++i)
+            {
+                PapyrusHost::CreatedObject created;
+                created.mReference = r.u32();
+                created.mBase = r.u32();
+                created.mCell = r.u32();
+                for (double& v : created.mPosition)
+                    v = r.f64();
+                for (double& v : created.mAngles)
+                    v = r.f64();
+                const bool finite = std::isfinite(created.mPosition[0]) && std::isfinite(created.mPosition[1])
+                    && std::isfinite(created.mPosition[2]) && std::isfinite(created.mAngles[0])
+                    && std::isfinite(created.mAngles[1]) && std::isfinite(created.mAngles[2]);
+                const std::uint32_t base = openeden::sdk::game::kCreatedObjectBase;
+                if (created.mReference < base || created.mReference - base > openeden::sdk::game::kMaxCreatedObjects
+                    || created.mBase == 0 || !finite || createdObjects.size() >= kMaxCreatedKept)
+                    return refuse("the Papyrus state has a bad created reference");
+                createdObjects[created.mReference] = created;
+            }
+            for (std::uint32_t i = 0, n = r.count(4 + 24); i < n; ++i)
+            {
+                const FormId ref = r.u32();
+                std::array<double, 3> angles{};
+                for (double& v : angles)
+                    v = r.f64();
+                if (!std::isfinite(angles[0]) || !std::isfinite(angles[1]) || !std::isfinite(angles[2])
+                    || angleOverrides.size() >= kMaxCreatedKept)
+                    return refuse("the Papyrus state has a bad angle");
+                angleOverrides[ref] = angles;
+            }
+        }
         if (r.failed())
             return refuse("the Papyrus state is damaged (a field runs past the end)");
         if (r.remaining() != 0)
@@ -2058,13 +2289,25 @@ namespace game_skyrimse
         if (ledger.size() > mOptions.mMaxInstances)
             return refuse("the state holds more instances than the host allows");
 
+        // Task 0202: the runtime restore asks what class a form is (a script variable may hold a created reference), so
+        // the created table is in place for it and goes back if the state is refused
+        std::map<FormId, PapyrusHost::CreatedObject> previousCreated = std::move(mCreated);
+        mCreated = std::move(createdObjects);
+        const auto rollback = [&]() { mCreated = std::move(previousCreated); };
+
         // the scripts first: the runtime refuses a state whose script is not loaded
         for (const LedgerEntry& e : ledger)
             if (!load(e.mScript, false))
+            {
+                rollback();
                 return refuse("the script '" + e.mScript + "' of a saved instance cannot be loaded");
+            }
         const openeden::script::RestoreResult restored = mRuntime->restore(blob);
         if (!restored.ok)
+        {
+            rollback();
             return refuse("the runtime refused the state: " + restored.error.format());
+        }
 
         // everything is accepted: replace the host's tables
         mInstances.clear();
@@ -2096,6 +2339,7 @@ namespace game_skyrimse
         mTolerantBase = tolerantCalls - std::min(tolerantCalls, mRuntime->stats().unregisteredNativeCalls);
         mEnabled = std::move(enabled);
         mPositions = std::move(positions);
+        mAngles = std::move(angleOverrides);
         mSpells = std::move(spells);
         ++mSpellRevision; // task 0237: the pack reads the list again
         mAvOffsets = std::move(avOffsets);
@@ -2465,6 +2709,34 @@ namespace game_skyrimse
     std::vector<std::pair<FormId, bool>> PapyrusHost::enableOverrides() const
     {
         return std::vector<std::pair<FormId, bool>>(mImpl->mEnabled.begin(), mImpl->mEnabled.end());
+    }
+
+    std::vector<std::pair<FormId, std::array<double, 3>>> PapyrusHost::positionOverrides() const
+    {
+        return std::vector<std::pair<FormId, std::array<double, 3>>>(
+            mImpl->mPositions.begin(), mImpl->mPositions.end());
+    }
+
+    std::optional<std::array<double, 3>> PapyrusHost::angleOverride(FormId reference) const
+    {
+        const auto it = mImpl->mAngles.find(reference);
+        if (it == mImpl->mAngles.end())
+            return std::nullopt;
+        return it->second;
+    }
+
+    std::vector<std::pair<FormId, std::array<double, 3>>> PapyrusHost::angleOverrides() const
+    {
+        return std::vector<std::pair<FormId, std::array<double, 3>>>(mImpl->mAngles.begin(), mImpl->mAngles.end());
+    }
+
+    std::vector<PapyrusHost::CreatedObject> PapyrusHost::createdObjects() const
+    {
+        std::vector<CreatedObject> out;
+        out.reserve(mImpl->mCreated.size());
+        for (const auto& [ref, created] : mImpl->mCreated)
+            out.push_back(created);
+        return out;
     }
 
     std::optional<std::array<double, 3>> PapyrusHost::positionOverride(FormId reference) const

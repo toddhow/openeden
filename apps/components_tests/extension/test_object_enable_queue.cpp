@@ -48,10 +48,10 @@ namespace
         NamedSource mSource;
     };
 
-    TEST(ObjectEnableQueue, theServiceVersionIsOnePointTwo)
+    TEST(ObjectEnableQueue, theServiceVersionIsOnePointThree)
     {
         EXPECT_EQ(kWorldSourceServiceVersion.major, 1);
-        EXPECT_EQ(kWorldSourceServiceVersion.minor, 2);
+        EXPECT_EQ(kWorldSourceServiceVersion.minor, 3);
     }
 
     TEST(ObjectEnableQueue, aServiceThatDoesNotOverrideItRefuses)

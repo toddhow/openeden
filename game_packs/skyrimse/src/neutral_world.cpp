@@ -405,6 +405,18 @@ namespace game_skyrimse
                 if (mHarvested(object.id))
                     object.initiallyDisabled = true; // task 0221: a harvested plant that has not grown back
         }
+        if (built && mMoveOverride)
+        {
+            // Task 0202: objects a script moved or turned before this cell was built come out in their new place
+            for (openeden::sdk::game::WorldObject& object : out.objects)
+                if (const std::optional<openeden::sdk::game::ObjectMove> move = mMoveOverride(object.id))
+                {
+                    if (move->hasPosition)
+                        object.transform.position = move->position;
+                    if (move->hasRotation)
+                        object.transform.rotation = move->rotation;
+                }
+        }
         if (built && mCellBuilt)
             mCellBuilt(cell);
         return built;

@@ -329,6 +329,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_game_pack_save.cpp
     extension/test_world_source_service.cpp
     extension/test_object_enable_queue.cpp
+    extension/test_object_ops_queue.cpp
     extension/test_session_content.cpp
     extension/test_crafting_contract.cpp
     inertialmotion/test_locomotion_state.cpp
@@ -699,6 +700,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsepapyrusbase.cpp
     skyrimse/testskyrimsepapyrusslice2.cpp
     skyrimse/testskyrimsepapyrusnatives2.cpp
+    skyrimse/testskyrimsepapyrusobjects.cpp
+    skyrimse/testskyrimsedescribebase.cpp
     skyrimse/testskyrimsepackages.cpp
     skyrimse/testskyrimsepackagebrain.cpp
     skyrimse/testskyrimseanimmotion.cpp

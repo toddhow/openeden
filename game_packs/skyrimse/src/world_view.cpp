@@ -3006,6 +3006,20 @@ namespace game_skyrimse
         return name->mPresent ? name->mText : std::string();
     }
 
+    bool SkyrimWorldView::describeBase(FormId base, sdkgame::PlacedObject& out) const
+    {
+        if (base == kNullFormId || base == kUnresolvedFormId || mBases.find(base) == mBases.end())
+            return false;
+        PlacedRef ref; // a reference that is nowhere: the origin, no rotation, scale 1
+        ref.mBase = base;
+        bool missing = false;
+        sdkgame::PlacedObject described = makeObject(ref, missing);
+        if (missing)
+            return false;
+        out = std::move(described);
+        return true;
+    }
+
     const LightData* SkyrimWorldView::lightOfBase(FormId base) const
     {
         if (base == kNullFormId || base == kUnresolvedFormId)

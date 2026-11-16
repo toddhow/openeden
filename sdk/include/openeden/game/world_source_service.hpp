@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -22,7 +23,25 @@ namespace openeden::sdk::game
     /// Version policy: a new virtual function goes at the END of WorldSourceService with a default that means "not
     /// supported" and raises the minor number; anything else is a major change. Host::getWorldSourceService() is the
     /// last virtual function of Host, so adding it left every earlier slot where it was (kSdkVersion stays 4.0).
-    inline constexpr Version kWorldSourceServiceVersion{ 1, 2 };
+    inline constexpr Version kWorldSourceServiceVersion{ 1, 3 };
+
+    /// Version 1.3 (task 0202): the placement ids a host mints for objects a script creates (PlaceAtMe) are
+    /// kCreatedObjectBase + n, n from 1. No load order form id has this high byte (0xFF), so they never collide with a
+    /// pack's own placements, and they sort after them.
+    inline constexpr WorldId kCreatedObjectBase = 0xFF800000u;
+    inline constexpr std::uint32_t kMaxCreatedObjects = 0x007FFFFFu;
+
+    /// What moveObject changes of an object: the position and/or the rotation (a unit quaternion in the neutral
+    /// convention; the pack converts its own angles). A part that is not set stays as it is.
+    struct ObjectMove
+    {
+        bool hasPosition = false;
+        Vec3d position;
+        bool hasRotation = false;
+        Quatd rotation;
+        /// Put the object back where the pack's record (or its creation) placed it; position and rotation are ignored.
+        bool toOriginal = false;
+    };
 
     /// One content file of the session (a `content=` line of the engine's configuration): the plugin a game pack
     /// builds its world from. Plain strings, so that nothing of the host crosses the boundary.
@@ -80,6 +99,48 @@ namespace openeden::sdk::game
             (void)placement;
             (void)enabled;
             return false;
+        }
+
+        /// Version 1.3 (task 0202). Moves and/or turns one placement of the neutral world this `source` fed (a script's
+        /// MoveTo, SetPosition, SetAngle). Queued in one ordered queue with setObjectEnabledFaded and placeObject and
+        /// applied by the engine on the main thread, to the placement if its cell is loaded (a cell loaded later is
+        /// built
+        /// by the pack, which applies its own override). The object stays in the cell it is in: a move to another cell
+        /// or world is refused by the engine (counted in the log) and stays only the pack's record. True when queued;
+        /// false for an unknown source, a non-finite value, a full queue, or a host built before 1.3 (the default).
+        [[nodiscard]] virtual bool moveObject(
+            WorldCellSource& source, WorldId cellHint, WorldId placement, const ObjectMove& move)
+        {
+            (void)source;
+            (void)cellHint;
+            (void)placement;
+            (void)move;
+            return false;
+        }
+
+        /// Version 1.3. As setObjectEnabled, with the seconds the change takes: the object fades in or out over
+        /// `fadeSeconds` (0: at once). The default, for a host built before 1.3, forwards to setObjectEnabled and
+        /// ignores the time. Same queue as moveObject, so the order of a script's calls is kept.
+        [[nodiscard]] virtual bool setObjectEnabledFaded(
+            WorldCellSource& source, WorldId cellHint, WorldId placement, bool enabled, float fadeSeconds)
+        {
+            (void)fadeSeconds;
+            return setObjectEnabled(source, cellHint, placement, enabled);
+        }
+
+        /// Version 1.3. Creates a new object (a script's PlaceAtMe) in the loaded cell with the pack's id `cellHint`
+        /// from `prototype` (the base's description and the transform; the id field is ignored). Returns the id the new
+        /// placement has at once (kCreatedObjectBase + n); the engine builds the object on its next update, and a later
+        /// moveObject or setObjectEnabledFaded of that id waits behind it in the queue. kNoWorldId when the host cannot
+        /// (a host built before 1.3, an unknown source, a full queue or id range, a prototype the host refuses: no
+        /// actor, no leveled list, no base): no id is minted then.
+        [[nodiscard]] virtual WorldId placeObject(
+            WorldCellSource& source, WorldId cellHint, const WorldObject& prototype)
+        {
+            (void)source;
+            (void)cellHint;
+            (void)prototype;
+            return kNoWorldId;
         }
     };
 }

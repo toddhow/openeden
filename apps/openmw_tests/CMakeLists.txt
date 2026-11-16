@@ -68,6 +68,9 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralharvest.cpp
     mwworld/testneutralresource.cpp
     mwworld/testneutralsave.cpp
+    mwworld/testneutralsavecreated.cpp
+    mwworld/testneutralfade.cpp
+    mwworld/testneutralcreatedcell.cpp
     mwworld/testneutralsaveworld.cpp
     mwworld/testneutralsafety.cpp
     mwworld/testneutralstorereal.cpp

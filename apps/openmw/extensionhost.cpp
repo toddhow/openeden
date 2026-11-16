@@ -1,6 +1,7 @@
 #include "extensionhost.hpp"
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -25,7 +26,14 @@
 #include "mwworld/worldmodel.hpp"
 #include "mwphysics/physicssystem.hpp"
 #include "mwworld/craftingrules.hpp"
+#include "mwworld/cellstore.hpp"
 #include "mwworld/gamerules.hpp"
+#include "mwworld/neutralcell.hpp"
+#include "mwworld/neutralsave.hpp"
+#include "mwworld/neutralstore.hpp"
+#include "mwbase/rotationflags.hpp"
+#include <components/mwanimation/context.hpp>
+#include "mwrender/transparency.hpp"
 #include "mwworld/ptr.hpp"
 #include <components/extension/extension_loader.hpp>
 
@@ -326,12 +334,22 @@ namespace OMW
         return report;
     }
 
+    namespace
+    {
+        // The alpha of a fading object never goes below this: the dither of the object shader then still draws a few
+        // pixels, and the object is taken out of the scene by the disable at the end, not by the alpha.
+        constexpr float kMinFadeAlpha = 0.02f;
+    }
+
     void ExtensionHost::applyNeutralObjectChanges()
     {
         if (mNeutralWorldStore == nullptr || !MWBase::Environment::exists())
             return;
         std::vector<openeden::extension::ObjectEnableChange> changes;
-        if (mHost.worldSources().takeObjectEnableChanges(changes) == 0)
+        const std::size_t enableCount = mHost.worldSources().takeObjectEnableChanges(changes);
+        std::vector<openeden::extension::ObjectOp> ops;
+        const std::size_t opCount = mHost.worldSources().takeObjectOps(ops);
+        if (enableCount == 0 && opCount == 0)
             return;
         MWBase::World* const world = MWBase::Environment::get().getWorld();
         MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
@@ -358,6 +376,195 @@ namespace OMW
                                     << " failed: " << e.what();
             }
         }
+        // Task 0202: the ordered operations (creations, moves, fades). The object stays in the cell it is in. A neutral
+        // actor is not moved or faded here: its position is the actor system's (the pack's mover and brain), and NWLD
+        // leaves it out; its enable and disable keep working as before.
+        const auto isActor = [](const MWWorld::Ptr& ptr) {
+            const MWWorld::NeutralBase* base = ptr.get<MWWorld::NeutralBase>()->mBase;
+            return base != nullptr && base->mKind == openeden::sdk::game::ObjectKind::Actor;
+        };
+        const auto setAlpha = [&](const MWWorld::Ptr& ptr, float alpha) {
+            if (MWAnim::Object* object = world->getAnimation(ptr))
+                MWRender::setTransparency(*object, alpha);
+        };
+        for (const openeden::extension::ObjectOp& op : ops)
+        {
+            try
+            {
+                using Kind = openeden::extension::ObjectOp::Kind;
+                if (op.kind == Kind::Place)
+                {
+                    const openeden::sdk::game::WorldObject& object = op.object;
+                    if (object.baseEditorId.size() > MWWorld::kNeutralSaveMaxString
+                        || object.modelPath.size() > MWWorld::kNeutralSaveMaxString)
+                    {
+                        Log(Debug::Warning) << "A game pack's new object " << object.id
+                                            << " has a name too long to be saved: not placed";
+                        continue;
+                    }
+                    MWWorld::CellStore* const cell
+                        = model->findLoadedNeutralCell(op.gameId, op.cell, object.transform.position);
+                    if (cell == nullptr)
+                    {
+                        Log(Debug::Warning) << "A game pack's new object " << object.id << " names the cell " << op.cell
+                                            << " that is not loaded: not placed";
+                        continue;
+                    }
+                    std::string error;
+                    MWWorld::LiveCellRef<MWWorld::NeutralBase>* live
+                        = model->addNeutralCreated(*cell, object, true, error);
+                    if (live == nullptr)
+                    {
+                        Log(Debug::Warning) << "A game pack's new object " << object.id << " was not placed: " << error;
+                        continue;
+                    }
+                    const MWWorld::Ptr ptr(live, cell);
+                    world->enable(ptr);
+                    const ESM::Position& at = ptr.getRefData().getPosition();
+                    Log(Debug::Info) << "A game pack placed '" << object.baseEditorId << "' as " << object.id
+                                     << " in the cell " << cell->getCell()->getDescription() << " at " << at.pos[0]
+                                     << ", " << at.pos[1] << ", " << at.pos[2];
+                    continue;
+                }
+                const MWWorld::Ptr ptr = model->findLoadedNeutralObject(op.gameId, op.cell, op.placement);
+                if (ptr.isEmpty())
+                {
+                    Log(Debug::Verbose) << "A game pack's change of the placement " << op.placement << " of '"
+                                        << op.gameId << "' reaches no loaded cell";
+                    continue;
+                }
+                if (op.kind == Kind::Move && isActor(ptr))
+                {
+                    Log(Debug::Info) << "A game pack's move of the actor " << op.placement
+                                     << " is not done: actors are placed by the actor system";
+                    continue;
+                }
+                if (op.kind == Kind::Move)
+                {
+                    ESM::Position target = ptr.getRefData().getPosition();
+                    bool turn = false;
+                    if (op.move.toOriginal)
+                    {
+                        const openeden::sdk::game::WorldObject* original = ptr.getCell()->neutralObject(op.placement);
+                        ESM::CellRef ref;
+                        std::string error;
+                        if (original == nullptr || !MWWorld::makeNeutralCellRef(op.gameId, *original, ref, error))
+                            continue;
+                        target = ref.mPos;
+                        turn = true;
+                    }
+                    else
+                    {
+                        if (op.move.hasPosition)
+                        {
+                            target.pos[0] = static_cast<float>(op.move.position.x);
+                            target.pos[1] = static_cast<float>(op.move.position.y);
+                            target.pos[2] = static_cast<float>(op.move.position.z);
+                        }
+                        if (op.move.hasRotation)
+                        {
+                            const std::array<float, 3> angles = MWWorld::neutralRotationAngles(op.move.rotation);
+                            for (std::size_t i = 0; i < 3; ++i)
+                                target.rot[i] = angles[i];
+                            turn = true;
+                        }
+                    }
+                    if (op.move.hasPosition || op.move.toOriginal)
+                        world->moveObject(ptr, ptr.getCell(), vsg::vec3(target.pos[0], target.pos[1], target.pos[2]));
+                    if (turn)
+                        world->rotateObject(
+                            ptr, vsg::vec3(target.rot[0], target.rot[1], target.rot[2]), MWBase::RotationFlag_none);
+                    Log(Debug::Info) << "A game pack moved the placement " << op.placement << " to " << target.pos[0]
+                                     << ", " << target.pos[1] << ", " << target.pos[2];
+                }
+                else
+                {
+                    const auto placement = static_cast<std::uint32_t>(op.placement);
+                    const bool isEnabled = ptr.getRefData().isEnabled();
+                    if (op.fadeSeconds > 0.f && isEnabled != op.enabled && !isActor(ptr)
+                        && mFades.start(placement, op.enabled, op.fadeSeconds))
+                    {
+                        mFadeGames[placement] = op.gameId;
+                        if (op.enabled)
+                        {
+                            world->enable(ptr);
+                            setAlpha(ptr, kMinFadeAlpha);
+                        }
+                        Log(Debug::Info) << "A game pack started to fade the placement " << op.placement
+                                         << (op.enabled ? " in" : " out") << " over " << op.fadeSeconds << " s";
+                    }
+                    else
+                    {
+                        if (mFades.cancel(placement))
+                        {
+                            mFadeGames.erase(placement);
+                            setAlpha(ptr, 1.f);
+                        }
+                        if (op.enabled)
+                            world->enable(ptr);
+                        else
+                            world->disable(ptr);
+                        Log(Debug::Info) << "A game pack " << (op.enabled ? "enabled" : "disabled") << " the placement "
+                                         << op.placement << " of '" << op.gameId << "'";
+                    }
+                }
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Warning) << "A game pack's change of the placement " << op.placement
+                                    << " failed: " << e.what();
+            }
+        }
+    }
+
+    void ExtensionHost::advanceNeutralFades(float dt)
+    {
+        if (mFades.size() == 0 || !MWBase::Environment::exists())
+            return;
+        MWBase::World* const world = MWBase::Environment::get().getWorld();
+        MWWorld::WorldModel* const model = MWBase::Environment::get().getWorldModel();
+        if (world == nullptr || model == nullptr)
+            return;
+        mFadeUpdates.clear();
+        mFades.advance(dt, mFadeUpdates);
+        for (const MWWorld::NeutralFades::Update& update : mFadeUpdates)
+        {
+            const auto game = mFadeGames.find(update.mPlacement);
+            const MWWorld::Ptr ptr = game == mFadeGames.end()
+                ? MWWorld::Ptr()
+                : model->findLoadedNeutralObject(game->second, openeden::sdk::game::kNoWorldId, update.mPlacement);
+            if (!ptr.isEmpty())
+            {
+                try
+                {
+                    if (MWAnim::Object* object = world->getAnimation(ptr))
+                    {
+                        const float alpha = update.mFinished ? 1.f : std::max(update.mAlpha, kMinFadeAlpha);
+                        MWRender::setTransparency(*object, alpha);
+                    }
+                    if (update.mFinished && !update.mFadeIn)
+                        world->disable(ptr);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "A fade of the placement " << update.mPlacement << " failed: " << e.what();
+                }
+            }
+            if (update.mFinished)
+            {
+                mFadeGames.erase(update.mPlacement);
+                Log(Debug::Info) << "The fade of the placement " << update.mPlacement << " ended "
+                                 << (update.mFadeIn ? "visible" : "hidden");
+            }
+        }
+    }
+
+    void ExtensionHost::resetNeutralObjects(std::uint32_t nextCreatedIndex)
+    {
+        mHost.worldSources().clearObjectOps();
+        mHost.worldSources().setNextCreatedIndex(nextCreatedIndex == 0 ? 1 : nextCreatedIndex);
+        mFades.clear();
+        mFadeGames.clear();
     }
 
     std::string ExtensionHost::savingRefusal() const

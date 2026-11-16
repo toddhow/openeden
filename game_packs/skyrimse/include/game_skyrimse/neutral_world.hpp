@@ -38,6 +38,7 @@
 #include <openeden/game/world_model.hpp>
 #include <openeden/game/world_source.hpp>
 #include <openeden/game/world_view.hpp>
+#include <openeden/game/world_source_service.hpp>
 #include <openeden/game/world_water.hpp>
 
 #include <cstdint>
@@ -474,6 +475,15 @@ namespace game_skyrimse
             if (mActivated)
                 mActivated(reference);
         }
+        /// Task 0202: where a script moved a placement to (position and/or rotation), asked for each object when a cell
+        /// is
+        /// built: a cell that was not loaded when MoveTo ran comes out with the object already there. nullopt: not
+        /// moved.
+        void setMoveOverrideLookup(
+            std::function<std::optional<openeden::sdk::game::ObjectMove>(openeden::sdk::game::WorldId)> lookup)
+        {
+            mMoveOverride = std::move(lookup);
+        }
         /// Weather (task 0127, W-S1): forwarded to the view when it can describe weather (SkyrimWorldView does).
         bool describeWeathers(std::vector<openeden::sdk::game::WeatherDescription>& out, std::string& error) override;
         bool describeTimeOfDay(openeden::sdk::game::TimeOfDayDescription& out) override;
@@ -524,6 +534,7 @@ namespace game_skyrimse
         std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221
         /// task 0224
         std::function<std::string(openeden::sdk::game::WorldId, openeden::sdk::game::WorldId)> mPlacementName;
+        std::function<std::optional<openeden::sdk::game::ObjectMove>(openeden::sdk::game::WorldId)> mMoveOverride;
         /// Stage S6f: the actor the open conversation is with (0 when none), told to the package brain.
         openeden::sdk::game::WorldId mTalkingTo = openeden::sdk::game::kNoWorldId;
     };

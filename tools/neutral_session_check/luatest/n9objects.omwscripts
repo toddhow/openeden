@@ -1,0 +1,3 @@
+GLOBAL: scripts/n9/objects_global.lua
+MENU: scripts/n9/menu.lua
+PLAYER: scripts/n9/shot.lua

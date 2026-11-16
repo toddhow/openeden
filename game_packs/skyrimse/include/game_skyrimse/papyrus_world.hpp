@@ -44,6 +44,10 @@ namespace game_skyrimse
         std::function<bool(FormId actor)> queueKill;
         std::function<bool(FormId form)> isItem;
         std::function<void(const std::string&)> notification;
+        /// Task 0202: enable or disable with a fade, move or turn, and create (PlaceAtMe) through the world.
+        std::function<bool(FormId reference, bool enabled, float fadeSeconds)> setObjectEnabled;
+        std::function<bool(FormId reference, const ObjectMoveRequest& request)> moveObject;
+        std::function<ObjectPlaceResult(const ObjectPlaceRequest& request)> placeObject;
     };
 
     class PackWorldHooks final : public PapyrusWorldHooks
@@ -77,6 +81,18 @@ namespace game_skyrimse
         bool killActor(FormId actor) override;
         bool isItem(FormId form) override;
         void notification(const std::string& text) override;
+        bool setObjectEnabled(FormId reference, bool enabled, float fadeSeconds) override
+        {
+            return mEnv.setObjectEnabled && mEnv.setObjectEnabled(reference, enabled, fadeSeconds);
+        }
+        bool moveObject(FormId reference, const ObjectMoveRequest& request) override
+        {
+            return mEnv.moveObject && mEnv.moveObject(reference, request);
+        }
+        ObjectPlaceResult placeObject(const ObjectPlaceRequest& request) override
+        {
+            return mEnv.placeObject ? mEnv.placeObject(request) : ObjectPlaceResult{};
+        }
 
     private:
         inventory::InventoryModel* model() const { return mEnv.model ? mEnv.model() : nullptr; }

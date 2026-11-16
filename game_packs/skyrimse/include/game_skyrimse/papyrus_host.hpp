@@ -166,6 +166,19 @@ namespace game_skyrimse
             (void)reference;
             return 0;
         }
+        /// Task 0202: the pack's id of the cell a placed reference stands in (0: not known), and whether a cell is an
+        /// interior. A MoveTo between two different cells of which one is an interior is refused (the engine keeps an
+        /// object in its own cell).
+        [[nodiscard]] virtual FormId cellOf(FormId reference) const
+        {
+            (void)reference;
+            return 0;
+        }
+        [[nodiscard]] virtual bool cellIsInterior(FormId cell) const
+        {
+            (void)cell;
+            return false;
+        }
 
         /// The editor id or the name of a form for GetName; empty when none.
         [[nodiscard]] virtual std::string nameOf(FormId form) const
@@ -175,6 +188,40 @@ namespace game_skyrimse
         }
     };
 
+    /// Task 0202: a script moved or turned a reference. Positions are game units, angles radians in the data's own
+    /// convention (the pack turns them into a rotation with its eulerToQuat); a part that is not set stays as it is.
+    /// `toOriginal`: put the reference back where its record (or its creation) placed it (MoveToMyEditorLocation).
+    /// Task 0202: the seconds an Enable(abFadeIn) or Disable(abFadeOut) takes. The game's own fade time is not known to
+    /// this code (RECALLED-VERIFY: about a second); a script cannot ask for another.
+    inline constexpr float kPapyrusFadeSeconds = 1.0f;
+
+    struct ObjectMoveRequest
+    {
+        bool hasPosition = false;
+        double position[3] = {};
+        bool hasAngles = false;
+        double angles[3] = {};
+        bool toOriginal = false;
+    };
+
+    /// Task 0202: a script asked for a new object (PlaceAtMe). `nearCell` is the pack's cell id when the near reference
+    /// is itself a created one (0: the hook finds the cell of a placed reference by its record).
+    struct ObjectPlaceRequest
+    {
+        FormId base = 0;
+        FormId nearReference = 0;
+        FormId nearCell = 0;
+        double position[3] = {};
+        double angles[3] = {};
+        float scale = 1.f;
+    };
+
+    struct ObjectPlaceResult
+    {
+        FormId reference = 0; ///< the new reference's id; 0: nothing was created
+        FormId cell = 0; ///< the pack's id of the cell it went to
+    };
+
     /// Task 0198: what the world natives reach beyond the quest state (inventory, actor values, deaths, plugin lookups).
     /// A reference is its form id as the host sees it: a placement id, or 0x14 for the player. Every function runs on the
     /// main thread and every default means "cannot": the native then answers as it did before (the tolerant zero).
@@ -182,6 +229,26 @@ namespace game_skyrimse
     {
     public:
         virtual ~PapyrusWorldHooks() = default;
+        /// Task 0202. Enable or disable a placed or created reference, fading over `fadeSeconds` (0: at once). True
+        /// when
+        /// the world was told; false: the host falls back to its EnableChanged callback.
+        virtual bool setObjectEnabled(FormId reference, bool enabled, float fadeSeconds)
+        {
+            (void)reference, (void)enabled, (void)fadeSeconds;
+            return false;
+        }
+        /// Task 0202. Move or turn a reference in the world. False when it cannot (the host still records the change).
+        virtual bool moveObject(FormId reference, const ObjectMoveRequest& request)
+        {
+            (void)reference, (void)request;
+            return false;
+        }
+        /// Task 0202. Create an object near a reference. A result with reference 0 means it could not.
+        virtual ObjectPlaceResult placeObject(const ObjectPlaceRequest& request)
+        {
+            (void)request;
+            return {};
+        }
         /// Adds `count` of base item `item` to the owner's inventory. False when the inventory cannot take it.
         virtual bool addItem(FormId owner, FormId item, std::int32_t count)
         {
@@ -432,8 +499,26 @@ namespace game_skyrimse
         /// them in form id order: what the pack pushes to the world and replays after a restore.
         [[nodiscard]] std::optional<bool> enableOverride(FormId reference) const;
         [[nodiscard]] std::vector<std::pair<FormId, bool>> enableOverrides() const;
-        /// Where MoveTo put a reference (nullopt when it was never moved). Recorded only: the engine is not moved.
+        /// Where a script put a reference (MoveTo, SetPosition; nullopt when it was never moved), and every such
+        /// position
+        /// in form id order. Task 0202: the world follows (PapyrusWorldHooks::moveObject); the pack also replays them
+        /// after a restore, for the cells that were not loaded when the script ran.
         [[nodiscard]] std::optional<std::array<double, 3>> positionOverride(FormId reference) const;
+        [[nodiscard]] std::vector<std::pair<FormId, std::array<double, 3>>> positionOverrides() const;
+        /// Task 0202: the angles (radians, the data's convention) SetAngle or a MoveTo with matched rotation gave a
+        /// reference, and all of them in form id order.
+        [[nodiscard]] std::optional<std::array<double, 3>> angleOverride(FormId reference) const;
+        [[nodiscard]] std::vector<std::pair<FormId, std::array<double, 3>>> angleOverrides() const;
+        /// Task 0202: the references scripts created with PlaceAtMe, in id order. Saved with the host's state.
+        struct CreatedObject
+        {
+            FormId mReference = 0;
+            FormId mBase = 0;
+            FormId mCell = 0;
+            std::array<double, 3> mPosition{};
+            std::array<double, 3> mAngles{};
+        };
+        [[nodiscard]] std::vector<CreatedObject> createdObjects() const;
         /// Task 0185 (the quest journal): the flags Quest.SetObjectiveDisplayed and SetObjectiveCompleted left for an
         /// objective, and a counter that every such call increments.
         struct ObjectiveState

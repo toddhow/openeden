@@ -2737,6 +2737,9 @@ namespace MWWorld
     {
         NeutralSaveState state;
         mWorldModel.collectNeutralSave(state, getPlayerConstPtr().getCell());
+        // Task 0202: the counter of the ids of created objects (1: none was ever made, which keeps version 1 bytes)
+        const std::uint32_t createdCounter = MWBase::Environment::get().getExtensionManager()->neutralCreatedCounter();
+        state.mNextCreatedIndex = createdCounter > 1 ? createdCounter : 0;
         std::size_t changed = 0;
         for (const NeutralSavedCell& cell : state.mCells)
             changed += cell.mObjects.size();
@@ -2777,7 +2780,10 @@ namespace MWWorld
             Log(Debug::Warning) << warning;
         Log(Debug::Info) << "Neutral world restored: " << restored.mCells << " cells with changes, " << restored.mObjects
                          << " changed objects (" << restored.mMissing << " no longer in the game), "
-                         << state.mUnlocked.size() << " opened locks, " << state.mKeys.size() << " keys";
+                         << state.mUnlocked.size() << " opened locks, " << state.mKeys.size() << " keys, "
+                         << restored.mCreated << " created objects";
+        // Task 0202: queued operations and fades belong to the world that is gone; the counter is the save's
+        MWBase::Environment::get().getExtensionManager()->resetNeutralObjects(state.mNextCreatedIndex);
         if (restored.mPlayerCell == nullptr)
             throw std::runtime_error("The player's cell cannot be restored: " + restored.mError);
         mPlayer->setCell(restored.mPlayerCell);

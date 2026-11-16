@@ -72,6 +72,19 @@ namespace MWBase
         /// the game phase. Does nothing without a game pack or with nothing queued.
         virtual void applyNeutralObjectChanges() {}
 
+        /// Task 0202: moves the fades of neutral objects (Papyrus Enable and Disable with a fade) on by `dt` seconds of
+        /// simulation time; once a frame, on the main thread, after applyNeutralObjectChanges.
+        virtual void advanceNeutralFades(float dt) { (void)dt; }
+
+        /// Task 0202: the index the next object a script creates gets (1 when none was ever created): a neutral save
+        /// stores it, so that a loaded game does not mint an id twice.
+        virtual std::uint32_t neutralCreatedCounter() { return 1; }
+
+        /// Task 0202: a neutral save was loaded: forgets the queued object operations and the running fades and sets
+        /// the
+        /// counter of created objects to the one the save held (1 or 0: none).
+        virtual void resetNeutralObjects(std::uint32_t nextCreatedIndex) { (void)nextCreatedIndex; }
+
         /// Non-empty once the game pack has failed: saving is refused. Main thread only.
         virtual const std::string& sessionError() const
         {

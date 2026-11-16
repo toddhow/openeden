@@ -136,6 +136,19 @@ namespace game_skyrimse
                 const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
                 return entry != nullptr ? entry->mBase : 0;
             }
+            // Task 0202
+            FormId cellOf(FormId reference) const override
+            {
+                const PlacedRefIndex* refs = mView.placedRefs();
+                const PlacedEntry* entry = refs != nullptr ? refs->find(reference) : nullptr;
+                return entry != nullptr ? entry->mCell : 0;
+            }
+            bool cellIsInterior(FormId cell) const override
+            {
+                FormId location = 0;
+                bool interior = false;
+                return mView.cellLocation(cell, location, interior) && interior;
+            }
             bool hasKeyword(FormId form, FormId keyword) const override { return mView.formHasKeyword(form, keyword); }
             // Task 0217: the location of a placed reference (its cell's) and of the player
             FormId locationOf(FormId reference) const override
@@ -507,6 +520,7 @@ namespace game_skyrimse
                 // the world was rebuilt from the pack, without the scripts' overrides: tell it again
                 for (const auto& [reference, enabled] : mHost.enableOverrides())
                     pushEnabled(reference, enabled);
+                pushMoves();
                 return true;
             }
 
@@ -785,19 +799,136 @@ namespace game_skyrimse
                 }
             }
 
-            void pushEnabled(FormId reference, bool enabled)
+        public:
+            // The pack's id of the cell a reference stands in: where a script created it, else its record's cell.
+            FormId cellOfReference(FormId reference) const
             {
-                if (mSources == nullptr)
-                    return;
-                FormId cell = kNullFormId;
+                for (const PapyrusHost::CreatedObject& created : mHost.createdObjects())
+                    if (created.mReference == reference)
+                        return created.mCell;
                 if (const PlacedRefIndex* refs = mView.placedRefs())
                     if (const PlacedEntry* entry = refs->find(reference))
-                        cell = entry->mCell;
-                const bool queued = mSources->setObjectEnabled(mCells, cell, reference, enabled);
+                        return entry->mCell;
+                return kNullFormId;
+            }
+
+            bool pushEnabled(FormId reference, bool enabled, float fadeSeconds = 0.f)
+            {
+                if (mSources == nullptr)
+                    return false;
+                const FormId cell = cellOfReference(reference);
+                // Task 0202: one ordered queue with the moves and creations (the 1.2 call stays for older hosts: the
+                // service's default forwards to it)
+                const bool queued = mSources->setObjectEnabledFaded(mCells, cell, reference, enabled, fadeSeconds);
                 say(openeden::sdk::LogLevel::Info,
                     std::string("PAPYRUS ") + (enabled ? "enable" : "disable") + " of " + hexId(reference) + " in cell "
-                        + hexId(cell) + (queued ? " sent to the world" : " not sent"));
+                        + hexId(cell) + (fadeSeconds > 0.f ? " with a fade" : "")
+                        + (queued ? " sent to the world" : " not sent"));
+                return queued;
             }
+
+            // Task 0202: a script moved or turned a reference.
+            bool pushMove(FormId reference, const ObjectMoveRequest& request)
+            {
+                if (mSources == nullptr)
+                    return false;
+                openeden::sdk::game::ObjectMove move;
+                move.toOriginal = request.toOriginal;
+                if (request.hasPosition)
+                {
+                    move.hasPosition = true;
+                    move.position = { request.position[0], request.position[1], request.position[2] };
+                }
+                if (request.hasAngles)
+                {
+                    move.hasRotation = true;
+                    move.rotation = eulerToQuat({ static_cast<float>(request.angles[0]),
+                        static_cast<float>(request.angles[1]), static_cast<float>(request.angles[2]) });
+                }
+                const FormId cell = cellOfReference(reference);
+                const bool queued = mSources->moveObject(mCells, cell, reference, move);
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS move of " + hexId(reference) + " in cell " + hexId(cell)
+                        + (request.toOriginal ? " back to its record" : "")
+                        + (queued ? " sent to the world" : " not sent"));
+                return queued;
+            }
+
+            // Task 0202: PlaceAtMe. The base is described by the view, the object is built as the pack builds a placed
+            // one
+            // and handed to the host service, which mints its id.
+            ObjectPlaceResult placeObject(const ObjectPlaceRequest& request)
+            {
+                ObjectPlaceResult none;
+                if (mSources == nullptr)
+                    return none;
+                openeden::sdk::game::PlacedObject placed;
+                if (!mView.describeBase(request.base, placed))
+                {
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS PlaceAtMe: " + hexId(request.base) + " is not a base form");
+                    return none;
+                }
+                if (placed.baseKind == openeden::sdk::game::BaseKind::Actor
+                    || placed.baseKind == openeden::sdk::game::BaseKind::LeveledList
+                    || placed.baseKind == openeden::sdk::game::BaseKind::Unknown)
+                {
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS PlaceAtMe: " + hexId(request.base)
+                            + " is an actor, a leveled list or unknown: not placed");
+                    return none;
+                }
+                placed.position = { static_cast<float>(request.position[0]), static_cast<float>(request.position[1]),
+                    static_cast<float>(request.position[2]) };
+                placed.rotation = { static_cast<float>(request.angles[0]), static_cast<float>(request.angles[1]),
+                    static_cast<float>(request.angles[2]) };
+                placed.scale = request.scale > 0.f ? request.scale : 1.f;
+                openeden::sdk::game::WorldObject object;
+                std::string problem;
+                if (!toNeutral(placed, object, problem))
+                {
+                    say(openeden::sdk::LogLevel::Info, "PAPYRUS PlaceAtMe: " + hexId(request.base) + ": " + problem);
+                    return none;
+                }
+                const FormId cell = request.nearCell != 0 ? request.nearCell : cellOfReference(request.nearReference);
+                const openeden::sdk::game::WorldId id = mSources->placeObject(mCells, cell, object);
+                if (id == openeden::sdk::game::kNoWorldId)
+                {
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS PlaceAtMe: the world did not take " + hexId(request.base) + " in cell " + hexId(cell));
+                    return none;
+                }
+                say(openeden::sdk::LogLevel::Info,
+                    "PAPYRUS placed " + hexId(request.base) + " as " + hexId(static_cast<FormId>(id)) + " in cell "
+                        + hexId(cell));
+                return { static_cast<FormId>(id), cell };
+            }
+
+            // After a load the world is rebuilt from the pack without the scripts' moves (a cell that was not loaded
+            // when
+            // the script ran): tell it again.
+            void pushMoves()
+            {
+                std::map<FormId, ObjectMoveRequest> all;
+                for (const auto& [reference, xyz] : mHost.positionOverrides())
+                {
+                    ObjectMoveRequest& request = all[reference];
+                    request.hasPosition = true;
+                    for (std::size_t i = 0; i < 3; ++i)
+                        request.position[i] = xyz[i];
+                }
+                for (const auto& [reference, angles] : mHost.angleOverrides())
+                {
+                    ObjectMoveRequest& request = all[reference];
+                    request.hasAngles = true;
+                    for (std::size_t i = 0; i < 3; ++i)
+                        request.angles[i] = angles[i];
+                }
+                for (const auto& [reference, request] : all)
+                    (void)pushMove(reference, request);
+            }
+
+        private:
 
             void flushPending()
             {
@@ -1149,6 +1280,29 @@ namespace game_skyrimse
                                 [driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
                                     return driver->host().enableOverride(static_cast<FormId>(reference));
                                 });
+                            // Task 0202: a cell built after a script moved one of its objects has it already there
+                            mCellSource.setMoveOverrideLookup(
+                                [driver](openeden::sdk::game::WorldId reference)
+                                    -> std::optional<openeden::sdk::game::ObjectMove> {
+                                    const FormId ref = static_cast<FormId>(reference);
+                                    const auto position = driver->host().positionOverride(ref);
+                                    const auto angles = driver->host().angleOverride(ref);
+                                    if (!position && !angles)
+                                        return std::nullopt;
+                                    openeden::sdk::game::ObjectMove move;
+                                    if (position)
+                                    {
+                                        move.hasPosition = true;
+                                        move.position = { (*position)[0], (*position)[1], (*position)[2] };
+                                    }
+                                    if (angles)
+                                    {
+                                        move.hasRotation = true;
+                                        move.rotation = eulerToQuat({ static_cast<float>((*angles)[0]),
+                                            static_cast<float>((*angles)[1]), static_cast<float>((*angles)[2]) });
+                                    }
+                                    return move;
+                                });
                             if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                             {
                                 mPapyrusChunk = std::make_unique<PapyrusSaveChunk>(mPapyrus);
@@ -1392,6 +1546,16 @@ namespace game_skyrimse
                 };
                 env.queueKill = [this](FormId actor) { return mCellSource.scriptBridge().queueKill(actor); };
                 env.isItem = [this](FormId form) { return mInventory != nullptr && mInventory->table().item(form) != nullptr; };
+                // Task 0202: moves, fades and creations reach the engine through the world source service
+                env.setObjectEnabled = [this](FormId reference, bool enabled, float fade) {
+                    return mPapyrus != nullptr && mPapyrus->pushEnabled(reference, enabled, fade);
+                };
+                env.moveObject = [this](FormId reference, const ObjectMoveRequest& request) {
+                    return mPapyrus != nullptr && mPapyrus->pushMove(reference, request);
+                };
+                env.placeObject = [this](const ObjectPlaceRequest& request) {
+                    return mPapyrus != nullptr ? mPapyrus->placeObject(request) : ObjectPlaceResult{};
+                };
                 mPapyrusHooks = std::make_unique<PackWorldHooks>(std::move(env));
                 host.setWorldHooks(mPapyrusHooks.get());
                 if (mInventory != nullptr)

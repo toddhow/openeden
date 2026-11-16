@@ -29,6 +29,25 @@ namespace openeden::extension
         bool enabled = true;
     };
 
+    /// Task 0202 (WorldSourceService 1.3): one move, fade or creation a game pack asked for, in script order.
+    struct ObjectOp
+    {
+        enum class Kind : std::uint8_t
+        {
+            Move,
+            Enable,
+            Place,
+        };
+        Kind kind = Kind::Move;
+        std::string gameId;
+        openeden::sdk::game::WorldId cell = openeden::sdk::game::kNoWorldId; ///< the pack's hint (Place: the cell)
+        openeden::sdk::game::WorldId placement = openeden::sdk::game::kNoWorldId; ///< Place: the minted id
+        openeden::sdk::game::ObjectMove move; ///< Move
+        bool enabled = true; ///< Enable
+        float fadeSeconds = 0.f; ///< Enable
+        openeden::sdk::game::WorldObject object; ///< Place: the prototype, its id already the minted one
+    };
+
     /**
      * @brief The core's record type table, filled by the game pack (docs/design/game-packs.md section 5.1).
      * Main thread only. Owned by HostImpl.
@@ -158,6 +177,25 @@ namespace openeden::extension
 
         static constexpr std::size_t kMaxPendingObjectChanges = 4096;
 
+        /// Task 0202 (1.3): the ordered queue of moves, fades and creations.
+        [[nodiscard]] bool moveObject(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement,
+            const openeden::sdk::game::ObjectMove& move) override;
+        [[nodiscard]] bool setObjectEnabledFaded(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, bool enabled,
+            float fadeSeconds) override;
+        [[nodiscard]] openeden::sdk::game::WorldId placeObject(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype) override;
+        /// Moves the queued operations, in order, to the end of out and empties the queue. Returns how many.
+        std::size_t takeObjectOps(std::vector<ObjectOp>& out);
+        /// The index the next created object gets (1 at first); a load sets it from the save so that no id is minted
+        /// twice. Values past the id range are clamped.
+        void setNextCreatedIndex(std::uint32_t next) noexcept;
+        [[nodiscard]] std::uint32_t nextCreatedIndex() const noexcept { return mNextCreatedIndex; }
+        /// Forgets the queued operations (a load or a world clear: they name objects that are gone).
+        void clearObjectOps() noexcept { mObjectOps.clear(); }
+        [[nodiscard]] std::size_t pendingObjectOps() const noexcept { return mObjectOps.size(); }
+
         /// Moves the queued changes, in order, to the end of  out and empties the queue. Returns how many.
         std::size_t takeObjectEnableChanges(std::vector<ObjectEnableChange>& out);
         /// Changes dropped because the queue was full, since the service was made.
@@ -177,9 +215,12 @@ namespace openeden::extension
             openeden::sdk::game::WorldCellSource* mSource = nullptr;
             std::string mGameId;
         };
+        const Entry* entryOf(const openeden::sdk::game::WorldCellSource& source) const;
 
         std::vector<Entry> mSources;
         std::vector<ObjectEnableChange> mObjectChanges;
+        std::vector<ObjectOp> mObjectOps;
+        std::uint32_t mNextCreatedIndex = 1;
         std::size_t mDroppedObjectChanges = 0;
         std::vector<SessionContentEntry> mSessionContent;
         std::function<bool(const openeden::sdk::ContentHeader&)> mContentFilter;

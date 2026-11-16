@@ -33,7 +33,13 @@ namespace MWWorld
     /// does not know it skips it (the default branch of MWState::LoadGame).
     inline constexpr unsigned int kNeutralSaveRecord = ESM::esm3Recname("NWLD");
 
+    /// Version 1: moved, scaled, enabled-changed and deleted placements of the pack. Version 2 (task 0202) adds objects
+    /// a script created (PlaceAtMe) and the counter of their ids; it is written ONLY when the state has either, so
+    /// every
+    /// other save keeps its version 1 bytes. Both are read.
     inline constexpr std::uint32_t kNeutralSaveVersion = 1;
+    inline constexpr std::uint32_t kNeutralSaveVersionCreated = 2;
+    inline constexpr std::size_t kNeutralSaveMaxCreated = 65536;
 
     /// Caps of the decoder: a hostile save must not allocate without bound.
     inline constexpr std::size_t kNeutralSaveMaxBytes = std::size_t{ 64 } << 20;
@@ -68,6 +74,25 @@ namespace MWWorld
         NeutralSaveEnabledChanged = 4, ///< the enabled state differs from the pack's; NeutralSaveEnabled is its value
         NeutralSaveEnabled = 8,
         NeutralSaveDeleted = 16,
+        /// Version 2: the placement was created by a script. It is saved whole: NeutralSaveMoved is always set
+        /// (position and
+        /// rotation), the flags say a scale or a disabled state, and the entry carries the base's description.
+        NeutralSaveCreated = 32,
+    };
+
+    /// What the engine needs to rebuild a created object without asking the pack (the pack's plugins may differ in a
+    /// later session, the object must not): the description of its base. Strings are capped like every save string.
+    struct NeutralCreatedInfo
+    {
+        std::uint32_t mBase = 0;
+        std::uint8_t mKind = 0; ///< openeden::sdk::game::ObjectKind
+        std::string mEditorId;
+        std::string mModel;
+        bool mHasBounds = false;
+        float mBoundsMin[3] = {};
+        float mBoundsMax[3] = {};
+
+        friend bool operator==(const NeutralCreatedInfo&, const NeutralCreatedInfo&) = default;
     };
 
     struct NeutralSavedObject
@@ -77,6 +102,7 @@ namespace MWWorld
         float mPos[3] = {};
         float mRot[3] = {};
         float mScale = 1.f;
+        std::optional<NeutralCreatedInfo> mCreated; ///< set exactly when NeutralSaveCreated is
 
         friend bool operator==(const NeutralSavedObject&, const NeutralSavedObject&) = default;
     };
@@ -96,6 +122,10 @@ namespace MWWorld
         /// (game id, placement id) of opened locks and (game id, form id) of held keys, both sorted
         std::vector<std::pair<std::string, std::uint32_t>> mUnlocked;
         std::vector<std::pair<std::string, std::uint32_t>> mKeys;
+        /// Version 2: the index the next created object gets (WorldSourceServiceImpl::nextCreatedIndex); 0 when nothing
+        /// was
+        /// ever created. When set it is above the index of every created object.
+        std::uint32_t mNextCreatedIndex = 0;
 
         friend bool operator==(const NeutralSaveState&, const NeutralSaveState&) = default;
     };
@@ -128,6 +158,14 @@ namespace MWWorld
     /// compare exactly (bit equal floats), because the engine copies the pack's values and a move writes new ones.
     [[nodiscard]] std::optional<NeutralSavedObject> diffNeutralObject(
         std::uint32_t placement, const ESM::CellRef& original, bool originallyEnabled, const NeutralObjectNow& now);
+
+    /// Version 2 (task 0202): the entry of an object a script created, saved whole: NeutralSaveCreated and
+    /// NeutralSaveMoved
+    /// always, NeutralSaveScaled when the scale is not 1, NeutralSaveEnabledChanged (without NeutralSaveEnabled) when
+    /// it is
+    /// disabled. A deleted created object has no entry (the caller leaves it out).
+    [[nodiscard]] NeutralSavedObject saveCreatedNeutralObject(
+        std::uint32_t placement, const NeutralCreatedInfo& info, const NeutralObjectNow& now);
 
     /// Applies a saved object over the pack's own state in `now`.
     void applyNeutralSavedObject(const NeutralSavedObject& saved, NeutralObjectNow& now);

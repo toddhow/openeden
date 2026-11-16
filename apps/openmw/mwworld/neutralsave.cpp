@@ -7,13 +7,17 @@
 #include <stdexcept>
 #include <tuple>
 
+#include <openeden/game/world_model.hpp>
+#include <openeden/game/world_source_service.hpp>
+
 // The bytes of a neutral save (task 0177). Layout, all little endian:
 //   magic "NWSV", u32 version, cell key of the player, u32 cell count, cells, u32 unlocked count, entries,
-//   u32 key count, entries
+//   u32 key count, entries, and in version 2 (task 0202) u32 next created index
 // cell key: u8 kind; for a kind other than None: string game id, then Interior: u32 cell; Exterior: u32 world, i32 x,
 //   i32 y. string: u16 length, bytes.
 // cell: key, u32 object count, objects. object: u32 placement, u8 flags, then Moved: 6 floats (position, rotation),
-//   Scaled: 1 float. entry: string game id, u32 id.
+//   Scaled: 1 float, Created (version 2): u32 base, u8 kind, string editor id, string model path, u8 has bounds,
+//   [6 floats: min, max]. entry: string game id, u32 id.
 
 namespace MWWorld
 {
@@ -22,6 +26,30 @@ namespace MWWorld
         constexpr char kMagic[4] = { 'N', 'W', 'S', 'V' };
         constexpr std::uint8_t kKnownFlags = NeutralSaveMoved | NeutralSaveScaled | NeutralSaveEnabledChanged
             | NeutralSaveEnabled | NeutralSaveDeleted;
+        constexpr std::uint8_t kKnownFlagsV2 = kKnownFlags | NeutralSaveCreated;
+        constexpr std::uint8_t kMaxObjectKind = static_cast<std::uint8_t>(openeden::sdk::game::ObjectKind::Other);
+        constexpr std::uint32_t kCreatedBase = static_cast<std::uint32_t>(openeden::sdk::game::kCreatedObjectBase);
+
+        /// Why a created entry cannot be written or read; empty when it is fine. The counter is the state's.
+        std::string createdProblem(const NeutralSavedObject& o, std::uint32_t nextIndex)
+        {
+            if ((o.mFlags & NeutralSaveCreated) == 0)
+                return o.mCreated.has_value() ? "an object that was not created carries a base description"
+                    : (o.mPlacement >= kCreatedBase ? "a placement of the pack is in the range of created ones" : "");
+            if (!o.mCreated.has_value())
+                return "a created object has no base description";
+            if ((o.mFlags & NeutralSaveMoved) == 0)
+                return "a created object is saved with no position";
+            if ((o.mFlags & NeutralSaveDeleted) != 0)
+                return "a created object is saved as deleted";
+            if (o.mPlacement < kCreatedBase)
+                return "a created object has an id outside the created range";
+            if (o.mPlacement - kCreatedBase >= nextIndex)
+                return "a created object has an id the counter has not reached";
+            if (o.mCreated->mKind > kMaxObjectKind)
+                return "a created object has an unknown kind";
+            return {};
+        }
 
         class Writer
         {
@@ -249,10 +277,23 @@ namespace MWWorld
     std::vector<std::byte> encodeNeutralSave(NeutralSaveState state)
     {
         canonicaliseNeutralSave(state);
+        std::size_t created = 0;
+        for (const NeutralSavedCell& cell : state.mCells)
+            for (const NeutralSavedObject& o : cell.mObjects)
+            {
+                if (const std::string problem = createdProblem(o, state.mNextCreatedIndex); !problem.empty())
+                    throw std::invalid_argument("a neutral save cannot be written: " + problem);
+                if ((o.mFlags & NeutralSaveCreated) != 0)
+                    ++created;
+            }
+        if (created > kNeutralSaveMaxCreated)
+            throw std::length_error("a neutral save holds too many created objects");
+        // Version 1 bytes unless something was ever created: every other save is what it always was
+        const bool version2 = created != 0 || state.mNextCreatedIndex != 0;
         Writer w;
         for (char c : kMagic)
             w.u8(static_cast<std::uint8_t>(c));
-        w.u32(kNeutralSaveVersion);
+        w.u32(version2 ? kNeutralSaveVersionCreated : kNeutralSaveVersion);
         w.key(state.mPlayerCell);
         w.count(state.mCells.size(), kNeutralSaveMaxCells, "cells");
         for (const NeutralSavedCell& cell : state.mCells)
@@ -272,10 +313,28 @@ namespace MWWorld
                 }
                 if ((o.mFlags & NeutralSaveScaled) != 0)
                     w.f32(o.mScale);
+                if ((o.mFlags & NeutralSaveCreated) != 0)
+                {
+                    const NeutralCreatedInfo& info = *o.mCreated;
+                    w.u32(info.mBase);
+                    w.u8(info.mKind);
+                    w.string(info.mEditorId);
+                    w.string(info.mModel);
+                    w.u8(info.mHasBounds ? 1 : 0);
+                    if (info.mHasBounds)
+                    {
+                        for (float f : info.mBoundsMin)
+                            w.f32(f);
+                        for (float f : info.mBoundsMax)
+                            w.f32(f);
+                    }
+                }
             }
         }
         writeEntries(w, state.mUnlocked, "opened locks");
         writeEntries(w, state.mKeys, "keys");
+        if (version2)
+            w.u32(state.mNextCreatedIndex);
         if (w.mBytes.size() > kNeutralSaveMaxBytes)
             throw std::length_error("a neutral save is larger than " + std::to_string(kNeutralSaveMaxBytes) + " bytes");
         return std::move(w.mBytes);
@@ -311,12 +370,14 @@ namespace MWWorld
         std::uint32_t version = 0;
         if (!r.u32(version))
             return fail();
-        if (version != kNeutralSaveVersion)
+        if (version != kNeutralSaveVersion && version != kNeutralSaveVersionCreated)
         {
-            r.fail("the neutral save has version " + std::to_string(version) + ", this build reads version "
-                + std::to_string(kNeutralSaveVersion));
+            r.fail("the neutral save has version " + std::to_string(version) + ", this build reads versions "
+                + std::to_string(kNeutralSaveVersion) + " and " + std::to_string(kNeutralSaveVersionCreated));
             return fail();
         }
+        const bool version2 = version == kNeutralSaveVersionCreated;
+        std::size_t createdCount = 0;
         if (!r.key(state.mPlayerCell, true))
             return fail();
         std::size_t cells = 0;
@@ -342,7 +403,7 @@ namespace MWWorld
                 NeutralSavedObject o;
                 if (!r.u32(o.mPlacement) || !r.u8(o.mFlags))
                     return fail();
-                if ((o.mFlags & ~kKnownFlags) != 0
+                if ((o.mFlags & ~(version2 ? kKnownFlagsV2 : kKnownFlags)) != 0
                     || ((o.mFlags & NeutralSaveEnabled) != 0 && (o.mFlags & NeutralSaveEnabledChanged) == 0))
                 {
                     r.fail("an object has flags that cannot go together");
@@ -359,6 +420,35 @@ namespace MWWorld
                 }
                 if ((o.mFlags & NeutralSaveScaled) != 0 && !r.f32(o.mScale))
                     return fail();
+                if ((o.mFlags & NeutralSaveCreated) != 0)
+                {
+                    NeutralCreatedInfo info;
+                    std::uint8_t hasBounds = 0;
+                    if (!r.u32(info.mBase) || !r.u8(info.mKind) || !r.string(info.mEditorId) || !r.string(info.mModel)
+                        || !r.u8(hasBounds))
+                        return fail();
+                    if (hasBounds > 1)
+                    {
+                        r.fail("a created object has a bounds flag that is not 0 or 1");
+                        return fail();
+                    }
+                    info.mHasBounds = hasBounds == 1;
+                    if (info.mHasBounds)
+                    {
+                        for (float& f : info.mBoundsMin)
+                            if (!r.f32(f))
+                                return fail();
+                        for (float& f : info.mBoundsMax)
+                            if (!r.f32(f))
+                                return fail();
+                    }
+                    if (++createdCount > kNeutralSaveMaxCreated)
+                    {
+                        r.fail("too many created objects");
+                        return fail();
+                    }
+                    o.mCreated = std::move(info);
+                }
                 if (!cell.mObjects.empty() && cell.mObjects.back().mPlacement >= o.mPlacement)
                 {
                     r.fail("the objects of a cell are not in order");
@@ -370,6 +460,28 @@ namespace MWWorld
         }
         if (!r.entries(state.mUnlocked, "opened locks") || !r.entries(state.mKeys, "keys"))
             return fail();
+        if (version2)
+        {
+            if (!r.u32(state.mNextCreatedIndex))
+                return fail();
+            if (state.mNextCreatedIndex > openeden::sdk::game::kMaxCreatedObjects + 1u)
+            {
+                r.fail("the counter of created objects is past its range");
+                return fail();
+            }
+            for (const NeutralSavedCell& cell : state.mCells)
+                for (const NeutralSavedObject& o : cell.mObjects)
+                    if (const std::string problem = createdProblem(o, state.mNextCreatedIndex); !problem.empty())
+                    {
+                        r.fail(problem);
+                        return fail();
+                    }
+            if (createdCount == 0 && state.mNextCreatedIndex == 0)
+            {
+                r.fail("a version 2 save with nothing created and no counter is not canonical");
+                return fail();
+            }
+        }
         if (!r.atEnd())
         {
             r.fail("there are bytes after the end of the neutral save");
@@ -417,6 +529,28 @@ namespace MWWorld
         }
         if (saved.mFlags == 0)
             return std::nullopt;
+        return saved;
+    }
+
+    NeutralSavedObject saveCreatedNeutralObject(
+        std::uint32_t placement, const NeutralCreatedInfo& info, const NeutralObjectNow& now)
+    {
+        NeutralSavedObject saved;
+        saved.mPlacement = placement;
+        saved.mFlags = NeutralSaveCreated | NeutralSaveMoved;
+        for (int i = 0; i < 3; ++i)
+        {
+            saved.mPos[i] = now.mPosition.pos[i];
+            saved.mRot[i] = now.mPosition.rot[i];
+        }
+        if (now.mScale != 1.f)
+        {
+            saved.mFlags |= NeutralSaveScaled;
+            saved.mScale = now.mScale;
+        }
+        if (!now.mEnabled)
+            saved.mFlags |= NeutralSaveEnabledChanged;
+        saved.mCreated = info;
         return saved;
     }
 

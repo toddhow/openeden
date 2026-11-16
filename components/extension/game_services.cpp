@@ -1,6 +1,7 @@
 #include "game_services.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 namespace openeden::extension
 {
@@ -105,6 +106,7 @@ namespace openeden::extension
             const std::string gameId = std::move(it->mGameId);
             mSources.erase(it);
             std::erase_if(mObjectChanges, [&](const ObjectEnableChange& c) { return c.gameId == gameId; });
+            std::erase_if(mObjectOps, [&](const ObjectOp& op) { return op.gameId == gameId; });
             if (mListener != nullptr)
                 mListener->sourceWithdrawn(gameId);
             return;
@@ -155,9 +157,137 @@ namespace openeden::extension
         return count;
     }
 
+    namespace
+    {
+        bool finiteVec(const openeden::sdk::game::Vec3d& v)
+        {
+            return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+        }
+
+        bool usableRotation(const openeden::sdk::game::Quatd& q)
+        {
+            const double norm2 = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+            return std::isfinite(norm2) && norm2 > 1e-12;
+        }
+
+        constexpr float kMaxFadeSeconds = 60.f;
+    }
+
+    const WorldSourceServiceImpl::Entry* WorldSourceServiceImpl::entryOf(
+        const openeden::sdk::game::WorldCellSource& source) const
+    {
+        for (const Entry& candidate : mSources)
+            if (candidate.mSource == &source)
+                return &candidate;
+        return nullptr;
+    }
+
+    bool WorldSourceServiceImpl::moveObject(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement,
+        const openeden::sdk::game::ObjectMove& move)
+    {
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || placement == openeden::sdk::game::kNoWorldId)
+            return false;
+        if (!move.toOriginal)
+        {
+            if (!move.hasPosition && !move.hasRotation)
+                return false;
+            if (move.hasPosition && !finiteVec(move.position))
+                return false;
+            if (move.hasRotation && !usableRotation(move.rotation))
+                return false;
+        }
+        if (mObjectOps.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return false;
+        }
+        ObjectOp op;
+        op.kind = ObjectOp::Kind::Move;
+        op.gameId = entry->mGameId;
+        op.cell = cellHint;
+        op.placement = placement;
+        op.move = move;
+        mObjectOps.push_back(std::move(op));
+        return true;
+    }
+
+    bool WorldSourceServiceImpl::setObjectEnabledFaded(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, openeden::sdk::game::WorldId placement, bool enabled, float fadeSeconds)
+    {
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || placement == openeden::sdk::game::kNoWorldId)
+            return false;
+        if (mObjectOps.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return false;
+        }
+        ObjectOp op;
+        op.kind = ObjectOp::Kind::Enable;
+        op.gameId = entry->mGameId;
+        op.cell = cellHint;
+        op.placement = placement;
+        op.enabled = enabled;
+        op.fadeSeconds = std::isfinite(fadeSeconds) ? std::clamp(fadeSeconds, 0.f, kMaxFadeSeconds) : 0.f;
+        mObjectOps.push_back(std::move(op));
+        return true;
+    }
+
+    openeden::sdk::game::WorldId WorldSourceServiceImpl::placeObject(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype)
+    {
+        using namespace openeden::sdk::game;
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || cellHint == kNoWorldId || prototype.base == kNoWorldId)
+            return kNoWorldId;
+        if (prototype.kind == ObjectKind::Actor || prototype.kind == ObjectKind::LeveledList
+            || prototype.kind == ObjectKind::Unknown)
+            return kNoWorldId;
+        if (!finiteVec(prototype.transform.position) || !usableRotation(prototype.transform.rotation)
+            || !(prototype.transform.scale > 0.0) || !std::isfinite(prototype.transform.scale))
+            return kNoWorldId;
+        if (mObjectOps.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return kNoWorldId;
+        }
+        if (mNextCreatedIndex > kMaxCreatedObjects)
+            return kNoWorldId;
+        const WorldId id = kCreatedObjectBase + mNextCreatedIndex;
+        ++mNextCreatedIndex;
+        ObjectOp op;
+        op.kind = ObjectOp::Kind::Place;
+        op.gameId = entry->mGameId;
+        op.cell = cellHint;
+        op.placement = id;
+        op.object = prototype;
+        op.object.id = id;
+        mObjectOps.push_back(std::move(op));
+        return id;
+    }
+
+    std::size_t WorldSourceServiceImpl::takeObjectOps(std::vector<ObjectOp>& out)
+    {
+        const std::size_t count = mObjectOps.size();
+        for (ObjectOp& op : mObjectOps)
+            out.push_back(std::move(op));
+        mObjectOps.clear();
+        return count;
+    }
+
+    void WorldSourceServiceImpl::setNextCreatedIndex(std::uint32_t next) noexcept
+    {
+        // 0 is not an index; past the range nothing more can be minted (placeObject refuses), so it is kept just past
+        // it
+        mNextCreatedIndex = std::clamp<std::uint32_t>(next, 1u, openeden::sdk::game::kMaxCreatedObjects + 1u);
+    }
+
     void WorldSourceServiceImpl::releaseAll()
     {
         mObjectChanges.clear();
+        mObjectOps.clear();
         while (!mSources.empty())
         {
             const std::string gameId = std::move(mSources.back().mGameId);
