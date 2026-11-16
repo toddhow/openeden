@@ -33,6 +33,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwworld/testneutralclock.cpp
     mwworld/testneutraldialogue.cpp
     mwworld/testneutralscenespeech.cpp
+    mwworld/testneutralmouth.cpp
     mwworld/testneutralservice.cpp
     mwworld/testneutraldisplayname.cpp
     mwworld/testneutralvoice.cpp

@@ -18,6 +18,7 @@
 #include "globals.hpp"
 #include "groundcoverstore.hpp"
 #include "localscripts.hpp"
+#include "neutralmouth.hpp"
 #include "ptr.hpp"
 #include "scene.hpp"
 #include "timestamp.hpp"
@@ -97,6 +98,7 @@ namespace MWWorld
         std::unique_ptr<ProjectileManager> mProjectileManager;
         std::unique_ptr<NeutralSceneSpeech> mNeutralSceneSpeech; // task 0194: the lines of the pack's scenes
         std::map<const void*, Ptr> mNeutralSpeakers; // the actor behind each speech key
+        std::map<const void*, NeutralMouthDriver> mNeutralMouths; // task 0235: the mouths of the scene speakers
         std::unique_ptr<NeutralProjectiles> mNeutralProjectiles; // task 0178: the arrows of the neutral combat bridge
         std::unique_ptr<NeutralMusicDriver> mNeutralMusic; // task 0209: a game pack's music, made on first use
         bool mNeutralMusicTried = false;

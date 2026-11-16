@@ -471,6 +471,7 @@ namespace game_skyrimse::crime
             return mRoster[a.mIndex].mHandle.reference < mRoster[b.mIndex].mHandle.reference;
         });
         std::vector<FormId> factions;
+        std::vector<ActorHandle> witnesses; // task 0235: the ones that count, nearest first
         std::string who;
         std::size_t rays = 0;
         for (const Candidate& c : candidates)
@@ -495,6 +496,7 @@ namespace game_skyrimse::crime
                 continue; // task 0227: it never noticed the player
             if (a.mCrimeFaction == kNullFormId || mWorld.crimeData(a.mCrimeFaction) == nullptr)
                 continue;
+            witnesses.push_back(a.mHandle);
             if (std::find(factions.begin(), factions.end(), a.mCrimeFaction) == factions.end())
             {
                 factions.push_back(a.mCrimeFaction);
@@ -520,6 +522,18 @@ namespace game_skyrimse::crime
                 + " bounty +" + std::to_string(gold) + " total " + std::to_string(mLedger.bounty(faction)));
             ++mRevision;
         }
+        if (mWitnessHook)
+            for (const ActorHandle& witness : witnesses)
+            {
+                try
+                {
+                    mWitnessHook(crime.mKind, witness);
+                }
+                catch (...)
+                {
+                    // a hook that throws changes nothing about the crime
+                }
+            }
         return true;
     }
 

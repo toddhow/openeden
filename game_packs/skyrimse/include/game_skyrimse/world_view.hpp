@@ -198,6 +198,9 @@ namespace game_skyrimse
             /// DialogueRuntime::barkLine; main thread
             std::function<bool(std::string_view subtype, FormId speakerReference, std::uint32_t pick, SceneLine& out)>
                 mBark;
+            /// task 0235: the player's stance (sneaking, what is drawn: 0 nothing, 1 weapon, 2 spell) for the
+            /// conditions of the dialogue runtime; main thread
+            std::function<void(bool sneaking, std::uint8_t drawState)> mSetStance;
             std::function<void(std::function<bool(FormId scene, std::uint32_t action)>)> mSetSceneLookup;
             std::function<const PackageRecord*(FormId package)> mPackage;
             /// the base form of a placed reference (0 when unknown)

@@ -399,6 +399,9 @@ namespace MWWorld
                     out.mHealthMax = health.getModified();
                     out.mSneaking = player.getClass().getCreatureStats(player).getStance(
                         MWMechanics::CreatureStats::Stance_Sneak); // task 0227
+                    // Task 0235: 0 nothing, 1 weapon, 2 spell (MWMechanics::DrawState)
+                    out.mDrawState = static_cast<std::uint8_t>(
+                        player.getClass().getCreatureStats(player).getDrawState());
                     // Task 0172 (stage S5-4): the attack action. It is only read, never changed, and only because
                     // `[Game] neutral combat` is on (this hook is installed under it).
                     MWBase::InputManager* input = MWBase::Environment::get().getInputManager();
@@ -1720,6 +1723,28 @@ namespace MWWorld
                     std::uint64_t mFrame;
                 } sink(mNeutralSpeakers, speechFrame);
                 mNeutralSceneSpeech->update(sink);
+            }
+            // Task 0235 (`[Game] neutral lip sync`): a speaker of the pack's scene lines (barks, scenes) moves its
+            // mouth as a conversation's speaker does, from the `.lip` data of the line that plays. The driver lives
+            // while the actor has lines or its mouth is open.
+            if (Settings::game().mNeutralLipSync.get())
+            {
+                for (const auto& line : mPhysics->getNeutralSpeech())
+                    mNeutralMouths.try_emplace(line.mPtr.mRef);
+                for (auto it = mNeutralMouths.begin(); it != mNeutralMouths.end();)
+                {
+                    const auto speaker = mNeutralSpeakers.find(it->first);
+                    if (speaker == mNeutralSpeakers.end())
+                    {
+                        it = mNeutralMouths.erase(it);
+                        continue;
+                    }
+                    const bool saying = driveNeutralMouth(it->second, speaker->second);
+                    if (!saying && !it->second.open() && !mNeutralSceneSpeech->busy(it->first))
+                        it = mNeutralMouths.erase(it);
+                    else
+                        ++it;
+                }
             }
             // Task 0174 (S5-5): an actor the pack reported dead becomes a ragdoll (humanoids that have a bone table).
             for (const MWWorld::Ptr& ptr : mPhysics->getNeutralDeaths())

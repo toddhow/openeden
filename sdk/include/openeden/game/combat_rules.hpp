@@ -199,6 +199,9 @@ namespace openeden::sdk::game
         /// Task 0227 (additive, trailing, version unchanged): the player is sneaking (the engine's Stance_Sneak); false for
         /// an actor.
         bool sneaking = false;
+        /// Task 0235 (additive, trailing, version unchanged): what the player has drawn, the engine's draw state: 0
+        /// nothing, 1 a weapon, 2 a spell; 0 for an actor.
+        std::uint8_t drawState = 0;
     };
 
     /// A projectile the pack asks the core to launch (task 0178, stage S5-6, DRAFT 0.3). The core owns the flight: it

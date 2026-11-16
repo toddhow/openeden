@@ -45,6 +45,7 @@
 
 #include <components/contentsource/plugin.hpp>
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -325,6 +326,14 @@ namespace game_skyrimse
         /// Task 0228: the speaker's level (the bribe cost is a gold sum per level); 0 when unknown.
         [[nodiscard]] std::uint16_t speakerLevel() const;
         void setCurrentWeather(FormId weather) { mWeather = weather; }
+        /// Task 0235: the player's stance, told once a frame by the pack when barks are on: sneaking, and what is drawn
+        /// (0 nothing, 1 a weapon, 2 a spell; anything else counts as nothing). IsSneaking, IsWeaponOut and
+        /// IsWeaponMagicOut answer for the player from it; never told (the default): nobody sneaks, nothing is drawn.
+        void setPlayerStance(bool sneaking, std::uint8_t drawState)
+        {
+            mPlayerSneaking.store(sneaking, std::memory_order_relaxed);
+            mPlayerDrawState.store(drawState, std::memory_order_relaxed);
+        }
         /// Quest data and state (task 0139). Both null (the default): no quest is known, every quest function keeps the
         /// default answer (stage 0, nothing done, not running) and `answers` says so.
         void setQuests(const QuestIndex* index, const QuestState* state)
@@ -466,6 +475,8 @@ namespace game_skyrimse
         // task 0160
         bool isDisabled(conditions::Subject subject) const override;
         bool isSneaking(conditions::Subject subject) const override;
+        bool weaponOrMagicOut(conditions::Subject subject) const override;
+        float weaponOutState(conditions::Subject subject) const override;
         bool isEquipped(conditions::Subject subject, std::uint32_t object) const override;
         float distanceTo(conditions::Subject subject, std::uint32_t reference) const override;
         float relationshipRank(conditions::Subject subject, std::uint32_t target) const override;
@@ -554,6 +565,8 @@ namespace game_skyrimse
         {
             return isSpeaker(subject) || (mPlayer != nullptr && subject == kPlayer);
         }
+        std::atomic<bool> mPlayerSneaking{ false }; // task 0235
+        std::atomic<std::uint8_t> mPlayerDrawState{ 0 };
         mutable bool mStatsKnown = false;
         mutable bool mStatsOk = false;
         mutable openeden::sdk::game::ActorStats mStats;

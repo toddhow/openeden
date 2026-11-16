@@ -41,6 +41,9 @@ namespace MWWorld
         /// An actor is gone: its lines are dropped.
         void remove(const void* actor);
 
+        /// Task 0235: the actor has a line queued or one that has not finished (the mouth keeps moving while it is).
+        [[nodiscard]] bool busy(const void* actor) const;
+
         [[nodiscard]] std::size_t pending() const;
         [[nodiscard]] std::uint64_t linesStarted() const { return mLinesStarted; }
         [[nodiscard]] std::uint64_t filesStarted() const { return mFilesStarted; }

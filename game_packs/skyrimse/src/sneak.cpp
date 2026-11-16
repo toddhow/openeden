@@ -382,6 +382,17 @@ namespace game_skyrimse::sneak
                 note("SNEAK " + (a.mName.empty() ? std::to_string(reference) : a.mName) + " " + std::string(alertName(was))
                     + " -> " + std::string(alertName(o.mAlert)) + " notice " + fmt(o.mNotice, 2) + " distance "
                     + fmt(c.mDistance, 1) + " range " + fmt(mRange, 1) + " speed " + fmt(mSpeed, 0));
+            if (o.mAlert != was && mAlertHook)
+            {
+                try
+                {
+                    mAlertHook(reference, was, o.mAlert, mSneaking);
+                }
+                catch (...)
+                {
+                    // a hook that throws changes nothing about the alerts
+                }
+            }
             if (o.mAlert != Alert::Detected)
                 ++hidden;
             if (static_cast<int>(o.mAlert) > static_cast<int>(overall))

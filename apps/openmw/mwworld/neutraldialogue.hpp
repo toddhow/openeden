@@ -14,6 +14,7 @@
 
 #include <openeden/game/dialogue_source.hpp>
 
+#include "neutralmouth.hpp"
 #include "ptr.hpp"
 
 // Talking to a neutral actor (task 0141, milestone M-S4 slice 1; docs/tasks/0141-neutral-dialogue-slice1.md).
@@ -155,6 +156,14 @@ namespace MWWorld
     using NeutralMouthSink = std::function<void(const Ptr&, const TriMorph::VisemeWeights&)>;
     void setNeutralMouthSink(NeutralMouthSink sink);
 
+    /// Task 0235: one frame of a speaker's mouth, the shared glue of the conversation and the scene speech: asks the
+    /// sound manager whether `speaker`'s line plays (file, position, loudness), steps `driver` (the voice file's `.lip`
+    /// part is read through the VFS once per file) and sends the weights to the mouth sink when they change. Does
+    /// nothing without a sink, a sound manager or a speaker. Returns whether the line is playing.
+    bool driveNeutralMouth(NeutralMouthDriver& driver, const Ptr& speaker);
+    /// Closes the mouth of `speaker` if the driver left it open, and resets the driver.
+    void closeNeutralMouth(NeutralMouthDriver& driver, const Ptr& speaker);
+
     /// Runs one conversation at a time through the window manager.
     class NeutralDialogueSession
     {
@@ -200,8 +209,6 @@ namespace MWWorld
         void stopVoice();
         /// Task 0146: once a poll, with the setting on: the speaker's jaw follows the loudness of its voice line.
         void driveMouth();
-        /// Reads the `.lip` part of the voice file `file` (a VFS path) into mLip, or leaves it empty (logged).
-        void loadLip(const std::string& file);
 
         void updatePendingTalk(float seconds);
 
@@ -212,10 +219,7 @@ namespace MWWorld
         std::function<void()> mWaitStart;
 
         Ptr mSpeaker;
-        TriMorph::MouthDrive mMouth;
-        bool mMouthOpen = false; ///< a nonzero weight was sent and not yet closed
-        std::string mLipFile; ///< the voice file whose lip data mLip holds (or failed to give)
-        std::optional<Lip::Track> mLip;
+        NeutralMouthDriver mMouthDriver; ///< task 0146, shared with the scene speech since task 0235
         NeutralVoiceQueue mVoice;
         bool mActive = false;
         int mInjected = -1;

@@ -158,6 +158,11 @@ namespace game_skyrimse::sneak
         /// Once a frame, inside combatUpdate (positions and rays only work there). Judges every mPeriod seconds.
         void update(float seconds, openeden::sdk::game::CombatRequestWriter& writer);
 
+        /// Task 0235: told every change of an observer's alert (the observer's reference, the alert before and after,
+        /// whether the player is sneaking), inside update(). Unset (the default): nothing is told.
+        using AlertHook = std::function<void(std::uint32_t reference, Alert before, Alert after, bool sneaking)>;
+        void setAlertHook(AlertHook hook) { mAlertHook = std::move(hook); }
+
         [[nodiscard]] bool sneaking() const { return mSneaking; }
         /// The worst alert among the observers (Hidden when there are none).
         [[nodiscard]] Alert overall() const { return mOverall; }
@@ -207,6 +212,7 @@ namespace game_skyrimse::sneak
         void note(const std::string& text);
 
         Hooks mHooks;
+        AlertHook mAlertHook; ///< task 0235
         Settings mSettings;
         std::vector<Observer> mObservers; ///< sorted by reference
         std::vector<crime::CrimeActor> mRoster; ///< reused

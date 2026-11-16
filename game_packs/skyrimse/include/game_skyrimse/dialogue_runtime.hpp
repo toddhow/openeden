@@ -162,6 +162,8 @@ namespace game_skyrimse
         {
             mWorld.setVendorServicesLookup(std::move(lookup));
         }
+        /// Task 0235: the player's stance for the conditions (see SkyrimConditionWorld::setPlayerStance).
+        void setPlayerStance(bool sneaking, std::uint8_t drawState) { mWorld.setPlayerStance(sneaking, drawState); }
 
         /// Turns service detection on: `probe` names what a fragment script refers to. Without it no turn has a
         /// service.

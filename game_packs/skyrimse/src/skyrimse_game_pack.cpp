@@ -2736,6 +2736,13 @@ namespace game_skyrimse
                 }
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "SNEAK sneaking and detection are on");
+                // Task 0235: an actor that begins to suspect a sneaking player says what it noticed (NOTA).
+                if (mBarks != nullptr)
+                    mSneak->setAlertHook(
+                        [this](std::uint32_t reference, sneak::Alert before, sneak::Alert after, bool sneaking) {
+                            if (sneaking && before == sneak::Alert::Hidden && after == sneak::Alert::Caution)
+                                mBarks->onEvent(barks::Kind::Notice, static_cast<std::uint64_t>(reference));
+                        });
             }
 
             // Task 0231: barks. Off unless [extension.skyrimse] barks. The rules are barks.* (pure); this wires them to the
@@ -2796,6 +2803,42 @@ namespace game_skyrimse
                 initial.mStartAt = mBarkStartAt;
                 mBarks = std::make_unique<barks::BarkSystem>(std::move(initial), std::move(hooks));
                 mCellSource.setBarks(mBarks.get());
+                // Task 0235: a witness of a crime that counts speaks (the crime rules are off, or not: no hook then).
+                if (mCrime != nullptr)
+                    mCrime->system().setWitnessHook(
+                        [this](crime::Kind crime, openeden::sdk::game::ActorHandle witness) {
+                            barks::Kind kind = barks::Kind::Steal;
+                            switch (crime)
+                            {
+                                case crime::Kind::Theft:
+                                case crime::Kind::Pickpocket:
+                                    kind = barks::Kind::Steal;
+                                    break;
+                                case crime::Kind::Assault:
+                                    kind = barks::Kind::Assault;
+                                    break;
+                                case crime::Kind::Murder:
+                                    kind = barks::Kind::Murder;
+                                    break;
+                                case crime::Kind::Trespass:
+                                    kind = barks::Kind::Trespass;
+                                    break;
+                            }
+                            mBarks->onEvent(kind, static_cast<std::uint64_t>(witness.reference));
+                        });
+                // Task 0235: the player's stance reaches the conditions of the bark lines (a drawn weapon, sneaking)
+                // and a drawn weapon or spell near an actor makes it say a hello again.
+                mCellSource.setStanceSink([this](const openeden::sdk::game::SubjectState& player) {
+                    if (!mBarkStance)
+                    {
+                        SkyrimWorldView::PapyrusAccess access;
+                        if (mWorldView.papyrusAccess(access) && access.mSetStance)
+                            mBarkStance = access.mSetStance;
+                    }
+                    if (mBarkStance)
+                        mBarkStance(player.sneaking, player.drawState);
+                    mBarks->onPlayerStance(player.drawState == 1 || player.drawState == 2, player.sneaking);
+                });
                 if (logger != nullptr)
                     logger->log(openeden::sdk::LogLevel::Info, "BARK barks are on");
             }
@@ -3855,6 +3898,7 @@ namespace game_skyrimse
             std::unique_ptr<sneak::SneakBindings> mSneakBindings;
             std::unique_ptr<barks::BarkSystem> mBarks; // task 0231; refers to the cell source and the world view
             std::function<bool(std::string_view, FormId, std::uint32_t, SceneLine&)> mBarkLine; // from papyrusAccess
+            std::function<void(bool, std::uint8_t)> mBarkStance; // task 0235, from papyrusAccess
             bool mBarkSubtitles = true;
             bool mBarkConfigured = false;
             float mBarkStartAt = 0.f;

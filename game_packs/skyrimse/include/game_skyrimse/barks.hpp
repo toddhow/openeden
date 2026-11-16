@@ -51,6 +51,8 @@ namespace game_skyrimse::barks
         Assault, ///< ASSA: reaction to the player's crime (the API exists, nothing calls it yet)
         Steal, ///< STEA
         Trespass, ///< TRES
+        Murder, ///< MURD (task 0235)
+        Notice, ///< NOTA: an actor began to suspect a sneaking player (task 0235)
         Count
     };
     inline constexpr std::size_t kKindCount = static_cast<std::size_t>(Kind::Count);
@@ -83,6 +85,10 @@ namespace game_skyrimse::barks
         float mIdleDistance = 800.f;
         /// A combat bark is only said within this distance of the player (further, it could not be heard).
         float mHearDistance = 2500.f;
+        /// The same actor does not remark on a sneaking player's noise again within this long (seconds), and does not
+        /// comment on a drawn weapon again within mStanceGap (task 0235). OURS.
+        float mNoticeGap = 20.f;
+        float mStanceGap = 30.f;
         /// The same actor says a "hurt" line no sooner than this (seconds).
         float mHitGap = 3.f;
         /// After any combat bark no other combat bark starts for this long (seconds): keeps a crowd from shouting
@@ -163,6 +169,15 @@ namespace game_skyrimse::barks
         /// nothing is said and the queued events are dropped.
         void update(float seconds, const std::vector<Actor>& actors, bool havePlayer, double px, double py, double pz);
 
+        /// Task 0235: a weapon or a spell is drawn (true) or everything is put away. A change to drawn, while the
+        /// player is known and an actor is within the hello distance, arms that actor's hello once, at most once every
+        /// mStanceGap (the hello lines that care what the player has out are chosen by their conditions; the system
+        /// only supplies the occasion). Safe to call from inside the combat update; handled by the next update.
+        ///
+        /// `sneaking`: the player is sneaking; an actor does not greet a sneaking player (its hello waits until he
+        /// stands up), but its idle lines, some of which are written for a sneaking player, still run.
+        void onPlayerStance(bool weaponDrawn, bool sneaking = false);
+
         [[nodiscard]] float clock() const { return mClock; }
         [[nodiscard]] const Stats& stats() const { return mStats; }
         [[nodiscard]] bool engaged(std::uint64_t reference) const;
@@ -176,6 +191,9 @@ namespace game_skyrimse::barks
             bool mArmed = false; ///< came near and has not been greeted yet
             float mRetryAt = 0.f; ///< a calm bark that failed is not tried again before this
             float mHelloReady = 0.f;
+            float mNoticeReady = 0.f;
+            float mStanceReady = 0.f;
+            bool mStanceArmed = false; ///< a drawn weapon was seen near it: its hello is due
             float mNextIdle = 0.f;
             float mHitReady = 0.f;
             float mSpeakingUntil = 0.f;
@@ -203,6 +221,9 @@ namespace game_skyrimse::barks
         float mClock = 0.f;
         float mSim = 0.f; ///< the sum of the updates' seconds, ready or not
         bool mStarted = false;
+        bool mPlayerDrawn = false; ///< the last stance told
+        bool mStanceEdge = false; ///< the weapon was drawn since the last update
+        bool mPlayerSneaking = false; ///< the player is sneaking: no hello
         float mCalmFree = 0.f; ///< no calm bark starts before this
         float mCombatFree = 0.f; ///< no combat bark starts before this
         float mHelloFree = 0.f; ///< no hello starts before this (fAIGreetingTimer after the last)

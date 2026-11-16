@@ -301,6 +301,11 @@ namespace game_skyrimse::crime
         /// per actor reference); without one (the default) a clear sight line is enough, as before.
         void setDetectedLookup(std::function<bool(std::uint32_t reference)> lookup) { mDetected = std::move(lookup); }
 
+        /// Task 0235: called once for each witness (nearest first) of a crime that counts, after its bounty is charged:
+        /// the pack makes the witness speak. Unset (the default): nothing is told. Main thread, inside update().
+        using WitnessHook = std::function<void(Kind crime, openeden::sdk::game::ActorHandle witness)>;
+        void setWitnessHook(WitnessHook hook) { mWitnessHook = std::move(hook); }
+
         [[nodiscard]] State state() const { return mState; }
         [[nodiscard]] FormId offerFaction() const { return mFaction; }
         [[nodiscard]] const std::string& guardName() const { return mGuardName; }
@@ -359,6 +364,7 @@ namespace game_skyrimse::crime
         std::size_t mRays = 0;
         std::uint32_t mRevision = 0;
         std::function<bool(std::uint32_t)> mDetected; ///< task 0227
+        WitnessHook mWitnessHook; ///< task 0235
     };
 
     /// The outermost wrapper of the combat chain (task 0204): it tells the crime system of every damage report and

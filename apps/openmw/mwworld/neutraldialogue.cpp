@@ -285,71 +285,69 @@ namespace MWWorld
 
     void NeutralDialogueSession::driveMouth()
     {
-        const NeutralMouthSink& sink = mouthSink();
-        if (!sink || mSpeaker.isEmpty())
-            return;
-        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
-        if (sound == nullptr)
-            return;
-        // The line's own lip data at the playback position when it has some; else the loudness of the line.
-        std::string_view file;
-        float seconds = 0.f;
-        const bool saying = sound->getSayPlayback(mSpeaker, file, seconds);
-        TriMorph::VisemeWeights w{};
-        if (saying)
-        {
-            if (file != mLipFile)
-                loadLip(std::string(file));
-            if (mLip && Lip::sampleVisemes(*mLip, seconds, w))
-                mMouth.reset();
-            else
-                w = TriMorph::toVisemes(mMouth.step(sound->getSaySoundLoudness(mSpeaker)));
-        }
-        else
-        {
-            mLipFile.clear();
-            mLip.reset();
-            w = TriMorph::toVisemes(mMouth.step(0.f)); // the jaw closes
-        }
-        const bool open = std::any_of(w.begin(), w.end(), [](float x) { return x > 0.f; });
-        if (!open && !mMouthOpen)
-            return; // closed and staying closed: nothing to send
-        sink(mSpeaker, w);
-        mMouthOpen = open;
+        driveNeutralMouth(mMouthDriver, mSpeaker);
     }
 
-    void NeutralDialogueSession::loadLip(const std::string& file)
+    namespace
     {
-        mLipFile = file;
-        mLip.reset();
-        try
+        // Reads the `.lip` part of a voice file (a VFS path) as a track, or nothing (logged).
+        std::optional<Lip::Track> loadLip(const std::string& file)
         {
-            const VFS::Manager* vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
-            const Files::IStreamPtr stream = vfs->find(VFS::Path::Normalized(file));
-            if (!stream)
-                return;
-            const std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
-            const Fuz::Result parts = Fuz::split(bytes, file);
-            if (!parts.mOk || parts.mParts.mLip.empty())
+            try
             {
-                Log(Debug::Info) << "NLIP no lip data in " << file << (parts.mOk ? "" : ": " + parts.mError);
-                return;
+                const VFS::Manager* vfs = MWBase::Environment::get().getResourceSystem()->getVFS();
+                const Files::IStreamPtr stream = vfs->find(VFS::Path::Normalized(file));
+                if (!stream)
+                    return std::nullopt;
+                const std::string bytes((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+                const Fuz::Result parts = Fuz::split(bytes, file);
+                if (!parts.mOk || parts.mParts.mLip.empty())
+                {
+                    Log(Debug::Info) << "NLIP no lip data in " << file << (parts.mOk ? "" : ": " + parts.mError);
+                    return std::nullopt;
+                }
+                Lip::Result lip = Lip::read(parts.mParts.mLip, file);
+                if (!lip.mOk || !lip.mTrack.mTimingKnown)
+                {
+                    Log(Debug::Info) << "NLIP lip data of " << file
+                                     << " not used: " << (lip.mOk ? "the timing is not known" : lip.mError);
+                    return std::nullopt;
+                }
+                Log(Debug::Info) << "NLIP lip data of " << file << ": " << lip.mTrack.mFrames << " frames, first "
+                                 << lip.mTrack.mFirst;
+                return std::move(lip.mTrack);
             }
-            Lip::Result lip = Lip::read(parts.mParts.mLip, file);
-            if (!lip.mOk || !lip.mTrack.mTimingKnown)
+            catch (const std::exception& e)
             {
-                Log(Debug::Info) << "NLIP lip data of " << file
-                                 << " not used: " << (lip.mOk ? "the timing is not known" : lip.mError);
-                return;
+                Log(Debug::Warning) << "Neutral lip sync: " << file << ": " << e.what();
             }
-            Log(Debug::Info) << "NLIP lip data of " << file << ": " << lip.mTrack.mFrames << " frames, first "
-                             << lip.mTrack.mFirst;
-            mLip = std::move(lip.mTrack);
+            return std::nullopt;
         }
-        catch (const std::exception& e)
-        {
-            Log(Debug::Warning) << "Neutral lip sync: " << file << ": " << e.what();
-        }
+    }
+
+    bool driveNeutralMouth(NeutralMouthDriver& driver, const Ptr& speaker)
+    {
+        const NeutralMouthSink& sink = mouthSink();
+        if (!sink || speaker.isEmpty())
+            return false;
+        MWBase::SoundManager* sound = MWBase::Environment::get().getSoundManager();
+        if (sound == nullptr)
+            return false;
+        std::string_view file;
+        float seconds = 0.f;
+        const bool saying = sound->getSayPlayback(speaker, file, seconds);
+        const float loudness = saying ? sound->getSaySoundLoudness(speaker) : 0.f;
+        TriMorph::VisemeWeights weights{};
+        if (driver.step(saying, file, seconds, loudness, loadLip, weights))
+            sink(speaker, weights);
+        return saying;
+    }
+
+    void closeNeutralMouth(NeutralMouthDriver& driver, const Ptr& speaker)
+    {
+        if (driver.open() && mouthSink() && !speaker.isEmpty())
+            mouthSink()(speaker, TriMorph::VisemeWeights{}); // close the mouth of whoever was speaking
+        driver.reset();
     }
 
     void NeutralDialogueSession::stopVoice()
@@ -523,13 +521,8 @@ namespace MWWorld
         {
             Log(Debug::Info) << "NTALK closed after " << mTurns << " turns";
             stopVoice();
-            if (mMouthOpen && mouthSink() && !mSpeaker.isEmpty())
-                mouthSink()(mSpeaker, TriMorph::VisemeWeights{}); // close the mouth of whoever was speaking
         }
-        mMouth.reset();
-        mMouthOpen = false;
-        mLipFile.clear();
-        mLip.reset();
+        closeNeutralMouth(mMouthDriver, mSpeaker); // closes the mouth of whoever was speaking
         mSpeaker = Ptr();
         mActive = false;
         mInjected = -1;

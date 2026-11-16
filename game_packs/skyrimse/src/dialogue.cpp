@@ -1125,6 +1125,8 @@ namespace game_skyrimse
                     && (c.mFunction == 14 || c.mFunction == 277 || c.mFunction == 80 || c.mFunction == 48
                         || c.mFunction == 182 || c.mFunction == 47))
                     return true;
+                if (c.mFunction == 286 || c.mFunction == 263 || c.mFunction == 101)
+                    return true; // task 0235: the player's stance is told by the pack
                 if (mPlayer != nullptr && isFreshStateFunction(c.mFunction))
                     return true;
                 if (mPlayer != nullptr && (c.mFunction == 69 || c.mFunction == 70))
@@ -1206,7 +1208,9 @@ namespace game_skyrimse
                 return mSpeaker.mWorldspace != kNullFormId || mSpeaker.mInterior.value_or(false);
             // task 0160: the speaker's own initial state, from the placed-reference table and the records
             case 35: // GetDisabled: a talking actor is enabled
-            case 286: // IsSneaking: nobody sneaks in a fresh game
+            case 286: // IsSneaking: nobody sneaks in a fresh game, and the player's stance is told (task 0235)
+            case 263: // IsWeaponOut and IsWeaponMagicOut: the player's stance is told, an actor's is never drawn
+            case 101:
                 return true;
             case 47: // GetItemCount of the speaker
             case 182:
@@ -1667,8 +1671,22 @@ namespace game_skyrimse
 
     bool SkyrimConditionWorld::isSneaking(conditions::Subject subject) const
     {
-        (void)subject;
-        return false; // nobody sneaks in a fresh game (no package of the five masters sets a sneak flag we know of)
+        // Nobody else sneaks in a fresh game (no package of the five masters sets a sneak flag we know of); the player
+        // does when the pack tells the stance (task 0235).
+        return subject == kPlayer && mPlayerSneaking.load(std::memory_order_relaxed);
+    }
+
+    bool SkyrimConditionWorld::weaponOrMagicOut(conditions::Subject subject) const
+    {
+        const std::uint8_t drawn = mPlayerDrawState.load(std::memory_order_relaxed);
+        return subject == kPlayer && (drawn == 1 || drawn == 2);
+    }
+
+    float SkyrimConditionWorld::weaponOutState(conditions::Subject subject) const
+    {
+        // 0 nothing drawn, 2 a weapon in either hand (fists, 1, cannot be told from the engine's draw state); a spell
+        // does not count (CK wiki, shown by toddhow, 2026-11-11).
+        return subject == kPlayer && mPlayerDrawState.load(std::memory_order_relaxed) == 1 ? 2.f : 0.f;
     }
 
     bool SkyrimConditionWorld::isEquipped(conditions::Subject subject, std::uint32_t object) const

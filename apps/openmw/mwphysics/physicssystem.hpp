@@ -414,6 +414,8 @@ namespace MWPhysics
             float mPitch = 0.f;
             /// Task 0227: the player's Stance_Sneak.
             bool mSneaking = false;
+            /// Task 0235: the player's draw state (0 nothing, 1 weapon, 2 spell).
+            std::uint8_t mDrawState = 0;
         };
         using NeutralPlayerStateFn = std::function<bool(NeutralPlayerState&)>;
         /// Task 0206: also the report's maximum (0 when it names none), so that a raised maximum reaches the

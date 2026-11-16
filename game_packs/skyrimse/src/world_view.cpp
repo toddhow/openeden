@@ -1998,6 +1998,9 @@ namespace game_skyrimse
             line.mVoice = turn.voice;
             return true;
         };
+        out.mSetStance = [state](bool sneaking, std::uint8_t drawState) {
+            state->mRuntime->setPlayerStance(sneaking, drawState);
+        };
         out.mStory = [state](const StoryEvent& event) {
             state->mStoryEvent = event;
             SkyrimConditionWorld* world = state->mQuestWorld.get();

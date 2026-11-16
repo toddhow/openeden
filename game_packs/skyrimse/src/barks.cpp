@@ -32,7 +32,11 @@ namespace game_skyrimse::barks
             { "ASSA", "assault", true },
             { "STEA", "steal", true },
             { "TRES", "trespass", true },
+            { "MURD", "murder", true },
+            { "NOTA", "notice", false },
         };
+
+        constexpr int kReactionTries = 6; ///< lines tried for a reaction whose picks have no voice file (task 0235)
 
         std::uint64_t splitmix(std::uint64_t x)
         {
@@ -109,6 +113,14 @@ namespace game_skyrimse::barks
         mQueue.push_back({ kind, reference });
     }
 
+    void BarkSystem::onPlayerStance(bool weaponDrawn, bool sneaking)
+    {
+        mPlayerSneaking = sneaking;
+        if (weaponDrawn && !mPlayerDrawn)
+            mStanceEdge = true;
+        mPlayerDrawn = weaponDrawn;
+    }
+
     std::uint64_t BarkSystem::mix(std::uint64_t reference, std::uint32_t counter, Kind kind) const
     {
         return splitmix(
@@ -126,21 +138,42 @@ namespace game_skyrimse::barks
 
     bool BarkSystem::trySpeak(Kind kind, std::uint64_t reference, State& state)
     {
-        const std::uint32_t pick = static_cast<std::uint32_t>(mix(reference, state.mCounter++, kind));
         Line line;
-        if (!mHooks.mChoose || !mHooks.mChoose(kind, reference, pick, line))
+        // A reaction is said now or never, and many of the lines written for it have no voice file for this actor's
+        // voice type, so it tries a few lines; the calm barks and the periodic fight cries retry on their own (the
+        // fight cries every update while their timer is due: no trace line for those).
+        const bool reaction = kind == Kind::Notice || kind == Kind::Steal || kind == Kind::Assault
+            || kind == Kind::Trespass || kind == Kind::Murder;
+        // Task 0235: a reaction that cannot be said leaves a line in the trace.
+        const bool tracing = reaction && static_cast<bool>(mHooks.mTrace);
+        const int tries = reaction ? kReactionTries : 1;
+        for (int attempt = 0; attempt < tries; ++attempt)
         {
-            ++mStats.mNoLine;
-            return false;
-        }
-        if (line.mVoice.empty())
-        {
+            const std::uint32_t pick = static_cast<std::uint32_t>(mix(reference, state.mCounter++, kind));
+            line = Line();
+            if (!mHooks.mChoose || !mHooks.mChoose(kind, reference, pick, line))
+            {
+                ++mStats.mNoLine;
+                if (tracing)
+                    mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
+                        + " no line passes");
+                return false;
+            }
+            if (!line.mVoice.empty())
+                break;
             ++mStats.mNoVoice;
-            return false;
+            if (tracing)
+                mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
+                    + " no voice file for \"" + line.mText + "\"");
+            if (attempt + 1 == tries)
+                return false;
         }
         if (!mHooks.mSpeak || !mHooks.mSpeak(reference, line))
         {
             ++mStats.mRefused;
+            if (tracing)
+                mHooks.mTrace("BARK " + std::string(nameOf(kind)) + " " + std::to_string(reference)
+                    + " refused by the core");
             return false;
         }
         const float length = std::max(
@@ -184,8 +217,11 @@ namespace game_skyrimse::barks
         {
             mStats.mEventsDropped += mQueue.size();
             mQueue.clear();
+            mStanceEdge = false; // the edge needs somebody to be near
             return;
         }
+        const bool stanceEdge = mStanceEdge;
+        mStanceEdge = false;
         mSorted.clear();
         for (const Actor& a : actors)
             mSorted.push_back(&a);
@@ -247,8 +283,15 @@ namespace game_skyrimse::barks
                 case Kind::Assault:
                 case Kind::Steal:
                 case Kind::Trespass:
+                case Kind::Murder:
                     if (canShout(actor, state, false))
                         (void)trySpeak(event.mKind, event.mReference, state);
+                    break;
+                case Kind::Notice:
+                    // Task 0235: "What was that?": not for an actor that is fighting, and not again within the gap.
+                    if (!engaged(event.mReference) && mClock >= state.mNoticeReady && canShout(actor, state, false)
+                        && trySpeak(Kind::Notice, event.mReference, state))
+                        state.mNoticeReady = mClock + mSettings.mNoticeGap;
                     break;
                 default:
                     break;
@@ -283,6 +326,7 @@ namespace game_skyrimse::barks
         // 3. The calm barks: at most one a tick, a hello before a chat.
         const Actor* hello = nullptr;
         double helloDistance = 0.0;
+        std::size_t stanceArmed = 0;
         const Actor* chat = nullptr;
         for (const Actor* actor : mSorted)
         {
@@ -301,12 +345,20 @@ namespace game_skyrimse::barks
             if (near && !state.mNear)
                 state.mArmed = true;
             if (!near)
+            {
                 state.mArmed = false;
+                state.mStanceArmed = false;
+            }
+            else if (stanceEdge && mClock >= state.mStanceReady)
+            {
+                state.mStanceArmed = true; // task 0235: a weapon was drawn near it
+                ++stanceArmed;
+            }
             state.mNear = near;
             if (actor->mDead || engaged(actor->mReference))
                 continue;
-            if (state.mArmed && mClock >= state.mHelloReady && mClock >= mHelloFree && mClock >= state.mRetryAt
-                && (hello == nullptr || flat < helloDistance))
+            if (!mPlayerSneaking && ((state.mArmed && mClock >= state.mHelloReady) || state.mStanceArmed)
+                && mClock >= mHelloFree && mClock >= state.mRetryAt && (hello == nullptr || flat < helloDistance))
             {
                 hello = actor;
                 helloDistance = flat;
@@ -319,6 +371,9 @@ namespace game_skyrimse::barks
                     state.mNextIdle = nextIdle(actor->mReference, state);
             }
         }
+        if (stanceEdge && mHooks.mTrace)
+            mHooks.mTrace("BARK stance: a weapon or spell was drawn, " + std::to_string(stanceArmed)
+                + " actor(s) near will remark on it");
         if (mClock >= mCalmFree)
         {
             if (hello != nullptr)
@@ -326,7 +381,10 @@ namespace game_skyrimse::barks
                 State& state = mStates[hello->mReference];
                 if (mClock >= state.mSpeakingUntil && trySpeak(Kind::Hello, hello->mReference, state))
                 {
+                    if (state.mStanceArmed)
+                        state.mStanceReady = mClock + mSettings.mStanceGap;
                     state.mArmed = false;
+                    state.mStanceArmed = false;
                     state.mHelloReady = mClock + mSettings.mHelloReset;
                     mHelloFree = mClock + mSettings.mHelloGap;
                 }
