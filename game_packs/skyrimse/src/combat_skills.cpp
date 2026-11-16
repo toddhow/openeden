@@ -111,6 +111,9 @@ namespace game_skyrimse
         profile.mAbilityWeaponSpeed = 1.f;
         preparePerks(*player);
         applyPlayerEquipment(); // armour scales with the armour skills
+        mValueModsApplied = {}; // task 0240: the maxima above were written afresh, so nothing is applied on them
+        mValueModsDirty = true;
+        applyPlayerValueModifiers();
         const float gained = profile.mHealthMax - oldHealthMax;
         if (gained > 0.f)
         {

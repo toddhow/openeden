@@ -1138,6 +1138,7 @@ namespace game_skyrimse
     void SkyrimCombat::regenerate(float seconds)
     {
         const bool anyRate = anyRegenEffect(); // task 0238
+        applyPlayerValueModifiers(); // task 0240
         for (Fighter& f : mFighters)
         {
             if (!f.mReady || !f.mHasProfile || f.mDead)
@@ -1627,6 +1628,8 @@ namespace game_skyrimse
             result.mDamageAfter *= sneakMult;
         }
 
+        if (!bash)
+            applySkillPercent(attacker, swung, result); // task 0240
         // A bash deals no damage and no block stops it; a blow on a blocker goes through the block formula (task 0172).
         float damage = bash ? 0.f : result.mDamageAfter;
         bool blocked = false;
@@ -1702,6 +1705,8 @@ namespace game_skyrimse
         soundHit(writer, attacker, victim, blocked, bash); // task 0193
         if (!blocked && !bash)
             applyPoisonOnHit(writer, attacker, victim, hit); // task 0229
+        if (!blocked && !bash && after > 0.f)
+            notifyPlayerHit(attacker, victim); // task 0240
         if (mTrace)
             trace("COMBAT damage " + name(attacker.mSubject) + " -> " + name(victim.mSubject) + " before armour "
                 + fmt(result.mDamageBefore) + " after armour " + fmt(result.mDamageAfter) + " (mitigation "

@@ -662,6 +662,7 @@ namespace game_skyrimse
                 out.mUnarmedReach = race->mUnarmedReach;
                 out.mBodyMaterial = race->mBodyMaterial; // task 0193
                 out.mUnarmedImpactSet = race->mUnarmedImpactSet;
+                out.mAttackSpells = race->mAttackSpells; // task 0240
             }
         }
         return true;

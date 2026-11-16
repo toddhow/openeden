@@ -311,6 +311,26 @@
       "default": false
     },
     {
+      "key": "diseases",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "diseases test chance",
+      "type": "float",
+      "default": -1.0
+    },
+    {
+      "key": "diseases test infect",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "diseases seed",
+      "type": "int",
+      "default": 0
+    },
+    {
       "key": "sneak",
       "type": "bool",
       "default": false

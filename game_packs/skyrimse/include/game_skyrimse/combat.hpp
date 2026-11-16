@@ -29,6 +29,7 @@
 #include <game_skyrimse/magic_conditions.hpp>
 #include <game_skyrimse/magic_status.hpp>
 #include <game_skyrimse/progression.hpp>
+#include <game_skyrimse/value_modifiers.hpp>
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
@@ -248,6 +249,9 @@ namespace game_skyrimse
         /// Task 0212: the creature profile of the race (null for a person and with the setting off): its clips are the
         /// fighter's attack, reaction and death clips. Not owned (static).
         const CreatureProfile* mCreature = nullptr;
+        /// Task 0240: the spells the race's attacks carry (RACE ATKD +8, each once, in order): a creature's disease is one
+        /// of them. Empty for a person.
+        std::vector<FormId> mAttackSpells;
     };
 
     /// The bow draw speed of a fighter: bowDrawSpeed(weapon speed, test bonus), times the WeaponSpeedMult ability when
@@ -601,6 +605,20 @@ namespace game_skyrimse
         /// ability sums (damage resistance) and the resist lookups like the race's. A copy; replaces the last list.
         void setPlayerExtraAbilities(std::vector<FormId> spells);
 
+        // ---- task 0240 (diseases; combat_disease.cpp) ---------------------------------------------------------------
+        /// Told once for each landed, unblocked, non-bash blow of a non-player fighter on the player: the spells its race's
+        /// attacks carry and its placement reference. Empty by default: nothing of the combat changes.
+        using PlayerHitHook = std::function<void(const std::vector<FormId>& attackSpells, std::uint32_t attacker)>;
+        void setPlayerHitHook(PlayerHitHook hook) { mPlayerHitHook = std::move(hook); }
+        /// What long-lasting effects (a disease's) change in the player's numbers: the maxima and regeneration rates of
+        /// stamina and magicka are moved by the amounts (and moved back when this changes), a weapon skill's damage is
+        /// scaled by 1 + percent / 100 (never below 0). Applied once the player has a profile, again after every
+        /// progression sync (which rewrites the maxima), and when it changes.
+        void setPlayerValueModifiers(const PlayerValueModifiers& modifiers);
+        [[nodiscard]] const PlayerValueModifiers& playerValueModifiers() const { return mValueMods; }
+        /// The spells the player has now (his race's and extra abilities among them), a copy; empty before his profile.
+        [[nodiscard]] std::vector<FormId> playerSpells() const;
+
         // ---- task 0228: the powers of the player's race (RACE SPLO spells of type power or lesser power) ---------------
         /// What the magic runtime does with a power: its effects change the player's health, magicka or stamina or
         /// stagger or demoralise (Works); a modifier of a value the pack does not track is kept as a status for its
@@ -932,6 +950,9 @@ namespace game_skyrimse
             const MagicEffectRecord& record, bool unlistedPasses = false);
         [[nodiscard]] effectconditions::Participant effectParticipant(
             const Fighter& fighter, std::vector<FormId>& active, std::vector<FormId>& worn) const;
+        void notifyPlayerHit(const Fighter& attacker, const Fighter& victim); // task 0240 (combat_disease.cpp)
+        void applyPlayerValueModifiers(); // task 0240
+        void applySkillPercent(const Fighter& attacker, const WeaponRecord* weapon, MeleeHit& hit) const; // task 0240
         void applyPoisonOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
             const openeden::sdk::game::SweepHit& hit); // task 0229 (combat_poison.cpp)
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -1249,6 +1270,10 @@ namespace game_skyrimse
         std::vector<FormId> mStandRaceAbilities; ///< task 0225
         bool mRaceAbilitiesSet = false; ///< task 0225
         std::vector<FormId> mExtraAbilities; ///< task 0237
+        PlayerHitHook mPlayerHitHook; ///< task 0240
+        PlayerValueModifiers mValueMods; ///< task 0240: what was asked
+        PlayerValueModifiers mValueModsApplied; ///< what the profile carries now (0 after a progression rewrite)
+        bool mValueModsDirty = false;
         std::vector<FormId> mAppliedExtra; ///< task 0237: what the profile's spell list holds of them now
         std::vector<FormId> mNpcTestPerks;
         bool mPerksResolved = false;

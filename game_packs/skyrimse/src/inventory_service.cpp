@@ -345,10 +345,17 @@ namespace game_skyrimse::inventory
         if (equipInfoOf(item).mKind != EquipKind::Potion)
             return refuse(UseStatus::NotUsable, "not a potion");
         const float health = healthOf(item);
-        if (!(health > 0.f))
+        bool cures = false; // task 0240
+        if (mHooks.mIsCureEffect)
+            if (const ItemStat* const stat = mTable.item(item))
+                for (const ItemEffect& effect : stat->mEffects)
+                    cures = cures || mHooks.mIsCureEffect(effect.mEffect);
+        if (!(health > 0.f) && !cures)
             return refuse(UseStatus::NoHealing, "no instant health effect");
-        if (!mHooks.mApplyHealth || !mHooks.mApplyHealth(health))
+        if (health > 0.f && (!mHooks.mApplyHealth || !mHooks.mApplyHealth(health)))
             return refuse(UseStatus::Refused, "the health cannot be applied now");
+        if (cures && mHooks.mCureDisease)
+            mHooks.mCureDisease();
         const TransferStatus consumed = mModel.consume(kPlayerOwner, item, 1);
         if (mHooks.mLog)
             mHooks.mLog("INV use " + formatId(item) + ": health +" + std::to_string(health) + ", "

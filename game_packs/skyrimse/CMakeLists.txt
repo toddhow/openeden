@@ -29,6 +29,7 @@ openeden_add_game_pack(skyrimse
         src/map_markers.cpp
         src/rest.cpp
         src/stones.cpp
+        src/diseases.cpp
         src/travel.cpp
         src/services.cpp
         src/menus.cpp
@@ -88,6 +89,7 @@ openeden_add_game_pack(skyrimse
         src/combat_magic.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
+        src/combat_disease.cpp
         src/combat_scroll.cpp
         src/scroll.cpp
         src/actor_mechanics.cpp
@@ -280,6 +282,8 @@ add_library(game_skyrimse_world STATIC
     src/combat_magic.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp
+    src/combat_disease.cpp
+    src/diseases.cpp
     src/combat_scroll.cpp
     src/scroll.cpp
     src/actor_mechanics.cpp

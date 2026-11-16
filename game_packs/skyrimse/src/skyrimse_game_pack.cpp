@@ -21,6 +21,7 @@
 #include "game_skyrimse/worldbooks.hpp"
 #include "game_skyrimse/rest.hpp"
 #include "game_skyrimse/stones.hpp"
+#include "game_skyrimse/diseases.hpp"
 #include "game_skyrimse/travel.hpp"
 #include "game_skyrimse/menus.hpp"
 #include "game_skyrimse/presentation.hpp"
@@ -1054,6 +1055,7 @@ namespace game_skyrimse
                         mPapyrus->frame(dt);
                     syncFollowerAlias();
                     syncStones(); // task 0237
+                    syncDiseases(); // task 0240
                     if (mProgression != nullptr)
                         pollProgression(); // task 0200
                     if (mInventory != nullptr)
@@ -1227,6 +1229,9 @@ namespace game_skyrimse
                     wirePapyrusWorld(host, logger);
                     // Task 0237: standing stones and shrines (the Papyrus host's spells, messages and blessings)
                     startStones(host, logger);
+                    // Task 0240: diseases (a creature carries one with neutral combat and creatures), off unless
+                    // [extension.skyrimse] diseases
+                    startDiseases(host, logger);
                     // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
                     startCrafting(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
@@ -1467,6 +1472,10 @@ namespace game_skyrimse
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);
                 };
+                hooks.mCure = [this] {
+                    if (mDiseases != nullptr)
+                        (void)mDiseases->cure(); // task 0240: every temple blessing carries Cure Disease
+                };
                 mStones = std::make_unique<stones::StonesService>(std::move(hooks));
                 stones::StonesService* stonesPtr = mStones.get();
                 mPapyrus->host().setMessageSink(
@@ -1495,6 +1504,76 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "STONES standing stones and shrines are on");
             }
 
+            // Task 0240: diseases. A blow of a creature that carries one (the race attack spell is of type Disease)
+            // infects the player by a seeded roll; the penalties go to the combat rules, a cure potion or a temple
+            // shrine takes them away, and the infections are saved. Off unless [extension.skyrimse] diseases.
+            const PerkLibrary* diseaseLibrary()
+            {
+                const progression::SkillTable* skills = nullptr;
+                const PerkLibrary* perks = nullptr;
+                progression::Settings settings;
+                return mWorldView.progressionInputs(skills, perks, settings) ? perks : nullptr;
+            }
+
+            void startDiseases(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (settings == nullptr || !settings->getBool(kPackId, "diseases", false))
+                    return;
+                diseases::Settings options;
+                const float chance = settings->getFloat(kPackId, "diseases test chance", -1.f);
+                if (chance >= 0.f)
+                    options.mChance = chance; // a proof aid: 1 infects with every carrier blow
+                const int seed = settings->getInt(kPackId, "diseases seed", 0);
+                if (seed != 0)
+                    options.mSeed = static_cast<std::uint64_t>(static_cast<std::uint32_t>(seed));
+                const std::string infect = settings->getString(kPackId, "diseases test infect", "");
+                if (!infect.empty())
+                    mDiseaseTestInfect = static_cast<FormId>(std::strtoul(infect.c_str(), nullptr, 16));
+                diseases::DiseaseService::Hooks hooks;
+                hooks.mLibrary = [this]() { return diseaseLibrary(); };
+                hooks.mPlayerSpells = [this] { return mCellSource.combat().playerSpells(); };
+                hooks.mApply = [this](const PlayerValueModifiers& modifiers) {
+                    mCellSource.combat().setPlayerValueModifiers(modifiers);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mDiseases = std::make_unique<diseases::DiseaseService>(std::move(hooks), options);
+                diseases::DiseaseService* service = mDiseases.get();
+                mCellSource.combat().setPlayerHitHook(
+                    [service](const std::vector<FormId>& attackSpells, std::uint32_t attacker) {
+                        (void)service->onHit(attackSpells, attacker);
+                    });
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mDiseases->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the diseases bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                    if (!chunks->registerHandler(mDiseases->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the diseases chunk was not registered");
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info,
+                        "DISEASE diseases are on (chance " + std::to_string(options.mChance) + ")");
+            }
+
+            void syncDiseases()
+            {
+                if (mDiseases == nullptr)
+                    return;
+                if (mDiseaseTestInfect != kNullFormId)
+                {
+                    // a proof aid (the setting holds a hex form id): infects once the records are read
+                    if (mDiseases->infect(mDiseaseTestInfect) || mDiseases->has(mDiseaseTestInfect))
+                        mDiseaseTestInfect = kNullFormId;
+                }
+                mDiseases->poll();
+            }
+
             void syncStones()
             {
                 if (mStones == nullptr || mPapyrus == nullptr)
@@ -1517,6 +1596,8 @@ namespace game_skyrimse
                 if (mProgression != nullptr)
                     mProgression->setSkillUseScale({});
                 mStones.reset();
+                mCellSource.combat().setPlayerHitHook({}); // task 0240
+                mDiseases.reset();
                 mPapyrusBindings.reset();
                 mPapyrusHooks.reset();
             }
@@ -2137,6 +2218,14 @@ namespace game_skyrimse
                 };
                 hooks.mUsePoison = [this](FormId item) { return usePoisonOnWeapon(item); }; // task 0229
                 hooks.mUseScroll = [this](FormId item) { return useScroll(item); }; // task 0234
+                hooks.mIsCureEffect = [this](FormId effect) { // task 0240
+                    const PerkLibrary* library = mDiseases != nullptr ? diseaseLibrary() : nullptr;
+                    return library != nullptr && diseases::isCureDiseaseEffect(*library, effect);
+                };
+                hooks.mCureDisease = [this] {
+                    if (mDiseases != nullptr)
+                        (void)mDiseases->cure();
+                };
                 hooks.mApplyHealth = [this](float amount) {
                     // the combat rules must run (the engine's health is written through them)
                     return mCellSource.combat().updates() > 0 && mCellSource.combat().queuePlayerHeal(amount);
@@ -3564,6 +3653,8 @@ namespace game_skyrimse
             std::unique_ptr<rest::RestChunk> mRestChunk; // task 0210; refers to mRest's Rested state
             std::unique_ptr<harvest::HarvestService> mHarvest; // task 0221; refers to the view and the inventory
             std::unique_ptr<stones::StonesService> mStones; // task 0237; refers to the Papyrus driver
+            std::unique_ptr<diseases::DiseaseService> mDiseases; // task 0240; refers to the combat and the view
+            FormId mDiseaseTestInfect = kNullFormId; // task 0240: a test aid
             std::unique_ptr<mining::MiningService> mMining; // task 0224; refers to the view and the inventory
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared

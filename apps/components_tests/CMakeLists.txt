@@ -681,6 +681,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsemap.cpp
     skyrimse/testskyrimserest.cpp
     skyrimse/testskyrimsestones.cpp
+    skyrimse/testskyrimsediseases.cpp
+    skyrimse/testskyrimsediseasescombat.cpp
+    skyrimse/testskyrimsediseasesuse.cpp
     skyrimse/testskyrimsetravel.cpp
     skyrimse/testskyrimseservices.cpp
     skyrimse/testskyrimsecarriage.cpp
@@ -834,6 +837,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_magic.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_sneak.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_poison.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_disease.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/diseases.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp

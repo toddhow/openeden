@@ -45,6 +45,9 @@ return {
                     print(string.format('STN t %.1f stand at %.1f,%.1f facing %s at %.1f,%.1f,%.1f', t, px, py, s.base, p.x, p.y, p.z))
                     player:teleport(player.cell, util.vector3(px, py, p.z + (s.dz or 0)), { onGround = true, rotation = util.transform.rotateZ(yaw) })
                     player:sendEvent('StnPitch', { pitch = s.pitch or 0 })
+                    if s.activate then -- task 0240: activate it from the script (no key press needed)
+                        target:activateBy(player)
+                    end
                 end
             end
             if cfg.saveAt and not saved and t >= cfg.saveAt then

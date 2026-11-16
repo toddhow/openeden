@@ -86,6 +86,8 @@ namespace game_skyrimse::stones
             /// when it is a stone or shrine and its script was told.
             std::function<bool(FormId placement, FormId base)> mActivate;
             std::function<void(const std::string&)> mLog;
+            /// Task 0240: a spell cast on the player has a Cure Disease effect (a shrine's): the diseases go. May be empty.
+            std::function<void()> mCure;
         };
 
         explicit StonesService(Hooks hooks);

@@ -152,7 +152,10 @@ namespace game_skyrimse
         /// Task 0234: decoded from a SCRL (scroll.hpp): cost 0, cast type normalised, castable once by the player.
         bool mScroll = false;
         static constexpr std::uint32_t kTypeAbility = 4;
+        /// Task 0240: SPIT +8 is 1 for the 16 SPELs named Disease... of the five masters (VERIFIED, task 0240 survey).
+        static constexpr std::uint32_t kTypeDisease = 1;
         [[nodiscard]] bool isAbility() const { return mHasData && mType == kTypeAbility; }
+        [[nodiscard]] bool isDisease() const { return mHasData && mType == kTypeDisease; }
     };
 
     /// An MGEF, what an ability needs: DATA (152 bytes) flags +0, archetype +64, primary actor value +68.

@@ -1,5 +1,7 @@
 #include "game_skyrimse/stones.hpp"
 
+#include "game_skyrimse/diseases.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -284,6 +286,8 @@ namespace game_skyrimse::stones
         const PerkLibrary* library = mHooks.mLibrary ? mHooks.mLibrary() : nullptr;
         if (library == nullptr || target != 0x14 || library->spell(spell) == nullptr)
             return false;
+        if (mHooks.mCure && diseases::hasCureDisease(*library, spell))
+            mHooks.mCure(); // task 0240: every temple blessing carries Cure Disease
         const double duration = durationOf(*library, spell);
         if (!(duration > 0.0))
         {

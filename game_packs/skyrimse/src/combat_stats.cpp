@@ -238,6 +238,19 @@ namespace game_skyrimse
                 const FormId id = fields.resolved(readLe<std::uint32_t>(data.data()));
                 (type == Content::fourCC("NAM4") ? out.mBodyMaterial : out.mUnarmedImpactSet) = id;
             }
+            else if (type == Content::fourCC("ATKD"))
+            {
+                // Task 0240: the attack's spell (+8). A damaged entry is odd, never guessed at.
+                if (data.size() != 44)
+                {
+                    fields.odd(type);
+                    continue;
+                }
+                const FormId spell = fields.resolved(readLe<std::uint32_t>(data.data() + 8));
+                if (spell != kNullFormId && spell != kUnresolvedFormId && out.mAttackSpells.size() < 16
+                    && std::find(out.mAttackSpells.begin(), out.mAttackSpells.end(), spell) == out.mAttackSpells.end())
+                    out.mAttackSpells.push_back(spell);
+            }
             else if (type == Content::fourCC("DATA"))
             {
                 if (data.size() != kRaceDataBytes)

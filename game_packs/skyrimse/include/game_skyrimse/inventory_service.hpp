@@ -88,6 +88,12 @@ namespace game_skyrimse
             /// is consumed), -1 when it was refused (the combat rules are off or busy: nothing is consumed), 0
             /// when it does not know the item. May be empty (then a scroll is refused and kept).
             std::function<int(FormId item)> mUseScroll;
+            // ---- task 0240 (diseases)
+            /// Is this potion effect (an MGEF id) a Cure Disease effect? A potion with one is drunk although it restores no
+            /// health. May be empty.
+            std::function<bool(FormId effect)> mIsCureEffect;
+            /// The player drank a potion with a Cure Disease effect: the diseases go.
+            std::function<void()> mCureDisease;
         };
 
         [[nodiscard]] std::string formatId(std::uint64_t id); ///< 8 lower-case hex digits (more when needed)

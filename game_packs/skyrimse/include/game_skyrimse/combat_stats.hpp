@@ -111,6 +111,10 @@ namespace game_skyrimse
         float mUnarmedReach = 0.f; ///< +100 (Nord 96)
         FormId mBodyMaterial = kNullFormId; ///< task 0193: NAM4, the MATT of the body (Nord: MaterialSkin)
         FormId mUnarmedImpactSet = kNullFormId; ///< NAM5, the IPDS of the bare hands
+        /// Task 0240: the spells the race's attacks carry (ATKD, 44 bytes each, spell at +8: VERIFIED, the wolf's, the
+        /// skeever's and the bear's name a disease), each once, in order, at most 16. Empty for a race whose attacks
+        /// carry none.
+        std::vector<FormId> mAttackSpells;
     };
 
     /// A numeric GMST: the first letter of the editor id says the type (f float, i signed integer, b boolean as 0 or
