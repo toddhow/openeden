@@ -41,11 +41,15 @@ namespace game_skyrimse
         All, ///< every effect is one it applies
     };
     [[nodiscard]] bool scrollArchetypeApplied(std::uint32_t archetype);
+    /// Task 0250: the same with the summoning archetypes (Summon Creature and Reanimate) counted when `summons` is on.
+    [[nodiscard]] bool scrollArchetypeApplied(std::uint32_t archetype, bool summons);
 
     /// All, Some or None of the scroll's effects are ones the runtime applies; `effect` finds an MGEF by form id (null:
     /// unknown, which counts as not applied).
     [[nodiscard]] ScrollSupport classifyScroll(
         const SpellRecord& scroll, const std::function<const MagicEffectRecord*(FormId)>& effect);
+    [[nodiscard]] ScrollSupport classifyScroll(
+        const SpellRecord& scroll, const std::function<const MagicEffectRecord*(FormId)>& effect, bool summons);
 }
 
 #endif

@@ -1,0 +1,2 @@
+GLOBAL: scripts/dv/global.lua
+PLAYER: scripts/dv/player.lua

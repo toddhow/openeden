@@ -261,6 +261,26 @@
       "default": false
     },
     {
+      "key": "summons",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "summons max",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "key": "summons test kill",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "key": "summons test magicka",
+      "type": "float",
+      "default": 0.0
+    },
+    {
       "key": "held gear",
       "type": "bool",
       "default": false

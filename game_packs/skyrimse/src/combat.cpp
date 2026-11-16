@@ -994,6 +994,8 @@ namespace game_skyrimse
                 mBaseMitigationKnown = true;
             }
             applyRealGear(fighter); // task 0214 (nothing with the setting off)
+            if (fighter.mSubject.player && mTestPlayerMagicka > 0.f)
+                fighter.mProfile.mMagickaMax = mTestPlayerMagicka; // task 0250: a test aid
             fighter.mHealth = fighter.mProfile.mHealthMax;
             fighter.mStamina = fighter.mProfile.mStaminaMax;
             fighter.mMagicka = fighter.mProfile.mMagickaMax;
@@ -1006,6 +1008,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::onActorAdded(const openeden::sdk::game::ActorInfo& info)
     {
+        if (mSummonsOn && info.handle.valid())
+            summonArrived(info); // task 0250
         if (info.handle.valid())
         {
             // The same placement again with a new session replaces the old fighter (its state starts again).
@@ -1049,6 +1053,8 @@ namespace game_skyrimse
 
     void SkyrimCombat::onActorRemoved(ActorHandle handle)
     {
+        if (mSummonsOn)
+            summonGone(handle); // task 0250
         std::erase(mSwingers, handle);
         std::erase(mHostiles, handle);
         std::erase_if(mOpponents, [&](const auto& pair) { return pair.first == handle; });
@@ -2193,6 +2199,7 @@ namespace game_skyrimse
             if (crowdOn() && !mCrowdChosen && mClock >= mCrowdDelay)
                 chooseCrowd(writer);
             runStatuses(writer); // task 0233: paralysis, frenzy and fear end and drive here; inert with none running
+            tickSummons(writer); // task 0250: does nothing unless summons are on and one is conjured
             runAi(writer); // task 0190: does nothing unless `combat ai` is on, which also stops startHostiles
             startHostiles(writer);
             runPlayerSwing(writer);

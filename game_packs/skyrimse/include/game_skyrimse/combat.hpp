@@ -32,12 +32,14 @@
 #include <game_skyrimse/player_hands.hpp>
 #include <game_skyrimse/progression.hpp>
 #include <game_skyrimse/shouts.hpp>
+#include <game_skyrimse/summons.hpp>
 #include <game_skyrimse/value_modifiers.hpp>
 
 #include <openeden/game/actor_rules.hpp>
 #include <openeden/game/combat_rules.hpp>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -572,6 +574,17 @@ namespace game_skyrimse
         void setSpellVisuals(bool on) { mSpellVisuals = on; }
         /// Task 0242, off by default (see kCombatSpellDeliveryKey).
         void setSpellDelivery(bool on) { mSpellDelivery = on; }
+        /// Task 0250 (combat_summons.cpp): Summon Creature and Reanimate effects. Needs the delivery setting (Reanimate is
+        /// target actor delivery) and the hooks; off by default.
+        void setSummons(bool on) { mSummonsOn = on; }
+        void setSummonHooks(SummonHooks hooks) { mSummonHooks = std::move(hooks); }
+        void setMaxSummons(std::size_t n) { mMaxSummons = n > 0 ? n : 1; }
+        /// A test aid (`summons test kill = <editor id>`): the named actor dies kSummonTestKillSeconds after the data was
+        /// read, so a scenario has a corpse to raise. Lower case is applied here.
+        void setTestKill(std::string_view editorId);
+        /// A test aid (`summons test magicka`): the stand-in player's maximum magicka (0: the stand-in's 100).
+        void setTestPlayerMagicka(float magicka) { mTestPlayerMagicka = std::isfinite(magicka) ? magicka : 0.f; }
+        [[nodiscard]] const SummonLedger& summons() const { return mSummons; }
         [[nodiscard]] std::size_t runesStanding() const { return mRunes.size(); }
         [[nodiscard]] std::size_t runesSetOff() const { return mRunesSetOff; }
         [[nodiscard]] std::size_t explosions() const { return mExplosionsDone; }
@@ -1358,6 +1371,26 @@ namespace game_skyrimse
         };
         std::vector<Rune> mRunes; ///< task 0242
         bool mSpellDelivery = false;
+        // Task 0250 (combat_summons.cpp). Every entry point does nothing while mSummonsOn is false.
+        bool mSummonsOn = false;
+        std::size_t mMaxSummons = kDefaultMaxSummons;
+        std::uint32_t mSummonCount = 0; ///< summons made: the pick of a leveled list
+        std::string mTestKill; ///< lower case; cleared once the actor was killed
+        float mTestPlayerMagicka = 0.f;
+        SummonHooks mSummonHooks;
+        SummonLedger mSummons;
+        bool applySummonEffect(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster,
+            const SpellRecord& spell, const SpellEffect& effect, const MagicEffectRecord& record);
+        bool reanimateInSights(
+            openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, const SpellRecord& spell);
+        void tickSummons(openeden::sdk::game::CombatRequestWriter& writer);
+        void summonArrived(const openeden::sdk::game::ActorInfo& info);
+        void summonGone(openeden::sdk::game::ActorHandle handle);
+        void dismissSummon(openeden::sdk::game::CombatRequestWriter* writer, openeden::sdk::game::WorldId reference,
+            const char* why);
+        [[nodiscard]] const Fighter* summonMasterFighter(const Fighter& fighter) const;
+        [[nodiscard]] bool spellReanimates(const SpellRecord& spell) const;
+        [[nodiscard]] bool spellSummons(const SpellRecord& spell) const; ///< a Summon Creature effect, summons on
         std::size_t mRunesSetOff = 0;
         std::size_t mExplosionsDone = 0;
         std::vector<TestCaster> mTestCasters;

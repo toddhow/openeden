@@ -186,6 +186,9 @@ namespace openeden::extension
             float fadeSeconds) override;
         [[nodiscard]] openeden::sdk::game::WorldId placeObject(openeden::sdk::game::WorldCellSource& source,
             openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype) override;
+        /// Task 0250: a created actor (see WorldSourceService::placeActor).
+        [[nodiscard]] openeden::sdk::game::WorldId placeActor(openeden::sdk::game::WorldCellSource& source,
+            openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype) override;
         /// Moves the queued operations, in order, to the end of out and empties the queue. Returns how many.
         std::size_t takeObjectOps(std::vector<ObjectOp>& out);
         /// The index the next created object gets (1 at first); a load sets it from the save so that no id is minted

@@ -2,6 +2,7 @@
 #include "game_skyrimse/scroll.hpp"
 
 #include "game_skyrimse/magic.hpp"
+#include "game_skyrimse/summons.hpp"
 
 namespace game_skyrimse
 {
@@ -40,14 +41,27 @@ namespace game_skyrimse
 
 namespace game_skyrimse
 {
+    bool scrollArchetypeApplied(std::uint32_t archetype, bool summons)
+    {
+        if (summons && (archetype == SummonArchetype::SummonCreature || archetype == SummonArchetype::Reanimate))
+            return true;
+        return scrollArchetypeApplied(archetype);
+    }
+
     ScrollSupport classifyScroll(
         const SpellRecord& scroll, const std::function<const MagicEffectRecord*(FormId)>& effect)
+    {
+        return classifyScroll(scroll, effect, false);
+    }
+
+    ScrollSupport classifyScroll(
+        const SpellRecord& scroll, const std::function<const MagicEffectRecord*(FormId)>& effect, bool summons)
     {
         std::size_t applied = 0;
         for (const SpellEffect& e : scroll.mEffects)
         {
             const MagicEffectRecord* record = effect ? effect(e.mEffect) : nullptr;
-            if (record != nullptr && record->mHasData && scrollArchetypeApplied(record->mArchetype))
+            if (record != nullptr && record->mHasData && scrollArchetypeApplied(record->mArchetype, summons))
                 ++applied;
         }
         if (applied == 0)

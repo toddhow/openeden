@@ -142,5 +142,21 @@ namespace openeden::sdk::game
             (void)prototype;
             return kNoWorldId;
         }
+
+        /// Task 0250 (additive: a new virtual at the END; the service's version number is NOT changed, the pinned
+        /// 1.3 stays). Creates a new ACTOR (a conjured creature, a raised corpse) in the loaded cell that holds
+        /// `prototype.transform.position`; `cellHint` is the pack's id of an interior cell and may be kNoWorldId for an
+        /// exterior (the host finds the grid square by position). `prototype.kind` must be ObjectKind::Actor. The
+        /// engine builds the actor as it builds a placed one and does NOT save it or rebuild it when the cell is loaded
+        /// again; take it out again with setObjectEnabled(false). Same queue and id range as placeObject; kNoWorldId
+        /// when the host cannot (a host built before this call: the default).
+        [[nodiscard]] virtual WorldId placeActor(
+            WorldCellSource& source, WorldId cellHint, const WorldObject& prototype)
+        {
+            (void)source;
+            (void)cellHint;
+            (void)prototype;
+            return kNoWorldId;
+        }
     };
 }

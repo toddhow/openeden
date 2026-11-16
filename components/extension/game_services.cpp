@@ -268,6 +268,36 @@ namespace openeden::extension
         return id;
     }
 
+    openeden::sdk::game::WorldId WorldSourceServiceImpl::placeActor(openeden::sdk::game::WorldCellSource& source,
+        openeden::sdk::game::WorldId cellHint, const openeden::sdk::game::WorldObject& prototype)
+    {
+        using namespace openeden::sdk::game;
+        const Entry* entry = entryOf(source);
+        if (entry == nullptr || prototype.base == kNoWorldId || prototype.kind != ObjectKind::Actor)
+            return kNoWorldId;
+        if (!finiteVec(prototype.transform.position) || !usableRotation(prototype.transform.rotation)
+            || !(prototype.transform.scale > 0.0) || !std::isfinite(prototype.transform.scale))
+            return kNoWorldId;
+        if (mObjectOps.size() >= kMaxPendingObjectChanges)
+        {
+            ++mDroppedObjectChanges;
+            return kNoWorldId;
+        }
+        if (mNextCreatedIndex > kMaxCreatedObjects)
+            return kNoWorldId;
+        const WorldId id = kCreatedObjectBase + mNextCreatedIndex;
+        ++mNextCreatedIndex;
+        ObjectOp op;
+        op.kind = ObjectOp::Kind::Place;
+        op.gameId = entry->mGameId;
+        op.cell = cellHint;
+        op.placement = id;
+        op.object = prototype;
+        op.object.id = id;
+        mObjectOps.push_back(std::move(op));
+        return id;
+    }
+
     std::size_t WorldSourceServiceImpl::takeObjectOps(std::vector<ObjectOp>& out)
     {
         const std::size_t count = mObjectOps.size();

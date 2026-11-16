@@ -168,6 +168,9 @@ namespace game_skyrimse
         std::int32_t mPrimaryValue = -1;
         /// Task 0200: DATA +12, the skill the effect trains (an actor value 18 to 22), -1 for none (VERIFIED).
         std::int32_t mAssociatedSkill = -1;
+        /// Task 0250: DATA +8, the associated form (an NPC_ or a leveled NPC list for Summon Creature, resolved; 0 when
+        /// none). VERIFIED by the data (`SkyrimSummonsReal`): every Summon Creature effect names one.
+        FormId mAssociatedItem = kNullFormId;
         // Task 0186: +4 base cost, +16 resist actor value, +60 secondary weight, +72 projectile, +80 casting type, +84
         // delivery, +88 secondary actor value.
         float mBaseCost = 0.f;

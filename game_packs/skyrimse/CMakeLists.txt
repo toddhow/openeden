@@ -98,6 +98,8 @@ openeden_add_game_pack(skyrimse
         src/combat_disease.cpp
         src/combat_race_effects.cpp
         src/combat_scroll.cpp
+        src/combat_summons.cpp
+        src/summons.cpp
         src/combat_delivery.cpp
         src/scroll.cpp
         src/combat_shout.cpp
@@ -308,6 +310,8 @@ add_library(game_skyrimse_world STATIC
     src/combat_race_effects.cpp
     src/diseases.cpp
     src/combat_scroll.cpp
+    src/combat_summons.cpp
+    src/summons.cpp
     src/combat_delivery.cpp
     src/scroll.cpp
     src/combat_shout.cpp

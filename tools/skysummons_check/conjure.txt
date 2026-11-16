@@ -1,0 +1,3 @@
+# one tap of the attack control casts the player's spell (Conjure Familiar or Raise Zombie)
+3000 down L 640 360
+3004 up L 640 360

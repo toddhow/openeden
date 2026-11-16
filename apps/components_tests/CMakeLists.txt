@@ -331,6 +331,7 @@ file(GLOB UNITTEST_SRC_FILES
     extension/test_world_source_service.cpp
     extension/test_object_enable_queue.cpp
     extension/test_object_ops_queue.cpp
+    extension/test_place_actor.cpp
     extension/test_session_content.cpp
     extension/test_crafting_contract.cpp
     inertialmotion/test_locomotion_state.cpp
@@ -608,6 +609,8 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsescrollsreal.cpp
     skyrimse/testskyrimsespelldelivery.cpp
     skyrimse/testskyrimsespelldeliveryreal.cpp
+    skyrimse/testskyrimsesummons.cpp
+    skyrimse/testskyrimsesummonsreal.cpp
     skyrimse/testskyrimsepickup.cpp
     skyrimse/testskyrimsepickupservice.cpp
     skyrimse/testskyrimseharvest.cpp
@@ -876,6 +879,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_race_effects.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/diseases.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_scroll.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_summons.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/summons.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_delivery.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/scroll.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_shout.cpp

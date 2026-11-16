@@ -949,6 +949,9 @@ namespace MWWorld
                     // Task 0202: an object a script created is saved whole (a deleted one is left out)
                     if (live.mRef.getCount(false) == 0)
                         return;
+                    // Task 0250: a summon or a raised corpse is made by the pack's magic and is not saved
+                    if (object->kind == openeden::sdk::game::ObjectKind::Actor)
+                        return;
                     NeutralObjectNow created;
                     created.mPosition = live.mData.getPosition();
                     created.mScale = live.mRef.getScale();

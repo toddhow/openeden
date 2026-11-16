@@ -462,6 +462,12 @@ namespace game_skyrimse
         {
             mPlaceSink = std::move(sink);
         }
+        /// Task 0250: the cell a summon of the player is placed in (an interior's id; none outside, the core finds the
+        /// grid square by position).
+        [[nodiscard]] openeden::sdk::game::WorldId playerInteriorCell() const
+        {
+            return mHavePlayerPlace && mPlayerPlace.interior ? mPlayerPlace.cell : openeden::sdk::game::kNoWorldId;
+        }
         void onPlayerPlace(const openeden::sdk::game::PlayerPlace& place) override
         {
             mPlayerPlace = place; // task 0238: the effect conditions' IsInInterior and GetInWorldspace

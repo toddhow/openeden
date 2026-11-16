@@ -677,6 +677,12 @@ namespace game_skyrimse
                 return;
             case MagicArchetype::AccumulateMagnitude:
                 return; // a ward is charged by its concentration (tickConcentrations)
+            case SummonArchetype::SummonCreature: // task 0250
+                if (applySummonEffect(writer, caster, spell, effect, record))
+                    return;
+                trace("COMBAT effect " + record.mCommon.mEditorId + ": archetype " + std::to_string(archetype)
+                    + " is not supported");
+                return;
             default:
                 trace("COMBAT effect " + record.mCommon.mEditorId + ": archetype " + std::to_string(archetype)
                     + " is not supported");
@@ -1027,6 +1033,17 @@ namespace game_skyrimse
             trace("COMBAT cast " + name + " by " + who(cast.mCaster) + " cost " + num(cost) + " magicka "
                 + num(f->mMagicka) + " of " + num(f->mProfile.mMagickaMax));
         }
+        if (spellSummons(spell))
+        {
+            // Task 0250: a conjure spell's delivery is "target location" in the data, but the creature appears ahead of
+            // the caster, not where a projectile lands: the effects go to the caster, which is the summon's master.
+            applySpellEffects(writer, *f, *f, spell, nullptr);
+            return;
+        }
+        // Task 0250: Raise Zombie and the others are aimed (delivery 2) or target actor (3) in the data, but their target
+        // is a corpse the ray of a living-actor spell never finds: the pack picks the nearest one in front.
+        if (spellReanimates(spell) && reanimateInSights(writer, *f, spell))
+            return;
         if (spell.mDelivery == MagicDelivery::Self)
         {
             if (isPowerType(spell))

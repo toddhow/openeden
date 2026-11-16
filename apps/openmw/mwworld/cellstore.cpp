@@ -969,6 +969,9 @@ namespace MWWorld
         const Store<NeutralBase>& bases = mStore.get<NeutralBase>();
         for (const openeden::sdk::game::WorldObject& object : mNeutralCell->objects)
         {
+            // Task 0250: an actor the pack's magic made (a summon, a raised corpse) is gone when the cell is rebuilt
+            if (object.kind == openeden::sdk::game::ObjectKind::Actor && mNeutralCreated.count(object.id) != 0)
+                continue;
             std::string error;
             ESM::CellRef ref;
             if (!makeNeutralCellRef(mNeutralGameId, object, ref, error))

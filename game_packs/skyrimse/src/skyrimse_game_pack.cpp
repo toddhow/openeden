@@ -3625,6 +3625,55 @@ namespace game_skyrimse
             // on a worker thread (task 0109, decision 2): start() returns at once and the view's queries wait for the
             // worker if they come first (SkyrimWorldView, threading note). Plugins the view refuses are named once and
             // left out. Thread: this function runs on the main thread; the completion function runs on the worker.
+            // Task 0250: what the combat's summon code asks of the world. The actor is a created object of the actor
+            // kind (the ordered object queue of SDK 1.3: the engine builds the actor as it builds a placed one and
+            // does not save it), hidden again through the enable queue; following the player is the actor table's.
+            SummonHooks makeSummonHooks(openeden::sdk::game::WorldSourceService* sources)
+            {
+                using openeden::sdk::game::WorldId;
+                SummonHooks hooks;
+                hooks.resolveBase = [this](SummonFormId associated, std::uint16_t level, std::uint32_t pick) {
+                    return static_cast<SummonFormId>(mWorldView.summonBase(associated, level, pick));
+                };
+                hooks.place = [this, sources](SummonFormId base, double x, double y, double z, float heading) -> WorldId {
+                    openeden::sdk::game::PlacedObject placed;
+                    if (!mWorldView.describeBase(base, placed) || placed.baseKind != openeden::sdk::game::BaseKind::Actor)
+                        return openeden::sdk::game::kNoWorldId;
+                    placed.position = { static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) };
+                    placed.rotation = { 0.f, 0.f, heading };
+                    placed.scale = 1.f;
+                    openeden::sdk::game::WorldObject object;
+                    std::string problem;
+                    if (!toNeutral(placed, object, problem))
+                        return openeden::sdk::game::kNoWorldId;
+                    const WorldId cell = mCellSource.playerInteriorCell();
+                    const WorldId id = sources->placeActor(mCellSource, cell, object);
+                    if (id != openeden::sdk::game::kNoWorldId)
+                        mSummonCells[id] = cell;
+                    return id;
+                };
+                hooks.remove = [this, sources](WorldId reference) {
+                    WorldId cell = openeden::sdk::game::kNoWorldId;
+                    const auto made = mSummonCells.find(reference);
+                    if (made != mSummonCells.end())
+                    {
+                        cell = made->second;
+                        mSummonCells.erase(made);
+                    }
+                    else if (const PlacedRefIndex* refs = mWorldView.placedRefs())
+                        if (const PlacedEntry* entry = refs->find(static_cast<FormId>(reference)))
+                            cell = entry->mCell;
+                    (void)sources->setObjectEnabled(mCellSource, cell, reference, false);
+                };
+                hooks.follow = [this](WorldId reference, bool follow) {
+                    if (follow)
+                        (void)mCellSource.actorTable().recruit(reference);
+                    else
+                        (void)mCellSource.actorTable().dismiss(reference);
+                };
+                return hooks;
+            }
+
             void loadSessionContent(openeden::sdk::Host& host, openeden::sdk::game::WorldSourceService& sources,
                 openeden::sdk::Logger* logger)
             {
@@ -3807,6 +3856,18 @@ namespace game_skyrimse
                         mWorldView.setCreatures(true);
                         say(openeden::sdk::LogLevel::Info,
                             "creatures: on (" + std::to_string(creatureProfilesAll().size()) + " creatures)");
+                    }
+                    // Task 0250: Summon Creature and Reanimate (off by default; needs `combat spell delivery`).
+                    if (settings->getBool(kPackId, kSummonsKey, false))
+                    {
+                        mCellSource.combat().setSummons(true);
+                        mCellSource.combat().setSummonHooks(makeSummonHooks(&sources));
+                        mCellSource.combat().setMaxSummons(static_cast<std::size_t>(
+                            std::max(1, settings->getInt(kPackId, kSummonsMaxKey, static_cast<int>(kDefaultMaxSummons)))));
+                        mCellSource.combat().setTestKill(settings->getString(kPackId, kSummonsTestKillKey, ""));
+                        mCellSource.combat().setTestPlayerMagicka(
+                            settings->getFloat(kPackId, kSummonsTestMagickaKey, 0.f));
+                        say(openeden::sdk::LogLevel::Info, "summons: on");
                     }
                     // Task 0222: the player has a Skyrim body (off by default; the core also needs [Game] neutral player body).
                     if (settings->getBool(kPackId, kPlayerBodyKey, false))
@@ -3994,6 +4055,7 @@ namespace game_skyrimse
             CombatHudBindings mHudBindings{ mCellSource.hud() }; // task 0180; refers to the cell source's HUD
             openeden::sdk::game::WorldViewService* mWorldViews = nullptr;
             openeden::sdk::game::WorldSourceService* mWorldSources = nullptr;
+            std::map<openeden::sdk::game::WorldId, openeden::sdk::game::WorldId> mSummonCells; ///< task 0250: made actor -> hint
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<services::ServicesService> mServices; // task 0219; the lambdas refer to the pack

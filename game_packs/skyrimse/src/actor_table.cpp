@@ -1,5 +1,7 @@
 #include <game_skyrimse/actor_table.hpp>
 
+#include <openeden/game/world_source_service.hpp>
+
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
@@ -242,7 +244,11 @@ namespace game_skyrimse
     {
         std::vector<FollowerEntry> out;
         for (const openeden::sdk::game::WorldId id : followerIds())
+        {
+            if (id >= openeden::sdk::game::kCreatedObjectBase)
+                continue; // task 0250: a summon or a raised corpse is not saved, so it is not a saved follower either
             out.push_back({ id, homeCell(id) });
+        }
         return out;
     }
 

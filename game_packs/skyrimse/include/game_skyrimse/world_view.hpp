@@ -665,6 +665,10 @@ namespace game_skyrimse
         /// scale.
         /// False for a form that is not a known base (a placed reference, a quest, a missing id). Main thread.
         [[nodiscard]] bool describeBase(FormId base, openeden::sdk::game::PlacedObject& out) const;
+        /// Task 0250: the NPC_ a summon effect's associated form names: the form itself when it is an NPC_, or the
+        /// entry a leveled NPC list picks for `level` (`pick` chooses among equals; nested lists are followed to depth
+        /// 4); 0 when it names neither. Reads the actor index (main thread only).
+        [[nodiscard]] FormId summonBase(FormId associated, std::uint16_t level, std::uint32_t pick);
         /// Task 0187: the quest of a scripted INFO (its QNAM, else its topic's); 0 for any other form.
         [[nodiscard]] FormId questOfInfo(FormId info) const;
         /// Task 0187: the location (LCTN, by the cell's XLCN) and interior flag of a cell the view has indexed; false

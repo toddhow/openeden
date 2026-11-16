@@ -3081,6 +3081,26 @@ namespace game_skyrimse
         return name->mPresent ? name->mText : std::string();
     }
 
+    FormId SkyrimWorldView::summonBase(FormId associated, std::uint16_t level, std::uint32_t pick)
+    {
+        if (associated == kNullFormId || associated == kUnresolvedFormId || !awaitIndex() || !ensureActorIndex())
+            return kNullFormId;
+        FormId current = associated;
+        for (int depth = 0; depth < 4; ++depth)
+        {
+            if (mActorIndex->npc(current) != nullptr)
+                return current;
+            const LeveledList* list = mActorIndex->leveledList(current);
+            if (list == nullptr || !list->mIsNpcList)
+                return kNullFormId;
+            const LeveledEntry* entry = mActorIndex->pickLeveled(current, level, pick);
+            if (entry == nullptr)
+                return kNullFormId;
+            current = entry->mReference;
+        }
+        return kNullFormId;
+    }
+
     bool SkyrimWorldView::describeBase(FormId base, sdkgame::PlacedObject& out) const
     {
         if (base == kNullFormId || base == kUnresolvedFormId || mBases.find(base) == mBases.end())

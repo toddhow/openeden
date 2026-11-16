@@ -873,6 +873,8 @@ namespace game_skyrimse
         // so that a scenario can arrange the street first.
         if (mClock >= mCrowdDelay && isTestAttacker(fighter.mSubject.actor))
             party.mAggression = 3;
+        if (summonMasterFighter(fighter) != nullptr) // task 0250: a summon of an NPC fights for it
+            party.mAggression = 3;
         return party;
     }
 
@@ -881,6 +883,17 @@ namespace game_skyrimse
         using openeden::sdk::game::ActorRelation;
         if (a.mSubject == b.mSubject)
             return ActorRelation::Ally;
+        if (mSummonsOn) // task 0250: a summon of an NPC takes its master's relations and is its friend
+        {
+            const Fighter* masterA = summonMasterFighter(a);
+            const Fighter* masterB = summonMasterFighter(b);
+            if (masterA == &b || masterB == &a || (masterA != nullptr && masterA == masterB))
+                return ActorRelation::Ally;
+            if (masterA != nullptr)
+                return relationOf(*masterA, b);
+            if (masterB != nullptr)
+                return relationOf(a, *masterB);
+        }
         // The test duels name their opponents.
         if (!a.mSubject.player && !b.mSubject.player)
             for (const auto& pair : mOpponents)

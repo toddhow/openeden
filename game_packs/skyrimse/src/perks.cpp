@@ -549,6 +549,9 @@ namespace game_skyrimse
                     out.mPrimaryValue = readLe<std::int32_t>(data.data() + 68);
                     out.mBaseCost = readLe<float>(data.data() + 4);
                     out.mAssociatedSkill = readLe<std::int32_t>(data.data() + 12);
+                    out.mAssociatedItem = readLe<std::uint32_t>(data.data() + 8) == 0
+                        ? kNullFormId
+                        : fields.resolved(readLe<std::uint32_t>(data.data() + 8)); // task 0250
                     out.mResistValue = readLe<std::int32_t>(data.data() + 16);
                     out.mSecondaryWeight = readLe<float>(data.data() + 60);
                     out.mProjectile = readLe<std::uint32_t>(data.data() + 72) == 0
