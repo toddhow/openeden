@@ -4,6 +4,7 @@
 #include "game_skyrimse/actor_mechanics.hpp"
 #include "game_skyrimse/barter_service.hpp"
 #include "game_skyrimse/inventory_service.hpp"
+#include "game_skyrimse/crafting_service.hpp"
 #include "game_skyrimse/journal.hpp"
 #include "game_skyrimse/load_order_stamp.hpp"
 #include "game_skyrimse/map.hpp"
@@ -659,6 +660,8 @@ namespace game_skyrimse
                         (void)mInventory->poll(); // starts and adopts the item table reader; never waits
                         if (mBarter != nullptr)
                             mBarter->poll(); // task 0189: a pending barter session asks again
+                        if (mCrafting != nullptr)
+                            mCrafting->poll(); // task 0199: reads the crafting records, registers made items
                         syncEquipment();
                     }
                 });
@@ -761,6 +764,8 @@ namespace game_skyrimse
                     // Task 0189: the barter session (the namespace skyrimse.barter); needs the inventory.
                     startBarter(host, logger);
                     wirePapyrusWorld(host, logger);
+                    // Task 0199: alchemy, smithing and enchanting (namespace skyrimse.crafting); needs the inventory.
+                    startCrafting(host, logger);
                     // Task 0185: the quest journal's bindings, off unless [extension.skyrimse] journal.
                     startJournal(host, logger);
                     // Task 0201: the compass and world map's bindings, off unless [extension.skyrimse] map.
@@ -1116,7 +1121,8 @@ namespace game_skyrimse
                 // Task 0184: the armour's slots, the potion's health and the heal itself.
                 hooks.mEquipInfo = [this](FormId item, inventory::EquipInfo& out) {
                     ArmourPiece piece;
-                    if (!mWorldView.armourPieceById(item, piece))
+                    // task 0199: tempered or enchanted armour wears in the slots of its base
+                    if (!mWorldView.armourPieceById(mCrafting != nullptr ? mCrafting->baseOf(item) : item, piece))
                         return false;
                     out = { inventory::EquipKind::Armor, piece.mSlotMask };
                     return true;
@@ -1308,6 +1314,79 @@ namespace game_skyrimse
                     logger->log(openeden::sdk::LogLevel::Info, "BARTER the barter service is on");
             }
 
+            // Task 0199: crafting over the inventory (on whenever the setting `crafting` and the inventory are).
+            void startCrafting(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
+            {
+                const openeden::sdk::SettingsService* settings = host.getSettingsService();
+                if (mInventory == nullptr || settings == nullptr || !settings->getBool(kPackId, "crafting", false))
+                    return;
+                mCraftLogger = logger;
+                crafting::CraftingHooks hooks;
+                hooks.mInputs = [this](inventory::Inputs& out) {
+                    return mWorldView.inventoryInputs(out.mPaths, out.mOrder, out.mLeveled);
+                };
+                hooks.mName = [this](FormId id) { return mWorldView.displayNameOf(id); };
+                hooks.mEffectInfo = [this](FormId effect) {
+                    crafting::EffectInfo info;
+                    std::uint32_t flags = 0, archetype = 0;
+                    float cost = 0.f;
+                    std::int32_t primary = -1;
+                    constexpr std::int32_t kHealthValue = 24; // the Health actor value (RECALLED-VERIFY, as combat)
+                    constexpr std::uint32_t kHostile = 0x1, kDetrimental = 0x4; // MGEF DATA flags (RECALLED-VERIFY)
+                    if (!mWorldView.magicEffectData(effect, flags, cost, archetype, primary))
+                        return info;
+                    info.mFound = true;
+                    info.mBaseCost = cost;
+                    info.mHostile = (flags & (kHostile | kDetrimental)) != 0;
+                    info.mDamageHealth = info.mHostile && archetype == 0 && primary == kHealthValue;
+                    return info;
+                };
+                const int alchemy = settings->getInt(kPackId, "crafting alchemy skill", 15);
+                const int smithing = settings->getInt(kPackId, "crafting smithing skill", 15);
+                const int enchanting = settings->getInt(kPackId, "crafting enchanting skill", 15);
+                hooks.mSkill = [alchemy, smithing, enchanting](std::string_view skill) {
+                    const int v = skill == "alchemy" ? alchemy : skill == "smithing" ? smithing : enchanting;
+                    return static_cast<float>(std::clamp(v, 0, 100));
+                };
+                // A skills system may set mCraftingSkillSink; the log line is always written.
+                hooks.mSkillUsed = [this, logger](std::string_view skill, float amount) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info,
+                            "CRAFT skill used: " + std::string(skill) + " +" + std::to_string(amount));
+                    if (mCraftingSkillSink)
+                        mCraftingSkillSink(skill, amount);
+                };
+                hooks.mLog = [logger](const std::string& line) {
+                    if (logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Info, line);
+                };
+                mCrafting = std::make_unique<crafting::CraftingService>(*mInventory, std::move(hooks),
+                    crafting::CraftingSettings(), settings->getBool(kPackId, "crafting ignore conditions", false),
+                    settings->getBool(kPackId, "crafting test bench", false));
+                if (openeden::sdk::BindingsService* const bindings = host.getBindingsService())
+                {
+                    const openeden::sdk::DeclareResult declared = mCrafting->declare(*bindings);
+                    if (!declared.ok && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning,
+                            "the crafting bindings were refused: " + declared.message);
+                }
+                if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
+                {
+                    mCrafting->chunk().setRefusalSink([logger](const std::string& reason) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Error, "the save is refused: " + reason);
+                    });
+                    mCrafting->chunk().setRestoredSink([logger](const std::string& what) {
+                        if (logger != nullptr)
+                            logger->log(openeden::sdk::LogLevel::Info, "CRAFT chunk " + what);
+                    });
+                    if (!chunks->registerHandler(mCrafting->chunk()) && logger != nullptr)
+                        logger->log(openeden::sdk::LogLevel::Warning, "the crafting chunk was not registered");
+                }
+                if (logger != nullptr)
+                    logger->log(openeden::sdk::LogLevel::Info, "CRAFT the crafting service is on");
+            }
+
             // Task 0184: what the player wields and wears reaches the combat rules whenever it changes. A weapon whose
             // record is not read yet (the combat records load on a worker) is looked up again next frame.
             void syncEquipment()
@@ -1322,22 +1401,42 @@ namespace game_skyrimse
                     if (worn.mKind == inventory::EquipKind::Weapon)
                     {
                         const WeaponRecord* weapon = nullptr;
-                        if (!mWorldView.lookupWeapon(worn.mItem, weapon))
+                        // task 0199: made (tempered, enchanted) gear reads as its base with the changed numbers
+                        const FormId weaponBase = mCrafting != nullptr ? mCrafting->baseOf(worn.mItem) : worn.mItem;
+                        if (!mWorldView.lookupWeapon(weaponBase, weapon))
                             pending = true;
+                        else if (weapon != nullptr && mCrafting != nullptr
+                            && mCrafting->weaponFor(worn.mItem, *weapon, mMadeWeapon))
+                            equipment.mWeapon = &mMadeWeapon;
                         else
                             equipment.mWeapon = weapon;
                     }
                     else
                     {
                         ArmourPiece piece;
-                        if (mWorldView.armourPieceById(worn.mItem, piece))
+                        const FormId armourBase = mCrafting != nullptr ? mCrafting->baseOf(worn.mItem) : worn.mItem;
+                        if (mWorldView.armourPieceById(armourBase, piece))
+                        {
+                            if (mCrafting != nullptr)
+                                (void)mCrafting->armourFor(worn.mItem, piece); // task 0199
                             equipment.mPieces.push_back(std::move(piece));
+                        }
                     }
                 }
+                if (pending && !mEquipPending && mCraftLogger != nullptr && mCrafting != nullptr)
+                    mCraftLogger->log(
+                        openeden::sdk::LogLevel::Info, "CRAFT combat equipment: the weapon record is not read yet");
                 mEquipPending = pending;
                 if (pending)
                     return;
                 mEquipSynced = revision;
+                // task 0199: what the combat rules read of the made gear
+                if (mCraftLogger != nullptr && mCrafting != nullptr)
+                    mCraftLogger->log(openeden::sdk::LogLevel::Info,
+                        "CRAFT combat equipment: weapon damage "
+                            + (equipment.mWeapon != nullptr ? std::to_string(equipment.mWeapon->mDamage)
+                                                            : std::string("none"))
+                            + ", " + std::to_string(equipment.mPieces.size()) + " armour pieces");
                 mCellSource.combat().setPlayerEquipment(std::move(equipment));
             }
 
@@ -1696,6 +1795,10 @@ namespace game_skyrimse
             LoadOrderStamp mLoadOrderStamp; // task 0177; registered with the host's save chunks, forgotten before stop
             std::unique_ptr<inventory::InventoryService> mInventory; // task 0182; refers to the world view
             std::unique_ptr<barter::BarterService> mBarter; // task 0189; refers to the inventory and the world view
+            std::unique_ptr<crafting::CraftingService> mCrafting; // task 0199; refers to the inventory
+            openeden::sdk::Logger* mCraftLogger = nullptr; // task 0199
+            WeaponRecord mMadeWeapon; // task 0199: the combat record of the wielded made weapon (combat points at it)
+            std::function<void(std::string_view, float)> mCraftingSkillSink; // task 0199: a skills system may set it
             std::unique_ptr<journal::JournalService> mJournal; // task 0185; refers to the world view
             std::unique_ptr<progression::ProgressionService> mProgression; // task 0200; refers to the world view
             bool mProgressionLinked = false;

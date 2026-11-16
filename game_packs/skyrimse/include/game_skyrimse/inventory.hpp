@@ -103,6 +103,7 @@ namespace game_skyrimse
             bool mDecoded = false; ///< false when the DATA subrecord was missing or of an unexpected size
             std::vector<ItemEffect> mEffects; ///< task 0184: ALCH only
             std::vector<FormId> mKeywords; ///< task 0189: KWDA (the vendor lists name keywords); at most 64 are kept
+            std::string mName; ///< task 0199: the name of an item made in game (crafting); empty for a record item
         };
 
         struct ContainerStat
@@ -149,6 +150,8 @@ namespace game_skyrimse
             void add(InventoryRecords&& records);
             void addLeveledLists(const std::vector<LeveledList>& lists); ///< LVLI only; the later list wins
             void finish() {}
+            /// Task 0199: an item made in game (crafting) joins the table; an equal id is replaced.
+            void addSynthetic(ItemStat stat) { mItems[stat.mId] = std::move(stat); }
 
             [[nodiscard]] const ItemStat* item(FormId id) const;
             [[nodiscard]] const ContainerStat* container(FormId id) const;
@@ -272,6 +275,9 @@ namespace game_skyrimse
             [[nodiscard]] EquipStatus unequip(FormId item);
             [[nodiscard]] bool isEquipped(FormId item) const;
             [[nodiscard]] std::vector<EquippedItem> equipped() const;
+            /// Task 0199: puts `count` of `item` into an existing owner's stacks (a crafted item). The owner is touched
+            /// and the revision moves. BadCount, UnknownOwner as transfer.
+            [[nodiscard]] TransferStatus grant(std::uint64_t owner, FormId item, std::int32_t count);
             /// Removes `count` of `item` from `owner` (a potion that was drunk). Same statuses as transfer.
             [[nodiscard]] TransferStatus consume(std::uint64_t owner, FormId item, std::int32_t count);
             /// Replaces the equipped list (a restore); no check against holdings (a read may come before the

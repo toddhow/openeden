@@ -241,6 +241,36 @@
       "default": ""
     },
     {
+      "key": "crafting",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crafting test bench",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crafting ignore conditions",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "crafting alchemy skill",
+      "type": "int",
+      "default": 15
+    },
+    {
+      "key": "crafting smithing skill",
+      "type": "int",
+      "default": 15
+    },
+    {
+      "key": "crafting enchanting skill",
+      "type": "int",
+      "default": 15
+    },
+    {
       "key": "papyrus",
       "type": "bool",
       "default": false

@@ -60,6 +60,13 @@ namespace MWWorld
     /// instead of the conversation box when the neutral inventory is on.
     inline constexpr std::string_view kNeutralBarterEvent = "openeden_skyrimse_barter_opened";
     [[nodiscard]] bool decideNeutralBarter(std::string_view service, bool settingOn);
+
+    /// Task 0199: activating a Furniture opens the crafting window when the neutral inventory is on. The pack decides
+    /// from the furniture's base whether it is a bench (the engine knows no keywords); the event carries the fields of
+    /// `neutralInventoryEventFields` with kind "bench".
+    inline constexpr std::string_view kNeutralBenchEvent = "openeden_skyrimse_bench_opened";
+    [[nodiscard]] NeutralInventoryDecision decideNeutralBench(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn);
     /// The fields of the barter event: the speaker's placement and base (hex text) and its name, in that order.
     [[nodiscard]] std::vector<NeutralInventoryEventField> neutralBarterEventFields(
         std::uint64_t placement, std::uint64_t npcBase, std::string_view name);

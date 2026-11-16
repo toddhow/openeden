@@ -357,7 +357,10 @@ namespace game_skyrimse::inventory
             return true;
         };
         const auto nameOf = [self](FormId id) {
-            std::string n = self->mHooks.mName ? self->mHooks.mName(id) : std::string();
+            const ItemStat* made = self->mTable.item(id);
+            std::string n = made != nullptr && !made->mName.empty() ? made->mName
+                : self->mHooks.mName                                ? self->mHooks.mName(id)
+                                                                    : std::string();
             return n.empty() ? "<" + formatId(id) + ">" : n;
         };
         constexpr BindingType kStr = BindingType::String;

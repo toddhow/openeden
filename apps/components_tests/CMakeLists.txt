@@ -29,6 +29,7 @@ file(GLOB UNITTEST_SRC_FILES
     ui/testuilist.cpp
     ui/testskyrimseinventorywindows.cpp
     ui/testskyrimsebarterwindows.cpp
+    ui/testskyrimsecraftingwindows.cpp
     ui/testskyrimsejournalwindows.cpp
     ui/testskyrimsemapwindows.cpp
     ui/testskyrimseinventoryequipwindows.cpp
@@ -605,6 +606,9 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseinventorybindings.cpp
     skyrimse/testskyrimsebarter.cpp
     skyrimse/testskyrimsebarterreal.cpp
+    skyrimse/testskyrimsecrafting.cpp
+    skyrimse/testskyrimsecraftingservice.cpp
+    skyrimse/testskyrimsecraftingreal.cpp
     skyrimse/testskyrimseinventoryequip.cpp
     skyrimse/testskyrimseinventoryequipreal.cpp
     skyrimse/testskyrimseinventoryreal.cpp
@@ -683,6 +687,8 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/inventory_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/barter_service.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crafting.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/crafting_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/journal.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/map_markers.cpp

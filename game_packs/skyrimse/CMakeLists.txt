@@ -21,6 +21,8 @@ openeden_add_game_pack(skyrimse
         src/inventory_service.cpp
         src/barter.cpp
         src/barter_service.cpp
+        src/crafting.cpp
+        src/crafting_service.cpp
         src/journal.cpp
         src/map.cpp
         src/map_markers.cpp

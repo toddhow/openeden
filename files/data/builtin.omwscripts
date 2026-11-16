@@ -45,6 +45,8 @@ GLOBAL REQUIRES=core.skyrimse.inventory>=1.1: scripts/openeden/skyrimse/inventor
 PLAYER REQUIRES=core.skyrimse.inventory>=1.1: scripts/openeden/skyrimse/inventory_player.lua
 GLOBAL REQUIRES=core.skyrimse.barter>=1.0: scripts/openeden/skyrimse/barter_global.lua
 PLAYER REQUIRES=core.skyrimse.barter>=1.0: scripts/openeden/skyrimse/barter_player.lua
+GLOBAL REQUIRES=core.skyrimse.crafting>=1.0: scripts/openeden/skyrimse/crafting_global.lua
+PLAYER REQUIRES=core.skyrimse.crafting>=1.0: scripts/openeden/skyrimse/crafting_player.lua
 # Skyrim SE quest journal (task 0185); started only when the session's game pack has the namespace
 PLAYER REQUIRES=core.skyrimse.journal>=1.0: scripts/openeden/skyrimse/journal_player.lua
 # Skyrim SE Papyrus notifications on the HUD (task 0198); started only when the pack's Papyrus host declares the namespace

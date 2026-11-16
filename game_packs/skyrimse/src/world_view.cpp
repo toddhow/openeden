@@ -2270,6 +2270,21 @@ namespace game_skyrimse
         return magnitude;
     }
 
+    bool SkyrimWorldView::magicEffectData(
+        FormId effect, std::uint32_t& flags, float& baseCost, std::uint32_t& archetype, std::int32_t& primaryValue)
+    {
+        if (mCombatIndex == nullptr)
+            return false;
+        const MagicEffectRecord* record = mCombatIndex->magicEffect(effect);
+        if (record == nullptr || !record->mHasData)
+            return false;
+        flags = record->mFlags;
+        baseCost = record->mBaseCost;
+        archetype = record->mArchetype;
+        primaryValue = record->mPrimaryValue;
+        return true;
+    }
+
     bool SkyrimWorldView::npcInventory(FormId base, std::vector<InventoryEntry>& out)
     {
         if (!awaitIndex() || !ensureActorIndex())

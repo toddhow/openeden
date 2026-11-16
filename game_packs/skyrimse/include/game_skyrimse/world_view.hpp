@@ -416,6 +416,10 @@ namespace game_skyrimse
         /// on Health that is neither hostile nor detrimental and lasts no time, else 0 (also while the records are
         /// not read). RECALLED-VERIFY: the flag bits and 24 as the Health actor value.
         [[nodiscard]] float healthOfEffect(FormId effect, float magnitude, std::uint32_t duration);
+        /// Task 0199: the numbers of an MGEF the crafting rules need (flags, base cost, archetype, primary actor
+        /// value). False when the combat records are not read yet or the effect is unknown.
+        [[nodiscard]] bool magicEffectData(
+            FormId effect, std::uint32_t& flags, float& baseCost, std::uint32_t& archetype, std::int32_t& primaryValue);
         /// Where the player's gold comes from (the inventory's Gold001) for the speech and bribe checks; empty: the
         /// stand-in's. Applied when the dialogue runtime is built (set it before the first conversation).
         void setPlayerGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }

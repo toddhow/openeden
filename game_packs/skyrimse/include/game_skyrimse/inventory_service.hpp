@@ -93,6 +93,9 @@ namespace game_skyrimse
 
             [[nodiscard]] InventoryModel& model() { return mModel; }
             [[nodiscard]] const ItemTable& table() const { return mTable; }
+            /// Task 0199: adds an item made in game to the table (after the table was built; the crafting service calls
+            /// it again for every saved item once `ready()`).
+            void addSyntheticItem(ItemStat stat) { mTable.addSynthetic(std::move(stat)); }
             [[nodiscard]] InventoryChunk& chunk() { return mChunk; }
 
             /// Registers an owner from its base (see the namespace comment); false when not ready or unknown.

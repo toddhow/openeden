@@ -12,6 +12,14 @@ namespace MWWorld
         return NeutralInventoryDecision::Open;
     }
 
+    NeutralInventoryDecision decideNeutralBench(
+        openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn)
+    {
+        if (!settingOn || !byPlayer || kind != openeden::sdk::game::ObjectKind::Furniture)
+            return NeutralInventoryDecision::NotApplicable;
+        return NeutralInventoryDecision::Open;
+    }
+
     NeutralInventoryDecision decideNeutralLoot(
         openeden::sdk::game::ObjectKind kind, bool byPlayer, bool settingOn, bool dead)
     {

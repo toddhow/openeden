@@ -262,8 +262,9 @@ namespace MWClass
                     fields.push_back({ f.mName, f.mText });
                 Log(Debug::Info) << "NINV " << mKind << " " << MWWorld::neutralHexId(mPlacement) << " base "
                                  << MWWorld::neutralHexId(mBase) << " '" << mName << "' opened";
-                MWBase::Environment::get().getLuaManager()->sendExtensionEvent(
-                    std::string(MWWorld::kNeutralInventoryEvent), fields);
+                const std::string_view eventName
+                    = mKind == "bench" ? MWWorld::kNeutralBenchEvent : MWWorld::kNeutralInventoryEvent;
+                MWBase::Environment::get().getLuaManager()->sendExtensionEvent(std::string(eventName), fields);
             }
 
         public:
@@ -322,6 +323,16 @@ namespace MWClass
         // same setting that draws them, and only by the player).
         if (base.mKind == ObjectKind::Actor && Settings::game().mNeutralActors && actor == MWMechanics::getPlayer())
             return std::make_unique<TalkAction>(ptr);
+        // Task 0199: a furniture is a crafting bench when the pack says so; the pack answers from the base record.
+        if (base.mKind == ObjectKind::Furniture && actor == MWMechanics::getPlayer())
+        {
+            const auto benchPlacement = MWWorld::neutralPlacementOf(ptr.getCellRef().getRefNum());
+            if (benchPlacement != std::nullopt
+                && MWWorld::decideNeutralBench(base.mKind, true, Settings::game().mNeutralInventory.get())
+                    == MWWorld::NeutralInventoryDecision::Open)
+                return std::make_unique<OpenInventoryAction>(
+                    ptr, *benchPlacement, base.mBase, std::string(getName(ptr)), "bench");
+        }
         if (base.mKind != ObjectKind::Door && base.mKind != ObjectKind::Container)
             return MWWorld::Class::activate(ptr, actor);
 
@@ -501,7 +512,9 @@ namespace MWClass
     bool Neutral::hasToolTip(const MWWorld::ConstPtr& ptr) const
     {
         const ObjectKind kind = baseOf(ptr).mKind;
-        return kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container;
+        // task 0199: a furniture shows its name when the neutral inventory is on (a crafting bench may be among them)
+        return kind == ObjectKind::Actor || kind == ObjectKind::Door || kind == ObjectKind::Container
+            || (kind == ObjectKind::Furniture && Settings::game().mNeutralInventory.get());
     }
 
     MWGui::ToolTipInfo Neutral::getToolTipInfo(const MWWorld::ConstPtr& ptr, int /*count*/) const

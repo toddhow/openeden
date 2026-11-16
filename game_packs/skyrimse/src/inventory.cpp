@@ -881,6 +881,21 @@ namespace game_skyrimse::inventory
         return mEquipped.size() != before;
     }
 
+    TransferStatus InventoryModel::grant(std::uint64_t owner, FormId item, std::int32_t count)
+    {
+        const auto it = mOwners.find(owner);
+        if (it == mOwners.end())
+            return TransferStatus::UnknownOwner;
+        if (count <= 0 || count > kMaxStackCount || item == 0)
+            return TransferStatus::BadCount;
+        std::int32_t& have = it->second[item];
+        have = static_cast<std::int32_t>(
+            std::min<std::int64_t>(static_cast<std::int64_t>(have) + count, kMaxStackCount));
+        mTouched.insert(owner);
+        ++mRevision;
+        return TransferStatus::Ok;
+    }
+
     TransferStatus InventoryModel::consume(std::uint64_t owner, FormId item, std::int32_t count)
     {
         const auto it = mOwners.find(owner);
