@@ -316,6 +316,20 @@ namespace game_skyrimse
             return {};
         }
         virtual MagicSettings magicSettings() { return {}; }
+        /// Task 0238: does this RACE carry the Child flag (RACE DATA +32 bit 2)? IsChild asks it. Default: no.
+        virtual bool raceIsChild(FormId race)
+        {
+            (void)race;
+            return false;
+        }
+        /// Task 0238: the stored value of a GLOB (GetGlobalValue in an effect's conditions). False when the form is not
+        /// a global the data knows. Default: none.
+        virtual bool globalDefault(FormId global, float& value)
+        {
+            (void)global;
+            (void)value;
+            return false;
+        }
         /// Task 0172: the block, bash and stagger numbers (default: the values Skyrim.esm stores).
         virtual BlockSettings blockSettings() { return {}; }
         /// True when every answer above can be given at once, without reading anything. SkyrimCombat asks this at the
@@ -493,6 +507,15 @@ namespace game_skyrimse
         /// Task 0236: with it set every effect applies whatever its conditions say (the override); unset (the default)
         /// the effects whose conditions hold apply and the others do not.
         void setTestSpellConditions(bool apply) { mApplyEffectConditions = apply; }
+        /// Task 0238: the rate a vital of `subject` regenerates at now (percent of its maximum a second; 0 health, 1
+        /// magicka, 2 stamina), with the Fortify and Damage Rate effects running on it. -1 for an unknown fighter.
+        [[nodiscard]] float regenRatePercent(openeden::sdk::game::CombatSubject subject, int vital) const;
+        /// Task 0238: where the player stands (IsInInterior and GetInWorldspace in an effect's conditions: the actors that
+        /// are loaded stand in the player's cell or worldspace). Returns false when unknown. Without it those two
+        /// functions leave the effect's list unanswered.
+        void setPlaceSource(std::function<bool(effectconditions::Place&)> source) { mPlaceSource = std::move(source); }
+        /// Task 0238: a source of GLOB values that comes before the data's own stored values (a script's SetValue).
+        void setGlobalSource(effectconditions::Evaluator::GlobalLookup source) { mGlobalSource = std::move(source); }
         /// Task 0236: how the effect condition lists came out, for the traces and the tests.
         [[nodiscard]] std::uint64_t effectConditionsPassed() const { return mEffectConditionsPassed; }
         [[nodiscard]] std::uint64_t effectConditionsFailed() const { return mEffectConditionsFailed; }
@@ -831,6 +854,14 @@ namespace game_skyrimse
         [[nodiscard]] const Fighter* find(openeden::sdk::game::CombatSubject subject) const;
         bool ready(Fighter& fighter);
         void regenerate(float seconds);
+        // Task 0238 (combat_regen.cpp): the regeneration rate effects (actor values 27 to 29 and 155 to 157).
+        [[nodiscard]] bool anyRegenEffect() const;
+        [[nodiscard]] float regenRateFor(const Fighter& fighter, int vital, float baseRate, bool anyRunning) const;
+        void addPlayerHealthRegen(float bonusUnits);
+        void traceRegenRates(bool anyRunning);
+        float mNextRegenTrace = 0.f;
+        void flushPlayerHealthRegen(openeden::sdk::game::CombatRequestWriter& writer);
+        float mPlayerHealthBonus = 0.f; ///< health earned by rate effects on the player, not yet sent to the engine
         void applyRest(openeden::sdk::game::CombatRequestWriter& writer); // task 0210
         float mRestSeconds = 0.f; ///< queued, applied by the next combatUpdate
         std::size_t mRestsApplied = 0;
@@ -886,9 +917,12 @@ namespace game_skyrimse
         /// Task 0236 (combat_effect_conditions.cpp): may this effect apply from `caster` to `target`? True with no
         /// conditions or with the test setting; else the effect's and its record's conditions are evaluated over the
         /// two actors (magic_conditions.hpp) and a list that cannot be (a damaged one, an unanswered function) says no.
-        [[nodiscard]] bool effectConditionsAllow(
-            const Fighter& caster, const Fighter& target, const SpellEffect& effect, const MagicEffectRecord& record);
-        [[nodiscard]] effectconditions::Participant effectParticipant(const Fighter& fighter, std::vector<FormId>& active) const;
+        /// `unlistedPasses` (task 0238, for race powers): an effect whose conditions were counted but never decoded (a
+        /// hand-built record: every real one is listed) is taken as met instead of skipped, as task 0228 did for all.
+        [[nodiscard]] bool effectConditionsAllow(const Fighter& caster, const Fighter& target, const SpellEffect& effect,
+            const MagicEffectRecord& record, bool unlistedPasses = false);
+        [[nodiscard]] effectconditions::Participant effectParticipant(
+            const Fighter& fighter, std::vector<FormId>& active, std::vector<FormId>& worn) const;
         void applyPoisonOnHit(openeden::sdk::game::CombatRequestWriter& writer, Fighter& attacker, Fighter& victim,
             const openeden::sdk::game::SweepHit& hit); // task 0229 (combat_poison.cpp)
         void applySpellEffects(openeden::sdk::game::CombatRequestWriter& writer, Fighter& caster, Fighter& target,
@@ -1172,9 +1206,14 @@ namespace game_skyrimse
         float mCastPeriod = kDefaultCastPeriod;
         float mCastHold = kDefaultCastHold;
         bool mApplyEffectConditions = false;
+        std::function<bool(effectconditions::Place&)> mPlaceSource; ///< task 0238
+        effectconditions::Evaluator::GlobalLookup mGlobalSource; ///< task 0238
         std::unique_ptr<effectconditions::Evaluator> mEffectConditions; ///< task 0236, made on first use
         std::vector<FormId> mActiveOfTarget; ///< task 0236: scratch, the effects running on the target
         std::vector<FormId> mActiveOfCaster;
+        std::vector<FormId> mWornOfTarget; ///< task 0238: scratch, the keywords of the worn pieces (WornApparelHasKeywordCount)
+        std::vector<FormId> mWornOfCaster;
+        std::vector<FormId> mWornOfPlayer;
         std::uint64_t mEffectConditionChecks = 0; ///< task 0236: lists evaluated (the seed of GetRandomPercent)
         std::uint64_t mEffectConditionsPassed = 0;
         std::uint64_t mEffectConditionsFailed = 0;

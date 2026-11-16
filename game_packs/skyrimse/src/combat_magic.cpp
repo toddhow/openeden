@@ -124,8 +124,8 @@ namespace game_skyrimse
                     case MagicArchetype::PeakValueModifier:
                     case MagicArchetype::Dual:
                     case MagicArchetype::Absorb:
-                        if (isVitalValue(record->mPrimaryValue))
-                            works = true;
+                        if (isVitalValue(record->mPrimaryValue) || isRegenRateValue(record->mPrimaryValue))
+                            works = true; // task 0238: a regeneration rate is a rule now
                         else
                             status = true;
                         break;
@@ -180,6 +180,10 @@ namespace game_skyrimse
             if (effect.mArea == 0)
             {
                 bool blocked = false;
+                // task 0238: a power's effects are evaluated like any other effect's (a listed condition list decides,
+                // a counted but unlisted one is taken as met as before)
+                if (!effectConditionsAllow(caster, caster, effect, *record, true))
+                    continue;
                 applyOneEffect(writer, caster, caster, spell, effect, *record, blocked, nullptr);
                 continue;
             }
@@ -206,6 +210,8 @@ namespace game_skyrimse
                 if (dx * dx + dy * dy + dz * dz > radius * radius)
                     continue;
                 bool blocked = false;
+                if (!effectConditionsAllow(caster, other, effect, *record, true))
+                    continue; // task 0238
                 applyOneEffect(writer, caster, other, spell, effect, *record, blocked, nullptr);
                 ++reached;
             }
@@ -554,11 +560,18 @@ namespace game_skyrimse
                     {
                         // task 0233: a modifier on a resistance keeps its signed size (a weakness is negative): the
                         // damage path reads it back through weaknessOf
-                        (void)active(isResistValue(record.mPrimaryValue) ? magnitude : 0.f, 0.f, false);
+                        // task 0238: so does a regeneration rate (27 to 29, 155 to 157): its sum is read by regenRateFor
+                        (void)active(isResistValue(record.mPrimaryValue) || isRegenRateValue(record.mPrimaryValue)
+                                ? magnitude
+                                : 0.f,
+                            0.f, false);
                         ++mEffectsApplied;
                     }
                     trace("COMBAT effect " + record.mCommon.mEditorId + " on value "
-                        + std::to_string(record.mPrimaryValue) + " is a status only");
+                        + std::to_string(record.mPrimaryValue)
+                        + (isRegenRateValue(record.mPrimaryValue) ? " changes the regeneration rate by "
+                                    + num(magnitude) + " for " + num(seconds) + " s"
+                                                                  : std::string(" is a status only")));
                     return;
                 }
                 const float second = dual ? magnitude * secondWeight : 0.f;

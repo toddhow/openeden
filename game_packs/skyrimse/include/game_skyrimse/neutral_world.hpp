@@ -191,6 +191,14 @@ namespace game_skyrimse
             // Task 0197: followers fight on the player's side.
             mCombat.setFollowerQuery(
                 [this](openeden::sdk::game::WorldId reference) { return mActors.isFollower(reference); });
+            // Task 0238: where the player stands, for IsInInterior and GetInWorldspace in an effect's conditions.
+            mCombat.setPlaceSource([this](effectconditions::Place& out) {
+                if (!mHavePlayerPlace)
+                    return false;
+                out.mInterior = mPlayerPlace.interior;
+                out.mWorld = mPlayerPlace.interior ? kNullFormId : static_cast<FormId>(mPlayerPlace.world);
+                return true;
+            });
             // Task 0180: the combat HUD reads the pack's fighters through the combat rules.
             mHud.setFighterLookup([this](openeden::sdk::game::CombatSubject subject, SkyrimCombat::FighterView& out) {
                 return mCombat.fighterView(subject, out);
@@ -439,6 +447,8 @@ namespace game_skyrimse
         }
         void onPlayerPlace(const openeden::sdk::game::PlayerPlace& place) override
         {
+            mPlayerPlace = place; // task 0238: the effect conditions' IsInInterior and GetInWorldspace
+            mHavePlayerPlace = true;
             if (mPlaceSink)
                 mPlaceSink(place);
         }
@@ -507,6 +517,8 @@ namespace game_skyrimse
         std::function<void(openeden::sdk::game::WorldId)> mCellBuilt;
         std::function<void(openeden::sdk::game::WorldId)> mActivated;
         std::function<void(const openeden::sdk::game::PlayerPlace&)> mPlaceSink; ///< task 0211
+        openeden::sdk::game::PlayerPlace mPlayerPlace; ///< task 0238: the last place the core told
+        bool mHavePlayerPlace = false;
         std::function<std::optional<bool>(openeden::sdk::game::WorldId)> mEnableOverride;
         std::function<bool(openeden::sdk::game::WorldId)> mTaken; ///< task 0208
         std::function<bool(openeden::sdk::game::WorldId)> mHarvested; ///< task 0221

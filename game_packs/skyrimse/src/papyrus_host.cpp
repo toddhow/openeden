@@ -2495,6 +2495,15 @@ namespace game_skyrimse
         return found != mImpl->mAliasForced.end() ? found->second : 0;
     }
 
+    bool PapyrusHost::globalSetByScript(FormId global, float& value) const
+    {
+        const auto found = mImpl->mGlobalValues.find(global);
+        if (found == mImpl->mGlobalValues.end())
+            return false;
+        value = found->second;
+        return true;
+    }
+
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const
     {
         return mImpl->mSpells.count({ actor, spell }) != 0;

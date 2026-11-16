@@ -84,6 +84,7 @@ openeden_add_game_pack(skyrimse
         src/combat_status.cpp
         src/magic_conditions.cpp
         src/combat_effect_conditions.cpp
+        src/combat_regen.cpp
         src/combat_magic.cpp
         src/combat_sneak.cpp
         src/combat_poison.cpp
@@ -275,6 +276,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_status.cpp
     src/magic_conditions.cpp
     src/combat_effect_conditions.cpp
+    src/combat_regen.cpp
     src/combat_magic.cpp
     src/combat_sneak.cpp
     src/combat_poison.cpp

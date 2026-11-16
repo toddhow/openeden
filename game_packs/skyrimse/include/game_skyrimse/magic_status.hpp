@@ -35,6 +35,32 @@ namespace game_skyrimse
         inline constexpr std::int32_t Poison = 40, Fire = 41, Shock = 42, Frost = 43, Magic = 44, Disease = 45;
     }
 
+    /// Task 0238: the actor values that change how fast a vital regenerates (MGEF DATA +68 of the Fortify and Damage
+    /// "Rate" effects, VERIFIED by the five masters: the race powers Histskin (27), Highborn (28), Adrenaline Rush (29);
+    /// the alchemy and enchanting Fortify Health, Magicka and Stamina Rate effects are on 155, 156 and 157, and the
+    /// poisons that damage a rate are archetype 0 on the same values). The names (HealRate, MagickaRate, StaminaRate and
+    /// the three Mult values) are RECALLED-VERIFY; which effect uses which value is the data's.
+    namespace RegenValue
+    {
+        inline constexpr std::int32_t HealthRate = 27, MagickaRate = 28, StaminaRate = 29, HealthRateMult = 155,
+                                      MagickaRateMult = 156, StaminaRateMult = 157;
+    }
+
+    /// 0 health, 1 magicka, 2 stamina; -1 when `value` is no regeneration value.
+    [[nodiscard]] int regenVital(std::int32_t value);
+    /// True for the three "Mult" values (155 to 157): their magnitude is a percentage of the rate, not an amount.
+    [[nodiscard]] bool isRegenMultValue(std::int32_t value);
+    [[nodiscard]] bool isRegenRateValue(std::int32_t value);
+
+    /// The rate a vital regenerates at (percent of its maximum a second), OURS: (base + sum of the rate effects) x (1 +
+    /// sum of the Mult effects / 100), never below 0 and 0 when anything is not finite. The race powers' numbers fit it
+    /// (RECALLED-VERIFY, see the task doc): the base is 0.7, 3 and 5, Histskin adds 10 (14 times), Highborn 25 (9 times)
+    /// and Adrenaline Rush 50 (11 times; the in-game text is recalled as "ten times faster").
+    [[nodiscard]] float effectiveRegenRate(float baseRate, float rateSum, float multPercentSum);
+
+    /// The most a regeneration rate effect is let to add in total (a bad record cannot make an actor heal at once).
+    inline constexpr float kMaxRegenRate = 1000.f;
+
     /// The most a weakness adds to a hit, in percent (OURS: 100 doubles it).
     inline constexpr float kMaxWeaknessPercent = 100.f;
     /// The longest a status is kept, in seconds (a bad duration cannot hold an actor for ever).

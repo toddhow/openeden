@@ -24,7 +24,7 @@ namespace game_skyrimse
     }
 
     effectconditions::Participant SkyrimCombat::effectParticipant(
-        const Fighter& fighter, std::vector<FormId>& active) const
+        const Fighter& fighter, std::vector<FormId>& active, std::vector<FormId>& worn) const
     {
         effectconditions::Participant out;
         out.mPerk = actorParticipant(fighter, false);
@@ -42,17 +42,31 @@ namespace game_skyrimse
             if (e.mTarget == fighter.mSubject)
                 active.push_back(e.mEffect);
         out.mActiveEffects = active;
+        // Task 0238: the keywords of every worn piece, one list per piece (the fighter's own list is only filled for an
+        // actor that has perks or abilities)
+        worn.clear();
+        for (const ArmourPiece& piece : fighter.mProfile.mPieces)
+            worn.insert(worn.end(), piece.mKeywords.begin(), piece.mKeywords.end());
+        out.mPerk.mWornKeywords = &worn;
+        out.mChild = mData != nullptr && fighter.mHasProfile && mData->raceIsChild(p.mRace); // task 0238
         return out;
     }
 
-    bool SkyrimCombat::effectConditionsAllow(
-        const Fighter& caster, const Fighter& target, const SpellEffect& effect, const MagicEffectRecord& record)
+    bool SkyrimCombat::effectConditionsAllow(const Fighter& caster, const Fighter& target, const SpellEffect& effect,
+        const MagicEffectRecord& record, bool unlistedPasses)
     {
         const std::uint32_t conditions = effect.mConditions + record.mConditions;
         if (conditions == 0 || mApplyEffectConditions)
             return true;
         const bool listed = effect.mConditionList.size() == effect.mConditions
             && record.mConditionList.size() == record.mConditions;
+        if (!listed && unlistedPasses)
+        {
+            if (mTrace)
+                trace("COMBAT effect " + record.mCommon.mEditorId + " taken as met: " + std::to_string(conditions)
+                    + " conditions the pack has no list for");
+            return true;
+        }
         if (!listed)
         {
             if (mTrace)
@@ -66,6 +80,12 @@ namespace game_skyrimse
             mEffectConditions->setEffectLookup([this](FormId id) -> const MagicEffectRecord* {
                 return mData != nullptr ? mData->effectById(id) : nullptr;
             });
+            mEffectConditions->setExtended(true); // task 0238: the six functions with their sources
+            mEffectConditions->setGlobalLookup([this](FormId global, float& value) {
+                if (mGlobalSource && mGlobalSource(global, value))
+                    return true;
+                return mData != nullptr && mData->globalDefault(global, value);
+            });
             mEffectConditions->setLog([this](const std::string& line) { trace("COMBAT " + line); });
         }
         std::uint64_t seed = mix(0x0236, ++mEffectConditionChecks);
@@ -73,14 +93,28 @@ namespace game_skyrimse
         seed = mix(seed, caster.mSubject.player ? 0 : caster.mSubject.actor.reference);
         seed = mix(seed, target.mSubject.player ? 0 : target.mSubject.actor.reference);
         mEffectConditions->setSeed(seed);
+        effectconditions::Place place;
+        if (mPlaceSource && mPlaceSource(place))
+            place.mKnown = true;
+        else
+            place = {};
+        mEffectConditions->setPlace(place);
 
-        const effectconditions::Participant targetSide = effectParticipant(target, mActiveOfTarget);
-        const effectconditions::Participant casterSide = effectParticipant(caster, mActiveOfCaster);
+        effectconditions::Participant targetSide = effectParticipant(target, mActiveOfTarget, mWornOfTarget);
+        effectconditions::Participant casterSide = effectParticipant(caster, mActiveOfCaster, mWornOfCaster);
         const Fighter* player = find(openeden::sdk::game::CombatSubject::ofPlayer());
+        // Task 0238: IsHostileToActor, from the combat's own relation rules (an enemy in either direction).
+        using openeden::sdk::game::ActorRelation;
+        targetSide.mHostileToCaster = relationOf(target, caster) == ActorRelation::Enemy;
+        if (player != nullptr)
+        {
+            targetSide.mHostileToPlayer = relationOf(target, *player) == ActorRelation::Enemy;
+            casterSide.mHostileToPlayer = relationOf(caster, *player) == ActorRelation::Enemy;
+        }
         effectconditions::Participant playerSide;
         std::vector<FormId> playerActive; // empty: the player's running effects are never asked (run-on 2 asks level)
         if (player != nullptr)
-            playerSide = effectParticipant(*player, playerActive);
+            playerSide = effectParticipant(*player, playerActive, mWornOfPlayer);
 
         using effectconditions::Verdict;
         Verdict verdict = Verdict::Pass;

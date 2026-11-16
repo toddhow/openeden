@@ -11,6 +11,43 @@ namespace game_skyrimse
         return value >= ResistValue::Poison && value <= ResistValue::Disease;
     }
 
+    int regenVital(std::int32_t value)
+    {
+        switch (value)
+        {
+            case RegenValue::HealthRate:
+            case RegenValue::HealthRateMult:
+                return 0;
+            case RegenValue::MagickaRate:
+            case RegenValue::MagickaRateMult:
+                return 1;
+            case RegenValue::StaminaRate:
+            case RegenValue::StaminaRateMult:
+                return 2;
+            default:
+                return -1;
+        }
+    }
+
+    bool isRegenMultValue(std::int32_t value)
+    {
+        return value >= RegenValue::HealthRateMult && value <= RegenValue::StaminaRateMult;
+    }
+
+    bool isRegenRateValue(std::int32_t value)
+    {
+        return regenVital(value) >= 0;
+    }
+
+    float effectiveRegenRate(float baseRate, float rateSum, float multPercentSum)
+    {
+        if (!std::isfinite(baseRate) || !std::isfinite(rateSum) || !std::isfinite(multPercentSum))
+            return 0.f;
+        const float add = std::clamp(rateSum, -kMaxRegenRate, kMaxRegenRate);
+        const float mult = std::clamp(multPercentSum, -100.f, kMaxRegenRate);
+        return std::max(0.f, (baseRate + add) * (1.f + mult / 100.f));
+    }
+
     bool levelGateAllows(std::uint32_t level, float magnitude)
     {
         return std::isfinite(magnitude) && static_cast<float>(level) <= magnitude;

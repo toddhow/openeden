@@ -390,6 +390,8 @@ namespace game_skyrimse
         /// (this asks for them like combatReady()).
         [[nodiscard]] const SettingsTable* gameSettings();
         const PerkLibrary* perkLibrary() override; // task 0179
+        bool raceIsChild(FormId race) override; // task 0238
+        bool globalDefault(FormId global, float& value) override { return globalValue(global, value); } // task 0238
         FormId perkByEditorId(std::string_view editorId) override;
         const SoundLibrary* soundLibrary() override; // task 0193
         bool soundFileExists(const std::string& vfsPath) override;

@@ -1131,27 +1131,35 @@ namespace game_skyrimse
 
     void SkyrimCombat::regenerate(float seconds)
     {
+        const bool anyRate = anyRegenEffect(); // task 0238
         for (Fighter& f : mFighters)
         {
             if (!f.mReady || !f.mHasProfile || f.mDead)
                 continue;
             const bool inCombat = mClock < f.mCombatUntil;
+            const float healthRate = regenRateFor(f, 0, f.mProfile.mHealthRegenPercent, anyRate);
             if (!f.mSubject.player)
                 f.mHealth = std::min(f.mProfile.mHealthMax,
                     f.mHealth
-                        + regenAmount(f.mProfile.mHealthMax, f.mProfile.mHealthRegenPercent,
-                            mCombatSettings.mCombatHealthRegenRateMult, inCombat, seconds));
+                        + regenAmount(f.mProfile.mHealthMax, healthRate, mCombatSettings.mCombatHealthRegenRateMult,
+                            inCombat, seconds));
+            else if (anyRate) // the engine regenerates the player's health; only what the effects add is ours
+                addPlayerHealthRegen(regenAmount(f.mProfile.mHealthMax, healthRate - f.mProfile.mHealthRegenPercent,
+                    mCombatSettings.mCombatHealthRegenRateMult, inCombat, seconds));
             f.mStamina = std::min(f.mProfile.mStaminaMax,
                 f.mStamina
-                    + regenAmount(f.mProfile.mStaminaMax, f.mProfile.mStaminaRegenPercent,
+                    + regenAmount(f.mProfile.mStaminaMax,
+                        regenRateFor(f, 2, f.mProfile.mStaminaRegenPercent, anyRate),
                         mCombatSettings.mCombatStaminaRegenRateMult, inCombat, seconds));
             // Task 0186: magicka waits after a spend and while a spell is held (fDamagedMagickaRegenDelay).
             if (f.mProfile.mMagickaMax > 0.f && mClock >= f.mMagickaRegenAt && !isBusyConcentrating(f.mSubject))
                 f.mMagicka = std::min(f.mProfile.mMagickaMax,
                     f.mMagicka
-                        + regenAmount(f.mProfile.mMagickaMax, f.mProfile.mMagickaRegenPercent,
+                        + regenAmount(f.mProfile.mMagickaMax,
+                            regenRateFor(f, 1, f.mProfile.mMagickaRegenPercent, anyRate),
                             mCombatSettings.mCombatMagickaRegenRateMult, inCombat, seconds));
         }
+        traceRegenRates(anyRate); // task 0238: one line a second per fighter with a rate effect, only with a trace
     }
 
     // ---- task 0210: waiting and sleeping.
@@ -2077,6 +2085,7 @@ namespace game_skyrimse
             std::erase_if(mAwaiting, [&](const PendingHit& p) { return mUpdates - p.mAskedAt > kSweepAnswerUpdates; });
             regenerate(step);
             applyRest(writer); // task 0210: does nothing unless a rest was queued
+            flushPlayerHealthRegen(writer); // task 0238: the rate effects' share of the player's health
             syncProgression(writer); // task 0200
             applyPlayerHeal(writer); // task 0184
             updateMagic(writer, step); // task 0186: ticks, casts that go, the player's and the test casters' casts

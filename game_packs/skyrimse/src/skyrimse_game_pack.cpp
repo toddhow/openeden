@@ -1139,6 +1139,10 @@ namespace game_skyrimse
                             mPapyrus = std::make_unique<PapyrusDriver>(
                                 mWorldView, mFileSource.get(), logger, sources, mCellSource);
                             PapyrusDriver* driver = mPapyrus.get();
+                            // Task 0238: GetGlobalValue in an effect's conditions sees what scripts set
+                            mCellSource.combat().setGlobalSource([driver](FormId global, float& value) {
+                                return driver->host().globalSetByScript(global, value);
+                            });
                             mCellSource.setEnableOverrideLookup(
                                 [driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
                                     return driver->host().enableOverride(static_cast<FormId>(reference));
@@ -1281,6 +1285,7 @@ namespace game_skyrimse
                     mPapyrus->summary();
                     mCellSource.setScriptSinks({}, {});
                     mCellSource.setEnableOverrideLookup({});
+                    mCellSource.combat().setGlobalSource({}); // task 0238: it refers to the host
                     mPapyrus.reset();
                 }
                 // The index worker uses the logger and the file source: end it before anything is withdrawn.
@@ -1293,6 +1298,7 @@ namespace game_skyrimse
             {
                 mCellSource.setCrime(nullptr);
                 unwirePapyrusWorld();
+                mCellSource.combat().setGlobalSource({}); // task 0238
                 mPapyrus.reset();
                 mWorldView.cancelAndJoin();
                 withdrawWorldSource();

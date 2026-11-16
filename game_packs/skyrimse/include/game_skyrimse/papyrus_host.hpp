@@ -446,6 +446,8 @@ namespace game_skyrimse
         /// Task 0196 (followers): the reference a script forced into an alias (ReferenceAlias.ForceRefTo), 0 when none
         /// or after Clear. Read only; the pack polls the DialogueFollower alias with it.
         [[nodiscard]] FormId forcedAlias(FormId quest, std::uint32_t alias) const;
+        /// Task 0238: the value a script gave a GLOB with GlobalVariable.SetValue; false when none did.
+        [[nodiscard]] bool globalSetByScript(FormId global, float& value) const;
 
         /// Whether Actor.AddSpell recorded the spell for the actor (the pack reads it: `spellsOf`).
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;

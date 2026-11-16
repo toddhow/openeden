@@ -474,6 +474,13 @@ namespace game_skyrimse
         return nullptr;
     }
 
+    bool SkyrimWorldView::raceIsChild(FormId race)
+    {
+        // RACE DATA +32 bit 2 (0x4): the Child flag. VERIFIED by the data: every *RaceChild race has it, no adult race does.
+        const RaceRecord* record = mActorIndex ? mActorIndex->race(race) : nullptr;
+        return record != nullptr && (record->mFlags & 0x4u) != 0;
+    }
+
     const PerkLibrary* SkyrimWorldView::perkLibrary()
     {
         return mCombatIndex.get();

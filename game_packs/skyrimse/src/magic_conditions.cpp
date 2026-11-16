@@ -13,6 +13,12 @@ namespace game_skyrimse::effectconditions
         constexpr std::array<std::uint16_t, 21> kAnswered = { 14, 46, 69, 70, 71, 72, 77, 80, 214, 244, 277, 289, 448,
             560, 597, 640, 682, 699, 700, 715, 724 };
 
+        /// Task 0238: what an extended evaluator adds (sorted).
+        constexpr std::array<std::uint16_t, 6> kExtendedOnly = { 74, 300, 310, 365, 719, 722 };
+
+        /// Bit 2 of a CTDA's flags: the comparison value is a global (conditions.cpp has its own copy).
+        constexpr std::uint8_t kUseGlobalFlag = 0x04;
+
         /// Health, magicka and stamina: the actor values 24 to 26 (VERIFIED: the Intense Flames effect asks 24).
         constexpr std::uint32_t kHealthValue = 24, kMagickaValue = 25, kStaminaValue = 26;
 
@@ -49,6 +55,8 @@ namespace game_skyrimse::effectconditions
             const Evaluator::EffectLookup* mLookup = nullptr;
             std::uint64_t mSeed = 1;
             std::uint64_t* mCounter = nullptr;
+            const Place* mPlace = nullptr;
+            const Evaluator::GlobalLookup* mGlobals = nullptr;
 
             [[nodiscard]] const Participant* of(Subject subject) const
             {
@@ -87,7 +95,28 @@ namespace game_skyrimse::effectconditions
                 const Participant* p = of(subject);
                 return p != nullptr && contains(p->mPerk.mFactions, static_cast<FormId>(faction));
             }
-            float globalValue(std::uint32_t) const override { return 0.f; }
+            float globalValue(std::uint32_t global) const override
+            {
+                float value = 0.f;
+                if (mGlobals != nullptr && *mGlobals && (*mGlobals)(static_cast<FormId>(global), value))
+                    return value;
+                return 0.f; // evaluate() has already refused a list that reads a global the source does not know
+            }
+            bool inInterior(Subject subject) const override
+            {
+                return subject != 0 && mPlace != nullptr && mPlace->mKnown && mPlace->mInterior;
+            }
+            bool inWorldspace(Subject subject, std::uint32_t worldspace) const override
+            {
+                // exteriors only: in an interior the answer is false (CK wiki), the same as the dialogue world's
+                return subject != 0 && mPlace != nullptr && mPlace->mKnown && !mPlace->mInterior && worldspace != 0
+                    && mPlace->mWorld == static_cast<FormId>(worldspace);
+            }
+            bool isChild(Subject subject) const override
+            {
+                const Participant* p = of(subject);
+                return p != nullptr && p->mChild;
+            }
             bool hasPerk(Subject subject, std::uint32_t perk) const override
             {
                 const Participant* p = of(subject);
@@ -202,8 +231,34 @@ namespace game_skyrimse::effectconditions
             return 0.f;
         }
 
-        constexpr std::array<conditions::ExtraFunction, 2> kExtra = { {
+        // 719 IsHostileToActor(actor): the subject is an enemy of the actor: none (parameter 0) is the effect's caster, the
+        // player's reference the player (xEdit: the parameter is an actor reference; the data's two shapes are those,
+        // RECALLED-VERIFY that "none" means the caster).
+        float isHostileToActorFn(const survey::Ctda& c, Subject subject, const conditions::ConditionWorld& world)
+        {
+            const Participant* p = participantOf(world, subject);
+            if (p == nullptr)
+                return 0.f;
+            if (c.mParam1 == kPlayerReference)
+                return p->mHostileToPlayer ? 1.f : 0.f;
+            return p->mHostileToCaster ? 1.f : 0.f;
+        }
+
+        // 722 WornApparelHasKeywordCount(keyword): the number of worn pieces with the keyword (the keywords of each worn
+        // piece are listed once, one list per piece, so the count is the number of times the keyword appears).
+        float wornKeywordCountFn(const survey::Ctda& c, Subject subject, const conditions::ConditionWorld& world)
+        {
+            const Participant* p = participantOf(world, subject);
+            if (p == nullptr || p->mPerk.mWornKeywords == nullptr || c.mParam1 == 0)
+                return 0.f;
+            return static_cast<float>(std::count(p->mPerk.mWornKeywords->begin(), p->mPerk.mWornKeywords->end(),
+                static_cast<FormId>(c.mParam1)));
+        }
+
+        constexpr std::array<conditions::ExtraFunction, 4> kExtra = { {
             { 715, isUndeadFn },
+            { 719, isHostileToActorFn },
+            { 722, wornKeywordCountFn },
             { 724, wasDualCastFn },
         } };
 
@@ -222,6 +277,34 @@ namespace game_skyrimse::effectconditions
     bool functionAnswered(std::uint16_t function)
     {
         return std::binary_search(kAnswered.begin(), kAnswered.end(), function);
+    }
+
+    bool functionAnsweredExtended(std::uint16_t function)
+    {
+        return functionAnswered(function) || std::binary_search(kExtendedOnly.begin(), kExtendedOnly.end(), function);
+    }
+
+    bool Evaluator::answers(const survey::Ctda& c) const
+    {
+        if (functionAnswered(c.mFunction))
+            return true;
+        if (!mExtended || !functionAnsweredExtended(c.mFunction))
+            return false;
+        switch (c.mFunction)
+        {
+            case 74: // a global the source knows
+            {
+                float unused = 0.f;
+                return mGlobals && mGlobals(static_cast<FormId>(c.mParam1), unused);
+            }
+            case 300:
+            case 310:
+                return mPlace.mKnown;
+            case 719: // the actor is none or the player
+                return c.mParam1 == 0 || c.mParam1 == kPlayerReference;
+            default:
+                return true;
+        }
     }
 
     bool runOnAnswered(const survey::Ctda& condition)
@@ -244,7 +327,7 @@ namespace game_skyrimse::effectconditions
         bool unanswered = false;
         for (const survey::Ctda& c : list)
         {
-            if (!functionAnswered(c.mFunction))
+            if (!answers(c))
             {
                 unanswered = true;
                 if (mUnansweredFunctions.insert(c.mFunction).second && mLog)
@@ -265,6 +348,19 @@ namespace game_skyrimse::effectconditions
                 }
             }
         }
+        if (!unanswered && mExtended)
+            for (const survey::Ctda& c : list)
+                if ((c.mFlags & kUseGlobalFlag) != 0)
+                {
+                    float unused = 0.f;
+                    if (!mGlobals || !mGlobals(static_cast<FormId>(c.mComparisonBits), unused))
+                    {
+                        unanswered = true;
+                        if (mLog && mUnansweredFunctions.insert(c.mFunction).second)
+                            mLog("effect conditions: " + survey::functionName(c.mFunction)
+                                + " compares with a global the world does not know, the effects that use it do nothing");
+                    }
+                }
         if (unanswered)
         {
             ++mUnanswered;
@@ -277,6 +373,8 @@ namespace game_skyrimse::effectconditions
         world.mLookup = &mLookup;
         world.mSeed = mSeed;
         world.mCounter = &mCounter;
+        world.mPlace = &mPlace;
+        world.mGlobals = &mGlobals;
         const bool pass = mEvaluator.evaluate(list, world);
         ++(pass ? mPassed : mFailed);
         return pass ? Verdict::Pass : Verdict::Fail;

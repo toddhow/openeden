@@ -23,9 +23,16 @@
 // GetRestrained (always 0: nothing here restrains an actor), 700 IsCommandedActor (always 0: nothing commands one) and
 // 724 EffectWasDualCast (always 0: there is no dual casting).
 // Everything else is UNANSWERED: the list fails closed, that is the effect does nothing, and the function is logged
-// once. Not answered (conditions on effects in the five masters): 74 GetGlobalValue 333, 300 IsInInterior 132, 310
-// GetInWorldspace 118, 719 IsHostileToActor 36, 722 WornApparelHasKeywordCount 61, 365 IsChild 23 and the quest
-// functions.
+// once.
+//
+// Task 0238 adds six more, for an evaluator that was told it may (`setExtended`, which the combat does) and, for three
+// of them, given the source they read: 74 GetGlobalValue (a globals source, `setGlobalLookup`; a global the source does not
+// know leaves the list unanswered), 300 IsInInterior and 310 GetInWorldspace (the place, `setPlace`: the effect's target
+// stands where the player does, because only the loaded cells have actors), 365 IsChild (the race's Child flag, RACE DATA
+// +32 bit 2, VERIFIED: every *RaceChild race has it and no adult race does), 719 IsHostileToActor (the participant's
+// hostility to the caster or to the player, from the combat's relation rules; a parameter other than none or the player
+// reference is unanswered) and 722 WornApparelHasKeywordCount (the number of worn pieces that carry the keyword). Not
+// answered: 629 GetVMQuestVariable (a quest script's variable; needs the Papyrus host), the quest functions.
 
 #include <game_skyrimse/perks.hpp>
 
@@ -57,10 +64,27 @@ namespace game_skyrimse::effectconditions
         float mMagickaFraction = 1.f;
         float mStaminaFraction = 1.f;
         std::span<const FormId> mActiveEffects{}; ///< the MGEFs running on it now
+        // Task 0238 (all default to "no"): the race has the Child flag; the actor is an enemy of the caster of the effect
+        // and of the player (the combat's relation rules).
+        bool mChild = false;
+        bool mHostileToCaster = false;
+        bool mHostileToPlayer = false;
     };
 
-    /// True when the world can answer function `function` (the list above).
+    /// Task 0238: where the effects land, for IsInInterior and GetInWorldspace. Unknown: those two stay unanswered.
+    struct Place
+    {
+        bool mKnown = false;
+        bool mInterior = false;
+        FormId mWorld = kNullFormId; ///< the exterior's worldspace (the load-order id); 0 in an interior
+    };
+
+    /// True when the world can answer function `function` with nothing given (the first list above: the 21 functions of
+    /// task 0236).
     [[nodiscard]] bool functionAnswered(std::uint16_t function);
+    /// Task 0238: the same plus the six functions an extended evaluator can answer with its sources (74, 300, 310, 365,
+    /// 719, 722).
+    [[nodiscard]] bool functionAnsweredExtended(std::uint16_t function);
 
     /// True when a condition's run-on can be resolved: 0, 1, or 2 with the player's reference.
     [[nodiscard]] bool runOnAnswered(const survey::Ctda& condition);
@@ -79,8 +103,15 @@ namespace game_skyrimse::effectconditions
     public:
         using EffectLookup = std::function<const MagicEffectRecord*(FormId)>;
         using Log = std::function<void(const std::string&)>;
+        /// Task 0238: the value of a GLOB by form id; false when the source does not know it.
+        using GlobalLookup = std::function<bool(FormId global, float& value)>;
 
         Evaluator();
+
+        /// Task 0238: allow the six extra functions. Off (the default) the evaluator is the one of task 0236.
+        void setExtended(bool extended) { mExtended = extended; }
+        void setPlace(const Place& place) { mPlace = place; }
+        void setGlobalLookup(GlobalLookup lookup) { mGlobals = std::move(lookup); }
 
         /// Needed for HasMagicEffectKeyword (a running effect's keywords). Without it that function finds nothing.
         void setEffectLookup(EffectLookup lookup) { mLookup = std::move(lookup); }
@@ -101,7 +132,11 @@ namespace game_skyrimse::effectconditions
         std::set<std::uint16_t> mUnansweredFunctions; ///< the indices that made a list unanswered
 
     private:
+        [[nodiscard]] bool answers(const survey::Ctda& condition) const;
         conditions::Evaluator mEvaluator;
+        bool mExtended = false;
+        Place mPlace;
+        GlobalLookup mGlobals;
         EffectLookup mLookup;
         Log mLog;
         std::uint64_t mSeed = 1;
