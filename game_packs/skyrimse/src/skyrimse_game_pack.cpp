@@ -525,8 +525,8 @@ namespace game_skyrimse
         private:
             // Task 0185: the quest journal (the namespace skyrimse.journal over the dialogue runtime's quest state). It
             // needs no polling: the first script read asks for the quest data and a read rebuilds what changed. The
-            // objective flags are the Papyrus host's (private there); until PapyrusHost exposes them no objective is
-            // shown (docs/tasks/0185-papyrus-host-objective-accessors.patch).
+            // objective flags are the Papyrus host's (Quest.SetObjectiveDisplayed and SetObjectiveCompleted); without
+            // the Papyrus host (the setting off) no objective is shown.
             void startJournal(openeden::sdk::Host& host, openeden::sdk::Logger* logger)
             {
                 const openeden::sdk::SettingsService* settings = host.getSettingsService();
@@ -545,14 +545,35 @@ namespace game_skyrimse
                     {
                         // a developer aid: a fresh session has no quest with a log text (the start-up stages have none)
                         testQuestsApplied = true;
-                        const std::size_t set = journal::applyTestQuests(
-                            *access.mQuests, *access.mState, access.mText, static_cast<std::size_t>(testQuests));
+                        std::vector<FormId> moved;
+                        const std::size_t set = journal::applyTestQuests(*access.mQuests, *access.mState, access.mText,
+                            static_cast<std::size_t>(testQuests), &moved);
                         if (logger != nullptr)
+                        {
                             logger->log(openeden::sdk::LogLevel::Info,
                                 "JOURNAL test quests: " + std::to_string(set) + " quests moved to a stage with a log text");
+                            for (const FormId id : moved)
+                            {
+                                const QuestRecord* q = access.mQuests->quest(id);
+                                std::string objectives;
+                                if (q != nullptr)
+                                    for (const QuestObjective& o : q->mObjectives)
+                                        objectives += " " + std::to_string(o.mIndex);
+                                logger->log(openeden::sdk::LogLevel::Info,
+                                    "JOURNAL test quest " + std::to_string(id) + " objectives:" + objectives);
+                            }
+                        }
                     }
                     return true;
                 };
+                hooks.mObjective = [this](FormId quest, std::uint16_t index) {
+                    if (mPapyrus == nullptr)
+                        return journal::ObjectiveFlags();
+                    const PapyrusHost::ObjectiveState s = mPapyrus->host().objectiveState(quest, index);
+                    return journal::ObjectiveFlags{ s.mDisplayed, s.mCompleted };
+                };
+                hooks.mObjectiveRevision
+                    = [this] { return mPapyrus != nullptr ? mPapyrus->host().objectiveRevision() : std::uint64_t(0); };
                 hooks.mLog = [logger](const std::string& line) {
                     if (logger != nullptr)
                         logger->log(openeden::sdk::LogLevel::Info, line);

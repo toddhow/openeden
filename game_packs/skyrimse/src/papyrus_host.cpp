@@ -755,6 +755,7 @@ namespace game_skyrimse
                     const auto key = std::make_pair(formOf(c.self), static_cast<std::uint32_t>(argInt(c, 0)));
                     const bool on = c.arguments.size() > 1 ? argInt(c, 1) != 0 : true;
                     (completed ? mObjectivesCompleted : mObjectivesDisplayed)[key] = on;
+                    ++mObjectiveRevision;
                     return NativeResult{};
                 };
             };
@@ -870,6 +871,7 @@ namespace game_skyrimse
         std::map<std::pair<FormId, std::uint32_t>, FormId> mAliasForced;
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesDisplayed;
         std::map<std::pair<FormId, std::uint32_t>, bool> mObjectivesCompleted;
+        std::uint64_t mObjectiveRevision = 0;
         std::string mStringScratch;
     };
 
@@ -1361,6 +1363,7 @@ namespace game_skyrimse
         mAliasForced = std::move(aliasForced);
         mObjectivesDisplayed = std::move(displayed);
         mObjectivesCompleted = std::move(completed);
+        ++mObjectiveRevision;
         mQuestsAttached = std::move(questsAttached);
         mRefAttached = std::move(refAttached);
         mRefClass = std::move(refClass);
@@ -1511,6 +1514,20 @@ namespace game_skyrimse
         if (it == mImpl->mPositions.end())
             return std::nullopt;
         return it->second;
+    }
+
+    PapyrusHost::ObjectiveState PapyrusHost::objectiveState(FormId quest, std::uint32_t objective) const
+    {
+        const std::pair<FormId, std::uint32_t> key{ quest, objective };
+        const auto d = mImpl->mObjectivesDisplayed.find(key);
+        const auto c = mImpl->mObjectivesCompleted.find(key);
+        return { d != mImpl->mObjectivesDisplayed.end() && d->second,
+            c != mImpl->mObjectivesCompleted.end() && c->second };
+    }
+
+    std::uint64_t PapyrusHost::objectiveRevision() const
+    {
+        return mImpl->mObjectiveRevision;
     }
 
     bool PapyrusHost::hasSpell(FormId actor, FormId spell) const

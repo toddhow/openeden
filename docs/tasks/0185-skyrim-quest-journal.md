@@ -1,6 +1,6 @@
 # Task: Skyrim quest journal (milestone M-S6)
 
-Status: BUILT except objective display (waits for two accessors on `PapyrusHost`, see decision 1); Windows only, not pushed; see the stage log at the end. toddhow chose "Quest journal" for M-S6 on 2026-11-15.
+Status: BUILT, including objective display (follow-up on branch `journal2`, see the last section); Windows only, not pushed; see the stage log at the end. toddhow chose "Quest journal" for M-S6 on 2026-11-15.
 Design doc section: `docs/design/skyrim-se-implementation-plan.md` 4.20 (dialogue and quests), 4.24 (UI, row "journal/quests"),
 the M-S6 row; decision 0015 (UI system), task 0097 (script bindings for game packs), tasks 0139 (quests), 0176 and 0181
 (Papyrus), 0180 (HUD) and 0182 (inventory) as the patterns.
@@ -179,3 +179,18 @@ masters resolved.
 9. The journal is main-thread only with no lock, like the inventory (the Lua update runs on the main thread in this tree).
 10. **Not run:** the Linux gate, clang-format 14 (formatted by hand to 120 columns), clang-tidy, the Lua integration tests, a fresh
     review, a gamepad, saving a game with the journal open, a quest with 64 or more log entries in game, the real objective flags.
+
+## Follow-up: objectives (2026-11-15, branch `journal2` from `31ecf3a8ff`)
+
+Decision 1 done. `PapyrusHost::objectiveState` and `objectiveRevision` (the patch file, plus `++mObjectiveRevision` when a restored
+state replaces the flag maps); `startJournal` sets `hooks.mObjective` and `hooks.mObjectiveRevision` (both answer "nothing" when the
+Papyrus host is off). Tests first: `SkyrimPapyrusObjectives` (2: a script's `SetObjectiveDisplayed` is read back with a revision that
+moves only when a native is called; the flags and a non-zero revision come back after a restore) were red against stub accessors
+(2 of 2), then pass. `journal test quests` now also logs each moved quest's id and objective indices (`JOURNAL test quest <id> objectives: ...`).
+In game: `SkyrimPapyrusDemoObjectives` (gated by `OPENEDEN_PAPYRUS_DEMO_DIR_OBJ`, `OPENEDEN_DEMO_QUEST`, `_OBJ`, `_OBJ2`) wrote
+`oedemotick.pex`; with the existing `oedemo.esp` (activators in the Bannered Mare that carry it) `tools/journal_check/check.sh`
+(`DEMO_DIR`, `DEMO_ESP`, input `pick_quests.txt`) showed The Shill Job (quest 89380 as a decimal form id, objectives 10 and 20) with
+`[ ] Plant the Evidence in WealthyHome in City` and `[x] Return to Vex`; the other five quests have no displayed objective and show
+none. Three runs: identical `JOURNAL`/`PAPYRUS started` lines, 0 pixels over 8 in the window region. Morrowind unchanged as before
+(`1c5d47ad0b5dc32d` three times, `worldobjects_check` OK). No real start-up script displays an objective in the first 45 s of
+script time, so a fresh session still shows none by itself.

@@ -112,7 +112,9 @@ namespace game_skyrimse::journal
     /// a stage whose log entry has a text and neither completes nor fails the quest are set to their lowest such
     /// stage; the next quest that has a completing stage with a text is completed. Returns how many quests were set.
     /// Deterministic.
-    std::size_t applyTestQuests(const QuestIndex& index, QuestState& state, const TextFn& text, std::size_t count);
+    /// `moved`, when given, receives the form ids that were set, in order.
+    std::size_t applyTestQuests(const QuestIndex& index, QuestState& state, const TextFn& text, std::size_t count,
+        std::vector<FormId>* moved = nullptr);
 
     struct Access
     {

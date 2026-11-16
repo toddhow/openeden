@@ -1,0 +1,17 @@
+# Task 0185: open the journal and look at the quests that the demo script gave objectives (Kyne, Forsworn, Shill).
+4100 key J down
+4102 key J up
+4150 mouse 130 157
+4154 down L 130 157
+4156 up L 130 157
+4180 shot
+4200 mouse 130 209
+4204 down L 130 209
+4206 up L 130 209
+4230 shot
+4250 mouse 130 235
+4254 down L 130 235
+4256 up L 130 235
+4280 shot
+4300 key J down
+4302 key J up

@@ -264,7 +264,8 @@ namespace game_skyrimse::journal
         sortAndCap(out.mCompleted, out.mDropped);
     }
 
-    std::size_t applyTestQuests(const QuestIndex& index, QuestState& state, const TextFn& text, std::size_t count)
+    std::size_t applyTestQuests(
+        const QuestIndex& index, QuestState& state, const TextFn& text, std::size_t count, std::vector<FormId>* moved)
     {
         Inputs in;
         in.mQuests = &index;
@@ -300,6 +301,8 @@ namespace game_skyrimse::journal
             if (pick == nullptr)
                 continue;
             state.setStage(index, id, pick->mIndex);
+            if (moved != nullptr)
+                moved->push_back(id);
             ++set;
             if (wantCompleted)
                 completedOne = true;

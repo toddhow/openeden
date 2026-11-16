@@ -209,6 +209,16 @@ namespace game_skyrimse
         [[nodiscard]] std::vector<std::pair<FormId, bool>> enableOverrides() const;
         /// Where MoveTo put a reference (nullopt when it was never moved). Recorded only: the engine is not moved.
         [[nodiscard]] std::optional<std::array<double, 3>> positionOverride(FormId reference) const;
+        /// Task 0185 (the quest journal): the flags Quest.SetObjectiveDisplayed and SetObjectiveCompleted left for an
+        /// objective, and a counter that every such call increments.
+        struct ObjectiveState
+        {
+            bool mDisplayed = false;
+            bool mCompleted = false;
+        };
+        [[nodiscard]] ObjectiveState objectiveState(FormId quest, std::uint32_t objective) const;
+        [[nodiscard]] std::uint64_t objectiveRevision() const;
+
         /// Whether Actor.AddSpell recorded the spell for the actor (recorded only: no effect).
         [[nodiscard]] bool hasSpell(FormId actor, FormId spell) const;
 

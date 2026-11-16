@@ -6,7 +6,8 @@
 #
 #   check.sh <build dir> <base config dir> <Skyrim Data folder> <work dir> [frames]
 #
-# env: INPUT (the input script), SETTINGS_EXTRA (more settings text), WIDTH and HEIGHT (default 1280 and 720).
+# env: DEMO_DIR and DEMO_ESP (a folder with scripts/oedemotick.pex written by SkyrimPapyrusDemoObjectives and the plugin
+#      oedemo.esp whose activators carry that script: objectives a script displays), INPUT (the input script), SETTINGS_EXTRA (more settings text), WIDTH and HEIGHT (default 1280 and 720).
 # <work dir> must be under I:/Projects/OpenEden-work.
 set -e
 export OPENEDEN_QUIET_WINDOW="${OPENEDEN_QUIET_WINDOW-1}"
@@ -23,6 +24,7 @@ cat >> "$WORK/config/openmw.cfg" <<CFG
 resources=$B/resources
 data="$B/resources/vfs-mw"
 data="$(native "$SKYRIM")"
+${DEMO_DIR:+data="$(native "$DEMO_DIR")"}
 game=skyrimse
 fallback-archive=Skyrim - Animations.bsa
 fallback-archive=Skyrim - Interface.bsa
@@ -43,6 +45,7 @@ content=Update.esm
 content=Dawnguard.esm
 content=HearthFires.esm
 content=Dragonborn.esm
+${DEMO_ESP:+content=$DEMO_ESP}
 CFG
 printf '[Game]\nneutral world = true\nneutral actors = true\n[GUI]\nrmlui = true\nrmlui debug panel = false\n[Video]\nresolution x = %s\nresolution y = %s\nvsync mode = 0\n[extension.skyrimse]\npapyrus = true\njournal = true\n' "${WIDTH:-1280}" "${HEIGHT:-720}" > "$WORK/config/settings.cfg"
 [ -n "${SETTINGS_EXTRA:-}" ] && printf '%b' "$SETTINGS_EXTRA" >> "$WORK/config/settings.cfg"

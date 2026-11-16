@@ -1015,4 +1015,72 @@ namespace
         out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
         ASSERT_TRUE(out.good());
     }
+
+    // ---- task 0185: the objective flags the quest journal reads ----
+
+    TEST(SkyrimPapyrusObjectives, aScriptsSetObjectiveDisplayedIsReadBackWithARevision)
+    {
+        Rig rig;
+        setUpWorld(rig);
+        EXPECT_EQ(rig.mHost->objectiveRevision(), 0u);
+        rig.mHost->startGame();
+        rig.tick(5, 0.1f);
+        const PapyrusHost::ObjectiveState shown = rig.mHost->objectiveState(kQuestA, 1);
+        EXPECT_TRUE(shown.mDisplayed);
+        EXPECT_FALSE(shown.mCompleted);
+        const PapyrusHost::ObjectiveState other = rig.mHost->objectiveState(kQuestA, 2);
+        EXPECT_FALSE(other.mDisplayed);
+        EXPECT_FALSE(other.mCompleted);
+        EXPECT_FALSE(rig.mHost->objectiveState(kRefA, 1).mDisplayed);
+        const std::uint64_t revision = rig.mHost->objectiveRevision();
+        EXPECT_GT(revision, 0u);
+        rig.tick(5, 0.1f);
+        EXPECT_EQ(rig.mHost->objectiveRevision(), revision) << "nothing called it again";
+    }
+
+    TEST(SkyrimPapyrusObjectives, theFlagsComeBackAfterARestoreAndMoveTheRevision)
+    {
+        Rig a;
+        runToSavePoint(a);
+        const std::vector<std::uint8_t> bytes = a.mHost->saveState();
+        Rig b;
+        setUpWorld(b);
+        ASSERT_TRUE(b.mHost->restoreSavedState(bytes).mOk);
+        EXPECT_TRUE(b.mHost->objectiveState(kQuestA, 1).mDisplayed);
+        EXPECT_GT(b.mHost->objectiveRevision(), 0u);
+    }
+
+    // The demo script for the quest journal's in-game check (task 0185, tools/journal_check): OEDemoTick keeps the
+    // properties the demo plugin fills (Limit, Label) and on OnInit displays objective OBJ of the quest QUEST and
+    // completes objective OBJ2 (Game.GetForm, then Quest.SetObjectiveDisplayed and SetObjectiveCompleted). Written only when
+    // OPENEDEN_PAPYRUS_DEMO_DIR_OBJ is set; the quest (a load-order form id, decimal) and the two indices come from
+    // OPENEDEN_DEMO_QUEST, OPENEDEN_DEMO_OBJ and OPENEDEN_DEMO_OBJ2.
+    TEST(SkyrimPapyrusDemoObjectives, writes_the_demo_script_when_asked)
+    {
+        const char* const dir = std::getenv("OPENEDEN_PAPYRUS_DEMO_DIR_OBJ");
+        const char* const quest = std::getenv("OPENEDEN_DEMO_QUEST");
+        const char* const obj = std::getenv("OPENEDEN_DEMO_OBJ");
+        const char* const obj2 = std::getenv("OPENEDEN_DEMO_OBJ2");
+        if (dir == nullptr || std::string(dir).empty() || quest == nullptr || obj == nullptr || obj2 == nullptr)
+            GTEST_SKIP() << "OPENEDEN_PAPYRUS_DEMO_DIR_OBJ, OPENEDEN_DEMO_QUEST, _OBJ and _OBJ2 are not all set";
+        ScriptBuilder s("OEDemoTick");
+        s.parent("ObjectReference");
+        s.autoProperty("Limit", "Int");
+        s.autoProperty("Label", "String");
+        s.function("OnInit")
+            .local("nn", "None")
+            .local("f", "Form")
+            .local("q", "Quest")
+            .callStatic("Game", "GetForm", Id("f"), { Int(std::atoi(quest)) })
+            .op(PexAsm::Op::Cast, { Id("q"), Id("f") })
+            .callMethod("SetObjectiveDisplayed", Id("q"), Id("nn"), { Int(std::atoi(obj)), Bool(true), Bool(false) })
+            .callMethod("SetObjectiveDisplayed", Id("q"), Id("nn"), { Int(std::atoi(obj2)), Bool(true), Bool(false) })
+            .callMethod("SetObjectiveCompleted", Id("q"), Id("nn"), { Int(std::atoi(obj2)), Bool(true) });
+        const std::vector<std::uint8_t> bytes = s.build(PapyrusTest::optionsFor(PexAsm::Target::SkyrimSE)).mBytes;
+        const std::filesystem::path folder = std::filesystem::path(dir) / "scripts";
+        std::filesystem::create_directories(folder);
+        std::ofstream out(folder / "oedemotick.pex", std::ios::binary);
+        out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        ASSERT_TRUE(out.good());
+    }
 }
