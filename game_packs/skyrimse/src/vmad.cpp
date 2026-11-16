@@ -428,8 +428,27 @@ namespace game_skyrimse::vmad
         for (const Script& script : own)
             have.insert(lowerName(script.mName));
         for (const Script& script : *base)
+        {
             if (have.insert(lowerName(script.mName)).second)
+            {
                 all.push_back(script);
+                continue;
+            }
+            // Task 0256: a script both carry keeps the reference's values and gains the properties only the base sets (a
+            // word wall's trigger reference names its words and the base activator names the image space modifiers).
+            for (Script& mine : all)
+            {
+                if (lowerName(mine.mName) != lowerName(script.mName))
+                    continue;
+                std::set<std::string> names;
+                for (const Property& property : mine.mProperties)
+                    names.insert(lowerName(property.mName));
+                for (const Property& property : script.mProperties)
+                    if (names.insert(lowerName(property.mName)).second)
+                        mine.mProperties.push_back(property);
+                break;
+            }
+        }
         return all;
     }
 }

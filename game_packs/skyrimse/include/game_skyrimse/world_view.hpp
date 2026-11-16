@@ -173,6 +173,11 @@ namespace game_skyrimse
             FormId mBase = kNullFormId;
             bool mActor = false;
             std::vector<vmad::Script> mScripts;
+            /// Task 0256: the placement is a primitive volume (XPRM), with its place, for the trigger tracker.
+            bool mHasPrimitive = false;
+            RefPrimitive mPrimitive;
+            Vec3 mPosition;
+            FormId mCell = kNullFormId;
         };
 
         /// What the Papyrus host reads of the dialogue data (task 0176). Pointers stay valid while the view lives.

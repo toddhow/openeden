@@ -26,6 +26,7 @@
 #include <game_skyrimse/quest_alias.hpp>
 #include <game_skyrimse/records.hpp>
 #include <game_skyrimse/story.hpp>
+#include <game_skyrimse/triggers.hpp>
 #include <game_skyrimse/vmad.hpp>
 
 #include <components/script_papyrus/papyrusruntime.hpp>
@@ -402,6 +403,19 @@ namespace game_skyrimse
         std::string mError;
     };
 
+    /// Task 0256: where the player is and where he looks, once a frame (from the combat update's player state). The
+    /// place decides which trigger volumes count; the view serves ObjectReference.HasLOS and GetDistance of the player.
+    struct PapyrusPlayerView
+    {
+        bool mKnown = false;
+        double mX = 0.0;
+        double mY = 0.0;
+        double mZ = 0.0;
+        float mHeading = 0.f; ///< radians about Z as the engine stores it (0 faces +Y)
+        float mPitch = 0.f; ///< radians, positive up
+        TriggerPlace mPlace;
+    };
+
     class PapyrusHost
     {
     public:
@@ -495,6 +509,18 @@ namespace game_skyrimse
 
         /// A cell's references finished loading: sends OnCellLoad and then OnLoad to the instances attached to them.
         void onCellLoaded(FormId cell, const std::vector<FormId>& references);
+
+        /// Task 0256: a placed reference that is a trigger volume (a sphere primitive). False (counted) when it is not a
+        /// supported volume. The scripts on the reference get OnTriggerEnter and OnTriggerLeave with the player.
+        bool addTrigger(FormId reference, const TriggerVolume& volume);
+        /// Task 0256: the player's place and look, once a frame before `updateTriggers`.
+        void setPlayerView(const PapyrusPlayerView& view);
+        /// Task 0256: sends OnTriggerEnter or OnTriggerLeave for every volume the player went into or out of since the
+        /// last call; returns how many events were queued. Run by the next tick.
+        std::size_t updateTriggers();
+        [[nodiscard]] std::size_t triggerCount() const;
+        /// A load: the player is taken to be outside every volume again, so the ones he stands in report entered.
+        void resetTriggers();
 
         /// The player (or an actor) used a placed reference: sends OnActivate(akActionRef) to its instances.
         void onActivate(FormId target, FormId actionRef);

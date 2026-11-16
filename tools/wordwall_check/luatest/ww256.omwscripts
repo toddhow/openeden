@@ -1,0 +1,3 @@
+GLOBAL: scripts/ww256/global.lua
+MENU: scripts/ww256/menu.lua
+PLAYER: scripts/ww256/player.lua

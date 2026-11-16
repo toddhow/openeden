@@ -108,6 +108,7 @@ openeden_add_game_pack(skyrimse
         src/image_space_mod.cpp
         include/game_skyrimse/image_space_mod.hpp
         src/shouts.cpp
+        src/triggers.cpp
         src/shouts_service.cpp
         include/game_skyrimse/shouts.hpp
         include/game_skyrimse/shouts_service.hpp
@@ -327,6 +328,7 @@ add_library(game_skyrimse_world STATIC
     src/combat_shout.cpp
     src/image_space_mod.cpp
     src/shouts.cpp
+    src/triggers.cpp
     src/actor_mechanics.cpp
     src/combat_stats.cpp
     src/combat_impact.cpp

@@ -118,7 +118,15 @@ namespace game_skyrimse
                 if (const PlacedRefIndex* refs = mView.placedRefs())
                     if (const PlacedEntry* entry = refs->find(form))
                         return (entry->mFlags & PlacedFlags::IsActor) != 0 ? "Actor" : "ObjectReference";
-                return mView.scriptClassOf(form); // task 0237: Spell and Message
+                const std::string scripted = mView.scriptClassOf(form); // task 0237: Spell and Message
+                if (!scripted.empty())
+                    return scripted;
+                // Task 0256: a word wall's properties are a word of power and a global variable
+                if (const ShoutIndex* shouts = mView.shoutIndex())
+                    if (shouts->word(form) != nullptr)
+                        return "WordOfPower";
+                float globalNow = 0.f;
+                return mView.globalValue(form, globalNow) ? "GlobalVariable" : std::string();
             }
             bool referencePosition(FormId reference, double& x, double& y, double& z) const override
             {
@@ -348,6 +356,7 @@ namespace game_skyrimse
                 applyPendingScenes(); // task 0211
                 applyPendingStory(); // task 0217
                 processPlace();
+                updateWordWalls(); // task 0256
                 raiseTestEvent();
                 drainStory();
                 mHost.tick(dt);
@@ -359,6 +368,39 @@ namespace game_skyrimse
                     mNextSummary += kSummarySeconds;
                     summary();
                 }
+            }
+
+            // Task 0256: the combat update reports where the player is and looks; the trigger volumes of the word walls
+            // (and every other volume a script sits on) are tested against it just before the scripts run.
+            void playerState(const openeden::sdk::game::SubjectState& state)
+            {
+                mPlayerState = state;
+                mHavePlayerState = true;
+            }
+
+            void updateWordWalls()
+            {
+                PapyrusPlayerView view;
+                if (mHavePlayerState)
+                {
+                    view.mKnown = true;
+                    view.mX = mPlayerState.x;
+                    view.mY = mPlayerState.y;
+                    view.mZ = mPlayerState.z;
+                    view.mHeading = mPlayerState.heading;
+                    view.mPitch = mPlayerState.pitch;
+                    view.mPlace.mKnown = mSite.mKnown;
+                    view.mPlace.mInterior = mSite.mInterior;
+                    view.mPlace.mCell = mSite.mCell;
+                }
+                mHost.setPlayerView(view);
+                const std::size_t sent = mHost.updateTriggers();
+                if (sent != 0)
+                    say(openeden::sdk::LogLevel::Info,
+                        "PAPYRUS trigger events sent: " + std::to_string(sent) + " (player at "
+                            + std::to_string(static_cast<long long>(view.mX)) + " "
+                            + std::to_string(static_cast<long long>(view.mY)) + " "
+                            + std::to_string(static_cast<long long>(view.mZ)) + ")");
             }
 
             void cellBuilt(openeden::sdk::game::WorldId cell)
@@ -534,6 +576,7 @@ namespace game_skyrimse
                 for (const auto& [reference, enabled] : mHost.enableOverrides())
                     pushEnabled(reference, enabled);
                 pushMoves();
+                mHost.resetTriggers(); // task 0256: a load puts the player outside every volume until he is seen inside
                 return true;
             }
 
@@ -955,6 +998,19 @@ namespace game_skyrimse
                     {
                         mHost.attachReference(s.mReference, s.mBase, s.mActor, s.mScripts);
                         references.push_back(s.mReference);
+                        if (s.mHasPrimitive) // task 0256
+                        {
+                            TriggerVolume volume;
+                            volume.mType = s.mPrimitive.mType;
+                            for (std::size_t i = 0; i < 3; ++i)
+                                volume.mBounds[i] = static_cast<double>(s.mPrimitive.mBounds[i]);
+                            volume.mPosition[0] = static_cast<double>(s.mPosition.x);
+                            volume.mPosition[1] = static_cast<double>(s.mPosition.y);
+                            volume.mPosition[2] = static_cast<double>(s.mPosition.z);
+                            volume.mCell = s.mCell;
+                            volume.mInterior = mData.cellIsInterior(s.mCell);
+                            (void)mHost.addTrigger(s.mReference, volume);
+                        }
                     }
                     mHost.onCellLoaded(cell, references);
                     raiseLocationChange(cell);
@@ -991,6 +1047,8 @@ namespace game_skyrimse
             static constexpr std::size_t kMaxPendingStory = 64;
             static constexpr int kStoryPerFrame = 4;
             std::optional<openeden::sdk::game::PlayerPlace> mPendingPlace;
+            openeden::sdk::game::SubjectState mPlayerState; ///< task 0256
+            bool mHavePlayerState = false;
             QuestAliasFiller::PlayerSite mSite;
             std::deque<StoryEvent> mPendingStory;
             std::optional<StoryEvent> mTestEvent;
@@ -1364,6 +1422,8 @@ namespace game_skyrimse
                             mCellSource.setPlayerPlaceSink(
                                 [driver](const openeden::sdk::game::PlayerPlace& place) { driver->playerPlace(place); });
                             mWorldView.setPlayerSite([driver] { return driver->playerSite(); });
+                            mCellSource.setPlayerStateSink(
+                                [driver](const openeden::sdk::game::SubjectState& state) { driver->playerState(state); });
                             driver->setTestEvent(settings->getString(kPackId, "story test event", ""),
                                 static_cast<double>(settings->getFloat(kPackId, "story test delay", 8.f)));
                             driver->setTestQuests(settings->getString(kPackId, "story test quest", ""),

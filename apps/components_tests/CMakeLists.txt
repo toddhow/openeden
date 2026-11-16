@@ -728,6 +728,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimsevmadrecords.cpp
     skyrimse/testskyrimsepapyrushost.cpp
     skyrimse/testskyrimsepapyrusbase.cpp
+    skyrimse/testskyrimsewordwalls.cpp
     skyrimse/testskyrimsepapyrusslice2.cpp
     skyrimse/testskyrimsepapyrusnatives2.cpp
     skyrimse/testskyrimsepapyrusobjects.cpp
@@ -899,6 +900,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_shout.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/image_space_mod.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/triggers.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/shouts_service.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_crowd.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat_gear.cpp

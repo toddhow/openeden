@@ -246,6 +246,14 @@ namespace game_skyrimse
     /// The most links kept for one placement.
     inline constexpr std::size_t kMaxRefLinks = 16;
 
+    /// REFR XPRM (task 0256): the primitive of a trigger volume. VERIFIED size 32: three floats of bounds, three of colour,
+    /// one float, then a u32 type (2 = sphere in every word wall trigger of the five masters).
+    struct RefPrimitive
+    {
+        float mBounds[3] = {};
+        std::uint32_t mType = 0;
+    };
+
     struct PlacedRef
     {
         RefKind mKind = RefKind::Placed;
@@ -267,6 +275,8 @@ namespace game_skyrimse
         float mPatrolIdle = -1.f;
         /// VMAD (task 0176): the scripts the placement carries, form ids resolved to load order ids (0 when unresolved).
         std::vector<vmad::Script> mScripts;
+        /// XPRM (task 0256): set when the placement is a primitive volume.
+        std::optional<RefPrimitive> mPrimitive;
 
         [[nodiscard]] bool persistent() const { return (mCommon.mFlags & RecordFlags::Persistent) != 0; }
         [[nodiscard]] bool initiallyDisabled() const { return (mCommon.mFlags & RecordFlags::InitiallyDisabled) != 0; }

@@ -658,6 +658,13 @@ namespace game_skyrimse
         // Where a reference is now: where MoveTo put it, else where the data placed it.
         bool positionOf(FormId reference, double (&xyz)[3]) const
         {
+            if (reference == kPlayerReference && mPlayerView.mKnown)
+            {
+                xyz[0] = mPlayerView.mX;
+                xyz[1] = mPlayerView.mY;
+                xyz[2] = mPlayerView.mZ;
+                return true;
+            }
             const auto it = mPositions.find(reference);
             if (it != mPositions.end())
             {
@@ -1487,8 +1494,21 @@ namespace game_skyrimse
             for (const char* name : { "DisablePlayerControls", "EnablePlayerControls", "FadeOutGame", "ForceFirstPerson",
                      "ShowFirstPersonGeometry", "SetInChargen" })
                 reg("Game", name, true, nothing);
-            for (const char* name : { "Apply", "PopTo", "Remove" })
+            for (const char* name : { "Apply", "PopTo", "Remove", "ApplyCrossFade" })
                 reg("ImageSpaceModifier", name, false, nothing);
+            reg("ImageSpaceModifier", "RemoveCrossFade", true, nothing); // task 0256: a static
+            // Task 0256 (a word wall's script): Actor.HasLOS of the player is where he looks. Actor.IsInCombat stays
+            // unanswered (tolerant, false): an existing test uses it as its example of an unanswered native.
+            reg("Actor", "HasLOS", false, [this](const NativeCall& c) {
+                const FormId target = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                double t[3] = { 0, 0, 0 };
+                bool sees = false;
+                if (formOf(c.self) == kPlayerReference && mPlayerView.mKnown && positionOf(target, t))
+                    sees = inViewCone(mPlayerView.mX, mPlayerView.mY, mPlayerView.mZ + kLosEyeHeight,
+                        mPlayerView.mHeading, mPlayerView.mPitch, t[0], t[1], t[2], kViewHalfAngle);
+                return result(PapyrusValue::makeBool(sees));
+            });
+
             for (const char* name : { "SetVehicle", "SetRestrained", "Say", "EvaluatePackage" })
                 reg("Actor", name, false, nothing);
             reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
@@ -1751,6 +1771,8 @@ namespace game_skyrimse
         std::map<std::pair<double, std::uint64_t>, Timer> mTimers;
         std::uint64_t mTolerantBase = 0; ///< tolerant calls counted before the state that was restored
         std::map<FormId, bool> mEnabled;
+        TriggerTracker mTracker; ///< task 0256: the trigger volumes of the loaded cells
+        PapyrusPlayerView mPlayerView; ///< task 0256: where the player is and looks (not saved)
         std::map<FormId, std::array<double, 3>> mPositions; ///< MoveTo, SetPosition (also sent to the world, task 0202)
         std::map<FormId, std::array<double, 3>> mAngles; ///< SetAngle, MoveTo with matched rotation (radians)
         std::map<FormId, PapyrusHost::CreatedObject> mCreated; ///< PlaceAtMe
@@ -2835,6 +2857,41 @@ namespace game_skyrimse
         m.mLastActor = actionRef;
         for (const InstanceId instance : m.instancesOf(target))
             (void)m.sendEvent(instance, "OnActivate", { m.formValue(actionRef) });
+    }
+
+    bool PapyrusHost::addTrigger(FormId reference, const TriggerVolume& volume)
+    {
+        return mImpl->mTracker.add(reference, volume);
+    }
+
+    void PapyrusHost::setPlayerView(const PapyrusPlayerView& view)
+    {
+        mImpl->mPlayerView = view;
+    }
+
+    std::size_t PapyrusHost::updateTriggers()
+    {
+        Impl& m = *mImpl;
+        if (!m.mPlayerView.mKnown)
+            return 0;
+        std::vector<TriggerEdge> edges;
+        m.mTracker.update(m.mPlayerView.mPlace, m.mPlayerView.mX, m.mPlayerView.mY, m.mPlayerView.mZ, edges);
+        std::size_t queued = 0;
+        for (const TriggerEdge& edge : edges)
+            for (const InstanceId instance : m.instancesOf(edge.mReference))
+                if (m.sendEvent(instance, edge.mEntered ? "OnTriggerEnter" : "OnTriggerLeave", { m.formValue(kPlayerReference) }))
+                    ++queued;
+        return queued;
+    }
+
+    std::size_t PapyrusHost::triggerCount() const
+    {
+        return mImpl->mTracker.count();
+    }
+
+    void PapyrusHost::resetTriggers()
+    {
+        mImpl->mTracker.resetInside();
     }
 
     void PapyrusHost::onRead(FormId target)

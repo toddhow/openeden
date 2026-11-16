@@ -3317,6 +3317,13 @@ namespace game_skyrimse
                 scripts.mBase = ref.mBase;
                 scripts.mActor = ref.mKind == RefKind::Actor;
                 scripts.mScripts = std::move(allScripts);
+                if (ref.mPrimitive) // task 0256
+                {
+                    scripts.mHasPrimitive = true;
+                    scripts.mPrimitive = *ref.mPrimitive;
+                    scripts.mPosition = ref.mPosition;
+                    scripts.mCell = cell;
+                }
                 result->mScripts.push_back(std::move(scripts));
             }
             if (missing)

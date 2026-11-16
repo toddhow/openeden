@@ -98,6 +98,7 @@ namespace game_skyrimse::shouts
         std::vector<std::unique_ptr<Fn>> mHandlers;
         std::vector<openeden::sdk::FunctionDescriptor> mFunctions;
         std::vector<BindingType> mIntParam{ BindingType::Int32 };
+        std::vector<BindingType> mStringParam{ BindingType::String };
 
         const ShoutIndex* index() const { return mHooks.mIndex ? mHooks.mIndex() : nullptr; }
         void log(const std::string& line) const
@@ -193,7 +194,16 @@ namespace game_skyrimse::shouts
                 m.log("SHOUTS TeachWord: form " + std::to_string(word) + " is not a word of power");
             return false;
         }
-        (void)m.mState.learn(word);
+        const WordRecord* record = index->word(word);
+        if (m.mState.learn(word))
+        {
+            // Task 0256: the message the game shows ("Word of Power learned: Fus"; the wording is ours). The name is the
+            // editor id without its "Word" prefix (the FULL string is not read, as for the shout names).
+            std::string name = record != nullptr ? record->mCommon.mEditorId : std::string();
+            if (name.size() > 4 && name.compare(0, 4, "Word") == 0 && name[4] >= 'A' && name[4] <= 'Z')
+                name.erase(0, 4);
+            m.mState.announce("Word of Power learned: " + name);
+        }
         return true;
     }
 
@@ -214,6 +224,16 @@ namespace game_skyrimse::shouts
     bool ShoutService::isWordUnlocked(FormId word) const
     {
         return mImpl->mState.unlocked(word);
+    }
+
+    bool ShoutService::unlockWithSoul(std::string_view wordEditorId)
+    {
+        Impl& m = *mImpl;
+        const ShoutIndex* index = m.index();
+        if (index == nullptr || wordEditorId.empty())
+            return false;
+        const WordRecord* word = index->wordByEditorId(wordEditorId);
+        return word != nullptr && m.mState.unlock(word->mCommon.mId);
     }
 
     std::string ShoutService::equippedName() const
@@ -299,6 +319,14 @@ namespace game_skyrimse::shouts
             [self](std::span<const BindingValue> a) {
                 if (!a.empty() && a[0].integer > 0)
                     self->state().addSouls(static_cast<std::uint32_t>(a[0].integer));
+                return BindingResult();
+            },
+            openeden::sdk::BindingAccess::Mutate);
+        // Task 0256: spends a dragon soul on a learned word (no shout menu exists yet to do it)
+        add("unlock_word", m.mStringParam, false, BindingType::Bool,
+            [self](std::span<const BindingValue> a) {
+                if (!a.empty() && a[0].type == BindingType::String)
+                    (void)self->unlockWithSoul(a[0].text);
                 return BindingResult();
             },
             openeden::sdk::BindingAccess::Mutate);

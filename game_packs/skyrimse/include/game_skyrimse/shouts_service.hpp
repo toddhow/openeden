@@ -6,7 +6,7 @@
 // `skyrimse.shouts` 1.0 for the cooldown HUD (files/data/openeden/skyrimse/shouthud.lua):
 //   Read   ready() -> bool, revision() -> int, equipped_name() -> string, cooldown() -> double,
 //          cooldown_total() -> double, unlocked_count() -> int, word_count() -> int, souls() -> int
-//   Mutate add_souls(n)
+//   Mutate add_souls(n), unlock_word(name) (task 0256: a dragon soul spent on a learned word, by its editor id)
 // Main thread only. No engine, renderer or script-language type.
 
 #include <game_skyrimse/shouts.hpp>
@@ -54,6 +54,10 @@ namespace game_skyrimse::shouts
         bool teachWord(FormId word);
         bool unlockWord(FormId word);
         [[nodiscard]] bool isWordUnlocked(FormId word) const;
+        /// Task 0256: unlocks a LEARNED word, named by its editor id ("WordFus"), by spending one dragon soul (the shout
+        /// menu does not exist yet; the script namespace's `unlock_word` calls this). False, and nothing spent, when the
+        /// word is unknown, not learned, already unlocked or there is no soul.
+        bool unlockWithSoul(std::string_view wordEditorId);
 
         /// The equipped shout's name for the HUD (empty when none).
         [[nodiscard]] std::string equippedName() const;

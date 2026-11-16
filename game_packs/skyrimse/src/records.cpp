@@ -948,6 +948,18 @@ namespace game_skyrimse
                             }
                             break;
                         }
+                        case Content::fourCC("XPRM"): // task 0256: a primitive volume; VERIFIED size 32
+                            if (data.size() != 32)
+                                odd("XPRM");
+                            else
+                            {
+                                RefPrimitive primitive;
+                                for (std::size_t i = 0; i < 3; ++i)
+                                    primitive.mBounds[i] = readLe<float>(data.data() + 4 * i);
+                                primitive.mType = readLe<std::uint32_t>(data.data() + 28);
+                                r.mPrimitive = primitive;
+                            }
+                            break;
                         case Content::fourCC("XPRD"):
                             if (data.size() != 4)
                                 odd("XPRD");

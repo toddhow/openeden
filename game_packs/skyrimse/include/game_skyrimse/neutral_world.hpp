@@ -484,12 +484,18 @@ namespace game_skyrimse
             AiDamageWriter aiWriter(hudWriter, mCombat); // task 0190: damage of every kind provokes the victim
             ScriptEventWriter scriptWriter(aiWriter, mScriptBridge); // task 0198: OnHit, OnDeath, Actor.Kill
             mScriptBridge.drain(scriptWriter);
-            if (mStanceSink)
+            if (mStanceSink || mPlayerStateSink)
             {
-                // Task 0235: the player's stance (sneaking, drawn weapon), which is only readable inside this call
+                // Task 0235: the player's stance (sneaking, drawn weapon), which is only readable inside this call.
+                // Task 0256: and where he is and looks.
                 openeden::sdk::game::SubjectState playerState;
                 if (scriptWriter.subjectState(openeden::sdk::game::CombatSubject::ofPlayer(), playerState))
-                    mStanceSink(playerState);
+                {
+                    if (mStanceSink)
+                        mStanceSink(playerState);
+                    if (mPlayerStateSink)
+                        mPlayerStateSink(playerState);
+                }
             }
             if (mSneak != nullptr)
                 mSneak->update(seconds, scriptWriter); // task 0227: judged before the blows of this update
@@ -534,6 +540,8 @@ namespace game_skyrimse
         /// Task 0235: told the player's state once a combat update (empty: off).
         using StanceSink = std::function<void(const openeden::sdk::game::SubjectState&)>;
         void setStanceSink(StanceSink sink) { mStanceSink = std::move(sink); }
+        /// Task 0256: the player's state once a combat update (position and look, for the Papyrus trigger volumes).
+        void setPlayerStateSink(StanceSink sink) { mPlayerStateSink = std::move(sink); }
         /// Task 0198: where the Papyrus host hears of damage and deaths and queues Actor.Kill (inactive until sinks are set).
         [[nodiscard]] ScriptCombatBridge& scriptBridge() { return mScriptBridge; }
         /// Task 0180: what the combat HUD shows (the script package `core.skyrimse.combat` reads it).
@@ -645,6 +653,7 @@ namespace game_skyrimse
         sneak::SneakSystem* mSneak = nullptr; ///< task 0227
         hudstyle::StyleHud* mStyleHud = nullptr; ///< task 0244
         StanceSink mStanceSink; ///< task 0235
+        StanceSink mPlayerStateSink; ///< task 0256
         std::function<bool(FormId)> mPlayerItems; // task 0184
         std::function<bool(std::uint64_t)> mLockPicked; // task 0203
         bool mLockpickingOn = false;
