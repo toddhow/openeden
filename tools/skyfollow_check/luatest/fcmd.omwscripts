@@ -1,0 +1,2 @@
+GLOBAL: scripts/fcmd/global.lua
+MENU: scripts/fcmd/menu.lua

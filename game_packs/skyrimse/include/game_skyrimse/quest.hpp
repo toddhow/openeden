@@ -173,6 +173,7 @@ namespace game_skyrimse
         std::uint32_t mForceIntoAlias = 0; ///< ALFI: also put the reference into this alias when filled (0: none)
         FormId mReferenceType = kNullFormId; ///< ALRT
         FormId mKeyword = kNullFormId; ///< KNAM (task 0226): a location alias's search keyword (LocTypeHold ...)
+        std::vector<FormId> mFactions; ///< ALFC (task 0239): the factions the alias fill is added to
         std::uint32_t mEventData = 0; ///< ALFD (task 0194): the event member that fills a FromEvent alias, two characters like 'R1' 
         std::vector<survey::Ctda> mConditions;
         /// The data alone says who fills it: a specific reference or a unique actor.

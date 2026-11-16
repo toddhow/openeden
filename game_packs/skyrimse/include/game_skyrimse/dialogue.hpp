@@ -34,6 +34,7 @@
 
 #include <game_skyrimse/actors.hpp>
 #include <game_skyrimse/conditions.hpp>
+#include <game_skyrimse/follower_state.hpp>
 #include <game_skyrimse/placed_refs.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/records.hpp>
@@ -320,6 +321,9 @@ namespace game_skyrimse
         /// count of GetItemCount and the bribe check read it (at the moment of the check; a negative or non-finite
         /// answer is 0); without one (the default) they read the stand-in's gold, as before.
         void setGoldSource(std::function<float()> source) { mGoldSource = std::move(source); }
+        /// Task 0239: what the follower scripts changed (factions, globals, WaitingForPlayer, relationship ranks, the
+        /// teammate flag) wins over the data. Not owned; null (the default): the data alone answers.
+        void setFollowerOverlay(const FollowerOverlay* overlay) { mFollowerOverlay = overlay; }
         /// The voice type (VTYP) of the speaker given to `setSpeaker`: the traits record's VTCK (after templates), else
         /// the race's voice type for its sex; kNullFormId when none (task 0143).
         [[nodiscard]] FormId speakerVoiceType() const;
@@ -485,6 +489,7 @@ namespace game_skyrimse
         bool isEquipped(conditions::Subject subject, std::uint32_t object) const override;
         float distanceTo(conditions::Subject subject, std::uint32_t reference) const override;
         float relationshipRank(conditions::Subject subject, std::uint32_t target) const override;
+        bool isPlayerTeammate(conditions::Subject subject) const override; // task 0239
         bool runsPackage(conditions::Subject subject, std::uint32_t package) const override;
         bool offersServicesNow(conditions::Subject subject) const override;
 
@@ -516,6 +521,8 @@ namespace game_skyrimse
         [[nodiscard]] bool distanceKnown(conditions::Subject subject, std::uint32_t reference) const;
         [[nodiscard]] bool relationKnown(conditions::Subject subject, std::uint32_t target) const;
         [[nodiscard]] FormId referenceOf(conditions::Subject subject) const; ///< a placed id, or 0
+        /// Task 0239: the placed reference a follower overlay is keyed by: the speaker's, another actor's, 0 for none.
+        [[nodiscard]] FormId overlayReferenceOf(conditions::Subject subject) const;
         enum class ItemState : std::uint8_t
         {
             Unknown,
@@ -551,6 +558,7 @@ namespace game_skyrimse
         FormId mContextQuest = kNullFormId;
         const PlayerStandIn* mPlayer = nullptr;
         std::function<float()> mGoldSource; // task 0184
+        const FollowerOverlay* mFollowerOverlay = nullptr; // task 0239
         [[nodiscard]] float playerGold() const;
         bool mConversationKnown = false;
         bool mConversationOpen = false;

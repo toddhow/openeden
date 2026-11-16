@@ -747,6 +747,9 @@ namespace game_skyrimse
             {
                 if (key.formId == kPlayerReference || (mIndex != nullptr && mIndex->quest(key.formId) != nullptr))
                     return true;
+                // task 0239: the fragment script a dialogue line left on its INFO (the follower topics' own)
+                if (mData.isTopicInfo(key.formId))
+                    return true;
                 return !mData.formClass(key.formId).empty();
             }
             if (key.kind == AttachKind::Alias)
@@ -1277,6 +1280,8 @@ namespace game_skyrimse
             };
             reg("ReferenceAlias", "GetReference", false, reference);
             reg("ReferenceAlias", "GetActorReference", false, reference);
+            // task 0239: the spelling DialogueFollowerScript uses
+            reg("ReferenceAlias", "GetActorRef", false, reference);
             // Task 0217: a location alias keeps its location in the fill's reference word (decision 5 of task 0211), so
             // LocationAlias.GetLocation reads it the way GetReference does
             reg("LocationAlias", "GetLocation", false, reference);
@@ -1284,7 +1289,13 @@ namespace game_skyrimse
                 FormId quest = 0;
                 std::uint32_t alias = 0;
                 if (aliasOf(formOf(c.self), quest, alias))
-                    mAliasForced[{ quest, alias }] = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                {
+                    const FormId now = c.arguments.empty() ? 0 : formOf(c.arguments[0]);
+                    const auto before = mAliasForced.find({ quest, alias });
+                    const FormId old = before != mAliasForced.end() ? before->second : 0;
+                    mAliasForced[{ quest, alias }] = now;
+                    aliasFactionChange(quest, alias, old, now); // task 0239
+                }
                 return NativeResult{};
             });
             reg("LocationAlias", "ForceLocationTo", false, [this](const NativeCall& c) {
@@ -1320,12 +1331,119 @@ namespace game_skyrimse
                 FormId quest = 0;
                 std::uint32_t alias = 0;
                 if (aliasOf(formOf(c.self), quest, alias))
+                {
+                    const auto before = mAliasForced.find({ quest, alias });
+                    const FormId old = before != mAliasForced.end() ? before->second : 0;
                     mAliasForced.erase({ quest, alias });
+                    aliasFactionChange(quest, alias, old, 0); // task 0239
+                }
                 return NativeResult{};
             });
             registerInventoryNatives();
             registerActorNatives();
             registerCarriageNatives();
+            registerFollowerNatives();
+        }
+
+        // ---- task 0239: what DialogueFollowerScript, HirelingQuest and the follower topics fragments call ----------
+        // The effects live in `FollowerState` (not owned; null: every native here is tolerant). Signatures are the
+        // Creation Kit wiki pages (recalled, RECALLED-VERIFY): Actor.AddToFaction(akFaction),
+        // RemoveFromFaction(akFaction), IsInFaction(akFaction) -> Bool,
+        // SetPlayerTeammate(abTeammate = true, abCanDoFavor = true),
+        // IsPlayerTeammate() -> Bool, SetRelationshipRank(akOther, aiRank), GetRelationshipRank(akOther) -> Int,
+        // SetAV(asValueName, afValue) (the same as SetActorValue), GetActorBase() -> ActorBase. The scripts also call
+        // StopCombatAlarm, EvaluatePackage, RegisterForUpdateGameTime, Message.Show and ActorBase compares: those stay
+        // tolerant (a message is not shown; a waiting follower is not dismissed after 72 game hours).
+        void aliasFactionChange(FormId quest, std::uint32_t alias, FormId oldReference, FormId newReference)
+        {
+            std::vector<FormId> factions;
+            if (mFollowers == nullptr || !mData.aliasFactions(quest, alias, factions))
+                return;
+            if (oldReference != 0 && oldReference != newReference)
+                for (const FormId faction : factions)
+                    (void)mFollowers->removeFromFaction(oldReference, faction);
+            if (newReference != 0)
+                for (const FormId faction : factions)
+                    (void)mFollowers->addToFaction(newReference, faction);
+        }
+
+        void registerFollowerNatives()
+        {
+            const auto factionArgument = [this](const NativeCall& c) {
+                return c.arguments.empty() ? FormId(0) : formOf(c.arguments[0]);
+            };
+            reg("Actor", "AddToFaction", false, [this, factionArgument](const NativeCall& c) {
+                if (mFollowers != nullptr)
+                    (void)mFollowers->addToFaction(formOf(c.self), factionArgument(c));
+                return NativeResult{};
+            });
+            reg("Actor", "RemoveFromFaction", false, [this, factionArgument](const NativeCall& c) {
+                if (mFollowers != nullptr)
+                    (void)mFollowers->removeFromFaction(formOf(c.self), factionArgument(c));
+                return NativeResult{};
+            });
+            reg("Actor", "IsInFaction", false, [this, factionArgument](const NativeCall& c) {
+                bool in = false;
+                if (mFollowers != nullptr)
+                    if (const std::optional<float> rank = mFollowers->factionRank(formOf(c.self), factionArgument(c)))
+                        in = *rank >= 0.f;
+                return result(PapyrusValue::makeBool(in));
+            });
+            // Actor.AddToFaction is a SCRIPT function in the game's Actor.pex (IsInFaction, then SetFactionRank(f,
+            // 0)): this is the native that makes a script's membership real. A rank below 0 is "not a member".
+            reg("Actor", "SetFactionRank", false, [this, factionArgument](const NativeCall& c) {
+                if (mFollowers != nullptr)
+                {
+                    const std::int32_t rank = argInt(c, 1);
+                    if (rank < 0)
+                        (void)mFollowers->removeFromFaction(formOf(c.self), factionArgument(c));
+                    else
+                        (void)mFollowers->addToFaction(formOf(c.self), factionArgument(c), rank);
+                }
+                return NativeResult{};
+            });
+            reg("Actor", "GetFactionRank", false, [this, factionArgument](const NativeCall& c) {
+                std::int32_t rank = -2; // not a member
+                if (mFollowers != nullptr)
+                    if (const std::optional<float> set = mFollowers->factionRank(formOf(c.self), factionArgument(c)))
+                        rank = *set >= 0.f ? static_cast<std::int32_t>(*set) : -2;
+                return result(PapyrusValue::makeInt(rank));
+            });
+            reg("Actor", "SetPlayerTeammate", false, [this](const NativeCall& c) {
+                const bool on = c.arguments.empty() || argNumber(c, 0) != 0.0;
+                if (mFollowers != nullptr)
+                    (void)mFollowers->setTeammate(formOf(c.self), on);
+                return NativeResult{};
+            });
+            reg("Actor", "IsPlayerTeammate", false, [this](const NativeCall& c) {
+                return result(
+                    PapyrusValue::makeBool(mFollowers != nullptr && mFollowers->isPlayerTeammate(formOf(c.self))));
+            });
+            reg("Actor", "SetRelationshipRank", false, [this](const NativeCall& c) {
+                if (mFollowers != nullptr && !c.arguments.empty())
+                    (void)mFollowers->setRelationshipRank(formOf(c.self), formOf(c.arguments[0]), argInt(c, 1));
+                return NativeResult{};
+            });
+            reg("Actor", "GetRelationshipRank", false, [this](const NativeCall& c) {
+                float rank = 0.f; // no record and nothing set: acquaintances
+                if (mFollowers != nullptr && !c.arguments.empty())
+                    if (const std::optional<float> set
+                        = mFollowers->relationshipRank(formOf(c.self), formOf(c.arguments[0])))
+                        rank = *set;
+                return result(PapyrusValue::makeInt(static_cast<std::int32_t>(rank)));
+            });
+            reg("Actor", "SetAV", false, [this](const NativeCall& c) {
+                const std::string key = !c.arguments.empty() && c.arguments[0].kind == PapyrusKind::String
+                    ? avKey(c.arguments[0].text)
+                    : std::string();
+                double now = 0.0, max = 0.0;
+                const FormId actor = formOf(c.self);
+                (void)avNow(actor, key, now, max);
+                avMove(actor, key, argNumber(c, 1) - now);
+                return NativeResult{};
+            });
+            reg("Actor", "GetActorBase", false,
+                [this](const NativeCall& c) { return result(formValue(mData.baseOf(formOf(c.self)))); });
         }
 
         // ---- task 0223: what the carriage scripts (CarriageSystemScript, CarriageDriverScript) call ------------------
@@ -1350,6 +1468,9 @@ namespace game_skyrimse
                 float value = 0.f;
                 if (set != mGlobalValues.end())
                     value = set->second;
+                else if (const std::optional<float> kept
+                    = mFollowers != nullptr ? mFollowers->globalValue(global) : std::optional<float>())
+                    value = *kept; // task 0239: kept in the follower state, which a save restores
                 else
                     (void)mData.globalValue(global, value);
                 return result(PapyrusValue::makeFloat(value));
@@ -1358,6 +1479,8 @@ namespace game_skyrimse
                 const FormId global = formOf(c.self);
                 if (global != 0 && (mGlobalValues.size() < kMaxAvOffsets || mGlobalValues.count(global) != 0))
                     mGlobalValues[global] = static_cast<float>(argNumber(c, 0));
+                if (mFollowers != nullptr)
+                    (void)mFollowers->setGlobal(global, static_cast<float>(argNumber(c, 0))); // task 0239
                 return NativeResult{};
             });
             const auto nothing = [](const NativeCall&) { return NativeResult{}; };
@@ -1370,7 +1493,6 @@ namespace game_skyrimse
                 reg("Actor", name, false, nothing);
             reg("ObjectReference", "Say", false, nothing); // the declaring class of Say in the game's scripts
             reg("Actor", "PlayIdle", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
-            reg("Actor", "IsInFaction", false, [](const NativeCall&) { return result(PapyrusValue::makeBool(false)); });
             reg("ObjectReference", "IsFurnitureInUse", false,
                 [](const NativeCall&) { return result(PapyrusValue::makeBool(true)); });
         }
@@ -1654,6 +1776,7 @@ namespace game_skyrimse
         // ---- task 0198
         PapyrusWorldHooks* mHooks = nullptr;
         LocationKeywordData* mKeywordData = nullptr; ///< task 0217
+        FollowerState* mFollowers = nullptr; ///< task 0239
         PapyrusHost::FastTravelSink mFastTravel; ///< task 0223
         bool mTraceNatives = std::getenv("OPENEDEN_PAPYRUS_NATIVE_TRACE") != nullptr; ///< a developer aid: one line a native
         std::uint64_t mTraceCount = 0;
@@ -2433,6 +2556,20 @@ namespace game_skyrimse
     void PapyrusHost::setWorldHooks(PapyrusWorldHooks* hooks)
     {
         mImpl->mHooks = hooks;
+    }
+
+    void PapyrusHost::setFollowerState(FollowerState* state)
+    {
+        mImpl->mFollowers = state;
+        if (state == nullptr)
+            return;
+        Impl* impl = mImpl.get();
+        state->setActorValueSource([impl](FormId reference, std::string_view key) -> std::optional<float> {
+            const auto found = impl->mAvOffsets.find({ reference, std::string(key) });
+            if (found == impl->mAvOffsets.end())
+                return std::nullopt;
+            return static_cast<float>(found->second);
+        });
     }
 
     void PapyrusHost::setLocationKeywordData(LocationKeywordData* data)

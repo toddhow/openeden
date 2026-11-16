@@ -476,6 +476,41 @@ namespace ScriptPapyrus::Vm
         return classDerives(start, targetId);
     }
 
+    Val Runtime::siblingScript(const Val& source, std::uint32_t targetId) const
+    {
+        openeden::script::AttachKind kind = openeden::script::AttachKind::Form;
+        openeden::script::FormId form = 0;
+        std::uint32_t alias = 0;
+        const Instance* self = instanceOf(source);
+        if (self != nullptr)
+        {
+            kind = self->key.kind;
+            form = self->key.formId;
+            alias = self->key.aliasIndex;
+        }
+        else if (source.kind == Kind::Form && source.a != 0)
+        {
+            form = static_cast<openeden::script::FormId>(source.a);
+        }
+        else
+        {
+            return Val{};
+        }
+        for (std::size_t i = 0; i < mInstances.size(); ++i)
+        {
+            const Instance& other = mInstances[i];
+            if (&other == self || other.key.kind != kind || other.key.formId != form || other.key.aliasIndex != alias)
+            {
+                continue;
+            }
+            if (classDerives(other.script, targetId))
+            {
+                return Val::makeInstance(static_cast<std::uint32_t>(i + 1));
+            }
+        }
+        return Val{};
+    }
+
     bool Runtime::castTo(const Val& source, const TypeRef& target, Val& out)
     {
         switch (target.kind)
@@ -522,6 +557,10 @@ namespace ScriptPapyrus::Vm
                 if ((source.kind == Kind::Instance || source.kind == Kind::Form) && valueIsClass(source, target.name))
                 {
                     out = source;
+                }
+                else if (source.kind == Kind::Instance || source.kind == Kind::Form)
+                {
+                    out = siblingScript(source, target.name);
                 }
                 return true;
             case TypeKind::Array:

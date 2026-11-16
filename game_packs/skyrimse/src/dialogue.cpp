@@ -834,8 +834,24 @@ namespace game_skyrimse
         return mStatsOk;
     }
 
+    FormId SkyrimConditionWorld::overlayReferenceOf(conditions::Subject subject) const
+    {
+        if (subject == kPlayer)
+            return kNullFormId;
+        if (isSpeaker(subject))
+            return mSpeaker.mReference;
+        return referenceOf(subject);
+    }
+
     float SkyrimConditionWorld::actorValue(conditions::Subject subject, std::uint32_t actorValueIndex) const
     {
+        if (mFollowerOverlay != nullptr && subject != kPlayer)
+        {
+            const FormId reference = overlayReferenceOf(subject);
+            if (reference != kNullFormId)
+                if (const std::optional<float> value = mFollowerOverlay->actorValue(reference, actorValueIndex))
+                    return *value; // task 0239: WaitingForPlayer, set by "Wait here" and "Follow me"
+        }
         if (mPlayer == nullptr)
             return 0.f;
         if (subject == kPlayer)
@@ -1316,16 +1332,33 @@ namespace game_skyrimse
     bool SkyrimConditionWorld::inFaction(conditions::Subject subject, std::uint32_t faction) const
     {
         const FormId id = resolve(faction);
+        if (mFollowerOverlay != nullptr && id != kNullFormId)
+        {
+            const FormId reference = overlayReferenceOf(subject);
+            if (reference != kNullFormId)
+                if (const std::optional<float> rank = mFollowerOverlay->factionRank(reference, id))
+                    return *rank >= 0.f; // task 0239: added or removed by a script
+        }
         const ActorIndex::Resolved* r = resolvedOf(subject);
         if (r == nullptr || id == kNullFormId)
             return false;
-        return std::any_of(
-            r->mFactions.begin(), r->mFactions.end(), [&](const FactionMembership& f) { return f.mFaction == id; });
+        // Task 0239: a rank of -1 (255 in the stored byte) is a placeholder, not a membership: the hirelings are
+        // listed in CurrentFollowerFaction and CurrentHireling that way until they are hired (GetInFaction needs
+        // rank 0 or more)
+        return std::any_of(r->mFactions.begin(), r->mFactions.end(),
+            [&](const FactionMembership& f) { return f.mFaction == id && f.mRank >= 0; });
     }
 
     float SkyrimConditionWorld::factionRank(conditions::Subject subject, std::uint32_t faction) const
     {
         const FormId id = resolve(faction);
+        if (mFollowerOverlay != nullptr && id != kNullFormId)
+        {
+            const FormId reference = overlayReferenceOf(subject);
+            if (reference != kNullFormId)
+                if (const std::optional<float> rank = mFollowerOverlay->factionRank(reference, id))
+                    return *rank;
+        }
         const ActorIndex::Resolved* r = resolvedOf(subject);
         if (r == nullptr || id == kNullFormId)
             return -1.f;
@@ -1337,6 +1370,9 @@ namespace game_skyrimse
 
     float SkyrimConditionWorld::globalValue(std::uint32_t global) const
     {
+        if (mFollowerOverlay != nullptr)
+            if (const std::optional<float> value = mFollowerOverlay->globalValue(resolve(global)))
+                return *value; // task 0239: a global a script set (PlayerFollowerCount ...)
         const GlobalValue* g = mDialogue.global(resolve(global));
         return g != nullptr ? g->mValue : 0.f;
     }
@@ -1747,8 +1783,25 @@ namespace game_skyrimse
         return aActor && b != kNullFormId;
     }
 
+    bool SkyrimConditionWorld::isPlayerTeammate(conditions::Subject subject) const
+    {
+        if (mFollowerOverlay == nullptr)
+            return false;
+        const FormId reference = overlayReferenceOf(subject);
+        return reference != kNullFormId && mFollowerOverlay->isPlayerTeammate(reference);
+    }
+
     float SkyrimConditionWorld::relationshipRank(conditions::Subject subject, std::uint32_t target) const
     {
+        if (mFollowerOverlay != nullptr)
+        {
+            // a target of 0 is the player (the follow lines are written that way); a rank a script set wins
+            const FormId reference = overlayReferenceOf(subject);
+            const FormId other = target == 0 ? kPlayerReference : resolve(target);
+            if (reference != kNullFormId && other != kNullFormId)
+                if (const std::optional<float> rank = mFollowerOverlay->relationshipRank(reference, other))
+                    return *rank;
+        }
         ActorView view;
         if (!relationKnown(subject, target))
             return 0.f;

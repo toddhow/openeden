@@ -61,6 +61,7 @@ openeden_add_game_pack(skyrimse
         src/neutral_world.cpp
         src/actor_table.cpp
         src/follower.cpp
+        src/follower_state.cpp
         src/combat.cpp
         src/combat_crowd.cpp
         src/combat_gear.cpp
@@ -166,6 +167,7 @@ openeden_add_game_pack(skyrimse
         include/game_skyrimse/neutral_world.hpp
         include/game_skyrimse/actor_table.hpp
         include/game_skyrimse/follower.hpp
+        include/game_skyrimse/follower_state.hpp
         include/game_skyrimse/combat.hpp
         include/game_skyrimse/combat_crowd.hpp
         include/game_skyrimse/combat_gear.hpp
@@ -264,6 +266,7 @@ add_library(game_skyrimse_world STATIC
     src/neutral_world.cpp
     src/actor_table.cpp
     src/follower.cpp
+    src/follower_state.cpp
     src/combat.cpp
     src/combat_crowd.cpp
     src/combat_gear.cpp

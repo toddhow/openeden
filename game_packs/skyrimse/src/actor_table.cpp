@@ -210,6 +210,16 @@ namespace game_skyrimse
         return mBrain->setFollowPlayer(reference, true);
     }
 
+    bool SkyrimActorTable::setFollowerWaiting(openeden::sdk::game::WorldId reference, bool waiting)
+    {
+        return mBrain && mBrain->setFollowerWaiting(reference, waiting);
+    }
+
+    bool SkyrimActorTable::followerWaiting(openeden::sdk::game::WorldId reference) const
+    {
+        return mBrain && mBrain->followerWaiting(reference);
+    }
+
     bool SkyrimActorTable::dismiss(openeden::sdk::game::WorldId reference)
     {
         return mBrain && mBrain->setFollowPlayer(reference, false);
@@ -271,6 +281,8 @@ namespace game_skyrimse
         std::size_t n = 0;
         for (const auto id : mBrain->followerRefs())
         {
+            if (mBrain->followerWaiting(id))
+                continue; // task 0239: a follower told to wait stays where it is when the player goes through a door
             if (out != nullptr && n < capacity)
                 out[n] = id;
             ++n;

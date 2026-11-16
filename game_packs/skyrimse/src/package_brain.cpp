@@ -614,6 +614,8 @@ namespace game_skyrimse
         if (reference == sdkgame::kNoWorldId)
             return false;
         const bool changed = follow ? mFollowRefs.insert(reference).second : mFollowRefs.erase(reference) != 0;
+        if (!follow)
+            mWaitRefs.erase(reference); // task 0239: a dismissed follower no longer waits
         if (!changed)
             return false;
         if (follow)
@@ -624,6 +626,16 @@ namespace game_skyrimse
         if (it != mActors.end())
             it->second.mFollowPlayer = follow; // the actor's own state changes at the next update(), where a writer exists
         return true;
+    }
+
+    bool PackageBrain::setFollowerWaiting(sdkgame::WorldId reference, bool waiting)
+    {
+        if (reference == sdkgame::kNoWorldId)
+            return false;
+        const bool changed = waiting ? mWaitRefs.insert(reference).second : mWaitRefs.erase(reference) != 0;
+        if (changed && waiting)
+            ++mStats.mFollowerWaits;
+        return changed;
     }
 
     void PackageBrain::enterFollowPlayer(Actor& actor, sdkgame::ActorRequestWriter& writer)
@@ -668,6 +680,18 @@ namespace game_skyrimse
 
     void PackageBrain::runFollowPlayer(Actor& actor, float seconds, sdkgame::ActorRequestWriter& writer)
     {
+        if (mWaitRefs.count(actor.mHandle.reference) != 0) // task 0239: "Wait here"
+        {
+            if (actor.mGoalOut)
+            {
+                if (!writer.cancelGoal(actor.mHandle))
+                    ++mStats.mWritesRefused;
+                actor.mGoalOut = false;
+            }
+            actor.mToFollow = false;
+            actor.mFollowPlayerTimer = 0.f; // the first look after "Follow me" is at once
+            return;
+        }
         actor.mFollowPlayerTimer -= seconds;
         if (actor.mFollowPlayerTimer > 0.f)
             return;

@@ -21,6 +21,7 @@
 // script uses `AttachKind::Alias`, the quest, the alias id in `aliasIndex` and the ordinal in `effectKey`. The saves
 // work must write the same keys.
 
+#include <game_skyrimse/follower_state.hpp>
 #include <game_skyrimse/quest.hpp>
 #include <game_skyrimse/quest_alias.hpp>
 #include <game_skyrimse/records.hpp>
@@ -72,6 +73,15 @@ namespace game_skyrimse
         [[nodiscard]] virtual bool globalValue(FormId global, float& value) const
         {
             (void)global, (void)value;
+            return false;
+        }
+
+        /// Task 0239: the factions a quest alias adds its fill to (ALFC): the game's DialogueFollower alias 0 puts a
+        /// follower in CurrentFollowerFaction and PlayerFollowerFaction. False when the alias names none.
+        [[nodiscard]] virtual bool aliasFactions(FormId quest, std::uint32_t alias, std::vector<FormId>& out) const
+        {
+            (void)quest, (void)alias;
+            out.clear();
             return false;
         }
 
@@ -434,6 +444,9 @@ namespace game_skyrimse
         // are
         /// tolerant (nothing stored, 0 read).
         void setLocationKeywordData(LocationKeywordData* data);
+        /// Task 0239: where the follower scripts' effects are kept (factions, relationship ranks, the teammate flag,
+        /// globals) and the WaitingForPlayer actor value is read from. Not owned; null: those natives are tolerant.
+        void setFollowerState(FollowerState* state);
         /// Task 0223: Game.FastTravel(destination reference). The sink queues the travel (the pack's travel service; a
         /// global script does the teleport) and says whether it took it. Not set: the native does nothing but count.
         using FastTravelSink = std::function<bool(FormId destination)>;

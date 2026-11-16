@@ -1165,6 +1165,7 @@ namespace game_skyrimse
             raw->mRuntime->setCurrentPackageLookup(mCurrentPackageLookup);
         if (mVendorServicesLookup)
             raw->mRuntime->setVendorServicesLookup(mVendorServicesLookup); // task 0189
+        raw->mRuntime->setFollowerOverlay(mFollowerOverlay); // task 0239
         raw->mRuntime->setOpenServices(mOpenServices); // task 0219
         // Task 0187: aliases and the story manager
         if (mInfoFragmentSink)
@@ -1755,6 +1756,13 @@ namespace game_skyrimse
         mVendorServicesLookup = std::move(lookup);
         if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
             mDialogue->mRuntime->setVendorServicesLookup(mVendorServicesLookup);
+    }
+
+    void SkyrimWorldView::setFollowerOverlay(const FollowerOverlay* overlay)
+    {
+        mFollowerOverlay = overlay;
+        if (mDialogue != nullptr && mDialogue->mRuntime != nullptr)
+            mDialogue->mRuntime->setFollowerOverlay(overlay);
     }
 
     void SkyrimWorldView::setOpenServices(bool on)

@@ -233,6 +233,7 @@ namespace game_skyrimse
             std::uint64_t mFollowerRecruits = 0; ///< setFollowPlayer(true) calls that changed something
             std::uint64_t mFollowerDismissals = 0; ///< setFollowPlayer(false) calls that changed something
             std::uint64_t mFollowerNoPlayer = 0; ///< a repath skipped because the core gave no player position
+            std::uint64_t mFollowerWaits = 0; ///< setFollowerWaiting(true) calls that changed something
         };
 
         enum class Phase : std::uint8_t
@@ -302,6 +303,14 @@ namespace game_skyrimse
             return mFollowRefs.count(reference) != 0;
         }
         [[nodiscard]] const std::set<openeden::sdk::game::WorldId>& followerRefs() const { return mFollowRefs; }
+        /// Task 0239 ("Wait here"): a follower that waits stays where it stands (its goal is cancelled and no new one
+        /// is issued) until it is told to follow again. Only meaningful for a follower of the player. True when the
+        /// state changed. Remembered for a placement the brain does not know yet.
+        bool setFollowerWaiting(openeden::sdk::game::WorldId reference, bool waiting);
+        [[nodiscard]] bool followerWaiting(openeden::sdk::game::WorldId reference) const
+        {
+            return mWaitRefs.count(reference) != 0;
+        }
         /// Task 0194 (scenes): the package an actor follows instead of the ones its schedule gives; null gives the
         /// schedule back. Takes effect at the next update. False for an actor the brain does not know.
         bool forcePackage(openeden::sdk::game::WorldId reference, const PackageRecord* package);
@@ -413,6 +422,7 @@ namespace game_skyrimse
         std::map<openeden::sdk::game::WorldId, Actor> mActors;
         FurnitureSource* mFurniture = nullptr;
         std::set<openeden::sdk::game::WorldId> mFollowRefs; ///< placements that follow the player (task 0196)
+        std::set<openeden::sdk::game::WorldId> mWaitRefs; ///< followers told to wait here (task 0239)
         std::map<std::uint64_t, openeden::sdk::game::WorldId> mReserved; ///< slot key to the actor holding it
         std::vector<FurnitureSlot> mScratch;
         Stats mStats;

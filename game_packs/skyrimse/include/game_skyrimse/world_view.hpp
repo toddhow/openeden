@@ -519,6 +519,8 @@ namespace game_skyrimse
         /// A merchant's GetOffersServicesNow is true whatever its package (see SkyrimConditionWorld); set before the
         /// first conversation or any time after.
         void setVendorServicesLookup(std::function<bool(FormId speakerBase)> lookup);
+        /// Task 0239: what the follower scripts changed, read by the dialogue conditions. Not owned.
+        void setFollowerOverlay(const FollowerOverlay* overlay);
         // ---- task 0219 (training, rooms)
         /// Training and renting are named "open:<name>" in the conversation (set before the first conversation or
         /// any time after).
@@ -829,6 +831,7 @@ namespace game_skyrimse
         std::unique_ptr<DialogueState> mDialogue;
         std::function<std::optional<FormId>(FormId)> mCurrentPackageLookup;
         std::function<bool(FormId)> mVendorServicesLookup; ///< task 0189
+        const FollowerOverlay* mFollowerOverlay = nullptr; ///< task 0239
         bool mOpenServices = false; ///< task 0219
         std::function<QuestAliasFiller::PlayerSite()> mPlayerSite; ///< task 0211
         LocationKeywordData mKeywordData; ///< task 0217

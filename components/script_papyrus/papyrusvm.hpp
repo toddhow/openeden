@@ -440,6 +440,10 @@ namespace ScriptPapyrus::Vm
             std::uint32_t startScript, std::uint32_t nameId, std::uint32_t& scriptIndex, const PropInfo*& info) const;
         bool classDerives(std::uint32_t startScript, std::uint32_t targetId) const;
         bool valueIsClass(const Val& value, std::uint32_t targetId);
+        /// Task 0239: a form with several scripts attached (a quest with DialogueFollowerScript and
+        /// HirelingCommentScript) is one object to a script: the instance on the same form (and alias) of the script
+        /// `targetId`, or none.
+        Val siblingScript(const Val& source, std::uint32_t targetId) const;
         std::uint32_t classOfForm(const Val& value);
         Val readOp(const Stack& stack, const Frame& frame, const COp& op);
         void writeOp(Stack& stack, const Frame& frame, const COp& op, const Val& value);

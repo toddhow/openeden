@@ -725,6 +725,7 @@ list(APPEND UNITTEST_SRC_FILES
     skyrimse/testskyrimseanimmotion.cpp
     skyrimse/testskyrimsenpcactivities.cpp
     skyrimse/testskyrimsefollowers.cpp
+    skyrimse/testskyrimsefollowercommands.cpp
     skyrimse/testskyrimseanimmotionreal.cpp
     skyrimse/testskyrimsefurniture.cpp
     skyrimse/testskyrimsepackagesreal.cpp
@@ -834,6 +835,7 @@ list(APPEND UNITTEST_SRC_FILES
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/neutral_world.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/actor_table.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower.cpp
+    ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/follower_state.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/combat.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud.cpp
     ${CMAKE_SOURCE_DIR}/game_packs/skyrimse/src/hud_style.cpp

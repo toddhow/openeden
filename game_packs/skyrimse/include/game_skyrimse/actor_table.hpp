@@ -156,6 +156,9 @@ namespace game_skyrimse
         /// Recruit or dismiss the actor of this placement (the real path: the DialogueFollower alias, or a test).
         bool recruit(openeden::sdk::game::WorldId reference);
         bool dismiss(openeden::sdk::game::WorldId reference);
+        /// Task 0239: "Wait here" and "Follow me". False when there is no brain or nothing changed.
+        bool setFollowerWaiting(openeden::sdk::game::WorldId reference, bool waiting);
+        [[nodiscard]] bool followerWaiting(openeden::sdk::game::WorldId reference) const;
         /// Replaces the set of followers (a loaded save). False (nothing changed) when there is no brain.
         bool restoreFollowers(const std::vector<FollowerEntry>& entries);
         [[nodiscard]] std::vector<openeden::sdk::game::WorldId> followerIds() const;

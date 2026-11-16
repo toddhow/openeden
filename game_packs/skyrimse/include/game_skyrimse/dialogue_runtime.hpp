@@ -159,6 +159,8 @@ namespace game_skyrimse
         {
             mWorld.setCurrentPackageLookup(std::move(lookup));
         }
+        /// Task 0239: what the follower scripts changed wins over the data in the conversation's conditions.
+        void setFollowerOverlay(const FollowerOverlay* overlay) { mWorld.setFollowerOverlay(overlay); }
         void setVendorServicesLookup(SkyrimConditionWorld::VendorServicesLookup lookup) // task 0189
         {
             mWorld.setVendorServicesLookup(std::move(lookup));

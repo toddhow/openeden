@@ -177,6 +177,18 @@ namespace game_skyrimse
                 return mView.formFromFile(lowerFile, local);
             }
             bool globalValue(FormId global, float& value) const override { return mView.globalValue(global, value); }
+            // Task 0239: the factions an alias fill is added to (ALFC)
+            bool aliasFactions(FormId quest, std::uint32_t alias, std::vector<FormId>& out) const override
+            {
+                out.clear();
+                const QuestRecord* record = mQuests != nullptr ? mQuests->quest(quest) : nullptr;
+                if (record == nullptr)
+                    return false;
+                for (const QuestAlias& a : record->mAliases)
+                    if (a.mId == alias)
+                        out = a.mFactions;
+                return !out.empty();
+            }
             bool isTopicInfo(FormId form) const override { return mView.isScriptedInfo(form); }
             bool isScene(FormId form) const override { return mView.isScene(form); }
             FormId questOfInfo(FormId info) const override { return mView.questOfInfo(info); }
@@ -1222,14 +1234,29 @@ namespace game_skyrimse
                 if (mPapyrus == nullptr)
                     return;
                 const std::uint32_t now = mPapyrus->host().forcedAlias(kFollowerQuestId, kFollowerAliasId);
+                // Task 0239: "Wait here" and "Follow me" set the WaitingForPlayer actor value; the brain follows it
+                for (const openeden::sdk::game::WorldId id : mCellSource.actorTable().followerIds())
+                    (void)mCellSource.actorTable().setFollowerWaiting(id, mFollowerState.waiting(id));
                 const FollowerAliasChange change = followerAliasChange(mFollowerAliasSeen, now);
                 if (change.mDismiss == 0 && change.mRecruit == 0)
                     return;
                 mFollowerAliasSeen = now;
                 if (change.mDismiss != 0)
-                    (void)mCellSource.actorTable().dismiss(change.mDismiss);
+                {
+                    const bool done = mCellSource.actorTable().dismiss(change.mDismiss);
+                    if (mFollowerLogger != nullptr)
+                        mFollowerLogger->log(openeden::sdk::LogLevel::Info,
+                            "follower dismissed: placement " + std::to_string(change.mDismiss)
+                                + (done ? "" : " (no change)"));
+                }
                 if (change.mRecruit != 0)
-                    (void)mCellSource.actorTable().recruit(change.mRecruit);
+                {
+                    const bool done = mCellSource.actorTable().recruit(change.mRecruit);
+                    if (mFollowerLogger != nullptr)
+                        mFollowerLogger->log(openeden::sdk::LogLevel::Info,
+                            "follower recruited: placement " + std::to_string(change.mRecruit)
+                                + (done ? "" : " (no change)"));
+                }
             }
 
             bool resolve(const openeden::sdk::ServiceLocator&) override { return true; }
@@ -1258,6 +1285,7 @@ namespace game_skyrimse
                 // reaches no pack yet). A host that does not read sources gets the old behaviour below.
                 openeden::sdk::LoggingService* const logging = host.getLoggingService();
                 openeden::sdk::Logger* const logger = logging != nullptr ? logging->getLogger(kPackId) : nullptr;
+                mFollowerLogger = logger;
                 openeden::sdk::game::WorldSourceService* const sources = host.getWorldSourceService();
                 if (sources != nullptr && sources->consumerEnabled())
                 {
@@ -1279,6 +1307,7 @@ namespace game_skyrimse
                             mCellSource.combat().setGlobalSource([driver](FormId global, float& value) {
                                 return driver->host().globalSetByScript(global, value);
                             });
+                            mPapyrus->host().setFollowerState(&mFollowerState); // task 0239
                             mCellSource.setEnableOverrideLookup(
                                 [driver](openeden::sdk::game::WorldId reference) -> std::optional<bool> {
                                     return driver->host().enableOverride(static_cast<FormId>(reference));
@@ -3821,10 +3850,17 @@ namespace game_skyrimse
                             [this](const std::vector<FollowerEntry>& entries) {
                                 return mCellSource.actorTable().restoreFollowers(entries);
                             });
+                        // Task 0239: what the follower scripts changed (factions, globals, ranks), read by the dialogue
+                        mFollowerStateChunk = std::make_unique<FollowerStateChunk>(
+                            [this] { return mFollowerState.data(); },
+                            [this](const FollowerStateData& data) { return mFollowerState.restore(data); });
+                        mWorldView.setFollowerOverlay(&mFollowerState);
                         if (openeden::sdk::SaveChunkService* const chunks = host.getSaveChunkService())
                         {
                             if (!chunks->registerHandler(*mFollowerChunk))
                                 say(openeden::sdk::LogLevel::Warning, "the followers chunk was not registered");
+                            if (!chunks->registerHandler(*mFollowerStateChunk))
+                                say(openeden::sdk::LogLevel::Warning, "the follower state chunk was not registered");
                         }
                         // Task 0160: GetIsCurrentPackage and GetOffersServicesNow in a conversation ask the brain
                         mWorldView.setCurrentPackageLookup([this](FormId reference) -> std::optional<FormId> {
@@ -3975,7 +4011,10 @@ namespace game_skyrimse
             std::unique_ptr<menus::MenusService> mMenus; // task 0207; refers to the world view
             std::unique_ptr<presentation::PresentationService> mPresentation; // task 0215; the handlers it declared
             std::unique_ptr<FollowerChunk> mFollowerChunk; // task 0196; refers to the cell source
+            FollowerState mFollowerState; // task 0239: what the follower scripts changed
+            std::unique_ptr<FollowerStateChunk> mFollowerStateChunk; // task 0239; refers to mFollowerState
             std::uint32_t mFollowerAliasSeen = 0; // task 0196: the last fill of the DialogueFollower alias
+            openeden::sdk::Logger* mFollowerLogger = nullptr; // task 0239: where the recruit and dismiss lines go
             std::uint32_t mEquipSynced = 0xFFFFFFFFu; // task 0184
             std::uint32_t mBodySynced = 0xFFFFFFFFu; // task 0222
             std::unique_ptr<character::CharacterService> mCharacter; // task 0225; refers to the world view
